@@ -5,8 +5,6 @@
 
 import { SOFT_HYPHEN, GERMAN_CHARS } from './constants.js';
 
-import type { CleaningOptions } from './types.js';
-
 /**
  * Remove markdown image syntax from text
  * Removes: ![alt](url), reference-style images, HTML <img> tags

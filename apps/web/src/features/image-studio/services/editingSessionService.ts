@@ -200,7 +200,7 @@ export async function loadEditSessionData(
       return null;
     }
 
-    const sessionData: EditSessionData = JSON.parse(sessionDataStr);
+    const sessionData = JSON.parse(sessionDataStr) as EditSessionData;
     const { data, source } = sessionData;
 
     if (!data) {
@@ -235,7 +235,9 @@ export async function loadEditSessionData(
 
     if (data.imageSessionId && data.hasImage) {
       try {
-        const response = await apiClient.get(`/sharepic/edit-session/${data.imageSessionId}`);
+        const response = await apiClient.get<{ imageData?: string; hasOriginalImage?: boolean }>(
+          `/sharepic/edit-session/${data.imageSessionId}`
+        );
         const imageData = response.data;
         if (imageData.imageData) {
           const fetchRes = await fetch(imageData.imageData);

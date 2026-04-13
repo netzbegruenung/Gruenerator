@@ -88,14 +88,14 @@ export async function listFiles(
     data: PROPFIND_BODY,
   });
 
-  const files = parseMultiStatus(response.data);
+  const files = parseMultiStatus(response.data as string);
   return files.slice(1);
 }
 
 export async function downloadFile(credentials: WebDAVCredentials, path: string): Promise<Buffer> {
   const client = createClient(credentials);
   const response = await client.get(path, { responseType: 'arraybuffer' });
-  return Buffer.from(response.data);
+  return Buffer.from(response.data as ArrayBuffer);
 }
 
 export async function getFileInfo(
@@ -113,7 +113,7 @@ export async function getFileInfo(
     data: PROPFIND_BODY,
   });
 
-  const files = parseMultiStatus(response.data);
+  const files = parseMultiStatus(response.data as string);
   return files[0] ?? null;
 }
 

@@ -44,8 +44,8 @@ function firePush(
       action_url: actionUrl,
       ...(notificationId ? { notification_id: notificationId } : {}),
     },
-  }).catch((err) => {
-    log.warn('Failed to send push notification', { userId, error: err.message });
+  }).catch((err: unknown) => {
+    log.warn('Failed to send push notification', { userId, error: err instanceof Error ? err.message : String(err) });
   });
 }
 

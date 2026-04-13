@@ -3,7 +3,7 @@
  * Basic and quality-aware vector similarity search
  */
 
-import { type QdrantClient } from '@qdrant/js-client-rest';
+import { type QdrantClient, type Schemas } from '@qdrant/js-client-rest';
 
 import { vectorConfig } from '../../../../config/vectorConfig.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -57,13 +57,14 @@ export async function vectorSearch(
       }
     }
 
-    const searchOptions = {
+    const hasFilter = Object.keys(sanitizedFilter).length > 0;
+    const searchOptions: Parameters<QdrantClient['search']>[1] = {
       vector: queryVector,
-      filter: Object.keys(sanitizedFilter).length > 0 ? sanitizedFilter : undefined,
       limit: limit,
-      score_threshold: threshold,
       with_payload: withPayload,
       with_vector: withVector,
+      ...(hasFilter && { filter: sanitizedFilter as Schemas['Filter'] }),
+      ...(threshold != null && { score_threshold: threshold }),
       ...(ef && ef > 0 && { params: { ef } }),
     };
 
@@ -72,7 +73,7 @@ export async function vectorSearch(
     );
     logger.info(`DEBUG - filter: ${JSON.stringify(sanitizedFilter)}`);
 
-    const results = await client.search(collection, searchOptions as any);
+    const results = await client.search(collection, searchOptions);
 
     // If no results, try without threshold to see if it's a threshold issue
     if (results.length === 0) {
@@ -80,7 +81,7 @@ export async function vectorSearch(
         ...searchOptions,
         score_threshold: 0.0,
         limit: 3,
-      } as any);
+      });
       if (noThresholdResults.length > 0) {
         logger.warn(
           `DEBUG - Found ${noThresholdResults.length} results WITHOUT threshold! Top scores: ${noThresholdResults.map((r) => r.score.toFixed(4)).join(', ')}`

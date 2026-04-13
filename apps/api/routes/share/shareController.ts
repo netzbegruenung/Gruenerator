@@ -17,6 +17,7 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import { transferService } from '../../services/transferService.js';
 import { type SharedMediaRow, type ShareResult } from '../../types/media.js';
 import { createLogger } from '../../utils/logger.js';
+import { parseJSON } from '../../utils/parseJSON.js';
 import { redisClient } from '../../utils/redis/index.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
@@ -150,32 +151,6 @@ interface UpdateImageShareParams {
   originalImage?: string | null;
 }
 
-interface ImageShareRequest extends AuthenticatedRequest {
-  body: {
-    imageData: string;
-    title?: string;
-    imageType?: string;
-    metadata?: Record<string, unknown>;
-    originalImage?: string;
-    status?: 'ready' | 'draft';
-  };
-}
-
-interface VideoShareRequest extends AuthenticatedRequest {
-  body: {
-    exportToken: string;
-    title?: string;
-    projectId?: string;
-  };
-}
-
-interface VideoFromProjectRequest extends AuthenticatedRequest {
-  body: {
-    projectId: string;
-    title?: string;
-  };
-}
-
 interface ShareTokenParams {
   shareToken: string;
   [key: string]: string;
@@ -185,17 +160,6 @@ interface ShareTokenParams {
 interface RequestWithShare extends Request<ShareTokenParams> {
   _share?: SharedMediaRow;
 }
-
-type UpdateImageRequest = Request<
-  ShareTokenParams,
-  unknown,
-  {
-    imageBase64: string;
-    title?: string;
-    metadata?: Record<string, unknown>;
-    originalImage?: string;
-  }
-> & { user?: AuthenticatedRequest['user'] };
 
 interface ShareResponse {
   success: boolean;
@@ -240,8 +204,8 @@ interface ShareInfoResponse {
     duration?: number | null;
     imageType?: string | null;
     dimensions?: {
-      width?: number;
-      height?: number;
+      width?: number | undefined;
+      height?: number | undefined;
     };
   };
   error?: string;
@@ -303,8 +267,16 @@ async function triggerBackgroundRender(
 
     log.info(`Background render starting for share ${shareToken}`);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await processProjectExport(project as any, projService);
+    const result = await processProjectExport(
+      project as {
+        id: string;
+        video_path: string;
+        subtitles: string;
+        style_preference?: string;
+        height_preference?: string;
+      },
+      projService
+    );
 
     const subtitledVideoRelativePath = `${userId}/${projectId}/subtitled_${Date.now()}.mp4`;
     const subtitledVideoFullPath = projService.getSubtitledVideoPath(subtitledVideoRelativePath);
@@ -503,7 +475,7 @@ router.post(
         });
       }
 
-      const exportData: ExportData = JSON.parse(exportDataString);
+      const exportData = parseJSON<ExportData>(exportDataString);
       if (exportData.status !== 'complete') {
         return res.status(400).json({
           success: false,
@@ -876,10 +848,11 @@ router.get(
       } else if (share.media_type === 'video') {
         response.share!.duration = share.duration;
       } else {
-        const metadata =
+        const metadata = (
           typeof share.image_metadata === 'string'
             ? JSON.parse(share.image_metadata)
-            : share.image_metadata || {};
+            : share.image_metadata || {}
+        ) as { width?: number; height?: number };
         response.share!.imageType = share.image_type;
         response.share!.dimensions = {
           width: metadata.width,

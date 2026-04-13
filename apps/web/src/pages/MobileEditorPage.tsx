@@ -6,10 +6,8 @@ import { useAuthStore } from '../stores/authStore';
 
 interface MobileEditorData {
   type: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  formData: Record<string, any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  modifications: Record<string, any> | null;
+  formData: Record<string, unknown>;
+  modifications: Record<string, unknown> | null;
   generatedImageBase64?: string; // The previously generated image (used for reconstruction or reference)
   sourceImageBase64?: string; // The raw source image for editing (e.g., uploaded background)
   authToken?: string;
@@ -22,7 +20,10 @@ export default function MobileEditorPage() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       try {
-        const message = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        const message = (typeof event.data === 'string' ? JSON.parse(event.data) : event.data) as {
+          type?: string;
+          payload?: MobileEditorData;
+        };
 
         if (message.type === 'INIT_DATA') {
           const payload = message.payload as MobileEditorData;

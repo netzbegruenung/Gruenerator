@@ -37,7 +37,7 @@ export function VideoResult({
 
   useEffect(() => {
     if (isRemoteVideo) {
-      secureStorage.getToken().then(setAuthToken);
+      void secureStorage.getToken().then(setAuthToken);
     }
   }, [isRemoteVideo]);
 

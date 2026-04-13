@@ -13,7 +13,6 @@
  * 3. Call with generatorType: '{type}'
  */
 
-import { getQuestionsForType } from '../../config/antragQuestions.js';
 import {
   setExperimentalSession,
   getExperimentalSession,
@@ -25,9 +24,8 @@ import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
 import { loadPromptConfig, SimpleTemplateEngine } from './PromptProcessor.js';
 
 import type {
-  AIWorkerPool,
-  AIWorkerRequest,
-  AIWorkerResponse,
+  AIRequestData,
+  Tool,
   GeneratedQuestion,
   QuestionGenerationArgs,
   QuestionGenerationResult,
@@ -52,7 +50,6 @@ import type {
 } from './types/index.js';
 import type { PromptConfig } from './types/promptProcessor.js';
 import type { ExperimentalSession } from '../../services/chat/types.js';
-import type { Request } from 'express';
 
 // Lazy-loaded optional services
 let _searxngService: SearxngService | null = null;
@@ -113,14 +110,15 @@ async function generateClarifyingQuestions(
         ...config.options,
         tools,
       },
-    } as AIWorkerRequest,
+    } as AIRequestData,
     state.req
   );
 
   if (result.tool_calls && result.tool_calls.length > 0) {
     const toolCall = result.tool_calls[0];
-    const functionArgs =
-      typeof toolCall.input === 'string' ? JSON.parse(toolCall.input) : toolCall.input;
+    const functionArgs = (
+      typeof toolCall.input === 'string' ? JSON.parse(toolCall.input) : toolCall.input
+    ) as QuestionGenerationArgs;
 
     // Type guard for QuestionGenerationArgs
     if (
@@ -414,8 +412,8 @@ export async function initiateInteractiveGenerator({
  * Helper: Generate final result with optional Q&A context
  */
 async function generateFinalResult({
-  userId,
-  sessionId,
+  userId: _userId,
+  sessionId: _sessionId,
   inhalt,
   requestType,
   generatorType = 'antrag',
@@ -429,7 +427,7 @@ async function generateFinalResult({
   const formattedQA = questions.length > 0 ? formatQAPairs(questions, answers) : '';
 
   // Check if web search is enabled
-  const useWebSearch = req.body?.useWebSearch ?? false;
+  const useWebSearch = (req.body as { useWebSearch?: boolean } | undefined)?.useWebSearch ?? false;
   let searchResults: WebSearchResult | null = null;
 
   if (useWebSearch) {
@@ -464,12 +462,7 @@ async function generateFinalResult({
   };
 
   // Apply document enrichment
-  // Note: enrichRequest returns EnrichedState which has a different document format,
-  // but we only use the knowledge array from it, so the cast is safe
-  const enrichedContext = (await enrichRequest(
-    enrichmentRequest,
-    {}
-  )) as unknown as EnrichedContext;
+  const enrichedContext = await enrichRequest(enrichmentRequest, {});
 
   // Build knowledge array
   const knowledgeItems: string[] = [];
@@ -490,21 +483,15 @@ async function generateFinalResult({
 
   console.log(`[SimpleInteractiveGenerator] Knowledge items: ${knowledgeItems.length}`);
 
-  // Prepare prompt context (cast locale to Locale type)
-  // Note: assemblePromptGraphAsync expects PromptAssemblyState, so we cast appropriately
-  const promptContext = {
+  // Prepare prompt context
+  const promptContext: PromptContext = {
     systemRole,
     request: { inhalt, requestType, locale: locale as Locale },
-    documents: enrichedContext?.documents || [],
     knowledge: knowledgeItems,
     locale: locale as Locale,
   };
 
-  // Assemble prompt (any cast needed due to document type mismatch between simple docs and ClaudeDocument[])
-  const assembledPrompt = (await assemblePromptGraphAsync(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    promptContext as any
-  )) as unknown as AssembledPromptResult;
+  const assembledPrompt = await assemblePromptGraphAsync(promptContext);
 
   // Generate final text (convert ClaudeMessage[] to simple format)
   const simpleMessages = assembledPrompt.messages.map((msg) => ({
@@ -530,10 +517,11 @@ async function generateFinalResult({
         max_tokens: config.options?.max_tokens || 4000,
         temperature: config.options?.temperature || 0.3,
         ...(assembledPrompt.tools?.length &&
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          assembledPrompt.tools.length > 0 && { tools: assembledPrompt.tools as any }),
+          assembledPrompt.tools.length > 0 && {
+            tools: assembledPrompt.tools,
+          }),
       },
-    } as AIWorkerRequest,
+    } as AIRequestData,
     req
   );
 
@@ -547,7 +535,9 @@ async function generateFinalResult({
 
   const result: GenerationResult = {
     content: generationResult.content || '',
-    ...(generationResult.metadata != null ? { metadata: generationResult.metadata } : {}),
+    ...(generationResult.metadata?.usage != null
+      ? { metadata: { usage: generationResult.metadata.usage } }
+      : {}),
   };
   return result;
 }

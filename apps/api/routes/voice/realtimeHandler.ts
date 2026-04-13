@@ -1,12 +1,13 @@
 import { AudioEncoding, RealtimeTranscription } from '@mistralai/mistralai/extra/realtime';
 import { WebSocketServer, type WebSocket as WsWebSocket } from 'ws';
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type http from 'http';
 
 const log = createLogger('voiceRealtime');
-const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY;
+const MISTRAL_API_KEY = env.MISTRAL_API_KEY;
 const REALTIME_MODEL = 'voxtral-mini-transcribe-realtime-2602';
 
 const AUDIO_FORMAT = {

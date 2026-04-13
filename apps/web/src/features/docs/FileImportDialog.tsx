@@ -36,8 +36,10 @@ export default function FileImportDialog({ open, onOpenChange }: FileImportDialo
         });
 
         if (!response.ok) {
-          const err = await response.json().catch(() => ({ error: 'Import fehlgeschlagen' }));
-          throw new Error(err.error || `HTTP ${response.status}`);
+          const err = (await response.json().catch(() => ({ error: 'Import fehlgeschlagen' }))) as {
+            error?: string;
+          };
+          throw new Error(err.error ?? `HTTP ${response.status}`);
         }
 
         const { documentId } = (await response.json()) as { documentId: string };

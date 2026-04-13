@@ -73,27 +73,44 @@ const errorMessages = {
   },
 };
 
-const getErrorMessage = (error) => {
+interface ApiErrorObject {
+  isAxiosError?: boolean;
+  response?: {
+    status?: number;
+    data?: unknown;
+    headers?: Record<string, string>;
+  };
+  code?: string;
+  error?: { type?: string; message?: string };
+  message?: string;
+  headers?: Record<string, string>;
+}
+
+const getErrorMessage = (error: ApiErrorObject | string | unknown) => {
   // Erweiterte Fehlertyp-Extraktion
-  let errorType;
+  let errorType: string | number;
 
   // Prüfe zuerst auf Axios-Fehler
-  if (error?.isAxiosError) {
-    errorType = error.response?.status || error.code || 'network_error';
-  } else if (error?.error?.type) {
-    // Anthropic API Fehler
-    errorType = error.error.type;
-  } else if (typeof error === 'string') {
+  if (typeof error === 'string') {
     return {
       title: 'Fehler',
       message: error,
     };
+  }
+
+  const err = error as ApiErrorObject;
+
+  if (err?.isAxiosError) {
+    errorType = err.response?.status ?? err.code ?? 'network_error';
+  } else if (err?.error?.type) {
+    // Anthropic API Fehler
+    errorType = err.error.type;
   } else {
     errorType = 'default';
   }
 
   // Direkt errorMessages verwenden, keine Kopie mehr nötig
-  const errorInfo = errorMessages[errorType] || errorMessages.default;
+  const errorInfo = errorMessages[errorType as keyof typeof errorMessages] ?? errorMessages.default;
 
   console.log('[getErrorMessage] Fehlertyp:', errorType); // Logging hinzufügen
   console.log('[getErrorMessage] Fehlerinfo:', errorInfo); // Logging hinzufügen
@@ -101,9 +118,9 @@ const getErrorMessage = (error) => {
   return {
     title: errorInfo.title,
     message: errorInfo.message,
-    details: error?.response?.data || error?.error?.message || error?.message,
-    requestId: error?.headers?.['request-id'] || error?.response?.headers?.['request-id'],
-    status: error?.response?.status,
+    details: err?.response?.data ?? err?.error?.message ?? err?.message,
+    requestId: err?.headers?.['request-id'] ?? err?.response?.headers?.['request-id'],
+    status: err?.response?.status,
   };
 };
 

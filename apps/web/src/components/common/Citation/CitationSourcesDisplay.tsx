@@ -44,6 +44,16 @@ interface AdditionalSourceGroup {
   maxScore: number;
 }
 
+interface DocumentGroup {
+  documentId: string | undefined;
+  documentTitle: string | unknown;
+  url: string | null;
+  relevance: number | undefined;
+  citations: Citation[];
+  additionalContent: string;
+  hasAdditionalContext: boolean;
+}
+
 const DEFAULT_LINK_CONFIG: LinkConfig = { type: 'none' };
 
 const CitationSourcesDisplay = ({
@@ -77,8 +87,8 @@ const CitationSourcesDisplay = ({
   );
 
   // Create document groups that merge sources and citations
-  const createDocumentGroups = useCallback(() => {
-    const groupMap = new Map();
+  const createDocumentGroups = useCallback((): DocumentGroup[] => {
+    const groupMap = new Map<string | undefined, DocumentGroup>();
 
     sources.forEach((source) => {
       const docId =
@@ -88,17 +98,17 @@ const CitationSourcesDisplay = ({
       const docUrl =
         source.url ||
         source.source_url ||
-        (linkConfig.urlKey ? source[linkConfig.urlKey] : undefined) ||
+        (linkConfig.urlKey ? (source[linkConfig.urlKey] as string) : undefined) ||
         null;
 
-      if (!groupMap.has(docId)) {
-        groupMap.set(docId, {
-          documentId: docId,
+      if (!groupMap.has(docId as string | undefined)) {
+        groupMap.set(docId as string | undefined, {
+          documentId: docId as string | undefined,
           documentTitle: docTitle,
           url: docUrl,
           relevance: source.similarity_score,
           citations: [],
-          additionalContent: source.chunk_text,
+          additionalContent: (source.chunk_text as string | undefined) ?? '',
           hasAdditionalContext: false,
         });
       }
@@ -111,7 +121,7 @@ const CitationSourcesDisplay = ({
         groupMap.set(docId, {
           documentId: docId,
           documentTitle: citation.document_title,
-          url: citation.url || citation.source_url || null,
+          url: citation.url ?? citation.source_url ?? null,
           relevance: citation.similarity_score,
           citations: [],
           additionalContent: '',
@@ -120,34 +130,34 @@ const CitationSourcesDisplay = ({
       }
 
       const group = groupMap.get(docId);
-      group.citations.push(citation);
+      if (group) {
+        group.citations.push(citation);
 
-      if (
-        group.additionalContent &&
-        citation.cited_text &&
-        !group.additionalContent.includes(citation.cited_text.substring(0, 50))
-      ) {
-        group.hasAdditionalContext = true;
+        if (
+          group.additionalContent &&
+          citation.cited_text &&
+          !(group.additionalContent as string).includes(citation.cited_text.substring(0, 50))
+        ) {
+          group.hasAdditionalContext = true;
+        }
       }
     });
 
     groupMap.forEach((group) => {
-      group.citations.sort((a: Citation, b: Citation) => (a.index || 0) - (b.index || 0));
+      group.citations.sort((a: Citation, b: Citation) => (a.index ?? 0) - (b.index ?? 0));
     });
 
-    return Array.from(groupMap.values()).sort(
-      (a: { citations: Citation[] }, b: { citations: Citation[] }) => {
-        const aMinIndex =
-          a.citations.length > 0
-            ? Math.min(...a.citations.map((c: Citation) => c.index || 0))
-            : Infinity;
-        const bMinIndex =
-          b.citations.length > 0
-            ? Math.min(...b.citations.map((c: Citation) => c.index || 0))
-            : Infinity;
-        return aMinIndex - bMinIndex;
-      }
-    );
+    return Array.from(groupMap.values()).sort((a: DocumentGroup, b: DocumentGroup) => {
+      const aMinIndex =
+        a.citations.length > 0
+          ? Math.min(...a.citations.map((c: Citation) => c.index ?? 0))
+          : Infinity;
+      const bMinIndex =
+        b.citations.length > 0
+          ? Math.min(...b.citations.map((c: Citation) => c.index ?? 0))
+          : Infinity;
+      return aMinIndex - bMinIndex;
+    });
   }, [sources, citations, linkConfig]);
 
   if (sources.length === 0 && citations.length === 0 && additionalSources.length === 0) return null;
@@ -195,7 +205,7 @@ const CitationSourcesDisplay = ({
       <div className="flex flex-col gap-md">
         {documentGroups.map((group, index) => (
           <div
-            key={group.documentId || group.documentTitle || `doc-${index}`}
+            key={group.documentId ?? (group.documentTitle as string) ?? `doc-${index}`}
             className="p-md border border-[var(--border-subtle)] rounded-sm"
           >
             <div className="flex justify-between items-center mb-sm">
@@ -207,10 +217,10 @@ const CitationSourcesDisplay = ({
                     rel="noopener noreferrer"
                     className="text-inherit no-underline transition-all duration-200 hover:text-link hover:underline focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 focus-visible:rounded-sm"
                   >
-                    {group.documentTitle}
+                    {group.documentTitle as string}
                   </a>
                 ) : (
-                  group.documentTitle
+                  (group.documentTitle as string)
                 )}
               </h5>
               {group.relevance && (

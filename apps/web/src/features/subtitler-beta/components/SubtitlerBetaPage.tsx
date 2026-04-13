@@ -25,8 +25,15 @@ interface SubtitlerProject {
   title: string;
   style_preference: string;
   height_preference: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  style_settings: Record<string, any> | null;
+  style_settings: {
+    fontSize?: number;
+    bottomOffset?: number;
+    backgroundColor?: string;
+    backgroundOpacity?: number;
+    borderWidth?: number;
+    shadowBlur?: number;
+    [key: string]: unknown;
+  } | null;
   video_path: string | null;
   video_metadata: { width?: number; height?: number; duration?: number } | null;
   video_filename: string | null;
@@ -67,9 +74,9 @@ function ProjectPicker({ onSelectProject }: { onSelectProject: (projectId: strin
 
   useEffect(() => {
     apiClient
-      .get('/subtitler/projects')
+      .get<{ projects: ProjectListItem[] }>('/subtitler/projects')
       .then((res) => {
-        const all: ProjectListItem[] = res.data?.projects || [];
+        const all: ProjectListItem[] = res.data?.projects ?? [];
         setProjectsWithSubtitles(all);
       })
       .catch(() => {})
@@ -150,9 +157,9 @@ function SubtitlerBetaPageInner() {
       setLoading(true);
       setError(null);
       apiClient
-        .get(`/subtitler/projects/${projectId}`)
+        .get<{ project: SubtitlerProject }>(`/subtitler/projects/${projectId}`)
         .then((res) => {
-          const p = res.data?.project as SubtitlerProject | undefined;
+          const p = res.data?.project;
           if (!p) {
             setError('Projekt nicht gefunden.');
             setLoading(false);

@@ -1,15 +1,17 @@
 import { Nango } from '@nangohq/node';
 
+import { env } from './env.js';
+
 let _nango: Nango | null = null;
 
 export function getNango(): Nango {
   if (!_nango) {
-    const secretKey = process.env.NANGO_SECRET_KEY;
+    const secretKey = env.NANGO_SECRET_KEY;
     if (!secretKey) {
       throw new Error('NANGO_SECRET_KEY is not configured. Set it in your .env file.');
     }
     _nango = new Nango({
-      host: process.env.NANGO_SERVER_URL || 'http://nango:3003',
+      host: env.NANGO_SERVER_URL,
       secretKey,
     });
   }

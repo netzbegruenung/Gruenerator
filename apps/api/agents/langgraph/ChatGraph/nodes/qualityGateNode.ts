@@ -130,15 +130,24 @@ interface QualityResult {
   weakAspects?: string[];
 }
 
+interface ParsedQualityResponse {
+  score?: unknown;
+  sufficient?: unknown;
+  refinedQuery?: unknown;
+  weakAspects?: unknown;
+}
+
 function parseQualityResponse(content: string): QualityResult | null {
   try {
-    const parsed = JSON.parse(content);
+    const parsed = JSON.parse(content) as ParsedQualityResponse;
     if (typeof parsed.score === 'number' && typeof parsed.sufficient === 'boolean') {
       return {
         score: Math.max(1, Math.min(5, parsed.score)),
         sufficient: parsed.sufficient,
-        refinedQuery: parsed.refinedQuery || undefined,
-        weakAspects: Array.isArray(parsed.weakAspects) ? parsed.weakAspects : undefined,
+        ...(typeof parsed.refinedQuery === 'string' ? { refinedQuery: parsed.refinedQuery } : {}),
+        ...(Array.isArray(parsed.weakAspects)
+          ? { weakAspects: parsed.weakAspects as string[] }
+          : {}),
       };
     }
   } catch {

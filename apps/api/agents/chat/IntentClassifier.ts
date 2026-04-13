@@ -515,7 +515,7 @@ WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.
       },
     });
 
-    if (!result.success) {
+    if (!result.success || result.content == null) {
       throw new Error(`AI classification failed: ${result.error}`);
     }
 
@@ -556,9 +556,9 @@ WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.
         // Fallback: Try to extract JSON array (old format)
         const jsonArrayMatch = result.content.match(/\[[\s\S]*\]/);
         if (jsonArrayMatch) {
-          parsedIntents = JSON.parse(jsonArrayMatch[0]);
+          parsedIntents = JSON.parse(jsonArrayMatch[0]) as typeof parsedIntents;
         } else {
-          parsedIntents = JSON.parse(result.content);
+          parsedIntents = JSON.parse(result.content) as typeof parsedIntents;
         }
       }
     } catch (_parseError) {

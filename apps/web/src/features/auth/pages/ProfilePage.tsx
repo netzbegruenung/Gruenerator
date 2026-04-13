@@ -36,32 +36,32 @@ const ProfilePage = () => {
   // Handle invalid tab URLs and redirects
   useEffect(() => {
     if (tab === 'dokumente' || tab === 'grafik' || tab === 'anweisungen' || tab === 'vorlagen') {
-      navigate('/profile/inhalte', { replace: true });
+      void navigate('/profile/inhalte', { replace: true });
       return;
     }
 
     if (tab === 'gruppen') {
-      navigate('/gruppen', { replace: true });
+      void navigate('/gruppen', { replace: true });
       return;
     }
 
     if (tab === 'grueneratoren') {
-      navigate('/texte?tab=eigene', { replace: true });
+      void navigate('/texte?tab=eigene', { replace: true });
       return;
     }
 
     if (tab === 'integrationen' || tab === 'canva') {
-      navigate('/profile/inhalte', { replace: true });
+      void navigate('/profile/inhalte', { replace: true });
       return;
     }
 
     if (tab === 'benachrichtigungen') {
-      navigate('/profile', { replace: true });
+      void navigate('/profile', { replace: true });
       return;
     }
 
     if (tab && !TAB_MAPPING[tab]) {
-      navigate('/profile', { replace: true });
+      void navigate('/profile', { replace: true });
       return;
     }
   }, [tab, subtab, subsubtab, navigate]);

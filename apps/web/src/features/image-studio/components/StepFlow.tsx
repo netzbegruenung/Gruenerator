@@ -91,7 +91,7 @@ const StepFlow: React.FC<StepFlowProps> = ({
   useDraftAutoSave();
 
   const userDisplayName = useMemo(() => {
-    const displayName = user?.display_name || user?.name || '';
+    const displayName = user?.display_name || '';
     return displayName.trim();
   }, [user]);
 

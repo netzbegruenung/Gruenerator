@@ -21,8 +21,8 @@ import {
 } from './utils/responseFormatter.js';
 
 import type { PRAgentRequest } from './types.js';
-import type { Request, Response } from 'express';
 import type { RequestWithLocale } from '../../../services/localization/index.js';
+import type { Request, Response } from 'express';
 
 /**
  * PR Agent Main Orchestrator
@@ -220,16 +220,22 @@ export async function processStrategyGeneration(
     // 6. Format strategy as markdown for display
     const metadata: Parameters<typeof formatStrategyApprovalResponse>[4] = {
       argumentsFound: args.length,
-      ...(enrichedState.enrichmentMetadata?.totalDocuments ? {
-        documentsCount: enrichedState.enrichmentMetadata.totalDocuments,
-      } : {}),
-      ...(enrichedState.enrichmentMetadata?.webSearchSources?.length ? {
-        webSourcesCount: enrichedState.enrichmentMetadata.webSearchSources.length,
-      } : {}),
+      ...(enrichedState.enrichmentMetadata?.totalDocuments
+        ? {
+            documentsCount: enrichedState.enrichmentMetadata.totalDocuments,
+          }
+        : {}),
+      ...(enrichedState.enrichmentMetadata?.webSearchSources?.length
+        ? {
+            webSourcesCount: enrichedState.enrichmentMetadata.webSearchSources.length,
+          }
+        : {}),
       ...(executionTimeMs ? { executionTimeMs } : {}),
-      ...(enrichedState.enrichmentMetadata != null ? {
-        enrichmentMetadata: enrichedState.enrichmentMetadata,
-      } : {}),
+      ...(enrichedState.enrichmentMetadata != null
+        ? {
+            enrichmentMetadata: enrichedState.enrichmentMetadata,
+          }
+        : {}),
     };
     const formattedContent = formatStrategyApprovalResponse(
       framing,

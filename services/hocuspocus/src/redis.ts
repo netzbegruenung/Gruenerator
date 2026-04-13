@@ -26,7 +26,9 @@ export function createRedisClient(): ReturnType<typeof createClient> & RedisLike
     },
   });
 
-  client.on('error', (err) => log.error(`Redis error: ${err.message}`));
+  client.on('error', (err: unknown) =>
+    log.error(`Redis error: ${err instanceof Error ? err.message : String(err)}`)
+  );
   client.on('connect', () => log.info('Connected to Redis'));
   client.on('ready', () => log.info('Redis client ready'));
 

@@ -15,6 +15,7 @@ import { smartChunkDocument } from '../../../../document-services/index.js';
 import { mistralEmbeddingService } from '../../../../mistral/index.js';
 import { DateExtractor } from '../extractors/DateExtractor.js';
 
+import type { LandesverbandSource } from '../../../../../config/landesverbaendeConfig.js';
 import type { ProcessResult, ExtractedContent } from '../types.js';
 import type { QdrantClient } from '@qdrant/js-client-rest';
 
@@ -38,8 +39,7 @@ export class DocumentProcessor {
    * @param maxAgeYears - Optional max age in years (default: 10)
    */
   async processAndStoreDocument(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    source: any,
+    source: LandesverbandSource,
     contentType: string,
     url: string,
     content: ExtractedContent,

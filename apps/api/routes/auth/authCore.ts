@@ -5,9 +5,13 @@
  */
 
 import { fromNodeHeaders } from 'better-auth/node';
+import { and, eq, like } from 'drizzle-orm';
 import express, { type Router, type Response } from 'express';
 
 import { auth, type BetterAuthUser } from '../../config/betterAuth.js';
+import { env } from '../../config/env.js';
+import { ba_accounts } from '../../database/schema/auth.js';
+import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import * as chatMemory from '../../services/chat/ChatMemoryService.js';
 import { createLogger } from '../../utils/logger.js';
@@ -142,8 +146,7 @@ router.get('/logout', async (req: AuthRequest, res: Response): Promise<void> => 
 });
 
 router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> => {
-  const keycloakBaseUrl = process.env.KEYCLOAK_BASE_URL || 'https://user.netzbegruenung.de';
-  const keycloakLogoutUrl = `${keycloakBaseUrl}/realms/${process.env.KEYCLOAK_REALM || 'gruenerator'}/protocol/openid-connect/logout`;
+  const keycloakLogoutUrl = `${env.KEYCLOAK_BASE_URL}/realms/${env.KEYCLOAK_REALM}/protocol/openid-connect/logout`;
 
   if (req.user?.id) {
     try {
@@ -157,24 +160,38 @@ router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> =>
   let keycloakBackgroundLogoutUrl: string | null = null;
   if (req.user?.id) {
     try {
-      const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
-      const db = getPostgresInstance();
-      const rows = await db.query<{ id_token: string }>(
-        `SELECT id_token FROM ba_accounts WHERE user_id = $1 AND provider_id LIKE 'keycloak-%' AND id_token IS NOT NULL LIMIT 1`,
-        [req.user.id]
+      const db = getDrizzleInstance();
+      const rows = await db
+        .select({ idToken: ba_accounts.id_token })
+        .from(ba_accounts)
+        .where(
+          and(eq(ba_accounts.user_id, req.user.id), like(ba_accounts.provider_id, 'keycloak-%'))
+        )
+        .limit(1);
+      log.info(
+        '[Auth Logout] ba_accounts lookup for user_id=%s: rows=%d, has_id_token=%s',
+        req.user.id,
+        rows.length,
+        rows[0]?.idToken != null ? 'yes' : 'no'
       );
-      if (rows[0]?.id_token) {
-        keycloakBackgroundLogoutUrl = `${keycloakLogoutUrl}?id_token_hint=${rows[0].id_token}`;
+      if (rows[0]?.idToken) {
+        keycloakBackgroundLogoutUrl = `${keycloakLogoutUrl}?id_token_hint=${rows[0].idToken}`;
       }
-    } catch {
-      // Account lookup may fail — proceed without SSO logout
+    } catch (err) {
+      // Account lookup may fail — proceed without SSO logout, but log the error
+      log.error(
+        '[Auth Logout] ba_accounts query threw for user_id=%s: %s',
+        req.user.id,
+        (err as Error).message
+      );
     }
   }
 
   try {
     await auth.api.signOut({ headers: fromNodeHeaders(req.headers) });
-  } catch {
-    // Sign-out may fail if no session
+  } catch (err) {
+    // Sign-out may fail if no session — log so we know it happened
+    log.warn('[Auth Logout] auth.api.signOut threw: %s', (err as Error).message);
   }
 
   res.json({

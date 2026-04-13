@@ -51,11 +51,25 @@ function toWebSearchState(state: SearchGraphState): WebSearchState {
     mode: 'deep',
     user_id: 'search-graph',
     searchOptions: state.searchOptions || { maxResults: 10, language: 'de-DE' },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    aiWorkerPool: state.aiWorkerPool as any,
+    aiWorkerPool: state.aiWorkerPool,
     req: null as never,
-    subqueries: state.subQueries || undefined,
     metadata: { startTime: Date.now(), searchMode: 'deep' },
+    subqueries: state.subQueries ?? null,
+    webResults: null,
+    grundsatzResults: null,
+    aggregatedResults: null,
+    categorizedSources: {},
+    referencesMap: null,
+    citations: null,
+    citationSources: null,
+    crawlDecisions: null,
+    enrichedResults: null,
+    crawlMetadata: {},
+    finalResults: null,
+    summary: null,
+    dossier: null,
+    success: null,
+    error: null,
   };
 }
 

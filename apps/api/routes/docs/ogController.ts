@@ -4,11 +4,10 @@ import { blockNoteXmlToHtml } from '@gruenerator/hocuspocus';
 import { Router, type Request, type Response } from 'express';
 import * as Y from 'yjs';
 
+import { env } from '../../config/env.js';
+import { type CollaborativeDocument } from '../../database/schema/collaborative.js';
+import { type YjsDocumentSnapshotRow } from '../../database/schema/yjs.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
-import {
-  type CollaborativeDocumentRow,
-  type YjsDocumentSnapshotRow,
-} from '../../database/types.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
 
@@ -18,7 +17,7 @@ const db = getPostgresInstance();
 const ogCache = new Map<string, { html: string; expires: number }>();
 const OG_CACHE_TTL = 5 * 60 * 1000;
 
-const WEB_BASE_URL = process.env.WEB_BASE_URL || 'https://www.gruenerator.de';
+const WEB_BASE_URL = env.WEB_BASE_URL || 'https://www.gruenerator.de';
 
 function escapeHtml(str: string): string {
   return str
@@ -70,7 +69,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     }
 
     const result = await db.query<
-      Pick<CollaborativeDocumentRow, 'id' | 'title' | 'share_mode' | 'document_subtype'>
+      Pick<CollaborativeDocument, 'id' | 'title' | 'share_mode' | 'document_subtype'>
     >(
       `SELECT d.id, d.title, d.share_mode, d.document_subtype
        FROM collaborative_documents d

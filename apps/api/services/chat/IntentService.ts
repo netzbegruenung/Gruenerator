@@ -23,7 +23,14 @@ import { generateSharepicForChat } from './sharepicGenerationService.js';
 
 import * as chatMemory from './index.js';
 
-import type { ExpressRequest as SharepicExpressRequest } from './sharepicGenerationService.js';
+import type {
+  ExpressRequest as ImagineExpressRequest,
+  RequestBody as ImagineRequestBody,
+} from './imagineGenerationService.js';
+import type {
+  ExpressRequest as SharepicExpressRequest,
+  RequestBody as SharepicRequestBody,
+} from './sharepicGenerationService.js';
 import type {
   DocumentQnARedisClient,
   DocumentQnAMistralClient,
@@ -38,7 +45,7 @@ const log = createLogger('IntentService');
 
 // Initialize DocumentQnA service
 const documentQnAService = new DocumentQnAService(
-  redisClient as unknown as DocumentQnARedisClient,
+  redisClient as DocumentQnARedisClient,
   mistralClient as DocumentQnAMistralClient
 );
 
@@ -270,9 +277,9 @@ async function processSharepicRequest(
       };
 
       const sharepicResponse = await generateSharepicForChat(
-        req as unknown as SharepicExpressRequest,
+        req as SharepicExpressRequest,
         sharepicType,
-        finalRequestBody as unknown as Parameters<typeof generateSharepicForChat>[2]
+        finalRequestBody as SharepicRequestBody
       );
       res.json(sharepicResponse);
       return;
@@ -343,9 +350,9 @@ async function processImagineRequest(
   try {
     const mode = (body.mode || 'pure') as 'pure' | 'sharepic' | 'edit';
     const imagineResponse = await generateImagineForChat(
-      req as unknown as Parameters<typeof generateImagineForChat>[0],
+      req as ImagineExpressRequest,
       mode,
-      body as unknown as Parameters<typeof generateImagineForChat>[2]
+      body as ImagineRequestBody
     );
     return res.json(imagineResponse);
   } catch (error) {
@@ -661,13 +668,13 @@ async function processIntentAsync(
       routeType === 'sharepic' || routeType.startsWith('sharepic_')
         ? processSharepicRequest(
             intent,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cross-module request/response type bridge
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument -- cross-module request/response type bridge
             intentReq as any,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cross-module response type bridge
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument -- cross-module response type bridge
             responseCollector as any,
             baseContext.userId
           )
-        : // eslint-disable-next-line @typescript-eslint/no-explicit-any -- cross-module request/response type bridge
+        : // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument -- cross-module request/response type bridge
           processGraphRequest(routeType, intentReq as any, responseCollector as any);
 
     processPromise.catch((error) => {

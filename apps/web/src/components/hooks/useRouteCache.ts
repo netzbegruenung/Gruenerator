@@ -17,7 +17,7 @@ export const useRouteCache = (
 
   useEffect(() => {
     if (!cachedComponent && Component?.preload) {
-      Component.preload().then((module) => {
+      void Component.preload().then((module) => {
         const component = module.default;
         componentCache.set(Component, component);
         setCachedComponent(() => component);

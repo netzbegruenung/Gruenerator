@@ -21,7 +21,7 @@ import { useAppInitialization } from '../hooks/useAppInitialization';
 import { initSentry, Sentry } from '../services/sentry';
 import { lightTheme, darkTheme } from '../theme';
 
-SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync();
 initSentry();
 
 function RootLayout() {
@@ -37,7 +37,7 @@ function RootLayout() {
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
       if (data?.type === 'pushed_content' && data?.shareToken) {
-        router.push(
+        void router.push(
           `/(fullscreen)/pushed-content?shareToken=${data.shareToken}&mediaType=${data.mediaType || 'image'}`
         );
       }
@@ -55,7 +55,7 @@ function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded && !isLoading) {
-      SplashScreen.hideAsync();
+      void SplashScreen.hideAsync();
     }
   }, [fontsLoaded, isLoading]);
 

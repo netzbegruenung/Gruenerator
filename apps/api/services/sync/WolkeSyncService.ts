@@ -9,10 +9,10 @@ import os from 'os';
 import path from 'path';
 
 import { eq, and } from 'drizzle-orm';
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
+
+import { wolkeSyncStatus, documents } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
-import { wolkeSyncStatus } from '../../database/schema/index.js';
-import { type WolkeSyncStatusRow } from '../../database/types.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { NextcloudShareManager } from '../../utils/integrations/nextcloud/index.js';
 import NextcloudApiClient from '../api-clients/nextcloudApiClient.js';
 import {
@@ -23,31 +23,9 @@ import {
 import { mistralEmbeddingService } from '../mistral/index.js';
 import { ocrService } from '../OcrService/index.js';
 
-import type { WolkeSyncStatus, NextcloudFile, FileProcessResult, SyncResult } from './types.js';
+import type { NextcloudFile, FileProcessResult, SyncResult } from './types.js';
 
-type DrizzleWolkeSyncRow = typeof wolkeSyncStatus.$inferSelect;
-
-/**
- * Map Drizzle result (camelCase fields) to WolkeSyncStatusRow (snake_case fields)
- */
-function toWolkeSyncStatusRow(row: DrizzleWolkeSyncRow): WolkeSyncStatusRow {
-  return {
-    id: row.id,
-    user_id: row.userId || null,
-    share_link_id: row.shareLinkId,
-    folder_path: row.folderPath,
-    last_sync_at: row.lastSyncAt,
-    files_processed: Number(row.filesProcessed),
-    files_failed: Number(row.filesFailed),
-    auto_sync_enabled: row.autoSyncEnabled,
-    sync_status: row.syncStatus,
-    created_at: row.createdAt,
-    updated_at: row.updatedAt,
-    context_type: row.contextType,
-    context_id: row.contextId,
-    synced_by_user_id: row.syncedByUserId,
-  };
-}
+type WolkeSyncRow = typeof wolkeSyncStatus.$inferSelect;
 
 export class WolkeSyncService {
   private postgres: ReturnType<typeof getPostgresInstance>;
@@ -87,7 +65,7 @@ export class WolkeSyncService {
     userId: string,
     shareLinkId: string,
     folderPath: string = ''
-  ): Promise<WolkeSyncStatusRow> {
+  ): Promise<WolkeSyncRow> {
     try {
       await this.ensureInitialized();
       const db = getDrizzleInstance();
@@ -105,7 +83,7 @@ export class WolkeSyncService {
         .limit(1);
 
       if (existing.length > 0) {
-        return toWolkeSyncStatusRow(existing[0]);
+        return existing[0];
       }
 
       // Create new sync status
@@ -123,7 +101,7 @@ export class WolkeSyncService {
         .returning();
 
       console.log(`[WolkeSyncService] Created sync status record: ${created[0].id}`);
-      return toWolkeSyncStatusRow(created[0]);
+      return created[0];
     } catch (error: unknown) {
       console.error('[WolkeSyncService] Error getting/creating sync status:', error);
       throw error;
@@ -142,7 +120,7 @@ export class WolkeSyncService {
       filesFailed: number;
       auto_sync_enabled: boolean;
     }>
-  ): Promise<WolkeSyncStatusRow> {
+  ): Promise<WolkeSyncRow> {
     try {
       await this.ensureInitialized();
       const db = getDrizzleInstance();
@@ -170,7 +148,7 @@ export class WolkeSyncService {
         .where(eq(wolkeSyncStatus.id, syncStatusId))
         .returning();
 
-      return toWolkeSyncStatusRow(result[0]);
+      return result[0];
     } catch (error: unknown) {
       console.error('[WolkeSyncService] Error updating sync status:', error);
       throw error;
@@ -180,8 +158,7 @@ export class WolkeSyncService {
   /**
    * Get share link by ID
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getShareLink(userId: string, shareLinkId: string): Promise<any> {
+  async getShareLink(userId: string, shareLinkId: string): Promise<unknown> {
     try {
       const shareLinks = await NextcloudShareManager.getShareLinks(userId);
       const shareLink = shareLinks.find((link: { id: string }) => link.id === shareLinkId);
@@ -206,7 +183,7 @@ export class WolkeSyncService {
    */
   async listFolderContents(
     shareLink: { id: string; url: string; token?: string; share_link?: string },
-    folderPath: string = ''
+    _folderPath: string = ''
   ): Promise<NextcloudFile[]> {
     try {
       const client = await NextcloudApiClient.create(shareLink.share_link || shareLink.url);
@@ -242,7 +219,7 @@ export class WolkeSyncService {
     cleanup: () => Promise<void>;
   }> {
     try {
-      const client = await NextcloudApiClient.create(shareLink.share_link || shareLink.url);
+      await NextcloudApiClient.create(shareLink.share_link || shareLink.url);
       const tempDir = os.tmpdir();
       const tempFileName = `wolke_${Date.now()}_${file.name}`;
       const tempFilePath = path.join(tempDir, tempFileName);
@@ -258,7 +235,7 @@ export class WolkeSyncService {
         cleanup: async () => {
           try {
             await fs.unlink(tempFilePath);
-          } catch (error) {
+          } catch {
             console.warn(`Failed to cleanup temp file: ${tempFilePath}`);
           }
         },
@@ -338,10 +315,19 @@ export class WolkeSyncService {
       console.log(`[WolkeSyncService] Processing file: ${file.name}`);
 
       // Check if file already exists and is up to date
-      const existingDoc = await this.postgres.queryOne(
-        'SELECT * FROM documents WHERE user_id = $1 AND wolke_share_link_id = $2 AND wolke_file_path = $3',
-        [userId, shareLinkId, file.href]
-      );
+      const db = getDrizzleInstance();
+      const existingDocRows = await db
+        .select()
+        .from(documents)
+        .where(
+          and(
+            eq(documents.user_id, userId),
+            eq(documents.wolke_share_link_id, shareLinkId),
+            eq(documents.wolke_file_path, file.href)
+          )
+        )
+        .limit(1);
+      const existingDoc = existingDocRows[0] ?? null;
 
       // Multi-tier change detection strategy
       const fileHasChanged = this.hasFileChanged(existingDoc, file);
@@ -554,7 +540,12 @@ export class WolkeSyncService {
 
       try {
         // Get share link
-        const shareLink = await this.getShareLink(userId, shareLinkId);
+        const shareLink = (await this.getShareLink(userId, shareLinkId)) as {
+          id: string;
+          url: string;
+          token?: string;
+          share_link?: string;
+        };
 
         // List folder contents
         const files = await this.listFolderContents(shareLink, folderPath);
@@ -621,7 +612,7 @@ export class WolkeSyncService {
   /**
    * Get sync status for user
    */
-  async getUserSyncStatus(userId: string): Promise<WolkeSyncStatusRow[]> {
+  async getUserSyncStatus(userId: string): Promise<WolkeSyncRow[]> {
     try {
       await this.ensureInitialized();
       const db = getDrizzleInstance();
@@ -632,7 +623,7 @@ export class WolkeSyncService {
         .where(eq(wolkeSyncStatus.userId, userId))
         .orderBy(wolkeSyncStatus.lastSyncAt);
 
-      return syncStatuses.map(toWolkeSyncStatusRow);
+      return syncStatuses;
     } catch (error: unknown) {
       console.error('[WolkeSyncService] Error getting user sync status:', error);
       throw error;
@@ -704,34 +695,33 @@ export class WolkeSyncService {
       const syncStatusId = syncStatusRows[0].id;
 
       // Get all documents from this sync folder
-      const documents = await this.postgres.query<{ id: string }>(
-        'SELECT id FROM documents WHERE user_id = $1 AND wolke_share_link_id = $2',
-        [userId, shareLinkId]
-      );
+      const syncDocuments = await db
+        .select({ id: documents.id })
+        .from(documents)
+        .where(and(eq(documents.user_id, userId), eq(documents.wolke_share_link_id, shareLinkId)));
 
       // Delete vectors from Qdrant
-      if (documents.length > 0) {
-        for (const doc of documents) {
+      if (syncDocuments.length > 0) {
+        for (const doc of syncDocuments) {
           await this.qdrantService.deleteDocumentVectors(doc.id, userId);
         }
       }
 
       // Delete document metadata
-      await this.postgres.query(
-        'DELETE FROM documents WHERE user_id = $1 AND wolke_share_link_id = $2',
-        [userId, shareLinkId]
-      );
+      await db
+        .delete(documents)
+        .where(and(eq(documents.user_id, userId), eq(documents.wolke_share_link_id, shareLinkId)));
 
       // Delete sync status
       await db.delete(wolkeSyncStatus).where(eq(wolkeSyncStatus.id, syncStatusId));
 
       console.log(
-        `[WolkeSyncService] Deleted sync folder and ${documents.length} associated documents`
+        `[WolkeSyncService] Deleted sync folder and ${syncDocuments.length} associated documents`
       );
 
       return {
         success: true,
-        deletedDocuments: documents.length,
+        deletedDocuments: syncDocuments.length,
         syncStatusId,
       };
     } catch (error: unknown) {

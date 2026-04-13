@@ -3,6 +3,8 @@
  * Replaces problematic unbounded memory caches throughout the vector backend
  */
 
+import { env } from '../../config/env.js';
+
 import type { CacheEntry, CacheOptions, CacheStats } from './types.js';
 
 class LRUCache<T = unknown> {
@@ -196,8 +198,8 @@ const createCache = {
   searchEnhancement: (): LRUCache<unknown> =>
     new LRUCache({
       name: 'SearchEnhancement',
-      maxSize: parseInt(process.env.SEARCH_CACHE_SIZE || '100'),
-      ttl: parseInt(process.env.SEARCH_CACHE_TTL || '1800000'), // 30 minutes
+      maxSize: env.SEARCH_CACHE_SIZE,
+      ttl: env.SEARCH_CACHE_TTL,
     }),
 
   /**
@@ -206,8 +208,8 @@ const createCache = {
   searchResults: (): LRUCache<unknown> =>
     new LRUCache({
       name: 'SearchResults',
-      maxSize: parseInt(process.env.RESULTS_CACHE_SIZE || '200'),
-      ttl: parseInt(process.env.RESULTS_CACHE_TTL || '900000'), // 15 minutes
+      maxSize: env.RESULTS_CACHE_SIZE,
+      ttl: env.RESULTS_CACHE_TTL,
     }),
 
   /**
@@ -216,8 +218,8 @@ const createCache = {
   embeddings: (): LRUCache<unknown> =>
     new LRUCache({
       name: 'Embeddings',
-      maxSize: parseInt(process.env.EMBEDDING_CACHE_SIZE || '500'),
-      ttl: parseInt(process.env.EMBEDDING_CACHE_TTL || '3600000'), // 1 hour
+      maxSize: env.EMBEDDING_CACHE_SIZE,
+      ttl: env.EMBEDDING_CACHE_TTL,
     }),
 
   /**

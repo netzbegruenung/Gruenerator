@@ -110,6 +110,10 @@ class FFmpegCommand {
     return this;
   }
 
+  on(event: 'start', callback: (commandLine: string) => void | Promise<void>): this;
+  on(event: 'progress', callback: (progress: { percent?: number; timemark?: string }) => void | Promise<void>): this;
+  on(event: 'error', callback: (err: Error) => void | Promise<void>): this;
+  on(event: 'end', callback: () => void | Promise<void>): this;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   on(event: EventType, callback: (...args: any[]) => void): this {
     if (this.listeners[event]) {
@@ -237,7 +241,7 @@ async function ffprobe(inputPath: string): Promise<FFprobeMetadata> {
     proc.on('close', (code: number | null) => {
       if (code === 0) {
         try {
-          resolve(JSON.parse(stdout));
+          resolve(JSON.parse(stdout) as FFprobeMetadata);
         } catch (e: unknown) {
           reject(
             new Error(
@@ -271,7 +275,7 @@ const ffmpeg: FFmpegFactory = Object.assign((input?: string) => new FFmpegComman
   ) => {
     ffprobe(inputPath)
       .then((metadata) => callback(null, metadata))
-      .catch((err) => callback(err));
+      .catch((err: unknown) => callback(err instanceof Error ? err : new Error(String(err))));
   },
   setFfmpegPath: () => {},
   setFfprobePath: () => {},

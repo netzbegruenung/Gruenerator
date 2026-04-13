@@ -1,5 +1,6 @@
 import { ApifyClient } from 'apify-client';
 
+import { env } from '../../config/env.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -20,7 +21,7 @@ const DEFAULT_WAIT_SECS = 120;
 let client: ApifyClient | null = null;
 
 function getClient(): ApifyClient | null {
-  const token = process.env.APIFY_TOKEN;
+  const token = env.APIFY_TOKEN;
   if (!token) return null;
   if (!client) {
     client = new ApifyClient({ token });
@@ -29,7 +30,7 @@ function getClient(): ApifyClient | null {
 }
 
 export function isConfigured(): boolean {
-  return !!process.env.APIFY_TOKEN;
+  return !!env.APIFY_TOKEN;
 }
 
 export async function getRecentInstagramPosts(

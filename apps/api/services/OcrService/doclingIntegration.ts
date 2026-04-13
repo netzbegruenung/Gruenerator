@@ -13,6 +13,7 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { env } from '../../config/env.js';
 import { sanitizePath } from '../../utils/validation/security.js';
 
 import type { ExtractionResult } from './types.js';
@@ -20,7 +21,7 @@ import type { ExtractionResult } from './types.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DOCLING_BASE_URL = process.env.DOCLING_URL || 'http://ocr:5001';
+const DOCLING_BASE_URL = env.DOCLING_URL ?? 'http://ocr:5001';
 
 /**
  * Shared core: send a buffer to Docling-Serve and parse the markdown response.

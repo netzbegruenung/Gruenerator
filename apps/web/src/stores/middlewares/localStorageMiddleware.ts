@@ -69,7 +69,7 @@ export const loadFromLocalStorage = <T = Record<string, unknown>>(
 ): T => {
   try {
     const item = window.localStorage.getItem(key);
-    return item ? JSON.parse(item) : defaultValue;
+    return item ? (JSON.parse(item) as T) : defaultValue;
   } catch (error) {
     console.warn(`Error loading from localStorage key "${key}":`, error);
     return defaultValue;

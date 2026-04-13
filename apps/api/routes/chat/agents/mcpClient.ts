@@ -3,7 +3,9 @@
  * Handles communication with the MCP server for tool execution
  */
 
-const MCP_SERVER_URL = process.env.MCP_URL || 'http://localhost:3003';
+import { env } from '../../../config/env.js';
+
+const MCP_SERVER_URL = env.MCP_URL || 'http://localhost:3003';
 
 let sessionId: string | null = null;
 let sessionInitPromise: Promise<void> | null = null;
@@ -133,7 +135,10 @@ async function callMcpTool<T>(toolName: string, args: Record<string, unknown>): 
         throw new Error(`MCP request failed after retry: ${retryResponse.statusText}`);
       }
 
-      const retryResult = await retryResponse.json();
+      const retryResult = (await retryResponse.json()) as {
+        error?: { message: string };
+        result?: unknown;
+      };
       if (retryResult.error) {
         throw new Error(`MCP error: ${retryResult.error.message}`);
       }
@@ -144,7 +149,7 @@ async function callMcpTool<T>(toolName: string, args: Record<string, unknown>): 
     throw new Error(`MCP request failed: ${response.statusText}`);
   }
 
-  const result = await response.json();
+  const result = (await response.json()) as { error?: { message: string }; result?: unknown };
 
   if (result.error) {
     throw new Error(`MCP error: ${result.error.message}`);

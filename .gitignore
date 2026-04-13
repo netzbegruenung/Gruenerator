@@ -94,10 +94,19 @@ apps/api/uploads/*.zip:Zone.Identifier
 
 # Claude Code & Cursor files
 CLAUDE.md
+CLAUDE-*.md
 .cursor
 .claude/
 .cursorignore
 AGENTS.md
+skills-lock.json
+
+# Internal planning docs & artifacts
+board-current.png
+sync-summary.json
+webinar-einladung-kompakt.md
+TODO-CI-CLEANUP.md
+MAJOR-DEPS-UPGRADE-PLAN.md
 
 # Scripts directory (root only)
 /scripts/

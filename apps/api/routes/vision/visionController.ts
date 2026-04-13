@@ -1,6 +1,7 @@
 import express, { type Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 
+import { env } from '../../config/env.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getAvailableModels } from '../../services/ai/modelDiscovery.js';
 import { ocrService } from '../../services/OcrService/index.js';
@@ -62,7 +63,7 @@ router.post(
         textDetection: result.textDetection,
         extractedText: result.extractedText,
         ocrMethod: result.ocrMethod ?? null,
-        model: options.model ?? process.env.VISION_DEFAULT_MODEL ?? 'gemma4-31b',
+        model: options.model ?? env.VISION_DEFAULT_MODEL ?? 'gemma4-31b',
         provider: options.provider ?? 'regolo',
       });
     } catch (error: unknown) {
@@ -144,7 +145,7 @@ router.post(
 
       res.json({
         altText,
-        model: options.model ?? process.env.VISION_DEFAULT_MODEL ?? 'gemma4-31b',
+        model: options.model ?? env.VISION_DEFAULT_MODEL ?? 'gemma4-31b',
         provider: options.provider ?? 'regolo',
       });
     } catch (error: unknown) {

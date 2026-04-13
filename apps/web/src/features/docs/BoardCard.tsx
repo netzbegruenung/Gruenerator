@@ -20,7 +20,7 @@ export const BoardCard = memo(function BoardCard({
   const navigate = useNavigate();
   const isWhiteboard = getBoardType(board) === 'whiteboard';
   const handleClick = useCallback(() => {
-    navigate(`/boards/${board.id}`);
+    void navigate(`/boards/${board.id}`);
   }, [navigate, board.id]);
 
   return (

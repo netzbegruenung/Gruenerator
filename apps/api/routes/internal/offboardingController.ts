@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 
+import { env } from '../../config/env.js';
 import { OffboardingService } from '../../services/admin/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -19,7 +20,7 @@ interface DryRunBody {
 const requireAdmin = (req: AdminRequest, res: Response, next: NextFunction): void => {
   const adminToken = req.headers['x-admin-token'];
 
-  if (!adminToken || adminToken !== process.env.ADMIN_TOKEN) {
+  if (!adminToken || adminToken !== env.ADMIN_TOKEN) {
     res.status(403).json({
       error: 'Admin authentication required',
       message: 'This endpoint requires admin privileges',
@@ -100,10 +101,10 @@ router.get('/status', requireAdmin, async (req: AdminRequest, res: Response): Pr
       status: 'ready',
       message: 'Offboarding service is properly configured',
       config: {
-        apiBaseUrl: process.env.GRUENE_API_BASEURL || 'https://app.gruene.de',
+        apiBaseUrl: env.GRUENE_API_BASEURL || 'https://app.gruene.de',
         hasAuthentication: !!(
-          process.env.GRUENE_API_KEY ||
-          (process.env.GRUENE_API_USERNAME && process.env.GRUENE_API_PASSWORD)
+          env.GRUENE_API_KEY ||
+          (env.GRUENE_API_USERNAME && env.GRUENE_API_PASSWORD)
         ),
       },
     });
@@ -113,10 +114,10 @@ router.get('/status', requireAdmin, async (req: AdminRequest, res: Response): Pr
       status: 'error',
       message: err.message,
       config: {
-        apiBaseUrl: process.env.GRUENE_API_BASEURL || 'https://app.gruene.de',
+        apiBaseUrl: env.GRUENE_API_BASEURL || 'https://app.gruene.de',
         hasAuthentication: !!(
-          process.env.GRUENE_API_KEY ||
-          (process.env.GRUENE_API_USERNAME && process.env.GRUENE_API_PASSWORD)
+          env.GRUENE_API_KEY ||
+          (env.GRUENE_API_USERNAME && env.GRUENE_API_PASSWORD)
         ),
       },
     });

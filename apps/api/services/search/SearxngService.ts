@@ -5,18 +5,20 @@
 
 import crypto from 'crypto';
 
+import { env } from '../../config/env.js';
+
 import type {
   SearxngSearchOptions,
   SearchResult,
   ContentStats,
   FormattedSearchResults,
   FormattedSearchResultsWithSummary,
-  SearxngSummary,
   CacheEntry,
   ServiceStatus,
 } from './types.js';
+import type { AIWorkerPool } from '../../workers/types.js';
 
-const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
+const LOG_LEVEL = env.LOG_LEVEL;
 const isDebug = LOG_LEVEL === 'debug';
 const isVerbose = ['debug', 'verbose'].includes(LOG_LEVEL);
 
@@ -46,12 +48,7 @@ interface RedisClientLike {
   ping: () => Promise<string>;
 }
 
-export interface AIWorkerPool {
-  processRequest(
-    request: unknown,
-    req?: unknown
-  ): Promise<{ content?: string; success?: boolean; error?: string }>;
-}
+export type { AIWorkerPool };
 
 class SearxngService {
   private baseUrl: string;
@@ -286,7 +283,7 @@ class SearxngService {
     searchResults: FormattedSearchResults,
     originalQuery: string,
     aiWorkerPool: AIWorkerPool,
-    summaryOptions: Record<string, unknown> = {},
+    _summaryOptions: Record<string, unknown> = {},
     req: unknown = null
   ): Promise<FormattedSearchResultsWithSummary> {
     if (!searchResults.results || searchResults.results.length === 0) {
@@ -380,7 +377,7 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
   /**
    * Prepare search results content for AI summarization
    */
-  private prepareContentForSummary(results: SearchResult[], query: string): string {
+  private prepareContentForSummary(results: SearchResult[], _query: string): string {
     const relevantResults = results.slice(0, 8);
 
     return relevantResults
@@ -420,7 +417,7 @@ URL: ${result.url}
     try {
       const urlObject = new URL(url);
       return urlObject.hostname.replace('www.', '');
-    } catch (error) {
+    } catch {
       return url || 'unknown';
     }
   }

@@ -51,7 +51,7 @@ export const usePopupDismiss = (storageKey: string): UsePopupDismissReturn => {
   // Hydrate user defaults when authenticated
   useEffect(() => {
     if (isAuthenticated && !isHydrated) {
-      hydrate();
+      void hydrate();
     }
   }, [isAuthenticated, isHydrated, hydrate]);
 

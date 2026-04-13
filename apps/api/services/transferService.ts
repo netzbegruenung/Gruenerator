@@ -6,7 +6,6 @@ import { createLogger } from '../utils/logger.js';
 
 import NextcloudApiClient, { type DownloadFileResult } from './api-clients/nextcloudApiClient.js';
 
-import type { SharedMediaRow } from '../types/media.js';
 import type { NextcloudShareLink } from '../utils/integrations/nextcloud/types.js';
 
 const log = createLogger('transfer');

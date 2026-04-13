@@ -24,7 +24,6 @@ import {
 import {
   extractLocaleFromRequest,
   localizePlaceholders,
-  type RequestWithLocale,
 } from '../../services/localization/index.js';
 import {
   validateAndInjectCitations,
@@ -57,13 +56,10 @@ const normalSearchBodySchema = z.object({
   safesearch: z.union([z.number(), z.string()]).optional(),
   categories: z.string().optional(),
 });
-type NormalSearchRequestBody = z.infer<typeof normalSearchBodySchema>;
-
 /** Zod schema for the POST body of deep research streaming */
 const deepSearchBodySchema = z.object({
   query: z.string(),
 });
-type DeepSearchRequestBody = z.infer<typeof deepSearchBodySchema>;
 
 const log = createLogger('search-stream');
 
@@ -96,7 +92,7 @@ interface SummaryPromptResult {
 }
 
 function buildSummaryPrompt(state: WebSearchState): SummaryPromptResult | null {
-  let resultsToUse: EnrichedResult[] | SearchResult[] | undefined = state.enrichedResults;
+  let resultsToUse: EnrichedResult[] | SearchResult[] | null | undefined = state.enrichedResults;
   if (!resultsToUse || resultsToUse.length === 0) {
     const firstWebSearch = state.webResults?.[0];
     resultsToUse = firstWebSearch?.results || [];
@@ -238,6 +234,22 @@ export async function streamNormalSearch(req: AuthenticatedRequest, res: Respons
       aiWorkerPool: req.app.locals.aiWorkerPool as AIWorkerPool,
       req,
       metadata: { startTime, searchMode: 'normal' },
+      subqueries: null,
+      webResults: null,
+      grundsatzResults: null,
+      aggregatedResults: null,
+      categorizedSources: {},
+      referencesMap: null,
+      citations: null,
+      citationSources: null,
+      crawlDecisions: null,
+      enrichedResults: null,
+      crawlMetadata: {},
+      finalResults: null,
+      summary: null,
+      dossier: null,
+      success: null,
+      error: null,
     };
 
     // Step 1: Planner
@@ -412,6 +424,22 @@ export async function streamDeepSearch(req: AuthenticatedRequest, res: Response)
       aiWorkerPool: req.app.locals.aiWorkerPool as AIWorkerPool,
       req,
       metadata: { startTime, searchMode: 'deep' },
+      subqueries: null,
+      webResults: null,
+      grundsatzResults: null,
+      aggregatedResults: null,
+      categorizedSources: {},
+      referencesMap: null,
+      citations: null,
+      citationSources: null,
+      crawlDecisions: null,
+      enrichedResults: null,
+      crawlMetadata: {},
+      finalResults: null,
+      summary: null,
+      dossier: null,
+      success: null,
+      error: null,
     };
 
     // Step 1: Planner (generates research questions + subqueries)
@@ -534,7 +562,7 @@ export async function streamDeepSearch(req: AuthenticatedRequest, res: Response)
     const referencesMap = buildReferencesMap(deduplicatedSources);
     const refsSummary = summarizeReferencesForPrompt(referencesMap);
 
-    const locale = extractLocaleFromRequest(state.req as unknown as RequestWithLocale);
+    const locale = extractLocaleFromRequest(state.req);
     const systemPromptBase = localizePlaceholders(buildDossierSystemPrompt(), locale);
     const filteredData = filterDataForAI(
       state.webResults,

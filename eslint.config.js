@@ -11,6 +11,7 @@ export default [
       'apps/docs/**/*.{ts,tsx,js,jsx}',
       'apps/mobile/**/*.{ts,tsx,js,jsx}',
       'apps/desktop/**/*.{ts,tsx,js,jsx}',
+      'apps/gruen-o-mat/**/*.{ts,tsx,js,jsx}',
     ],
     ...reactConfig[0],
   },
@@ -22,6 +23,7 @@ export default [
       'apps/docs/**/*.{ts,tsx,js,jsx}',
       'apps/mobile/**/*.{ts,tsx,js,jsx}',
       'apps/desktop/**/*.{ts,tsx,js,jsx}',
+      'apps/gruen-o-mat/**/*.{ts,tsx,js,jsx}',
     ],
   })),
 
@@ -37,12 +39,12 @@ export default [
 
   // Shared packages
   {
-    files: ['packages/shared/**/*.{ts,tsx,js,jsx}'],
+    files: ['packages/shared/**/*.{ts,tsx,js,jsx}', 'packages/contracts/**/*.{ts,tsx,js,jsx}'],
     ...baseConfig[0],
   },
   ...baseConfig.slice(1).map((config) => ({
     ...config,
-    files: ['packages/shared/**/*.{ts,tsx,js,jsx}'],
+    files: ['packages/shared/**/*.{ts,tsx,js,jsx}', 'packages/contracts/**/*.{ts,tsx,js,jsx}'],
   })),
 
   // Root-level config files (no type-checking)

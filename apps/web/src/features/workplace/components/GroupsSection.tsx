@@ -35,7 +35,7 @@ const GroupsSection: React.FC = memo(() => {
   }, [createGroup, navigate]);
 
   const handleShare = useCallback((id: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/gruppen/${id}`);
+    void navigator.clipboard.writeText(`${window.location.origin}/gruppen/${id}`);
   }, []);
 
   return (

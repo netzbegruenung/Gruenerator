@@ -119,7 +119,7 @@ const SettingsSection: React.FC<SettingsSectionProps> = memo(
           <FeatureToggle
             isActive={config.checked}
             onToggle={(checked) => {
-              config.setter(checked);
+              void config.setter(checked);
               onSuccessMessage(`${config.featureName} ${checked ? 'aktiviert' : 'deaktiviert'}.`);
             }}
             label={config.title}

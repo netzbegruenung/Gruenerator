@@ -13,7 +13,6 @@ import {
   Linking,
   Keyboard,
   Modal,
-  FlatList,
 } from 'react-native';
 
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
@@ -57,6 +56,25 @@ interface ResearchMetadata {
   totalResults: number;
   collections: string[];
   timeMs: number;
+}
+
+// --- API Response Types ---
+
+interface FilterEntryRaw {
+  label?: string;
+  type?: string;
+  values?: Array<{ value: string; count: number }>;
+  min?: string;
+  max?: string;
+}
+
+interface FiltersApiResponse {
+  filters?: Record<string, FilterEntryRaw>;
+}
+
+interface SearchApiResponse {
+  results?: ResearchResult[];
+  metadata?: ResearchMetadata;
 }
 
 // --- Constants ---
@@ -110,13 +128,7 @@ const COLLECTION_GROUPS: Array<{ label: string; prefixes: string[] }> = [
   },
   {
     label: 'Weitere',
-    prefixes: [
-      'kommunalwiki',
-      'boell-stiftung',
-      'gruenblog',
-      'oesterreich-gruene',
-      'gruene-at',
-    ],
+    prefixes: ['kommunalwiki', 'boell-stiftung', 'gruenblog', 'oesterreich-gruene', 'gruene-at'],
   },
 ];
 
@@ -125,9 +137,7 @@ function groupCollections(collections: Collection[]) {
   const assigned = new Set<string>();
 
   for (const group of COLLECTION_GROUPS) {
-    const items = collections.filter((c) =>
-      group.prefixes.some((p) => c.id.startsWith(p))
-    );
+    const items = collections.filter((c) => group.prefixes.some((p) => c.id.startsWith(p)));
     if (items.length > 0) {
       grouped.push({ label: group.label, items });
       items.forEach((c) => assigned.add(c.id));
@@ -207,9 +217,7 @@ function CollectionPicker({
   }, [visible, selected]);
 
   const toggleCollection = (id: string) => {
-    setLocalSelected((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setLocalSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   return (
@@ -232,9 +240,7 @@ function CollectionPicker({
               size={22}
               color={allSelected ? colors.primary[600] : theme.textSecondary}
             />
-            <Text style={[styles.allToggleText, { color: theme.text }]}>
-              Alle Sammlungen
-            </Text>
+            <Text style={[styles.allToggleText, { color: theme.text }]}>Alle Sammlungen</Text>
           </Pressable>
 
           <ScrollView style={styles.collectionList}>
@@ -298,7 +304,9 @@ function KeywordFiltersModal({
   theme: Theme;
 }) {
   const [local, setLocal] = useState<Record<string, string[]>>(selected);
-  const keywordFields = filterFields.filter((f) => f.type === 'keyword' && f.values && f.values.length > 0);
+  const keywordFields = filterFields.filter(
+    (f) => f.type === 'keyword' && f.values && f.values.length > 0
+  );
 
   useEffect(() => {
     if (visible) setLocal(selected);
@@ -461,7 +469,9 @@ function DateRangeModal({
               onPress={() => onApply('', '')}
               style={[styles.dateClearButton, { borderColor: theme.border }]}
             >
-              <Text style={[styles.dateClearText, { color: theme.textSecondary }]}>Zurücksetzen</Text>
+              <Text style={[styles.dateClearText, { color: theme.textSecondary }]}>
+                Zurücksetzen
+              </Text>
             </Pressable>
             <Pressable
               onPress={() => onApply(from, to)}
@@ -505,7 +515,7 @@ export default function ResearchScreen() {
 
   useEffect(() => {
     getGlobalApiClient()
-      .get('/research/collections')
+      .get<Collection[]>('/research/collections')
       .then((res) => setCollections(res.data))
       .catch(() => {});
   }, []);
@@ -513,18 +523,16 @@ export default function ResearchScreen() {
   useEffect(() => {
     const ids = selectedCollections.length > 0 ? selectedCollections.join(',') : '';
     getGlobalApiClient()
-      .get(`/research/filters${ids ? `?collectionIds=${ids}` : ''}`)
+      .get<FiltersApiResponse>(`/research/filters${ids ? `?collectionIds=${ids}` : ''}`)
       .then((res) => {
-        const filtersObj = res.data.filters || {};
-        const arr: FilterFieldValues[] = Object.entries(filtersObj).map(
-          ([field, entry]: [string, any]) => ({
-            field,
-            label: entry.label || field,
-            type: entry.type || 'keyword',
-            values: entry.values,
-            range: entry.min || entry.max ? { min: entry.min, max: entry.max } : undefined,
-          })
-        );
+        const filtersObj: Record<string, FilterEntryRaw> = res.data.filters ?? {};
+        const arr: FilterFieldValues[] = Object.entries(filtersObj).map(([field, e]) => ({
+          field,
+          label: e.label ?? field,
+          type: (e.type ?? 'keyword') as 'keyword' | 'date_range',
+          values: e.values,
+          range: (e.min ?? e.max) ? { min: e.min ?? '', max: e.max ?? '' } : undefined,
+        }));
         setFilterFields(arr);
       })
       .catch(() => setFilterFields([]));
@@ -584,9 +592,9 @@ export default function ResearchScreen() {
 
     try {
       const apiClient = getGlobalApiClient();
-      const response = await apiClient.post('/research/search', body);
-      setResults(response.data.results || []);
-      setMetadata(response.data.metadata || null);
+      const response = await apiClient.post<SearchApiResponse>('/research/search', body);
+      setResults(response.data.results ?? []);
+      setMetadata(response.data.metadata ?? null);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Suche fehlgeschlagen. Bitte erneut versuchen.';
@@ -599,15 +607,15 @@ export default function ResearchScreen() {
   }, []);
 
   const searchIfActive = useCallback(() => {
-    if (hasSearched) search();
+    if (hasSearched) void search();
   }, [hasSearched, search]);
 
-  const handleSearch = useCallback(() => search(), [search]);
+  const handleSearch = useCallback(() => void search(), [search]);
 
   const handleExamplePress = useCallback(
     (text: string) => {
       setQuery(text);
-      search(text);
+      void search(text);
     },
     [search]
   );
@@ -657,10 +665,7 @@ export default function ResearchScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {/* Search Bar */}
         <View
           style={[styles.searchBar, { backgroundColor: theme.surface, borderColor: theme.border }]}
@@ -848,10 +853,7 @@ export default function ResearchScreen() {
               )}
             </View>
 
-            <Text
-              style={[styles.resultContent, { color: theme.textSecondary }]}
-              numberOfLines={4}
-            >
+            <Text style={[styles.resultContent, { color: theme.textSecondary }]} numberOfLines={4}>
               {result.relevant_content}
             </Text>
 

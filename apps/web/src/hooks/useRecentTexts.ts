@@ -85,7 +85,7 @@ export function useRecentTexts(options: UseRecentTextsOptions): UseRecentTextsRe
     try {
       console.log('[useRecentTexts] Fetching recent texts for', generatorType);
 
-      const response = await apiClient.get('/auth/saved-texts', {
+      const response = await apiClient.get<{ data: SavedText[] }>('/auth/saved-texts', {
         params: {
           type: generatorType,
           limit,
@@ -94,7 +94,7 @@ export function useRecentTexts(options: UseRecentTextsOptions): UseRecentTextsRe
         skipAuthRedirect: true,
       });
 
-      const fetchedTexts = response.data.data || [];
+      const fetchedTexts = response.data.data ?? [];
 
       if (isMountedRef.current) {
         setTexts(fetchedTexts);
@@ -170,7 +170,7 @@ export function useRecentTexts(options: UseRecentTextsOptions): UseRecentTextsRe
    * Fetch on mount and when dependencies change
    */
   useEffect(() => {
-    fetchTexts();
+    void fetchTexts();
   }, [fetchTexts]);
 
   /**

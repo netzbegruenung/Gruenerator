@@ -5,8 +5,11 @@
  */
 
 import express, { type Response, type Router } from 'express';
+import { z } from 'zod';
 
+import { env } from '../../config/env.js';
 import { rateLimiter } from '../../middleware/rateLimitMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createLogger } from '../../utils/logger.js';
 import { getParam } from '../../utils/params.js';
 
@@ -91,106 +94,92 @@ router.get('/:resourceType', async (req: ReqWithUser, res: Response) => {
   }
 });
 
-router.post('/bulk', async (req: ReqWithUser, res: Response) => {
-  try {
-    const { resourceTypes } = req.body;
-
-    if (!Array.isArray(resourceTypes) || resourceTypes.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'resourceTypes must be a non-empty array',
-      });
-    }
-
-    if (resourceTypes.length > 10) {
-      return res.status(400).json({
-        success: false,
-        error: 'Maximum 10 resource types per bulk request',
-      });
-    }
-
-    const requestWithUser = toRequestWithUser(req);
-    const userType = rateLimiter.getUserType(requestWithUser);
-    const identifier = rateLimiter.getIdentifier(requestWithUser, userType);
-
-    const results: Record<string, RateLimitStatus & { timeUntilReset: string | null }> = {};
-
-    for (const resourceType of resourceTypes) {
-      if (typeof resourceType !== 'string') {
-        log.warn(`[RateLimitAPI] Skipping invalid resource type: ${resourceType}`);
-        continue;
-      }
-
-      const status = (await rateLimiter.checkLimit(
-        resourceType,
-        identifier,
-        userType
-      )) as RateLimitStatus;
-      const timeUntilReset = status.window ? rateLimiter.getTimeUntilReset(status.window) : null;
-
-      results[resourceType] = {
-        ...status,
-        timeUntilReset,
-      };
-    }
-
-    return res.json({
-      success: true,
-      data: results,
-    });
-  } catch (error) {
-    log.error('[RateLimitAPI] Error in bulk status:', error);
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to get bulk rate limit status',
-    });
-  }
+const bulkSchema = z.object({
+  resourceTypes: z.array(z.string()).min(1).max(10),
 });
 
 router.post(
-  '/reset/:resourceType',
-  async (req: ReqWithUser, res: Response) => {
+  '/bulk',
+  validateBody(bulkSchema),
+  async (req: TypedRequest<z.infer<typeof bulkSchema>>, res: Response) => {
     try {
-      const resourceType = getParam(req.params, 'resourceType');
+      const { resourceTypes } = req.body;
 
-      const requestWithUser = toRequestWithUser(req);
+      const requestWithUser = toRequestWithUser(req as ReqWithUser);
       const userType = rateLimiter.getUserType(requestWithUser);
       const identifier = rateLimiter.getIdentifier(requestWithUser, userType);
 
-      if (process.env.NODE_ENV === 'production' && userType === 'anonymous') {
-        return res.status(403).json({
-          success: false,
-          error: 'Anonymous users cannot reset counters in production',
-        });
+      const results: Record<string, RateLimitStatus & { timeUntilReset: string | null }> = {};
+
+      for (const resourceType of resourceTypes) {
+        const status = (await rateLimiter.checkLimit(
+          resourceType,
+          identifier,
+          userType
+        )) as RateLimitStatus;
+        const timeUntilReset = status.window ? rateLimiter.getTimeUntilReset(status.window) : null;
+
+        results[resourceType] = {
+          ...status,
+          timeUntilReset,
+        };
       }
 
-      const limitConfig = rateLimiter.getLimitConfig(resourceType, userType) as LimitConfig | null;
-      const window = limitConfig?.window || 'daily';
-
-      const success = await rateLimiter.resetUserCounter(resourceType, identifier, window);
-
-      if (success) {
-        return res.json({
-          success: true,
-          message: `Counter reset successfully for ${resourceType}`,
-        });
-      } else {
-        return res.status(500).json({
-          success: false,
-          error: 'Failed to reset counter',
-        });
-      }
+      return res.json({
+        success: true,
+        data: results,
+      });
     } catch (error) {
-      log.error('[RateLimitAPI] Error resetting counter:', error);
+      log.error('[RateLimitAPI] Error in bulk status:', error);
       return res.status(500).json({
         success: false,
-        error: 'Failed to reset counter',
+        error: 'Failed to get bulk rate limit status',
       });
     }
   }
 );
 
-if (process.env.NODE_ENV === 'development') {
+router.post('/reset/:resourceType', async (req: ReqWithUser, res: Response) => {
+  try {
+    const resourceType = getParam(req.params, 'resourceType');
+
+    const requestWithUser = toRequestWithUser(req);
+    const userType = rateLimiter.getUserType(requestWithUser);
+    const identifier = rateLimiter.getIdentifier(requestWithUser, userType);
+
+    if (env.NODE_ENV === 'production' && userType === 'anonymous') {
+      return res.status(403).json({
+        success: false,
+        error: 'Anonymous users cannot reset counters in production',
+      });
+    }
+
+    const limitConfig = rateLimiter.getLimitConfig(resourceType, userType) as LimitConfig | null;
+    const window = limitConfig?.window || 'daily';
+
+    const success = await rateLimiter.resetUserCounter(resourceType, identifier, window);
+
+    if (success) {
+      return res.json({
+        success: true,
+        message: `Counter reset successfully for ${resourceType}`,
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to reset counter',
+      });
+    }
+  } catch (error) {
+    log.error('[RateLimitAPI] Error resetting counter:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to reset counter',
+    });
+  }
+});
+
+if (env.NODE_ENV === 'development') {
   router.get('/config/:resourceType', (req: ReqWithUser, res: Response) => {
     const resourceType = getParam(req.params, 'resourceType');
     const requestWithUser = toRequestWithUser(req);

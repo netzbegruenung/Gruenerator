@@ -1,20 +1,28 @@
+import { drizzleAdapter } from '@better-auth/drizzle-adapter';
+import { type UserProfile } from '@gruenerator/contracts';
 import { betterAuth } from 'better-auth';
 import { bearer } from 'better-auth/plugins/bearer';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 
+import * as schema from '../database/schema/index.js';
 import { loadConfig } from '../database/services/PostgresService/config.js';
 import { mobileTokenExchange } from '../plugins/mobileTokenExchange.js';
 import { createLogger } from '../utils/logger.js';
 import { redisClient } from '../utils/redis/client.js';
 
 import { ALLOWED_DOMAINS } from './domains.js';
+import { env } from './env.js';
+import { mapKeycloakProfileToUser } from './mapKeycloakProfileToUser.js';
 
-const KC_BASE = process.env.KEYCLOAK_BASE_URL || 'https://user.netzbegruenung.de';
-const KC_REALM = process.env.KEYCLOAK_REALM || 'gruenerator';
-const KC_CLIENT_ID = process.env.KEYCLOAK_CLIENT_ID || 'Gruenerator';
-const KC_CLIENT_SECRET = process.env.KEYCLOAK_CLIENT_SECRET || '';
+const KC_BASE = env.KEYCLOAK_BASE_URL;
+const KC_REALM = env.KEYCLOAK_REALM;
+const KC_CLIENT_ID = env.KEYCLOAK_CLIENT_ID;
+const KC_CLIENT_SECRET = env.KEYCLOAK_CLIENT_SECRET ?? '';
 const DISCOVERY_URL = `${KC_BASE}/realms/${KC_REALM}/.well-known/openid-configuration`;
+
+const log = createLogger('BetterAuth');
 
 function keycloakProvider(id: string, idpHint: string, locale: 'de-DE' | 'de-AT' = 'de-DE') {
   return {
@@ -24,26 +32,55 @@ function keycloakProvider(id: string, idpHint: string, locale: 'de-DE' | 'de-AT'
     discoveryUrl: DISCOVERY_URL,
     scopes: ['openid', 'profile', 'email', 'offline_access'],
     authorizationUrlParams: { kc_idp_hint: idpHint },
-    mapProfileToUser: (profile: Record<string, unknown>) => ({
-      name: (profile.name as string) || (profile.preferred_username as string) || '',
-      email: profile.email as string,
-      emailVerified: (profile.email_verified as boolean) ?? false,
-      image: (profile.picture as string) || null,
-      locale,
-      authSource: `${idpHint}-login`,
-    }),
+    mapProfileToUser: (profile: Record<string, unknown>) =>
+      mapKeycloakProfileToUser(profile, idpHint, locale),
   };
 }
 
-const log = createLogger('BetterAuth');
-
 const pgConfig = loadConfig();
 const pool = new pg.Pool(pgConfig);
+const db = drizzle(pool, { schema });
+
+// One-shot config snapshot at module load — answers "what URL did the
+// container actually pick up?" without requiring a request to fire.
+log.info(
+  '[BetterAuth Config] baseURL=%s, basePath=/api/auth/v2, NODE_ENV=%s, allowedDomains=%d',
+  env.BETTER_AUTH_URL ?? 'NOT_SET (Better Auth will infer from request host)',
+  env.NODE_ENV,
+  ALLOWED_DOMAINS.length
+);
 
 export const auth = betterAuth({
-  database: pool,
-  ...(process.env.BETTER_AUTH_URL && { baseURL: process.env.BETTER_AUTH_URL }),
+  // `debugLogs: true` makes the Drizzle adapter print every query in three
+  // separate multi-line entries (input, DB result, parsed result), each
+  // dumping the full row including JWT bodies. That's ~170 lines per query
+  // and ~1200 lines per signin flow. Useful for active debugging of Better
+  // Auth's internal query path, useless in production. Gated to LOG_LEVEL.
+  // The databaseHooks below still emit structured one-line events for
+  // session/account/user create+update, which covers normal observability.
+  database: drizzleAdapter(db, {
+    provider: 'pg',
+    schema,
+    debugLogs: env.LOG_LEVEL === 'debug',
+  }),
+  ...(env.BETTER_AUTH_URL != null && { baseURL: env.BETTER_AUTH_URL }),
   basePath: '/api/auth/v2',
+
+  // Pipe Better Auth's internal logs to stdout. Level is gated to LOG_LEVEL
+  // so production gets only warn+error (sign-in failures, anomalies) while
+  // active debugging with LOG_LEVEL=debug gets the full firehose. Routes to
+  // `console.*` directly because Winston's variadic overloads don't accept
+  // dynamic spreads cleanly. The `unknown[]` cast narrows Better Auth's
+  // `any[]` callback signature to satisfy no-unsafe-argument.
+  logger: {
+    level: env.LOG_LEVEL === 'debug' ? 'debug' : 'warn',
+    log: (level, message, ...rawArgs) => {
+      const args: unknown[] = rawArgs;
+      const sink =
+        level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+      sink(`[BA:${level}]`, message, ...args);
+    },
+  },
 
   user: {
     modelName: 'profiles',
@@ -136,6 +173,22 @@ export const auth = betterAuth({
       createdAt: 'created_at',
       updatedAt: 'updated_at',
     },
+    // Trust all four Keycloak providers for account linking. Without this,
+    // Better Auth's link-account.mjs:18-26 refuses to link an OAuth account
+    // to an existing user unless the provider is trusted OR the OAuth profile
+    // returns email_verified: true. Some Keycloak realms don't always return
+    // a verified email claim, which causes `account_not_linked` errors on
+    // sign-in. All four IdPs route through trusted Keycloak realms operated
+    // by netzbegruenung, so trusting them is safe.
+    accountLinking: {
+      enabled: true,
+      trustedProviders: [
+        'keycloak-netzbegruenung',
+        'keycloak-gruenes-netz',
+        'keycloak-gruene-at',
+        'keycloak-gruenerator',
+      ],
+    },
   },
 
   verification: {
@@ -179,7 +232,7 @@ export const auth = betterAuth({
   trustedOrigins: [
     'gruenerator://',
     ...ALLOWED_DOMAINS.map((d) => `https://${d}`),
-    ...(process.env.NODE_ENV === 'development'
+    ...(env.NODE_ENV === 'development'
       ? ['exp://', 'http://localhost:3000', 'http://localhost:5050']
       : []),
   ],
@@ -197,40 +250,53 @@ export const auth = betterAuth({
       const config: { enabled: boolean; domain?: string } = {
         enabled: true,
       };
-      if (process.env.NODE_ENV === 'production') {
+      if (env.NODE_ENV === 'production') {
         config.domain = '.gruenerator.eu';
       }
       return config;
     })(),
   },
 
+  // Database hooks emit one line per meaningful auth event. The previous
+  // shape had `before` hooks that just announced the upcoming write — they
+  // carried no diagnostic value beyond the matching `after` hook (if the
+  // write fails, you'd see the error from Better Auth, not our log), so
+  // they were dropped. Six lines of noise per signin removed.
   databaseHooks: {
     user: {
       create: {
-        before: async (user) => {
-          log.info(`[Auth] Creating user: email=${user.email}, name=${user.name}`);
-          return { data: user };
-        },
         after: async (user) => {
-          log.info(`[Auth] User created: id=${user.id}, email=${user.email}`);
+          log.info(`[Auth] user-created id=${user.id} email=${user.email}`);
+        },
+      },
+      update: {
+        after: async (user) => {
+          log.info(`[Auth] user-updated id=${user.id} email=${user.email}`);
         },
       },
     },
     session: {
       create: {
-        before: async (session) => {
-          log.info(`[Auth] Creating session for user_id=${session.userId}`);
-          return { data: session };
+        after: async (session) => {
+          log.info(
+            `[Auth] session-created id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'}`
+          );
         },
       },
     },
     account: {
       create: {
-        before: async (account) => {
+        after: async (account) => {
           log.info(
-            `[Auth] Linking account: provider=${account.providerId}, accountId=${account.accountId}, userId=${account.userId}`
+            `[Auth] account-linked id=${account.id} provider=${account.providerId} user=${account.userId}`
           );
-          return { data: account };
+        },
+      },
+      update: {
+        after: async (account) => {
+          log.info(
+            `[Auth] account-updated id=${account.id} provider=${account.providerId} user=${account.userId}`
+          );
         },
       },
     },
@@ -252,4 +318,11 @@ export const auth = betterAuth({
 
 export type BetterAuthType = typeof auth;
 export type BetterAuthSession = typeof auth.$Infer.Session;
+
+// Better Auth's `$Infer.Session.user` already includes every column declared
+// in `additionalFields` above — `avatar_robot_id`, `is_admin`, `first_name`,
+// all feature flags etc. are typed as `T | null | undefined` (null because
+// Better Auth stores unset optional columns as SQL NULL). We expose this
+// type directly; `authMiddleware.toBetterAuthUser()` coerces null → undefined
+// and Zod's `.default(...)` on the schema fills the final values.
 export type BetterAuthUser = typeof auth.$Infer.Session.user;

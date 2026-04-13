@@ -1,6 +1,8 @@
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 
 const router = Router();
 const db = getPostgresInstance();
@@ -21,12 +23,26 @@ interface UserGroupRow {
   [key: string]: unknown;
 }
 
+const addGroupSchema = z.object({
+  group_id: z.string(),
+  permission_level: z.enum(['viewer', 'editor']).optional(),
+});
+
+const updateGroupSchema = z.object({
+  permission_level: z.enum(['viewer', 'editor']),
+});
+
 /**
- * @route   GET /api/docs/user-groups
- * @desc    List groups the current user belongs to (for ShareModal dropdown)
+ * @route   GET /api/docs/groups/me
+ * @desc    List groups the current user belongs to (for ShareModal dropdown).
+ *          Path is intentionally 4 segments (`/docs/groups/me`) so it cannot
+ *          be intercepted by the docs contract router's `/api/docs/:id`
+ *          (3 segments) or `/api/docs/:id/permissions` (4 segments, literal
+ *          `permissions`) routes — see commit fixing the user-groups → uuid
+ *          cast crash.
  * @access  Private
  */
-router.get('/user-groups', async (req: Request, res: Response) => {
+router.get('/groups/me', async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
@@ -118,146 +134,152 @@ router.get('/:id/groups', async (req: Request, res: Response) => {
  * @desc    Share document with a group
  * @access  Private (document owner + group member)
  */
-router.post('/:id/groups', async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user?.id;
-    const { group_id, permission_level = 'viewer' } = req.body;
+router.post(
+  '/:id/groups',
+  validateBody(addGroupSchema),
+  async (
+    req: TypedRequest<{ group_id: string; permission_level?: 'viewer' | 'editor' }, { id: string }>,
+    res: Response
+  ) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id;
+      const { group_id, permission_level = 'viewer' } = req.body;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
 
-    if (!group_id) {
-      return res.status(400).json({ error: 'group_id is required' });
-    }
+      const doc = (await db.query(
+        'SELECT created_by, title FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
+        [id]
+      )) as { created_by: string; title?: string }[];
 
-    if (!['viewer', 'editor'].includes(permission_level)) {
-      return res.status(400).json({ error: 'permission_level must be "viewer" or "editor"' });
-    }
+      if (doc.length === 0) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
 
-    const doc = (await db.query(
-      'SELECT created_by, title FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
-      [id]
-    )) as { created_by: string; title?: string }[];
+      if (doc[0].created_by !== userId) {
+        return res.status(403).json({ error: 'Only document owner can share with groups' });
+      }
 
-    if (doc.length === 0) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
+      const membership = (await db.query(
+        'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id = $2',
+        [group_id, userId]
+      )) as { user_id: string }[];
 
-    if (doc[0].created_by !== userId) {
-      return res.status(403).json({ error: 'Only document owner can share with groups' });
-    }
+      if (membership.length === 0) {
+        return res
+          .status(403)
+          .json({ error: 'You must be a member of the group to share with it' });
+      }
 
-    const membership = (await db.query(
-      'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id = $2',
-      [group_id, userId]
-    )) as { user_id: string }[];
-
-    if (membership.length === 0) {
-      return res.status(403).json({ error: 'You must be a member of the group to share with it' });
-    }
-
-    const existing = (await db.query(
-      `SELECT id FROM group_content_shares
+      const existing = (await db.query(
+        `SELECT id FROM group_content_shares
        WHERE content_type = 'collaborative_documents' AND content_id = $1 AND group_id = $2`,
-      [id, group_id]
-    )) as { id: string }[];
+        [id, group_id]
+      )) as { id: string }[];
 
-    if (existing.length > 0) {
-      return res.status(409).json({ error: 'Document is already shared with this group' });
-    }
+      if (existing.length > 0) {
+        return res.status(409).json({ error: 'Document is already shared with this group' });
+      }
 
-    const permissions = {
-      read: true,
-      write: permission_level === 'editor',
-    };
+      const permissions = {
+        read: true,
+        write: permission_level === 'editor',
+      };
 
-    await db.query(
-      `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
+      await db.query(
+        `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
        VALUES ('collaborative_documents', $1, $2, $3, $4)`,
-      [id, group_id, userId, JSON.stringify(permissions)]
-    );
+        [id, group_id, userId, JSON.stringify(permissions)]
+      );
 
-    // Notify group members
-    import('../../services/notifications/index.js')
-      .then(({ notifyGroupMembers }) =>
-        notifyGroupMembers({
-          groupId: group_id,
-          excludeUserId: userId,
-          type: 'group_content_shared',
-          title: 'Dokument geteilt',
-          body: `${req.user?.display_name || 'Jemand'} hat „${doc[0].title || 'ein Dokument'}" geteilt`,
-          actionUrl: `/docs/${id}`,
-          metadata: { documentId: id, groupId: group_id },
-        })
-      )
-      .catch(() => {});
+      // Notify group members
+      import('../../services/notifications/index.js')
+        .then(({ notifyGroupMembers }) =>
+          notifyGroupMembers({
+            groupId: group_id,
+            excludeUserId: userId,
+            type: 'group_content_shared',
+            title: 'Dokument geteilt',
+            body: `${req.user?.display_name || 'Jemand'} hat „${doc[0].title || 'ein Dokument'}" geteilt`,
+            actionUrl: `/docs/${id}`,
+            metadata: { documentId: id, groupId: group_id },
+          })
+        )
+        .catch(() => {});
 
-    return res.status(201).json({ message: 'Document shared with group successfully' });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error sharing document with group:', error);
-    return res.status(500).json({ error: 'Failed to share document with group', details: message });
+      return res.status(201).json({ message: 'Document shared with group successfully' });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[Docs] Error sharing document with group:', error);
+      return res
+        .status(500)
+        .json({ error: 'Failed to share document with group', details: message });
+    }
   }
-});
+);
 
 /**
  * @route   PUT /api/docs/:id/groups/:groupId
  * @desc    Update group permission level for a document
  * @access  Private (document owner)
  */
-router.put('/:id/groups/:groupId', async (req: Request, res: Response) => {
-  try {
-    const { id, groupId } = req.params;
-    const userId = req.user?.id;
-    const { permission_level } = req.body;
+router.put(
+  '/:id/groups/:groupId',
+  validateBody(updateGroupSchema),
+  async (
+    req: TypedRequest<{ permission_level: 'viewer' | 'editor' }, { id: string; groupId: string }>,
+    res: Response
+  ) => {
+    try {
+      const { id, groupId } = req.params;
+      const userId = req.user?.id;
+      const { permission_level } = req.body;
 
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
 
-    if (!permission_level || !['viewer', 'editor'].includes(permission_level)) {
-      return res.status(400).json({ error: 'permission_level must be "viewer" or "editor"' });
-    }
+      const doc = (await db.query(
+        'SELECT created_by FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
+        [id]
+      )) as { created_by: string }[];
 
-    const doc = (await db.query(
-      'SELECT created_by FROM collaborative_documents WHERE id = $1 AND is_deleted = false',
-      [id]
-    )) as { created_by: string }[];
+      if (doc.length === 0) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
 
-    if (doc.length === 0) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
+      if (doc[0].created_by !== userId) {
+        return res.status(403).json({ error: 'Only document owner can update group permissions' });
+      }
 
-    if (doc[0].created_by !== userId) {
-      return res.status(403).json({ error: 'Only document owner can update group permissions' });
-    }
+      const permissions = {
+        read: true,
+        write: permission_level === 'editor',
+      };
 
-    const permissions = {
-      read: true,
-      write: permission_level === 'editor',
-    };
-
-    const result = await db.query(
-      `UPDATE group_content_shares
+      const result = await db.query(
+        `UPDATE group_content_shares
        SET permissions = $1
        WHERE content_type = 'collaborative_documents' AND content_id = $2 AND group_id = $3
        RETURNING id`,
-      [JSON.stringify(permissions), id, groupId]
-    );
+        [JSON.stringify(permissions), id, groupId]
+      );
 
-    if (!result || (result as unknown[]).length === 0) {
-      return res.status(404).json({ error: 'Group share not found' });
+      if (!result || (result as unknown[]).length === 0) {
+        return res.status(404).json({ error: 'Group share not found' });
+      }
+
+      return res.json({ message: 'Group permission updated successfully' });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[Docs] Error updating group share:', error);
+      return res.status(500).json({ error: 'Failed to update group permission', details: message });
     }
-
-    return res.json({ message: 'Group permission updated successfully' });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error updating group share:', error);
-    return res.status(500).json({ error: 'Failed to update group permission', details: message });
   }
-});
+);
 
 /**
  * @route   DELETE /api/docs/:id/groups/:groupId

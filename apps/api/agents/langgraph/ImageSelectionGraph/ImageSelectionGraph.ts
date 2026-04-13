@@ -13,14 +13,12 @@ import { loadCatalogNode } from './nodes/LoadCatalogNode.js';
 import { selectImageNode } from './nodes/SelectImageNode.js';
 
 import type {
-  ImageSelectionState,
   ImageSelectionInput,
   ImageSelectionOutput,
   CatalogImage,
   ImageCatalog,
   SelectionMetadata,
 } from './types.js';
-import type { Request } from 'express';
 
 // State schema for the image selection graph
 const ImageSelectionStateAnnotation = Annotation.Root({
@@ -73,13 +71,13 @@ function createImageSelectionGraph() {
   const workflow = new StateGraph(ImageSelectionStateAnnotation)
     .addNode(
       'loadCatalog',
-      loadCatalogNode as (
+      loadCatalogNode as unknown as (
         state: ImageSelectionGraphState
       ) => Promise<Partial<ImageSelectionGraphState>>
     )
     .addNode(
       'selectImage',
-      selectImageNode as (
+      selectImageNode as unknown as (
         state: ImageSelectionGraphState
       ) => Promise<Partial<ImageSelectionGraphState>>
     )

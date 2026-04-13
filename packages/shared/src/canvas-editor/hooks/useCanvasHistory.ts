@@ -42,7 +42,7 @@ export function useCanvasHistory(options: UseCanvasHistoryOptions = {}): UseCanv
       }
 
       const entry: CanvasHistoryEntry = {
-        layers: JSON.parse(JSON.stringify(layers)),
+        layers: JSON.parse(JSON.stringify(layers)) as Layer[],
         selectedLayerIds: [...selectedIds],
         timestamp: Date.now(),
       };

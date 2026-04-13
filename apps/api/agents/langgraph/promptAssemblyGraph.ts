@@ -25,8 +25,8 @@ import type {
   Locale,
   Platform,
 } from './types/promptAssembly.js';
-import type { contentExamplesService as ContentExamplesServiceInstance } from '../../services/contentExamplesService.js';
 import type { ClaudeMessage } from '../../services/attachments/types.js';
+import type { contentExamplesService as ContentExamplesServiceInstance } from '../../services/contentExamplesService.js';
 
 // ============================================================================
 // Optional Service Dependencies
@@ -284,7 +284,7 @@ function assemblePromptGraph(state: PromptAssemblyState): PromptAssemblyResult {
   const docBlocks = buildDocumentBlocks(state.documents as DocumentBlock[]);
   if (docBlocks && docBlocks.length > 0) {
     console.log(`📋 [PromptAssembly] Added ${docBlocks.length} document blocks`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
     messages.push({ role: 'user', content: docBlocks as any });
   }
 
@@ -567,8 +567,9 @@ async function assemblePromptGraphAsync(
       console.log(
         '📋 [PromptAssemblyAsync] No Doc URLs prepared; falling back to direct documents for DocQnA'
       );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      knowledgeCapsule = await runDocumentQnA(enrichedState, fileAttachmentDocs as any);
+      // runDocumentQnA only supports URL strings; direct document blocks are not compatible.
+      // This path is a no-op fallback — the function returns null for non-string content.
+      knowledgeCapsule = await runDocumentQnA(enrichedState, []);
       if (knowledgeCapsule) {
         console.log(
           `🧭 [LangGraph] DocQnA used with direct documents: docs=${fileAttachmentDocs.length}`
@@ -647,7 +648,10 @@ async function assemblePromptGraphAsync(
             })
             .then((items) =>
               items
-                .filter((item): item is typeof item & { content: string } => typeof item.content === 'string')
+                .filter(
+                  (item): item is typeof item & { content: string } =>
+                    typeof item.content === 'string'
+                )
                 .map((item) => ({ ...item, content: item.content }))
             )
         );
@@ -692,7 +696,7 @@ async function assemblePromptGraphAsync(
 
   if (effectiveDocuments.length > 0) {
     console.log(`📋 [PromptAssemblyAsync] Adding ${effectiveDocuments.length} effective documents`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
     messages.push({ role: 'user', content: buildDocumentBlocks(effectiveDocuments) as any });
   }
 

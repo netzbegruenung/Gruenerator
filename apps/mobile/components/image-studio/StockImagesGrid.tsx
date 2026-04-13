@@ -60,7 +60,7 @@ export function StockImagesGrid({ onImageSelected }: StockImagesGridProps) {
   }, []);
 
   useEffect(() => {
-    loadImages(selectedCategory);
+    void loadImages(selectedCategory);
   }, [selectedCategory, loadImages]);
 
   const handleCategoryChange = useCallback((category: string) => {

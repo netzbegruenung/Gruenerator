@@ -1,11 +1,8 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { memo, useCallback, useState } from 'react';
 import { FiLink, FiCheck, FiLoader } from 'react-icons/fi';
 import { SiGoogle, SiJira, SiConfluence } from 'react-icons/si';
 import { VscAzure } from 'react-icons/vsc';
-
-import { cn } from '@/utils/cn';
-
-import { useQueryClient } from '@tanstack/react-query';
 
 import {
   useConnectionStatus,
@@ -16,7 +13,10 @@ import {
 import type { ConnectionStatus } from '../lib/connectionsApi';
 import type { IconType } from 'react-icons';
 
-const NANGO_PUBLIC_URL = import.meta.env.VITE_NANGO_PUBLIC_URL || 'https://nango.gruenerator.eu';
+import { cn } from '@/utils/cn';
+
+const NANGO_PUBLIC_URL =
+  (import.meta.env.VITE_NANGO_PUBLIC_URL as string | undefined) ?? 'https://nango.gruenerator.eu';
 
 interface ProviderIconConfig {
   icon: IconType;
@@ -116,95 +116,87 @@ interface ConnectedAccountsSectionProps {
   onError?: (message: string) => void;
 }
 
-const ConnectedAccountsSection = memo(
-  ({ onSuccess, onError }: ConnectedAccountsSectionProps) => {
-    const { data: providers = [], isLoading } = useConnectionStatus();
-    const createToken = useCreateSessionToken();
-    const disconnect = useDisconnectProvider();
-    const queryClient = useQueryClient();
-    const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
+const ConnectedAccountsSection = memo(({ onSuccess, onError }: ConnectedAccountsSectionProps) => {
+  const { data: providers = [], isLoading } = useConnectionStatus();
+  const createToken = useCreateSessionToken();
+  const disconnect = useDisconnectProvider();
+  const queryClient = useQueryClient();
+  const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
 
-    const handleConnect = useCallback(
-      async (providerKey: string) => {
-        try {
-          setConnectingProvider(providerKey);
-          const token = await createToken.mutateAsync();
-          const connectUrl = `${NANGO_PUBLIC_URL}/oauth/connect/${providerKey}?connect_session_token=${encodeURIComponent(token)}`;
-          const popup = window.open(connectUrl, '_blank', 'width=600,height=700');
+  const handleConnect = useCallback(
+    async (providerKey: string) => {
+      try {
+        setConnectingProvider(providerKey);
+        const token = await createToken.mutateAsync();
+        const connectUrl = `${NANGO_PUBLIC_URL}/oauth/connect/${providerKey}?connect_session_token=${encodeURIComponent(token)}`;
+        const popup = window.open(connectUrl, '_blank', 'width=600,height=700');
 
-          if (popup) {
-            const interval = setInterval(() => {
-              if (popup.closed) {
-                clearInterval(interval);
-                void queryClient.invalidateQueries({ queryKey: ['connections', 'status'] });
-              }
-            }, 1000);
-          }
-
-          onSuccess?.(`OAuth-Flow für ${providerKey} gestartet`);
-        } catch {
-          onError?.('Verbindung konnte nicht gestartet werden');
-        } finally {
-          setConnectingProvider(null);
+        if (popup) {
+          const interval = setInterval(() => {
+            if (popup.closed) {
+              clearInterval(interval);
+              void queryClient.invalidateQueries({ queryKey: ['connections', 'status'] });
+            }
+          }, 1000);
         }
-      },
-      [createToken, queryClient, onSuccess, onError]
-    );
 
-    const handleDisconnect = useCallback(
-      async (providerKey: string) => {
-        try {
-          await disconnect.mutateAsync(providerKey);
-          onSuccess?.('Verbindung getrennt');
-        } catch {
-          onError?.('Verbindung konnte nicht getrennt werden');
-        }
-      },
-      [disconnect, onSuccess, onError]
-    );
+        onSuccess?.(`OAuth-Flow für ${providerKey} gestartet`);
+      } catch {
+        onError?.('Verbindung konnte nicht gestartet werden');
+      } finally {
+        setConnectingProvider(null);
+      }
+    },
+    [createToken, queryClient, onSuccess, onError]
+  );
 
-    return (
-      <div className="mt-xl">
-        <div className="flex items-center gap-sm mb-md">
-          <FiLink className="w-6 h-6 text-foreground-heading" />
-          <h2 className="text-xl font-semibold text-foreground-heading m-0">
-            Verbundene Konten
-          </h2>
-          <span className="text-xs bg-secondary-100 text-secondary-700 px-sm py-0.5 rounded-full font-medium">
-            Dev
-          </span>
-        </div>
+  const handleDisconnect = useCallback(
+    async (providerKey: string) => {
+      try {
+        await disconnect.mutateAsync(providerKey);
+        onSuccess?.('Verbindung getrennt');
+      } catch {
+        onError?.('Verbindung konnte nicht getrennt werden');
+      }
+    },
+    [disconnect, onSuccess, onError]
+  );
 
-        {isLoading && (
-          <p className="text-sm text-grey-400 text-center py-sm">Lade Verbindungen...</p>
-        )}
-
-        {!isLoading && providers.length > 0 && (
-          <div className="flex flex-col gap-sm">
-            {providers.map((provider) => (
-              <ProviderCard
-                key={provider.provider}
-                provider={provider}
-                onConnect={handleConnect}
-                onDisconnect={handleDisconnect}
-                isConnecting={connectingProvider === provider.provider}
-                isDisconnecting={
-                  disconnect.isPending && disconnect.variables === provider.provider
-                }
-              />
-            ))}
-          </div>
-        )}
-
-        {!isLoading && providers.length === 0 && (
-          <p className="text-sm text-grey-400 text-center py-md">
-            Nango-Server nicht erreichbar. Stelle sicher, dass der Nango-Container läuft.
-          </p>
-        )}
+  return (
+    <div className="mt-xl">
+      <div className="flex items-center gap-sm mb-md">
+        <FiLink className="w-6 h-6 text-foreground-heading" />
+        <h2 className="text-xl font-semibold text-foreground-heading m-0">Verbundene Konten</h2>
+        <span className="text-xs bg-secondary-100 text-secondary-700 px-sm py-0.5 rounded-full font-medium">
+          Dev
+        </span>
       </div>
-    );
-  }
-);
+
+      {isLoading && <p className="text-sm text-grey-400 text-center py-sm">Lade Verbindungen...</p>}
+
+      {!isLoading && providers.length > 0 && (
+        <div className="flex flex-col gap-sm">
+          {providers.map((provider) => (
+            <ProviderCard
+              key={provider.provider}
+              provider={provider}
+              onConnect={handleConnect}
+              onDisconnect={handleDisconnect}
+              isConnecting={connectingProvider === provider.provider}
+              isDisconnecting={disconnect.isPending && disconnect.variables === provider.provider}
+            />
+          ))}
+        </div>
+      )}
+
+      {!isLoading && providers.length === 0 && (
+        <p className="text-sm text-grey-400 text-center py-md">
+          Nango-Server nicht erreichbar. Stelle sicher, dass der Nango-Container läuft.
+        </p>
+      )}
+    </div>
+  );
+});
 ConnectedAccountsSection.displayName = 'ConnectedAccountsSection';
 
 export default ConnectedAccountsSection;

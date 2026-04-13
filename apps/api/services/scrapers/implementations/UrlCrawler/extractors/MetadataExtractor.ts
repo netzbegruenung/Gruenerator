@@ -43,7 +43,7 @@ export class MetadataExtractor {
             return parsedDate.toISOString();
           }
         }
-      } catch (err) {
+      } catch {
         // Continue to next selector
         continue;
       }
@@ -69,7 +69,7 @@ export class MetadataExtractor {
       try {
         const imageUrl = new URL(ogImage, url).href;
         enhancedData.previewImage = imageUrl;
-      } catch (error) {
+      } catch {
         console.warn('[MetadataExtractor] Invalid image URL:', ogImage);
       }
     }

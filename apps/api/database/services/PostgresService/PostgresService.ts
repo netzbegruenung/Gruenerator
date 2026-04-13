@@ -3,10 +3,11 @@
  * Handles all PostgreSQL operations with connection pooling and high performance
  */
 
+import fs from 'fs';
+
 import pkg from 'pg';
 
 const { Pool } = pkg;
-import fs from 'fs';
 
 import { loadConfig, getSafeConfigForLog } from './config.js';
 import { runMigrations, createDatabaseIfNotExists } from './migrations.js';
@@ -68,45 +69,49 @@ export class PostgresService {
   }
 
   async init(): Promise<void> {
-    console.log('[PostgresService] Starting initialization...');
+    const t0 = Date.now();
     try {
       this.healthStatus = 'connecting';
-      console.log('[PostgresService] Effective configuration:', this.getSafeConfigForLog());
 
-      console.log('[PostgresService] Creating connection pool...');
       this.pool = new Pool(this.config);
-      console.log('[PostgresService] Pool created, testing connection...');
-
       await this.testConnection();
-      console.log('[PostgresService] Connection test successful');
 
       this.isInitialized = true;
       this.isHealthy = true;
       this.healthStatus = 'healthy';
       this.lastError = null;
-      console.log('[PostgresService] PostgreSQL connection established');
 
-      // Run pending migrations
+      // Run pending migrations (non-critical — log internally)
+      let migrationsOk = true;
       try {
         await runMigrations(this.pool);
-        console.log('[PostgresService] ✓ Migrations complete');
       } catch (error) {
+        migrationsOk = false;
         console.warn(
           '[PostgresService] ⚠️ Migration run failed (non-critical):',
           (error as Error).message
         );
       }
 
-      // Auto-sync schema columns
+      // Auto-sync schema columns (non-critical — log internally)
+      let schemaOk = true;
       try {
         await this.syncSchemaColumns();
-        console.log('[PostgresService] ✓ Schema columns synchronized');
       } catch (error) {
+        schemaOk = false;
         console.warn(
           '[PostgresService] ⚠️ Schema column sync failed (non-critical):',
           (error as Error).message
         );
       }
+
+      // One-line summary replacing the previous 11-line init narration.
+      // The migrations.ts module emits its own one-line "Migrations: X/Y/Z"
+      // status, so it's omitted here to avoid duplication.
+      const cfg = this.getSafeConfigForLog() as { host?: string; port?: number; database?: string };
+      console.log(
+        `[PostgresService] ready host=${cfg.host}:${cfg.port} db=${cfg.database} migrations=${migrationsOk ? 'ok' : 'failed'} schema=${schemaOk ? 'ok' : 'failed'} (${Date.now() - t0}ms)`
+      );
     } catch (error) {
       this.isInitialized = false;
       this.isHealthy = false;
@@ -189,8 +194,10 @@ export class PostgresService {
     if (!this.pool) throw new Error('Pool not initialized');
     const client = await this.pool.connect();
     try {
-      const result = await client.query('SELECT NOW()');
-      console.log('[PostgresService] Database connection successful:', result.rows[0].now);
+      // SELECT NOW() verifies the pool can hand out clients and round-trip a
+      // query. Result is discarded — the per-init summary line in `init()`
+      // reports overall connection status.
+      await client.query<{ now: string }>('SELECT NOW()');
     } catch (error) {
       throw new Error(`Connection test failed: ${(error as Error).message}`);
     } finally {
@@ -301,9 +308,9 @@ export class PostgresService {
         console.log(
           `[PostgresService] Schema sync complete: ${successCount} added, ${failCount} failed`
         );
-      } else {
-        console.log('[PostgresService] All schema columns are up to date');
       }
+      // No-op success case (no missing columns) is silent — the per-init
+      // summary line in `init()` reports overall schema status.
     } catch (error) {
       console.error('[PostgresService] Error during schema column sync:', error);
       throw error;
@@ -434,7 +441,7 @@ export class PostgresService {
     await this.ensureInitialized();
     const client = await this.pool!.connect();
     try {
-      const result = await client.query(sql, params);
+      const result = await client.query<{ id: string }>(sql, params);
       return { changes: result.rowCount || 0, lastID: result.rows[0]?.id };
     } catch (error) {
       console.error('[PostgresService] Exec error:', error, { sql, params });

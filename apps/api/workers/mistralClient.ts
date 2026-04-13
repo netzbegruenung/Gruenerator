@@ -2,7 +2,9 @@ import 'dotenv/config';
 
 import { Mistral } from '@mistralai/mistralai';
 
-const apiKey = process.env.MISTRAL_API_KEY;
+import { env } from '../config/env.js';
+
+const apiKey = env.MISTRAL_API_KEY;
 
 if (!apiKey) {
   console.warn(

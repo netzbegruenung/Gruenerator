@@ -27,11 +27,11 @@ export interface PdfExtractionResult {
  */
 export async function extractPdfText(
   pdfUrl: string,
-  options: PdfProcessingOptions = {}
+  _options: PdfProcessingOptions = {}
 ): Promise<PdfExtractionResult> {
   try {
     // Import mistralClient dynamically to avoid circular dependencies
-    const mistralClient = (await import('../../../workers/mistralClient.js')).default;
+    await import('../../../workers/mistralClient.js');
 
     // Note: This is a placeholder - actual PDF extraction should use PdfProcessor classes
     // This function is currently unused but kept for potential future use
@@ -58,7 +58,7 @@ export function isPdfUrl(url: string): boolean {
     const urlObj = new URL(url);
     const pathname = urlObj.pathname.toLowerCase();
     return pathname.endsWith('.pdf') || urlObj.searchParams.has('pdf');
-  } catch (e) {
+  } catch {
     return url.toLowerCase().endsWith('.pdf');
   }
 }
@@ -98,7 +98,7 @@ export function isPdfOlderThan(filename: string, cutoffDate: Date): boolean {
   try {
     const pdfDate = new Date(extractedDate);
     return pdfDate < cutoffDate;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -123,7 +123,7 @@ export function extractPdfFilename(url: string): string {
     const pathname = urlObj.pathname;
     const filename = pathname.split('/').pop() || 'document.pdf';
     return decodeURIComponent(filename);
-  } catch (e) {
+  } catch {
     return 'document.pdf';
   }
 }

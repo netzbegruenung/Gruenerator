@@ -22,6 +22,8 @@ import { getDefaultCollectionsForLocale } from './searchNode.js';
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
 import type { ChatGraphState, SearchResult } from '../types.js';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+
 // ============================================================================
 // Test Utilities
 // ============================================================================

@@ -20,7 +20,7 @@ export function useRecentThreads(limit = 5) {
   const fetchThreads = useCallback(async () => {
     try {
       const client = getGlobalApiClient();
-      const res = await client.get('/chat-service/threads');
+      const res = await client.get<RecentThread[]>('/chat-service/threads');
       const all: RecentThread[] = res.data || [];
       setThreads(all.slice(0, limit));
     } catch {
@@ -32,7 +32,7 @@ export function useRecentThreads(limit = 5) {
 
   useFocusEffect(
     useCallback(() => {
-      fetchThreads();
+      void fetchThreads();
     }, [fetchThreads])
   );
 

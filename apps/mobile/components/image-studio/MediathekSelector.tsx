@@ -52,7 +52,7 @@ export function MediathekSelector({ visible, onClose, onImageSelect }: Mediathek
 
   useEffect(() => {
     if (visible) {
-      fetchUserShares('image');
+      void fetchUserShares('image');
     }
   }, [visible, fetchUserShares]);
 

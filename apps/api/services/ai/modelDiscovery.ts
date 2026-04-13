@@ -1,3 +1,4 @@
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
 import {
@@ -144,22 +145,34 @@ async function fetchProviderModels(
   }
 }
 
-const PROVIDER_ENDPOINTS: Record<ProviderName, { url: () => string; envKey: string }> = {
-  mistral: { url: () => `${MISTRAL_API_URL}/models`, envKey: 'MISTRAL_API_KEY' },
+const PROVIDER_ENDPOINTS: Record<
+  ProviderName,
+  { url: () => string; getApiKey: () => string | null }
+> = {
+  mistral: {
+    url: () => `${MISTRAL_API_URL}/models`,
+    getApiKey: () => env.MISTRAL_API_KEY ?? null,
+  },
   litellm: {
     url: () => {
-      const base = process.env.LITELLM_BASE_URL || LITELLM_DEFAULT_BASE_URL;
+      const base = env.LITELLM_BASE_URL || LITELLM_DEFAULT_BASE_URL;
       return base.endsWith('/v1') ? `${base}/models` : `${base}/v1/models`;
     },
-    envKey: 'LITELLM_API_KEY',
+    getApiKey: () => env.LITELLM_API_KEY ?? null,
   },
-  ionos: { url: () => `${IONOS_BASE_URL}/models`, envKey: 'IONOS_API_TOKEN' },
-  regolo: { url: () => `${REGOLO_BASE_URL}/models`, envKey: 'REGOLO_API_KEY' },
+  ionos: {
+    url: () => `${IONOS_BASE_URL}/models`,
+    getApiKey: () => env.IONOS_API_TOKEN ?? null,
+  },
+  regolo: {
+    url: () => `${REGOLO_BASE_URL}/models`,
+    getApiKey: () => env.REGOLO_API_KEY ?? null,
+  },
 };
 
 function fetchModelsForProvider(provider: ProviderName): Promise<PlaygroundModel[]> {
   const endpoint = PROVIDER_ENDPOINTS[provider];
-  return fetchProviderModels(provider, endpoint.url(), process.env[endpoint.envKey] || null);
+  return fetchProviderModels(provider, endpoint.url(), endpoint.getApiKey());
 }
 
 const FALLBACK_MODELS: PlaygroundModel[] = ['mistral-large-2512', 'mistral-small-latest']

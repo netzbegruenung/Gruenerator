@@ -7,11 +7,11 @@ import App from './App';
 import { registerServiceWorker } from './utils/registerServiceWorker';
 
 // Initialize error monitoring (GlitchTip via Sentry SDK)
-const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN as string | undefined;
 if (sentryDsn) {
   Sentry.init({
     dsn: sentryDsn,
-    environment: import.meta.env.MODE,
+    environment: import.meta.env.MODE as string,
     enabled: import.meta.env.PROD,
     tracesSampleRate: 0,
     ignoreErrors: [

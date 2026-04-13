@@ -12,6 +12,8 @@ import { buildSystemMessage } from './respondNode.js';
 
 import type { ChatGraphState, SearchResult } from '../types.js';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 // ============================================================================
 // Scoring Utilities
 // ============================================================================

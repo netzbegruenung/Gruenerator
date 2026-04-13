@@ -1,4 +1,5 @@
 import express, { type Request, type Response, type Router } from 'express';
+import { z } from 'zod';
 
 import {
   type SubcategoryFilters,
@@ -13,6 +14,7 @@ import {
 } from '../../config/systemCollectionsConfig.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { scrollDocuments } from '../../database/services/QdrantService/operations/batchOperations.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -117,20 +119,18 @@ function highlightSnippet(text: string, query: string, limit: number = SNIPPET_M
 interface TaggedDocumentResult extends DocumentResult {
   collection_id: string;
   collection_name: string;
-  published_at?: string | null;
 }
 
-type SearchMode = 'hybrid' | 'vector' | 'text';
-type SortOption = 'relevance' | 'date_desc' | 'date_asc';
+const researchSearchSchema = z.object({
+  query: z.string().min(2),
+  collectionIds: z.array(z.string()).nullish(),
+  limit: z.number().nullish(),
+  filters: z.record(z.unknown()).nullish(),
+  mode: z.enum(['hybrid', 'vector', 'text']).nullish(),
+  sortBy: z.enum(['relevance', 'date_desc', 'date_asc']).nullish(),
+});
 
-interface ResearchSearchBody {
-  query: string;
-  collectionIds?: string[];
-  limit?: number;
-  filters?: SubcategoryFilters;
-  mode?: SearchMode;
-  sortBy?: SortOption;
-}
+type ResearchSearchBody = z.infer<typeof researchSearchSchema>;
 
 // =============================================================================
 // Filter Cache (5-minute TTL)
@@ -323,283 +323,296 @@ router.get('/filters', async (req: Request, res: Response): Promise<void> => {
 // POST /research/search
 // =============================================================================
 
-router.post('/search', async (req: Request, res: Response): Promise<void> => {
-  const startTime = Date.now();
-  const {
-    query,
-    collectionIds,
-    limit = 30,
-    filters,
-    mode = 'hybrid',
-    sortBy = 'relevance',
-  } = req.body as ResearchSearchBody;
+router.post(
+  '/search',
+  validateBody(researchSearchSchema),
+  async (req: TypedRequest<ResearchSearchBody>, res: Response): Promise<void> => {
+    const startTime = Date.now();
+    const {
+      query,
+      collectionIds,
+      limit = 30,
+      filters,
+      mode = 'hybrid',
+      sortBy = 'relevance',
+    } = req.body;
 
-  if (!query || typeof query !== 'string' || query.trim().length < 2) {
-    res.status(400).json({ error: 'Query must be at least 2 characters.' });
-    return;
-  }
+    if (!query || typeof query !== 'string' || query.trim().length < 2) {
+      res.status(400).json({ error: 'Query must be at least 2 characters.' });
+      return;
+    }
 
-  const trimmedQuery = query.trim();
-  const effectiveLimit = Math.min(Math.max(limit, 1), 100);
+    const trimmedQuery = query.trim();
+    const effectiveLimit = Math.min(Math.max(limit ?? 30, 1), 100);
 
-  const requestedIds = collectionIds?.length
-    ? collectionIds.filter((id) => id in SYSTEM_COLLECTIONS)
-    : getAllSystemCollectionIds();
+    const requestedIds = collectionIds?.length
+      ? collectionIds.filter((id) => id in SYSTEM_COLLECTIONS)
+      : getAllSystemCollectionIds();
 
-  if (requestedIds.length === 0) {
-    res.status(400).json({ error: 'No valid collection IDs provided.' });
-    return;
-  }
+    if (requestedIds.length === 0) {
+      res.status(400).json({ error: 'No valid collection IDs provided.' });
+      return;
+    }
 
-  // Resolve search weights from mode
-  let vectorWeight = 0.7;
-  let textWeight = 0.3;
-  if (mode === 'vector') {
-    vectorWeight = 1.0;
-    textWeight = 0.0;
-  } else if (mode === 'text') {
-    vectorWeight = 0.0;
-    textWeight = 1.0;
-  }
+    // Resolve search weights from mode
+    let vectorWeight = 0.7;
+    let textWeight = 0.3;
+    if (mode === 'vector') {
+      vectorWeight = 1.0;
+      textWeight = 0.0;
+    } else if (mode === 'text') {
+      vectorWeight = 0.0;
+      textWeight = 1.0;
+    }
 
-  // Build user filter from subcategory filters
-  const userFilter = buildSubcategoryFilter(filters);
+    // Build user filter from subcategory filters
+    const userFilter = buildSubcategoryFilter(filters as SubcategoryFilters | null | undefined);
 
-  try {
-    const documentSearchService = getQdrantDocumentService();
+    try {
+      const documentSearchService = getQdrantDocumentService();
 
-    const searchPromises = requestedIds.map(
-      async (collectionId): Promise<TaggedDocumentResult[]> => {
-        const config = SYSTEM_COLLECTIONS[collectionId];
-        if (!config) return [];
+      const searchPromises = requestedIds.map(
+        async (collectionId): Promise<TaggedDocumentResult[]> => {
+          const config = SYSTEM_COLLECTIONS[collectionId];
+          if (!config) return [];
 
-        const searchParams = getSearchParams(collectionId);
+          const searchParams = getSearchParams(collectionId);
 
-        // Merge: defaultFilter (landesverband scoping) + userFilter (selected facets)
-        const additionalFilter = applyDefaultFilter(collectionId, userFilter);
+          // Merge: defaultFilter (landesverband scoping) + userFilter (selected facets)
+          const additionalFilter = applyDefaultFilter(collectionId, userFilter);
 
-        try {
-          const resp = await documentSearchService.search({
-            query: trimmedQuery,
-            userId: undefined,
-            options: {
-              limit: searchParams.limit,
-              mode: mode === 'text' ? 'text' : 'hybrid',
-              vectorWeight,
-              textWeight,
-              threshold: searchParams.threshold,
-              searchCollection: config.qdrantCollection,
-              recallLimit: searchParams.recallLimit,
-              qualityMin: searchParams.qualityMin,
-              additionalFilter,
-            },
-          });
+          try {
+            const resp = await documentSearchService.search({
+              query: trimmedQuery,
+              userId: undefined,
+              options: {
+                limit: searchParams.limit,
+                mode: mode === 'text' ? 'text' : 'hybrid',
+                vectorWeight,
+                textWeight,
+                threshold: searchParams.threshold,
+                searchCollection: config.qdrantCollection,
+                recallLimit: searchParams.recallLimit,
+                qualityMin: searchParams.qualityMin,
+                additionalFilter,
+              },
+            });
 
-          return (resp.results || []).map((doc) => ({
-            ...doc,
-            collection_id: collectionId,
-            collection_name: config.name,
-            published_at:
-              ((doc as unknown as Record<string, unknown>).published_at as string) ?? null,
-          }));
-        } catch (error: unknown) {
-          log.error(
-            `Search error for ${collectionId}: ${error instanceof Error ? error.message : String(error)}`
-          );
-          return [];
+            return (resp.results || []).map((doc) => ({
+              ...doc,
+              collection_id: collectionId,
+              collection_name: config.name,
+              published_at: doc.published_at ?? null,
+            }));
+          } catch (error: unknown) {
+            log.error(
+              `Search error for ${collectionId}: ${error instanceof Error ? error.message : String(error)}`
+            );
+            return [];
+          }
+        }
+      );
+
+      const allResults = (await Promise.all(searchPromises)).flat();
+
+      // Deduplicate by source_url (or document_id), keeping highest similarity_score
+      const dedupMap = new Map<string, TaggedDocumentResult>();
+      for (const result of allResults) {
+        const key = result.source_url || result.document_id;
+        const existing = dedupMap.get(key);
+        if (!existing || result.similarity_score > existing.similarity_score) {
+          dedupMap.set(key, result);
         }
       }
-    );
 
-    const allResults = (await Promise.all(searchPromises)).flat();
+      let deduped = Array.from(dedupMap.values()).filter((r) => r.similarity_score >= 0.35);
 
-    // Deduplicate by source_url (or document_id), keeping highest similarity_score
-    const dedupMap = new Map<string, TaggedDocumentResult>();
-    for (const result of allResults) {
-      const key = result.source_url || result.document_id;
-      const existing = dedupMap.get(key);
-      if (!existing || result.similarity_score > existing.similarity_score) {
-        dedupMap.set(key, result);
+      // Sort
+      if (sortBy === 'date_desc') {
+        deduped.sort((a, b) => {
+          const dateA = a.published_at || '';
+          const dateB = b.published_at || '';
+          if (dateB !== dateA) return dateB.localeCompare(dateA);
+          return b.similarity_score - a.similarity_score;
+        });
+      } else if (sortBy === 'date_asc') {
+        deduped.sort((a, b) => {
+          const dateA = a.published_at || '';
+          const dateB = b.published_at || '';
+          if (dateA !== dateB) return dateA.localeCompare(dateB);
+          return b.similarity_score - a.similarity_score;
+        });
+      } else {
+        deduped.sort((a, b) => b.similarity_score - a.similarity_score);
       }
-    }
 
-    let deduped = Array.from(dedupMap.values()).filter((r) => r.similarity_score >= 0.35);
+      deduped = deduped.slice(0, effectiveLimit);
 
-    // Sort
-    if (sortBy === 'date_desc') {
-      deduped.sort((a, b) => {
-        const dateA = a.published_at || '';
-        const dateB = b.published_at || '';
-        if (dateB !== dateA) return dateB.localeCompare(dateA);
-        return b.similarity_score - a.similarity_score;
+      // Extract best snippets with query-term highlighting
+      const truncated = deduped.map((r) => ({
+        ...r,
+        relevant_content: highlightSnippet(r.relevant_content, trimmedQuery),
+        top_chunks: r.top_chunks.map((chunk: TopChunk) => ({
+          preview: truncateSnippet(chunk.preview, CHUNK_PREVIEW_MAX_CHARS),
+          chunk_index: chunk.chunk_index,
+          page_number: chunk.page_number ?? null,
+        })),
+      }));
+
+      const collectionsFound = [...new Set(deduped.map((r) => r.collection_id))];
+
+      res.json({
+        results: truncated,
+        metadata: {
+          totalResults: deduped.length,
+          collections: collectionsFound,
+          timeMs: Date.now() - startTime,
+        },
       });
-    } else if (sortBy === 'date_asc') {
-      deduped.sort((a, b) => {
-        const dateA = a.published_at || '';
-        const dateB = b.published_at || '';
-        if (dateA !== dateB) return dateA.localeCompare(dateB);
-        return b.similarity_score - a.similarity_score;
-      });
-    } else {
-      deduped.sort((a, b) => b.similarity_score - a.similarity_score);
+    } catch (error: unknown) {
+      log.error(
+        `Research search failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      res.status(500).json({ error: 'Search failed. Please try again.' });
     }
-
-    deduped = deduped.slice(0, effectiveLimit);
-
-    // Extract best snippets with query-term highlighting
-    const truncated = deduped.map((r) => ({
-      ...r,
-      relevant_content: highlightSnippet(r.relevant_content, trimmedQuery),
-      top_chunks: r.top_chunks.map((chunk: TopChunk) => ({
-        preview: truncateSnippet(chunk.preview, CHUNK_PREVIEW_MAX_CHARS),
-        chunk_index: chunk.chunk_index,
-        page_number: chunk.page_number ?? null,
-      })),
-    }));
-
-    const collectionsFound = [...new Set(deduped.map((r) => r.collection_id))];
-
-    res.json({
-      results: truncated,
-      metadata: {
-        totalResults: deduped.length,
-        collections: collectionsFound,
-        timeMs: Date.now() - startTime,
-      },
-    });
-  } catch (error: unknown) {
-    log.error(`Research search failed: ${error instanceof Error ? error.message : String(error)}`);
-    res.status(500).json({ error: 'Search failed. Please try again.' });
   }
-});
+);
 
 // =============================================================================
 // POST /research/similar
 // =============================================================================
 
-interface ResearchSimilarBody {
-  sourceUrl: string;
-  collectionId: string;
-  limit?: number;
-}
-
-router.post('/similar', async (req: Request, res: Response): Promise<void> => {
-  const startTime = Date.now();
-  const { sourceUrl, collectionId, limit = 5 } = req.body as ResearchSimilarBody;
-
-  if (!sourceUrl || typeof sourceUrl !== 'string') {
-    res.status(400).json({ error: 'sourceUrl is required.' });
-    return;
-  }
-
-  if (!collectionId || typeof collectionId !== 'string') {
-    res.status(400).json({ error: 'collectionId is required.' });
-    return;
-  }
-
-  const systemConfig = getSystemCollectionConfig(collectionId);
-  if (!systemConfig) {
-    res.status(400).json({ error: 'Invalid collectionId.' });
-    return;
-  }
-
-  const effectiveLimit = Math.min(Math.max(limit, 1), 20);
-
-  try {
-    const qdrant = getQdrantInstance();
-    await qdrant.init();
-
-    if (!qdrant.client) {
-      res.status(500).json({ error: 'Qdrant client not available.' });
-      return;
-    }
-
-    const qdrantCollection = systemConfig.qdrantCollection;
-
-    // Find the source document's chunks by source_url
-    const sourcePoints = await scrollDocuments(
-      qdrant.client,
-      qdrantCollection,
-      {
-        must: [{ key: 'source_url', match: { value: sourceUrl } }],
-      },
-      { limit: 20, withPayload: true, withVector: false }
-    );
-
-    if (sourcePoints.length === 0) {
-      res.json({
-        results: [],
-        metadata: { totalResults: 0, collections: [], timeMs: Date.now() - startTime },
-      });
-      return;
-    }
-
-    // Use point IDs as positive examples for recommend
-    const positiveIds = sourcePoints.map((p) => p.id);
-
-    const recommendResult = await qdrant.client.recommend(qdrantCollection, {
-      positive: positiveIds,
-      limit: effectiveLimit * 3, // Over-fetch to account for dedup
-      filter: {
-        must_not: [{ key: 'source_url', match: { value: sourceUrl } }],
-      },
-      with_payload: true,
-    });
-
-    // Deduplicate by source_url, keeping highest score
-    const dedupMap = new Map<
-      string,
-      { score: number; payload: Record<string, unknown>; id: string | number }
-    >();
-
-    for (const point of recommendResult) {
-      const payload = (point.payload as Record<string, unknown>) || {};
-      const url = (payload.source_url as string) || String(point.id);
-      const score = point.score ?? 0;
-      const existing = dedupMap.get(url);
-      if (!existing || score > existing.score) {
-        dedupMap.set(url, { score, payload, id: point.id });
-      }
-    }
-
-    const deduped = Array.from(dedupMap.values())
-      .sort((a, b) => b.score - a.score)
-      .slice(0, effectiveLimit);
-
-    // Format results to match the search endpoint format
-    const results = deduped.map((item) => {
-      const payload = item.payload;
-      return {
-        document_id: String(payload.document_id || item.id),
-        title: String(payload.title || 'Unbekanntes Dokument'),
-        source_url: (payload.source_url as string) || null,
-        relevant_content: truncateSnippet(
-          String(payload.relevant_content || payload.content || payload.text || '')
-        ),
-        similarity_score: item.score,
-        chunk_count: 1,
-        top_chunks: [],
-        collection_id: collectionId,
-        collection_name: systemConfig.name,
-        published_at: (payload.published_at as string) ?? null,
-      };
-    });
-
-    const collectionsFound = [...new Set(results.map((r) => r.collection_id))];
-
-    res.json({
-      results,
-      metadata: {
-        totalResults: results.length,
-        collections: collectionsFound,
-        timeMs: Date.now() - startTime,
-      },
-    });
-  } catch (error: unknown) {
-    log.error(`Research similar failed: ${error instanceof Error ? error.message : String(error)}`);
-    res.status(500).json({ error: 'Similar search failed. Please try again.' });
-  }
+const researchSimilarSchema = z.object({
+  sourceUrl: z.string().url(),
+  collectionId: z.string(),
+  limit: z.number().nullish(),
 });
+
+type ResearchSimilarBody = z.infer<typeof researchSimilarSchema>;
+
+router.post(
+  '/similar',
+  validateBody(researchSimilarSchema),
+  async (req: TypedRequest<ResearchSimilarBody>, res: Response): Promise<void> => {
+    const startTime = Date.now();
+    const { sourceUrl, collectionId, limit = 5 } = req.body;
+
+    if (!sourceUrl || typeof sourceUrl !== 'string') {
+      res.status(400).json({ error: 'sourceUrl is required.' });
+      return;
+    }
+
+    if (!collectionId || typeof collectionId !== 'string') {
+      res.status(400).json({ error: 'collectionId is required.' });
+      return;
+    }
+
+    const systemConfig = getSystemCollectionConfig(collectionId);
+    if (!systemConfig) {
+      res.status(400).json({ error: 'Invalid collectionId.' });
+      return;
+    }
+
+    const effectiveLimit = Math.min(Math.max(limit ?? 5, 1), 20);
+
+    try {
+      const qdrant = getQdrantInstance();
+      await qdrant.init();
+
+      if (!qdrant.client) {
+        res.status(500).json({ error: 'Qdrant client not available.' });
+        return;
+      }
+
+      const qdrantCollection = systemConfig.qdrantCollection;
+
+      // Find the source document's chunks by source_url
+      const sourcePoints = await scrollDocuments(
+        qdrant.client,
+        qdrantCollection,
+        {
+          must: [{ key: 'source_url', match: { value: sourceUrl } }],
+        },
+        { limit: 20, withPayload: true, withVector: false }
+      );
+
+      if (sourcePoints.length === 0) {
+        res.json({
+          results: [],
+          metadata: { totalResults: 0, collections: [], timeMs: Date.now() - startTime },
+        });
+        return;
+      }
+
+      // Use point IDs as positive examples for recommend
+      const positiveIds = sourcePoints.map((p) => p.id);
+
+      const recommendResult = await qdrant.client.recommend(qdrantCollection, {
+        positive: positiveIds,
+        limit: effectiveLimit * 3, // Over-fetch to account for dedup
+        filter: {
+          must_not: [{ key: 'source_url', match: { value: sourceUrl } }],
+        },
+        with_payload: true,
+      });
+
+      // Deduplicate by source_url, keeping highest score
+      const dedupMap = new Map<
+        string,
+        { score: number; payload: Record<string, unknown>; id: string | number }
+      >();
+
+      for (const point of recommendResult) {
+        const payload = (point.payload as Record<string, unknown>) || {};
+        const url = (payload.source_url as string) || String(point.id);
+        const score = point.score ?? 0;
+        const existing = dedupMap.get(url);
+        if (!existing || score > existing.score) {
+          dedupMap.set(url, { score, payload, id: point.id });
+        }
+      }
+
+      const deduped = Array.from(dedupMap.values())
+        .sort((a, b) => b.score - a.score)
+        .slice(0, effectiveLimit);
+
+      // Format results to match the search endpoint format
+      const results = deduped.map((item) => {
+        const payload = item.payload;
+        return {
+          document_id: String(payload.document_id || item.id),
+          title: String(payload.title || 'Unbekanntes Dokument'),
+          source_url: (payload.source_url as string) || null,
+          relevant_content: truncateSnippet(
+            String(payload.relevant_content || payload.content || payload.text || '')
+          ),
+          similarity_score: item.score,
+          chunk_count: 1,
+          top_chunks: [],
+          collection_id: collectionId,
+          collection_name: systemConfig.name,
+          published_at: (payload.published_at as string) ?? null,
+        };
+      });
+
+      const collectionsFound = [...new Set(results.map((r) => r.collection_id))];
+
+      res.json({
+        results,
+        metadata: {
+          totalResults: results.length,
+          collections: collectionsFound,
+          timeMs: Date.now() - startTime,
+        },
+      });
+    } catch (error: unknown) {
+      log.error(
+        `Research similar failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      res.status(500).json({ error: 'Similar search failed. Please try again.' });
+    }
+  }
+);
 
 /**
  * Pre-populate the filter cache for "all collections" (the most common request).

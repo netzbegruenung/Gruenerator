@@ -42,7 +42,7 @@ export async function getCachedKnowledge(
  * Cache knowledge in Redis with TTL
  */
 export async function cacheKnowledge(
-  redis: { setEx: (key: string, ttl: number, value: string) => Promise<void> },
+  redis: { setEx: (key: string, ttl: number, value: string) => Promise<unknown> },
   cacheKey: string,
   knowledge: string,
   ttlSeconds: number = 3600

@@ -47,6 +47,8 @@ interface BetaVideoPlayerProps {
 
 export interface BetaVideoPlayerRef {
   seekTo: (time: number) => void;
+  togglePlayPause: () => void;
+  skip: (seconds: number) => void;
 }
 
 export const BetaVideoPlayer = forwardRef<BetaVideoPlayerRef, BetaVideoPlayerProps>(
@@ -242,7 +244,7 @@ export const BetaVideoPlayer = forwardRef<BetaVideoPlayerRef, BetaVideoPlayerPro
         setIsPlaying(false);
         onPause?.();
       } else {
-        videoRef.current.play();
+        void videoRef.current.play();
         setIsPlaying(true);
         onPlay?.();
       }
@@ -331,8 +333,10 @@ export const BetaVideoPlayer = forwardRef<BetaVideoPlayerRef, BetaVideoPlayerPro
       ref,
       () => ({
         seekTo,
+        togglePlayPause,
+        skip,
       }),
-      [seekTo]
+      [seekTo, togglePlayPause, skip]
     );
 
     // Drag-Event-Verarbeitung
@@ -444,7 +448,7 @@ export const BetaVideoPlayer = forwardRef<BetaVideoPlayerRef, BetaVideoPlayerPro
 
       // Wenn vor dem Ziehen abgespielt wurde, Wiedergabe fortsetzen
       if (wasPlayingBeforeDrag && videoRef.current) {
-        videoRef.current.play();
+        void videoRef.current.play();
         setIsPlaying(true);
         onPlay?.();
       }
@@ -476,9 +480,9 @@ export const BetaVideoPlayer = forwardRef<BetaVideoPlayerRef, BetaVideoPlayerPro
       if (!videoRef.current) return;
 
       if (document.fullscreenElement) {
-        document.exitFullscreen();
+        void document.exitFullscreen();
       } else {
-        videoRef.current.requestFullscreen();
+        void videoRef.current.requestFullscreen();
       }
     }, []);
 

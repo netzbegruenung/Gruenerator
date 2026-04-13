@@ -4,6 +4,8 @@ import { promisify } from 'util';
 
 import axios, { type AxiosResponse, type AxiosRequestConfig } from 'axios';
 
+import { env } from '../../config/env.js';
+
 import type { Readable } from 'stream';
 
 const sleep = promisify(setTimeout);
@@ -127,7 +129,7 @@ class FluxImageService {
    * @returns FluxImageService for hosted backend, ComfyUIImageService for local backend
    */
   static async create(backend?: FluxBackend): Promise<FluxImageService> {
-    const useBackend = backend || (process.env.FLUX_BACKEND as FluxBackend) || 'hosted';
+    const useBackend = backend || (env.FLUX_BACKEND as FluxBackend) || 'hosted';
 
     if (useBackend === 'local') {
       console.log('[FluxImageService] Using local ComfyUI backend');
@@ -156,14 +158,14 @@ class FluxImageService {
   }
 
   constructor(options: FluxImageServiceOptions = {}) {
-    this.apiKey = options.apiKey || process.env.BFL_API_KEY || '';
+    this.apiKey = options.apiKey || env.BFL_API_KEY || '';
     this.baseUrl = options.baseUrl || 'https://api.eu.bfl.ai';
     this.modelPath = options.modelPath || '/v1/flux-2-pro';
 
     this.retryConfig = {
-      maxRetries: options.maxRetries || parseInt(process.env.FLUX_MAX_RETRIES || '3', 10),
-      baseDelay: options.baseDelay || parseInt(process.env.FLUX_BASE_DELAY || '1000', 10),
-      maxDelay: options.maxDelay || parseInt(process.env.FLUX_MAX_DELAY || '30000', 10),
+      maxRetries: options.maxRetries || env.FLUX_MAX_RETRIES,
+      baseDelay: options.baseDelay || env.FLUX_BASE_DELAY,
+      maxDelay: options.maxDelay || env.FLUX_MAX_DELAY,
       jitterFactor: options.jitterFactor || 0.1,
       networkTimeoutMs: options.networkTimeoutMs || 60000,
     };

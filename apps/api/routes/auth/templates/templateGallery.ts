@@ -8,12 +8,24 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import express, { type Router, type Response } from 'express';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { AuthRequest } from '../types.js';
+
+const similarBodySchema = z.object({
+  query: z.string(),
+  type: z.string().optional(),
+  limit: z.number().optional(),
+});
+
+const likeBodySchema = z.object({
+  templateType: z.string().optional(),
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -158,18 +170,11 @@ router.get(
 router.post(
   '/examples/similar',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(similarBodySchema),
+  async (req: TypedRequest<{ query: string; type?: string; limit?: number }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { query, type, limit = 5 } = req.body;
-
-      if (!query) {
-        res.status(400).json({
-          success: false,
-          message: 'Suchanfrage ist erforderlich.',
-        });
-        return;
-      }
 
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
@@ -184,7 +189,7 @@ router.post(
         const search = await documentSearchService.search({
           query: String(query).trim(),
           userId: userId || 'system',
-          limit: parseInt(limit),
+          limit: typeof limit === 'number' ? limit : parseInt(String(limit)),
           options: { threshold: 0.25 },
         });
         if (search.success && Array.isArray(search.results)) {
@@ -211,7 +216,7 @@ router.post(
         }
 
         fallbackSql += ` LIMIT $${fallbackParams.length + 1}`;
-        fallbackParams.push(parseInt(limit));
+        fallbackParams.push(typeof limit === 'number' ? limit : parseInt(String(limit)));
 
         const fallbackResults = await postgres.query(fallbackSql, fallbackParams, {
           table: 'user_templates',
@@ -354,7 +359,7 @@ router.get(
       // Filter by tags using JSONB containment
       if (tags) {
         try {
-          const tagsArray = JSON.parse(tags as string);
+          const tagsArray = JSON.parse(tags as string) as unknown[];
           if (Array.isArray(tagsArray) && tagsArray.length > 0) {
             conditions.push(`tags @> $${paramIndex++}::jsonb`);
             params.push(JSON.stringify(tagsArray));
@@ -437,7 +442,7 @@ router.get(
       }
       if (tags) {
         try {
-          const tagsArray = JSON.parse(tags as string);
+          const tagsArray = JSON.parse(tags as string) as string[];
           if (Array.isArray(tagsArray) && tagsArray.length > 0) {
             filteredSystemTemplates = filteredSystemTemplates.filter((t) =>
               tagsArray.every((tag: string) => t.tags?.includes(tag.toLowerCase()))
@@ -475,7 +480,7 @@ router.get(
       }
       if (tags) {
         try {
-          const tagsArray = JSON.parse(tags as string);
+          const tagsArray = JSON.parse(tags as string) as string[];
           if (Array.isArray(tagsArray) && tagsArray.length > 0) {
             filteredSystemFiles = filteredSystemFiles.filter((f) =>
               tagsArray.every((tag: string) =>
@@ -687,7 +692,8 @@ router.get(
 router.post(
   '/vorlagen/:templateId/like',
   ensureAuthenticated,
-  async (req: AuthRequest<{ templateId: string }>, res: Response): Promise<void> => {
+  validateBody(likeBodySchema),
+  async (req: TypedRequest<{ templateType?: string }, { templateId: string }>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { templateId } = req.params;

@@ -247,13 +247,15 @@ export const useGeneratorSelectionStore = create<GeneratorSelectionStore>()(
       setLoadingTexts(true);
 
       try {
-        const response = await apiClient.get('/auth/saved-texts');
+        const response = await apiClient.get<{ success: boolean; data: Text[]; message?: string }>(
+          '/auth/saved-texts'
+        );
         const result = response.data;
 
         if (result.success) {
-          setAvailableTexts(result.data || []);
+          setAvailableTexts(result.data ?? []);
         } else {
-          throw new Error(result.message || 'Failed to fetch texts');
+          throw new Error(result.message ?? 'Failed to fetch texts');
         }
       } catch (error: unknown) {
         console.error('[SelectionStore] Error fetching texts:', error);

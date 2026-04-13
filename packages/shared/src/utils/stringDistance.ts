@@ -21,9 +21,9 @@ export function levenshteinDistance(s1: string, s2: string): number {
   const n = s2.length;
 
   // Create DP matrix
-  const dp: number[][] = Array(m + 1)
-    .fill(null)
-    .map(() => Array(n + 1).fill(0));
+  const dp: number[][] = Array.from({ length: m + 1 }, () =>
+    Array.from<number>({ length: n + 1 }).fill(0)
+  );
 
   // Base cases: transforming empty string to s1[0..i] or s2[0..j]
   for (let i = 0; i <= m; i++) dp[i]![0] = i;

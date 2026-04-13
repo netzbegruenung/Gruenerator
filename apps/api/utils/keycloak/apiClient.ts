@@ -3,36 +3,26 @@
  * Uses Keycloak Admin REST API with client credentials flow
  */
 
-import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
+import axios, { type AxiosInstance } from 'axios';
+import { z } from 'zod';
+
+import { env } from '../../config/env.js';
+import {
+  keycloakTokenResponseSchema,
+  keycloakUserSchema,
+  federatedIdentitySchema,
+  type KeycloakUser,
+  type FederatedIdentity,
+} from '../../services/api-clients/schemas/keycloak.js';
+
+export type {
+  KeycloakUser,
+  FederatedIdentity,
+} from '../../services/api-clients/schemas/keycloak.js';
 
 // ============================================================================
 // Type Definitions
 // ============================================================================
-
-/**
- * Keycloak user representation
- */
-export interface KeycloakUser {
-  id: string;
-  username: string;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  enabled: boolean;
-  emailVerified: boolean;
-  federatedIdentities?: FederatedIdentity[];
-  attributes?: Record<string, string[]>;
-  createdTimestamp?: number;
-}
-
-/**
- * Federated identity provider information
- */
-export interface FederatedIdentity {
-  identityProvider: string;
-  userId: string;
-  userName: string;
-}
 
 /**
  * User credential for password
@@ -65,16 +55,6 @@ export interface UpdateUserData {
   enabled?: boolean;
 }
 
-/**
- * Token response from Keycloak
- */
-interface TokenResponse {
-  access_token: string;
-  expires_in: number;
-  refresh_expires_in: number;
-  token_type: string;
-}
-
 // ============================================================================
 // Keycloak API Client Class
 // ============================================================================
@@ -95,19 +75,19 @@ export class KeycloakApiClient {
   private axiosClient: AxiosInstance;
 
   constructor() {
-    this.baseUrl = process.env.KEYCLOAK_BASE_URL || 'https://auth.services.moritz-waechter.de';
-    this.realm = process.env.KEYCLOAK_REALM || 'Gruenerator';
+    this.baseUrl = env.KEYCLOAK_BASE_URL;
+    this.realm = env.KEYCLOAK_REALM;
 
     // Try client credentials first, fallback to admin username/password
-    const clientId = process.env.KEYCLOAK_CLIENT_ID;
-    const clientSecret = process.env.KEYCLOAK_CLIENT_SECRET;
-    const adminUsername = process.env.KEYCLOAK_ADMIN_USERNAME;
-    const adminPassword = process.env.KEYCLOAK_ADMIN_PASSWORD;
+    const clientId = env.KEYCLOAK_CLIENT_ID;
+    const clientSecret = env.KEYCLOAK_CLIENT_SECRET;
+    const adminUsername = env.KEYCLOAK_ADMIN_USERNAME;
+    const adminPassword = env.KEYCLOAK_ADMIN_PASSWORD;
     if (clientId != null) this.clientId = clientId;
     if (clientSecret != null) this.clientSecret = clientSecret;
     if (adminUsername != null) this.adminUsername = adminUsername;
     if (adminPassword != null) this.adminPassword = adminPassword;
-    this.adminClientId = process.env.KEYCLOAK_ADMIN_CLIENT_ID || 'admin-cli';
+    this.adminClientId = env.KEYCLOAK_ADMIN_CLIENT_ID ?? 'admin-cli';
 
     if (!this.clientId && !this.adminUsername) {
       console.warn(
@@ -137,13 +117,13 @@ export class KeycloakApiClient {
     try {
       console.log('[KeycloakAPI] Requesting new admin token...');
 
-      let response: AxiosResponse<TokenResponse>;
+      let rawResponse: unknown;
 
       // Try client credentials flow first
       if (this.clientId && this.clientSecret) {
         console.log('[KeycloakAPI] Attempting client credentials flow...');
         try {
-          response = await axios.post(
+          const r = await axios.post(
             `${this.baseUrl}/realms/${this.realm}/protocol/openid-connect/token`,
             new URLSearchParams({
               grant_type: 'client_credentials',
@@ -156,6 +136,7 @@ export class KeycloakApiClient {
               },
             }
           );
+          rawResponse = r.data;
           console.log('[KeycloakAPI] ✅ Client credentials flow successful');
         } catch (clientError: unknown) {
           console.warn(
@@ -167,7 +148,7 @@ export class KeycloakApiClient {
           // Fallback to username/password if available
           if (this.adminUsername && this.adminPassword) {
             console.log('[KeycloakAPI] Falling back to username/password flow...');
-            response = await axios.post(
+            const r = await axios.post(
               `${this.baseUrl}/realms/master/protocol/openid-connect/token`,
               new URLSearchParams({
                 grant_type: 'password',
@@ -181,6 +162,7 @@ export class KeycloakApiClient {
                 },
               }
             );
+            rawResponse = r.data;
             console.log('[KeycloakAPI] ✅ Username/password flow successful');
           } else {
             throw clientError;
@@ -189,7 +171,7 @@ export class KeycloakApiClient {
       } else if (this.adminUsername && this.adminPassword) {
         // Only username/password available
         console.log('[KeycloakAPI] Using username/password flow...');
-        response = await axios.post(
+        const r = await axios.post(
           `${this.baseUrl}/realms/master/protocol/openid-connect/token`,
           new URLSearchParams({
             grant_type: 'password',
@@ -203,13 +185,15 @@ export class KeycloakApiClient {
             },
           }
         );
+        rawResponse = r.data;
         console.log('[KeycloakAPI] ✅ Username/password flow successful');
       } else {
         throw new Error('No authentication credentials available');
       }
 
-      this.accessToken = response.data.access_token;
-      this.tokenExpires = Date.now() + response.data.expires_in * 1000 - 30000; // 30s buffer
+      const tokenData = keycloakTokenResponseSchema.parse(rawResponse);
+      this.accessToken = tokenData.access_token;
+      this.tokenExpires = Date.now() + tokenData.expires_in * 1000 - 30000; // 30s buffer
 
       // Update axios client with new token
       this.axiosClient.defaults.headers['Authorization'] = `Bearer ${this.accessToken}`;
@@ -249,16 +233,18 @@ export class KeycloakApiClient {
 
       console.log(`[KeycloakAPI] Searching for user by email: ${email}`);
 
-      const response = await this.axiosClient.get<KeycloakUser[]>('/users', {
+      const response = await this.axiosClient.get('/users', {
         params: {
           email: email,
           exact: true,
         },
       });
 
-      if (response.data && response.data.length > 0) {
-        console.log('[KeycloakAPI] User found:', response.data[0].id);
-        return response.data[0];
+      const users = z.array(keycloakUserSchema).parse(response.data);
+
+      if (users.length > 0) {
+        console.log('[KeycloakAPI] User found:', users[0].id);
+        return users[0];
       }
 
       console.log('[KeycloakAPI] User not found');
@@ -290,8 +276,8 @@ export class KeycloakApiClient {
 
       console.log(`[KeycloakAPI] Getting user by ID: ${userId}`);
 
-      const response = await this.axiosClient.get<KeycloakUser>(`/users/${userId}`);
-      return response.data;
+      const response = await this.axiosClient.get(`/users/${userId}`);
+      return keycloakUserSchema.parse(response.data);
     } catch (error: unknown) {
       const axiosErr = error as {
         response?: { status?: number; statusText?: string; data?: unknown };
@@ -582,10 +568,8 @@ export class KeycloakApiClient {
     try {
       await this.ensureAuth();
 
-      const response = await this.axiosClient.get<FederatedIdentity[]>(
-        `/users/${userId}/federated-identity`
-      );
-      return response.data;
+      const response = await this.axiosClient.get(`/users/${userId}/federated-identity`);
+      return z.array(federatedIdentitySchema).parse(response.data);
     } catch (error: unknown) {
       console.error(
         '[KeycloakAPI] Error getting federated identities:',
@@ -594,5 +578,29 @@ export class KeycloakApiClient {
       );
       return [];
     }
+  }
+
+  /**
+   * List all users with pagination
+   * @param offset - Pagination offset
+   * @param max - Maximum users to return per page
+   * @returns Array of users for this page
+   */
+  async listUsers(offset: number, max: number): Promise<KeycloakUser[]> {
+    await this.ensureAuth();
+    const response = await this.axiosClient.get('/users', {
+      params: { first: offset, max, briefRepresentation: false },
+    });
+    return z.array(keycloakUserSchema).parse(response.data);
+  }
+
+  /**
+   * Delete a federated identity link for a user
+   * @param userId - The Keycloak user ID
+   * @param provider - The identity provider alias
+   */
+  async deleteFederatedIdentity(userId: string, provider: string): Promise<void> {
+    await this.ensureAuth();
+    await this.axiosClient.delete(`/users/${userId}/federated-identity/${provider}`);
   }
 }

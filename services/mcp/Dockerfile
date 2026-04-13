@@ -14,6 +14,7 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/contracts/package.json ./packages/contracts/
 COPY services/mcp/package.json ./services/mcp/
 
 # Install dependencies
@@ -22,6 +23,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # Copy source and compile
 COPY packages/shared ./packages/shared
+COPY packages/contracts ./packages/contracts
 COPY services/mcp ./services/mcp
 
 # Compile shared package (MCP imports @gruenerator/shared at runtime)
@@ -71,6 +73,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
 
 # Copy package.json files for workspace structure
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/package.json ./packages/contracts/
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/mcp/package.json ./services/mcp/
 
 # Switch to non-root user before install (files written as gruenerator, no chown needed)

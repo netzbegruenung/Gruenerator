@@ -48,8 +48,8 @@ export default function GruppenScreen() {
 
     try {
       const apiClient = getGlobalApiClient();
-      const response = await apiClient.get('/auth/groups');
-      setGroups(response.data.groups || []);
+      const response = await apiClient.get<{ groups?: Group[] }>('/auth/groups');
+      setGroups(response.data.groups ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gruppen konnten nicht geladen werden');
     } finally {
@@ -60,13 +60,13 @@ export default function GruppenScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchGroups();
+      void fetchGroups();
     }, [fetchGroups])
   );
 
   const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
-    fetchGroups(true);
+    void fetchGroups(true);
   }, [fetchGroups]);
 
   const toggleExpand = useCallback((id: string) => {
@@ -101,7 +101,7 @@ export default function GruppenScreen() {
         <Ionicons name="alert-circle" size={48} color={colors.semantic.error} />
         <Text style={[styles.errorText, { color: colors.semantic.error }]}>{error}</Text>
         <Pressable
-          onPress={() => fetchGroups()}
+          onPress={() => void fetchGroups()}
           style={({ pressed }) => [
             styles.retryButton,
             { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },

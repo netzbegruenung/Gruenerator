@@ -75,41 +75,9 @@ export interface ChatContext {
 }
 
 /**
- * AI Worker Pool interface for processing AI requests
+ * AI Worker Pool interface — re-exported from workers/types (canonical source)
  */
-export interface AIWorkerPool {
-  processRequest(request: AIWorkerRequest, req?: unknown): Promise<AIWorkerResponse>;
-}
-
-/**
- * Request to AI worker pool
- */
-export interface AIWorkerRequest {
-  /** Type of AI request */
-  type: string;
-  /** System prompt for the AI */
-  systemPrompt: string;
-  /** Conversation messages */
-  messages: Array<{ role: string; content: string }>;
-  /** Additional options for the AI request */
-  options?: {
-    max_tokens?: number | undefined;
-    temperature?: number | undefined;
-    [key: string]: unknown;
-  };
-}
-
-/**
- * Response from AI worker pool
- */
-export interface AIWorkerResponse {
-  /** Whether the request was successful */
-  success: boolean;
-  /** Content returned from the AI */
-  content: string;
-  /** Error message if failed */
-  error?: string | undefined;
-}
+export type { AIWorkerPool, AIRequestData as AIWorkerRequest, AIWorkerResult as AIWorkerResponse } from '../../workers/types.js';
 
 /**
  * AI classification response format (after enrichment with routes)

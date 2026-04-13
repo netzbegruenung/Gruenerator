@@ -124,7 +124,10 @@ class AIService implements AIWorkerPool {
           options: effectiveOptions,
         });
       } else if (!result && effectiveOptions.useProMode === true && !explicitProvider) {
-        result = await providers.executeProvider('mistral', requestId, {
+        // Pro mode routes via provider selection (typically litellm → gpt-oss:120b,
+        // configurable via env). Falls back to mistral if selector didn't pick one.
+        const proProvider = selection.provider || 'mistral';
+        result = await providers.executeProvider(proProvider, requestId, {
           ...data,
           options: effectiveOptions,
         });

@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { FiArrowRight } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
-import { useBoards } from '../hooks/useBoards';
+import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 
 import type { BoardType } from '../types';
 
@@ -19,7 +19,7 @@ export function AIBoardCreator() {
   const [description, setDescription] = useState('');
   const [boardType, setBoardType] = useState<BoardType>('kanban');
   const navigate = useNavigate();
-  const { generateBoard, createBoard } = useBoards();
+  const { generateBoard, createBoard } = useBoardsTyped();
 
   const isLoading = generateBoard.isPending || createBoard.isPending;
 
@@ -29,7 +29,7 @@ export function AIBoardCreator() {
 
     generateBoard.mutate(trimmed, {
       onSuccess: (data) => {
-        navigate(`/boards/${data.board.id}`, {
+        void navigate(`/boards/${data.board.id}`, {
           state: { generatedStructure: data.generatedStructure ?? undefined },
         });
       },
@@ -43,7 +43,7 @@ export function AIBoardCreator() {
       { title, boardType },
       {
         onSuccess: (board) => {
-          navigate(`/boards/${board.id}`);
+          void navigate(`/boards/${board.id}`);
         },
       }
     );

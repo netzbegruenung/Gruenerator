@@ -41,7 +41,7 @@ const DownloadExport = ({ content, title, className = 'action-button' }: Downloa
       setShowFormatSelector(false);
 
       if (format === 'docx') {
-        handleDOCXDownload();
+        void handleDOCXDownload();
       } else if (format === 'pdf') {
         // PDF export temporarily disabled
         console.warn('PDF export is temporarily disabled');

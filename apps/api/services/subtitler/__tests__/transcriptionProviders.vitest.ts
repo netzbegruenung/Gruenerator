@@ -102,8 +102,9 @@ describe.skipIf(!HAS_MISTRAL_KEY)('Round-trip TTS → transcription', () => {
 
       expect(data.text).toBeTruthy();
       // faster-whisper produces variable spellings of the made-up word "Grünerator":
-      // "grünerator", "grüne rator", "gründerator", "gronerator", etc.
-      expect(data.text.toLowerCase()).toMatch(/gr[üöo]n+[de]?\s?e?rator/);
+      // "grünerator", "grüne rator", "gründerator", "gronerator", "grunerator", etc.
+      // Character class covers all observed vowel substitutions (ü/ö/o/u).
+      expect(data.text.toLowerCase()).toMatch(/gr[üöou]n+[de]?\s?e?rator/);
 
       const words: Array<{ word: string; start: number; end: number }> = [];
       if (data.segments) {

@@ -814,11 +814,7 @@ router.post(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
-      const {
-        query,
-        limit = 10,
-        documentTypes = null,
-      } = req.body as SearchSavedTextsBody & { documentTypes?: string[] };
+      const { query, limit = 10 } = req.body as SearchSavedTextsBody & { documentTypes?: string[] };
 
       log.debug(`[Search Saved Texts] User ${userId} searching for: "${query}"`);
 

@@ -45,12 +45,15 @@ export const useRecentGalleryItems = (
     try {
       const cachedData = localStorage.getItem(CACHE_KEY);
       if (cachedData) {
-        const parsed = JSON.parse(cachedData);
-        const age = Date.now() - parsed.timestamp;
+        const parsed = JSON.parse(cachedData) as {
+          timestamp?: number;
+          items?: RecentGalleryItem[];
+        };
+        const age = Date.now() - (parsed.timestamp ?? 0);
         if (age < cacheTimeout) {
           return {
-            items: (parsed.items || []) as RecentGalleryItem[],
-            timestamp: parsed.timestamp as number,
+            items: (parsed.items ?? []) as RecentGalleryItem[],
+            timestamp: parsed.timestamp ?? null,
           };
         }
       }
@@ -74,8 +77,13 @@ export const useRecentGalleryItems = (
         skipAuthRedirect: true,
       } as Record<string, unknown>);
 
-      if (response.data?.success && response.data?.shares) {
-        const recentItems: RecentGalleryItem[] = response.data.shares.map(
+      interface SharesResponse {
+        success: boolean;
+        shares: Record<string, unknown>[];
+      }
+      const responseData = response.data as SharesResponse;
+      if (responseData.success && responseData.shares) {
+        const recentItems: RecentGalleryItem[] = responseData.shares.map(
           (share: Record<string, unknown>) => ({
             shareToken: share.shareToken as string,
             title: share.title as string,
@@ -114,14 +122,14 @@ export const useRecentGalleryItems = (
 
   useEffect(() => {
     if (lastFetch === null) {
-      fetchRecentItems();
+      void fetchRecentItems();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const refresh = useCallback(() => {
     localStorage.removeItem(CACHE_KEY);
-    fetchRecentItems();
+    void fetchRecentItems();
   }, [fetchRecentItems]);
 
   return {

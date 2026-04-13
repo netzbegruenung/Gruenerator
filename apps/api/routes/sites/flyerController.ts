@@ -2,9 +2,11 @@ import path from 'path';
 
 import express, { type Request, type Response, type Router, type NextFunction } from 'express';
 import multer from 'multer';
+import { z } from 'zod';
 
 import { runFlyerToSiteGraph } from '../../agents/langgraph/FlyerToSiteGraph/FlyerToSiteGraph.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('sites:flyer');
@@ -25,15 +27,16 @@ const upload = multer({
   },
 });
 
-interface MulterRequest extends Request {
-  file?: Express.Multer.File;
-}
+const flyerBodySchema = z.object({
+  email: z.string().optional(),
+});
 
 router.post(
   '/',
   requireAuth as express.RequestHandler,
   upload.single('flyer') as express.RequestHandler,
-  (async (req: MulterRequest, res: Response): Promise<void> => {
+  validateBody(flyerBodySchema) as express.RequestHandler,
+  async (req: TypedRequest<z.infer<typeof flyerBodySchema>>, res: Response): Promise<void> => {
     try {
       if (!req.file) {
         res.status(400).json({ error: 'Bitte lade eine PDF-Datei hoch.' });
@@ -49,7 +52,7 @@ router.post(
       const result = await runFlyerToSiteGraph({
         pdfBuffer: req.file.buffer,
         originalFilename: req.file.originalname,
-        email: req.body?.email,
+        email: req.body.email,
         req,
       });
 
@@ -73,7 +76,7 @@ router.post(
         details: (err as Error).message,
       });
     }
-  }) as any
+  }
 );
 
 // Handle multer errors (file too large, wrong type)

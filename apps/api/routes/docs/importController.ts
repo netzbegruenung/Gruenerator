@@ -1,9 +1,10 @@
 import { Router, type Response } from 'express';
 import multer from 'multer';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
-import { type AuthenticatedRequest } from '../../middleware/types.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
 import { markdownToHtml } from '../../services/markdown/index.js';
 import { ocrService } from '../../services/OcrService/index.js';
@@ -127,7 +128,7 @@ router.post(
   '/from-import',
   requireAuth,
   upload.single('file'),
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: TypedRequest<Record<string, never>>, res: Response) => {
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -176,89 +177,90 @@ router.post(
   }
 );
 
-interface WolkeImportBody {
-  shareLinkId: string;
-  filePath: string;
-  fileName: string;
-}
+const wolkeImportSchema = z.object({
+  shareLinkId: z.string().min(1),
+  filePath: z.string().min(1),
+  fileName: z.string().min(1),
+});
 
 /**
  * @route   POST /api/docs/from-wolke
  * @desc    Import a file from Nextcloud/Wolke as a styled collaborative document via OCR
  * @access  Private (requires authentication)
  */
-router.post('/from-wolke', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
+router.post(
+  '/from-wolke',
+  requireAuth,
+  validateBody(wolkeImportSchema),
+  async (req: TypedRequest<z.infer<typeof wolkeImportSchema>>, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
 
-    const { shareLinkId, filePath, fileName } = req.body as WolkeImportBody;
+      const { shareLinkId, filePath, fileName } = req.body;
 
-    if (!shareLinkId || !filePath || !fileName) {
-      return res
-        .status(400)
-        .json({ error: 'shareLinkId, filePath und fileName sind erforderlich' });
-    }
+      const ext = '.' + fileName.split('.').pop()?.toLowerCase() || '';
+      const mimeType = MIME_BY_EXTENSION[ext];
+      if (!mimeType) {
+        return res.status(400).json({
+          error: 'Nicht unterstütztes Dateiformat. Erlaubt: PDF, DOCX, DOC, ODT, PPTX',
+        });
+      }
 
-    const ext = '.' + fileName.split('.').pop()?.toLowerCase() || '';
-    const mimeType = MIME_BY_EXTENSION[ext];
-    if (!mimeType) {
-      return res.status(400).json({
-        error: 'Nicht unterstütztes Dateiformat. Erlaubt: PDF, DOCX, DOC, ODT, PPTX',
+      console.log(
+        '[DocsImport:Wolke] User %s importing from Wolke: %s (share=%s)',
+        userId,
+        fileName,
+        shareLinkId
+      );
+
+      const wolkeSyncService = getWolkeSyncService();
+      const shareLink = (await wolkeSyncService.getShareLink(userId, shareLinkId)) as {
+        share_link?: string;
+      } | null;
+
+      if (!shareLink?.share_link) {
+        return res.status(404).json({ error: 'Wolke-Verbindung nicht gefunden' });
+      }
+
+      const client = await NextcloudApiClient.create(shareLink.share_link);
+      const downloaded = await client.downloadFile(filePath);
+
+      if (!downloaded.buffer || downloaded.buffer.length === 0) {
+        return res
+          .status(422)
+          .json({ error: 'Datei konnte nicht von der Wolke heruntergeladen werden' });
+      }
+
+      console.log(
+        '[DocsImport:Wolke] Downloaded %s: %dKB',
+        fileName,
+        Number((downloaded.size / 1024).toFixed(0))
+      );
+
+      const result = await ocrBufferToDocument(
+        downloaded.buffer,
+        fileName,
+        mimeType,
+        userId,
+        'wolke'
+      );
+
+      return res.status(201).json({ ...result, success: true });
+    } catch (error: unknown) {
+      console.error('[DocsImport:Wolke] Error:', error);
+
+      if (error instanceof OcrImportError) {
+        return res.status(error.status).json({ error: error.message });
+      }
+
+      return res.status(500).json({
+        error: 'Import aus Wolke fehlgeschlagen. Bitte versuche es erneut.',
       });
     }
-
-    console.log(
-      '[DocsImport:Wolke] User %s importing from Wolke: %s (share=%s)',
-      userId,
-      fileName,
-      shareLinkId
-    );
-
-    const wolkeSyncService = getWolkeSyncService();
-    const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
-
-    if (!shareLink?.share_link) {
-      return res.status(404).json({ error: 'Wolke-Verbindung nicht gefunden' });
-    }
-
-    const client = await NextcloudApiClient.create(shareLink.share_link);
-    const downloaded = await client.downloadFile(filePath);
-
-    if (!downloaded.buffer || downloaded.buffer.length === 0) {
-      return res
-        .status(422)
-        .json({ error: 'Datei konnte nicht von der Wolke heruntergeladen werden' });
-    }
-
-    console.log(
-      '[DocsImport:Wolke] Downloaded %s: %dKB',
-      fileName,
-      Number((downloaded.size / 1024).toFixed(0))
-    );
-
-    const result = await ocrBufferToDocument(
-      downloaded.buffer,
-      fileName,
-      mimeType,
-      userId,
-      'wolke'
-    );
-
-    return res.status(201).json({ ...result, success: true });
-  } catch (error: unknown) {
-    console.error('[DocsImport:Wolke] Error:', error);
-
-    if (error instanceof OcrImportError) {
-      return res.status(error.status).json({ error: error.message });
-    }
-
-    return res.status(500).json({
-      error: 'Import aus Wolke fehlgeschlagen. Bitte versuche es erneut.',
-    });
   }
-});
+);
 
 export default router;

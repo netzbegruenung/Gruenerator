@@ -25,9 +25,9 @@ import type { Intent, AgentType, Attachment, StoredDocument } from './types.js';
  */
 export type DocumentQnARedisClient = {
   get: (key: string) => Promise<string | null>;
-  setEx: (key: string, ttl: number, value: string) => Promise<void>;
-  lPush: (key: string, ...values: string[]) => Promise<void>;
-  lTrim: (key: string, start: number, stop: number) => Promise<void>;
+  setEx: (key: string, ttl: number, value: string) => Promise<unknown>;
+  lPush: (key: string, ...values: string[]) => Promise<unknown>;
+  lTrim: (key: string, start: number, stop: number) => Promise<unknown>;
   lRange: (key: string, start: number, stop: number) => Promise<string[]>;
   del: (key: string | string[]) => Promise<number>;
   keys: (pattern: string) => Promise<string[]>;

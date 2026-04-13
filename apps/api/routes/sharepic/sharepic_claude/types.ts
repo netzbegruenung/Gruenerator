@@ -1,21 +1,11 @@
+import type {
+  AIWorkerPool,
+  AIRequestData as AIWorkerPayload,
+  AIWorkerResult,
+} from '../../../workers/types.js';
 import type { Request, Response } from 'express';
 
-export interface AIWorkerPool {
-  processRequest(payload: AIWorkerPayload, req: Request): Promise<AIWorkerResult>;
-}
-
-export interface AIWorkerPayload {
-  type: string;
-  systemPrompt: string;
-  messages: Array<{ role: string; content: string }>;
-  options?: Record<string, unknown> | undefined;
-}
-
-export interface AIWorkerResult {
-  success: boolean;
-  content?: string | undefined;
-  error?: string | undefined;
-}
+export type { AIWorkerPool, AIWorkerPayload, AIWorkerResult };
 
 export interface SharepicRequest extends Request {
   body: SharepicRequestBody;

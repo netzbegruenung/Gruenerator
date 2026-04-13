@@ -3,7 +3,7 @@ import React, { memo, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import FeatureIcons from '../../../components/common/FeatureIcons';
-import { useBoards } from '../../boards/hooks/useBoards';
+import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import { MODE_MAP } from '../../texte/modes';
 
 const BOARD_MODE_ID = 'boards';
@@ -11,7 +11,7 @@ const BOARD_MODE_ID = 'boards';
 const BoardsInner: React.FC = memo(() => {
   const [prompt, setPrompt] = useState('');
   const navigate = useNavigate();
-  const { generateBoard } = useBoards();
+  const { generateBoard } = useBoardsTyped();
   const def = MODE_MAP[BOARD_MODE_ID];
 
   const handleSubmit = useCallback(() => {
@@ -20,7 +20,7 @@ const BoardsInner: React.FC = memo(() => {
 
     generateBoard.mutate(trimmed, {
       onSuccess: (data) => {
-        navigate(`/boards/${data.board.id}`, {
+        void navigate(`/boards/${data.board.id}`, {
           state: { generatedStructure: data.generatedStructure ?? undefined },
         });
       },

@@ -32,8 +32,8 @@ import { useNavigate } from 'react-router-dom';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import { getBoardTemplate } from '../boards/boardTemplates';
-import { useBoards } from '../boards/hooks/useBoards';
 
 import { BoardCard } from './BoardCard';
 import { webAppDocsAdapter } from './docsAdapter';
@@ -125,7 +125,13 @@ function DocumentsContent() {
   const deleteDocumentMutation = useDeleteDocument();
   const updateDocumentMutation = useUpdateDocument();
 
-  const { boards, isLoading: boardsLoading, createBoard, deleteBoard, updateBoard } = useBoards();
+  const {
+    boards,
+    isLoading: boardsLoading,
+    createBoard,
+    deleteBoard,
+    updateBoard,
+  } = useBoardsTyped();
 
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearch = useDeferredValue(searchQuery);

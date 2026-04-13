@@ -4,8 +4,10 @@
  */
 
 import express, { type Router, type Response } from 'express';
+import { z } from 'zod';
 
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { getKnowledgeService as getUserKnowledgeService } from '../../../services/user/KnowledgeService.js';
 import { getProfileService } from '../../../services/user/ProfileService.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -16,6 +18,20 @@ const log = createLogger('userInstructions');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router: Router = express.Router();
+
+const anweisungenSchema = z.object({
+  custom_prompt: z.string().optional(),
+  presseabbinder: z.string().optional(),
+  knowledge: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        title: z.string().optional(),
+        content: z.string().optional(),
+      })
+    )
+    .optional(),
+});
 
 // ============================================================================
 // Instructions & Knowledge CRUD
@@ -67,15 +83,16 @@ router.get(
 router.put(
   '/anweisungen-wissen',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(anweisungenSchema),
+  async (req: TypedRequest<z.infer<typeof anweisungenSchema>>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
-      const { custom_prompt, presseabbinder, knowledge = [] } = req.body || {};
+      const { custom_prompt, presseabbinder, knowledge = [] } = req.body;
 
       log.debug('[User Content /anweisungen-wissen PUT] Incoming request body for user:', userId);
       log.debug(
         '[User Content /anweisungen-wissen PUT] Request body keys:',
-        Object.keys(req.body || {})
+        Object.keys(req.body)
       );
       log.debug(
         '[User Content /anweisungen-wissen PUT] Knowledge entries count:',
@@ -94,14 +111,14 @@ router.put(
       const userKnowledgeService = getUserKnowledgeService();
       const knowledgeResults = { processed: 0, deleted: 0 };
 
-      if (knowledge && Array.isArray(knowledge)) {
+      if (knowledge && knowledge.length > 0) {
         try {
           const existingKnowledge = await userKnowledgeService.getUserKnowledge(userId);
           const existingIds = existingKnowledge.map((k) => k.id);
 
-          const validEntries = (
-            knowledge as Array<{ id?: string; title?: string; content?: string }>
-          ).filter((entry) => (entry.title || '').trim() || (entry.content || '').trim());
+          const validEntries = knowledge.filter(
+            (entry) => (entry.title || '').trim() || (entry.content || '').trim()
+          );
 
           const submittedIds = validEntries
             .map((entry) => entry.id)

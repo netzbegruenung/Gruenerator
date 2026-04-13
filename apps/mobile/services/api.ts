@@ -9,6 +9,8 @@ import axios from 'axios';
 
 import { secureStorage } from './storage';
 
+import type { User } from '@gruenerator/shared';
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
 let isRefreshing = false;
@@ -20,7 +22,12 @@ async function tryRefreshToken(): Promise<boolean> {
     const refreshToken = await secureStorage.getRefreshToken();
     if (!refreshToken) return false;
 
-    const response = await axios.post(`${API_BASE_URL}/auth/mobile/refresh`, {
+    interface RefreshResponse {
+      success: boolean;
+      access_token?: string;
+      user?: User;
+    }
+    const response = await axios.post<RefreshResponse>(`${API_BASE_URL}/auth/mobile/refresh`, {
       refresh_token: refreshToken,
     });
 

@@ -24,6 +24,7 @@ import type {
   ImageAttachment as AttachmentsImageAttachment,
   Attachment,
 } from '../../services/attachments/types.js';
+import type { SharepicImageManager } from '../../services/image/types.js';
 import type { UserProfile } from '../../services/user/types.js';
 import type { AIWorkerPool } from '../../workers/types.js';
 import type { Request, Router } from 'express';
@@ -38,26 +39,19 @@ const SAFE_CAMPAIGN_ID_REGEX = /^[A-Za-z0-9_-]+$/;
 const SHAREPIC_TYPES = new Set(['info', 'zitat_pure', 'zitat', 'dreizeilen']);
 const _IMAGE_REQUIRED_TYPES = new Set(['zitat', 'dreizeilen']);
 
-interface SharepicImageManager {
-  retrieveAndConsume(requestId: string): Promise<AttachmentsImageAttachment | null>;
-  hasImageForRequest(requestId: string): Promise<boolean>;
-  deleteImageForRequest(requestId: string): Promise<void>;
-}
-
 interface ExpressRequest extends Request {
   user?: UserProfile | undefined;
   correlationId?: string | undefined;
-  app: Request['app'] & {
-    locals?: {
-      sharepicImageManager?: SharepicImageManager;
-      aiWorkerPool?: AIWorkerPool;
-    };
-  };
 }
 
 // Using AttachmentsImageAttachment from services/attachments/types.ts
 // Local alias for convenience
 type ImageAttachment = AttachmentsImageAttachment;
+
+function getSharepicImageManager(req: ExpressRequest): SharepicImageManager | null {
+  const manager: unknown = req.app.locals.sharepicImageManager;
+  return manager != null ? (manager as SharepicImageManager) : null;
+}
 
 interface CampaignConfig {
   name?: string;
@@ -143,14 +137,15 @@ interface ImageSelection {
 }
 
 interface RequestBody {
-  text?: string;
-  subject?: string;
-  preserveName?: boolean;
-  name?: string;
-  attachments?: Attachment[];
-  sharepicRequestId?: string;
-  campaignId?: string;
-  campaignTypeId?: string;
+  text?: string | undefined;
+  subject?: string | undefined;
+  preserveName?: boolean | undefined;
+  name?: string | undefined;
+  /** Caller may pass strongly-typed Attachment objects or looser chat-route bodies. */
+  attachments?: Attachment[] | Array<{ type: string; [key: string]: unknown }> | undefined;
+  sharepicRequestId?: string | undefined;
+  campaignId?: string | undefined;
+  campaignTypeId?: string | undefined;
   [key: string]: unknown;
 }
 
@@ -335,7 +330,7 @@ const callSharepicClaude = async (
 
   return new Promise<CanvasResult>((resolve, reject) => {
     const res = createMockResponse(resolve, reject);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument -- bridge between mock request and typed handler params
     const maybePromise = sharepicClaudeHandler(mockReq as any, res as any, type as any) as
       | Promise<unknown>
       | undefined;
@@ -547,17 +542,21 @@ const generateZitatWithImageSharepic = async (
   log.debug('[SharepicGeneration] Generating zitat with image');
 
   let imageAttachment: ImageAttachment | null = null;
-  const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
+  const sharepicImageManager = getSharepicImageManager(expressReq);
   const sharepicRequestId = requestBody.sharepicRequestId;
 
   if (sharepicImageManager && sharepicRequestId) {
     log.debug('[SharepicGeneration] Attempting to retrieve image from SharepicImageManager');
-    imageAttachment = await sharepicImageManager.retrieveAndConsume(sharepicRequestId);
+    imageAttachment = (await sharepicImageManager.retrieveAndConsume(
+      sharepicRequestId
+    )) as ImageAttachment | null;
   }
 
   if (!imageAttachment) {
     log.debug('[SharepicGeneration] Falling back to legacy attachment method');
-    imageAttachment = getFirstImageAttachment(requestBody.attachments) as ImageAttachment | null;
+    imageAttachment = getFirstImageAttachment(
+      requestBody.attachments as Attachment[] | undefined
+    ) as ImageAttachment | null;
   }
 
   if (!imageAttachment) {
@@ -631,17 +630,21 @@ const generateDreizeilenWithImageSharepic = async (
   log.debug('[SharepicGeneration] Generating dreizeilen with image');
 
   let imageAttachment: ImageAttachment | null = null;
-  const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
+  const sharepicImageManager = getSharepicImageManager(expressReq);
   const sharepicRequestId = requestBody.sharepicRequestId;
 
   if (sharepicImageManager && sharepicRequestId) {
     log.debug('[SharepicGeneration] Attempting to retrieve image from SharepicImageManager');
-    imageAttachment = await sharepicImageManager.retrieveAndConsume(sharepicRequestId);
+    imageAttachment = (await sharepicImageManager.retrieveAndConsume(
+      sharepicRequestId
+    )) as ImageAttachment | null;
   }
 
   if (!imageAttachment) {
     log.debug('[SharepicGeneration] Falling back to legacy attachment method');
-    imageAttachment = getFirstImageAttachment(requestBody.attachments) as ImageAttachment | null;
+    imageAttachment = getFirstImageAttachment(
+      requestBody.attachments as Attachment[] | undefined
+    ) as ImageAttachment | null;
   }
 
   if (!imageAttachment) {
@@ -706,7 +709,7 @@ const generateDreizeilenWithAIImageSharepic = async (
 ): Promise<SharepicResult> => {
   log.debug('[SharepicGeneration] Generating dreizeilen with AI-selected image');
 
-  const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
+  const sharepicImageManager = getSharepicImageManager(expressReq);
   const sharepicRequestId = requestBody.sharepicRequestId;
   if (sharepicImageManager && sharepicRequestId) {
     const hadUploadedImage = await sharepicImageManager.hasImageForRequest(sharepicRequestId);
@@ -955,7 +958,7 @@ const generateSharepicForChat = async (
   }
 
   let hasImageAttachment = false;
-  const sharepicImageManager = expressReq.app?.locals?.sharepicImageManager;
+  const sharepicImageManager = getSharepicImageManager(expressReq);
   const sharepicRequestId = requestBody.sharepicRequestId;
 
   if (sharepicImageManager && sharepicRequestId) {

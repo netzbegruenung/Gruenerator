@@ -44,9 +44,7 @@ const AntragAgentAnnotation = Annotation.Root({
   searchQuery: Annotation<string>({
     reducer: (x, y) => y ?? x,
   }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  req: Annotation<any>({
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  req: Annotation<unknown>({
     reducer: (x, y) => y ?? x,
   }),
 

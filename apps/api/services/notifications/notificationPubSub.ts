@@ -1,12 +1,14 @@
 import { createClient } from 'redis';
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
+import { parseJSON } from '../../utils/parseJSON.js';
 
 import type { Notification } from './types.js';
 
 const log = createLogger('NotificationPubSub');
 
-const redisUrl = process.env.REDIS_URL;
+const redisUrl = env.REDIS_URL;
 
 type NotificationCallback = (notification: Notification) => void;
 
@@ -31,8 +33,10 @@ async function getSubscriberClient(): Promise<ReturnType<typeof createClient>> {
       },
     });
 
-    subscriberClient.on('error', (err) =>
-      log.warn('Redis subscriber error', { error: err.message })
+    subscriberClient.on('error', (err: unknown) =>
+      log.warn('Redis subscriber error', {
+        error: err instanceof Error ? err.message : String(err),
+      })
     );
     subscriberClient.on('ready', () => {
       subscriberReady = true;
@@ -59,7 +63,7 @@ export async function subscribeToUserNotifications(
 
   await client.subscribe(channel, (message) => {
     try {
-      const notification = JSON.parse(message) as Notification;
+      const notification = parseJSON<Notification>(message);
       const cb = subscriptions.get(userId);
       cb?.(notification);
     } catch (err) {

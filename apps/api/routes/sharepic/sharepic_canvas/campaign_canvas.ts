@@ -10,8 +10,10 @@ import {
   type SKRSContext2D as CanvasRenderingContext2D,
   type Image,
 } from '@napi-rs/canvas';
-import { Router, type Request, type Response } from 'express';
+import { Router, type Response } from 'express';
+import { z } from 'zod';
 
+import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import {
   FONT_PATH,
   PTSANS_REGULAR_PATH,
@@ -85,6 +87,25 @@ interface CampaignConfig {
   basedOn?: string;
 }
 
+interface CampaignTypeConfig {
+  canvas?: CanvasConfig;
+  theme?: string;
+  backgroundImage?: string;
+  basedOn?: string;
+}
+
+interface CampaignThemeConfig {
+  textColor: string;
+  creditColor: string;
+  creditY: number;
+}
+
+interface CampaignJsonFile {
+  types?: Record<string, CampaignTypeConfig>;
+  defaultCanvas?: CanvasConfig;
+  colorThemes?: Record<string, CampaignThemeConfig>;
+}
+
 interface TextData {
   line1?: string;
   line2?: string;
@@ -114,6 +135,21 @@ interface CampaignRequestBody {
   customCredit?: string;
 }
 
+const campaignCanvasSchema = z.object({
+  campaignConfig: z.record(z.string(), z.unknown()).optional(),
+  textData: z.record(z.string(), z.string().optional()).optional(),
+  campaignId: z.string().optional(),
+  campaignTypeId: z.string().optional(),
+  line1: z.string().optional(),
+  line2: z.string().optional(),
+  line3: z.string().optional(),
+  line4: z.string().optional(),
+  line5: z.string().optional(),
+  location: z.string().optional(),
+  thema: z.string().optional(),
+  customCredit: z.string().nullable().optional(),
+});
+
 function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig | null {
   if (!campaignId || !typeId) return null;
 
@@ -125,7 +161,7 @@ function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig 
   }
 
   try {
-    const campaign = JSON.parse(fs.readFileSync(campaignPath, 'utf8'));
+    const campaign = JSON.parse(fs.readFileSync(campaignPath, 'utf8')) as CampaignJsonFile;
     const typeConfig = campaign.types?.[typeId];
 
     if (!typeConfig) {
@@ -143,7 +179,7 @@ function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig 
         return null;
       }
 
-      canvasConfig = JSON.parse(JSON.stringify(campaign.defaultCanvas));
+      canvasConfig = JSON.parse(JSON.stringify(campaign.defaultCanvas)) as CanvasConfig;
 
       if (canvasConfig.textLines) {
         canvasConfig.textLines = canvasConfig.textLines.map((line: TextLineConfig) => ({
@@ -160,12 +196,18 @@ function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig 
         };
       }
 
-      canvasConfig.backgroundImage = typeConfig.backgroundImage;
+      if (typeConfig.backgroundImage) {
+        canvasConfig.backgroundImage = typeConfig.backgroundImage;
+      }
 
       log.debug(
         `[CampaignCanvas] Built canvas for ${campaignId}/${typeId} using theme '${typeConfig.theme}'`
       );
     } else {
+      if (!typeConfig.canvas) {
+        log.warn(`[CampaignCanvas] No canvas config for type ${typeId} in campaign ${campaignId}`);
+        return null;
+      }
       canvasConfig = typeConfig.canvas;
     }
 
@@ -173,7 +215,7 @@ function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig 
 
     return {
       canvas: canvasConfig,
-      basedOn: typeConfig.basedOn,
+      ...(typeConfig.basedOn ? { basedOn: typeConfig.basedOn } : {}),
     };
   } catch (error) {
     log.error(`[CampaignCanvas] Failed to load config:`, error);
@@ -403,9 +445,9 @@ async function generateCampaignCanvas(
   };
 }
 
-router.post('/', async (req: Request, res: Response): Promise<void> => {
+router.post('/', validateBody(campaignCanvasSchema), async (req: TypedRequest<CampaignRequestBody>, res: Response): Promise<void> => {
   try {
-    const body = req.body as CampaignRequestBody;
+    const body = req.body;
     const campaignConfig = body.campaignConfig;
     let textData = body.textData;
 

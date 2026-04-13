@@ -7,6 +7,12 @@ node_modules
 coverage
 test/
 
+# Playwright E2E output
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
 # Production
 build
 dist

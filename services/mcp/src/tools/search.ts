@@ -561,8 +561,10 @@ async function searchMultipleCollections({
           filters,
           useCache,
           sharedEmbedding: embedding,
-        }).catch((err) => {
-          console.error(`[Search] Collection ${collectionKey} failed: ${err.message}`);
+        }).catch((err: unknown) => {
+          console.error(
+            `[Search] Collection ${collectionKey} failed: ${err instanceof Error ? err.message : String(err)}`
+          );
           return { results: [] as SearchResult[], collectionKey, metadata: {} };
         })
       )

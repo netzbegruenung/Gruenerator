@@ -95,7 +95,7 @@ export function useMobileChatRuntime(opts?: MobileChatRuntimeOptions) {
         incrementMessageCount();
 
         if (needsCompactionRef.current && !compactionSummaryRef.current) {
-          triggerCompaction(tid, runtimeApiClient);
+          void triggerCompaction(tid, runtimeApiClient);
         }
       }
     },

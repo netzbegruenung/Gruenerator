@@ -160,8 +160,6 @@ export const multiLineExtractor = (
     outputFields = ['line1', 'line2', 'line3', 'line4', 'line5'],
     trimLines = true,
     filterEmpty = true,
-    minCharsPerLine = 0,
-    maxCharsPerLine = Infinity,
   } = config;
 
   const poemSections = rawResponse.split(separator);
@@ -214,13 +212,13 @@ export const jsonExtractor = (rawResponse: string, config: JsonExtractorConfig):
 
   try {
     // Try to parse the response as JSON
-    parsedJson = JSON.parse(rawResponse);
-  } catch (error) {
+    parsedJson = JSON.parse(rawResponse) as Record<string, unknown>;
+  } catch (_error) {
     // If not valid JSON, try to extract JSON from text
     const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
-        parsedJson = JSON.parse(jsonMatch[0]);
+        parsedJson = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
       } catch (innerError) {
         throw new Error(`Failed to parse JSON response: ${(innerError as Error).message}`);
       }
@@ -317,7 +315,6 @@ export const parseResponse = (
       return regexExtractor(rawResponse, config);
 
     default:
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      throw new Error(`Unknown parser type: ${(parserConfig as any).type}`);
+      throw new Error(`Unknown parser type: ${String((parserConfig as { type: string }).type)}`);
   }
 };

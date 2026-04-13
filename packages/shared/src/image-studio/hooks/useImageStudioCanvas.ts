@@ -91,7 +91,7 @@ export function useImageStudioCanvas(
 
       // Type-specific form fields
       switch (type) {
-        case 'dreizeilen':
+        case 'dreizeilen': {
           formData.append('line1', request.formData.line1?.toString() || '');
           formData.append('line2', request.formData.line2?.toString() || '');
           formData.append('line3', request.formData.line3?.toString() || '');
@@ -99,23 +99,19 @@ export function useImageStudioCanvas(
           formData.append('fontSize', (request.fontSize || 85).toString());
           formData.append('credit', request.credit || '');
 
-          // Bar offsets
           const balkenOffset = request.balkenOffset || [50, -100, 50];
           formData.append('balkenOffset_0', balkenOffset[0].toString());
           formData.append('balkenOffset_1', balkenOffset[1].toString());
           formData.append('balkenOffset_2', balkenOffset[2].toString());
 
-          // Bar group offset
           const balkenGruppenOffset = request.balkenGruppenOffset || [0, 0];
           formData.append('balkenGruppe_offset_x', balkenGruppenOffset[0].toString());
           formData.append('balkenGruppe_offset_y', balkenGruppenOffset[1].toString());
 
-          // Sunflower offset
           const sunflowerOffset = request.sunflowerOffset || [0, 0];
           formData.append('sunflower_offset_x', sunflowerOffset[0].toString());
           formData.append('sunflower_offset_y', sunflowerOffset[1].toString());
 
-          // Color scheme
           if (request.colorScheme && Array.isArray(request.colorScheme)) {
             request.colorScheme.forEach((color, index) => {
               if (request.formData[`line${index + 1}`]) {
@@ -125,6 +121,7 @@ export function useImageStudioCanvas(
             });
           }
           break;
+        }
 
         case 'zitat':
           formData.append('quote', request.formData.quote?.toString() || '');
@@ -138,16 +135,16 @@ export function useImageStudioCanvas(
           formData.append('quoteFontSize', (request.fontSize || 60).toString());
           break;
 
-        case 'info':
+        case 'info': {
           formData.append('header', request.formData.header?.toString() || '');
-          // Combine subheader and body for backend
           const subheader = request.formData.subheader?.toString() || '';
           const body = request.formData.body?.toString() || '';
           const combinedBody = subheader && body ? `${subheader}. ${body}` : subheader || body;
           formData.append('body', combinedBody);
           break;
+        }
 
-        case 'veranstaltung':
+        case 'veranstaltung': {
           formData.append('eventTitle', request.formData.eventTitle?.toString() || '');
           formData.append('beschreibung', request.formData.beschreibung?.toString() || '');
           formData.append('weekday', request.formData.weekday?.toString() || '');
@@ -156,7 +153,6 @@ export function useImageStudioCanvas(
           formData.append('locationName', request.formData.locationName?.toString() || '');
           formData.append('address', request.formData.address?.toString() || '');
 
-          // Per-field font sizes
           const fontSizes = request.veranstaltungFieldFontSizes || {};
           formData.append('fontSizeEventTitle', (fontSizes.eventTitle || 94).toString());
           formData.append('fontSizeBeschreibung', (fontSizes.beschreibung || 62).toString());
@@ -166,6 +162,7 @@ export function useImageStudioCanvas(
           formData.append('fontSizeLocationName', (fontSizes.locationName || 42).toString());
           formData.append('fontSizeAddress', (fontSizes.address || 42).toString());
           break;
+        }
 
         case 'profilbild':
         case 'simple':
@@ -208,18 +205,24 @@ export function useImageStudioCanvas(
         });
 
         // Validate response
-        const responseValidation = validateCanvasResponse(response.data);
+        const responseData = response.data as { image?: string };
+        const responseValidation = validateCanvasResponse(responseData);
         if (!responseValidation.valid) {
           throw new Error(responseValidation.error);
         }
 
-        const imageBase64 = response.data.image;
+        const imageBase64 = responseData.image as string;
         onSuccess?.(imageBase64);
         return imageBase64;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const apiErr = err as {
+          response?: { data?: { message?: string } };
+          message?: string;
+        };
         const errorMessage =
-          err.response?.data?.message || err.message || ERROR_MESSAGES.GENERATION_ERROR;
+          apiErr.response?.data?.message ??
+          (err instanceof Error ? err.message : null) ??
+          ERROR_MESSAGES.GENERATION_ERROR;
         setError(errorMessage);
         onError?.(errorMessage);
         throw new Error(errorMessage);

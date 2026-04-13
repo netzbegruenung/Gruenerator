@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 
 import { v4 as uuidv4 } from 'uuid';
 
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -23,19 +24,6 @@ const __dirname = path.dirname(__filename);
 const log = createLogger('export-service');
 
 const EXPORTS_DIR = path.join(__dirname, '../../uploads/exports');
-
-interface VideoMetadata {
-  width: number;
-  height: number;
-  duration: number;
-  rotation: string;
-  originalFormat: {
-    codec?: string;
-    audioCodec?: string;
-    audioBitrate: number | null;
-    videoBitrate: number | null;
-  };
-}
 
 interface SubtitleSegment {
   startTime: number;
@@ -254,20 +242,36 @@ async function processProjectExport(
     const originalFormatObj = metadata.originalFormat
       ? {
           ...(metadata.originalFormat.codec ? { codec: metadata.originalFormat.codec } : {}),
-          ...(metadata.originalFormat.videoBitrate != null ? {
-            videoBitrate: metadata.originalFormat.videoBitrate,
-          } : {}),
-          ...(metadata.originalFormat.audioCodec ? { audioCodec: metadata.originalFormat.audioCodec } : {}),
-          ...(metadata.originalFormat.audioBitrate != null ? {
-            audioBitrate: metadata.originalFormat.audioBitrate,
-          } : {}),
+          ...(metadata.originalFormat.videoBitrate != null
+            ? {
+                videoBitrate: metadata.originalFormat.videoBitrate,
+              }
+            : {}),
+          ...(metadata.originalFormat.audioCodec
+            ? { audioCodec: metadata.originalFormat.audioCodec }
+            : {}),
+          ...(metadata.originalFormat.audioBitrate != null
+            ? {
+                audioBitrate: metadata.originalFormat.audioBitrate,
+              }
+            : {}),
         }
       : undefined;
 
-    const metadataObj: any = {
+    const metadataObj: {
+      width: number;
+      height: number;
+      rotation: string;
+      originalFormat?: {
+        codec?: string;
+        videoBitrate?: number;
+        audioCodec?: string;
+        audioBitrate?: number | null;
+      };
+    } = {
       width: metadata.width,
       height: metadata.height,
-      rotation: metadata.rotation,
+      rotation: metadata.rotation ?? '0',
       ...(originalFormatObj ? { originalFormat: originalFormatObj } : {}),
     };
 
@@ -354,7 +358,7 @@ async function processProjectExport(
     return {
       exportToken,
       outputPath,
-      duration: metadata.duration,
+      duration: (metadata.duration as number | undefined) ?? 0,
     };
   } catch (error: unknown) {
     log.error(`Project export failed: ${error instanceof Error ? error.message : String(error)}`);

@@ -4,8 +4,8 @@
 
 import express, { type Response, type Router, type RequestHandler } from 'express';
 
+import { type UserSiteRow } from '../../database/schema/sites.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { type UserSiteRow } from '../../database/types.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { createLogger } from '../../utils/logger.js';
 

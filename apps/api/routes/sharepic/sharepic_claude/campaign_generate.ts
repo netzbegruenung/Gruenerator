@@ -8,6 +8,7 @@ import { parseResponse, type ParserConfig } from '../../../utils/campaign/respon
 import {
   validateCampaignInputsOrThrow,
   ValidationError,
+  type CampaignConfig,
 } from '../../../utils/campaign/validator.js';
 import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -183,7 +184,7 @@ function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignC
   }
 
   try {
-    const campaign: Campaign = JSON.parse(fs.readFileSync(campaignPath, 'utf8'));
+    const campaign = JSON.parse(fs.readFileSync(campaignPath, 'utf8')) as Campaign;
     const typeConfig = campaign.types?.[typeId];
 
     if (!typeConfig) {
@@ -300,8 +301,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
           location: thema,
           details: details,
         };
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        validateCampaignInputsOrThrow(inputs, fullCampaign as any);
+        validateCampaignInputsOrThrow(inputs, fullCampaign as CampaignConfig);
       } catch (validationError) {
         if (validationError instanceof ValidationError) {
           log.warn(
@@ -400,8 +400,6 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
     let allPoems: PoemContent[] = [];
     let campaignText: string | null = null;
-
-    const aiReq = req as CampaignGenerateRequest;
 
     if (count > 1 && promptConfig.multiItemTemplate && campaignConfig.multiResponseParser) {
       log.debug(

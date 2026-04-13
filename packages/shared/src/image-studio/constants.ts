@@ -13,7 +13,46 @@ import type {
   KiTypeConfig,
   KiStyleVariant,
   GreenEditInfrastructure,
+  DreizeilenResponse,
+  QuoteResponse,
+  InfoResponse,
+  VeranstaltungResponse,
+  SimpleResponse,
 } from './types.js';
+
+// ============================================================================
+// API RESPONSE TYPES (raw shapes returned by backend endpoints)
+// ============================================================================
+
+/** Raw veranstaltung API response — event data may be wrapped in mainEvent */
+interface VeranstaltungApiResponse {
+  mainEvent?: VeranstaltungResponse;
+  eventTitle?: string;
+  beschreibung?: string;
+  weekday?: string;
+  date?: string;
+  time?: string;
+  locationName?: string;
+  address?: string;
+  alternatives?: Array<{
+    eventTitle?: string;
+    beschreibung?: string;
+    weekday?: string;
+    date?: string;
+    time?: string;
+    locationName?: string;
+    address?: string;
+  }>;
+  searchTerms?: string[];
+}
+
+/** Union of all raw text generation API responses */
+type TextApiResponse =
+  | DreizeilenResponse
+  | QuoteResponse
+  | InfoResponse
+  | VeranstaltungApiResponse
+  | SimpleResponse;
 
 // ============================================================================
 // TYPE CONFIGURATIONS
@@ -579,57 +618,60 @@ export const TEMPLATE_FIELD_CONFIGS: Record<ImageStudioTemplateType, TemplateFie
  */
 export function mapTextResponse(
   type: ImageStudioTemplateType,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  response: any
+  response: TextApiResponse
 ): NormalizedTextResult {
   switch (type) {
-    case 'dreizeilen':
+    case 'dreizeilen': {
+      const r = response as DreizeilenResponse;
       return {
         fields: {
-          line1: response.mainSlogan?.line1 || '',
-          line2: response.mainSlogan?.line2 || '',
-          line3: response.mainSlogan?.line3 || '',
+          line1: r.mainSlogan?.line1 || '',
+          line2: r.mainSlogan?.line2 || '',
+          line3: r.mainSlogan?.line3 || '',
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        alternatives: (response.alternatives || []).map((alt: any) => ({
+        alternatives: (r.alternatives || []).map((alt) => ({
           line1: alt.line1 || '',
           line2: alt.line2 || '',
           line3: alt.line3 || '',
         })),
-        searchTerms: response.searchTerms || [],
+        searchTerms: r.searchTerms || [],
       };
+    }
 
     case 'zitat':
-    case 'zitat-pure':
+    case 'zitat-pure': {
+      const r = response as QuoteResponse;
       return {
         fields: {
-          quote: response.quote || '',
-          name: response.name || '',
+          quote: r.quote || '',
+          name: r.name || '',
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        alternatives: (response.alternatives || []).map((alt: any) => ({
+        alternatives: (r.alternatives || []).map((alt) => ({
           quote: alt.quote || '',
         })),
       };
+    }
 
-    case 'info':
+    case 'info': {
+      const r = response as InfoResponse;
       return {
         fields: {
-          header: response.header || '',
-          subheader: response.subheader || '',
-          body: response.body || '',
+          header: r.header || '',
+          subheader: r.subheader || '',
+          body: r.body || '',
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        alternatives: (response.alternatives || []).map((alt: any) => ({
+        alternatives: (r.alternatives || []).map((alt) => ({
           header: alt.header || '',
           subheader: alt.subheader || '',
           body: alt.body || '',
         })),
-        searchTerms: response.searchTerms || [],
+        searchTerms: r.searchTerms || [],
       };
+    }
 
-    case 'veranstaltung':
-      const mainEvent = response.mainEvent || response;
+    case 'veranstaltung': {
+      const r = response as VeranstaltungApiResponse;
+      const mainEvent = r.mainEvent ?? r;
       return {
         fields: {
           eventTitle: mainEvent.eventTitle || '',
@@ -640,8 +682,7 @@ export function mapTextResponse(
           locationName: mainEvent.locationName || '',
           address: mainEvent.address || '',
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        alternatives: (response.alternatives || []).map((alt: any) => ({
+        alternatives: (r.alternatives || []).map((alt) => ({
           eventTitle: alt.eventTitle || '',
           beschreibung: alt.beschreibung || '',
           weekday: alt.weekday || '',
@@ -650,17 +691,20 @@ export function mapTextResponse(
           locationName: alt.locationName || '',
           address: alt.address || '',
         })),
-        searchTerms: response.searchTerms || [],
+        searchTerms: r.searchTerms || [],
       };
+    }
 
-    case 'simple':
+    case 'simple': {
+      const r = response as SimpleResponse;
       return {
         fields: {
-          headline: response.headline || '',
-          subtext: response.subtext || '',
+          headline: r.headline || '',
+          subtext: r.subtext || '',
         },
         alternatives: [],
       };
+    }
 
     case 'profilbild':
       return {

@@ -41,9 +41,9 @@ const ImageStudioTypeSelector: React.FC = () => {
       const config = getTypeConfig(selectedType) as TypeConfig | null;
       const urlSegment = config?.urlSlug || selectedType;
       if (category === IMAGE_STUDIO_CATEGORIES.KI) {
-        navigate(`/imagine/${urlSegment}`);
+        void navigate(`/imagine/${urlSegment}`);
       } else {
-        navigate(`/studio/${config?.category || category}/${urlSegment}`);
+        void navigate(`/studio/${config?.category || category}/${urlSegment}`);
       }
     },
     [setType, navigate, category]
@@ -62,7 +62,7 @@ const ImageStudioTypeSelector: React.FC = () => {
       setType(IMAGE_STUDIO_TYPES.PURE_CREATE);
       const store = useImageStudioStore.getState();
       store.updateFormData({ variant: selectedVariant });
-      navigate(`/imagine/pure-create`);
+      void navigate(`/imagine/pure-create`);
     };
 
     return (

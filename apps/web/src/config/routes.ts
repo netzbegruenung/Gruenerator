@@ -178,6 +178,7 @@ const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage')
 const SubtitlerBetaPage = lazy(
   () => import('../features/subtitler-beta/components/SubtitlerBetaPage')
 );
+const SubStudioPage = lazy(() => import('../features/subtitler-beta/components/SubStudioPage'));
 const SharedVideoPage = lazy(() => import('../features/subtitler/components/SharedVideoPage'));
 const SharedMediaPage = lazy(() => import('../features/shared-media/SharedMediaPage'));
 const ImageStudioPage = lazy(() => import('../features/image-studio/ImageStudioPage'));
@@ -376,6 +377,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
   { path: '/reel/beta', component: SubtitlerBetaPage },
+  { path: '/reel/studio', component: SubStudioPage },
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/transfer', component: GrueneratorenBundle.Transfer },
   { path: '/transkription', component: GrueneratorenBundle.Transkription },

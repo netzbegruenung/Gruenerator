@@ -2,6 +2,25 @@ import { create } from 'zustand';
 
 import apiClient from '../components/utils/apiClient';
 
+// ── API response shapes ────────────────────────────────────────────────
+
+interface CreateShareResponse {
+  success: boolean;
+  error?: string;
+  share?: Share;
+}
+
+interface SharesListResponse {
+  success: boolean;
+  error?: string;
+  shares?: Share[];
+}
+
+interface DeleteShareResponse {
+  success: boolean;
+  error?: string;
+}
+
 interface Share {
   share_token: string;
   shareToken?: string;
@@ -48,14 +67,14 @@ export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => 
     set({ isCreatingShare: true, error: null, errorCode: null });
 
     try {
-      const response = await apiClient.post('/subtitler/share/from-project', {
+      const response = await apiClient.post<CreateShareResponse>('/subtitler/share/from-project', {
         projectId,
         title,
         expiresInDays,
       });
 
       if (response.data.success) {
-        const newShare = response.data.share;
+        const newShare = response.data.share as Share;
         set((state) => ({
           isCreatingShare: false,
           currentShare: newShare,
@@ -63,15 +82,15 @@ export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => 
         }));
         return newShare;
       } else {
-        throw new Error(response.data.error || 'Failed to create share');
+        throw new Error(response.data.error ?? 'Failed to create share');
       }
     } catch (error: unknown) {
       const err = error as {
         response?: { data?: { error?: string; code?: string } };
         message?: string;
       };
-      const errorMessage = err.response?.data?.error || err.message || 'Failed to create share';
-      const errorCode = err.response?.data?.code || null;
+      const errorMessage = err.response?.data?.error ?? err.message ?? 'Failed to create share';
+      const errorCode = err.response?.data?.code ?? null;
       set({ isCreatingShare: false, error: errorMessage, errorCode });
       throw new Error(errorMessage);
     }
@@ -81,20 +100,21 @@ export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => 
     set({ isLoading: true, error: null });
 
     try {
-      const response = await apiClient.get('/subtitler/share/my');
+      const response = await apiClient.get<SharesListResponse>('/subtitler/share/my');
 
       if (response.data.success) {
+        const shares = response.data.shares ?? [];
         set({
           isLoading: false,
-          shares: response.data.shares,
+          shares,
         });
-        return response.data.shares;
+        return shares;
       } else {
-        throw new Error(response.data.error || 'Failed to fetch shares');
+        throw new Error(response.data.error ?? 'Failed to fetch shares');
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } }; message?: string };
-      const errorMessage = err.response?.data?.error || err.message || 'Failed to fetch shares';
+      const errorMessage = err.response?.data?.error ?? err.message ?? 'Failed to fetch shares';
       set({ isLoading: false, error: errorMessage });
       throw new Error(errorMessage);
     }
@@ -102,7 +122,9 @@ export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => 
 
   deleteShare: async (shareToken: string) => {
     try {
-      const response = await apiClient.delete(`/subtitler/share/${shareToken}`);
+      const response = await apiClient.delete<DeleteShareResponse>(
+        `/subtitler/share/${shareToken}`
+      );
 
       if (response.data.success) {
         set((state) => ({
@@ -111,11 +133,11 @@ export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => 
         }));
         return true;
       } else {
-        throw new Error(response.data.error || 'Failed to delete share');
+        throw new Error(response.data.error ?? 'Failed to delete share');
       }
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } }; message?: string };
-      const errorMessage = err.response?.data?.error || err.message || 'Failed to delete share';
+      const errorMessage = err.response?.data?.error ?? err.message ?? 'Failed to delete share';
       set({ error: errorMessage });
       throw new Error(errorMessage);
     }

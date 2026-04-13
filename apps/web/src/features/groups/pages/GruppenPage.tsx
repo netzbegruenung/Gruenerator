@@ -52,7 +52,7 @@ const GruppenPage = () => {
         onSuccess: (newGroup: GroupSummary) => {
           setCreateDialogOpen(false);
           showSuccess(`Gruppe "${name}" erfolgreich erstellt!`);
-          navigate(`/gruppen/${newGroup.id}`);
+          void navigate(`/gruppen/${newGroup.id}`);
         },
         onError: (error: Error | null) => {
           showError(error?.message || 'Gruppe konnte nicht erstellt werden.');

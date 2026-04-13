@@ -13,6 +13,7 @@
 import { selectAndCrawlTopUrls } from '../../../../services/search/CrawlingService.js';
 import { createLogger } from '../../../../utils/logger.js';
 
+import type { CrawledResult } from '../../../../services/search/CrawlingService.js';
 import type { EnrichedResult } from '../../WebSearchGraph/types.js';
 import type { SearchGraphState } from '../types.js';
 
@@ -55,17 +56,14 @@ export async function intelligentCrawlNode(
     });
 
     // Build enriched results from crawled data
-    const enrichedResults: EnrichedResult[] = crawled.map((c) => ({
-      url: c.url,
-      title: c.title,
-      content: c.content,
-      snippet: c.content.substring(0, 200),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      crawled: (c as any).crawled ?? false,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      fullContent: (c as any).fullContent,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      crawlError: (c as any).crawlError,
+    const enrichedResults: EnrichedResult[] = crawled.map((c: CrawledResult) => ({
+      url: c.url ?? '',
+      title: c.title ?? '',
+      content: c.content ?? '',
+      snippet: (c.content ?? '').substring(0, 200),
+      crawled: c.crawled,
+      ...(c.fullContent != null && { fullContent: c.fullContent }),
+      ...(c.crawlError != null && { crawlError: c.crawlError }),
     }));
 
     const crawledCount = enrichedResults.filter((r) => r.crawled).length;

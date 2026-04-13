@@ -133,7 +133,7 @@ export default memo(function MemoriesSection() {
       setNewTopic('');
       setShowAddForm(false);
       setMutationError(null);
-      queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey });
     },
     onError: (err: Error) => {
       setMutationError(err.message || 'Fehler beim Speichern.');
@@ -147,7 +147,7 @@ export default memo(function MemoriesSection() {
       setEditingId(null);
       setEditText('');
       setMutationError(null);
-      queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey });
     },
     onError: (err: Error) => {
       setMutationError(err.message || 'Fehler beim Aktualisieren.');
@@ -173,7 +173,7 @@ export default memo(function MemoriesSection() {
       setMutationError(err.message || 'Fehler beim Löschen.');
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey });
     },
   });
 
@@ -188,7 +188,7 @@ export default memo(function MemoriesSection() {
       setMutationError(err.message || 'Fehler beim Löschen aller Erinnerungen.');
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey });
     },
   });
 
@@ -204,8 +204,8 @@ export default memo(function MemoriesSection() {
         a.click();
         URL.revokeObjectURL(url);
       })
-      .catch((err) => {
-        setMutationError(err.message || 'Export fehlgeschlagen.');
+      .catch((err: unknown) => {
+        setMutationError((err instanceof Error ? err.message : null) ?? 'Export fehlgeschlagen.');
       });
   }
 

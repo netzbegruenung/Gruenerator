@@ -287,7 +287,9 @@ export const useStepFlow = ({
                       fieldConfig.alternativesMapping!(alt as Record<string, unknown>, idx + 1)
                     )
                   : alternatives;
-                useImageStudioStore.getState().setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
+                useImageStudioStore
+                  .getState()
+                  .setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
               },
               (error) => {
                 console.error('[StepFlow] Alternatives error:', error);
@@ -450,14 +452,17 @@ export const useStepFlow = ({
   const fetchAiImageSuggestion = useCallback(
     async (text: string): Promise<AiImageSuggestionResult | null> => {
       try {
-        const response = await apiClient.post('/image-picker/select', {
+        const response = await apiClient.post<{
+          success: boolean;
+          selectedImage?: AiImageSuggestionResult['image'];
+        }>('/image-picker/select', {
           text,
           type: 'sharepic',
         });
         if (response.data.success) {
           return {
             image: response.data.selectedImage,
-            category: response.data.selectedImage.category,
+            category: response.data.selectedImage?.category,
           };
         }
       } catch (error) {
@@ -508,7 +513,9 @@ export const useStepFlow = ({
                         fieldConfig.alternativesMapping!(alt as Record<string, unknown>, idx + 1)
                       )
                     : alternatives;
-                  useImageStudioStore.getState().setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
+                  useImageStudioStore
+                    .getState()
+                    .setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
                 },
                 (error) => {
                   console.error('[ParallelPreload] Alternatives error:', error);

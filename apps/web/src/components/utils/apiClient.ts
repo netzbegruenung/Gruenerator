@@ -16,7 +16,7 @@ export const setLoggingOutFlag = (value: boolean) => {
 
 // Use relative URL by default (same as AUTH_BASE_URL in useAuth.js)
 // This works because frontend is served by backend on same port
-const baseURL: string = import.meta.env.VITE_API_BASE_URL || '/api';
+const baseURL: string = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 // Initialize global API client for @gruenerator/shared hooks (useShareStore, etc.)
 // This is separate from the legacy apiClient below, but uses the same baseURL
@@ -136,7 +136,7 @@ export const uploadFileAndGetText = async (endpoint: string, file: File): Promis
   formData.append('file', file);
 
   try {
-    const uploadResponse = await apiClient.post(`${endpoint}/upload`, formData, {
+    const uploadResponse = await apiClient.post<{ text: string }>(`${endpoint}/upload`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return uploadResponse.data.text;
@@ -159,12 +159,12 @@ export const processText = async (
     const { onRetry, ...cleanFormData } = formData;
 
     const response = await retryWithExponentialBackoff(
-      () => apiClient.post(endpoint, cleanFormData),
+      () => apiClient.post<unknown>(endpoint, cleanFormData),
       0,
       onRetry
     );
 
-    const responseData = response.data;
+    const responseData: unknown = response.data;
     return responseData;
   } catch (error) {
     const axiosError = error as AxiosError;
@@ -234,7 +234,7 @@ const handleApiError = (error: AxiosError): never => {
   } else if (error.request) {
     console.error('Network Error / No Response:', {
       message: error.message,
-      requestDetails: error.request,
+      requestDetails: error.request as unknown,
     });
 
     const networkError: ApiError = new Error(

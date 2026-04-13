@@ -330,7 +330,7 @@ const ExportDropdown = ({
       const baseFileName = extractFilenameFromContent(formattedContent, freshTitle);
       const filename = `${baseFileName}.docx`;
 
-      const response = await apiClient.post(
+      const response = await apiClient.post<Blob>(
         '/exports/docx',
         {
           content: formattedContent,
@@ -401,7 +401,7 @@ const ExportDropdown = ({
 
       const { useAgentStore } = await import('@gruenerator/chat');
       useAgentStore.getState().setPendingMessage(reviewMessage);
-      navigate('/chat');
+      void navigate('/chat');
     } catch (err) {
       console.error('Failed to prepare chat review:', err);
     }

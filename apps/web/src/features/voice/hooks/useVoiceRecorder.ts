@@ -8,7 +8,10 @@ interface ExtendedMediaRecorder extends MediaRecorder {
   detectedMimeType?: string;
 }
 
-const useVoiceRecorder = (onTranscriptionComplete: (text: string) => void, options: VoiceRecorderOptions = {}) => {
+const useVoiceRecorder = (
+  onTranscriptionComplete: (text: string) => void,
+  options: VoiceRecorderOptions = {}
+) => {
   // Standardmäßig Timestamps beibehalten (removeTimestamps = false)
   const { removeTimestamps = false } = options;
   const [isRecording, setIsRecording] = useState(false);
@@ -128,7 +131,7 @@ const useVoiceRecorder = (onTranscriptionComplete: (text: string) => void, optio
 
       formData.append('audio', audioBlob, filename);
 
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+      const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
       const url = `${apiBaseUrl.endsWith('/api') ? apiBaseUrl : `${apiBaseUrl}/api`}/voice/transcribe${removeTimestamps ? '?removeTimestamps=true' : ''}`;
 
       console.log('[Voice Recorder] Sending request to:', url);
@@ -152,7 +155,12 @@ const useVoiceRecorder = (onTranscriptionComplete: (text: string) => void, optio
         throw new Error('Fehler bei der Transkription');
       }
 
-      const data = await response.json();
+      interface TranscriptionResponse {
+        success: boolean;
+        text?: string;
+        error?: string;
+      }
+      const data = (await response.json()) as TranscriptionResponse;
       console.log('Transkription erhalten:', data);
 
       if (data.success && data.text) {
@@ -192,7 +200,7 @@ const useVoiceRecorder = (onTranscriptionComplete: (text: string) => void, optio
         setRetryCount(0);
         setHasTranscriptionFailed(false);
       } else {
-        throw new Error(data.error || 'Keine Transkription erhalten');
+        throw new Error(data.error ?? 'Keine Transkription erhalten');
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Unbekannter Fehler';
@@ -211,7 +219,7 @@ const useVoiceRecorder = (onTranscriptionComplete: (text: string) => void, optio
   // Sende die Aufnahme automatisch zur Transkription, wenn die Aufnahme gestoppt wurde
   const processRecording = useCallback(() => {
     if (audioBlob && !isRecording && !isProcessing && !hasTranscriptionFailed) {
-      sendForTranscription();
+      void sendForTranscription();
     }
   }, [audioBlob, isRecording, isProcessing, sendForTranscription, hasTranscriptionFailed]);
 
@@ -221,7 +229,7 @@ const useVoiceRecorder = (onTranscriptionComplete: (text: string) => void, optio
       setHasTranscriptionFailed(false);
       setRetryCount(0);
       setError(null);
-      sendForTranscription();
+      void sendForTranscription();
     }
   }, [audioBlob, sendForTranscription]);
 

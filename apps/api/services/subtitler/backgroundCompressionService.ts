@@ -14,7 +14,7 @@ import { redisClient } from '../../utils/redis/index.js';
 import { ffmpegPool } from './ffmpegPool.js';
 import { ffmpeg } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
-import { getVideoMetadata, VideoMetadata } from './videoUploadService.js';
+import { getVideoMetadata } from './videoUploadService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

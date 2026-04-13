@@ -10,6 +10,8 @@ import {
   executeDirectWebSearch,
 } from './directSearch.js';
 
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+
 async function runTests() {
   console.log('='.repeat(60));
   console.log('Testing Direct Search Functionality');

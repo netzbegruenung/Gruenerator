@@ -8,6 +8,24 @@ import { createLogger } from '../../utils/logger.js';
 import type { EditContext, EditOperationType, AIWorkerPool } from '../../agents/chat/types.js';
 import type express from 'express';
 
+interface ExtractedParts {
+  instruction: string;
+  sourceText: string;
+  editType?: string;
+  confidence?: number;
+}
+
+const VALID_EDIT_TYPES: ReadonlyArray<EditOperationType> = [
+  'shorten', 'expand', 'rewrite', 'improve', 'simplify', 'formalize', 'translate', 'generic',
+];
+
+function toEditOperationType(value: string | undefined): EditOperationType {
+  if (value && (VALID_EDIT_TYPES as ReadonlyArray<string>).includes(value)) {
+    return value as EditOperationType;
+  }
+  return 'generic';
+}
+
 const log = createLogger('EditIntentService');
 
 /**
@@ -76,7 +94,7 @@ Antworte NUR mit JSON:
       },
     });
 
-    if (!result.success) {
+    if (!result.success || result.content == null) {
       log.warn('[EditIntentService] AI extraction failed:', result.error);
       return null;
     }
@@ -87,7 +105,7 @@ Antworte NUR mit JSON:
       return null;
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed = JSON.parse(jsonMatch[0]) as ExtractedParts;
 
     if (!parsed.sourceText || parsed.sourceText.length < 20) {
       log.warn('[EditIntentService] Extracted source text too short');
@@ -102,7 +120,7 @@ Antworte NUR mit JSON:
     return {
       sourceText: parsed.sourceText,
       instruction: parsed.instruction,
-      editType: parsed.editType || 'generic',
+      editType: toEditOperationType(parsed.editType),
       confidence: parsed.confidence || 0.8,
     };
   } catch (error) {
@@ -178,7 +196,7 @@ Gib den bearbeiteten Text zurück:`;
       req
     );
 
-    if (!result.success) {
+    if (!result.success || result.content == null) {
       return {
         success: false,
         ...(result.error ? { error: result.error } : {}),

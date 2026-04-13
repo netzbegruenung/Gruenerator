@@ -47,7 +47,7 @@ export function VideoPreviewWithSubtitle({
 
   useEffect(() => {
     if (isRemoteVideo && requiresAuth) {
-      secureStorage.getToken().then(setAuthToken);
+      void secureStorage.getToken().then(setAuthToken);
     }
   }, [isRemoteVideo, requiresAuth]);
 

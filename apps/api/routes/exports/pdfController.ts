@@ -25,10 +25,12 @@ const log = createLogger('exportPdf');
 
 const router = express.Router();
 
-function sanitizeFilename(name: string, fallback = 'Dokument'): string {
+export function sanitizePdfFilename(name: string, fallback = 'Dokument'): string {
   const sanitized = sanitizeFilenameCentral(name, fallback);
   return sanitized.slice(0, 80) || fallback;
 }
+
+const sanitizeFilename = sanitizePdfFilename;
 
 const EMOJI_REGEX = /(\p{Emoji_Presentation}|\p{Extended_Pictographic})/gu;
 
@@ -97,6 +99,127 @@ function drawRuns(
 }
 
 /**
+ * Core PDF generation logic, extracted so it can be reused by the
+ * ts-rest contract router without duplicating the Express handler.
+ */
+export async function generatePdfBuffer(
+  content: string,
+  title: string | undefined
+): Promise<Buffer> {
+  const paragraphs = parseFormattedContent(content);
+
+  const { PDFDocument, rgb } = await import('pdf-lib');
+
+  const pdfDoc = await PDFDocument.create();
+  pdfDoc.registerFontkit(fontkit);
+  let page = pdfDoc.addPage([595.28, 841.89]); // A4
+  const { width, height } = page.getSize();
+  const margin = 40;
+  let y = height - margin;
+
+  const fontsDir = path.join(__dirname, '..', '..', 'public', 'fonts');
+  const [grueneTypeBytes, ptSansRegularBytes, ptSansBoldBytes, notoEmojiBytes] = await Promise.all([
+    fs.readFile(path.join(fontsDir, 'GrueneTypeNeue-Regular.ttf')),
+    fs.readFile(path.join(fontsDir, 'PTSans-Regular.ttf')),
+    fs.readFile(path.join(fontsDir, 'PTSans-Bold.ttf')),
+    fs.readFile(path.join(fontsDir, 'NotoEmoji-Regular.ttf')),
+  ]);
+
+  const titleFont = await pdfDoc.embedFont(grueneTypeBytes);
+  const bodyFont = await pdfDoc.embedFont(ptSansRegularBytes);
+  const boldFont = await pdfDoc.embedFont(ptSansBoldBytes);
+  const emojiFont = await pdfDoc.embedFont(notoEmojiBytes);
+
+  const fonts: FontSet = { regular: bodyFont, bold: boldFont, emoji: emojiFont };
+  const bodyColor = rgb(0.27, 0.27, 0.27);
+  const headingColor = rgb(0.15, 0.15, 0.15);
+
+  // Title
+  const docTitle = title || 'Dokument';
+  const titleSize = 20;
+  const titleRuns = splitIntoFontRuns(docTitle, titleFont, emojiFont);
+  const titleWidth = measureRuns(titleRuns, titleSize);
+  drawRuns(page, titleRuns, (width - titleWidth) / 2, y, titleSize, headingColor);
+  y -= 40;
+
+  const ensureSpace = (needed: number) => {
+    if (y < margin + needed) {
+      page = pdfDoc.addPage([595.28, 841.89]);
+      y = height - margin;
+    }
+  };
+
+  const drawFormattedParagraph = (segments: FormattedSegment[], isList = false): void => {
+    const fontSize = 11;
+    const lineHeight = fontSize * 1.5;
+    const indent = isList ? 20 : 0;
+    const maxWidth = width - margin * 2 - indent;
+    const x = margin + indent;
+
+    const allRuns = segmentsToRuns(segments, fonts);
+
+    // Word-wrap: split runs into words, reflow into lines
+    const fullText = allRuns.map((r) => r.text).join('');
+    const words = fullText.split(' ');
+
+    let lineRuns: FontRun[] = [];
+    let lineWidth = 0;
+
+    const flushLine = () => {
+      if (lineRuns.length === 0) return;
+      ensureSpace(50);
+      drawRuns(page, lineRuns, x, y, fontSize, bodyColor);
+      y -= lineHeight;
+      lineRuns = [];
+      lineWidth = 0;
+    };
+
+    for (let i = 0; i < words.length; i++) {
+      const word = i > 0 ? ' ' + words[i] : words[i];
+      const wordRuns = buildRunsForSubstring(word, allRuns, fonts);
+      const wordWidth = measureRuns(wordRuns, fontSize);
+
+      if (lineWidth + wordWidth > maxWidth && lineRuns.length > 0) {
+        flushLine();
+        // Re-add without leading space
+        const trimmedRuns = buildRunsForSubstring(words[i], allRuns, fonts);
+        lineRuns = trimmedRuns;
+        lineWidth = measureRuns(trimmedRuns, fontSize);
+      } else {
+        lineRuns.push(...wordRuns);
+        lineWidth += wordWidth;
+      }
+    }
+
+    flushLine();
+    y -= 8;
+  };
+
+  for (const paragraph of paragraphs) {
+    if (!paragraph.segments || paragraph.segments.length === 0) continue;
+
+    if (paragraph.isHeader) {
+      ensureSpace(50);
+      const headerSize = paragraph.headerLevel === 1 ? 16 : paragraph.headerLevel === 2 ? 14 : 13;
+      const headerRuns = segmentsToRuns(paragraph.segments, {
+        regular: titleFont,
+        bold: titleFont,
+        emoji: emojiFont,
+      });
+      drawRuns(page, headerRuns, margin, y, headerSize, headingColor);
+      y -= headerSize + 12;
+    } else {
+      const fullText = paragraph.segments.map((s) => s.text).join('');
+      const isList = fullText.startsWith('•') || /^\d+\./.test(fullText);
+      drawFormattedParagraph(paragraph.segments, isList);
+    }
+  }
+
+  const bytes = await pdfDoc.save();
+  return Buffer.from(bytes);
+}
+
+/**
  * POST /api/exports/pdf
  * Generate PDF document from HTML content with formatting
  */
@@ -108,123 +231,12 @@ router.post(
   ) => {
     try {
       const { content, title } = req.body || {};
-      const paragraphs = parseFormattedContent(content);
-
-      const { PDFDocument, rgb } = await import('pdf-lib');
-
-      const pdfDoc = await PDFDocument.create();
-      pdfDoc.registerFontkit(fontkit);
-      let page = pdfDoc.addPage([595.28, 841.89]); // A4
-      const { width, height } = page.getSize();
-      const margin = 40;
-      let y = height - margin;
-
-      const fontsDir = path.join(__dirname, '..', '..', 'public', 'fonts');
-      const [grueneTypeBytes, ptSansRegularBytes, ptSansBoldBytes, notoEmojiBytes] =
-        await Promise.all([
-          fs.readFile(path.join(fontsDir, 'GrueneTypeNeue-Regular.ttf')),
-          fs.readFile(path.join(fontsDir, 'PTSans-Regular.ttf')),
-          fs.readFile(path.join(fontsDir, 'PTSans-Bold.ttf')),
-          fs.readFile(path.join(fontsDir, 'NotoEmoji-Regular.ttf')),
-        ]);
-
-      const titleFont = await pdfDoc.embedFont(grueneTypeBytes);
-      const bodyFont = await pdfDoc.embedFont(ptSansRegularBytes);
-      const boldFont = await pdfDoc.embedFont(ptSansBoldBytes);
-      const emojiFont = await pdfDoc.embedFont(notoEmojiBytes);
-
-      const fonts: FontSet = { regular: bodyFont, bold: boldFont, emoji: emojiFont };
-      const bodyColor = rgb(0.27, 0.27, 0.27);
-      const headingColor = rgb(0.15, 0.15, 0.15);
-
-      // Title
-      const docTitle = title || 'Dokument';
-      const titleSize = 20;
-      const titleRuns = splitIntoFontRuns(docTitle, titleFont, emojiFont);
-      const titleWidth = measureRuns(titleRuns, titleSize);
-      drawRuns(page, titleRuns, (width - titleWidth) / 2, y, titleSize, headingColor);
-      y -= 40;
-
-      const ensureSpace = (needed: number) => {
-        if (y < margin + needed) {
-          page = pdfDoc.addPage([595.28, 841.89]);
-          y = height - margin;
-        }
-      };
-
-      const drawFormattedParagraph = (segments: FormattedSegment[], isList = false): void => {
-        const fontSize = 11;
-        const lineHeight = fontSize * 1.5;
-        const indent = isList ? 20 : 0;
-        const maxWidth = width - margin * 2 - indent;
-        const x = margin + indent;
-
-        const allRuns = segmentsToRuns(segments, fonts);
-
-        // Word-wrap: split runs into words, reflow into lines
-        const fullText = allRuns.map((r) => r.text).join('');
-        const words = fullText.split(' ');
-
-        let lineRuns: FontRun[] = [];
-        let lineWidth = 0;
-
-        const flushLine = () => {
-          if (lineRuns.length === 0) return;
-          ensureSpace(50);
-          drawRuns(page, lineRuns, x, y, fontSize, bodyColor);
-          y -= lineHeight;
-          lineRuns = [];
-          lineWidth = 0;
-        };
-
-        for (let i = 0; i < words.length; i++) {
-          const word = i > 0 ? ' ' + words[i] : words[i];
-          const wordRuns = buildRunsForSubstring(word, allRuns, fonts);
-          const wordWidth = measureRuns(wordRuns, fontSize);
-
-          if (lineWidth + wordWidth > maxWidth && lineRuns.length > 0) {
-            flushLine();
-            // Re-add without leading space
-            const trimmedRuns = buildRunsForSubstring(words[i], allRuns, fonts);
-            lineRuns = trimmedRuns;
-            lineWidth = measureRuns(trimmedRuns, fontSize);
-          } else {
-            lineRuns.push(...wordRuns);
-            lineWidth += wordWidth;
-          }
-        }
-
-        flushLine();
-        y -= 8;
-      };
-
-      for (const paragraph of paragraphs) {
-        if (!paragraph.segments || paragraph.segments.length === 0) continue;
-
-        if (paragraph.isHeader) {
-          ensureSpace(50);
-          const headerSize =
-            paragraph.headerLevel === 1 ? 16 : paragraph.headerLevel === 2 ? 14 : 13;
-          const headerRuns = segmentsToRuns(paragraph.segments, {
-            regular: titleFont,
-            bold: titleFont,
-            emoji: emojiFont,
-          });
-          drawRuns(page, headerRuns, margin, y, headerSize, headingColor);
-          y -= headerSize + 12;
-        } else {
-          const fullText = paragraph.segments.map((s) => s.text).join('');
-          const isList = fullText.startsWith('•') || /^\d+\./.test(fullText);
-          drawFormattedParagraph(paragraph.segments, isList);
-        }
-      }
-
-      const bytes = await pdfDoc.save();
+      const buffer = await generatePdfBuffer(content, title);
       const filename = `${sanitizeFilename(title || 'Dokument')}.pdf`;
 
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      return res.status(200).send(Buffer.from(bytes));
+      return res.status(200).send(buffer);
     } catch (err) {
       const error = err as Error;
       log.error('[exportPdf] PDF export error:', error);

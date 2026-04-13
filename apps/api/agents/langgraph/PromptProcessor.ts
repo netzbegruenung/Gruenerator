@@ -15,6 +15,7 @@ import {
   extractLocaleFromRequest,
 } from '../../services/localization/index.js';
 import { withErrorHandler, handleValidationError } from '../../utils/errors/index.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import {
   MARKDOWN_FORMATTING_INSTRUCTIONS,
   HTML_FORMATTING_INSTRUCTIONS,
@@ -834,7 +835,7 @@ export async function processGraphRequest(
         searchQuery: searchQuery || null,
         examples: [], // TODO: Implement examples from config
         provider,
-        aiWorkerPool: ppReq.app.locals.aiWorkerPool,
+        aiWorkerPool: getAIWorkerPool(ppReq),
         enableNotebookEnrich: useNotebookEnrich ?? config.features?.notebookEnrich ?? false,
       },
       ppReq

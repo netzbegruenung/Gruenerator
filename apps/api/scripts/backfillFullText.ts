@@ -21,14 +21,16 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+import { env } from '../config/env.js';
+
 // ============================================================================
 // Configuration
 // ============================================================================
 
-const QDRANT_URL = process.env.QDRANT_URL || 'http://localhost:6333';
-const QDRANT_API_KEY = process.env.QDRANT_API_KEY;
-const QDRANT_BASIC_AUTH_USERNAME = process.env.QDRANT_BASIC_AUTH_USERNAME;
-const QDRANT_BASIC_AUTH_PASSWORD = process.env.QDRANT_BASIC_AUTH_PASSWORD;
+const QDRANT_URL = env.QDRANT_URL ?? 'http://localhost:6333';
+const QDRANT_API_KEY = env.QDRANT_API_KEY;
+const QDRANT_BASIC_AUTH_USERNAME = env.QDRANT_BASIC_AUTH_USERNAME;
+const QDRANT_BASIC_AUTH_PASSWORD = env.QDRANT_BASIC_AUTH_PASSWORD;
 
 const SCROLL_BATCH_SIZE = 100;
 
@@ -104,6 +106,7 @@ interface DocumentGroup {
   docKey: string;
   chunks: ChunkPoint[];
   chunk0Id: string | number;
+  fullText: string;
 }
 
 async function scrollCollection(client: QdrantClient, collection: string): Promise<ChunkPoint[]> {
@@ -200,11 +203,8 @@ function groupAndReconstruct(points: ChunkPoint[], config: CollectionConfig): Do
       docKey,
       chunks,
       chunk0Id: chunk0.id,
+      fullText,
     });
-
-    // Store reconstructed text on the group for later use
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (chunk0 as any)._reconstructedFullText = fullText;
   }
 
   return results;
@@ -224,9 +224,7 @@ async function patchFullText(
     const batch = groups.slice(i, i + batchSize);
 
     for (const group of batch) {
-      const chunk0 = group.chunks.find((c) => (c.payload.chunk_index as number) === 0)!;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const fullText = (chunk0 as any)._reconstructedFullText as string;
+      const { fullText } = group;
 
       if (!dryRun) {
         await client.setPayload(collection, {

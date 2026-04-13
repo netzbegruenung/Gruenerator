@@ -5,7 +5,6 @@
 
 import { MistralWebSearchService } from '../mistral/index.js';
 
-import type { SearchResults } from '../mistral/MistralWebSearchService/types.js';
 import type {
   AIProvider,
   ClaudeTool,
@@ -18,6 +17,7 @@ import type {
   AIResponseWithTools,
   WebSearchResult,
 } from './types.js';
+import type { SearchResults } from '../mistral/MistralWebSearchService/types.js';
 
 export class ToolHandler {
   /**

@@ -6,24 +6,14 @@
 
 import { createLogger } from '../../utils/logger.js';
 
+import type { AIWorkerPool } from '../../workers/types.js';
+
 const log = createLogger('shortSubtitleGe');
 
 interface WordTimestamp {
   word: string;
   start: number;
   end: number;
-}
-
-interface AIWorkerPool {
-  processRequest(request: {
-    type: string;
-    systemPrompt: string;
-    messages: Array<{
-      role: string;
-      content: Array<{ type: string; text: string }>;
-    }>;
-    options: { temperature: number };
-  }): Promise<{ success: boolean; content?: string; error?: string }>;
 }
 
 async function generateShortSubtitlesViaAI(

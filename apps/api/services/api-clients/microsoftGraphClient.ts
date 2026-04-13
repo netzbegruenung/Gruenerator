@@ -1,26 +1,21 @@
 import axios from 'axios';
 
-const GRAPH_API = 'https://graph.microsoft.com/v1.0';
+import {
+  graphDriveItemListResponseSchema,
+  graphDriveSearchResponseSchema,
+  microsoftDriveItemSchema,
+  sharePointSiteListResponseSchema,
+  type MicrosoftDriveItem,
+  type SharePointSite,
+} from './schemas/microsoft.js';
 
-export interface MicrosoftDriveItem {
-  id: string;
-  name: string;
-  size: number;
-  lastModifiedDateTime: string;
-  webUrl: string | null;
-  file?: { mimeType: string };
-  folder?: { childCount: number };
-}
+export type { MicrosoftDriveItem, SharePointSite } from './schemas/microsoft.js';
+
+const GRAPH_API = 'https://graph.microsoft.com/v1.0';
 
 export interface MicrosoftDriveListResult {
   items: MicrosoftDriveItem[];
   nextLink: string | null;
-}
-
-export interface SharePointSite {
-  id: string;
-  displayName: string;
-  webUrl: string;
 }
 
 function authHeaders(token: string) {
@@ -50,21 +45,22 @@ export async function listDriveItems(
       $orderby: 'name',
     },
   });
+  const parsed = graphDriveItemListResponseSchema.parse(response.data);
   return {
-    items: response.data.value,
-    nextLink: response.data['@odata.nextLink'] ?? null,
+    items: parsed.value,
+    nextLink: parsed['@odata.nextLink'] ?? null,
   };
 }
 
 export async function getDriveItem(token: string, itemId: string): Promise<MicrosoftDriveItem> {
   validateGraphId(itemId, 'item ID');
-  const response = await axios.get<MicrosoftDriveItem>(`${GRAPH_API}/me/drive/items/${itemId}`, {
+  const response = await axios.get(`${GRAPH_API}/me/drive/items/${itemId}`, {
     headers: authHeaders(token),
     params: {
       $select: 'id,name,size,lastModifiedDateTime,webUrl,file,folder',
     },
   });
-  return response.data;
+  return microsoftDriveItemSchema.parse(response.data);
 }
 
 export async function downloadDriveItem(token: string, itemId: string): Promise<Buffer> {
@@ -77,7 +73,7 @@ export async function downloadDriveItem(token: string, itemId: string): Promise<
 }
 
 export async function listSharePointSites(token: string): Promise<SharePointSite[]> {
-  const response = await axios.get<{ value: SharePointSite[] }>(`${GRAPH_API}/sites`, {
+  const response = await axios.get(`${GRAPH_API}/sites`, {
     headers: authHeaders(token),
     params: {
       search: '*',
@@ -85,7 +81,7 @@ export async function listSharePointSites(token: string): Promise<SharePointSite
       $top: 50,
     },
   });
-  return response.data.value;
+  return sharePointSiteListResponseSchema.parse(response.data).value;
 }
 
 export async function listSharePointDriveItems(
@@ -105,9 +101,10 @@ export async function listSharePointDriveItems(
       $top: 50,
     },
   });
+  const parsed = graphDriveItemListResponseSchema.parse(response.data);
   return {
-    items: response.data.value,
-    nextLink: response.data['@odata.nextLink'] ?? null,
+    items: parsed.value,
+    nextLink: parsed['@odata.nextLink'] ?? null,
   };
 }
 
@@ -128,23 +125,21 @@ export async function listTeamsDriveItems(
       $top: 50,
     },
   });
+  const parsed = graphDriveItemListResponseSchema.parse(response.data);
   return {
-    items: response.data.value,
-    nextLink: response.data['@odata.nextLink'] ?? null,
+    items: parsed.value,
+    nextLink: parsed['@odata.nextLink'] ?? null,
   };
 }
 
 export async function searchDrive(token: string, query: string): Promise<MicrosoftDriveItem[]> {
   const sanitized = query.replace(/'/g, "''");
-  const response = await axios.get<{ value: MicrosoftDriveItem[] }>(
-    `${GRAPH_API}/me/drive/root/search(q='${sanitized}')`,
-    {
-      headers: authHeaders(token),
-      params: {
-        $select: 'id,name,size,lastModifiedDateTime,webUrl,file,folder',
-        $top: 20,
-      },
-    }
-  );
-  return response.data.value;
+  const response = await axios.get(`${GRAPH_API}/me/drive/root/search(q='${sanitized}')`, {
+    headers: authHeaders(token),
+    params: {
+      $select: 'id,name,size,lastModifiedDateTime,webUrl,file,folder',
+      $top: 20,
+    },
+  });
+  return graphDriveSearchResponseSchema.parse(response.data).value;
 }

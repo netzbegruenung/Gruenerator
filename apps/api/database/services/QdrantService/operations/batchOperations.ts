@@ -3,7 +3,7 @@
  * Batch upsert, delete, scroll, and health check
  */
 
-import { type QdrantClient } from '@qdrant/js-client-rest';
+import { type QdrantClient, type Schemas } from '@qdrant/js-client-rest';
 
 import { createLogger } from '../../../../utils/logger.js';
 
@@ -73,7 +73,7 @@ export async function batchDelete(
   filter: QdrantFilter
 ): Promise<BatchDeleteResult> {
   try {
-    await client.delete(collection, { filter } as any);
+    await client.delete(collection, { filter: filter as Schemas['Filter'] });
 
     logger.info(`Batch deleted points from ${collection}`);
     return { success: true, collection };

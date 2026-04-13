@@ -77,11 +77,14 @@ export const useBetaFeaturesStore = create<BetaFeaturesStore>()(
         }
 
         try {
-          const response = await apiClient.get('/auth/profile/beta-features', {
-            skipAuthRedirect: true,
-          });
+          const response = await apiClient.get<{ betaFeatures?: Record<string, unknown> }>(
+            '/auth/profile/beta-features',
+            {
+              skipAuthRedirect: true,
+            }
+          );
           const result = response.data;
-          const features = normalizeBetaFeatures(result?.betaFeatures || {});
+          const features = normalizeBetaFeatures(result?.betaFeatures ?? {});
           set({
             userId,
             betaFeatures: features,
@@ -124,10 +127,13 @@ export const useBetaFeaturesStore = create<BetaFeaturesStore>()(
           );
 
           // Re-fetch to get consistent state after all writes
-          const response = await apiClient.get('/auth/profile/beta-features', {
-            skipAuthRedirect: true,
-          });
-          const confirmed = normalizeBetaFeatures(response.data?.betaFeatures || {});
+          const response = await apiClient.get<{ betaFeatures?: Record<string, unknown> }>(
+            '/auth/profile/beta-features',
+            {
+              skipAuthRedirect: true,
+            }
+          );
+          const confirmed = normalizeBetaFeatures(response.data?.betaFeatures ?? {});
           set({
             betaFeatures: confirmed,
             isUpdating: false,

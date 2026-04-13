@@ -18,7 +18,7 @@ import { cn } from '../../utils/cn';
 
 import type { MediaItem, MediaType } from '@gruenerator/shared/media-library';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -251,7 +251,7 @@ const MediaLibraryPage: React.FC = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      refetch();
+      void refetch();
     }
   }, [isAuthenticated]);
 
@@ -273,7 +273,7 @@ const MediaLibraryPage: React.FC = () => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    handleFileUpload(e.dataTransfer.files);
+    void handleFileUpload(e.dataTransfer.files);
   };
 
   const handleDragOver = (e: React.DragEvent) => {

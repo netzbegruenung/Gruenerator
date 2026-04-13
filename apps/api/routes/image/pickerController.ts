@@ -7,7 +7,9 @@ import { dirname, join, basename } from 'path';
 import { fileURLToPath } from 'url';
 
 import express, { type Response, type Router } from 'express';
+import { z } from 'zod';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import ImageSelectionService from '../../services/image/ImageSelectionService.js';
 import { enhanceWithAttribution } from '../../services/image/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -26,6 +28,23 @@ import type {
   StockCatalogQuery,
   StockImageQuery,
 } from './types.js';
+import type { ImageCatalogEntry } from '../../services/image/types.js';
+
+const selectBodySchema = z.object({
+  text: z.string(),
+  type: z.string().optional(),
+  tags: z.unknown().optional(),
+  maxCandidates: z.number().optional(),
+});
+
+const validateBodySchema = z.object({
+  filename: z.string(),
+});
+
+const downloadTrackBodySchema = z.object({
+  filename: z.string(),
+  downloadLocation: z.string().optional(),
+});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -38,92 +57,90 @@ const imagePickerService = ImageSelectionService;
  * POST /select
  * Selects the best background image for given text
  */
-router.post('/select', async (req: AuthenticatedRequest, res: Response<ImageSelectResponse>) => {
-  try {
-    const { text, type, tags: _tags, maxCandidates } = req.body as ImageSelectRequestBody;
+router.post(
+  '/select',
+  validateBody(selectBodySchema),
+  async (req: TypedRequest<ImageSelectRequestBody>, res: Response<ImageSelectResponse>) => {
+    try {
+      const { text, type, tags: _tags, maxCandidates } = req.body;
 
-    if (!text || typeof text !== 'string' || text.trim().length === 0) {
-      return res.status(400).json({
+      if (!text || text.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Valid text is required for image selection',
+          code: 'INVALID_TEXT',
+        });
+      }
+
+      if (text.length > 2000) {
+        return res.status(400).json({
+          success: false,
+          error: 'Text too long (max 2000 characters)',
+          code: 'TEXT_TOO_LONG',
+        });
+      }
+
+      const options: { maxCandidates?: number } = {};
+      if (maxCandidates && maxCandidates > 0 && maxCandidates <= 20) {
+        options.maxCandidates = maxCandidates;
+      }
+
+      log.debug(
+        `[ImagePicker API] Request for text: "${text.substring(0, 50)}..." (type: ${type || 'not specified'})`
+      );
+
+      const result = await imagePickerService.selectBestImage(
+        text,
+        req.app.locals.aiWorkerPool,
+        options,
+        req
+      );
+
+      const response: ImageSelectResponse = {
+        success: true,
+        selectedImage: {
+          filename: result.selectedImage.filename,
+          category: result.selectedImage.category,
+          tags: result.selectedImage.tags,
+          alt_text: result.selectedImage.alt_text,
+          path: `/api/image-picker/stock-image/${result.selectedImage.filename}`,
+        },
+        confidence: result.confidence,
+        reasoning: result.reasoning,
+        alternatives: result.alternatives.map((alt: ImageCatalogEntry) => ({
+          filename: alt.filename,
+          category: alt.category,
+          tags: alt.tags,
+          alt_text: alt.alt_text,
+          path: `/api/image-picker/stock-image/${alt.filename}`,
+        })),
+        metadata: {
+          totalImages: result.metadata.totalImages,
+          candidatesFound: result.metadata.candidatesFound,
+          detectedThemes: result.metadata.themes,
+          extractedKeywords: result.metadata.keywords,
+          processingTime: new Date().toISOString(),
+        },
+      };
+
+      log.debug(
+        `[ImagePicker API] Selected: ${result.selectedImage.filename} (confidence: ${result.confidence})`
+      );
+
+      return res.json(response);
+    } catch (error) {
+      log.error('[ImagePicker API] Error:', error);
+      const err = error as Error;
+
+      return res.status(500).json({
         success: false,
-        error: 'Valid text is required for image selection',
-        code: 'INVALID_TEXT',
+        error: 'Internal server error during image selection',
+        code: 'SELECTION_ERROR',
+        message: err.message,
       });
     }
-
-    if (text.length > 2000) {
-      return res.status(400).json({
-        success: false,
-        error: 'Text too long (max 2000 characters)',
-        code: 'TEXT_TOO_LONG',
-      });
-    }
-
-    const options: { maxCandidates?: number } = {};
-    if (
-      maxCandidates &&
-      typeof maxCandidates === 'number' &&
-      maxCandidates > 0 &&
-      maxCandidates <= 20
-    ) {
-      options.maxCandidates = maxCandidates;
-    }
-
-    log.debug(
-      `[ImagePicker API] Request for text: "${text.substring(0, 50)}..." (type: ${type || 'not specified'})`
-    );
-
-    const result = await imagePickerService.selectBestImage(
-      text,
-      req.app.locals.aiWorkerPool,
-      options,
-      req
-    );
-
-    const response: ImageSelectResponse = {
-      success: true,
-      selectedImage: {
-        filename: result.selectedImage.filename,
-        category: result.selectedImage.category,
-        tags: result.selectedImage.tags,
-        alt_text: result.selectedImage.alt_text,
-        path: `/api/image-picker/stock-image/${result.selectedImage.filename}`,
-      },
-      confidence: result.confidence,
-      reasoning: result.reasoning,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      alternatives: result.alternatives.map((alt: any) => ({
-        filename: alt.filename,
-        category: alt.category,
-        tags: alt.tags,
-        alt_text: alt.alt_text,
-        path: `/api/image-picker/stock-image/${alt.filename}`,
-      })),
-      metadata: {
-        totalImages: result.metadata.totalImages,
-        candidatesFound: result.metadata.candidatesFound,
-        detectedThemes: result.metadata.themes,
-        extractedKeywords: result.metadata.keywords,
-        processingTime: new Date().toISOString(),
-      },
-    };
-
-    log.debug(
-      `[ImagePicker API] Selected: ${result.selectedImage.filename} (confidence: ${result.confidence})`
-    );
-
-    return res.json(response);
-  } catch (error) {
-    log.error('[ImagePicker API] Error:', error);
-    const err = error as Error;
-
-    return res.status(500).json({
-      success: false,
-      error: 'Internal server error during image selection',
-      code: 'SELECTION_ERROR',
-      message: err.message,
-    });
   }
-});
+);
 
 /**
  * GET /stats
@@ -214,17 +231,10 @@ router.post(
  */
 router.post(
   '/validate',
-  async (req: AuthenticatedRequest, res: Response<ImageValidateResponse>) => {
+  validateBody(validateBodySchema),
+  async (req: TypedRequest<ImageValidateRequestBody>, res: Response<ImageValidateResponse>) => {
     try {
-      const { filename } = req.body as ImageValidateRequestBody;
-
-      if (!filename || typeof filename !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'Valid filename is required',
-          code: 'INVALID_FILENAME',
-        });
-      }
+      const { filename } = req.body;
 
       const exists = await imagePickerService.validateImageExists(filename);
       const imagePath = imagePickerService.getImagePath(filename);
@@ -280,8 +290,7 @@ router.get(
 
       return res.json({
         success: true,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        images: images as any,
+        images: images as Record<string, unknown>[],
         count: images.length,
         totalCount: catalog.images.length,
         categories,
@@ -306,44 +315,40 @@ router.get(
  * Track Unsplash image download (required by Unsplash API guidelines)
  * Called when user selects an image for use in canvas
  */
-router.post('/download-track', async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { filename, downloadLocation } = req.body;
+router.post(
+  '/download-track',
+  validateBody(downloadTrackBodySchema),
+  async (req: TypedRequest<{ filename: string; downloadLocation?: string }>, res: Response) => {
+    try {
+      const { filename, downloadLocation } = req.body;
 
-    if (!filename || typeof filename !== 'string') {
-      return res.status(400).json({
+      // Only track if downloadLocation exists (real Unsplash images)
+      // Local stock images won't have this field
+      if (downloadLocation) {
+        try {
+          await safeFetch(downloadLocation, {}, { allowedHosts: ['api.unsplash.com'] });
+          log.debug(`[ImagePicker API] Download tracked for ${filename}`);
+        } catch (error) {
+          log.warn(`[ImagePicker API] Failed to track download for ${filename}:`, error);
+        }
+      }
+
+      return res.json({
+        success: true,
+        tracked: !!downloadLocation,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      log.error('[ImagePicker API] Download track error:', error);
+
+      return res.status(500).json({
         success: false,
-        error: 'Valid filename is required',
-        code: 'INVALID_FILENAME',
+        error: 'Failed to track download',
+        code: 'DOWNLOAD_TRACK_ERROR',
       });
     }
-
-    // Only track if downloadLocation exists (real Unsplash images)
-    // Local stock images won't have this field
-    if (downloadLocation && typeof downloadLocation === 'string') {
-      try {
-        await safeFetch(downloadLocation, {}, { allowedHosts: ['api.unsplash.com'] });
-        log.debug(`[ImagePicker API] Download tracked for ${filename}`);
-      } catch (error) {
-        log.warn(`[ImagePicker API] Failed to track download for ${filename}:`, error);
-      }
-    }
-
-    return res.json({
-      success: true,
-      tracked: !!downloadLocation,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    log.error('[ImagePicker API] Download track error:', error);
-
-    return res.status(500).json({
-      success: false,
-      error: 'Failed to track download',
-      code: 'DOWNLOAD_TRACK_ERROR',
-    });
   }
-});
+);
 
 /**
  * GET /stock-image/:filename

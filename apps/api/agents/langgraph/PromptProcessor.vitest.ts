@@ -120,12 +120,13 @@ describe('rede requestTemplate', () => {
     const result = SimpleTemplateEngine.render(template, {
       thema: 'Klimaschutzgesetz',
       redezeit: '10',
-      currentDate: '2026-03-31',
     });
     expect(result).toContain('<thema>');
     expect(result).toContain('Klimaschutzgesetz');
     expect(result).toContain('<redezeit>');
-    expect(result).toContain('Aktuelles Datum: 2026-03-31');
+    // `currentDate` is resolved by the engine via `new Date().toISOString()` — assert on today's date
+    const today = new Date().toISOString().split('T')[0];
+    expect(result).toContain(`Aktuelles Datum: ${today}`);
   });
 
   it('renders gracefully with no optional fields', () => {

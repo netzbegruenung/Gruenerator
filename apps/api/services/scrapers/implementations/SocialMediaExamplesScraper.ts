@@ -1,5 +1,6 @@
 import { ApifyClient } from 'apify-client';
 
+import { env } from '../../../config/env.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
@@ -45,7 +46,7 @@ const ACCOUNTS: AccountConfig[] = [
 ];
 
 function getClient(): ApifyClient | null {
-  const token = process.env.APIFY_TOKEN;
+  const token = env.APIFY_TOKEN;
   if (!token) return null;
   return new ApifyClient({ token });
 }

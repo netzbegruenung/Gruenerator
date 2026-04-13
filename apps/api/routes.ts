@@ -3,15 +3,25 @@
  * Central routing setup for all API endpoints
  */
 
+import express from 'express';
 import rateLimit from 'express-rate-limit';
 
 import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import authInitRouter from './routes/auth/initController.js';
+import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
+import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
+import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
+import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
+import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
+import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
+import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
+import { mountExportsContractRouter } from './routes/exports/exportsContractRouter.js';
 import exportDocumentsRouter from './routes/exports/index.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
+import { mountImagePickerContractRouter } from './routes/image/imagePickerContractRouter.js';
 import {
   pickerController as imagePickerRoute,
   generationController as imageGenerationRouter,
@@ -25,7 +35,10 @@ import {
 } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js';
+import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
+import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
 import notificationsRouter from './routes/notifications/index.js';
+import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
 import researchRouter from './routes/research/researchController.js';
@@ -35,11 +48,13 @@ import {
   webSearchController as webSearchRouter,
 } from './routes/search/index.js';
 import searchGraphRouter from './routes/search/searchGraphController.js';
+import { mountShareContractRouter } from './routes/share/shareContractRouter.js';
 import shareRouter from './routes/share/shareController.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
 import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImageModification.js';
 import campaignCanvasRoute from './routes/sharepic/sharepic_canvas/campaign_canvas.js';
+import { mountCampaignCanvasContractRouter } from './routes/sharepic/sharepic_canvas/campaignCanvasContractRouter.js';
 import sharepicDreizeilenCanvasRoute from './routes/sharepic/sharepic_canvas/dreizeilen_canvas.js';
 import imageUploadRouter from './routes/sharepic/sharepic_canvas/imageUploadRouter.js';
 import imagineLabelCanvasRoute from './routes/sharepic/sharepic_canvas/imagine_label_canvas.js';
@@ -61,6 +76,7 @@ import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerProjectRouter from './routes/subtitler/projectController.js';
 import subtitlerShareRouter from './routes/subtitler/shareController.js';
 import subtitlerSocialRouter from './routes/subtitler/socialController.js';
+import { mountSubtitlerContractRouter } from './routes/subtitler/subtitlerContractRouter.js';
 import {
   universalRouter,
   redeRouter,
@@ -71,9 +87,15 @@ import {
   subtitlesRouter as claudeSubtitlesRoute,
   leichteSpracheRouter as leichteSpracheRoute,
 } from './routes/texte/index.js';
+import { mountTransferContractRouter } from './routes/transfer/transferContractRouter.js';
+import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
+import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
+import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
+import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
 import voiceRouter from './routes/voice/voiceController.js';
+import { mountWordpressContractRouter } from './routes/wordpress/wordpressContractRouter.js';
 import recentActivityRouter from './routes/workplace/recentActivityController.js';
 import * as sharepicGenerationService from './services/chat/sharepicGenerationService.js';
 import * as tusServiceModule from './services/subtitler/tusService.js';
@@ -147,7 +169,9 @@ async function loadOptionalModules(): Promise<void> {
     if (process.env.YJS_ENABLED === 'true') {
       // Dynamic import - module may not exist
       // @ts-expect-error - Optional module, may not be present
-      const module = await import('./routes/internal/snapshottingController.js');
+      const module = (await import('./routes/internal/snapshottingController.js')) as {
+        default: typeof snapshottingRouter;
+      };
       snapshottingRouter = module.default;
       log.debug('Snapshotting controller loaded');
     }
@@ -238,12 +262,47 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: visionRouter } = await import('./routes/vision/visionController.js');
 
   // Auth routes — authLimiter applied inside authCore.ts to login/callback only
+  // ts-rest contract router for /api/profile — mounts before legacy authRouter
+  // (ts-rest matches its own routes first; unmatched fall through). `requireAuth`
+  // is applied at the prefix because all profile routes require authentication.
+  app.use('/api/profile', requireAuth);
+  mountUserProfileContractRouter(app);
+  // ts-rest contract router for admin Vorlagen — mounts BEFORE the legacy authRouter
+  // so contract-modeled routes match first; unmatched paths fall through.
+  // `requireAuth` is applied at the prefix here because the contract router
+  // does not inherit middleware from the later `app.use('/api/auth', ...)`
+  // mount (Express middleware ordering), and every admin-vorlagen route
+  // requires both authentication and an is_admin check (the latter is
+  // enforced per-handler via `checkIsAdmin` inside the contract).
+  app.use('/api/auth/admin/vorlagen', requireAuth);
+  mountAdminVorlagenContractRouter(app);
   app.use('/api/auth', authenticatedReadLimiter, authRouter);
+  // ts-rest contract router for notebook collections — mounts BEFORE the
+  // legacy router so contract-modeled routes match first. requireAuth is
+  // applied at the prefix because all 10 routes require authentication.
+  app.use('/api/auth/notebook-collections', requireAuth);
+  mountNotebookCollectionsContractRouter(app);
   app.use('/api/auth/notebook-collections', authenticatedReadLimiter, notebookCollectionsRouter);
+  // ts-rest contract router for notebook interaction — mounts BEFORE the
+  // legacy router so contract-modeled routes match first. Mixed auth: the
+  // contract checks req.user per-handler where needed (no requireAuth at
+  // the prefix, which would break the public/:token routes).
+  mountNotebookContractRouter(app);
   app.use('/api/auth/notebook', authenticatedReadLimiter, notebookInteractionRouter);
+  // ts-rest contract router for /api/documents — mounts BEFORE the legacy documentsRouter
+  // so ts-rest matches its own routes first; unmatched paths fall through.
+  // requireAuth is applied at the prefix because all 3 contract routes require auth.
+  app.use('/api/documents', requireAuth);
+  mountDocumentsContractRouter(app);
   // Public read endpoints — soft limiter prevents scraping
   app.use('/api/documents', publicReadLimiter, documentsRouter);
   app.use('/api/crawl-url', requireAuth, standardMutationLimiter, crawlUrlRouter);
+  // ts-rest contract router for /api/recent-values (Phase 4.1 pilot)
+  // Mounted BEFORE the legacy router so ts-rest matches its own routes first;
+  // unmatched paths fall through to the Express fallback below. `requireAuth`
+  // is applied at the prefix because all routes return user-specific data.
+  app.use('/api/recent-values', requireAuth);
+  mountRecentValuesContractRouter(app);
   app.use('/api/recent-values', publicReadLimiter, recentValuesRouter);
   app.use('/api/antraege', requireAuth, standardMutationLimiter, antraegeRouter);
   app.use('/api/scanner', publicReadLimiter, scannerRouter);
@@ -258,6 +317,21 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/claude_buergeranfragen', aiGenerationLimiter, buergeranfragenRouter);
   app.use('/api/claude_text_improver', aiGenerationLimiter, claudeTextImproverRoute);
   app.use('/api/chat', aiGenerationLimiter, grueneratorChatRoute);
+  // ts-rest contract routers — mount before legacy routers.
+  // Apply requireAuth on the path prefixes BEFORE the mount calls so
+  // unauthenticated requests get a 401 instead of crashing the handlers
+  // with `Cannot read properties of undefined (reading 'id')`.
+  app.use('/api/chat-service/threads', requireAuth);
+  app.use('/api/chat-graph', requireAuth);
+  // /api/chat-graph/stream is in CUSTOM_BODY_PARSER_PATHS (bodyParserConfig.ts)
+  // so the global 10mb body parser is skipped. The legacy chatGraphController
+  // installs its own 50mb parser at controller mount, but ts-rest's contract
+  // router (mounted next) runs BEFORE the legacy router and would otherwise
+  // see req.body === undefined and 400. Install the same 50mb parser scoped
+  // to /api/chat-graph here so both routers receive a parsed body.
+  app.use('/api/chat-graph', express.json({ limit: '50mb' }));
+  mountThreadsContractRouter(app);
+  mountChatGraphContractRouter(app);
   app.use('/api/chat-service', authenticatedReadLimiter, chatServiceRouter);
   app.use('/api/chat-service/threads', authenticatedReadLimiter, threadSharingRouter);
   app.use('/api/chat-graph', aiGenerationLimiter, chatGraphRouter);
@@ -267,6 +341,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/zitat_pure_canvas', standardMutationLimiter, zitatPureSharepicCanvasRoute);
   app.use('/api/info_canvas', standardMutationLimiter, infoSharepicCanvasRoute);
   app.use('/api/imagine_label_canvas', standardMutationLimiter, imagineLabelCanvasRoute);
+  // ts-rest contract router — mount before legacy campaignCanvasRoute
+  mountCampaignCanvasContractRouter(app);
   app.use('/api/campaign_canvas', standardMutationLimiter, campaignCanvasRoute);
   app.use('/api/veranstaltung_canvas', standardMutationLimiter, veranstaltungCanvasRoute);
   app.use('/api/profilbild_canvas', standardMutationLimiter, profilbildCanvasRoute);
@@ -323,7 +399,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     '/api/slider_claude',
     aiGenerationLimiter,
     async (req: Request, res: Response): Promise<void> => {
-      if (req.body.smartCount) {
+      if ((req.body as { smartCount?: unknown })?.smartCount) {
         await handleSliderSmartRequest(req as SharepicRequest, res);
       } else {
         await handleClaudeRequest(req as SharepicRequest, res, 'slider');
@@ -343,12 +419,16 @@ export async function setupRoutes(app: Application): Promise<void> {
     aiGenerationLimiter,
     async (req: Request, res: Response): Promise<void> => {
       try {
-        const { type, ...requestBody } = req.body;
+        const { type, ...requestBody } = req.body as { type?: string; [key: string]: unknown };
         if (!type) {
           res.status(400).json({ success: false, error: 'Sharepic type is required' });
           return;
         }
-        const result = await generateSharepicForChat(req, type, requestBody);
+        const result = await generateSharepicForChat(
+          req,
+          type as string,
+          requestBody as Parameters<typeof generateSharepicForChat>[2]
+        );
         res.json({ success: true, ...result.content.sharepic, metadata: result.content.metadata });
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
@@ -377,33 +457,69 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/auth/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
+  // ts-rest contract router — mount before legacy subtitler routers
+  mountSubtitlerContractRouter(app);
   app.use('/api/subtitler', standardMutationLimiter, subtitlerRouter);
   app.use('/api/subtitler', standardMutationLimiter, subtitlerSocialRouter);
   app.use('/api/subtitler/projects', requireAuth, standardMutationLimiter, subtitlerProjectRouter);
   app.use('/api/subtitler/share', publicReadLimiter, subtitlerShareRouter);
+  // ts-rest contract router — mount before legacy shareRouter
+  mountShareContractRouter(app);
   app.use('/api/share', publicReadLimiter, shareRouter);
+  // ts-rest contract router — mount before legacy transferRouter (GET /list and DELETE /:token)
+  // POST /upload (multer file upload) falls through to the legacy router.
+  app.use('/api/transfer', requireAuth);
+  mountTransferContractRouter(app);
   app.use('/api/transfer', standardMutationLimiter, transferRouter);
   app.use('/api/mem0', requireAuth, standardMutationLimiter, mem0Router);
   app.use('/api/email', requireAuth, standardMutationLimiter, emailRouter);
   app.use('/api/auth/init', publicReadLimiter, authInitRouter);
   app.use('/api/recent-activity', publicReadLimiter, recentActivityRouter);
+  // ts-rest contract router for notifications — mounts BEFORE the legacy router
+  // so contract-modeled routes match first; /stream SSE falls through to legacy.
+  // requireAuth applied at prefix; notification-preferences also handled here.
+  app.use('/api/notifications', requireAuth);
+  mountNotificationsContractRouter(app);
   app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
   app.use('/api/media', requireAuth, authenticatedReadLimiter, mediaRouter);
   app.use('/api/og/docs', publicReadLimiter, ogDocsRouter);
   app.use('/api/docs/resolve', optionalAuth, publicReadLimiter, docResolveRouter);
   app.use('/api/docs/public', publicReadLimiter, publicDocRouter);
-  app.use('/api/docs', requireAuth, authenticatedReadLimiter, docsRouter);
+  // ts-rest contract router for /api/docs — mounts BEFORE the legacy docsRouter
+  // so ts-rest matches its own routes first; unmatched paths fall through.
+  // `requireAuth` is applied at the prefix so the contract router inherits
+  // protection. The /api/og/docs, /api/docs/resolve, and /api/docs/public
+  // routers above are registered first, so public docs requests match and
+  // terminate before this middleware runs.
+  app.use('/api/docs', requireAuth);
+  mountDocsContractRouter(app);
+  app.use('/api/docs', authenticatedReadLimiter, docsRouter);
 
   app.use('/api/boards/public', publicReadLimiter, publicBoardRouter);
-  app.use('/api/boards', requireAuth, authenticatedReadLimiter, boardsRouter);
+  // ts-rest contract router — mount before legacy boardsRouter.
+  // `requireAuth` is applied at the prefix so the contract router inherits
+  // protection. The /api/boards/public router above is registered first, so
+  // public board requests match and terminate before this middleware runs.
+  app.use('/api/boards', requireAuth);
+  mountBoardsContractRouter(app);
+  app.use('/api/boards', authenticatedReadLimiter, boardsRouter);
   app.use('/api/board-comments', requireAuth, authenticatedReadLimiter, boardCommentsRouter);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
+  // ts-rest contract router — mount before legacy voiceController router
+  mountVoiceContractRouter(app);
   app.use('/api/voice', publicReadLimiter, voiceRouter);
   app.use('/api/voice/tts', requireAuth, standardMutationLimiter, ttsRouter);
+  // searchContractRouter exists but is intentionally NOT mounted yet — the
+  // pilot contract doesn't model the SSE `?stream=true` mode that the frontend
+  // depends on. Activate once streaming is added to the contract.
   app.use('/api/search', publicReadLimiter, searchRouter);
   app.use('/api/analyze', publicReadLimiter, searchRouter);
   app.use('/api/search-graph', requireAuth, standardMutationLimiter, searchGraphRouter);
+  // ts-rest contract router — mount before legacy imagePickerRoute
+  mountImagePickerContractRouter(app);
   app.use('/api/image-picker', publicReadLimiter, imagePickerRoute);
+  // ts-rest contract router — mount before legacy unsplashRouter
+  mountUnsplashContractRouter(app);
   app.use('/api/unsplash', publicReadLimiter, unsplashRouter);
   app.use('/api/web-search', publicReadLimiter, webSearchRouter);
   app.use('/api/research', requireAuth, standardMutationLimiter, researchRouter);
@@ -418,6 +534,8 @@ export async function setupRoutes(app: Application): Promise<void> {
     next();
   });
   app.use('/api/releases', publicReadLimiter, releasesRouter);
+  // ts-rest contract router — mount before legacy exports router
+  mountExportsContractRouter(app);
   app.use('/api/exports', requireAuth, authenticatedReadLimiter, exportDocumentsRouter);
   app.use('/api/markdown', publicReadLimiter, markdownRouter);
   app.use('/api/database', publicReadLimiter, databaseTestRouter);
@@ -449,9 +567,17 @@ export async function setupRoutes(app: Application): Promise<void> {
     }
   );
 
+  // ts-rest contract router — mount before legacy videoRouter
+  app.use('/api/video', requireAuth);
+  mountVideoContractRouter(app);
   app.use('/api/video', requireAuth, standardMutationLimiter, videoRouter);
   app.use('/api/nextcloud', requireAuth, standardMutationLimiter, nextcloudApiRouter);
   app.use('/api/connections', standardMutationLimiter, requireAuth, connectionsRouter);
+  // ts-rest contract router — mount before legacy wordpressApiRouter
+  // requireAuth is also inside the legacy router, but we apply it here
+  // since the contract router runs first.
+  app.use('/api/wordpress', requireAuth);
+  mountWordpressContractRouter(app);
   app.use('/api/wordpress', standardMutationLimiter, requireAuth, wordpressApiRouter);
   app.use('/api/sites/generate-from-flyer', aiGenerationLimiter, flyerController);
   app.use('/api/sites', standardMutationLimiter, sitesRouter);

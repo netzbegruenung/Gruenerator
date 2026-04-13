@@ -20,8 +20,12 @@
  * Run: npx tsx apps/api/update-all-content.ts
  */
 
+import { writeFileSync } from 'node:fs';
+import path from 'node:path';
+
 import { Mistral } from '@mistralai/mistralai';
 
+import { env } from './config/env.js';
 import { sendContentSyncEmail } from './services/email/emailService.js';
 import { boellStiftungScraperService } from './services/scrapers/implementations/BoellStiftungScraper.js';
 import { bundestagScraperService } from './services/scrapers/implementations/BundestagScraper/index.js';
@@ -30,6 +34,7 @@ import { grueneAtScraperService } from './services/scrapers/implementations/Grue
 import { kommunalwikiScraper } from './services/scrapers/implementations/KommunalwikiScraper.js';
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
 import { scrapeAndIndexSocialMedia } from './services/scrapers/implementations/SocialMediaExamplesScraper.js';
+import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
 
 interface CliArgs {
   source?: string;
@@ -65,8 +70,6 @@ function parseArgs(): CliArgs {
 
   return result;
 }
-
-import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
 
 interface SourceGroup {
   id: string;
@@ -214,7 +217,7 @@ async function preflight(): Promise<void> {
   const errors: string[] = [];
 
   // Check MISTRAL_API_KEY
-  const mistralKey = process.env.MISTRAL_API_KEY;
+  const mistralKey = env.MISTRAL_API_KEY;
   if (!mistralKey || mistralKey.trim() === '') {
     errors.push('MISTRAL_API_KEY is not set — embeddings will fail');
   } else {
@@ -231,8 +234,8 @@ async function preflight(): Promise<void> {
   }
 
   // Check QDRANT_URL + QDRANT_API_KEY
-  const qdrantUrl = process.env.QDRANT_URL;
-  const qdrantKey = process.env.QDRANT_API_KEY;
+  const qdrantUrl = env.QDRANT_URL;
+  const qdrantKey = env.QDRANT_API_KEY;
   if (!qdrantUrl || qdrantUrl.trim() === '') {
     errors.push('QDRANT_URL is not set — vector storage will fail');
   } else if (!qdrantKey || qdrantKey.trim() === '') {
@@ -241,8 +244,8 @@ async function preflight(): Promise<void> {
     try {
       const healthUrl = qdrantUrl.replace(/\/+$/, '') + '/healthz';
       const headers: Record<string, string> = { 'api-key': qdrantKey };
-      const basicUser = process.env.QDRANT_BASIC_AUTH_USERNAME;
-      const basicPass = process.env.QDRANT_BASIC_AUTH_PASSWORD;
+      const basicUser = env.QDRANT_BASIC_AUTH_USERNAME;
+      const basicPass = env.QDRANT_BASIC_AUTH_PASSWORD;
       if (basicUser && basicPass) {
         headers['Authorization'] =
           `Basic ${Buffer.from(`${basicUser}:${basicPass}`).toString('base64')}`;
@@ -321,9 +324,6 @@ async function runSourceGroup(group: SourceGroup, args: CliArgs): Promise<Source
     };
   }
 }
-
-import { writeFileSync } from 'node:fs';
-import path from 'node:path';
 
 async function main() {
   const args = parseArgs();
@@ -430,18 +430,17 @@ async function main() {
     totalDuration: Math.round((Date.now() - syncStart) / 1000),
   };
 
-  const summaryPath =
-    process.env.SYNC_SUMMARY_PATH || path.join(process.cwd(), 'sync-summary.json');
+  const summaryPath = env.SYNC_SUMMARY_PATH ?? path.join(process.cwd(), 'sync-summary.json');
   writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
   console.log(`Summary written to ${summaryPath}`);
 
   // Send email notification via existing Brevo SMTP (never crash on email failure)
-  const emailTo = process.env.CONTENT_SYNC_EMAIL;
+  const emailTo = env.CONTENT_SYNC_EMAIL;
   if (emailTo && !args.noEmail) {
     try {
-      const runId = process.env.GITHUB_RUN_ID;
-      const repo = process.env.GITHUB_REPOSITORY;
-      const server = process.env.GITHUB_SERVER_URL || 'https://github.com';
+      const runId = env.GITHUB_RUN_ID;
+      const repo = env.GITHUB_REPOSITORY;
+      const server = env.GITHUB_SERVER_URL ?? 'https://github.com';
       const runUrl = runId && repo ? `${server}/${repo}/actions/runs/${runId}` : undefined;
 
       const sent = await sendContentSyncEmail(emailTo, {
