@@ -533,9 +533,18 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
               height: videoMetadataFromUpload.height ?? 0,
             }
           : undefined;
+        // The POST /subtitler/projects contract expects a canonical
+        // `SubtitleSegment[]` (text/startTime/endTime) on the wire. The
+        // local editor state additionally carries a client-only `id` for
+        // React keys; strip it here at the save boundary so nothing
+        // client-specific leaks into the persisted shape.
         const projectData = {
           uploadId,
-          subtitles: subtitlesText,
+          subtitles: editableSubtitles.map((s) => ({
+            text: s.text,
+            startTime: s.startTime,
+            endTime: s.endTime,
+          })),
           title: videoFilename
             ? videoFilename.replace(/\.[^.]+$/, '')
             : `Projekt ${new Date().toLocaleDateString('de-DE')}`,

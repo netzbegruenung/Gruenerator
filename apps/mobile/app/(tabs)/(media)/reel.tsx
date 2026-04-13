@@ -1,4 +1,5 @@
 import { type Project, getVideoUrl, saveProject, useProjectsStore } from '@gruenerator/shared';
+import { parseSubtitlesText } from '@gruenerator/shared/subtitle-editor';
 import { useFocusEffect, router } from 'expo-router';
 import { useState, useCallback, useEffect } from 'react';
 import {
@@ -118,9 +119,20 @@ export default function ReelScreen() {
       const saveAndNavigate = async () => {
         setIsSavingProject(true);
         try {
+          // `transcribedSubtitles` is the raw SRT blob from the
+          // transcription flow. The POST /subtitler/projects contract now
+          // requires a `SubtitleSegment[]` on the wire (canonicalized
+          // 2026-04-13 — see packages/contracts/src/schemas/subtitler.ts),
+          // so parse the SRT into segments and strip the client-only `id`
+          // field at the save boundary before sending.
+          const parsedSegments = parseSubtitlesText(transcribedSubtitles);
           const { project: savedProject } = await saveProject({
             uploadId,
-            subtitles: transcribedSubtitles,
+            subtitles: parsedSegments.map((s) => ({
+              text: s.text,
+              startTime: s.startTime,
+              endTime: s.endTime,
+            })),
             stylePreference: 'shadow',
             heightPreference: 'tief',
             modePreference: 'manual',

@@ -3,6 +3,8 @@
  * Shared between web frontend and mobile app
  */
 
+import type { SubtitleSegment } from '@gruenerator/contracts';
+
 export interface VideoMetadata {
   duration: number;
   width: number;
@@ -60,7 +62,14 @@ export interface ProjectsApiResponse {
 
 export interface SaveProjectData {
   uploadId: string;
-  subtitles?: string;
+  // Canonical segment array from @gruenerator/contracts. The backend
+  // `projectDataBodySchema.subtitles` is `z.array(subtitleSegmentSchema)`,
+  // so the on-wire shape is `SubtitleSegment[]`, not an SRT string. The
+  // pre-2026-04-13 type had this as `string`, which silently let the
+  // frontend send an unparseable SRT blob and silently 400'd the save.
+  // See `packages/contracts/src/schemas/subtitler.ts` for the unification
+  // history — this is the final missing piece of that migration.
+  subtitles?: SubtitleSegment[];
   title?: string;
   stylePreference?: string;
   heightPreference?: string;
