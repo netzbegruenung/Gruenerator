@@ -5,6 +5,7 @@
 
 import fs from 'fs';
 
+import { subtitleSegmentSchema } from '@gruenerator/contracts';
 import express, { type Response, type Router } from 'express';
 import { z } from 'zod';
 
@@ -24,15 +25,12 @@ const projectDataSchema = z
   .object({
     uploadId: z.string().optional(),
     videoFilename: z.string(),
-    subtitles: z.array(
-      z
-        .object({
-          text: z.string(),
-          start: z.number(),
-          end: z.number(),
-        })
-        .passthrough()
-    ),
+    // Uses canonical subtitleSegmentSchema from @gruenerator/contracts.
+    // Pre-2026-04-13: local `{ text, start, end }` shape drifted from the
+    // 8 service-layer SubtitleSegment interfaces that used
+    // `{ text, startTime, endTime }`. Unification landed the canonical
+    // shape in contracts and 8 service files now import from there.
+    subtitles: z.array(subtitleSegmentSchema),
     title: z.string().optional(),
     stylePreference: z.string().optional(),
     heightPreference: z.string().optional(),
