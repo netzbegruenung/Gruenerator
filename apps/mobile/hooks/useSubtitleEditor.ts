@@ -249,9 +249,18 @@ export function useSubtitleEditor({ player, timelineRef }: UseSubtitleEditorOpti
       if (isTempProject) {
         const uploadId = projectId.replace('temp-', '');
 
+        // Create path requires the canonical `SubtitleSegment[]` wire
+        // shape per `@gruenerator/contracts` — the local segment type
+        // carries an `id` for React-key stability that must be stripped
+        // before leaving the client. Update path (below) still takes the
+        // SRT string because the update contract hasn't been migrated.
         const { project: newProject } = await saveProject({
           uploadId,
-          subtitles: subtitlesText,
+          subtitles: segments.map((s) => ({
+            text: s.text,
+            startTime: s.startTime,
+            endTime: s.endTime,
+          })),
           stylePreference,
           heightPreference,
           title: 'Neues Reel',
