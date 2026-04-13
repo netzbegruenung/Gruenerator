@@ -1,3 +1,4 @@
+import { type SubtitleSegment } from '@gruenerator/contracts';
 import { ProcessingState } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -14,6 +15,11 @@ interface ProgressResponse {
   outputPath?: string;
   duration?: number;
   projectId?: string | null;
+  // Canonical segment array emitted by the backend auto-processing
+  // pipeline (2026-04-13). Consume this for write paths (project
+  // create/update). The `subtitles` string is kept for display-layer
+  // code that wants the raw SRT blob.
+  segments?: SubtitleSegment[] | null;
   subtitles?: string | null;
   error?: string;
 }
@@ -32,6 +38,7 @@ export interface AutoProcessingResult {
   duration: number;
   uploadId: string;
   projectId: string | null;
+  segments: SubtitleSegment[] | null;
   subtitles: string | null;
 }
 
@@ -78,6 +85,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
           duration: data.duration ?? 0,
           uploadId,
           projectId: data.projectId ?? null,
+          segments: data.segments ?? null,
           subtitles: data.subtitles ?? null,
         });
         return;

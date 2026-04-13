@@ -8,6 +8,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { type SubtitleSegment } from '@gruenerator/contracts';
 import { v4 as uuidv4 } from 'uuid';
 
 import { createLogger } from '../../utils/logger.js';
@@ -79,12 +80,6 @@ interface ProcessingOptions {
   maxResolution?: number | null;
   userId?: string;
   originalFilename?: string;
-}
-
-interface SubtitleSegment {
-  startTime: number;
-  endTime: number;
-  text: string;
 }
 
 interface ProcessingResult {
