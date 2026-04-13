@@ -66,14 +66,14 @@ export const auth = betterAuth({
   ...(env.BETTER_AUTH_URL != null && { baseURL: env.BETTER_AUTH_URL }),
   basePath: '/api/auth/v2',
 
-  // Pipe Better Auth's internal logs to stdout so we see every signin/
-  // signout/session decision and every adapter query the library makes.
-  // Set `level: 'info'` to reduce noise once auth is stable. Routes to
-  // `console.*` directly because Winston's variadic overloads don't
-  // accept dynamic spreads cleanly. The `unknown[]` cast narrows Better
-  // Auth's `any[]` callback signature to satisfy no-unsafe-argument.
+  // Pipe Better Auth's internal logs to stdout. Level is gated to LOG_LEVEL
+  // so production gets only warn+error (sign-in failures, anomalies) while
+  // active debugging with LOG_LEVEL=debug gets the full firehose. Routes to
+  // `console.*` directly because Winston's variadic overloads don't accept
+  // dynamic spreads cleanly. The `unknown[]` cast narrows Better Auth's
+  // `any[]` callback signature to satisfy no-unsafe-argument.
   logger: {
-    level: 'debug',
+    level: env.LOG_LEVEL === 'debug' ? 'debug' : 'warn',
     log: (level, message, ...rawArgs) => {
       const args: unknown[] = rawArgs;
       const sink =
@@ -257,56 +257,45 @@ export const auth = betterAuth({
     })(),
   },
 
+  // Database hooks emit one line per meaningful auth event. The previous
+  // shape had `before` hooks that just announced the upcoming write — they
+  // carried no diagnostic value beyond the matching `after` hook (if the
+  // write fails, you'd see the error from Better Auth, not our log), so
+  // they were dropped. Six lines of noise per signin removed.
   databaseHooks: {
     user: {
       create: {
-        before: async (user) => {
-          log.info(`[Auth] Creating user: email=${user.email}, name=${user.name}`);
-          return { data: user };
-        },
         after: async (user) => {
-          log.info(`[Auth] User created: id=${user.id}, email=${user.email}`);
+          log.info(`[Auth] user-created id=${user.id} email=${user.email}`);
         },
       },
       update: {
         after: async (user) => {
-          log.info(`[Auth] User updated: id=${user.id}, email=${user.email}`);
+          log.info(`[Auth] user-updated id=${user.id} email=${user.email}`);
         },
       },
     },
     session: {
       create: {
-        before: async (session) => {
-          log.info(
-            `[Auth] Creating session for user_id=${session.userId}, expiresAt=${String(session.expiresAt)}`
-          );
-          return { data: session };
-        },
         after: async (session) => {
           log.info(
-            `[Auth] Session created: id=${session.id}, user_id=${session.userId}, token_prefix=${session.token?.slice(0, 8) ?? 'NONE'}...`
+            `[Auth] session-created id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'}`
           );
         },
       },
     },
     account: {
       create: {
-        before: async (account) => {
-          log.info(
-            `[Auth] Linking account: provider=${account.providerId}, accountId=${account.accountId}, userId=${account.userId}`
-          );
-          return { data: account };
-        },
         after: async (account) => {
           log.info(
-            `[Auth] Account linked: id=${account.id}, provider=${account.providerId}, accountId=${account.accountId}, userId=${account.userId}`
+            `[Auth] account-linked id=${account.id} provider=${account.providerId} user=${account.userId}`
           );
         },
       },
       update: {
         after: async (account) => {
           log.info(
-            `[Auth] Account updated: id=${account.id}, provider=${account.providerId}, userId=${account.userId}`
+            `[Auth] account-updated id=${account.id} provider=${account.providerId} user=${account.userId}`
           );
         },
       },
