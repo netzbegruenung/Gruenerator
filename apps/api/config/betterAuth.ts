@@ -51,7 +51,18 @@ log.info(
 );
 
 export const auth = betterAuth({
-  database: drizzleAdapter(db, { provider: 'pg', schema, debugLogs: true }),
+  // `debugLogs: true` makes the Drizzle adapter print every query in three
+  // separate multi-line entries (input, DB result, parsed result), each
+  // dumping the full row including JWT bodies. That's ~170 lines per query
+  // and ~1200 lines per signin flow. Useful for active debugging of Better
+  // Auth's internal query path, useless in production. Gated to LOG_LEVEL.
+  // The databaseHooks below still emit structured one-line events for
+  // session/account/user create+update, which covers normal observability.
+  database: drizzleAdapter(db, {
+    provider: 'pg',
+    schema,
+    debugLogs: env.LOG_LEVEL === 'debug',
+  }),
   ...(env.BETTER_AUTH_URL != null && { baseURL: env.BETTER_AUTH_URL }),
   basePath: '/api/auth/v2',
 
