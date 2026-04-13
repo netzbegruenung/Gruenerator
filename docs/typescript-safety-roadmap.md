@@ -190,18 +190,6 @@ ts-rest defines a single contract that types body, params, query, headers, AND r
 - `apps/web/src/hooks/useRecentValuesTyped.ts` — typed hook showing migration pattern
 - `apps/api/routes/user/recentValuesContractRouter.ts` — backend ts-rest router (pilot, not yet mounted)
 
-**To activate the pilot backend router**, add to `routes.ts` before the legacy router:
-```ts
-import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
-mountRecentValuesContractRouter(app);
-```
-
-**Packages to install:**
-```
-pnpm add @ts-rest/core @ts-rest/express   # in apps/api
-pnpm add @ts-rest/core                    # in packages/shared (via contracts dep)
-```
-
 **Acceleration strategy:** ~75 Zod schemas from `validateBody` already exist. A codegen script can auto-generate ts-rest contracts from them — skips 60% of the manual effort.
 
 #### Mandatory checklist for new ts-rest contract routers (learned 2026-04-12)
@@ -434,29 +422,6 @@ Config: chromium-only, `webServer` auto-start with `reuseExistingServer`, so run
 
 ---
 
-### Session N+1 — Bulk ts-rest contract generation (BIGGEST blast radius)
-
-**Goal**: +25 endpoints contract-covered in one session by extending the existing codegen script.
-
-**Acceleration lever**: `scripts/generate-contracts-from-validate-body.ts` already parses `validateBody(someSchema)` calls and emits contract stubs from the request bodies. Extend it to ALSO generate response schemas by walking handler bodies and finding `res.json(...)` / `res.status(N).json(...)` call sites, then emitting a discriminated-union response map. The 60% of the work that's currently manual (response schema authoring) becomes automated.
-
-**Target route families** (5 batches, each ~5-7 endpoints):
-- `apps/api/routes/documents/` — manual, retrieval, qdrant (already uses `DocumentId` branded type from Phase 4.2)
-- `apps/api/routes/template/` — user, admin, gallery (21 routes, split across 2 contracts)
-- `apps/api/routes/sharepic/` — prompt routes (3 casts here cleaned up as side effect)
-- `apps/api/routes/etherpad/` — small, straightforward
-- `apps/api/routes/media/` — shared media endpoints (file upload excluded)
-
-**Parallel split**: 1 main agent extends codegen script, 3 Sonnet streams each own 1-2 route families. Codegen must land BEFORE streams start so they can reuse.
-
-**Target state**: 11 → 16 contracts, 50 → ~75 typed endpoints (≈60% of the 126 candidates).
-
-**Pitfalls**:
-- Every new contract MUST use `.nullish()` not `.optional()` for request bodies (2026-04-12 rule)
-- Every new contract MUST use `logContractValidationError` (2026-04-12 rule)
-- Mixed-auth contracts need the per-handler `requireAuthUser` helper pattern (notebookContract rule)
-- `.passthrough()` is forbidden on response schemas mirroring strict service types (notebookContract rule)
-
 ### Session N+2 — Frontend typed hook batch
 
 **Goal**: 12 typed frontend hooks (up from 3) + migrate ~40 `apiClient.*` call sites to contract clients.
@@ -508,13 +473,7 @@ Backend contracts are valueless without frontend consumers (Acceleration Princip
 
 **Stream timing**: 2 parallel Sonnet streams (langgraph/subtitler vs chat), ~11 min and ~15 min respectively. Main-agent verification pass: ~3 min.
 
-### Session N+3 — Cast hotspot cluster elimination [DONE 2026-04-13]
-
-**Outcome**: Ratchet baseline dropped **208 → 179 → 178** over 3 sessions. All 6 original hotspot files at 0 casts. 2 parallel Sonnet streams (langgraph + chat), +1 main-agent fixup pass for `exactOptionalPropertyTypes` gotchas from the initial stream outputs.
-
-**Plus bonus: 19-error web baseline eliminated.** Session N+3 added a fourth stream to peel off the stable "19 pre-existing unrelated errors" that had been reported by every session for 5 sessions. Stream D fixed all 19 at source with 0 new casts. First time `apps/web` typechecks fully clean.
-
-See per-file table and bonus bug catches in the cast-ratchet section above.
+**Plus bonus: 19-error web baseline eliminated.** A fourth stream peeled off the stable "19 pre-existing unrelated errors" that had been reported by every session for 5 sessions. Stream D fixed all 19 at source with 0 new casts. First time `apps/web` typechecks fully clean.
 
 ### Session N+4 — `eslint-disable` cleanup + `validateBody` backfill [DONE 2026-04-13]
 
@@ -560,15 +519,101 @@ See per-file table and bonus bug catches in the cast-ratchet section above.
 3. Consume via `streamSSE(path, unionSchema)` on the frontend
 4. Backend router handler delegates to the legacy streaming controller — don't try to write SSE frames from inside a ts-rest handler
 
-### Auth cleanup (parallel to N+4/N+5, 2026-04-13)
+### Auth cleanup + contract router shadowing audit (parallel to N+4/N+5, 2026-04-13)
 
-Beyond the Phase 4 sessions, this day landed several auth-related hardening commits driven by production incidents:
+Beyond the Phase 4 sessions, this day landed an extended auth-hardening sweep driven by production incidents on `gruenerator-test`. The work was triggered by a reproducible 500 cascade on the boards page that the user experienced as a login loop — investigation traced the root cause to the ts-rest contract router mounting pattern and fanned out from there.
 
-- **`25f8bac8` / `ef92956c`** — close ts-rest contract router auth bypasses. Several routers were missing per-handler `req.user` checks OR prefix-level `requireAuth` middleware. Every mount point audited; every handler that reads `req.user` now either has prefix-level auth OR a per-handler guard.
-- **`7f955e55` / `6f70d0a9`** — Keycloak profile mapper hardening + email field at Better Auth boundary. Surfaces a session-rotation loop bug where a single NULL email row in `profiles` broke Better Auth's ~5-min cookie revalidation.
-- **`c4a33a99`** — tighten `UserProfile.email` back to `string | undefined` after a brief `.nullable().optional()` widening. Documents the invariant that `authMiddleware.toBetterAuthUser` is the SOLE null-strip boundary for `userProfileSchema`. Any new parse site of the schema must null-strip first or it will trip on NULL DB rows. Captures the design rule as a JSDoc invariant on the function.
+**1. Keycloak profile mapper hardening** (`7f955e55` / `6f70d0a9` / `cd4ef3cd`)
+
+A production login loop was caused by Keycloak profiles missing an `email` claim. The raw `profile.email as string` cast in `mapProfileToUser` wrote `undefined` into `profiles.email`, which then failed `userProfileSchema.parse()` on every subsequent session read. Fixed in three layers:
+
+- `packages/contracts/src/schemas/userProfile.ts:65` widened `email` to `z.string().optional()` as a Zod boundary patch
+- `apps/api/config/betterAuth.ts` mapper extracted to `apps/api/config/mapKeycloakProfileToUser.ts` as a pure, unit-testable module
+- Runtime validation + conditional spread (`...(email !== null && { email })`) so missing claims produce an absent key, not `email: undefined`
+- WARN log on every missing-email path capturing `idpHint`, `sub`, `preferred_username`, and sorted `claimKeys` — gives operators visibility into which IdP is sending incomplete claims without needing to reproduce the login
+
+Prod DB audit (`SELECT count(*) FROM profiles WHERE email IS NULL`) returned **0 rows** — the fix was preventative, not reactive.
+
+**2. ts-rest contract router auth bypass sweep** (`25f8bac8` / `ef92956c`)
+
+Audit of all **22 ts-rest contract routers** found **6 with unprotected `(req.user as UserProfile).id` dereferences** — the casts were type-level lies that silenced the compiler but provided zero runtime protection. When Express didn't apply `requireAuth` in front of the contract mount, `req.user` was undefined at handler time and the cast's `.id` access crashed with `Cannot read properties of undefined (reading 'id')`.
+
+The audit also revealed this wasn't just a crash — it was a **security bypass**. Handlers that didn't happen to dereference `.id` first would run SQL queries with `userId = undefined`, silently returning empty results or leaking data to unauthenticated callers.
+
+**Group A — prefix `requireAuth` fixes** (routers where all endpoints require auth):
+- `/api/boards` — confirmed crash site, was the source of the 500 cascade
+- `/api/docs` — comment claimed "requireAuth applied at prefix" but was aspirational; the later `app.use('/api/docs', requireAuth, legacyRouter)` only protected the legacy fallback, not the contract router mounted earlier
+- `/api/profile` — no prefix auth despite all 5 contract routes needing it
+- `/api/recent-values` — user-specific data, no auth
+
+**Group B — adminVorlagen** (`/api/auth/admin/vorlagen`): same pattern, comment "inherited from /api/auth on authRouter" was wrong — `app.use(prefix, middleware, router)` scopes middleware to that router, not to handlers registered earlier.
+
+**Group C — shareContractRouter** (per-handler 401 guards): couldn't use prefix `requireAuth` because the legacy `/api/share` router serves public read endpoints (preview/download/thumbnail/original). Instead:
+- `getUserId()` / `getUserInfo()` return `| undefined`
+- Shared `UNAUTHORIZED` 401 response constant
+- Per-handler `if (!userId) return UNAUTHORIZED` guards on all 6 write endpoints
+- `sharesContract` response schemas extended with `401: shareErrorResponseSchema` so ts-rest accepts the early return
+
+**Routers already safe or intentionally mixed**: notebookCollections, documents, threads, chatGraph, transfer, notifications, video, wordpress (all had prefix auth); subtitler (per-handler guards); notebook (intentionally mixed with public:token routes); search (not mounted yet); voice/imagePicker/unsplash/exports/campaignCanvas (don't use `req.user`).
+
+**3. `getAuthedUser` helper + migration** (`337a148f`)
+
+Replaces the `(req.user as UserProfile).id` cast pattern with a typed helper at `apps/api/utils/getAuthedUser.ts`:
+
+```ts
+export class UnauthenticatedError extends Error { ... }
+export function getAuthedUser<R extends { user?: unknown }>(req: R): UserProfile {
+  const user = req.user as UserProfile | undefined;
+  if (!user) throw new UnauthenticatedError();
+  return user;
+}
+```
+
+Design decisions:
+- **Generic constraint `<R extends { user?: unknown }>`** accepts both Express `Request` and ts-rest's `TsRestRequest<Contract>`. A concrete `Request` parameter fails under `exactOptionalPropertyTypes` when the contract's query schema includes `nullable` fields (encountered in adminVorlagen + notifications during migration).
+- **Throw, don't return undefined.** For prefix-protected routes, `req.user` being undefined is a programming error (missing `requireAuth`), not a valid runtime branch. Throwing surfaces the misconfiguration loudly.
+- **Named error class.** `UnauthenticatedError.name` discriminant lets future error middleware `instanceof`-check and convert to a typed 401 response; for now unhandled throws produce a 500 which is a deliberate loud failure.
+- **Mixed-auth routes DON'T use the helper.** Share / subtitler / notebook stay on per-handler `| undefined` guards because some of their endpoints are legitimately public.
+
+Migrated in the same commit: `boardsContractRouter`, `adminVorlagenContractRouter`, `recentValuesContractRouter`, `notificationsContractRouter` (net −8 lines across routers + new helper).
+
+**4. `/api/docs/user-groups` → `/api/docs/groups/me` path rename** (`1ad2f017`)
+
+Fixing the auth bypass made a second bug *newly visible*: the legacy `GET /api/docs/user-groups` endpoint (in `groupShareController.ts`, used by the Share-with-Group dropdown) was being shadowed by the contract's `getDocumentById` at `GET /api/docs/:id`. The `:id` glob matched `'user-groups'`, the handler ran `WHERE cd.id = $1::uuid`, and Postgres threw `invalid input syntax for type uuid: "user-groups"`.
+
+The bug pre-dated the auth fix but was hidden behind it — the crash only became reproducible once the contract router was correctly reaching handlers. Fix: rename the legacy path to 4 segments (`/groups/me`) which can't match the contract's 3-segment `:id` or 4-segment `:id/permissions` routes. Updated 4 callers across the web docs package, web boards hook, mobile app, and backend route definition.
+
+**Audit confirmed** the threads contract at `/api/chat-service/threads` doesn't have the same collision — its `:threadId` glob lives at depth 4 (`/threads/:threadId/settings`), not depth 3, so depth-3 literal paths like `/threads/user-groups` fall through to the legacy router cleanly.
+
+**5. Type-model cleanup** (`c4a33a99`)
+
+Tightened `UserProfile.email` back to `string | undefined` after a brief `.nullable().optional()` widening during the incident. Documents the invariant that `authMiddleware.toBetterAuthUser` (at lines 59-61) is the **sole null-strip boundary** for `userProfileSchema`. Any new parse site of the schema must null-strip first or it will trip on NULL DB rows. Captured as a JSDoc invariant on the function.
 
 **Long-term rule captured**: when a schema's underlying column is nullable, the canonical TypeScript type should model the POST-null-strip shape (one `T | undefined`), not the untrusted input shape (three `T | null | undefined`). The null-strip happens at a single boundary (authMiddleware); every downstream consumer sees one answer. Option C (`.nullable().optional()`) was rejected because it doubled the test surface and forced per-call-site `?? undefined` coercions.
+
+**6. Log cleanup: ~1500 lines/signin → ~30 lines/signin** (`1cbe103f` / `989ce7e8` / `58a95228` / `bb8cd6cf`)
+
+The investigation made the diagnostic log volume impossible to ignore — a single auth flow produced ~1500 lines of Drizzle adapter chatter, PostgresService init narration, and duplicate databaseHooks entries, with 90% redundancy and zero actionable information in production. Four-commit cleanup:
+
+- **`1cbe103f`** — PostgresService init 11 lines → 1 line with wall-clock duration. Replaced per-step narration (`Starting...` → `Creating pool...` → `Pool created...` → `Connection test successful` → `PostgreSQL connection established` → `Migrations complete` → `Schema synchronized`) with a single summary: `ready host=<h>:<p> db=<n> migrations=ok schema=ok (147ms)`. Dropped the `SELECT NOW()` confirmation log (Postgres clock is not actionable) and the no-op "All schema columns up to date" case (absence of the Schema-sync log implies clean).
+- **`989ce7e8`** — Drizzle adapter `debugLogs` gated to `env.LOG_LEVEL === 'debug'`. The `[1/3] [2/3] [3/3]` triple-entry-per-query pattern dumping full JWT bodies saved ~1200 lines per signin in production. Full verbosity preserved at `LOG_LEVEL=debug` for active investigations. Structured `databaseHooks` one-line-per-event logs cover normal observability.
+- **`58a95228`** — Dropped the redundant `before` hooks on `databaseHooks.user/session/account.create` (they just announced upcoming writes and returned unmodified data — no diagnostic value beyond the `after` hook). Better Auth's internal logger level gated from hardcoded `debug` to `env.LOG_LEVEL === 'debug' ? 'debug' : 'warn'`. Tightened `after` hook log shapes to structured `key=value` format: `[Auth] session-created id=... user=... token=<prefix>` instead of prose with colons and commas.
+- **`bb8cd6cf`** — Rate-limited `[Auth] 401` logs to once per (method+path) per 60 seconds. Background pollers on logged-out tabs (notifications, presence, unread-count) were flooding logs with identical lines. 60s debounce via a module-level `Map<string, number>` with lazy pruning to bound memory. Response still fires 401 for every request — only the log line is debounced.
+
+**Information delta**: zero production observability loss (all four changes preserve full diagnostic data at `LOG_LEVEL=debug`), measurable signal-to-noise improvement (wall-clock duration added to init, grep-friendly key=value shapes in hooks, no more JWT body dumps flooding the scroll buffer).
+
+**7. Outstanding follow-ups from this session** (not shipped):
+
+- **Migrate the remaining 5 contract routers** to `getAuthedUser`: docs, documents, threads, notebookCollections, video. Each has its own throwing local `getUserId` helper that's functionally equivalent — pure cleanup, ~10 lines per file, no behavior change. Opportunistic when touching files.
+- **`UnauthenticatedError` → 401 mapping in the Express error handler.** The class is in place; one `instanceof` check in the global error handler converts helper throws to clean 401 responses instead of generic 500s. ~5 line change.
+- **Error B: session UPDATE returns empty → 401** on the `/api/notifications/unread-count` path, unresolved. Observed in production-test logs as Better Auth's `updateAge` refresh attempting to bump `expiresAt` and getting `data: undefined` back from Drizzle, which then `getSession()` interprets as "failed to get session" and returns null. Not correlated with any session deletion we control. Next step if it recurs after this branch deploys: disable `cookieCache` (`apps/api/config/betterAuth.ts:145-148`) as a one-config-line experiment to isolate whether the cookie-cache path is involved.
+- **Defense-in-depth for contract path shadowing**: add `pathParams: z.object({ id: z.string().uuid() })` to the docs contract's 5 routes. Won't restore fall-through to legacy routes (ts-rest validation rejects with 400, doesn't fall through), but produces clearer errors than `'X'::uuid` SQL crashes for any future unconstrained path that slips under `/api/docs/:id`.
+
+**Lessons captured as memory**:
+
+- **Contract router shadowing pattern**: a greedy `:id` glob at depth N collides with any literal legacy path at the same depth. Fix is either (a) move the legacy path to a different depth, or (b) constrain the glob at the Zod level. The shape-specific nature of the bug means the fix needs audit across ALL contracts that share a prefix with legacy routers.
+- **Batch typecheck cadence**: typecheck once per *commit boundary*, not per *Edit* call. Running `tsc --noEmit` after every 1-line edit in a sequence of 4 independent commits wastes 40-120s of wall-clock time and produces terminal noise. (Captured as `feedback_batch_typechecks.md`.)
+- **Multi-agent file-partition discipline**: two agents worked in parallel on the auth surface this day (one on helper migration + shadowing audit, the other on type-model cleanup). Zero merge conflicts because they touched disjoint files. File-level partition is what made parallel work safe, not coordinating timing.
 
 ### After Session N+5: what counts as "done"
 
@@ -683,7 +728,6 @@ Dev runners (tsx, vitest) pass `--conditions=development` and resolve to source.
 | `no-floating-promises` (mobile) | — | 70 (warn) | **0** (error) | 0 |
 | `no-floating-promises` (api) | — | 0 (warn) | **0** (error) | 0 |
 | `eslint-disable no-explicit-any` | 0 | 22 api / 70 repo | ~same | ~22 (library only) |
-| `as unknown as X` casts | 241 | 84 api / 205 repo | ~same | ratchet down |
 | `exactOptionalPropertyTypes` | disabled | **enabled** | enabled | enabled |
 | Duplicate type definitions | ~20 | **0** | 0 | 0 |
 | Drizzle schema tables | 0 | ~20 | **~25** (+ba_*, +yjs_document_snapshots, +user_sites) | all |
