@@ -36,6 +36,7 @@ export const sharesContract = c.router(
       body: createImageShareBodySchema,
       responses: {
         200: createShareResponseSchema,
+        401: shareErrorResponseSchema,
         500: shareErrorResponseSchema,
       },
       summary: 'Create an image share',
@@ -52,6 +53,7 @@ export const sharesContract = c.router(
       responses: {
         200: createShareResponseSchema,
         400: shareErrorResponseSchema,
+        401: shareErrorResponseSchema,
         404: shareErrorResponseSchema,
         500: shareErrorResponseSchema,
       },
@@ -69,6 +71,7 @@ export const sharesContract = c.router(
       responses: {
         200: createShareResponseSchema,
         400: shareErrorResponseSchema,
+        401: shareErrorResponseSchema,
         404: shareErrorResponseSchema,
         500: shareErrorResponseSchema,
       },
@@ -87,6 +90,7 @@ export const sharesContract = c.router(
       responses: {
         200: updateImageShareResponseSchema,
         400: shareErrorResponseSchema,
+        401: shareErrorResponseSchema,
         403: shareErrorResponseSchema,
         404: shareErrorResponseSchema,
         500: shareErrorResponseSchema,
@@ -105,6 +109,7 @@ export const sharesContract = c.router(
       body: saveAsTemplateBodySchema,
       responses: {
         200: saveAsTemplateResponseSchema,
+        401: shareErrorResponseSchema,
         403: shareErrorResponseSchema,
         404: shareErrorResponseSchema,
         500: shareErrorResponseSchema,
@@ -122,6 +127,7 @@ export const sharesContract = c.router(
       body: pushToPhoneBodySchema,
       responses: {
         200: pushToPhoneResponseSchema,
+        401: shareErrorResponseSchema,
         403: shareErrorResponseSchema,
         404: shareErrorResponseSchema,
         500: shareErrorResponseSchema,
