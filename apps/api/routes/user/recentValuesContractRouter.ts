@@ -27,23 +27,19 @@ import {
   getFieldTypesWithCounts,
 } from '../../services/chat/RecentValuesService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { UserProfile } from '../../services/user/types.js';
-import type { Application, Request } from 'express';
+import type { Application } from 'express';
 
 const log = createLogger('recentValuesContract');
-
-function getUserId(req: Request): string {
-  return (req.user as UserProfile).id;
-}
 
 const s = initServer();
 
 export const recentValuesContractRouter = s.router(recentValuesContract, {
   listFieldTypes: async (args) => {
     try {
-      const userId = getUserId(args.req);
+      const userId = getAuthedUser(args.req).id;
       const fieldTypes = await getFieldTypesWithCounts(userId);
       return {
         status: 200 as const,
@@ -65,7 +61,7 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
   getByFieldType: async (args) => {
     try {
       const { fieldType } = args.params;
-      const userId = getUserId(args.req);
+      const userId = getAuthedUser(args.req).id;
       const limit = args.query.limit ? parseInt(args.query.limit, 10) : undefined;
 
       const values = await getRecentValues(userId, fieldType, limit);
@@ -97,7 +93,7 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
 
   save: async (args) => {
     try {
-      const userId = getUserId(args.req);
+      const userId = getAuthedUser(args.req).id;
       const { fieldType, fieldValue, formName } = args.body;
 
       const result = await saveRecentValue(userId, fieldType, fieldValue, formName ?? null);
@@ -122,7 +118,7 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
   clearByFieldType: async (args) => {
     try {
       const { fieldType } = args.params;
-      const userId = getUserId(args.req);
+      const userId = getAuthedUser(args.req).id;
 
       const deletedCount = await clearRecentValues(userId, fieldType);
 

@@ -26,17 +26,13 @@ import {
 } from '../../services/boards/BoardService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { UserProfile } from '../../services/user/types.js';
-import type { Application, Request } from 'express';
+import type { Application } from 'express';
 
 const log = createLogger('boardsContract');
 const BOARDS_SUBTYPE = 'boards';
-
-function getUserId(req: Request): string {
-  return (req.user as UserProfile).id;
-}
 
 interface BoardDocument {
   id: string;
@@ -60,7 +56,7 @@ const s = initServer();
 export const boardsContractRouter = s.router(boardsContract, {
   listBoards: async (args) => {
     try {
-      const userId = getUserId(args.req);
+      const userId = getAuthedUser(args.req).id;
 
       const result = (await db.query(
         `SELECT
@@ -104,7 +100,7 @@ export const boardsContractRouter = s.router(boardsContract, {
   deleteBoard: async (args) => {
     try {
       const { id } = args.params;
-      const userId = getUserId(args.req);
+      const userId = getAuthedUser(args.req).id;
 
       const checkResult = (await db.query(
         'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',
@@ -144,7 +140,7 @@ export const boardsContractRouter = s.router(boardsContract, {
   generateBoard: async (args) => {
     try {
       const { description } = args.body;
-      const userId = getUserId(args.req);
+      const userId = getAuthedUser(args.req).id;
 
       if (description.trim().length < 3) {
         return {
@@ -199,7 +195,7 @@ export const boardsContractRouter = s.router(boardsContract, {
   createBoard: async (args) => {
     try {
       const { title = 'Neues Board', boardType } = args.body;
-      const userId = getUserId(args.req);
+      const userId = getAuthedUser(args.req).id;
 
       const board = await createBoardDocument(title, userId, boardType);
       return { status: 201 as const, body: board as BoardDocument };
@@ -219,7 +215,7 @@ export const boardsContractRouter = s.router(boardsContract, {
     try {
       const { id } = args.params;
       const { title, is_archived } = args.body;
-      const userId = getUserId(args.req);
+      const userId = getAuthedUser(args.req).id;
 
       const checkResult = (await db.query(
         'SELECT created_by, permissions FROM collaborative_documents WHERE id = $1 AND document_subtype = $2 AND is_deleted = false',

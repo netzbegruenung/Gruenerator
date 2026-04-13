@@ -29,9 +29,9 @@ import {
   dismissAllNotifications,
 } from '../../services/notifications/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { UserProfile } from '../../services/user/types.js';
 import type { Application } from 'express';
 
 const log = createLogger('notificationsContractRouter');
@@ -43,7 +43,7 @@ const s = initServer();
 export const notificationsContractRouter = s.router(notificationsContract, {
   list: async (args) => {
     try {
-      const userId = (args.req.user as UserProfile).id;
+      const userId = getAuthedUser(args.req).id;
       const limit = Math.min(parseInt(String(args.query.limit ?? '20')) || 20, PAGE_SIZE);
       const offset = parseInt(String(args.query.offset ?? '0')) || 0;
       const unreadOnly = args.query.unread_only === 'true';
@@ -63,7 +63,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
 
   getUnreadCount: async (args) => {
     try {
-      const userId = (args.req.user as UserProfile).id;
+      const userId = getAuthedUser(args.req).id;
       const count = await getUnreadCount(userId);
       return { status: 200 as const, body: { count } };
     } catch (error) {
@@ -74,7 +74,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
 
   markAsRead: async (args) => {
     try {
-      const userId = (args.req.user as UserProfile).id;
+      const userId = getAuthedUser(args.req).id;
       await markAsRead(args.params.id, userId);
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
@@ -85,7 +85,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
 
   markAllAsRead: async (args) => {
     try {
-      const userId = (args.req.user as UserProfile).id;
+      const userId = getAuthedUser(args.req).id;
       await markAllAsRead(userId);
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
@@ -96,7 +96,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
 
   dismiss: async (args) => {
     try {
-      const userId = (args.req.user as UserProfile).id;
+      const userId = getAuthedUser(args.req).id;
       await dismissNotification(args.params.id, userId);
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
@@ -107,7 +107,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
 
   dismissAll: async (args) => {
     try {
-      const userId = (args.req.user as UserProfile).id;
+      const userId = getAuthedUser(args.req).id;
       await dismissAllNotifications(userId);
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
@@ -118,7 +118,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
 
   getPreferences: async (args) => {
     try {
-      const userId = (args.req.user as UserProfile).id;
+      const userId = getAuthedUser(args.req).id;
       const { getPreferencesForUser, getDefaultPreferences } =
         await import('../../services/notifications/notificationPreferences.js');
       const preferences = await getPreferencesForUser(userId);
@@ -132,7 +132,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
 
   updatePreferences: async (args) => {
     try {
-      const userId = (args.req.user as UserProfile).id;
+      const userId = getAuthedUser(args.req).id;
       const { category, channels } = args.body;
 
       const { ALL_NOTIFICATION_TYPES } = await import('../../services/notifications/types.js');
