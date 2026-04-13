@@ -9,7 +9,7 @@ import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('subtitleSizing');
 
-interface SubtitleSegment {
+interface TextLengthSample {
   text?: string;
   rawText?: string;
 }
@@ -74,7 +74,7 @@ function getBaseFontSettings(referenceDimension: number, isVertical: boolean): B
 
 function calculateFontSizing(
   metadata: VideoMetadata,
-  segments: SubtitleSegment[]
+  segments: TextLengthSample[]
 ): FontSizingResult {
   const isVertical = metadata.width < metadata.height;
   const referenceDimension = isVertical ? metadata.width : metadata.height;
@@ -128,4 +128,4 @@ function calculateFontSizing(
 }
 
 export { calculateFontSizing, calculateScaleFactor, getBaseFontSettings };
-export type { FontSizingResult, BaseFontSettings, VideoMetadata, SubtitleSegment };
+export type { FontSizingResult, BaseFontSettings, VideoMetadata, TextLengthSample };

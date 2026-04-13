@@ -8,6 +8,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { type SubtitleSegment } from '@gruenerator/contracts';
 import { v4 as uuidv4 } from 'uuid';
 
 import { type VideoMetadata } from '../../routes/subtitler/types.js';
@@ -30,12 +31,6 @@ const __dirname = path.dirname(__filename);
 const log = createLogger('segment-export');
 
 const EXPORTS_DIR = path.join(__dirname, '../../uploads/exports');
-
-interface SubtitleSegment {
-  startTime: number;
-  endTime: number;
-  text: string;
-}
 
 interface SubtitleConfig {
   segments: SubtitleSegment[];

@@ -274,7 +274,14 @@ export async function processVideoExportInBackground(
                   originalVideoPath: inputPath,
                   uploadId,
                   originalFilename,
-                  segments: segments.map((s) => ({ text: s.text, start: s.start, end: s.end })),
+                  // Map legacy `start/end` field names to canonical
+                  // `startTime/endTime` required by projectSavingService's
+                  // canonical `SubtitleSegment` from @gruenerator/contracts.
+                  segments: segments.map((s) => ({
+                    text: s.text,
+                    startTime: s.start,
+                    endTime: s.end,
+                  })),
                   metadata: {
                     width: metadata.width,
                     height: metadata.height,

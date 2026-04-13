@@ -747,6 +747,13 @@ router.post(
               outputPath: result.outputPath,
               duration: result.duration,
               projectId: savedProjectId,
+              // Canonical segment array — what the frontend should consume
+              // when creating a project. The `subtitles` string is kept for
+              // backward compatibility with any display-layer code that
+              // wants the raw SRT blob, but the POST /subtitler/projects
+              // write path uses `segments` because the schema requires a
+              // typed `SubtitleSegment[]` (canonicalized 2026-04-13).
+              segments: result.segments,
               subtitles: result.subtitles,
             }),
             { EX: 3600 }

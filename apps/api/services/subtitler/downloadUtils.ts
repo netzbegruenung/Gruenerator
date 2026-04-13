@@ -8,6 +8,7 @@ import fs from 'fs';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import { type SubtitleSegment } from '@gruenerator/contracts';
 import { type Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -41,12 +42,6 @@ interface ExportParams {
 
 interface TokenData extends ExportParams {
   createdAt: number;
-}
-
-interface SubtitleSegment {
-  startTime: number;
-  endTime: number;
-  text: string;
 }
 
 interface FontSizes {
