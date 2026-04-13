@@ -16,7 +16,7 @@ interface WordTimestamp {
   end: number;
 }
 
-interface SubtitleSegment {
+interface ManualSegmentCandidate {
   start: number;
   end: number;
   text: string;
@@ -204,7 +204,7 @@ function findSmartBreakPoint(
   };
 }
 
-function applyElasticTiming(segments: SubtitleSegment[]): SubtitleSegment[] {
+function applyElasticTiming(segments: ManualSegmentCandidate[]): ManualSegmentCandidate[] {
   if (segments.length === 0) return segments;
 
   const elasticSegments = [...segments];
@@ -226,10 +226,13 @@ function applyElasticTiming(segments: SubtitleSegment[]): SubtitleSegment[] {
   return elasticSegments;
 }
 
-function groupWordsIntoSegments(words: WordTimestamp[], fullText: string): SubtitleSegment[] {
+function groupWordsIntoSegments(
+  words: WordTimestamp[],
+  fullText: string
+): ManualSegmentCandidate[] {
   validateWordTimestamps(words);
 
-  const segments: SubtitleSegment[] = [];
+  const segments: ManualSegmentCandidate[] = [];
   let currentSegment: CurrentSegment = {
     words: [],
     wordIndices: [],
@@ -418,7 +421,7 @@ function groupWordsIntoSegments(words: WordTimestamp[], fullText: string): Subti
   return finalSegments;
 }
 
-function formatSegmentsToSubtitleText(segments: SubtitleSegment[]): string {
+function formatSegmentsToSubtitleText(segments: ManualSegmentCandidate[]): string {
   return segments
     .map((segment) => {
       const startTime = formatTime(segment.start);
@@ -459,4 +462,4 @@ export {
   applyElasticTiming,
 };
 
-export type { WordTimestamp, SubtitleSegment, PunctuationResult, SmartBreakResult };
+export type { WordTimestamp, ManualSegmentCandidate, PunctuationResult, SmartBreakResult };

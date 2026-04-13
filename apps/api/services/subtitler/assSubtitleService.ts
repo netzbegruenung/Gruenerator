@@ -8,6 +8,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { type SubtitleSegment } from '@gruenerator/contracts';
+
 import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename } from '../../utils/validation/index.js';
@@ -16,12 +18,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const log = createLogger('assSubtitle');
-
-interface SubtitleSegment {
-  startTime: number;
-  endTime: number;
-  text: string;
-}
 
 interface StyleOptions {
   fontSize?: number;
