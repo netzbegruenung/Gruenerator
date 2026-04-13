@@ -38,7 +38,7 @@ export const GroupShareSection = ({
   const fetchData = useCallback(async () => {
     try {
       const [groups, shares] = await Promise.all([
-        apiClient.get<GroupInfo[]>('/docs/user-groups'),
+        apiClient.get<GroupInfo[]>('/docs/groups/me'),
         apiClient.get<GroupShare[]>(`/docs/${documentId}/groups`),
       ]);
       setUserGroups(groups);
