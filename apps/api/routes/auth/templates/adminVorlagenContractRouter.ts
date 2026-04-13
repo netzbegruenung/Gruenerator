@@ -16,9 +16,9 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { logContractValidationError } from '../../../utils/contractValidationLogger.js';
+import { getAuthedUser } from '../../../utils/getAuthedUser.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import type { UserProfile } from '../../../services/user/types.js';
 import type { Application } from 'express';
 
 const log = createLogger('adminVorlagenContractRouter');
@@ -41,7 +41,7 @@ const s = initServer();
 export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
   list: async (args) => {
     try {
-      const userId = (args.req.user as UserProfile).id;
+      const userId = getAuthedUser(args.req).id;
       if (!(await checkIsAdmin(userId))) return FORBIDDEN;
 
       const { status = 'pending_review', limit = '50', offset = '0' } = args.query;
@@ -73,7 +73,7 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
 
   getStats: async (args) => {
     try {
-      const userId = (args.req.user as UserProfile).id;
+      const userId = getAuthedUser(args.req).id;
       if (!(await checkIsAdmin(userId))) return FORBIDDEN;
 
       const postgres = getPostgresInstance();
@@ -105,7 +105,7 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
 
   approve: async (args) => {
     try {
-      const userId = (args.req.user as UserProfile).id;
+      const userId = getAuthedUser(args.req).id;
       if (!(await checkIsAdmin(userId))) return FORBIDDEN;
 
       const { id } = args.params;
@@ -155,7 +155,7 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
 
   reject: async (args) => {
     try {
-      const userId = (args.req.user as UserProfile).id;
+      const userId = getAuthedUser(args.req).id;
       if (!(await checkIsAdmin(userId))) return FORBIDDEN;
 
       const { id } = args.params;
