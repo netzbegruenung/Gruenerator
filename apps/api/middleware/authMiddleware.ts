@@ -42,20 +42,37 @@ const DEV_BYPASS_USER: Express.User = {
   updated_at: new Date(),
 };
 
+/**
+ * **This is the sole null-strip boundary for `UserProfile` fields.**
+ *
+ * The `profiles` table has many nullable columns at the DB level (email,
+ * keycloak_id, chat_color, etc.). Better Auth's session.user object
+ * reflects that by typing those fields as `T | null | undefined`. The
+ * canonical `UserProfile` type in `@gruenerator/contracts` models the
+ * POST-null-strip shape: every field is `T | undefined` (absent or
+ * present, never `null`). That keeps every consumer downstream from
+ * having to handle three distinct "no value" states.
+ *
+ * **Invariant**: if you introduce a new parse site for `userProfileSchema`,
+ * you MUST null-strip the input first (copy the pattern below), or a
+ * single NULL row in `profiles` will throw ZodError and cause a silent
+ * auth failure. Better Auth re-validates its cookie cache every ~5 min,
+ * so the failure manifests as a session-rotation loop, not a login-time
+ * error — make sure to null-strip at every new boundary.
+ *
+ * Two storage quirks this function smooths over before parsing:
+ *  1. Null-strip: Better Auth columns typed as `T | null`. We coerce
+ *     each null to undefined so Zod's `.default()` values fire where
+ *     applicable and optional fields resolve to `undefined`.
+ *  2. Field rename: Better Auth's base fields are `name` / `createdAt` /
+ *     `updatedAt` while the canonical schema uses `display_name` /
+ *     `created_at` / `updated_at`. We rename at the boundary.
+ *
+ * Any residual type mismatch (e.g. Better Auth returning a string where
+ * the schema expects a number) throws ZodError at parse time instead of
+ * cascading as `undefined` through the render tree.
+ */
 function toBetterAuthUser(user: BetterAuthUser): UserProfile {
-  // Better Auth's `$Infer.Session.user` already includes every `additionalFields`
-  // column from config/betterAuth.ts — no cast needed to read custom columns.
-  // Two storage quirks to smooth over before Zod parsing:
-  //  1. Better Auth stores unset optional columns as SQL NULL, but Zod's
-  //     `.default()` only triggers on `undefined`. We coerce `null → undefined`
-  //     so the schema's defaults (mirroring additionalFields.defaultValue)
-  //     kick in.
-  //  2. Better Auth's base fields are named `name` / `createdAt` / `updatedAt`
-  //     while our canonical schema uses `display_name` / `created_at` /
-  //     `updated_at`. We rename at the boundary.
-  // Any residual type mismatch (e.g. Better Auth returning a string where we
-  // expect a number) throws ZodError at login instead of cascading as
-  // undefined through the render tree.
   const nullStripped = Object.fromEntries(
     Object.entries(user).map(([k, v]) => [k, v === null ? undefined : v])
   );
