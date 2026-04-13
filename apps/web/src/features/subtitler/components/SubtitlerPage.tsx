@@ -12,6 +12,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
+import { parseSubtitleBlocks, formatSubtitleBlocks } from '../utils/subtitleSegmentUtils';
 import { getVideoMetadata, TUS_UPLOAD_ENDPOINT, type VideoMetadata } from '../utils/videoUtils';
 
 import AutoProcessingScreen from './AutoProcessingScreen';
@@ -19,7 +20,12 @@ import SubtitleEditor from './SubtitleEditor';
 import VideoSuccessScreen from './VideoSuccessScreen';
 
 import type { AutoProcessingResult } from './AutoProcessingScreen';
-import type { SubtitlePreference, StylePreference, HeightPreference } from '../types';
+import type {
+  SubtitlePreference,
+  StylePreference,
+  HeightPreference,
+  SubtitleSegment,
+} from '../types';
 import type { AxiosError } from 'axios';
 import type { Accept } from 'react-dropzone';
 
@@ -86,22 +92,30 @@ interface LoadedProject {
 }
 
 const SubtitlerPage = (): React.ReactElement => {
-  const [step, setStep] = useState<string>('upload');
+  // Lazy initializer writes the first history entry exactly once per
+  // mount — replaces a dedicated `useEffect` that did the same. The
+  // hash reflects the current step so the back button restores it via
+  // the popstate listener below.
+  const [step, setStep] = useState<string>(() => {
+    const initial = 'upload';
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({ step: initial }, '', `#${initial}`);
+    }
+    return initial;
+  });
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState(false);
   const currentUploadRef = useRef<tus.Upload | null>(null);
   const [originalVideoFile, setOriginalVideoFile] = useState<File | null>(null);
   const [uploadInfo, setUploadInfo] = useState<UploadInfo | null>(null);
-  const [subtitles, setSubtitles] = useState<string | null>(null);
-  // Canonical segment array from auto-processing (2026-04-13). The
-  // `subtitles` state above keeps the raw SRT string for display/edit
-  // use; this state holds the typed segments for write paths
-  // (POST /subtitler/projects schema requires array).
-  const [subtitleSegments, setSubtitleSegments] = useState<Array<{
-    text: string;
-    startTime: number;
-    endTime: number;
-  }> | null>(null);
+  // Single source of truth for the subtitle segments. Populated from
+  // auto-processing or deep-link load, mutated in place by the editor
+  // through `setSegments`, consumed directly by the export and save
+  // paths. The previous split (`subtitles: string` + `subtitleSegments`
+  // + SubtitleEditor's local `editableSubtitles`) drifted on every
+  // edit — losing user changes through prop→state resync inside
+  // SubtitleEditor on remount.
+  const [segments, setSegments] = useState<SubtitleSegment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const {
     socialText,
@@ -121,6 +135,15 @@ const SubtitlerPage = (): React.ReactElement => {
   const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // User-initiated step transitions push a new history entry. The
+  // popstate listener below bypasses this helper and calls `setStep`
+  // directly — otherwise back/forward would push new entries instead
+  // of traversing existing ones.
+  const goToStep = useCallback((next: string): void => {
+    setStep(next);
+    window.history.pushState({ step: next }, '', `#${next}`);
+  }, []);
+
   // Deep-link: load project from ?project=<id> query param
   const deepLinkLoadedRef = useRef(false);
   useEffect(() => {
@@ -135,7 +158,7 @@ const SubtitlerPage = (): React.ReactElement => {
         if (!project) return;
 
         setLoadedProject(project);
-        if (project.subtitles) setSubtitles(project.subtitles);
+        if (project.subtitles) setSegments(parseSubtitleBlocks(project.subtitles));
         setUploadInfo({
           uploadId: project.id,
           metadata: project.video_metadata ?? undefined,
@@ -148,7 +171,7 @@ const SubtitlerPage = (): React.ReactElement => {
           setStylePreference(project.style_preference as StylePreference);
         if (project.height_preference)
           setHeightPreference(project.height_preference as HeightPreference);
-        setStep('edit');
+        goToStep('edit');
         setSearchParams({}, { replace: true });
       })
       .catch((err) => {
@@ -156,19 +179,7 @@ const SubtitlerPage = (): React.ReactElement => {
         setError('Projekt konnte nicht geladen werden.');
         setSearchParams({}, { replace: true });
       });
-  }, [searchParams, user?.id, setSearchParams]);
-
-  // Browser history navigation - push state when step changes
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      // On initial mount, replace state instead of pushing
-      window.history.replaceState({ step }, '', `#${step}`);
-      isInitialMount.current = false;
-    } else {
-      window.history.pushState({ step }, '', `#${step}`);
-    }
-  }, [step]);
+  }, [searchParams, user?.id, setSearchParams, goToStep]);
 
   // Browser history navigation - handle back button
   useEffect(() => {
@@ -233,8 +244,11 @@ const SubtitlerPage = (): React.ReactElement => {
     setUploadInfo(newUploadInfo);
     setError(null);
 
-    // Auto-start processing immediately after upload
-    setStep('auto-processing');
+    // Step transition + auto-processing kickoff are one logical action,
+    // triggered by the same user event. Pass the fresh uploadId explicitly
+    // to dodge the stale-closure risk on `uploadInfo`.
+    goToStep('auto-processing');
+    void handleStartAutoProcessing(uploadData.uploadId);
   };
 
   // Start tus upload when user selects a file
@@ -296,17 +310,19 @@ const SubtitlerPage = (): React.ReactElement => {
     async (receivedExportToken: string) => {
       console.log('[SubtitlerPage] Export initiated with token:', receivedExportToken);
 
-      // Auto-create project if one doesn't exist (for share functionality)
+      // Auto-create project if one doesn't exist (for share functionality).
+      // Uses the hoisted `segments` state which reflects the user's edits
+      // — the earlier version sent the original auto-processing output
+      // and silently persisted the pre-edit version to the DB.
       if (!loadedProject?.id && !autoSavedProjectId && uploadInfo?.uploadId) {
         try {
           const projectData = {
             uploadId: uploadInfo.uploadId,
-            // Backend schema (both legacy `projectDataSchema` in
-            // projectController.ts AND the contract `projectDataBodySchema`
-            // in @gruenerator/contracts) requires a typed
-            // `SubtitleSegment[]`. Pre-2026-04-13 this was sending the raw
-            // SRT string, which silently 400'd every auto-create request.
-            subtitles: subtitleSegments ?? [],
+            subtitles: segments.map((s) => ({
+              text: s.text,
+              startTime: s.startTime,
+              endTime: s.endTime,
+            })),
             title:
               uploadInfo.name?.replace(/\.[^/.]+$/, '') ||
               `Projekt ${new Date().toLocaleDateString('de-DE')}`,
@@ -333,16 +349,17 @@ const SubtitlerPage = (): React.ReactElement => {
         }
       }
 
-      setStep('success');
+      goToStep('success');
     },
     [
       loadedProject?.id,
       autoSavedProjectId,
       uploadInfo,
-      subtitles,
+      segments,
       stylePreference,
       heightPreference,
       modePreference,
+      goToStep,
     ]
   );
 
@@ -364,23 +381,23 @@ const SubtitlerPage = (): React.ReactElement => {
     resetExport();
 
     setTimeout(() => {
-      setStep('upload');
+      goToStep('upload');
       setOriginalVideoFile(null);
       setUploadInfo(null);
-      setSubtitles(null);
+      setSegments([]);
       setError(null);
       setAutoSavedProjectId(null);
       resetSocialText();
     }, 300);
-  }, [resetSocialText, uploadInfo?.uploadId, baseURL, resetExport]);
+  }, [resetSocialText, uploadInfo?.uploadId, baseURL, resetExport, goToStep]);
 
   // Function to go back to the editor without resetting everything
   const handleEditAgain = useCallback(() => {
     // Reset export state so user must re-export after making changes
     // This prevents downloading old video after editing
     resetExport();
-    setStep('edit');
-  }, [resetExport]);
+    goToStep('edit');
+  }, [resetExport, goToStep]);
 
   // New handlers for styling step
   const handleStyleSelect = useCallback((style: string) => {
@@ -391,72 +408,73 @@ const SubtitlerPage = (): React.ReactElement => {
     setHeightPreference(height as HeightPreference);
   }, []);
 
-  // Handler for starting automatic processing
-  const handleStartAutoProcessing = useCallback(async () => {
-    if (!uploadInfo?.uploadId) {
-      setError('Keine Upload-ID vorhanden.');
-      return;
-    }
-
-    try {
-      const response = await apiClient.post('/subtitler/process-auto', {
-        uploadId: uploadInfo.uploadId,
-        locale: 'de-DE',
-        userId: user?.id || null,
-      });
-
-      if (response.status === 202) {
-        console.log('[SubtitlerPage] Auto processing started for:', uploadInfo.uploadId);
+  // Takes `uploadId` as an explicit argument so callers don't race the
+  // `setUploadInfo` commit. Previously a `useEffect([step, uploadId])`
+  // + ref-based one-shot guard translated the step transition into a
+  // call to this function; doing it directly in the step-transition
+  // handler is both simpler and correct.
+  const handleStartAutoProcessing = useCallback(
+    async (uploadId: string): Promise<void> => {
+      try {
+        const response = await apiClient.post('/subtitler/process-auto', {
+          uploadId,
+          locale: 'de-DE',
+          userId: user?.id || null,
+        });
+        if (response.status === 202) {
+          console.log('[SubtitlerPage] Auto processing started for:', uploadId);
+        }
+      } catch (error) {
+        console.error('[SubtitlerPage] Error starting auto processing:', error);
+        const axiosError = error as AxiosError<{ error?: string }>;
+        setError(
+          axiosError.response?.data?.error || 'Fehler beim Starten der automatischen Verarbeitung.'
+        );
+        goToStep('upload');
       }
-    } catch (error) {
-      console.error('[SubtitlerPage] Error starting auto processing:', error);
-      const axiosError = error as AxiosError<{ error?: string }>;
-      setError(
-        axiosError.response?.data?.error || 'Fehler beim Starten der automatischen Verarbeitung.'
-      );
-      setStep('upload');
-    }
-  }, [uploadInfo?.uploadId, user?.id]);
-
-  // Auto-start processing when transitioning to auto-processing step
-  const autoProcessingStartedRef = useRef(false);
-  useEffect(() => {
-    if (step === 'auto-processing' && uploadInfo?.uploadId) {
-      if (!autoProcessingStartedRef.current) {
-        autoProcessingStartedRef.current = true;
-        void handleStartAutoProcessing();
-      }
-    } else {
-      autoProcessingStartedRef.current = false;
-    }
-  }, [step, uploadInfo?.uploadId, handleStartAutoProcessing]);
+    },
+    [user?.id, goToStep]
+  );
 
   // Handler for automatic processing completion
-  const handleAutoProcessingComplete = useCallback((result: AutoProcessingResult) => {
-    console.log('[SubtitlerPage] Auto processing complete:', result);
-    // Store the auto-saved project ID if available
-    if (result.projectId) {
-      setAutoSavedProjectId(result.projectId);
-    }
-    // Store subtitles from auto processing for editing
-    if (result.subtitles) {
-      setSubtitles(result.subtitles);
-    }
-    // Store canonical segment array for write paths (project create/update).
-    // Schema requires SubtitleSegment[]; string would 400.
-    if (result.segments) {
-      setSubtitleSegments(result.segments);
-    }
-    // Move to success screen - the video is ready for download
-    setStep('success');
-  }, []);
+  const handleAutoProcessingComplete = useCallback(
+    (result: AutoProcessingResult) => {
+      console.log('[SubtitlerPage] Auto processing complete:', result);
+      if (result.projectId) {
+        setAutoSavedProjectId(result.projectId);
+      }
+      // Ingest segments into the hoisted state. The contract segment type
+      // has no `id`; the local type uses `id` for React keys in Timeline.
+      // We add ids here once at ingest so the parent is the source of
+      // truth from this point forward.
+      if (result.segments && result.segments.length > 0) {
+        setSegments(
+          result.segments.map((s, i) => ({
+            id: i,
+            text: s.text,
+            startTime: s.startTime,
+            endTime: s.endTime,
+          }))
+        );
+      } else if (result.subtitles) {
+        // Fallback: parse SRT blob if the backend didn't include a segment
+        // array (older auto-processing responses).
+        setSegments(parseSubtitleBlocks(result.subtitles));
+      }
+      goToStep('success');
+    },
+    [goToStep]
+  );
 
   // Handler for automatic processing error
-  const handleAutoProcessingError = useCallback((errorMsg: string) => {
-    console.error('[SubtitlerPage] Auto processing error:', errorMsg);
-    setError(errorMsg);
-    setStep('upload');
-  }, []);
+  const handleAutoProcessingError = useCallback(
+    (errorMsg: string) => {
+      console.error('[SubtitlerPage] Auto processing error:', errorMsg);
+      setError(errorMsg);
+      goToStep('upload');
+    },
+    [goToStep]
+  );
 
   return (
     <ErrorBoundary>
@@ -535,11 +553,12 @@ const SubtitlerPage = (): React.ReactElement => {
                 />
               )}
 
-              {step === 'edit' && subtitles && uploadInfo?.uploadId && (
+              {step === 'edit' && segments.length > 0 && uploadInfo?.uploadId && (
                 <SubtitleEditor
                   videoFile={originalVideoFile}
                   videoUrl={uploadInfo.videoUrl ?? undefined}
-                  subtitles={subtitles}
+                  segments={segments}
+                  onSegmentsChange={setSegments}
                   uploadId={uploadInfo.uploadId}
                   subtitlePreference={subtitlePreference}
                   stylePreference={stylePreference}
@@ -568,16 +587,21 @@ const SubtitlerPage = (): React.ReactElement => {
                   socialText={socialText}
                   uploadId={exportToken || uploadInfo?.uploadId || undefined}
                   isGeneratingSocialText={isGenerating}
-                  onGenerateSocialText={() => generateSocialText(subtitles ?? '')}
+                  onGenerateSocialText={() => generateSocialText(formatSubtitleBlocks(segments))}
                   projectId={loadedProject?.id || autoSavedProjectId || undefined}
                   projectTitle={
                     loadedProject?.title || (autoSavedProjectId ? 'Auto-Video' : undefined)
                   }
                   videoUrl={
-                    uploadInfo?.uploadId
-                      ? `${baseURL}/subtitler/auto-download/${uploadInfo.uploadId}`
-                      : exportToken
-                        ? `${baseURL}/subtitler/export-download/${exportToken}`
+                    // exportToken wins over auto-download — once the user
+                    // has edited subtitles and run an export, that export
+                    // contains their edits. The auto-download path serves
+                    // the pre-edit transcription and is only correct for
+                    // users who skipped the editor entirely.
+                    exportToken
+                      ? `${baseURL}/subtitler/export-download/${exportToken}`
+                      : uploadInfo?.uploadId
+                        ? `${baseURL}/subtitler/auto-download/${uploadInfo.uploadId}`
                         : undefined
                   }
                 />

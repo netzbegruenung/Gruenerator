@@ -457,11 +457,14 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/auth/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
-  // ts-rest contract router — mount before legacy subtitler routers
+  // requireAuth must run before the contract mount — createExpressEndpoints
+  // registers handlers directly on the app, bypassing the legacy prefix
+  // middleware. Same pattern as /api/transfer below.
+  app.use('/api/subtitler/projects', requireAuth);
   mountSubtitlerContractRouter(app);
   app.use('/api/subtitler', standardMutationLimiter, subtitlerRouter);
   app.use('/api/subtitler', standardMutationLimiter, subtitlerSocialRouter);
-  app.use('/api/subtitler/projects', requireAuth, standardMutationLimiter, subtitlerProjectRouter);
+  app.use('/api/subtitler/projects', standardMutationLimiter, subtitlerProjectRouter);
   app.use('/api/subtitler/share', publicReadLimiter, subtitlerShareRouter);
   // ts-rest contract router — mount before legacy shareRouter
   mountShareContractRouter(app);

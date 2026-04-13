@@ -70,6 +70,26 @@ const createProjectsStoreSlice: StateCreator<ProjectsStore> = (set, get) => ({
   },
 
   saveProject: async (projectData: SaveProjectData) => {
+    // Debug logging for the subtitler save shape. The 2026-04-13
+    // canonicalization made `subtitles` a `SubtitleSegment[]` on the
+    // wire, but multiple call sites (SubtitleEditor web, useSubtitleEditor
+    // mobile, reel.tsx mobile post-transcription) historically sent the
+    // raw SRT string. If a stale bundle ships after a future refactor
+    // sends the wrong shape, this log tells us immediately from the
+    // browser console whether the client or the server is at fault —
+    // no DevTools network panel required.
+    const subtitles = projectData.subtitles;
+    const subtitlesShape = Array.isArray(subtitles)
+      ? `array(${subtitles.length})`
+      : subtitles == null
+        ? 'null/undefined'
+        : typeof subtitles;
+    console.log('[ProjectsStore] saveProject sending', {
+      uploadId: projectData.uploadId,
+      subtitlesShape,
+      firstSegment: Array.isArray(subtitles) && subtitles.length > 0 ? subtitles[0] : undefined,
+    });
+
     set({ isSaving: true, error: null, saveSuccess: false });
 
     try {

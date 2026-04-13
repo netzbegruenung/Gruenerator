@@ -77,12 +77,31 @@ const ReelsSection: React.FC = memo(() => {
   const handleDelete = useCallback(
     (item: RecentItem) => {
       if (!window.confirm('Video wirklich löschen?')) return;
-      if (item.deleteEndpoint) {
-        const endpoint = item.deleteEndpoint.replace(/^\/api/, '');
-        void apiClient.delete(endpoint).then(() => {
+      if (!item.deleteEndpoint) return;
+      const endpoint = item.deleteEndpoint.replace(/^\/api/, '');
+      // Must `.catch()` — bare `.then()` lets rejections escape to
+      // `window.onunhandledrejection`, which then routes through Sentry
+      // as a pagey-looking "unhandled promise rejection". 401s here are
+      // expected when a cached recent-activity entry references a reel
+      // the current session no longer owns (post-profile-deletion replay
+      // being the most common trigger).
+      void apiClient
+        .delete(endpoint)
+        .then(() => {
           void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+        })
+        .catch((err: unknown) => {
+          const status =
+            typeof err === 'object' && err !== null && 'response' in err
+              ? (err as { response?: { status?: number } }).response?.status
+              : undefined;
+          console.warn('[ReelsSection] delete failed', { endpoint, status, itemId: item.id });
+          if (status === 401 || status === 403 || status === 404) {
+            // Entry is stale — drop it from the list so the user isn't
+            // stuck clicking a ghost.
+            void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+          }
         });
-      }
     },
     [queryClient]
   );

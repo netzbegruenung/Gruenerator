@@ -434,18 +434,45 @@ const RecentlyCreatedSection: React.FC = memo(() => {
 
       if (!window.confirm(messages[item.type])) return;
 
-      if (item.type === 'board') {
-        void deleteBoard.mutateAsync(item.id).then(() => {
-          void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+      // Both delete paths need an explicit `.catch()` — a bare `.then()`
+      // escapes rejections to `window.onunhandledrejection`, which Sentry
+      // captures as an unhandled error (the earlier DELETE 401 incident
+      // on stale recent-activity entries). On 401/403/404 we invalidate
+      // the list so the ghost entry disappears from the UI.
+      const onDeleteError = (err: unknown, endpoint: string) => {
+        const status =
+          typeof err === 'object' && err !== null && 'response' in err
+            ? (err as { response?: { status?: number } }).response?.status
+            : undefined;
+        console.warn('[RecentlyCreatedSection] delete failed', {
+          endpoint,
+          status,
+          itemType: item.type,
+          itemId: item.id,
         });
+        if (status === 401 || status === 403 || status === 404) {
+          void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+        }
+      };
+
+      if (item.type === 'board') {
+        void deleteBoard
+          .mutateAsync(item.id)
+          .then(() => {
+            void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+          })
+          .catch((err: unknown) => onDeleteError(err, `board:${String(item.id)}`));
         return;
       }
 
       if (item.deleteEndpoint) {
         const endpoint = item.deleteEndpoint.replace(/^\/api/, '');
-        void apiClient.delete(endpoint).then(() => {
-          void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
-        });
+        void apiClient
+          .delete(endpoint)
+          .then(() => {
+            void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+          })
+          .catch((err: unknown) => onDeleteError(err, endpoint));
       }
     },
     [deleteBoard, queryClient]
