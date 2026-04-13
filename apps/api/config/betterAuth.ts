@@ -72,10 +72,29 @@ export const auth = betterAuth({
   // `console.*` directly because Winston's variadic overloads don't accept
   // dynamic spreads cleanly. The `unknown[]` cast narrows Better Auth's
   // `any[]` callback signature to satisfy no-unsafe-argument.
+  //
+  // Known-benign error downgrade: "Failed to parse state" fires whenever
+  // an OAuth callback URL is replayed after the one-shot verification row
+  // was already consumed or its 10-minute TTL expired. Common triggers are
+  // link-preview bots prefetching the callback (Slack, iMessage), browser
+  // back button after a successful login, and tabs left open across the
+  // TTL window. Better Auth's own fallback already redirects the user to
+  // `?error=please_restart_the_process`, so the user experience is fine —
+  // the only damage was the full `StateError` object landing in the prod
+  // error log and looking like a real incident. We downgrade to warn with
+  // a one-line summary so a genuine attack pattern (spike in rate) is
+  // still visible while routine replay noise stops paging anyone.
   logger: {
     level: env.LOG_LEVEL === 'debug' ? 'debug' : 'warn',
     log: (level, message, ...rawArgs) => {
       const args: unknown[] = rawArgs;
+      if (level === 'error' && message === 'Failed to parse state') {
+        const err = args[0] as { code?: string; message?: string } | undefined;
+        console.warn(
+          `[BA:warn] oauth state replay code=${err?.code ?? 'unknown'} (benign: expired or already-consumed callback)`
+        );
+        return;
+      }
       const sink =
         level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
       sink(`[BA:${level}]`, message, ...args);
