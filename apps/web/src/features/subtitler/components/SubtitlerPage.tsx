@@ -12,6 +12,7 @@ import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
 import useSocialTextGenerator from '../hooks/useSocialTextGenerator';
+import { parseSubtitleBlocks, formatSubtitleBlocks } from '../utils/subtitleSegmentUtils';
 import { getVideoMetadata, TUS_UPLOAD_ENDPOINT, type VideoMetadata } from '../utils/videoUtils';
 
 import AutoProcessingScreen from './AutoProcessingScreen';
@@ -19,7 +20,12 @@ import SubtitleEditor from './SubtitleEditor';
 import VideoSuccessScreen from './VideoSuccessScreen';
 
 import type { AutoProcessingResult } from './AutoProcessingScreen';
-import type { SubtitlePreference, StylePreference, HeightPreference } from '../types';
+import type {
+  SubtitlePreference,
+  StylePreference,
+  HeightPreference,
+  SubtitleSegment,
+} from '../types';
 import type { AxiosError } from 'axios';
 import type { Accept } from 'react-dropzone';
 
@@ -92,16 +98,14 @@ const SubtitlerPage = (): React.ReactElement => {
   const currentUploadRef = useRef<tus.Upload | null>(null);
   const [originalVideoFile, setOriginalVideoFile] = useState<File | null>(null);
   const [uploadInfo, setUploadInfo] = useState<UploadInfo | null>(null);
-  const [subtitles, setSubtitles] = useState<string | null>(null);
-  // Canonical segment array from auto-processing (2026-04-13). The
-  // `subtitles` state above keeps the raw SRT string for display/edit
-  // use; this state holds the typed segments for write paths
-  // (POST /subtitler/projects schema requires array).
-  const [subtitleSegments, setSubtitleSegments] = useState<Array<{
-    text: string;
-    startTime: number;
-    endTime: number;
-  }> | null>(null);
+  // Single source of truth for the subtitle segments. Populated from
+  // auto-processing or deep-link load, mutated in place by the editor
+  // through `setSegments`, consumed directly by the export and save
+  // paths. The previous split (`subtitles: string` + `subtitleSegments`
+  // + SubtitleEditor's local `editableSubtitles`) drifted on every
+  // edit — losing user changes through prop→state resync inside
+  // SubtitleEditor on remount.
+  const [segments, setSegments] = useState<SubtitleSegment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const {
     socialText,
@@ -135,7 +139,7 @@ const SubtitlerPage = (): React.ReactElement => {
         if (!project) return;
 
         setLoadedProject(project);
-        if (project.subtitles) setSubtitles(project.subtitles);
+        if (project.subtitles) setSegments(parseSubtitleBlocks(project.subtitles));
         setUploadInfo({
           uploadId: project.id,
           metadata: project.video_metadata ?? undefined,
@@ -296,17 +300,19 @@ const SubtitlerPage = (): React.ReactElement => {
     async (receivedExportToken: string) => {
       console.log('[SubtitlerPage] Export initiated with token:', receivedExportToken);
 
-      // Auto-create project if one doesn't exist (for share functionality)
+      // Auto-create project if one doesn't exist (for share functionality).
+      // Uses the hoisted `segments` state which reflects the user's edits
+      // — the earlier version sent the original auto-processing output
+      // and silently persisted the pre-edit version to the DB.
       if (!loadedProject?.id && !autoSavedProjectId && uploadInfo?.uploadId) {
         try {
           const projectData = {
             uploadId: uploadInfo.uploadId,
-            // Backend schema (both legacy `projectDataSchema` in
-            // projectController.ts AND the contract `projectDataBodySchema`
-            // in @gruenerator/contracts) requires a typed
-            // `SubtitleSegment[]`. Pre-2026-04-13 this was sending the raw
-            // SRT string, which silently 400'd every auto-create request.
-            subtitles: subtitleSegments ?? [],
+            subtitles: segments.map((s) => ({
+              text: s.text,
+              startTime: s.startTime,
+              endTime: s.endTime,
+            })),
             title:
               uploadInfo.name?.replace(/\.[^/.]+$/, '') ||
               `Projekt ${new Date().toLocaleDateString('de-DE')}`,
@@ -339,7 +345,7 @@ const SubtitlerPage = (): React.ReactElement => {
       loadedProject?.id,
       autoSavedProjectId,
       uploadInfo,
-      subtitles,
+      segments,
       stylePreference,
       heightPreference,
       modePreference,
@@ -367,7 +373,7 @@ const SubtitlerPage = (): React.ReactElement => {
       setStep('upload');
       setOriginalVideoFile(null);
       setUploadInfo(null);
-      setSubtitles(null);
+      setSegments([]);
       setError(null);
       setAutoSavedProjectId(null);
       resetSocialText();
@@ -434,20 +440,27 @@ const SubtitlerPage = (): React.ReactElement => {
   // Handler for automatic processing completion
   const handleAutoProcessingComplete = useCallback((result: AutoProcessingResult) => {
     console.log('[SubtitlerPage] Auto processing complete:', result);
-    // Store the auto-saved project ID if available
     if (result.projectId) {
       setAutoSavedProjectId(result.projectId);
     }
-    // Store subtitles from auto processing for editing
-    if (result.subtitles) {
-      setSubtitles(result.subtitles);
+    // Ingest segments into the hoisted state. The contract segment type
+    // has no `id`; the local type uses `id` for React keys in Timeline.
+    // We add ids here once at ingest so the parent is the source of
+    // truth from this point forward.
+    if (result.segments && result.segments.length > 0) {
+      setSegments(
+        result.segments.map((s, i) => ({
+          id: i,
+          text: s.text,
+          startTime: s.startTime,
+          endTime: s.endTime,
+        }))
+      );
+    } else if (result.subtitles) {
+      // Fallback: parse SRT blob if the backend didn't include a segment
+      // array (older auto-processing responses).
+      setSegments(parseSubtitleBlocks(result.subtitles));
     }
-    // Store canonical segment array for write paths (project create/update).
-    // Schema requires SubtitleSegment[]; string would 400.
-    if (result.segments) {
-      setSubtitleSegments(result.segments);
-    }
-    // Move to success screen - the video is ready for download
     setStep('success');
   }, []);
 
@@ -535,11 +548,12 @@ const SubtitlerPage = (): React.ReactElement => {
                 />
               )}
 
-              {step === 'edit' && subtitles && uploadInfo?.uploadId && (
+              {step === 'edit' && segments.length > 0 && uploadInfo?.uploadId && (
                 <SubtitleEditor
                   videoFile={originalVideoFile}
                   videoUrl={uploadInfo.videoUrl ?? undefined}
-                  subtitles={subtitles}
+                  segments={segments}
+                  onSegmentsChange={setSegments}
                   uploadId={uploadInfo.uploadId}
                   subtitlePreference={subtitlePreference}
                   stylePreference={stylePreference}
@@ -568,7 +582,7 @@ const SubtitlerPage = (): React.ReactElement => {
                   socialText={socialText}
                   uploadId={exportToken || uploadInfo?.uploadId || undefined}
                   isGeneratingSocialText={isGenerating}
-                  onGenerateSocialText={() => generateSocialText(subtitles ?? '')}
+                  onGenerateSocialText={() => generateSocialText(formatSubtitleBlocks(segments))}
                   projectId={loadedProject?.id || autoSavedProjectId || undefined}
                   projectTitle={
                     loadedProject?.title || (autoSavedProjectId ? 'Auto-Video' : undefined)

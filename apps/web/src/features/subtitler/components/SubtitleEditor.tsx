@@ -8,7 +8,7 @@ import Spinner from '../../../components/common/Spinner';
 import FloatingActionButton from '../../../components/common/UI/FloatingActionButton';
 import { useAuthStore } from '../../../stores/authStore';
 import { useSubtitlerExportStore } from '../../../stores/subtitlerExportStore';
-import { parseSubtitleBlocks, formatSubtitleBlocks } from '../utils/subtitleSegmentUtils';
+import { formatSubtitleBlocks } from '../utils/subtitleSegmentUtils';
 
 import LiveSubtitlePreview from './LiveSubtitlePreview';
 import Timeline from './Timeline';
@@ -66,7 +66,8 @@ interface UploadVideoMetadata {
 interface SubtitleEditorProps {
   videoFile?: File | Blob | null;
   videoUrl?: string | null;
-  subtitles: string;
+  segments: SubtitleSegment[];
+  onSegmentsChange: (segments: SubtitleSegment[]) => void;
   uploadId: string;
   subtitlePreference: SubtitlePreference;
   stylePreference?: StylePreference;
@@ -85,7 +86,8 @@ interface SubtitleEditorProps {
 const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   videoFile,
   videoUrl: videoUrlProp,
-  subtitles,
+  segments,
+  onSegmentsChange,
   uploadId,
   subtitlePreference,
   stylePreference = 'shadow' as StylePreference,
@@ -206,7 +208,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const segmentRefs = useRef<Record<number, HTMLElement>>({});
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [editableSubtitles, setEditableSubtitles] = useState<SubtitleSegment[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [currentTimeInSeconds, setCurrentTimeInSeconds] = useState<number>(0);
   const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null);
@@ -291,29 +292,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       setError('Fehler beim Laden der Video-Vorschau');
     }
   }, [videoFile, videoUrlProp]);
-
-  useEffect(() => {
-    if (!subtitles) {
-      console.log('[SubtitleEditor] No subtitles provided');
-      return;
-    }
-
-    if (typeof subtitles !== 'string') {
-      console.error('[SubtitleEditor] Invalid subtitles type:', typeof subtitles);
-      setError('Ungültiges Untertitel-Format');
-      return;
-    }
-
-    try {
-      console.log('[SubtitleEditor] Processing subtitles:', subtitles);
-      const segments = parseSubtitleBlocks(subtitles);
-      console.log('[SubtitleEditor] Processed segments:', segments.length);
-      setEditableSubtitles(segments);
-    } catch (error) {
-      console.error('[SubtitleEditor] Error processing subtitles:', error);
-      setError('Fehler beim Verarbeiten der Untertitel');
-    }
-  }, [subtitles]);
 
   useEffect(() => {
     if (!videoRef.current) return;
@@ -406,31 +384,26 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const handleSegmentClick = useCallback(
     (segmentId: number): void => {
       setSelectedSegmentId(segmentId);
-      const segment = editableSubtitles.find((s) => s.id === segmentId);
+      const segment = segments.find((s) => s.id === segmentId);
       if (segment && videoRef.current) {
         videoRef.current.currentTime = segment.startTime;
       }
     },
-    [editableSubtitles]
+    [segments]
   );
 
-  const handleTextChange = useCallback((segmentId: number, newText: string): void => {
-    setEditableSubtitles((prev) =>
-      prev.map((segment) => (segment.id === segmentId ? { ...segment, text: newText } : segment))
-    );
-  }, []);
+  const handleTextChange = useCallback(
+    (segmentId: number, newText: string): void => {
+      onSegmentsChange(
+        segments.map((segment) =>
+          segment.id === segmentId ? { ...segment, text: newText } : segment
+        )
+      );
+    },
+    [segments, onSegmentsChange]
+  );
 
-  useEffect(() => {
-    if (window.innerWidth <= 768 && (videoFile || videoUrlProp) && subtitles) {
-      const textareas = document.querySelectorAll('.segment-text');
-      textareas.forEach((element) => {
-        (element as HTMLElement).style.height = 'auto';
-        (element as HTMLElement).style.height = (element as HTMLElement).scrollHeight + 'px';
-      });
-    }
-  }, [editableSubtitles, videoFile, videoUrlProp, subtitles]);
-
-  if ((!videoFile && !videoUrlProp) || !subtitles) {
+  if ((!videoFile && !videoUrlProp) || segments.length === 0) {
     console.log('[SubtitleEditor] Missing required props');
     return (
       <div className="w-full">
@@ -438,25 +411,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       </div>
     );
   }
-
-  const adjustTextareaHeight = (element: HTMLElement): void => {
-    element.style.height = 'auto';
-    element.style.height = element.scrollHeight + 'px';
-  };
-
-  const handleSubtitleEdit = (
-    id: number,
-    newText: string,
-    event: React.ChangeEvent<HTMLTextAreaElement>
-  ): void => {
-    setEditableSubtitles((prev) =>
-      prev.map((segment) => (segment.id === id ? { ...segment, text: newText } : segment))
-    );
-
-    if (window.innerWidth <= 768) {
-      adjustTextareaHeight(event.target);
-    }
-  };
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -466,18 +420,17 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   };
 
   const handleExport = async (maxResolution: number | null = null): Promise<void> => {
-    if (!uploadId || !editableSubtitles.length) {
+    if (!uploadId || !segments.length) {
       setError('Fehlende Upload-ID oder keine Untertitel zum Exportieren.');
       return;
     }
 
     try {
       setError(null);
-      const subtitlesText = formatSubtitleBlocks(editableSubtitles);
-
       console.log('[SubtitleEditor] Starting export via store:', {
         uploadId,
-        subtitlesLength: subtitlesText.length,
+        segmentCount: segments.length,
+        firstSegmentText: segments[0]?.text,
         stylePreference: localStyle,
         heightPreference: localHeight,
         locale,
@@ -486,7 +439,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
         userId: user?.id,
       });
 
-      const subtitlesForExport = editableSubtitles.map((segment) => ({
+      const subtitlesForExport = segments.map((segment) => ({
         start: segment.startTime,
         end: segment.endTime,
         text: segment.text,
@@ -508,19 +461,27 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     }
   };
 
+  // `segments` is stripped of the client-only `id` field at the save
+  // boundary — server persistence shouldn't carry a React-key concept.
+  const toWireSegments = (): { text: string; startTime: number; endTime: number }[] =>
+    segments.map((s) => ({ text: s.text, startTime: s.startTime, endTime: s.endTime }));
+
   const handleSaveProject = async (): Promise<void> => {
-    if (!uploadId || !editableSubtitles.length) {
+    if (!uploadId || !segments.length) {
       setError('Keine Daten zum Speichern vorhanden.');
       return;
     }
 
     try {
       setError(null);
-      const subtitlesText = formatSubtitleBlocks(editableSubtitles);
 
       if (loadedProject) {
+        // Update contract currently types `subtitles` as string. Serialize
+        // to SRT so the existing server side stays untouched. Follow-up
+        // to align the update contract to `SubtitleSegment[]` tracked
+        // separately.
         await updateProject(loadedProject.id, {
-          subtitles: subtitlesText,
+          subtitles: formatSubtitleBlocks(segments),
           stylePreference: localStyle,
           heightPreference: localHeight,
         });
@@ -533,18 +494,9 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
               height: videoMetadataFromUpload.height ?? 0,
             }
           : undefined;
-        // The POST /subtitler/projects contract expects a canonical
-        // `SubtitleSegment[]` (text/startTime/endTime) on the wire. The
-        // local editor state additionally carries a client-only `id` for
-        // React keys; strip it here at the save boundary so nothing
-        // client-specific leaks into the persisted shape.
-        const projectData = {
+        await saveProject({
           uploadId,
-          subtitles: editableSubtitles.map((s) => ({
-            text: s.text,
-            startTime: s.startTime,
-            endTime: s.endTime,
-          })),
+          subtitles: toWireSegments(),
           title: videoFilename
             ? videoFilename.replace(/\.[^.]+$/, '')
             : `Projekt ${new Date().toLocaleDateString('de-DE')}`,
@@ -554,8 +506,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
           videoMetadata: formattedVideoMetadata,
           videoFilename: videoFilename || 'video.mp4',
           videoSize: videoSize || 0,
-        };
-        await saveProject(projectData);
+        });
       }
     } catch (err) {
       console.error('[SubtitleEditor] Save project error:', err);
@@ -639,7 +590,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                   </video>
 
                   <LiveSubtitlePreview
-                    editableSubtitles={editableSubtitles}
+                    editableSubtitles={segments}
                     currentTimeInSeconds={currentTimeInSeconds}
                     videoMetadata={videoMetadata}
                     stylePreference={localStyle}
@@ -676,7 +627,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                 size="icon"
                 className={cn(saveSuccess && 'border-primary-500 text-primary-500')}
                 onClick={handleSaveProject}
-                disabled={!editableSubtitles.length}
+                disabled={!segments.length}
                 title="Projekt speichern"
               >
                 {saveSuccess ? <FaCheck /> : <FaSave />}
@@ -782,7 +733,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
               <Timeline
                 duration={videoDuration}
                 currentTime={currentTimeInSeconds}
-                segments={editableSubtitles}
+                segments={segments}
                 selectedSegmentId={selectedSegmentId}
                 onSeek={handleTimelineSeek}
                 onSegmentClick={handleSegmentClick}
