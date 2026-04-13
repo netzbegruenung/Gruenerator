@@ -93,6 +93,15 @@ const SubtitlerPage = (): React.ReactElement => {
   const [originalVideoFile, setOriginalVideoFile] = useState<File | null>(null);
   const [uploadInfo, setUploadInfo] = useState<UploadInfo | null>(null);
   const [subtitles, setSubtitles] = useState<string | null>(null);
+  // Canonical segment array from auto-processing (2026-04-13). The
+  // `subtitles` state above keeps the raw SRT string for display/edit
+  // use; this state holds the typed segments for write paths
+  // (POST /subtitler/projects schema requires array).
+  const [subtitleSegments, setSubtitleSegments] = useState<Array<{
+    text: string;
+    startTime: number;
+    endTime: number;
+  }> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const {
     socialText,
@@ -292,7 +301,12 @@ const SubtitlerPage = (): React.ReactElement => {
         try {
           const projectData = {
             uploadId: uploadInfo.uploadId,
-            subtitles: subtitles || '',
+            // Backend schema (both legacy `projectDataSchema` in
+            // projectController.ts AND the contract `projectDataBodySchema`
+            // in @gruenerator/contracts) requires a typed
+            // `SubtitleSegment[]`. Pre-2026-04-13 this was sending the raw
+            // SRT string, which silently 400'd every auto-create request.
+            subtitles: subtitleSegments ?? [],
             title:
               uploadInfo.name?.replace(/\.[^/.]+$/, '') ||
               `Projekt ${new Date().toLocaleDateString('de-DE')}`,
@@ -427,6 +441,11 @@ const SubtitlerPage = (): React.ReactElement => {
     // Store subtitles from auto processing for editing
     if (result.subtitles) {
       setSubtitles(result.subtitles);
+    }
+    // Store canonical segment array for write paths (project create/update).
+    // Schema requires SubtitleSegment[]; string would 400.
+    if (result.segments) {
+      setSubtitleSegments(result.segments);
     }
     // Move to success screen - the video is ready for download
     setStep('success');

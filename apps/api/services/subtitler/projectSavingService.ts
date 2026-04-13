@@ -8,6 +8,8 @@ import fsPromises from 'fs/promises';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import { type SubtitleSegment } from '@gruenerator/contracts';
+
 import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -16,14 +18,6 @@ const __dirname = dirname(__filename);
 
 const log = createLogger('projectSaving');
 const PROJECTS_DIR = path.join(__dirname, '../../uploads/subtitler-projects');
-
-interface SubtitleSegment {
-  text: string;
-  start?: number | undefined;
-  end?: number | undefined;
-  startTime?: number | undefined;
-  endTime?: number | undefined;
-}
 
 interface FileStats {
   size: number;
