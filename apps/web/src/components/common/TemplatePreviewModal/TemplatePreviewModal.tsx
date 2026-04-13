@@ -74,7 +74,7 @@ const TemplatePreviewModal = ({
     const images: Array<{ url: string; title: string }> = [];
     const images_array = (template as Record<string, unknown>)?.images;
     if (Array.isArray(images_array)) {
-      const sorted = [...images_array].sort((a, b) => {
+      const sorted = Array.from(images_array).sort((a, b) => {
         const aOrder = ((a as Record<string, unknown>)?.display_order as number | undefined) || 0;
         const bOrder = ((b as Record<string, unknown>)?.display_order as number | undefined) || 0;
         return aOrder - bOrder;

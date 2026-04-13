@@ -35,7 +35,7 @@ export const useSubtitlerProjects = () => {
   // Auto-fetch projects when auth is ready
   useEffect(() => {
     if (isReady) {
-      storeFetchProjects();
+      void storeFetchProjects();
     }
   }, [isReady, storeFetchProjects]);
 

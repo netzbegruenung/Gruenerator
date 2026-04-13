@@ -340,27 +340,27 @@ export const useAgentStore = create<AgentState>()(
         };
       }),
       version: 4,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      migrate: (persisted: any, version: number) => {
+      migrate: (persisted: unknown, version: number) => {
+        const state = persisted as Record<string, unknown>;
         if (version === 0) {
-          const old = persisted.selectedModel;
+          const old = state.selectedModel;
           if (
             old === 'auto' ||
             old === 'mistral-large' ||
             old === 'mistral-medium' ||
             old === 'magistral-medium'
           ) {
-            persisted.selectedModel = 'mistral';
+            state.selectedModel = 'mistral';
           }
         }
         if (version < 2) {
-          persisted.selectedNotebookId = persisted.selectedNotebookId || 'gruenerator-notebook';
+          state.selectedNotebookId = state.selectedNotebookId || 'gruenerator-notebook';
         }
         if (version < 3) {
-          persisted.threadMode = persisted.threadMode || 'chat';
-          persisted.searchMode = persisted.searchMode || 'web';
+          state.threadMode = state.threadMode || 'chat';
+          state.searchMode = state.searchMode || 'web';
         }
-        return persisted;
+        return state;
       },
       partialize: (state) => ({
         selectedAgentId: state.selectedAgentId,

@@ -5,7 +5,10 @@
  */
 
 import express, { type Response, type Router } from 'express';
+import { z } from 'zod';
 
+import { env } from '../../config/env.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -59,6 +62,35 @@ interface AnalyzeRequest extends AuthenticatedRequest {
     }>;
   };
 }
+
+// ============================================================================
+// Zod Schemas
+// ============================================================================
+
+const searchBodySchema = z.object({
+  query: z.string(),
+  includeSummary: z.boolean().optional(),
+  maxResults: z.number().optional(),
+  language: z.string().optional(),
+  timeRange: z.string().optional(),
+  safesearch: z.number().optional(),
+  categories: z.string().optional(),
+});
+
+const deepResearchBodySchema = z.object({
+  query: z.string(),
+});
+
+const analyzeBodySchema = z.object({
+  contents: z.array(
+    z.object({
+      url: z.string(),
+      title: z.string(),
+      content: z.string().optional(),
+      raw_content: z.string().optional(),
+    })
+  ),
+});
 
 interface SourceRecommendation {
   title: string;
@@ -150,7 +182,12 @@ const router: Router = express.Router();
 // Helper Functions
 // ============================================================================
 
-function getUserId(req: AuthenticatedRequest): string {
+// Explicit `| undefined` on optional fields is required by exactOptionalPropertyTypes.
+// Without it, this signature cannot accept Express Request (where req.user is
+// typed as `User | undefined`) or TypedRequest variants.
+function getUserId(req: {
+  user?: { id?: string | undefined; keycloak_id?: string | undefined } | undefined;
+}): string {
   return req.user?.id || req.user?.keycloak_id || 'anonymous';
 }
 
@@ -217,8 +254,9 @@ function mapErrorToUserMessage(error: Error): string {
  */
 router.post(
   '/',
+  validateBody(searchBodySchema),
   async (
-    req: SearchRequest,
+    req: TypedRequest<SearchRequest['body']>,
     res: Response<
       NormalSearchResponse | { success: false; error: string; metadata: unknown; details?: string }
     >
@@ -238,19 +276,10 @@ router.post(
 
       const userId = getUserId(req);
 
-      if (!query || typeof query !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'Suchbegriff ist erforderlich',
-          metadata: { timestamp: new Date().toISOString(), searchType: 'normal' },
-        });
-      }
-
       // Streaming mode: delegate to SSE streaming controller
       if (req.query.stream === 'true') {
         const { streamNormalSearch } = await import('./searchStreamController.js');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return streamNormalSearch(req, res as any);
+        return streamNormalSearch(req as AuthenticatedRequest, res as Response);
       }
 
       const trimmedQuery = query.trim();
@@ -290,7 +319,7 @@ router.post(
         mode: 'normal',
         user_id: userId,
         searchOptions,
-        aiWorkerPool: req.app.locals.aiWorkerPool,
+        aiWorkerPool: getAIWorkerPool(req),
         req,
       };
 
@@ -298,13 +327,17 @@ router.post(
 
       if (searchResults.status !== 'success') {
         log.error(`[Search] Search failed: ${searchResults.error}`);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const errorResponse: any = {
+        const errorResponse: {
+          success: false;
+          error: string;
+          metadata: unknown;
+          details?: string;
+        } = {
           success: false,
           error: 'Websuche fehlgeschlagen',
           metadata: { timestamp: new Date().toISOString(), searchType: 'normal' },
         };
-        if (process.env.NODE_ENV === 'development') {
+        if (env.NODE_ENV === 'development' && searchResults.error != null) {
           errorResponse.details = searchResults.error;
         }
         return res.status(500).json(errorResponse);
@@ -326,14 +359,12 @@ router.post(
           processingTimeMs: processingTime,
           timestamp: new Date().toISOString(),
           searchType: 'normal',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          includedSummary: !!(searchResults.summary as any)?.generated,
+          includedSummary: !!searchResults.summary,
         },
       };
 
       if (searchResults.summary) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        response.summary = searchResults.summary as any;
+        response.summary = { text: searchResults.summary, generated: true };
       }
 
       if (searchResults.citations && searchResults.citations.length > 0) {
@@ -359,7 +390,7 @@ router.post(
           timestamp: new Date().toISOString(),
           searchType: 'normal',
         },
-        ...(process.env.NODE_ENV === 'development' && { details: (error as Error).message }),
+        ...(env.NODE_ENV === 'development' && { details: (error as Error).message }),
       });
     }
   }
@@ -371,40 +402,17 @@ router.post(
  */
 router.post(
   '/deep-research',
-  async (req: DeepResearchRequest, res: Response<DeepResearchResponse>) => {
+  validateBody(deepResearchBodySchema),
+  async (req: TypedRequest<DeepResearchRequest['body']>, res: Response<DeepResearchResponse>) => {
     const startTime = Date.now();
 
     try {
       const { query } = req.body;
 
-      if (!query || typeof query !== 'string') {
-        return res.status(400).json({
-          status: 'error',
-          dossier: null,
-          researchQuestions: [],
-          searchResults: [],
-          sources: [],
-          categorizedSources: {},
-          grundsatzResults: null,
-          citations: [],
-          citationSources: [],
-          metadata: {
-            totalSources: 0,
-            externalSources: 0,
-            officialSources: 0,
-            categories: [],
-            questionsCount: 0,
-            hasOfficialPosition: false,
-            performance: { duration: 0, aiCalls: 0, estimatedTokens: 0 },
-          },
-          details: 'Suchbegriff ist erforderlich',
-        });
-      }
-
       // Streaming mode: delegate to SSE streaming controller
       if (req.query.stream === 'true') {
         const { streamDeepSearch } = await import('./searchStreamController.js');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument -- bridge to SSE streaming controller with different Response typing
         return streamDeepSearch(req, res as any);
       }
 
@@ -427,7 +435,7 @@ router.post(
           maxResults: 10,
           language: 'de-DE',
         },
-        aiWorkerPool: req.app.locals.aiWorkerPool,
+        aiWorkerPool: getAIWorkerPool(req),
         req,
       };
 
@@ -455,7 +463,7 @@ router.post(
             performance: { duration: Date.now() - startTime, aiCalls: 0, estimatedTokens: 0 },
           },
         };
-        if (process.env.NODE_ENV === 'development' && searchResults.error) {
+        if (env.NODE_ENV === 'development' && searchResults.error) {
           errorResponse.details = searchResults.error;
         }
         return res.status(500).json(errorResponse);
@@ -519,7 +527,7 @@ router.post(
           hasOfficialPosition: false,
           performance: { duration: processingTime, aiCalls: 0, estimatedTokens: 0 },
         },
-        ...(process.env.NODE_ENV === 'development' && { details: (error as Error).message }),
+        ...(env.NODE_ENV === 'development' && { details: (error as Error).message }),
       });
     }
   }
@@ -529,23 +537,26 @@ router.post(
  * POST /api/search/analyze
  * Search analysis endpoint - analyzes provided content using AI
  */
-router.post('/analyze', async (req: AnalyzeRequest, res: Response<AnalyzeResponse>) => {
-  const { contents } = req.body;
+router.post(
+  '/analyze',
+  validateBody(analyzeBodySchema),
+  async (req: TypedRequest<AnalyzeRequest['body']>, res: Response<AnalyzeResponse>) => {
+    const { contents } = req.body;
 
-  try {
-    if (!contents || !Array.isArray(contents) || contents.length === 0) {
-      return res.status(400).json({
-        status: 'error',
-        error: 'Inhalte für die Analyse sind erforderlich',
-      });
-    }
+    try {
+      if (!contents || contents.length === 0) {
+        return res.status(400).json({
+          status: 'error',
+          error: 'Inhalte für die Analyse sind erforderlich',
+        });
+      }
 
-    log.debug(`[Search] Analysis request: ${contents.length} items`);
+      log.debug(`[Search] Analysis request: ${contents.length} items`);
 
-    const result = await getAIWorkerPool(req).processRequest(
-      {
-        type: 'search_analysis',
-        systemPrompt: `Du bist ein Recherche-Assistent, der Suchergebnisse gründlich analysiert.
+      const result = await getAIWorkerPool(req).processRequest(
+        {
+          type: 'search_analysis',
+          systemPrompt: `Du bist ein Recherche-Assistent, der Suchergebnisse gründlich analysiert.
 
 Deine Aufgabe ist es, die Inhalte der gefundenen Webseiten zu analysieren und eine detaillierte Zusammenfassung zu erstellen:
 - Nutze ALLE verfügbaren Quellen für deine Analyse
@@ -575,50 +586,51 @@ Format deiner Antwort:
 6. Nach zwei Leerzeilen: "###USED_SOURCES_START###"
 7. Auflistung der verwendeten Quellen: "QUELLE: [Titel]"
 8. "###USED_SOURCES_END###"`,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: `Erstelle eine ausführliche Zusammenfassung der folgenden Suchergebnisse. Nutze möglichst alle Quellen und liste am Ende die verwendeten Quellen auf:
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: `Erstelle eine ausführliche Zusammenfassung der folgenden Suchergebnisse. Nutze möglichst alle Quellen und liste am Ende die verwendeten Quellen auf:
           ${JSON.stringify(contents, null, 2)}`,
-              },
-            ],
+                },
+              ],
+            },
+          ],
+          options: {
+            max_tokens: 4000,
+            temperature: 0.7,
           },
-        ],
-        options: {
-          max_tokens: 4000,
-          temperature: 0.7,
         },
-      },
-      req
-    );
+        req
+      );
 
-    if (!result.success) {
-      throw new Error(result.error);
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      const { mainText, sourceRecommendations, usedSourceTitles } = parseAnalysisResponse(
+        result.content ?? ''
+      );
+
+      return res.json({
+        status: 'success',
+        analysis: mainText,
+        sourceRecommendations,
+        claudeSourceTitles: usedSourceTitles,
+        ...(result.metadata ? { metadata: result.metadata } : {}),
+      });
+    } catch (error) {
+      log.error('[Search] Analysis error:', error);
+      return res.status(500).json({
+        status: 'error',
+        error: 'Fehler bei der Analyse der Suchergebnisse',
+        details: (error as Error).message,
+      });
     }
-
-    const { mainText, sourceRecommendations, usedSourceTitles } = parseAnalysisResponse(
-      result.content ?? ''
-    );
-
-    return res.json({
-      status: 'success',
-      analysis: mainText,
-      sourceRecommendations,
-      claudeSourceTitles: usedSourceTitles,
-      ...(result.metadata ? { metadata: result.metadata } : {}),
-    });
-  } catch (error) {
-    log.error('[Search] Analysis error:', error);
-    return res.status(500).json({
-      status: 'error',
-      error: 'Fehler bei der Analyse der Suchergebnisse',
-      details: (error as Error).message,
-    });
   }
-});
+);
 
 /**
  * GET /api/search/status
@@ -645,7 +657,7 @@ router.get('/status', async (_req: AuthenticatedRequest, res: Response<StatusRes
       service: 'LangGraph Web Search',
       error: 'Service status check failed',
       timestamp: new Date().toISOString(),
-      ...(process.env.NODE_ENV === 'development' && { details: (error as Error).message }),
+      ...(env.NODE_ENV === 'development' && { details: (error as Error).message }),
     });
   }
 });
@@ -657,7 +669,7 @@ router.get('/status', async (_req: AuthenticatedRequest, res: Response<StatusRes
 router.post(
   '/clear-cache',
   async (req: AuthenticatedRequest, res: Response<ClearCacheResponse>) => {
-    const isAdmin = req.user?.database_access || process.env.NODE_ENV === 'development';
+    const isAdmin = req.user?.database_access || env.NODE_ENV === 'development';
 
     if (!isAdmin) {
       return res.status(403).json({

@@ -23,8 +23,6 @@ const SHAREPIC_TYPES = [
   'sharepic_veranstaltung',
 ];
 
-const LOG_LEVEL = process.env.LOG_LEVEL || 'info';
-
 if (!parentPort) {
   throw new Error('aiWorker must be run as a worker thread');
 }
@@ -70,12 +68,12 @@ parentPort.on('message', async (message: WorkerRequestMessage) => {
   }
 });
 
-function sendProgress(requestId: string, progress: number): void {
+function sendProgress(_requestId: string, _progress: number): void {
   // Progress updates disabled to reduce log noise
 }
 
 async function processAIRequest(requestId: string, data: AIRequestData): Promise<AIWorkerResult> {
-  const { type, options = {}, systemPrompt, messages, metadata: requestMetadata = {} } = data;
+  const { type, options = {}, metadata: requestMetadata = {} } = data;
 
   const selection = providerSelector.selectProviderAndModel({
     type,

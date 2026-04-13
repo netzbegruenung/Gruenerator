@@ -3,6 +3,10 @@
  * Handles saving, updating, retrieving, and deleting document metadata
  */
 
+import { and, desc, eq } from 'drizzle-orm';
+
+import { documents, type Document } from '../../../database/schema/documents.js';
+import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
 import { parseMetadata } from '../../../routes/documents/helpers.js';
 
 import type {
@@ -13,6 +17,38 @@ import type {
   BulkDeleteResult,
 } from './types.js';
 import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
+
+function drizzleRowToDocumentRecord(row: Document): DocumentRecord {
+  return {
+    id: row.id,
+    user_id: row.user_id ?? '',
+    title: row.title,
+    filename: row.filename,
+    file_path: row.file_path,
+    file_size: row.file_size ?? 0,
+    page_count: row.page_count ?? 0,
+    status: row.status ?? 'pending',
+    ocr_text: row.ocr_text,
+    created_at:
+      row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at ?? ''),
+    updated_at:
+      row.updated_at instanceof Date ? row.updated_at.toISOString() : (row.updated_at ?? ''),
+    ocr_method: row.ocr_method ?? 'tesseract',
+    source_url: row.source_url,
+    document_type: row.document_type ?? 'upload',
+    metadata: row.metadata ?? null,
+    markdown_content: row.markdown_content,
+    group_id: row.group_id,
+    source_type: row.source_type ?? 'manual',
+    wolke_share_link_id: row.wolke_share_link_id,
+    wolke_file_path: row.wolke_file_path,
+    wolke_etag: row.wolke_etag,
+    vector_count: row.vector_count ?? 0,
+    last_synced_at:
+      row.last_synced_at instanceof Date ? row.last_synced_at.toISOString() : row.last_synced_at,
+    group_wolke_share_id: row.group_wolke_share_id,
+  };
+}
 
 /**
  * Save document metadata (no file content)
@@ -39,14 +75,16 @@ export async function saveDocumentMetadata(
       metadata: metadata.additionalMetadata ? JSON.stringify(metadata.additionalMetadata) : null,
     };
 
-    const insertedData = await postgres.insert(
-      'documents',
-      documentData
-    );
+    const insertedData = await postgres.insert('documents', documentData);
     const row = insertedData as Record<string, unknown>;
-    const createdAt = row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at as string);
-    const updatedAt = row.updated_at instanceof Date ? row.updated_at.toISOString() : (row.updated_at as string);
-    const lastSyncedAt = row.last_synced_at instanceof Date ? row.last_synced_at.toISOString() : (row.last_synced_at as string | null);
+    const createdAt =
+      row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at as string);
+    const updatedAt =
+      row.updated_at instanceof Date ? row.updated_at.toISOString() : (row.updated_at as string);
+    const lastSyncedAt =
+      row.last_synced_at instanceof Date
+        ? row.last_synced_at.toISOString()
+        : (row.last_synced_at as string | null);
     const document: DocumentRecord = {
       id: row.id as string,
       user_id: row.user_id as string,
@@ -94,13 +132,16 @@ export async function updateDocumentMetadata(
   try {
     await postgres.ensureInitialized();
 
-    // Ensure user owns the document
-    const document = await postgres.queryOne(
-      'SELECT id FROM documents WHERE id = $1 AND user_id = $2',
-      [documentId, userId]
-    );
+    const db = getDrizzleInstance();
 
-    if (!document) {
+    // Ensure user owns the document
+    const ownershipRows = await db
+      .select({ id: documents.id })
+      .from(documents)
+      .where(and(eq(documents.id, documentId), eq(documents.user_id, userId)))
+      .limit(1);
+
+    if (ownershipRows.length === 0) {
       throw new Error('Document not found or access denied');
     }
 
@@ -114,10 +155,12 @@ export async function updateDocumentMetadata(
 
     if (updates.additionalMetadata !== undefined) {
       // Merge with existing metadata to avoid losing fields
-      const current = await postgres.queryOne(
-        'SELECT metadata FROM documents WHERE id = $1 AND user_id = $2',
-        [documentId, userId]
-      );
+      const currentRows = await db
+        .select({ metadata: documents.metadata })
+        .from(documents)
+        .where(and(eq(documents.id, documentId), eq(documents.user_id, userId)))
+        .limit(1);
+      const current = currentRows[0];
       const baseMeta = parseMetadata(current?.metadata);
       updateData.metadata = JSON.stringify({
         ...baseMeta,
@@ -132,9 +175,14 @@ export async function updateDocumentMetadata(
 
     console.log(`[PostgresDocumentService] Document ${documentId} updated`);
     const row = result.data[0] as Record<string, unknown>;
-    const createdAt = row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at as string);
-    const updatedAt = row.updated_at instanceof Date ? row.updated_at.toISOString() : (row.updated_at as string);
-    const lastSyncedAt = row.last_synced_at instanceof Date ? row.last_synced_at.toISOString() : (row.last_synced_at as string | null | undefined);
+    const createdAt =
+      row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at as string);
+    const updatedAt =
+      row.updated_at instanceof Date ? row.updated_at.toISOString() : (row.updated_at as string);
+    const lastSyncedAt =
+      row.last_synced_at instanceof Date
+        ? row.last_synced_at.toISOString()
+        : (row.last_synced_at as string | null | undefined);
     return {
       id: row.id as string,
       user_id: row.user_id as string,
@@ -177,19 +225,19 @@ export async function getDocumentsBySourceType(
 ): Promise<DocumentRecord[]> {
   try {
     await postgres.ensureInitialized();
+    const db = getDrizzleInstance();
 
-    let query = 'SELECT * FROM documents WHERE user_id = $1';
-    const params: Array<string | number> = [userId];
+    const rows = await db
+      .select()
+      .from(documents)
+      .where(
+        sourceType
+          ? and(eq(documents.user_id, userId), eq(documents.source_type, sourceType))
+          : eq(documents.user_id, userId)
+      )
+      .orderBy(desc(documents.created_at));
 
-    if (sourceType) {
-      query += ' AND source_type = $2';
-      params.push(sourceType);
-    }
-
-    query += ' ORDER BY created_at DESC';
-
-    const documents = await postgres.query<DocumentRecord>(query, params, { table: 'documents' });
-    return documents;
+    return rows.map(drizzleRowToDocumentRecord);
   } catch (error) {
     console.error('[PostgresDocumentService] Error getting documents by source type:', error);
     throw new Error('Failed to get documents');
@@ -206,14 +254,15 @@ export async function getDocumentById(
 ): Promise<DocumentRecord | null> {
   try {
     await postgres.ensureInitialized();
+    const db = getDrizzleInstance();
 
-    const document = await postgres.queryOne<DocumentRecord>(
-      'SELECT * FROM documents WHERE id = $1 AND user_id = $2',
-      [documentId, userId],
-      { table: 'documents' }
-    );
+    const rows = await db
+      .select()
+      .from(documents)
+      .where(and(eq(documents.id, documentId), eq(documents.user_id, userId)))
+      .limit(1);
 
-    return document;
+    return rows[0] ? drizzleRowToDocumentRecord(rows[0]) : null;
   } catch (error) {
     console.error('[PostgresDocumentService] Error getting document by ID:', error);
     throw new Error('Failed to get document');

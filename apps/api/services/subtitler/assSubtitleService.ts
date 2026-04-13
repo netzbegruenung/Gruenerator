@@ -8,8 +8,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
-import { redisClient } from '../../utils/redis/index.js';
 import { sanitizeFilename } from '../../utils/validation/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -21,12 +21,6 @@ interface SubtitleSegment {
   startTime: number;
   endTime: number;
   text: string;
-}
-
-interface VideoMetadata {
-  width: number;
-  height: number;
-  duration?: number;
 }
 
 interface StyleOptions {
@@ -674,11 +668,11 @@ ${dialogueLines}`;
     return assFilePath;
   }
 
-  async getCachedAssContent(cacheKey: string): Promise<string | null> {
+  async getCachedAssContent(_cacheKey: string): Promise<string | null> {
     return null;
   }
 
-  async cacheAssContent(cacheKey: string, assContent: string): Promise<void> {
+  async cacheAssContent(cacheKey: string, _assContent: string): Promise<void> {
     log.debug(`Cache disabled - skipping cache for: ass:${cacheKey}`);
   }
 

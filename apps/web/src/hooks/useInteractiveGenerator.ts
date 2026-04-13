@@ -2,6 +2,31 @@ import { useState } from 'react';
 
 import apiClient from '../components/utils/apiClient';
 
+// ── API response shapes ────────────────────────────────────────────────
+
+interface InteractiveQuestion {
+  id: string;
+  [key: string]: unknown;
+}
+
+interface SessionInitResponse {
+  sessionId?: string;
+  questions?: InteractiveQuestion[];
+  status?: string;
+  [key: string]: unknown;
+}
+
+interface SessionContinueResponse {
+  status?: string;
+  questions?: InteractiveQuestion[];
+  finalResult?: unknown;
+  [key: string]: unknown;
+}
+
+interface SessionStatusResponse {
+  session?: Record<string, unknown>;
+}
+
 interface UseInteractiveGeneratorOptions {
   generatorType?: string;
   baseEndpoint?: string;
@@ -52,7 +77,7 @@ const useInteractiveGenerator = ({
         baseEndpoint,
       });
 
-      const response = await apiClient.post(`${baseEndpoint}/initiate`, {
+      const response = await apiClient.post<SessionInitResponse>(`${baseEndpoint}/initiate`, {
         inhalt,
         requestType,
         generatorType,
@@ -94,7 +119,7 @@ const useInteractiveGenerator = ({
         answerCount: Object.keys(answers).length,
       });
 
-      const response = await apiClient.post(`${baseEndpoint}/continue`, {
+      const response = await apiClient.post<SessionContinueResponse>(`${baseEndpoint}/continue`, {
         sessionId,
         answers,
       });
@@ -127,7 +152,9 @@ const useInteractiveGenerator = ({
     try {
       console.log(`[useInteractiveGenerator:${generatorType}] Getting session status:`, sessionId);
 
-      const response = await apiClient.get(`${baseEndpoint}/status/${sessionId}`);
+      const response = await apiClient.get<SessionStatusResponse>(
+        `${baseEndpoint}/status/${sessionId}`
+      );
 
       console.log(`[useInteractiveGenerator:${generatorType}] Session status:`, {
         conversationState: response.data.session?.conversationState,

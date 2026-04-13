@@ -133,7 +133,7 @@ export default function VerifyFeature({
     if (onCancel) {
       onCancel();
     } else {
-      navigate('/');
+      void navigate('/');
     }
   };
 
@@ -144,7 +144,7 @@ export default function VerifyFeature({
   const renderAttemptDots = () => {
     return (
       <div className="flex gap-2 justify-center my-2">
-        {[...Array(MAX_ATTEMPTS)].map((_, index) => (
+        {Array.from({ length: MAX_ATTEMPTS }, (_, index) => (
           <div
             key={index}
             className={cn(

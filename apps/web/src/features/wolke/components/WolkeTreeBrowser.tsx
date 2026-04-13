@@ -77,7 +77,7 @@ const WolkeTreeBrowser = ({ shareLinkId, shareLinkUrl, onFolderSelect }: WolkeTr
     fetchedRef.current = new Set();
     setChildrenMap(new Map());
     setLoadingPaths(new Set());
-    loadChildren('');
+    void loadChildren('');
   }, [loadChildren]);
 
   const rootItems = childrenMap.get('') ?? [];

@@ -3,17 +3,11 @@
  * Handles validation, message building, and processing for Claude API
  */
 
-import { ALLOWED_ATTACHMENT_TYPES, MAX_FILE_SIZE, MAX_TOTAL_SIZE } from './constants.js';
-import {
-  validateAttachmentStructure,
-  isFileAttachment,
-  isCrawledUrlAttachment,
-} from './validation.js';
+import { MAX_TOTAL_SIZE } from './constants.js';
+import { validateAttachmentStructure, isCrawledUrlAttachment } from './validation.js';
 
 import type {
   Attachment,
-  FileAttachment,
-  CrawledUrlAttachment,
   ClaudeMessage,
   ClaudeContentBlock,
   ClaudeDocument,

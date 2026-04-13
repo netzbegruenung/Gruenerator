@@ -10,6 +10,8 @@
  * in-memory Map on one worker is invisible to other workers.
  */
 
+import { parseJSON } from '../parseJSON.js';
+
 import client from './client.js';
 
 interface BridgeCodeData {
@@ -37,5 +39,5 @@ export async function consumeBridgeCode(code: string): Promise<BridgeCodeData | 
   const raw = await client.getDel(key);
   if (!raw) return null;
 
-  return JSON.parse(raw) as BridgeCodeData;
+  return parseJSON<BridgeCodeData>(raw);
 }

@@ -2,6 +2,16 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 
 import apiClient from '../../../components/utils/apiClient';
 
+interface ExportProgressResponse {
+  status: 'complete' | 'error' | 'exporting' | string;
+  progress?: number;
+  error?: string;
+}
+
+interface ExportStartApiResponse {
+  exportToken: string;
+}
+
 interface Segment {
   start: number;
   end: number;
@@ -51,7 +61,9 @@ const useSegmentExport = () => {
 
       pollingIntervalRef.current = setInterval(async () => {
         try {
-          const response = await apiClient.get(`/subtitler/export-progress/${token}`);
+          const response = await apiClient.get<ExportProgressResponse>(
+            `/subtitler/export-progress/${token}`
+          );
           const data = response.data;
 
           if (data.status === 'complete') {
@@ -60,10 +72,10 @@ const useSegmentExport = () => {
             stopPolling();
           } else if (data.status === 'error') {
             setStatus('error');
-            setError(data.error || 'Export fehlgeschlagen');
+            setError(data.error ?? 'Export fehlgeschlagen');
             stopPolling();
           } else {
-            setProgress(data.progress || 0);
+            setProgress(data.progress ?? 0);
           }
         } catch (err) {
           console.error('Polling error:', err);
@@ -100,7 +112,10 @@ const useSegmentExport = () => {
           };
         }
 
-        const response = await apiClient.post('/subtitler/export-segments', payload);
+        const response = await apiClient.post<ExportStartApiResponse>(
+          '/subtitler/export-segments',
+          payload
+        );
 
         const { exportToken: token } = response.data;
         setExportToken(token);

@@ -1,3 +1,4 @@
+import { type UserProfile } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
 import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
@@ -15,18 +16,9 @@ export interface UserMetadata {
   [key: string]: unknown;
 }
 
-export interface User {
-  id: string;
-  email?: string;
-  auth_email?: string;
-  name?: string;
-  display_name?: string;
-  avatar_robot_id?: string;
-  keycloak_id?: string | null;
-  locale?: SupportedLocale;
-  user_metadata?: UserMetadata;
-  [key: string]: unknown;
-}
+// User is the canonical UserProfile from @gruenerator/contracts — same Zod
+// schema the backend validates at the Better Auth boundary.
+export type User = UserProfile;
 
 export interface AuthStateData {
   user: User | null;
@@ -244,8 +236,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       isAuthenticated: data.isAuthenticated,
       isLoading: false,
       error: null,
-      // Extract color from user metadata if available
-      selectedMessageColor: data.user?.user_metadata?.chat_color || '#008939',
+      // Extract color from canonical UserProfile field. The legacy
+      // `user_metadata.chat_color` path never matched the real shape — it
+      // was reading undefined and falling through to the default. Now we
+      // read the actual `chat_color` field typed on the contract.
+      selectedMessageColor: data.user?.chat_color || '#008939',
       locale: userLocale,
     });
   },
@@ -359,20 +354,19 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } catch (error: unknown) {
       // Revert optimistic update on failure
       const state = get();
-      const previousColor = state.user?.user_metadata?.chat_color || '#008939';
+      const previousColor = state.user?.chat_color || '#008939';
       set({ selectedMessageColor: previousColor });
       throw error;
     }
   },
 
-  // Auth actions (these now redirect to backend endpoints)
+  // Auth actions
   login: (source?: AuthSource) => {
     if (isDesktopApp()) {
-      openDesktopLogin(source || 'gruenerator-login');
+      void openDesktopLogin(source || 'gruenerator-login');
     } else {
-      const baseUrl = apiClient.defaults.baseURL || '/api';
-      const authUrl = source ? `${baseUrl}/auth/login?source=${source}` : `${baseUrl}/auth/login`;
-      window.location.href = authUrl;
+      // Navigate to SPA login page which shows provider buttons
+      window.location.href = source ? `/login?source=${source}` : '/login';
     }
   },
 
@@ -399,7 +393,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       try {
         const response = await apiClient.post('/auth/logout');
 
-        backendResponse = response.data;
+        backendResponse = response.data as Record<string, unknown> | null;
         console.log('[AuthStore] Backend logout response:', backendResponse);
 
         // Check if backend logout actually succeeded
@@ -479,8 +473,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         console.log('[AuthStore] Verifying logout completion...');
         const statusResponse = await apiClient.get('/auth/status', { skipAuthRedirect: true });
 
-        const statusData = statusResponse.data;
-        if (statusData.isAuthenticated) {
+        const statusData = statusResponse.data as { isAuthenticated?: boolean } | undefined;
+        if (statusData?.isAuthenticated) {
           console.warn(
             '[AuthStore] Warning: Still appears authenticated after logout. This may indicate a partial logout.'
           );
@@ -536,14 +530,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         },
       });
 
-      const data = response.data;
+      const data = response.data as { message?: string } | undefined;
 
       // Clear local auth state
       get().clearAuth();
 
       return {
         success: true,
-        message: (data && data.message) || 'Konto erfolgreich gelöscht',
+        message: data?.message || 'Konto erfolgreich gelöscht',
       };
     } catch (error: unknown) {
       // Try fallback with query param if the first attempt failed
@@ -565,14 +559,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             }
           );
 
-          const fallbackData = fallbackResponse.data;
+          const fallbackData = fallbackResponse.data as { message?: string } | undefined;
 
           // Clear local auth state
           get().clearAuth();
 
           return {
             success: true,
-            message: (fallbackData && fallbackData.message) || 'Konto erfolgreich gelöscht',
+            message: fallbackData?.message || 'Konto erfolgreich gelöscht',
           };
         } catch (fallbackError: unknown) {
           const errorMessage =
@@ -702,7 +696,7 @@ const setLoginIntent = () => {
     localStorage.setItem(LOGIN_INTENT_KEY, Date.now().toString());
     localStorage.removeItem(LOGOUT_TIMESTAMP_KEY); // Clear logout timestamp for intentional login
     console.log('[AuthStore] Login intent set, cleared logout timestamp');
-  } catch (error) {
+  } catch {
     // Ignore localStorage errors
   }
 };

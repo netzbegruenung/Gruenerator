@@ -21,8 +21,10 @@ export function useDocumentContent(): UseDocumentContentResult {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await apiClient.get(`/auth/documents/${documentId}/content`);
-      const text = response.data?.ocr_text || response.data?.content || '';
+      const response = await apiClient.get<{ ocr_text?: string; content?: string }>(
+        `/auth/documents/${documentId}/content`
+      );
+      const text = response.data?.ocr_text ?? response.data?.content ?? '';
       setContent(
         text.length > MAX_DISPLAY_LENGTH
           ? text.slice(0, MAX_DISPLAY_LENGTH) + '\n\n[… Dokument gekürzt]'

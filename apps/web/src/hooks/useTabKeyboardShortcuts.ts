@@ -25,7 +25,7 @@ export const useTabKeyboardShortcuts = () => {
       if (isCtrlOrCmd && e.key.toLowerCase() === 't' && !e.shiftKey) {
         e.preventDefault();
         createTab('/', 'Start');
-        navigate('/');
+        void navigate('/');
         return;
       }
 
@@ -37,7 +37,7 @@ export const useTabKeyboardShortcuts = () => {
           const remainingTabs = tabs.filter((t) => t.id !== activeTabId);
           const newActiveIndex = Math.min(currentIndex, remainingTabs.length - 1);
           if (remainingTabs[newActiveIndex]) {
-            navigate(remainingTabs[newActiveIndex].route);
+            void navigate(remainingTabs[newActiveIndex].route);
           }
         }
         return;
@@ -49,12 +49,12 @@ export const useTabKeyboardShortcuts = () => {
           switchToPreviousTab();
           const { tabs: currentTabs, activeTabId: newActiveId } = useDesktopTabsStore.getState();
           const activeTab = currentTabs.find((t) => t.id === newActiveId);
-          if (activeTab) navigate(activeTab.route);
+          if (activeTab) void navigate(activeTab.route);
         } else {
           switchToNextTab();
           const { tabs: currentTabs, activeTabId: newActiveId } = useDesktopTabsStore.getState();
           const activeTab = currentTabs.find((t) => t.id === newActiveId);
-          if (activeTab) navigate(activeTab.route);
+          if (activeTab) void navigate(activeTab.route);
         }
         return;
       }
@@ -64,7 +64,7 @@ export const useTabKeyboardShortcuts = () => {
         const index = parseInt(e.key) - 1;
         if (index < tabs.length) {
           switchToTab(index);
-          navigate(tabs[index].route);
+          void navigate(tabs[index].route);
         }
         return;
       }
@@ -74,7 +74,7 @@ export const useTabKeyboardShortcuts = () => {
         if (tabs.length > 0) {
           const lastIndex = tabs.length - 1;
           switchToTab(lastIndex);
-          navigate(tabs[lastIndex].route);
+          void navigate(tabs[lastIndex].route);
         }
         return;
       }

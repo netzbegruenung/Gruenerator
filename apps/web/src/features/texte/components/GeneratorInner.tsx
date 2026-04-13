@@ -46,7 +46,7 @@ const GeneratorInner: React.FC<GeneratorInnerProps> = memo(({ def }) => {
     const generatedText = getExportableString(content);
     if (generatedText) {
       useAgentStore.getState().setPendingInitialAssistantMessage(generatedText);
-      navigate('/chat');
+      void navigate('/chat');
     }
   }, [def, gen.submit, navigate]);
 

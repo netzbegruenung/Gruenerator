@@ -11,13 +11,18 @@ import { buildUrl } from '../../../config/domains';
 import { useAuthStore } from '../../../stores/authStore';
 import { canShare, shareContent, copyToClipboard } from '../../../utils/shareUtils';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 interface ShareData {
   title: string;
   sharerName: string;
   status: string;
   expiresAt: string;
+}
+
+interface ShareApiResponse {
+  success: boolean;
+  share?: ShareData;
 }
 
 interface ApiError {
@@ -61,20 +66,20 @@ const SharedVideoPage = () => {
         setCanNativeShare(false);
       }
     };
-    checkShareCapability();
+    void checkShareCapability();
   }, []);
 
   useEffect(() => {
     const fetchShareData = async () => {
       try {
-        const response = await apiClient.get(`/subtitler/share/${shareToken}`, {
+        const response = await apiClient.get<ShareApiResponse>(`/subtitler/share/${shareToken}`, {
           skipAuthRedirect: true,
         } as Record<string, unknown>);
         if (response.data.success) {
-          setShareData(response.data.share);
-          if (response.data.share.status === 'rendering') {
+          setShareData(response.data.share ?? null);
+          if (response.data.share?.status === 'rendering') {
             setIsRendering(true);
-          } else if (response.data.share.status === 'failed') {
+          } else if (response.data.share?.status === 'failed') {
             setError(
               'Das Video konnte nicht gerendert werden. Bitte erstelle einen neuen Share-Link.'
             );
@@ -94,7 +99,7 @@ const SharedVideoPage = () => {
       }
     };
 
-    fetchShareData();
+    void fetchShareData();
   }, [shareToken]);
 
   useEffect(() => {
@@ -102,14 +107,14 @@ const SharedVideoPage = () => {
 
     const pollStatus = async () => {
       try {
-        const response = await apiClient.get(`/subtitler/share/${shareToken}`, {
+        const response = await apiClient.get<ShareApiResponse>(`/subtitler/share/${shareToken}`, {
           skipAuthRedirect: true,
         } as Record<string, unknown>);
         if (response.data.success) {
-          const newStatus = response.data.share.status;
+          const newStatus = response.data.share?.status;
           if (newStatus === 'ready') {
             setIsRendering(false);
-            setShareData(response.data.share);
+            setShareData(response.data.share ?? null);
           } else if (newStatus === 'failed') {
             setIsRendering(false);
             setError(
@@ -133,11 +138,11 @@ const SharedVideoPage = () => {
     setIsDownloading(true);
 
     try {
-      const response = await apiClient.get(`/subtitler/share/${shareToken}/download`, {
+      const response = await apiClient.get<Blob>(`/subtitler/share/${shareToken}/download`, {
         responseType: 'blob',
       });
 
-      const blob = new Blob([response.data], { type: 'video/mp4' });
+      const blob = new Blob([response.data as BlobPart], { type: 'video/mp4' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -193,10 +198,10 @@ const SharedVideoPage = () => {
   const handleShareToInstagram = useCallback(async () => {
     setIsSharing(true);
     try {
-      const response = await apiClient.get(`/subtitler/share/${shareToken}/preview`, {
+      const response = await apiClient.get<Blob>(`/subtitler/share/${shareToken}/preview`, {
         responseType: 'blob',
       });
-      const blob = response.data;
+      const blob = response.data as Blob;
       const file = new File([blob], 'gruenerator_video.mp4', { type: 'video/mp4' });
 
       await navigator.share({

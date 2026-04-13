@@ -63,6 +63,16 @@ interface AxiosError extends Error {
   response?: AxiosErrorResponse;
 }
 
+interface SharepicPromptApiResponse {
+  success: boolean;
+  error?: string;
+  isKiType?: boolean;
+  type?: string;
+  data?: SharepicGeneratedData;
+  message?: string;
+  selectedImage?: SelectedImage | null;
+}
+
 /**
  * Generate sharepic content from a natural language prompt.
  * Uses the dedicated prompt route for direct classification and generation.
@@ -71,9 +81,12 @@ export async function generateSharepicFromPrompt(
   prompt: string
 ): Promise<SharepicFromPromptResult> {
   try {
-    const response = await apiClient.post('/sharepic/generate-from-prompt', {
-      prompt,
-    });
+    const response = await apiClient.post<SharepicPromptApiResponse>(
+      '/sharepic/generate-from-prompt',
+      {
+        prompt,
+      }
+    );
 
     const responseData = response.data;
 
@@ -82,7 +95,7 @@ export async function generateSharepicFromPrompt(
         success: false,
         type: 'dreizeilen',
         data: {},
-        error: responseData.error || 'Unbekannter Fehler',
+        error: responseData.error ?? 'Unbekannter Fehler',
       };
     }
 
@@ -90,8 +103,8 @@ export async function generateSharepicFromPrompt(
     if (responseData.isKiType) {
       return {
         success: true,
-        type: responseData.type as SharepicType,
-        data: responseData.data || {},
+        type: (responseData.type ?? 'dreizeilen') as SharepicType,
+        data: responseData.data ?? {},
         isKiType: true,
         message: responseData.message,
       };
@@ -100,9 +113,9 @@ export async function generateSharepicFromPrompt(
     // Template types - data is already in the right format
     return {
       success: true,
-      type: responseData.type as SharepicType,
-      data: responseData.data || {},
-      selectedImage: responseData.selectedImage || null,
+      type: (responseData.type ?? 'dreizeilen') as SharepicType,
+      data: responseData.data ?? {},
+      selectedImage: responseData.selectedImage ?? null,
       isKiType: false,
     };
   } catch (error: unknown) {

@@ -323,17 +323,24 @@ function PlaygroundPage() {
   panelsRef.current = panels;
 
   useEffect(() => {
+    interface ModelsApiResponse {
+      models?: ModelConfig[];
+    }
+    interface PromptsApiResponse {
+      prompts?: PromptConfig[];
+    }
+
     fetch('/api/texte/playground/models', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => setModels(d.models || []))
+      .then((r) => r.json() as Promise<ModelsApiResponse>)
+      .then((d) => setModels(d.models ?? []))
       .catch(() => {});
 
     fetch('/api/texte/playground/prompts', { credentials: 'include' })
-      .then((r) => r.json())
+      .then((r) => r.json() as Promise<PromptsApiResponse>)
       .then((d) => {
-        const list = (d.prompts || []) as PromptConfig[];
+        const list = d.prompts ?? [];
         setPrompts(list);
-        const initial = list.find((p) => p.id === 'free') || list[0];
+        const initial = list.find((p) => p.id === 'free') ?? list[0];
         if (initial) {
           setSelectedPrompt(initial);
           setFields(Object.fromEntries(initial.fields.map((f) => [f, ''])));
@@ -445,11 +452,11 @@ function PlaygroundPage() {
         });
 
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
+        const data = (await response.json()) as { description?: string; extractedText?: string };
 
         updatePanel(panelIdx, {
-          output: data.description || '',
-          ocrText: data.extractedText || null,
+          output: data.description ?? '',
+          ocrText: data.extractedText ?? null,
         });
       } catch (e: unknown) {
         if ((e as Error).name === 'AbortError') return;
@@ -534,7 +541,7 @@ function PlaygroundPage() {
             if (!line.startsWith('data: ')) continue;
 
             try {
-              const data = JSON.parse(line.slice(6));
+              const data = JSON.parse(line.slice(6)) as { text?: string; error?: string };
 
               if (currentEvent === 'reasoning_start') {
                 updatePanel(panelIdx, { isReasoning: true });
@@ -577,9 +584,9 @@ function PlaygroundPage() {
       const panel = panelsRef.current[idx];
       if (!panel.model) continue;
       if (hasImage && panel.model.vision) {
-        visionAnalyze(idx);
+        void visionAnalyze(idx);
       } else {
-        streamGenerate(idx);
+        void streamGenerate(idx);
       }
     }
   }, [streamGenerate, visionAnalyze]);

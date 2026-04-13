@@ -16,11 +16,6 @@ const log = createLogger('PromptVectorService');
 
 const COLLECTION_NAME = 'custom_prompts';
 
-interface FilterCondition {
-  key: string;
-  match: { value: string | boolean };
-}
-
 interface QdrantPoint {
   id: string;
   vector: number[];

@@ -90,7 +90,7 @@ export function MessageActionsSheet({ visible, onClose, message }: Props) {
       });
 
       if (!res.ok) throw new Error('Fehler');
-      const data = await res.json();
+      const data = (await res.json()) as { documentId?: string };
       onClose();
       if (data.documentId) {
         router.push({

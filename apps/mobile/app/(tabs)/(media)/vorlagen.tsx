@@ -92,7 +92,7 @@ export default function VorlagenScreen() {
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true); // eslint-disable-line react-hooks/set-state-in-effect -- loading state must be set synchronously before async call
-    loadData(selectedCategory).finally(() => {
+    void loadData(selectedCategory).finally(() => {
       if (!cancelled) setIsLoading(false);
     });
     return () => {
@@ -161,7 +161,7 @@ export default function VorlagenScreen() {
         <View style={styles.itemContainer}>
           <Pressable
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
-            onPress={() => handleTemplatePress(item)}
+            onPress={() => void handleTemplatePress(item)}
           >
             {imageUrl ? (
               <Image source={{ uri: imageUrl }} style={styles.itemImage} resizeMode="cover" />
@@ -172,7 +172,7 @@ export default function VorlagenScreen() {
             )}
             <Pressable
               style={styles.likeButton}
-              onPress={() => handleLikeToggle(item.id)}
+              onPress={() => void handleLikeToggle(item.id)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons

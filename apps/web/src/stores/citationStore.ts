@@ -168,11 +168,17 @@ const useCitationStore = create<CitationState>((set, get) => ({
         params: { chunkIndex, window: 2, collection },
       });
 
-      if (response.data?.success && response.data?.data) {
-        set({ contextData: response.data.data, isLoadingContext: false });
+      interface ChunkContextResponse {
+        success: boolean;
+        data?: ChunkContextData;
+        message?: string;
+      }
+      const responseData = response.data as ChunkContextResponse;
+      if (responseData.success && responseData.data) {
+        set({ contextData: responseData.data, isLoadingContext: false });
       } else {
         set({
-          contextError: response.data?.message || 'Kontext konnte nicht geladen werden',
+          contextError: responseData.message ?? 'Kontext konnte nicht geladen werden',
           isLoadingContext: false,
         });
       }

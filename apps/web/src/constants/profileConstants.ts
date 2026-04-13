@@ -5,7 +5,7 @@ export const MAX_KNOWLEDGE_ENTRIES = 3;
 export const GROUP_MAX_CONTENT_LENGTH = 1000;
 
 // Auth URLs
-export const AUTH_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+export const AUTH_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 // Common error messages
 export const ERROR_MESSAGES = {

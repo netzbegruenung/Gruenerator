@@ -33,13 +33,17 @@ const DocumentViewPage = () => {
         setLoading(true);
         setError(null);
 
-        const response = await apiClient.get(`/documents/${documentId}/content`);
+        const response = await apiClient.get<{
+          success: boolean;
+          data: DocumentData;
+          message?: string;
+        }>(`/documents/${documentId}/content`);
         const result = response.data;
 
         if (result.success) {
           setDocument(result.data);
         } else {
-          throw new Error(result.message || 'Fehler beim Laden des Dokuments');
+          throw new Error(result.message ?? 'Fehler beim Laden des Dokuments');
         }
       } catch (err) {
         console.error('[DocumentViewPage] Error fetching document:', err);
@@ -53,7 +57,7 @@ const DocumentViewPage = () => {
   }, [documentId]);
 
   const handleGoBack = () => {
-    navigate(-1); // Go back to previous page
+    void navigate(-1); // Go back to previous page
   };
 
   if (loading) {

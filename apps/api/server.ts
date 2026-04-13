@@ -22,6 +22,7 @@ import morgan from 'morgan';
 import multer from 'multer';
 
 import { createCorsOptions } from './config/cors.js';
+import { env } from './config/env.js';
 import { getServerConfig } from './config/serverConfig.js';
 import { Sentry } from './lib/sentry.js';
 import { shouldSkipBodyParser } from './middleware/bodyParserConfig.js';
@@ -48,8 +49,8 @@ const _numCPUs = os.cpus().length;
 
 let aiService: AIService | null = null;
 
-const isDev = process.env.NODE_ENV !== 'production';
-const workerCount = parseInt(process.env.WORKER_COUNT || '2', 10);
+const isDev = env.NODE_ENV !== 'production';
+const workerCount = env.WORKER_COUNT;
 const skipCluster = isDev || workerCount <= 0;
 
 if (skipCluster) {
@@ -57,7 +58,7 @@ if (skipCluster) {
   log.info(`Running in single-process mode (pid: ${process.pid})`);
 
   // Start Hocuspocus if enabled
-  if (process.env.HOCUSPOCUS_ENABLED === 'true') {
+  if (env.HOCUSPOCUS_ENABLED) {
     log.info('Starting Hocuspocus WebSocket server...');
     const hocuspocusArgs = ['tsx', path.join(__dirname, '../../services/hocuspocus/src/index.ts')];
     const hocuspocusProcess = spawn('npx', hocuspocusArgs, {
@@ -121,7 +122,7 @@ if (skipCluster) {
   process.on('exit', killHocuspocus);
   process.on('beforeExit', killHocuspocus);
 
-  if (process.env.HOCUSPOCUS_ENABLED === 'true') {
+  if (env.HOCUSPOCUS_ENABLED) {
     log.info('Starting Hocuspocus WebSocket server...');
     const hocuspocusCmd = 'npx';
     const hocuspocusArgs = ['tsx', path.join(__dirname, '../../services/hocuspocus/src/index.ts')];
@@ -141,7 +142,7 @@ if (skipCluster) {
       if (!isShuttingDown && code !== 0 && code !== null) {
         log.error('Hocuspocus server crashed, restarting in 2s...');
         setTimeout(() => {
-          if (!isShuttingDown && process.env.HOCUSPOCUS_ENABLED === 'true') {
+          if (!isShuttingDown && env.HOCUSPOCUS_ENABLED) {
             hocuspocusProcess = spawn(hocuspocusCmd, hocuspocusArgs, {
               stdio: 'inherit',
               env: process.env,
@@ -184,7 +185,7 @@ if (skipCluster) {
 async function startWorker(): Promise<void> {
   const app: Express = express();
   const config = getServerConfig();
-  const isDevelopment = process.env.NODE_ENV !== 'production';
+  const isDevelopment = env.NODE_ENV !== 'production';
 
   // Trust proxy for secure cookies behind nginx/load balancer
   app.set('trust proxy', 1);
@@ -222,10 +223,10 @@ async function startWorker(): Promise<void> {
 
   // Initialize AI Search Agent
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const aiSearchAgentModule = (await import('./services/aiSearchAgent.js')) as any;
+    const aiSearchAgentModule = (await import('./services/aiSearchAgent.js')) as {
+      setAIWorkerPool?: (pool: unknown) => void;
+    };
     if (typeof aiSearchAgentModule.setAIWorkerPool === 'function') {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       aiSearchAgentModule.setAIWorkerPool(aiService);
       log.debug('AI Search Agent initialized');
     }
@@ -538,7 +539,7 @@ async function startWorker(): Promise<void> {
       return;
     }
 
-    const isDev = process.env.NODE_ENV === 'development';
+    const isDev = env.NODE_ENV === 'development';
     let errorMessage = 'Bitte versuchen Sie es später erneut';
     let statusCode = isHttpError(err) ? err.status : 500;
 

@@ -6,13 +6,14 @@
 import axios from 'axios';
 import { Router, type Request, type Response } from 'express';
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('GrueneApiTest');
 const router = Router();
 
-const API_BASE = process.env.GRUENE_API_BASEURL || 'https://app.gruene.de';
-const API_KEY = process.env.GRUENE_API_KEY;
+const API_BASE = env.GRUENE_API_BASEURL || 'https://app.gruene.de';
+const API_KEY = env.GRUENE_API_KEY;
 
 const apiClient = axios.create({
   baseURL: API_BASE,
@@ -25,7 +26,7 @@ const apiClient = axios.create({
 
 async function proxyGet(path: string, params?: Record<string, string>) {
   try {
-    const res = await apiClient.get(path, { params });
+    const res = await apiClient.get<unknown>(path, { params });
     return { status: res.status, data: res.data };
   } catch (error: unknown) {
     const axiosErr =

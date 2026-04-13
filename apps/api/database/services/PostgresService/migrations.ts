@@ -7,6 +7,8 @@
 
 import fs from 'fs';
 
+import { env } from '../../../config/env.js';
+
 import { getMigrationsPath } from './schema.js';
 
 import type { Pool } from 'pg';
@@ -28,7 +30,7 @@ export async function runMigrations(pool: Pool): Promise<void> {
   try {
     await client.query('SET statement_timeout = 60000');
 
-    const lockResult = await client.query(
+    const lockResult = await client.query<{ acquired: boolean }>(
       `SELECT pg_try_advisory_lock(${MIGRATION_LOCK_ID}) AS acquired`
     );
     if (!lockResult.rows[0].acquired) {
@@ -144,7 +146,7 @@ export async function createDatabaseIfNotExists(config: {
   ssl?: boolean | { rejectUnauthorized: boolean };
   connectionString?: string;
 }): Promise<void> {
-  if (config.connectionString || process.env.POSTGRES_AUTO_CREATE_DB === 'false') {
+  if (config.connectionString || !env.POSTGRES_AUTO_CREATE_DB) {
     return;
   }
 

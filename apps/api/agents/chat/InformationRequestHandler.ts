@@ -58,6 +58,7 @@ export interface PendingRequest {
   extractionPattern?: RegExp;
   originalContext: RequestContext;
   classifiedIntent?: ClassifiedIntent;
+  [key: string]: unknown;
 }
 
 export interface RequestContext {
@@ -298,8 +299,7 @@ export function createInformationRequest(
     pendingRequest: (() => {
       const pr: PendingRequest = {
         type: 'missing_information',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        agent: classifiedIntent?.agent || (originalRequest as any).agent,
+        agent: classifiedIntent?.agent || (originalRequest.agent as string | undefined) || '',
         params: classifiedIntent?.params || {},
         missingField: missingFieldInfo.field,
         originalContext: originalRequest,
@@ -583,9 +583,7 @@ export async function handleInformationRequest(
         classifiedIntent
       );
 
-      // Store pending request in memory
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await chatMemory.setPendingRequest(userId, informationRequest.pendingRequest as any);
+      await chatMemory.setPendingRequest(userId, informationRequest.pendingRequest);
 
       return {
         type: 'request',

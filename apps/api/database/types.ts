@@ -69,21 +69,8 @@ export interface ProfileRow {
 
 // ---------------------------------------------------------------------------
 // SECTION 2B: MOBILE/DESKTOP APP AUTHENTICATION
+// (AppRefreshTokenRow removed — use InferSelectModel<typeof appRefreshTokens> from schema/system.ts)
 // ---------------------------------------------------------------------------
-
-export interface AppRefreshTokenRow {
-  id: string;
-  user_id: string;
-  token_hash: string;
-  device_name: string | null;
-  device_type: string;
-  issued_at: Date;
-  expires_at: Date;
-  last_used_at: Date | null;
-  revoked_at: Date | null;
-  push_token: string | null;
-  push_token_updated_at: Date | null;
-}
 
 // ---------------------------------------------------------------------------
 // SECTION 3: GROUPS & MEMBERSHIPS
@@ -230,23 +217,7 @@ export interface GrundsatzDocumentRow {
 // SECTION 5: COLLABORATIVE EDITING
 // ---------------------------------------------------------------------------
 
-export interface CollaborativeDocumentRow {
-  id: string;
-  title: string;
-  content: string | null;
-  created_by: string | null;
-  created_at: Date;
-  updated_at: Date;
-  last_edited_by: string | null;
-  is_public: boolean;
-  permissions: Record<string, unknown>;
-  folder_id: string | null;
-  is_deleted: boolean;
-  document_subtype: string;
-  share_permission: string;
-  share_mode: string;
-  last_edited_at: Date;
-}
+// CollaborativeDocumentRow removed — use CollaborativeDocument from schema/collaborative.ts
 
 export interface CollaborativeDocumentInitRow {
   document_id: string;
@@ -270,17 +241,6 @@ export interface YjsDocumentUpdateRow {
   client_id: number | null;
   created_at: Date;
   version: number;
-}
-
-export interface YjsDocumentSnapshotRow {
-  id: string;
-  document_id: string;
-  snapshot_data: Buffer;
-  version: number;
-  created_at: Date;
-  label: string | null;
-  is_auto_save: boolean;
-  created_by: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -453,31 +413,6 @@ export interface UserUploadRow {
 // SECTION 10: FEATURE TABLES
 // ---------------------------------------------------------------------------
 
-export interface UserSiteRow {
-  id: string;
-  user_id: string | null;
-  subdomain: string;
-  is_published: boolean;
-  site_title: string;
-  tagline: string | null;
-  bio: string | null;
-  contact_email: string | null;
-  contact_phone: string | null;
-  contact_website: string | null;
-  social_links: Record<string, unknown>;
-  theme: string;
-  accent_color: string;
-  profile_image: string | null;
-  background_image: string | null;
-  sections: Record<string, unknown>[];
-  created_at: Date;
-  updated_at: Date;
-  last_published: Date | null;
-  visit_count: number;
-  meta_description: string | null;
-  meta_keywords: string[] | null;
-}
-
 export interface SubtitlerProjectRow {
   id: string;
   user_id: string | null;
@@ -614,22 +549,7 @@ export interface DatabaseRow {
   version: number;
 }
 
-export interface WolkeSyncStatusRow {
-  id: string;
-  user_id: string | null;
-  share_link_id: string;
-  folder_path: string;
-  last_sync_at: Date | null;
-  files_processed: number;
-  files_failed: number;
-  auto_sync_enabled: boolean;
-  sync_status: string;
-  created_at: Date;
-  updated_at: Date;
-  context_type: string;
-  context_id: string | null;
-  synced_by_user_id: string | null;
-}
+// WolkeSyncStatusRow removed — use InferSelectModel<typeof wolkeSyncStatus> from schema/system.ts
 
 export interface RouteUsageStatRow {
   id: number;
@@ -855,45 +775,8 @@ export interface BoardCommentReactionRow {
 }
 
 // ---------------------------------------------------------------------------
-// SECTION: BETTER AUTH TABLES
+// SECTION: BETTER AUTH TABLES — moved to `database/schema/auth.ts` (Drizzle)
 // ---------------------------------------------------------------------------
-
-export interface BaSessionRow {
-  id: string;
-  token: string;
-  user_id: string;
-  expires_at: Date;
-  ip_address: string | null;
-  user_agent: string | null;
-  push_token: string | null;
-  device_name: string | null;
-  device_type: string;
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface BaAccountRow {
-  id: string;
-  user_id: string;
-  account_id: string;
-  provider_id: string;
-  access_token: string | null;
-  refresh_token: string | null;
-  access_token_expires_at: Date | null;
-  scope: string | null;
-  id_token: string | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
-export interface BaVerificationRow {
-  id: string;
-  identifier: string;
-  value: string;
-  expires_at: Date;
-  created_at: Date;
-  updated_at: Date;
-}
 
 // ---------------------------------------------------------------------------
 // DATABASE INTERFACE — maps table names to row types
@@ -901,7 +784,6 @@ export interface BaVerificationRow {
 
 export interface Database {
   profiles: ProfileRow;
-  app_refresh_tokens: AppRefreshTokenRow;
   groups: GroupRow;
   group_memberships: GroupMembershipRow;
   group_content_shares: GroupContentShareRow;
@@ -912,11 +794,9 @@ export interface Database {
   user_document_metadata: UserDocumentMetadataRow;
   user_knowledge: UserKnowledgeRow;
   grundsatz_documents: GrundsatzDocumentRow;
-  collaborative_documents: CollaborativeDocumentRow;
   collaborative_documents_init: CollaborativeDocumentInitRow;
   collaborative_document_folders: CollaborativeDocumentFolderRow;
   yjs_document_updates: YjsDocumentUpdateRow;
-  yjs_document_snapshots: YjsDocumentSnapshotRow;
   notebook_collections: NotebookCollectionRow;
   notebook_collection_documents: NotebookCollectionDocumentRow;
   notebook_public_access: NotebookPublicAccessRow;
@@ -930,7 +810,6 @@ export interface Database {
   template_likes: TemplateLikeRow;
   user_sharepics: UserSharepicRow;
   user_uploads: UserUploadRow;
-  user_sites: UserSiteRow;
   subtitler_projects: SubtitlerProjectRow;
   subtitler_shared_videos: SubtitlerSharedVideoRow;
   subtitler_share_downloads: SubtitlerShareDownloadRow;
@@ -939,7 +818,6 @@ export interface Database {
   antraege: AntragRow;
   user_recent_values: UserRecentValueRow;
   database: DatabaseRow;
-  wolke_sync_status: WolkeSyncStatusRow;
   route_usage_stats: RouteUsageStatRow;
   generation_logs: GenerationLogRow;
   chat_threads: ChatThreadRow;
@@ -955,7 +833,4 @@ export interface Database {
   presentation_slides: PresentationSlideRow;
   board_comments: BoardCommentRow;
   board_comment_reactions: BoardCommentReactionRow;
-  ba_sessions: BaSessionRow;
-  ba_accounts: BaAccountRow;
-  ba_verification: BaVerificationRow;
 }

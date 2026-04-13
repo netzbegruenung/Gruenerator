@@ -5,29 +5,68 @@
 
 import { fromNodeHeaders } from 'better-auth/node';
 import express, { type Router, type Response } from 'express';
+import { z } from 'zod';
 
 import { auth } from '../../config/betterAuth.js';
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getProfileService } from '../../services/user/ProfileService.js';
 import { KeycloakApiClient } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type {
-  AuthRequest,
-  ProfileUpdateBody,
-  AvatarUpdateBody,
-  BetaFeatureToggleBody,
-  MessageColorUpdateBody,
-  UserDefaultUpdateBody,
-  DeleteAccountBody,
-} from './types.js';
+import type { AuthRequest } from './types.js';
 
 const log = createLogger('userProfile');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router: Router = express.Router();
+
+// ============================================================================
+// Zod Schemas
+// ============================================================================
+
+const profileUpdateSchema = z.object({
+  display_name: z.string().optional(),
+  username: z.string().optional(),
+  avatar_robot_id: z.number().int().min(1).max(9).optional(),
+  email: z.string().optional(),
+  custom_prompt: z.string().optional(),
+});
+
+const avatarUpdateSchema = z.object({
+  avatar_robot_id: z.number().int().min(1).max(9),
+});
+
+const betaFeatureToggleSchema = z.object({
+  feature: z.string().min(1),
+  enabled: z.boolean(),
+});
+
+const messageColorUpdateSchema = z.object({
+  color: z.string().min(1),
+});
+
+const userDefaultUpdateSchema = z.object({
+  generator: z.string().min(1),
+  key: z.string().min(1),
+  value: z.unknown(),
+});
+
+const notificationPreferencesSchema = z.object({
+  category: z.string().min(1),
+  channels: z.object({
+    email: z.boolean().optional(),
+    push: z.boolean().optional(),
+    in_app: z.boolean().optional(),
+  }),
+});
+
+const deleteAccountSchema = z.object({
+  confirm: z.string().optional(),
+  confirmation: z.string().optional(),
+  password: z.string().optional(),
+});
 
 // ============================================================================
 // Profile Management Endpoints
@@ -88,11 +127,11 @@ router.get(
 router.put(
   '/profile',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(profileUpdateSchema),
+  async (req: TypedRequest<z.infer<typeof profileUpdateSchema>>, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
-      const { display_name, username, avatar_robot_id, email, custom_prompt } =
-        req.body as ProfileUpdateBody & { email?: string; custom_prompt?: string };
+      const { display_name, username, avatar_robot_id, email, custom_prompt } = req.body;
 
       if (avatar_robot_id && (avatar_robot_id < 1 || avatar_robot_id > 9)) {
         res.status(400).json({
@@ -149,10 +188,11 @@ router.put(
 router.patch(
   '/profile/avatar',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(avatarUpdateSchema),
+  async (req: TypedRequest<z.infer<typeof avatarUpdateSchema>>, res: Response): Promise<void> => {
     try {
       const profileService = getProfileService();
-      const { avatar_robot_id } = req.body as AvatarUpdateBody;
+      const { avatar_robot_id } = req.body;
 
       const data = await profileService.updateAvatar(req.user!.id, avatar_robot_id);
 
@@ -214,18 +254,14 @@ router.get(
 router.patch(
   '/profile/beta-features',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(betaFeatureToggleSchema),
+  async (
+    req: TypedRequest<z.infer<typeof betaFeatureToggleSchema>>,
+    res: Response
+  ): Promise<void> => {
     try {
       const profileService = getProfileService();
-      const { feature, enabled } = req.body as BetaFeatureToggleBody;
-
-      if (!feature || typeof enabled !== 'boolean') {
-        res.status(400).json({
-          success: false,
-          message: 'Feature name und enabled status sind erforderlich.',
-        });
-        return;
-      }
+      const { feature, enabled } = req.body;
 
       const allowedFeatures = [
         'database',
@@ -267,9 +303,11 @@ router.patch(
       );
 
       if (req.user) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         profileService.updateUserSession(
-          req.user as any,
+          req.user as unknown as {
+            beta_features?: Record<string, boolean>;
+            [key: string]: unknown;
+          },
           updatedProfile,
           feature,
           enabled
@@ -299,18 +337,14 @@ router.patch(
 router.patch(
   '/profile/message-color',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(messageColorUpdateSchema),
+  async (
+    req: TypedRequest<z.infer<typeof messageColorUpdateSchema>>,
+    res: Response
+  ): Promise<void> => {
     try {
       const profileService = getProfileService();
-      const { color } = req.body as MessageColorUpdateBody;
-
-      if (!color || typeof color !== 'string') {
-        res.status(400).json({
-          success: false,
-          message: 'Farbe ist erforderlich.',
-        });
-        return;
-      }
+      const { color } = req.body;
 
       await profileService.updateChatColor(req.user!.id, color);
 
@@ -369,22 +403,14 @@ router.get(
 router.patch(
   '/profile/user-defaults',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(userDefaultUpdateSchema),
+  async (
+    req: TypedRequest<z.infer<typeof userDefaultUpdateSchema>>,
+    res: Response
+  ): Promise<void> => {
     try {
       const profileService = getProfileService();
-      const { generator, key, value } = req.body as {
-        generator: string;
-        key: string;
-        value: unknown;
-      };
-
-      if (!generator || !key) {
-        res.status(400).json({
-          success: false,
-          message: 'Generator und Key sind erforderlich.',
-        });
-        return;
-      }
+      const { generator, key, value } = req.body;
 
       const updatedProfile = await profileService.updateUserDefault(
         req.user!.id,
@@ -441,20 +467,13 @@ router.get(
 router.patch(
   '/profile/notification-preferences',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(notificationPreferencesSchema),
+  async (
+    req: TypedRequest<z.infer<typeof notificationPreferencesSchema>>,
+    res: Response
+  ): Promise<void> => {
     try {
-      const { category, channels } = req.body as {
-        category: string;
-        channels: { email?: boolean; push?: boolean; in_app?: boolean };
-      };
-
-      if (!category || !channels || typeof channels !== 'object') {
-        res.status(400).json({
-          success: false,
-          message: 'category und channels sind erforderlich.',
-        });
-        return;
-      }
+      const { category, channels } = req.body;
 
       const { ALL_NOTIFICATION_TYPES } = await import('../../services/notifications/types.js');
       if (!(ALL_NOTIFICATION_TYPES as readonly string[]).includes(category)) {
@@ -535,13 +554,13 @@ router.patch(
 router.delete(
   '/delete-account',
   ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
+  validateBody(deleteAccountSchema),
+  async (req: TypedRequest<z.infer<typeof deleteAccountSchema>>, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
       const keycloakId = req.user!.keycloak_id;
 
-      const { confirm, confirmation, password } =
-        (req.body as { confirm?: string; confirmation?: string; password?: string }) || {};
+      const { confirm, confirmation, password } = req.body;
       const qsConfirm = req.query?.confirm as string | undefined;
       const rawConfirm = confirm || confirmation || password || qsConfirm || '';
       const normalized = String(rawConfirm).trim().toLowerCase();

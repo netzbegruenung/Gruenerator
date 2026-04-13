@@ -8,7 +8,9 @@ import fs from 'fs/promises';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
+import { type AIWorkerPool } from '../../workers/types.js';
 
 import { startBackgroundCompression } from './backgroundCompressionService.js';
 import { generateManualSubtitles } from './manualSubtitleGeneratorService.js';
@@ -26,10 +28,6 @@ interface TranscriptionResult {
   words?: Array<{ word: string; start: number; end: number }>;
 }
 
-interface AIWorkerPool {
-  processRequest(request: unknown): Promise<{ content?: string }>;
-}
-
 /**
  * Provider chain: regolo faster-whisper (default) → voxtral (fallback)
  * Override with TRANSCRIPTION_PROVIDER env var: regolo | voxtral
@@ -39,9 +37,9 @@ async function transcribeWithProvider(
   requestWordTimestamps: boolean = false,
   uploadId: string | null = null
 ): Promise<TranscriptionResult> {
-  const provider = process.env.TRANSCRIPTION_PROVIDER || 'regolo';
+  const provider = env.TRANSCRIPTION_PROVIDER || 'regolo';
 
-  if (provider === 'regolo' && process.env.REGOLO_API_KEY) {
+  if (provider === 'regolo' && env.REGOLO_API_KEY) {
     log.debug('Using Regolo (faster-whisper) for transcription');
     try {
       return await transcribeWithRegolo(audioPath, requestWordTimestamps, uploadId);
@@ -52,7 +50,7 @@ async function transcribeWithProvider(
     }
   }
 
-  if ((provider === 'voxtral' || provider === 'regolo') && process.env.MISTRAL_API_KEY) {
+  if ((provider === 'voxtral' || provider === 'regolo') && env.MISTRAL_API_KEY) {
     log.debug('Using Voxtral for transcription');
     try {
       return await transcribeWithVoxtral(audioPath, requestWordTimestamps, uploadId);
@@ -72,7 +70,7 @@ async function transcribeVideo(
   videoPath: string,
   subtitlePreference: string = 'manual',
   aiWorkerPool?: AIWorkerPool,
-  language: string = 'de'
+  _language: string = 'de'
 ): Promise<string> {
   try {
     log.debug(`Transkription Start - Modus: ${subtitlePreference}`);
@@ -151,4 +149,5 @@ async function transcribeVideo(
 }
 
 export { transcribeVideo, transcribeWithProvider };
-export type { TranscriptionResult, AIWorkerPool };
+export type { TranscriptionResult };
+export type { AIWorkerPool } from '../../workers/types.js';

@@ -19,11 +19,11 @@ import ErrorBoundary from '../../components/ErrorBoundary';
 import apiClient from '../../components/utils/apiClient';
 import { getIcon } from '../../config/icons';
 import { useGroups } from '../../features/groups/hooks/useGroups';
+import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore from '../../stores/sidebarFavouritesStore';
 import { cn } from '../../utils/cn';
 
 import { AIBoardCreator } from './components/AIBoardCreator';
-import { useBoards } from './hooks/useBoards';
 import { getBoardType } from './types';
 
 import type { Board } from './types';
@@ -32,7 +32,7 @@ const BoardIcon = getIcon('navigation', 'boards');
 
 function BoardsListPage() {
   const navigate = useNavigate();
-  const { boards, archivedBoards, isLoading, deleteBoard } = useBoards();
+  const { boards, archivedBoards, isLoading, deleteBoard } = useBoardsTyped();
   const { userGroups = [] } = useGroups({ isActive: true });
   const { isFavourite, toggleFavourite } = useSidebarFavouritesStore();
   const [tab, setTab] = useState<'active' | 'archived'>('active');
@@ -41,7 +41,7 @@ function BoardsListPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleShareLink = (boardId: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/boards/${boardId}`);
+    void navigator.clipboard.writeText(`${window.location.origin}/boards/${boardId}`);
     setCopiedId(boardId);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -126,7 +126,7 @@ function BoardsListPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    navigate(`/boards/${board.id}`);
+                    void navigate(`/boards/${board.id}`);
                   }
                 }}
               >

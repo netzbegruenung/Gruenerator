@@ -2,13 +2,14 @@ import { generateText } from 'ai';
 
 import { getIntermediateModel } from '../../../../services/ai/providers.js';
 import { extractLocaleFromRequest } from '../../../../services/localization/index.js';
+import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { enrichRequest } from '../../../../utils/requestEnrichment.js';
 import { searchArgumentsFromNotebooks } from '../../PRAgent/generators/argumentsGenerator.js';
 
+import type { RequestWithLocale } from '../../../../services/localization/index.js';
 import type { ArgumentResult } from '../../PRAgent/generators/argumentsGenerator.js';
 import type { AntragAgentState, AntragRequestType } from '../types.js';
-import type { RequestWithLocale } from '../../../../services/localization/index.js';
 
 const log = createLogger('AntragAgent:research');
 
@@ -32,7 +33,7 @@ export async function researchNode(state: AntragAgentState): Promise<Partial<Ant
     const partySearchTerm = locale === 'de-AT' ? 'Die Grünen Österreich' : 'Bündnis 90 Die Grünen';
     const shouldWebSearch = !state.features.usePrivacyMode && state.features.useWebSearchTool;
     const webSearchQuery = shouldWebSearch ? `${state.inhalt} ${partySearchTerm} Politik` : null;
-    const aiWorkerPool = state.req?.app?.locals?.aiWorkerPool;
+    const aiWorkerPool = state.req ? getAIWorkerPool(state.req) : undefined;
 
     log.debug(`[researchNode] Web search: ${shouldWebSearch ? 'yes' : 'no'}`);
 

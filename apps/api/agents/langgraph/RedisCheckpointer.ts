@@ -258,7 +258,7 @@ export class RedisCheckpointer extends BaseCheckpointSaver {
     config: RunnableConfig,
     options?: CheckpointListOptions
   ): AsyncGenerator<CheckpointTuple> {
-    const threadId = config?.configurable?.thread_id;
+    const threadId = config?.configurable?.thread_id as string | undefined;
     void options;
     if (!threadId) return;
 

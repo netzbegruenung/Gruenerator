@@ -17,15 +17,13 @@ export default tseslint.config(
         projectService: {
           allowDefaultProject: [
             'eslint.config.mjs',
-            'apps/web/eslint.config.js',
             'apps/docs/eslint.config.js',
             'apps/desktop/eslint.config.mjs',
             'apps/sites/eslint.config.js',
-            'apps/gruen-o-mat/eslint.config.js',
             'apps/mobile/shims/isomorphic-webcrypto.js',
+            'apps/web/src/components/utils/errorMessages.tsx',
             'packages/eslint-config/base.js',
             'packages/eslint-config/react.js',
-            'packages/shared/eslint.config.js',
           ],
         },
       },
@@ -43,8 +41,7 @@ export default tseslint.config(
           caughtErrorsIgnorePattern: '^_',
         },
       ],
-      // TODO: Re-enable as 'error' after fixing existing violations
-      '@typescript-eslint/no-floating-promises': 'warn',
+      '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/await-thenable': 'error',
       '@typescript-eslint/no-misused-promises': [
         'error',
@@ -61,10 +58,10 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unsafe-return': 'error',
-      '@typescript-eslint/no-unsafe-member-access': 'warn',
-      '@typescript-eslint/no-unsafe-assignment': 'warn',
+      '@typescript-eslint/no-unsafe-member-access': 'error',
+      '@typescript-eslint/no-unsafe-assignment': 'error',
       '@typescript-eslint/no-unsafe-call': 'error',
-      '@typescript-eslint/no-unsafe-argument': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'error',
 
       // TODO: Re-enable as 'error' after fixing existing violations
       'import-x/order': [

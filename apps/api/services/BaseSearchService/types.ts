@@ -177,6 +177,7 @@ export interface DocumentResult {
   title?: string | undefined;
   filename?: string | undefined;
   created_at?: string | undefined;
+  published_at?: string | null | undefined;
   source_url?: string | undefined;
   source_id?: string | null | undefined;
   relevant_content: string;
@@ -299,8 +300,7 @@ export interface ErrorHandler {
       returnResponse?: boolean | undefined;
       [key: string]: unknown;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns APIErrorResponse or SearchResponse depending on context
-  ): any;
+  ): unknown;
 }
 
 // ============ Service Options ============

@@ -11,6 +11,7 @@ import { fileURLToPath } from 'url';
 import { type Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -46,18 +47,6 @@ interface SubtitleSegment {
   startTime: number;
   endTime: number;
   text: string;
-}
-
-interface VideoMetadata {
-  width: number;
-  height: number;
-  duration: string | number;
-  rotation?: string;
-  originalFormat?: {
-    codec?: string;
-    audioCodec?: string;
-    audioBitrate?: number;
-  };
 }
 
 interface FontSizes {
@@ -116,7 +105,7 @@ async function processDirectDownload(token: string, res: Response): Promise<void
     throw new Error('Download-Token ungültig oder abgelaufen');
   }
 
-  const exportParams: ExportParams = JSON.parse(exportParamsString);
+  const exportParams = JSON.parse(exportParamsString) as ExportParams;
   log.debug(`[Direct Download] Processing token ${token} for uploadId: ${exportParams.uploadId}`);
 
   await redisClient.del(`download:${token}`);
@@ -267,7 +256,7 @@ async function processVideoWithSubtitles(
   heightPreference: string,
   exportToken: string
 ): Promise<void> {
-  const { finalFontSize, finalSpacing } = calculateFontSizes(subtitles, metadata);
+  const { finalFontSize } = calculateFontSizes(subtitles, metadata);
 
   const segments = processSubtitleSegments(subtitles);
 
@@ -370,7 +359,7 @@ async function processVideoWithSubtitles(
     }
 
     command
-      .on('start', (cmd: string) => {
+      .on('start', (_cmd: string) => {
         log.debug('[FFmpeg] Processing started');
       })
       .on('progress', async (progress: { percent?: number; timemark?: string }) => {

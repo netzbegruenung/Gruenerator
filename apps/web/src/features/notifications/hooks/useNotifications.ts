@@ -1,6 +1,13 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 
-import apiClient from '../../../components/utils/apiClient';
+import {
+  fetchNotificationsPage,
+  fetchUnreadCount,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  dismissNotificationById,
+  dismissAllNotificationsClient,
+} from '../../../hooks/useNotificationsTyped';
 import { useNotificationStore } from '../../../stores/notificationStore';
 
 import type { Notification } from '../types';
@@ -12,10 +19,7 @@ export function useNotifications() {
   return useInfiniteQuery({
     queryKey: QUERY_KEY,
     queryFn: async ({ pageParam = 0 }) => {
-      const res = await apiClient.get<Notification[]>('/notifications', {
-        params: { limit: PAGE_SIZE, offset: pageParam },
-      });
-      return res.data;
+      return fetchNotificationsPage(PAGE_SIZE, pageParam as number) as Promise<Notification[]>;
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
@@ -31,9 +35,9 @@ export function useUnreadCount() {
   return useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: async () => {
-      const res = await apiClient.get<{ count: number }>('/notifications/unread-count');
-      setUnreadCount(res.data.count);
-      return res.data.count;
+      const count = await fetchUnreadCount();
+      setUnreadCount(count);
+      return count;
     },
     staleTime: 30_000,
     refetchInterval: 60_000,
@@ -47,7 +51,7 @@ export function useMarkAsRead() {
 
   return useMutation({
     mutationFn: async (notificationId: string) => {
-      await apiClient.patch(`/notifications/${notificationId}/read`);
+      await markNotificationAsRead(notificationId);
     },
     onSuccess: () => {
       decrementUnreadCount();
@@ -62,7 +66,7 @@ export function useMarkAllAsRead() {
 
   return useMutation({
     mutationFn: async () => {
-      await apiClient.patch('/notifications/read-all');
+      await markAllNotificationsAsRead();
     },
     onSuccess: () => {
       setUnreadCount(0);
@@ -77,7 +81,7 @@ export function useDismissNotification() {
 
   return useMutation({
     mutationFn: async ({ id, isUnread }: { id: string; isUnread: boolean }) => {
-      await apiClient.delete(`/notifications/${id}`);
+      await dismissNotificationById(id);
       return { isUnread };
     },
     onSuccess: (_, { isUnread }) => {
@@ -93,7 +97,7 @@ export function useDismissAll() {
 
   return useMutation({
     mutationFn: async () => {
-      await apiClient.delete('/notifications');
+      await dismissAllNotificationsClient();
     },
     onSuccess: () => {
       setUnreadCount(0);

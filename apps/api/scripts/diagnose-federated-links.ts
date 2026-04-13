@@ -23,7 +23,7 @@ import {
   type KeycloakUser,
   type FederatedIdentity,
 } from '../utils/keycloak/apiClient.js';
-import { getPostgresInstance } from '../database/services/PostgresService.js';
+import { getPostgresInstance, type PostgresService } from '../database/services/PostgresService.js';
 
 const KEYCLOAK_USERS_PAGE_SIZE = 50;
 
@@ -62,13 +62,7 @@ async function getAllKeycloakUsers(client: KeycloakApiClient): Promise<KeycloakU
   let offset = 0;
 
   while (true) {
-    await client.ensureAuth();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response = await (client as any).axiosClient.get('/users', {
-      params: { first: offset, max: KEYCLOAK_USERS_PAGE_SIZE, briefRepresentation: false },
-    });
-
-    const users: KeycloakUser[] = response.data;
+    const users = await client.listUsers(offset, KEYCLOAK_USERS_PAGE_SIZE);
     if (!users || users.length === 0) break;
 
     allUsers.push(...users);
@@ -87,9 +81,7 @@ async function deleteFederatedLink(
   provider: string
 ): Promise<boolean> {
   try {
-    await client.ensureAuth();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (client as any).axiosClient.delete(`/users/${userId}/federated-identity/${provider}`);
+    await client.deleteFederatedIdentity(userId, provider);
     return true;
   } catch (error: unknown) {
     console.error(
@@ -125,8 +117,7 @@ async function main() {
     process.exit(1);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let db: any;
+  let db: PostgresService | null = null;
   try {
     db = getPostgresInstance();
     await db.init();

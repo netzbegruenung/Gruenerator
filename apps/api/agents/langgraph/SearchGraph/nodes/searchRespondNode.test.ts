@@ -9,6 +9,8 @@ import { searchRespondNode } from './searchRespondNode.js';
 
 import type { SearchGraphState } from '../types.js';
 
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+
 function makeState(overrides: Partial<SearchGraphState> = {}): SearchGraphState {
   return {
     messages: [{ role: 'user', content: 'test query' }],

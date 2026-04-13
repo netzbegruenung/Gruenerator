@@ -3,10 +3,15 @@
  * CRUD operations for chat threads
  */
 
+import { z } from 'zod';
+
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { fromParam, type ThreadId } from '../../utils/types/branded.js';
 
 import {
   getUser,
@@ -17,6 +22,23 @@ import {
 import type { ThreadWithLastMessage } from './agents/types.js';
 
 const log = createLogger('ThreadsController');
+
+const createThreadSchema = z.object({
+  title: z.string().optional(),
+  agentId: z.string().optional(),
+  threadType: z.string().optional(),
+});
+
+const patchThreadSchema = z.object({
+  threadId: z.string(),
+  title: z.string().optional(),
+  status: z.enum(['regular', 'archived']).optional(),
+});
+
+const patchSettingsSchema = z.object({
+  customSystemPrompt: z.string().nullable().optional(),
+  customEnabledTools: z.record(z.boolean()).nullable().optional(),
+});
 const router = createAuthenticatedRouter();
 
 router.get('/', async (req, res) => {
@@ -98,115 +120,118 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
-  try {
-    const user = getUser(req);
-    if (!user?.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+router.post(
+  '/',
+  validateBody(createThreadSchema),
+  async (req: TypedRequest<{ title?: string; agentId?: string; threadType?: string }>, res) => {
+    try {
+      const user = getUser(req);
+      if (!user?.id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-    const { title, agentId, threadType } = req.body;
+      const { title, agentId, threadType } = req.body;
 
-    const postgres = getPostgresInstance();
-    const result = await postgres.query(
-      `INSERT INTO chat_threads (user_id, agent_id, title, thread_type)
+      const postgres = getPostgresInstance();
+      const result = await postgres.query(
+        `INSERT INTO chat_threads (user_id, agent_id, title, thread_type)
        VALUES ($1, $2, $3, $4)
        RETURNING id, user_id, agent_id, title, created_at, updated_at, COALESCE(thread_type, 'chat') as thread_type`,
-      [user.id, agentId || 'gruenerator-universal', title || null, threadType || 'chat']
-    );
+        [user.id, agentId || 'gruenerator-universal', title || null, threadType || 'chat']
+      );
 
-    const thread = result[0];
-    res.status(201).json({
-      id: thread.id,
-      userId: thread.user_id,
-      agentId: thread.agent_id,
-      title: thread.title,
-      createdAt: thread.created_at,
-      updatedAt: thread.updated_at,
-    });
-  } catch (error) {
-    log.error('Error creating thread:', error);
-    res.status(500).json({ error: 'Failed to create thread' });
+      const thread = result[0];
+      res.status(201).json({
+        id: thread.id,
+        userId: thread.user_id,
+        agentId: thread.agent_id,
+        title: thread.title,
+        createdAt: thread.created_at,
+        updatedAt: thread.updated_at,
+      });
+    } catch (error) {
+      log.error('Error creating thread:', error);
+      res.status(500).json({ error: 'Failed to create thread' });
+    }
   }
-});
+);
 
-router.patch('/', async (req, res) => {
-  try {
-    const user = getUser(req);
-    if (!user?.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+router.patch(
+  '/',
+  validateBody(patchThreadSchema),
+  async (
+    req: TypedRequest<{ threadId: string; title?: string; status?: 'regular' | 'archived' }>,
+    res
+  ) => {
+    try {
+      const user = getUser(req);
+      if (!user?.id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-    const { threadId, title, status } = req.body;
+      const { threadId, title, status } = req.body;
 
-    if (!threadId) {
-      return res.status(400).json({ error: 'Thread ID is required' });
-    }
+      const postgres = getPostgresInstance();
 
-    if (status && !['regular', 'archived'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status. Must be "regular" or "archived"' });
-    }
+      const existingThreads = await postgres.query(
+        `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        [threadId]
+      );
 
-    const postgres = getPostgresInstance();
+      if (existingThreads.length === 0) {
+        return res.status(404).json({ error: 'Thread not found' });
+      }
 
-    const existingThreads = await postgres.query(
-      `SELECT id, user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
-      [threadId]
-    );
+      if (existingThreads[0].user_id !== user.id) {
+        return res.status(403).json({ error: 'Forbidden' });
+      }
 
-    if (existingThreads.length === 0) {
-      return res.status(404).json({ error: 'Thread not found' });
-    }
+      const setClauses: string[] = ['updated_at = CURRENT_TIMESTAMP'];
+      const params: unknown[] = [];
+      let paramIdx = 1;
 
-    if (existingThreads[0].user_id !== user.id) {
-      return res.status(403).json({ error: 'Forbidden' });
-    }
+      if (title !== undefined) {
+        setClauses.push(`title = $${paramIdx}`);
+        params.push(title);
+        paramIdx++;
+      }
 
-    const setClauses: string[] = ['updated_at = CURRENT_TIMESTAMP'];
-    const params: unknown[] = [];
-    let paramIdx = 1;
+      if (status !== undefined) {
+        setClauses.push(`status = $${paramIdx}`);
+        params.push(status);
+        paramIdx++;
+      }
 
-    if (title !== undefined) {
-      setClauses.push(`title = $${paramIdx}`);
-      params.push(title);
-      paramIdx++;
-    }
+      params.push(threadId);
 
-    if (status !== undefined) {
-      setClauses.push(`status = $${paramIdx}`);
-      params.push(status);
-      paramIdx++;
-    }
-
-    params.push(threadId);
-
-    const result = await postgres.query(
-      `UPDATE chat_threads
+      const result = await postgres.query(
+        `UPDATE chat_threads
        SET ${setClauses.join(', ')}
        WHERE id = $${paramIdx}
        RETURNING id, user_id, agent_id, title, COALESCE(status, 'regular') as status, created_at, updated_at`,
-      params
-    );
+        params
+      );
 
-    if (result.length === 0) {
-      return res.status(500).json({ error: 'Failed to update thread' });
+      if (result.length === 0) {
+        return res.status(500).json({ error: 'Failed to update thread' });
+      }
+
+      const thread = result[0];
+      res.json({
+        id: thread.id,
+        userId: thread.user_id,
+        agentId: thread.agent_id,
+        title: thread.title,
+        status: thread.status,
+        createdAt: thread.created_at,
+        updatedAt: thread.updated_at,
+      });
+    } catch (error) {
+      log.error('Error updating thread:', error);
+      res.status(500).json({ error: 'Failed to update thread' });
     }
-
-    const thread = result[0];
-    res.json({
-      id: thread.id,
-      userId: thread.user_id,
-      agentId: thread.agent_id,
-      title: thread.title,
-      status: thread.status,
-      createdAt: thread.created_at,
-      updatedAt: thread.updated_at,
-    });
-  } catch (error) {
-    log.error('Error updating thread:', error);
-    res.status(500).json({ error: 'Failed to update thread' });
   }
-});
+);
 
 router.delete('/', async (req, res) => {
   try {
@@ -252,7 +277,7 @@ router.get('/:threadId/settings', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { threadId } = req.params;
+    const threadId = fromParam<ThreadId>(req.params.threadId);
 
     const postgres = getPostgresInstance();
     const threads = await postgres.query(`SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`, [
@@ -272,34 +297,41 @@ router.get('/:threadId/settings', async (req, res) => {
   }
 });
 
-router.patch('/:threadId/settings', async (req, res) => {
-  try {
-    const user = getUser(req);
-    if (!user?.id) {
-      return res.status(401).json({ error: 'Unauthorized' });
+router.patch(
+  '/:threadId/settings',
+  validateBody(patchSettingsSchema),
+  async (
+    req: TypedRequest<
+      { customSystemPrompt?: string | null; customEnabledTools?: Record<string, boolean> | null },
+      { threadId: string }
+    >,
+    res
+  ) => {
+    try {
+      const user = getUser(req);
+      if (!user?.id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const threadId = fromParam<ThreadId>(req.params.threadId);
+      const { customSystemPrompt, customEnabledTools } = req.body;
+
+      const updated = await updateThreadSettings(threadId, user.id, {
+        ...(customSystemPrompt !== undefined && { customSystemPrompt }),
+        ...(customEnabledTools !== undefined && { customEnabledTools }),
+      });
+
+      if (!updated) {
+        return res.status(404).json({ error: 'Thread not found or forbidden' });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      log.error('Error updating thread settings:', error);
+      res.status(500).json({ error: 'Failed to update thread settings' });
     }
-
-    const { threadId } = req.params;
-    const { customSystemPrompt, customEnabledTools } = req.body as {
-      customSystemPrompt?: string | null;
-      customEnabledTools?: Record<string, boolean> | null;
-    };
-
-    const updated = await updateThreadSettings(threadId, user.id, {
-      ...(customSystemPrompt !== undefined && { customSystemPrompt }),
-      ...(customEnabledTools !== undefined && { customEnabledTools }),
-    });
-
-    if (!updated) {
-      return res.status(404).json({ error: 'Thread not found or forbidden' });
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    log.error('Error updating thread settings:', error);
-    res.status(500).json({ error: 'Failed to update thread settings' });
   }
-});
+);
 
 router.post('/:threadId/generate-title', async (req, res) => {
   try {
@@ -308,7 +340,7 @@ router.post('/:threadId/generate-title', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { threadId } = req.params;
+    const threadId = fromParam<ThreadId>(req.params.threadId);
     log.info(`[generate-title] Endpoint hit for threadId=${threadId}, userId=${user.id}`);
     const postgres = getPostgresInstance();
 
@@ -357,8 +389,10 @@ router.post('/:threadId/generate-title', async (req, res) => {
       `[generate-title] Assistant message (first 100 chars): ${String(assistantMsg.content).slice(0, 100)}`
     );
 
-    const aiWorkerPool = req.app.locals.aiWorkerPool;
-    if (!aiWorkerPool) {
+    let aiWorkerPool;
+    try {
+      aiWorkerPool = getAIWorkerPool(req);
+    } catch {
       log.error(`[generate-title] AI worker pool not available!`);
       return res.status(503).json({ error: 'AI worker pool not available' });
     }

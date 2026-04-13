@@ -129,14 +129,14 @@ const useSharepicModification = (): UseSharepicModificationReturn => {
 
         // Make the API call to the appropriate endpoint using apiClient
         const endpoint = getEndpointForType(sharepicType);
-        const response = await apiClient.post(endpoint, formDataToSend, {
+        const response = await apiClient.post<{ image: string }>(endpoint, formDataToSend, {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
         });
 
         // Handle Axios response wrapper - extract data
-        const result = response.data || response;
+        const result = response.data;
         if (!result.image) {
           throw new Error(ERROR_MESSAGES.NO_IMAGE_DATA);
         }

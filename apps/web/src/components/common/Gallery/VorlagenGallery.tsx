@@ -52,6 +52,13 @@ const addTagToSearch = (currentSearch: string, tag: string): string => {
   return currentSearch ? `${currentSearch} ${hashtag}` : hashtag;
 };
 
+interface VorlagenResponse {
+  vorlagen: VorlageItem[];
+}
+interface CategoriesResponse {
+  categories: CategoryItem[];
+}
+
 const fetchVorlagen = async ({
   searchTerm,
   searchMode,
@@ -77,15 +84,15 @@ const fetchVorlagen = async ({
     params.tags = JSON.stringify(tags);
   }
 
-  const response = await apiClient.get('/auth/vorlagen', { params, signal });
+  const response = await apiClient.get<VorlagenResponse>('/auth/vorlagen', { params, signal });
   const data = response.data;
   return Array.isArray(data?.vorlagen) ? data.vorlagen : [];
 };
 
 const fetchCategories = async (): Promise<CategoryItem[]> => {
-  const response = await apiClient.get('/auth/vorlagen-categories');
+  const response = await apiClient.get<CategoriesResponse>('/auth/vorlagen-categories');
   const data = response.data;
-  const categories = Array.isArray(data?.categories) ? data.categories : [];
+  const categories: CategoryItem[] = Array.isArray(data?.categories) ? data.categories : [];
   return [{ id: 'all', label: 'Alle Typen' }, ...categories];
 };
 

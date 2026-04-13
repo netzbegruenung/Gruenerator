@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 
 import { v4 as uuidv4 } from 'uuid';
 
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -31,20 +32,6 @@ const log = createLogger('multiclip-export');
 
 const EXPORTS_DIR = path.join(__dirname, '../../uploads/exports');
 
-interface VideoMetadata {
-  width: number;
-  height: number;
-  duration: number;
-  fps: number;
-  rotation: string;
-  originalFormat: {
-    codec?: string;
-    audioCodec?: string;
-    audioBitrate: number | null;
-    videoBitrate: number | null;
-  };
-}
-
 interface SubtitleSegment {
   startTime: number;
   endTime: number;
@@ -53,9 +40,11 @@ interface SubtitleSegment {
 
 interface SubtitleConfig {
   segments: SubtitleSegment[];
-  stylePreference?: string;
-  heightPreference?: string;
-  locale?: string;
+  // Optional fields explicit `| undefined` for exactOptionalPropertyTypes.
+  // Matches the parallel SubtitleConfig in segmentExportService.ts.
+  stylePreference?: string | undefined;
+  heightPreference?: string | undefined;
+  locale?: string | undefined;
 }
 
 interface ExportOptions {
@@ -236,7 +225,11 @@ export async function exportMultiClipWithSegments(
         log.warn(`Segment references unknown clipId: ${seg.clipId}`);
         return false;
       }
-      return seg.start >= 0 && seg.end > seg.start && seg.end <= clipMeta.duration + 0.5;
+      return (
+        seg.start >= 0 &&
+        seg.end > seg.start &&
+        seg.end <= ((clipMeta.duration as number | undefined) ?? 0) + 0.5
+      );
     });
 
     if (validSegments.length === 0) {
@@ -460,7 +453,11 @@ export async function exportMultiClipWithSegmentsAndSubtitles(
     const validSegments = segments.filter((seg) => {
       const clipMeta = seg.clipId ? clipMetadataMap[seg.clipId] : undefined;
       if (!clipMeta) return false;
-      return seg.start >= 0 && seg.end > seg.start && seg.end <= clipMeta.duration + 0.5;
+      return (
+        seg.start >= 0 &&
+        seg.end > seg.start &&
+        seg.end <= ((clipMeta.duration as number | undefined) ?? 0) + 0.5
+      );
     });
 
     if (validSegments.length === 0) {

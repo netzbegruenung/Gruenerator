@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import '@excalidraw/excalidraw/index.css';
 import { ExcalidrawBinding } from 'y-excalidraw';
 
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
+import type { ExcalidrawImperativeAPI, LibraryItem } from '@excalidraw/excalidraw/types';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type * as Y from 'yjs';
 
@@ -32,9 +32,9 @@ interface ExcalidrawBoardProps {
 
 const LIBRARY_STORAGE_KEY = 'excalidraw-user-library';
 
-function loadUserLibraryItems() {
+function loadUserLibraryItems(): LibraryItem[] {
   try {
-    return JSON.parse(localStorage.getItem(LIBRARY_STORAGE_KEY) || '[]');
+    return JSON.parse(localStorage.getItem(LIBRARY_STORAGE_KEY) ?? '[]') as LibraryItem[];
   } catch {
     return [];
   }
@@ -52,8 +52,8 @@ export function ExcalidrawBoard({ ydoc, provider, isSynced }: ExcalidrawBoardPro
     []
   );
 
-  const handleLibraryChange = useCallback((items: readonly unknown[]) => {
-    const userOnly = (items as { id: string }[]).filter((i) => !i.id.startsWith('system-'));
+  const handleLibraryChange = useCallback((items: readonly LibraryItem[]) => {
+    const userOnly = items.filter((i) => !i.id.startsWith('system-'));
     localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(userOnly));
   }, []);
 
@@ -77,8 +77,7 @@ export function ExcalidrawBoard({ ydoc, provider, isSynced }: ExcalidrawBoardPro
     const yAssets = ydoc.getMap('assets');
 
     const binding = new ExcalidrawBinding(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      yElements as any,
+      yElements as Y.Array<Y.Map<unknown>>,
       yAssets,
       api,
       provider.awareness ?? undefined

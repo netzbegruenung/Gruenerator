@@ -45,7 +45,7 @@ export async function getConversation(userId: string): Promise<Conversation> {
       return { messages: [], metadata: {} };
     }
 
-    const conversation: Conversation = JSON.parse(String(data));
+    const conversation = JSON.parse(String(data)) as Conversation;
     console.log(
       `[ChatMemory] Retrieved conversation for ${userId}: ${conversation.messages?.length || 0} messages`
     );
@@ -425,7 +425,7 @@ export async function getExperimentalSession(
       return null;
     }
 
-    const sessionData: ExperimentalSession = JSON.parse(String(data));
+    const sessionData = JSON.parse(String(data)) as ExperimentalSession;
 
     // Check if expired (extra validation)
     if (sessionData.expiresAt && Date.now() > sessionData.expiresAt) {
@@ -544,7 +544,7 @@ export async function getUserExperimentalSessions(userId: string): Promise<Sessi
           const data = await redisClient.get(key);
           if (!data) return null;
 
-          const session: ExperimentalSession = JSON.parse(String(data));
+          const session = JSON.parse(String(data)) as ExperimentalSession;
           // Return summary only
           const summary: SessionSummary = {
             sessionId: session.sessionId,
@@ -597,7 +597,7 @@ export async function cleanupExpiredSessions(): Promise<number> {
         const data = await redisClient.get(key);
         if (!data) continue;
 
-        const session: ExperimentalSession = JSON.parse(String(data));
+        const session = JSON.parse(String(data)) as ExperimentalSession;
 
         // Check if expired
         if (session.expiresAt && now > session.expiresAt) {

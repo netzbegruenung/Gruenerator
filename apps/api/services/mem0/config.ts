@@ -8,6 +8,7 @@
 
 import OpenAI from 'openai';
 
+import { env } from '../../config/env.js';
 import { createQdrantClient } from '../../database/services/QdrantService/connection.js';
 import { extractJsonObject, extractLastJsonObject } from '../../utils/jsonParser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -129,10 +130,10 @@ class LiteLLMAdapter {
  * Uses the existing connection logic which properly handles basic auth via headers.
  */
 function createMem0QdrantClient() {
-  const url = process.env.QDRANT_URL || 'http://localhost:6333';
-  const apiKey = process.env.QDRANT_API_KEY || '';
-  const basicAuthUsername = process.env.QDRANT_BASIC_AUTH_USERNAME;
-  const basicAuthPassword = process.env.QDRANT_BASIC_AUTH_PASSWORD;
+  const url = env.QDRANT_URL || 'http://localhost:6333';
+  const apiKey = env.QDRANT_API_KEY || '';
+  const basicAuthUsername = env.QDRANT_BASIC_AUTH_USERNAME;
+  const basicAuthPassword = env.QDRANT_BASIC_AUTH_PASSWORD;
 
   return createQdrantClient({
     url,
@@ -155,9 +156,8 @@ export function buildMem0Config(): Partial<MemoryConfig> {
   // Disable mem0ai's built-in PostHog telemetry to avoid HTTP/2 GOAWAY errors
   process.env.MEM0_TELEMETRY = 'false';
 
-  const litellmBaseUrl =
-    process.env.LITELLM_BASE_URL || 'https://litellm.netzbegruenung.verdigado.net';
-  const litellmApiKey = process.env.LITELLM_API_KEY || '';
+  const litellmBaseUrl = env.LITELLM_BASE_URL || 'https://litellm.netzbegruenung.verdigado.net';
+  const litellmApiKey = env.LITELLM_API_KEY || '';
 
   const customPrompt = `Du bist ein Gedächtnis-Assistent für den Grünerator, eine KI-Plattform für Die Grünen.
 
@@ -237,9 +237,9 @@ Füge bei jeder Erinnerung die Kategorie und Konfidenz als Metadaten hinzu.`;
 export function validateMem0Environment(): string[] {
   const missing: string[] = [];
 
-  if (!process.env.LITELLM_API_KEY) missing.push('LITELLM_API_KEY');
-  if (!process.env.MISTRAL_API_KEY) missing.push('MISTRAL_API_KEY');
-  if (!process.env.QDRANT_URL) missing.push('QDRANT_URL');
+  if (!env.LITELLM_API_KEY) missing.push('LITELLM_API_KEY');
+  if (!env.MISTRAL_API_KEY) missing.push('MISTRAL_API_KEY');
+  if (!env.QDRANT_URL) missing.push('QDRANT_URL');
 
   return missing;
 }

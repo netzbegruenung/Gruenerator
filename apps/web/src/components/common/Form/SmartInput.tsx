@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Controller, type Control } from 'react-hook-form';
 
-import { useRecentValues } from '../../../hooks/useRecentValues';
+import { useRecentValuesTyped } from '../../../hooks/useRecentValuesTyped';
 import { useAuthStore } from '../../../stores/authStore';
 import EnhancedSelect from '../EnhancedSelect/EnhancedSelect';
 
@@ -67,10 +67,10 @@ const SmartInput: React.FC<SmartInputProps> = ({
 }) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  const { recentValues, isLoading, saveRecentValue, hasRecentValue } = useRecentValues(fieldType, {
-    limit: maxRecentValues,
-    autoSave: false,
-  });
+  const { recentValues, isLoading, saveRecentValue, hasRecentValue } = useRecentValuesTyped(
+    fieldType,
+    { limit: maxRecentValues }
+  );
 
   const prevSubmitRef = useRef<string | null>(null);
   const hasPrefilledRef = useRef(false);

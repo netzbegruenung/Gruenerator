@@ -43,8 +43,6 @@ import type {
   TransformedChunk,
   DocumentData,
   DocumentResult,
-  TopChunk,
-  HybridMetadata,
   EnhancedScore,
   SimilarChunkParams,
   HybridChunkParams,
@@ -293,7 +291,7 @@ export class BaseSearchService {
    * Generate query embedding with smart expansion support
    * @protected
    */
-  async generateQueryEmbedding(query: string, options: SearchOptions = {}): Promise<number[]> {
+  async generateQueryEmbedding(query: string, _options: SearchOptions = {}): Promise<number[]> {
     return await mistralEmbeddingService.generateQueryEmbedding(query);
   }
 
@@ -309,7 +307,7 @@ export class BaseSearchService {
 
     // Choose appropriate RPC function based on filters
     const rpcFunction = this.getRPCFunction(filters);
-    const rpcParams = this.buildRPCParams({
+    this.buildRPCParams({
       embeddingString,
       ...(userId != null && { userId }),
       ...(filters != null && { filters }),
@@ -574,7 +572,7 @@ export class BaseSearchService {
    * Get RPC function name based on filters
    * @protected
    */
-  getRPCFunction(filters?: SearchFilters): string {
+  getRPCFunction(_filters?: SearchFilters): string {
     return 'similarity_search_optimized';
   }
 
@@ -934,7 +932,7 @@ export class BaseSearchService {
   handleEmptyResults(
     query: string,
     options: SearchOptions,
-    userId: string | null = null
+    _userId: string | null = null
   ): SearchResponse {
     return {
       success: true,
@@ -1211,7 +1209,7 @@ export class BaseSearchService {
   /**
    * Abstract method - must be implemented by subclasses
    */
-  async doSearch(params: ValidatedSearchParams): Promise<RawChunk[]> {
+  async doSearch(_params: ValidatedSearchParams): Promise<RawChunk[]> {
     throw new Error(`${this.serviceName} must implement doSearch() method`);
   }
 

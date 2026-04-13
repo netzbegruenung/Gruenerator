@@ -79,7 +79,7 @@ export async function handleNotebookStream(
     collectionId,
     collectionIds,
     filters,
-    provider,
+    provider: _provider,
     model,
     mode,
     userId,

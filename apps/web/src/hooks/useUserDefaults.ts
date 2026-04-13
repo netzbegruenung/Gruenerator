@@ -41,7 +41,7 @@ export const useUserDefaults = <T = unknown>(generator: string): UseUserDefaults
   // Hydrate on first use
   useEffect(() => {
     if (!isHydrated) {
-      hydrate();
+      void hydrate();
     }
   }, [isHydrated, hydrate]);
 

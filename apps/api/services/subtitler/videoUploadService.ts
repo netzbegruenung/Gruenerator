@@ -9,6 +9,7 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import { type VideoMetadata, type VideoOriginalFormat } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizePath } from '../../utils/validation/security.js';
 
@@ -20,26 +21,8 @@ const __dirname = path.dirname(__filename);
 const fsPromises = fs.promises;
 const log = createLogger('videoUpload');
 
-interface OriginalFormat {
-  codec: string | undefined;
-  pixelFormat: string | undefined;
-  profile: string | undefined;
-  level: number | undefined;
-  videoBitrate: number | null;
-  audioCodec: string | null;
-  audioBitrate: number | null;
-}
-
-interface VideoMetadata {
-  width: number;
-  height: number;
-  duration: string | undefined;
-  fps: number;
-  rotation: string;
-  displayAspectRatio: string | undefined;
-  sampleAspectRatio: string | undefined;
-  originalFormat: OriginalFormat;
-}
+/** @deprecated use VideoOriginalFormat from routes/subtitler/types.ts */
+type OriginalFormat = VideoOriginalFormat;
 
 async function getVideoMetadata(videoPath: string): Promise<VideoMetadata> {
   return new Promise((resolve, reject) => {
@@ -219,4 +202,5 @@ async function cleanupFiles(...filePaths: (string | null | undefined)[]): Promis
 }
 
 export { getVideoMetadata, extractAudio, cleanupFiles };
-export type { VideoMetadata, OriginalFormat };
+export type { OriginalFormat };
+export type { VideoMetadata } from '../../routes/subtitler/types.js';

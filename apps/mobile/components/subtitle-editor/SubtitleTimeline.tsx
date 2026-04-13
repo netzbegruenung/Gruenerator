@@ -99,7 +99,7 @@ export const SubtitleTimeline = forwardRef<FlatList<SubtitleSegment>, SubtitleTi
         keyboardDismissMode="on-drag"
         onScrollToIndexFailed={(info) => {
           const wait = new Promise((resolve) => setTimeout(resolve, 100));
-          wait.then(() => {
+          void wait.then(() => {
             if (ref && 'current' in ref && ref.current && segments.length > 0) {
               ref.current.scrollToIndex({
                 index: Math.min(info.index, segments.length - 1),

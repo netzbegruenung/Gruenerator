@@ -218,7 +218,7 @@ function EditorContent() {
     if (!authError) return;
     const message = getAuthErrorMessage(authError);
     if (message) {
-      import('sonner').then(({ toast }) => toast.error(message));
+      void import('sonner').then(({ toast }) => toast.error(message));
     }
   }, [authError]);
 
@@ -262,7 +262,9 @@ function EditorContent() {
       const { PDFExporter, pdfDefaultSchemaMappings } = await import('@blocknote/xl-pdf-exporter');
       const { pdf } = await import('@react-pdf/renderer');
       const exporter = new PDFExporter(editor.schema, pdfDefaultSchemaMappings);
-      const pdfDocument = await exporter.toReactPDFDocument(editor.document);
+      const pdfDocument: Parameters<typeof pdf>[0] = (await exporter.toReactPDFDocument(
+        editor.document
+      )) as Parameters<typeof pdf>[0];
       const blob = await pdf(pdfDocument).toBlob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');

@@ -38,9 +38,9 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
 import { getIcon } from '../../../config/icons';
+import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
-import { useBoards } from '../../boards/hooks/useBoards';
 
 const DocsIcon = getIcon('navigation', 'docs');
 const BoardIcon = getIcon('navigation', 'boards');
@@ -114,7 +114,9 @@ const formatDuration = (seconds?: number): string => {
 };
 
 const fetchRecentActivity = async (): Promise<RecentItem[]> => {
-  const res = await apiClient.get('/recent-activity', { params: { limit: 12 } });
+  const res = await apiClient.get<{ items?: RecentItem[] }>('/recent-activity', {
+    params: { limit: 12 },
+  });
   return res.data?.items ?? [];
 };
 
@@ -393,7 +395,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
     })
     .slice(0, 10);
 
-  const { createBoard, deleteBoard } = useBoards({ enabled: true });
+  const { createBoard, deleteBoard } = useBoardsTyped({ enabled: true });
 
   const createEmptyDoc = useMutation({
     mutationFn: async () => {
@@ -401,7 +403,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
       return res.data as { id: string };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+      void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
     },
   });
 
@@ -410,10 +412,10 @@ const RecentlyCreatedSection: React.FC = memo(() => {
       try {
         const res = await apiClient.post(`/auth/saved-texts/${textId}/convert-to-doc`);
         const { documentId } = res.data as { documentId: string };
-        navigate(`/docs/${documentId}`);
+        void navigate(`/docs/${documentId}`);
       } catch {
         // fallback to old editor
-        navigate(`/texte/texteditor?textId=${textId}`);
+        void navigate(`/texte/texteditor?textId=${textId}`);
       }
     },
     [navigate]
@@ -433,16 +435,16 @@ const RecentlyCreatedSection: React.FC = memo(() => {
       if (!window.confirm(messages[item.type])) return;
 
       if (item.type === 'board') {
-        deleteBoard.mutateAsync(item.id).then(() => {
-          queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+        void deleteBoard.mutateAsync(item.id).then(() => {
+          void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
         });
         return;
       }
 
       if (item.deleteEndpoint) {
         const endpoint = item.deleteEndpoint.replace(/^\/api/, '');
-        apiClient.delete(endpoint).then(() => {
-          queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
+        void apiClient.delete(endpoint).then(() => {
+          void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
         });
       }
     },
@@ -450,7 +452,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
   );
 
   const handleShare = useCallback((item: RecentItem) => {
-    navigator.clipboard.writeText(`${window.location.origin}${item.href}`);
+    void navigator.clipboard.writeText(`${window.location.origin}${item.href}`);
   }, []);
 
   const handleCreateDoc = useCallback(() => {

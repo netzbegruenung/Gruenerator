@@ -10,10 +10,16 @@
  * Requires: QDRANT_URL, QDRANT_API_KEY, QDRANT_BASIC_AUTH_USERNAME, QDRANT_BASIC_AUTH_PASSWORD
  */
 
-const QDRANT_URL = (process.env.QDRANT_URL || '').replace(/\/+$/, '');
-const QDRANT_API_KEY = process.env.QDRANT_API_KEY || '';
-const BASIC_USER = process.env.QDRANT_BASIC_AUTH_USERNAME;
-const BASIC_PASS = process.env.QDRANT_BASIC_AUTH_PASSWORD;
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+
+import { env } from '../config/env.js';
+
+const QDRANT_URL = (env.QDRANT_URL ?? '').replace(/\/+$/, '');
+const QDRANT_API_KEY = env.QDRANT_API_KEY ?? '';
+const BASIC_USER = env.QDRANT_BASIC_AUTH_USERNAME;
+const BASIC_PASS = env.QDRANT_BASIC_AUTH_PASSWORD;
 const COLLECTION = 'landesverbaende_documents';
 
 function buildHeaders(): Record<string, string> {

@@ -10,12 +10,7 @@ import {
 import { Router, type Request, type RequestHandler, type Response } from 'express';
 import multer from 'multer';
 
-import {
-  TESTBILD_PATH,
-  params,
-  SUNFLOWER_PATH,
-  COLORS,
-} from '../../../services/sharepic/canvas/config.js';
+import { params, SUNFLOWER_PATH, COLORS } from '../../../services/sharepic/canvas/config.js';
 import { checkFiles, registerFonts } from '../../../services/sharepic/canvas/fileManagement.js';
 import {
   optimizeCanvasBuffer,
@@ -99,25 +94,6 @@ async function processText(textData: TextData): Promise<TextLine[]> {
   }));
 
   return processedTextData;
-}
-
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function testLoadImage(filePath: string): Promise<Image> {
-  try {
-    const image = await loadImage(filePath);
-    return image;
-  } catch (err) {
-    log.error(`Failed to load image from ${filePath}:`, err);
-    throw err;
-  }
 }
 
 async function addTextToImage(

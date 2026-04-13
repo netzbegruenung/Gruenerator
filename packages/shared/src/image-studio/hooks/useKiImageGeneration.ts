@@ -13,7 +13,6 @@ import type {
   KiEditRequest,
   UseKiImageGenerationOptions,
   UseKiImageGenerationReturn,
-  ImageStudioKiType,
 } from '../types.js';
 
 /**
@@ -124,7 +123,10 @@ export function useKiImageGeneration(
         }
 
         const client = getGlobalApiClient();
-        const response = await client.post(config.endpoint, {
+        const response = await client.post<{
+          image?: { base64?: string } | string;
+          imageUrl?: string;
+        }>(config.endpoint, {
           prompt: request.description,
           variant: request.variant,
         });
@@ -132,9 +134,11 @@ export function useKiImageGeneration(
         // Extract image from response — API returns { image: { base64 } } or legacy { image: string }
         const rawImage = response.data?.image;
         const imageData =
-          typeof rawImage === 'object' && rawImage?.base64
+          typeof rawImage === 'object' && rawImage !== null && 'base64' in rawImage
             ? rawImage.base64
-            : rawImage || response.data?.imageUrl;
+            : typeof rawImage === 'string'
+              ? rawImage
+              : response.data?.imageUrl;
 
         if (!imageData || typeof imageData !== 'string') {
           throw new Error(KI_ERROR_MESSAGES.GENERATION_ERROR);
@@ -218,16 +222,21 @@ export function useKiImageGeneration(
         formData.append('text', prompt);
         formData.append('type', type === 'green-edit' ? 'green-edit' : 'universal');
 
-        const response = await client.post(config.endpoint, formData, {
+        const response = await client.post<{
+          image?: { base64?: string } | string;
+          imageUrl?: string;
+        }>(config.endpoint, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
 
         // Extract image from response — API returns { image: { base64 } } or legacy { image: string }
         const rawImage = response.data?.image;
         const imageData =
-          typeof rawImage === 'object' && rawImage?.base64
+          typeof rawImage === 'object' && rawImage !== null && 'base64' in rawImage
             ? rawImage.base64
-            : rawImage || response.data?.imageUrl;
+            : typeof rawImage === 'string'
+              ? rawImage
+              : response.data?.imageUrl;
 
         if (!imageData || typeof imageData !== 'string') {
           throw new Error(KI_ERROR_MESSAGES.GENERATION_ERROR);

@@ -17,6 +17,25 @@ function isAxiosError(error: unknown): error is AxiosError {
   return error instanceof Error && 'response' in error;
 }
 
+interface RecentValueItem {
+  field_value: string;
+}
+
+interface RecentValuesApiResponse {
+  success?: boolean;
+  data?: RecentValueItem[];
+}
+
+interface SaveRecentValueResponse {
+  success?: boolean;
+  data?: unknown;
+}
+
+interface DeleteRecentValueResponse {
+  success?: boolean;
+  deletedCount?: number;
+}
+
 interface FieldState {
   values: string[];
   lastFetch: number | null;
@@ -135,12 +154,12 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
       });
 
       try {
-        const response = await apiClient.get(`/recent-values/${fieldType}?limit=${actualLimit}`);
+        const response = await apiClient.get<RecentValuesApiResponse>(
+          `/recent-values/${fieldType}?limit=${actualLimit}`
+        );
 
         if (response.data?.success && response.data?.data) {
-          const values = response.data.data.map(
-            (item: { field_value: string }) => item.field_value
-          );
+          const values = response.data.data.map((item) => item.field_value);
 
           set((state) => {
             state.recentValuesByField[fieldType].values = values;
@@ -189,7 +208,7 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
       }
 
       try {
-        const response = await apiClient.post('/recent-values', {
+        const response = await apiClient.post<SaveRecentValueResponse>('/recent-values', {
           fieldType,
           fieldValue: trimmedValue,
           formName,
@@ -227,7 +246,9 @@ export const useRecentValuesStore = create<RecentValuesStore>()(
 
     clearRecentValues: async (fieldType) => {
       try {
-        const response = await apiClient.delete(`/recent-values/${fieldType}`);
+        const response = await apiClient.delete<DeleteRecentValueResponse>(
+          `/recent-values/${fieldType}`
+        );
 
         if (response.data?.success) {
           set((state) => {

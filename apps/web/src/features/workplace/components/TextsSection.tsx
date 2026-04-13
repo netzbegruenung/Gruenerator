@@ -22,7 +22,7 @@ const TextsSection = React.memo(() => {
   const handleDelete = useCallback(
     (id: string | number, title: string) => {
       if (window.confirm(`Text "${title}" wirklich löschen?`)) {
-        deleteTextMutation(id);
+        void deleteTextMutation(id);
       }
     },
     [deleteTextMutation]

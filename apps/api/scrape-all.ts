@@ -91,7 +91,7 @@ interface SourceSummary {
  * Executes up to `limit` tasks at a time, starting the next as each completes.
  */
 async function parallelLimit<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[]> {
-  const results: T[] = new Array(tasks.length);
+  const results = new Array<T>(tasks.length);
   let nextIndex = 0;
 
   async function runNext(): Promise<void> {

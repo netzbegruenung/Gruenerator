@@ -23,9 +23,7 @@ const FlyerToSiteAnnotation = Annotation.Root({
   pdfBuffer: Annotation<Buffer>({ reducer: (x, y) => y ?? x }),
   originalFilename: Annotation<string>({ reducer: (x, y) => y ?? x }),
   email: Annotation<string>({ reducer: (x, y) => y ?? x }),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  req: Annotation<any>({
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+  req: Annotation<unknown>({
     reducer: (x, y) => y ?? x,
   }),
 

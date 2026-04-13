@@ -72,11 +72,11 @@ const CompactToolCard = memo(
 
     return (
       <ListCard
-        onClick={() => navigate(tool.path)}
+        onClick={() => void navigate(tool.path)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            navigate(tool.path);
+            void navigate(tool.path);
           }
         }}
         role="button"
@@ -124,11 +124,11 @@ const FullToolCard = memo(({ tool }: { tool: ToolEntry }) => {
       role="button"
       tabIndex={0}
       className="group flex flex-row bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md"
-      onClick={() => navigate(tool.path)}
+      onClick={() => void navigate(tool.path)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          navigate(tool.path);
+          void navigate(tool.path);
         }
       }}
     >

@@ -18,7 +18,7 @@ const WEB_APP_URL = __DEV__
   : `${PROD_URL}${WEB_EDITOR_PATH}`;
 
 interface WebViewEditorProps {
-  initialData: any;
+  initialData: Record<string, unknown>;
   onSave: (base64: string) => void;
   onCancel: () => void;
 }
@@ -26,30 +26,32 @@ interface WebViewEditorProps {
 export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorProps) {
   const webViewRef = useRef<WebView>(null);
   const insets = useSafeAreaInsets();
-  const [isReady, setIsReady] = useState(false);
+  const [_isReady, setIsReady] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
 
   // Load auth token on mount
   useEffect(() => {
-    secureStorage.getToken().then(setAuthToken);
+    void secureStorage.getToken().then(setAuthToken);
   }, []);
 
   // Send initialization data when the web app reports it is ready
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
       try {
-        const data = JSON.parse(event.nativeEvent.data);
+        const data = JSON.parse(event.nativeEvent.data) as {
+          type: string;
+          payload?: { image?: string };
+        };
 
         switch (data.type) {
           case 'EDITOR_READY':
             setIsReady(true);
-            // Send initial state to the web editor
             webViewRef.current?.postMessage(
               JSON.stringify({
                 type: 'INIT_DATA',
                 payload: {
                   ...initialData,
-                  authToken, // Pass token for API calls within the web view if needed
+                  authToken,
                 },
               })
             );
@@ -66,7 +68,6 @@ export function WebViewEditor({ initialData, onSave, onCancel }: WebViewEditorPr
             break;
 
           case 'LOG':
-            console.log('[WebEditor]', data.payload);
             break;
         }
       } catch (err) {

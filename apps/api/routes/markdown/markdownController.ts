@@ -3,8 +3,10 @@
  * Convert markdown content to HTML, plain text, and export formats
  */
 
-import express, { type Request, type Response } from 'express';
+import express, { type Response } from 'express';
+import { z } from 'zod';
 
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import {
   markdownToHtml,
   markdownToPlainText,
@@ -17,9 +19,11 @@ const log = createLogger('markdown');
 
 const router = express.Router();
 
-interface ContentRequest {
-  content: string;
-}
+const contentRequestSchema = z.object({
+  content: z.string().min(1),
+});
+
+type ContentRequest = z.infer<typeof contentRequestSchema>;
 
 interface MarkdownResponse {
   success: boolean;
@@ -36,10 +40,8 @@ interface MarkdownResponse {
  */
 router.post(
   '/to-html',
-  async (
-    req: Request<Record<string, never>, MarkdownResponse, ContentRequest>,
-    res: Response<MarkdownResponse>
-  ) => {
+  validateBody(contentRequestSchema),
+  async (req: TypedRequest<ContentRequest>, res: Response<MarkdownResponse>) => {
     try {
       const { content } = req.body;
 
@@ -75,10 +77,8 @@ router.post(
  */
 router.post(
   '/to-plain-text',
-  async (
-    req: Request<Record<string, never>, MarkdownResponse, ContentRequest>,
-    res: Response<MarkdownResponse>
-  ) => {
+  validateBody(contentRequestSchema),
+  async (req: TypedRequest<ContentRequest>, res: Response<MarkdownResponse>) => {
     try {
       const { content } = req.body;
 
@@ -114,10 +114,8 @@ router.post(
  */
 router.post(
   '/for-export',
-  async (
-    req: Request<Record<string, never>, MarkdownResponse, ContentRequest>,
-    res: Response<MarkdownResponse>
-  ) => {
+  validateBody(contentRequestSchema),
+  async (req: TypedRequest<ContentRequest>, res: Response<MarkdownResponse>) => {
     try {
       const { content } = req.body;
 
@@ -153,10 +151,8 @@ router.post(
  */
 router.post(
   '/check',
-  async (
-    req: Request<Record<string, never>, MarkdownResponse, ContentRequest>,
-    res: Response<MarkdownResponse>
-  ) => {
+  validateBody(contentRequestSchema),
+  async (req: TypedRequest<ContentRequest>, res: Response<MarkdownResponse>) => {
     try {
       const { content } = req.body;
 

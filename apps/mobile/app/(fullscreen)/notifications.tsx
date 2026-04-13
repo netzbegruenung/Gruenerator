@@ -61,7 +61,7 @@ export default function NotificationsScreen() {
 
   const handlePress = useCallback(
     (notification: AppNotification) => {
-      if (!notification.is_read) markAsRead(notification.id);
+      if (!notification.is_read) void markAsRead(notification.id);
       if (notification.action_url) {
         try {
           router.push(notification.action_url as never);

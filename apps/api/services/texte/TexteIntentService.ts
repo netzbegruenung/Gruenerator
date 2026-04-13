@@ -5,6 +5,8 @@
 
 import { createLogger } from '../../utils/logger.js';
 
+import type { AIWorkerPool } from '../../workers/types.js';
+
 const log = createLogger('TexteIntentService');
 
 const GERMAN_LETTER = '[a-zA-ZäöüÄÖÜß]';
@@ -264,8 +266,7 @@ export function detectTypeByKeywords(message: string): TextTypeDetectionResult |
  */
 export async function detectTypeWithAI(
   message: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  aiWorkerPool: { processRequest: (...args: any[]) => Promise<{ content?: string | null }> },
+  aiWorkerPool: AIWorkerPool,
   hint?: { type: string; description: string }
 ): Promise<TextTypeDetectionResult | null> {
   if (!aiWorkerPool) {
@@ -327,7 +328,7 @@ Antworte NUR mit JSON:
       return null;
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
+    const parsed = JSON.parse(jsonMatch[0]) as { textType?: string; confidence?: number };
     const textType = parsed.textType || 'universal';
     const mapping = TEXT_TYPE_MAPPINGS[textType] || TEXT_TYPE_MAPPINGS['universal'];
 
@@ -336,7 +337,7 @@ Antworte NUR mit JSON:
     return {
       detectedType: textType,
       route: mapping.route,
-      confidence: parsed.confidence || 0.8,
+      confidence: parsed.confidence ?? 0.8,
       params: mapping.params || {},
       method: 'ai',
     };
@@ -356,8 +357,7 @@ Antworte NUR mit JSON:
  */
 export async function detectTextType(
   message: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  aiWorkerPool: { processRequest: (...args: any[]) => Promise<{ content?: string | null }> }
+  aiWorkerPool: AIWorkerPool
 ): Promise<TextTypeDetectionResult> {
   log.debug('[TexteIntentService] Detecting text type for:', message.substring(0, 100));
 

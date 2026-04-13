@@ -6,6 +6,7 @@
 import { createMistral } from '@ai-sdk/mistral';
 import { createOpenAI } from '@ai-sdk/openai';
 
+import { env } from '../../../config/env.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
 
 import type { AgentConfig } from './types.js';
@@ -15,7 +16,7 @@ const LITELLM_DEFAULT_MODEL = 'gpt-oss:120b';
 
 export const VISION_MODEL = {
   provider: 'regolo' as const,
-  model: process.env.VISION_DEFAULT_MODEL || 'gemma4-31b',
+  model: env.VISION_DEFAULT_MODEL || 'gemma4-31b',
 };
 
 export { INTERMEDIATE_MODEL, getIntermediateModel } from '../../../services/ai/providers.js';
@@ -39,7 +40,7 @@ export const AVAILABLE_MODELS: Record<
   litellm: { provider: 'litellm', model: 'gpt-oss:120b', contextWindow: 16384 },
   regolo: {
     provider: 'regolo',
-    model: process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
+    model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
     contextWindow: 32768,
   },
 };
@@ -87,7 +88,7 @@ let regoloInstance: ReturnType<typeof createOpenAI> | null = null;
 function getMistralProvider() {
   if (!mistralInstance) {
     mistralInstance = createMistral({
-      ...(process.env.MISTRAL_API_KEY && { apiKey: process.env.MISTRAL_API_KEY }),
+      ...(env.MISTRAL_API_KEY && { apiKey: env.MISTRAL_API_KEY }),
     });
   }
   return mistralInstance;
@@ -95,13 +96,13 @@ function getMistralProvider() {
 
 function getLiteLLMProvider() {
   if (!litellmInstance) {
-    const baseURL = process.env.LITELLM_BASE_URL;
+    const baseURL = env.LITELLM_BASE_URL;
     if (!baseURL) {
       throw new Error('LITELLM_BASE_URL is not configured');
     }
     litellmInstance = createOpenAI({
       baseURL: `${baseURL}/v1`,
-      apiKey: process.env.LITELLM_API_KEY || '',
+      apiKey: env.LITELLM_API_KEY || '',
       name: 'litellm',
     });
   }
@@ -110,7 +111,7 @@ function getLiteLLMProvider() {
 
 function getRegoloProvider() {
   if (!regoloInstance) {
-    const apiKey = process.env.REGOLO_API_KEY;
+    const apiKey = env.REGOLO_API_KEY;
     if (!apiKey) {
       throw new Error('REGOLO_API_KEY is not configured');
     }
@@ -127,14 +128,14 @@ export function isProviderConfigured(provider: string): boolean {
   let configured = false;
   switch (provider) {
     case 'mistral':
-      configured = !!process.env.MISTRAL_API_KEY;
+      configured = !!env.MISTRAL_API_KEY;
       console.log(
         `[providers] Checking mistral: MISTRAL_API_KEY=${configured ? 'set' : 'NOT SET'}`
       );
       return configured;
     case 'litellm': {
-      const hasBaseUrl = !!process.env.LITELLM_BASE_URL;
-      const hasApiKey = !!process.env.LITELLM_API_KEY;
+      const hasBaseUrl = !!env.LITELLM_BASE_URL;
+      const hasApiKey = !!env.LITELLM_API_KEY;
       configured = hasBaseUrl && hasApiKey;
       console.log(
         `[providers] Checking litellm: BASE_URL=${hasBaseUrl ? 'set' : 'NOT SET'}, API_KEY=${hasApiKey ? 'set' : 'NOT SET'}`
@@ -142,7 +143,7 @@ export function isProviderConfigured(provider: string): boolean {
       return configured;
     }
     case 'regolo':
-      configured = !!process.env.REGOLO_API_KEY;
+      configured = !!env.REGOLO_API_KEY;
       console.log(`[providers] Checking regolo: REGOLO_API_KEY=${configured ? 'set' : 'NOT SET'}`);
       return configured;
     case 'anthropic':
@@ -170,12 +171,12 @@ export function getModel(provider: string, modelId: string): LanguageModel {
       return model;
     }
     case 'regolo': {
-      if (!process.env.REGOLO_API_KEY) {
+      if (!env.REGOLO_API_KEY) {
         console.log(`[providers] REGOLO_API_KEY not set, falling back to Mistral: ${modelId}`);
         const mistral = getMistralProvider();
         return mistral(modelId);
       }
-      const regoloDefault = process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
+      const regoloDefault = env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
       console.log(`[providers] Creating Regolo model: ${modelId || regoloDefault}`);
       const regolo = getRegoloProvider();
       const model = regolo.chat(modelId || regoloDefault);

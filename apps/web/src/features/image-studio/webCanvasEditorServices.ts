@@ -21,6 +21,6 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   fetchUnsplashImageAsFile,
   openUnsplashSearch,
   useGenerateSocialPost,
-  apiBaseUrl: import.meta.env.VITE_API_URL || '',
-  iconifyApiUrl: import.meta.env.VITE_ICONIFY_API_URL || '',
+  apiBaseUrl: (import.meta.env.VITE_API_URL as string | undefined) ?? '',
+  iconifyApiUrl: (import.meta.env.VITE_ICONIFY_API_URL as string | undefined) ?? '',
 };

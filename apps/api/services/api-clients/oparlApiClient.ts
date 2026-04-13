@@ -4,6 +4,19 @@ import { fileURLToPath } from 'url';
 
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 
+import {
+  oparlBodyListResponseSchema,
+  oparlOrganizationListResponseSchema,
+  oparlPaperListResponseSchema,
+  oparlSystemSchema,
+  type OparlBody,
+  type OparlOrganization,
+  type OparlPaper,
+  type OparlSystem,
+} from './schemas/oparl.js';
+
+export type { OparlBody, OparlOrganization, OparlPaper, OparlSystem } from './schemas/oparl.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -12,68 +25,6 @@ export interface OparlEndpoint {
   city: string;
   url: string;
   state?: string;
-  [key: string]: unknown;
-}
-
-export interface OparlSystem {
-  id: string;
-  type: string;
-  name?: string;
-  body?: string;
-  [key: string]: unknown;
-}
-
-export interface OparlBody {
-  id: string;
-  type: string;
-  name?: string;
-  organization?: string;
-  paper?: string;
-  meeting?: string;
-  person?: string;
-  [key: string]: unknown;
-}
-
-export interface OparlOrganization {
-  id: string;
-  type: string;
-  name?: string;
-  shortName?: string;
-  classification?: string;
-  [key: string]: unknown;
-}
-
-export interface OparlPaper {
-  id: string;
-  type: string;
-  name?: string;
-  reference?: string;
-  paperType?: string;
-  originatorOrganization?: string | string[];
-  underDirectionOf?: string | string[];
-  consultation?: Array<{
-    organization?: string | string[];
-    [key: string]: unknown;
-  }>;
-  mainFile?: {
-    id?: string;
-    name?: string;
-    fileName?: string;
-    accessUrl?: string;
-    downloadUrl?: string;
-    mimeType?: string;
-    [key: string]: unknown;
-  };
-  auxiliaryFile?: Array<{
-    id?: string;
-    name?: string;
-    fileName?: string;
-    accessUrl?: string;
-    downloadUrl?: string;
-    mimeType?: string;
-    [key: string]: unknown;
-  }>;
-  date?: string;
   [key: string]: unknown;
 }
 
@@ -163,8 +114,8 @@ class OparlApiClient {
   async getSystem(systemUrl: string): Promise<OparlSystem> {
     try {
       console.log(`[OParlAPI] Fetching system: ${systemUrl}`);
-      const response = await this.client.get<OparlSystem>(systemUrl);
-      return response.data;
+      const response = await this.client.get(systemUrl);
+      return oparlSystemSchema.parse(response.data);
     } catch (error) {
       const err = error as AxiosError;
       console.error(`[OParlAPI] Error fetching system:`, err.message);
@@ -182,17 +133,16 @@ class OparlApiClient {
       }
 
       console.log(`[OParlAPI] Fetching bodies from: ${bodyUrl}`);
-      const response = await this.client.get<OparlBody[] | { data: OparlBody[] } | OparlBody>(
-        bodyUrl
-      );
+      const response = await this.client.get(bodyUrl);
+      const parsed = oparlBodyListResponseSchema.parse(response.data);
 
-      if (Array.isArray(response.data)) {
-        return response.data;
+      if (Array.isArray(parsed)) {
+        return parsed;
       }
-      if ((response.data as { data: OparlBody[] }).data) {
-        return (response.data as { data: OparlBody[] }).data;
+      if ('data' in parsed) {
+        return parsed.data;
       }
-      return [response.data as OparlBody];
+      return [parsed];
     } catch (error) {
       const err = error as AxiosError;
       console.error(`[OParlAPI] Error fetching bodies:`, err.message);
@@ -219,41 +169,23 @@ class OparlApiClient {
         const urlWithLimit = organizationUrl.includes('?')
           ? `${organizationUrl}&limit=200`
           : `${organizationUrl}?limit=200`;
-        response = await this.client.get<unknown>(urlWithLimit);
+        response = await this.client.get(urlWithLimit);
       } catch (err) {
         const axiosErr = err as AxiosError;
         if (axiosErr.response?.status === 400) {
           console.log(`[OParlAPI] Retrying organizations without limit param`);
           const cleanUrl = organizationUrl.split('?')[0];
-          response = await this.client.get<unknown>(cleanUrl);
+          response = await this.client.get(cleanUrl);
         } else {
           throw err;
         }
       }
 
-      const data = response.data;
-      if (Array.isArray(data)) {
-        return data.filter(
-          (item): item is OparlOrganization =>
-            typeof item === 'object' &&
-            item !== null &&
-            typeof (item as OparlOrganization).id === 'string'
-        );
+      const parsed = oparlOrganizationListResponseSchema.parse(response.data);
+      if (Array.isArray(parsed)) {
+        return parsed;
       }
-      if (
-        data &&
-        typeof data === 'object' &&
-        'data' in data &&
-        Array.isArray((data as Record<string, unknown>).data)
-      ) {
-        return ((data as Record<string, unknown>).data as unknown[]).filter(
-          (item): item is OparlOrganization =>
-            typeof item === 'object' &&
-            item !== null &&
-            typeof (item as OparlOrganization).id === 'string'
-        );
-      }
-      return [];
+      return parsed.data;
     } catch (error) {
       const err = error as AxiosError;
       console.error(`[OParlAPI] Error fetching organizations:`, err.message);
@@ -323,7 +255,7 @@ class OparlApiClient {
       // Try with limit parameter first, fallback to without
       let response;
       try {
-        response = await this.client.get<OparlPaper[] | { data: OparlPaper[] }>(paperUrl, {
+        response = await this.client.get(paperUrl, {
           params: options.limit ? { limit: options.limit } : {},
         });
       } catch (err) {
@@ -331,18 +263,14 @@ class OparlApiClient {
         if (axiosErr.response?.status === 400) {
           // API doesn't support limit param, try without
           console.log(`[OParlAPI] Retrying papers without limit param`);
-          response = await this.client.get<OparlPaper[] | { data: OparlPaper[] }>(paperUrl);
+          response = await this.client.get(paperUrl);
         } else {
           throw err;
         }
       }
 
-      let papers: OparlPaper[] = [];
-      if (Array.isArray(response.data)) {
-        papers = response.data;
-      } else if ((response.data as { data: OparlPaper[] }).data) {
-        papers = (response.data as { data: OparlPaper[] }).data;
-      }
+      const papersParsed = oparlPaperListResponseSchema.parse(response.data);
+      let papers: OparlPaper[] = Array.isArray(papersParsed) ? papersParsed : papersParsed.data;
 
       // If limit was requested, slice the results
       if (options.limit && papers.length > options.limit) {
@@ -497,16 +425,14 @@ class OparlApiClient {
           // Use page= parameter for pagination (works with most OParl APIs)
           const separator = paperUrl.includes('?') ? '&' : '?';
           const paginatedUrl = `${paperUrl}${separator}limit=${pageSize}&page=${pageNum}`;
-          response = await this.client.get<{ data?: OparlPaper[] } | OparlPaper[]>(paginatedUrl);
+          response = await this.client.get(paginatedUrl);
         } catch (err) {
           const axiosErr = err as AxiosError;
           if (axiosErr.response?.status === 400) {
             // Try without page param (some APIs don't support it)
             try {
               const separator = paperUrl.includes('?') ? '&' : '?';
-              response = await this.client.get<{ data?: OparlPaper[] } | OparlPaper[]>(
-                `${paperUrl}${separator}limit=${pageSize}`
-              );
+              response = await this.client.get(`${paperUrl}${separator}limit=${pageSize}`);
               // If no page support, we can only get one page
               pageNum = maxPages + 1;
             } catch (_retryErr) {
@@ -525,9 +451,8 @@ class OparlApiClient {
 
         if (!response) break;
 
-        const papers =
-          (response.data as { data?: OparlPaper[] }).data ||
-          (Array.isArray(response.data) ? response.data : []);
+        const pageResult = oparlPaperListResponseSchema.parse(response.data);
+        const papers = Array.isArray(pageResult) ? pageResult : (pageResult.data ?? []);
         totalPapersScanned += papers.length;
 
         if (papers.length === 0) {

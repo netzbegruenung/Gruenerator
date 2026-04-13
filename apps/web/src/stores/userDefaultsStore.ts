@@ -52,11 +52,14 @@ export const useUserDefaultsStore = create<UserDefaultsStore>()(
 
         set({ isLoading: true });
         try {
-          const response = await apiClient.get('/auth/profile/user-defaults', {
-            skipAuthRedirect: true,
-          });
+          const response = await apiClient.get<{ userDefaults?: UserDefaults }>(
+            '/auth/profile/user-defaults',
+            {
+              skipAuthRedirect: true,
+            }
+          );
           set({
-            defaults: response.data.userDefaults || {},
+            defaults: response.data.userDefaults ?? {},
             isHydrated: true,
             isLoading: false,
           });

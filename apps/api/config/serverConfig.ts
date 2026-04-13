@@ -3,6 +3,8 @@
  * Extracted from server.mjs for better modularity
  */
 
+import { env } from './env.js';
+
 import type { ServerOptions as HttpServerOptions } from 'http';
 
 export interface ServerConfig {
@@ -41,8 +43,8 @@ const defaultConfig: ServerConfig = {
 export function getServerConfig(overrides?: ServerConfigOverrides): ServerConfig {
   return {
     ...defaultConfig,
-    port: overrides?.port ?? parseInt(process.env.PORT || String(defaultConfig.port), 10),
-    host: overrides?.host ?? process.env.HOST ?? defaultConfig.host,
+    port: overrides?.port ?? env.PORT,
+    host: overrides?.host ?? env.HOST,
   };
 }
 

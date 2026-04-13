@@ -19,7 +19,7 @@ function NavigateToChatOnSend() {
       if (threadRuntime.getState().isRunning && !hasNavigated.current) {
         hasNavigated.current = true;
         useAgentStore.getState().setChatViewMode('thread');
-        navigate('/chat');
+        void navigate('/chat');
       }
       if (!threadRuntime.getState().isRunning) {
         hasNavigated.current = false;

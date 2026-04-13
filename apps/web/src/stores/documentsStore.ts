@@ -5,6 +5,69 @@ import apiClient from '../components/utils/apiClient';
 
 type DocumentStatus = 'completed' | 'processing' | 'pending' | 'uploaded' | 'failed';
 
+// === API RESPONSE SHAPES ===
+interface DocumentsListResponse {
+  success: boolean;
+  message?: string;
+  data?: Document[];
+}
+
+interface CombinedContentResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    documents: Document[];
+    texts: Text[];
+  };
+}
+
+interface DocumentUploadResponse {
+  success: boolean;
+  message?: string;
+  data: Document;
+}
+
+interface DocumentStatusResponse {
+  data?: {
+    status: DocumentStatus;
+  };
+}
+
+interface DocumentDeleteResponse {
+  success: boolean;
+  message?: string;
+}
+
+interface DocumentMetadataResponse {
+  success: boolean;
+  message?: string;
+}
+
+interface DocumentRefreshResponse {
+  success: boolean;
+  message?: string;
+  data: Document;
+}
+
+interface DocumentSearchResponse {
+  success: boolean;
+  message?: string;
+  searchType?: string;
+  data?: SearchResult[];
+}
+
+interface WolkeBrowseApiResponse {
+  success: boolean;
+  message?: string;
+  files: WolkeFile[];
+}
+
+interface WolkeImportApiResponse {
+  success: boolean;
+  message?: string;
+  summary?: Record<string, unknown>;
+}
+
 interface Document {
   id: string;
   title: string;
@@ -168,18 +231,18 @@ export const useDocumentsStore = create<DocumentsStore>()(
         });
 
         try {
-          const response = await apiClient.get('/documents/user', {
+          const response = await apiClient.get<DocumentsListResponse>('/documents/user', {
             skipAuthRedirect: true,
           });
           const result = response.data;
 
           if (result.success) {
             set((state) => {
-              state.documents = result.data || [];
+              state.documents = result.data ?? [];
               state.isLoading = false;
             });
           } else {
-            throw new Error(result.message || 'Failed to fetch documents');
+            throw new Error(result.message ?? 'Failed to fetch documents');
           }
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -204,20 +267,23 @@ export const useDocumentsStore = create<DocumentsStore>()(
         });
 
         try {
-          const response = await apiClient.get('/documents/combined-content', {
-            skipAuthRedirect: true,
-          });
+          const response = await apiClient.get<CombinedContentResponse>(
+            '/documents/combined-content',
+            {
+              skipAuthRedirect: true,
+            }
+          );
           const result = response.data;
 
           if (result.success) {
             set((state) => {
-              state.documents = result.data.documents || [];
-              state.texts = result.data.texts || [];
+              state.documents = result.data.documents ?? [];
+              state.texts = result.data.texts ?? [];
               state.isLoading = false;
             });
             return result.data;
           } else {
-            throw new Error(result.message || 'Failed to fetch combined content');
+            throw new Error(result.message ?? 'Failed to fetch combined content');
           }
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -252,9 +318,13 @@ export const useDocumentsStore = create<DocumentsStore>()(
             formData.append('group_id', groupId);
           }
 
-          const response = await apiClient.post('/documents/upload-manual', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
+          const response = await apiClient.post<DocumentUploadResponse>(
+            '/documents/upload-manual',
+            formData,
+            {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            }
+          );
           const result = response.data;
 
           if (result.success) {
@@ -266,7 +336,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
             console.log('[DocumentsStore] Document vectorized successfully:', result.data.id);
             return result.data;
           } else {
-            throw new Error(result.message || 'Failed to process document');
+            throw new Error(result.message ?? 'Failed to process document');
           }
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -295,9 +365,13 @@ export const useDocumentsStore = create<DocumentsStore>()(
             formData.append('title', title);
           }
 
-          const response = await apiClient.post('/documents/upload-only', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
+          const response = await apiClient.post<DocumentUploadResponse>(
+            '/documents/upload-only',
+            formData,
+            {
+              headers: { 'Content-Type': 'multipart/form-data' },
+            }
+          );
           const result = response.data;
 
           if (result.success) {
@@ -314,7 +388,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
             });
             return doc;
           } else {
-            throw new Error(result.message || 'Failed to upload file');
+            throw new Error(result.message ?? 'Failed to upload file');
           }
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -333,8 +407,10 @@ export const useDocumentsStore = create<DocumentsStore>()(
           new Promise((resolve, reject) => {
             const interval = setInterval(async () => {
               try {
-                const response = await apiClient.get(`/documents/${documentId}/status`);
-                const status = response.data?.data?.status as DocumentStatus;
+                const response = await apiClient.get<DocumentStatusResponse>(
+                  `/documents/${documentId}/status`
+                );
+                const status = (response.data?.data?.status ?? 'pending') as DocumentStatus;
 
                 if (onStatusChange) onStatusChange(status);
 
@@ -369,11 +445,14 @@ export const useDocumentsStore = create<DocumentsStore>()(
         try {
           console.log('[DocumentsStore] Crawling URL (manual mode):', { url, title, groupId });
 
-          const response = await apiClient.post('/documents/crawl-url-manual', {
-            url: url.trim(),
-            title: title.trim(),
-            group_id: groupId,
-          });
+          const response = await apiClient.post<DocumentUploadResponse>(
+            '/documents/crawl-url-manual',
+            {
+              url: url.trim(),
+              title: title.trim(),
+              group_id: groupId,
+            }
+          );
           const result = response.data;
 
           if (result.success) {
@@ -388,7 +467,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
             );
             return result.data;
           } else {
-            throw new Error(result.message || 'Failed to crawl and process URL');
+            throw new Error(result.message ?? 'Failed to crawl and process URL');
           }
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -406,7 +485,9 @@ export const useDocumentsStore = create<DocumentsStore>()(
       deleteDocument: async (documentId) => {
         try {
           console.log('[DocumentsStore] Deleting document:', documentId);
-          const response = await apiClient.delete(`/documents/${documentId}`);
+          const response = await apiClient.delete<DocumentDeleteResponse>(
+            `/documents/${documentId}`
+          );
           const result = response.data;
 
           if (result.success) {
@@ -416,7 +497,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
             console.log('[DocumentsStore] Document deleted successfully');
             return true;
           } else {
-            throw new Error(result.message || 'Failed to delete document');
+            throw new Error(result.message ?? 'Failed to delete document');
           }
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -445,7 +526,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
             documentIds,
           });
 
-          const response = await apiClient.post('/documents/search', {
+          const response = await apiClient.post<DocumentSearchResponse>('/documents/search', {
             query,
             limit,
             searchMode,
@@ -455,16 +536,16 @@ export const useDocumentsStore = create<DocumentsStore>()(
 
           if (result.success) {
             set((state) => {
-              state.searchResults = (result.data || []).map((item: SearchResult) => ({
+              state.searchResults = (result.data ?? []).map((item: SearchResult) => ({
                 ...item,
-                search_type: item.search_type || result.searchType || searchMode,
+                search_type: item.search_type ?? result.searchType ?? searchMode,
               }));
               state.isSearching = false;
             });
-            console.log(`[DocumentsStore] Found ${result.data?.length || 0} search results`);
-            return result.data || [];
+            console.log(`[DocumentsStore] Found ${result.data?.length ?? 0} search results`);
+            return result.data ?? [];
           } else {
-            throw new Error(result.message || 'Failed to search documents');
+            throw new Error(result.message ?? 'Failed to search documents');
           }
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -521,9 +602,12 @@ export const useDocumentsStore = create<DocumentsStore>()(
       updateDocumentTitle: async (documentId, newTitle) => {
         try {
           console.log('[DocumentsStore] Updating document title:', { documentId, newTitle });
-          const response = await apiClient.post(`/documents/${documentId}/metadata`, {
-            title: newTitle.trim(),
-          });
+          const response = await apiClient.post<DocumentMetadataResponse>(
+            `/documents/${documentId}/metadata`,
+            {
+              title: newTitle.trim(),
+            }
+          );
           const result = response.data;
 
           if (result.success) {
@@ -539,7 +623,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
             console.log('[DocumentsStore] Document title updated successfully');
             return true;
           } else {
-            throw new Error(result.message || 'Failed to update document title');
+            throw new Error(result.message ?? 'Failed to update document title');
           }
         } catch (error) {
           console.error('[DocumentsStore] Error updating document title:', error);
@@ -551,7 +635,9 @@ export const useDocumentsStore = create<DocumentsStore>()(
       refreshDocument: async (documentId) => {
         try {
           console.log('[DocumentsStore] Refreshing document:', documentId);
-          const response = await apiClient.get(`/documents/${documentId}/content`);
+          const response = await apiClient.get<DocumentRefreshResponse>(
+            `/documents/${documentId}/content`
+          );
           const result = response.data;
 
           if (result.success) {
@@ -564,7 +650,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
             console.log('[DocumentsStore] Document refreshed successfully');
             return result.data;
           } else {
-            throw new Error(result.message || 'Failed to refresh document');
+            throw new Error(result.message ?? 'Failed to refresh document');
           }
         } catch (error) {
           console.error('[DocumentsStore] Error refreshing document:', error);
@@ -581,7 +667,9 @@ export const useDocumentsStore = create<DocumentsStore>()(
 
         try {
           console.log('[DocumentsStore] Browsing Wolke files for share link:', shareLinkId);
-          const response = await apiClient.get(`/documents/wolke/browse/${shareLinkId}`);
+          const response = await apiClient.get<WolkeBrowseApiResponse>(
+            `/documents/wolke/browse/${shareLinkId}`
+          );
           const result = response.data;
 
           set((state) => {
@@ -596,7 +684,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
             );
             return result;
           } else {
-            throw new Error(result.message || 'Failed to browse Wolke files');
+            throw new Error(result.message ?? 'Failed to browse Wolke files');
           }
         } catch (error: unknown) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -637,7 +725,10 @@ export const useDocumentsStore = create<DocumentsStore>()(
             }, 200);
           }
 
-          const response = await apiClient.post('/documents/wolke/import', { shareLinkId, files });
+          const response = await apiClient.post<WolkeImportApiResponse>('/documents/wolke/import', {
+            shareLinkId,
+            files,
+          });
           if (progressInterval) clearInterval(progressInterval);
           const result = response.data;
 

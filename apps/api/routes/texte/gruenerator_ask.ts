@@ -1,8 +1,11 @@
-import express, { type Router, type Request, type Response } from 'express';
+import express, { type Router, type Response } from 'express';
+import { z } from 'zod';
 
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import { type AuthenticatedRequest } from '../../middleware/types.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import {
   MARKDOWN_FORMATTING_INSTRUCTIONS,
@@ -11,13 +14,7 @@ import {
 } from '../../utils/prompt/index.js';
 
 import type { UserProfile } from '../../services/user/types.js';
-import type {
-  ToolCall,
-  ToolResult,
-  SearchResult,
-  DocumentContext,
-  MessageContent,
-} from '../../types/routes.js';
+import type { ToolResult, SearchResult, DocumentContext } from '../../types/routes.js';
 import type { AIWorkerPool } from '../../types/workers.js';
 import type { Citation, SourceInfo } from '../../utils/prompt/types.js';
 import type { Message } from '../../workers/types.js';
@@ -28,12 +25,12 @@ const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 const router: Router = express.Router();
 
 // Helper to get user profile from request
-const getUser = (req: Request): UserProfile | undefined => (req as AuthenticatedRequest).user;
+const getUser = (req: AuthenticatedRequest): UserProfile | undefined => req.user;
 
-interface GrueneratorAskRequestBody {
-  question: string;
-  group_id?: string;
-}
+const grueneratorAskSchema = z.object({
+  question: z.string().min(1),
+  group_id: z.string().optional(),
+});
 
 interface QueryComplexity {
   isComplex: boolean;
@@ -80,40 +77,37 @@ interface FinalResponse {
 
 router.use(authMiddlewareModule.requireAuth);
 
-router.post('/', ensureAuthenticated, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { question, group_id } = req.body as GrueneratorAskRequestBody;
-    const user = getUser(req);
+router.post(
+  '/',
+  ensureAuthenticated,
+  validateBody(grueneratorAskSchema),
+  async (req: TypedRequest<z.infer<typeof grueneratorAskSchema>>, res: Response): Promise<void> => {
+    try {
+      const { question, group_id } = req.body;
+      const user = getUser(req as AuthenticatedRequest);
 
-    if (!question || question.trim().length === 0) {
-      res.status(400).json({
+      log.debug(
+        `[claude_gruenerator_ask] Processing question for user ${user?.id}:`,
+        question.substring(0, 100)
+      );
+
+      const result = await handleQuestionWithTools(
+        question,
+        user?.id || 'anonymous',
+        group_id,
+        getAIWorkerPool(req)
+      );
+
+      res.json(result);
+    } catch (error) {
+      log.error('[claude_gruenerator_ask] Error:', error);
+      res.status(500).json({
         success: false,
-        message: 'Question is required',
+        message: (error as Error).message || 'Failed to process question',
       });
-      return;
     }
-
-    log.debug(
-      `[claude_gruenerator_ask] Processing question for user ${user?.id}:`,
-      question.substring(0, 100)
-    );
-
-    const result = await handleQuestionWithTools(
-      question,
-      user?.id || 'anonymous',
-      group_id,
-      req.app.locals.aiWorkerPool
-    );
-
-    res.json(result);
-  } catch (error) {
-    log.error('[claude_gruenerator_ask] Error:', error);
-    res.status(500).json({
-      success: false,
-      message: (error as Error).message || 'Failed to process question',
-    });
   }
-});
+);
 
 async function handleQuestionWithTools(
   question: string,

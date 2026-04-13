@@ -5,6 +5,7 @@
 
 import { generateText, type ModelMessage, type Tool } from 'ai';
 
+import { env } from '../../config/env.js';
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
 
@@ -137,13 +138,13 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     );
   }
 
-  const model = options.model || process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
+  const model = options.model || env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
 
   const modelMessages = convertMessages(messages, systemPrompt);
 
   const toolsPayload = ToolHandler.prepareToolsPayload(
     {
-      ...(options.tools != null && { tools: options.tools as any }),
+      ...(options.tools != null && { tools: options.tools }),
       ...(options.tool_choice != null && { tool_choice: options.tool_choice }),
     },
     'regolo',
@@ -184,8 +185,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         ? result.toolCalls.map((tc, index) => ({
             id: tc.toolCallId || `regolo_tool_${index}`,
             name: tc.toolName,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            input: (tc as any).input as Record<string, unknown>,
+            input: tc.input as Record<string, unknown>,
           }))
         : undefined;
 
@@ -226,7 +226,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
             prompt_tokens: result.usage.inputTokens,
             completion_tokens: result.usage.outputTokens,
             total_tokens: result.usage.totalTokens,
-          }
+          },
         }),
       }),
     };

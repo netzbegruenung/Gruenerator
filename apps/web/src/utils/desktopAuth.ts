@@ -25,7 +25,7 @@ const getSecureStorage = async () => {
   }
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 const REDIRECT_URI = 'gruenerator://auth/callback';
 
 export type AuthSource =

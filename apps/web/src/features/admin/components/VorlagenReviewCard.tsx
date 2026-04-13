@@ -4,7 +4,7 @@ import { HiCheck, HiX, HiExternalLink } from 'react-icons/hi';
 
 import type { AdminVorlage } from '../hooks/useAdminVorlagen';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short', year: 'numeric' };
 
 interface VorlagenReviewCardProps {

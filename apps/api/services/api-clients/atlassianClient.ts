@@ -1,4 +1,33 @@
 import axios from 'axios';
+import { z } from 'zod';
+
+import {
+  jiraProjectSchema,
+  jiraSearchResponseSchema,
+  jiraIssueSchema,
+  confluenceSpaceListResponseSchema,
+  confluencePageListResponseSchema,
+  confluencePageContentSchema,
+  confluenceSearchResponseSchema,
+  atlassianResourceSchema,
+  type JiraProject,
+  type JiraIssue,
+  type JiraAttachment,
+  type ConfluenceSpace,
+  type ConfluencePage,
+  type ConfluencePageContent,
+  type AtlassianResource,
+} from './schemas/atlassian.js';
+
+export type {
+  JiraProject,
+  JiraIssue,
+  JiraAttachment,
+  ConfluenceSpace,
+  ConfluencePage,
+  ConfluencePageContent,
+  AtlassianResource,
+} from './schemas/atlassian.js';
 
 function authHeaders(token: string) {
   return { Authorization: `Bearer ${token}` };
@@ -6,40 +35,12 @@ function authHeaders(token: string) {
 
 // Jira
 
-export interface JiraProject {
-  id: string;
-  key: string;
-  name: string;
-  projectTypeKey: string;
-}
-
-export interface JiraIssue {
-  id: string;
-  key: string;
-  fields: {
-    summary: string;
-    status: { name: string };
-    issuetype: { name: string };
-    updated: string;
-    description?: unknown;
-    attachment?: JiraAttachment[];
-  };
-}
-
-export interface JiraAttachment {
-  id: string;
-  filename: string;
-  mimeType: string;
-  size: number;
-  content: string;
-}
-
 export async function listJiraProjects(token: string, cloudId: string): Promise<JiraProject[]> {
-  const response = await axios.get<JiraProject[]>(
+  const response = await axios.get(
     `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/project`,
     { headers: authHeaders(token) }
   );
-  return response.data;
+  return z.array(jiraProjectSchema).parse(response.data);
 }
 
 export async function listJiraIssues(
@@ -51,14 +52,14 @@ export async function listJiraIssues(
   const jql = query
     ? `project = ${projectKey} AND text ~ "${query}" ORDER BY updated DESC`
     : `project = ${projectKey} ORDER BY updated DESC`;
-  const response = await axios.get<{ issues: JiraIssue[] }>(
+  const response = await axios.get(
     `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/search`,
     {
       headers: authHeaders(token),
       params: { jql, maxResults: 50, fields: 'summary,status,issuetype,updated,description' },
     }
   );
-  return response.data.issues;
+  return jiraSearchResponseSchema.parse(response.data).issues;
 }
 
 export async function getJiraIssue(
@@ -66,14 +67,14 @@ export async function getJiraIssue(
   cloudId: string,
   issueKey: string
 ): Promise<JiraIssue> {
-  const response = await axios.get<JiraIssue>(
+  const response = await axios.get(
     `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/issue/${issueKey}`,
     {
       headers: authHeaders(token),
       params: { fields: 'summary,status,issuetype,updated,description,attachment' },
     }
   );
-  return response.data;
+  return jiraIssueSchema.parse(response.data);
 }
 
 export async function getJiraIssueAttachments(
@@ -87,42 +88,18 @@ export async function getJiraIssueAttachments(
 
 // Confluence
 
-export interface ConfluenceSpace {
-  id: string;
-  key: string;
-  name: string;
-  type: string;
-}
-
-export interface ConfluencePage {
-  id: string;
-  title: string;
-  status: string;
-  spaceId: string;
-  version: { number: number; createdAt: string };
-}
-
-export interface ConfluencePageContent {
-  id: string;
-  title: string;
-  body: {
-    view?: { value: string };
-    storage?: { value: string };
-  };
-}
-
 export async function listConfluenceSpaces(
   token: string,
   cloudId: string
 ): Promise<ConfluenceSpace[]> {
-  const response = await axios.get<{ results: ConfluenceSpace[] }>(
+  const response = await axios.get(
     `https://api.atlassian.com/ex/confluence/${cloudId}/wiki/api/v2/spaces`,
     {
       headers: authHeaders(token),
       params: { limit: 50 },
     }
   );
-  return response.data.results;
+  return confluenceSpaceListResponseSchema.parse(response.data).results;
 }
 
 export async function listConfluencePages(
@@ -130,14 +107,14 @@ export async function listConfluencePages(
   cloudId: string,
   spaceId: string
 ): Promise<ConfluencePage[]> {
-  const response = await axios.get<{ results: ConfluencePage[] }>(
+  const response = await axios.get(
     `https://api.atlassian.com/ex/confluence/${cloudId}/wiki/api/v2/spaces/${spaceId}/pages`,
     {
       headers: authHeaders(token),
       params: { limit: 50, sort: '-modified-date' },
     }
   );
-  return response.data.results;
+  return confluencePageListResponseSchema.parse(response.data).results;
 }
 
 export async function getConfluencePageContent(
@@ -145,14 +122,14 @@ export async function getConfluencePageContent(
   cloudId: string,
   pageId: string
 ): Promise<ConfluencePageContent> {
-  const response = await axios.get<ConfluencePageContent>(
+  const response = await axios.get(
     `https://api.atlassian.com/ex/confluence/${cloudId}/wiki/api/v2/pages/${pageId}`,
     {
       headers: authHeaders(token),
       params: { 'body-format': 'view' },
     }
   );
-  return response.data;
+  return confluencePageContentSchema.parse(response.data);
 }
 
 export async function searchConfluenceContent(
@@ -160,23 +137,20 @@ export async function searchConfluenceContent(
   cloudId: string,
   query: string
 ): Promise<ConfluencePage[]> {
-  const response = await axios.get<{ results?: Array<{ content: ConfluencePage }> }>(
+  const response = await axios.get(
     `https://api.atlassian.com/ex/confluence/${cloudId}/wiki/api/v2/search`,
     {
       headers: authHeaders(token),
       params: { query, limit: 20 },
     }
   );
-  return response.data.results?.map((r) => r.content) ?? [];
+  return confluenceSearchResponseSchema.parse(response.data).results?.map((r) => r.content) ?? [];
 }
 
 // Helper: Get accessible Atlassian Cloud sites for a token
-export async function getAccessibleResources(
-  token: string
-): Promise<Array<{ id: string; name: string; url: string }>> {
-  const response = await axios.get<Array<{ id: string; name: string; url: string }>>(
-    'https://api.atlassian.com/oauth/token/accessible-resources',
-    { headers: authHeaders(token) }
-  );
-  return response.data;
+export async function getAccessibleResources(token: string): Promise<AtlassianResource[]> {
+  const response = await axios.get('https://api.atlassian.com/oauth/token/accessible-resources', {
+    headers: authHeaders(token),
+  });
+  return z.array(atlassianResourceSchema).parse(response.data);
 }

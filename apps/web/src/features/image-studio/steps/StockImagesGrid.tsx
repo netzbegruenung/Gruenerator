@@ -48,7 +48,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
 
   useEffect(() => {
     if (stockImages.length === 0 && !isLoadingStockImages) {
-      fetchStockImages();
+      void fetchStockImages();
     }
   }, [stockImages.length, isLoadingStockImages, fetchStockImages]);
 
@@ -90,15 +90,19 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
     setIsAiSuggesting(true);
 
     try {
-      const response = await apiClient.post('/image-picker/select', {
+      interface ImagePickerResponse {
+        success: boolean;
+        selectedImage: StockImage;
+      }
+      const response = await apiClient.post<ImagePickerResponse>('/image-picker/select', {
         text: textForSuggestion,
         type: 'sharepic',
       });
 
       if (response.data.success) {
         const suggestion = response.data;
-        setAiSuggestion(suggestion);
-        setRecommendedCategory(suggestion.selectedImage.category);
+        setAiSuggestion({ selectedImage: suggestion.selectedImage });
+        setRecommendedCategory(suggestion.selectedImage.category ?? null);
 
         const matchingImage = stockImages.find(
           (img) => img.filename === suggestion.selectedImage.filename
@@ -133,7 +137,7 @@ const StockImagesGrid: React.FC<StockImagesGridProps> = ({ onImageSelect }) => {
   useEffect(() => {
     if (thema && stockImages.length > 0 && !hasAutoSuggested.current && !preloadedImageResult) {
       hasAutoSuggested.current = true;
-      handleAiSuggest();
+      void handleAiSuggest();
     }
   }, [thema, stockImages.length, handleAiSuggest, preloadedImageResult]);
 

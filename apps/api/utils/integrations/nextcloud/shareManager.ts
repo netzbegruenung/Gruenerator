@@ -56,9 +56,9 @@ export class NextcloudShareManager {
         { table: 'profiles' }
       );
 
-      const rawCurrentLinks = profile?.nextcloud_share_links;
+      const rawCurrentLinks: unknown = profile?.nextcloud_share_links;
       const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinks)
-        ? rawCurrentLinks
+        ? (rawCurrentLinks as NextcloudShareLink[])
         : [];
 
       // Check if share link already exists
@@ -125,8 +125,10 @@ export class NextcloudShareManager {
         { table: 'profiles' }
       );
 
-      const rawShareLinks = profile?.nextcloud_share_links;
-      const shareLinks: NextcloudShareLink[] = Array.isArray(rawShareLinks) ? rawShareLinks : [];
+      const rawShareLinks: unknown = profile?.nextcloud_share_links;
+      const shareLinks: NextcloudShareLink[] = Array.isArray(rawShareLinks)
+        ? (rawShareLinks as NextcloudShareLink[])
+        : [];
 
       // Sort by created_at descending (newest first)
       const sortedLinks = shareLinks.sort(
@@ -165,9 +167,9 @@ export class NextcloudShareManager {
         { table: 'profiles' }
       );
 
-      const rawShareLinksById = profile?.nextcloud_share_links;
+      const rawShareLinksById: unknown = profile?.nextcloud_share_links;
       const shareLinks: NextcloudShareLink[] = Array.isArray(rawShareLinksById)
-        ? rawShareLinksById
+        ? (rawShareLinksById as NextcloudShareLink[])
         : [];
       const shareLink = shareLinks.find((link: NextcloudShareLink) => link.id === shareLinkId);
 
@@ -208,9 +210,9 @@ export class NextcloudShareManager {
         { table: 'profiles' }
       );
 
-      const rawCurrentLinksUpdate = profile?.nextcloud_share_links;
+      const rawCurrentLinksUpdate: unknown = profile?.nextcloud_share_links;
       const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinksUpdate)
-        ? rawCurrentLinksUpdate
+        ? (rawCurrentLinksUpdate as NextcloudShareLink[])
         : [];
       const linkIndex = currentLinks.findIndex(
         (link: NextcloudShareLink) => link.id === shareLinkId
@@ -282,9 +284,9 @@ export class NextcloudShareManager {
         { table: 'profiles' }
       );
 
-      const rawCurrentLinksDelete = profile?.nextcloud_share_links;
+      const rawCurrentLinksDelete: unknown = profile?.nextcloud_share_links;
       const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinksDelete)
-        ? rawCurrentLinksDelete
+        ? (rawCurrentLinksDelete as NextcloudShareLink[])
         : [];
       const linkToDelete = currentLinks.find((link: NextcloudShareLink) => link.id === shareLinkId);
 
@@ -334,7 +336,7 @@ export class NextcloudShareManager {
       let urlObj: URL;
       try {
         urlObj = new URL(shareLink);
-      } catch (error) {
+      } catch {
         return {
           isValid: false,
           error: 'Invalid URL format',
@@ -396,9 +398,9 @@ export class NextcloudShareManager {
         { table: 'profiles' }
       );
 
-      const rawCurrentLinksDeactivate = profile?.nextcloud_share_links;
+      const rawCurrentLinksDeactivate: unknown = profile?.nextcloud_share_links;
       const currentLinks: NextcloudShareLink[] = Array.isArray(rawCurrentLinksDeactivate)
-        ? rawCurrentLinksDeactivate
+        ? (rawCurrentLinksDeactivate as NextcloudShareLink[])
         : [];
 
       // Deactivate all links
@@ -457,9 +459,9 @@ export class NextcloudShareManager {
         { table: 'profiles' }
       );
 
-      const rawShareLinksStats = profile?.nextcloud_share_links;
+      const rawShareLinksStats: unknown = profile?.nextcloud_share_links;
       const shareLinks: NextcloudShareLink[] = Array.isArray(rawShareLinksStats)
-        ? rawShareLinksStats
+        ? (rawShareLinksStats as NextcloudShareLink[])
         : [];
 
       const stats: UsageStats = {

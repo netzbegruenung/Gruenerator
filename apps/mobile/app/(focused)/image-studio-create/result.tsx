@@ -84,7 +84,7 @@ export default function ResultScreen() {
   useEffect(() => {
     if (!generatedImage && !kiLoading && !error && !hasTriggeredGeneration.current) {
       hasTriggeredGeneration.current = true;
-      handleGenerate();
+      void handleGenerate();
     }
   }, []);
 
@@ -95,7 +95,7 @@ export default function ResultScreen() {
 
   const handleRetry = () => {
     hasTriggeredGeneration.current = true;
-    handleGenerate();
+    void handleGenerate();
   };
 
   useEffect(() => {

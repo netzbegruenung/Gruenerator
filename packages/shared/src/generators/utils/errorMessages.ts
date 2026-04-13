@@ -89,15 +89,17 @@ export function parseGeneratorError(error: unknown): GeneratorError {
           code: '529',
           isRetryable: true,
         };
+      case undefined:
+        break;
       default:
-        if (status && status >= 400 && status < 500) {
+        if (status >= 400 && status < 500) {
           return {
             message: `Fehler bei der Anfrage (${status})`,
             code: String(status),
             isRetryable: false,
           };
         }
-        if (status && status >= 500) {
+        if (status >= 500) {
           return {
             message: `Serverfehler (${status}). Bitte später erneut versuchen.`,
             code: String(status),

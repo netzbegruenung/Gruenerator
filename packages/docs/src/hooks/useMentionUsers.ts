@@ -79,9 +79,8 @@ export function useMentionUsers(provider: HocuspocusProvider | null) {
               });
             }
           }
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } catch (err: any) {
-          if (err.name !== 'AbortError') {
+        } catch (err: unknown) {
+          if ((err as { name?: string })?.name !== 'AbortError') {
             console.error('[MentionUsers] Search failed:', err);
           }
         }

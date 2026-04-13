@@ -44,25 +44,29 @@ interface CardItem {
 }
 
 /* eslint-disable @typescript-eslint/no-require-imports */
+// Image assets loaded via require() — Expo Metro provides typed module references
 const VARIANT_IMAGES: Record<KiStyleVariant, ImageSource> = {
-  'illustration-pure': require('../../images/imagine/variants-pure/soft-illustration.webp'),
-  'realistic-pure': require('../../images/imagine/variants-pure/realistic-photo.webp'),
-  'pixel-pure': require('../../images/imagine/variants-pure/pixel-art.webp'),
-  'editorial-pure': require('../../images/imagine/variants-pure/editorial.webp'),
+  'illustration-pure':
+    require('../../images/imagine/variants-pure/soft-illustration.webp') as ImageSource,
+  'realistic-pure':
+    require('../../images/imagine/variants-pure/realistic-photo.webp') as ImageSource,
+  'pixel-pure': require('../../images/imagine/variants-pure/pixel-art.webp') as ImageSource,
+  'editorial-pure': require('../../images/imagine/variants-pure/editorial.webp') as ImageSource,
 };
 
 const EDIT_IMAGES: Record<string, ImageSource> = {
-  'green-edit': require('../../images/imagine/green-street-example.webp'),
-  'universal-edit': require('../../images/imagine/universal-edit.webp'),
+  'green-edit': require('../../images/imagine/green-street-example.webp') as ImageSource,
+  'universal-edit': require('../../images/imagine/universal-edit.webp') as ImageSource,
 };
 
 const TEMPLATE_IMAGES: Partial<Record<ImageStudioTemplateType, ImageSource>> = {
-  dreizeilen: require('../../images/imagine/templates/dreizeilen-preview.webp'),
-  zitat: require('../../images/imagine/templates/zitat-preview.webp'),
-  'zitat-pure': require('../../images/imagine/templates/zitat-pure-preview.webp'),
-  info: require('../../images/imagine/templates/info-preview.webp'),
-  veranstaltung: require('../../images/imagine/templates/veranstaltung-preview.webp'),
-  simple: require('../../images/imagine/templates/simple-preview.webp'),
+  dreizeilen: require('../../images/imagine/templates/dreizeilen-preview.webp') as ImageSource,
+  zitat: require('../../images/imagine/templates/zitat-preview.webp') as ImageSource,
+  'zitat-pure': require('../../images/imagine/templates/zitat-pure-preview.webp') as ImageSource,
+  info: require('../../images/imagine/templates/info-preview.webp') as ImageSource,
+  veranstaltung:
+    require('../../images/imagine/templates/veranstaltung-preview.webp') as ImageSource,
+  simple: require('../../images/imagine/templates/simple-preview.webp') as ImageSource,
 };
 
 const TEMPLATE_ICONS: Partial<Record<ImageStudioTemplateType, keyof typeof Ionicons.glyphMap>> = {

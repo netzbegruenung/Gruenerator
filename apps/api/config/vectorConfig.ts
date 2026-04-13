@@ -3,6 +3,8 @@
  * Replaces hardcoded magic numbers and provides environment-based configuration
  */
 
+import { env } from './env.js';
+
 interface LengthAdjustments {
   singleWord: number;
   twoWords: number;
@@ -190,67 +192,63 @@ class VectorConfig {
   private loadConfiguration(): FullConfig {
     return {
       search: {
-        defaultThreshold: parseFloat(process.env.VECTOR_SEARCH_THRESHOLD || '0.3'),
-        minThreshold: parseFloat(process.env.VECTOR_MIN_THRESHOLD || '0.2'),
-        maxThreshold: parseFloat(process.env.VECTOR_MAX_THRESHOLD || '0.8'),
-        defaultLimit: parseInt(process.env.VECTOR_DEFAULT_LIMIT || '5'),
-        maxLimit: parseInt(process.env.VECTOR_MAX_LIMIT || '100'),
-        chunkMultiplier: parseFloat(process.env.VECTOR_CHUNK_MULTIPLIER || '3.0'),
+        defaultThreshold: env.VECTOR_SEARCH_THRESHOLD,
+        minThreshold: env.VECTOR_MIN_THRESHOLD,
+        maxThreshold: env.VECTOR_MAX_THRESHOLD,
+        defaultLimit: env.VECTOR_DEFAULT_LIMIT,
+        maxLimit: env.VECTOR_MAX_LIMIT,
+        chunkMultiplier: env.VECTOR_CHUNK_MULTIPLIER,
         lengthAdjustments: {
-          singleWord: parseFloat(process.env.VECTOR_SINGLE_WORD_ADJ || '0.0'),
-          twoWords: parseFloat(process.env.VECTOR_TWO_WORDS_ADJ || '0.05'),
-          manyWords: parseFloat(process.env.VECTOR_MANY_WORDS_ADJ || '-0.1'),
-          manyWordsThreshold: parseInt(process.env.VECTOR_MANY_WORDS_THRESHOLD || '5'),
+          singleWord: env.VECTOR_SINGLE_WORD_ADJ,
+          twoWords: env.VECTOR_TWO_WORDS_ADJ,
+          manyWords: env.VECTOR_MANY_WORDS_ADJ,
+          manyWordsThreshold: env.VECTOR_MANY_WORDS_THRESHOLD,
         },
       },
 
       hybrid: {
-        minVectorOnlyThreshold: parseFloat(process.env.HYBRID_MIN_VECTOR_ONLY_THRESHOLD || '0.55'),
-        minVectorWithTextThreshold: parseFloat(
-          process.env.HYBRID_MIN_VECTOR_WITH_TEXT_THRESHOLD || '0.35'
-        ),
-        minFinalScore: parseFloat(process.env.HYBRID_MIN_FINAL_SCORE || '0.008'),
-        minVectorOnlyFinalScore: parseFloat(
-          process.env.HYBRID_MIN_VECTOR_ONLY_FINAL_SCORE || '0.010'
-        ),
-        confidenceBoost: parseFloat(process.env.HYBRID_CONFIDENCE_BOOST || '1.2'),
-        confidencePenalty: parseFloat(process.env.HYBRID_CONFIDENCE_PENALTY || '0.7'),
-        enableDynamicThresholds: process.env.HYBRID_ENABLE_DYNAMIC_THRESHOLDS !== 'false',
-        enableConfidenceWeighting: process.env.HYBRID_ENABLE_CONFIDENCE_WEIGHTING !== 'false',
-        enableQualityGate: process.env.HYBRID_ENABLE_QUALITY_GATE !== 'false',
+        minVectorOnlyThreshold: env.HYBRID_MIN_VECTOR_ONLY_THRESHOLD,
+        minVectorWithTextThreshold: env.HYBRID_MIN_VECTOR_WITH_TEXT_THRESHOLD,
+        minFinalScore: env.HYBRID_MIN_FINAL_SCORE,
+        minVectorOnlyFinalScore: env.HYBRID_MIN_VECTOR_ONLY_FINAL_SCORE,
+        confidenceBoost: env.HYBRID_CONFIDENCE_BOOST,
+        confidencePenalty: env.HYBRID_CONFIDENCE_PENALTY,
+        enableDynamicThresholds: env.HYBRID_ENABLE_DYNAMIC_THRESHOLDS,
+        enableConfidenceWeighting: env.HYBRID_ENABLE_CONFIDENCE_WEIGHTING,
+        enableQualityGate: env.HYBRID_ENABLE_QUALITY_GATE,
       },
 
       scoring: {
-        maxSimilarityWeight: parseFloat(process.env.SCORING_MAX_SIMILARITY_WEIGHT || '0.6'),
-        avgSimilarityWeight: parseFloat(process.env.SCORING_AVG_SIMILARITY_WEIGHT || '0.4'),
-        diversityBonusRate: parseFloat(process.env.SCORING_DIVERSITY_BONUS_RATE || '0.02'),
-        maxDiversityBonus: parseFloat(process.env.SCORING_MAX_DIVERSITY_BONUS || '0.1'),
-        maxFinalScore: parseFloat(process.env.SCORING_MAX_FINAL_SCORE || '1.0'),
+        maxSimilarityWeight: env.SCORING_MAX_SIMILARITY_WEIGHT,
+        avgSimilarityWeight: env.SCORING_AVG_SIMILARITY_WEIGHT,
+        diversityBonusRate: env.SCORING_DIVERSITY_BONUS_RATE,
+        maxDiversityBonus: env.SCORING_MAX_DIVERSITY_BONUS,
+        maxFinalScore: env.SCORING_MAX_FINAL_SCORE,
       },
 
       content: {
-        maxExcerptLength: parseInt(process.env.CONTENT_MAX_EXCERPT_LENGTH || '300'),
-        excerptSentenceBoundary: parseFloat(process.env.CONTENT_EXCERPT_SENTENCE_BOUNDARY || '0.7'),
-        maxChunksPerDocument: parseInt(process.env.CONTENT_MAX_CHUNKS_PER_DOC || '10'),
+        maxExcerptLength: env.CONTENT_MAX_EXCERPT_LENGTH,
+        excerptSentenceBoundary: env.CONTENT_EXCERPT_SENTENCE_BOUNDARY,
+        maxChunksPerDocument: env.CONTENT_MAX_CHUNKS_PER_DOC,
         maxChunksPerDocumentDossier: 10,
         enableFullContentExtraction: true,
       },
 
       embeddings: {
-        maxDimensions: parseInt(process.env.EMBEDDING_MAX_DIMENSIONS || '10000'),
-        maxValue: parseFloat(process.env.EMBEDDING_MAX_VALUE || '100'),
-        minValue: parseFloat(process.env.EMBEDDING_MIN_VALUE || '-100'),
-        validationTimeout: parseInt(process.env.EMBEDDING_VALIDATION_TIMEOUT || '5000'),
+        maxDimensions: env.EMBEDDING_MAX_DIMENSIONS,
+        maxValue: env.EMBEDDING_MAX_VALUE,
+        minValue: env.EMBEDDING_MIN_VALUE,
+        validationTimeout: env.EMBEDDING_VALIDATION_TIMEOUT,
       },
 
       cache: {
         searchResults: {
-          maxSize: parseInt(process.env.CACHE_RESULTS_SIZE || '200'),
-          ttl: parseInt(process.env.CACHE_RESULTS_TTL || '900000'),
+          maxSize: env.CACHE_RESULTS_SIZE,
+          ttl: env.CACHE_RESULTS_TTL,
         },
         embeddings: {
-          maxSize: parseInt(process.env.CACHE_EMBEDDINGS_SIZE || '500'),
-          ttl: parseInt(process.env.CACHE_EMBEDDINGS_TTL || '3600000'),
+          maxSize: env.CACHE_EMBEDDINGS_SIZE,
+          ttl: env.CACHE_EMBEDDINGS_TTL,
         },
         baseService: {
           maxSize: 100,
@@ -259,55 +257,55 @@ class VectorConfig {
       },
 
       timeouts: {
-        searchDefault: parseInt(process.env.TIMEOUT_SEARCH_DEFAULT || '15000'),
-        embeddingGeneration: parseInt(process.env.TIMEOUT_EMBEDDING || '10000'),
+        searchDefault: env.TIMEOUT_SEARCH_DEFAULT,
+        embeddingGeneration: env.TIMEOUT_EMBEDDING,
       },
 
       validation: {
-        maxQueryLength: parseInt(process.env.VALIDATION_MAX_QUERY_LENGTH || '10000'),
-        maxUserIdLength: parseInt(process.env.VALIDATION_MAX_USER_ID_LENGTH || '100'),
-        maxDocumentIds: parseInt(process.env.VALIDATION_MAX_DOCUMENT_IDS || '1000'),
-        maxDocumentIdLength: parseInt(process.env.VALIDATION_MAX_DOCUMENT_ID_LENGTH || '100'),
-        maxMessageLength: parseInt(process.env.VALIDATION_MAX_MESSAGE_LENGTH || '50000'),
-        maxContentTypeLength: parseInt(process.env.VALIDATION_MAX_CONTENT_TYPE_LENGTH || '50'),
+        maxQueryLength: env.VALIDATION_MAX_QUERY_LENGTH,
+        maxUserIdLength: env.VALIDATION_MAX_USER_ID_LENGTH,
+        maxDocumentIds: env.VALIDATION_MAX_DOCUMENT_IDS,
+        maxDocumentIdLength: env.VALIDATION_MAX_DOCUMENT_ID_LENGTH,
+        maxMessageLength: env.VALIDATION_MAX_MESSAGE_LENGTH,
+        maxContentTypeLength: env.VALIDATION_MAX_CONTENT_TYPE_LENGTH,
       },
 
       logging: {
-        level: process.env.LOG_LEVEL || 'info',
-        enableTelemetry: process.env.ENABLE_TELEMETRY !== 'false',
-        enableVerbose: process.env.ENABLE_VERBOSE === 'true',
-        enableDebug: process.env.ENABLE_DEBUG === 'true',
+        level: env.LOG_LEVEL,
+        enableTelemetry: env.ENABLE_TELEMETRY,
+        enableVerbose: env.ENABLE_VERBOSE,
+        enableDebug: env.ENABLE_DEBUG,
       },
 
       performance: {
-        maxConcurrentSearches: parseInt(process.env.PERF_MAX_CONCURRENT_SEARCHES || '10'),
-        batchSize: parseInt(process.env.PERF_BATCH_SIZE || '10'),
-        maxRetries: parseInt(process.env.PERF_MAX_RETRIES || '3'),
-        retryDelay: parseInt(process.env.PERF_RETRY_DELAY || '1000'),
+        maxConcurrentSearches: env.PERF_MAX_CONCURRENT_SEARCHES,
+        batchSize: env.PERF_BATCH_SIZE,
+        maxRetries: env.PERF_MAX_RETRIES,
+        retryDelay: env.PERF_RETRY_DELAY,
       },
 
       quality: {
-        enabled: process.env.QUALITY_SCORING_ENABLED !== 'false',
-        minChunkQuality: parseFloat(process.env.QUALITY_MIN_CHUNK || '0.3'),
+        enabled: env.QUALITY_SCORING_ENABLED,
+        minChunkQuality: env.QUALITY_MIN_CHUNK,
         weights: {
-          readability: parseFloat(process.env.QUALITY_WEIGHT_READABILITY || '0.3'),
-          completeness: parseFloat(process.env.QUALITY_WEIGHT_COMPLETENESS || '0.25'),
-          structure: parseFloat(process.env.QUALITY_WEIGHT_STRUCTURE || '0.25'),
-          density: parseFloat(process.env.QUALITY_WEIGHT_DENSITY || '0.2'),
+          readability: env.QUALITY_WEIGHT_READABILITY,
+          completeness: env.QUALITY_WEIGHT_COMPLETENESS,
+          structure: env.QUALITY_WEIGHT_STRUCTURE,
+          density: env.QUALITY_WEIGHT_DENSITY,
         },
         retrieval: {
-          enableQualityFilter: process.env.QUALITY_FILTER_ENABLED !== 'false',
-          minRetrievalQuality: parseFloat(process.env.QUALITY_MIN_RETRIEVAL || '0.4'),
-          qualityBoostFactor: parseFloat(process.env.QUALITY_BOOST_FACTOR || '1.2'),
+          enableQualityFilter: env.QUALITY_FILTER_ENABLED,
+          minRetrievalQuality: env.QUALITY_MIN_RETRIEVAL,
+          qualityBoostFactor: env.QUALITY_BOOST_FACTOR,
         },
       },
 
       metadata: {
         enrichment: {
-          enabled: process.env.METADATA_ENRICHMENT_ENABLED !== 'false',
-          detectContentTypes: process.env.METADATA_DETECT_TYPES !== 'false',
-          detectMarkdownStructure: process.env.METADATA_DETECT_MARKDOWN !== 'false',
-          extractPageNumbers: process.env.METADATA_EXTRACT_PAGES !== 'false',
+          enabled: env.METADATA_ENRICHMENT_ENABLED,
+          detectContentTypes: env.METADATA_DETECT_TYPES,
+          detectMarkdownStructure: env.METADATA_DETECT_MARKDOWN,
+          extractPageNumbers: env.METADATA_EXTRACT_PAGES,
         },
         contentTypes: {
           heading: { preferredSize: 200, minQuality: 0.5 },
@@ -320,27 +318,27 @@ class VectorConfig {
 
       chunking: {
         adaptive: {
-          enabled: process.env.ADAPTIVE_CHUNKING_ENABLED === 'true',
-          defaultSize: parseInt(process.env.CHUNK_DEFAULT_SIZE || '400'),
-          overlapSize: parseInt(process.env.CHUNK_OVERLAP_SIZE || '100'),
+          enabled: env.ADAPTIVE_CHUNKING_ENABLED,
+          defaultSize: env.CHUNK_DEFAULT_SIZE,
+          overlapSize: env.CHUNK_OVERLAP_SIZE,
         },
       },
 
       retrieval: {
         queryIntent: {
-          enabled: process.env.QUERY_INTENT_ENABLED !== 'false',
-          germanPatterns: process.env.USE_GERMAN_PATTERNS !== 'false',
+          enabled: env.QUERY_INTENT_ENABLED,
+          germanPatterns: env.USE_GERMAN_PATTERNS,
         },
       },
 
       rerank: {
-        inputLimit: parseInt(process.env.RERANK_INPUT_LIMIT || '16'),
-        outputLimit: parseInt(process.env.RERANK_OUTPUT_LIMIT || '8'),
-        minRelevance: parseFloat(process.env.RERANK_MIN_RELEVANCE || '0.2'),
-        mmrLambda: parseFloat(process.env.RERANK_MMR_LAMBDA || '0.7'),
-        mmrKeepTop: parseInt(process.env.RERANK_MMR_KEEP_TOP || '2'),
-        mergeOverfetch: parseInt(process.env.RERANK_MERGE_OVERFETCH || '16'),
-        webScoreCeiling: parseFloat(process.env.RERANK_WEB_SCORE_CEILING || '0.80'),
+        inputLimit: env.RERANK_INPUT_LIMIT,
+        outputLimit: env.RERANK_OUTPUT_LIMIT,
+        minRelevance: env.RERANK_MIN_RELEVANCE,
+        mmrLambda: env.RERANK_MMR_LAMBDA,
+        mmrKeepTop: env.RERANK_MMR_KEEP_TOP,
+        mergeOverfetch: env.RERANK_MERGE_OVERFETCH,
+        webScoreCeiling: env.RERANK_WEB_SCORE_CEILING,
       },
     };
   }

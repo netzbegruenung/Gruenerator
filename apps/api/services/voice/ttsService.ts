@@ -1,13 +1,13 @@
 import { CompleteAcceptEnum } from '@mistralai/mistralai/sdk/speech';
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 import mistralClient from '../../workers/mistralClient.js';
 
 const log = createLogger('tts');
 
 const DEFAULT_MODEL = 'voxtral-mini-tts-2603';
-const DEFAULT_VOICE_ID =
-  process.env.VOXTRAL_DEFAULT_VOICE_ID || 'c69964a6-ab8b-4f8a-9465-ec0925096ec8'; // Paul - Neutral
+const DEFAULT_VOICE_ID = env.VOXTRAL_DEFAULT_VOICE_ID || 'c69964a6-ab8b-4f8a-9465-ec0925096ec8'; // Paul - Neutral
 const VOXTRAL_SAMPLE_RATE = 24000;
 
 interface TTSOptions {

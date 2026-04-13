@@ -41,7 +41,10 @@ const BOARDS_URL = 'https://gruenerator.eu/boards';
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
 
 function getBoardType(board: Board): string {
-  const content = typeof board.content === 'string' ? JSON.parse(board.content) : board.content;
+  const content: { board_type?: string; is_archived?: boolean } | undefined =
+    typeof board.content === 'string'
+      ? (JSON.parse(board.content) as { board_type?: string; is_archived?: boolean })
+      : board.content;
   return content?.board_type ?? 'kanban';
 }
 
@@ -114,10 +117,13 @@ export default function StartScreen() {
   const fetchBoards = useCallback(async () => {
     try {
       const apiClient = getGlobalApiClient();
-      const response = await apiClient.get('/boards');
+      const response = await apiClient.get<Board[]>('/boards');
       const all: Board[] = response.data || [];
       const active = all.filter((b) => {
-        const content = typeof b.content === 'string' ? JSON.parse(b.content) : b.content;
+        const content: { is_archived?: boolean } | undefined =
+          typeof b.content === 'string'
+            ? (JSON.parse(b.content) as { is_archived?: boolean })
+            : b.content;
         return !content?.is_archived;
       });
       setBoards(active);
@@ -130,7 +136,7 @@ export default function StartScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchBoards();
+      void fetchBoards();
     }, [fetchBoards])
   );
 

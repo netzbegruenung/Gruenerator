@@ -64,8 +64,8 @@ async function assertOk(res: Response, label: string): Promise<void> {
   let detail = '';
   try {
     const body = await res.text();
-    const json = JSON.parse(body);
-    detail = json.message || json.error || body.slice(0, 200);
+    const json = JSON.parse(body) as { message?: string; error?: string };
+    detail = json.message ?? json.error ?? body.slice(0, 200);
   } catch {
     /* ignore parse errors */
   }

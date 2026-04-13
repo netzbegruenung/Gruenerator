@@ -26,7 +26,7 @@ export const useTabPersistence = () => {
   }, [restoreTabs]);
 
   useEffect(() => {
-    initializeTabs();
+    void initializeTabs();
   }, [initializeTabs]);
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export const useTabPersistence = () => {
         clearTimeout(saveTimeoutRef.current);
       }
       const state = useDesktopTabsStore.getState();
-      saveTabs(state.tabs, state.activeTabId);
+      void saveTabs(state.tabs, state.activeTabId);
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);

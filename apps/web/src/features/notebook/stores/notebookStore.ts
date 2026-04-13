@@ -1,8 +1,24 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 
 import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
 import { type NotebookCollection } from '../../../types/notebook';
+
+// ── API response shapes ────────────────────────────────────────────────────
+
+interface ApiBase {
+  success: boolean;
+  message?: string;
+}
+
+interface CollectionsResponse extends ApiBase {
+  collections?: NotebookCollection[];
+}
+
+interface CollectionResponse extends ApiBase {
+  collection?: NotebookCollection;
+}
 
 export type { NotebookCollection };
 
@@ -131,7 +147,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.get('/auth/notebook-collections', {
+      const response = await apiClient.get<CollectionsResponse>('/auth/notebook-collections', {
         skipAuthRedirect: true,
       });
       const data = response.data;
@@ -140,7 +156,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         throw new Error(data.message || 'Failed to fetch Notebook collections');
       }
 
-      set({ qaCollections: data.collections || [], loading: false });
+      set({ qaCollections: data.collections ?? [], loading: false });
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error fetching Notebook collections:', error);
@@ -178,7 +194,10 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         requestData.labels = collectionData.labels;
       }
 
-      const response = await apiClient.post('/auth/notebook-collections', requestData);
+      const response = await apiClient.post<CollectionResponse>(
+        '/auth/notebook-collections',
+        requestData
+      );
 
       const data = response.data;
 
@@ -190,7 +209,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
       await get().fetchQACollections();
       set({ loading: false });
 
-      return data.collection;
+      return data.collection as NotebookCollection;
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error creating Notebook collection:', error);
@@ -229,7 +248,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
         requestData.labels = collectionData.labels;
       }
 
-      const response = await apiClient.put(
+      const response = await apiClient.put<ApiBase>(
         `/auth/notebook-collections/${collectionId}`,
         requestData
       );
@@ -255,7 +274,9 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
   deleteQACollection: async (collectionId) => {
     set({ loading: true, error: null });
     try {
-      const response = await apiClient.delete(`/auth/notebook-collections/${collectionId}`);
+      const response = await apiClient.delete<ApiBase>(
+        `/auth/notebook-collections/${collectionId}`
+      );
 
       const data = response.data;
 
@@ -406,7 +427,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
 
   removeDocumentFromCollection: async (collectionId, documentId) => {
     try {
-      const response = await apiClient.delete(
+      const response = await apiClient.delete<ApiBase>(
         `/auth/notebook-collections/${collectionId}/documents/${documentId}`
       );
       const data = response.data;
@@ -452,18 +473,19 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
     }));
 
     try {
-      const response = await apiClient.get(`/auth/notebook/collections/${collectionId}/filters`);
-      const data = response.data;
+      const client = getContractsClient();
+      const result = await client.notebook.getFilters({ params: { id: collectionId } });
 
-      if (data.filters) {
+      if (result.status === 200 && result.body.filters) {
+        const filters = result.body.filters as Record<string, FilterFieldConfig>;
         set((state) => ({
           filterValuesCache: {
             ...state.filterValuesCache,
-            [collectionId]: data.filters,
+            [collectionId]: filters,
           },
           loadingFilters: { ...state.loadingFilters, [collectionId]: false },
         }));
-        return data.filters;
+        return filters;
       }
     } catch (error) {
       console.error('[notebookStore] Error fetching filters:', collectionId, error);

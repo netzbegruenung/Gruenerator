@@ -102,7 +102,7 @@ class NextcloudApiClient {
     // Add response interceptor for error handling
     this.axiosInstance.interceptors.response.use(
       (response) => response,
-      (error) => {
+      (error: AxiosError) => {
         console.error('[NextcloudApiClient] Nextcloud API error:', error.message, {
           status: error.response?.status,
           statusText: error.response?.statusText,
@@ -313,7 +313,6 @@ class NextcloudApiClient {
       const stat = fs.statSync(filePath);
       const stream = fs.createReadStream(filePath);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response = await fetch(uploadUrl, {
         method: 'PUT',
         headers: {
@@ -321,8 +320,8 @@ class NextcloudApiClient {
           'Content-Type': 'application/octet-stream',
           'Content-Length': String(stat.size),
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Node.js ReadStream is duck-typed for fetch body
-        body: stream as any,
+
+        body: stream as unknown as BodyInit,
         // @ts-expect-error -- Node fetch supports duplex streaming
         duplex: 'half',
       });
@@ -730,9 +729,9 @@ class NextcloudApiClient {
 
         return {
           buffer: buffer,
-          mimeType: response.headers['content-type'] || null,
+          mimeType: (response.headers['content-type'] as string) || null,
           size: response.headers['content-length']
-            ? parseInt(response.headers['content-length'])
+            ? parseInt(response.headers['content-length'] as string)
             : buffer.length,
         };
       } else {

@@ -4,7 +4,8 @@
  * To change: Update VITE_PRIMARY_DOMAIN in .env.production
  */
 
-export const PRIMARY_DOMAIN = import.meta.env.VITE_PRIMARY_DOMAIN || 'gruenerator.eu';
+export const PRIMARY_DOMAIN =
+  (import.meta.env.VITE_PRIMARY_DOMAIN as string | undefined) ?? 'gruenerator.eu';
 export const PRIMARY_URL = `https://${PRIMARY_DOMAIN}`;
 export const WWW_URL = `https://www.${PRIMARY_DOMAIN}`;
 

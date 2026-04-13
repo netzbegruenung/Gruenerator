@@ -13,7 +13,7 @@ export function ThreadSync() {
     if (remoteId && remoteId !== prevRef.current) {
       prevRef.current = remoteId;
       useAgentStore.getState().setCurrentThread(remoteId);
-      loadCompactionState(remoteId, getMobileChatApiClient());
+      void loadCompactionState(remoteId, getMobileChatApiClient());
     }
   }, [remoteId, loadCompactionState]);
 

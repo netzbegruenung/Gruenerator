@@ -6,6 +6,7 @@
  */
 
 import express, { type Response, type Request } from 'express';
+import { z } from 'zod';
 
 import {
   getSystemCollectionConfig,
@@ -17,15 +18,25 @@ import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelp
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import authMiddleware from '../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { notebookQAService } from '../../services/notebook/index.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
+import { fromParam, type NotebookId } from '../../utils/types/branded.js';
 
-import type { NotebookRequest, AskQuestionBody, PublicAccessRecord } from './types.js';
+import type { PublicAccessRecord } from './types.js';
 
 const log = createLogger('notebookInteraction');
 const { requireAuth } = authMiddleware;
 
 const router = express.Router();
+
+const askQuestionSchema = z.object({
+  question: z.string(),
+  filters: z.record(z.unknown()).optional(),
+  collectionIds: z.array(z.string()).optional(),
+  fastMode: z.boolean().optional(),
+});
 const _postgres = getPostgresInstance();
 const notebookHelper = new NotebookQdrantHelper();
 
@@ -163,29 +174,34 @@ router.get('/collections/:id/filters', async (req: Request<{ id: string }>, res:
  * POST /api/qa/multi/ask
  * Submit question to multiple collections
  */
-router.post('/multi/ask', requireAuth, async (req: NotebookRequest, res: Response) => {
-  try {
-    const { question, collectionIds, filters, fastMode } = req.body as AskQuestionBody;
+router.post(
+  '/multi/ask',
+  requireAuth,
+  validateBody(askQuestionSchema),
+  async (req: TypedRequest<z.infer<typeof askQuestionSchema>>, res: Response) => {
+    try {
+      const { question, collectionIds, filters, fastMode } = req.body;
 
-    if (!question || !question.trim()) {
-      return res.status(400).json({ error: 'Question is required' });
+      if (!question.trim()) {
+        return res.status(400).json({ error: 'Question is required' });
+      }
+
+      const result = await notebookQAService.askMultiCollection({
+        question,
+        collectionIds: collectionIds || getDefaultMultiCollectionIds(),
+        requestFilters: filters,
+        aiWorkerPool: getAIWorkerPool(req),
+        fastMode: fastMode || false,
+      });
+
+      return res.json(result);
+    } catch (error) {
+      log.error('[QA Multi] Error:', error);
+      const err = error as Error;
+      return res.status(500).json({ error: err.message || 'Internal server error' });
     }
-
-    const result = await notebookQAService.askMultiCollection({
-      question,
-      collectionIds: collectionIds || getDefaultMultiCollectionIds(),
-      requestFilters: filters,
-      aiWorkerPool: req.app.locals.aiWorkerPool,
-      fastMode: fastMode || false,
-    });
-
-    return res.json(result);
-  } catch (error) {
-    log.error('[QA Multi] Error:', error);
-    const err = error as Error;
-    return res.status(500).json({ error: err.message || 'Internal server error' });
   }
-});
+);
 
 // =============================================================================
 // Single Collection QA Routes
@@ -198,15 +214,16 @@ router.post('/multi/ask', requireAuth, async (req: NotebookRequest, res: Respons
 router.post(
   '/:id/ask',
   requireAuth,
-  async (req: NotebookRequest<{ id: string }>, res: Response) => {
+  validateBody(askQuestionSchema),
+  async (req: TypedRequest<z.infer<typeof askQuestionSchema>, { id: string }>, res: Response) => {
     const startTime = Date.now();
 
     try {
       const userId = req.user!.id;
-      const collectionId = req.params.id;
-      const { question, filters, fastMode } = req.body as AskQuestionBody;
+      const collectionId = fromParam<NotebookId>(req.params.id);
+      const { question, filters, fastMode } = req.body;
 
-      if (!question || !question.trim()) {
+      if (!question.trim()) {
         return res.status(400).json({ error: 'Question is required' });
       }
 
@@ -215,7 +232,7 @@ router.post(
         question,
         userId,
         requestFilters: filters,
-        aiWorkerPool: req.app.locals.aiWorkerPool,
+        aiWorkerPool: getAIWorkerPool(req),
         getCollectionFn: async (id: string) => {
           const systemConfig = getSystemCollectionConfig(id);
           if (systemConfig) return null;
@@ -299,77 +316,83 @@ router.get('/public/:token', async (req: Request<{ token: string }>, res: Respon
  * POST /api/qa/public/:token/ask
  * Ask question to public Notebook (no auth)
  */
-router.post('/public/:token/ask', async (req: Request<{ token: string }>, res: Response) => {
-  const startTime = Date.now();
-
-  try {
-    const accessToken = req.params.token;
-    const { question, filters, fastMode } = req.body as AskQuestionBody;
-
-    if (!question || !question.trim()) {
-      return res.status(400).json({ error: 'Question is required' });
-    }
-
-    const publicAccess = (await notebookHelper.getPublicAccess(
-      accessToken
-    )) as PublicAccessRecord | null;
-
-    if (!publicAccess) {
-      return res.status(404).json({ error: 'Public Notebook not found or access token invalid' });
-    }
-
-    if (publicAccess.expires_at && new Date(publicAccess.expires_at) < new Date()) {
-      return res.status(403).json({ error: 'Public access has expired' });
-    }
-
-    if (!publicAccess.is_active) {
-      return res.status(403).json({ error: 'This Notebook collection is no longer public' });
-    }
-
-    const collection = await notebookHelper.getNotebookCollection(publicAccess.collection_id);
-    if (!collection) {
-      return res.status(404).json({ error: 'Notebook collection not found' });
-    }
-
-    const notebookReq = req as NotebookRequest;
-    const result = await notebookQAService.askSingleCollection({
-      collectionId: collection.id,
-      question,
-      userId: collection.user_id,
-      requestFilters: filters,
-      aiWorkerPool: notebookReq.app.locals.aiWorkerPool,
-      getCollectionFn: async () => collection,
-      getDocumentIdsFn: async (id: string) => {
-        const docs = await notebookHelper.getCollectionDocuments(id);
-        return docs.map((d) => d.document_id);
-      },
-      fastMode: fastMode || false,
-    });
+router.post(
+  '/public/:token/ask',
+  validateBody(askQuestionSchema),
+  async (
+    req: TypedRequest<z.infer<typeof askQuestionSchema>, { token: string }>,
+    res: Response
+  ) => {
+    const startTime = Date.now();
 
     try {
-      await notebookHelper.logNotebookUsage(
-        collection.id,
-        null,
-        question.trim(),
-        (result.answer || '').length,
-        Date.now() - startTime
-      );
-    } catch (logError) {
-      log.error('[QA Public] Error logging usage:', logError);
-    }
+      const accessToken = req.params.token;
+      const { question, filters, fastMode } = req.body;
 
-    return res.json({
-      ...result,
-      metadata: {
-        ...result.metadata,
-        is_public: true,
-      },
-    });
-  } catch (error) {
-    log.error('[QA Public] Error in POST /public/:token/ask:', error);
-    const err = error as Error;
-    return res.status(500).json({ error: err.message || 'Internal server error' });
+      if (!question.trim()) {
+        return res.status(400).json({ error: 'Question is required' });
+      }
+
+      const publicAccess = (await notebookHelper.getPublicAccess(
+        accessToken
+      )) as PublicAccessRecord | null;
+
+      if (!publicAccess) {
+        return res.status(404).json({ error: 'Public Notebook not found or access token invalid' });
+      }
+
+      if (publicAccess.expires_at && new Date(publicAccess.expires_at) < new Date()) {
+        return res.status(403).json({ error: 'Public access has expired' });
+      }
+
+      if (!publicAccess.is_active) {
+        return res.status(403).json({ error: 'This Notebook collection is no longer public' });
+      }
+
+      const collection = await notebookHelper.getNotebookCollection(publicAccess.collection_id);
+      if (!collection) {
+        return res.status(404).json({ error: 'Notebook collection not found' });
+      }
+
+      const result = await notebookQAService.askSingleCollection({
+        collectionId: collection.id,
+        question,
+        userId: collection.user_id,
+        requestFilters: filters,
+        aiWorkerPool: getAIWorkerPool(req),
+        getCollectionFn: async () => collection,
+        getDocumentIdsFn: async (id: string) => {
+          const docs = await notebookHelper.getCollectionDocuments(id);
+          return docs.map((d) => d.document_id);
+        },
+        fastMode: fastMode || false,
+      });
+
+      try {
+        await notebookHelper.logNotebookUsage(
+          collection.id,
+          null,
+          question.trim(),
+          (result.answer || '').length,
+          Date.now() - startTime
+        );
+      } catch (logError) {
+        log.error('[QA Public] Error logging usage:', logError);
+      }
+
+      return res.json({
+        ...result,
+        metadata: {
+          ...result.metadata,
+          is_public: true,
+        },
+      });
+    } catch (error) {
+      log.error('[QA Public] Error in POST /public/:token/ask:', error);
+      const err = error as Error;
+      return res.status(500).json({ error: err.message || 'Internal server error' });
+    }
   }
-});
+);
 
 export default router;

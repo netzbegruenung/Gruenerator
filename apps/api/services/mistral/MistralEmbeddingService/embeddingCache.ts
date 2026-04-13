@@ -7,6 +7,8 @@
 
 import crypto from 'crypto';
 
+import { parseJSON } from '../../../utils/parseJSON.js';
+
 import type { CacheStats, RedisClient } from './types.js';
 
 class EmbeddingCache {
@@ -99,7 +101,7 @@ class EmbeddingCache {
       const cached = await this.redis.get(key);
 
       if (cached) {
-        const embedding = JSON.parse(cached) as number[];
+        const embedding = parseJSON<number[]>(cached);
         console.log(`[EmbeddingCache] Cache HIT for "${query.substring(0, 50)}..."`);
         return embedding;
       }

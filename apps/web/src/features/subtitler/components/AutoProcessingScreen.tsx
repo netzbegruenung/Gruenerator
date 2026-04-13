@@ -5,6 +5,19 @@ import { MdCheck, MdError } from 'react-icons/md';
 
 import apiClient from '../../../components/utils/apiClient';
 
+// ── API response shapes ────────────────────────────────────────────────
+
+interface ProgressResponse {
+  status: 'processing' | 'complete' | 'error';
+  stage?: number;
+  overallProgress?: number;
+  outputPath?: string;
+  duration?: number;
+  projectId?: string | null;
+  subtitles?: string | null;
+  error?: string;
+}
+
 const POLL_INTERVAL = 2000;
 const POLL_INTERVAL_EXTENDED = 5000;
 const EXTENDED_POLL_THRESHOLD = 30000;
@@ -45,7 +58,9 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
     if (!uploadId) return;
 
     try {
-      const response = await apiClient.get(`/subtitler/auto-progress/${uploadId}`);
+      const response = await apiClient.get<ProgressResponse>(
+        `/subtitler/auto-progress/${uploadId}`
+      );
       const data = response.data;
 
       if (data.status === 'complete') {
@@ -59,18 +74,18 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
         }
 
         onComplete({
-          outputPath: data.outputPath,
-          duration: data.duration,
+          outputPath: data.outputPath ?? '',
+          duration: data.duration ?? 0,
           uploadId,
-          projectId: data.projectId || null,
-          subtitles: data.subtitles || null,
+          projectId: data.projectId ?? null,
+          subtitles: data.subtitles ?? null,
         });
         return;
       }
 
       if (data.status === 'error') {
         setStatus('error');
-        setError(data.error || 'Verarbeitung fehlgeschlagen');
+        setError(data.error ?? 'Verarbeitung fehlgeschlagen');
 
         if (pollingRef.current) {
           clearTimeout(pollingRef.current);
@@ -78,16 +93,16 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
         }
 
         if (onError) {
-          onError(data.error);
+          onError(data.error ?? '');
         }
         return;
       }
 
       if (data.stage) setActiveStepIndex(mapBackendStage(data.stage));
       if (data.overallProgress !== undefined) setOverallProgress(data.overallProgress);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      if (err?.response?.status !== 404) {
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { status?: number } };
+      if (axiosErr?.response?.status !== 404) {
         console.error('[AutoProcessingScreen] Poll error:', err);
       }
     }
@@ -110,7 +125,7 @@ const AutoProcessingScreen: React.FC<AutoProcessingScreenProps> = ({
       }, interval);
     }
 
-    pollProgress().then(() => scheduleNextPoll());
+    void pollProgress().then(() => scheduleNextPoll());
 
     return () => {
       cancelled = true;

@@ -1,0 +1,27 @@
+/**
+ * All ts-rest contracts, re-exported from a single entry point.
+ * Import from '@gruenerator/contracts' (the package root).
+ */
+export { threadsContract } from './threadsContract.js';
+export { exportsContract } from './exportsContract.js';
+export { recentValuesContract } from './recentValuesContract.js';
+export { searchContract } from './searchContract.js';
+export { chatGraphContract } from './chatGraphContract.js';
+export { boardsContract } from './boardsContract.js';
+export { sharesContract } from './sharesContract.js';
+export { userProfileContract } from './userProfileContract.js';
+export { notebookContract } from './notebookContract.js';
+export { notebookCollectionsContract } from './notebookCollectionsContract.js';
+export { docsContract } from './docsContract.js';
+export { documentsContract } from './documentsContract.js';
+export { subtitlerContract } from './subtitlerContract.js';
+export { voiceContract } from './voiceContract.js';
+export { imagePickerContract } from './imagePickerContract.js';
+export { videoContract } from './videoContract.js';
+export { textGenerationContract } from './textGenerationContract.js';
+export { sharepicContract } from './sharepicContract.js';
+export { wordpressContract } from './wordpressContract.js';
+export { transferContract } from './transferContract.js';
+export { unsplashContract } from './unsplashContract.js';
+export { notificationsContract } from './notificationsContract.js';
+export { adminVorlagenContract } from './adminVorlagenContract.js';

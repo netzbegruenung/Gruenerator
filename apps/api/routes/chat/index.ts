@@ -33,11 +33,11 @@ router.use('/generate-system-prompt', promptGeneratorRouter);
 router.use('/confirm', confirmRouter);
 router.use('/search', searchRouter);
 
-router.get('/agents', (async (req: Request & RequestWithLocale, res: Response) => {
+router.get('/agents', async (req: Request, res: Response): Promise<void> => {
   try {
     const agents = await loadAgents();
     const defaultId = getDefaultAgentId();
-    const locale = extractLocaleFromRequest(req as Request & RequestWithLocale);
+    const locale = extractLocaleFromRequest(req as unknown as RequestWithLocale);
     const clientAgents = agents
       .filter((agent) => agent.identifier !== defaultId)
       .map((agent) => ({
@@ -57,30 +57,34 @@ router.get('/agents', (async (req: Request & RequestWithLocale, res: Response) =
     console.error('Error loading agents:', error);
     res.status(500).json({ error: 'Failed to load agents' });
   }
-}) as any);
+});
 
-router.get('/agents/:identifier', (async (req: Request & RequestWithLocale, res: Response) => {
-  try {
-    const identifier = getParam(req.params, 'identifier');
-    const agent = await getAgent(identifier);
-    if (!agent) {
-      return res.status(404).json({ error: 'Agent not found' });
+router.get(
+  '/agents/:identifier',
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const identifier = getParam(req.params, 'identifier');
+      const agent = await getAgent(identifier);
+      if (!agent) {
+        res.status(404).json({ error: 'Agent not found' });
+        return;
+      }
+      const locale = extractLocaleFromRequest(req as unknown as RequestWithLocale);
+      res.json({
+        identifier: agent.identifier,
+        title: agent.title,
+        description: localizePlaceholders(agent.description, locale),
+        avatar: agent.avatar,
+        backgroundColor: agent.backgroundColor,
+        openingQuestions: agent.openingQuestions,
+        openingMessage: localizePlaceholders(agent.openingMessage, locale),
+      });
+    } catch (error) {
+      console.error('Error loading agent:', error);
+      res.status(500).json({ error: 'Failed to load agent' });
     }
-    const locale = extractLocaleFromRequest(req as Request & RequestWithLocale);
-    res.json({
-      identifier: agent.identifier,
-      title: agent.title,
-      description: localizePlaceholders(agent.description, locale),
-      avatar: agent.avatar,
-      backgroundColor: agent.backgroundColor,
-      openingQuestions: agent.openingQuestions,
-      openingMessage: localizePlaceholders(agent.openingMessage, locale),
-    });
-  } catch (error) {
-    console.error('Error loading agent:', error);
-    res.status(500).json({ error: 'Failed to load agent' });
   }
-}) as any);
+);
 
 router.get('/health', (_req, res) => {
   res.json({

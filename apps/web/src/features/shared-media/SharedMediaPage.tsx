@@ -14,7 +14,7 @@ import { canShare, shareContent, copyToClipboard } from '../../utils/shareUtils'
 
 const TransferDownloadPage = lazy(() => import('../transfer/components/TransferDownloadPage'));
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || '/api';
+const baseURL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 interface TransferFields {
   fileName: string | null;
@@ -32,6 +32,11 @@ interface ShareData extends Partial<TransferFields> {
   sharerName: string;
   status: 'processing' | 'ready' | 'failed';
   downloadCount?: number;
+}
+
+interface ShareApiResponse {
+  success: boolean;
+  share?: ShareData;
 }
 
 const SharedMediaPage = () => {
@@ -67,20 +72,20 @@ const SharedMediaPage = () => {
         setCanNativeShare(false);
       }
     };
-    checkShareCapability();
+    void checkShareCapability();
   }, []);
 
   useEffect(() => {
     const fetchShareData = async () => {
       try {
-        const response = await apiClient.get(`/share/${shareToken}`, {
+        const response = await apiClient.get<ShareApiResponse>(`/share/${shareToken}`, {
           skipAuthRedirect: true,
         });
         if (response.data.success) {
-          setShareData(response.data.share);
-          if (response.data.share.status === 'processing') {
+          setShareData(response.data.share ?? null);
+          if (response.data.share?.status === 'processing') {
             setIsProcessing(true);
-          } else if (response.data.share.status === 'failed') {
+          } else if (response.data.share?.status === 'failed') {
             setError(
               'Das Medium konnte nicht verarbeitet werden. Bitte erstelle einen neuen Share-Link.'
             );
@@ -100,7 +105,7 @@ const SharedMediaPage = () => {
       }
     };
 
-    fetchShareData();
+    void fetchShareData();
   }, [shareToken]);
 
   useEffect(() => {
@@ -108,14 +113,14 @@ const SharedMediaPage = () => {
 
     const pollStatus = async () => {
       try {
-        const response = await apiClient.get(`/share/${shareToken}`, {
+        const response = await apiClient.get<ShareApiResponse>(`/share/${shareToken}`, {
           skipAuthRedirect: true,
         });
         if (response.data.success) {
-          const newStatus = response.data.share.status;
+          const newStatus = response.data.share?.status;
           if (newStatus === 'ready') {
             setIsProcessing(false);
-            setShareData(response.data.share);
+            setShareData(response.data.share ?? null);
           } else if (newStatus === 'failed') {
             setIsProcessing(false);
             setError(
@@ -139,14 +144,14 @@ const SharedMediaPage = () => {
     setIsDownloading(true);
 
     try {
-      const response = await apiClient.get(`/share/${shareToken}/download`, {
+      const response = await apiClient.get<Blob>(`/share/${shareToken}/download`, {
         responseType: 'blob',
       });
 
       const mimeType = shareData?.mediaType === 'video' ? 'video/mp4' : 'image/png';
       const extension = shareData?.mediaType === 'video' ? 'mp4' : 'png';
 
-      const blob = new Blob([response.data], { type: mimeType });
+      const blob = new Blob([response.data as BlobPart], { type: mimeType });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -202,10 +207,10 @@ const SharedMediaPage = () => {
   const handleShareToInstagram = useCallback(async () => {
     setIsSharing(true);
     try {
-      const response = await apiClient.get(`/share/${shareToken}/preview`, {
+      const response = await apiClient.get<Blob>(`/share/${shareToken}/preview`, {
         responseType: 'blob',
       });
-      const blob = response.data;
+      const blob = response.data as Blob;
       const mimeType = shareData?.mediaType === 'video' ? 'video/mp4' : 'image/png';
       const extension = shareData?.mediaType === 'video' ? 'mp4' : 'png';
       const file = new File([blob], `gruenerator_media.${extension}`, { type: mimeType });

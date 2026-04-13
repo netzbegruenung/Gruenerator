@@ -24,7 +24,7 @@ export function useUnreadCount() {
   const fetch = useCallback(async () => {
     try {
       const client = getGlobalApiClient();
-      const res = await client.get('/notifications/unread-count');
+      const res = await client.get<{ unreadCount?: number }>('/notifications/unread-count');
       setCount(res.data?.unreadCount ?? 0);
     } catch {
       // silently fail
@@ -32,8 +32,8 @@ export function useUnreadCount() {
   }, []);
 
   useEffect(() => {
-    fetch();
-    timerRef.current = setInterval(fetch, POLL_INTERVAL);
+    void fetch();
+    timerRef.current = setInterval(() => void fetch(), POLL_INTERVAL);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
@@ -50,8 +50,10 @@ export function useNotifications() {
 
   const fetchPage = useCallback(async (offset: number) => {
     const client = getGlobalApiClient();
-    const res = await client.get(`/notifications?limit=${PAGE_SIZE}&offset=${offset}`);
-    return (res.data?.notifications ?? []) as AppNotification[];
+    const res = await client.get<{ notifications?: AppNotification[] }>(
+      `/notifications?limit=${PAGE_SIZE}&offset=${offset}`
+    );
+    return res.data?.notifications ?? [];
   }, []);
 
   const refresh = useCallback(async () => {
@@ -82,7 +84,7 @@ export function useNotifications() {
   }, [fetchPage, notifications.length, isLoadingMore, hasMore]);
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   const markAsRead = useCallback(async (id: string) => {

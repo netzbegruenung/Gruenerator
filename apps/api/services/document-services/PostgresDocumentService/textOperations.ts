@@ -3,6 +3,11 @@
  * Handles storing and retrieving full text content in document metadata
  */
 
+import { and, eq } from 'drizzle-orm';
+
+import { documents } from '../../../database/schema/documents.js';
+import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
+
 import type { DocumentMetadata, DocumentRecord } from './types.js';
 import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
 
@@ -19,23 +24,20 @@ export async function storeDocumentText(
     await postgres.ensureInitialized();
 
     // Check if document exists and user owns it
-    const document = await postgres.queryOne<{ id: string; metadata: string | null }>(
-      'SELECT * FROM documents WHERE id = $1 AND user_id = $2',
-      [documentId, userId],
-      { table: 'documents' }
-    );
+    const db = getDrizzleInstance();
+    const rows = await db
+      .select()
+      .from(documents)
+      .where(and(eq(documents.id, documentId), eq(documents.user_id, userId)))
+      .limit(1);
+
+    const document = rows[0];
 
     if (!document) {
       throw new Error('Document not found or access denied');
     }
 
-    // Parse existing metadata
-    let existingMetadata: Record<string, unknown> = {};
-    try {
-      existingMetadata = document.metadata ? JSON.parse(document.metadata) : {};
-    } catch (_e) {
-      existingMetadata = {};
-    }
+    const existingMetadata: Record<string, unknown> = document.metadata ?? {};
 
     // Update document with full text in metadata
     const updates = {
@@ -73,35 +75,32 @@ export async function getDocumentText(
   try {
     await postgres.ensureInitialized();
 
-    const document = await postgres.queryOne<{
-      id: string;
-      metadata: string | null;
-      created_at: string;
-    }>('SELECT * FROM documents WHERE id = $1 AND user_id = $2', [documentId, userId], {
-      table: 'documents',
-    });
+    const db = getDrizzleInstance();
+    const rows = await db
+      .select()
+      .from(documents)
+      .where(and(eq(documents.id, documentId), eq(documents.user_id, userId)))
+      .limit(1);
+
+    const document = rows[0];
 
     if (!document) {
       throw new Error('Document not found or access denied');
     }
 
-    // Parse metadata to extract text
-    let metadata: Record<string, unknown> = {};
-    try {
-      metadata = document.metadata ? JSON.parse(document.metadata) : {};
-    } catch (_e) {
-      metadata = {};
-    }
-
-    const fullText = (typeof metadata.full_text === 'string' ? metadata.full_text : '') as string;
+    const metadata: Record<string, unknown> = document.metadata ?? {};
+    const fullText = typeof metadata.full_text === 'string' ? metadata.full_text : '';
 
     return {
       success: true,
       text: fullText,
       textLength: fullText.length,
-      storedAt: (typeof metadata.stored_at === 'string'
-        ? metadata.stored_at
-        : document.created_at) as string,
+      storedAt:
+        typeof metadata.stored_at === 'string'
+          ? metadata.stored_at
+          : document.created_at instanceof Date
+            ? document.created_at.toISOString()
+            : new Date().toISOString(),
     };
   } catch (error) {
     console.error('[PostgresDocumentService] Error retrieving document text:', error);

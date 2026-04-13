@@ -1,3 +1,4 @@
+import { env } from '../../../config/env.js';
 import { parallelLimit } from '../../../utils/parallelLimit.js';
 import mistralClient from '../../../workers/mistralClient.js';
 
@@ -17,10 +18,7 @@ export class MistralEmbeddingClient {
 
   constructor({ model = 'mistral-embed' }: MistralEmbeddingOptions = {}) {
     this.model = model;
-    this.maxConcurrentBatches = Math.max(
-      1,
-      parseInt(process.env.MISTRAL_EMBEDDING_CONCURRENCY || '3', 10)
-    );
+    this.maxConcurrentBatches = Math.max(1, env.MISTRAL_EMBEDDING_CONCURRENCY);
   }
 
   // Mistral API rejects individual texts exceeding 8192 tokens.
@@ -127,7 +125,7 @@ export class MistralEmbeddingClient {
             console.warn(
               `[MistralEmbeddingClient] Skipping oversized text (${text.length} chars) — using zero vector`
             );
-            results.push(new Array(1024).fill(0));
+            results.push(new Array<number>(1024).fill(0));
           } else {
             console.error(`[MistralEmbeddingClient] Individual text failed:`, indErr.message);
             throw new Error(`Failed to generate embedding for text: ${indErr.message}`);

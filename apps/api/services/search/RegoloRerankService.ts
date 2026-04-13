@@ -8,6 +8,7 @@
  * mistral-small-4 and parsed JSON score responses.
  */
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('RegoloRerank');
@@ -43,7 +44,7 @@ class RegoloRerankService {
   private apiKey: string;
 
   constructor() {
-    this.apiKey = process.env.REGOLO_API_KEY || '';
+    this.apiKey = env.REGOLO_API_KEY || '';
     if (!this.apiKey) {
       log.warn('Missing REGOLO_API_KEY — reranking will fall back to original order');
     }

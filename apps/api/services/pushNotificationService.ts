@@ -4,9 +4,9 @@
  */
 
 import { eq, and, isNotNull, isNull, gt, sql } from 'drizzle-orm';
-import { getDrizzleInstance } from '../database/services/DrizzleService.js';
+
 import { appRefreshTokens } from '../database/schema/index.js';
-import { type AppRefreshTokenRow } from '../database/types.js';
+import { getDrizzleInstance } from '../database/services/DrizzleService.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('push');
@@ -20,24 +20,9 @@ export interface PushPayload {
 }
 
 type DeviceRow = Pick<
-  AppRefreshTokenRow,
-  'id' | 'device_name' | 'device_type' | 'push_token' | 'last_used_at'
+  typeof appRefreshTokens.$inferSelect,
+  'id' | 'deviceName' | 'deviceType' | 'pushToken' | 'lastUsedAt'
 >;
-
-type DrizzleDeviceRow = typeof appRefreshTokens.$inferSelect;
-
-/**
- * Map Drizzle result (camelCase fields) to DeviceRow (snake_case fields)
- */
-function toDeviceRow(row: DrizzleDeviceRow): DeviceRow {
-  return {
-    id: row.id,
-    device_name: row.deviceName,
-    device_type: row.deviceType,
-    push_token: row.pushToken,
-    last_used_at: row.lastUsedAt,
-  };
-}
 
 interface ExpoPushResponse {
   data: Array<{
@@ -85,7 +70,13 @@ export async function getUserDevicesWithPush(userId: string): Promise<DeviceRow[
   const db = getDrizzleInstance();
 
   const result = await db
-    .select()
+    .select({
+      id: appRefreshTokens.id,
+      deviceName: appRefreshTokens.deviceName,
+      deviceType: appRefreshTokens.deviceType,
+      pushToken: appRefreshTokens.pushToken,
+      lastUsedAt: appRefreshTokens.lastUsedAt,
+    })
     .from(appRefreshTokens)
     .where(
       and(
@@ -97,7 +88,7 @@ export async function getUserDevicesWithPush(userId: string): Promise<DeviceRow[
     )
     .orderBy(appRefreshTokens.lastUsedAt);
 
-  return result.map(toDeviceRow);
+  return result;
 }
 
 /**
@@ -154,7 +145,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
   }
 
   const messages = devices.map((device) => ({
-    to: device.push_token,
+    to: device.pushToken,
     title: payload.title,
     body: payload.body,
     data: payload.data || {},

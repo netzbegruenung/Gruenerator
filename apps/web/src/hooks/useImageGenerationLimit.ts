@@ -14,11 +14,21 @@ export const useImageGenerationLimit = () => {
   return useQuery({
     queryKey: ['imageGenerationStatus', user?.id],
     queryFn: async () => {
-      const response = await apiClient.get('/image-generation/status');
+      interface ImageLimitData {
+        count: number;
+        canGenerate: boolean;
+        [key: string]: unknown;
+      }
+      interface ImageGenStatusResponse {
+        success: boolean;
+        message?: string;
+        data: ImageLimitData;
+      }
+      const response = await apiClient.get<ImageGenStatusResponse>('/image-generation/status');
       const data = response.data;
 
       if (!data.success) {
-        throw new Error(data.message || 'Failed to get image generation status');
+        throw new Error(data.message ?? 'Failed to get image generation status');
       }
 
       return data.data;

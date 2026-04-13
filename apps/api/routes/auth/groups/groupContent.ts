@@ -6,11 +6,15 @@
 import fs from 'fs';
 import path from 'path';
 
+import { inArray } from 'drizzle-orm';
 import express, { type Router, type Response } from 'express';
 
+import { notebook_collections } from '../../../database/schema/notebooks.js';
+import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { createLogger } from '../../../utils/logger.js';
+import { fromParam, type GroupId } from '../../../utils/types/branded.js';
 import {
   groupContentShareSchema,
   groupContentUnshareSchema,
@@ -86,7 +90,7 @@ router.get(
   ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
-      const { groupId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user!.id;
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
@@ -193,16 +197,6 @@ router.get(
   }
 );
 
-const VALID_CONTENT_TYPES = new Set([
-  'documents',
-  'custom_generators',
-  'notebook_collections',
-  'user_documents',
-  'database',
-  'collaborative_documents',
-  'system_notebooks',
-]);
-
 const tableNameMap: Record<string, string> = {
   database: 'user_templates',
   template: 'user_templates',
@@ -225,7 +219,7 @@ router.post(
     res: Response
   ): Promise<void> => {
     try {
-      const { groupId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user!.id;
       const { contentType, contentId, permissions } = req.body;
 
@@ -372,7 +366,7 @@ router.delete(
     res: Response
   ): Promise<void> => {
     try {
-      const { groupId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user!.id;
       const { contentType, contentId } = req.body;
 
@@ -437,7 +431,7 @@ router.get(
   ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
-      const { groupId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user!.id;
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
@@ -531,15 +525,20 @@ router.get(
       if (contentByType.notebook_collections.length > 0) {
         const ids = contentByType.notebook_collections.map((s: ShareRecord) => s.content_id);
         fetchPromises.push(
-          postgres
-            .query(
-              'SELECT id, name, description, view_count, created_at, updated_at, user_id FROM notebook_collections WHERE id = ANY($1)',
-              [ids],
-              { table: 'notebook_collections' }
-            )
+          getDrizzleInstance()
+            .select({
+              id: notebook_collections.id,
+              name: notebook_collections.name,
+              description: notebook_collections.description,
+              created_at: notebook_collections.created_at,
+              updated_at: notebook_collections.updated_at,
+              user_id: notebook_collections.user_id,
+            })
+            .from(notebook_collections)
+            .where(inArray(notebook_collections.id, ids))
             .then((data) => ({
               type: 'notebook_collections',
-              result: { data: data || [] },
+              result: { data: data as Array<Record<string, unknown>> },
               shares: contentByType.notebook_collections,
             }))
         );
@@ -722,9 +721,13 @@ router.put(
     res: Response
   ): Promise<void> => {
     try {
-      const { groupId, contentId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
+      const contentId = req.params.contentId;
       const userId = req.user!.id;
-      const { contentType, permissions } = req.body;
+      const { contentType, permissions } = req.body as {
+        contentType: string;
+        permissions: string[];
+      };
 
       const { postgres, membership } = await getPostgresAndCheckMembership(groupId, userId, false);
 
@@ -790,7 +793,8 @@ router.delete(
     res: Response
   ): Promise<void> => {
     try {
-      const { groupId, contentId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
+      const contentId = req.params.contentId;
       const userId = req.user!.id;
       const { contentType } = req.body;
 

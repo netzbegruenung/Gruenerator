@@ -30,21 +30,21 @@ const LOGIN_PROVIDERS: Record<string, LoginProvider> = {
     source: 'gruenes-netz-login',
     title: 'Grünes Netz Login',
     description: 'Mit deinem Grünes Netz Account anmelden',
-    logo: require('../../assets/images/sonnenblume.png'),
+    logo: require('../../assets/images/sonnenblume.png') as ImageSourcePropType,
   },
   grueneOesterreich: {
     enabled: true,
     source: 'gruene-oesterreich-login',
     title: 'Die Grünen – Die Grüne Alternative',
     description: 'Mit deinem Groupware Account (Zimbra) anmelden',
-    logo: require('../../assets/images/gruene-at-logo.png'),
+    logo: require('../../assets/images/gruene-at-logo.png') as ImageSourcePropType,
   },
   netzbegruenung: {
     enabled: true,
     source: 'netzbegruenung-login',
     title: 'Netzbegrünung Login',
     description: 'Mit deinem Netzbegrünung Account anmelden',
-    logo: require('../../assets/images/nb-icon.png'),
+    logo: require('../../assets/images/nb-icon.png') as ImageSourcePropType,
   },
   gruenerator: {
     enabled: false,
@@ -72,7 +72,7 @@ export default function LoginScreen() {
       const result = await login(source);
 
       if (result.success) {
-        router.replace('/(tabs)');
+        void router.replace('/(tabs)');
       } else {
         setError(result.error || 'Anmeldung fehlgeschlagen');
       }
@@ -90,7 +90,7 @@ export default function LoginScreen() {
   };
 
   const handlePrivacyPress = () => {
-    Linking.openURL('https://gruenerator.eu/datenschutz');
+    void Linking.openURL('https://gruenerator.eu/datenschutz');
   };
 
   const renderLoginOption = (provider: LoginProvider) => {

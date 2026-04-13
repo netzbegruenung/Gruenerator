@@ -51,6 +51,8 @@ export interface RateLimitConfig {
   development: DevelopmentConfig;
 }
 
+import { env } from './env.js';
+
 const rateLimitConfig: RateLimitConfig = {
   // Resource limit definitions
   resources: {
@@ -96,7 +98,7 @@ const rateLimitConfig: RateLimitConfig = {
   anonymousIdentifierStrategy: ['sessionID', 'ip'],
 
   // Global settings
-  enableAnalytics: process.env.ENABLE_RATE_LIMIT_ANALYTICS === 'true', // Track usage for analytics
+  enableAnalytics: env.ENABLE_RATE_LIMIT_ANALYTICS, // Track usage for analytics
   redisKeyPrefix: 'rate_limit', // Prefix for all Redis keys
 
   // Error handling
@@ -104,7 +106,7 @@ const rateLimitConfig: RateLimitConfig = {
 
   // Development overrides
   development: {
-    enabled: process.env.DISABLE_RATE_LIMITS !== 'true', // Can disable in dev with env var
+    enabled: !env.DISABLE_RATE_LIMITS, // Can disable in dev with env var
     multiplier: 1, // Can multiply all limits by N in dev (e.g., 10x for testing)
   },
 };

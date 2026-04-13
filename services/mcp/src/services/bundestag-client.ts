@@ -14,6 +14,12 @@ interface MCPResponse {
   };
 }
 
+interface ParsedToolResult {
+  results?: unknown[];
+  documents?: unknown[];
+  [key: string]: unknown;
+}
+
 class BundestagMCPClient {
   private baseUrl: string;
 
@@ -21,7 +27,7 @@ class BundestagMCPClient {
     this.baseUrl = baseUrl;
   }
 
-  async _callTool(toolName: string, args: Record<string, unknown> = {}) {
+  async _callTool(toolName: string, args: Record<string, unknown> = {}): Promise<unknown> {
     const url = `${this.baseUrl}/mcp`;
 
     const body = {
@@ -61,7 +67,7 @@ class BundestagMCPClient {
       }
 
       if (result.result?.content?.[0]?.text) {
-        const parsed = JSON.parse(result.result.content[0].text);
+        const parsed = JSON.parse(result.result.content[0].text) as ParsedToolResult;
         // Normalize: API returns 'results', services expect 'documents'
         if (parsed.results && !parsed.documents) {
           parsed.documents = parsed.results;
@@ -79,7 +85,7 @@ class BundestagMCPClient {
     }
   }
 
-  async searchPersonen(params: Record<string, unknown> = {}) {
+  async searchPersonen(params: Record<string, unknown> = {}): Promise<unknown> {
     return this._callTool('bundestag_search_personen', {
       query: params.query,
       fraktion: params.fraktion,
@@ -88,11 +94,11 @@ class BundestagMCPClient {
     });
   }
 
-  async getPerson(id: string | number) {
+  async getPerson(id: string | number): Promise<unknown> {
     return this._callTool('bundestag_get_person', { id: String(id) });
   }
 
-  async searchDrucksachen(params: Record<string, unknown> = {}) {
+  async searchDrucksachen(params: Record<string, unknown> = {}): Promise<unknown> {
     return this._callTool('bundestag_search_drucksachen', {
       query: params.query,
       urheber: params.urheber,
@@ -102,7 +108,7 @@ class BundestagMCPClient {
     });
   }
 
-  async searchAktivitaeten(params: Record<string, unknown> = {}) {
+  async searchAktivitaeten(params: Record<string, unknown> = {}): Promise<unknown> {
     return this._callTool('bundestag_search_aktivitaeten', {
       person_id: params.person_id ? String(params.person_id) : undefined,
       aktivitaetsart: params.aktivitaetsart,

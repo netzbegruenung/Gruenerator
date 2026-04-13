@@ -55,7 +55,7 @@ export function InstructionCard({
         }
 
         debounceRef.current = setTimeout(() => {
-          onSave();
+          void onSave();
         }, DEBOUNCE_DELAY);
       }
     },

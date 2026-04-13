@@ -121,9 +121,14 @@ export async function queryPlannerNode(
 
   log.info(`[QueryPlanner] Raw query: "${rawQuery.substring(0, 100)}"`);
 
-  // Context-aware follow-up reformulation
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const conversationContext = formatConversationContext(state.messages as any);
+  // Context-aware follow-up reformulation — ModelMessage content may be string or complex object;
+  // formatConversationContext handles string content only, so cast to the expected shape
+  const conversationContext = formatConversationContext(
+    state.messages.map((m) => ({
+      role: m.role,
+      content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+    }))
+  );
   const isVagueFollowUp = conversationContext && rawQuery.split(/\s+/).length <= 10;
 
   let effectiveQuery = rawQuery;

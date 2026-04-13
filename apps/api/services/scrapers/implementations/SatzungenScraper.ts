@@ -915,8 +915,7 @@ export class SatzungenScraper extends BaseScraper {
   /**
    * Get collection statistics
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async getStats(): Promise<any> {
+  async getStats(): Promise<unknown> {
     try {
       const stats = await getCollectionStats(this.qdrant.client!, this.config.collectionName);
       return {

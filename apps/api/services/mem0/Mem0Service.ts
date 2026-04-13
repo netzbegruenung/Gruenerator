@@ -369,6 +369,18 @@ export class Mem0Service {
   async getMemoryHistory(userId: string): Promise<Mem0HistoryRecord[]> {
     try {
       const postgres = getPostgresInstance();
+      interface Mem0HistoryRow {
+        id: string;
+        user_id: string;
+        memory_id: string;
+        operation: 'add' | 'update' | 'delete' | 'delete_all';
+        memory_text: string | null;
+        metadata: Mem0MemoryMetadata | null;
+        created_at: Date;
+        thread_id: string | null;
+        message_id: string | null;
+      }
+
       const results = await postgres.query(
         `SELECT id, user_id, memory_id, operation, memory_text, metadata,
                 created_at, thread_id, message_id
@@ -378,17 +390,16 @@ export class Mem0Service {
         [userId]
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return (results as any[]).map((row) => ({
-        id: row.id as string,
-        userId: row.user_id as string,
-        memoryId: row.memory_id as string,
-        operation: row.operation as 'add' | 'update' | 'delete' | 'delete_all',
-        memoryText: row.memory_text as string | undefined,
-        metadata: row.metadata as Mem0MemoryMetadata | undefined,
-        createdAt: row.created_at as Date,
-        threadId: row.thread_id as string | undefined,
-        messageId: row.message_id as string | undefined,
+      return (results as unknown as Mem0HistoryRow[]).map((row) => ({
+        id: row.id,
+        userId: row.user_id,
+        memoryId: row.memory_id,
+        operation: row.operation,
+        ...(row.memory_text != null && { memoryText: row.memory_text }),
+        ...(row.metadata != null && { metadata: row.metadata }),
+        createdAt: row.created_at,
+        ...(row.thread_id != null && { threadId: row.thread_id }),
+        ...(row.message_id != null && { messageId: row.message_id }),
       }));
     } catch (error) {
       log.error('[Mem0] Error getting memory history:', error);

@@ -101,7 +101,7 @@ async function getUploadStatus(uploadId: string): Promise<UploadStatus> {
     if (metadataExists) {
       try {
         const metadataContent = await fs.readFile(metadataPath, 'utf8');
-        metadata = JSON.parse(metadataContent);
+        metadata = JSON.parse(metadataContent) as UploadMetadata;
       } catch (err: unknown) {
         log.debug(
           `Metadata read error for ${uploadId}: ${err instanceof Error ? err.message : String(err)}`
@@ -326,7 +326,7 @@ function getFilePathFromUploadId(uploadId: string): string {
 
   try {
     return sanitizePath(uploadId, TUS_UPLOAD_PATH);
-  } catch (error) {
+  } catch {
     log.warn(`Security validation failed for uploadId: ${uploadId}`);
     throw new Error('Invalid upload ID: security validation failed');
   }
@@ -341,7 +341,7 @@ async function checkFileExists(filePath: string): Promise<boolean> {
   }
 }
 
-async function cleanupTusUploads(maxAgeHours: number = 24): Promise<void> {
+async function cleanupTusUploads(_maxAgeHours: number = 24): Promise<void> {
   await intelligentCleanup();
 }
 

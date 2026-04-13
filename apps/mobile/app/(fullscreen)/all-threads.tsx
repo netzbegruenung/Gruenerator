@@ -47,7 +47,7 @@ export default function AllThreadsScreen() {
             try {
               const client = getMobileChatApiClient();
               await client.delete(`/api/chat-service/threads?threadId=${threadId}`);
-              refetch();
+              void refetch();
             } catch {
               /* delete may fail silently */
             }

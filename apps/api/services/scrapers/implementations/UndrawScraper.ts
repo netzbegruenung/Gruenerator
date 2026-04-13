@@ -172,10 +172,12 @@ export class UndrawScraper extends BaseScraper {
           const content = $(script).html();
           if (!content) return;
 
-          const data = JSON.parse(content);
+          const data = JSON.parse(content) as {
+            props?: { pageProps?: { illustrations?: UndrawRawIllustration[] } };
+          };
 
           if (data?.props?.pageProps?.illustrations) {
-            const illustrationData = data.props.pageProps.illustrations as UndrawRawIllustration[];
+            const illustrationData = data.props.pageProps.illustrations;
 
             for (const item of illustrationData) {
               if (item.title && item.newSlug && item.media) {

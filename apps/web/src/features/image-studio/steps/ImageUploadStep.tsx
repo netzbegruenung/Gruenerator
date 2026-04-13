@@ -154,7 +154,7 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
 
   useEffect(() => {
     if (imageSourceTab === 'mediathek' && shares.length === 0) {
-      fetchUserShares('image');
+      void fetchUserShares('image');
     }
   }, [imageSourceTab, shares.length, fetchUserShares]);
 
@@ -175,7 +175,7 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
   useEffect(() => {
     if (imageSourceTab !== 'unsplash') return;
     if (debouncedUnsplashQuery.trim()) {
-      searchUnsplash(debouncedUnsplashQuery);
+      void searchUnsplash(debouncedUnsplashQuery);
     } else {
       clearUnsplash();
     }

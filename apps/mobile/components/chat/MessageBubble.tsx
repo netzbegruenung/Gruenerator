@@ -139,7 +139,7 @@ const AssistantActionBar = memo(function AssistantActionBar({
     if (ttsState === 'playing') {
       stop();
     } else if (messageText) {
-      play(messageText);
+      void play(messageText);
     }
   }, [ttsState, messageText, play, stop]);
 

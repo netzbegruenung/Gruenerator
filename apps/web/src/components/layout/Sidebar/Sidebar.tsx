@@ -155,7 +155,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       if (onNavigate) {
         onNavigate(path, title);
       } else {
-        navigate(path);
+        void navigate(path);
       }
       close();
     },
@@ -170,7 +170,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     if (onNavigate) {
       onNavigate('/chat', 'Chat');
     } else {
-      navigate('/chat');
+      void navigate('/chat');
     }
   }, [navigate, onNavigate, location.pathname]);
 

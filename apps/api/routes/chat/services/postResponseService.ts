@@ -14,6 +14,7 @@ import { shouldExtractMemories } from '../../../services/mem0/gatekeeperService.
 import { getMem0Instance } from '../../../services/mem0/index.js';
 import { maybeRecompilePersona } from '../../../services/mem0/personaService.js';
 import { createLogger } from '../../../utils/logger.js';
+import { type AIWorkerPool } from '../../../workers/types.js';
 
 import { saveThreadAttachment } from './attachmentPersistenceService.js';
 import { extractTextContent } from './messageHelpers.js';
@@ -84,7 +85,7 @@ export interface PersistParams {
   isNewThread: boolean;
   lastUserMessage: ModelMessage;
   processedMeta: ProcessedAttachmentMeta[];
-  aiWorkerPool: { processRequest: (request: unknown) => Promise<unknown> };
+  aiWorkerPool: AIWorkerPool;
   requestId: string;
 }
 
@@ -151,9 +152,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
         threadId,
         userText,
         fullText,
-        aiWorkerPool as {
-          processRequest: (...args: unknown[]) => Promise<{ content?: string | null }>;
-        },
+        aiWorkerPool,
         {
           imageGenerated: !!generatedImage,
         }

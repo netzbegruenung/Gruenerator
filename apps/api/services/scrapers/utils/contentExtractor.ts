@@ -178,7 +178,7 @@ export function extractLinks(html: string, baseUrl?: string): string[] {
       if (baseUrl && !href.startsWith('http')) {
         try {
           href = new URL(href, baseUrl).toString();
-        } catch (e) {
+        } catch {
           // Invalid URL, skip
           return;
         }
@@ -238,7 +238,7 @@ export function extractArticleUrls(html: string, baseUrl: string): string[] {
         try {
           const absoluteUrl = new URL(href, baseUrl).toString();
           urls.add(absoluteUrl);
-        } catch (e) {
+        } catch {
           // Invalid URL, skip
         }
       }

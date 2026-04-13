@@ -20,10 +20,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
 import { FORM_STEPS } from '../features/image-studio/utils/typeConfig/constants';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
-import useImageStudioStore from '../stores/imageStudioStore';
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { useAuthStore } from '../stores/authStore';
+import useImageStudioStore from '../stores/imageStudioStore';
 import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
 
 const DocsEditorModal = lazy(() => import('@/components/common/DocsEditorModal'));
@@ -45,7 +45,7 @@ function ChatThreadPortal() {
 
   const handleClick = () => {
     if (!location.pathname.startsWith('/chat')) {
-      navigate('/chat');
+      void navigate('/chat');
     }
   };
 
@@ -65,7 +65,7 @@ interface GlobalChatProviderProps {
 
 export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const userId = useAuthStore((s) => s.user?.id);
-  const userName = useAuthStore((s) => s.user?.display_name || s.user?.name);
+  const userName = useAuthStore((s) => s.user?.display_name);
   const navigate = useNavigate();
   const location = useLocation();
   const qaCollectionsLength = useNotebookStore((s) => s.qaCollections.length);
@@ -80,7 +80,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const mentionablesActivated = useAgentStore((s) => s.mentionablesActivated);
   useEffect(() => {
     if (!mentionablesActivated || qaCollectionsLength > 0) return;
-    useNotebookStore.getState().fetchQACollections();
+    void useNotebookStore.getState().fetchQACollections();
   }, [mentionablesActivated, qaCollectionsLength]);
 
   useEffect(() => {
@@ -88,7 +88,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       const { mentions } = (e as CustomEvent<{ mentions: string[] }>).detail;
       if (mentions.length === 0) return;
       const names = mentions.map((m) => `@${m}`).join(', ');
-      import('sonner').then(({ toast }) =>
+      void import('sonner').then(({ toast }) =>
         toast.warning(`${names} konnte nicht aufgeloest werden`, {
           description: 'Nutze @docs um ein kollaboratives Dokument auszuwaehlen.',
         })
@@ -128,7 +128,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
 
   const handleExternalClick = useCallback(
     (path: string) => {
-      navigate(path);
+      void navigate(path);
     },
     [navigate]
   );
@@ -142,11 +142,15 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         }
       },
       renderSharepic: renderSharepicToImage,
-      onEditSharepic: (data: { canvasType: string; initialProps: Record<string, unknown>; alternatives?: unknown[] }) => {
+      onEditSharepic: (data: {
+        canvasType: string;
+        initialProps: Record<string, unknown>;
+        alternatives?: unknown[];
+      }) => {
         const store = useImageStudioStore.getState();
         store.loadFromAIGeneration(data.canvasType, data.initialProps as Record<string, string>);
         store.setCurrentStep(FORM_STEPS.CANVAS_EDIT);
-        navigate(`/studio/vorlagen/${data.canvasType}`);
+        void navigate(`/studio/vorlagen/${data.canvasType}`);
       },
       onEditInDocs: async (content: string, title?: string, existingDocId?: string) => {
         if (existingDocId) {
@@ -170,12 +174,12 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           body: JSON.stringify({ content: htmlContent, title, documentType: 'chat-response' }),
         });
         if (!response.ok) throw new Error('Document creation failed');
-        const data = await response.json();
+        const data = (await response.json()) as { documentId?: string; title?: string };
         if (data.documentId) {
           editorModalSetterRef.current({
             documentId: data.documentId,
             initialContent: content,
-            title: title || data.title || 'Dokument',
+            title: title ?? data.title ?? 'Dokument',
           });
           return data.documentId;
         }

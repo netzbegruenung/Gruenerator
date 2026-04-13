@@ -57,6 +57,7 @@ import type {
   SearchContext,
   GetSearchContextParams,
 } from './types.js';
+import type { AIWorkerPool } from '../../workers/types.js';
 import type {
   EnrichedPersonSearchResult,
   ContentMention,
@@ -738,9 +739,9 @@ export class NotebookQAService {
     const sourceIdFilter = filters.source_id;
     if (!sourceIdFilter) return results;
 
-    const allowedSourceIds: string[] = Array.isArray(sourceIdFilter)
-      ? sourceIdFilter
-      : [sourceIdFilter];
+    const allowedSourceIds = (
+      Array.isArray(sourceIdFilter) ? sourceIdFilter : [sourceIdFilter]
+    ) as string[];
 
     const before = results.length;
     const filtered = results.filter((r) => !r.source_id || allowedSourceIds.includes(r.source_id));
@@ -806,8 +807,7 @@ export class NotebookQAService {
     titleFilter,
     additionalFilter,
     searchParams,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- returns SearchResponse results which are used as both DocumentResult and SearchResultInput
-  }: InternalSearchOptions): Promise<any[]> {
+  }: InternalSearchOptions): Promise<SearchResultInput[]> {
     const resp = await documentSearchService.search({
       query,
       ...(userId != null && { userId }),
@@ -826,7 +826,7 @@ export class NotebookQAService {
       },
     });
 
-    return resp.results || [];
+    return (resp.results || []) as SearchResultInput[];
   }
 
   /**
@@ -835,11 +835,7 @@ export class NotebookQAService {
   private async _generateDraft(
     question: string,
     referencesMap: ReferencesMap,
-    aiWorkerPool: {
-      processRequest: (
-        request: unknown
-      ) => Promise<{ content?: string; raw_content_blocks?: Array<{ text?: string }> }>;
-    },
+    aiWorkerPool: AIWorkerPool,
     isSystemCollection: boolean
   ): Promise<string> {
     const refKeys = Object.keys(referencesMap);
@@ -870,7 +866,7 @@ export class NotebookQAService {
     return (
       aiResult.content ||
       (Array.isArray(aiResult.raw_content_blocks)
-        ? aiResult.raw_content_blocks.map((b: { text?: string }) => b.text || '').join('')
+        ? aiResult.raw_content_blocks.map((b) => b.text || '').join('')
         : '')
     );
   }
@@ -882,11 +878,7 @@ export class NotebookQAService {
   private async _generateFastDraft(
     question: string,
     results: ExpandedChunkResult[],
-    aiWorkerPool: {
-      processRequest: (
-        request: unknown
-      ) => Promise<{ content?: string; raw_content_blocks?: Array<{ text?: string }> }>;
-    }
+    aiWorkerPool: AIWorkerPool
   ): Promise<string> {
     const context = results
       .slice(0, 15)
@@ -910,7 +902,7 @@ export class NotebookQAService {
     return (
       aiResult.content ||
       (Array.isArray(aiResult.raw_content_blocks)
-        ? aiResult.raw_content_blocks.map((b: { text?: string }) => b.text || '').join('')
+        ? aiResult.raw_content_blocks.map((b) => b.text || '').join('')
         : '')
     );
   }
@@ -968,11 +960,7 @@ export class NotebookQAService {
    */
   private async _tryEnrichedPersonSearch(
     question: string,
-    aiWorkerPool: {
-      processRequest: (
-        request: unknown
-      ) => Promise<{ content?: string; raw_content_blocks?: Array<{ text?: string }> }>;
-    },
+    aiWorkerPool: AIWorkerPool,
     startTime: number
   ): Promise<QAResponse | null> {
     try {
@@ -1040,11 +1028,7 @@ export class NotebookQAService {
   private async _generatePersonAnswer(
     question: string,
     contextSummary: string,
-    aiWorkerPool: {
-      processRequest: (
-        request: unknown
-      ) => Promise<{ content?: string; raw_content_blocks?: Array<{ text?: string }> }>;
-    }
+    aiWorkerPool: AIWorkerPool
   ): Promise<string> {
     const systemPrompt = `Du bist ein Experte für die Grüne Bundestagsfraktion. Beantworte Fragen über Abgeordnete basierend auf den bereitgestellten Informationen. Antworte auf Deutsch, präzise und sachlich. Wenn du Informationen aus den Quellen verwendest, zitiere sie mit [1], [2] etc.`;
 
@@ -1060,7 +1044,7 @@ export class NotebookQAService {
     return (
       aiResult.content ||
       (Array.isArray(aiResult.raw_content_blocks)
-        ? aiResult.raw_content_blocks.map((b: { text?: string }) => b.text || '').join('')
+        ? aiResult.raw_content_blocks.map((b) => b.text || '').join('')
         : '')
     );
   }

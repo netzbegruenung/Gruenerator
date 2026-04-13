@@ -4,14 +4,10 @@
  * Calculates optimal font sizes based on video dimensions and content.
  */
 
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('subtitleSizing');
-
-interface VideoMetadata {
-  width: number;
-  height: number;
-}
 
 interface SubtitleSegment {
   text?: string;

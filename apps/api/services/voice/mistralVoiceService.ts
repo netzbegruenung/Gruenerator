@@ -139,7 +139,7 @@ class MistralVoiceService {
     audioBuffer: Buffer,
     filename: string,
     prompt: string,
-    options: ChatOptions = {}
+    _options: ChatOptions = {}
   ): Promise<string> {
     try {
       const audioBase64 = audioBuffer.toString('base64');

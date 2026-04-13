@@ -26,11 +26,19 @@ const JoinGroupPage = () => {
       if (!joinToken || isLoading || !isAuthResolved || !user) return;
 
       try {
-        const response = await apiClient.get(`/auth/groups/verify-token/${joinToken}`);
+        interface VerifyTokenResponse {
+          success: boolean;
+          message?: string;
+          group: { name: string };
+          alreadyMember?: boolean;
+        }
+        const response = await apiClient.get<VerifyTokenResponse>(
+          `/auth/groups/verify-token/${joinToken}`
+        );
         const data = response.data;
 
         if (!data.success) {
-          throw new Error(data.message || 'Ungültiger Einladungslink');
+          throw new Error(data.message ?? 'Ungültiger Einladungslink');
         }
 
         if (isMounted) {
@@ -50,7 +58,7 @@ const JoinGroupPage = () => {
       }
     };
 
-    verifyToken();
+    void verifyToken();
     return () => {
       isMounted = false;
     };

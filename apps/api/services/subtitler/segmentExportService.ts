@@ -10,11 +10,12 @@ import { fileURLToPath } from 'url';
 
 import { v4 as uuidv4 } from 'uuid';
 
+import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
 import { ffmpegPool } from './ffmpegPool.js';
-import { ffmpeg, ffprobe, normalizeRotation, FFprobeMetadata } from './ffmpegWrapper.js';
+import { ffmpeg, ffprobe, normalizeRotation } from './ffmpegWrapper.js';
 import * as hwaccel from './hwaccelUtils.js';
 import {
   buildSegmentFilterComplex,
@@ -30,20 +31,6 @@ const log = createLogger('segment-export');
 
 const EXPORTS_DIR = path.join(__dirname, '../../uploads/exports');
 
-interface VideoMetadata {
-  width: number;
-  height: number;
-  duration: number;
-  fps: number;
-  rotation: string;
-  originalFormat: {
-    codec?: string;
-    audioCodec?: string;
-    audioBitrate: number | null;
-    videoBitrate: number | null;
-  };
-}
-
 interface SubtitleSegment {
   startTime: number;
   endTime: number;
@@ -52,9 +39,9 @@ interface SubtitleSegment {
 
 interface SubtitleConfig {
   segments: SubtitleSegment[];
-  stylePreference?: string;
-  heightPreference?: string;
-  locale?: string;
+  stylePreference?: string | undefined;
+  heightPreference?: string | undefined;
+  locale?: string | undefined;
 }
 
 interface ExportOptions {
@@ -223,7 +210,10 @@ export async function exportWithSegments(
     }
 
     const validSegments = segments.filter(
-      (seg) => seg.start >= 0 && seg.end > seg.start && seg.end <= metadata.duration + 0.5
+      (seg) =>
+        seg.start >= 0 &&
+        seg.end > seg.start &&
+        seg.end <= ((metadata.duration as number | undefined) ?? 0) + 0.5
     );
 
     if (validSegments.length === 0) {
@@ -428,7 +418,10 @@ export async function exportWithSegmentsAndSubtitles(
     }
 
     const validSegments = segments.filter(
-      (seg) => seg.start >= 0 && seg.end > seg.start && seg.end <= metadata.duration + 0.5
+      (seg) =>
+        seg.start >= 0 &&
+        seg.end > seg.start &&
+        seg.end <= ((metadata.duration as number | undefined) ?? 0) + 0.5
     );
 
     if (validSegments.length === 0) {

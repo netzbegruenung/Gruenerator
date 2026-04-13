@@ -44,7 +44,7 @@ async function loadManifest(): Promise<Manifest> {
       if (!response.ok) {
         throw new Error(`Failed to load campaign manifest: ${response.status}`);
       }
-      return response.json();
+      return response.json() as Promise<Manifest>;
     })
     .then((manifest) => {
       cachedManifest = manifest;
@@ -78,7 +78,7 @@ async function loadCampaignConfig(campaignId: string): Promise<Campaign | null> 
       return null;
     }
 
-    const campaign = await response.json();
+    const campaign = (await response.json()) as Campaign;
     cachedCampaigns.set(campaignId, campaign);
     return campaign;
   } catch (error) {

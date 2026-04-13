@@ -139,7 +139,7 @@ const PromptsTab: React.FC<PromptsTabProps> = memo(({ isActive }) => {
 
   const handleUsePrompt = useCallback(
     (slug: string) => {
-      navigate(`/agent/${slug}`);
+      void navigate(`/agent/${slug}`);
     },
     [navigate]
   );
@@ -168,7 +168,7 @@ const PromptsTab: React.FC<PromptsTabProps> = memo(({ isActive }) => {
   const handleFormComplete = useCallback(() => {
     setShowCreateForm(false);
     setEditingPrompt(null);
-    promptsQuery.refetch();
+    void promptsQuery.refetch();
   }, [promptsQuery]);
 
   const handleFormCancel = useCallback(() => {

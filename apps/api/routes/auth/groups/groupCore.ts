@@ -15,6 +15,7 @@ import { getPostgresInstance } from '../../../database/services/PostgresService.
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { createLogger } from '../../../utils/logger.js';
+import { fromParam, type GroupId } from '../../../utils/types/branded.js';
 import {
   groupCreateSchema,
   groupJoinSchema,
@@ -236,7 +237,7 @@ router.delete(
   ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
-      const { groupId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user!.id;
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
@@ -482,7 +483,7 @@ router.get(
   ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
-      const { groupId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user!.id;
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
@@ -549,7 +550,7 @@ router.put(
     res: Response
   ): Promise<void> => {
     try {
-      const { groupId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user!.id;
       const { name, description, settings } = req.body as GroupInfoUpdateBody;
       const postgres = getPostgresInstance();
@@ -650,7 +651,7 @@ router.put(
   validateBody(groupUpdateSchema),
   async (req: TypedRequest<GroupUpdateBody, { groupId: string }>, res: Response): Promise<void> => {
     try {
-      const { groupId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user!.id;
       const { name } = req.body as GroupUpdateBody;
 
@@ -694,7 +695,7 @@ router.get(
   ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
     try {
-      const { groupId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user!.id;
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
@@ -760,7 +761,8 @@ router.put(
     res: Response
   ): Promise<void> => {
     try {
-      const { groupId, memberId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
+      const memberId = req.params.memberId;
       const userId = req.user!.id;
       const { role } = req.body as GroupMemberRoleBody;
 
@@ -851,7 +853,7 @@ router.post(
   validateBody(groupLinkSchema),
   async (req: TypedRequest<GroupLinkBody, { groupId: string }>, res: Response): Promise<void> => {
     try {
-      const { groupId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user!.id;
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
@@ -905,7 +907,8 @@ router.put(
     res: Response
   ): Promise<void> => {
     try {
-      const { groupId, linkId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
+      const linkId = req.params.linkId;
       const userId = req.user!.id;
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);
@@ -955,7 +958,8 @@ router.delete(
   ensureAuthenticated,
   async (req: AuthRequest<{ groupId: string; linkId: string }>, res: Response): Promise<void> => {
     try {
-      const { groupId, linkId } = req.params;
+      const groupId = fromParam<GroupId>(req.params.groupId);
+      const linkId = req.params.linkId;
       const userId = req.user!.id;
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, true);

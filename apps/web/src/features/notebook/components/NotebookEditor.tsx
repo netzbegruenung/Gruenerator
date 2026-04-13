@@ -133,7 +133,7 @@ const NotebookEditor = ({
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (file) handleFileUpload(file);
+      if (file) void handleFileUpload(file);
     },
     [handleFileUpload]
   );
@@ -143,7 +143,7 @@ const NotebookEditor = ({
       e.preventDefault();
       setIsDragOver(false);
       const file = e.dataTransfer.files?.[0];
-      if (file) handleFileUpload(file);
+      if (file) void handleFileUpload(file);
     },
     [handleFileUpload]
   );

@@ -1,5 +1,29 @@
 import apiClient from '@/components/utils/apiClient';
 
+// ── API response shapes ────────────────────────────────────────────────
+
+interface ShareLinksResponse {
+  success: boolean;
+  message?: string;
+  shareLinks?: ShareLink[];
+}
+
+interface ShareLinkResponse {
+  success: boolean;
+  message?: string;
+  shareLink?: ShareLink;
+}
+
+interface FilesResponse {
+  success: boolean;
+  files?: WolkeFileItem[];
+}
+
+interface SyncStatusesResponse {
+  success: boolean;
+  syncStatuses?: SyncStatus[];
+}
+
 export type WolkeScope = 'personal' | 'group';
 
 export interface ShareLink {
@@ -70,9 +94,9 @@ export async function fetchShareLinks(
   scopeId?: string | null
 ): Promise<ShareLink[]> {
   const basePath = getBasePath(scope, scopeId);
-  const response = await apiClient.get(`${basePath}/share-links`);
+  const response = await apiClient.get<ShareLinksResponse>(`${basePath}/share-links`);
   if (response.data?.success) {
-    return response.data.shareLinks || [];
+    return response.data.shareLinks ?? [];
   }
   throw new Error('Failed to fetch share links');
 }
@@ -84,14 +108,14 @@ export async function addShareLink(
   scopeId?: string | null
 ): Promise<ShareLink> {
   const basePath = getBasePath(scope, scopeId);
-  const response = await apiClient.post(`${basePath}/share-links`, {
+  const response = await apiClient.post<ShareLinkResponse>(`${basePath}/share-links`, {
     shareLink: url.trim(),
     label: (label || '').trim(),
   });
   if (response.data?.success && response.data.shareLink) {
     return response.data.shareLink;
   }
-  throw new Error(response.data?.message || 'Failed to add share link');
+  throw new Error(response.data?.message ?? 'Failed to add share link');
 }
 
 export async function deleteShareLink(
@@ -100,9 +124,9 @@ export async function deleteShareLink(
   scopeId?: string | null
 ): Promise<void> {
   const basePath = getBasePath(scope, scopeId);
-  const response = await apiClient.delete(`${basePath}/share-links/${id}`);
+  const response = await apiClient.delete<ShareLinkResponse>(`${basePath}/share-links/${id}`);
   if (!response.data?.success) {
-    throw new Error(response.data?.message || 'Failed to delete share link');
+    throw new Error(response.data?.message ?? 'Failed to delete share link');
   }
 }
 
@@ -112,7 +136,7 @@ export async function testConnection(
   scopeId?: string | null
 ): Promise<ConnectionTestResult> {
   const basePath = getBasePath(scope, scopeId);
-  const response = await apiClient.post(`${basePath}/test-connection`, {
+  const response = await apiClient.post<ConnectionTestResult>(`${basePath}/test-connection`, {
     shareLink: shareLink.trim(),
   });
   return response.data;
@@ -124,7 +148,7 @@ export async function uploadToWolke(
   filename: string,
   folderPath?: string
 ): Promise<ConnectionTestResult> {
-  const response = await apiClient.post('/nextcloud/upload', {
+  const response = await apiClient.post<ConnectionTestResult>('/nextcloud/upload', {
     shareLinkId,
     content,
     filename,
@@ -137,9 +161,9 @@ export async function browseFolder(shareLinkId: string, path?: string): Promise<
   const url = path
     ? `/documents/wolke/browse/${shareLinkId}?path=${encodeURIComponent(path)}`
     : `/documents/wolke/browse/${shareLinkId}`;
-  const response = await apiClient.get(url);
+  const response = await apiClient.get<FilesResponse>(url);
   if (response.data?.success) {
-    return response.data.files || [];
+    return response.data.files ?? [];
   }
   throw new Error('Failed to browse folder');
 }
@@ -149,9 +173,9 @@ export async function fetchSyncStatuses(
   scopeId?: string | null
 ): Promise<SyncStatus[]> {
   const basePath = scope === 'group' && scopeId ? `/groups/${scopeId}/wolke` : '/documents/wolke';
-  const response = await apiClient.get(`${basePath}/sync-status`);
+  const response = await apiClient.get<SyncStatusesResponse>(`${basePath}/sync-status`);
   if (response.data?.success) {
-    return response.data.syncStatuses || [];
+    return response.data.syncStatuses ?? [];
   }
   throw new Error('Failed to fetch sync statuses');
 }
@@ -163,14 +187,17 @@ export async function syncFolder(
   scopeId?: string | null
 ): Promise<ConnectionTestResult> {
   const basePath = scope === 'group' && scopeId ? `/groups/${scopeId}/wolke` : '/documents/wolke';
-  const response = await apiClient.post(`${basePath}/sync`, {
-    shareLinkId,
-    folderPath,
-  });
+  const response = await apiClient.post<ConnectionTestResult & { message?: string }>(
+    `${basePath}/sync`,
+    {
+      shareLinkId,
+      folderPath,
+    }
+  );
   if (response.data?.success) {
     return response.data;
   }
-  throw new Error(response.data?.message || 'Failed to start sync');
+  throw new Error(response.data?.message ?? 'Failed to start sync');
 }
 
 export async function setAutoSync(
@@ -181,15 +208,18 @@ export async function setAutoSync(
   scopeId?: string | null
 ): Promise<ConnectionTestResult> {
   const basePath = scope === 'group' && scopeId ? `/groups/${scopeId}/wolke` : '/documents/wolke';
-  const response = await apiClient.post(`${basePath}/auto-sync`, {
-    shareLinkId,
-    folderPath,
-    enabled,
-  });
+  const response = await apiClient.post<ConnectionTestResult & { message?: string }>(
+    `${basePath}/auto-sync`,
+    {
+      shareLinkId,
+      folderPath,
+      enabled,
+    }
+  );
   if (response.data?.success) {
     return response.data;
   }
-  throw new Error(response.data?.message || 'Failed to set auto-sync');
+  throw new Error(response.data?.message ?? 'Failed to set auto-sync');
 }
 
 // ── Utility Functions ──────────────────────────────────────────────────

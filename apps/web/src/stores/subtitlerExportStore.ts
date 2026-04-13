@@ -49,6 +49,18 @@ interface AxiosErrorLike {
   message: string;
 }
 
+interface ExportStartResponse {
+  exportToken?: string;
+}
+
+interface ExportProgressResponse {
+  status?: 'starting' | 'exporting' | 'complete' | 'error';
+  progress?: number;
+  timeRemaining?: number | null;
+  projectId?: string | null;
+  error?: string;
+}
+
 // Store state interface
 interface SubtitlerExportStoreState {
   // Export state
@@ -166,10 +178,14 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
 
     try {
       // Call the export API
-      const response = await apiClient.post('/subtitler/export', exportParams, {
-        // We need raw response for video streaming, but apiClient handles JSON by default
-        // For now, we'll handle JSON responses
-      });
+      const response = await apiClient.post<ExportStartResponse>(
+        '/subtitler/export',
+        exportParams,
+        {
+          // We need raw response for video streaming, but apiClient handles JSON by default
+          // For now, we'll handle JSON responses
+        }
+      );
 
       const jsonData = response.data;
       const exportToken = jsonData.exportToken;
@@ -230,7 +246,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
       }
 
       try {
-        const response = await apiClient.get(
+        const response = await apiClient.get<ExportProgressResponse>(
           `/subtitler/export-progress/${currentState.exportToken}`
         );
         const progressData = response.data;
@@ -243,20 +259,20 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
 
         if (progressData.status === 'exporting') {
           set({
-            progress: progressData.progress || 0,
-            timeRemaining: progressData.timeRemaining,
+            progress: progressData.progress ?? 0,
+            timeRemaining: progressData.timeRemaining ?? null,
           });
         } else if (progressData.status === 'complete') {
           set({
             status: EXPORT_STATUS.COMPLETE,
             progress: 100,
-            projectId: progressData.projectId || null,
+            projectId: progressData.projectId ?? null,
           });
           get().stopPolling();
         } else if (progressData.status === 'error') {
           set({
             status: EXPORT_STATUS.ERROR,
-            error: progressData.error || 'Export failed',
+            error: progressData.error ?? 'Export failed',
           });
           get().stopPolling();
         }
@@ -276,7 +292,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
           const retryDelay = POLLING_CONFIG.RETRY_DELAY_BASE * Math.pow(2, newRetryCount - 1);
           setTimeout(() => {
             if (get().status === EXPORT_STATUS.EXPORTING) {
-              poll();
+              void poll();
             }
           }, retryDelay);
         } else {
@@ -299,7 +315,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
     };
 
     // Start initial poll immediately
-    poll();
+    void poll();
 
     // Set up recurring polling with adaptive interval
     const intervalId = setInterval(poll, getPollingInterval());

@@ -1,14 +1,17 @@
-import { Router, type Request, type Response } from 'express';
+import { type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
+import { fromParam, type ThreadId, type GroupId } from '../../utils/types/branded.js';
 
 const router = createAuthenticatedRouter();
 const db = getPostgresInstance();
 
 router.get('/:id/groups', async (req: Request<{ id: string }>, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = fromParam<ThreadId>(req.params.id);
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
@@ -30,68 +33,72 @@ router.get('/:id/groups', async (req: Request<{ id: string }>, res: Response) =>
 
     return res.json(shares);
   } catch (error: unknown) {
-    return res
-      .status(500)
-      .json({
-        error: 'Failed to fetch thread shares',
-        details: error instanceof Error ? error.message : String(error),
-      });
+    return res.status(500).json({
+      error: 'Failed to fetch thread shares',
+      details: error instanceof Error ? error.message : String(error),
+    });
   }
 });
 
-router.post('/:id/groups', async (req: Request<{ id: string }>, res: Response) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user?.id;
-    const { group_id } = req.body;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
-    if (!group_id) return res.status(400).json({ error: 'group_id is required' });
+const shareGroupSchema = z.object({
+  group_id: z.string().min(1),
+});
 
-    const thread = await db.query('SELECT user_id FROM chat_threads WHERE id = $1', [id]);
-    if ((thread as unknown[]).length === 0)
-      return res.status(404).json({ error: 'Thread not found' });
-    if ((thread as { user_id: string }[])[0].user_id !== userId) {
-      return res.status(403).json({ error: 'Only thread owner can share' });
-    }
+router.post(
+  '/:id/groups',
+  validateBody(shareGroupSchema),
+  async (req: TypedRequest<z.infer<typeof shareGroupSchema>, { id: string }>, res: Response) => {
+    try {
+      const id = fromParam<ThreadId>(req.params.id);
+      const userId = req.user?.id;
+      const { group_id } = req.body;
+      if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    const membership = await db.query(
-      'SELECT 1 FROM group_memberships WHERE group_id = $1 AND user_id = $2',
-      [group_id, userId]
-    );
-    if ((membership as unknown[]).length === 0) {
-      return res.status(403).json({ error: 'You must be a member of the group' });
-    }
+      const thread = await db.query('SELECT user_id FROM chat_threads WHERE id = $1', [id]);
+      if ((thread as unknown[]).length === 0)
+        return res.status(404).json({ error: 'Thread not found' });
+      if ((thread as { user_id: string }[])[0].user_id !== userId) {
+        return res.status(403).json({ error: 'Only thread owner can share' });
+      }
 
-    const existing = await db.query(
-      `SELECT 1 FROM group_content_shares WHERE content_type = 'chat_threads' AND content_id = $1 AND group_id = $2`,
-      [id, group_id]
-    );
-    if ((existing as unknown[]).length > 0) {
-      return res.status(409).json({ error: 'Already shared with this group' });
-    }
+      const membership = await db.query(
+        'SELECT 1 FROM group_memberships WHERE group_id = $1 AND user_id = $2',
+        [group_id, userId]
+      );
+      if ((membership as unknown[]).length === 0) {
+        return res.status(403).json({ error: 'You must be a member of the group' });
+      }
 
-    await db.query(
-      `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
-       VALUES ('chat_threads', $1, $2, $3, '{"read": true, "write": true}')`,
-      [id, group_id, userId]
-    );
+      const existing = await db.query(
+        `SELECT 1 FROM group_content_shares WHERE content_type = 'chat_threads' AND content_id = $1 AND group_id = $2`,
+        [id, group_id]
+      );
+      if ((existing as unknown[]).length > 0) {
+        return res.status(409).json({ error: 'Already shared with this group' });
+      }
 
-    return res.status(201).json({ message: 'Thread shared' });
-  } catch (error: unknown) {
-    return res
-      .status(500)
-      .json({
+      await db.query(
+        `INSERT INTO group_content_shares (content_type, content_id, group_id, shared_by_user_id, permissions)
+         VALUES ('chat_threads', $1, $2, $3, '{"read": true, "write": true}')`,
+        [id, group_id, userId]
+      );
+
+      return res.status(201).json({ message: 'Thread shared' });
+    } catch (error: unknown) {
+      return res.status(500).json({
         error: 'Failed to share thread',
         details: error instanceof Error ? error.message : String(error),
       });
+    }
   }
-});
+);
 
 router.delete(
   '/:id/groups/:groupId',
   async (req: Request<{ id: string; groupId: string }>, res: Response) => {
     try {
-      const { id, groupId } = req.params;
+      const id = fromParam<ThreadId>(req.params.id);
+      const groupId = fromParam<GroupId>(req.params.groupId);
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
@@ -109,12 +116,10 @@ router.delete(
 
       return res.json({ message: 'Share removed' });
     } catch (error: unknown) {
-      return res
-        .status(500)
-        .json({
-          error: 'Failed to remove share',
-          details: error instanceof Error ? error.message : String(error),
-        });
+      return res.status(500).json({
+        error: 'Failed to remove share',
+        details: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 );
@@ -135,12 +140,10 @@ router.get('/user-groups', async (req: Request, res: Response) => {
 
     return res.json(groups);
   } catch (error: unknown) {
-    return res
-      .status(500)
-      .json({
-        error: 'Failed to fetch groups',
-        details: error instanceof Error ? error.message : String(error),
-      });
+    return res.status(500).json({
+      error: 'Failed to fetch groups',
+      details: error instanceof Error ? error.message : String(error),
+    });
   }
 });
 

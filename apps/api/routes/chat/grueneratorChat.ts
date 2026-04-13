@@ -35,6 +35,7 @@ import {
 import {
   generateSharepicForChat,
   type ExpressRequest as SharepicExpressRequest,
+  type RequestBody as SharepicRequestBody,
 } from '../../services/chat/sharepicGenerationService.js';
 import {
   detectSimpleMessage,
@@ -47,10 +48,7 @@ import {
   type DocumentQnAMistralClient,
   type Attachment as DocumentQnAAttachment,
 } from '../../services/document-services/DocumentQnAService/index.js';
-import {
-  searxngService as searxngWebSearchService,
-  type SearxngAIWorkerPool,
-} from '../../services/search/index.js';
+import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
 import { withErrorHandler } from '../../utils/errors/index.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
@@ -58,7 +56,6 @@ import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import mistralClient from '../../workers/mistralClient.js';
 
-import type { AIWorkerPool as ChatAIWorkerPool } from '../../agents/chat/types.js';
 import type { UserProfile } from '../../services/user/types.js';
 
 /** Zod schema for the POST body for the main chat endpoint */
@@ -93,6 +90,22 @@ const log = createLogger('grueneratorChat');
 const getUser = (req: express.Request): UserProfile | undefined =>
   req.user as UserProfile | undefined;
 
+/**
+ * Type predicate that narrows a raw stored pending-request record to the full
+ * PendingRequest shape from InformationRequestHandler (which always stores
+ * `agent`, `params`, `missingField` and `originalContext`).
+ */
+function isFullPendingRequest(r: Record<string, unknown>): r is PendingRequest {
+  return (
+    typeof r.agent === 'string' &&
+    typeof r.missingField === 'string' &&
+    r.params !== null &&
+    typeof r.params === 'object' &&
+    r.originalContext !== null &&
+    typeof r.originalContext === 'object'
+  );
+}
+
 const router = createAuthenticatedRouter();
 router.use(express.json({ limit: '50mb' }));
 
@@ -104,7 +117,7 @@ const CONFIG = {
 
 // Initialize DocumentQnA service
 const documentQnAService = new DocumentQnAService(
-  redisClient as unknown as DocumentQnARedisClient,
+  redisClient as DocumentQnARedisClient,
   mistralClient as DocumentQnAMistralClient
 );
 
@@ -160,11 +173,19 @@ router.post(
 
         // Process attachments
         const requestId = crypto.randomBytes(8).toString('hex');
+        const sharepicImageManager =
+          (req.app.locals.sharepicImageManager as {
+            storeForRequest: (
+              requestId: string,
+              userId: string,
+              img: ChatAttachment
+            ) => Promise<void>;
+          } | null) ?? null;
         const { documentIds, sharepicImages, recentDocuments } = await processAttachments(
           attachments,
           userId,
           requestId,
-          req.app.locals.sharepicImageManager
+          sharepicImageManager
         );
 
         // Build enhanced context
@@ -185,21 +206,19 @@ router.post(
 
         // Handle web search confirmation
         if (pendingRequest && pendingRequest.type === 'websearch_confirmation') {
-          await handleWebSearchConfirmation(
-            message,
-            pendingRequest as { originalQuery: string },
-            userId,
-            req,
-            res
-          );
+          await handleWebSearchConfirmation(message, pendingRequest, userId, req, res);
           return;
         }
 
         // Handle pending information requests
-        if (pendingRequest && pendingRequest.type === 'missing_information') {
+        if (
+          pendingRequest &&
+          pendingRequest.type === 'missing_information' &&
+          isFullPendingRequest(pendingRequest)
+        ) {
           const completionResult = await handlePendingInformationRequest(
             message,
-            pendingRequest as unknown as PendingRequest,
+            pendingRequest,
             userId,
             enhancedContext,
             req,
@@ -209,11 +228,7 @@ router.post(
         }
 
         // Classify intent
-        const intentResult = await classifyIntent(
-          message,
-          enhancedContext,
-          getAIWorkerPool(req) as unknown as ChatAIWorkerPool
-        );
+        const intentResult = await classifyIntent(message, enhancedContext, getAIWorkerPool(req));
 
         if (!intentResult.intents || intentResult.intents.length === 0) {
           throw new Error('Unable to classify intent from message');
@@ -252,9 +267,7 @@ router.post(
             ...(user?.locale && { locale: user.locale }),
             ...(intentResult.subIntent && { subIntent: intentResult.subIntent }),
             messageHistory: trimmedHistory,
-            aiWorkerPool: getAIWorkerPool(req) as unknown as Parameters<
-              typeof processConversationRequest
-            >[0]['aiWorkerPool'],
+            aiWorkerPool: getAIWorkerPool(req),
             req,
           });
           res.json(result);
@@ -268,7 +281,7 @@ router.post(
           const editResult = await processEditIntent(
             message,
             userId,
-            getAIWorkerPool(req) as unknown as ChatAIWorkerPool,
+            getAIWorkerPool(req),
             req,
             intentResult.editContext
           );
@@ -388,10 +401,13 @@ async function processAttachments(
     // Store text documents
     if (textAttachments.length > 0) {
       try {
-        documentIds = await documentQnAService.storeAttachments(
-          userId,
-          textAttachments as unknown as DocumentQnAAttachment[]
-        );
+        const mappedAttachments: DocumentQnAAttachment[] = textAttachments.map((a) => ({
+          name: a.name ?? '',
+          type: a.type,
+          data: a.content ?? '',
+          size: a.content?.length ?? 0,
+        }));
+        documentIds = await documentQnAService.storeAttachments(userId, mappedAttachments);
         log.debug(`[Chat] Stored ${textAttachments.length} text documents`);
       } catch (error) {
         log.error('[Chat] Error storing text attachments:', error);
@@ -440,7 +456,8 @@ async function processAttachments(
 }
 
 /**
- * Check for pending requests with lock
+ * Check for pending requests with lock.
+ * Returns the raw stored shape — callers narrow to a specific type as needed.
  */
 async function checkPendingRequests(userId: string): Promise<Record<string, unknown> | null> {
   const lockAcquired = await chatMemory.acquirePendingLock(userId);
@@ -464,25 +481,27 @@ async function checkPendingRequests(userId: string): Promise<Record<string, unkn
  */
 async function handleWebSearchConfirmation(
   message: string,
-  pendingRequest: { originalQuery: string },
+  pendingRequest: Record<string, unknown>,
   userId: string,
   req: express.Request,
   res: express.Response
 ): Promise<unknown> {
+  const originalQuery =
+    typeof pendingRequest.originalQuery === 'string' ? pendingRequest.originalQuery : '';
   const confirmed = isWebSearchConfirmation(message);
   await chatMemory.clearPendingRequest(userId);
 
   if (confirmed) {
     try {
-      const searchResults = await searxngWebSearchService.performWebSearch(
-        pendingRequest.originalQuery,
-        { maxResults: 8, language: 'de-DE' }
-      );
+      const searchResults = await searxngWebSearchService.performWebSearch(originalQuery, {
+        maxResults: 8,
+        language: 'de-DE',
+      });
 
       const resultsWithSummary = await searxngWebSearchService.generateAISummary(
         searchResults,
-        pendingRequest.originalQuery,
-        getAIWorkerPool(req) as unknown as SearxngAIWorkerPool,
+        originalQuery,
+        getAIWorkerPool(req),
         {},
         req
       );
@@ -507,7 +526,7 @@ async function handleWebSearchConfirmation(
             domain: r.domain,
           })),
         metadata: {
-          searchQuery: pendingRequest.originalQuery,
+          searchQuery: originalQuery,
           resultCount: searchResults.resultCount || 0,
         },
       });
@@ -605,7 +624,7 @@ async function handlePendingInformationRequest(
         const sharepicResponse = await generateSharepicForChat(
           req as SharepicExpressRequest,
           sharepicType,
-          req.body
+          req.body as SharepicRequestBody
         );
         return res.json(sharepicResponse);
       } catch (error) {

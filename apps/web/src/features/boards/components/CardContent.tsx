@@ -51,7 +51,7 @@ export const CardContent = memo(function CardContent({
   const linkedDocsCount = useMemo(() => {
     try {
       const raw = row.cells[FIELD_IDS.LINKED_DOCS];
-      const docs = typeof raw === 'string' ? JSON.parse(raw) : [];
+      const docs: unknown = typeof raw === 'string' ? JSON.parse(raw) : [];
       return Array.isArray(docs) ? docs.length : 0;
     } catch {
       return 0;
@@ -62,7 +62,7 @@ export const CardContent = memo(function CardContent({
     const raw = row.cells[FIELD_IDS.COMMENTS];
     if (!raw || typeof raw !== 'string') return 0;
     try {
-      const arr = JSON.parse(raw);
+      const arr: unknown = JSON.parse(raw);
       return Array.isArray(arr) ? arr.length : 0;
     } catch {
       return 0;

@@ -188,8 +188,8 @@ function buildRiskContext(articles: MonitorArticle[]): string {
   // Emotion profile
   const emotionTotals: Record<string, number> = {};
   for (const a of articles) {
-    for (const [k, v] of Object.entries(a.emotionScores ?? {})) {
-      emotionTotals[k] = (emotionTotals[k] ?? 0) + v;
+    for (const [k, v] of Object.entries(a.emotionScores ?? {}) as [string, number | undefined][]) {
+      emotionTotals[k] = (emotionTotals[k] ?? 0) + (v ?? 0);
     }
   }
   const emotionParts = Object.entries(emotionTotals)

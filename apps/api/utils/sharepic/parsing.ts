@@ -97,7 +97,7 @@ export function extractQuoteArray(content: string | null | undefined): QuoteItem
     .replace(/,\s*(?=[}\]])/g, '');
 
   try {
-    const parsed = JSON.parse(candidate);
+    const parsed = JSON.parse(candidate) as unknown;
     return Array.isArray(parsed) ? parsed : null;
   } catch (error) {
     log.warn('[sharepic] Failed to parse sanitized JSON response', error);

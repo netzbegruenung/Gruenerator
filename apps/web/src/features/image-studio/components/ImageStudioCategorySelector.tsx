@@ -17,7 +17,7 @@ const EXAMPLE_PROMPTS = [
   { label: 'Info', text: 'Info-Grafik über erneuerbare Energien' },
 ];
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 
 const RECENT_GALLERY_OPTIONS = { limit: 5 } as const;
 
@@ -71,7 +71,7 @@ const ImageStudioCategorySelector: React.FC = () => {
   const [generationError, setGenerationError] = useState<string | null>(null);
 
   const firstName = useMemo(() => {
-    const displayName = user?.display_name || user?.name || '';
+    const displayName = user?.display_name || '';
     return displayName.split(' ')[0] || '';
   }, [user]);
 
@@ -237,7 +237,7 @@ const ImageStudioCategorySelector: React.FC = () => {
                   if (v.external_url) {
                     window.open(v.external_url, '_blank', 'noopener,noreferrer');
                   } else {
-                    navigate('/datenbank/vorlagen');
+                    void navigate('/datenbank/vorlagen');
                   }
                 }}
               />
@@ -251,7 +251,7 @@ const ImageStudioCategorySelector: React.FC = () => {
           title="Imagine"
           onCreate={() => {
             setCategory(IMAGE_STUDIO_CATEGORIES.KI, null);
-            navigate('/imagine');
+            void navigate('/imagine');
           }}
           createLabel="Neues KI-Bild erstellen"
         />

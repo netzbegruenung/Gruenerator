@@ -1,12 +1,13 @@
 import axios from 'axios';
 
+import { env } from '../../config/env.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { KeywordEntry, NlpClassificationResult } from './types.js';
 
 const log = createLogger('NlpClient');
 
-const NLP_SERVICE_URL = process.env.NLP_SERVICE_URL || 'http://localhost:8000';
+const NLP_SERVICE_URL = env.NLP_SERVICE_URL ?? 'http://localhost:8000';
 const NLP_TIMEOUT_MS = 30_000;
 
 interface NlpBatchResponse {
@@ -64,7 +65,9 @@ export async function extractKeywords(
 
 export async function checkHealth(): Promise<boolean> {
   try {
-    const response = await axios.get(`${NLP_SERVICE_URL}/health`, { timeout: 5000 });
+    const response = await axios.get<{ status: string }>(`${NLP_SERVICE_URL}/health`, {
+      timeout: 5000,
+    });
     return response.data?.status === 'ok';
   } catch {
     return false;

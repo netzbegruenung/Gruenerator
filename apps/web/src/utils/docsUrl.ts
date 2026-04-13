@@ -1,5 +1,5 @@
 export function getDocsUrl(): string {
-  const envUrl = import.meta.env.VITE_DOCS_URL;
+  const envUrl = import.meta.env.VITE_DOCS_URL as string | undefined;
   if (envUrl) return envUrl;
   const hostname = window.location.hostname;
   if (hostname === 'localhost' || hostname === '127.0.0.1') {

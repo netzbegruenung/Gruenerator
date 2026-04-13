@@ -3,6 +3,19 @@ import { useQuery } from '@tanstack/react-query';
 import apiClient from '../components/utils/apiClient';
 import { useAuthStore } from '../stores/authStore';
 
+// API response wrappers
+interface GenerationLimitApiResponse {
+  success: boolean;
+  error?: string;
+  data?: GenerationLimitData;
+}
+
+interface BulkLimitApiResponse {
+  success: boolean;
+  error?: string;
+  data?: BulkLimitData;
+}
+
 // Types for generation limit data
 interface GenerationLimitData {
   canGenerate: boolean;
@@ -49,11 +62,13 @@ export const useGenerationLimit = (resourceType: string) => {
   return useQuery<GenerationLimitData>({
     queryKey: ['generationLimit', resourceType, user?.id || 'anonymous'],
     queryFn: async (): Promise<GenerationLimitData> => {
-      const response = await apiClient.get(`/rate-limit/${resourceType}`);
+      const response = await apiClient.get<GenerationLimitApiResponse>(
+        `/rate-limit/${resourceType}`
+      );
       const data = response.data;
 
       if (!data.success) {
-        throw new Error(data.error || 'Failed to get generation limit status');
+        throw new Error(data.error ?? 'Failed to get generation limit status');
       }
 
       return data.data as GenerationLimitData;
@@ -96,11 +111,13 @@ export const useMultipleGenerationLimits = (resourceTypes: string[]) => {
   return useQuery<BulkLimitData>({
     queryKey: ['generationLimitBulk', resourceTypes, user?.id || 'anonymous'],
     queryFn: async (): Promise<BulkLimitData> => {
-      const response = await apiClient.post('/rate-limit/bulk', { resourceTypes });
+      const response = await apiClient.post<BulkLimitApiResponse>('/rate-limit/bulk', {
+        resourceTypes,
+      });
       const data = response.data;
 
       if (!data.success) {
-        throw new Error(data.error || 'Failed to get bulk limit status');
+        throw new Error(data.error ?? 'Failed to get bulk limit status');
       }
 
       return data.data as BulkLimitData;

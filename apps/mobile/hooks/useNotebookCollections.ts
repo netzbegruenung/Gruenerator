@@ -28,7 +28,10 @@ export function useNotebookCollections() {
     try {
       setIsLoading(true);
       const client = getGlobalApiClient();
-      const response = await client.get('/auth/notebook-collections');
+      interface NotebookCollectionsResponse {
+        collections?: MobileNotebookCollection[];
+      }
+      const response = await client.get<NotebookCollectionsResponse>('/auth/notebook-collections');
       setCollections(response.data.collections ?? []);
     } catch {
       setCollections([]);
@@ -38,7 +41,7 @@ export function useNotebookCollections() {
   }, []);
 
   useEffect(() => {
-    fetchCollections();
+    void fetchCollections();
     return () => {
       pollTimers.current.forEach((timer) => clearInterval(timer));
       pollTimers.current.clear();
@@ -54,8 +57,13 @@ export function useNotebookCollections() {
       const timer = setInterval(async () => {
         try {
           const client = getGlobalApiClient();
-          const response = await client.get(`/documents/${documentId}/status`);
-          const status = response.data?.data?.status as string;
+          interface DocumentStatusResponse {
+            data?: { status?: string };
+          }
+          const response = await client.get<DocumentStatusResponse>(
+            `/documents/${documentId}/status`
+          );
+          const status = response.data?.data?.status ?? '';
 
           if (TERMINAL_STATUSES.includes(status)) {
             clearInterval(timer);
@@ -87,7 +95,12 @@ export function useNotebookCollections() {
     async (params: CreateCollectionParams): Promise<{ id: string } | null> => {
       try {
         const client = getGlobalApiClient();
-        const response = await client.post('/auth/notebook-collections', {
+        interface CreateCollectionResponse {
+          success: boolean;
+          collection: { id: string };
+          error?: string;
+        }
+        const response = await client.post<CreateCollectionResponse>('/auth/notebook-collections', {
           name: params.name,
           description: params.description,
           selection_mode: 'documents',
@@ -101,7 +114,7 @@ export function useNotebookCollections() {
           return { id: collectionId };
         }
 
-        throw new Error(response.data.error || 'Erstellung fehlgeschlagen');
+        throw new Error(response.data.error ?? 'Erstellung fehlgeschlagen');
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Fehler beim Erstellen';
         Alert.alert('Fehler', message);

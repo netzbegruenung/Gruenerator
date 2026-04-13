@@ -1,8 +1,10 @@
 import express, { type Request, type Response, type Router } from 'express';
 import { z } from 'zod';
 
+import { env } from '../../config/env.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { searxngService as searxngWebSearchService } from '../../services/search/index.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type {
@@ -31,7 +33,7 @@ interface SearchRequestUser {
 }
 
 type SearchRequest = TypedRequest<z.infer<typeof searchRequestSchema>> & {
-  user?: SearchRequestUser;
+  user?: SearchRequestUser | undefined;
 };
 
 type SearchResultsWithSummary = FormattedSearchResultsWithSummary & {
@@ -110,7 +112,7 @@ router.post(
         res.status(500).json({
           success: false,
           error: 'Websuche fehlgeschlagen',
-          details: process.env.NODE_ENV === 'development' ? searchResults.error : undefined,
+          details: env.NODE_ENV === 'development' ? searchResults.error : undefined,
         });
         return;
       }
@@ -124,7 +126,7 @@ router.post(
           finalResults = (await searxngWebSearchService.generateAISummary(
             searchResults,
             query,
-            req.app.locals.aiWorkerPool,
+            getAIWorkerPool(req),
             {
               maxResults: searchOptions.maxResults,
               usePrivacyMode: req.body.usePrivacyMode || false,
@@ -208,7 +210,7 @@ router.post(
           processingTimeMs: processingTime,
           timestamp: new Date().toISOString(),
         },
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        details: env.NODE_ENV === 'development' ? errorMessage : undefined,
       });
     }
   }
@@ -232,14 +234,14 @@ router.get('/status', async (_req: Request, res: Response): Promise<void> => {
       status: 'error',
       service: 'SearXNG Web Search',
       error: 'Service status check failed',
-      details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
+      details: env.NODE_ENV === 'development' ? (error as Error).message : undefined,
     });
   }
 });
 
 router.post('/clear-cache', async (req: Request, res: Response): Promise<void> => {
   const user = (req as SearchRequest).user;
-  const isAdmin = user?.role === 'admin' || process.env.NODE_ENV === 'development';
+  const isAdmin = user?.role === 'admin' || env.NODE_ENV === 'development';
 
   if (!isAdmin) {
     res.status(403).json({
@@ -263,7 +265,7 @@ router.post('/clear-cache', async (req: Request, res: Response): Promise<void> =
     res.status(500).json({
       success: false,
       error: 'Fehler beim Leeren des Caches',
-      details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
+      details: env.NODE_ENV === 'development' ? (error as Error).message : undefined,
     });
   }
 });

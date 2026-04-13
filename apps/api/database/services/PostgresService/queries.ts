@@ -166,7 +166,7 @@ export async function transactionExec(
   params: unknown[] = []
 ): Promise<ExecResult> {
   try {
-    const result = await client.query(sql, params);
+    const result = await client.query<{ id?: string }>(sql, params);
     return { changes: result.rowCount || 0, lastID: result.rows[0]?.id };
   } catch (error) {
     console.error('[PostgresService] Transaction exec error:', error, { sql, params });

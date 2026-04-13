@@ -3,6 +3,8 @@
  * Provides automatic failover across privacy-friendly LLM providers
  */
 
+import { env } from '../../config/env.js';
+
 import type {
   ProviderName,
   ModelName,
@@ -17,13 +19,13 @@ import type {
 export function isProviderAvailable(provider: ProviderName): boolean {
   switch (provider) {
     case 'ionos':
-      return !!process.env.IONOS_API_TOKEN;
+      return !!env.IONOS_API_TOKEN;
     case 'litellm':
-      return !!process.env.LITELLM_API_KEY;
+      return !!env.LITELLM_API_KEY;
     case 'mistral':
-      return !!process.env.MISTRAL_API_KEY;
+      return !!env.MISTRAL_API_KEY;
     case 'regolo':
-      return !!process.env.REGOLO_API_KEY;
+      return !!env.REGOLO_API_KEY;
     default:
       return false;
   }
@@ -41,7 +43,7 @@ export function getPrivacyModelForProvider(provider: ProviderName): ModelName {
     case 'mistral':
       return 'mistral-large-2512';
     case 'regolo':
-      return process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
+      return env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
     default:
       return 'gpt-oss:120b';
   }
@@ -59,7 +61,7 @@ export function getSharepicFallbackModel(provider: ProviderName): ModelName {
     case 'litellm':
       return 'gpt-oss:120b';
     case 'regolo':
-      return process.env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
+      return env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
     default:
       return 'mistral-large-2512';
   }

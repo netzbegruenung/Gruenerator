@@ -1,4 +1,4 @@
-import type { VectorSearchResult, DocumentChunk } from './database';
+import type { DocumentChunk } from './database';
 
 export interface SearchOptions {
   query: string;

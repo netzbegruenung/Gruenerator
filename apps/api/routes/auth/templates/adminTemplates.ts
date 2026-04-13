@@ -1,7 +1,9 @@
 import express, { type Router, type Response } from 'express';
+import { z } from 'zod';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
+import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { AuthRequest } from '../types.js';
@@ -10,6 +12,10 @@ const log = createLogger('adminTemplates');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router: Router = express.Router();
+
+const rejectSchema = z.object({
+  reason: z.string().optional(),
+});
 
 async function verifyAdmin(req: AuthRequest, res: Response): Promise<boolean> {
   const postgres = getPostgresInstance();
@@ -142,9 +148,10 @@ router.post(
 router.post(
   '/admin/vorlagen/:id/reject',
   ensureAuthenticated,
-  async (req: AuthRequest<{ id: string }>, res: Response): Promise<void> => {
+  validateBody(rejectSchema),
+  async (req: TypedRequest<z.infer<typeof rejectSchema>, { id: string }>, res: Response): Promise<void> => {
     try {
-      if (!(await verifyAdmin(req, res))) return;
+      if (!(await verifyAdmin(req as AuthRequest<{ id: string }>, res))) return;
 
       const { id } = req.params;
       const { reason } = req.body;

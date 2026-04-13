@@ -224,11 +224,15 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
         formData.append('file', file);
 
         const url = useHandwriting ? '/scanner/extract' : '/scanner/extract?provider=docling';
-        const response = await apiClient.post(url, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
+        const response = await apiClient.post<ScannerResult & { success: boolean; error?: string }>(
+          url,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
 
         if (response.data.success) {
           totalPages += response.data.pageCount;
@@ -241,7 +245,7 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
           }
           results.push(response.data);
         } else {
-          setError(response.data.error || `Fehler bei "${file.name}"`);
+          setError(response.data.error ?? `Fehler bei "${file.name}"`);
           setScannerState('error');
           return;
         }

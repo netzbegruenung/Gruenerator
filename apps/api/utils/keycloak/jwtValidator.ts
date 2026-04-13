@@ -62,9 +62,9 @@ export interface KeycloakTokenPayload {
 
 /**
  * Stub function when mobile auth is disabled
- * @param token - The JWT token to validate
+ * @param _token - The JWT token to validate
  * @throws {Error} - Always throws as mobile auth is disabled
  */
-export async function validateKeycloakToken(token: string): Promise<KeycloakTokenPayload> {
+export async function validateKeycloakToken(_token: string): Promise<KeycloakTokenPayload> {
   throw new Error('Mobile authentication is disabled');
 }

@@ -103,10 +103,8 @@ function useNotebookExtraActionsFactory(): (message: {
             void generateNotebookDOCX(
               text,
               metadata.question || 'Notebook-Antwort',
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (metadata.rawCitations || []) as any,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (metadata.sources || []) as any
+              metadata.rawCitations ?? [],
+              metadata.sources ?? []
             );
           },
         },

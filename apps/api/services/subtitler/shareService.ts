@@ -13,7 +13,6 @@ import {
   getPostgresInstance,
   type PostgresService,
 } from '../../database/services/PostgresService.js';
-import { subtitlerSharedVideos } from '../../database/schema/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -260,9 +259,8 @@ class SubtitlerShareService {
 
       const now = new Date();
       return (results as Array<Record<string, unknown>>).map((row) => {
-        const expiresAt = typeof row.expires_at === 'string'
-          ? new Date(row.expires_at)
-          : (row.expires_at as Date);
+        const expiresAt =
+          typeof row.expires_at === 'string' ? new Date(row.expires_at) : (row.expires_at as Date);
         return {
           id: row.id as string,
           user_id: '',

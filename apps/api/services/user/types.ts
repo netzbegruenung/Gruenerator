@@ -6,46 +6,11 @@
 // ProfileService Types
 // ============================================================================
 
-export interface UserProfile {
-  id: string;
-  keycloak_id?: string | undefined;
-  email: string;
-  username?: string | undefined;
-  display_name?: string | undefined;
-  avatar_robot_id: number;
-  chat_color?: string | undefined;
-  beta_features: Record<string, boolean>;
-  user_defaults: Record<string, Record<string, unknown>>;
-  locale?: 'de-DE' | 'de-AT' | undefined;
-
-  // Feature flags
-  groups_enabled: boolean;
-  custom_generators: boolean;
-  database_access: boolean;
-  collab: boolean;
-  notebook: boolean;
-  sharepic: boolean;
-  anweisungen: boolean;
-  labor_enabled: boolean;
-  sites_enabled: boolean;
-  chat: boolean;
-  interactive_antrag_enabled: boolean;
-  vorlagen: boolean;
-  video_editor: boolean;
-  scanner?: boolean | undefined;
-  prompts?: boolean | undefined;
-  docs?: boolean | undefined;
-  boards?: boolean | undefined;
-  bundestag_api_enabled?: boolean | undefined;
-  memory_enabled?: boolean | undefined;
-  wordpress_enabled?: boolean | undefined;
-  custom_prompt?: string | undefined;
-
-  // Timestamps
-  created_at: Date | string;
-  updated_at: Date | string;
-  last_login?: Date | string | undefined;
-}
+// UserProfile is defined as a Zod schema in @gruenerator/contracts and inferred
+// here to give all backend consumers the same type as the frontend and contract
+// layer. Re-exported so existing `import { UserProfile } from '.../user/types'`
+// call sites keep compiling.
+export { type UserProfile } from '@gruenerator/contracts';
 
 export interface ProfileCreateData {
   id?: string | undefined;

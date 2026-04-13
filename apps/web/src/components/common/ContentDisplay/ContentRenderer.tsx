@@ -89,9 +89,9 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
     const trimmed = processedGeneratedContent.trim();
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
       try {
-        const parsed = JSON.parse(trimmed);
+        const parsed: unknown = JSON.parse(trimmed);
         if (parsed && typeof parsed === 'object') {
-          processedGeneratedContent = parsed;
+          processedGeneratedContent = parsed as GeneratedContent;
 
           const storedMetadata = getGeneratedTextMetadata(componentName) as Record<
             string,
@@ -138,10 +138,10 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
   const citations: Citation[] = metadata?.citations || [];
 
   if (isMixedContent && mixedContent) {
-    const sharepicItems = Array.isArray(mixedContent.sharepic)
-      ? mixedContent.sharepic.filter(Boolean)
+    const sharepicItems: SharepicDataItem[] = Array.isArray(mixedContent.sharepic)
+      ? (mixedContent.sharepic as SharepicDataItem[]).filter(Boolean)
       : mixedContent.sharepic
-        ? [mixedContent.sharepic]
+        ? [mixedContent.sharepic as SharepicDataItem]
         : [];
 
     const hasTextContent = typeof contentToRender === 'string' && contentToRender.trim().length > 0;
@@ -161,7 +161,7 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
             {sharepicItems.length > 1 ? (
               <ImageDisplay
                 key="multiple-sharepics"
-                sharepicData={sharepicItems as SharepicDataItem[]}
+                sharepicData={sharepicItems}
                 onEdit={mixedContent.onEditSharepic}
                 onEditModeToggle={onEditModeToggle}
                 editMode={mixedContent.inlineSharepicEditEnabled ? 'inline' : mixedContent.editMode}
@@ -205,8 +205,8 @@ const ContentRenderer: React.FC<ContentRendererProps> = ({
                 return (
                   <ImageDisplay
                     key={
-                      (sharepicData as { id?: string; type?: string }).id ||
-                      `${(sharepicData as { type?: string }).type || 'sharepic'}-${index}`
+                      (sharepicData.id as string | undefined) ||
+                      `${sharepicData.type || 'sharepic'}-${index}`
                     }
                     sharepicData={sharepicData}
                     onEdit={mixedContent.onEditSharepic}

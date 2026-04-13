@@ -7,6 +7,7 @@
  * Unsplash API Documentation: https://unsplash.com/documentation
  */
 
+import { env } from '../../config/env.js';
 import { addUnsplashUTM } from '../../utils/unsplashUtils.js';
 
 import type { UnsplashAttribution } from '../image/types.js';
@@ -255,8 +256,8 @@ export class UnsplashApiService {
       let errorMessage = `Unsplash API error: ${response.status}`;
 
       try {
-        const errorJson = JSON.parse(errorBody);
-        errorMessage = errorJson.errors?.[0] || errorMessage;
+        const errorJson = JSON.parse(errorBody) as { errors?: string[] };
+        errorMessage = errorJson.errors?.[0] ?? errorMessage;
       } catch {
         // If parsing fails, use default message
       }
@@ -426,7 +427,7 @@ let serviceInstance: UnsplashApiService | null = null;
  */
 export function getUnsplashService(accessKey?: string): UnsplashApiService {
   if (!serviceInstance) {
-    const key = accessKey || process.env.UNSPLASH_ACCESS_KEY;
+    const key = accessKey ?? env.UNSPLASH_ACCESS_KEY;
     if (!key) {
       throw new Error('UNSPLASH_ACCESS_KEY environment variable is not set');
     }

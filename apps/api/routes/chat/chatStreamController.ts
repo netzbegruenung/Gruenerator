@@ -3,7 +3,7 @@
  * Handles AI chat streaming via Vercel AI SDK
  */
 
-import { streamText, tool, type ModelMessage, Tool, stepCountIs, type ToolSet } from 'ai';
+import { streamText, tool, type ModelMessage, stepCountIs, type ToolSet } from 'ai';
 import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
@@ -12,7 +12,7 @@ import { generateThreadTitle } from '../../services/chat/threadTitleService.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { getAgent, getDefaultAgentId, getAgentOrCustomPrompt } from './agents/agentLoader.js';
+import { getDefaultAgentId, getAgentOrCustomPrompt } from './agents/agentLoader.js';
 import {
   executeDirectSearch,
   // executeDirectPersonSearch, // DISABLED: Person search not production ready
@@ -28,7 +28,6 @@ import {
 } from './services/compactionService.js';
 import { getUser } from './services/threadPersistenceService.js';
 
-import type { ResearchResult } from './agents/directSearch.js';
 import type { AgentConfig } from './agents/types.js';
 
 const log = createLogger('ChatStreamController');
@@ -76,8 +75,6 @@ const ALL_COLLECTIONS = [
   'gruene-at',
   'boell-stiftung',
 ] as const;
-
-type CollectionType = (typeof ALL_COLLECTIONS)[number];
 
 /**
  * Creates search tools dynamically based on agent configuration.
@@ -552,7 +549,7 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
               log.info(`[Chat Debug] Tool call: ${chunk.toolName}`);
             }
           },
-          onStepFinish: ({ toolCalls, toolResults, text }) => {
+          onStepFinish: ({ toolCalls, text }) => {
             log.info(
               `[Chat Debug] Step finished: tools=${toolCalls?.length || 0}, text=${text?.length || 0} chars`
             );

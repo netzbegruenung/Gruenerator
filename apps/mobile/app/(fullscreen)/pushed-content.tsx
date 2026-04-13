@@ -69,8 +69,8 @@ export default function PushedContentScreen() {
           return;
         }
 
-        const info = await infoRes.json();
-        setTitle(info.share?.title || info.title || '');
+        const info = (await infoRes.json()) as { share?: { title?: string }; title?: string };
+        setTitle(info.share?.title ?? info.title ?? '');
 
         // Download the file using new expo-file-system API
         const ext = isVideo ? 'mp4' : 'png';
@@ -99,7 +99,7 @@ export default function PushedContentScreen() {
       }
     }
 
-    downloadContent();
+    void downloadContent();
   }, [shareToken, isVideo]);
 
   const handleSaveToGallery = useCallback(async () => {

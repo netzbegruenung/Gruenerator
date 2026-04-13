@@ -1,4 +1,5 @@
 import { createLogger } from '../../../utils/logger.js';
+import { parseJSON } from '../../../utils/parseJSON.js';
 import redisClient from '../../../utils/redis/client.js';
 
 import type { PendingAction } from '../../../agents/langgraph/ChatGraph/types.js';
@@ -32,7 +33,7 @@ export const pendingActionStore = {
     try {
       const raw = await redisClient.get(key(threadId, actionId));
       if (!raw) return null;
-      return JSON.parse(raw) as PendingAction;
+      return parseJSON<PendingAction>(raw);
     } catch (err) {
       log.error(`Failed to get pending action ${actionId}:`, err);
       return null;

@@ -3,6 +3,24 @@ import { HiArrowLeft } from 'react-icons/hi';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
+
+interface GalleryEditLocationState {
+  galleryEditMode?: boolean;
+  shareToken?: string;
+  content?: Record<string, unknown>;
+  styling?: Record<string, unknown>;
+  originalImageUrl?: string;
+  title?: string;
+}
+
+interface TemplateLocationState {
+  templateMode?: boolean;
+  shareToken?: string;
+  content?: Record<string, unknown> & { sharepicType?: string };
+  styling?: Record<string, unknown>;
+  sharepicType?: string;
+  templateCreator?: string;
+}
 import Spinner from '../../components/common/Spinner';
 import Button from '../../components/common/SubmitButton';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -136,14 +154,15 @@ const ImageStudioPageContent: React.FC = () => {
   // Handle gallery edit mode from location.state
   useEffect(() => {
     const loadGalleryEdit = async () => {
-      if (!location.state?.galleryEditMode) return;
+      const state = location.state as GalleryEditLocationState | null;
+      if (!state?.galleryEditMode) return;
 
       const editData = {
-        shareToken: location.state.shareToken,
-        content: location.state.content,
-        styling: location.state.styling,
-        originalImageUrl: location.state.originalImageUrl,
-        title: location.state.title,
+        shareToken: state.shareToken ?? '',
+        content: state.content,
+        styling: state.styling,
+        originalImageUrl: state.originalImageUrl,
+        title: state.title,
       };
 
       await loadGalleryEditData(editData);
@@ -158,23 +177,23 @@ const ImageStudioPageContent: React.FC = () => {
   // Handle template cloning result from location.state (after navigation from useTemplateClone)
   useEffect(() => {
     const loadTemplateData = async () => {
-      if (!location.state?.templateMode) return;
+      const state = location.state as TemplateLocationState | null;
+      if (!state?.templateMode) return;
 
       const editData = {
-        shareToken: location.state.shareToken,
+        shareToken: state.shareToken ?? '',
         content: {
-          ...location.state.content,
-          sharepicType:
-            location.state.sharepicType || location.state.content?.sharepicType || urlType,
+          ...state.content,
+          sharepicType: state.sharepicType ?? state.content?.sharepicType ?? urlType,
         },
-        styling: location.state.styling,
+        styling: state.styling,
       };
 
       await loadGalleryEditData(editData);
 
       // Store templateCreator for display in canvas editor
-      if (location.state.templateCreator) {
-        updateFormData({ templateCreator: location.state.templateCreator });
+      if (state.templateCreator) {
+        updateFormData({ templateCreator: state.templateCreator });
       }
 
       window.history.replaceState({}, document.title);
@@ -203,7 +222,7 @@ const ImageStudioPageContent: React.FC = () => {
         // Clear URL param after loading
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('editSession');
-        navigate(`${location.pathname}?${newParams.toString()}`.replace(/\?$/, ''), {
+        void navigate(`${location.pathname}?${newParams.toString()}`.replace(/\?$/, ''), {
           replace: true,
         });
       }
@@ -227,21 +246,21 @@ const ImageStudioPageContent: React.FC = () => {
   const handleBack = useCallback(() => {
     if (currentStep === FORM_STEPS.TYPE_SELECT) {
       setCategory(null, null);
-      navigate(isImagineRoute ? '/imagine' : '/studio');
+      void navigate(isImagineRoute ? '/imagine' : '/studio');
     } else if (currentStep === FORM_STEPS.IMAGE_UPLOAD) {
       if (isImagineRoute) {
-        navigate('/imagine');
+        void navigate('/imagine');
       } else {
-        navigate(`/studio/${category}${subcategory ? `/${subcategory}` : ''}`);
+        void navigate(`/studio/${category}${subcategory ? `/${subcategory}` : ''}`);
       }
       goBack();
     } else if (currentStep === FORM_STEPS.INPUT) {
       const prevStep = typeConfig?.steps?.[typeConfig.steps.indexOf(currentStep) - 1];
       if (prevStep === FORM_STEPS.TYPE_SELECT || !prevStep) {
         if (isImagineRoute) {
-          navigate('/imagine');
+          void navigate('/imagine');
         } else {
-          navigate(`/studio/${category}${subcategory ? `/${subcategory}` : ''}`);
+          void navigate(`/studio/${category}${subcategory ? `/${subcategory}` : ''}`);
         }
       }
       goBack();
@@ -368,7 +387,7 @@ const ImageStudioPageContent: React.FC = () => {
 
           const image = await generateImage(type || '', formData);
           setGeneratedImage(image);
-          refetchImageLimit();
+          void refetchImageLimit();
           goToNextStep();
           goToNextStep();
         }
@@ -410,7 +429,7 @@ const ImageStudioPageContent: React.FC = () => {
 
           const image = await generateImage(type || '', formData);
           setGeneratedImage(image);
-          refetchImageLimit();
+          void refetchImageLimit();
         } else {
           const formData = {
             type: typeConfig?.legacyType || type,

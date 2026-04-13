@@ -1,320 +1,154 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+> **NEVER `git checkout -- <file>` without explicit user permission.** Other agents may be working concurrently.
 
-> **NEVER use `git checkout -- <file>` to discard changes without explicit user permission.** Other agents may be working on those files concurrently, or the changes may be intentional. Always ask the user first before reverting any file.
-
-> **Environment**: This project is developed on **WSL2** (Windows Subsystem for Linux). ADB, Gradle, and other Android tools use Windows executables via `/mnt/c/`. See platform-specific notes throughout.
+> **Environment**: WSL2. ADB/Gradle use Windows executables via `/mnt/c/`.
 
 ## Project Overview
 
-Grünerator is an AI-powered content creation platform for the German Green Party (Die Grünen). It's a pnpm monorepo with web, mobile, and desktop clients sharing a common backend. All infrastructure is EU-hosted for data sovereignty.
+Grünerator: AI content creation platform for Die Grünen. pnpm monorepo (web, mobile, desktop, API). EU-hosted infrastructure.
 
 ## Commands
 
-All commands run from the **repository root** using pnpm + Turborepo:
+All from repo root (pnpm + Turborepo):
 
 ```bash
-pnpm install                  # Install all dependencies
-pnpm dev:web                  # Frontend dev server (localhost:3000)
-pnpm dev:backend              # Backend dev server (requires Postgres, Redis, Keycloak)
-pnpm build                    # Build all packages
+pnpm install                  # Install all deps
+pnpm dev:web                  # Frontend (localhost:3000)
+pnpm dev:backend              # Backend (requires Postgres, Redis, Keycloak)
+pnpm build                    # Build all
 pnpm build:web                # Build web only
-pnpm typecheck                # TypeScript check across all packages
-pnpm lint                     # ESLint across all packages
+pnpm typecheck                # TS check all packages
+pnpm lint                     # ESLint all packages
 pnpm format:check             # Prettier check
 pnpm ci                       # Full CI: typecheck + lint + format:check + test
-pnpm test                     # Run all tests
+pnpm test                     # All tests
 ```
 
-Single workspace commands:
-```bash
-pnpm --filter @gruenerator/api test:auth         # Run auth tests
-pnpm --filter @gruenerator/api test:integration  # Run integration tests
-pnpm --filter @gruenerator/desktop dev           # Tauri desktop dev
-```
+Single workspace: `pnpm --filter @gruenerator/api test:auth`, `pnpm --filter @gruenerator/desktop dev`
 
-> **WSL RAM constraint**: `pnpm typecheck` is expensive. Only run typechecks on **newly created files** (`npx tsc --noEmit <file>`) or **before pushing**. Do not run full-project typechecks during routine edits.
+> **WSL RAM**: Only typecheck newly created files (`npx tsc --noEmit <file>`) or before pushing. No full-project typechecks during edits.
 
-> **Always log typecheck and lint output to a file**: These take several minutes. Never run the same command multiple times. Use `npx tsc --noEmit --project <tsconfig> 2>&1 > /tmp/typecheck-api.txt` and `pnpm --filter <pkg> lint 2>&1 > /tmp/lint-api.txt`, then read/grep the output file for analysis.
+> **Log output to file**: `npx tsc --noEmit --project <tsconfig> 2>&1 > /tmp/typecheck-api.txt`. Never run same command twice.
 
 ## Architecture
 
 ### Monorepo Layout
 
-- **`apps/web`** — React 19 + Vite 7 frontend. Feature-sliced design with 26 feature modules in `src/features/`. Routes defined in `src/config/routes.ts`.
-- **`apps/api`** — Express 5 backend running in Node.js cluster mode. AI calls are offloaded to a dedicated worker pool (`workers/aiWorkerPool.ts`). Routes in `routes/`, business logic in `services/`. See [Express 5 Route Typing](#express-5-route-typing) below.
-- **`apps/docs`** — Standalone collaborative document editor with Hocuspocus real-time sync. **Deprecated** — being replaced by the docs editor in `apps/web`. New docs features should be added to `apps/web/src/features/docs/` (and `packages/docs/`), not `apps/docs`.
-- **`apps/sites`** — Site builder/management interface.
-- **`apps/mobile`** — Expo 55 / React Native 0.83 app with Expo Router.
-- **`apps/desktop`** — Tauri 2 wrapper around the web frontend.
-- **`packages/chat`** — Shared chat UI components, runtime adapters (Assistant UI), stores, and hooks. Consumed by `apps/web` at `/chat`.
-- **`packages/shared`** — Shared stores (Zustand), hooks, API clients, and feature modules (sharepic, image-studio, subtitle-editor, media-library, search). Shared components in `src/components/`.
-- **`packages/canvas-editor`** — Config-driven canvas editor using **react-konva** (Konva.js). Per-instance Zustand stores via `CanvasStoreProvider`, selectable wrapper components for O(2) selection rerenders. Konva docs: `https://konvajs.org/llms.txt` (overview + links), `https://konvajs.org/llms-full.txt` (full API reference).
-- **`services/hocuspocus`** — Standalone Hocuspocus WebSocket server for real-time Yjs collaboration. **Zero cross-package runtime deps** — utility functions are inlined, not imported from `packages/shared`, to keep the Docker image lightweight and avoid barrel-export dependency cascades.
-- **`services/mcp`** — Model Context Protocol server (`https://mcp.gruenerator.eu`). See `CLAUDE-mcp.md` for endpoints, tools, and testing.
-- **`services/comfyui`** — ComfyUI workflows for local GPU image generation.
+- **`apps/web`** — React 19 + Vite 7. Feature-sliced design, 26 modules in `src/features/`. Routes: `src/config/routes.ts`.
+- **`apps/api`** — Express 5, Node.js cluster mode. AI via worker pool (`workers/aiWorkerPool.ts`). Routes in `routes/`, logic in `services/`. See `CLAUDE-routing.md`.
+- **`apps/docs`** — **Deprecated** collaborative editor. New docs features → `apps/web/src/features/docs/` + `packages/docs/`.
+- **`apps/sites`** — Site builder.
+- **`apps/mobile`** — Expo 55 / React Native 0.83 with Expo Router.
+- **`apps/desktop`** — Tauri 2 wrapper around web frontend.
+- **`packages/chat`** — Shared chat UI, runtime adapters (Assistant UI), stores, hooks. Consumed at `/chat`.
+- **`packages/shared`** — Shared stores (Zustand), hooks, API clients, feature modules. Components in `src/components/`.
+- **`packages/canvas-editor`** — Config-driven react-konva editor. Per-instance Zustand stores via `CanvasStoreProvider`.
+- **`services/hocuspocus`** — Hocuspocus WebSocket server for Yjs collab. Zero cross-package deps (inline utils).
+- **`services/mcp`** — MCP server (`https://mcp.gruenerator.eu`). See `CLAUDE-mcp.md`.
+- **`services/comfyui`** — ComfyUI workflows for local GPU image gen.
+
 ### Page Layout Modes
 
-Routes in `routes.ts` use `layoutMode` (type `LayoutMode` in `PageLayout.tsx`) to control header/chrome visibility: `default` shows the full header (SidebarToggle + ProfileButton) with `mt-lg` content spacing; `fullscreen` shows the header but uses `pt-12` and `h-dvh` for contained layouts; `immersive` hides the header entirely with `h-dvh` (used by docs editor which renders its own toolbar); `sidebarOnly` shows only the SidebarToggle without ProfileButton (used by chat, docs overview); `noChrome` renders bare content with no header or sidebar (used by public/shared pages, voice agent).
+`layoutMode` in `routes.ts` (type `LayoutMode` in `PageLayout.tsx`): `default` (full header + `mt-lg`), `fullscreen` (header + `pt-12` + `h-dvh`), `immersive` (no header, `h-dvh`), `sidebarOnly` (SidebarToggle only), `noChrome` (bare content).
 
-### Database Migrations
+### Database & Migrations
 
-SQL migrations live in `apps/api/database/postgres/migrations/` and run automatically on server startup via `PostgresService.init()`. The runner tracks applied files in the `schema_migrations` table. Migrations must **not** contain `BEGIN`/`COMMIT` (the runner wraps each in a transaction). Path resolution uses `getMigrationsPath()` in `database/services/PostgresService/schema.ts`.
-
-### Data Stores
-
-- **PostgreSQL** — Primary DB. Schema at `apps/api/database/postgres/schema.sql`. Connect: `PGPASSWORD=gruenerator psql -h localhost -U gruenerator -d gruenerator`
-- **Redis** — Sessions, caching, rate limiting. Connect: `redis-cli -a 'F-e9ZjuJ03U-@'`. Useful: `GET "monitor:stimmung:de"`, `DEL "monitor:stimmung:de"` to clear cache.
-- **Qdrant** — Vector embeddings for semantic search.
+- **PostgreSQL**: Schema at `apps/api/database/postgres/schema.sql`. Migrations in `database/postgres/migrations/`, auto-run on startup via `PostgresService.init()`. No `BEGIN`/`COMMIT` in migrations (runner wraps in transaction).
+- **Redis**: Sessions, caching, rate limiting.
+- **Qdrant**: Vector embeddings for semantic search.
 
 ### Content Sync & Scraping
 
-System Qdrant collections are populated by scrapers in `apps/api/services/scrapers/`. Sync is automated via GitHub Actions (`content-sync.yml`): hourly for Landesverbände, daily for all other sources. Entry point: `apps/api/update-all-content.ts`.
+Scrapers in `apps/api/services/scrapers/`. Automated via GitHub Actions (`content-sync.yml`): hourly for Landesverbände, daily for rest. Entry: `apps/api/update-all-content.ts`.
 
-**NEVER do a full rescrape (`--force` on all sources).** We have thousands of web-scraped documents. Only rescrape targeted subsets (e.g., PDFs only via `reprocess-pdfs.ts`) when pipeline changes affect extraction quality. Web-scraped HTML content rarely needs reprocessing.
+**NEVER full rescrape** (`--force` on all). Only targeted subsets (e.g. PDFs via `reprocess-pdfs.ts`). `satzungen_documents` is dormant — exclude.
 
-**`satzungen_documents`** — dormant collection, not actively used or synced. Exclude from improvements and rescraping.
+### Hocuspocus Awareness
 
-### Adding a New Landesverband Notebook
+- **Write**: `provider.awareness.setLocalStateField('fieldName', data)` with separate top-level fields. Do NOT nest under `user`.
+- **Read**: `awareness.on('change', handler)` with `setTimeout(0)` inside for fresh `getStates()`.
+- **Self-filtering**: Do NOT use `provider.on('awarenessChange', ({ states }))` — uses sequential index keys, not Yjs clientIDs.
 
-See `CLAUDE-landesverband.md` for the full 9-file checklist, naming conventions, and verification steps.
-
-### Hocuspocus Awareness (Real-time Collaboration)
-
-Both `apps/docs` and `apps/web` (boards) use **Hocuspocus** for real-time Yjs collaboration. Key rules:
-
-- **Writing**: Use `provider.awareness.setLocalStateField('fieldName', data)` with separate top-level fields. Do NOT nest under `user` — `useCollaboration.ts` periodically resets the `user` field, wiping nested data.
-- **Reading**: Use `awareness.on('change', handler)` with `setTimeout(0)` inside — without the timeout, `getStates()` returns stale data.
-- **Self-filtering**: Do NOT use `provider.on('awarenessChange', ({ states }))` — the `states` Map uses sequential index keys (0, 1, 2...), not real Yjs clientIDs.
-
-Reference implementations: `useCollaborators()` in `packages/docs/src/hooks/useCollaboration.ts:146-199`, `useDocumentChat()` in `packages/docs/src/hooks/useDocumentChat.ts:64-101`, `useBoardCursors()` in `apps/web/src/features/boards/hooks/useBoardCursors.ts`.
+Refs: `useCollaborators()` in `packages/docs/src/hooks/useCollaboration.ts:146-199`, `useBoardCursors()` in `apps/web/src/features/boards/hooks/useBoardCursors.ts`.
 
 ### Authentication
 
-Keycloak OIDC via Passport.js. Supports multiple identity providers (.de, .at, .eu domains). Sessions stored in Redis.
+Keycloak OIDC via Passport.js. Multiple IdPs (.de, .at, .eu). Sessions in Redis.
 
-**Better Auth (new auth system)**: Config at `apps/api/config/betterAuth.ts`. DB tables use `ba_` prefix with snake_case columns. The `fields` mapping in each model config **must map every camelCase field** to its snake_case column (e.g. `userId: 'user_id'`). Missing mappings cause Kysely to query with camelCase column names, which PostgreSQL rejects.
+**Better Auth**: Config at `apps/api/config/betterAuth.ts`. Tables use `ba_` prefix, snake_case columns. `fields` mapping must cover every camelCase→snake_case column or Kysely queries fail.
 
-**Dev Auth Bypass** (for Playwright MCP testing): Set `VITE_E2E_AUTH_BYPASS=true` + `VITE_DEV_AUTH_BYPASS_TOKEN=local-dev-bypass-token` in `apps/web/.env`, and `ALLOW_DEV_AUTH_BYPASS=true` + `DEV_AUTH_BYPASS_TOKEN=local-dev-bypass-token` in root `.env`. Frontend returns mock user, backend skips Keycloak when `x-dev-auth-bypass` header matches, Vite proxy auto-injects the header. Production fail-fast: `ALLOW_DEV_AUTH_BYPASS=true` in prod → HTTP 500 on all requests.
+**Dev Auth Bypass**: `VITE_E2E_AUTH_BYPASS=true` + token in `apps/web/.env`, `ALLOW_DEV_AUTH_BYPASS=true` + token in root `.env`. Production fail-fast: `ALLOW_DEV_AUTH_BYPASS=true` in prod → HTTP 500.
 
 ### AI Providers
 
-- **Mistral AI** — Primary text generation (EU-hosted).
-- **Anthropic Claude via AWS Bedrock** — "Ultra" mode (EU region).
-- **GPT-OSS (OpenAI)** — Fine-tuned with LoRA on party documents via Together AI. Separate adapters for Germany and Austria. See `CLAUDE-finetuning.md` for models, pipeline, data strategy, local testing with ollama, and known issues.
-- **Flux (Black Forest Labs)** — Image generation.
-- **AssemblyAI / Gladia** — Audio transcription.
+Mistral AI (primary, EU), Anthropic Claude via Bedrock (Ultra, EU), GPT-OSS via Together AI (fine-tuned, see `CLAUDE-finetuning.md`), Flux/BFL (images), AssemblyAI/Gladia (transcription).
 
 ## Development Conventions
 
 ### Git Safety
 
-**NEVER use `git stash` or `git stash pop`.** These commands are absolutely forbidden — they silently lose uncommitted work and cause merge conflicts that corrupt multiple files. There are no exceptions. If you need to preserve work, commit it to a branch instead.
-
-**Before creating a PR**, always run `git fetch origin master` (or the target branch) to ensure the local remote ref is up to date. This prevents PRs from being based on stale data.
-
-**Always use regular merge** (not squash merge) when merging PRs. `test-branch` is a long-lived branch that is reused across releases. Squash merges create new commit SHAs, so the original commits remain "unknown" to git — subsequent PRs from the same branch accumulate all old commits as if they were new. Regular merges preserve commit identity and keep the history clean.
-
-**PR merges require admin access.** `gh pr merge` will fail because branch protection rules require admin privileges. Always ask the user to merge the PR manually via the GitHub UI or with their admin credentials.
+- **NEVER `git stash`/`git stash pop`** — causes merge conflicts, loses work. Commit to a branch instead.
+- **Before PR**: `git fetch origin master` to ensure fresh remote ref.
+- **Regular merge only** (not squash). `test-branch` is long-lived; squash breaks commit identity.
+- **PR merges require admin.** `gh pr merge` fails — ask user to merge via GitHub UI.
 
 ### Expo Apps
 
-**Load Expo skills** when working on `apps/mobile` or `apps/docs-expo`. Always use `npx expo install` (not `pnpm add`) for Expo native dependencies. See `CLAUDE-expo.md` for SDK 55 details, expo-file-system API, keyboard handling, ComposerInput workaround, and APK build instructions.
+Load Expo skills for `apps/mobile` or `apps/docs-expo`. Use `npx expo install` (not `pnpm add`). See `CLAUDE-expo.md`. Always use `expo-image` (not RN `Image`) — RN can't render SVGs.
 
-Skills: `upgrading-expo:upgrading-expo`, `expo-app-design:building-ui`, `expo-app-design:data-fetching`, `expo-deployment:deployment`.
+### Styling & UI
 
-### expo-image (Expo Apps)
-
-**Always use `expo-image`** (`import { Image } from 'expo-image'`) instead of React Native's built-in `Image` in all Expo apps. React Native's `Image` cannot render SVGs — robot avatar URLs appear as blank space.
-
-### Styling
-
-**Tailwind CSS v4** for new code. Existing CSS continues to work unchanged. Import `cn()` from `@/utils/cn` for conditional classes.
-
-Theme tokens: **Colors** (`bg-primary-500`, `text-foreground`, `bg-background`), **Spacing** (`p-xs` through `p-2xl`), **Shadows** (`shadow-sm` through `shadow-xl`), **Radius** (`rounded-sm`/`md`/`lg`).
-
-#### Tailwind v4 Gotchas
-
-**`max-w-*` uses spacing scale, not legacy named sizes.** `max-w-md` = 16px (not 28rem). Always use explicit values: `max-w-[28rem]`. Affected: `max-w-sm` through `max-w-2xl`.
-
-**`fixed` does not set `inset: 0`.** Use `fixed inset-0 m-auto h-fit w-full max-w-[32rem]` for centered dialogs (not `fixed top-[50%] left-[50%] translate-*`).
-
-**`mx-auto` in flex column collapses width.** Add `w-full` alongside `mx-auto` inside `flex flex-col` parents.
-
-#### Legacy Code & Migration
-- Design tokens: `apps/web/src/assets/styles/common/variables.css`
-- **Opportunistic migration**: Convert CSS to Tailwind when touching files. New features use Tailwind exclusively.
-
-#### Theme & Dark Mode
-- Dark mode: `[data-theme="dark"]` attribute on `<html>`. Toggled by `useDarkMode.ts`. Always test both modes.
-- **Use semantic tokens**: `text-foreground` (not `text-grey-800 dark:text-grey-100`), `text-foreground-heading`, `bg-background`, `bg-background-alt`, `bg-background-pure`.
-- **Color token architecture**: All color values live in `variables.css` as `-val` CSS variables with light/dark pairs. `@theme` in `index.css` is a pure mapping layer (`--color-card: var(--color-card-val)`). Never hardcode hex values in `@theme`.
-- **`@layer` ordering matters**: `base < legacy < components < utilities`. Package CSS with `:root` variable defaults must import into `layer(legacy)`, not `layer(components)` — layers beat specificity, so a higher layer always wins regardless of `[data-theme="dark"]` selectors.
-- **Tailwind `dark:` variant**: Configured via `@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *))` in `index.css`. For gradients, always add `dark:from-*` explicitly — Tailwind gradient stops need re-declaration in the dark context.
-
-#### CSS Variable Names — Do NOT Invent Variables
-
-| Wrong (undefined)       | Correct (defined)                                      |
-|-------------------------|--------------------------------------------------------|
-| `--text-primary`        | `--font-color` or `text-foreground`                    |
-| `--text-tertiary`       | `--font-color-muted` or `text-grey-400`                |
-| `--border-default/color`| `--border-subtle` / `--card-border` or Tailwind border tokens |
-| `--border-radius*`      | Use `rounded-lg` directly                              |
-| `--background-hover`    | `--hover-color-alt` or `bg-hover-alt`                  |
-| `--background-active/subtle` | Use `bg-grey-100 dark:bg-grey-800`                |
-| `--bg-color`            | `--background-color` or `bg-background`                |
-| `--primary-color`       | `--primary-600` or `text-primary-600`                  |
-
-Prefer Tailwind utilities over `var(--)`. Only use variables confirmed in `variables.css`.
-
-### shadcn/ui Components
-
-**Prefer shadcn/ui** for new UI components. For chat features, **prefer Assistant UI (`@assistant-ui/react`)** primitives first. Always add via CLI:
-
-```bash
-cd apps/web && npx shadcn@latest add <component-name>
-cd packages/chat && npx shadcn@latest add <component-name>
-```
-
-**Post-CLI adaptations:** (1) Fix import order (external before `react`). (2) Replace shadcn tokens: `bg-popover` → `bg-background-pure`, `border` → `border border-grey-200 dark:border-grey-700`, `shadow-md` → `shadow-lg`. (3) Remove `"use client"`. (4) Reference `dropdown-menu.tsx`/`dialog.tsx` as style guide.
-
-**`apps/web` config**: `aliases.utils` → `@/utils/cn`, `style` → `new-york`, components in `src/components/ui/`.
-
-**`packages/chat` caveat**: Replace `@/` path aliases with relative imports after generation — Vite resolves `@/` from the consuming app.
-
-### Docs App
-
-`apps/docs` and `packages/docs` use **`@blocknote/shadcn`** for the editor UI. Dark mode via `data-theme` attribute.
-
-- **Avatars**: Use `getAvatarDisplayProps()` and `getRobotAvatarPath()` from `@gruenerator/shared/avatar`.
+See `CLAUDE-styling.md` for Tailwind v4, theme/dark mode, CSS variables, shadcn/ui setup, docs app conventions.
 
 ### State Management
 
-Zustand for global state. TanStack Query (React Query v5) for server state/data fetching with axios.
+Zustand (global state). TanStack Query v5 (server state/fetching) with axios.
 
 ### Avoid Unnecessary `useEffect`
 
-Follow [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-an-effect). Rules:
-
-1. **Derive during render** — if it can be calculated from props/state, don't put it in state or an Effect. Use `const` or `useMemo`.
-2. **Event handlers, not Effects** — user-triggered actions (save, submit, navigate) belong in event handlers, not Effects.
-3. **Reset via `key`** — to reset component state when an ID changes, use `key={id}` on the component instead of an Effect that resets state.
-4. **No Effect chains** — cascading `useEffect → setState → useEffect` is a code smell. Compute in one pass or handle in the event handler.
-5. **`useEffect` is for external sync only** — subscriptions, WebSocket connections, DOM measurements. Not for derived state, not for reacting to user events.
+1. **Derive during render** — `const`/`useMemo`, not state+Effect.
+2. **Event handlers** for user actions, not Effects.
+3. **Reset via `key`** — `key={id}` instead of Effect that resets state.
+4. **No Effect chains** — compute in one pass or in event handler.
+5. **`useEffect` for external sync only** — subscriptions, WebSocket, DOM measurements.
 
 ### Commits
 
-Conventional Commits enforced by commitlint: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, etc.
-
-**Atomic commits**: Each commit must contain exactly one logical change. Never bundle unrelated changes (e.g. a refactor + a style fix + a new feature) into a single commit. When multiple files change, group them by concern, not by timing.
+Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`). Atomic: one logical change per commit.
 
 ### TypeScript
 
-Strict mode. The entire stack is TypeScript — frontend, backend, shared packages, and mobile.
+Strict mode, entire stack. `import { type Foo }` (inline style, not `import type`). Never use `undefined` — widen to `| null` or omit optional fields.
 
-- **Type-only imports**: ESLint enforces `consistent-type-imports` with inline style. Always use `import { type Foo } from './types'` (not `import type { Foo }`). Never use `import()` type annotations in interfaces — they are forbidden by the lint rule. Auto-fixable with `eslint --fix`.
-- **No `undefined` — 100% type safety**: Never use `undefined` anywhere — not explicitly, not via `?? undefined`, not via ternaries. If a value can be `null`, widen the type to `| null`. If a field is optional, omit it entirely via conditional `if` blocks. Fix the root type mismatch rather than adding conversion shims.
+### Backend Routing & Typing
 
-### Express 5 Route Typing
-
-Express 5 changed `req.params` values from `string` to `string | string[]`. All route handlers must declare their params explicitly:
-
-```typescript
-router.get('/:id', async (req: AuthRequest<{ id: string }>, res: Response) => {
-  const { id } = req.params; // correctly typed as string
-});
-
-// For complex cases, use the getParam() bridge helper:
-import { getParam } from '../../utils/params.js';
-const id = getParam(req.params, 'id'); // safely extracts string from string | string[]
-```
-
-Custom request types (`AuthRequest`, `AuthenticatedRequest`, `DocumentRequest`, `SubtitlerRequest`) all accept an optional params generic `P`.
-
-### Locale-Aware Backend Code
-
-The platform serves both **German (`de-DE`)** and **Austrian (`de-AT`)** users. All backend code that generates content, searches documents, or constructs prompts **must be locale-aware**. Never hardcode party names or collection lists.
-
-#### Rules
-1. **Party name**: Use `{{partyName}}` placeholder in prompts — replaced by `localizePlaceholders()`. Also: `{{partyNameShort}}`, `{{partyNameGenitive}}`.
-2. **Qdrant collections**: Filter by locale. Austrian: `oesterreich_gruene_documents`, `gruene_at_documents`. German: `grundsatz_documents`, `bundestag_content`, `kommunalwiki_documents`, `gruene_de_documents`.
-3. **Web search**: Never hardcode party name in queries. Use locale-aware name or omit.
-4. **`enrichRequest(body, options, req)`**: `req` must be 3rd argument (not inside options).
-5. **Direct `aiWorkerPool.processRequest`**: Bypasses localization. Prefer `assemblePromptGraphAsync` or call `localizePlaceholders()` manually.
-
-Utilities in `services/localization/index.ts`: `extractLocaleFromRequest(req)`, `localizePlaceholders(text, locale)`, `getDefaultCollectionsForLocale(locale)`.
+See `CLAUDE-routing.md` for Express 5 route typing, `TypedRequest`/`AuthRequest`, AI worker pool access, locale-aware backend rules.
 
 ### Gender-Neutral Language (Gendern)
 
-All user-facing German text **must use gender-neutral language** with the **Genderstern (`*`)**. This is the standard form for Green Party communications.
-
-1. **Role labels**: `*in` (singular) / `*innen` (plural) — e.g. `Eigentümer*in`, `Bearbeiter*in`
-2. **Articles + role**: Rephrase to avoid gendered articles — "Nur der Ersteller kann..." → "Nur die erstellende Person kann..."
-3. **Placeholders/labels**: Prefer neutral constructions — "Name des Erstellers" → "Name der erstellenden Person"
-4. **Exceptions**: Legal text (Impressum, Datenschutz) and non-role compound nouns unchanged
-5. **Email templates**: Permission labels must also be gendered
-
-### Newsletter Writing Style
-
-See `CLAUDE-newsletter.md` for tone, structure, content patterns, and formatting conventions.
+All user-facing German text uses Genderstern (`*`):
+1. `*in`/`*innen` for role labels (e.g. `Eigentümer*in`)
+2. Rephrase gendered articles ("Nur der Ersteller..." → "Nur die erstellende Person...")
+3. Neutral constructions for labels ("Name des Erstellers" → "Name der erstellenden Person")
+4. Exceptions: legal text, non-role compound nouns
 
 ### External API Clients & SSRF
 
-When building API clients that connect to user-provided URLs (WordPress, Nextcloud, WebDAV):
-1. **Always validate URLs** via `validateUrlForFetch()` from `utils/validation/urlSecurity.ts` before making requests. Use the validated `url` from the result, not the original input.
-2. **Use `new URL()` for normalization** — never regex-only (`/\/+$/`). Parse with `URL` constructor, check protocol, then build the normalized string.
-3. **CodeQL scans PRs for SSRF** — every `axios.get/post/put` on a user-derived base URL gets flagged. The fix is ensuring the data flow goes through `validateUrlForFetch()` and uses `urlCheck.url`.
+Validate user-provided URLs via `validateUrlForFetch()` from `utils/validation/urlSecurity.ts`. Use validated `url` from result. Use `new URL()` for normalization. CodeQL scans PRs for SSRF.
 
 ### Database Column Type Changes
 
-When changing a column type via migration (e.g. UUID → TEXT), **grep all queries referencing that column** and update type casts. PostgreSQL does not implicitly cast between `text` and `uuid` — a `$1::uuid` cast on a `TEXT` column will fail at runtime.
+When changing column type via migration, grep all queries for that column and update type casts. `$1::uuid` on a `TEXT` column fails at runtime.
 
 ### Code Quality
 
-ESLint (flat config), Prettier, Husky pre-commit hooks (lint-staged), Knip for unused code detection.
+ESLint (flat config), Prettier, Husky pre-commit (lint-staged), Knip (unused code). Don't add files to `allowDefaultProject` if already discovered by TS project service.
 
-- **`allowDefaultProject`**: Do not add files to `packages/eslint-config/base.js` `allowDefaultProject` if they are already discovered by TypeScript's project service (causes a parsing error). Only list files that no `tsconfig.json` covers.
+### Newsletter
+
+See `CLAUDE-newsletter.md`. Landesverband notebooks: see `CLAUDE-landesverband.md`.
 
 ## Deployment
 
-### Test Environment
-- **Test URL**: https://beta.gruenerator.eu
-- **Server**: gruenerator-test.netzbegruenung.verdigado.net
-- **Branch**: `test-branch`
-
-### Docker Images
-- **Workflow**: "Build and Push Docker Images" (`build-images.yml`)
-  - Triggers on push to `master` or `test-branch` (when app/service files change)
-  - Manual dispatch with `force_all: true` to rebuild everything
-  - Individual services: `build_web`, `build_api`, `build_docs`, `build_mcp`, `build_doku`
-  - Registry: `ghcr.io/netzbegruenung/gruenerator-{web,api,docs,mcp,doku}`
-
-#### Adding a New Shared Package (Docker Checklist)
-
-When creating or extracting a new `packages/*` workspace, **three files must be updated** or Docker builds will fail:
-
-1. **Every Dockerfile that transitively depends on the new package** — add `COPY packages/<name>/package.json` and `COPY packages/<name>`. Use `pnpm --filter <app> list --depth 1 --json | grep @gruenerator` for the full dependency tree.
-2. **`.github/workflows/build-images.yml`** — add `'packages/<name>/**'` to `dorny/paths-filter` entries.
-3. **`.gitignore`** — verify the path isn't matched by a broad pattern (e.g., `docs/` matches `*/docs/`; use `/docs/`).
-
-#### `packages/shared` in Dockerfiles — Runtime `.ts` Trap
-
-`packages/shared` exports raw `.ts` files (no build step in dev). Node.js **cannot import `.ts` files** at runtime. Standalone Docker services (not bundled by Vite) that need shared utilities have two options:
-
-1. **Inline the function** (preferred for small utils) — copy the function into the service. Avoids shared's transitive dependency tree (`clsx`, React, etc.) leaking into lightweight services. Example: `stripHtmlTags` in `services/hocuspocus/src/htmlToYjsXml.ts`.
-2. **Build + rewrite exports** (for heavy shared usage) — build shared in Docker, copy `dist/`, `sed`-rewrite `package.json` exports from `.ts` → `.js`. See `apps/api/Dockerfile` for this pattern. Beware: barrel re-exports pull in ALL transitive deps.
-
-### Deploying to Test
-1. Merge changes into `test-branch` (e.g. via PR from `master`)
-2. Build images run automatically on push, or trigger manually: `gh workflow run "Build and Push Docker Images" --ref test-branch`
-3. Deploy runs automatically on push, or trigger manually: `gh workflow run "Deploy to Test Environment" --ref test-branch`
-4. Deploy always force-recreates containers (`--force-recreate`)
-
-### Production
-- **Workflow**: "Deploy to Production" (`deploy-prod.yml`)
-- **Branch**: `master`
-
-### Docs Expo (Android APK)
-
-See `CLAUDE-expo.md` for full build, install, and debug instructions.
+See `CLAUDE-deployment.md` for Docker images, test/prod environments, deploying steps, and shared package checklist.

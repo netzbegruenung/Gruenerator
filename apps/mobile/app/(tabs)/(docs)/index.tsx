@@ -48,13 +48,13 @@ export default function DocumentsScreen() {
 
   useEffect(() => {
     if (user) {
-      fetchDocuments();
-      prefetchRecentDocs();
+      void fetchDocuments();
+      void prefetchRecentDocs();
     }
   }, [fetchDocuments, prefetchRecentDocs, user]);
 
   const handleRefresh = useCallback(() => {
-    fetchDocuments();
+    void fetchDocuments();
   }, [fetchDocuments]);
 
   const handleSelectTemplate = async (template: DocumentTemplate) => {
@@ -89,7 +89,7 @@ export default function DocumentsScreen() {
       {
         text: 'Löschen',
         style: 'destructive',
-        onPress: () => deleteDocument(id),
+        onPress: () => void deleteDocument(id),
       },
     ]);
   };

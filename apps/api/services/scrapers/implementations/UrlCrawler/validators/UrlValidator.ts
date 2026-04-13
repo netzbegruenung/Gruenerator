@@ -7,6 +7,7 @@
 import { createRequire } from 'module';
 import { URL } from 'url';
 
+import { env } from '../../../../../config/env.js';
 import { safeFetch } from '../../../../../utils/validation/urlSecurity.js';
 
 const require = createRequire(import.meta.url);
@@ -88,7 +89,7 @@ export class UrlValidator {
         };
       }
 
-      if (process.env.NODE_ENV === 'production') {
+      if (env.NODE_ENV === 'production') {
         const hostname = urlObj.hostname.toLowerCase();
         if (
           hostname === 'localhost' ||

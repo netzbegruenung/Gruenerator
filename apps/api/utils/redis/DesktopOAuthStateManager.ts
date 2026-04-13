@@ -8,6 +8,8 @@
 import * as dotenv from 'dotenv';
 import * as redis from 'redis';
 
+import { env } from '../../config/env.js';
+
 import type { DesktopOAuthStateData } from './types.js';
 import type { RedisClientType } from 'redis';
 
@@ -29,7 +31,7 @@ class DesktopOAuthStateManager {
 
   private async init(): Promise<void> {
     try {
-      if (!process.env.REDIS_URL) {
+      if (!env.REDIS_URL) {
         console.warn(
           '[Redis DesktopOAuth] No REDIS_URL configured - Desktop OAuth state will fail'
         );
@@ -37,7 +39,7 @@ class DesktopOAuthStateManager {
       }
 
       this.client = redis.createClient({
-        url: process.env.REDIS_URL,
+        url: env.REDIS_URL,
         socket: {
           reconnectStrategy: (retries: number) => {
             if (retries > 10) {

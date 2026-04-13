@@ -7,6 +7,7 @@
 import axios from 'axios';
 
 import { createLogger } from '../../utils/logger.js';
+import { bskyAuthorFeedResponseSchema, type BskyPost } from '../api-clients/schemas/bluesky.js';
 
 import type { CollectedMonitorItem } from './MonitorCollectorService.js';
 
@@ -16,18 +17,6 @@ const BSKY_API = 'https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed';
 const MAX_POSTS_PER_ACCOUNT = 10;
 
 const BLUESKY_ACCOUNTS = [{ handle: 'gruene-bundestag.de', label: 'Grüne Fraktion' }];
-
-interface BskyPost {
-  uri: string;
-  author: { handle: string; displayName: string };
-  record: { text: string; createdAt: string };
-  likeCount?: number;
-  repostCount?: number;
-}
-
-interface BskyFeedItem {
-  post: BskyPost;
-}
 
 function postToUrl(uri: string, handle: string): string {
   const rkey = uri.split('/').pop();
@@ -40,7 +29,8 @@ async function fetchAccountPosts(handle: string, limit: number): Promise<BskyPos
       params: { actor: handle, limit },
       timeout: 10000,
     });
-    return ((response.data?.feed as BskyFeedItem[] | undefined) || []).map((item) => item.post);
+    const parsed = bskyAuthorFeedResponseSchema.parse(response.data);
+    return (parsed.feed ?? []).map((item) => item.post);
   } catch (error) {
     log.warn(`Bluesky fetch failed for @${handle}: ${error}`);
     return [];
