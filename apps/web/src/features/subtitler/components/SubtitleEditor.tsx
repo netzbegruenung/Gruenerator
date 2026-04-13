@@ -207,7 +207,14 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
   const user = useAuthStore((state) => state.user);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const segmentRefs = useRef<Record<number, HTMLElement>>({});
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  // `videoUrl` either mirrors the prop (remote streaming URL for loaded
+  // projects) or points at a freshly minted `URL.createObjectURL(...)`
+  // over the local File/Blob when the user just uploaded. The blob path
+  // requires an effect (lifecycle + revoke); the prop path is pure
+  // derivation. Keeping the blob URL in a dedicated state lets us
+  // combine them via a render-time ternary below.
+  const [blobVideoUrl, setBlobVideoUrl] = useState<string | null>(null);
+  const videoUrl = videoUrlProp ?? blobVideoUrl;
   const [error, setError] = useState<string | null>(null);
   const [currentTimeInSeconds, setCurrentTimeInSeconds] = useState<number>(0);
   const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null);
@@ -255,42 +262,19 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     );
   };
 
+  // Blob URL lifecycle: create an object URL when we have a File/Blob
+  // (no remote URL), revoke it on cleanup. If `videoUrlProp` is set, the
+  // render-time ternary above picks it over any blob URL, but we still
+  // avoid creating a blob URL we wouldn't use.
   useEffect(() => {
-    if (videoUrlProp) {
-      console.log('[SubtitleEditor] Using streaming video URL');
-      setVideoUrl(videoUrlProp);
-      return;
-    }
-
-    if (!videoFile) {
-      console.log('[SubtitleEditor] No video file or URL provided');
-      return;
-    }
-
+    if (videoUrlProp || !videoFile) return;
     if (!(videoFile instanceof File || videoFile instanceof Blob)) {
-      console.error('[SubtitleEditor] Invalid video file type:', typeof videoFile);
       setError('Ungültiges Video-Format');
       return;
     }
-
-    try {
-      console.log('[SubtitleEditor] Creating video URL for file:', {
-        name: (videoFile as File).name,
-        type: (videoFile as File).type,
-        size: (videoFile as File).size,
-      });
-
-      const url = URL.createObjectURL(videoFile);
-      setVideoUrl(url);
-
-      return () => {
-        console.log('[SubtitleEditor] Cleaning up video URL');
-        URL.revokeObjectURL(url);
-      };
-    } catch (error) {
-      console.error('[SubtitleEditor] Error creating video URL:', error);
-      setError('Fehler beim Laden der Video-Vorschau');
-    }
+    const url = URL.createObjectURL(videoFile);
+    setBlobVideoUrl(url);
+    return () => URL.revokeObjectURL(url);
   }, [videoFile, videoUrlProp]);
 
   useEffect(() => {
@@ -305,22 +289,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
 
     observer.observe(videoRef.current);
     return () => observer.disconnect();
-  }, [videoUrl]);
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-
-    return () => {
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-    };
   }, [videoUrl]);
 
   const togglePlayPause = useCallback(() => {
@@ -585,6 +553,8 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
                     src={videoUrl}
                     onLoadedMetadata={handleVideoLoadedMetadata}
                     onTimeUpdate={handleVideoTimeUpdate}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
                   >
                     Dein Browser unterstützt keine Video-Wiedergabe.
                   </video>
