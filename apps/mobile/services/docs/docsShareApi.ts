@@ -63,22 +63,14 @@ export const docsShareApi = {
     return res || { users: [], groups: [] };
   },
 
-  async addCollaborator(
-    docId: string,
-    userId: string,
-    level: PermissionLevel
-  ): Promise<void> {
+  async addCollaborator(docId: string, userId: string, level: PermissionLevel): Promise<void> {
     await apiRequest('post', `/docs/${docId}/permissions`, {
       user_id: userId,
       permission_level: level,
     });
   },
 
-  async updateCollaborator(
-    docId: string,
-    userId: string,
-    level: PermissionLevel
-  ): Promise<void> {
+  async updateCollaborator(docId: string, userId: string, level: PermissionLevel): Promise<void> {
     await apiRequest('put', `/docs/${docId}/permissions/${userId}`, {
       permission_level: level,
     });
@@ -89,15 +81,11 @@ export const docsShareApi = {
   },
 
   async getUserGroups(): Promise<GroupSummary[]> {
-    const res = await apiRequest<GroupSummary[]>('get', '/docs/user-groups');
+    const res = await apiRequest<GroupSummary[]>('get', '/docs/groups/me');
     return res || [];
   },
 
-  async shareWithGroup(
-    docId: string,
-    groupId: string,
-    level: 'editor' | 'viewer'
-  ): Promise<void> {
+  async shareWithGroup(docId: string, groupId: string, level: 'editor' | 'viewer'): Promise<void> {
     await apiRequest('post', `/docs/${docId}/groups`, {
       group_id: groupId,
       permission_level: level,
