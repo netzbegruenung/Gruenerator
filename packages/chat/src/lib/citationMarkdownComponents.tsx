@@ -4,7 +4,7 @@ import { processChildren } from './citationProcessing';
 import type { Citation } from '../hooks/useChatGraphStream';
 
 export function makeCitationComponents(citationMap: Map<number, Citation>) {
-  const withCitations = (children: ReactNode) => processChildren(children, citationMap);
+  const withCitations = (children: ReactNode) => processChildren(children, citationMap, true);
 
   return memoizeMarkdownComponents({
     a: ({ children, href }: { children?: ReactNode; href?: string }) => (
