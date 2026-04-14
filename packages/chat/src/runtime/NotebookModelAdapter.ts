@@ -344,9 +344,12 @@ export function createNotebookModelAdapter(
           completionData.answer.length
         );
         currentProgress = { stage: 'complete', message: '' };
-        // Keep the streamed deltas as the source of truth. Overwriting with
-        // completionData.answer can reflow the final frame if the backend
-        // canonicalizes whitespace/markers between streaming and completion.
+        // Swap in the backend's canonical answer so citation IDs in the text
+        // match completionCitations. The LLM emits raw IDs during streaming
+        // (e.g. [23], [19], [24]) that the backend renumbers to dense
+        // sequential IDs at completion — without this swap, markers point to
+        // the wrong sources or fall off the map entirely.
+        accumulatedText = completionData.answer;
 
         yield buildResult();
 
@@ -359,7 +362,7 @@ export function createNotebookModelAdapter(
           linkConfig: linkConfigAccum,
           question,
           resultId: resultIdAccum,
-          answerText: accumulatedText,
+          answerText: completionData.answer,
           progress: { stage: 'complete', message: '' },
           ...(sourcesByCollectionAccum && { sourcesByCollection: sourcesByCollectionAccum }),
         };
