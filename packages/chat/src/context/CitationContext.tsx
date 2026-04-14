@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext } from 'react';
+import { createContext, useCallback, useContext, useMemo } from 'react';
 import type { Citation } from '../hooks/useChatGraphStream';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
@@ -22,11 +22,8 @@ export function CitationProvider({
   fetchFullText?: FetchFullTextFn;
   children: React.ReactNode;
 }) {
-  return (
-    <CitationContext.Provider value={{ citations, fetchFullText }}>
-      {children}
-    </CitationContext.Provider>
-  );
+  const value = useMemo(() => ({ citations, fetchFullText }), [citations, fetchFullText]);
+  return <CitationContext.Provider value={value}>{children}</CitationContext.Provider>;
 }
 
 export function useCitations(): Citation[] {

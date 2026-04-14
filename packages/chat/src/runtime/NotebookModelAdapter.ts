@@ -337,13 +337,16 @@ export function createNotebookModelAdapter(
 
         completionCitations = mapToChatCitations(rawCitationsAccum);
         console.debug(
-          '[Notebook] Completion: %d rawCitations, %d citations, answer length: %d',
+          '[Notebook] Completion: %d rawCitations, %d citations, answer length: %d streamed vs %d final',
           rawCitationsAccum.length,
           completionCitations.length,
+          accumulatedText.length,
           completionData.answer.length
         );
         currentProgress = { stage: 'complete', message: '' };
-        accumulatedText = completionData.answer;
+        // Keep the streamed deltas as the source of truth. Overwriting with
+        // completionData.answer can reflow the final frame if the backend
+        // canonicalizes whitespace/markers between streaming and completion.
 
         yield buildResult();
 
@@ -356,7 +359,7 @@ export function createNotebookModelAdapter(
           linkConfig: linkConfigAccum,
           question,
           resultId: resultIdAccum,
-          answerText: completionData.answer,
+          answerText: accumulatedText,
           progress: { stage: 'complete', message: '' },
           ...(sourcesByCollectionAccum && { sourcesByCollection: sourcesByCollectionAccum }),
         };

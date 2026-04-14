@@ -19,7 +19,6 @@ function CitationMarkdownTextImpl() {
       remarkPlugins={remarkPlugins}
       components={components}
       preprocess={escapeCitationMarkers}
-      smooth
     />
   );
 }
