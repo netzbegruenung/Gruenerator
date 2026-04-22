@@ -147,7 +147,7 @@ interface PlannerKanbanProps {
   removeField: (fieldId: string) => void;
   onUpdateView?: (viewId: string, updates: Partial<BoardView>) => void;
   currentUserId: string;
-  groupId?: string;
+  boardId?: string;
   provider?: HocuspocusProvider | null;
 }
 
@@ -163,7 +163,7 @@ export function PlannerKanban({
   updateField,
   onUpdateView,
   currentUserId,
-  groupId,
+  boardId,
   provider,
 }: PlannerKanbanProps) {
   const { userName, userAvatarRobotId } = useAuthStore(
@@ -466,7 +466,7 @@ export function PlannerKanban({
         onUpdateRow={updateRow}
         onDelete={deleteRow}
         onUpdateField={updateField}
-        groupId={groupId}
+        boardId={boardId}
         currentUserId={currentUserId}
         currentUserName={userName}
         currentUserAvatarRobotId={userAvatarRobotId}
