@@ -6,20 +6,20 @@ description: Aktuelle Statistiken über die indexierten Inhalte im Grünerator
 
 # Inhaltsdatenbank
 
-> Zuletzt aktualisiert: **22.04.2026, 13:11**
+> Zuletzt aktualisiert: **22.04.2026, 16:07**
 
 ## Übersicht
 
 Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei.
-Insgesamt sind **45.941 Vektoren** in der Datenbank gespeichert.
+Insgesamt sind **45.948 Vektoren** in der Datenbank gespeichert.
 
 ## Sammlungen
 
 | Sammlung               |   Vektoren |
 | ---------------------- | ---------: |
-| Landesverbände         |     25.500 |
+| Landesverbände         |     25.505 |
 | KommunalWiki           |      7.162 |
-| Bundestag              |      4.527 |
+| Bundestag              |      4.529 |
 | Böll-Stiftung          |      3.155 |
 | Social-Media-Beispiele |      1.024 |
 | gruene.at              |      1.012 |
@@ -28,11 +28,11 @@ Insgesamt sind **45.941 Vektoren** in der Datenbank gespeichert.
 | Grüne Österreich       |        776 |
 | Satzungen              |        712 |
 | Grünblog               |        351 |
-| **Gesamt**             | **45.941** |
+| **Gesamt**             | **45.948** |
 
 ## Landesverbände
 
-Die Landesverbände-Sammlung enthält **25.500 Vektoren** aus 12 Quellen.
+Die Landesverbände-Sammlung enthält **25.505 Vektoren** aus 12 Quellen.
 
 | Landesverband                   | Kürzel |   Vektoren |
 | ------------------------------- | ------ | ---------: |
@@ -41,14 +41,14 @@ Die Landesverbände-Sammlung enthält **25.500 Vektoren** aus 12 Quellen.
 | Berlin Fraktion                 | BE-F   |      3.096 |
 | Berlin                          | BE     |      2.771 |
 | Thüringen                       | TH     |      2.721 |
-| Brandenburg                     | BB     |      1.434 |
-| Sachsen-Anhalt Fraktion         | LSA-F  |      1.388 |
+| Brandenburg                     | BB     |      1.437 |
+| Sachsen-Anhalt Fraktion         | LSA-F  |      1.390 |
 | Mecklenburg-Vorpommern          | MV     |      1.169 |
 | Sachsen-Anhalt                  | LSA    |      1.074 |
 | Mecklenburg-Vorpommern Fraktion | MV-F   |        515 |
 | Schleswig-Holstein              | SH     |        459 |
 | Bayern                          | BY     |        235 |
-| **Gesamt**                      |        | **25.500** |
+| **Gesamt**                      |        | **25.505** |
 
 ## Aktualisierung
 
