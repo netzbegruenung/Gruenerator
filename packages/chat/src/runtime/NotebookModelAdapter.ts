@@ -337,12 +337,18 @@ export function createNotebookModelAdapter(
 
         completionCitations = mapToChatCitations(rawCitationsAccum);
         console.debug(
-          '[Notebook] Completion: %d rawCitations, %d citations, answer length: %d',
+          '[Notebook] Completion: %d rawCitations, %d citations, answer length: %d streamed vs %d final',
           rawCitationsAccum.length,
           completionCitations.length,
+          accumulatedText.length,
           completionData.answer.length
         );
         currentProgress = { stage: 'complete', message: '' };
+        // Swap in the backend's canonical answer so citation IDs in the text
+        // match completionCitations. The LLM emits raw IDs during streaming
+        // (e.g. [23], [19], [24]) that the backend renumbers to dense
+        // sequential IDs at completion — without this swap, markers point to
+        // the wrong sources or fall off the map entirely.
         accumulatedText = completionData.answer;
 
         yield buildResult();
