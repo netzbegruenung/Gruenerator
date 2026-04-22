@@ -76,6 +76,9 @@ export const useBoardSharing = (boardId: string) => {
     void queryClient.invalidateQueries({ queryKey: permKey });
     void queryClient.invalidateQueries({ queryKey: shareKey });
     void queryClient.invalidateQueries({ queryKey: groupsKey });
+    void queryClient.invalidateQueries({
+      queryKey: ['boards', boardId, 'assignable-members'],
+    });
   };
 
   const setShareMode = useMutation({

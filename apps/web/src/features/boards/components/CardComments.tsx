@@ -244,7 +244,6 @@ const CommentItem = memo(function CommentItem({
 
 interface CardCommentsProps {
   cardId: string;
-  groupId?: string;
   currentUserId: string;
   currentUserName: string;
   currentUserAvatarRobotId: number;
@@ -252,7 +251,6 @@ interface CardCommentsProps {
 
 export const CardComments = memo(function CardComments({
   cardId,
-  groupId,
   currentUserId,
   currentUserName,
   currentUserAvatarRobotId,
@@ -339,7 +337,7 @@ export const CardComments = memo(function CardComments({
 
   const updateMentionState = useCallback(() => {
     const textarea = textareaRef.current;
-    if (!textarea || !groupId) {
+    if (!textarea || !boardId) {
       setMentionQuery(null);
       return;
     }
@@ -357,7 +355,7 @@ export const CardComments = memo(function CardComments({
     } else {
       setMentionQuery(null);
     }
-  }, [groupId]);
+  }, [boardId]);
 
   const handleMentionSelect = useCallback(
     (user: MentionUser) => {
@@ -538,7 +536,7 @@ export const CardComments = memo(function CardComments({
             placeholder={
               replyToId
                 ? 'Antwort schreiben...'
-                : groupId
+                : boardId
                   ? 'Kommentar schreiben... (@erwähnen)'
                   : 'Kommentar schreiben...'
             }
@@ -559,7 +557,7 @@ export const CardComments = memo(function CardComments({
         </div>
 
         <UserMentionPopover
-          groupId={groupId}
+          boardId={boardId}
           query={mentionQuery ?? ''}
           visible={mentionQuery !== null}
           anchorRect={mentionAnchor}

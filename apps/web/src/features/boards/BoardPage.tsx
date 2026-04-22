@@ -20,7 +20,6 @@ import { PlannerKanban } from './components/PlannerKanban';
 import { ViewSwitcher } from './components/ViewSwitcher';
 import { ViewToolbar } from './components/ViewToolbar';
 import { useBoardCollaboration } from './hooks/useBoardCollaboration';
-import { useBoardSharing } from './hooks/useBoardSharing';
 import { useBoardState } from './hooks/useBoardState';
 import { useViewData } from './hooks/useViewData';
 import { FIELD_IDS, getBoardType, isBoardArchived } from './types';
@@ -82,7 +81,6 @@ function BoardContent() {
   );
 
   const { ydoc, provider, isConnected, isSynced } = useBoardCollaboration(id || '');
-  const { boardGroups } = useBoardSharing(id || '');
 
   if (isLoading) {
     return (
@@ -145,7 +143,7 @@ function BoardContent() {
           provider={provider}
           generatedStructure={generatedStructure}
           currentUserId={String(user?.id || '')}
-          groupId={boardGroups[0]?.group_id}
+          boardId={board.id}
           expertMode={expertMode}
         />
       )}
@@ -159,7 +157,7 @@ function BoardViewContent({
   provider,
   generatedStructure,
   currentUserId,
-  groupId,
+  boardId,
   expertMode,
 }: {
   ydoc: Doc;
@@ -167,7 +165,7 @@ function BoardViewContent({
   provider: HocuspocusProvider | null;
   generatedStructure: BoardInitialStructure | null;
   currentUserId: string;
-  groupId?: string;
+  boardId: string;
   expertMode: boolean;
 }) {
   const boardState = useBoardState(ydoc, isSynced, generatedStructure);
@@ -263,7 +261,7 @@ function BoardViewContent({
           removeField={boardState.removeField}
           onUpdateView={boardState.updateView}
           currentUserId={currentUserId}
-          groupId={groupId}
+          boardId={boardId}
           provider={provider}
         />
       )}
@@ -314,7 +312,7 @@ function BoardViewContent({
           onUpdateRow={boardState.updateRow}
           onDelete={boardState.deleteRow}
           onUpdateField={boardState.updateField}
-          groupId={groupId}
+          boardId={boardId}
         />
       )}
     </>
