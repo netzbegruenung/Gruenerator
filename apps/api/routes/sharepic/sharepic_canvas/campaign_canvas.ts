@@ -164,13 +164,20 @@ function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig 
     return null;
   }
 
-  if (!fs.existsSync(campaignPath)) {
-    log.warn(`[CampaignCanvas] Config not found: ${campaignPath}`);
+  let campaignJson: string;
+  try {
+    campaignJson = fs.readFileSync(campaignPath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      log.warn(`[CampaignCanvas] Config not found: ${campaignPath}`);
+      return null;
+    }
+    log.error(`[CampaignCanvas] Failed to read config:`, error);
     return null;
   }
 
   try {
-    const campaign = JSON.parse(fs.readFileSync(campaignPath, 'utf8')) as CampaignJsonFile;
+    const campaign = JSON.parse(campaignJson) as CampaignJsonFile;
     const typeConfig = campaign.types?.[typeId];
 
     if (!typeConfig) {

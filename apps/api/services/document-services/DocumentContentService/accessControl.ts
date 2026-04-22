@@ -24,11 +24,9 @@ export async function getAccessibleDocuments(
         accessibleDocuments.push(doc);
       }
     } catch (error: unknown) {
-      // Escape format specifiers in docId before using as template prefix.
-      const safeDocId = docId.replace(/%/g, '%%');
       console.warn(
         '[DocumentContentService] Document %s not accessible: %s',
-        safeDocId,
+        docId.replace(/%/g, '%%'),
         error instanceof Error ? error.message : String(error)
       );
     }
