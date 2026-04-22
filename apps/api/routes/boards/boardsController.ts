@@ -290,7 +290,7 @@ router.get('/:id/assignable-members', async (req: Request<{ id: string }>, res: 
              ON gm.group_id = gcs.group_id
             AND gm.is_active = TRUE
            WHERE gcs.content_type = 'collaborative_documents'
-             AND gcs.content_id = $1
+             AND gcs.content_id = $1::text
          )
          SELECT DISTINCT ON (a.user_id)
            a.user_id,
