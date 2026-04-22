@@ -277,7 +277,7 @@ const GroupInfoSection = memo(
               </PopoverTrigger>
               <PopoverContent
                 align="end"
-                className="w-80 p-sm"
+                className="w-80 p-sm max-h-[min(70vh,480px)] overflow-y-auto"
                 onMouseEnter={handleMembersMouseEnter}
                 onMouseLeave={handleMembersMouseLeave}
               >
