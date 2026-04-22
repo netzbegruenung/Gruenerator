@@ -76,6 +76,7 @@ export function SectionEditorContainer({
             onChange={(contact) => onUpdate({ contact })}
           />
         );
+      case null:
       default:
         return null;
     }
