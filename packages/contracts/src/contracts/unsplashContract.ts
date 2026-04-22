@@ -11,7 +11,6 @@
  * Routes are public (no requireAuth).
  */
 import { initContract } from '@ts-rest/core';
-import { z } from 'zod';
 
 import {
   unsplashSearchQuerySchema,

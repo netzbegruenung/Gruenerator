@@ -24,6 +24,8 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@gruenerator/eslint-config": "workspace:*",
+    "eslint": "^9.39.4",
     "typescript": "^5.9.3"
   }
 }
