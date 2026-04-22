@@ -1,4 +1,5 @@
 import {
+  Button,
   CardGrid,
   Dialog,
   DialogContent,
@@ -10,7 +11,8 @@ import {
   Skeleton,
 } from '@gruenerator/ui';
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { FaLock } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
 
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
@@ -55,7 +57,27 @@ const AdminDashboardPage = () => {
   };
 
   if (!user?.is_admin) {
-    return <Navigate to="/" replace />;
+    return (
+      <PageContainer maxWidth="md">
+        <div className="flex flex-col items-center justify-center gap-md py-xl text-center">
+          <FaLock aria-hidden className="text-5xl text-grey-400" />
+          <h1 className="text-3xl font-semibold">Kein Zugriff</h1>
+          <p className="text-grey-600 dark:text-grey-400">
+            Du hast keine Berechtigung, den Administrationsbereich zu öffnen. Bitte wende dich an
+            eine administrierende Person, falls du Zugriff benötigst.
+          </p>
+          {user?.email && (
+            <p className="text-sm text-grey-500">
+              Angemeldet als{' '}
+              <span className="font-medium text-grey-700 dark:text-grey-300">{user.email}</span>
+            </p>
+          )}
+          <Button variant="brand" size="brand" asChild>
+            <Link to="/desk">Zurück zum Schreibtisch</Link>
+          </Button>
+        </div>
+      </PageContainer>
+    );
   }
 
   const statCounts: Record<StatusTab, number> = {
