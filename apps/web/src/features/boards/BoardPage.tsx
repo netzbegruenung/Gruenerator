@@ -7,6 +7,7 @@ import { DottedBackground } from '../../components/common/DottedBackground';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import apiClient from '../../components/utils/apiClient';
+import useUserDefaults from '../../hooks/useUserDefaults';
 import { useAuthStore } from '../../stores/authStore';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 
@@ -39,7 +40,11 @@ function BoardContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const [expertMode, setExpertMode] = useState(false);
+  const { get: getBoardsDefault, set: setBoardsDefault } = useUserDefaults<boolean>('boards');
+  const expertMode = getBoardsDefault('expertMode', false);
+  const handleExpertModeToggle = useCallback(() => {
+    void setBoardsDefault('expertMode', !expertMode);
+  }, [expertMode, setBoardsDefault]);
 
   const generatedStructure =
     (location.state as { generatedStructure?: BoardInitialStructure } | null)?.generatedStructure ??
@@ -123,7 +128,7 @@ function BoardContent() {
         provider={provider}
         onDelete={handleDelete}
         onArchiveToggle={handleArchiveToggle}
-        onExpertModeToggle={() => setExpertMode((prev) => !prev)}
+        onExpertModeToggle={handleExpertModeToggle}
         compact={isWhiteboard}
       />
       {isWhiteboard ? (
