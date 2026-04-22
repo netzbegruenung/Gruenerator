@@ -55,7 +55,7 @@ async function getAccessibleDocument(
   if (!hasAccess) {
     const groupAccess = (await db.query(
       `SELECT gcs.permissions FROM group_content_shares gcs
-       INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+       INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
        WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
       [userId, id]
     )) as { permissions: { read: boolean } | null }[];

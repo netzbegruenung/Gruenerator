@@ -107,7 +107,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.check.outputs.should_run == 'true'
-        run: pnpm install --frozen-lockfile --filter @gruenerator/desktop...
+        run: pnpm install --frozen-lockfile --filter @gruenerator/desktop... --filter @gruenerator/web...
 
       - name: Build Tauri app
         if: steps.check.outputs.should_run == 'true'

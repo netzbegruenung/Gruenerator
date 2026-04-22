@@ -1,41 +1,22 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
-import { useState, useEffect, useMemo, type ReactNode } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import { FiSearch, FiUserX } from 'react-icons/fi';
 
-import type { CardAssignee } from '../types';
-
-interface Member {
-  user_id: string;
-  display_name: string | null;
-  first_name: string | null;
-  avatar_robot_id: number;
-}
+import { type AssignableMember, useAssignableMembers } from '../hooks/useAssignableMembers';
+import { type CardAssignee } from '../types';
 
 interface MemberPickerProps {
-  groupId: string;
+  boardId: string;
   onSelect: (assignee: CardAssignee | null) => void;
   children: ReactNode;
 }
 
-export function MemberPicker({ groupId, onSelect, children }: MemberPickerProps) {
+export function MemberPicker({ boardId, onSelect, children }: MemberPickerProps) {
   const [open, setOpen] = useState(false);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    if (!open || !groupId) return;
-    setLoading(true);
-    fetch(`/api/auth/groups/${groupId}/members`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => {
-        if (Array.isArray(data)) setMembers(data);
-      })
-      .catch(() => setMembers([]))
-      .finally(() => setLoading(false));
-  }, [open, groupId]);
+  const { data: members = [], isLoading } = useAssignableMembers(open ? boardId : undefined);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -45,7 +26,7 @@ export function MemberPicker({ groupId, onSelect, children }: MemberPickerProps)
     });
   }, [members, search]);
 
-  const handleSelect = (member: Member | null) => {
+  const handleSelect = (member: AssignableMember | null) => {
     if (member) {
       onSelect({
         id: member.user_id,
@@ -83,8 +64,8 @@ export function MemberPicker({ groupId, onSelect, children }: MemberPickerProps)
             <FiUserX size={14} className="shrink-0" />
             <span>Niemand</span>
           </button>
-          {loading && <p className="px-3 py-4 text-xs text-grey-400 text-center">Laden...</p>}
-          {!loading &&
+          {isLoading && <p className="px-3 py-4 text-xs text-grey-400 text-center">Laden...</p>}
+          {!isLoading &&
             filtered.map((member) => (
               <button
                 key={member.user_id}

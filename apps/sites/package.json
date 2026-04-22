@@ -14,29 +14,29 @@
   "dependencies": {
     "@gruenerator/shared": "workspace:*",
     "@gruenerator/sites-design": "workspace:*",
-    "@mdxeditor/editor": "^3.54.0",
-    "@sentry/react": "^10.47.0",
-    "@tanstack/react-query": "^5.96.2",
-    "axios": "^1.15.0",
+    "@mdxeditor/editor": "^3.55.0",
+    "@sentry/react": "^10.49.0",
+    "@tanstack/react-query": "^5.99.2",
+    "axios": "^1.15.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "react-icons": "^5.6.0",
-    "react-router-dom": "^7.14.0",
+    "react-router-dom": "^7.14.2",
     "tailwind-merge": "^3.5.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
-    "@tailwindcss/vite": "^4.2.2",
-    "@types/node": "^25.5.2",
+    "@tailwindcss/vite": "^4.2.4",
+    "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9.39.4",
-    "tailwindcss": "^4.2.2",
+    "tailwindcss": "^4.2.4",
     "typescript": "^5.9.3",
-    "vite": "^8.0.7"
+    "vite": "^8.0.9"
   }
 }

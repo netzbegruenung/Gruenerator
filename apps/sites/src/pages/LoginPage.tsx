@@ -14,7 +14,7 @@ export const LoginPage = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(redirectTo, { replace: true });
+      void navigate(redirectTo, { replace: true });
     }
   }, [isAuthenticated, redirectTo, navigate]);
 
