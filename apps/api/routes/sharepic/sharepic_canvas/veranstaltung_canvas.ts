@@ -23,6 +23,7 @@ import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('veranstaltung_canvas');
 const router: Router = Router();
 const upload = multer({ dest: 'uploads/' });
+const UPLOADS_BASE = path.resolve('uploads');
 
 try {
   registerFonts();
@@ -361,18 +362,16 @@ router.post('/', upload.single('image'), (async (
     res.status(500).json({ error: 'Fehler beim Erstellen des Bildes' });
   } finally {
     if (req.file) {
-      const uploadsBase = path.resolve('uploads');
-      const uploadPath = path.resolve(uploadsBase, path.basename(req.file.path));
-      if (uploadPath.startsWith(uploadsBase + path.sep)) {
+      const uploadPath = path.resolve(UPLOADS_BASE, path.basename(req.file.path));
+      if (uploadPath.startsWith(UPLOADS_BASE + path.sep)) {
         fs.unlink(uploadPath, (err) => {
           if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', err);
         });
       }
     }
     if (outputImagePath) {
-      const uploadsBase = path.resolve('uploads');
-      const outPath = path.resolve(uploadsBase, path.basename(outputImagePath));
-      if (outPath.startsWith(uploadsBase + path.sep)) {
+      const outPath = path.resolve(UPLOADS_BASE, path.basename(outputImagePath));
+      if (outPath.startsWith(UPLOADS_BASE + path.sep)) {
         fs.unlink(outPath, (err) => {
           if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', err);
         });
