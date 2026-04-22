@@ -30,6 +30,8 @@ const __dirname = path.dirname(__filename);
 
 const MAX_PROJECTS_PER_USER = 20;
 const PROJECT_STORAGE_PATH = path.join(__dirname, '../../uploads/subtitler-projects');
+const PROJECT_STORAGE_BASE = path.resolve(PROJECT_STORAGE_PATH);
+const UPLOADS_BASE = path.resolve(__dirname, '../../uploads');
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function validatePathId(id: string, label: string): string {
@@ -248,22 +250,20 @@ export class SubtitlerProjectService {
         throw new Error('Invalid uploadId format');
       }
 
-      const projectBase = path.resolve(PROJECT_STORAGE_PATH);
-      const projectDir = path.resolve(projectBase, userId, projectId);
-      if (!projectDir.startsWith(projectBase + path.sep)) {
+      const projectDir = path.resolve(PROJECT_STORAGE_BASE, userId, projectId);
+      if (!projectDir.startsWith(PROJECT_STORAGE_BASE + path.sep)) {
         throw new Error('Path traversal detected in projectDir');
       }
       await fs.mkdir(projectDir, { recursive: true });
 
-      const uploadsDir = path.resolve(__dirname, '../../uploads');
-      const tusVideoPath = path.resolve(uploadsDir, 'tus-temp', uploadId);
-      if (!tusVideoPath.startsWith(uploadsDir + path.sep)) {
+      const tusVideoPath = path.resolve(UPLOADS_BASE, 'tus-temp', uploadId);
+      if (!tusVideoPath.startsWith(UPLOADS_BASE + path.sep)) {
         throw new Error('Path traversal detected in tusVideoPath');
       }
       let sourceVideoPath: string;
       if (videoSourcePath) {
-        const resolvedSource = path.resolve(uploadsDir, videoSourcePath);
-        if (!resolvedSource.startsWith(uploadsDir + path.sep)) {
+        const resolvedSource = path.resolve(UPLOADS_BASE, videoSourcePath);
+        if (!resolvedSource.startsWith(UPLOADS_BASE + path.sep)) {
           throw new Error('Path traversal detected in videoSourcePath');
         }
         sourceVideoPath = resolvedSource;
@@ -271,11 +271,11 @@ export class SubtitlerProjectService {
         sourceVideoPath = tusVideoPath;
       }
       const targetVideoPath = path.resolve(projectDir, 'video.mp4');
-      if (!targetVideoPath.startsWith(projectBase + path.sep)) {
+      if (!targetVideoPath.startsWith(PROJECT_STORAGE_BASE + path.sep)) {
         throw new Error('Path traversal detected in targetVideoPath');
       }
       const thumbnailPath = path.resolve(projectDir, 'thumbnail.jpg');
-      if (!thumbnailPath.startsWith(projectBase + path.sep)) {
+      if (!thumbnailPath.startsWith(PROJECT_STORAGE_BASE + path.sep)) {
         throw new Error('Path traversal detected in thumbnailPath');
       }
       const relativeVideoPath = `${userId}/${projectId}/video.mp4`;
@@ -480,9 +480,8 @@ export class SubtitlerProjectService {
 
       validatePathId(userId, 'userId');
       validatePathId(projectId, 'projectId');
-      const projectBase = path.resolve(PROJECT_STORAGE_PATH);
-      const projectDir = path.resolve(projectBase, userId, projectId);
-      if (!projectDir.startsWith(projectBase + path.sep)) {
+      const projectDir = path.resolve(PROJECT_STORAGE_BASE, userId, projectId);
+      if (!projectDir.startsWith(PROJECT_STORAGE_BASE + path.sep)) {
         throw new Error('Path traversal detected in projectDir');
       }
       try {
@@ -597,27 +596,24 @@ export class SubtitlerProjectService {
   }
 
   getVideoPath(relativePath: string): string {
-    const base = path.resolve(PROJECT_STORAGE_PATH);
-    const resolved = path.resolve(base, relativePath);
-    if (!resolved.startsWith(base + path.sep)) {
+    const resolved = path.resolve(PROJECT_STORAGE_BASE, relativePath);
+    if (!resolved.startsWith(PROJECT_STORAGE_BASE + path.sep)) {
       throw new Error('Path traversal detected in video path');
     }
     return resolved;
   }
 
   getThumbnailPath(relativePath: string): string {
-    const base = path.resolve(PROJECT_STORAGE_PATH);
-    const resolved = path.resolve(base, relativePath);
-    if (!resolved.startsWith(base + path.sep)) {
+    const resolved = path.resolve(PROJECT_STORAGE_BASE, relativePath);
+    if (!resolved.startsWith(PROJECT_STORAGE_BASE + path.sep)) {
       throw new Error('Path traversal detected in thumbnail path');
     }
     return resolved;
   }
 
   getSubtitledVideoPath(relativePath: string): string {
-    const base = path.resolve(PROJECT_STORAGE_PATH);
-    const resolved = path.resolve(base, relativePath);
-    if (!resolved.startsWith(base + path.sep)) {
+    const resolved = path.resolve(PROJECT_STORAGE_BASE, relativePath);
+    if (!resolved.startsWith(PROJECT_STORAGE_BASE + path.sep)) {
       throw new Error('Path traversal detected in subtitled video path');
     }
     return resolved;
