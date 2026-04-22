@@ -76,7 +76,7 @@ export const useCollaboration = ({
       id: u.id,
       name: u.display_name || u.email || 'Anonymous',
       color: generateUserColor(),
-      ...(u.avatar_robot_id ? { avatarRobotId: u.avatar_robot_id } : {}),
+      avatarRobotId: u.avatar_robot_id ?? 1,
     };
   }, [isGuest]);
 
