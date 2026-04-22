@@ -9,9 +9,6 @@ export const DOCUMENT_TYPE_MAP: Record<string, string> = {
 
   // Universal generators
   'universal-text': 'universal',
-  rede: 'rede',
-  wahlprogramm: 'wahlprogramm',
-  buergeranfragen: 'buergeranfragen',
 
   // Antrag generators
   'antrag-generator': 'antrag',

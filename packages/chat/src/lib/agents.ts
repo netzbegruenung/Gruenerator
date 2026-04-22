@@ -166,6 +166,16 @@ export const agentsList: AgentListItem[] = [
     mention: 'wahlprogramm',
     skillCategory: 'dokumente',
   },
+  {
+    identifier: 'gruenerator-leichte-sprache',
+    title: 'Leichte Sprache',
+    description: 'Texte in Leichte Sprache übersetzen',
+    avatar: '🗣️',
+    backgroundColor: '#316049',
+    mention: 'leichte-sprache',
+    skillCategory: 'sonstiges',
+    promptTemplate: 'Übersetze folgenden Text in Leichte Sprache: ',
+  },
 ];
 
 const mentionMap = new Map<string, string>(
