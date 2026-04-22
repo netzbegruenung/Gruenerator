@@ -175,14 +175,15 @@ export function sendErrorResponse(
   userMessage: string,
   statusCode: number = 500
 ): void {
-  // Extract route name for logging
-  const routeName = routePath.replace('/api/', '').replace('/', '_');
+  // Extract route name for logging. Strip format specifiers (e.g. %s, %d) so
+  // a user-shaped routePath cannot poison console.error's format string.
+  const routeName = routePath.replace('/api/', '').replace('/', '_').replace(/%/g, '%%');
 
   // Log detailed error for debugging (server-side only)
   const errorMessage = error instanceof Error ? error.message : String(error);
-  console.error(`[${routeName}] Error:`, errorMessage);
+  console.error('[%s] Error: %s', routeName, errorMessage);
   if (error instanceof Error && error.stack) {
-    console.error(`[${routeName}] Stack trace:`, error.stack);
+    console.error('[%s] Stack trace: %s', routeName, error.stack);
   }
 
   // Create secure response (no internal details)
