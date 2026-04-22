@@ -95,6 +95,7 @@ async function* parseSSEStream(
   let buffer = '';
   const currentEvent = { type: '' };
   let accumulatedText = '';
+  let accumulatedReasoning = '';
   let currentProgress: ChatProgress = {
     stage: 'classifying',
     message: 'Analysiere Anfrage...',
@@ -163,9 +164,18 @@ async function* parseSSEStream(
   const YIELD_INTERVAL = 50; // ms — max 20 yields/sec, matches NotebookModelAdapter
 
   function buildResult(): ChatModelRunResult {
-    const content: Array<{ type: 'text'; text: string } | ToolCallPart | SourcePart> = [];
+    const content: Array<
+      | { type: 'text'; text: string }
+      | { type: 'reasoning'; text: string }
+      | ToolCallPart
+      | SourcePart
+    > = [];
 
     const groupId = activeToolCall ? activeToolCall.toolCallId : allToolCalls[0]?.toolCallId;
+
+    if (accumulatedReasoning) {
+      content.push({ type: 'reasoning' as const, text: accumulatedReasoning });
+    }
 
     for (const tc of allToolCalls) {
       content.push(tc);
@@ -475,6 +485,16 @@ async function* parseSSEStream(
         case 'text_delta': {
           const delta = (data as { text: string }).text;
           accumulatedText += delta;
+          const now = performance.now();
+          if (now - lastYieldTime >= YIELD_INTERVAL) {
+            lastYieldTime = now;
+            yield buildResult();
+          }
+          break;
+        }
+
+        case 'reasoning_delta': {
+          accumulatedReasoning += (data as { text: string }).text;
           const now = performance.now();
           if (now - lastYieldTime >= YIELD_INTERVAL) {
             lastYieldTime = now;

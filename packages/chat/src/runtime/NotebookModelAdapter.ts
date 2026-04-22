@@ -5,6 +5,7 @@ import type {
 } from '@assistant-ui/react';
 import { type ChatProgress, type Citation as ChatCitation } from '../hooks/useChatGraphStream';
 import { parseSSELine } from '../lib/sseParser';
+import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
 function normalizeCiteMarkers(text: string): string {
@@ -126,6 +127,8 @@ export function createNotebookModelAdapter(
         (config.collectionIds && config.collectionIds.length > 1) ||
         (!config.collectionId && config.collectionIds && config.collectionIds.length === 1);
 
+      const selectedModel = useAgentStore.getState().selectedModel;
+
       const payload = {
         messages: [{ role: 'user', content: question }],
         ...(isMulti
@@ -136,6 +139,7 @@ export function createNotebookModelAdapter(
         ...(config.mode && { mode: config.mode }),
         ...(config.documentIds?.length && { documentIds: config.documentIds }),
         ...(config.threadId && { threadId: config.threadId }),
+        model: selectedModel,
         ...config.extraParams,
       };
 
@@ -174,6 +178,7 @@ export function createNotebookModelAdapter(
       let buffer = '';
       const currentEvent = { type: '' };
       let accumulatedText = '';
+      let accumulatedReasoning = '';
       let completionData: StreamCompletionData | null = null;
       let currentProgress: ChatProgress | undefined;
       let firstDeltaReceived = false;
@@ -202,8 +207,15 @@ export function createNotebookModelAdapter(
         custom.question = question;
         custom.answerText = accumulatedText;
 
+        const parts: Array<{ type: 'text'; text: string } | { type: 'reasoning'; text: string }> =
+          [];
+        if (accumulatedReasoning) {
+          parts.push({ type: 'reasoning' as const, text: accumulatedReasoning });
+        }
+        parts.push({ type: 'text' as const, text: normalizeCiteMarkers(accumulatedText) });
+
         return {
-          content: [{ type: 'text' as const, text: normalizeCiteMarkers(accumulatedText) }],
+          content: parts,
           metadata: { custom },
         };
       }
@@ -271,6 +283,17 @@ export function createNotebookModelAdapter(
                   break;
                 }
 
+                const now = performance.now();
+                if (now - lastYieldTime >= YIELD_INTERVAL) {
+                  lastYieldTime = now;
+                  yield buildResult();
+                }
+                break;
+              }
+
+              case 'reasoning_delta': {
+                accumulatedReasoning += (data as { text: string }).text;
+                currentProgress = { stage: 'generating', message: '' };
                 const now = performance.now();
                 if (now - lastYieldTime >= YIELD_INTERVAL) {
                   lastYieldTime = now;
