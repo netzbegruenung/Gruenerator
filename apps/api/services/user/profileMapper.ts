@@ -30,6 +30,7 @@ export function toUserProfile(row: ProfileSelectModel): UserProfile {
     ...(row.custom_prompt != null && { custom_prompt: row.custom_prompt }),
 
     // Feature flags — all have DB defaults so they are non-null
+    is_admin: row.is_admin,
     groups_enabled: row.groups_enabled,
     custom_generators: row.custom_generators,
     database_access: row.database_access,
