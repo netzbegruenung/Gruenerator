@@ -170,7 +170,7 @@ router.get('/', async (req: Request, res: Response) => {
           WHEN cd.id IN (
             SELECT gcs.content_id::uuid
             FROM group_content_shares gcs
-            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
             WHERE gcs.content_type = 'collaborative_documents'
               AND (gcs.permissions->>'read')::boolean IS NOT FALSE
           ) THEN 'group'
@@ -196,7 +196,7 @@ router.get('/', async (req: Request, res: Response) => {
           OR cd.id IN (
             SELECT gcs.content_id::uuid
             FROM group_content_shares gcs
-            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
             WHERE gcs.content_type = 'collaborative_documents'
               AND (gcs.permissions->>'read')::boolean IS NOT FALSE
           )
@@ -329,7 +329,7 @@ router.put(
       if (!canEdit) {
         const groupAccess = (await db.query(
           `SELECT gcs.permissions FROM group_content_shares gcs
-         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
          WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
           [userId, id]
         )) as { permissions: { read: boolean; write: boolean } | null }[];

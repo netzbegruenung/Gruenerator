@@ -67,11 +67,10 @@ router.get('/', async (req: Request, res: Response) => {
         AND (
           cd.created_by = $2
           OR cd.permissions ? $3::text
-          OR cd.is_public = true
           OR cd.id IN (
             SELECT gcs.content_id::uuid
             FROM group_content_shares gcs
-            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2
+            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
             WHERE gcs.content_type = 'collaborative_documents'
           )
         )
@@ -197,7 +196,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     if (!hasAccess) {
       const groupAccess = (await db.query(
         `SELECT gcs.permissions FROM group_content_shares gcs
-         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
          WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
         [userId, id]
       )) as { permissions: { read: boolean; write: boolean } | null }[];

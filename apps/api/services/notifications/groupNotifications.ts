@@ -24,10 +24,10 @@ export async function notifyGroupMembers(params: NotifyGroupParams): Promise<voi
     const db = getPostgresInstance();
 
     const [members, group] = await Promise.all([
-      db.query('SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id != $2', [
-        groupId,
-        excludeUserId,
-      ]) as Promise<Array<{ user_id: string }>>,
+      db.query(
+        'SELECT user_id FROM group_memberships WHERE group_id = $1 AND user_id != $2 AND is_active = TRUE',
+        [groupId, excludeUserId]
+      ) as Promise<Array<{ user_id: string }>>,
       db.queryOne('SELECT name FROM groups WHERE id = $1', [groupId], {
         table: 'groups',
       }) as Promise<{ name: string } | null>,

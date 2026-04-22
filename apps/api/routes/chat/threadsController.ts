@@ -82,7 +82,7 @@ router.get('/', async (req, res) => {
          OR t.is_public = true
          OR t.id IN (
            SELECT gcs.content_id::uuid FROM group_content_shares gcs
-           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id::text = $1
+           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id::text = $1 AND gm.is_active = TRUE
            WHERE gcs.content_type = 'chat_threads'
          )
        )${statusClause}
