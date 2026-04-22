@@ -38,6 +38,7 @@ export function handleApiError(error: unknown, toast: ReturnType<typeof useToast
         toast.error('Dienst nicht verfügbar', 'Der Server ist vorübergehend nicht erreichbar');
         return;
 
+      case undefined:
       default:
         toast.error('Fehler', message);
         return;

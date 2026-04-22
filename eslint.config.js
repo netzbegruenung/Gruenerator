@@ -27,6 +27,20 @@ export default [
     ],
   })),
 
+  // apps/sites: no-unsafe-* debt deferred (see apps/sites/eslint.config.js TODO).
+  // Mirrors the downgrade there so lint-staged (runs from repo root) matches
+  // `pnpm --filter @gruenerator/sites lint` (runs from apps/sites/).
+  {
+    files: ['apps/sites/**/*.{ts,tsx,js,jsx}'],
+    rules: {
+      '@typescript-eslint/no-unsafe-return': 'warn',
+      '@typescript-eslint/no-unsafe-member-access': 'warn',
+      '@typescript-eslint/no-unsafe-assignment': 'warn',
+      '@typescript-eslint/no-unsafe-call': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn',
+    },
+  },
+
   // Node apps: api, services
   {
     files: ['apps/api/**/*.{ts,tsx,js,jsx}', 'services/**/*.{ts,tsx,js,jsx}'],
