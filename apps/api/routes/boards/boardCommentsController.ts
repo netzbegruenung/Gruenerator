@@ -41,7 +41,7 @@ async function checkBoardAccess(boardId: string, userId: string): Promise<BoardA
 
   const groupAccess = (await db.query(
     `SELECT 1 FROM group_content_shares gcs
-     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
      WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2
      LIMIT 1`,
     [userId, boardId]
@@ -210,7 +210,10 @@ router.get(
 router.post(
   '/:boardId/cards/:cardId/comments',
   validateBody(postCommentSchema),
-  async (req: TypedRequest<z.infer<typeof postCommentSchema>, { boardId: string; cardId: string }>, res: Response) => {
+  async (
+    req: TypedRequest<z.infer<typeof postCommentSchema>, { boardId: string; cardId: string }>,
+    res: Response
+  ) => {
     try {
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
@@ -285,7 +288,9 @@ router.post(
         parentId: parentId ?? null,
         mentionedUserIds,
       }).catch((err: unknown) => {
-        log.warn('Failed to send comment notifications', { error: err instanceof Error ? err.message : String(err) });
+        log.warn('Failed to send comment notifications', {
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
 
       return res.status(201).json(result);
@@ -304,7 +309,10 @@ router.post(
 router.put(
   '/:boardId/comments/:commentId',
   validateBody(putCommentSchema),
-  async (req: TypedRequest<z.infer<typeof putCommentSchema>, { boardId: string; commentId: string }>, res: Response) => {
+  async (
+    req: TypedRequest<z.infer<typeof putCommentSchema>, { boardId: string; commentId: string }>,
+    res: Response
+  ) => {
     try {
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
@@ -397,7 +405,10 @@ router.delete(
 router.post(
   '/:boardId/comments/:commentId/reactions',
   validateBody(postReactionSchema),
-  async (req: TypedRequest<z.infer<typeof postReactionSchema>, { boardId: string; commentId: string }>, res: Response) => {
+  async (
+    req: TypedRequest<z.infer<typeof postReactionSchema>, { boardId: string; commentId: string }>,
+    res: Response
+  ) => {
     try {
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
@@ -440,7 +451,10 @@ router.delete(
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
 
-      const { commentId, emoji } = req.params;
+      const { boardId, commentId, emoji } = req.params;
+
+      const { hasAccess } = await checkBoardAccess(boardId, userId);
+      if (!hasAccess) return res.status(403).json({ error: 'Kein Zugriff' });
 
       await db.query(
         `DELETE FROM board_comment_reactions WHERE comment_id = $1 AND user_id = $2 AND emoji = $3`,
@@ -468,6 +482,9 @@ router.get(
       if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
 
       const { boardId, cardId } = req.params;
+
+      const { hasAccess } = await checkBoardAccess(boardId, userId);
+      if (!hasAccess) return res.status(403).json({ error: 'Kein Zugriff' });
 
       const rows = (await db.query(
         `SELECT COUNT(*)::int AS count FROM board_comments WHERE board_id = $1 AND card_id = $2`,

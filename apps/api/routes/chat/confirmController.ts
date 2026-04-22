@@ -50,7 +50,7 @@ async function hasWriteAccess(documentId: string, userId: string): Promise<boole
 
   const groupAccess = (await pg.query(
     `SELECT gcs.permissions FROM group_content_shares gcs
-     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
      WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
     [userId, documentId]
   )) as { permissions: { read: boolean; write: boolean } | null }[];
