@@ -44,53 +44,70 @@ router.get(
 
       if (searchTerm && String(searchTerm).trim().length > 0) {
         const raw = String(searchTerm).trim();
-        const likeTerm = raw.replace(/'/g, "''");
-        const escapedRegex = raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/'/g, "''");
-        const patternExact = `E'\\m${escapedRegex}\\M'`;
-        const patternPrefix = `E'\\m${escapedRegex}'`;
+        const escapedRegex = raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const patternExact = `\\m${escapedRegex}\\M`;
+        const patternPrefix = `\\m${escapedRegex}`;
+        const likeTerm = `%${raw}%`;
 
+        const params: unknown[] = [];
+        let paramIndex = 1;
         const conditions: string[] = [];
-        if (status) conditions.push(`status = '${String(status).replace(/'/g, "''")}'`);
-        if (onlyExamples === 'true') conditions.push(`is_example = true`);
+
+        if (status) {
+          conditions.push(`status = $${paramIndex++}`);
+          params.push(String(status));
+        }
+        if (onlyExamples === 'true') {
+          conditions.push(`is_example = true`);
+        }
         if (typeList.length > 0) {
-          const typeIn = typeList.map((t) => `'${t.replace(/'/g, "''")}'`).join(',');
-          conditions.push(`type IN (${typeIn})`);
+          conditions.push(`type = ANY($${paramIndex++})`);
+          params.push(typeList);
         }
         if (category && category !== 'all') {
-          const catJson = `["${String(category).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"]`;
-          conditions.push(`categories @> '${catJson.replace(/'/g, "''")}'::jsonb`);
+          conditions.push(`categories @> $${paramIndex++}::jsonb`);
+          params.push(JSON.stringify([String(category)]));
         }
 
-        const searchOr = `(
-        title ILIKE '%${likeTerm}%' OR
-        description ILIKE '%${likeTerm}%' OR
-        content_data->>'content' ILIKE '%${likeTerm}%' OR
-        content_data->>'caption' ILIKE '%${likeTerm}%' OR
-        content_data->>'text' ILIKE '%${likeTerm}%'
-      )`;
+        const likeIdx = paramIndex++;
+        params.push(likeTerm);
+        const searchOrSql = `(
+          title ILIKE $${likeIdx} OR
+          description ILIKE $${likeIdx} OR
+          content_data->>'content' ILIKE $${likeIdx} OR
+          content_data->>'caption' ILIKE $${likeIdx} OR
+          content_data->>'text' ILIKE $${likeIdx}
+        )`;
+        conditions.push(searchOrSql);
 
-        conditions.push(searchOr);
+        const exactIdx = paramIndex++;
+        params.push(patternExact);
+        const prefixIdx = paramIndex++;
+        params.push(patternPrefix);
 
         const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+        const limitIdx = paramIndex++;
+        params.push(Math.min(Math.max(parseInt(String(limit), 10) || 200, 1), 500));
+
         const sql = `
         SELECT
           id, type, title, description, content_data, categories, tags, created_at, status, is_example, is_private,
           CASE
-            WHEN (title ~* ${patternExact} OR description ~* ${patternExact} OR content_data->>'content' ~* ${patternExact} OR content_data->>'caption' ~* ${patternExact} OR content_data->>'text' ~* ${patternExact}) THEN 0
-            WHEN (title ~* ${patternPrefix} OR description ~* ${patternPrefix} OR content_data->>'content' ~* ${patternPrefix} OR content_data->>'caption' ~* ${patternPrefix} OR content_data->>'text' ~* ${patternPrefix}) THEN 1
-            WHEN ${searchOr} THEN 2
+            WHEN (title ~* $${exactIdx} OR description ~* $${exactIdx} OR content_data->>'content' ~* $${exactIdx} OR content_data->>'caption' ~* $${exactIdx} OR content_data->>'text' ~* $${exactIdx}) THEN 0
+            WHEN (title ~* $${prefixIdx} OR description ~* $${prefixIdx} OR content_data->>'content' ~* $${prefixIdx} OR content_data->>'caption' ~* $${prefixIdx} OR content_data->>'text' ~* $${prefixIdx}) THEN 1
+            WHEN ${searchOrSql} THEN 2
             ELSE 3
           END AS rank_bucket
         FROM database
         ${where}
         ORDER BY rank_bucket ASC, created_at DESC
-        LIMIT ${parseInt(limit as string)}
+        LIMIT $${limitIdx}
       `;
 
         try {
           const postgres = getPostgresInstance();
           await postgres.ensureInitialized();
-          const rankedData = await postgres.query(sql);
+          const rankedData = await postgres.query(sql, params);
           res.json({ success: true, data: rankedData || [] });
           return;
         } catch (sqlError) {
