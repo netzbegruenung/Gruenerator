@@ -110,10 +110,11 @@ class WordPressApiClient {
     client.interceptors.request.use(async (config) => {
       const base = config.baseURL ?? '';
       const relative = config.url ?? '';
-      const composed = /^https?:\/\//i.test(relative) ? relative : `${base}${relative}`;
+      const composed = new URL(relative, `${base}/`).href;
       const perRequestCheck = await validateUrlForFetch(composed, {
         allowedProtocols: [allowedProtocol],
         allowedHosts: [allowedHost],
+        skipDnsCheck: true,
       });
       if (!perRequestCheck.isValid || !perRequestCheck.url) {
         throw new Error(`WordPress request blocked by SSRF guard: ${perRequestCheck.error}`);
