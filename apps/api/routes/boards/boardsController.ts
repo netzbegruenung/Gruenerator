@@ -12,6 +12,8 @@ import {
 } from '../../services/boards/BoardService.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 
+import { checkBoardAccess } from './boardAccess.js';
+
 const BOARDS_SUBTYPE = 'boards';
 
 interface BoardDocument {
@@ -67,11 +69,10 @@ router.get('/', async (req: Request, res: Response) => {
         AND (
           cd.created_by = $2
           OR cd.permissions ? $3::text
-          OR cd.is_public = true
           OR cd.id IN (
             SELECT gcs.content_id::uuid
             FROM group_content_shares gcs
-            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2
+            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
             WHERE gcs.content_type = 'collaborative_documents'
           )
         )
@@ -197,7 +198,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     if (!hasAccess) {
       const groupAccess = (await db.query(
         `SELECT gcs.permissions FROM group_content_shares gcs
-         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
          WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
         [userId, id]
       )) as { permissions: { read: boolean; write: boolean } | null }[];
@@ -240,6 +241,75 @@ router.get('/:id/state', async (req: Request<{ id: string }>, res: Response) => 
     console.error('[Boards] Error fetching board state:', error);
     return res.status(500).json({
       error: 'Failed to fetch board state',
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+interface AssignableMemberRow {
+  user_id: string;
+  source: 'owner' | 'direct' | 'group';
+  first_name: string | null;
+  display_name: string | null;
+  avatar_robot_id: number;
+}
+
+router.get('/:id/assignable-members', async (req: Request<{ id: string }>, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    const { hasAccess } = await checkBoardAccess(id, userId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const members = (await db.query(
+      `WITH assignable AS (
+           SELECT cd.created_by AS user_id, 'owner'::text AS source
+           FROM collaborative_documents cd
+           WHERE cd.id = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false
+
+           UNION
+
+           SELECT perm_key::uuid AS user_id, 'direct'::text AS source
+           FROM collaborative_documents cd,
+                LATERAL jsonb_object_keys(COALESCE(cd.permissions, '{}'::jsonb)) AS perm_key
+           WHERE cd.id = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false
+             AND perm_key ~ '^[0-9a-f-]{36}$'
+
+           UNION
+
+           SELECT gm.user_id, 'group'::text AS source
+           FROM group_content_shares gcs
+           INNER JOIN group_memberships gm
+             ON gm.group_id = gcs.group_id
+            AND gm.is_active = TRUE
+           WHERE gcs.content_type = 'collaborative_documents'
+             AND gcs.content_id = $1::text
+         )
+         SELECT DISTINCT ON (a.user_id)
+           a.user_id,
+           a.source,
+           p.first_name,
+           p.display_name,
+           COALESCE(p.avatar_robot_id, 1) AS avatar_robot_id
+         FROM assignable a
+         INNER JOIN profiles p ON p.id = a.user_id
+         ORDER BY a.user_id,
+                  CASE a.source WHEN 'owner' THEN 0 WHEN 'direct' THEN 1 ELSE 2 END`,
+      [id, BOARDS_SUBTYPE]
+    )) as AssignableMemberRow[];
+
+    return res.json(members);
+  } catch (error: unknown) {
+    console.error('[Boards] Error listing assignable members:', error);
+    return res.status(500).json({
+      error: 'Failed to list assignable members',
       details: error instanceof Error ? error.message : String(error),
     });
   }

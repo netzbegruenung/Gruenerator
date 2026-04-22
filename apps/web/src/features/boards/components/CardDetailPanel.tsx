@@ -115,7 +115,7 @@ interface CardDetailPanelProps {
   onUpdateRow: (rowId: string, updates: Partial<Row>) => void;
   onDelete: (rowId: string) => void;
   onUpdateField: (fieldId: string, updates: Partial<Field>) => void;
-  groupId?: string;
+  boardId?: string;
   currentUserId?: string;
   currentUserName?: string;
   currentUserAvatarRobotId?: number;
@@ -132,7 +132,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   onUpdateRow,
   onDelete,
   onUpdateField,
-  groupId,
+  boardId,
   currentUserId = '',
   currentUserName = '',
   currentUserAvatarRobotId = 1,
@@ -445,8 +445,8 @@ export const CardDetailPanel = memo(function CardDetailPanel({
               </div>
             </div>
 
-            {/* Assignee — only shown when a group is linked */}
-            {groupId && (
+            {/* Assignee — available whenever the card has a board context */}
+            {boardId && (
               <div className="flex flex-row">
                 <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
                   <FiUser className="inline mr-1.5" size={13} />
@@ -470,7 +470,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                       </button>
                     </div>
                   )}
-                  <MemberPicker groupId={groupId} onSelect={handleAssigneeChange}>
+                  <MemberPicker boardId={boardId} onSelect={handleAssigneeChange}>
                     <button className="flex items-center gap-1.5 text-xs text-grey-400 dark:text-grey-300 hover:text-primary-600 bg-transparent border-none cursor-pointer transition-colors py-2 sm:py-0">
                       <FiPlus size={12} />
                       {assignee ? 'Ändern' : 'Person zuweisen'}
@@ -580,7 +580,6 @@ export const CardDetailPanel = memo(function CardDetailPanel({
           {row && (
             <CardComments
               cardId={row.id}
-              groupId={groupId}
               currentUserId={currentUserId}
               currentUserName={currentUserName}
               currentUserAvatarRobotId={currentUserAvatarRobotId}

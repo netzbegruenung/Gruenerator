@@ -6,49 +6,11 @@ import { validateBody, type TypedRequest } from '../../middleware/validateBody.j
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { checkBoardAccess } from './boardAccess.js';
+
 const router = Router();
 const db = getPostgresInstance();
 const log = createLogger('BoardComments');
-
-// ════════════════════════════════════════════════════════════════════════════
-// Helpers
-// ════════════════════════════════════════════════════════════════════════════
-
-interface BoardAccessResult {
-  hasAccess: boolean;
-  boardTitle: string | null;
-}
-
-async function checkBoardAccess(boardId: string, userId: string): Promise<BoardAccessResult> {
-  const rows = (await db.query(
-    `SELECT cd.title, cd.created_by, cd.permissions, cd.is_public
-     FROM collaborative_documents cd
-     WHERE cd.id = $1 AND cd.document_subtype = 'boards' AND cd.is_deleted = false`,
-    [boardId]
-  )) as Array<{
-    title: string;
-    created_by: string;
-    permissions: Record<string, { level: string }> | null;
-    is_public: boolean;
-  }>;
-
-  if (rows.length === 0) return { hasAccess: false, boardTitle: null };
-
-  const board = rows[0];
-  if (board.created_by === userId || board.is_public || board.permissions?.[userId]) {
-    return { hasAccess: true, boardTitle: board.title };
-  }
-
-  const groupAccess = (await db.query(
-    `SELECT 1 FROM group_content_shares gcs
-     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
-     WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2
-     LIMIT 1`,
-    [userId, boardId]
-  )) as unknown[];
-
-  return { hasAccess: groupAccess.length > 0, boardTitle: board.title };
-}
 
 interface CommentBlock {
   type: 'text' | 'mention' | 'link' | 'code';
@@ -210,7 +172,10 @@ router.get(
 router.post(
   '/:boardId/cards/:cardId/comments',
   validateBody(postCommentSchema),
-  async (req: TypedRequest<z.infer<typeof postCommentSchema>, { boardId: string; cardId: string }>, res: Response) => {
+  async (
+    req: TypedRequest<z.infer<typeof postCommentSchema>, { boardId: string; cardId: string }>,
+    res: Response
+  ) => {
     try {
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
@@ -285,7 +250,9 @@ router.post(
         parentId: parentId ?? null,
         mentionedUserIds,
       }).catch((err: unknown) => {
-        log.warn('Failed to send comment notifications', { error: err instanceof Error ? err.message : String(err) });
+        log.warn('Failed to send comment notifications', {
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
 
       return res.status(201).json(result);
@@ -304,7 +271,10 @@ router.post(
 router.put(
   '/:boardId/comments/:commentId',
   validateBody(putCommentSchema),
-  async (req: TypedRequest<z.infer<typeof putCommentSchema>, { boardId: string; commentId: string }>, res: Response) => {
+  async (
+    req: TypedRequest<z.infer<typeof putCommentSchema>, { boardId: string; commentId: string }>,
+    res: Response
+  ) => {
     try {
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
@@ -397,7 +367,10 @@ router.delete(
 router.post(
   '/:boardId/comments/:commentId/reactions',
   validateBody(postReactionSchema),
-  async (req: TypedRequest<z.infer<typeof postReactionSchema>, { boardId: string; commentId: string }>, res: Response) => {
+  async (
+    req: TypedRequest<z.infer<typeof postReactionSchema>, { boardId: string; commentId: string }>,
+    res: Response
+  ) => {
     try {
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
@@ -440,7 +413,10 @@ router.delete(
       const userId = req.user?.id;
       if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
 
-      const { commentId, emoji } = req.params;
+      const { boardId, commentId, emoji } = req.params;
+
+      const { hasAccess } = await checkBoardAccess(boardId, userId);
+      if (!hasAccess) return res.status(403).json({ error: 'Kein Zugriff' });
 
       await db.query(
         `DELETE FROM board_comment_reactions WHERE comment_id = $1 AND user_id = $2 AND emoji = $3`,
@@ -468,6 +444,9 @@ router.get(
       if (!userId) return res.status(401).json({ error: 'Nicht authentifiziert' });
 
       const { boardId, cardId } = req.params;
+
+      const { hasAccess } = await checkBoardAccess(boardId, userId);
+      if (!hasAccess) return res.status(403).json({ error: 'Kein Zugriff' });
 
       const rows = (await db.query(
         `SELECT COUNT(*)::int AS count FROM board_comments WHERE board_id = $1 AND card_id = $2`,

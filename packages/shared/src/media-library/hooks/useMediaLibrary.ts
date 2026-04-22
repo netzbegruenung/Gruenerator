@@ -77,7 +77,7 @@ export function useMediaLibrary(options: UseMediaLibraryOptions = {}): UseMediaL
     (newFilters: Partial<MediaFilters>) => {
       const updatedFilters = { ...filters, ...newFilters, offset: 0 };
       setFiltersState(updatedFilters);
-      fetchMedia(updatedFilters);
+      void fetchMedia(updatedFilters);
     },
     [filters, fetchMedia]
   );

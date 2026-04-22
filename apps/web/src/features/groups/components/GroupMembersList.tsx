@@ -28,6 +28,7 @@ interface GroupMembersListProps {
   isCurrentUserAdmin?: boolean;
   currentUserId?: string;
   createdBy?: string;
+  onMemberActionOpenChange?: (open: boolean) => void;
 }
 
 const GroupMembersList = ({
@@ -38,6 +39,7 @@ const GroupMembersList = ({
   isCurrentUserAdmin = false,
   currentUserId,
   createdBy,
+  onMemberActionOpenChange,
 }: GroupMembersListProps) => {
   const { members, isLoadingMembers, isErrorMembers, errorMembers } = useGroupMembers(groupId, {
     isActive,
@@ -45,7 +47,7 @@ const GroupMembersList = ({
   const { updateMemberRole, isUpdatingRole } = useUpdateMemberRole(groupId);
 
   const header = !hideHeader && (
-    <div className="flex items-center justify-between py-xs">
+    <div className="sticky top-0 z-10 bg-background-pure flex items-center justify-between py-xs -mx-sm px-sm">
       <h4 className="flex items-center gap-sm text-xs font-medium uppercase tracking-wide text-grey-500 m-0">
         <HiUsers className="text-base text-primary-500" />
         Gruppenmitglieder{members && members.length > 0 ? ` (${members.length})` : ''}
@@ -124,7 +126,7 @@ const GroupMembersList = ({
                 </Badge>
               )}
               {canChangeRole && (
-                <DropdownMenu>
+                <DropdownMenu onOpenChange={onMemberActionOpenChange}>
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"

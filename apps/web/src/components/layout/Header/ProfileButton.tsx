@@ -8,10 +8,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
 import NotificationList from '../../../features/notifications/components/NotificationList';
-import {
-  useUnreadCount,
-  useMarkAllAsRead,
-} from '../../../features/notifications/hooks/useNotifications';
+import { useUnreadCount } from '../../../features/notifications/hooks/useNotifications';
 import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useAuthStore } from '../../../stores/authStore';
 
@@ -158,7 +155,7 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
         </button>
       </div>
 
-      {unreadCount > 0 && <NotificationList unreadCount={unreadCount} />}
+      <NotificationList unreadCount={unreadCount} />
     </>
   );
 });
@@ -170,7 +167,6 @@ const ProfileButton = () => {
   const [open, setOpen] = useState(false);
 
   const { data: unreadCount = 0 } = useUnreadCount();
-  const markAllAsRead = useMarkAllAsRead();
 
   const { data: profile, isPlaceholderData } = useProfile(user?.id);
   const avatarRobotId = profile?.avatar_robot_id ?? null;
@@ -196,13 +192,7 @@ const ProfileButton = () => {
   }
 
   return (
-    <DropdownMenu
-      open={open}
-      onOpenChange={(isOpen) => {
-        setOpen(isOpen);
-        if (isOpen && unreadCount > 0) markAllAsRead.mutate();
-      }}
-    >
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <button
           className="relative flex items-center justify-center size-[38px] rounded-full border border-grey-200 dark:border-grey-700 bg-background hover:border-primary-500 hover:bg-hover-alt transition-colors"

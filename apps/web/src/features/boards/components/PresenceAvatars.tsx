@@ -23,11 +23,7 @@ export const PresenceAvatars = memo(function PresenceAvatars({
           style={{ backgroundColor: user.color }}
           title={user.name}
         >
-          {user.avatarRobotId ? (
-            <img src={getRobotAvatarPath(user.avatarRobotId)} alt="" className="w-full h-full" />
-          ) : (
-            user.name.charAt(0).toUpperCase()
-          )}
+          <img src={getRobotAvatarPath(user.avatarRobotId ?? 1)} alt="" className="w-full h-full" />
         </div>
       ))}
       {collaborators.length > MAX_VISIBLE && (

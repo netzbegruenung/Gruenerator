@@ -7,6 +7,7 @@ import { DottedBackground } from '../../components/common/DottedBackground';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import apiClient from '../../components/utils/apiClient';
+import useUserDefaults from '../../hooks/useUserDefaults';
 import { useAuthStore } from '../../stores/authStore';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 
@@ -20,7 +21,6 @@ import { PlannerKanban } from './components/PlannerKanban';
 import { ViewSwitcher } from './components/ViewSwitcher';
 import { ViewToolbar } from './components/ViewToolbar';
 import { useBoardCollaboration } from './hooks/useBoardCollaboration';
-import { useBoardSharing } from './hooks/useBoardSharing';
 import { useBoardState } from './hooks/useBoardState';
 import { useViewData } from './hooks/useViewData';
 import { FIELD_IDS, getBoardType, isBoardArchived } from './types';
@@ -40,7 +40,11 @@ function BoardContent() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const [expertMode, setExpertMode] = useState(false);
+  const { get: getBoardsDefault, set: setBoardsDefault } = useUserDefaults<boolean>('boards');
+  const expertMode = getBoardsDefault('expertMode', false);
+  const handleExpertModeToggle = useCallback(() => {
+    void setBoardsDefault('expertMode', !expertMode);
+  }, [expertMode, setBoardsDefault]);
 
   const generatedStructure =
     (location.state as { generatedStructure?: BoardInitialStructure } | null)?.generatedStructure ??
@@ -82,7 +86,6 @@ function BoardContent() {
   );
 
   const { ydoc, provider, isConnected, isSynced } = useBoardCollaboration(id || '');
-  const { boardGroups } = useBoardSharing(id || '');
 
   if (isLoading) {
     return (
@@ -125,7 +128,7 @@ function BoardContent() {
         provider={provider}
         onDelete={handleDelete}
         onArchiveToggle={handleArchiveToggle}
-        onExpertModeToggle={() => setExpertMode((prev) => !prev)}
+        onExpertModeToggle={handleExpertModeToggle}
         compact={isWhiteboard}
       />
       {isWhiteboard ? (
@@ -145,7 +148,7 @@ function BoardContent() {
           provider={provider}
           generatedStructure={generatedStructure}
           currentUserId={String(user?.id || '')}
-          groupId={boardGroups[0]?.group_id}
+          boardId={board.id}
           expertMode={expertMode}
         />
       )}
@@ -159,7 +162,7 @@ function BoardViewContent({
   provider,
   generatedStructure,
   currentUserId,
-  groupId,
+  boardId,
   expertMode,
 }: {
   ydoc: Doc;
@@ -167,7 +170,7 @@ function BoardViewContent({
   provider: HocuspocusProvider | null;
   generatedStructure: BoardInitialStructure | null;
   currentUserId: string;
-  groupId?: string;
+  boardId: string;
   expertMode: boolean;
 }) {
   const boardState = useBoardState(ydoc, isSynced, generatedStructure);
@@ -263,7 +266,7 @@ function BoardViewContent({
           removeField={boardState.removeField}
           onUpdateView={boardState.updateView}
           currentUserId={currentUserId}
-          groupId={groupId}
+          boardId={boardId}
           provider={provider}
         />
       )}
@@ -314,7 +317,7 @@ function BoardViewContent({
           onUpdateRow={boardState.updateRow}
           onDelete={boardState.deleteRow}
           onUpdateField={boardState.updateField}
-          groupId={groupId}
+          boardId={boardId}
         />
       )}
     </>

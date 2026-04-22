@@ -158,6 +158,7 @@ const GroupInfoSection = memo(
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showAddContent, setShowAddContent] = useState(false);
     const popoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const memberActionOpenRef = useRef(false);
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const [avatarTimestamp, setAvatarTimestamp] = useState(Date.now());
 
@@ -179,7 +180,23 @@ const GroupInfoSection = memo(
     }, []);
 
     const handleMembersMouseLeave = useCallback(() => {
-      popoverTimeoutRef.current = setTimeout(() => setMembersPopoverOpen(false), 200);
+      popoverTimeoutRef.current = setTimeout(() => {
+        if (memberActionOpenRef.current) return;
+        setMembersPopoverOpen(false);
+      }, 200);
+    }, []);
+
+    const handleMemberActionOpenChange = useCallback((open: boolean) => {
+      memberActionOpenRef.current = open;
+      if (open && popoverTimeoutRef.current) {
+        clearTimeout(popoverTimeoutRef.current);
+        popoverTimeoutRef.current = null;
+      }
+    }, []);
+
+    const handleMembersPopoverOpenChange = useCallback((next: boolean) => {
+      if (!next && memberActionOpenRef.current) return;
+      setMembersPopoverOpen(next);
     }, []);
 
     const memberCount = members?.length ?? 0;
@@ -241,7 +258,7 @@ const GroupInfoSection = memo(
       <>
         <div className="relative mb-xl">
           <div className="absolute right-0 top-0 flex items-center gap-sm">
-            <Popover open={membersPopoverOpen} onOpenChange={setMembersPopoverOpen}>
+            <Popover open={membersPopoverOpen} onOpenChange={handleMembersPopoverOpenChange}>
               <PopoverTrigger asChild>
                 <button
                   className="inline-flex items-center -space-x-1.5 cursor-pointer"
@@ -277,7 +294,7 @@ const GroupInfoSection = memo(
               </PopoverTrigger>
               <PopoverContent
                 align="end"
-                className="w-80 p-sm"
+                className="w-80 p-sm max-h-[min(70vh,480px)] overflow-y-auto"
                 onMouseEnter={handleMembersMouseEnter}
                 onMouseLeave={handleMembersMouseLeave}
               >
@@ -287,6 +304,7 @@ const GroupInfoSection = memo(
                   isCurrentUserAdmin={data?.isAdmin}
                   currentUserId={currentUserId}
                   createdBy={data?.groupInfo?.created_by}
+                  onMemberActionOpenChange={handleMemberActionOpenChange}
                 />
               </PopoverContent>
             </Popover>
