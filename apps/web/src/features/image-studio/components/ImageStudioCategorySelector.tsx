@@ -6,7 +6,7 @@ import PageContainer from '../../../components/common/PageContainer';
 import { generateSharepicFromPrompt } from '../../../services/sharepicPromptService';
 import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
-import { useFeaturedVorlagen, type FeaturedVorlage } from '../hooks/useFeaturedVorlagen';
+// import { useFeaturedVorlagen, type FeaturedVorlage } from '../hooks/useFeaturedVorlagen';
 import { useRecentGalleryItems, type RecentGalleryItem } from '../hooks/useRecentGalleryItems';
 import { getSharepicRoute } from '../utils/sharepicRoutes';
 import { IMAGE_STUDIO_CATEGORIES } from '../utils/typeConfig';
@@ -52,12 +52,12 @@ const PreviewCard = ({
   </div>
 );
 
-function getTemplateThumbnailUrl(thumbnailUrl: string | null): string | null {
-  if (!thumbnailUrl) return null;
-  return thumbnailUrl.startsWith('http')
-    ? thumbnailUrl
-    : `${API_BASE_URL}/template-previews/${thumbnailUrl}`;
-}
+// function getTemplateThumbnailUrl(thumbnailUrl: string | null): string | null {
+//   if (!thumbnailUrl) return null;
+//   return thumbnailUrl.startsWith('http')
+//     ? thumbnailUrl
+//     : `${API_BASE_URL}/template-previews/${thumbnailUrl}`;
+// }
 
 const ImageStudioCategorySelector: React.FC = () => {
   const navigate = useNavigate();
@@ -79,7 +79,7 @@ const ImageStudioCategorySelector: React.FC = () => {
     useRecentGalleryItems(RECENT_GALLERY_OPTIONS);
   const showGallerySection = galleryLastFetch !== null && recentGalleryItems.length > 0;
 
-  const { data: featuredVorlagen = [] } = useFeaturedVorlagen(5);
+  // const { data: featuredVorlagen = [] } = useFeaturedVorlagen(5);
 
   const isAustrianUser = user?.locale === 'de-AT';
 
@@ -220,6 +220,7 @@ const ImageStudioCategorySelector: React.FC = () => {
         )}
       </section>
 
+      {/*
       <section className="mb-xl">
         <SectionHeader
           title="Vorlagen"
@@ -245,6 +246,7 @@ const ImageStudioCategorySelector: React.FC = () => {
           </CardGrid>
         )}
       </section>
+      */}
 
       <section className="mb-xl">
         <SectionHeader

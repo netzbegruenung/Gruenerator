@@ -21,6 +21,13 @@ interface TemplateLocationState {
   sharepicType?: string;
   templateCreator?: string;
 }
+
+interface ImagineHandoffLocationState {
+  imagineHandoff?: boolean;
+  generatedImage?: string | null;
+  prompt?: string;
+  variant?: string | null;
+}
 import Spinner from '../../components/common/Spinner';
 import Button from '../../components/common/SubmitButton';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -90,6 +97,8 @@ const ImageStudioPageContent: React.FC = () => {
     loadGalleryEditData,
     loadEditSessionData,
     aiGeneratedContent,
+    setCurrentStep,
+    commitAiGeneration,
   } = useImageStudioStore();
 
   const { generateText, generateImage } = useImageGeneration();
@@ -201,6 +210,23 @@ const ImageStudioPageContent: React.FC = () => {
 
     void loadTemplateData();
   }, [location.state, loadGalleryEditData, urlType, updateFormData]);
+
+  // Handle Imagine → Studio handoff (image generated in workplace, opened in AI Editor)
+  useEffect(() => {
+    const state = location.state as ImagineHandoffLocationState | null;
+    if (!state?.imagineHandoff || !state.generatedImage) return;
+
+    setType(IMAGE_STUDIO_TYPES.AI_EDITOR);
+    updateFormData({
+      purePrompt: state.prompt ?? '',
+      variant: state.variant ?? null,
+      aiGeneratedContent: true,
+    });
+    commitAiGeneration(state.generatedImage, state.prompt ?? '');
+    setCurrentStep(FORM_STEPS.RESULT);
+
+    window.history.replaceState({}, document.title);
+  }, [location.state, setType, updateFormData, commitAiGeneration, setCurrentStep]);
 
   // Handle template cloning from URL query parameter
   useEffect(() => {
