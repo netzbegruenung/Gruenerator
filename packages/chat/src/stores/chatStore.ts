@@ -28,9 +28,9 @@ interface TriggerCompactionResponse {
   compactionState: CompactionState;
 }
 
-export type Provider = 'mistral' | 'litellm';
+export type Provider = 'mistral' | 'litellm' | 'regolo';
 
-export type ModelId = 'mistral' | 'litellm';
+export type ModelId = 'gpt-oss-regolo' | 'litellm' | 'gemma-regolo' | 'qwen-regolo';
 
 export type ToolKey = 'search' | 'web' | 'examples' | 'research';
 
@@ -43,25 +43,44 @@ export interface ModelOption {
   description: string;
   model: string;
   provider: Provider;
-  icon: 'sparkles' | 'server';
+  icon: 'sparkles' | 'server' | 'zap' | 'brain';
+  warning?: string;
 }
 
 export const MODEL_OPTIONS: ModelOption[] = [
   {
-    id: 'mistral',
-    name: 'Mistral',
-    description: 'EU-gehostet',
-    model: 'mistral',
-    provider: 'mistral',
+    id: 'gemma-regolo',
+    name: 'Gemma 4',
+    description: 'Leichtgewichtig, antwortet schnell',
+    model: 'gemma4-31b',
+    provider: 'regolo',
+    icon: 'zap',
+  },
+  {
+    id: 'gpt-oss-regolo',
+    name: 'GPT-OSS',
+    description: 'Offenes Modell über Regolo',
+    model: 'gpt-oss-120b',
+    provider: 'regolo',
     icon: 'sparkles',
   },
   {
     id: 'litellm',
-    name: 'GPT-OSS',
-    description: 'Selbst gehostet',
+    name: 'Verdigado',
+    description: 'Selbst gehostet bei Verdigado',
     model: 'gpt-oss:120b',
     provider: 'litellm',
     icon: 'server',
+  },
+  {
+    id: 'qwen-regolo',
+    name: 'Qwen 120B',
+    description: 'Groß & vielseitig, für komplexe Aufgaben',
+    model: 'qwen3.5-122b',
+    provider: 'regolo',
+    icon: 'brain',
+    warning:
+      'Chinesisches Modell – unterliegt staatlicher Zensur. Antworten zu politisch sensiblen Themen können eingeschränkt sein.',
   },
 ];
 
@@ -155,8 +174,8 @@ export const useAgentStore = create<AgentState>()(
   persist(
     (set) => ({
       selectedAgentId: null,
-      selectedProvider: 'mistral',
-      selectedModel: 'mistral',
+      selectedProvider: 'regolo',
+      selectedModel: 'gemma-regolo',
       currentThreadId: null,
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
       selectedNotebookId: 'gruenerator-notebook',
@@ -339,7 +358,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 4,
+      version: 5,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -359,6 +378,19 @@ export const useAgentStore = create<AgentState>()(
         if (version < 3) {
           state.threadMode = state.threadMode || 'chat';
           state.searchMode = state.searchMode || 'web';
+        }
+        if (version < 5) {
+          const validIds = new Set(['gpt-oss-regolo', 'litellm', 'gemma-regolo', 'qwen-regolo']);
+          if (!validIds.has(state.selectedModel as string)) {
+            state.selectedModel = 'gemma-regolo';
+          }
+          const providerByModel: Record<string, string> = {
+            'gpt-oss-regolo': 'regolo',
+            litellm: 'litellm',
+            'gemma-regolo': 'regolo',
+            'qwen-regolo': 'regolo',
+          };
+          state.selectedProvider = providerByModel[state.selectedModel as string] ?? 'regolo';
         }
         return state;
       },

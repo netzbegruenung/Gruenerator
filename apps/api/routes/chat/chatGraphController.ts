@@ -29,6 +29,7 @@ import {
 } from '../../agents/langgraph/ChatGraph/index.js';
 import { isKnownNotebook } from '../../config/notebookCollectionMap.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { isRegoloReasoningModel } from '../../services/ai/regoloReasoningStream.js';
 import {
   getMem0Instance,
   normalizeCategory,
@@ -67,6 +68,7 @@ import {
   resolveModel,
   buildMessagesForAI,
   streamAndAccumulate,
+  streamAndAccumulateWithReasoning,
 } from './services/responseStreamingService.js';
 import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
 import { canAccessThread } from './services/threadAccessService.js';
@@ -624,9 +626,14 @@ router.post(
           defaultModel: finalState.agentConfig.defaultModel,
         }),
       };
-      const { model: aiModel } = resolveModel(agentConfigForResolve, modelId, {
+      const {
+        model: aiModel,
+        provider: resolvedProvider,
+        modelName: resolvedModelName,
+      } = resolveModel(agentConfigForResolve, modelId, {
         hasImages: imageAttachments.length > 0,
       });
+      const useReasoningStream = isRegoloReasoningModel(resolvedProvider, resolvedModelName);
 
       const prunedValidMessages = pruneMessages(
         validMessages as Parameters<typeof pruneMessages>[0]
@@ -650,13 +657,23 @@ router.post(
         requestId
       );
 
-      const fullText = await streamAndAccumulate({
-        model: aiModel,
-        messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
-        maxTokens: finalState.agentConfig.params.max_tokens,
-        temperature: finalState.agentConfig.params.temperature,
-        sse,
-      });
+      const fullText = useReasoningStream
+        ? await streamAndAccumulateWithReasoning({
+            modelName: resolvedModelName,
+            messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
+            // Reasoning models burn most tokens on <think>; ensure headroom
+            // for the actual answer that follows.
+            maxTokens: Math.max(finalState.agentConfig.params.max_tokens, 9000),
+            temperature: finalState.agentConfig.params.temperature,
+            sse,
+          })
+        : await streamAndAccumulate({
+            model: aiModel,
+            messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
+            maxTokens: finalState.agentConfig.params.max_tokens,
+            temperature: finalState.agentConfig.params.temperature,
+            sse,
+          });
 
       if (fullText === null) return; // stream errored, SSE already closed
 
@@ -898,22 +915,36 @@ router.post(
           defaultModel: finalState.agentConfig.defaultModel,
         }),
       };
-      const { model: aiModel } = resolveModel(agentConfigForResolve2, modelId, {
+      const {
+        model: aiModel,
+        provider: resolvedProvider2,
+        modelName: resolvedModelName2,
+      } = resolveModel(agentConfigForResolve2, modelId, {
         hasImages: resumeImageAttachments.length > 0,
       });
+      const useReasoningStream2 = isRegoloReasoningModel(resolvedProvider2, resolvedModelName2);
 
       const validMessages = requestContext.validMessages;
       const prunedValidMessages = pruneMessages(validMessages);
       const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
 
-      const fullText = await streamAndAccumulate({
-        model: aiModel,
-        messages: messagesForAI,
-        maxTokens: finalState.agentConfig.params.max_tokens,
-        temperature: finalState.agentConfig.params.temperature,
-        sse,
-        logPrefix: '[ChatGraph:Resume]',
-      });
+      const fullText = useReasoningStream2
+        ? await streamAndAccumulateWithReasoning({
+            modelName: resolvedModelName2,
+            messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
+            maxTokens: Math.max(finalState.agentConfig.params.max_tokens, 9000),
+            temperature: finalState.agentConfig.params.temperature,
+            sse,
+            logPrefix: '[ChatGraph:Resume]',
+          })
+        : await streamAndAccumulate({
+            model: aiModel,
+            messages: messagesForAI,
+            maxTokens: finalState.agentConfig.params.max_tokens,
+            temperature: finalState.agentConfig.params.temperature,
+            sse,
+            logPrefix: '[ChatGraph:Resume]',
+          });
 
       if (fullText === null) return;
 

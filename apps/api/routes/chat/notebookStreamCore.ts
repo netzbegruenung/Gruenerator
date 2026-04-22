@@ -15,6 +15,10 @@ import {
   getSystemCollectionConfig,
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
+import {
+  isRegoloReasoningModel,
+  streamRegoloWithReasoning,
+} from '../../services/ai/regoloReasoningStream.js';
 import { notebookQAService } from '../../services/notebook/index.js';
 import { rerankNotebookResults } from '../../services/notebook/rerankNotebookResults.js';
 import {
@@ -249,7 +253,11 @@ export async function handleNotebookStream(
 
     // Determine AI provider and model (same resolution as chat — handles model ID → real name)
     const defaultAgentConfig = { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL };
-    const { model: aiModel, provider: resolvedProvider } = resolveModel(defaultAgentConfig, model);
+    const {
+      model: aiModel,
+      provider: resolvedProvider,
+      modelName: resolvedModelName,
+    } = resolveModel(defaultAgentConfig, model);
 
     if (!isProviderConfigured(resolvedProvider)) {
       sse.send('error', { error: `Provider "${resolvedProvider}" is not configured` });
@@ -273,13 +281,11 @@ export async function handleNotebookStream(
     const t2 = Date.now();
     log.debug(`⏱ Model setup: ${t2 - t1}ms`);
 
-    const result = streamText({
-      model: aiModel,
-      messages: aiMessages,
-      maxOutputTokens: isFast ? 3000 : 16000,
-      temperature: 0.2,
-      abortSignal: abortController.signal,
-    });
+    const useReasoningStream = isRegoloReasoningModel(resolvedProvider, resolvedModelName);
+    // Reasoning models spend most of their budget on the <think> block before
+    // emitting the answer. Triple the ceiling so there's room for both phases.
+    const baseMaxOutput = isFast ? 3000 : 16000;
+    const maxOutputTokens = useReasoningStream ? Math.max(baseMaxOutput, 9000) : baseMaxOutput;
 
     sse.send('response_start', { message: 'Generiere Antwort...' });
 
@@ -287,14 +293,43 @@ export async function handleNotebookStream(
     let firstChunkTime: number | undefined;
 
     try {
-      for await (const chunk of result.textStream) {
-        if (abortController.signal.aborted) break;
-        if (!firstChunkTime) {
-          firstChunkTime = Date.now();
-          log.debug(`⏱ First token latency: ${firstChunkTime - t2}ms`);
+      if (useReasoningStream) {
+        for await (const chunk of streamRegoloWithReasoning({
+          model: resolvedModelName,
+          messages: aiMessages,
+          maxTokens: maxOutputTokens,
+          temperature: 0.2,
+          signal: abortController.signal,
+        })) {
+          if (abortController.signal.aborted) break;
+          if (!firstChunkTime) {
+            firstChunkTime = Date.now();
+            log.debug(`⏱ First token latency: ${firstChunkTime - t2}ms`);
+          }
+          if (chunk.type === 'text') {
+            fullText += chunk.delta;
+            sse.send('text_delta', { text: chunk.delta });
+          } else {
+            sse.send('reasoning_delta', { text: chunk.delta });
+          }
         }
-        fullText += chunk;
-        sse.send('text_delta', { text: chunk });
+      } else {
+        const result = streamText({
+          model: aiModel,
+          messages: aiMessages,
+          maxOutputTokens,
+          temperature: 0.2,
+          abortSignal: abortController.signal,
+        });
+        for await (const chunk of result.textStream) {
+          if (abortController.signal.aborted) break;
+          if (!firstChunkTime) {
+            firstChunkTime = Date.now();
+            log.debug(`⏱ First token latency: ${firstChunkTime - t2}ms`);
+          }
+          fullText += chunk;
+          sse.send('text_delta', { text: chunk });
+        }
       }
     } catch (streamError: unknown) {
       if (abortController.signal.aborted) {
