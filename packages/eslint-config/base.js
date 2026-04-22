@@ -19,7 +19,6 @@ export default tseslint.config(
             'eslint.config.mjs',
             'apps/docs/eslint.config.js',
             'apps/desktop/eslint.config.mjs',
-            'apps/sites/eslint.config.js',
             'apps/mobile/shims/isomorphic-webcrypto.js',
             'apps/web/src/components/utils/errorMessages.tsx',
             'packages/eslint-config/base.js',
@@ -87,6 +86,16 @@ export default tseslint.config(
       ],
       // TODO: Re-enable as 'error' after fixing existing violations
       'no-case-declarations': 'warn',
+    },
+  },
+  {
+    files: ['**/eslint.config.js', '**/eslint.config.mjs'],
+    rules: {
+      // `tsconfigRootDir: import.meta.dirname` resolves to TS's "error typed"
+      // value when linting the config file itself, because Node's import.meta
+      // types aren't reliably pulled into the config file's tsconfig scope.
+      // The assignment is safe in practice; disable the rule for config files only.
+      '@typescript-eslint/no-unsafe-assignment': 'off',
     },
   },
   {
