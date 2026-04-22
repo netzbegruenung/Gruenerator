@@ -79,9 +79,6 @@ import subtitlerSocialRouter from './routes/subtitler/socialController.js';
 import { mountSubtitlerContractRouter } from './routes/subtitler/subtitlerContractRouter.js';
 import {
   universalRouter,
-  redeRouter,
-  wahlprogrammRouter,
-  buergeranfragenRouter,
   textAdjustmentRouter as claudeTextAdjustmentRoute,
   textImproverRouter as claudeTextImproverRoute,
   subtitlesRouter as claudeSubtitlesRoute,
@@ -313,8 +310,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/vision', aiGenerationLimiter, requireAuth, visionRouter);
   app.use('/api/claude_website', aiGenerationLimiter, claudeWebsiteRoute);
   app.use('/api/leichte_sprache', aiGenerationLimiter, leichteSpracheRoute);
-  app.use('/api/claude_rede', aiGenerationLimiter, redeRouter);
-  app.use('/api/claude_buergeranfragen', aiGenerationLimiter, buergeranfragenRouter);
   app.use('/api/claude_text_improver', aiGenerationLimiter, claudeTextImproverRoute);
   app.use('/api/chat', aiGenerationLimiter, grueneratorChatRoute);
   // ts-rest contract routers — mount before legacy routers.
@@ -445,7 +440,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/processText', aiGenerationLimiter, processTextRouter);
   app.use('/api/claude_text_adjustment', aiGenerationLimiter, claudeTextAdjustmentRoute);
   app.use('/api/etherpad', standardMutationLimiter, etherpadRoute);
-  app.use('/api/claude_wahlprogramm', aiGenerationLimiter, wahlprogrammRouter);
   app.use('/api/claude_universal', aiGenerationLimiter, universalRouter);
   app.use('/api/texte/smart', aiGenerationLimiter, smartTexteRouter);
   app.use('/api/texte/playground', requireAuth, aiGenerationLimiter, playgroundRouter);
