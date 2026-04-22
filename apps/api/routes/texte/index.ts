@@ -8,10 +8,4 @@ export { default as textAdjustmentRouter } from './text_adjustment.js';
 export { default as textImproverRouter } from './text_improver.js';
 export { default as websiteRouter } from './website.js';
 
-// Universal router exports multiple named routers
-export {
-  universalRouter,
-  redeRouter,
-  wahlprogrammRouter,
-  buergeranfragenRouter,
-} from './universal.js';
+export { universalRouter } from './universal.js';
