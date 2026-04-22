@@ -1,4 +1,4 @@
-import { StatusBanner } from '@gruenerator/ui';
+import { SectionHeader, StatusBanner } from '@gruenerator/ui';
 import { useState, useCallback, useRef } from 'react';
 import { HiUserGroup } from 'react-icons/hi';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -85,18 +85,31 @@ const GruppenPage = () => {
           onErrorMessage={showError}
         />
       ) : (
-        <ToolGrid
-          tools={(userGroups || []).map(
-            (g): ToolEntry => ({
-              id: g.id,
-              title: g.name,
-              description: 'Gruppe',
-              path: `/gruppen/${g.id}`,
-              icon: HiUserGroup,
-            })
+        <>
+          <SectionHeader
+            title="Deine Gruppen"
+            onCreate={handleCreateNew}
+            createLabel={isCreatingGroup ? 'Wird erstellt...' : 'Neue Gruppe erstellen'}
+          />
+          {userGroups && userGroups.length === 0 ? (
+            <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
+              Noch keine Gruppen vorhanden. Erstelle deine erste Gruppe über das Plus-Symbol.
+            </p>
+          ) : (
+            <ToolGrid
+              tools={(userGroups || []).map(
+                (g): ToolEntry => ({
+                  id: g.id,
+                  title: g.name,
+                  description: 'Gruppe',
+                  path: `/gruppen/${g.id}`,
+                  icon: HiUserGroup,
+                })
+              )}
+              columns={2}
+            />
           )}
-          columns={2}
-        />
+        </>
       )}
 
       <GroupsCreateSection
