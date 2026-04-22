@@ -90,6 +90,16 @@ export default tseslint.config(
     },
   },
   {
+    files: ['**/eslint.config.js', '**/eslint.config.mjs'],
+    rules: {
+      // `tsconfigRootDir: import.meta.dirname` resolves to TS's "error typed"
+      // value when linting the config file itself, because Node's import.meta
+      // types aren't reliably pulled into the config file's tsconfig scope.
+      // The assignment is safe in practice; disable the rule for config files only.
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+    },
+  },
+  {
     ignores: [
       '**/node_modules/**',
       '**/dist/**',
