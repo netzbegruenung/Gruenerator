@@ -334,7 +334,14 @@ class SubtitlerShareService {
       const deleteQuery = `DELETE FROM subtitler_shared_videos WHERE id = $1`;
       await this.postgres!.query(deleteQuery, [share.id]);
 
-      const shareDir = path.join(SHARED_VIDEOS_PATH, shareToken);
+      if (!/^[a-zA-Z0-9_-]+$/.test(shareToken)) {
+        throw new Error('Invalid share token format');
+      }
+      const sharedBase = path.resolve(SHARED_VIDEOS_PATH);
+      const shareDir = path.resolve(sharedBase, shareToken);
+      if (!shareDir.startsWith(sharedBase + path.sep)) {
+        throw new Error('Path traversal detected in shareDir');
+      }
       try {
         await fs.rm(shareDir, { recursive: true, force: true });
       } catch (fsError: unknown) {

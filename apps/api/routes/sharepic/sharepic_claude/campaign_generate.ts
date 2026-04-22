@@ -175,8 +175,17 @@ interface CampaignGenerateResponse {
 
 function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignConfig | null {
   if (!campaignId || !typeId) return null;
+  if (!/^[a-zA-Z0-9_-]+$/.test(campaignId)) {
+    log.warn(`[Campaign] Invalid campaignId: ${campaignId}`);
+    return null;
+  }
 
-  const campaignPath = path.join(__dirname, '../../../config/campaigns', `${campaignId}.json`);
+  const campaignsDir = path.resolve(__dirname, '../../../config/campaigns');
+  const campaignPath = path.resolve(campaignsDir, `${campaignId}.json`);
+  if (!campaignPath.startsWith(campaignsDir + path.sep)) {
+    log.warn(`[Campaign] Path traversal blocked: ${campaignId}`);
+    return null;
+  }
 
   if (!fs.existsSync(campaignPath)) {
     log.warn(`[Campaign] Config not found: ${campaignPath}`);

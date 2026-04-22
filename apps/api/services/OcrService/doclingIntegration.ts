@@ -14,7 +14,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { env } from '../../config/env.js';
-import { sanitizePath } from '../../utils/validation/security.js';
 
 import type { ExtractionResult } from './types.js';
 
@@ -133,17 +132,22 @@ async function sendBufferToDocling(
  * Extract text from a file on disk using Docling-Serve.
  */
 export async function extractTextWithDocling(filePath: string): Promise<ExtractionResult> {
-  const resolvedPath = path.resolve(filePath);
   const allowedBases = [
     path.resolve(os.tmpdir()),
     path.resolve(__dirname, '../../uploads'),
     path.resolve(__dirname, '../../storage'),
   ];
-  const matchedBase = allowedBases.find((base) => resolvedPath.startsWith(base + path.sep));
-  if (!matchedBase) {
+  let safePath: string | null = null;
+  for (const base of allowedBases) {
+    const resolved = path.resolve(base, path.relative(base, path.resolve(filePath)));
+    if (resolved.startsWith(base + path.sep)) {
+      safePath = resolved;
+      break;
+    }
+  }
+  if (!safePath) {
     throw new Error('File path outside allowed directories');
   }
-  const safePath = sanitizePath(path.relative(matchedBase, resolvedPath), matchedBase);
 
   console.log(`[DoclingOCR] Starting extraction:`, { filePath: safePath });
   const fileBuffer = await fs.readFile(safePath);

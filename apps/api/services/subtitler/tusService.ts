@@ -12,7 +12,6 @@ import { FileStore } from '@tus/file-store';
 import { Server } from '@tus/server';
 
 import { createLogger } from '../../utils/logger.js';
-import { sanitizePath } from '../../utils/validation/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -323,13 +322,18 @@ async function emergencyCleanup(): Promise<void> {
 
 function getFilePathFromUploadId(uploadId: string): string {
   if (!uploadId) throw new Error('Upload ID ist erforderlich');
-
-  try {
-    return sanitizePath(uploadId, TUS_UPLOAD_PATH);
-  } catch {
+  if (!/^[a-zA-Z0-9_-]+$/.test(uploadId)) {
     log.warn(`Security validation failed for uploadId: ${uploadId}`);
     throw new Error('Invalid upload ID: security validation failed');
   }
+
+  const base = path.resolve(TUS_UPLOAD_PATH);
+  const resolved = path.resolve(base, uploadId);
+  if (!resolved.startsWith(base + path.sep)) {
+    log.warn(`Path traversal blocked for uploadId: ${uploadId}`);
+    throw new Error('Invalid upload ID: security validation failed');
+  }
+  return resolved;
 }
 
 async function checkFileExists(filePath: string): Promise<boolean> {
