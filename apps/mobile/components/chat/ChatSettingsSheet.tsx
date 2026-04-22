@@ -189,6 +189,16 @@ export const ChatSettingsSheet = memo(function ChatSettingsSheet({ visible, onDi
                 >
                   {model.description}
                 </Text>
+                {model.warning && (
+                  <Text
+                    style={[
+                      styles.modelChipWarningText,
+                      { color: active ? colors.white : colors.warning },
+                    ]}
+                  >
+                    {model.warning}
+                  </Text>
+                )}
               </Pressable>
             );
           })}
@@ -278,5 +288,10 @@ const styles = StyleSheet.create({
   },
   modelChipDesc: {
     fontSize: 11,
+  },
+  modelChipWarningText: {
+    fontSize: 11,
+    lineHeight: 14,
+    marginTop: 2,
   },
 });

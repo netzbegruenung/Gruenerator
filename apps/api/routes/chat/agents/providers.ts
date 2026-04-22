@@ -8,6 +8,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 
 import { env } from '../../../config/env.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
+import { regoloFetchWithThinkingDisabled } from '../../../services/ai/regoloThinkingFetch.js';
 
 import type { AgentConfig } from './types.js';
 import type { LanguageModel } from 'ai';
@@ -43,6 +44,9 @@ export const AVAILABLE_MODELS: Record<
     model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
     contextWindow: 32768,
   },
+  'gpt-oss-regolo': { provider: 'regolo', model: 'gpt-oss-120b', contextWindow: 32768 },
+  'gemma-regolo': { provider: 'regolo', model: 'gemma4-31b', contextWindow: 32768 },
+  'qwen-regolo': { provider: 'regolo', model: 'qwen3.5-122b', contextWindow: 32768 },
 };
 
 /**
@@ -119,6 +123,7 @@ function getRegoloProvider() {
       baseURL: 'https://api.regolo.ai/v1',
       apiKey,
       name: 'regolo',
+      fetch: regoloFetchWithThinkingDisabled,
     });
   }
   return regoloInstance;
