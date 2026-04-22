@@ -119,7 +119,20 @@ const ImagineInner: React.FC = memo(() => {
               <Download className="size-3.5" />
               Download
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/studio')}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                navigate('/studio/ki/ai-editor', {
+                  state: {
+                    imagineHandoff: true,
+                    generatedImage,
+                    prompt: prompt.trim(),
+                    variant: modeState.variant ?? null,
+                  },
+                })
+              }
+            >
               <ExternalLink className="size-3.5" />
               Im Studio bearbeiten
             </Button>
