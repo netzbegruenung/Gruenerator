@@ -9,6 +9,7 @@
 
 import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
+import { streamRegoloWithReasoning } from '../../../services/ai/regoloReasoningStream.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getModel, getModelConfig, VISION_MODEL, isVisionCapable } from '../agents/providers.js';
 
@@ -106,6 +107,61 @@ export async function streamAndAccumulate(params: {
   } catch (streamError: unknown) {
     const errorMessage = streamError instanceof Error ? streamError.message : 'Unknown error';
     log.error(`${logPrefix} Stream error:`, errorMessage);
+    sse.send('error', { error: PROGRESS_MESSAGES.streamInterrupted });
+    sse.end();
+    return null;
+  }
+
+  return fullText;
+}
+
+/**
+ * Stream directly from Regolo using the custom reasoning-aware bridge.
+ * Emits `text_delta` for answer chunks and `reasoning_delta` for thinking
+ * chunks, so the frontend's Reasoning/ReasoningGroup UI can render both.
+ * Returns the accumulated answer text, or null on error.
+ */
+export async function streamAndAccumulateWithReasoning(params: {
+  modelName: string;
+  messages: Array<{ role: string; content: string | unknown[] }>;
+  maxTokens: number;
+  temperature: number;
+  sse: SSEWriter;
+  signal?: AbortSignal;
+  logPrefix?: string;
+}): Promise<string | null> {
+  const {
+    modelName,
+    messages,
+    maxTokens,
+    temperature,
+    sse,
+    signal,
+    logPrefix = '[ChatGraph]',
+  } = params;
+
+  let fullText = '';
+
+  try {
+    const streamParams: Parameters<typeof streamRegoloWithReasoning>[0] = {
+      model: modelName,
+      messages: messages as ModelMessage[],
+      maxTokens,
+      temperature,
+    };
+    if (signal) streamParams.signal = signal;
+
+    for await (const chunk of streamRegoloWithReasoning(streamParams)) {
+      if (chunk.type === 'text') {
+        fullText += chunk.delta;
+        sse.send('text_delta', { text: chunk.delta });
+      } else {
+        sse.send('reasoning_delta', { text: chunk.delta });
+      }
+    }
+  } catch (streamError: unknown) {
+    const errorMessage = streamError instanceof Error ? streamError.message : 'Unknown error';
+    log.error(`${logPrefix} Reasoning stream error:`, errorMessage);
     sse.send('error', { error: PROGRESS_MESSAGES.streamInterrupted });
     sse.end();
     return null;

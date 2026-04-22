@@ -13,6 +13,8 @@ import { createOpenAI } from '@ai-sdk/openai';
 
 import { env } from '../../config/env.js';
 
+import { regoloFetchWithThinkingDisabled } from './regoloThinkingFetch.js';
+
 import type { LanguageModel } from 'ai';
 
 // Provider name types
@@ -127,6 +129,7 @@ function getRegoloProvider(): ReturnType<typeof createOpenAI> {
       baseURL: REGOLO_BASE_URL,
       apiKey,
       name: 'regolo',
+      fetch: regoloFetchWithThinkingDisabled,
     });
   }
   return regoloInstance;

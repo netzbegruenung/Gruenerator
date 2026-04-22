@@ -131,6 +131,16 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
                 >
                   {model.description}
                 </Text>
+                {model.warning && (
+                  <Text
+                    style={[
+                      styles.modelChipWarningText,
+                      { color: active ? colors.white : colors.warning },
+                    ]}
+                  >
+                    {model.warning}
+                  </Text>
+                )}
               </Pressable>
             );
           })}
@@ -199,5 +209,10 @@ const styles = StyleSheet.create({
   },
   modelChipDesc: {
     fontSize: 11,
+  },
+  modelChipWarningText: {
+    fontSize: 11,
+    lineHeight: 14,
+    marginTop: 2,
   },
 });
