@@ -28,6 +28,7 @@ interface GroupMembersListProps {
   isCurrentUserAdmin?: boolean;
   currentUserId?: string;
   createdBy?: string;
+  onMemberActionOpenChange?: (open: boolean) => void;
 }
 
 const GroupMembersList = ({
@@ -38,6 +39,7 @@ const GroupMembersList = ({
   isCurrentUserAdmin = false,
   currentUserId,
   createdBy,
+  onMemberActionOpenChange,
 }: GroupMembersListProps) => {
   const { members, isLoadingMembers, isErrorMembers, errorMembers } = useGroupMembers(groupId, {
     isActive,
@@ -124,7 +126,7 @@ const GroupMembersList = ({
                 </Badge>
               )}
               {canChangeRole && (
-                <DropdownMenu>
+                <DropdownMenu onOpenChange={onMemberActionOpenChange}>
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
