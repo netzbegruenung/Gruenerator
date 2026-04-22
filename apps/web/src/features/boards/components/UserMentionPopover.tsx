@@ -1,12 +1,7 @@
 import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
-import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 
-interface Member {
-  user_id: string;
-  display_name: string | null;
-  first_name: string | null;
-  avatar_robot_id: number;
-}
+import { useAssignableMembers } from '../hooks/useAssignableMembers';
 
 export interface MentionUser {
   userId: string;
@@ -15,7 +10,7 @@ export interface MentionUser {
 }
 
 interface UserMentionPopoverProps {
-  groupId: string | undefined;
+  boardId: string | undefined;
   query: string;
   visible: boolean;
   anchorRect: { x: number; y: number } | null;
@@ -27,26 +22,16 @@ interface UserMentionPopoverProps {
 const MAX_RESULTS = 5;
 
 export const UserMentionPopover = memo(function UserMentionPopover({
-  groupId,
+  boardId,
   query,
   visible,
   anchorRect,
   onSelect,
-  onDismiss,
   selectedIndex,
 }: UserMentionPopoverProps) {
-  const [members, setMembers] = useState<Member[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!groupId) return;
-    fetch(`/api/auth/groups/${groupId}/members`, { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => {
-        if (Array.isArray(data)) setMembers(data);
-      })
-      .catch(() => setMembers([]));
-  }, [groupId]);
+  const { data: members = [] } = useAssignableMembers(visible ? boardId : undefined);
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
