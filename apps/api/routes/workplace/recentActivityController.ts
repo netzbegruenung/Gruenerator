@@ -96,7 +96,7 @@ export async function fetchRecentDocs(
         WHEN cd.id IN (
           SELECT gcs.content_id::uuid
           FROM group_content_shares gcs
-          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
           WHERE gcs.content_type = 'collaborative_documents'
         ) THEN 'group'
       END AS access_type
@@ -111,7 +111,7 @@ export async function fetchRecentDocs(
         OR cd.id IN (
           SELECT gcs.content_id::uuid
           FROM group_content_shares gcs
-          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
           WHERE gcs.content_type = 'collaborative_documents'
         )
       )
@@ -161,11 +161,10 @@ export async function fetchRecentBoards(
       AND (
         cd.created_by = $1
         OR cd.permissions ? $2::text
-        OR cd.is_public = true
         OR cd.id IN (
           SELECT gcs.content_id::uuid
           FROM group_content_shares gcs
-          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+          INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
           WHERE gcs.content_type = 'collaborative_documents'
         )
       )
@@ -186,7 +185,9 @@ export async function fetchRecentBoards(
   ).map((row) => {
     let boardType: 'kanban' | 'whiteboard' = 'kanban';
     try {
-      const content = (typeof row.content === 'string' ? JSON.parse(row.content) : row.content) as { boardType?: string } | null;
+      const content = (typeof row.content === 'string' ? JSON.parse(row.content) : row.content) as {
+        boardType?: string;
+      } | null;
       if (content?.boardType === 'whiteboard') boardType = 'whiteboard';
     } catch {
       // default to kanban
@@ -341,7 +342,6 @@ export async function fetchRecentPresentations(
     WHERE
       cp.user_id = $1
       OR cp.permissions ? $2::text
-      OR cp.is_public = true
     ORDER BY cp.updated_at DESC
     LIMIT $3`,
     [userId, userId, limit]
