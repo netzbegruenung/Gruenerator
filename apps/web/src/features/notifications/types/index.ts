@@ -7,6 +7,7 @@ import {
   Reply,
   Share2,
   Shield,
+  UserMinus,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -100,6 +101,13 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     label: 'Neue Mitglieder',
     description: 'Wenn jemand deiner Gruppe beitritt',
     icon: UserPlus,
+    group: 'groups',
+    actions: (ctx) => [openLinkAction('Gruppe öffnen')(ctx)],
+  },
+  group_member_left: {
+    label: 'Ausgetretene Mitglieder',
+    description: 'Wenn jemand deine Gruppe verlässt',
+    icon: UserMinus,
     group: 'groups',
     actions: (ctx) => [openLinkAction('Gruppe öffnen')(ctx)],
   },

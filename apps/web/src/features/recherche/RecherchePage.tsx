@@ -200,7 +200,7 @@ const NotebookSection = memo(
     notebooks: NotebookConfigEntry[];
     search?: string;
     columns?: 1 | 2;
-    groups?: { id: string; name: string }[];
+    groups?: GroupSummary[];
   }) => {
     const filtered = notebooks
       .filter((nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id))
