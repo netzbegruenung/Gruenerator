@@ -103,34 +103,24 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS memory_enabled BOOLEAN DEFAULT FAL
 
 
 -- ════════════════════════════════════════════════════════════════════════════
--- SECTION 2B: MOBILE/DESKTOP APP AUTHENTICATION
--- Refresh tokens for native app authentication (mobile & desktop)
+-- SECTION 2B: MOBILE PUSH DEVICES
+-- Expo push tokens registered by mobile apps, keyed independently from
+-- Better Auth session identity so that logout or session rotation does
+-- not un-register a device.
 -- ════════════════════════════════════════════════════════════════════════════
 
-CREATE TABLE IF NOT EXISTS app_refresh_tokens (
+CREATE TABLE IF NOT EXISTS app_push_devices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    token_hash VARCHAR(64) NOT NULL,
-    device_name VARCHAR(255),
-    device_type VARCHAR(50) DEFAULT 'unknown',
-    issued_at TIMESTAMPTZ DEFAULT NOW(),
-    expires_at TIMESTAMPTZ NOT NULL,
-    last_used_at TIMESTAMPTZ,
-    revoked_at TIMESTAMPTZ,
-    UNIQUE(token_hash)
+    expo_push_token TEXT NOT NULL,
+    device_name TEXT,
+    device_type TEXT NOT NULL DEFAULT 'unknown',
+    last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT app_push_devices_user_token_unique UNIQUE (user_id, expo_push_token)
 );
 
-CREATE INDEX IF NOT EXISTS idx_app_refresh_tokens_user ON app_refresh_tokens(user_id);
-CREATE INDEX IF NOT EXISTS idx_app_refresh_tokens_hash ON app_refresh_tokens(token_hash);
-CREATE INDEX IF NOT EXISTS idx_app_refresh_tokens_expires ON app_refresh_tokens(expires_at) WHERE revoked_at IS NULL;
-
--- Push notification tokens (Expo Push) for mobile devices
-ALTER TABLE app_refresh_tokens ADD COLUMN IF NOT EXISTS push_token TEXT;
-ALTER TABLE app_refresh_tokens ADD COLUMN IF NOT EXISTS push_token_updated_at TIMESTAMPTZ;
-
-CREATE INDEX IF NOT EXISTS idx_app_refresh_tokens_push
-  ON app_refresh_tokens(user_id)
-  WHERE push_token IS NOT NULL AND revoked_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_app_push_devices_user ON app_push_devices (user_id);
 
 
 -- ════════════════════════════════════════════════════════════════════════════

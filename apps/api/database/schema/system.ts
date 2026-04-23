@@ -46,28 +46,6 @@ export const routeUsageStats = pgTable(
   (t) => [index('idx_route_usage_stats_pattern_method').on(t.routePattern, t.method)]
 );
 
-export const appRefreshTokens = pgTable(
-  'app_refresh_tokens',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id').notNull(),
-    tokenHash: text('token_hash').notNull().unique(),
-    deviceName: text('device_name'),
-    deviceType: text('device_type').notNull().default('unknown'),
-    issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
-    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
-    revokedAt: timestamp('revoked_at', { withTimezone: true }),
-    pushToken: text('push_token'),
-    pushTokenUpdatedAt: timestamp('push_token_updated_at', { withTimezone: true }),
-  },
-  (t) => [
-    index('idx_app_refresh_tokens_user').on(t.userId),
-    index('idx_app_refresh_tokens_hash').on(t.tokenHash),
-    index('idx_app_refresh_tokens_expires').on(t.expiresAt),
-  ]
-);
-
 export const appPushDevices = pgTable(
   'app_push_devices',
   {

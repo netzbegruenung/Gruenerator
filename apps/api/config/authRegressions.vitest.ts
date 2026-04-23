@@ -52,6 +52,31 @@
  *      same code path as web's session cookie — no dual-auth logic in
  *      `requireAuth`.
  *
+ *   5. Mobile logout never invalidated server-side session (branch
+ *      fix/mobile-logout-signout / fix/retire-legacy-mobile-auth).
+ *      `POST /auth/mobile/logout` pre-dated Better Auth and only knew
+ *      how to revoke `app_refresh_tokens` rows. Post-#657 installs sent
+ *      no `refresh_token` in the body, so the route returned 200
+ *      without touching anything — the Better Auth session token
+ *      stayed valid server-side until natural expiry. Fix: call
+ *      `auth.api.signOut({ headers })` so the `bearer()` plugin routes
+ *      the Authorization header through the same invalidation path as
+ *      the cookie.
+ *
+ *   6. Mobile push notifications + legacy HS256 retirement (branch
+ *      fix/retire-legacy-mobile-auth). Push device identity was keyed
+ *      by `app_refresh_tokens.token_hash`, so Better Auth installs
+ *      never registered for push. Fix: new `app_push_devices` table
+ *      keyed by (user_id, expo_push_token), with `requireAuth` middleware
+ *      now guarding `/auth/mobile/register-push-token` and
+ *      `/auth/mobile/devices`. Same branch retires the entire legacy
+ *      HS256 surface — `/auth/mobile/consume-login-code`, `/mobile/refresh`,
+ *      `/mobile/status`, `DELETE /mobile/sessions`, `/mobile/session-bridge`,
+ *      the `BridgeCodeStore`, refresh-token storage on the mobile client,
+ *      and the `appRefreshTokens` Drizzle schema. The `app_refresh_tokens`
+ *      table itself stays in place until manually dropped (non-destructive
+ *      cleanup), but nothing reads or writes it anymore.
+ *
  * Run: `pnpm --filter @gruenerator/api test`
  */
 
