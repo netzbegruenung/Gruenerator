@@ -22,6 +22,20 @@
  *      needs a live Postgres connection and is skipped gracefully when the
  *      DB is unreachable.
  *
+ *   3. Mobile OAuth Set-Cookie drop (branch fix/mobile-auth-cookie-forwarding).
+ *      `auth.api.signInWithOAuth2(...)` called without `asResponse: true`
+ *      silently drops Better Auth's state + PKCE cookies, so the Keycloak
+ *      round-trip comes back without `__Secure-ba.state`. Better Auth then
+ *      treats the callback as a `state_mismatch` replay and redirects to
+ *      `/?error=please_restart_the_process` — which the SPA renders as the
+ *      marketing homepage, so the Chrome Custom Tab never fires the custom
+ *      scheme and `WebBrowser.openAuthSessionAsync()` hangs forever. Fix
+ *      pattern: every programmatic `auth.api.*` call that mutates auth
+ *      state passes `asResponse: true` and then calls
+ *      `forwardBetterAuthCookies(res, response)` from
+ *      `apps/api/utils/betterAuthBridge.ts`. Helper ships with its own unit
+ *      tests (`apps/api/utils/betterAuthBridge.vitest.ts`).
+ *
  * Run: `pnpm --filter @gruenerator/api test`
  */
 
