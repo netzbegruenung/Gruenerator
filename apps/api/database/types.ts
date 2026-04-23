@@ -68,11 +68,6 @@ export interface ProfileRow {
 }
 
 // ---------------------------------------------------------------------------
-// SECTION 2B: MOBILE/DESKTOP APP AUTHENTICATION
-// (AppRefreshTokenRow removed — use InferSelectModel<typeof appRefreshTokens> from schema/system.ts)
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // SECTION 3: GROUPS & MEMBERSHIPS
 // ---------------------------------------------------------------------------
 

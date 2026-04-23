@@ -20,19 +20,28 @@ CREATE TABLE IF NOT EXISTS app_push_devices (
 CREATE INDEX IF NOT EXISTS idx_app_push_devices_user ON app_push_devices (user_id);
 
 -- Backfill from legacy app_refresh_tokens.push_token so pre-#657 devices
--- keep receiving notifications through the new service layer. Skip rows
--- whose refresh token is revoked or expired — those sessions are already
--- dead, and pushing to their devices would just fail at Expo.
-INSERT INTO app_push_devices (user_id, expo_push_token, device_name, device_type, last_seen_at, created_at)
-SELECT
-  user_id,
-  push_token,
-  device_name,
-  device_type,
-  COALESCE(last_used_at, push_token_updated_at, issued_at),
-  COALESCE(push_token_updated_at, issued_at)
-FROM app_refresh_tokens
-WHERE push_token IS NOT NULL
-  AND revoked_at IS NULL
-  AND expires_at > now()
-ON CONFLICT (user_id, expo_push_token) DO NOTHING;
+-- keep receiving notifications through the new service layer. Guarded by
+-- information_schema lookup because fresh installs (post-cleanup schema)
+-- never had the source table. Skips rows whose refresh token is revoked
+-- or expired — those sessions are already dead.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'app_refresh_tokens'
+  ) THEN
+    INSERT INTO app_push_devices (user_id, expo_push_token, device_name, device_type, last_seen_at, created_at)
+    SELECT
+      user_id,
+      push_token,
+      device_name,
+      device_type,
+      COALESCE(last_used_at, push_token_updated_at, issued_at),
+      COALESCE(push_token_updated_at, issued_at)
+    FROM app_refresh_tokens
+    WHERE push_token IS NOT NULL
+      AND revoked_at IS NULL
+      AND expires_at > now()
+    ON CONFLICT (user_id, expo_push_token) DO NOTHING;
+  END IF;
+END $$;
