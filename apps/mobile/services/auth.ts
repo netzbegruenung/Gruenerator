@@ -28,13 +28,14 @@ export const REDIRECT_URI = makeRedirectUri({
   path: 'auth/callback',
 });
 
-interface ConsumeLoginCodeResponse {
-  success: boolean;
-  access_token: string;
-  refresh_token: string;
+// Response shape from Better Auth's `mobileTokenExchange` plugin endpoint at
+// `/api/auth/v2/token-exchange-code`. The `token` field is an opaque Better
+// Auth session token that the `bearer()` plugin teaches `getSession` to
+// accept as a drop-in for the session cookie.
+interface TokenExchangeCodeResponse {
+  token: string;
   user: User;
-  expires_in: number;
-  token_type: string;
+  expiresAt: string;
 }
 
 /**
@@ -158,16 +159,18 @@ async function exchangeCodeForTokens(
   try {
     const apiClient = getGlobalApiClient();
 
-    const response = await apiClient.post<ConsumeLoginCodeResponse>(
-      API_ENDPOINTS.AUTH_MOBILE_CONSUME,
+    // Swap our custom JWT mint (legacy /auth/mobile/consume-login-code) for
+    // a real Better Auth session, issued via the mobileTokenExchange plugin.
+    // The resulting token works with the shared `requireAuth` middleware
+    // because it IS a Better Auth session token — the bearer() plugin teaches
+    // auth.api.getSession({ headers }) to accept it.
+    const response = await apiClient.post<TokenExchangeCodeResponse>(
+      API_ENDPOINTS.AUTH_TOKEN_EXCHANGE_CODE,
       { code }
     );
 
-    if (response.data.success && response.data.access_token && response.data.user) {
-      await secureStorage.setToken(response.data.access_token);
-      if (response.data.refresh_token) {
-        await secureStorage.setRefreshToken(response.data.refresh_token);
-      }
+    if (response.data.token && response.data.user) {
+      await secureStorage.setToken(response.data.token);
       await secureStorage.setUser(JSON.stringify(response.data.user));
 
       useAuthStore.getState().setAuthState({
@@ -243,8 +246,17 @@ export async function refreshAccessToken(): Promise<string | null> {
     const refreshToken = await secureStorage.getRefreshToken();
     if (!refreshToken) return null;
 
+    // Legacy refresh-token path — only hit by installs that still have an
+    // `app_refresh_tokens` row from before the move to Better Auth sessions.
+    // Better Auth sessions auto-extend via `updateAge`, so new installs never
+    // store a refresh_token and never reach this branch.
+    interface LegacyRefreshResponse {
+      success: boolean;
+      access_token?: string;
+      user?: User;
+    }
     const apiClient = getGlobalApiClient();
-    const response = await apiClient.post<ConsumeLoginCodeResponse>(
+    const response = await apiClient.post<LegacyRefreshResponse>(
       API_ENDPOINTS.AUTH_MOBILE_REFRESH,
       { refresh_token: refreshToken }
     );
