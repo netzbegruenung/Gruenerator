@@ -137,7 +137,7 @@ const InlineEditorContent = memo(({ editorState, onBack, docsApiClient }: Inline
         editable
         rightActions={rightActions}
       />
-      <div className="flex-1 overflow-y-auto px-md py-lg bg-grey-50 dark:bg-grey-900">
+      <div className="flex-1 overflow-y-auto px-md py-lg bg-grey-50 dark:bg-grey-900 max-sm:pb-[var(--mobile-keyboard-offset,0px)]">
         <div className="max-w-[780px] mx-auto w-full">
           {!isReady ? (
             <div className="flex items-center justify-center h-[200px] text-grey-500 text-sm">
