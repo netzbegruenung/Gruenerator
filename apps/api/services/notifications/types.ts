@@ -10,6 +10,7 @@ export type NotificationType =
   | 'board_user_mentioned'
   | 'group_activity'
   | 'group_member_joined'
+  | 'group_member_left'
   | 'group_role_changed'
   | 'group_content_shared'
   | 'group_deleted'
@@ -34,6 +35,7 @@ export const ALL_NOTIFICATION_TYPES: NotificationType[] = [
   'board_user_mentioned',
   'group_activity',
   'group_member_joined',
+  'group_member_left',
   'group_role_changed',
   'group_content_shared',
   'group_deleted',
