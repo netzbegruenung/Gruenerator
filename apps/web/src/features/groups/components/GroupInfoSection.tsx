@@ -269,20 +269,18 @@ const GroupInfoSection = memo(
                     <span className="text-xs text-foreground">…</span>
                   ) : (
                     <>
-                      {members
-                        ?.slice(0, 5)
-                        .map((member: { user_id: string; avatar_robot_id?: number }) => (
-                          <span key={member.user_id} className="relative">
-                            <img
-                              src={getRobotAvatarPath(validateRobotId(member.avatar_robot_id))}
-                              alt=""
-                              className="size-7 rounded-full ring-2 ring-background"
-                            />
-                            {onlineUserIds?.has(member.user_id) && (
-                              <span className="absolute bottom-0 right-0 size-2 rounded-full bg-green-500 ring-1 ring-background" />
-                            )}
-                          </span>
-                        ))}
+                      {members?.slice(0, 5).map((member) => (
+                        <span key={member.user_id} className="relative">
+                          <img
+                            src={getRobotAvatarPath(validateRobotId(member.avatar_robot_id))}
+                            alt=""
+                            className="size-7 rounded-full ring-2 ring-background"
+                          />
+                          {onlineUserIds?.has(member.user_id) && (
+                            <span className="absolute bottom-0 right-0 size-2 rounded-full bg-green-500 ring-1 ring-background" />
+                          )}
+                        </span>
+                      ))}
                       {memberCount > 5 && (
                         <span className="flex items-center justify-center size-7 rounded-full ring-2 ring-background bg-grey-200 dark:bg-grey-700 text-[0.6rem] font-semibold text-grey-600 dark:text-grey-300">
                           +{memberCount - 5}

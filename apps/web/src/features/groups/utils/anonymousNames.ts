@@ -56,8 +56,8 @@ function simpleHash(str: string): number {
 
 interface Member {
   user_id?: string;
-  first_name?: string;
-  display_name?: string;
+  first_name?: string | null;
+  display_name?: string | null;
 }
 
 export function generateAnonymousName(userId: string | null | undefined): string {
