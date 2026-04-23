@@ -124,16 +124,40 @@ export async function login(source: AuthSource): Promise<{ success: boolean; err
   }
 }
 
+// On Android, an OAuth callback URL is delivered to BOTH the WebBrowser
+// Custom Tab (resolving openAuthSessionAsync's promise in login()) AND the
+// Android Intent system (which Expo Router routes to /auth/callback.tsx).
+// Without deduplication, the same one-shot JWT would be exchanged twice,
+// both writers would mutate useAuthStore, and two concurrent router.replace
+// calls would tear down the Fabric root. This cache ensures exactly one
+// HTTP exchange per code; every subsequent caller awaits the same promise.
+const inFlightExchanges = new Map<string, Promise<{ success: boolean; error?: string }>>();
+
 /**
- * Exchange login code for JWT and store credentials
+ * Exchange login code for JWT and store credentials.
+ *
+ * Idempotent by `code`: repeated calls with the same code await the first
+ * in-flight request instead of issuing a new one.
  */
 export async function handleAuthCallback(
+  code: string
+): Promise<{ success: boolean; error?: string }> {
+  const existing = inFlightExchanges.get(code);
+  if (existing) {
+    return existing;
+  }
+
+  const promise = exchangeCodeForTokens(code);
+  inFlightExchanges.set(code, promise);
+  return promise;
+}
+
+async function exchangeCodeForTokens(
   code: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const apiClient = getGlobalApiClient();
 
-    // Exchange code for JWT
     const response = await apiClient.post<ConsumeLoginCodeResponse>(
       API_ENDPOINTS.AUTH_MOBILE_CONSUME,
       { code }
