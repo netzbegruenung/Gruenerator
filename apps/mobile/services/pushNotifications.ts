@@ -8,9 +8,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { getGlobalApiClient } from './api';
-import { secureStorage } from './storage';
 
-// Configure how notifications appear when the app is in the foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -22,13 +20,13 @@ Notifications.setNotificationHandler({
 });
 
 /**
- * Request notification permissions, get an Expo push token,
- * and register it with the backend.
- * Returns the token string or null if registration failed.
+ * Request notification permissions, get an Expo push token, and
+ * register it with the backend. The backend upserts into
+ * `app_push_devices` keyed by (user_id, expo_push_token); the caller is
+ * identified via the apiClient's Bearer interceptor.
  */
 export async function registerForPushNotifications(): Promise<string | null> {
   try {
-    // Android needs a notification channel
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'Standard',
@@ -63,17 +61,13 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
     console.log('[Push] Expo push token:', expoPushToken);
 
-    // Send to backend along with the refresh token to identify the device row
-    const refreshToken = await secureStorage.getRefreshToken();
-    if (!refreshToken) {
-      console.warn('[Push] No refresh token available — skipping push registration');
-      return expoPushToken;
-    }
+    const deviceType =
+      Platform.OS === 'android' ? 'android' : Platform.OS === 'ios' ? 'ios' : 'unknown';
 
     const apiClient = getGlobalApiClient();
     await apiClient.post('/auth/mobile/register-push-token', {
       expoPushToken,
-      refresh_token: refreshToken,
+      deviceType,
     });
 
     console.log('[Push] Token registered with backend');

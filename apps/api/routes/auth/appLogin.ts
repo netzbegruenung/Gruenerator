@@ -20,7 +20,8 @@
  *    → 302 redirects to gruenerator://auth/callback?code=<jwt>
  *
  * 4. The app's deep-link handler receives the code and exchanges it
- *    via POST /auth/mobile/consume-login-code for access + refresh tokens.
+ *    via POST /auth/v2/token-exchange-code (the `mobileTokenExchange`
+ *    Better Auth plugin) for an opaque Better Auth session token.
  */
 
 import { randomBytes } from 'crypto';

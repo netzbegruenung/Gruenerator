@@ -9,20 +9,16 @@ import { secureStorage } from './storage';
 
 import type { User } from '@gruenerator/shared';
 
-// Enable browser result handling for OAuth
 WebBrowser.maybeCompleteAuthSession();
 
-// API base URL - should match api.ts
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
-// Auth source types matching backend
 export type AuthSource =
   | 'gruenerator-login'
   | 'gruenes-netz-login'
   | 'netzbegruenung-login'
   | 'gruene-oesterreich-login';
 
-// OAuth redirect URI for deep linking
 export const REDIRECT_URI = makeRedirectUri({
   scheme: 'gruenerator',
   path: 'auth/callback',
@@ -38,23 +34,6 @@ interface TokenExchangeCodeResponse {
   expiresAt: string;
 }
 
-/**
- * Response from auth status endpoint
- */
-interface AuthStatusResponse {
-  isAuthenticated: boolean;
-  user: User | null;
-  authMethod: string;
-  tokenInfo?: {
-    issuer: string;
-    audience: string;
-    expiresAt: number;
-  };
-}
-
-/**
- * Configure the auth store with mobile-specific API implementations
- */
 export function configureAuthStore(): void {
   const apiClient = getGlobalApiClient();
 
@@ -86,24 +65,23 @@ export function configureAuthStore(): void {
 }
 
 /**
- * Initiate OAuth login flow
- * Opens system browser to Keycloak login page
+ * Start the OAuth flow. Opens a Chrome Custom Tab to the API's /auth/login
+ * entry point, which routes through Better Auth → Keycloak → Better Auth
+ * callback → /auth/app-callback. The callback deep-links back to us with a
+ * short-lived login code JWT.
  */
 export async function login(source: AuthSource): Promise<{ success: boolean; error?: string }> {
   try {
-    // Build auth URL with redirect back to app
     const authUrl = `${API_BASE_URL}${API_ENDPOINTS.AUTH_LOGIN}?source=${source}&redirectTo=${encodeURIComponent(REDIRECT_URI)}`;
 
     console.log('[Auth] Opening auth session:', authUrl);
     console.log('[Auth] Redirect URI:', REDIRECT_URI);
 
-    // Open browser for OAuth flow
     const result = await WebBrowser.openAuthSessionAsync(authUrl, REDIRECT_URI);
 
     console.log('[Auth] Browser result:', result.type);
 
     if (result.type === 'success' && result.url) {
-      // Extract code from redirect URL
       const url = new URL(result.url);
       const code = url.searchParams.get('code');
 
@@ -135,7 +113,7 @@ export async function login(source: AuthSource): Promise<{ success: boolean; err
 const inFlightExchanges = new Map<string, Promise<{ success: boolean; error?: string }>>();
 
 /**
- * Exchange login code for JWT and store credentials.
+ * Exchange a one-shot login-code JWT for a Better Auth session token.
  *
  * Idempotent by `code`: repeated calls with the same code await the first
  * in-flight request instead of issuing a new one.
@@ -159,11 +137,6 @@ async function exchangeCodeForTokens(
   try {
     const apiClient = getGlobalApiClient();
 
-    // Swap our custom JWT mint (legacy /auth/mobile/consume-login-code) for
-    // a real Better Auth session, issued via the mobileTokenExchange plugin.
-    // The resulting token works with the shared `requireAuth` middleware
-    // because it IS a Better Auth session token — the bearer() plugin teaches
-    // auth.api.getSession({ headers }) to accept it.
     const response = await apiClient.post<TokenExchangeCodeResponse>(
       API_ENDPOINTS.AUTH_TOKEN_EXCHANGE_CODE,
       { code }
@@ -189,7 +162,9 @@ async function exchangeCodeForTokens(
 }
 
 /**
- * Check if user is authenticated and restore session
+ * Probe the Better Auth session for the stored bearer token. The bearer()
+ * plugin lets /auth/v2/get-session accept `Authorization: Bearer <token>`
+ * the same way it accepts a cookie on web.
  */
 export async function checkAuthStatus(): Promise<boolean> {
   try {
@@ -199,18 +174,16 @@ export async function checkAuthStatus(): Promise<boolean> {
       return false;
     }
 
-    // Verify token with backend
     const apiClient = getGlobalApiClient();
-    const response = await apiClient.get<AuthStatusResponse>(API_ENDPOINTS.AUTH_MOBILE_STATUS);
+    const response = await apiClient.get<{ user?: User; session?: unknown } | null>(
+      API_ENDPOINTS.AUTH_GET_SESSION
+    );
 
-    if (response.data.isAuthenticated && response.data.user) {
-      useAuthStore.getState().setAuthState({
-        user: response.data.user,
-      });
+    if (response.data && response.data.user) {
+      useAuthStore.getState().setAuthState({ user: response.data.user });
       return true;
     }
 
-    // Token invalid - clear storage
     await secureStorage.clearAll();
     useAuthStore.getState().clearAuth();
     return false;
@@ -221,58 +194,19 @@ export async function checkAuthStatus(): Promise<boolean> {
   }
 }
 
-/**
- * Logout user and clear all stored data
- */
 export async function logout(): Promise<void> {
   try {
     useAuthStore.getState().setLoggingOut(true);
 
-    // Notify backend
     const apiClient = getGlobalApiClient();
     await apiClient.post(API_ENDPOINTS.AUTH_MOBILE_LOGOUT).catch(() => {
-      // Ignore errors - we're logging out anyway
+      // Server-side session invalidation is best-effort; local cleanup is
+      // what actually logs the user out on the device.
     });
   } finally {
-    // Clear local state regardless of backend response
     await secureStorage.clearAll();
     useAuthStore.getState().clearAuth();
     useAuthStore.getState().setLoggingOut(false);
-  }
-}
-
-export async function refreshAccessToken(): Promise<string | null> {
-  try {
-    const refreshToken = await secureStorage.getRefreshToken();
-    if (!refreshToken) return null;
-
-    // Legacy refresh-token path — only hit by installs that still have an
-    // `app_refresh_tokens` row from before the move to Better Auth sessions.
-    // Better Auth sessions auto-extend via `updateAge`, so new installs never
-    // store a refresh_token and never reach this branch.
-    interface LegacyRefreshResponse {
-      success: boolean;
-      access_token?: string;
-      user?: User;
-    }
-    const apiClient = getGlobalApiClient();
-    const response = await apiClient.post<LegacyRefreshResponse>(
-      API_ENDPOINTS.AUTH_MOBILE_REFRESH,
-      { refresh_token: refreshToken }
-    );
-
-    if (response.data.success && response.data.access_token) {
-      await secureStorage.setToken(response.data.access_token);
-      if (response.data.user) {
-        await secureStorage.setUser(JSON.stringify(response.data.user));
-        useAuthStore.getState().setAuthState({ user: response.data.user });
-      }
-      return response.data.access_token;
-    }
-
-    return null;
-  } catch {
-    return null;
   }
 }
 
