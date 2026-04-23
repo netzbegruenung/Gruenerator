@@ -1,7 +1,7 @@
+import { useActionSheet } from '@expo/react-native-action-sheet';
 import { Ionicons } from '@expo/vector-icons';
-import { getGlobalApiClient } from '@gruenerator/shared/api';
-import { useFocusEffect } from 'expo-router';
-import { useState, useCallback } from 'react';
+import { Stack, useRouter } from 'expo-router';
+import { useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,65 +13,51 @@ import {
   RefreshControl,
 } from 'react-native';
 
+import { useUserGroups, type GroupSummary } from '../../../hooks/useGroups';
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
-
-interface GroupMember {
-  user_id: string;
-  display_name: string;
-  role: string;
-}
-
-interface Group {
-  id: string;
-  name: string;
-  description: string | null;
-  member_count: number;
-  content_count: number;
-  role: string;
-  members?: GroupMember[];
-  created_at: string;
-}
 
 export default function GruppenScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const router = useRouter();
+  const { showActionSheetWithOptions } = useActionSheet();
 
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { data: groups = [], isPending, isRefetching, error, refetch } = useUserGroups();
 
-  const fetchGroups = useCallback(async (silent = false) => {
-    if (!silent) setIsLoading(true);
-    setError(null);
-
-    try {
-      const apiClient = getGlobalApiClient();
-      const response = await apiClient.get<{ groups?: Group[] }>('/auth/groups');
-      setGroups(response.data.groups ?? []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gruppen konnten nicht geladen werden');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      void fetchGroups();
-    }, [fetchGroups])
+  const openGroup = useCallback(
+    (groupId: string) => {
+      router.push(`/(focused)/gruppen/${groupId}`);
+    },
+    [router]
   );
 
-  const handleRefresh = useCallback(() => {
-    setIsRefreshing(true);
-    void fetchGroups(true);
-  }, [fetchGroups]);
+  const showAddMenu = useCallback(() => {
+    const options = ['Neue Gruppe erstellen', 'Einladung einlösen', 'Abbrechen'];
+    showActionSheetWithOptions(
+      {
+        options,
+        cancelButtonIndex: 2,
+        title: 'Gruppen',
+      },
+      (idx) => {
+        if (idx === 0) router.push('/(modals)/gruppen-create');
+        if (idx === 1) router.push('/(modals)/gruppen-join-manual');
+      }
+    );
+  }, [router, showActionSheetWithOptions]);
 
-  const toggleExpand = useCallback((id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id));
-  }, []);
+  const headerRight = useCallback(
+    () => (
+      <Pressable
+        onPress={showAddMenu}
+        hitSlop={10}
+        style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: spacing.xsmall })}
+      >
+        <Ionicons name="add" size={26} color={theme.text} />
+      </Pressable>
+    ),
+    [showAddMenu, theme.text]
+  );
 
   const roleLabel = (role: string) => {
     switch (role) {
@@ -86,118 +72,124 @@ export default function GruppenScreen() {
     }
   };
 
-  if (isLoading) {
+  if (isPending) {
     return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <ActivityIndicator size="large" color={colors.primary[600]} />
-        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Gruppen laden...</Text>
-      </View>
+      <>
+        <Stack.Screen options={{ headerRight }} />
+        <View style={[styles.centered, { backgroundColor: theme.background }]}>
+          <ActivityIndicator size="large" color={colors.primary[600]} />
+          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Gruppen laden...</Text>
+        </View>
+      </>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.centered, { backgroundColor: theme.background }]}>
-        <Ionicons name="alert-circle" size={48} color={colors.semantic.error} />
-        <Text style={[styles.errorText, { color: colors.semantic.error }]}>{error}</Text>
-        <Pressable
-          onPress={() => void fetchGroups()}
-          style={({ pressed }) => [
-            styles.retryButton,
-            { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
-          ]}
-        >
-          <Text style={styles.retryButtonText}>Erneut versuchen</Text>
-        </Pressable>
-      </View>
+      <>
+        <Stack.Screen options={{ headerRight }} />
+        <View style={[styles.centered, { backgroundColor: theme.background }]}>
+          <Ionicons name="alert-circle" size={48} color={colors.semantic.error} />
+          <Text style={[styles.errorText, { color: colors.semantic.error }]}>
+            {error instanceof Error ? error.message : 'Gruppen konnten nicht geladen werden'}
+          </Text>
+          <Pressable
+            onPress={() => void refetch()}
+            style={({ pressed }) => [
+              styles.retryButton,
+              { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
+            ]}
+          >
+            <Text style={styles.retryButtonText}>Erneut versuchen</Text>
+          </Pressable>
+        </View>
+      </>
     );
   }
 
   if (groups.length === 0) {
     return (
-      <ScrollView
-        style={[styles.container, { backgroundColor: theme.background }]}
-        contentContainerStyle={styles.centered}
-        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
-      >
-        <Ionicons name="people-outline" size={48} color={theme.textSecondary} />
-        <Text style={[styles.emptyTitle, { color: theme.text }]}>Keine Gruppen</Text>
-        <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-          Erstelle oder tritt einer Gruppe bei,{'\n'}um Inhalte mit anderen zu teilen.
-        </Text>
-      </ScrollView>
+      <>
+        <Stack.Screen options={{ headerRight }} />
+        <ScrollView
+          style={[styles.container, { backgroundColor: theme.background }]}
+          contentContainerStyle={styles.centered}
+          refreshControl={
+            <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
+          }
+        >
+          <Ionicons name="people-outline" size={48} color={theme.textSecondary} />
+          <Text style={[styles.emptyTitle, { color: theme.text }]}>Keine Gruppen</Text>
+          <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+            Erstelle eine Gruppe oder löse{'\n'}eine Einladung ein.
+          </Text>
+          <Pressable
+            onPress={showAddMenu}
+            style={({ pressed }) => [
+              styles.retryButton,
+              { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
+            ]}
+          >
+            <Text style={styles.retryButtonText}>Gruppe hinzufügen</Text>
+          </Pressable>
+        </ScrollView>
+      </>
     );
   }
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.background }]}
-      contentContainerStyle={styles.scrollContent}
-      refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />}
-    >
-      {groups.map((group) => (
-        <Pressable
-          key={group.id}
-          onPress={() => toggleExpand(group.id)}
-          style={({ pressed }) => [
-            styles.groupCard,
-            {
-              backgroundColor: pressed ? theme.surface : theme.card,
-              borderColor: expandedId === group.id ? colors.primary[600] : theme.cardBorder,
-            },
-          ]}
-        >
-          <View style={styles.groupHeader}>
-            <View style={[styles.groupIcon, { backgroundColor: colors.primary[600] + '15' }]}>
-              <Ionicons name="people" size={24} color={colors.primary[600]} />
-            </View>
-            <View style={styles.groupInfo}>
-              <Text style={[styles.groupName, { color: theme.text }]}>{group.name}</Text>
-              <View style={styles.groupMeta}>
-                <Text style={[styles.groupMetaText, { color: theme.textSecondary }]}>
-                  {group.member_count} Mitglieder
-                </Text>
-                <Text style={[styles.groupMetaDot, { color: theme.textSecondary }]}>·</Text>
-                <Text style={[styles.groupMetaText, { color: theme.textSecondary }]}>
-                  {roleLabel(group.role)}
-                </Text>
+    <>
+      <Stack.Screen options={{ headerRight }} />
+      <ScrollView
+        style={[styles.container, { backgroundColor: theme.background }]}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
+        }
+      >
+        {groups.map((group: GroupSummary) => (
+          <Pressable
+            key={group.id}
+            onPress={() => openGroup(group.id)}
+            style={({ pressed }) => [
+              styles.groupCard,
+              {
+                backgroundColor: pressed ? theme.surface : theme.card,
+                borderColor: theme.cardBorder,
+              },
+            ]}
+          >
+            <View style={styles.groupHeader}>
+              <View style={[styles.groupIcon, { backgroundColor: colors.primary[600] + '15' }]}>
+                <Ionicons name="people" size={24} color={colors.primary[600]} />
               </View>
-            </View>
-            <Ionicons
-              name={expandedId === group.id ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={theme.textSecondary}
-            />
-          </View>
-
-          {group.description && (
-            <Text
-              style={[styles.groupDescription, { color: theme.textSecondary }]}
-              numberOfLines={2}
-            >
-              {group.description}
-            </Text>
-          )}
-
-          {expandedId === group.id && group.members && group.members.length > 0 && (
-            <View style={[styles.membersList, { borderTopColor: theme.border }]}>
-              <Text style={[styles.membersTitle, { color: theme.textSecondary }]}>Mitglieder</Text>
-              {group.members.map((member) => (
-                <View key={member.user_id} style={styles.memberRow}>
-                  <Ionicons name="person-circle-outline" size={20} color={theme.textSecondary} />
-                  <Text style={[styles.memberName, { color: theme.text }]}>
-                    {member.display_name}
+              <View style={styles.groupInfo}>
+                <Text style={[styles.groupName, { color: theme.text }]}>{group.name}</Text>
+                <View style={styles.groupMeta}>
+                  <Text style={[styles.groupMetaText, { color: theme.textSecondary }]}>
+                    {group.member_count ?? 0} Mitglieder
                   </Text>
-                  <Text style={[styles.memberRole, { color: theme.textSecondary }]}>
-                    {roleLabel(member.role)}
+                  <Text style={[styles.groupMetaDot, { color: theme.textSecondary }]}>·</Text>
+                  <Text style={[styles.groupMetaText, { color: theme.textSecondary }]}>
+                    {roleLabel(group.role)}
                   </Text>
                 </View>
-              ))}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
             </View>
-          )}
-        </Pressable>
-      ))}
-    </ScrollView>
+
+            {group.description ? (
+              <Text
+                style={[styles.groupDescription, { color: theme.textSecondary }]}
+                numberOfLines={2}
+              >
+                {group.description}
+              </Text>
+            ) : null}
+          </Pressable>
+        ))}
+      </ScrollView>
+    </>
   );
 }
 
@@ -241,9 +233,4 @@ const styles = StyleSheet.create({
   groupMetaText: { fontSize: 12 },
   groupMetaDot: { fontSize: 12 },
   groupDescription: { ...typography.bodySmall, paddingLeft: 44 + spacing.medium },
-  membersList: { borderTopWidth: 1, paddingTop: spacing.small, gap: spacing.xsmall },
-  membersTitle: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  memberRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xsmall },
-  memberName: { ...typography.bodySmall, flex: 1 },
-  memberRole: { fontSize: 11 },
 });
