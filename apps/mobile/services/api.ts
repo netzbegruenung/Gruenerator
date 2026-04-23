@@ -81,6 +81,11 @@ export { getGlobalApiClient, apiRequest };
 export const API_ENDPOINTS = {
   // Auth
   AUTH_LOGIN: '/auth/login',
+  // Better Auth's `mobileTokenExchange` plugin endpoint — takes the login-code
+  // JWT from the OAuth callback and returns an opaque session token the
+  // `bearer()` plugin recognises. Replaces the legacy HS256 mint at
+  // `/auth/mobile/consume-login-code`.
+  AUTH_TOKEN_EXCHANGE_CODE: '/auth/v2/token-exchange-code',
   AUTH_MOBILE_CONSUME: '/auth/mobile/consume-login-code',
   AUTH_MOBILE_REFRESH: '/auth/mobile/refresh',
   AUTH_MOBILE_STATUS: '/auth/mobile/status',
