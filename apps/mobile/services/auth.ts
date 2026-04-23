@@ -39,20 +39,6 @@ interface TokenExchangeCodeResponse {
 }
 
 /**
- * Response from auth status endpoint
- */
-interface AuthStatusResponse {
-  isAuthenticated: boolean;
-  user: User | null;
-  authMethod: string;
-  tokenInfo?: {
-    issuer: string;
-    audience: string;
-    expiresAt: number;
-  };
-}
-
-/**
  * Configure the auth store with mobile-specific API implementations
  */
 export function configureAuthStore(): void {
@@ -199,14 +185,18 @@ export async function checkAuthStatus(): Promise<boolean> {
       return false;
     }
 
-    // Verify token with backend
+    // Better Auth's native session endpoint — works with both cookies (web)
+    // and Bearer tokens (mobile, via the `bearer()` plugin). Replaces the
+    // legacy `/auth/mobile/status` route, which only validated our custom
+    // HS256 JWT and rejects the opaque Better Auth session tokens issued
+    // by `/token-exchange-code`.
     const apiClient = getGlobalApiClient();
-    const response = await apiClient.get<AuthStatusResponse>(API_ENDPOINTS.AUTH_MOBILE_STATUS);
+    const response = await apiClient.get<{ user?: User; session?: unknown } | null>(
+      '/auth/v2/get-session'
+    );
 
-    if (response.data.isAuthenticated && response.data.user) {
-      useAuthStore.getState().setAuthState({
-        user: response.data.user,
-      });
+    if (response.data && response.data.user) {
+      useAuthStore.getState().setAuthState({ user: response.data.user });
       return true;
     }
 
