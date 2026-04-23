@@ -418,14 +418,53 @@ export class AuthService {
       }
 
       const userId = payload.sub as string;
-      log.debug(`[Auth-Token] Token validated for user: ${userId}`);
-
+      log.debug(`[Auth-Token] HS256 token validated for user: ${userId}`);
       return this.checkRoomAccess(documentName, userId);
+    } catch (jwtError) {
+      const err = jwtError instanceof Error ? jwtError : new Error(String(jwtError));
+      log.debug(
+        `[Auth-Token] HS256 JWT invalid (${err.message}); falling back to Better Auth bearer lookup`
+      );
+    }
+
+    return this.authenticateByBearer(token, documentName);
+  }
+
+  private async authenticateByBearer(
+    token: string,
+    documentName: string
+  ): Promise<AuthenticationResult> {
+    const apiBase = process.env.API_INTERNAL_URL || 'http://api:3001';
+    let userId: string;
+
+    try {
+      const response = await fetch(`${apiBase}/api/auth/v2/get-session`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        log.warn(`[Auth-Bearer] API session check returned ${response.status}`);
+        return { authenticated: false, reason: 'Invalid or expired token' };
+      }
+
+      const data = (await response.json()) as {
+        session?: { userId?: string };
+        user?: { id?: string };
+      };
+      userId = data.session?.userId || data.user?.id || '';
+
+      if (!userId) {
+        log.warn(`[Auth-Bearer] API returned session but no user ID`);
+        return { authenticated: false, reason: 'Invalid or expired token' };
+      }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
-      log.warn(`[Auth-Token] JWT validation failed: ${err.message}`);
-      return { authenticated: false, reason: 'Invalid or expired token' };
+      log.error(`[Auth-Bearer] API session check failed: ${err.message}`);
+      return { authenticated: false, reason: 'Session verification failed' };
     }
+
+    log.debug(`[Auth-Bearer] User ${userId} authenticated via Better Auth bearer token`);
+    return this.checkRoomAccess(documentName, userId);
   }
 
   private async authenticateByCookie(
