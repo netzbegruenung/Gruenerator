@@ -107,6 +107,12 @@
       "types": "./src/components/EditorTopBar/index.ts",
       "import": "./dist/components/EditorTopBar/index.js",
       "default": "./dist/components/EditorTopBar/index.js"
+    },
+    "./groups": {
+      "development": "./src/groups/index.ts",
+      "types": "./src/groups/index.ts",
+      "import": "./dist/groups/index.js",
+      "default": "./dist/groups/index.js"
     }
   },
   "scripts": {
@@ -125,11 +131,13 @@
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
+    "@tanstack/react-query": "^5.99.2",
     "@types/react": "^19.2.14",
     "eslint": "^9.39.4",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {
+    "@tanstack/react-query": "^5.0.0",
     "react": "^19.0.0"
   }
 }
