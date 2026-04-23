@@ -1,3 +1,4 @@
+import { useAuthStore } from '@gruenerator/shared/stores';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect } from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
@@ -8,36 +9,40 @@ import { colors } from '../../theme';
 
 export default function AuthCallback() {
   const { code } = useLocalSearchParams<{ code: string }>();
+  const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
+    // Android delivers the OAuth callback URL to both the WebBrowser Custom
+    // Tab (which resolves openAuthSessionAsync in services/auth.ts) AND the
+    // Android Intent system (which mounts this screen). If the WebBrowser
+    // path won the race and already set `user`, this mount is redundant —
+    // navigate straight to tabs without re-processing the one-shot JWT.
+    if (user) {
+      router.replace('/(tabs)');
+      return;
+    }
+
+    // iOS cold-start fallback: ASWebAuthenticationSession doesn't fire
+    // Linking, and if the app was killed mid-flow we arrive here with a
+    // fresh `code` and no live WebBrowser session to process it. Since
+    // handleAuthCallback is idempotent by `code`, racing the WebBrowser
+    // path (Android) is harmless — both callers await one HTTP exchange.
     async function processCallback() {
       if (code) {
         try {
-          console.log('[AuthCallback] Processing code...');
-
-          // Ensure API client is initialized (may be called before AuthProvider)
           initializeApiClient();
           configureAuthStore();
-
           const result = await handleAuthCallback(code);
-          if (result.success) {
-            console.log('[AuthCallback] Login successful, redirecting to tabs');
-            router.replace('/(tabs)');
-          } else {
-            console.log('[AuthCallback] Login failed:', result.error);
-            router.replace('/(auth)/login');
-          }
-        } catch (error) {
-          console.error('[AuthCallback] Error:', error);
+          router.replace(result.success ? '/(tabs)' : '/(auth)/login');
+        } catch {
           router.replace('/(auth)/login');
         }
       } else {
-        console.log('[AuthCallback] No code provided, redirecting to login');
         router.replace('/(auth)/login');
       }
     }
     void processCallback();
-  }, [code]);
+  }, [code, user]);
 
   return (
     <View style={styles.container}>
