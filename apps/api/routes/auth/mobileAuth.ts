@@ -13,10 +13,12 @@
 
 import { createHash, randomBytes } from 'crypto';
 
+import { fromNodeHeaders } from 'better-auth/node';
 import express, { type Response, type NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import { SignJWT, jwtVerify } from 'jose';
 
+import { auth } from '../../config/betterAuth.js';
 import { createLogger } from '../../utils/logger.js';
 import { storeBridgeCode, consumeBridgeCode } from '../../utils/redis/BridgeCodeStore.js';
 
@@ -606,55 +608,70 @@ router.delete('/mobile/sessions', async (req: AuthRequest, res: Response): Promi
 });
 
 /**
+ * Resolve the caller's userId from either a Better Auth session (new
+ * bearer tokens issued by `/token-exchange-code`) or a legacy HS256
+ * access JWT (pre-#657 installs still in rotation).
+ *
+ * Returns null if neither shape authenticates successfully.
+ */
+async function resolveUserId(req: AuthRequest): Promise<string | null> {
+  try {
+    const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) });
+    if (session?.user?.id) return session.user.id;
+  } catch (err) {
+    log.debug('[MobileAuth] Better Auth session check failed', {
+      reason: (err as Error).message,
+    });
+  }
+
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      const { payload } = await jwtVerify(authHeader.substring(7), JWT_SECRET, {
+        issuer: 'gruenerator-api',
+        audience: 'gruenerator-app',
+      });
+      if (payload.sub) return payload.sub as string;
+    } catch {
+      // fall through — 401
+    }
+  }
+
+  return null;
+}
+
+/**
  * POST /auth/mobile/register-push-token
  *
- * Register an Expo push token for the current device.
- * Requires both the Bearer access token and the refresh token to identify the device row.
+ * Upsert the caller's Expo push token into `app_push_devices`, keyed by
+ * (user_id, expo_push_token). Accepts either a Better Auth session or a
+ * legacy HS256 JWT so both rollout cohorts can register.
  */
 router.post(
   '/mobile/register-push-token',
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const authHeader = req.headers.authorization;
-
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        res.status(401).json({ success: false, error: 'missing_token' });
+      const userId = await resolveUserId(req);
+      if (!userId) {
+        res.status(401).json({ success: false, error: 'unauthorized' });
         return;
       }
 
-      const token = authHeader.substring(7);
-      let payload;
-      try {
-        const result = await jwtVerify(token, JWT_SECRET, {
-          issuer: 'gruenerator-api',
-          audience: 'gruenerator-app',
-        });
-        payload = result.payload;
-      } catch {
-        res.status(401).json({ success: false, error: 'invalid_token' });
-        return;
-      }
+      const { expoPushToken, deviceName, deviceType } = (req.body as {
+        expoPushToken?: string;
+        deviceName?: string;
+        deviceType?: string;
+      }) ?? {};
 
-      if (!payload.sub) {
-        res.status(401).json({ success: false, error: 'invalid_token' });
-        return;
-      }
-
-      const { expoPushToken, refresh_token } = req.body as {
-        expoPushToken: string;
-        refresh_token: string;
-      };
-
-      if (!expoPushToken || !refresh_token) {
+      if (!expoPushToken) {
         res.status(400).json({
           success: false,
           error: 'missing_params',
-          message: 'expoPushToken and refresh_token are required',
+          message: 'expoPushToken is required',
         });
         return;
       }
 
-      // Validate Expo push token format
       if (
         !expoPushToken.startsWith('ExponentPushToken[') &&
         !expoPushToken.startsWith('ExpoPushToken[')
@@ -667,11 +684,25 @@ router.post(
         return;
       }
 
-      const userId = payload.sub as string;
-      const refreshTokenHash = hashToken(refresh_token);
+      const userAgent = req.headers['user-agent'] ?? '';
+      const uaLower = userAgent.toLowerCase();
+      const resolvedDeviceType =
+        deviceType ??
+        (uaLower.includes('android')
+          ? 'android'
+          : uaLower.includes('iphone')
+            ? 'ios'
+            : uaLower.includes('tauri')
+              ? 'desktop'
+              : 'unknown');
+
+      const resolvedDeviceName = deviceName ?? (userAgent ? userAgent.substring(0, 255) : null);
 
       const { registerPushToken } = await import('../../services/pushNotificationService.js');
-      await registerPushToken(userId, refreshTokenHash, expoPushToken);
+      await registerPushToken(userId, expoPushToken, {
+        ...(resolvedDeviceName ? { deviceName: resolvedDeviceName } : {}),
+        deviceType: resolvedDeviceType,
+      });
 
       log.info('[MobileAuth] Push token registered', { userId });
       res.json({ success: true });
@@ -685,37 +716,18 @@ router.post(
 /**
  * GET /auth/mobile/devices
  *
- * Get all active devices for the authenticated user.
+ * List the caller's push-capable devices.
  */
 router.get('/mobile/devices', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      res.status(401).json({ success: false, error: 'missing_token' });
-      return;
-    }
-
-    const token = authHeader.substring(7);
-    let payload;
-    try {
-      const result = await jwtVerify(token, JWT_SECRET, {
-        issuer: 'gruenerator-api',
-        audience: 'gruenerator-app',
-      });
-      payload = result.payload;
-    } catch {
-      res.status(401).json({ success: false, error: 'invalid_token' });
-      return;
-    }
-
-    if (!payload.sub) {
-      res.status(401).json({ success: false, error: 'invalid_token' });
+    const userId = await resolveUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'unauthorized' });
       return;
     }
 
     const { getUserDevices } = await import('../../services/pushNotificationService.js');
-    const devices = await getUserDevices(payload.sub as string);
+    const devices = await getUserDevices(userId);
 
     res.json({ success: true, devices });
   } catch (error) {

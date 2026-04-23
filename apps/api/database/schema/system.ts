@@ -1,4 +1,14 @@
-import { bigint, boolean, pgTable, serial, text, timestamp, uuid, index } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  unique,
+  uuid,
+  index,
+} from 'drizzle-orm/pg-core';
 
 export const wolkeSyncStatus = pgTable(
   'wolke_sync_status',
@@ -55,5 +65,22 @@ export const appRefreshTokens = pgTable(
     index('idx_app_refresh_tokens_user').on(t.userId),
     index('idx_app_refresh_tokens_hash').on(t.tokenHash),
     index('idx_app_refresh_tokens_expires').on(t.expiresAt),
+  ]
+);
+
+export const appPushDevices = pgTable(
+  'app_push_devices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull(),
+    expoPushToken: text('expo_push_token').notNull(),
+    deviceName: text('device_name'),
+    deviceType: text('device_type').notNull().default('unknown'),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('app_push_devices_user_token_unique').on(t.userId, t.expoPushToken),
+    index('idx_app_push_devices_user').on(t.userId),
   ]
 );
