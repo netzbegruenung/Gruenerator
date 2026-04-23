@@ -88,7 +88,6 @@ export const API_ENDPOINTS = {
   AUTH_TOKEN_EXCHANGE_CODE: '/auth/v2/token-exchange-code',
   AUTH_MOBILE_CONSUME: '/auth/mobile/consume-login-code',
   AUTH_MOBILE_REFRESH: '/auth/mobile/refresh',
-  AUTH_MOBILE_STATUS: '/auth/mobile/status',
   AUTH_MOBILE_LOGOUT: '/auth/mobile/logout',
   AUTH_PROFILE: '/auth/profile',
   AUTH_PROFILE_AVATAR: '/auth/profile/avatar',
