@@ -19,6 +19,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GroupAvatar } from '../../../../components/workplace/GroupAvatar';
+import { GroupContentSection } from '../../../../components/workplace/GroupContentSection';
 import {
   useDeleteGroup,
   useDeleteGroupAvatar,
@@ -353,6 +354,8 @@ export default function GroupDetailScreen() {
             <Text style={styles.primaryButtonText}>Einladungslink teilen</Text>
           </Pressable>
         ) : null}
+
+        {id ? <GroupContentSection groupId={id} /> : null}
 
         <Section title="Mitglieder" theme={theme}>
           <Pressable
