@@ -241,41 +241,6 @@ export async function logout(): Promise<void> {
   }
 }
 
-export async function refreshAccessToken(): Promise<string | null> {
-  try {
-    const refreshToken = await secureStorage.getRefreshToken();
-    if (!refreshToken) return null;
-
-    // Legacy refresh-token path — only hit by installs that still have an
-    // `app_refresh_tokens` row from before the move to Better Auth sessions.
-    // Better Auth sessions auto-extend via `updateAge`, so new installs never
-    // store a refresh_token and never reach this branch.
-    interface LegacyRefreshResponse {
-      success: boolean;
-      access_token?: string;
-      user?: User;
-    }
-    const apiClient = getGlobalApiClient();
-    const response = await apiClient.post<LegacyRefreshResponse>(
-      API_ENDPOINTS.AUTH_MOBILE_REFRESH,
-      { refresh_token: refreshToken }
-    );
-
-    if (response.data.success && response.data.access_token) {
-      await secureStorage.setToken(response.data.access_token);
-      if (response.data.user) {
-        await secureStorage.setUser(JSON.stringify(response.data.user));
-        useAuthStore.getState().setAuthState({ user: response.data.user });
-      }
-      return response.data.access_token;
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 export async function getStoredToken(): Promise<string | null> {
   return secureStorage.getToken();
 }
