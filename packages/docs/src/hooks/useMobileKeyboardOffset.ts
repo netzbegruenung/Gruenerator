@@ -9,9 +9,10 @@ interface MobileKeyboardOffsetOptions {
 }
 
 /**
- * Sets CSS custom property `--mobile-keyboard-offset` on the referenced element
- * to reflect the virtual keyboard height. Uses VirtualKeyboard API (Chrome/Edge)
- * with VisualViewport fallback (Safari/Firefox).
+ * Sets CSS custom property `--mobile-keyboard-offset` on both the referenced
+ * element AND `:root` so ancestors/siblings can add bottom padding to their
+ * scroll containers. Uses VirtualKeyboard API (Chrome/Edge) with VisualViewport
+ * fallback (Safari/Firefox).
  */
 export function useMobileKeyboardOffset<T extends HTMLElement>(
   ref: RefObject<T | null>,
@@ -27,12 +28,17 @@ export function useMobileKeyboardOffset<T extends HTMLElement>(
     let debounceTimer: ReturnType<typeof setTimeout>;
 
     const setOffset = (px: number) => {
-      ref.current?.style.setProperty('--mobile-keyboard-offset', px > 0 ? `${px}px` : '0px');
+      const value = px > 0 ? `${px}px` : '0px';
+      ref.current?.style.setProperty('--mobile-keyboard-offset', value);
+      document.documentElement.style.setProperty('--mobile-keyboard-offset', value);
       if (callbackRef.current) {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => callbackRef.current?.(), 100);
       }
     };
+
+    const clearRootVar = () =>
+      document.documentElement.style.removeProperty('--mobile-keyboard-offset');
 
     // Prefer VirtualKeyboard API (Chrome/Edge 94+)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -44,6 +50,7 @@ export function useMobileKeyboardOffset<T extends HTMLElement>(
       return () => {
         vk.removeEventListener('geometrychange', onGeometryChange);
         clearTimeout(debounceTimer);
+        clearRootVar();
       };
     }
 
@@ -81,6 +88,7 @@ export function useMobileKeyboardOffset<T extends HTMLElement>(
       document.removeEventListener('focusin', onFocusIn);
       document.removeEventListener('focusout', onFocusOut);
       clearTimeout(debounceTimer);
+      clearRootVar();
     };
   }, [isTouchDevice, ref]);
 }
