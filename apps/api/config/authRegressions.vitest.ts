@@ -36,6 +36,22 @@
  *      `apps/api/utils/betterAuthBridge.ts`. Helper ships with its own unit
  *      tests (`apps/api/utils/betterAuthBridge.vitest.ts`).
  *
+ *   4. Mobile custom-JWT rejected by requireAuth (branch
+ *      fix/mobile-better-auth-bearer). The legacy
+ *      `/auth/mobile/consume-login-code` Express route minted a custom HS256
+ *      JWT signed with SESSION_SECRET; that token was never recognised by
+ *      `auth.api.getSession({ headers })`, so every `/api/docs/*` (and any
+ *      other endpoint guarded by `requireAuth`) 401'd for mobile clients.
+ *      Symptom was `[DocsStore] Failed to fetch documents: AxiosError 401`
+ *      looping on the docs tab even though login itself succeeded. Fix:
+ *      move the exchange into the `mobileTokenExchange` Better Auth plugin's
+ *      new `/token-exchange-code` endpoint, which creates a real Better Auth
+ *      session via `internalAdapter.createSession(...)` and returns
+ *      `session.token`. Combined with the already-configured `bearer()`
+ *      plugin, mobile's `Authorization: Bearer <token>` flows through the
+ *      same code path as web's session cookie — no dual-auth logic in
+ *      `requireAuth`.
+ *
  * Run: `pnpm --filter @gruenerator/api test`
  */
 
