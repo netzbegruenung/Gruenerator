@@ -13,10 +13,12 @@
 
 import { createHash, randomBytes } from 'crypto';
 
+import { fromNodeHeaders } from 'better-auth/node';
 import express, { type Response, type NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 import { SignJWT, jwtVerify } from 'jose';
 
+import { auth } from '../../config/betterAuth.js';
 import { createLogger } from '../../utils/logger.js';
 import { storeBridgeCode, consumeBridgeCode } from '../../utils/redis/BridgeCodeStore.js';
 
@@ -477,37 +479,50 @@ router.get('/mobile/status', async (req: AuthRequest, res: Response): Promise<vo
 /**
  * POST /auth/mobile/logout
  *
- * Revoke the refresh token.
+ * Invalidate the caller's session. Handles both post-#657 Better Auth
+ * bearer tokens (via auth.api.signOut) and legacy HS256 installs that
+ * still send a `refresh_token` in the body (revokes the
+ * `app_refresh_tokens` row). Always responds success so the client can
+ * proceed with local cleanup even when the server-side invalidation
+ * fails — the local token wipe is what actually logs the user out on
+ * the device.
  */
 router.post('/mobile/logout', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { refresh_token } = req.body as RefreshTokenBody;
-
-    if (!refresh_token) {
-      // Even without a token, consider logout successful
-      res.json({
-        success: true,
-        message: 'Logged out',
+    // Better Auth path: bearer token in Authorization header. The
+    // `bearer()` plugin teaches signOut() to accept it like a cookie,
+    // so the session row is actually deleted server-side instead of
+    // sitting live in the DB until natural expiry.
+    try {
+      await auth.api.signOut({
+        headers: fromNodeHeaders(req.headers),
       });
-      return;
+    } catch (err) {
+      // No session on the request (legacy install, already-expired
+      // token, etc.) — not an error condition for logout.
+      log.debug('[MobileAuth] Better Auth signOut skipped', {
+        reason: (err as Error).message,
+      });
     }
 
-    const tokenHash = hashToken(refresh_token);
+    // Legacy path: body carries a refresh_token from a pre-#657 install.
+    const { refresh_token } = (req.body as RefreshTokenBody) ?? {};
+    if (refresh_token) {
+      const tokenHash = hashToken(refresh_token);
+      const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
+      const db = getPostgresInstance();
 
-    // Revoke the refresh token
-    const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
-    const db = getPostgresInstance();
+      const result = await db.query(
+        `UPDATE app_refresh_tokens
+         SET revoked_at = NOW()
+         WHERE token_hash = $1 AND revoked_at IS NULL
+         RETURNING user_id`,
+        [tokenHash]
+      );
 
-    const result = await db.query(
-      `UPDATE app_refresh_tokens
-       SET revoked_at = NOW()
-       WHERE token_hash = $1 AND revoked_at IS NULL
-       RETURNING user_id`,
-      [tokenHash]
-    );
-
-    if (result.length > 0) {
-      log.info('[MobileAuth] Refresh token revoked', { userId: result[0].user_id });
+      if (result.length > 0) {
+        log.info('[MobileAuth] Refresh token revoked', { userId: result[0].user_id });
+      }
     }
 
     res.json({

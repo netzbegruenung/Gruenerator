@@ -52,6 +52,18 @@
  *      same code path as web's session cookie — no dual-auth logic in
  *      `requireAuth`.
  *
+ *   5. Mobile logout never invalidated server-side session (branch
+ *      fix/mobile-logout-signout). `POST /auth/mobile/logout` pre-dated
+ *      Better Auth and only knew how to revoke `app_refresh_tokens` rows.
+ *      Post-#657 installs send no `refresh_token` in the body, so the
+ *      route returned 200 without touching anything — the Better Auth
+ *      session token remained valid server-side until natural expiry.
+ *      A stolen device token would keep working after the user tapped
+ *      "Logout", even though local storage was wiped. Fix: the route
+ *      now calls `auth.api.signOut({ headers })` first (the `bearer()`
+ *      plugin accepts the Authorization header), then falls through to
+ *      the legacy body-based revocation for pre-#657 installs.
+ *
  * Run: `pnpm --filter @gruenerator/api test`
  */
 
