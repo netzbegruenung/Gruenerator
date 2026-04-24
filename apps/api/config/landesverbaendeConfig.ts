@@ -30,6 +30,7 @@ export interface ContentPath {
   sitemapUrls?: string[]; // Optional: fetch URLs from sitemaps instead of pagination
   sitemapFilter?: string; // Optional: filter sitemap URLs (e.g., '/presse/')
   staticUrls?: string[]; // Optional: fixed list of URLs to scrape directly (bypasses pagination and sitemap)
+  disableOffPathFilter?: boolean; // Optional: when true, skip the post-discovery filter that requires URLs to share the listing-path prefix. Auto-applied when sitemapUrls is set, since sitemap URLs are already canonical and rarely match the human-facing listing path (e.g. TYPO3 sitemaps emit /news/ while listings live under /nachrichten/).
 }
 
 export interface ContentSelectors {
