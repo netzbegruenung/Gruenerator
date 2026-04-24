@@ -53,6 +53,7 @@ export interface LandesverbandSource {
   qdrantCollection?: string; // Optional: custom collection name (default: landesverbaende_documents)
   maxAgeYears?: number; // Optional: max age of content in years (default: 10)
   notificationEmail?: string; // Optional: email to notify when new articles are indexed
+  dormant?: boolean; // Optional: when true, scrapeAllSources skips this source. Set for sources that no longer publish (e.g. dissolved Fraktionen). Direct scrapeSource(id) calls are unaffected.
 }
 
 export interface LandesverbaendeConfig {
@@ -114,7 +115,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       ],
       contentSelectors: {
         title: ['h1', 'h2.headline', '.page-title', 'meta[property="og:title"]'],
-        date: ['time', '.date', '.publication-date'],
+        date: ['.mb-tiny', 'time', '.date', '.publication-date'],
         content: ['article', '.content-main', '.text-content', 'main'],
         categories: ['a[href*="/themen/"]', '.tags a'],
         author: ['.author', '.written-by'],
@@ -492,6 +493,10 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       baseUrl: 'https://www.gruene-thl.de',
       cms: 'drupal',
       maxAgeYears: 12,
+      // Fraktion dissolved after the 2024-09-01 Landtag election (Greens fell below 5%
+      // and lost all seats). Site is being kept as an archive — last article 2024-09-17.
+      // Skip in scheduled scrapeAllSources runs to stop wasting cycles re-indexing dormant chunks.
+      dormant: true,
       contentPaths: [
         {
           type: 'presse',
