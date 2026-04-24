@@ -65,7 +65,7 @@ function RootLayout() {
     return null;
   }
 
-  const isInAuthFlow = segments[0] === '(auth)';
+  const isInAuthFlow = segments[0] === '(auth)' || segments[0] === 'auth';
 
   if (!user && !isInAuthFlow) {
     return <Redirect href="/(auth)/login" />;
