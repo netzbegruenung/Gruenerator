@@ -151,9 +151,13 @@ export function extractLastJsonObject<T = Record<string, unknown>>(text: string)
  * - Prose wrapping the JSON
  * - Bare newlines in strings
  */
-export function extractJsonObject<T = Record<string, unknown>>(raw: unknown): T | null {
+export function extractJsonObject<T = Record<string, unknown>>(
+  raw: unknown,
+  options?: { silent?: boolean }
+): T | null {
   if (raw == null) return null;
 
+  const silent = options?.silent === true;
   let text = String(raw).trim();
 
   // Remove common Markdown code fences
@@ -196,17 +200,19 @@ export function extractJsonObject<T = Record<string, unknown>>(raw: unknown): T 
       const m = msg.match(/position\s+(\d+)/i);
       const pos = m ? parseInt(m[1], 10) : -1;
 
-      if (pos >= 0) {
-        const start = Math.max(0, pos - 60);
-        const end = Math.min(repaired.length, pos + 60);
-        log.error(
-          '[jsonParser] JSON parse error around position',
-          pos,
-          'context:',
-          repaired.slice(start, end)
-        );
-      } else {
-        log.error('[jsonParser] JSON parse error:', msg);
+      if (!silent) {
+        if (pos >= 0) {
+          const start = Math.max(0, pos - 60);
+          const end = Math.min(repaired.length, pos + 60);
+          log.error(
+            '[jsonParser] JSON parse error around position',
+            pos,
+            'context:',
+            repaired.slice(start, end)
+          );
+        } else {
+          log.error('[jsonParser] JSON parse error:', msg.slice(0, 300));
+        }
       }
       return null;
     }
