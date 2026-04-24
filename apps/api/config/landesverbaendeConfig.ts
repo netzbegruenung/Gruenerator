@@ -326,10 +326,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           type: 'beschluss',
           path: '/beschluesse',
           listSelector: 'h2 a[href], h3 a[href]',
-          paginationPattern: '?tx_xblog_pi1[pointer]={page}',
-          paginationOffset: -1,
-          paginationLinkSelector: '.pagination a',
-          maxPages: 27,
+          // TYPO3 silently ignores tx_xblog_pi1[pointer]: every page returns the
+          // same first ~10 entries, so pagination plateaus and beschluesse stagnate
+          // between LDKs. Discover via the typed sub-sitemap instead — sitemapindex
+          // recursion follows /sitemap.xml into ?sitemap=beschluesse&cHash=… (273
+          // entries, all canonical /beschluesse/<slug>_<id>).
+          sitemapUrls: ['https://gruene.berlin/sitemap.xml'],
+          sitemapFilter: '/beschluesse/',
         },
       ],
       contentSelectors: {
