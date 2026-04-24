@@ -54,6 +54,10 @@ export class ContentExtractor {
       }
     }
 
+    if (publishedAt) {
+      publishedAt = ContentExtractor.normalizeGermanDate(publishedAt);
+    }
+
     // Remove unwanted elements (after title/date extraction)
     $('script, style, noscript, iframe, nav, header, footer').remove();
     $('.navigation, .sidebar, .cookie-banner, .cookie-notice, .popup, .modal').remove();
@@ -119,6 +123,10 @@ export class ContentExtractor {
         publishedAt = el.attr('datetime') || el.text().trim();
         if (publishedAt) break;
       }
+    }
+
+    if (publishedAt) {
+      publishedAt = ContentExtractor.normalizeGermanDate(publishedAt);
     }
 
     // Remove unwanted elements (after title/date extraction)
@@ -236,21 +244,23 @@ export class ContentExtractor {
   static normalizeGermanDate(dateStr: string): string {
     const trimmed = dateStr.trim();
 
-    // DD.MM.YY (e.g., "19.02.26")
-    const shortMatch = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2})$/);
-    if (shortMatch) {
-      const day = shortMatch[1].padStart(2, '0');
-      const month = shortMatch[2].padStart(2, '0');
-      const year = parseInt(shortMatch[3], 10) + 2000;
-      return `${year}-${month}-${day}`;
-    }
-
-    // DD.MM.YYYY (e.g., "19.02.2026")
-    const longMatch = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+    // DD.MM.YYYY (e.g., "19.02.2026"). Try the 4-digit year first so that
+    // "02.04.2026" doesn't get partially matched as DD.MM.YY ("02.04.20").
+    // The (?!\d) lookahead prevents capturing a 4-digit year as a 2-digit one.
+    const longMatch = trimmed.match(/(\d{1,2})\.(\d{1,2})\.(\d{4})(?!\d)/);
     if (longMatch) {
       const day = longMatch[1].padStart(2, '0');
       const month = longMatch[2].padStart(2, '0');
       const year = longMatch[3];
+      return `${year}-${month}-${day}`;
+    }
+
+    // DD.MM.YY (e.g., "19.02.26")
+    const shortMatch = trimmed.match(/(\d{1,2})\.(\d{1,2})\.(\d{2})(?!\d)/);
+    if (shortMatch) {
+      const day = shortMatch[1].padStart(2, '0');
+      const month = shortMatch[2].padStart(2, '0');
+      const year = parseInt(shortMatch[3], 10) + 2000;
       return `${year}-${month}-${day}`;
     }
 
