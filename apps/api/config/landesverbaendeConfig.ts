@@ -76,18 +76,21 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       cms: 'wordpress',
       contentPaths: [
         {
+          // Site relaunched in Dec 2025 and changed permalinks from
+          // /category/pressemitteilung/<slug>/ to /<slug>/. Pre-relaunch URLs
+          // matched the off-path filter; post-relaunch URLs don't, which is why
+          // Qdrant froze at 2025-12-03. Use WP REST API (cat 9) to bypass
+          // HTML-listing discovery entirely.
           type: 'presse',
           path: '/category/pressemitteilung/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
-          paginationPattern: '/page/{page}/',
-          maxPages: 50,
+          wpApi: { categoryId: 9 },
         },
         {
           type: 'beschluss',
           path: '/category/beschluesse/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
-          paginationPattern: '/page/{page}/',
-          maxPages: 20,
+          wpApi: { categoryId: 11 },
         },
       ],
       contentSelectors: {
@@ -138,11 +141,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       maxAgeYears: 5,
       contentPaths: [
         {
+          // Articles publish at /<slug>/ (root permalinks); /presse/ is a virtual
+          // category index. Off-path filter strips every article. Use WP REST API
+          // category 12 = "Pressemitteilungen" (259 posts) instead.
           type: 'presse',
           path: '/presse/',
           listSelector: 'article a[href], h3 a, .elementor-post__title a',
-          paginationPattern: '/page/{page}/',
-          maxPages: 30,
+          wpApi: { categoryId: 12 },
         },
         {
           type: 'beschluss',
@@ -188,18 +193,19 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       maxAgeYears: 5,
       contentPaths: [
         {
+          // Same root-permalink pattern as mv-lv. WP cat 13 = "Pressemitteilung"
+          // (1038 posts — Fraktion publishes ~4× more than the state party).
           type: 'presse',
           path: '/presse/',
           listSelector: 'article a[href], h2 a, h3 a, .wp-block-heading a',
-          paginationPattern: '/page/{page}/',
-          maxPages: 50,
+          wpApi: { categoryId: 13 },
         },
         {
+          // WP cat 4 = "Antrag" (135 posts).
           type: 'antrag',
           path: '/category/antrag/',
           listSelector: 'article a[href], h2 a, h3 a',
-          paginationPattern: '/page/{page}/',
-          maxPages: 30,
+          wpApi: { categoryId: 4 },
         },
       ],
       contentSelectors: {
@@ -474,11 +480,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       maxAgeYears: 12,
       contentPaths: [
         {
+          // Articles at /<slug>/ (root permalinks); /category/service/pressemitteilungen/
+          // is a virtual category index. Off-path filter strips everything. WP cat 243
+          // = "Pressemitteilungen" (471 posts).
           type: 'presse',
           path: '/category/service/pressemitteilungen/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
-          paginationPattern: '/page/{page}/',
-          maxPages: 50,
+          wpApi: { categoryId: 243 },
         },
       ],
       contentSelectors: {
