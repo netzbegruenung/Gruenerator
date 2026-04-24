@@ -272,7 +272,7 @@ jobs:
         id: sync
         continue-on-error: true
         run: |
-          ARGS="--source ${{ inputs.source }}"
+          ARGS="--source ${{ inputs.source || 'landesverbaende' }}"
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
           echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
