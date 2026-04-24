@@ -485,10 +485,16 @@ export class LandesverbandScraper extends BaseScraper {
       sources = getSourcesByLandesverband(landesverband);
     }
 
+    const dormantSources = sources.filter((s) => s.dormant);
+    sources = sources.filter((s) => !s.dormant);
+
     console.log('\n╔═══════════════════════════════════════════════════════════╗');
     console.log('║       Landesverbaende Scraper - Full Crawl                ║');
     console.log('╚═══════════════════════════════════════════════════════════╝\n');
     this.log(`Sources to process: ${sources.length}`);
+    if (dormantSources.length > 0) {
+      this.log(`Dormant sources skipped: ${dormantSources.map((s) => s.id).join(', ')}`);
+    }
     if (sourceType) this.log(`Filter by type: ${sourceType}`);
     if (landesverband) this.log(`Filter by LV: ${landesverband}`);
     if (contentType) this.log(`Filter by content: ${contentType}`);
