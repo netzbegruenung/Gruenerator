@@ -22,7 +22,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "build:android": "EAS_NO_VCS=1 eas build -p android --profile production",
-    "build:android:preview": "EAS_NO_VCS=1 eas build -p android --profile preview"
+    "build:android:preview": "EAS_NO_VCS=1 eas build -p android --profile preview",
+    "eas-build-post-install": "pnpm -w --filter @gruenerator/canvas-editor build:css"
   },
   "dependencies": {
     "@assistant-ui/react-native": "^0.1.11",

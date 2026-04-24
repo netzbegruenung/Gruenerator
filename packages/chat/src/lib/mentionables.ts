@@ -336,8 +336,7 @@ export const toolMentionables: Mentionable[] = [
     backgroundColor: '#059669',
     mention: 'stadtbegruenen',
   },
-  // Dev-only: sharepic creation via canvas editor (gated on Vite dev mode)
-  ...((import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV
+  ...(typeof document !== 'undefined' && process.env.NODE_ENV !== 'production'
     ? [
         {
           type: 'tool' as const,
