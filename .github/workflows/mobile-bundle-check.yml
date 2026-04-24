@@ -1,0 +1,65 @@
+name: Mobile Bundle Check
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - '.github/workflows/mobile-bundle-check.yml'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'package.json'
+      - '.github/workflows/mobile-bundle-check.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bundle:
+    name: Metro bundle (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [android]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build canvas-editor CSS bundle
+        run: pnpm --filter @gruenerator/canvas-editor build:css
+
+      - name: Prebuild native project
+        working-directory: apps/mobile
+        run: pnpm exec expo prebuild --platform ${{ matrix.platform }} --no-install --clean
+
+      - name: Metro bundle
+        working-directory: apps/mobile
+        env:
+          SENTRY_DISABLE_AUTO_UPLOAD: 'true'
+          EXPO_NO_TELEMETRY: '1'
+        run: pnpm exec expo export:embed --eager --platform ${{ matrix.platform }} --dev false
