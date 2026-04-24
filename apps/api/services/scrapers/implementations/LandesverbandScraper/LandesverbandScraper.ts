@@ -286,7 +286,9 @@ export class LandesverbandScraper extends BaseScraper {
           await this.delay(this.crawlDelay);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[Landesverband] ✗ PDF error: ${errorMessage}`);
+          console.error(
+            `[Landesverband] ✗ PDF error in ${source.id} (${pdf.url}): ${errorMessage}`
+          );
           result.errors++;
         }
       }
@@ -406,7 +408,7 @@ export class LandesverbandScraper extends BaseScraper {
           await this.delay(this.crawlDelay);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[Landesverband] ✗ Error: ${errorMessage}`);
+          console.error(`[Landesverband] ✗ Error in ${source.id} (${url}): ${errorMessage}`);
           result.errors++;
         }
       }
