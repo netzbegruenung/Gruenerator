@@ -114,7 +114,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       ],
       contentSelectors: {
         title: ['h1', 'h2.headline', '.page-title', 'meta[property="og:title"]'],
-        date: ['time', '.date', '.publication-date'],
+        date: ['.mb-tiny', 'time', '.date', '.publication-date'],
         content: ['article', '.content-main', '.text-content', 'main'],
         categories: ['a[href*="/themen/"]', '.tags a'],
         author: ['.author', '.written-by'],
