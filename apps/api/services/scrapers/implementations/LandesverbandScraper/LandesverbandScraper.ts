@@ -316,7 +316,17 @@ export class LandesverbandScraper extends BaseScraper {
 
       // Filter: only keep links whose path starts with the content path being scraped.
       // Prevents cross-contamination (e.g., /beschluesse/ links picked up from /nachrichten sidebar).
-      if (contentPath.path && contentPath.path !== '/') {
+      //
+      // Bypass for sitemap-discovered URLs and any path that explicitly opts out:
+      // sitemap URLs are canonical and may not share the listing path's prefix
+      // (e.g. TYPO3 emits /news/<slug> in the sitemap while the listing is /nachrichten),
+      // and WordPress sites with root-permalinks publish at / regardless of the
+      // /category/X listing path used for discovery.
+      const skipOffPathFilter =
+        contentPath.disableOffPathFilter === true ||
+        (contentPath.sitemapUrls !== undefined && contentPath.sitemapUrls.length > 0);
+
+      if (!skipOffPathFilter && contentPath.path && contentPath.path !== '/') {
         const before = articleLinks.length;
         articleLinks = articleLinks.filter((url) => {
           try {
