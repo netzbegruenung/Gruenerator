@@ -34,6 +34,7 @@ import { BaseScraper } from '../../base/BaseScraper.js';
 import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
 import { LinkExtractor } from './extractors/LinkExtractor.js';
+import { WpApiExtractor } from './extractors/WpApiExtractor.js';
 import { SearchOperations } from './operations/SearchOperations.js';
 import { DocumentProcessor } from './processors/DocumentProcessor.js';
 
@@ -56,6 +57,7 @@ export class LandesverbandScraper extends BaseScraper {
   private searchOps!: SearchOperations;
   private documentProcessor!: DocumentProcessor;
   private linkExtractor!: LinkExtractor;
+  private wpApiExtractor!: WpApiExtractor;
 
   private crawlDelay: number;
   private batchSize: number;
@@ -103,6 +105,7 @@ export class LandesverbandScraper extends BaseScraper {
       this.#shouldExcludeUrl.bind(this),
       this.delay.bind(this)
     );
+    this.wpApiExtractor = new WpApiExtractor(this.#fetchUrl.bind(this), this.delay.bind(this));
 
     this.log('Service initialized');
   }
@@ -299,6 +302,15 @@ export class LandesverbandScraper extends BaseScraper {
       if (contentPath.staticUrls && contentPath.staticUrls.length > 0) {
         this.log(`Using ${contentPath.staticUrls.length} static URLs for ${contentPath.type}`);
         articleLinks = contentPath.staticUrls;
+      } else if (contentPath.wpApi) {
+        this.log(
+          `Using WordPress REST API discovery (category ${contentPath.wpApi.categoryId}) for ${contentPath.type}`
+        );
+        articleLinks = await this.wpApiExtractor.extractArticleLinks(
+          source,
+          contentPath,
+          this.log.bind(this)
+        );
       } else if (contentPath.sitemapUrls && contentPath.sitemapUrls.length > 0) {
         this.log(`Using sitemap extraction for ${contentPath.type}`);
         articleLinks = await this.linkExtractor.extractLinksFromSitemaps(
@@ -324,7 +336,8 @@ export class LandesverbandScraper extends BaseScraper {
       // /category/X listing path used for discovery.
       const skipOffPathFilter =
         contentPath.disableOffPathFilter === true ||
-        (contentPath.sitemapUrls !== undefined && contentPath.sitemapUrls.length > 0);
+        (contentPath.sitemapUrls !== undefined && contentPath.sitemapUrls.length > 0) ||
+        contentPath.wpApi !== undefined;
 
       if (!skipOffPathFilter && contentPath.path && contentPath.path !== '/') {
         const before = articleLinks.length;
