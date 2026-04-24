@@ -187,13 +187,16 @@ export class LinkExtractor {
           }
         }
 
-        // Leaf sitemap: collect article URLs.
+        // Leaf sitemap: collect article URLs. Pipe through normalizeUrl so any
+        // injected canonicalization (e.g. TYPO3 alias rewrites in the parent
+        // scraper) applies before dedup and filter, and so the resulting URLs
+        // match what would be discovered via HTML listings.
         $('url > loc').each((_, el) => {
-          const url = $(el).text().trim();
-          if (url) {
-            if (filter && !url.includes(filter)) return;
-            links.add(url);
-          }
+          const rawUrl = $(el).text().trim();
+          if (!rawUrl) return;
+          const url = this.normalizeUrl(rawUrl, '') ?? rawUrl;
+          if (filter && !url.includes(filter)) return;
+          links.add(url);
         });
 
         log?.(
