@@ -30,7 +30,8 @@ export interface ContentPath {
   sitemapUrls?: string[]; // Optional: fetch URLs from sitemaps instead of pagination
   sitemapFilter?: string; // Optional: filter sitemap URLs (e.g., '/presse/')
   staticUrls?: string[]; // Optional: fixed list of URLs to scrape directly (bypasses pagination and sitemap)
-  disableOffPathFilter?: boolean; // Optional: when true, skip the post-discovery filter that requires URLs to share the listing-path prefix. Auto-applied when sitemapUrls is set, since sitemap URLs are already canonical and rarely match the human-facing listing path (e.g. TYPO3 sitemaps emit /news/ while listings live under /nachrichten/).
+  disableOffPathFilter?: boolean; // Optional: when true, skip the post-discovery filter that requires URLs to share the listing-path prefix. Auto-applied when sitemapUrls or wpApi is set, since both yield canonical URLs that rarely match the human-facing listing path (e.g. TYPO3 sitemaps emit /news/ while listings live under /nachrichten/; WP root-permalinks publish at /<slug>/ regardless of the /category/X listing seed).
+  wpApi?: { categoryId: number; maxPages?: number }; // Optional: discover articles via WordPress REST API (/wp-json/wp/v2/posts?categories=…). Bypasses HTML-listing pagination entirely; required for WP sites with root-permalink structure where /category/X/ is a virtual index.
 }
 
 export interface ContentSelectors {
