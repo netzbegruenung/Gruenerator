@@ -290,10 +290,15 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           type: 'presse',
           path: '/nachrichten',
           listSelector: 'h2 a[href], h3 a[href]',
-          paginationPattern: '?tx_xblog_pi1[pointer]={page}',
-          paginationOffset: -1,
-          paginationLinkSelector: '.pagination a',
-          maxPages: 62,
+          // Same TYPO3 pagination defect as berlin-lv-beschluesse: tx_xblog_pi1[pointer]
+          // is silently ignored upstream, so the listing only ever yields the rolling-10
+          // newest. Cross-checked against the news sub-sitemap (1000 entries) and found 2
+          // of the latest 5 articles missing from Qdrant — the rolling window doesn't keep
+          // up with publish cadence between hourly runs. Switch to typed sub-sitemap
+          // discovery; #normalizeUrl rewrites the canonical /news/ URLs back to the
+          // /nachrichten/ alias so URL-based dedup matches the 190 existing Qdrant points.
+          sitemapUrls: ['https://gruene.berlin/sitemap.xml'],
+          sitemapFilter: '/nachrichten/',
         },
       ],
       contentSelectors: {
