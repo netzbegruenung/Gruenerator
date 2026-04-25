@@ -1,3 +1,12 @@
+import type {
+  KeywordEntry as NlpKeywordEntry,
+  NlpClassificationResult as NlpClassificationResultBase,
+  NounCount,
+  EmotionScores,
+} from '../nlp/types.js';
+
+export type { NounCount, EmotionScores } from '../nlp/types.js';
+
 export type TopicCategory =
   | 'migration'
   | 'klima'
@@ -52,11 +61,7 @@ export interface MonitorArticle {
   erSentiment?: number | undefined;
 }
 
-export interface KeywordEntry {
-  keyword: string;
-  count: number;
-  topic: TopicCategory | null;
-}
+export type KeywordEntry = NlpKeywordEntry<TopicCategory | null>;
 
 export interface SocialTrend {
   rank: number;
@@ -73,16 +78,6 @@ export interface MonitorSnapshot {
   totalArticles: number;
   sources: string[];
   articlesByLocale: { de: number; at: number };
-}
-
-export interface EmotionScores {
-  angst?: number | undefined;
-  wut?: number | undefined;
-  hoffnung?: number | undefined;
-  enttaeuschung?: number | undefined;
-  vertrauen?: number | undefined;
-  solidaritaet?: number | undefined;
-  stolz?: number | undefined;
 }
 
 export const EMOTION_NAMES: Record<string, string> = {
@@ -111,11 +106,6 @@ export const TOPIC_NAMES: Record<string, string> = {
   mobilitaet: 'Mobilität',
 };
 
-export interface NounCount {
-  noun: string;
-  count: number;
-}
-
 // --- Meinungsbild (GERDA MRP estimates) ---
 
 export interface MeinungsbildIssue {
@@ -139,10 +129,4 @@ export interface MeinungsbildData {
   fetchedAt: string;
 }
 
-export interface NlpClassificationResult {
-  id: string;
-  topics: Partial<Record<TopicCategory, number>>;
-  primaryTopic: TopicCategory | null;
-  topNouns: NounCount[];
-  emotionScores: EmotionScores;
-}
+export type NlpClassificationResult = NlpClassificationResultBase<TopicCategory>;
