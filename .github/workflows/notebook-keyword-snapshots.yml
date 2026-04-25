@@ -1,0 +1,99 @@
+name: Monthly Notebook Keyword Snapshots
+
+on:
+  schedule:
+    - cron: '0 3 1 * *' # 1st of each month at 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      collection_id:
+        description: 'Single collection ID to refresh (empty = all)'
+        required: false
+        type: string
+      month:
+        description: 'Override month (YYYY-MM, empty = current month)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: notebook-keyword-snapshots
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Refresh keyword snapshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      API_URL: ${{ vars.NOTEBOOK_API_URL || 'https://gruenerator.eu' }}
+    steps:
+      - name: Build request payload
+        id: payload
+        run: |
+          PAYLOAD='{}'
+          if [ -n "${{ inputs.collection_id }}" ]; then
+            PAYLOAD=$(jq -n --arg id "${{ inputs.collection_id }}" '{collectionId: $id}')
+          fi
+          if [ -n "${{ inputs.month }}" ]; then
+            PAYLOAD=$(echo "$PAYLOAD" | jq --arg m "${{ inputs.month }}" '. + {month: $m}')
+          fi
+          echo "payload=$PAYLOAD" >> "$GITHUB_OUTPUT"
+          echo "Payload: $PAYLOAD"
+
+      - name: Trigger snapshot refresh
+        id: refresh
+        continue-on-error: true
+        run: |
+          echo "POST $API_URL/api/internal/notebook/refresh-keywords"
+          RESULT=$(curl -sfS -X POST "$API_URL/api/internal/notebook/refresh-keywords" \
+            -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '${{ steps.payload.outputs.payload }}' \
+            --max-time 3000)
+
+          echo "$RESULT" | jq .
+          echo "result<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$RESULT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Generate summary
+        if: always()
+        run: |
+          RESULT='${{ steps.refresh.outputs.result }}'
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ -z "$RESULT" ] || [ "$RESULT" = "" ]; then
+            {
+              echo "## :x: Snapshot Refresh — No Result"
+              echo ""
+              echo "Service did not return a result. Check [workflow logs]($RUN_URL)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          COUNT=$(echo "$RESULT" | jq -r '.count // (.results | length)')
+          SUCCESS=$(echo "$RESULT" | jq -r '.success')
+
+          if [ "$SUCCESS" = "true" ]; then
+            ICON=":white_check_mark:"
+          else
+            ICON=":x:"
+          fi
+
+          {
+            echo "## $ICON Notebook Keyword Snapshots"
+            echo ""
+            echo "**Date:** $(date -u '+%d.%m.%Y %H:%M UTC')"
+            echo "**Run:** [${{ github.run_id }}]($RUN_URL)"
+            echo "**Collections refreshed:** $COUNT"
+            echo ""
+            echo "| Collection | Keywords | Sample | Total docs | Duration (ms) |"
+            echo "|------------|---------:|-------:|-----------:|--------------:|"
+            echo "$RESULT" | jq -r '.results[] | "| \(.collectionId) | \(.keywordCount) | \(.sampleSize) | \(.totalDocuments) | \(.durationMs) |"'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if refresh errored
+        if: steps.refresh.outcome == 'failure'
+        run: exit 1

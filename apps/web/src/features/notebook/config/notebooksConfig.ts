@@ -33,7 +33,7 @@ export interface NotebookConfigEntry {
 const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
   {
     id: 'gruenerator-notebook',
-    path: '/gruenerator-notebook',
+    path: '/notebooks',
     title: 'Grünerator',
     description: 'Durchsucht automatisch mehrere Quellen parallel und kombiniert die Ergebnisse.',
     meta: 'Mehrere Quellen',
@@ -44,7 +44,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
   },
   {
     id: 'gruene-notebook',
-    path: '/gruene-notebook',
+    path: '/notebooks/grundsatz',
     title: 'Bundesverband',
     description: 'Durchsuchbar sind die offiziellen Grundsatzprogramme von Bündnis 90/Die Grünen.',
     meta: '3 Programme',
@@ -55,7 +55,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
   },
   {
     id: 'bundestagsfraktion-notebook',
-    path: '/gruene-bundestag',
+    path: '/notebooks/bundestagsfraktion',
     title: 'Bundestagsfraktion',
     description:
       'Durchsuchbar sind die offiziellen Inhalte von gruene-bundestag.de – Fachtexte, politische Ziele und einfache Erklärungen.',
@@ -67,7 +67,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
   },
   {
     id: 'hamburg-notebook',
-    path: '/gruene-hamburg',
+    path: '/notebooks/hamburg',
     title: 'Hamburg',
     description: 'Durchsuchbar sind Beschlüsse und Pressemitteilungen der Grünen Hamburg.',
     meta: 'Archiv',
@@ -78,7 +78,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
   },
   {
     id: 'schleswig-holstein-notebook',
-    path: '/gruene-schleswig-holstein',
+    path: '/notebooks/schleswig-holstein',
     title: 'Schleswig-Holstein',
     description:
       'Durchsuchbar ist das Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl.',
@@ -90,7 +90,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
   },
   {
     id: 'thueringen-notebook',
-    path: '/gruene-thueringen',
+    path: '/notebooks/thueringen',
     title: 'Thüringen',
     description:
       'Durchsuchbar sind Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen.',
@@ -102,7 +102,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
   },
   {
     id: 'berlin-notebook',
-    path: '/gruene-berlin',
+    path: '/notebooks/berlin',
     title: 'Berlin',
     description:
       'Durchsuchbar sind Wahlprogramm 2026, Pressemitteilungen und Beschlüsse der Grünen Berlin.',
@@ -114,7 +114,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
   },
   {
     id: 'mecklenburg-vorpommern-notebook',
-    path: '/gruene-mecklenburg-vorpommern',
+    path: '/notebooks/mecklenburg-vorpommern',
     title: 'Mecklenburg-Vorpommern',
     description:
       'Durchsuchbar sind Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern.',
@@ -126,7 +126,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
   },
   {
     id: 'brandenburg-notebook',
-    path: '/gruene-brandenburg',
+    path: '/notebooks/brandenburg',
     title: 'Brandenburg',
     description:
       'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Landtagswahlprogramm 2024 der Grünen Brandenburg.',
@@ -138,7 +138,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
   },
   {
     id: 'oesterreich-notebook',
-    path: '/gruene-oesterreich',
+    path: '/notebooks/oesterreich',
     title: 'Die Grünen Österreich',
     description:
       'Durchsuchbar sind die offiziellen Programme von Die Grünen – Die Grüne Alternative Österreich.',
@@ -150,7 +150,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
   },
   {
     id: 'kommunalwiki-notebook',
-    path: '/kommunalwiki',
+    path: '/notebooks/kommunalwiki',
     title: 'KommunalWiki',
     description:
       'Fachwissen zur Kommunalpolitik – durchsuchbar über das KommunalWiki der Heinrich-Böll-Stiftung.',
@@ -162,7 +162,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
   },
   {
     id: 'gruenblog-notebook',
-    path: '/gruenblog',
+    path: '/notebooks/gruenblog',
     title: 'Grünblog',
     description: 'Durchsuchbar sind die Artikel des Grünblogs – dem Onlinemagazin der Grünen.',
     meta: 'Magazin',
@@ -176,7 +176,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
 const DEV_ONLY_NOTEBOOKS: NotebookConfigEntry[] = [
   {
     id: 'bayern-notebook',
-    path: '/gruene-bayern',
+    path: '/notebooks/bayern',
     title: 'Bayern',
     description: 'Durchsuchbar ist das Regierungsprogramm der Grünen Bayern zur Landtagswahl.',
     meta: '1 Programm',
@@ -187,7 +187,7 @@ const DEV_ONLY_NOTEBOOKS: NotebookConfigEntry[] = [
   },
   {
     id: 'boell-stiftung-notebook',
-    path: '/boell-stiftung',
+    path: '/notebooks/boell-stiftung',
     title: 'Heinrich-Böll-Stiftung',
     description: 'Durchsuchbar sind Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung.',
     meta: 'Publikationen',
