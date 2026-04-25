@@ -1,12 +1,7 @@
 import { Skeleton, WordCloud, cn, type WordCloudItem } from '@gruenerator/ui';
 
 import { TOPIC_CONFIG, type TopicCategory } from '../../monitor/topicConfig';
-import {
-  useNotebookStats,
-  type FacetBucket,
-  type MonthBucket,
-  type TopicCount,
-} from '../hooks/useNotebookStats';
+import { useNotebookStats, type TopicCount } from '../hooks/useNotebookStats';
 
 import type { ReactNode } from 'react';
 
@@ -56,50 +51,6 @@ function formatDateRange(range: { min: string | null; max: string | null }): str
   return `${fmt(range.min)} – ${fmt(range.max)}`;
 }
 
-function humanLabel(value: string): string {
-  if (!value) return 'Unbekannt';
-  const withSpaces = value.replace(/[_-]+/g, ' ');
-  return withSpaces.charAt(0).toUpperCase() + withSpaces.slice(1);
-}
-
-function CategoryBars({ title, data }: { title: string; data: FacetBucket[] }) {
-  if (data.length === 0) {
-    return (
-      <div className={cardClass}>
-        <span className="text-xs text-grey-500 dark:text-grey-400">{title}</span>
-        <p className="mt-sm text-sm text-grey-400">Keine Daten</p>
-      </div>
-    );
-  }
-
-  const max = Math.max(...data.map((d) => d.count));
-
-  return (
-    <div className={cardClass}>
-      <span className="mb-sm text-xs text-grey-500 dark:text-grey-400">{title}</span>
-      <ul className="flex flex-col gap-xs">
-        {data.map((d) => {
-          const pct = max > 0 ? (d.count / max) * 100 : 0;
-          return (
-            <li key={d.value} className="flex flex-col gap-0.5">
-              <div className="flex items-center justify-between text-sm text-foreground">
-                <span className="truncate">{humanLabel(d.value)}</span>
-                <span className="tabular-nums text-grey-500 dark:text-grey-400">{d.count}</span>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-grey-100 dark:bg-grey-800">
-                <div
-                  className="h-full rounded-full bg-secondary-600"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
 function TopicDistribution({ data, sampleSize }: { data: TopicCount[]; sampleSize: number }) {
   const known = data.filter(
     (d): d is { topic: TopicCategory; count: number } => d.topic in TOPIC_CONFIG
@@ -145,60 +96,6 @@ function TopicDistribution({ data, sampleSize }: { data: TopicCount[]; sampleSiz
   );
 }
 
-function MonthlySparkline({ data }: { data: MonthBucket[] }) {
-  if (data.length === 0) {
-    return (
-      <div className={cardClass}>
-        <span className="text-xs text-grey-500 dark:text-grey-400">Aktivität (12 Monate)</span>
-        <p className="mt-sm text-sm text-grey-400">Keine Daten</p>
-      </div>
-    );
-  }
-
-  const max = Math.max(1, ...data.map((d) => d.count));
-  const total = data.reduce((sum, d) => sum + d.count, 0);
-
-  return (
-    <div className={cardClass}>
-      <div className="mb-sm flex items-baseline justify-between">
-        <span className="text-xs text-grey-500 dark:text-grey-400">Aktivität (12 Monate)</span>
-        <span className="text-xs tabular-nums text-grey-500 dark:text-grey-400">
-          {total} Dokumente
-        </span>
-      </div>
-      <div className="flex h-24 items-stretch gap-1">
-        {data.map((d) => {
-          const pct = (d.count / max) * 100;
-          const [year, month] = d.month.split('-');
-          const label = `${MONTH_LABELS[Number(month) - 1] ?? '?'} ${year?.slice(2) ?? ''}`;
-          return (
-            <div
-              key={d.month}
-              className="flex flex-1 flex-col justify-end"
-              title={`${label}: ${d.count}`}
-            >
-              <div
-                className="w-full rounded-sm bg-secondary-600/80"
-                style={{ height: `${Math.max(pct, d.count > 0 ? 4 : 0)}%` }}
-              />
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-1 flex gap-1 text-[10px] text-grey-400">
-        {data.map((d) => {
-          const month = Number(d.month.split('-')[1]);
-          return (
-            <span key={d.month} className="flex-1 truncate text-center">
-              {MONTH_LABELS[month - 1]?.charAt(0) ?? ''}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function Loading() {
   return (
     <div className="flex flex-col gap-lg">
@@ -210,10 +107,7 @@ function Loading() {
           </div>
         ))}
       </div>
-      <div className="grid gap-lg grid-cols-2 max-lg:grid-cols-1">
-        <Skeleton className="h-40 w-full rounded-md" />
-        <Skeleton className="h-40 w-full rounded-md" />
-      </div>
+      <Skeleton className="h-40 w-full rounded-md" />
     </div>
   );
 }
@@ -257,14 +151,6 @@ export function StatisticsSection({
             <StatCard label="Quellen" value={stats.sourceDistribution.length} />
             <StatCard label="Zeitraum" value={formatDateRange(stats.dateRange)} />
           </div>
-
-          {/* Hidden for now — Kategorien-Bars + Monatsaktivität.
-              Topic ranking covers similar ground until the visualization is reworked.
-          <div className="grid gap-lg grid-cols-2 max-lg:grid-cols-1">
-            <CategoryBars title="Kategorien" data={stats.categoryDistribution} />
-            <MonthlySparkline data={stats.monthlyActivity} />
-          </div>
-          */}
 
           {stats.topicDistribution.length > 0 && (
             <TopicDistribution data={stats.topicDistribution} sampleSize={stats.topicSampleSize} />
