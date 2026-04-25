@@ -99,8 +99,8 @@ function TopicDistribution({ data, sampleSize }: { data: TopicCount[]; sampleSiz
 function Loading() {
   return (
     <div className="flex flex-col gap-lg">
-      <div className="grid gap-sm grid-cols-4 max-md:grid-cols-2">
-        {Array.from({ length: 4 }).map((_, i) => (
+      <div className="grid gap-sm grid-cols-2">
+        {Array.from({ length: 2 }).map((_, i) => (
           <div key={i} className={cardClass}>
             <Skeleton className="h-3 w-16" />
             <Skeleton className="h-6 w-12" />
@@ -145,10 +145,8 @@ export function StatisticsSection({
         <Loading />
       ) : (
         <div className="flex flex-col gap-lg">
-          <div className="grid gap-sm grid-cols-4 max-md:grid-cols-2">
+          <div className="grid gap-sm grid-cols-2">
             <StatCard label="Dokumente" value={stats.totalDocuments.toLocaleString('de-DE')} />
-            <StatCard label="Kategorien" value={stats.categoryDistribution.length} />
-            <StatCard label="Quellen" value={stats.sourceDistribution.length} />
             <StatCard label="Zeitraum" value={formatDateRange(stats.dateRange)} />
           </div>
 
