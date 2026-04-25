@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import redisClient from '../../utils/redis/client.js';
 
@@ -169,45 +170,79 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
   // Store articles in normalized table + snapshot aggregates
   await Promise.all([upsertArticles(allArticles), saveSnapshotAggregates(snapshot)]);
 
-  // Cache snapshot in Redis
+  // Cache snapshot in Redis. Non-fatal: DB still has canonical data, but a
+  // failure here means /monitor/latest pays the rebuild cost on every request.
   try {
     await redisClient.set(REDIS_SNAPSHOT_KEY, JSON.stringify(snapshot), { EX: REDIS_TTL_SECONDS });
   } catch (error) {
-    log.error(`Failed to cache snapshot in Redis: ${error}`);
+    log.error(`Failed to cache snapshot in Redis: ${toError(error).message}`);
   }
 
-  // Warm all caches in background (fire-and-forget)
+  const warmTasks: Array<{ name: string; run: () => Promise<unknown> }> = [];
+
   if (keywords.length > 0) {
     for (const locale of ['de', 'at'] as const) {
-      generateKeywordInsights(keywords, locale).catch((err) =>
-        log.warn(`Background keyword-insights warm (${locale}) failed: ${err}`)
-      );
+      warmTasks.push({
+        name: `keyword-insights:${locale}`,
+        run: () => generateKeywordInsights(keywords, locale),
+      });
     }
   }
 
   for (const locale of ['de', 'at'] as const) {
-    getStimmung(locale).catch((err) =>
-      log.warn(`Background stimmung warm (${locale}) failed: ${err}`)
-    );
+    warmTasks.push({ name: `stimmung:${locale}`, run: () => getStimmung(locale) });
   }
 
-  getPolls().catch((err) => log.warn(`Background polls warm failed: ${err}`));
+  warmTasks.push({ name: 'polls', run: () => getPolls() });
 
   for (const locale of ['de', 'at'] as const) {
-    Promise.all([getLatestSnapshot(locale), getStimmung(locale), getPolls()])
-      .then(([snap, stimmung, polls]) => {
-        if (snap) return generateMonitorBriefing(locale, snap, stimmung, polls?.average ?? {});
-      })
-      .catch((err) => log.warn(`Background briefing warm (${locale}) failed: ${err}`));
+    warmTasks.push({
+      name: `briefing:${locale}`,
+      run: async () => {
+        const [snap, stimmung, polls] = await Promise.all([
+          getLatestSnapshot(locale),
+          getStimmung(locale),
+          getPolls(),
+        ]);
+        if (!snap) throw new Error('no snapshot available');
+        return generateMonitorBriefing(locale, snap, stimmung, polls?.average ?? {});
+      },
+    });
   }
 
   for (const entity of WATCHER_ENTITIES) {
-    searchArticlesByKeywords(entity.keywords, entity.locale, 50, entity.excludePatterns)
-      .then((articles) => getEntitySummary(entity, articles, entity.locale))
-      .catch((err) =>
-        log.warn(`Background entity summary warm (${entity.id}/${entity.locale}) failed: ${err}`)
-      );
+    warmTasks.push({
+      name: `entity-summary:${entity.id}/${entity.locale}`,
+      run: async () => {
+        const articles = await searchArticlesByKeywords(
+          entity.keywords,
+          entity.locale,
+          50,
+          entity.excludePatterns
+        );
+        return getEntitySummary(entity, articles, entity.locale);
+      },
+    });
   }
+
+  // Run warmers in parallel, but don't block the refresh response. Aggregate
+  // failures into a single structured ERROR so a single watch on logs catches
+  // any background regression instead of 13 independent WARN lines.
+  void Promise.allSettled(warmTasks.map((t) => t.run())).then((results) => {
+    const failures = results
+      .map((r, i) => (r.status === 'rejected' ? { name: warmTasks[i].name, reason: r.reason } : null))
+      .filter((x): x is { name: string; reason: unknown } => x !== null);
+
+    if (failures.length === 0) {
+      log.info(`Background warm: ${warmTasks.length}/${warmTasks.length} succeeded`);
+      return;
+    }
+
+    const detail = failures.map((f) => `${f.name}: ${toError(f.reason).message}`).join('; ');
+    log.error(
+      `Background warm: ${failures.length}/${warmTasks.length} failed — ${detail}`
+    );
+  });
 
   const durationMs = Date.now() - startTime;
   log.info(
@@ -298,7 +333,8 @@ async function upsertArticles(articles: MonitorArticle[]): Promise<void> {
 
     log.info(`Upserted ${articles.length} articles into monitor_articles`);
   } catch (error) {
-    log.error(`Failed to upsert articles: ${error}`);
+    log.error(`Failed to upsert articles: ${toError(error).message}`);
+    throw error;
   }
 }
 
@@ -318,7 +354,8 @@ async function saveSnapshotAggregates(snapshot: MonitorSnapshot): Promise<void> 
       ]
     );
   } catch (error) {
-    log.error(`Failed to save snapshot: ${error}`);
+    log.error(`Failed to save snapshot: ${toError(error).message}`);
+    throw error;
   }
 }
 
@@ -330,8 +367,8 @@ export async function getLatestSnapshot(locale?: MonitorLocale): Promise<Monitor
     try {
       const cached = await redisClient.get(REDIS_SNAPSHOT_KEY);
       if (cached) return JSON.parse(cached) as MonitorSnapshot;
-    } catch {
-      // Fall through
+    } catch (error) {
+      log.warn(`Redis snapshot read failed, falling back to DB: ${toError(error).message}`);
     }
   }
 
@@ -367,8 +404,8 @@ export async function getLatestSnapshot(locale?: MonitorLocale): Promise<Monitor
         if (loc === 'de') snapshot.articlesByLocale.de = cnt;
         if (loc === 'at') snapshot.articlesByLocale.at = cnt;
       }
-    } catch {
-      // Non-critical
+    } catch (error) {
+      log.warn(`Failed to load locale article counts: ${toError(error).message}`);
     }
 
     if (locale) {
@@ -397,13 +434,13 @@ export async function getLatestSnapshot(locale?: MonitorLocale): Promise<Monitor
       await redisClient.set(REDIS_SNAPSHOT_KEY, JSON.stringify(snapshot), {
         EX: REDIS_TTL_SECONDS,
       });
-    } catch {
-      // Ignore
+    } catch (error) {
+      log.warn(`Failed to repopulate Redis snapshot cache: ${toError(error).message}`);
     }
 
     return snapshot;
   } catch (error) {
-    log.error(`Failed to fetch snapshot: ${error}`);
+    log.error(`Failed to fetch snapshot: ${toError(error).message}`);
     return null;
   }
 }
@@ -425,8 +462,8 @@ export async function getStimmung(locale?: MonitorLocale): Promise<StimmungResul
   try {
     const cached = await redisClient.get(stimmungCacheKey);
     if (cached) return JSON.parse(cached) as StimmungResult;
-  } catch {
-    // Fall through to DB
+  } catch (error) {
+    log.warn(`Redis stimmung read failed, falling back to DB: ${toError(error).message}`);
   }
 
   try {
@@ -539,13 +576,13 @@ export async function getStimmung(locale?: MonitorLocale): Promise<StimmungResul
 
     try {
       await redisClient.set(stimmungCacheKey, JSON.stringify(result), { EX: REDIS_TTL_SECONDS });
-    } catch {
-      // Non-critical
+    } catch (error) {
+      log.warn(`Failed to cache stimmung in Redis: ${toError(error).message}`);
     }
 
     return result;
   } catch (error) {
-    log.error(`Failed to get stimmung: ${error}`);
+    log.error(`Failed to get stimmung: ${toError(error).message}`);
     return { overall: {}, byTopic: [], bySource: [], byKeyword: [], dominantEmotion: null };
   }
 }
