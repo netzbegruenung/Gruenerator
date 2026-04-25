@@ -72,7 +72,7 @@ const DEV_BYPASS_USER: Express.User = {
  * the schema expects a number) throws ZodError at parse time instead of
  * cascading as `undefined` through the render tree.
  */
-function toBetterAuthUser(user: BetterAuthUser): UserProfile {
+export function toBetterAuthUser(user: BetterAuthUser): UserProfile {
   const nullStripped = Object.fromEntries(
     Object.entries(user).map(([k, v]) => [k, v === null ? undefined : v])
   );
