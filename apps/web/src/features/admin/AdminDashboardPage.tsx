@@ -38,12 +38,13 @@ const TABS: { key: StatusTab; label: string }[] = [
 
 const AdminDashboardPage = () => {
   const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.is_admin === true;
   const [activeTab, setActiveTab] = useState<StatusTab>('pending_review');
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  const { data: stats } = useVorlagenStats();
-  const { data: vorlagen, isLoading } = useAdminVorlagen(activeTab);
+  const { data: stats } = useVorlagenStats(isAdmin);
+  const { data: vorlagen, isLoading } = useAdminVorlagen(activeTab, isAdmin);
   const approveMutation = useApproveVorlage();
   const rejectMutation = useRejectVorlage();
 
@@ -56,7 +57,7 @@ const AdminDashboardPage = () => {
     );
   };
 
-  if (!user?.is_admin) {
+  if (!isAdmin) {
     return (
       <PageContainer maxWidth="md">
         <div className="flex flex-col items-center justify-center gap-md py-xl text-center">
