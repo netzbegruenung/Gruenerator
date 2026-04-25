@@ -755,16 +755,6 @@ export class LandesverbandScraper extends BaseScraper {
       const parsed = new URL(absolute);
       parsed.hash = '';
       parsed.searchParams.delete('tmstv');
-
-      // gruene.berlin TYPO3 alias: the SEO sitemap emits canonical /news/<slug>_<id>
-      // URLs while the human-facing listing and existing Qdrant data both use
-      // /nachrichten/<slug>_<id>. Both routes resolve to the same article. Normalize
-      // sitemap-discovered URLs to the /nachrichten/ form so URL-based dedup matches
-      // already-indexed points instead of creating duplicates.
-      if (parsed.hostname === 'gruene.berlin' && parsed.pathname.startsWith('/news/')) {
-        parsed.pathname = '/nachrichten/' + parsed.pathname.slice('/news/'.length);
-      }
-
       const search = parsed.searchParams.toString();
       return parsed.origin + parsed.pathname + (search ? '?' + search : '');
     } catch {
