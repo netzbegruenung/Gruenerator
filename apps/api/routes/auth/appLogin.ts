@@ -125,7 +125,7 @@ router.get('/login', loginLimiter, async (req: AuthRequest, res: Response): Prom
       await storeAppLoginState(stateNonce, { redirectTo });
     }
 
-    const callbackURL = redirectTo ? `/api/auth/app-callback?state=${stateNonce}` : '/desk';
+    const callbackURL = redirectTo ? `/api/auth/app-callback?state=${stateNonce}` : '/workplace';
 
     log.info(
       '[AppLogin] Initiating OAuth: source=%s, providerId=%s, callbackURL=%s, redirectTo=%s',
