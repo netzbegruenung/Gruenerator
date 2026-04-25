@@ -27,6 +27,7 @@ import {
   transferContract,
   notificationsContract,
   adminVorlagenContract,
+  authStatusContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 
@@ -131,6 +132,7 @@ const _wordpressClient = () => initClient(wordpressContract, CLIENT_OPTS);
 const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
+const _authStatusClient = () => initClient(authStatusContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -143,6 +145,7 @@ export interface ContractsClient {
   transfer: ReturnType<typeof _transferClient>;
   notifications: ReturnType<typeof _notificationsClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
+  authStatus: ReturnType<typeof _authStatusClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -172,6 +175,7 @@ export function getContractsClient(): ContractsClient {
     transfer: _transferClient(),
     notifications: _notificationsClient(),
     adminVorlagen: _adminVorlagenClient(),
+    authStatus: _authStatusClient(),
   };
 
   return _client;
