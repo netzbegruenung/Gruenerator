@@ -222,6 +222,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   const {
     collectionsRouter: notebookCollectionsRouter,
     interactionRouter: notebookInteractionRouter,
+    recentDocumentsRouter: notebookRecentDocumentsRouter,
+    statisticsRouter: notebookStatisticsRouter,
+    internalNotebookRouter,
   } = await import('./routes/notebook/index.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { default: connectionsRouter } =
@@ -286,6 +289,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // the prefix, which would break the public/:token routes).
   mountNotebookContractRouter(app);
   app.use('/api/auth/notebook', authenticatedReadLimiter, notebookInteractionRouter);
+  app.use('/api/auth/notebook', authenticatedReadLimiter, notebookRecentDocumentsRouter);
+  app.use('/api/auth/notebook', authenticatedReadLimiter, notebookStatisticsRouter);
   // ts-rest contract router for /api/documents — mounts BEFORE the legacy documentsRouter
   // so ts-rest matches its own routes first; unmatched paths fall through.
   // requireAuth is applied at the prefix because all 3 contract routes require auth.
@@ -543,6 +548,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/internal/offboarding', offboardingRouter);
   app.use('/api/internal/gruene-api', grueneApiTestRouter);
   app.use('/api/internal/monitor', monitorInternalRouter);
+  app.use('/api/internal/notebook', internalNotebookRouter);
   app.use('/api/internal/content-sync', contentSyncRouter);
   app.use('/api/monitor', requireAuth, publicReadLimiter, monitorRouter);
 
