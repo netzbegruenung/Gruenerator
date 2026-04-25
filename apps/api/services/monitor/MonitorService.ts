@@ -4,12 +4,12 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 import redisClient from '../../utils/redis/client.js';
+import { classifyArticles } from '../nlp/nlpClient.js';
 
 import { generateKeywordInsights } from './KeywordInsightsGraph.js';
 import { generateMonitorBriefing } from './MonitorBriefingGraph.js';
 import { collectArticles } from './MonitorCollectorService.js';
 import { getEntitySummary } from './MonitorSummaryService.js';
-import { classifyArticles } from './NlpClientService.js';
 import { getPolls } from './PollScraper.js';
 import { scrapeTwitterTrends } from './TwitterTrendsScraper.js';
 import { TOPIC_CATEGORIES } from './types.js';
@@ -107,7 +107,7 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
   }));
 
   const [classifications, socialTrends] = await Promise.all([
-    classifyArticles(nlpInput),
+    classifyArticles<TopicCategory>(nlpInput),
     scrapeTwitterTrends().catch(() => []),
   ]);
   if (classifications.length === 0) {
