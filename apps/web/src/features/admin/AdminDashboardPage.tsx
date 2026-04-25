@@ -74,7 +74,7 @@ const AdminDashboardPage = () => {
             </p>
           )}
           <Button variant="brand" size="brand" asChild>
-            <Link to="/desk">Zurück zum Schreibtisch</Link>
+            <Link to="/workplace">Zurück zum Workplace</Link>
           </Button>
         </div>
       </PageContainer>
