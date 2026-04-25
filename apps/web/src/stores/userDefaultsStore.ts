@@ -48,7 +48,7 @@ export const useUserDefaultsStore = create<UserDefaultsStore>()(
        * Hydrate store from backend
        */
       hydrate: async () => {
-        if (get().isHydrated) return;
+        if (get().isHydrated || get().isLoading) return;
 
         set({ isLoading: true });
         try {

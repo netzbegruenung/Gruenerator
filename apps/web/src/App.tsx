@@ -175,7 +175,7 @@ function App() {
               {/* Legacy redirect: /generator/:slug -> /gruenerator/:slug */}
               <Route path="/generator/:slug" element={<LegacyGeneratorRedirect />} />
 
-              {/* Guest-only: redirect authenticated users to /desk */}
+              {/* Guest-only: redirect authenticated users to /workplace */}
               <Route element={<GuestRoute />}>
                 {routes.guest.map(({ path, layoutMode }) => (
                   <Route

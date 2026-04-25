@@ -30,6 +30,8 @@ export interface ContentPath {
   sitemapUrls?: string[]; // Optional: fetch URLs from sitemaps instead of pagination
   sitemapFilter?: string; // Optional: filter sitemap URLs (e.g., '/presse/')
   staticUrls?: string[]; // Optional: fixed list of URLs to scrape directly (bypasses pagination and sitemap)
+  disableOffPathFilter?: boolean; // Optional: when true, skip the post-discovery filter that requires URLs to share the listing-path prefix. Auto-applied when sitemapUrls or wpApi is set, since both yield canonical URLs that rarely match the human-facing listing path (e.g. TYPO3 sitemaps emit /news/ while listings live under /nachrichten/; WP root-permalinks publish at /<slug>/ regardless of the /category/X listing seed).
+  wpApi?: { categoryId: number; maxPages?: number }; // Optional: discover articles via WordPress REST API (/wp-json/wp/v2/posts?categories=…). Bypasses HTML-listing pagination entirely; required for WP sites with root-permalink structure where /category/X/ is a virtual index.
 }
 
 export interface ContentSelectors {
@@ -53,6 +55,7 @@ export interface LandesverbandSource {
   qdrantCollection?: string; // Optional: custom collection name (default: landesverbaende_documents)
   maxAgeYears?: number; // Optional: max age of content in years (default: 10)
   notificationEmail?: string; // Optional: email to notify when new articles are indexed
+  dormant?: boolean; // Optional: when true, scrapeAllSources skips this source. Set for sources that no longer publish (e.g. dissolved Fraktionen). Direct scrapeSource(id) calls are unaffected.
 }
 
 export interface LandesverbaendeConfig {
@@ -73,18 +76,21 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       cms: 'wordpress',
       contentPaths: [
         {
+          // Site relaunched in Dec 2025 and changed permalinks from
+          // /category/pressemitteilung/<slug>/ to /<slug>/. Pre-relaunch URLs
+          // matched the off-path filter; post-relaunch URLs don't, which is why
+          // Qdrant froze at 2025-12-03. Use WP REST API (cat 9) to bypass
+          // HTML-listing discovery entirely.
           type: 'presse',
           path: '/category/pressemitteilung/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
-          paginationPattern: '/page/{page}/',
-          maxPages: 50,
+          wpApi: { categoryId: 9 },
         },
         {
           type: 'beschluss',
           path: '/category/beschluesse/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
-          paginationPattern: '/page/{page}/',
-          maxPages: 20,
+          wpApi: { categoryId: 11 },
         },
       ],
       contentSelectors: {
@@ -114,7 +120,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       ],
       contentSelectors: {
         title: ['h1', 'h2.headline', '.page-title', 'meta[property="og:title"]'],
-        date: ['time', '.date', '.publication-date'],
+        date: ['.mb-tiny', 'time', '.date', '.publication-date'],
         content: ['article', '.content-main', '.text-content', 'main'],
         categories: ['a[href*="/themen/"]', '.tags a'],
         author: ['.author', '.written-by'],
@@ -135,11 +141,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       maxAgeYears: 5,
       contentPaths: [
         {
+          // Articles publish at /<slug>/ (root permalinks); /presse/ is a virtual
+          // category index. Off-path filter strips every article. Use WP REST API
+          // category 12 = "Pressemitteilungen" (259 posts) instead.
           type: 'presse',
           path: '/presse/',
           listSelector: 'article a[href], h3 a, .elementor-post__title a',
-          paginationPattern: '/page/{page}/',
-          maxPages: 30,
+          wpApi: { categoryId: 12 },
         },
         {
           type: 'beschluss',
@@ -185,18 +193,19 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       maxAgeYears: 5,
       contentPaths: [
         {
+          // Same root-permalink pattern as mv-lv. WP cat 13 = "Pressemitteilung"
+          // (1038 posts — Fraktion publishes ~4× more than the state party).
           type: 'presse',
           path: '/presse/',
           listSelector: 'article a[href], h2 a, h3 a, .wp-block-heading a',
-          paginationPattern: '/page/{page}/',
-          maxPages: 50,
+          wpApi: { categoryId: 13 },
         },
         {
+          // WP cat 4 = "Antrag" (135 posts).
           type: 'antrag',
           path: '/category/antrag/',
           listSelector: 'article a[href], h2 a, h3 a',
-          paginationPattern: '/page/{page}/',
-          maxPages: 30,
+          wpApi: { categoryId: 4 },
         },
       ],
       contentSelectors: {
@@ -285,13 +294,27 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       maxAgeYears: 5,
       contentPaths: [
         {
+          // Scrape the dedicated /pressemitteilungen listing instead of /nachrichten
+          // or the news sub-sitemap. The news sub-sitemap aggregates ALL Berlin LV
+          // posts (press releases + AG-Sitzung announcements + LAG meetings + events),
+          // and articles indexed from there polluted Berlin Presse with non-press
+          // content. /pressemitteilungen is TYPO3's category-filtered listing route
+          // and only contains real press releases.
+          //
+          // Pagination on /pressemitteilungen actually works (unlike /nachrichten,
+          // where tx_xblog_pi1[pointer] is silently ignored) — pages 1, 2, 3 ... 57
+          // each return distinct article IDs, and the next-page links carry
+          // per-page cHash signatures. Use paginationLinkSelector so the extractor
+          // follows next-links from HTML rather than constructing URLs (which
+          // wouldn't carry the required cHash). paginationPattern stays as fallback
+          // for the rare case the link-following can't find a "next" anchor.
           type: 'presse',
-          path: '/nachrichten',
+          path: '/pressemitteilungen',
           listSelector: 'h2 a[href], h3 a[href]',
+          paginationLinkSelector: '.pagination a',
           paginationPattern: '?tx_xblog_pi1[pointer]={page}',
           paginationOffset: -1,
-          paginationLinkSelector: '.pagination a',
-          maxPages: 62,
+          maxPages: 60,
         },
       ],
       contentSelectors: {
@@ -325,10 +348,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           type: 'beschluss',
           path: '/beschluesse',
           listSelector: 'h2 a[href], h3 a[href]',
-          paginationPattern: '?tx_xblog_pi1[pointer]={page}',
-          paginationOffset: -1,
-          paginationLinkSelector: '.pagination a',
-          maxPages: 27,
+          // TYPO3 silently ignores tx_xblog_pi1[pointer]: every page returns the
+          // same first ~10 entries, so pagination plateaus and beschluesse stagnate
+          // between LDKs. Discover via the typed sub-sitemap instead — sitemapindex
+          // recursion follows /sitemap.xml into ?sitemap=beschluesse&cHash=… (273
+          // entries, all canonical /beschluesse/<slug>_<id>).
+          sitemapUrls: ['https://gruene.berlin/sitemap.xml'],
+          sitemapFilter: '/beschluesse/',
         },
       ],
       contentSelectors: {
@@ -468,11 +494,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       maxAgeYears: 12,
       contentPaths: [
         {
+          // Articles at /<slug>/ (root permalinks); /category/service/pressemitteilungen/
+          // is a virtual category index. Off-path filter strips everything. WP cat 243
+          // = "Pressemitteilungen" (471 posts).
           type: 'presse',
           path: '/category/service/pressemitteilungen/',
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
-          paginationPattern: '/page/{page}/',
-          maxPages: 50,
+          wpApi: { categoryId: 243 },
         },
       ],
       contentSelectors: {
@@ -492,6 +520,10 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       baseUrl: 'https://www.gruene-thl.de',
       cms: 'drupal',
       maxAgeYears: 12,
+      // Fraktion dissolved after the 2024-09-01 Landtag election (Greens fell below 5%
+      // and lost all seats). Site is being kept as an archive — last article 2024-09-17.
+      // Skip in scheduled scrapeAllSources runs to stop wasting cycles re-indexing dormant chunks.
+      dormant: true,
       contentPaths: [
         {
           type: 'presse',

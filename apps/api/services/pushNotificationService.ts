@@ -1,11 +1,15 @@
 /**
  * Push Notification Service
- * Sends Expo Push Notifications to mobile devices registered via app_refresh_tokens.
+ *
+ * Sends Expo Push Notifications to devices registered in app_push_devices.
+ * Device identity is keyed by (user_id, expo_push_token) — decoupled from
+ * auth tokens so that logout, session rotation, or the Better Auth
+ * migration don't silently un-register a device.
  */
 
-import { eq, and, isNotNull, isNull, gt, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
-import { appRefreshTokens } from '../database/schema/index.js';
+import { appPushDevices } from '../database/schema/index.js';
 import { getDrizzleInstance } from '../database/services/DrizzleService.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -19,11 +23,6 @@ export interface PushPayload {
   data?: Record<string, unknown>;
 }
 
-type DeviceRow = Pick<
-  typeof appRefreshTokens.$inferSelect,
-  'id' | 'deviceName' | 'deviceType' | 'pushToken' | 'lastUsedAt'
->;
-
 interface ExpoPushResponse {
   data: Array<{
     id?: string;
@@ -33,67 +32,70 @@ interface ExpoPushResponse {
   }>;
 }
 
+export interface DeviceRegistrationInfo {
+  deviceName?: string;
+  deviceType?: string;
+}
+
 /**
- * Register or update an Expo push token for a device (identified by refresh token hash).
+ * Upsert an Expo push device for a user.
+ *
+ * The (user_id, expo_push_token) UNIQUE constraint means a repeat
+ * registration from the same device just refreshes `last_seen_at` and
+ * any device metadata instead of inserting a duplicate row.
  */
 export async function registerPushToken(
   userId: string,
-  refreshTokenHash: string,
-  expoPushToken: string
+  expoPushToken: string,
+  info: DeviceRegistrationInfo = {}
 ): Promise<void> {
   const db = getDrizzleInstance();
+  const now = new Date();
 
-  const result = await db
-    .update(appRefreshTokens)
-    .set({ pushToken: expoPushToken, pushTokenUpdatedAt: new Date() })
-    .where(
-      and(
-        eq(appRefreshTokens.tokenHash, refreshTokenHash),
-        eq(appRefreshTokens.userId, userId),
-        isNull(appRefreshTokens.revokedAt)
-      )
-    )
-    .returning({ id: appRefreshTokens.id });
-
-  if (result.length === 0) {
-    log.warn('[Push] No matching active refresh token found for push registration', { userId });
-    return;
-  }
-
-  log.info('[Push] Push token registered', { userId, deviceId: result[0].id });
-}
-
-/**
- * Get all devices with active push tokens for a user.
- */
-export async function getUserDevicesWithPush(userId: string): Promise<DeviceRow[]> {
-  const db = getDrizzleInstance();
-
-  const result = await db
-    .select({
-      id: appRefreshTokens.id,
-      deviceName: appRefreshTokens.deviceName,
-      deviceType: appRefreshTokens.deviceType,
-      pushToken: appRefreshTokens.pushToken,
-      lastUsedAt: appRefreshTokens.lastUsedAt,
+  await db
+    .insert(appPushDevices)
+    .values({
+      userId,
+      expoPushToken,
+      deviceName: info.deviceName ?? null,
+      deviceType: info.deviceType ?? 'unknown',
+      lastSeenAt: now,
     })
-    .from(appRefreshTokens)
-    .where(
-      and(
-        eq(appRefreshTokens.userId, userId),
-        isNotNull(appRefreshTokens.pushToken),
-        isNull(appRefreshTokens.revokedAt),
-        gt(appRefreshTokens.expiresAt, new Date())
-      )
-    )
-    .orderBy(appRefreshTokens.lastUsedAt);
+    .onConflictDoUpdate({
+      target: [appPushDevices.userId, appPushDevices.expoPushToken],
+      set: {
+        deviceName: info.deviceName ?? null,
+        deviceType: info.deviceType ?? 'unknown',
+        lastSeenAt: now,
+      },
+    });
 
-  return result;
+  log.info('[Push] Push device registered', { userId });
 }
 
-/**
- * Get all devices (with or without push tokens) for a user.
- */
+interface PushDeviceRow {
+  id: string;
+  deviceName: string | null;
+  deviceType: string;
+  expoPushToken: string;
+  lastSeenAt: Date;
+}
+
+async function getUserPushDevices(userId: string): Promise<PushDeviceRow[]> {
+  const db = getDrizzleInstance();
+  return db
+    .select({
+      id: appPushDevices.id,
+      deviceName: appPushDevices.deviceName,
+      deviceType: appPushDevices.deviceType,
+      expoPushToken: appPushDevices.expoPushToken,
+      lastSeenAt: appPushDevices.lastSeenAt,
+    })
+    .from(appPushDevices)
+    .where(eq(appPushDevices.userId, userId))
+    .orderBy(appPushDevices.lastSeenAt);
+}
+
 interface DeviceInfo {
   id: string;
   device_name: string | null;
@@ -102,33 +104,20 @@ interface DeviceInfo {
   last_used_at: string | null;
 }
 
+/**
+ * Device listing for `/auth/mobile/devices`. Every row in
+ * `app_push_devices` has a push token by definition, so `has_push_token`
+ * is always true — the field is kept in the response shape for
+ * backwards compatibility with existing mobile UIs.
+ */
 export async function getUserDevices(userId: string): Promise<DeviceInfo[]> {
-  const db = getDrizzleInstance();
-
-  const result = await db
-    .select({
-      id: appRefreshTokens.id,
-      device_name: appRefreshTokens.deviceName,
-      device_type: appRefreshTokens.deviceType,
-      has_push_token: sql<boolean>`(${appRefreshTokens.pushToken} IS NOT NULL)`,
-      last_used_at: appRefreshTokens.lastUsedAt,
-    })
-    .from(appRefreshTokens)
-    .where(
-      and(
-        eq(appRefreshTokens.userId, userId),
-        isNull(appRefreshTokens.revokedAt),
-        gt(appRefreshTokens.expiresAt, new Date())
-      )
-    )
-    .orderBy(appRefreshTokens.lastUsedAt);
-
-  return result.map((row) => ({
-    id: row.id,
-    device_name: row.device_name,
-    device_type: row.device_type,
-    has_push_token: row.has_push_token,
-    last_used_at: row.last_used_at ? row.last_used_at.toISOString() : null,
+  const devices = await getUserPushDevices(userId);
+  return devices.map((d) => ({
+    id: d.id,
+    device_name: d.deviceName,
+    device_type: d.deviceType,
+    has_push_token: true,
+    last_used_at: d.lastSeenAt.toISOString(),
   }));
 }
 
@@ -137,15 +126,15 @@ export async function getUserDevices(userId: string): Promise<DeviceInfo[]> {
  * Returns the number of devices the notification was sent to.
  */
 export async function sendPushToUser(userId: string, payload: PushPayload): Promise<number> {
-  const devices = await getUserDevicesWithPush(userId);
+  const devices = await getUserPushDevices(userId);
 
   if (devices.length === 0) {
-    log.info('[Push] No devices with push tokens for user', { userId });
+    log.info('[Push] No devices registered for user', { userId });
     return 0;
   }
 
   const messages = devices.map((device) => ({
-    to: device.pushToken,
+    to: device.expoPushToken,
     title: payload.title,
     body: payload.body,
     data: payload.data || {},
@@ -173,17 +162,17 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
 
     const result = (await response.json()) as ExpoPushResponse;
 
-    // Handle per-token errors (e.g. DeviceNotRegistered)
     let sentCount = 0;
     for (let i = 0; i < result.data.length; i++) {
       const ticket = result.data[i];
       if (ticket.status === 'ok') {
         sentCount++;
+        await touchLastSeen(devices[i].id);
       } else if (ticket.details?.error === 'DeviceNotRegistered') {
-        log.info('[Push] Device no longer registered, clearing push token', {
+        log.info('[Push] Device no longer registered, deleting row', {
           deviceId: devices[i].id,
         });
-        await clearPushToken(devices[i].id);
+        await deleteDevice(devices[i].id);
       } else {
         log.warn('[Push] Failed to send to device', {
           deviceId: devices[i].id,
@@ -201,10 +190,31 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
   }
 }
 
-async function clearPushToken(deviceId: string): Promise<void> {
+async function touchLastSeen(deviceId: string): Promise<void> {
   const db = getDrizzleInstance();
   await db
-    .update(appRefreshTokens)
-    .set({ pushToken: null, pushTokenUpdatedAt: new Date() })
-    .where(eq(appRefreshTokens.id, deviceId));
+    .update(appPushDevices)
+    .set({ lastSeenAt: sql`now()` })
+    .where(eq(appPushDevices.id, deviceId));
+}
+
+async function deleteDevice(deviceId: string): Promise<void> {
+  const db = getDrizzleInstance();
+  await db.delete(appPushDevices).where(eq(appPushDevices.id, deviceId));
+}
+
+/**
+ * Remove a user's registration for a single Expo token (e.g. explicit
+ * unregister on logout). No-op if the row is already gone.
+ */
+export async function unregisterPushToken(
+  userId: string,
+  expoPushToken: string
+): Promise<void> {
+  const db = getDrizzleInstance();
+  await db
+    .delete(appPushDevices)
+    .where(
+      and(eq(appPushDevices.userId, userId), eq(appPushDevices.expoPushToken, expoPushToken))
+    );
 }

@@ -1,48 +1,40 @@
-import { useLocalSearchParams, router } from 'expo-router';
-import { useEffect } from 'react';
+import { useAuthStore } from '@gruenerator/shared/stores';
+import { useQuery } from '@tanstack/react-query';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 
 import { initializeApiClient } from '../../services/api';
-import { handleAuthCallback, configureAuthStore } from '../../services/auth';
+import { configureAuthStore, handleAuthCallback } from '../../services/auth';
 import { colors } from '../../theme';
 
 export default function AuthCallback() {
   const { code } = useLocalSearchParams<{ code: string }>();
+  const user = useAuthStore((state) => state.user);
 
-  useEffect(() => {
-    async function processCallback() {
-      if (code) {
-        try {
-          console.log('[AuthCallback] Processing code...');
+  const { data, isError } = useQuery({
+    queryKey: ['auth-callback', code],
+    queryFn: async () => {
+      initializeApiClient();
+      configureAuthStore();
+      return handleAuthCallback(code!);
+    },
+    enabled: !!code && !user,
+    retry: false,
+    gcTime: 0,
+    staleTime: Infinity,
+  });
 
-          // Ensure API client is initialized (may be called before AuthProvider)
-          initializeApiClient();
-          configureAuthStore();
-
-          const result = await handleAuthCallback(code);
-          if (result.success) {
-            console.log('[AuthCallback] Login successful, redirecting to tabs');
-            router.replace('/(tabs)');
-          } else {
-            console.log('[AuthCallback] Login failed:', result.error);
-            router.replace('/(auth)/login');
-          }
-        } catch (error) {
-          console.error('[AuthCallback] Error:', error);
-          router.replace('/(auth)/login');
-        }
-      } else {
-        console.log('[AuthCallback] No code provided, redirecting to login');
-        router.replace('/(auth)/login');
-      }
-    }
-    void processCallback();
-  }, [code]);
+  if (user || data?.success) {
+    return <Redirect href="/(tabs)" />;
+  }
+  if (!code || isError || (data && !data.success)) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   return (
     <View style={styles.container}>
       <ActivityIndicator size="large" color={colors.white} />
-      <Text style={styles.text}>Anmeldung wird abgeschlossen...</Text>
+      <Text style={styles.text}>Anmeldung wird abgeschlossen…</Text>
     </View>
   );
 }

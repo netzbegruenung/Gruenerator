@@ -1,5 +1,6 @@
 import { type JSX, type ReactNode } from 'react';
-import { FaSearch, FaStop } from 'react-icons/fa';
+import { FaStop } from 'react-icons/fa';
+import { HiArrowUp, HiMagnifyingGlass } from 'react-icons/hi2';
 
 import Icon from '@/components/common/Icon';
 import { cn } from '@/utils/cn';
@@ -36,6 +37,12 @@ interface SearchBarProps {
   submitPlacement?: 'inline' | 'tray' | 'hidden';
   isStreaming?: boolean;
   onAbort?: () => void;
+  /**
+   * Visual variant. 'default' = solid border, transparent submit button.
+   * 'composer' = elevated card with shadow + round primary submit button,
+   * mirroring the look of `<GrueneratorComposer>` used at /chat.
+   */
+  variant?: 'default' | 'composer';
 }
 
 const SearchBar = ({
@@ -54,7 +61,9 @@ const SearchBar = ({
   submitPlacement = 'inline',
   isStreaming = false,
   onAbort,
+  variant = 'default',
 }: SearchBarProps): JSX.Element => {
+  const isComposer = variant === 'composer';
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (value?.trim() && !loading) {
@@ -68,29 +77,53 @@ const SearchBar = ({
         <button
           type="button"
           className={cn(
-            'flex items-center justify-center border-none bg-transparent p-0 text-red-600 transition-colors duration-200 hover:text-red-700',
-            submitPlacement === 'inline' ? 'size-12' : 'size-8'
+            'flex items-center justify-center transition-colors duration-200',
+            isComposer
+              ? 'm-2 size-8 rounded-full bg-error text-white hover:bg-error/90'
+              : cn(
+                  'border-none bg-transparent p-0 text-red-600 hover:text-red-700',
+                  submitPlacement === 'inline' ? 'size-12' : 'size-8'
+                )
           )}
           onClick={onAbort}
           aria-label="Suche abbrechen"
           title="Suche abbrechen"
         >
-          <FaStop className="size-[18px]" />
+          <FaStop className={isComposer ? 'size-4' : 'size-[18px]'} />
         </button>
       ) : (
         <button
           type="submit"
           className={cn(
-            'flex items-center justify-center border-none bg-transparent p-0 transition-colors duration-200 hover:text-primary-500 disabled:cursor-not-allowed disabled:text-grey-400',
-            submitPlacement === 'inline' ? 'size-12 text-foreground' : 'size-8 text-foreground/70'
+            'flex items-center justify-center transition-opacity duration-200 disabled:cursor-not-allowed',
+            isComposer
+              ? cn(
+                  'm-2 size-8 rounded-full bg-primary text-white hover:bg-primary/90',
+                  'disabled:opacity-30'
+                )
+              : cn(
+                  'border-none bg-transparent p-0 transition-colors hover:text-primary-500 disabled:text-grey-400',
+                  submitPlacement === 'inline'
+                    ? 'size-12 text-foreground'
+                    : 'size-8 text-foreground/70'
+                )
           )}
           disabled={loading || !value?.trim()}
           aria-label="Suchen"
         >
           {loading ? (
-            <div className="size-[18px] animate-spin rounded-full border-2 border-background-alt border-t-primary-500" />
+            <div
+              className={cn(
+                'animate-spin rounded-full border-2',
+                isComposer
+                  ? 'size-4 border-white/40 border-t-white'
+                  : 'size-[18px] border-background-alt border-t-primary-500'
+              )}
+            />
+          ) : isComposer ? (
+            <HiArrowUp className="size-5" />
           ) : (
-            <FaSearch className="size-[18px]" />
+            <HiMagnifyingGlass className="size-[18px]" />
           )}
         </button>
       )
@@ -118,8 +151,8 @@ const SearchBar = ({
 
   const trayWithSubmit =
     submitPlacement === 'tray' && trayContent && submitButton ? (
-      <div className="flex items-center gap-xs">
-        <div className="flex flex-1 flex-wrap items-center gap-xs">{trayContent}</div>
+      <div className="flex w-full items-center justify-between gap-xs">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-xs">{trayContent}</div>
         {submitButton}
       </div>
     ) : (
@@ -127,12 +160,25 @@ const SearchBar = ({
     );
 
   return (
-    <div className="mx-auto w-full max-w-[900px] animate-in fade-in slide-in-from-bottom-2 duration-300">
+    <div
+      className={cn(
+        'mx-auto w-full animate-in fade-in slide-in-from-bottom-2 duration-300',
+        isComposer ? 'max-w-3xl' : 'max-w-[900px]'
+      )}
+    >
       <form onSubmit={handleSubmit} className="flex w-full flex-col">
         <div
           className={cn(
-            'relative flex w-full flex-col bg-background border-2 border-background-alt transition-[box-shadow,border-color,border-radius] duration-200 focus-within:border-primary-500 focus-within:shadow-sm',
-            trayWithSubmit ? 'rounded-2xl' : 'rounded-3xl'
+            'relative flex w-full flex-col transition-[box-shadow,border-color,border-radius] duration-200 rounded-3xl',
+            isComposer
+              ? cn(
+                  'border border-border bg-white shadow-lg dark:bg-surface dark:shadow-sm',
+                  'focus-within:shadow-xl focus-within:border-primary/30 dark:focus-within:shadow-md'
+                )
+              : cn(
+                  'bg-background border-2 border-background-alt focus-within:border-primary-500 focus-within:shadow-sm',
+                  trayWithSubmit && 'rounded-2xl'
+                )
           )}
         >
           <div className="flex w-full items-center overflow-visible">
@@ -140,7 +186,12 @@ const SearchBar = ({
               type="text"
               value={value}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange?.(e.target.value)}
-              className="h-20 min-h-20 w-full flex-1 border-none bg-transparent px-7 text-base text-foreground shadow-none outline-none placeholder:text-foreground/60 focus:border-none focus:bg-transparent focus:shadow-none focus:outline-none max-md:h-[46px] max-md:min-h-[46px] max-md:px-4 max-md:text-base"
+              className={cn(
+                'w-full flex-1 border-none bg-transparent text-base text-foreground shadow-none outline-none focus:border-none focus:bg-transparent focus:shadow-none focus:outline-none',
+                isComposer
+                  ? 'h-14 min-h-14 px-5 placeholder:text-foreground-muted/60'
+                  : 'h-20 min-h-20 px-7 placeholder:text-foreground/60 max-md:h-[46px] max-md:min-h-[46px] max-md:px-4'
+              )}
               placeholder={placeholder}
               aria-label="Suchfeld"
               disabled={loading}
@@ -170,11 +221,24 @@ const SearchBar = ({
             </div>
           </div>
 
-          {trayWithSubmit && <div className="px-3 pb-3 pt-0.5">{trayWithSubmit}</div>}
+          {trayWithSubmit && (
+            <div
+              className={cn(
+                isComposer ? 'flex items-center justify-between px-2 pb-1' : 'px-3 pb-3 pt-0.5'
+              )}
+            >
+              {trayWithSubmit}
+            </div>
+          )}
         </div>
 
         {!hideDisclaimer && (
-          <div className="mt-md px-sm text-center text-[13px] leading-snug text-foreground opacity-70">
+          <div
+            className={cn(
+              'text-center leading-snug text-foreground opacity-70',
+              isComposer ? 'mt-1 hidden text-xs sm:block' : 'mt-md px-sm text-[13px]'
+            )}
+          >
             KI-Systeme können Fakten falsch interpretieren oder erfinden. Bitte prüfe die Quellen.
           </div>
         )}

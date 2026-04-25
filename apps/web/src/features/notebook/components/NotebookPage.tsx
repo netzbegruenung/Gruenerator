@@ -7,7 +7,7 @@ import {
   NotebookChatProvider,
   NotebookComposer,
   UserMessage,
-  WelcomeScreen,
+  notebookMentionables,
   type CategoryFilterConfig,
   type CategoryFilterField,
   type ChatMessageMetadata,
@@ -15,7 +15,7 @@ import {
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
 import { PanelLeft } from 'lucide-react';
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { FaFileWord } from 'react-icons/fa';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
@@ -29,6 +29,7 @@ import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import useNotebookStore from '../stores/notebookStore';
 
 import { DocumentBrowserPanel } from './DocumentBrowserPanel';
+import { NotebookStartpage } from './NotebookStartpage';
 
 import type { NotebookCollection as FullNotebookCollection } from '../../../types/notebook';
 
@@ -78,6 +79,12 @@ interface NotebookPageContentProps {
   config: NotebookConfig;
   documentIds?: string[];
   threadId?: string | null;
+  /** Additional content rendered below the startpage sections (e.g. a notebook gallery on the root page). */
+  startpageFooter?: ReactNode;
+  /** Disable the Statistiken section (e.g. for small dynamic user notebooks). Defaults to true. */
+  showStats?: boolean;
+  /** Disable the manual research tab (dynamic user notebooks have no system collection scope). Defaults to true. */
+  showManualSearch?: boolean;
 }
 
 interface NotebookPageProps {
@@ -114,10 +121,13 @@ function useNotebookExtraActionsFactory(): (message: {
   );
 }
 
-const NotebookPageContent = ({
+export const NotebookPageContent = ({
   config,
   documentIds,
   threadId: threadIdProp,
+  startpageFooter,
+  showStats = true,
+  showManualSearch = true,
 }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
   const isSingleSystem = !isMulti && config.collections[0]?.id.endsWith('-system');
@@ -281,6 +291,19 @@ const NotebookPageContent = ({
     };
   }, [systemCollectionId, filterValuesCache, activeFiltersStore, setActiveFilter, clearAllFilters]);
 
+  const recentCollectionIds = useMemo(
+    () => selectedCollections.map((c) => c.id),
+    [selectedCollections]
+  );
+
+  // Mention slug for the global-chat tab. notebookMentionables uses
+  // identifiers like "<configId>-notebook"; if a config has no matching entry
+  // (e.g. some custom multi-source configs), the global-chat tab is hidden.
+  const notebookMention = useMemo(() => {
+    const entry = notebookMentionables.find((m) => m.identifier === `${config.id}-notebook`);
+    return entry?.mention ?? null;
+  }, [config.id]);
+
   const chatContent = (
     <NotebookChatProvider
       collections={providerCollections}
@@ -296,18 +319,32 @@ const NotebookPageContent = ({
     >
       <CitationPanelProvider>
         <ExtraActionsProvider factory={extraActionsFactory}>
-          <div className="flex min-h-0 h-full flex-col">
-            <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
-              <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
-                <div className="flex flex-grow flex-col">
-                  <ThreadPrimitive.Empty>
-                    <WelcomeScreen
-                      title={config.startPageTitle}
-                      description={config.infoPanelDescription}
-                      questions={config.exampleQuestions?.map((q) => ({ text: q.text ?? '' }))}
-                    />
-                  </ThreadPrimitive.Empty>
-                  <div className="mx-auto w-full max-w-3xl flex flex-col gap-4 py-4">
+          <ThreadPrimitive.Root className="flex h-full min-h-0 flex-col">
+            <ThreadPrimitive.Empty>
+              <div className="flex flex-1 flex-col overflow-y-auto">
+                <NotebookStartpage
+                  title={config.startPageTitle}
+                  subtitle={config.infoPanelDescription}
+                  sources={config.sources}
+                  placeholder={config.placeholder}
+                  exampleQuestions={config.exampleQuestions ?? []}
+                  composerSourceFilters={sourceFilters}
+                  composerCategoryFilters={categoryFilters}
+                  mode={mode}
+                  onModeChange={setMode}
+                  recentCollectionIds={recentCollectionIds}
+                  showRecentSourceLabel={isMulti}
+                  showStats={showStats}
+                  showManualSearch={showManualSearch}
+                  notebookMention={notebookMention}
+                  footer={startpageFooter}
+                />
+              </div>
+            </ThreadPrimitive.Empty>
+            <ThreadPrimitive.If empty={false}>
+              <div className="flex min-h-0 h-full flex-col">
+                <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-auto px-4">
+                  <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 py-4">
                     <ThreadPrimitive.Messages
                       components={{
                         UserMessage,
@@ -315,17 +352,17 @@ const NotebookPageContent = ({
                       }}
                     />
                   </div>
-                </div>
-              </ThreadPrimitive.Viewport>
-              <NotebookComposer
-                placeholder={config.placeholder}
-                sourceFilters={sourceFilters}
-                categoryFilters={categoryFilters}
-                mode={mode}
-                onModeChange={setMode}
-              />
-            </ThreadPrimitive.Root>
-          </div>
+                </ThreadPrimitive.Viewport>
+                <NotebookComposer
+                  placeholder={config.placeholder}
+                  sourceFilters={sourceFilters}
+                  categoryFilters={categoryFilters}
+                  mode={mode}
+                  onModeChange={setMode}
+                />
+              </div>
+            </ThreadPrimitive.If>
+          </ThreadPrimitive.Root>
         </ExtraActionsProvider>
         <CitationSidePanel />
       </CitationPanelProvider>
@@ -351,7 +388,7 @@ export const createNotebookPage = (configId: string) => {
   return withAuthRequired(Page, { title: config.authTitle });
 };
 
-const DynamicNotebookPage = () => {
+export const DynamicNotebookPage = () => {
   const { id } = useParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
   const {
@@ -425,7 +462,7 @@ const DynamicNotebookPage = () => {
   };
 
   if (!hasDocuments) {
-    return <NotebookPageContent config={config} />;
+    return <NotebookPageContent config={config} showStats={false} showManualSearch={false} />;
   }
 
   return (
@@ -447,6 +484,8 @@ const DynamicNotebookPage = () => {
         <NotebookPageContent
           config={config}
           documentIds={selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined}
+          showStats={false}
+          showManualSearch={false}
         />
       </div>
     </div>

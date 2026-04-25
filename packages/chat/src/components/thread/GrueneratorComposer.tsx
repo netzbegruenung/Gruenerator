@@ -14,6 +14,7 @@ import { computeMentionInsertion } from '../../lib/mentionInsertion';
 import { FileMentionPopover } from './FileMentionPopover';
 import { CollabDocMentionPopover, type CollabDocSelection } from './CollabDocMentionPopover';
 import { PlusMenu } from './PlusMenu';
+import { ModelPicker } from './ModelPicker';
 import { getCaretCoords } from '../../lib/caretPosition';
 import { registerDocumentSlug } from '../../lib/documentMentionables';
 import type { Mentionable } from '../../lib/mentionables';
@@ -380,7 +381,10 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             {showToolToggles && <ToolToggles onNavigate={onNavigate} firstName={firstName} />}
             {toolbarExtra}
           </div>
-          <ComposerButtons isRunning={isRunning} />
+          <div className="flex items-center gap-0.5">
+            <ModelPicker />
+            <ComposerButtons isRunning={isRunning} />
+          </div>
         </div>
       </ComposerPrimitive.Root>
       <p className="mt-1 hidden text-center text-xs text-foreground-muted sm:block">{disclaimer}</p>

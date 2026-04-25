@@ -477,6 +477,80 @@ router.post(
   }
 );
 
+// Leave a group (self-removal). Creators cannot leave — they must delete the
+// group instead (which is a separate destructive action). Every other member
+// can self-remove; since the creator is always an admin, there is always at
+// least one admin remaining for the group to continue functioning.
+router.delete(
+  '/groups/:groupId/members/self',
+  ensureAuthenticated,
+  async (req: AuthRequest<{ groupId: string }>, res: Response): Promise<void> => {
+    try {
+      const groupId = fromParam<GroupId>(req.params.groupId);
+      const userId = req.user!.id;
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      const row = await postgres.queryOne(
+        `SELECT gm.role, g.created_by, g.name
+         FROM group_memberships gm
+         JOIN groups g ON g.id = gm.group_id
+         WHERE gm.group_id = $1 AND gm.user_id = $2`,
+        [groupId, userId],
+        { table: 'group_memberships' }
+      );
+
+      if (!row) {
+        res.status(404).json({
+          success: false,
+          message: 'Du bist nicht Mitglied dieser Gruppe.',
+        });
+        return;
+      }
+
+      if (String(row.created_by) === String(userId)) {
+        res.status(400).json({
+          success: false,
+          message:
+            'Als Gruppenersteller*in kannst du die Gruppe nicht verlassen. Lösche sie stattdessen.',
+        });
+        return;
+      }
+
+      const result = await postgres.exec(
+        'DELETE FROM group_memberships WHERE group_id = $1 AND user_id = $2',
+        [groupId, userId]
+      );
+
+      if (result.changes === 0) {
+        throw new Error('Mitgliedschaft konnte nicht entfernt werden.');
+      }
+
+      import('../../../services/notifications/index.js')
+        .then(({ notifyGroupMembers }) =>
+          notifyGroupMembers({
+            groupId,
+            excludeUserId: userId,
+            type: 'group_member_left',
+            title: 'Mitglied ausgetreten',
+            body: `${req.user?.display_name || 'Jemand'} hat „${row.name}" verlassen`,
+            actionUrl: `/gruppen/${groupId}`,
+          })
+        )
+        .catch(() => {});
+
+      res.json({ success: true, message: 'Gruppe erfolgreich verlassen.' });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[User Groups /groups/:groupId/members/self DELETE] Error:', err);
+      res.status(500).json({
+        success: false,
+        message: err.message || 'Fehler beim Verlassen der Gruppe.',
+      });
+    }
+  }
+);
+
 // Get group details (info, instructions, knowledge)
 router.get(
   '/groups/:groupId/details',

@@ -9,16 +9,8 @@ import {
 import { HiUsers, HiShieldCheck, HiDotsVertical } from 'react-icons/hi';
 
 import Spinner from '../../../components/common/Spinner';
-import { useGroupMembers, useUpdateMemberRole } from '../hooks/useGroups';
+import { useGroupMembers, useUpdateMemberRole, type GroupMember } from '../hooks/useGroups';
 import { getMemberDisplayName, sortMembersByName } from '../utils/anonymousNames';
-
-interface GroupMember {
-  user_id: string;
-  role: string;
-  avatar_robot_id?: number;
-  joined_at?: string;
-  first_name?: string;
-}
 
 interface GroupMembersListProps {
   groupId: string;

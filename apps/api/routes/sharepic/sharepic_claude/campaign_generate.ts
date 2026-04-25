@@ -175,16 +175,32 @@ interface CampaignGenerateResponse {
 
 function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignConfig | null {
   if (!campaignId || !typeId) return null;
+  if (!/^[a-zA-Z0-9_-]+$/.test(campaignId)) {
+    log.warn(`[Campaign] Invalid campaignId: ${campaignId}`);
+    return null;
+  }
 
-  const campaignPath = path.join(__dirname, '../../../config/campaigns', `${campaignId}.json`);
+  const campaignsDir = path.resolve(__dirname, '../../../config/campaigns');
+  const campaignPath = path.resolve(campaignsDir, `${campaignId}.json`);
+  if (!campaignPath.startsWith(campaignsDir + path.sep)) {
+    log.warn(`[Campaign] Path traversal blocked: ${campaignId}`);
+    return null;
+  }
 
-  if (!fs.existsSync(campaignPath)) {
-    log.warn(`[Campaign] Config not found: ${campaignPath}`);
+  let campaignJson: string;
+  try {
+    campaignJson = fs.readFileSync(campaignPath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      log.warn(`[Campaign] Config not found: ${campaignPath}`);
+      return null;
+    }
+    log.error(`[Campaign] Failed to read config:`, error);
     return null;
   }
 
   try {
-    const campaign = JSON.parse(fs.readFileSync(campaignPath, 'utf8')) as Campaign;
+    const campaign = JSON.parse(campaignJson) as Campaign;
     const typeConfig = campaign.types?.[typeId];
 
     if (!typeConfig) {

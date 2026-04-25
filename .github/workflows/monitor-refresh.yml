@@ -1,0 +1,76 @@
+name: Monitor Refresh
+
+on:
+  schedule:
+    - cron: '15 * * * *' # Hourly at :15 (offset from other crons)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monitor-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Refresh monitor snapshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      API_URL: ${{ vars.MONITOR_API_URL || 'https://gruenerator.eu' }}
+    steps:
+      - name: Trigger refresh
+        id: refresh
+        continue-on-error: true
+        run: |
+          echo "Triggering monitor refresh at $API_URL..."
+          RESULT=$(curl -sf -X POST "$API_URL/api/internal/monitor/refresh" \
+            -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
+            --max-time 600)
+
+          echo "$RESULT" | jq .
+          echo "result<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$RESULT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Generate summary
+        if: always()
+        run: |
+          RESULT='${{ steps.refresh.outputs.result }}'
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ -z "$RESULT" ] || [ "$RESULT" = "" ]; then
+            {
+              echo "## :x: Monitor Refresh — No Result"
+              echo ""
+              echo "The refresh endpoint did not return a result. Check the [workflow logs]($RUN_URL)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          SUCCESS=$(echo "$RESULT" | jq -r '.success')
+          TOTAL_ARTICLES=$(echo "$RESULT" | jq -r '.totalArticles // 0')
+          ACTIVE_TOPICS=$(echo "$RESULT" | jq -r '.activeTopics // 0')
+
+          if [ "$SUCCESS" = "true" ]; then
+            ICON=":white_check_mark:"
+          else
+            ICON=":x:"
+          fi
+
+          {
+            echo "## $ICON Monitor Refresh"
+            echo ""
+            echo "**Date:** $(date -u '+%d.%m.%Y %H:%M UTC')"
+            echo "**Run:** [${{ github.run_id }}]($RUN_URL)"
+            echo ""
+            echo "| Metric | Count |"
+            echo "|--------|------:|"
+            echo "| Total articles | $TOTAL_ARTICLES |"
+            echo "| Active topics | $ACTIVE_TOPICS |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if refresh had errors
+        if: steps.refresh.outcome == 'failure'
+        run: exit 1

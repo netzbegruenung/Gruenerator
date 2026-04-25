@@ -32,19 +32,21 @@ export interface VorlagenStats {
   rejected: number;
 }
 
-export function useAdminVorlagen(status = 'pending_review') {
+export function useAdminVorlagen(status = 'pending_review', enabled = true) {
   return useQuery<AdminVorlage[]>({
     queryKey: ['admin-vorlagen', status],
     queryFn: () => fetchAdminVorlagen(status) as Promise<AdminVorlage[]>,
     staleTime: 30_000,
+    enabled,
   });
 }
 
-export function useVorlagenStats() {
+export function useVorlagenStats(enabled = true) {
   return useQuery<VorlagenStats>({
     queryKey: ['admin-vorlagen-stats'],
     queryFn: () => fetchVorlagenStats() as Promise<VorlagenStats>,
     staleTime: 30_000,
+    enabled,
   });
 }
 

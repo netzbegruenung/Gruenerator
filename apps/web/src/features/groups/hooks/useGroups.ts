@@ -1,58 +1,35 @@
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import {
+  useAddGroupLink,
+  useCreateGroup,
+  useDeleteGroup,
+  useDeleteGroupAvatar,
+  useDeleteGroupLink,
+  useGroupDetails as useGroupDetailsShared,
+  useGroupMembers as useGroupMembersShared,
+  useJoinGroup,
+  useLeaveGroup,
+  useUpdateGroupLink,
+  useUpdateMemberRole as useUpdateMemberRoleShared,
+  useUploadGroupAvatar,
+  useUserGroups,
+  getGroupInitials,
+  GROUPS_QUERY_KEY,
+  groupDetailsKey,
+  type GroupLink,
+  type GroupMember,
+  type GroupSummary,
+} from '@gruenerator/shared/groups';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import apiClient from '../../../components/utils/apiClient';
-
-// ── API response shapes ────────────────────────────────────────────────
-
-interface GroupsListResponse {
-  groups?: GroupSummary[];
-}
-
-interface GroupResponse {
-  group?: GroupSummary;
-}
-
-interface MembersResponse {
-  members?: GroupMember[];
-}
-
-interface ContentResponse {
-  content?: Record<string, unknown[]>;
-}
-
-interface LinkResponse {
-  link?: GroupLink;
-}
-
-interface AvatarUploadResponse {
-  success?: boolean;
-  avatarUrl?: string;
-}
 import { useOptimizedAuth } from '../../../hooks/useAuth';
-import { useGroupsStore } from '../../../stores/auth/groupsStore';
 import { useAuthStore } from '../../../stores/authStore';
 
-export interface GroupSummary {
-  id: string;
-  name: string;
-  description?: string;
-  avatar_url?: string | null;
-  member_count?: number;
-  role?: string;
-  created_at?: string;
-  [key: string]: unknown;
-}
+// Re-exports so existing `import { type GroupSummary } from '../hooks/useGroups'`
+// call sites continue to resolve without churn.
+export { getGroupInitials, type GroupLink, type GroupMember, type GroupSummary };
 
-export interface GroupMember {
-  id: string;
-  user_id: string;
-  display_name?: string;
-  first_name?: string;
-  email?: string;
-  role?: string;
-  avatar_robot_id?: number;
-  [key: string]: unknown;
-}
+export const useGroupDetails = useGroupDetailsShared;
 
 interface MutationOptions<T = unknown> {
   onSuccess?: (result: T) => void;
@@ -63,211 +40,107 @@ interface UseGroupsOptions {
   isActive?: boolean;
 }
 
+// ── Facade around shared CRUD hooks ──
+//
+// The web call sites destructure a flat bag of fields (userGroups,
+// createGroup, isCreatingGroup, updateGroupInfo, joinGroup, …). This
+// preserves that shape while the underlying implementation now lives
+// in `@gruenerator/shared/groups`.
 export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const queryClient = useQueryClient();
 
-  const {
-    isSaving,
-    setSaving,
-    isDeleting,
-    setDeleting,
-    deletingGroupId,
-    setDeletingGroupId,
-    isCreating,
-    setCreating,
-    isJoining,
-    setJoining,
-    clearMessages,
-  } = useGroupsStore();
-
-  const groupsQueryKey = ['userGroups', user?.id];
-
-  const fetchGroupsFn = async (): Promise<GroupSummary[]> => {
-    if (!user?.id) throw new Error('User not authenticated');
-    const response = await apiClient.get<GroupsListResponse>('/auth/groups', {
-      skipAuthRedirect: true,
-    });
-    return response.data.groups ?? [];
-  };
-
-  const query = useQuery({
-    queryKey: groupsQueryKey,
-    queryFn: fetchGroupsFn,
-    enabled: !!user?.id && isAuthenticated && !authLoading && isActive,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    retry: (failureCount: number) => failureCount < 2,
-    refetchInterval: false,
+  const query = useUserGroups({
+    enabled: !!user?.id && isAuthenticated && !authLoading && !!isActive,
   });
 
-  const createGroupMutation = useMutation({
-    mutationFn: async (groupName: string) => {
-      if (!user?.id) throw new Error('User not authenticated');
-      const response = await apiClient.post<GroupResponse>('/auth/groups', { name: groupName });
-      return (response.data.group ?? {}) as GroupSummary;
-    },
-    onMutate: () => {
-      setCreating(true);
-      clearMessages();
-    },
-    onSuccess: (newGroup) => {
-      setCreating(false);
-      void queryClient.invalidateQueries({ queryKey: groupsQueryKey });
-      queryClient.removeQueries({ queryKey: ['groupDetails', newGroup.id] });
-    },
-    onError: () => {
-      setCreating(false);
-    },
-  });
+  const createMutation = useCreateGroup();
+  const deleteMutation = useDeleteGroup();
+  const joinMutation = useJoinGroup();
 
-  const deleteGroupMutation = useMutation({
-    mutationFn: async (groupId: string) => {
-      if (!user?.id) throw new Error('User not authenticated');
-      await apiClient.delete(`/auth/groups/${groupId}`);
-      return groupId;
-    },
-    onMutate: (groupId) => {
-      setDeleting(true);
-      setDeletingGroupId(groupId);
-      clearMessages();
-    },
-    onSuccess: () => {
-      setDeleting(false);
-      setDeletingGroupId(null);
-      void queryClient.invalidateQueries({ queryKey: groupsQueryKey });
-    },
-    onError: () => {
-      setDeleting(false);
-      setDeletingGroupId(null);
-    },
-  });
-
-  const updateGroupInfoMutation = useMutation({
-    mutationFn: async ({
-      groupId,
-      name,
-      description,
-    }: {
-      groupId: string;
-      name: string;
-      description?: string;
-    }) => {
-      if (!user?.id) throw new Error('User not authenticated');
-      const response = await apiClient.put<Record<string, unknown>>(
+  // Info/name mutations accept a groupId per invocation — they can't use
+  // the shared `useUpdateGroupInfo(groupId)` hook (which binds at hook
+  // time). Local mutations preserve per-call targeting while still
+  // invalidating the right query keys.
+  const updateInfoMutation = useMutation({
+    mutationFn: async (input: { groupId: string; name?: string; description?: string }) => {
+      const { groupId, ...body } = input;
+      const res = await apiClient.put<Record<string, unknown>>(
         `/auth/groups/${groupId}/info`,
-        { name, description }
+        body
       );
-      return response.data;
+      return { groupId, data: res.data };
     },
-    onMutate: () => {
-      setSaving(true);
-      clearMessages();
-    },
-    onSuccess: () => {
-      setSaving(false);
-      void queryClient.invalidateQueries({ queryKey: groupsQueryKey });
-      void queryClient.invalidateQueries({ queryKey: ['groupDetails'] });
-    },
-    onError: () => {
-      setSaving(false);
+    onSuccess: ({ groupId }) => {
+      void queryClient.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: groupDetailsKey(groupId) });
     },
   });
 
-  const updateGroupNameMutation = useMutation({
-    mutationFn: async ({ groupId, name }: { groupId: string; name: string }) => {
-      if (!user?.id) throw new Error('User not authenticated');
-      const response = await apiClient.put<Record<string, unknown>>(
-        `/auth/groups/${groupId}/name`,
-        { name }
+  const updateNameMutation = useMutation({
+    mutationFn: async (input: { groupId: string; name: string }) => {
+      const res = await apiClient.put<Record<string, unknown>>(
+        `/auth/groups/${input.groupId}/name`,
+        { name: input.name }
       );
-      return response.data;
+      return { groupId: input.groupId, data: res.data };
     },
-    onMutate: () => {
-      setSaving(true);
-      clearMessages();
-    },
-    onSuccess: () => {
-      setSaving(false);
-      void queryClient.invalidateQueries({ queryKey: groupsQueryKey });
-      void queryClient.invalidateQueries({ queryKey: ['groupDetails'] });
-    },
-    onError: () => {
-      setSaving(false);
-    },
-  });
-
-  const joinGroupMutation = useMutation({
-    mutationFn: async (joinToken: string) => {
-      if (!user?.id) throw new Error('User not authenticated');
-      const response = await apiClient.post<Record<string, unknown>>('/auth/groups/join', {
-        joinToken,
-      });
-      return response.data;
-    },
-    onMutate: () => {
-      setJoining(true);
-      clearMessages();
-    },
-    onSuccess: () => {
-      setJoining(false);
-      void queryClient.invalidateQueries({ queryKey: groupsQueryKey });
-    },
-    onError: () => {
-      setJoining(false);
+    onSuccess: ({ groupId }) => {
+      void queryClient.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
+      void queryClient.invalidateQueries({ queryKey: groupDetailsKey(groupId) });
     },
   });
 
   const createGroup = (groupName: string, options: MutationOptions<GroupSummary> = {}) => {
-    createGroupMutation.mutate(groupName, {
-      onSuccess: (newGroup) => options.onSuccess?.(newGroup),
-      onError: (error) => options.onError?.(error),
-    });
+    createMutation.mutate(
+      { name: groupName },
+      {
+        onSuccess: (group) => options.onSuccess?.(group),
+        onError: (err) => options.onError?.(err as Error),
+      }
+    );
   };
 
   const deleteGroup = (groupId: string, options: MutationOptions<string> = {}) => {
-    deleteGroupMutation.mutate(groupId, {
-      onSuccess: (deletedGroupId) => options.onSuccess?.(deletedGroupId),
-      onError: (error) => options.onError?.(error),
+    deleteMutation.mutate(groupId, {
+      onSuccess: (id) => options.onSuccess?.(id),
+      onError: (err) => options.onError?.(err as Error),
     });
   };
 
   const updateGroupInfo = (
     groupId: string,
-    { name, description }: { name: string; description?: string },
+    input: { name: string; description?: string },
     options: MutationOptions = {}
   ) => {
-    updateGroupInfoMutation.mutate(
-      { groupId, name, description },
+    updateInfoMutation.mutate(
+      { groupId, ...input },
       {
-        onSuccess: (result) => options.onSuccess?.(result),
-        onError: (error) => options.onError?.(error),
+        onSuccess: ({ data }) => options.onSuccess?.(data),
+        onError: (err) => options.onError?.(err as Error),
       }
     );
   };
 
   const updateGroupName = (groupId: string, name: string, options: MutationOptions = {}) => {
-    updateGroupNameMutation.mutate(
+    updateNameMutation.mutate(
       { groupId, name },
       {
-        onSuccess: (result) => options.onSuccess?.(result),
-        onError: (error) => options.onError?.(error),
+        onSuccess: ({ data }) => options.onSuccess?.(data),
+        onError: (err) => options.onError?.(err as Error),
       }
     );
   };
 
   const joinGroup = (joinToken: string, options: MutationOptions = {}) => {
-    joinGroupMutation.mutate(joinToken, {
+    joinMutation.mutate(joinToken, {
       onSuccess: (result) => options.onSuccess?.(result),
-      onError: (error) => options.onError?.(error),
+      onError: (err) => options.onError?.(err as Error),
     });
   };
 
   return {
-    userGroups: query.data || ([] as GroupSummary[]),
+    userGroups: query.data ?? ([] as GroupSummary[]),
     isLoadingGroups: query.isPending,
     isFetchingGroups: query.isFetching,
     isErrorGroups: query.isError,
@@ -275,66 +148,59 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
     refetchGroups: query.refetch,
 
     createGroup,
-    isCreatingGroup: isCreating,
-    isCreateGroupError: createGroupMutation.isError,
-    createGroupError: createGroupMutation.error,
-    isCreateGroupSuccess: createGroupMutation.isSuccess,
+    isCreatingGroup: createMutation.isPending,
+    isCreateGroupError: createMutation.isError,
+    createGroupError: createMutation.error,
+    isCreateGroupSuccess: createMutation.isSuccess,
 
     deleteGroup,
-    isDeletingGroup: isDeleting,
-    deletingGroupId,
-    isDeleteGroupError: deleteGroupMutation.isError,
-    deleteGroupError: deleteGroupMutation.error,
-    isDeleteGroupSuccess: deleteGroupMutation.isSuccess,
+    isDeletingGroup: deleteMutation.isPending,
+    deletingGroupId: deleteMutation.isPending ? (deleteMutation.variables ?? null) : null,
+    isDeleteGroupError: deleteMutation.isError,
+    deleteGroupError: deleteMutation.error,
+    isDeleteGroupSuccess: deleteMutation.isSuccess,
 
     updateGroupInfo,
     updateGroupName,
-    isUpdatingGroupName: isSaving,
-    isUpdateGroupNameError: updateGroupNameMutation.isError,
-    updateGroupNameError: updateGroupNameMutation.error,
-    isUpdateGroupNameSuccess: updateGroupNameMutation.isSuccess,
-    isUpdatingGroupInfo: updateGroupInfoMutation.isPending,
-    isUpdateGroupInfoError: updateGroupInfoMutation.isError,
-    updateGroupInfoError: updateGroupInfoMutation.error,
-    isUpdateGroupInfoSuccess: updateGroupInfoMutation.isSuccess,
+    isUpdatingGroupName: updateNameMutation.isPending,
+    isUpdateGroupNameError: updateNameMutation.isError,
+    updateGroupNameError: updateNameMutation.error,
+    isUpdateGroupNameSuccess: updateNameMutation.isSuccess,
+    isUpdatingGroupInfo: updateInfoMutation.isPending,
+    isUpdateGroupInfoError: updateInfoMutation.isError,
+    updateGroupInfoError: updateInfoMutation.error,
+    isUpdateGroupInfoSuccess: updateInfoMutation.isSuccess,
 
     joinGroup,
-    isJoiningGroup: isJoining,
-    isJoinGroupError: joinGroupMutation.isError,
-    joinGroupError: joinGroupMutation.error,
-    isJoinGroupSuccess: joinGroupMutation.isSuccess,
+    isJoiningGroup: joinMutation.isPending,
+    isJoinGroupError: joinMutation.isError,
+    joinGroupError: joinMutation.error,
+    isJoinGroupSuccess: joinMutation.isSuccess,
 
-    isSaving,
-    clearMessages,
+    isSaving:
+      createMutation.isPending ||
+      deleteMutation.isPending ||
+      updateInfoMutation.isPending ||
+      updateNameMutation.isPending ||
+      joinMutation.isPending,
+    clearMessages: () => {
+      createMutation.reset();
+      deleteMutation.reset();
+      updateInfoMutation.reset();
+      updateNameMutation.reset();
+      joinMutation.reset();
+    },
   };
 };
 
+// Re-exported hook kept for compatibility with existing callers
+// that expect `useLeaveGroup` / `useGroupDetails` in this module.
+export { useLeaveGroup };
+
 export const useGroupMembers = (groupId: string | null, _options: UseGroupsOptions = {}) => {
-  const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
-
-  const membersQueryKey = ['groupMembers', groupId];
-
-  const fetchMembersFn = async (): Promise<GroupMember[]> => {
-    if (!user?.id || !groupId) throw new Error('User not authenticated or group ID missing');
-    const response = await apiClient.get<MembersResponse>(`/auth/groups/${groupId}/members`);
-    return response.data.members ?? [];
-  };
-
-  const query = useQuery({
-    queryKey: membersQueryKey,
-    queryFn: fetchMembersFn,
-    enabled: !!user?.id && !!groupId && isAuthenticated && !authLoading,
-    staleTime: 20 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: true,
-    retry: (failureCount: number) => failureCount < 2,
-    refetchInterval: false,
-  });
-
+  const query = useGroupMembersShared(groupId);
   return {
-    members: query.data || [],
+    members: query.data ?? ([] as GroupMember[]),
     isLoadingMembers: query.isPending,
     isFetchingMembers: query.isFetching,
     isErrorMembers: query.isError,
@@ -344,31 +210,23 @@ export const useGroupMembers = (groupId: string | null, _options: UseGroupsOptio
 };
 
 export const useUpdateMemberRole = (groupId: string) => {
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation({
-    mutationFn: async ({ memberId, role }: { memberId: string; role: 'admin' | 'member' }) => {
-      const response = await apiClient.put<Record<string, unknown>>(
-        `/auth/groups/${groupId}/members/${memberId}/role`,
-        {
-          role,
-        }
-      );
-      return response.data;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['groupMembers', groupId] });
-    },
-  });
-
+  const mutation = useUpdateMemberRoleShared(groupId);
   return {
     updateMemberRole: mutation.mutate,
     isUpdatingRole: mutation.isPending,
   };
 };
 
+// ── Content sharing (web-only — not ported to shared) ─────────────
+// The docs/texts/vorlagen picker depends on web-specific content hooks,
+// so this stays local. Mobile defers this feature.
+
 interface GroupContentData {
   [key: string]: unknown[];
+}
+
+interface ContentResponse {
+  content?: Record<string, unknown[]>;
 }
 
 export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptions = {}) => {
@@ -433,19 +291,16 @@ interface VorlagenData {
 export const useGroupVorlagen = (groupId: string | null, { isActive }: UseGroupsOptions = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
 
-  const vorlagenQueryKey = ['groupVorlagen', groupId];
-
   const fetchVorlagenFn = async (): Promise<VorlagenData> => {
     if (!user?.id || !groupId) {
       throw new Error('User not authenticated or group ID missing');
     }
-
     const response = await apiClient.get<VorlagenData>(`/auth/groups/${groupId}/vorlagen`);
     return response.data;
   };
 
   const query = useQuery({
-    queryKey: vorlagenQueryKey,
+    queryKey: ['groupVorlagen', groupId],
     queryFn: fetchVorlagenFn,
     enabled: !!user?.id && !!groupId && isAuthenticated && !authLoading && isActive,
     staleTime: 5 * 60 * 1000,
@@ -473,7 +328,6 @@ export const useUpdateGroupSettings = (groupId: string | null) => {
       if (!user?.id || !groupId) {
         throw new Error('User not authenticated or group ID missing');
       }
-
       const response = await apiClient.put<Record<string, unknown>>(
         `/auth/groups/${groupId}/info`,
         { settings }
@@ -490,7 +344,7 @@ export const useUpdateGroupSettings = (groupId: string | null) => {
     updateSettings: (settings: Record<string, unknown>, options: MutationOptions = {}) => {
       mutation.mutate(settings, {
         onSuccess: (result) => options.onSuccess?.(result),
-        onError: (error) => options.onError?.(error),
+        onError: (error) => options.onError?.(error as Error),
       });
     },
     isUpdatingSettings: mutation.isPending,
@@ -498,39 +352,8 @@ export const useUpdateGroupSettings = (groupId: string | null) => {
 };
 
 export const useGroupAvatar = (groupId: string | null) => {
-  const queryClient = useQueryClient();
-
-  const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      if (!groupId) throw new Error('Group ID missing');
-      const formData = new FormData();
-      formData.append('avatar', file);
-      const response = await apiClient.post<AvatarUploadResponse>(
-        `/auth/groups/${groupId}/avatar`,
-        formData,
-        {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        }
-      );
-      return response.data;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['groupDetails', groupId] });
-      void queryClient.invalidateQueries({ queryKey: ['userGroups'] });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      if (!groupId) throw new Error('Group ID missing');
-      await apiClient.delete(`/auth/groups/${groupId}/avatar`);
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['groupDetails', groupId] });
-      void queryClient.invalidateQueries({ queryKey: ['userGroups'] });
-    },
-  });
-
+  const uploadMutation = useUploadGroupAvatar(groupId ?? '');
+  const deleteMutation = useDeleteGroupAvatar(groupId ?? '');
   return {
     uploadAvatar: uploadMutation.mutate,
     isUploadingAvatar: uploadMutation.isPending,
@@ -540,50 +363,10 @@ export const useGroupAvatar = (groupId: string | null) => {
   };
 };
 
-export interface GroupLink {
-  id: string;
-  title: string;
-  url: string;
-  description?: string;
-  icon: string;
-}
-
 export const useGroupLinks = (groupId: string | null) => {
-  const queryClient = useQueryClient();
-
-  const invalidate = () => {
-    void queryClient.invalidateQueries({ queryKey: ['groupDetails', groupId] });
-  };
-
-  const addMutation = useMutation({
-    mutationFn: async (link: Omit<GroupLink, 'id'>) => {
-      if (!groupId) throw new Error('Group ID missing');
-      const response = await apiClient.post<LinkResponse>(`/auth/groups/${groupId}/links`, link);
-      return (response.data.link ?? {}) as GroupLink;
-    },
-    onSuccess: invalidate,
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ linkId, ...link }: Omit<GroupLink, 'id'> & { linkId: string }) => {
-      if (!groupId) throw new Error('Group ID missing');
-      const response = await apiClient.put<LinkResponse>(
-        `/auth/groups/${groupId}/links/${linkId}`,
-        link
-      );
-      return (response.data.link ?? {}) as GroupLink;
-    },
-    onSuccess: invalidate,
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (linkId: string) => {
-      if (!groupId) throw new Error('Group ID missing');
-      await apiClient.delete(`/auth/groups/${groupId}/links/${linkId}`);
-    },
-    onSuccess: invalidate,
-  });
-
+  const addMutation = useAddGroupLink(groupId ?? '');
+  const updateMutation = useUpdateGroupLink(groupId ?? '');
+  const deleteMutation = useDeleteGroupLink(groupId ?? '');
   return {
     addLink: addMutation.mutate,
     isAddingLink: addMutation.isPending,
@@ -592,15 +375,4 @@ export const useGroupLinks = (groupId: string | null) => {
     deleteLink: deleteMutation.mutate,
     isDeletingLink: deleteMutation.isPending,
   };
-};
-
-export const getGroupInitials = (groupName: string | null | undefined): string => {
-  if (!groupName) return 'G';
-
-  if (!groupName.includes(' ')) {
-    return groupName.substring(0, 2).toUpperCase();
-  }
-
-  const words = groupName.split(' ');
-  return (words[0][0] + (words[1] ? words[1][0] : '')).toUpperCase();
 };

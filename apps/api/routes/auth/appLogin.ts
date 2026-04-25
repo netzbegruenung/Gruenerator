@@ -20,7 +20,8 @@
  *    → 302 redirects to gruenerator://auth/callback?code=<jwt>
  *
  * 4. The app's deep-link handler receives the code and exchanges it
- *    via POST /auth/mobile/consume-login-code for access + refresh tokens.
+ *    via POST /auth/v2/token-exchange-code (the `mobileTokenExchange`
+ *    Better Auth plugin) for an opaque Better Auth session token.
  */
 
 import { randomBytes } from 'crypto';
@@ -32,6 +33,7 @@ import { SignJWT } from 'jose';
 
 import { auth } from '../../config/betterAuth.js';
 import { env } from '../../config/env.js';
+import { forwardBetterAuthCookies } from '../../utils/betterAuthBridge.js';
 import { createLogger } from '../../utils/logger.js';
 import { parseJSON } from '../../utils/parseJSON.js';
 import redisClient from '../../utils/redis/client.js';
@@ -123,7 +125,7 @@ router.get('/login', loginLimiter, async (req: AuthRequest, res: Response): Prom
       await storeAppLoginState(stateNonce, { redirectTo });
     }
 
-    const callbackURL = redirectTo ? `/api/auth/app-callback?state=${stateNonce}` : '/desk';
+    const callbackURL = redirectTo ? `/api/auth/app-callback?state=${stateNonce}` : '/workplace';
 
     log.info(
       '[AppLogin] Initiating OAuth: source=%s, providerId=%s, callbackURL=%s, redirectTo=%s',
@@ -133,14 +135,20 @@ router.get('/login', loginLimiter, async (req: AuthRequest, res: Response): Prom
       redirectTo ?? 'none'
     );
 
+    // asResponse + forwardBetterAuthCookies is mandatory. Without it, Better
+    // Auth's Set-Cookie headers (OAuth state, PKCE verifier) never reach the
+    // browser; the Keycloak callback then comes back cookie-less, Better
+    // Auth rejects the state as a replay, and the browser gets 302'd to
+    // `/?error=please_restart_the_process` — which renders as the marketing
+    // homepage and hangs `WebBrowser.openAuthSessionAsync()` forever.
     const response = await auth.api.signInWithOAuth2({
-      body: {
-        providerId,
-        callbackURL,
-      },
+      body: { providerId, callbackURL },
+      headers: fromNodeHeaders(req.headers),
+      asResponse: true,
     });
+    forwardBetterAuthCookies(res, response);
+    const { url } = (await response.json()) as { url?: string };
 
-    const url = (response as { url?: string }).url;
     if (!url) {
       log.error(
         '[AppLogin] No URL returned from Better Auth signInWithOAuth2 (provider=%s, callbackURL=%s)',

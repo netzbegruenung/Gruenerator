@@ -144,17 +144,25 @@ const BlockNoteEditorInner = ({
   const scrollSelectionIntoView = useCallback(() => {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
+
+    const anchorNode = sel.anchorNode;
+    const anchorEl =
+      anchorNode?.nodeType === Node.ELEMENT_NODE
+        ? (anchorNode as Element)
+        : anchorNode?.parentElement ?? null;
+    const blockEl = anchorEl?.closest('[data-id], .bn-block-content') ?? anchorEl;
+    if (!blockEl) return;
+
     const rect = sel.getRangeAt(0).getBoundingClientRect();
     const vp = window.visualViewport;
-    if (!vp) return;
     const toolbarHeight =
       wrapperRef.current?.querySelector('.bn-formatting-toolbar')?.getBoundingClientRect().height ||
       44;
-    const visibleBottom = vp.offsetTop + vp.height - toolbarHeight;
-    if (rect.bottom > visibleBottom) {
-      window.scrollBy({ top: rect.bottom - visibleBottom + 16, behavior: 'smooth' });
-    } else if (rect.top < vp.offsetTop) {
-      window.scrollBy({ top: rect.top - vp.offsetTop - 16, behavior: 'smooth' });
+    const visibleBottom = vp ? vp.offsetTop + vp.height - toolbarHeight : window.innerHeight;
+    const visibleTop = vp?.offsetTop ?? 0;
+
+    if (rect.bottom > visibleBottom || rect.top < visibleTop) {
+      blockEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
     }
   }, []);
 

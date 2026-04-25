@@ -22,6 +22,61 @@
  *      needs a live Postgres connection and is skipped gracefully when the
  *      DB is unreachable.
  *
+ *   3. Mobile OAuth Set-Cookie drop (branch fix/mobile-auth-cookie-forwarding).
+ *      `auth.api.signInWithOAuth2(...)` called without `asResponse: true`
+ *      silently drops Better Auth's state + PKCE cookies, so the Keycloak
+ *      round-trip comes back without `__Secure-ba.state`. Better Auth then
+ *      treats the callback as a `state_mismatch` replay and redirects to
+ *      `/?error=please_restart_the_process` — which the SPA renders as the
+ *      marketing homepage, so the Chrome Custom Tab never fires the custom
+ *      scheme and `WebBrowser.openAuthSessionAsync()` hangs forever. Fix
+ *      pattern: every programmatic `auth.api.*` call that mutates auth
+ *      state passes `asResponse: true` and then calls
+ *      `forwardBetterAuthCookies(res, response)` from
+ *      `apps/api/utils/betterAuthBridge.ts`. Helper ships with its own unit
+ *      tests (`apps/api/utils/betterAuthBridge.vitest.ts`).
+ *
+ *   4. Mobile custom-JWT rejected by requireAuth (branch
+ *      fix/mobile-better-auth-bearer). The legacy
+ *      `/auth/mobile/consume-login-code` Express route minted a custom HS256
+ *      JWT signed with SESSION_SECRET; that token was never recognised by
+ *      `auth.api.getSession({ headers })`, so every `/api/docs/*` (and any
+ *      other endpoint guarded by `requireAuth`) 401'd for mobile clients.
+ *      Symptom was `[DocsStore] Failed to fetch documents: AxiosError 401`
+ *      looping on the docs tab even though login itself succeeded. Fix:
+ *      move the exchange into the `mobileTokenExchange` Better Auth plugin's
+ *      new `/token-exchange-code` endpoint, which creates a real Better Auth
+ *      session via `internalAdapter.createSession(...)` and returns
+ *      `session.token`. Combined with the already-configured `bearer()`
+ *      plugin, mobile's `Authorization: Bearer <token>` flows through the
+ *      same code path as web's session cookie — no dual-auth logic in
+ *      `requireAuth`.
+ *
+ *   5. Mobile logout never invalidated server-side session (branch
+ *      fix/mobile-logout-signout / fix/retire-legacy-mobile-auth).
+ *      `POST /auth/mobile/logout` pre-dated Better Auth and only knew
+ *      how to revoke `app_refresh_tokens` rows. Post-#657 installs sent
+ *      no `refresh_token` in the body, so the route returned 200
+ *      without touching anything — the Better Auth session token
+ *      stayed valid server-side until natural expiry. Fix: call
+ *      `auth.api.signOut({ headers })` so the `bearer()` plugin routes
+ *      the Authorization header through the same invalidation path as
+ *      the cookie.
+ *
+ *   6. Mobile push notifications + legacy HS256 retirement (branch
+ *      fix/retire-legacy-mobile-auth). Push device identity was keyed
+ *      by `app_refresh_tokens.token_hash`, so Better Auth installs
+ *      never registered for push. Fix: new `app_push_devices` table
+ *      keyed by (user_id, expo_push_token), with `requireAuth` middleware
+ *      now guarding `/auth/mobile/register-push-token` and
+ *      `/auth/mobile/devices`. Same branch retires the entire legacy
+ *      HS256 surface — `/auth/mobile/consume-login-code`, `/mobile/refresh`,
+ *      `/mobile/status`, `DELETE /mobile/sessions`, `/mobile/session-bridge`,
+ *      the `BridgeCodeStore`, refresh-token storage on the mobile client,
+ *      and the `appRefreshTokens` Drizzle schema. The `app_refresh_tokens`
+ *      table itself stays in place until manually dropped (non-destructive
+ *      cleanup), but nothing reads or writes it anymore.
+ *
  * Run: `pnpm --filter @gruenerator/api test`
  */
 

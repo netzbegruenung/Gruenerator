@@ -1,4 +1,14 @@
-import { bigint, boolean, pgTable, serial, text, timestamp, uuid, index } from 'drizzle-orm/pg-core';
+import {
+  bigint,
+  boolean,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  unique,
+  uuid,
+  index,
+} from 'drizzle-orm/pg-core';
 
 export const wolkeSyncStatus = pgTable(
   'wolke_sync_status',
@@ -36,24 +46,19 @@ export const routeUsageStats = pgTable(
   (t) => [index('idx_route_usage_stats_pattern_method').on(t.routePattern, t.method)]
 );
 
-export const appRefreshTokens = pgTable(
-  'app_refresh_tokens',
+export const appPushDevices = pgTable(
+  'app_push_devices',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     userId: uuid('user_id').notNull(),
-    tokenHash: text('token_hash').notNull().unique(),
+    expoPushToken: text('expo_push_token').notNull(),
     deviceName: text('device_name'),
     deviceType: text('device_type').notNull().default('unknown'),
-    issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
-    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
-    revokedAt: timestamp('revoked_at', { withTimezone: true }),
-    pushToken: text('push_token'),
-    pushTokenUpdatedAt: timestamp('push_token_updated_at', { withTimezone: true }),
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index('idx_app_refresh_tokens_user').on(t.userId),
-    index('idx_app_refresh_tokens_hash').on(t.tokenHash),
-    index('idx_app_refresh_tokens_expires').on(t.expiresAt),
+    unique('app_push_devices_user_token_unique').on(t.userId, t.expoPushToken),
+    index('idx_app_push_devices_user').on(t.userId),
   ]
 );

@@ -96,12 +96,32 @@ class WordPressApiClient {
     }
 
     const validatedBaseUrl = urlCheck.url!.href.replace(/\/+$/, '');
+    const allowedHost = urlCheck.url!.hostname.toLowerCase();
+    const allowedProtocol = urlCheck.url!.protocol;
 
     const client = axios.create({
       baseURL: `${validatedBaseUrl}/wp-json`,
       auth: { username, password: appPassword },
       timeout: 15000,
       headers: { 'Content-Type': 'application/json' },
+      maxRedirects: 0,
+    });
+
+    client.interceptors.request.use(async (config) => {
+      const base = config.baseURL ?? '';
+      const relative = config.url ?? '';
+      const composed = new URL(relative, `${base}/`).href;
+      const perRequestCheck = await validateUrlForFetch(composed, {
+        allowedProtocols: [allowedProtocol],
+        allowedHosts: [allowedHost],
+        skipDnsCheck: true,
+      });
+      if (!perRequestCheck.isValid || !perRequestCheck.url) {
+        throw new Error(`WordPress request blocked by SSRF guard: ${perRequestCheck.error}`);
+      }
+      delete config.baseURL;
+      config.url = perRequestCheck.url.href;
+      return config;
     });
 
     client.interceptors.response.use(

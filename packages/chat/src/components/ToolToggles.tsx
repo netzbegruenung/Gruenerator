@@ -27,10 +27,9 @@ import {
   ResponsiveMenuItem,
   ResponsiveMenuToggle,
 } from '@gruenerator/ui';
-import { cn, composerToolbarButtonClass } from '../lib/utils';
-import { MODEL_ICONS } from '../lib/modelIcons';
+import { composerToolbarButtonClass } from '../lib/utils';
 import { useShallow } from 'zustand/shallow';
-import { useAgentStore, MODEL_OPTIONS, type ThreadMode, type ToolKey } from '../stores/chatStore';
+import { useAgentStore, type ThreadMode, type ToolKey } from '../stores/chatStore';
 import { useUserProfileStore } from '../stores/userProfileStore';
 import { notebookMentionables } from '../lib/mentionables';
 import { ShareThreadDialog } from './thread/ShareThreadDialog';
@@ -60,7 +59,6 @@ interface ToolTogglesProps {
 export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: ToolTogglesProps) {
   const {
     enabledTools,
-    selectedModel,
     currentThreadId: threadId,
     threadMode,
     selectedNotebookId,
@@ -68,7 +66,6 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
   } = useAgentStore(
     useShallow((s) => ({
       enabledTools: s.enabledTools,
-      selectedModel: s.selectedModel,
       currentThreadId: s.currentThreadId,
       threadMode: s.threadMode,
       selectedNotebookId: s.selectedNotebookId,
@@ -76,7 +73,6 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
     }))
   );
   const toggleTool = useAgentStore((s) => s.toggleTool);
-  const setSelectedModel = useAgentStore((s) => s.setSelectedModel);
   const setThreadMode = useAgentStore((s) => s.setThreadMode);
   const setSelectedNotebook = useAgentStore((s) => s.setSelectedNotebook);
   const [shareOpen, setShareOpen] = useState(false);
@@ -86,8 +82,6 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
   const hasCustomPrompt = !!customSystemPrompt;
   const hasRoles = roles.length > 0;
 
-  const current = MODEL_OPTIONS.find((m) => m.id === selectedModel) ?? MODEL_OPTIONS[0];
-  const CurrentIcon = MODEL_ICONS[current.icon];
   const ActiveModeIcon =
     threadMode === 'eigener'
       ? Settings
@@ -213,32 +207,6 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
         </DropdownMenuSubContent>
       </DropdownMenuSub>
 
-      {/* Model picker hidden — fixed to LiteLLM for generation, Regolo for agent nodes */}
-      {false && (
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <CurrentIcon className="h-3.5 w-3.5" />
-            Modell
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
-            <DropdownMenuRadioGroup
-              value={selectedModel}
-              onValueChange={(v) => setSelectedModel(v as typeof selectedModel)}
-            >
-              {MODEL_OPTIONS.map((model) => {
-                const Icon = MODEL_ICONS[model.icon];
-                return (
-                  <DropdownMenuRadioItem key={model.id} value={model.id}>
-                    <Icon className="h-3.5 w-3.5" />
-                    {model.name}
-                  </DropdownMenuRadioItem>
-                );
-              })}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-      )}
-
       {threadId && (
         <>
           <DropdownMenuSeparator />
@@ -313,22 +281,6 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
             onCheckedChange={() => toggleTool(key)}
           />
         ))}
-      </ResponsiveMenuSection>
-
-      <ResponsiveMenuSection title="Modell">
-        {MODEL_OPTIONS.map((model) => {
-          const Icon = MODEL_ICONS[model.icon];
-          return (
-            <ResponsiveMenuItem
-              key={model.id}
-              icon={<Icon />}
-              active={selectedModel === model.id}
-              onClick={() => setSelectedModel(model.id as typeof selectedModel)}
-            >
-              {model.name}
-            </ResponsiveMenuItem>
-          );
-        })}
       </ResponsiveMenuSection>
 
       {threadId && (

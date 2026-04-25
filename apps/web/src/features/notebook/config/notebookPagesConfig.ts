@@ -31,6 +31,11 @@ interface SourceInfo {
 
 interface NotebookConfig {
   id: string;
+  /**
+   * URL slug under /notebooks/. `null` means the notebook lives at the bare /notebooks root
+   * (the multi-source Grünerator startpage + gallery).
+   */
+  slug: string | null;
   title: string;
   authTitle: string;
   collectionType: 'single' | 'multi';
@@ -51,6 +56,7 @@ interface NotebookConfig {
 export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
   gruenerator: {
     id: 'gruenerator',
+    slug: null,
     title: 'Frag Grünerator',
     authTitle: 'Frag Grünerator',
     collectionType: 'multi',
@@ -220,6 +226,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 
   gruene: {
     id: 'gruene',
+    slug: 'grundsatz',
     title: 'Frag den Bundesverband',
     authTitle: 'Frag den Bundesverband',
     collectionType: 'single',
@@ -252,6 +259,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 
   bundestagsfraktion: {
     id: 'bundestagsfraktion',
+    slug: 'bundestagsfraktion',
     title: 'Frag die Bundestagsfraktion',
     authTitle: 'Frag die Bundestagsfraktion',
     collectionType: 'single',
@@ -285,6 +293,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 
   oesterreich: {
     id: 'oesterreich',
+    slug: 'oesterreich',
     title: 'Frag Die Grünen Österreich',
     authTitle: 'Frag Die Grünen Österreich',
     collectionType: 'single',
@@ -317,6 +326,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 
   hamburg: {
     id: 'hamburg',
+    slug: 'hamburg',
     title: 'Frag Grüne Hamburg',
     authTitle: 'Frag Grüne Hamburg',
     collectionType: 'single',
@@ -348,6 +358,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 
   schleswigHolstein: {
     id: 'schleswigHolstein',
+    slug: 'schleswig-holstein',
     title: 'Frag Grüne Schleswig-Holstein',
     authTitle: 'Frag Grüne Schleswig-Holstein',
     collectionType: 'single',
@@ -377,6 +388,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 
   bayern: {
     id: 'bayern',
+    slug: 'bayern',
     title: 'Frag Grüne Bayern',
     authTitle: 'Frag Grüne Bayern',
     collectionType: 'single',
@@ -400,6 +412,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
   },
   thueringen: {
     id: 'thueringen',
+    slug: 'thueringen',
     title: 'Frag Grüne Thüringen',
     authTitle: 'Frag Grüne Thüringen',
     collectionType: 'single',
@@ -428,6 +441,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 
   berlin: {
     id: 'berlin',
+    slug: 'berlin',
     title: 'Frag Grüne Berlin',
     authTitle: 'Frag Grüne Berlin',
     collectionType: 'single',
@@ -456,6 +470,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 
   mecklenburgVorpommern: {
     id: 'mecklenburgVorpommern',
+    slug: 'mecklenburg-vorpommern',
     title: 'Frag Grüne Mecklenburg-Vorpommern',
     authTitle: 'Frag Grüne Mecklenburg-Vorpommern',
     collectionType: 'single',
@@ -484,6 +499,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 
   brandenburg: {
     id: 'brandenburg',
+    slug: 'brandenburg',
     title: 'Frag Grüne Brandenburg',
     authTitle: 'Frag Grüne Brandenburg',
     collectionType: 'single',
@@ -512,6 +528,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 
   kommunalwiki: {
     id: 'kommunalwiki',
+    slug: 'kommunalwiki',
     title: 'Frag KommunalWiki',
     authTitle: 'Frag KommunalWiki',
     collectionType: 'single',
@@ -535,6 +552,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 
   boellStiftung: {
     id: 'boellStiftung',
+    slug: 'boell-stiftung',
     title: 'Frag Heinrich-Böll-Stiftung',
     authTitle: 'Frag Heinrich-Böll-Stiftung',
     collectionType: 'single',
@@ -558,6 +576,7 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 
   gruenblog: {
     id: 'gruenblog',
+    slug: 'gruenblog',
     title: 'Frag Grünblog',
     authTitle: 'Frag Grünblog',
     collectionType: 'single',
@@ -583,3 +602,13 @@ export const NOTEBOOK_CONFIGS: Record<string, NotebookConfig> = {
 export const getNotebookConfig = (configId: string): NotebookConfig => {
   return NOTEBOOK_CONFIGS[configId] || NOTEBOOK_CONFIGS.gruenerator;
 };
+
+export const getNotebookConfigBySlug = (slug: string): NotebookConfig | undefined => {
+  return Object.values(NOTEBOOK_CONFIGS).find((c) => c.slug === slug);
+};
+
+export const getNotebookPath = (config: { slug: string | null }): string => {
+  return config.slug === null ? '/notebooks' : `/notebooks/${config.slug}`;
+};
+
+export type { NotebookConfig };

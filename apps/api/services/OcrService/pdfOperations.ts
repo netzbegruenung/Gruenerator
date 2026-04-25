@@ -12,7 +12,7 @@ import type {
   PageExtractionResult,
 } from './types.js';
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 /**
  * Lazy load PDF.js to avoid memory overhead
@@ -268,12 +268,12 @@ export async function extractTextFromBase64PDF(
 
     const pdfjsLib = await getPdfJsFn();
 
-    // Convert base64 to Uint8Array
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+    const MAX_PDF_BYTES = 100 * 1024 * 1024;
+    if (base64Data.length > Math.ceil((MAX_PDF_BYTES * 4) / 3)) {
+      throw new Error('PDF exceeds maximum allowed size');
     }
+    const buf = Buffer.from(base64Data, 'base64');
+    const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
 
     // Load PDF from bytes
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call -- pdfjs-dist untyped
