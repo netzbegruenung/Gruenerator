@@ -297,15 +297,17 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           type: 'presse',
           path: '/nachrichten',
           listSelector: 'h2 a[href], h3 a[href]',
-          // Same TYPO3 pagination defect as berlin-lv-beschluesse: tx_xblog_pi1[pointer]
-          // is silently ignored upstream, so the listing only ever yields the rolling-10
-          // newest. Cross-checked against the news sub-sitemap (1000 entries) and found 2
-          // of the latest 5 articles missing from Qdrant — the rolling window doesn't keep
-          // up with publish cadence between hourly runs. Switch to typed sub-sitemap
-          // discovery; #normalizeUrl rewrites the canonical /news/ URLs back to the
-          // /nachrichten/ alias so URL-based dedup matches the 190 existing Qdrant points.
+          // TYPO3's tx_xblog_pi1[pointer] pagination is broken upstream (every page
+          // returns the same first ~10 items), so use the typed sub-sitemap. Filter on
+          // the canonical `/news/` prefix that gruene.berlin's TYPO3 SEO sitemap emits
+          // — do NOT rewrite to /nachrichten/. The /nachrichten/ alias only resolves
+          // for some articles; for older slugs TYPO3 silently routes /nachrichten/<slug>
+          // to the listing page with a "Uups, kein Eintrag vorhanden" notice (HTTP 200
+          // body, no redirect), and the scraper would then index the listing as if it
+          // were the article. /news/<slug>_<id> is the canonical TYPO3 URL and always
+          // resolves to the article page — it is what the sub-sitemap emits.
           sitemapUrls: ['https://gruene.berlin/sitemap.xml'],
-          sitemapFilter: '/nachrichten/',
+          sitemapFilter: '/news/',
         },
       ],
       contentSelectors: {
