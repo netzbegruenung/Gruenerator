@@ -23,12 +23,25 @@ import type { Application } from 'express';
 
 const log = createLogger('adminVorlagenContractRouter');
 
-async function checkIsAdmin(userId: string): Promise<boolean> {
+async function checkIsAdmin(userId: string, email?: string): Promise<boolean> {
   const postgres = getPostgresInstance();
-  const profile = await postgres.queryOne('SELECT is_admin FROM profiles WHERE id = $1', [userId], {
-    table: 'profiles',
-  });
-  return Boolean(profile?.is_admin);
+  const profile = await postgres.queryOne(
+    'SELECT is_admin, email FROM profiles WHERE id = $1',
+    [userId],
+    { table: 'profiles' }
+  );
+  const allowed = Boolean(profile?.is_admin);
+  if (!allowed) {
+    log.warn(
+      '[adminVorlagenContract] admin check denied: session user_id=%s session_email=%s profile_found=%s profile_email=%s profile_is_admin=%s',
+      userId,
+      email ?? '(none)',
+      profile ? 'yes' : 'no',
+      profile?.email ?? '(null)',
+      profile?.is_admin
+    );
+  }
+  return allowed;
 }
 
 const FORBIDDEN = {
@@ -41,8 +54,9 @@ const s = initServer();
 export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
   list: async (args) => {
     try {
-      const userId = getAuthedUser(args.req).id;
-      if (!(await checkIsAdmin(userId))) return FORBIDDEN;
+      const authedUser = getAuthedUser(args.req);
+      const userId = authedUser.id;
+      if (!(await checkIsAdmin(userId, authedUser.email))) return FORBIDDEN;
 
       const { status = 'pending_review', limit = '50', offset = '0' } = args.query;
       const postgres = getPostgresInstance();
@@ -73,8 +87,9 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
 
   getStats: async (args) => {
     try {
-      const userId = getAuthedUser(args.req).id;
-      if (!(await checkIsAdmin(userId))) return FORBIDDEN;
+      const authedUser = getAuthedUser(args.req);
+      const userId = authedUser.id;
+      if (!(await checkIsAdmin(userId, authedUser.email))) return FORBIDDEN;
 
       const postgres = getPostgresInstance();
       const result = await postgres.query(
@@ -105,8 +120,9 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
 
   approve: async (args) => {
     try {
-      const userId = getAuthedUser(args.req).id;
-      if (!(await checkIsAdmin(userId))) return FORBIDDEN;
+      const authedUser = getAuthedUser(args.req);
+      const userId = authedUser.id;
+      if (!(await checkIsAdmin(userId, authedUser.email))) return FORBIDDEN;
 
       const { id } = args.params;
       const postgres = getPostgresInstance();
@@ -155,8 +171,9 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
 
   reject: async (args) => {
     try {
-      const userId = getAuthedUser(args.req).id;
-      if (!(await checkIsAdmin(userId))) return FORBIDDEN;
+      const authedUser = getAuthedUser(args.req);
+      const userId = authedUser.id;
+      if (!(await checkIsAdmin(userId, authedUser.email))) return FORBIDDEN;
 
       const { id } = args.params;
       const reason = args.body.reason ?? null;
