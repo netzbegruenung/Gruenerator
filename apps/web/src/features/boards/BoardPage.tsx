@@ -65,7 +65,7 @@ function BoardContent() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['boards'] });
-      void navigate('/desk');
+      void navigate('/workplace');
     },
   });
 

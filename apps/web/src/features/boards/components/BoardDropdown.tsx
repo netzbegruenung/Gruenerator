@@ -94,7 +94,7 @@ export const BoardDropdown = memo(function BoardDropdown({
               onClick={() => {
                 onDelete();
                 setDeleteConfirmOpen(false);
-                void navigate('/desk');
+                void navigate('/workplace');
               }}
             >
               Löschen

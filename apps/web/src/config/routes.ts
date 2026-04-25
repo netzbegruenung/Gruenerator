@@ -79,9 +79,11 @@ const ImageStudioKiTypeRedirect = lazy(() =>
 const ImaginePage = lazy(() => import('../features/image-studio/ImaginePage'));
 
 // Statische Importe in dynamische umwandeln
-const TexteRedirectToDeskComponent: FC<Record<string, unknown>> = () =>
-  createElement(Navigate, { to: '/desk', replace: true });
-const TexteRedirectToDesk = lazy(() => Promise.resolve({ default: TexteRedirectToDeskComponent }));
+const TexteRedirectToWorkplaceComponent: FC<Record<string, unknown>> = () =>
+  createElement(Navigate, { to: '/workplace', replace: true });
+const TexteRedirectToWorkplace = lazy(() =>
+  Promise.resolve({ default: TexteRedirectToWorkplaceComponent })
+);
 const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
 const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
@@ -151,7 +153,7 @@ const TransferPage = lazy(() => import('../features/transfer/TransferPage'));
 const BriefingPage = lazy(() => import('../features/briefing/BriefingPage'));
 const BriefingArchivePage = lazy(() => import('../features/briefing/BriefingArchivePage'));
 const BriefingArticlePage = lazy(() => import('../features/briefing/BriefingArticlePage'));
-const DeskPage = lazy(() => import('../features/workplace/WorkplacePage'));
+const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
 const RecherchePage = lazy(() => import('../features/recherche/RecherchePage'));
 const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
 const BoardsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/docs') }));
@@ -167,7 +169,7 @@ const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
  * Lazy loading für Grüneratoren Bundle
  */
 export const GrueneratorenBundle = {
-  Texte: TexteRedirectToDesk,
+  Texte: TexteRedirectToWorkplace,
   ImageStudio: ImageStudioPage,
   ImageGallery: ImageGallery,
   Search: Search,
@@ -187,14 +189,18 @@ export const GrueneratorenBundle = {
 
 // Route Konfigurationen
 const standardRoutes: RouteConfig[] = [
-  // Desktop app always shows DesktopHome dashboard; web redirects auth'd users to /desk
+  // Desktop app always shows DesktopHome dashboard; web redirects auth'd users to /workplace
   isDesktopApp()
     ? { path: '/', component: DesktopHome }
     : { path: '/', component: Startseite, auth: 'guest' as const, layoutMode: 'noChrome' as const },
   { path: '/startseite', component: Startseite, auth: 'guest', layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
-  { path: '/desk', component: DeskPage },
+  { path: '/workplace', component: WorkplacePage },
+  {
+    path: '/desk',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
+  },
   { path: '/recherche', component: RecherchePage },
   { path: '/gruppen', component: GruppenPage },
   { path: '/gruppen/:groupId', component: GruppenPage },
@@ -307,11 +313,11 @@ const standardRoutes: RouteConfig[] = [
   // Redirects for removed pages
   {
     path: '/agent/:slug',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/desk') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
   },
   {
     path: '/prompt/:slug',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/desk') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
   },
   {
     path: '/ask',
