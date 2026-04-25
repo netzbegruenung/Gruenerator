@@ -9,7 +9,7 @@ const GuestRoute = () => {
   // Don't redirect during logout — store may momentarily show authenticated from stale cache
   if (isLoggingOut) return <Outlet />;
 
-  return isAuthenticated ? <Navigate to="/desk" replace /> : <Outlet />;
+  return isAuthenticated ? <Navigate to="/workplace" replace /> : <Outlet />;
 };
 
 export default GuestRoute;
