@@ -294,20 +294,27 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       maxAgeYears: 5,
       contentPaths: [
         {
+          // Scrape the dedicated /pressemitteilungen listing instead of /nachrichten
+          // or the news sub-sitemap. The news sub-sitemap aggregates ALL Berlin LV
+          // posts (press releases + AG-Sitzung announcements + LAG meetings + events),
+          // and articles indexed from there polluted Berlin Presse with non-press
+          // content. /pressemitteilungen is TYPO3's category-filtered listing route
+          // and only contains real press releases.
+          //
+          // Pagination on /pressemitteilungen actually works (unlike /nachrichten,
+          // where tx_xblog_pi1[pointer] is silently ignored) — pages 1, 2, 3 ... 57
+          // each return distinct article IDs, and the next-page links carry
+          // per-page cHash signatures. Use paginationLinkSelector so the extractor
+          // follows next-links from HTML rather than constructing URLs (which
+          // wouldn't carry the required cHash). paginationPattern stays as fallback
+          // for the rare case the link-following can't find a "next" anchor.
           type: 'presse',
-          path: '/nachrichten',
+          path: '/pressemitteilungen',
           listSelector: 'h2 a[href], h3 a[href]',
-          // TYPO3's tx_xblog_pi1[pointer] pagination is broken upstream (every page
-          // returns the same first ~10 items), so use the typed sub-sitemap. Filter on
-          // the canonical `/news/` prefix that gruene.berlin's TYPO3 SEO sitemap emits
-          // — do NOT rewrite to /nachrichten/. The /nachrichten/ alias only resolves
-          // for some articles; for older slugs TYPO3 silently routes /nachrichten/<slug>
-          // to the listing page with a "Uups, kein Eintrag vorhanden" notice (HTTP 200
-          // body, no redirect), and the scraper would then index the listing as if it
-          // were the article. /news/<slug>_<id> is the canonical TYPO3 URL and always
-          // resolves to the article page — it is what the sub-sitemap emits.
-          sitemapUrls: ['https://gruene.berlin/sitemap.xml'],
-          sitemapFilter: '/news/',
+          paginationLinkSelector: '.pagination a',
+          paginationPattern: '?tx_xblog_pi1[pointer]={page}',
+          paginationOffset: -1,
+          maxPages: 60,
         },
       ],
       contentSelectors: {
