@@ -1,6 +1,7 @@
 /**
  * Core authentication routes
- * Handles status, logout, profile, locale, health, and error pages
+ * Handles logout, profile, locale, health, and error pages
+ * Status (/api/auth/status) is served by authStatusContractRouter
  * Login/callback handled by Better Auth at /api/auth/v2/*
  */
 
@@ -8,7 +9,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { and, eq, like } from 'drizzle-orm';
 import express, { type Router, type Response } from 'express';
 
-import { auth, type BetterAuthUser } from '../../config/betterAuth.js';
+import { auth } from '../../config/betterAuth.js';
 import { env } from '../../config/env.js';
 import { ba_accounts } from '../../database/schema/auth.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -16,7 +17,7 @@ import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import * as chatMemory from '../../services/chat/ChatMemoryService.js';
 import { createLogger } from '../../utils/logger.js';
 
-import type { AuthRequest, AuthStatusResponse, LocaleUpdateBody } from './types.js';
+import type { AuthRequest, LocaleUpdateBody } from './types.js';
 
 const log = createLogger('authCore');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
@@ -37,40 +38,6 @@ router.get('/test', (_req: AuthRequest, res: Response): void => {
     message: 'Auth routes are working',
     timestamp: new Date().toISOString(),
   });
-});
-
-// ============================================================================
-// Status Route
-// ============================================================================
-
-router.get('/status', async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const session = await auth.api.getSession({
-      headers: fromNodeHeaders(req.headers),
-    });
-
-    if (session?.user) {
-      const user = session.user as BetterAuthUser & { locale?: string };
-      res.json({
-        isAuthenticated: true,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-          emailVerified: user.emailVerified,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-          ...(user.locale && { locale: user.locale }),
-        },
-      });
-      return;
-    }
-  } catch {
-    // Session check failed
-  }
-
-  res.json({ isAuthenticated: false, user: null } as AuthStatusResponse);
 });
 
 // ============================================================================

@@ -34,6 +34,7 @@ import { BaseScraper } from '../../base/BaseScraper.js';
 import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { DateExtractor } from './extractors/DateExtractor.js';
 import { LinkExtractor } from './extractors/LinkExtractor.js';
+import { WpApiExtractor } from './extractors/WpApiExtractor.js';
 import { SearchOperations } from './operations/SearchOperations.js';
 import { DocumentProcessor } from './processors/DocumentProcessor.js';
 
@@ -56,6 +57,7 @@ export class LandesverbandScraper extends BaseScraper {
   private searchOps!: SearchOperations;
   private documentProcessor!: DocumentProcessor;
   private linkExtractor!: LinkExtractor;
+  private wpApiExtractor!: WpApiExtractor;
 
   private crawlDelay: number;
   private batchSize: number;
@@ -103,6 +105,7 @@ export class LandesverbandScraper extends BaseScraper {
       this.#shouldExcludeUrl.bind(this),
       this.delay.bind(this)
     );
+    this.wpApiExtractor = new WpApiExtractor(this.#fetchUrl.bind(this), this.delay.bind(this));
 
     this.log('Service initialized');
   }
@@ -286,7 +289,9 @@ export class LandesverbandScraper extends BaseScraper {
           await this.delay(this.crawlDelay);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[Landesverband] ✗ PDF error: ${errorMessage}`);
+          console.error(
+            `[Landesverband] ✗ PDF error in ${source.id} (${pdf.url}): ${errorMessage}`
+          );
           result.errors++;
         }
       }
@@ -297,6 +302,15 @@ export class LandesverbandScraper extends BaseScraper {
       if (contentPath.staticUrls && contentPath.staticUrls.length > 0) {
         this.log(`Using ${contentPath.staticUrls.length} static URLs for ${contentPath.type}`);
         articleLinks = contentPath.staticUrls;
+      } else if (contentPath.wpApi) {
+        this.log(
+          `Using WordPress REST API discovery (category ${contentPath.wpApi.categoryId}) for ${contentPath.type}`
+        );
+        articleLinks = await this.wpApiExtractor.extractArticleLinks(
+          source,
+          contentPath,
+          this.log.bind(this)
+        );
       } else if (contentPath.sitemapUrls && contentPath.sitemapUrls.length > 0) {
         this.log(`Using sitemap extraction for ${contentPath.type}`);
         articleLinks = await this.linkExtractor.extractLinksFromSitemaps(
@@ -314,7 +328,18 @@ export class LandesverbandScraper extends BaseScraper {
 
       // Filter: only keep links whose path starts with the content path being scraped.
       // Prevents cross-contamination (e.g., /beschluesse/ links picked up from /nachrichten sidebar).
-      if (contentPath.path && contentPath.path !== '/') {
+      //
+      // Bypass for sitemap-discovered URLs and any path that explicitly opts out:
+      // sitemap URLs are canonical and may not share the listing path's prefix
+      // (e.g. TYPO3 emits /news/<slug> in the sitemap while the listing is /nachrichten),
+      // and WordPress sites with root-permalinks publish at / regardless of the
+      // /category/X listing path used for discovery.
+      const skipOffPathFilter =
+        contentPath.disableOffPathFilter === true ||
+        (contentPath.sitemapUrls !== undefined && contentPath.sitemapUrls.length > 0) ||
+        contentPath.wpApi !== undefined;
+
+      if (!skipOffPathFilter && contentPath.path && contentPath.path !== '/') {
         const before = articleLinks.length;
         articleLinks = articleLinks.filter((url) => {
           try {
@@ -406,7 +431,7 @@ export class LandesverbandScraper extends BaseScraper {
           await this.delay(this.crawlDelay);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[Landesverband] ✗ Error: ${errorMessage}`);
+          console.error(`[Landesverband] ✗ Error in ${source.id} (${url}): ${errorMessage}`);
           result.errors++;
         }
       }
@@ -483,10 +508,16 @@ export class LandesverbandScraper extends BaseScraper {
       sources = getSourcesByLandesverband(landesverband);
     }
 
+    const dormantSources = sources.filter((s) => s.dormant);
+    sources = sources.filter((s) => !s.dormant);
+
     console.log('\n╔═══════════════════════════════════════════════════════════╗');
     console.log('║       Landesverbaende Scraper - Full Crawl                ║');
     console.log('╚═══════════════════════════════════════════════════════════╝\n');
     this.log(`Sources to process: ${sources.length}`);
+    if (dormantSources.length > 0) {
+      this.log(`Dormant sources skipped: ${dormantSources.map((s) => s.id).join(', ')}`);
+    }
     if (sourceType) this.log(`Filter by type: ${sourceType}`);
     if (landesverband) this.log(`Filter by LV: ${landesverband}`);
     if (contentType) this.log(`Filter by content: ${contentType}`);

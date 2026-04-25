@@ -25,7 +25,8 @@ export async function getAccessibleDocuments(
       }
     } catch (error: unknown) {
       console.warn(
-        `[DocumentContentService] Document ${docId} not accessible:`,
+        '[DocumentContentService] Document %s not accessible: %s',
+        docId.replace(/%/g, '%%'),
         error instanceof Error ? error.message : String(error)
       );
     }

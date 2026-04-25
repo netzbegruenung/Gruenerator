@@ -32,6 +32,7 @@ export type SSEEventType =
   | 'response_start'
   | 'thinking_step'
   | 'text_delta'
+  | 'reasoning_delta'
   | 'interrupt'
   | 'document_indexed'
   | 'document_created'
@@ -114,6 +115,7 @@ export interface SSEEventPayloads {
   response_start: { message: string };
   thinking_step: ThinkingStepPayload;
   text_delta: { text: string };
+  reasoning_delta: { text: string };
   document_indexed: { documentId: string; title: string };
   document_created: { documentId: string; title: string; subtype: string; url: string };
   interrupt: {

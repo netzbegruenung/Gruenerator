@@ -7,6 +7,7 @@ import {
   Raleway_700Bold,
 } from '@expo-google-fonts/raleway';
 import { useAuthStore } from '@gruenerator/shared/stores';
+import { QueryClientProvider } from '@tanstack/react-query';
 import * as Notifications from 'expo-notifications';
 import { Stack, Redirect, useSegments, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -18,6 +19,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { useAppInitialization } from '../hooks/useAppInitialization';
+import { queryClient } from '../services/queryClient';
 import { initSentry, Sentry } from '../services/sentry';
 import { lightTheme, darkTheme } from '../theme';
 
@@ -63,7 +65,7 @@ function RootLayout() {
     return null;
   }
 
-  const isInAuthFlow = segments[0] === '(auth)';
+  const isInAuthFlow = segments[0] === '(auth)' || segments[0] === 'auth';
 
   if (!user && !isInAuthFlow) {
     return <Redirect href="/(auth)/login" />;
@@ -71,65 +73,67 @@ function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <KeyboardProvider>
-        <ActionSheetProvider>
-          <ErrorBoundary>
-            <View style={{ flex: 1 }}>
-              <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-              <Stack
-                screenOptions={{
-                  headerStyle: {
-                    backgroundColor: theme.background,
-                  },
-                  headerTintColor: theme.text,
-                  headerTitleStyle: {
-                    fontWeight: '600',
-                  },
-                  contentStyle: {
-                    backgroundColor: theme.background,
-                  },
-                }}
-              >
-                <Stack.Screen
-                  name="(tabs)"
-                  options={{
-                    headerShown: false,
+      <QueryClientProvider client={queryClient}>
+        <KeyboardProvider>
+          <ActionSheetProvider>
+            <ErrorBoundary>
+              <View style={{ flex: 1 }}>
+                <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+                <Stack
+                  screenOptions={{
+                    headerStyle: {
+                      backgroundColor: theme.background,
+                    },
+                    headerTintColor: theme.text,
+                    headerTitleStyle: {
+                      fontWeight: '600',
+                    },
+                    contentStyle: {
+                      backgroundColor: theme.background,
+                    },
                   }}
-                />
-                <Stack.Screen
-                  name="(auth)/login"
-                  options={{
-                    title: 'Anmelden',
-                    presentation: 'modal',
-                  }}
-                />
-                <Stack.Screen
-                  name="(modals)"
-                  options={{
-                    headerShown: false,
-                    presentation: 'modal',
-                  }}
-                />
-                <Stack.Screen
-                  name="(focused)"
-                  options={{
-                    headerShown: false,
-                    animation: 'slide_from_right',
-                  }}
-                />
-                <Stack.Screen
-                  name="(fullscreen)"
-                  options={{
-                    headerShown: false,
-                    presentation: 'fullScreenModal',
-                    animation: 'fade',
-                  }}
-                />
-              </Stack>
-            </View>
-          </ErrorBoundary>
-        </ActionSheetProvider>
-      </KeyboardProvider>
+                >
+                  <Stack.Screen
+                    name="(tabs)"
+                    options={{
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="(auth)/login"
+                    options={{
+                      title: 'Anmelden',
+                      presentation: 'modal',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="(modals)"
+                    options={{
+                      headerShown: false,
+                      presentation: 'modal',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="(focused)"
+                    options={{
+                      headerShown: false,
+                      animation: 'slide_from_right',
+                    }}
+                  />
+                  <Stack.Screen
+                    name="(fullscreen)"
+                    options={{
+                      headerShown: false,
+                      presentation: 'fullScreenModal',
+                      animation: 'fade',
+                    }}
+                  />
+                </Stack>
+              </View>
+            </ErrorBoundary>
+          </ActionSheetProvider>
+        </KeyboardProvider>
+      </QueryClientProvider>
     </GestureHandlerRootView>
   );
 }

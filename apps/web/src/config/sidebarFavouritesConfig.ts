@@ -12,8 +12,8 @@ export interface FavouriteItemConfig {
 }
 
 const TOOL_ITEMS: FavouriteItemConfig[] = [
-  { id: 'docs', title: 'Docs', path: '/desk', icon: getIcon('navigation', 'docs')! },
-  { id: 'boards', title: 'Boards', path: '/desk', icon: getIcon('navigation', 'boards')! },
+  { id: 'docs', title: 'Docs', path: '/workplace', icon: getIcon('navigation', 'docs')! },
+  { id: 'boards', title: 'Boards', path: '/workplace', icon: getIcon('navigation', 'boards')! },
   { id: 'gruppen', title: 'Gruppen', path: '/gruppen', icon: getIcon('navigation', 'gruppen')! },
   { id: 'suche', title: 'Suche', path: '/suche', icon: getIcon('navigation', 'suche')! },
   {

@@ -26,6 +26,7 @@ const __dirname = dirname(__filename);
 const log = createLogger('zitat_canvas');
 const router: Router = Router();
 const upload = multer({ dest: 'uploads/' });
+const UPLOADS_BASE = path.resolve('uploads');
 
 const quotationMarkPath = path.resolve(__dirname, '../../../public/quote-white.svg');
 
@@ -176,14 +177,20 @@ router.post('/', upload.single('image'), (async (
     res.status(500).json({ error: 'Fehler beim Erstellen des Bildes' });
   } finally {
     if (req.file) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', err);
-      });
+      const uploadPath = path.resolve(UPLOADS_BASE, path.basename(req.file.path));
+      if (uploadPath.startsWith(UPLOADS_BASE + path.sep)) {
+        fs.unlink(uploadPath, (err) => {
+          if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', err);
+        });
+      }
     }
     if (outputImagePath) {
-      fs.unlink(outputImagePath, (err) => {
-        if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', err);
-      });
+      const outPath = path.resolve(UPLOADS_BASE, path.basename(outputImagePath));
+      if (outPath.startsWith(UPLOADS_BASE + path.sep)) {
+        fs.unlink(outPath, (err) => {
+          if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', err);
+        });
+      }
     }
   }
 }) as RequestHandler);

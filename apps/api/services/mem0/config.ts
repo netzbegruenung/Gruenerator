@@ -110,7 +110,9 @@ class LiteLLMAdapter {
     // GPT-OSS often outputs chain-of-thought reasoning before JSON,
     // sometimes with literal `...` ellipsis tokens in arrays.
     // extractLastJsonObject tries all JSON blocks last-to-first with ellipsis repair.
-    let parsed = extractJsonObject(raw);
+    // Pass silent:true so parse failures don't emit ERROR logs — failure is expected
+    // for this model; mem0ai gets a safe fallback below.
+    let parsed = extractJsonObject(raw, { silent: true });
 
     if (!parsed) {
       parsed = extractLastJsonObject(raw);
@@ -119,7 +121,17 @@ class LiteLLMAdapter {
       }
     }
 
-    const content = parsed ? JSON.stringify(parsed) : raw;
+    // On total parse failure, return a neutral shape containing BOTH keys mem0ai looks for:
+    //   facts: []  → mem0ai's fact-extraction path ends cleanly with zero memories
+    //   memory: [] → mem0ai's memory-action path ends cleanly with zero actions
+    // This prevents mem0ai's console.error dumps of the full raw LLM response.
+    const content = parsed ? JSON.stringify(parsed) : '{"facts": [], "memory": []}';
+
+    if (!parsed) {
+      log.warn(
+        `[LiteLLMAdapter] LLM returned non-JSON response (${raw.length} chars); using empty fallback`
+      );
+    }
 
     return { content };
   }

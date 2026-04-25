@@ -20,11 +20,19 @@ const rejectSchema = z.object({
 async function verifyAdmin(req: AuthRequest, res: Response): Promise<boolean> {
   const postgres = getPostgresInstance();
   const profile = await postgres.queryOne(
-    'SELECT is_admin FROM profiles WHERE id = $1',
+    'SELECT is_admin, email FROM profiles WHERE id = $1',
     [req.user!.id],
     { table: 'profiles' }
   );
   if (!profile?.is_admin) {
+    log.warn(
+      '[adminTemplates] admin check denied: session user_id=%s session_email=%s profile_found=%s profile_email=%s profile_is_admin=%s',
+      req.user!.id,
+      req.user?.email ?? '(none)',
+      profile ? 'yes' : 'no',
+      profile?.email ?? '(null)',
+      profile?.is_admin
+    );
     res.status(403).json({ success: false, message: 'Keine Admin-Berechtigung.' });
     return false;
   }

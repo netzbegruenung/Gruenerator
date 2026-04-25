@@ -77,7 +77,7 @@ const DocsEditorContent = ({
         connectionStatus={connectionStatus}
         onBack={onClose}
       />
-      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8 bg-grey-100 dark:bg-grey-900 max-[768px]:px-3 max-[768px]:pt-2 max-[768px]:pb-6">
+      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-8 bg-grey-100 dark:bg-grey-900 max-[768px]:px-3 max-[768px]:pt-2 max-[768px]:pb-[calc(1.5rem+var(--mobile-keyboard-offset,0px))]">
         {!isReady ? (
           <div className="flex items-center justify-center h-[200px] text-grey-500 text-sm">
             Verbinde mit Server...

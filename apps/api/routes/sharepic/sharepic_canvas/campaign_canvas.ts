@@ -152,16 +152,32 @@ const campaignCanvasSchema = z.object({
 
 function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig | null {
   if (!campaignId || !typeId) return null;
+  if (!/^[a-zA-Z0-9_-]+$/.test(campaignId)) {
+    log.warn(`[CampaignCanvas] Invalid campaignId: ${campaignId}`);
+    return null;
+  }
 
-  const campaignPath = path.join(__dirname, '../../../config/campaigns', `${campaignId}.json`);
+  const campaignsDir = path.resolve(__dirname, '../../../config/campaigns');
+  const campaignPath = path.resolve(campaignsDir, `${campaignId}.json`);
+  if (!campaignPath.startsWith(campaignsDir + path.sep)) {
+    log.warn(`[CampaignCanvas] Path traversal blocked: ${campaignId}`);
+    return null;
+  }
 
-  if (!fs.existsSync(campaignPath)) {
-    log.warn(`[CampaignCanvas] Config not found: ${campaignPath}`);
+  let campaignJson: string;
+  try {
+    campaignJson = fs.readFileSync(campaignPath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      log.warn(`[CampaignCanvas] Config not found: ${campaignPath}`);
+      return null;
+    }
+    log.error(`[CampaignCanvas] Failed to read config:`, error);
     return null;
   }
 
   try {
-    const campaign = JSON.parse(fs.readFileSync(campaignPath, 'utf8')) as CampaignJsonFile;
+    const campaign = JSON.parse(campaignJson) as CampaignJsonFile;
     const typeConfig = campaign.types?.[typeId];
 
     if (!typeConfig) {
@@ -445,107 +461,111 @@ async function generateCampaignCanvas(
   };
 }
 
-router.post('/', validateBody(campaignCanvasSchema), async (req: TypedRequest<CampaignRequestBody>, res: Response): Promise<void> => {
-  try {
-    const body = req.body;
-    const campaignConfig = body.campaignConfig;
-    let textData = body.textData;
+router.post(
+  '/',
+  validateBody(campaignCanvasSchema),
+  async (req: TypedRequest<CampaignRequestBody>, res: Response): Promise<void> => {
+    try {
+      const body = req.body;
+      const campaignConfig = body.campaignConfig;
+      let textData = body.textData;
 
-    const location = body.location || body.thema || '';
-    const customCredit = body.customCredit || null;
+      const location = body.location || body.thema || '';
+      const customCredit = body.customCredit || null;
 
-    if (!campaignConfig) {
-      const { campaignId, campaignTypeId } = body;
+      if (!campaignConfig) {
+        const { campaignId, campaignTypeId } = body;
 
-      log.debug(`[CampaignCanvas] Loading config for ${campaignId}/${campaignTypeId}`);
+        log.debug(`[CampaignCanvas] Loading config for ${campaignId}/${campaignTypeId}`);
 
-      if (!campaignId || !campaignTypeId) {
-        res.status(400).json({
-          success: false,
-          error: 'Either campaignConfig or (campaignId + campaignTypeId) required',
+        if (!campaignId || !campaignTypeId) {
+          res.status(400).json({
+            success: false,
+            error: 'Either campaignConfig or (campaignId + campaignTypeId) required',
+          });
+          return;
+        }
+
+        textData = {
+          line1: body.line1 || '',
+          line2: body.line2 || '',
+          line3: body.line3 || '',
+          line4: body.line4 || '',
+          line5: body.line5 || '',
+        };
+
+        log.debug(`[CampaignCanvas] Text data from request:`, textData);
+
+        const { image, creditText } = await generateCampaignCanvas(
+          campaignId,
+          campaignTypeId,
+          textData,
+          location,
+          customCredit
+        );
+        res.json({
+          success: true,
+          image: image,
+          creditText: creditText,
         });
         return;
       }
 
-      textData = {
-        line1: body.line1 || '',
-        line2: body.line2 || '',
-        line3: body.line3 || '',
-        line4: body.line4 || '',
-        line5: body.line5 || '',
-      };
+      if (!campaignConfig.canvas) {
+        res.status(400).json({
+          success: false,
+          error: 'Campaign canvas configuration required',
+        });
+        return;
+      }
 
-      log.debug(`[CampaignCanvas] Text data from request:`, textData);
+      log.debug('[CampaignCanvas] Rendering with config:', {
+        width: campaignConfig.canvas.width,
+        height: campaignConfig.canvas.height,
+        textLines: campaignConfig.canvas.textLines?.length,
+        decorations: campaignConfig.canvas.decorations?.length,
+        hasBackground:
+          !!campaignConfig.canvas.backgroundImage || !!campaignConfig.canvas.backgroundColor,
+      });
 
-      const { image, creditText } = await generateCampaignCanvas(
-        campaignId,
-        campaignTypeId,
-        textData,
-        location,
-        customCredit
-      );
+      log.debug('[CampaignCanvas] Text data:', textData);
+
+      const canvasConfig = campaignConfig.canvas;
+      const canvas: Canvas = createCanvas(canvasConfig.width, canvasConfig.height);
+      const ctx: CanvasRenderingContext2D = canvas.getContext('2d');
+
+      await renderBackground(ctx, canvasConfig, canvas.width, canvas.height);
+
+      if (canvasConfig.decorations && canvasConfig.decorations.length > 0) {
+        await renderDecorations(ctx, canvasConfig.decorations);
+      }
+
+      if (canvasConfig.textLines && textData) {
+        renderTextLines(ctx, canvasConfig.textLines, textData);
+      }
+
+      let creditText = '';
+      if (canvasConfig.credit) {
+        creditText = renderCredit(ctx, canvasConfig.credit, location, customCredit);
+      }
+
+      const rawBuffer = canvas.toBuffer('image/png');
+      const optimizedBuffer = await optimizeCanvasBuffer(rawBuffer);
+      const base64Image = bufferToBase64(optimizedBuffer);
       res.json({
         success: true,
-        image: image,
+        image: base64Image,
         creditText: creditText,
       });
-      return;
-    }
-
-    if (!campaignConfig.canvas) {
-      res.status(400).json({
+    } catch (error) {
+      log.error('[CampaignCanvas] Error:', error);
+      res.status(500).json({
         success: false,
-        error: 'Campaign canvas configuration required',
+        error: (error as Error).message,
       });
-      return;
     }
-
-    log.debug('[CampaignCanvas] Rendering with config:', {
-      width: campaignConfig.canvas.width,
-      height: campaignConfig.canvas.height,
-      textLines: campaignConfig.canvas.textLines?.length,
-      decorations: campaignConfig.canvas.decorations?.length,
-      hasBackground:
-        !!campaignConfig.canvas.backgroundImage || !!campaignConfig.canvas.backgroundColor,
-    });
-
-    log.debug('[CampaignCanvas] Text data:', textData);
-
-    const canvasConfig = campaignConfig.canvas;
-    const canvas: Canvas = createCanvas(canvasConfig.width, canvasConfig.height);
-    const ctx: CanvasRenderingContext2D = canvas.getContext('2d');
-
-    await renderBackground(ctx, canvasConfig, canvas.width, canvas.height);
-
-    if (canvasConfig.decorations && canvasConfig.decorations.length > 0) {
-      await renderDecorations(ctx, canvasConfig.decorations);
-    }
-
-    if (canvasConfig.textLines && textData) {
-      renderTextLines(ctx, canvasConfig.textLines, textData);
-    }
-
-    let creditText = '';
-    if (canvasConfig.credit) {
-      creditText = renderCredit(ctx, canvasConfig.credit, location, customCredit);
-    }
-
-    const rawBuffer = canvas.toBuffer('image/png');
-    const optimizedBuffer = await optimizeCanvasBuffer(rawBuffer);
-    const base64Image = bufferToBase64(optimizedBuffer);
-    res.json({
-      success: true,
-      image: base64Image,
-      creditText: creditText,
-    });
-  } catch (error) {
-    log.error('[CampaignCanvas] Error:', error);
-    res.status(500).json({
-      success: false,
-      error: (error as Error).message,
-    });
   }
-});
+);
 
 export default router;
 export { generateCampaignCanvas };

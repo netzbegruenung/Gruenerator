@@ -6,6 +6,7 @@ import { useAgentStore } from '../../stores/chatStore';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
 import { ChatIcon } from '../icons';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
+import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
 import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 import { SkillBadge } from '../message-parts/SkillBadge';
@@ -29,7 +30,7 @@ function AssistantMessageTextPart() {
   );
 }
 
-const partComponents = { Text: AssistantMessageTextPart };
+const partComponents = { Text: AssistantMessageTextPart, Reasoning, ReasoningGroup };
 
 export const AssistantMessage = memo(function AssistantMessage() {
   const message = useMessage();

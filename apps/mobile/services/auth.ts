@@ -9,51 +9,31 @@ import { secureStorage } from './storage';
 
 import type { User } from '@gruenerator/shared';
 
-// Enable browser result handling for OAuth
 WebBrowser.maybeCompleteAuthSession();
 
-// API base URL - should match api.ts
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
-// Auth source types matching backend
 export type AuthSource =
   | 'gruenerator-login'
   | 'gruenes-netz-login'
   | 'netzbegruenung-login'
   | 'gruene-oesterreich-login';
 
-// OAuth redirect URI for deep linking
 export const REDIRECT_URI = makeRedirectUri({
   scheme: 'gruenerator',
   path: 'auth/callback',
 });
 
-interface ConsumeLoginCodeResponse {
-  success: boolean;
-  access_token: string;
-  refresh_token: string;
+// Response shape from Better Auth's `mobileTokenExchange` plugin endpoint at
+// `/api/auth/v2/token-exchange-code`. The `token` field is an opaque Better
+// Auth session token that the `bearer()` plugin teaches `getSession` to
+// accept as a drop-in for the session cookie.
+interface TokenExchangeCodeResponse {
+  token: string;
   user: User;
-  expires_in: number;
-  token_type: string;
+  expiresAt: string;
 }
 
-/**
- * Response from auth status endpoint
- */
-interface AuthStatusResponse {
-  isAuthenticated: boolean;
-  user: User | null;
-  authMethod: string;
-  tokenInfo?: {
-    issuer: string;
-    audience: string;
-    expiresAt: number;
-  };
-}
-
-/**
- * Configure the auth store with mobile-specific API implementations
- */
 export function configureAuthStore(): void {
   const apiClient = getGlobalApiClient();
 
@@ -85,24 +65,23 @@ export function configureAuthStore(): void {
 }
 
 /**
- * Initiate OAuth login flow
- * Opens system browser to Keycloak login page
+ * Start the OAuth flow. Opens a Chrome Custom Tab to the API's /auth/login
+ * entry point, which routes through Better Auth → Keycloak → Better Auth
+ * callback → /auth/app-callback. The callback deep-links back to us with a
+ * short-lived login code JWT.
  */
 export async function login(source: AuthSource): Promise<{ success: boolean; error?: string }> {
   try {
-    // Build auth URL with redirect back to app
     const authUrl = `${API_BASE_URL}${API_ENDPOINTS.AUTH_LOGIN}?source=${source}&redirectTo=${encodeURIComponent(REDIRECT_URI)}`;
 
     console.log('[Auth] Opening auth session:', authUrl);
     console.log('[Auth] Redirect URI:', REDIRECT_URI);
 
-    // Open browser for OAuth flow
     const result = await WebBrowser.openAuthSessionAsync(authUrl, REDIRECT_URI);
 
     console.log('[Auth] Browser result:', result.type);
 
     if (result.type === 'success' && result.url) {
-      // Extract code from redirect URL
       const url = new URL(result.url);
       const code = url.searchParams.get('code');
 
@@ -124,26 +103,47 @@ export async function login(source: AuthSource): Promise<{ success: boolean; err
   }
 }
 
+// On Android, an OAuth callback URL is delivered to BOTH the WebBrowser
+// Custom Tab (resolving openAuthSessionAsync's promise in login()) AND the
+// Android Intent system (which Expo Router routes to /auth/callback.tsx).
+// Without deduplication, the same one-shot JWT would be exchanged twice,
+// both writers would mutate useAuthStore, and two concurrent router.replace
+// calls would tear down the Fabric root. This cache ensures exactly one
+// HTTP exchange per code; every subsequent caller awaits the same promise.
+const inFlightExchanges = new Map<string, Promise<{ success: boolean; error?: string }>>();
+
 /**
- * Exchange login code for JWT and store credentials
+ * Exchange a one-shot login-code JWT for a Better Auth session token.
+ *
+ * Idempotent by `code`: repeated calls with the same code await the first
+ * in-flight request instead of issuing a new one.
  */
 export async function handleAuthCallback(
+  code: string
+): Promise<{ success: boolean; error?: string }> {
+  const existing = inFlightExchanges.get(code);
+  if (existing) {
+    return existing;
+  }
+
+  const promise = exchangeCodeForTokens(code);
+  inFlightExchanges.set(code, promise);
+  return promise;
+}
+
+async function exchangeCodeForTokens(
   code: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const apiClient = getGlobalApiClient();
 
-    // Exchange code for JWT
-    const response = await apiClient.post<ConsumeLoginCodeResponse>(
-      API_ENDPOINTS.AUTH_MOBILE_CONSUME,
+    const response = await apiClient.post<TokenExchangeCodeResponse>(
+      API_ENDPOINTS.AUTH_TOKEN_EXCHANGE_CODE,
       { code }
     );
 
-    if (response.data.success && response.data.access_token && response.data.user) {
-      await secureStorage.setToken(response.data.access_token);
-      if (response.data.refresh_token) {
-        await secureStorage.setRefreshToken(response.data.refresh_token);
-      }
+    if (response.data.token && response.data.user) {
+      await secureStorage.setToken(response.data.token);
       await secureStorage.setUser(JSON.stringify(response.data.user));
 
       useAuthStore.getState().setAuthState({
@@ -162,7 +162,9 @@ export async function handleAuthCallback(
 }
 
 /**
- * Check if user is authenticated and restore session
+ * Probe the Better Auth session for the stored bearer token. The bearer()
+ * plugin lets /auth/v2/get-session accept `Authorization: Bearer <token>`
+ * the same way it accepts a cookie on web.
  */
 export async function checkAuthStatus(): Promise<boolean> {
   try {
@@ -172,18 +174,16 @@ export async function checkAuthStatus(): Promise<boolean> {
       return false;
     }
 
-    // Verify token with backend
     const apiClient = getGlobalApiClient();
-    const response = await apiClient.get<AuthStatusResponse>(API_ENDPOINTS.AUTH_MOBILE_STATUS);
+    const response = await apiClient.get<{ user?: User; session?: unknown } | null>(
+      API_ENDPOINTS.AUTH_GET_SESSION
+    );
 
-    if (response.data.isAuthenticated && response.data.user) {
-      useAuthStore.getState().setAuthState({
-        user: response.data.user,
-      });
+    if (response.data && response.data.user) {
+      useAuthStore.getState().setAuthState({ user: response.data.user });
       return true;
     }
 
-    // Token invalid - clear storage
     await secureStorage.clearAll();
     useAuthStore.getState().clearAuth();
     return false;
@@ -194,49 +194,19 @@ export async function checkAuthStatus(): Promise<boolean> {
   }
 }
 
-/**
- * Logout user and clear all stored data
- */
 export async function logout(): Promise<void> {
   try {
     useAuthStore.getState().setLoggingOut(true);
 
-    // Notify backend
     const apiClient = getGlobalApiClient();
     await apiClient.post(API_ENDPOINTS.AUTH_MOBILE_LOGOUT).catch(() => {
-      // Ignore errors - we're logging out anyway
+      // Server-side session invalidation is best-effort; local cleanup is
+      // what actually logs the user out on the device.
     });
   } finally {
-    // Clear local state regardless of backend response
     await secureStorage.clearAll();
     useAuthStore.getState().clearAuth();
     useAuthStore.getState().setLoggingOut(false);
-  }
-}
-
-export async function refreshAccessToken(): Promise<string | null> {
-  try {
-    const refreshToken = await secureStorage.getRefreshToken();
-    if (!refreshToken) return null;
-
-    const apiClient = getGlobalApiClient();
-    const response = await apiClient.post<ConsumeLoginCodeResponse>(
-      API_ENDPOINTS.AUTH_MOBILE_REFRESH,
-      { refresh_token: refreshToken }
-    );
-
-    if (response.data.success && response.data.access_token) {
-      await secureStorage.setToken(response.data.access_token);
-      if (response.data.user) {
-        await secureStorage.setUser(JSON.stringify(response.data.user));
-        useAuthStore.getState().setAuthState({ user: response.data.user });
-      }
-      return response.data.access_token;
-    }
-
-    return null;
-  } catch {
-    return null;
   }
 }
 

@@ -5,47 +5,10 @@ import {
   apiRequest,
 } from '@gruenerator/shared/api';
 import { useAuthStore } from '@gruenerator/shared/stores';
-import axios from 'axios';
 
 import { secureStorage } from './storage';
 
-import type { User } from '@gruenerator/shared';
-
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
-
-let isRefreshing = false;
-
-async function tryRefreshToken(): Promise<boolean> {
-  if (isRefreshing) return false;
-  isRefreshing = true;
-  try {
-    const refreshToken = await secureStorage.getRefreshToken();
-    if (!refreshToken) return false;
-
-    interface RefreshResponse {
-      success: boolean;
-      access_token?: string;
-      user?: User;
-    }
-    const response = await axios.post<RefreshResponse>(`${API_BASE_URL}/auth/mobile/refresh`, {
-      refresh_token: refreshToken,
-    });
-
-    if (response.data.success && response.data.access_token) {
-      await secureStorage.setToken(response.data.access_token);
-      if (response.data.user) {
-        await secureStorage.setUser(JSON.stringify(response.data.user));
-        useAuthStore.getState().setAuthState({ user: response.data.user });
-      }
-      return true;
-    }
-    return false;
-  } catch {
-    return false;
-  } finally {
-    isRefreshing = false;
-  }
-}
 
 export function initializeApiClient(): void {
   const client = createApiClient({
@@ -54,14 +17,14 @@ export function initializeApiClient(): void {
     getAuthToken: async () => {
       return secureStorage.getToken();
     },
+    // Better Auth sessions auto-extend on each request via `updateAge`.
+    // A 401 means the session is actually gone (rotated, revoked, or
+    // expired past the rolling window), so there's nothing to refresh —
+    // wipe local state and let the UI route back to login.
     onUnauthorized: async (): Promise<boolean> => {
-      const refreshed = await tryRefreshToken();
-      if (!refreshed) {
-        await secureStorage.clearAll();
-        useAuthStore.getState().clearAuth();
-        return false;
-      }
-      return true;
+      await secureStorage.clearAll();
+      useAuthStore.getState().clearAuth();
+      return false;
     },
     timeout: 120000,
   });
@@ -69,21 +32,21 @@ export function initializeApiClient(): void {
   setGlobalApiClient(client);
 }
 
-/**
- * Get the initialized API client
- */
 export { getGlobalApiClient, apiRequest };
 
 /**
- * API endpoints used by the mobile app (auth only)
- * Generator endpoints are imported from @gruenerator/shared/generators
+ * API endpoints used by the mobile app (auth only).
+ * Generator endpoints are imported from @gruenerator/shared/generators.
  */
 export const API_ENDPOINTS = {
-  // Auth
   AUTH_LOGIN: '/auth/login',
-  AUTH_MOBILE_CONSUME: '/auth/mobile/consume-login-code',
-  AUTH_MOBILE_REFRESH: '/auth/mobile/refresh',
-  AUTH_MOBILE_STATUS: '/auth/mobile/status',
+  // Better Auth's `mobileTokenExchange` plugin endpoint — takes the login-code
+  // JWT from the OAuth callback and returns an opaque session token the
+  // `bearer()` plugin recognises.
+  AUTH_TOKEN_EXCHANGE_CODE: '/auth/v2/token-exchange-code',
+  // Better Auth's native session endpoint; works with both cookies (web)
+  // and Bearer tokens (mobile, via the `bearer()` plugin).
+  AUTH_GET_SESSION: '/auth/v2/get-session',
   AUTH_MOBILE_LOGOUT: '/auth/mobile/logout',
   AUTH_PROFILE: '/auth/profile',
   AUTH_PROFILE_AVATAR: '/auth/profile/avatar',

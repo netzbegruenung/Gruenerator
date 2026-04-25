@@ -10,15 +10,7 @@ export interface GeneratorSetupConfig {
    * Instruction type for custom prompts
    * Maps to backend instruction categories
    */
-  instructionType:
-    | 'social'
-    | 'antrag'
-    | 'universal'
-    | 'rede'
-    | 'buergeranfragen'
-    | 'leichte_sprache'
-    | 'gruenejugend'
-    | 'custom_generator';
+  instructionType: 'social' | 'antrag' | 'universal' | 'gruenejugend' | 'custom_generator';
 
   /**
    * Component name for generated text storage
@@ -162,15 +154,6 @@ export function isValidInstructionType(
 ): value is GeneratorSetupConfig['instructionType'] {
   return (
     typeof value === 'string' &&
-    [
-      'social',
-      'antrag',
-      'universal',
-      'rede',
-      'buergeranfragen',
-      'leichte_sprache',
-      'gruenejugend',
-      'custom_generator',
-    ].includes(value)
+    ['social', 'antrag', 'universal', 'gruenejugend', 'custom_generator'].includes(value)
   );
 }

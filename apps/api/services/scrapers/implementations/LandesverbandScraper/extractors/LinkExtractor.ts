@@ -144,14 +144,17 @@ export class LinkExtractor {
   }
 
   /**
-   * Extract links from XML sitemaps
-   * Fetches multiple sitemaps and filters URLs
+   * Extract links from XML sitemaps. Handles both leaf sitemaps (<urlset>)
+   * and sitemap indexes (<sitemapindex>) by recursing one level into child
+   * sitemaps. TYPO3 SEO and WordPress core sitemaps both use this pattern.
    */
   async extractLinksFromSitemaps(
     sitemapUrls: string[],
     filter?: string,
-    log?: (msg: string) => void
+    log?: (msg: string) => void,
+    depth = 0
   ): Promise<string[]> {
+    const MAX_DEPTH = 2;
     const links = new Set<string>();
 
     for (const sitemapUrl of sitemapUrls) {
@@ -160,17 +163,44 @@ export class LinkExtractor {
         const xml = await response.text();
         const $ = cheerio.load(xml, { xmlMode: true });
 
-        $('url > loc').each((_, el) => {
+        // Sitemap index: collect child sitemap URLs and recurse.
+        const childSitemaps: string[] = [];
+        $('sitemap > loc').each((_, el) => {
           const url = $(el).text().trim();
-          if (url) {
-            // Apply filter if specified
-            if (filter && !url.includes(filter)) return;
-            links.add(url);
+          if (url) childSitemaps.push(url);
+        });
+
+        if (childSitemaps.length > 0) {
+          if (depth >= MAX_DEPTH) {
+            log?.(
+              `Sitemap ${sitemapUrl}: reached MAX_DEPTH=${MAX_DEPTH}, not recursing into ${childSitemaps.length} children`
+            );
+          } else {
+            log?.(`Sitemap index ${sitemapUrl}: recursing into ${childSitemaps.length} child sitemaps`);
+            const childLinks = await this.extractLinksFromSitemaps(
+              childSitemaps,
+              filter,
+              log,
+              depth + 1
+            );
+            for (const link of childLinks) links.add(link);
           }
+        }
+
+        // Leaf sitemap: collect article URLs. Pipe through normalizeUrl so any
+        // injected canonicalization (e.g. TYPO3 alias rewrites in the parent
+        // scraper) applies before dedup and filter, and so the resulting URLs
+        // match what would be discovered via HTML listings.
+        $('url > loc').each((_, el) => {
+          const rawUrl = $(el).text().trim();
+          if (!rawUrl) return;
+          const url = this.normalizeUrl(rawUrl, '') ?? rawUrl;
+          if (filter && !url.includes(filter)) return;
+          links.add(url);
         });
 
         log?.(
-          `Sitemap ${sitemapUrl}: found ${links.size} URLs${filter ? ` (filtered by '${filter}')` : ''}`
+          `Sitemap ${sitemapUrl}: total ${links.size} URLs${filter ? ` (filtered by '${filter}')` : ''}`
         );
         await this.delay(300);
       } catch (error) {

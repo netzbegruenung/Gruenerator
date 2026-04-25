@@ -35,8 +35,9 @@ const ALLOWED_FILTER_FIELDS = new Set([
   'region',
 ]);
 
-export function useResearchFilters() {
-  const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
+export function useResearchFilters(initialCollectionIds: string[] = []) {
+  const [selectedCollectionIds, setSelectedCollectionIds] =
+    useState<string[]>(initialCollectionIds);
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>({});
   const [searchMode, setSearchMode] = useState<SearchMode>('hybrid');
   const [sortBy, setSortBy] = useState<SortOption>('relevance');

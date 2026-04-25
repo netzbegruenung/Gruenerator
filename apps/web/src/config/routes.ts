@@ -25,6 +25,15 @@ const createRedirect = (to: string): FC<Record<string, unknown>> => {
 
 // Redirects for /image-studio/* routes to /studio/*
 const ImageStudioRedirect = lazy(() => Promise.resolve({ default: createRedirect('/studio') }));
+
+// Redirect /notebook/:id → /notebooks/:id preserving the param
+const LegacyNotebookIdRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { id } = useParams();
+  return createElement(Navigate, { to: `/notebooks/${id ?? ''}`, replace: true });
+};
+const LegacyNotebookIdRedirect = lazy(() =>
+  Promise.resolve({ default: LegacyNotebookIdRedirectComponent })
+);
 const DocumentToDocsRedirectComponent: FC<Record<string, unknown>> = () => {
   const { id } = useParams();
   return createElement(Navigate, { to: `/docs/${id || ''}`, replace: true });
@@ -70,9 +79,11 @@ const ImageStudioKiTypeRedirect = lazy(() =>
 const ImaginePage = lazy(() => import('../features/image-studio/ImaginePage'));
 
 // Statische Importe in dynamische umwandeln
-const TexteRedirectToDeskComponent: FC<Record<string, unknown>> = () =>
-  createElement(Navigate, { to: '/desk', replace: true });
-const TexteRedirectToDesk = lazy(() => Promise.resolve({ default: TexteRedirectToDeskComponent }));
+const TexteRedirectToWorkplaceComponent: FC<Record<string, unknown>> = () =>
+  createElement(Navigate, { to: '/workplace', replace: true });
+const TexteRedirectToWorkplace = lazy(() =>
+  Promise.resolve({ default: TexteRedirectToWorkplaceComponent })
+);
 const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
 const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
@@ -103,74 +114,14 @@ const Nutzungsbedingungen = lazy(
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
-const NotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('gruene'),
+const NotebookRootPage = lazy(() =>
+  import('../features/notebook/components/NotebookRoot').then((m) => ({
+    default: m.NotebookRoot,
   }))
 );
-const BundestagsfraktionNotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('bundestagsfraktion'),
-  }))
-);
-const GrueneratorNotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('gruenerator'),
-  }))
-);
-const OesterreichGrueneNotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('oesterreich'),
-  }))
-);
-const HamburgNotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('hamburg'),
-  }))
-);
-const SchleswigHolsteinNotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('schleswigHolstein'),
-  }))
-);
-const ThueringenNotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('thueringen'),
-  }))
-);
-const BayernNotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('bayern'),
-  }))
-);
-const BerlinNotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('berlin'),
-  }))
-);
-const MecklenburgVorpommernNotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('mecklenburgVorpommern'),
-  }))
-);
-const BrandenburgNotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('brandenburg'),
-  }))
-);
-const KommunalwikiNotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('kommunalwiki'),
-  }))
-);
-const BoellStiftungNotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('boellStiftung'),
-  }))
-);
-const GruenblogNotebookPage = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.createNotebookPage('gruenblog'),
+const NotebookResolverPage = lazy(() =>
+  import('../features/notebook/components/NotebookResolver').then((m) => ({
+    default: m.NotebookResolver,
   }))
 );
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
@@ -188,13 +139,6 @@ const MediaLibraryPage = lazy(() =>
   import('../features/media-library/MediaLibraryPage').then((m) => ({ default: m.default }))
 );
 
-// Notebook Chat (dynamic collection by ID)
-const NotebookChat = lazy(() =>
-  import('../features/notebook/components/NotebookPage').then((m) => ({
-    default: m.DynamicNotebook,
-  }))
-);
-
 // Chat page (uses @gruenerator/chat shared package)
 const ChatPage = lazy(() => import('../features/chat/ChatPage'));
 
@@ -209,7 +153,7 @@ const TransferPage = lazy(() => import('../features/transfer/TransferPage'));
 const BriefingPage = lazy(() => import('../features/briefing/BriefingPage'));
 const BriefingArchivePage = lazy(() => import('../features/briefing/BriefingArchivePage'));
 const BriefingArticlePage = lazy(() => import('../features/briefing/BriefingArticlePage'));
-const DeskPage = lazy(() => import('../features/workplace/WorkplacePage'));
+const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
 const RecherchePage = lazy(() => import('../features/recherche/RecherchePage'));
 const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
 const BoardsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/docs') }));
@@ -225,30 +169,17 @@ const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
  * Lazy loading für Grüneratoren Bundle
  */
 export const GrueneratorenBundle = {
-  Texte: TexteRedirectToDesk,
+  Texte: TexteRedirectToWorkplace,
   ImageStudio: ImageStudioPage,
   ImageGallery: ImageGallery,
   Search: Search,
   Oparl: OparlPage,
-  GrueneNotebook: NotebookPage,
-  BundestagsfraktionNotebook: BundestagsfraktionNotebookPage,
-  GrueneratorNotebook: GrueneratorNotebookPage,
-  OesterreichGrueneNotebook: OesterreichGrueneNotebookPage,
-  HamburgNotebook: HamburgNotebookPage,
-  SchleswigHolsteinNotebook: SchleswigHolsteinNotebookPage,
-  ThueringenNotebook: ThueringenNotebookPage,
-  BayernNotebook: BayernNotebookPage,
-  BerlinNotebook: BerlinNotebookPage,
-  MecklenburgVorpommernNotebook: MecklenburgVorpommernNotebookPage,
-  BrandenburgNotebook: BrandenburgNotebookPage,
-  KommunalwikiNotebook: KommunalwikiNotebookPage,
-  BoellStiftungNotebook: BoellStiftungNotebookPage,
-  GruenblogNotebook: GruenblogNotebookPage,
+  NotebookRoot: NotebookRootPage,
+  NotebookResolver: NotebookResolverPage,
   DocumentView: DocumentViewPage,
   VorlagenListe: VorlagenGallery,
   Reel: Reel,
   CustomGenerator: CustomGeneratorPage,
-  NotebookChat: NotebookChat,
   Chat: ChatPage,
   MobileEditor: MobileEditorPage,
   Scanner: ScannerPage,
@@ -258,14 +189,18 @@ export const GrueneratorenBundle = {
 
 // Route Konfigurationen
 const standardRoutes: RouteConfig[] = [
-  // Desktop app always shows DesktopHome dashboard; web redirects auth'd users to /desk
+  // Desktop app always shows DesktopHome dashboard; web redirects auth'd users to /workplace
   isDesktopApp()
     ? { path: '/', component: DesktopHome }
     : { path: '/', component: Startseite, auth: 'guest' as const, layoutMode: 'noChrome' as const },
   { path: '/startseite', component: Startseite, auth: 'guest', layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
-  { path: '/desk', component: DeskPage },
+  { path: '/workplace', component: WorkplacePage },
+  {
+    path: '/desk',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
+  },
   { path: '/recherche', component: RecherchePage },
   { path: '/gruppen', component: GruppenPage },
   { path: '/gruppen/:groupId', component: GruppenPage },
@@ -282,97 +217,87 @@ const standardRoutes: RouteConfig[] = [
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   {
-    path: '/gruene-notebook',
-    component: GrueneratorenBundle.GrueneNotebook,
+    path: '/notebooks',
+    component: GrueneratorenBundle.NotebookRoot,
     withForm: true,
     layoutMode: 'sidebarOnly',
+  },
+  {
+    path: '/notebooks/:idOrSlug',
+    component: GrueneratorenBundle.NotebookResolver,
+    withForm: true,
+    layoutMode: 'sidebarOnly',
+  },
+  // Legacy notebook redirects → /notebooks/<slug>
+  {
+    path: '/gruene-notebook',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/grundsatz') })),
   },
   {
     path: '/gruene-bundestag',
-    component: GrueneratorenBundle.BundestagsfraktionNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/notebooks/bundestagsfraktion') })
+    ),
   },
   {
     path: '/gruenerator-notebook',
-    component: GrueneratorenBundle.GrueneratorNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
   },
   {
     path: '/gruene-oesterreich',
-    component: GrueneratorenBundle.OesterreichGrueneNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/oesterreich') })),
   },
   {
     path: '/gruene-hamburg',
-    component: GrueneratorenBundle.HamburgNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/hamburg') })),
   },
   {
     path: '/gruene-schleswig-holstein',
-    component: GrueneratorenBundle.SchleswigHolsteinNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/notebooks/schleswig-holstein') })
+    ),
   },
   {
     path: '/gruene-thueringen',
-    component: GrueneratorenBundle.ThueringenNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/thueringen') })),
   },
   {
     path: '/gruene-bayern',
-    component: GrueneratorenBundle.BayernNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/bayern') })),
   },
   {
     path: '/gruene-berlin',
-    component: GrueneratorenBundle.BerlinNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/berlin') })),
   },
   {
     path: '/gruene-mecklenburg-vorpommern',
-    component: GrueneratorenBundle.MecklenburgVorpommernNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/notebooks/mecklenburg-vorpommern') })
+    ),
   },
   {
     path: '/gruene-brandenburg',
-    component: GrueneratorenBundle.BrandenburgNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/brandenburg') })),
   },
   {
     path: '/kommunalwiki',
-    component: GrueneratorenBundle.KommunalwikiNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/kommunalwiki') })),
   },
   {
     path: '/boell-stiftung',
-    component: GrueneratorenBundle.BoellStiftungNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/notebooks/boell-stiftung') })
+    ),
   },
   {
     path: '/gruenblog',
-    component: GrueneratorenBundle.GruenblogNotebook,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/gruenblog') })),
   },
   {
     path: '/notebook',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/recherche') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
   },
-  {
-    path: '/notebooks',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/recherche') })),
-  },
+  { path: '/notebook/:id', component: LegacyNotebookIdRedirect },
   { path: '/document/:id', component: DocumentToDocsRedirect },
   { path: '/documents/:documentId', component: GrueneratorenBundle.DocumentView },
   { path: '/reel', component: GrueneratorenBundle.Reel },
@@ -388,11 +313,11 @@ const standardRoutes: RouteConfig[] = [
   // Redirects for removed pages
   {
     path: '/agent/:slug',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/desk') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
   },
   {
     path: '/prompt/:slug',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/desk') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
   },
   {
     path: '/ask',
@@ -411,8 +336,6 @@ const standardRoutes: RouteConfig[] = [
   { path: '/profile/:tab/:subtab/:subsubtab', component: ProfilePage },
   // Gruppen-Route
   { path: '/join-group/:joinToken', component: JoinGroupPage },
-  // Q&A Chat Routen
-  { path: '/notebook/:id', component: GrueneratorenBundle.NotebookChat, layoutMode: 'sidebarOnly' },
   {
     path: '/dein-gruenerator',
     component: lazy(() => Promise.resolve({ default: createRedirect('/profile') })),

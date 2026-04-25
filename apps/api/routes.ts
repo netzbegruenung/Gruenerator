@@ -8,6 +8,7 @@ import rateLimit from 'express-rate-limit';
 
 import authMiddleware from './middleware/authMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
+import { mountAuthStatusContractRouter } from './routes/auth/authStatusContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
@@ -79,9 +80,6 @@ import subtitlerSocialRouter from './routes/subtitler/socialController.js';
 import { mountSubtitlerContractRouter } from './routes/subtitler/subtitlerContractRouter.js';
 import {
   universalRouter,
-  redeRouter,
-  wahlprogrammRouter,
-  buergeranfragenRouter,
   textAdjustmentRouter as claudeTextAdjustmentRoute,
   textImproverRouter as claudeTextImproverRoute,
   subtitlesRouter as claudeSubtitlesRoute,
@@ -225,6 +223,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   const {
     collectionsRouter: notebookCollectionsRouter,
     interactionRouter: notebookInteractionRouter,
+    recentDocumentsRouter: notebookRecentDocumentsRouter,
+    statisticsRouter: notebookStatisticsRouter,
+    internalNotebookRouter,
   } = await import('./routes/notebook/index.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { default: connectionsRouter } =
@@ -276,6 +277,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   // enforced per-handler via `checkIsAdmin` inside the contract).
   app.use('/api/auth/admin/vorlagen', requireAuth);
   mountAdminVorlagenContractRouter(app);
+  // ts-rest contract router for /api/auth/status — mounts BEFORE the legacy
+  // authRouter so the contract route matches first. NO requireAuth at the
+  // prefix: /status must respond to unauthed callers (returns
+  // { isAuthenticated: false, user: null }) so the frontend can decide
+  // whether to show the login screen.
+  mountAuthStatusContractRouter(app);
   app.use('/api/auth', authenticatedReadLimiter, authRouter);
   // ts-rest contract router for notebook collections — mounts BEFORE the
   // legacy router so contract-modeled routes match first. requireAuth is
@@ -289,6 +296,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // the prefix, which would break the public/:token routes).
   mountNotebookContractRouter(app);
   app.use('/api/auth/notebook', authenticatedReadLimiter, notebookInteractionRouter);
+  app.use('/api/auth/notebook', authenticatedReadLimiter, notebookRecentDocumentsRouter);
+  app.use('/api/auth/notebook', authenticatedReadLimiter, notebookStatisticsRouter);
   // ts-rest contract router for /api/documents — mounts BEFORE the legacy documentsRouter
   // so ts-rest matches its own routes first; unmatched paths fall through.
   // requireAuth is applied at the prefix because all 3 contract routes require auth.
@@ -313,8 +322,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/vision', aiGenerationLimiter, requireAuth, visionRouter);
   app.use('/api/claude_website', aiGenerationLimiter, claudeWebsiteRoute);
   app.use('/api/leichte_sprache', aiGenerationLimiter, leichteSpracheRoute);
-  app.use('/api/claude_rede', aiGenerationLimiter, redeRouter);
-  app.use('/api/claude_buergeranfragen', aiGenerationLimiter, buergeranfragenRouter);
   app.use('/api/claude_text_improver', aiGenerationLimiter, claudeTextImproverRoute);
   app.use('/api/chat', aiGenerationLimiter, grueneratorChatRoute);
   // ts-rest contract routers — mount before legacy routers.
@@ -445,7 +452,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/processText', aiGenerationLimiter, processTextRouter);
   app.use('/api/claude_text_adjustment', aiGenerationLimiter, claudeTextAdjustmentRoute);
   app.use('/api/etherpad', standardMutationLimiter, etherpadRoute);
-  app.use('/api/claude_wahlprogramm', aiGenerationLimiter, wahlprogrammRouter);
   app.use('/api/claude_universal', aiGenerationLimiter, universalRouter);
   app.use('/api/texte/smart', aiGenerationLimiter, smartTexteRouter);
   app.use('/api/texte/playground', requireAuth, aiGenerationLimiter, playgroundRouter);
@@ -549,6 +555,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/internal/offboarding', offboardingRouter);
   app.use('/api/internal/gruene-api', grueneApiTestRouter);
   app.use('/api/internal/monitor', monitorInternalRouter);
+  app.use('/api/internal/notebook', internalNotebookRouter);
   app.use('/api/internal/content-sync', contentSyncRouter);
   app.use('/api/monitor', requireAuth, publicReadLimiter, monitorRouter);
 
