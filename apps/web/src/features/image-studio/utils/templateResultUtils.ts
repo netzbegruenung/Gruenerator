@@ -1,21 +1,4 @@
-import type { SloganAlternative, PreviewValues } from '../types/templateResultTypes';
-
-export function getAlternativePreview(alt: SloganAlternative): string {
-  if (alt.quote) {
-    return alt.quote;
-  }
-  if (alt.eventTitle) {
-    return `${alt.eventTitle} · ${alt.weekday || ''} ${alt.date || ''} ${alt.time || ''}`.trim();
-  }
-  if (alt.header) {
-    return [alt.header, alt.subheader, alt.body].filter(Boolean).join(' · ');
-  }
-  const lines = [alt.line1, alt.line2, alt.line3].filter(Boolean);
-  if (lines.length > 0) {
-    return lines.join(' · ');
-  }
-  return 'Alternative';
-}
+import type { PreviewValues } from '../types/templateResultTypes';
 
 interface StoreState {
   line1?: string;
@@ -51,9 +34,14 @@ export function buildPreviewValues(storeState: StoreState): PreviewValues {
   };
 }
 
-export function formatDownloadFilename(type: string | null | undefined): string {
+export function formatDownloadFilename(
+  type: string | null | undefined,
+  options: { formatId?: string | null; ext?: 'png' | 'jpeg' | 'pdf' } = {}
+): string {
   const safeType = type || 'image';
-  return `sharepic-${safeType}.png`;
+  const ext = options.ext ?? 'png';
+  const prefix = options.formatId ?? 'sharepic';
+  return `${prefix}-${safeType}.${ext}`;
 }
 
 export function blobToBase64(blob: Blob): Promise<string> {

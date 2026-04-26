@@ -12,7 +12,6 @@ import {
   FONT_SIZES,
   type ColorScheme,
   type VeranstaltungFieldFontSizes,
-  type SloganAlternative,
   type SelectedImageData,
   type ImageLimitData,
   type FormDataUpdate,
@@ -32,7 +31,6 @@ import type {
   GalleryEditData,
   OriginalSharepicData,
 } from '../features/image-studio/services/editingSessionService';
-
 
 // Initial state
 const initialState = {
@@ -75,7 +73,6 @@ const initialState = {
   sunflowerOffset: [0, 0],
   credit: '',
   searchTerms: [],
-  sloganAlternatives: [],
 
   // Veranstaltung per-field font sizes (in pixels)
   veranstaltungFieldFontSizes: {
@@ -102,6 +99,7 @@ const initialState = {
   sharepicPrompt: '',
   allyPlacement: null,
   selectedImageSize: null,
+  selectedFormatId: null,
 
   // Cross-component editing state
   editingSource: null,
@@ -143,10 +141,6 @@ const initialState = {
   navigationDirection: 'forward',
   isAnimating: false,
   previousStep: null,
-
-  // Slogan alternative image caching
-  cachedSloganImages: {},
-  currentAlternativeIndex: -1,
 
   // Flow title (dynamic header)
   flowTitle: null,
@@ -413,59 +407,6 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
       set({ sunflowerOffset: newOffset as [number, number] }),
     updateCredit: (credit: string) => set({ credit }),
 
-    // Slogan handling
-    setSloganAlternatives: (alternatives: SloganAlternative[]) =>
-      set({ sloganAlternatives: alternatives }),
-    setAlternatives: (alternatives: SloganAlternative[]) =>
-      set({ sloganAlternatives: alternatives }),
-    selectSlogan: (slogan: SloganAlternative) =>
-      set({
-        line1: slogan.line1 || '',
-        line2: slogan.line2 || '',
-        line3: slogan.line3 || '',
-        line4: slogan.line4 || '',
-        line5: slogan.line5 || '',
-      }),
-    handleSloganSelect: (selected: SloganAlternative) => {
-      const { type } = get();
-      const config = getTypeConfig(type || '');
-
-      if (config?.legacyType === 'Zitat' || config?.legacyType === 'Zitat_Pure') {
-        get().updateFormData({ quote: selected.quote });
-      } else if (config?.legacyType === 'Info') {
-        get().updateFormData({
-          header: selected.header,
-          subheader: selected.subheader,
-          body: selected.body,
-        });
-      } else if (config?.legacyType === 'Veranstaltung') {
-        get().updateFormData({
-          eventTitle: selected.eventTitle,
-          beschreibung: selected.beschreibung,
-          weekday: selected.weekday,
-          date: selected.date,
-          time: selected.time,
-          locationName: selected.locationName,
-          address: selected.address,
-        });
-      } else {
-        get().selectSlogan(selected);
-      }
-    },
-
-    // Slogan image caching for alternative switching
-    cacheSloganImage: (alternativeIndex: number, imageSrc: string | null) => {
-      if (!imageSrc) return;
-      const { cachedSloganImages } = get();
-      set({ cachedSloganImages: { ...cachedSloganImages, [alternativeIndex]: imageSrc } });
-    },
-    getCachedSloganImage: (alternativeIndex: number) => {
-      const { cachedSloganImages } = get();
-      return cachedSloganImages[alternativeIndex] || null;
-    },
-    clearSloganImageCache: () => set({ cachedSloganImages: {}, currentAlternativeIndex: -1 }),
-    setCurrentAlternativeIndex: (index: number) => set({ currentAlternativeIndex: index }),
-
     // Unsplash integration
     handleUnsplashSearch: (query: string) => {
       if (!query) return;
@@ -678,10 +619,4 @@ const useImageStudioStore = create<ImageStudioStore>((set, get) => {
 export default useImageStudioStore;
 
 // Export types for use in components
-export type {
-  VeranstaltungFieldFontSizes,
-  SelectedImageData,
-  SloganAlternative,
-  ColorScheme,
-  ImageStudioStore,
-};
+export type { VeranstaltungFieldFontSizes, SelectedImageData, ColorScheme, ImageStudioStore };
