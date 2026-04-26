@@ -4,6 +4,8 @@
 
 > **Environment**: WSL2. ADB/Gradle use Windows executables via `/mnt/c/`.
 
+> Behavioral guidelines (Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution) live in `~/.claude/CLAUDE.md` and apply to all projects.
+
 ## Project Overview
 
 Grünerator: AI content creation platform for Die Grünen. pnpm monorepo (web, mobile, desktop, API). EU-hosted infrastructure.
@@ -26,10 +28,6 @@ pnpm test                     # All tests
 ```
 
 Single workspace: `pnpm --filter @gruenerator/api test:auth`, `pnpm --filter @gruenerator/desktop dev`
-
-> **WSL RAM**: Only typecheck newly created files (`npx tsc --noEmit <file>`) or before pushing. No full-project typechecks during edits.
-
-> **Log output to file**: `npx tsc --noEmit --project <tsconfig> 2>&1 > /tmp/typecheck-api.txt`. Never run same command twice.
 
 ## Architecture
 
@@ -64,14 +62,6 @@ Scrapers in `apps/api/services/scrapers/`. Automated via GitHub Actions (`conten
 
 **NEVER full rescrape** (`--force` on all). Only targeted subsets (e.g. PDFs via `reprocess-pdfs.ts`). `satzungen_documents` is dormant — exclude.
 
-### Hocuspocus Awareness
-
-- **Write**: `provider.awareness.setLocalStateField('fieldName', data)` with separate top-level fields. Do NOT nest under `user`.
-- **Read**: `awareness.on('change', handler)` with `setTimeout(0)` inside for fresh `getStates()`.
-- **Self-filtering**: Do NOT use `provider.on('awarenessChange', ({ states }))` — uses sequential index keys, not Yjs clientIDs.
-
-Refs: `useCollaborators()` in `packages/docs/src/hooks/useCollaboration.ts:146-199`, `useBoardCursors()` in `apps/web/src/features/boards/hooks/useBoardCursors.ts`.
-
 ### Authentication
 
 Keycloak OIDC via Passport.js. Multiple IdPs (.de, .at, .eu). Sessions in Redis.
@@ -105,14 +95,6 @@ See `CLAUDE-styling.md` for Tailwind v4, theme/dark mode, CSS variables, shadcn/
 
 Zustand (global state). TanStack Query v5 (server state/fetching) with axios.
 
-### Avoid Unnecessary `useEffect`
-
-1. **Derive during render** — `const`/`useMemo`, not state+Effect.
-2. **Event handlers** for user actions, not Effects.
-3. **Reset via `key`** — `key={id}` instead of Effect that resets state.
-4. **No Effect chains** — compute in one pass or in event handler.
-5. **`useEffect` for external sync only** — subscriptions, WebSocket, DOM measurements.
-
 ### Commits
 
 Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`). Atomic: one logical change per commit.
@@ -124,14 +106,6 @@ Strict mode, entire stack. `import { type Foo }` (inline style, not `import type
 ### Backend Routing & Typing
 
 See `CLAUDE-routing.md` for Express 5 route typing, `TypedRequest`/`AuthRequest`, AI worker pool access, locale-aware backend rules.
-
-### Gender-Neutral Language (Gendern)
-
-All user-facing German text uses Genderstern (`*`):
-1. `*in`/`*innen` for role labels (e.g. `Eigentümer*in`)
-2. Rephrase gendered articles ("Nur der Ersteller..." → "Nur die erstellende Person...")
-3. Neutral constructions for labels ("Name des Erstellers" → "Name der erstellenden Person")
-4. Exceptions: legal text, non-role compound nouns
 
 ### External API Clients & SSRF
 
