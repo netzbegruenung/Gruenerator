@@ -52,8 +52,12 @@
 
 /* BlockNote Theme Overrides for Grünerator */
 
-/* Override BlockNote default styles for Grünerator theme */
-.bn-container {
+/* Override BlockNote default styles for Grünerator theme.
+   BlockNote 0.48+ moved theme properties (fonts, colors, CSS variables) from
+   .bn-container to .bn-root, which now wraps both the editor and its floating
+   UI (menus, toolbars, comment composer). Layout properties stay on
+   .bn-container — see the .blocknote-static-toolbar rule below. */
+.bn-root {
   --bn-colors-editor-background: var(--background-color, #ffffff);
   --bn-colors-editor-text: var(--font-color, #1f2937);
   --bn-colors-menu-background: var(--background-color, #ffffff);
@@ -90,7 +94,7 @@
 }
 
 /* Dark mode support */
-[data-theme="dark"] .bn-container {
+[data-theme="dark"] .bn-root {
   --bn-colors-editor-background: var(--background-color, #1f2937);
   --bn-colors-editor-text: var(--font-color, #f9fafb);
   --bn-colors-menu-background: var(--grey-800, #1f2937);
