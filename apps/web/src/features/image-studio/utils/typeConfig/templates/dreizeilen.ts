@@ -41,12 +41,6 @@ interface DreizeilenResult {
   searchTerms?: string[];
 }
 
-interface DreizeilenAlternative {
-  line1?: string;
-  line2?: string;
-  line3?: string;
-}
-
 export const dreizeilenFieldConfig: TemplateFieldConfig = {
   inputFields: [
     {
@@ -71,20 +65,12 @@ export const dreizeilenFieldConfig: TemplateFieldConfig = {
     line3: result.mainSlogan?.line3 || '',
     searchTerms: result.searchTerms || [],
   }),
-  alternativesMapping: (alt: DreizeilenAlternative, index?: number) => ({
-    id: `alt-${index ?? Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    line1: alt.line1 || '',
-    line2: alt.line2 || '',
-    line3: alt.line3 || '',
-  }),
   showImageUpload: true,
   showColorControls: true,
   showFontSizeControl: true,
   showAdvancedEditing: true,
   showCredit: true,
-  showAlternatives: true,
   showEditPanel: true,
   showAutoSave: true,
   showSocialGeneration: true,
-  alternativesButtonText: 'Anderer Slogan',
 };

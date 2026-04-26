@@ -32,7 +32,6 @@ export const freeformFieldConfig: TemplateFieldConfig = {
   showFontSizeControl: false,
   showAdvancedEditing: false,
   showCredit: false,
-  showAlternatives: false,
   showEditPanel: false,
   showAutoSave: true,
   showSocialGeneration: false,

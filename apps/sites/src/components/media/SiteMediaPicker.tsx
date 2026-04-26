@@ -18,7 +18,7 @@ export function SiteMediaPicker() {
   const { isOpen, selectedItems, mediaTypeFilter, closePicker, selectItem, confirmSelection } =
     useMediaPickerStore();
 
-  const { items, isLoading, error, refetch, setFilters } = useMediaLibrary({
+  const { items, isLoading, error, setFilters } = useMediaLibrary({
     initialFilters: { type: mediaTypeFilter === 'all' ? 'image' : mediaTypeFilter },
   });
 
@@ -30,7 +30,6 @@ export function SiteMediaPicker() {
     reset: resetUpload,
   } = useMediaUpload({
     onSuccess: () => {
-      void refetch();
       resetUpload();
     },
   });
@@ -38,12 +37,6 @@ export function SiteMediaPicker() {
   const [searchQuery, setSearchQuery] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      void refetch();
-    }
-  }, [isOpen, refetch]);
 
   useEffect(() => {
     if (isOpen) {

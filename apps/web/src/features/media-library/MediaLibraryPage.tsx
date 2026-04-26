@@ -1,6 +1,6 @@
 import { useMediaLibrary, useMediaUpload, useMediaPicker } from '@gruenerator/shared/media-library';
 import { Button } from '@gruenerator/ui';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   FaImage,
   FaVideo,
@@ -229,11 +229,10 @@ const MediaLibraryPage: React.FC = () => {
     isLoading,
     error,
     setFilters,
-    refetch,
     loadMore,
     deleteItem,
     updateItem,
-  } = useMediaLibrary();
+  } = useMediaLibrary({ enabled: isAuthenticated });
 
   const {
     upload,
@@ -241,19 +240,11 @@ const MediaLibraryPage: React.FC = () => {
     progress,
     error: uploadError,
     reset: resetUpload,
-  } = useMediaUpload({
-    onSuccess: () => refetch(),
-  });
+  } = useMediaUpload();
 
   const [editingItem, setEditingItem] = useState<MediaItem | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isDragging, setIsDragging] = useState(false);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      void refetch();
-    }
-  }, [isAuthenticated]);
 
   const handleTypeFilter = (type: MediaType | 'all') => {
     setFilters({ type });
