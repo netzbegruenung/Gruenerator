@@ -96,6 +96,7 @@ interface SharedMediaService {
   getThumbnailFilePath(relativePath: string): string;
   getMediaFilePath(relativePath: string): string;
   getOriginalImagePath(shareToken: string, filename: string): string;
+  clearOriginalImageMetadata(shareToken: string): Promise<void>;
   markAsTemplate(
     userId: string,
     shareToken: string,
@@ -936,6 +937,17 @@ router.get(
 
         return fs.createReadStream(originalPath).pipe(res);
       } catch {
+        // File is missing on disk but metadata claims it exists. Self-heal so
+        // the gallery edit handler stops generating /original URLs for this share.
+        try {
+          await service.clearOriginalImageMetadata(shareToken);
+        } catch (healError) {
+          log.warn(
+            'Failed to clear stale originalImage metadata for %s: %s',
+            shareToken,
+            healError
+          );
+        }
         return res.status(404).json({ error: 'Originalbild-Datei nicht gefunden' });
       }
     } catch (error) {
@@ -1367,7 +1379,7 @@ router.post(
 
       await service.markAsTemplate(userId, shareToken, title || 'Template', visibility, userName);
 
-      const templateUrl = `/image-studio?template=${shareToken}`;
+      const templateUrl = `/studio?template=${shareToken}`;
 
       log.info(
         `Share ${shareToken} marked as template with visibility: ${visibility} by user ${userId}`

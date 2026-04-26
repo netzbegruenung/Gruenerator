@@ -5,12 +5,16 @@
  * Migrated from monolithic 1,107-line DreizeilenCanvas component.
  */
 
-import { HiCog, HiPhotograph } from 'react-icons/hi';
+import { HiCog, HiPhotograph, HiSparkles } from 'react-icons/hi';
 import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
+import { buildAssetCapability } from '../ai/assetCapability';
+import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
+import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
+import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from './commonSections';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
@@ -19,11 +23,6 @@ import {
   DREIZEILEN_CONFIG,
 } from '../utils/dreizeilenLayout';
 
-import {
-  alternativesTab,
-  createAlternativesSection,
-  isAlternativesEmpty,
-} from './alternativesSection';
 import { ADDITIONAL_TEXT_DEFAULTS } from './dreizeilen.constants';
 import {
   createAssetActions,
@@ -39,11 +38,9 @@ import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
 import { createShareSection } from './shareSection';
 
-import type {
-  DreizeilenFullState,
-  DreizeilenFullActions,
-  DreizeilenAlternative,
-} from './dreizeilen.types';
+import type { TemplateAiCapabilities } from '../ai/types';
+import type { DreizeilenFullState, DreizeilenFullActions } from './dreizeilen.types';
+import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 import type {
   FullCanvasConfig,
   LayoutResult as GenericLayoutResult,
@@ -149,6 +146,68 @@ const calculateLayout = (state: DreizeilenFullState): GenericLayoutResult => {
 // FULL CONFIG
 // ============================================================================
 
+// ============================================================================
+// AI CAPABILITY
+// ============================================================================
+
+const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, DreizeilenFullActions> =
+  {
+    supportedOperations: [
+      'set-text',
+      'set-color-scheme',
+      'toggle-sunflower',
+      'add-asset',
+      'add-illustration',
+      'update-element',
+      'remove-element',
+    ],
+
+    colorSchemes: COLOR_SCHEMES.map((s) => ({ id: s.id, label: s.label })),
+
+    assets: buildAssetCapability('dreizeilen'),
+
+    illustrations: buildIllustrationCapability(),
+
+    describeForAi: (state): CanvasAiSnapshot => ({
+      template: 'dreizeilen',
+      textFields: [
+        { field: 'line1', label: 'Erste Zeile', value: state.line1 },
+        { field: 'line2', label: 'Zweite Zeile', value: state.line2 },
+        { field: 'line3', label: 'Dritte Zeile', value: state.line3 },
+      ],
+      currentColorScheme: state.colorSchemeId,
+      elementsSummary: [],
+    }),
+
+    applyOverrides: {
+      'set-text': (op, actions) => {
+        switch (op.field) {
+          case 'line1':
+            actions.setLine1(op.value);
+            return;
+          case 'line2':
+            actions.setLine2(op.value);
+            return;
+          case 'line3':
+            actions.setLine3(op.value);
+            return;
+          default:
+            throw new Error(`Dreizeilen-Vorlage hat kein Feld "${op.field}"`);
+        }
+      },
+      'set-color-scheme': (op, actions) => {
+        const known = COLOR_SCHEMES.some((s) => s.id === op.schemeId);
+        if (!known) {
+          throw new Error(`Unbekanntes Farbschema "${op.schemeId}"`);
+        }
+        actions.setColorSchemeId(op.schemeId);
+      },
+      'toggle-sunflower': (op, actions) => {
+        actions.setSunflowerVisible(op.visible);
+      },
+    },
+  };
+
 export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, DreizeilenFullActions> = {
   id: 'dreizeilen',
 
@@ -180,6 +239,8 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     requireFontLoad: true,
   },
 
+  ai: dreizeilenAiCapabilities,
+
   tabs: [
     {
       id: 'image-background',
@@ -190,17 +251,22 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Balken-Einstellungen' },
     { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
-    alternativesTab,
+    uploadsTab,
+    { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
+    chatTab,
   ],
 
   getVisibleTabs: (_state, context) => {
-    const base: ('image-background' | 'settings' | 'text' | 'assets' | 'alternatives' | 'share')[] = [
-      'image-background',
-      'text',
-      'assets',
-      'alternatives',
-      'share',
-    ];
+    const base: (
+      | 'image-background'
+      | 'settings'
+      | 'text'
+      | 'assets'
+      | 'uploads'
+      | 'ai'
+      | 'chat'
+      | 'share'
+    )[] = ['image-background', 'text', 'assets', 'uploads', 'ai', 'chat', 'share'];
     if (context?.selectedElement?.includes('balken')) {
       return ['image-background', 'settings', ...base.slice(1)];
     }
@@ -212,9 +278,6 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     if (selectedElement?.startsWith('frame-')) return 'assets';
     return null;
   },
-
-  getDisabledTabs: (state) =>
-    isAlternativesEmpty(state, (s) => s.alternatives) ? ['alternatives'] : [],
 
   sections: {
     settings: {
@@ -276,14 +339,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       }),
     },
 
-    alternatives: createAlternativesSection<DreizeilenFullState, DreizeilenFullActions>({
-      type: 'structured',
-      getAlternatives: (s) => s.alternatives || [],
-      getCurrentLine1: (s) => s.line1,
-      getCurrentLine2: (s) => s.line2,
-      getCurrentLine3: (s) => s.line3,
-      getSelectAction: (a) => a.handleSelectAlternative,
-    }),
+    ai: createAiSectionRegistration('dreizeilen', dreizeilenAiCapabilities),
+
+    uploads: uploadsSectionEntry,
+    chat: createChatSection('dreizeilen'),
 
     share: createShareSection<DreizeilenFullState>('dreizeilen', (state) =>
       `${state.line1}\n${state.line2}\n${state.line3}`.trim()
@@ -458,10 +517,6 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     isDesktop:
       (props.isDesktop as boolean | undefined) ??
       (typeof window !== 'undefined' && window.innerWidth >= 900),
-    alternatives:
-      (props.alternatives as
-        | { id: string; line1: string; line2: string; line3: string }[]
-        | undefined) ?? [],
   }),
 
   createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
@@ -590,22 +645,6 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           return { ...newState, balkenInstances: updateBalkenInstances(newState) };
         });
         callbacks.onColorSchemeChange?.(id);
-        saveToHistory(getState());
-      },
-
-      handleSelectAlternative: (alt: DreizeilenAlternative) => {
-        setState((prev) => {
-          const newState = {
-            ...prev,
-            line1: alt.line1,
-            line2: alt.line2,
-            line3: alt.line3,
-          };
-          return { ...newState, balkenInstances: updateBalkenInstances(newState) };
-        });
-        callbacks.onLine1Change?.(alt.line1);
-        callbacks.onLine2Change?.(alt.line2);
-        callbacks.onLine3Change?.(alt.line3);
         saveToHistory(getState());
       },
 

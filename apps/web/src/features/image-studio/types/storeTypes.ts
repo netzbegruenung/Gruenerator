@@ -31,28 +31,6 @@ export interface VeranstaltungFieldFontSizes {
   address: number;
 }
 
-// Slogan alternative interface
-export interface SloganAlternative {
-  line1?: string;
-  line2?: string;
-  line3?: string;
-  line4?: string;
-  line5?: string;
-  quote?: string;
-  name?: string;
-  header?: string;
-  subheader?: string;
-  body?: string;
-  eventTitle?: string;
-  beschreibung?: string;
-  weekday?: string;
-  date?: string;
-  time?: string;
-  locationName?: string;
-  address?: string;
-  [key: string]: string | undefined;
-}
-
 // Selected image (Unsplash format)
 export interface SelectedImageData {
   urls: {
@@ -170,7 +148,6 @@ export interface ImageStudioState {
   sunflowerOffset: [number, number];
   credit: string;
   searchTerms: string[];
-  sloganAlternatives: SloganAlternative[];
 
   // Veranstaltung per-field font sizes
   veranstaltungFieldFontSizes: VeranstaltungFieldFontSizes;
@@ -197,6 +174,12 @@ export interface ImageStudioState {
     icon?: IconType;
     color?: string;
   } | null;
+  /**
+   * Identifies the chosen canvas-editor output format from the multi-format
+   * registry (see packages/canvas-editor/src/formats/index.ts). Used for
+   * template flows; AI/Flux flows continue to use selectedImageSize.
+   */
+  selectedFormatId: string | null;
 
   // Cross-component editing state
   editingSource: string | null;
@@ -238,10 +221,6 @@ export interface ImageStudioState {
   navigationDirection: 'forward' | 'back';
   isAnimating: boolean;
   previousStep: string | null;
-
-  // Slogan alternative image caching
-  cachedSloganImages: Record<number, string>;
-  currentAlternativeIndex: number;
 
   // Flow title (dynamic header)
   flowTitle: string | null;
@@ -330,18 +309,6 @@ export interface ImageStudioActions {
   updateBalkenGruppenOffset: (newOffset: number[]) => void;
   updateSunflowerOffset: (newOffset: number[]) => void;
   updateCredit: (credit: string) => void;
-
-  // Slogan handling
-  setSloganAlternatives: (alternatives: SloganAlternative[]) => void;
-  setAlternatives: (alternatives: SloganAlternative[]) => void;
-  selectSlogan: (slogan: SloganAlternative) => void;
-  handleSloganSelect: (selected: SloganAlternative) => void;
-
-  // Slogan image caching
-  cacheSloganImage: (alternativeIndex: number, imageSrc: string | null) => void;
-  getCachedSloganImage: (alternativeIndex: number) => string | null;
-  clearSloganImageCache: () => void;
-  setCurrentAlternativeIndex: (index: number) => void;
 
   // Unsplash integration
   handleUnsplashSearch: (query: string) => void;

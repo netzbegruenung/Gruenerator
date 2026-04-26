@@ -31,10 +31,15 @@ export type SearchIntent =
   | 'summary'
   | 'direct';
 
-export interface SharepicData {
+export interface SharepicVariant {
+  id: string;
   canvasType: string;
   initialProps: Record<string, unknown>;
-  alternatives?: unknown[];
+  label?: string;
+}
+
+export interface SharepicData {
+  variants: SharepicVariant[];
 }
 
 export interface GeneratedImage {
@@ -58,6 +63,17 @@ export interface MemoryContextInfo {
   memoryCount: number;
   memories: Array<{ content: string; category: string | null }>;
   isPersona: boolean;
+}
+
+/**
+ * Server-side model fallback notification. Logged in the browser console for
+ * debugging, NOT surfaced in the UI — the response continues seamlessly from
+ * the user's perspective.
+ */
+export interface FallbackInfo {
+  from: { id: string; name: string };
+  to: { id: string; name: string };
+  reason: 'first_token_timeout' | 'empty_completion' | 'upstream_error';
 }
 
 export interface ChatProgress {
@@ -403,6 +419,15 @@ export function useChatGraphStream(
                 const { text } = data as { text: string };
                 accumulatedText += text;
                 setStreamingText(accumulatedText);
+                break;
+              }
+
+              case 'fallback': {
+                // Log-only — no user-visible UI. Response continues silently.
+                const fallbackInfo = data as FallbackInfo;
+                console.warn(
+                  `[useChatGraphStream] Fallback: ${fallbackInfo.from.id} → ${fallbackInfo.to.id} (${fallbackInfo.reason})`
+                );
                 break;
               }
 

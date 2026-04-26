@@ -8,7 +8,8 @@
     "paths": {
       "@/*": ["./src/*"],
       "@gruenerator/shared": ["../shared/src/index.ts"],
-      "@gruenerator/shared/*": ["../shared/src/*/index.ts", "../shared/src/*"]
+      "@gruenerator/shared/*": ["../shared/src/*/index.ts", "../shared/src/*"],
+      "@gruenerator/contracts": ["../contracts/src/index.ts"]
     },
     "noUncheckedIndexedAccess": false,
     "noPropertyAccessFromIndexSignature": false

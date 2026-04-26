@@ -7,7 +7,6 @@ import type { IconType } from 'react-icons';
  * - 'background': Hintergrund (image or color based on template)
  * - 'text': Text editing section
  * - 'elements': Decorative elements (icons, shapes, illustrations)
- * - 'alternatives': AI-generated alternatives
  * - 'share': Export and sharing options
  *
  * Legacy tabs (template-specific, being migrated):
@@ -22,9 +21,10 @@ export type SidebarTabId =
   | 'background'
   | 'text'
   | 'elements'
-  | 'alternatives'
   | 'share'
   | 'uploads'
+  | 'ai'
+  | 'chat'
   // Legacy/template-specific tab IDs (for backwards compatibility)
   | 'fontsize'
   | 'assets'
@@ -63,9 +63,6 @@ export interface TextSectionProps {
   onQuoteFontSizeChange?: (size: number) => void;
   onNameFontSizeChange?: (size: number) => void;
   onUpdateAdditionalTextFontSize?: (id: string, size: number) => void;
-  // Alternatives Props
-  alternatives?: string[];
-  onAlternativeSelect?: (alternative: string) => void;
 }
 
 export interface FontSizeSectionProps {

@@ -32,11 +32,8 @@ export function getIconifyApiUrl(): string {
   return iconifyApiUrl;
 }
 
-function getApiUrl(): string {
-  if (!iconifyApiUrl) {
-    throw new Error('Iconify API URL not configured. Call setIconifyApiUrl() first.');
-  }
-  return iconifyApiUrl;
+function getApiUrl(): string | null {
+  return iconifyApiUrl || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -76,6 +73,11 @@ export function loadAllIcons(): Promise<IconDef[]> {
 
   loadPromise = (async () => {
     const api = getApiUrl();
+    if (!api) {
+      iconsList = [];
+      iconsMap = {};
+      return iconsList;
+    }
     const res = await fetch(`${api}/collections`);
     const collections: Record<string, CollectionInfo> = await res.json();
 
@@ -161,6 +163,7 @@ export async function generateIconDataUrl(
   const promise = (async () => {
     try {
       const api = getApiUrl();
+      if (!api) return null;
       const encodedColor = encodeURIComponent(color);
       const url = `${api}/${iconId}.svg?height=${size}&color=${encodedColor}`;
       const res = await fetch(url);

@@ -43,6 +43,7 @@ export interface RateLimitConfig {
     docs_ai: ResourceConfig;
     pdf_export: ResourceConfig;
     gruen_o_mat: ResourceConfig;
+    canvas_ai: ResourceConfig;
   };
   anonymousIdentifierStrategy: ('sessionID' | 'ip')[];
   enableAnalytics: boolean;
@@ -88,6 +89,15 @@ const rateLimitConfig: RateLimitConfig = {
     gruen_o_mat: {
       anonymous: { limit: 20, window: 'daily' },
       authenticated: { limit: 50, window: 'daily' },
+      premium: { limit: Infinity, window: 'daily' },
+    },
+
+    // Canvas AI suggestions (sidebar prompt → operations)
+    // Tighter than text generation because each request is short and
+    // template-scoped, but cheap enough to allow generous authenticated use.
+    canvas_ai: {
+      anonymous: { limit: 5, window: 'daily' },
+      authenticated: { limit: 100, window: 'daily' },
       premium: { limit: Infinity, window: 'daily' },
     },
   },

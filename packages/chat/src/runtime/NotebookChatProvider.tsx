@@ -9,6 +9,8 @@ import {
   type ThreadMessageLike,
 } from '@assistant-ui/react';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
+import { MarkdownStreamingProvider } from '../context/MarkdownStreamingContext';
+import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
 import {
   createNotebookModelAdapter,
   type NotebookAdapterConfig,
@@ -64,14 +66,30 @@ function NotebookChatProviderInner({
   threadId: initialThreadId,
 }: NotebookChatProviderProps) {
   const isMulti = collections.length > 1;
-  // Use a ref for threadId so adapter is not recreated when it changes mid-conversation
+  // Refs for all config inputs so the adapter — and therefore the AUI runtime
+  // — is created exactly once per provider mount. Without this, any prop
+  // identity churn upstream (e.g. config.collections rebuilt by getNotebookConfig
+  // on every render, or a fresh documentIds array) recreates the adapter,
+  // reinitializes assistant-ui's runtime, and resets scroll/streaming state.
   const threadIdRef = useRef<string | null>(initialThreadId || null);
-  // Use a ref for getFilters so adapter reads latest filters directly from store at request time
   const getFiltersRef = useRef(getFilters);
   getFiltersRef.current = getFilters;
-  // Keep filters ref as fallback for consumers that pass static filters prop
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
+  const collectionsRef = useRef(collections);
+  collectionsRef.current = collections;
+  const isMultiRef = useRef(isMulti);
+  isMultiRef.current = isMulti;
+  const localeRef = useRef(locale);
+  localeRef.current = locale;
+  const extraParamsRef = useRef(extraParams);
+  extraParamsRef.current = extraParams;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const endpointRef = useRef(endpoint);
+  endpointRef.current = endpoint;
+  const documentIdsRef = useRef(documentIds);
+  documentIdsRef.current = documentIds;
 
   const handleThreadCreated = useCallback(
     (newThreadId: string) => {
@@ -81,22 +99,21 @@ function NotebookChatProviderInner({
     [onThreadCreated]
   );
 
-  const getConfig = useCallback(
-    (): NotebookAdapterConfig => ({
-      ...(isMulti
-        ? { collectionIds: collections.map((c) => c.id) }
-        : { collectionId: collections[0]?.id }),
-      collectionLinkType: isMulti ? 'url' : collections[0]?.linkType,
+  const getConfig = useCallback((): NotebookAdapterConfig => {
+    const cs = collectionsRef.current;
+    const multi = isMultiRef.current;
+    return {
+      ...(multi ? { collectionIds: cs.map((c) => c.id) } : { collectionId: cs[0]?.id }),
+      collectionLinkType: multi ? 'url' : cs[0]?.linkType,
       filters: getFiltersRef.current?.() ?? filtersRef.current,
-      locale,
-      extraParams,
-      mode,
-      endpoint,
-      documentIds,
+      locale: localeRef.current,
+      extraParams: extraParamsRef.current,
+      mode: modeRef.current,
+      endpoint: endpointRef.current,
+      documentIds: documentIdsRef.current,
       threadId: threadIdRef.current,
-    }),
-    [collections, isMulti, locale, extraParams, mode, endpoint, documentIds]
-  );
+    };
+  }, []);
 
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
@@ -128,13 +145,18 @@ function NotebookChatProviderInner({
   }
 
   const dictationAdapter = useMemo(() => new VoxtralDictationAdapter(), []);
+  const attachmentAdapter = useMemo(() => new GrueneratorAttachmentAdapter(), []);
 
   const runtime = useLocalRuntime(adapter, {
     initialMessages,
-    adapters: { dictation: dictationAdapter },
+    adapters: { dictation: dictationAdapter, attachments: attachmentAdapter },
   });
 
-  return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <MarkdownStreamingProvider smooth={false}>{children}</MarkdownStreamingProvider>
+    </AssistantRuntimeProvider>
+  );
 }
 
 export function NotebookChatProvider(props: NotebookChatProviderProps) {

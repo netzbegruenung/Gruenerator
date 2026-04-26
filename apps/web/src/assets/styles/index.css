@@ -70,6 +70,12 @@
 @source "../../../../../packages/collab/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/canvas-editor/src/**/*.{js,ts,jsx,tsx}";
 
+/* BlockNote ships shadcn components with raw Tailwind classes (e.g. w-[300px] on
+   the FloatingComposer card). They aren't precompiled into @blocknote/shadcn/style.css,
+   so Tailwind needs to scan the bundled output to emit them. Without this, the
+   comment composer collapses to its content width. */
+@source "../../../../../node_modules/@blocknote/shadcn/dist/**/*.{js,cjs,mjs}";
+
 /* ── CSS-only tooltip (zero JS, zero re-renders) ── */
 @layer components {
   .css-tooltip {

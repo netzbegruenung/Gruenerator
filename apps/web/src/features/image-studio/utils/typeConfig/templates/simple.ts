@@ -36,11 +36,6 @@ interface SimpleResult {
   subtext?: string;
 }
 
-interface SimpleAlternative {
-  headline?: string;
-  subtext?: string;
-}
-
 export const simpleFieldConfig: TemplateFieldConfig = {
   inputFields: [
     {
@@ -62,19 +57,12 @@ export const simpleFieldConfig: TemplateFieldConfig = {
     headline: result.headline || '',
     subtext: result.subtext || '',
   }),
-  alternativesMapping: (alt: SimpleAlternative, index?: number) => ({
-    id: `alt-${index ?? Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    headline: alt.headline || '',
-    subtext: alt.subtext || '',
-  }),
   showImageUpload: true,
   showColorControls: false,
   showFontSizeControl: true,
   showAdvancedEditing: false,
   showCredit: false,
-  showAlternatives: true,
   showEditPanel: true,
   showAutoSave: true,
   showSocialGeneration: true,
-  alternativesButtonText: 'Andere Headline',
 };

@@ -9,6 +9,13 @@ export interface FeatureCardProps {
   description?: string;
   image?: string;
   imageFallback?: string;
+  /**
+   * Optional solid background color for the image-style card variant when no
+   * image asset is available (e.g. format pickers). Uses the same gradient
+   * overlay + label/description stacking as the `image` path so cards look
+   * visually consistent with image-backed siblings.
+   */
+  backgroundColor?: string;
   disabled?: boolean;
   badge?: ReactNode;
   variant?: 'default' | 'gradient-dark';
@@ -24,6 +31,7 @@ export function FeatureCard({
   description,
   image,
   imageFallback,
+  backgroundColor,
   disabled = false,
   badge,
   variant = 'default',
@@ -41,8 +49,8 @@ export function FeatureCard({
 
   const isGradientDark = variant === 'gradient-dark';
 
-  if (image) {
-    const isWebp = image.endsWith('.webp');
+  if (image || backgroundColor) {
+    const isWebp = image?.endsWith('.webp') ?? false;
 
     return (
       <div
@@ -64,30 +72,33 @@ export function FeatureCard({
         role="button"
         tabIndex={disabled ? -1 : tabIndex}
         onKeyDown={disabled ? undefined : handleKeyDown}
+        style={!image && backgroundColor ? { backgroundColor } : undefined}
       >
         {badge}
-        {isWebp && imageFallback ? (
-          <picture className="block w-full h-full">
-            <source srcSet={image} type="image/webp" />
+        {image ? (
+          isWebp && imageFallback ? (
+            <picture className="block w-full h-full">
+              <source srcSet={image} type="image/webp" />
+              <img
+                src={imageFallback}
+                alt={label}
+                className="w-full h-full object-cover transition-all duration-[400ms] ease-out group-hover:scale-[1.02] group-hover:opacity-95"
+                loading="lazy"
+                width={600}
+                height={800}
+              />
+            </picture>
+          ) : (
             <img
-              src={imageFallback}
+              src={image}
               alt={label}
               className="w-full h-full object-cover transition-all duration-[400ms] ease-out group-hover:scale-[1.02] group-hover:opacity-95"
               loading="lazy"
               width={600}
               height={800}
             />
-          </picture>
-        ) : (
-          <img
-            src={image}
-            alt={label}
-            className="w-full h-full object-cover transition-all duration-[400ms] ease-out group-hover:scale-[1.02] group-hover:opacity-95"
-            loading="lazy"
-            width={600}
-            height={800}
-          />
-        )}
+          )
+        ) : null}
         <div
           className={cn(
             'absolute z-[1] flex flex-col',

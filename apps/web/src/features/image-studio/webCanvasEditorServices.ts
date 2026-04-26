@@ -9,6 +9,7 @@ import {
   fetchUnsplashImageAsFile,
   openUnsplashSearch,
 } from './services/imageSourceService';
+import { useGenerateCanvasSuggestions } from './useGenerateCanvasSuggestions';
 
 import type { CanvasEditorServices } from '@gruenerator/canvas-editor';
 
@@ -21,6 +22,7 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   fetchUnsplashImageAsFile,
   openUnsplashSearch,
   useGenerateSocialPost,
+  useGenerateCanvasSuggestions,
   apiBaseUrl: (import.meta.env.VITE_API_URL as string | undefined) ?? '',
   iconifyApiUrl: (import.meta.env.VITE_ICONIFY_API_URL as string | undefined) ?? '',
 };

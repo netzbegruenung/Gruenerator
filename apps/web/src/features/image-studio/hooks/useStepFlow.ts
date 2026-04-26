@@ -15,8 +15,6 @@ import {
 import { useImageGeneration } from './useImageGeneration';
 import { usePreloadStore } from './usePreloadStore';
 
-import type { SloganAlternative } from '../types/storeTypes';
-
 // ... (interfaces)
 
 interface FlowStep {
@@ -90,8 +88,7 @@ export const useStepFlow = ({
 
   const { setPreloadedImageResult, setSlogansReady } = usePreloadStore();
 
-  const { generateText, generateImage, fetchAlternativesInBackground, loading, error, setError } =
-    useImageGeneration();
+  const { generateText, generateImage, loading, error, setError } = useImageGeneration();
 
   const typeConfig = useMemo(() => getTypeConfig(type || ''), [type]);
   const fieldConfig = useMemo(() => getTemplateFieldConfig(type || ''), [type]);
@@ -101,6 +98,9 @@ export const useStepFlow = ({
 
     const steps: FlowStep[] = [];
     const inputBeforeImage = typeConfig?.inputBeforeImage ?? false;
+
+    // Format is chosen directly on the /studio type-selector page — see
+    // ImageStudioTypeSelector — so no per-flow format step is needed.
 
     if (inputBeforeImage && fieldConfig.inputFields?.length > 0) {
       fieldConfig.inputFields.forEach((field: InputField, index: number) => {
@@ -247,11 +247,10 @@ export const useStepFlow = ({
     try {
       const state = useImageStudioStore.getState();
       const currentType = state.type;
-      const isSlider = currentType === IMAGE_STUDIO_TYPES.SLIDER;
       const formData = {
         thema: state.thema,
         name: state.name,
-        ...(isSlider ? { smartCount: true } : { count: 1 }),
+        count: 1,
       };
       const result = await generateText(currentType!, formData);
 
@@ -260,43 +259,6 @@ export const useStepFlow = ({
           result as unknown as Record<string, unknown>
         );
         state.updateFormData(mappedData as Record<string, unknown>);
-
-        const originalAlternative: SloganAlternative = fieldConfig.alternativesMapping
-          ? fieldConfig.alternativesMapping(mappedData as Record<string, unknown>, 0)
-          : (mappedData as SloganAlternative);
-        state.setSloganAlternatives([originalAlternative]);
-
-        if (isSlider && result.alternatives && result.alternatives.length > 0) {
-          const allSlides = [
-            originalAlternative,
-            ...result.alternatives.map((alt, idx) =>
-              fieldConfig.alternativesMapping
-                ? fieldConfig.alternativesMapping(alt as Record<string, unknown>, idx + 1)
-                : (alt as SloganAlternative)
-            ),
-          ];
-          state.setSloganAlternatives(allSlides);
-        } else if (!isSlider) {
-          setTimeout(() => {
-            void fetchAlternativesInBackground(
-              currentType!,
-              formData,
-              (alternatives) => {
-                const mappedAlternatives = fieldConfig.alternativesMapping
-                  ? alternatives.map((alt, idx) =>
-                      fieldConfig.alternativesMapping!(alt as Record<string, unknown>, idx + 1)
-                    )
-                  : alternatives;
-                useImageStudioStore
-                  .getState()
-                  .setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
-              },
-              (error) => {
-                console.error('[StepFlow] Alternatives error:', error);
-              }
-            );
-          }, 100);
-        }
       }
       return true;
     } catch (err) {
@@ -305,7 +267,7 @@ export const useStepFlow = ({
     } finally {
       setIsProcessing(false);
     }
-  }, [fieldConfig, generateText, fetchAlternativesInBackground, setError]);
+  }, [fieldConfig, generateText, setError]);
 
   const executeTemplateImageGeneration = useCallback(async (): Promise<boolean> => {
     setError('');
@@ -497,31 +459,6 @@ export const useStepFlow = ({
               result as unknown as Record<string, unknown>
             );
             useImageStudioStore.getState().updateFormData(mappedData as Record<string, unknown>);
-
-            const originalAlternative: SloganAlternative = fieldConfig.alternativesMapping
-              ? fieldConfig.alternativesMapping(mappedData as Record<string, unknown>, 0)
-              : (mappedData as SloganAlternative);
-            useImageStudioStore.getState().setSloganAlternatives([originalAlternative]);
-
-            setTimeout(() => {
-              void fetchAlternativesInBackground(
-                state.type!,
-                formData,
-                (alternatives) => {
-                  const mappedAlternatives = fieldConfig.alternativesMapping
-                    ? alternatives.map((alt, idx) =>
-                        fieldConfig.alternativesMapping!(alt as Record<string, unknown>, idx + 1)
-                      )
-                    : alternatives;
-                  useImageStudioStore
-                    .getState()
-                    .setSloganAlternatives([originalAlternative, ...mappedAlternatives]);
-                },
-                (error) => {
-                  console.error('[ParallelPreload] Alternatives error:', error);
-                }
-              );
-            }, 100);
           }
           setSlogansReady(true);
           return true;
@@ -554,7 +491,6 @@ export const useStepFlow = ({
     fieldConfig,
     fetchAiImageSuggestion,
     generateText,
-    fetchAlternativesInBackground,
     setError,
     setPreloadedImageResult,
     setSlogansReady,

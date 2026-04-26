@@ -20,7 +20,8 @@
       "@gruenerator/shared": ["../../packages/shared/src"],
       "@gruenerator/shared/*": ["../../packages/shared/src/*"],
       "@gruenerator/docs": ["../../packages/docs/src"],
-      "@gruenerator/docs/*": ["../../packages/docs/src/*"]
+      "@gruenerator/docs/*": ["../../packages/docs/src/*"],
+      "@gruenerator/contracts": ["../../packages/contracts/src/index.ts"]
     }
   },
   "include": ["src/**/*", "vite.config.ts", "tests/**/*", "playwright.config.ts"],

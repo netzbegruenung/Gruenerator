@@ -3,8 +3,13 @@ import type {
   ChatModelRunOptions,
   ChatModelRunResult,
 } from '@assistant-ui/react';
-import { type ChatProgress, type Citation as ChatCitation } from '../hooks/useChatGraphStream';
+import {
+  type ChatProgress,
+  type Citation as ChatCitation,
+  type FallbackInfo,
+} from '../hooks/useChatGraphStream';
 import { parseSSELine } from '../lib/sseParser';
+import { chatLog, chatLogRate } from '../lib/chatDebug';
 import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
@@ -278,6 +283,9 @@ export function createNotebookModelAdapter(
                   console.debug(
                     `[Notebook] ⏱ First token: ${Math.round(performance.now() - c0)}ms`
                   );
+                  chatLog('adapter', 'first-delta', {
+                    sinceRequest: Math.round(performance.now() - c0),
+                  });
                   lastYieldTime = performance.now();
                   yield buildResult();
                   break;
@@ -287,6 +295,19 @@ export function createNotebookModelAdapter(
                 if (now - lastYieldTime >= YIELD_INTERVAL) {
                   lastYieldTime = now;
                   yield buildResult();
+                  // Throttled per-yield tick (one log per 500ms regardless of
+                  // 50ms yield cadence) so we can correlate adapter rhythm
+                  // with viewport content/reflow events.
+                  chatLogRate(
+                    'adapter',
+                    'yield',
+                    {
+                      len: accumulatedText.length,
+                      cites: (accumulatedText.match(/\[(\d+)\]/g) ?? []).length,
+                    },
+                    'notebook:yield',
+                    500
+                  );
                 }
                 break;
               }
@@ -299,6 +320,15 @@ export function createNotebookModelAdapter(
                   lastYieldTime = now;
                   yield buildResult();
                 }
+                break;
+              }
+
+              case 'fallback': {
+                // Server switched models silently — log only, no UI.
+                const info = data as FallbackInfo;
+                console.warn(
+                  `[Notebook] Model fallback: ${info.from.id} → ${info.to.id} (${info.reason})`
+                );
                 break;
               }
 
@@ -367,6 +397,31 @@ export function createNotebookModelAdapter(
           completionData.answer.length
         );
         currentProgress = { stage: 'complete', message: '' };
+
+        // Diagnose the streamed→final text swap. If the canonical answer
+        // differs in length, citation marker count, or citation IDs, the
+        // entire message reflows on the very last yield — a leading suspect
+        // for the "jumps" the user reports.
+        const streamedText = accumulatedText;
+        const finalText = completionData.answer;
+        const streamCites = streamedText.match(/\[(\d+)\]/g) ?? [];
+        const finalCites = finalText.match(/\[(\d+)\]/g) ?? [];
+        chatLog('adapter', 'final-swap', {
+          streamedLen: streamedText.length,
+          finalLen: finalText.length,
+          deltaLen: finalText.length - streamedText.length,
+          streamedCites: streamCites.length,
+          finalCites: finalCites.length,
+          identical: streamedText === finalText,
+          // Sample of the FIRST citation marker that differs between streamed
+          // and final — if you see this, the LLM emitted IDs that the backend
+          // renumbered, and badge widths shift on swap.
+          firstCiteDiff:
+            streamCites.find((m, i) => finalCites[i] !== m) !== undefined
+              ? { streamed: streamCites.slice(0, 5), final: finalCites.slice(0, 5) }
+              : null,
+        });
+
         // Swap in the backend's canonical answer so citation IDs in the text
         // match completionCitations. The LLM emits raw IDs during streaming
         // (e.g. [23], [19], [24]) that the backend renumbers to dense
