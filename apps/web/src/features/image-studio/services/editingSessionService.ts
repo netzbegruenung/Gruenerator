@@ -30,6 +30,12 @@ export interface GalleryEditData {
   };
   originalImageUrl?: string;
   title?: string;
+  /**
+   * Canvas-editor output format id (see packages/canvas-editor/src/formats/index.ts).
+   * Optional for backward-compatibility with rows persisted before multi-format.
+   * Loader fallbacks default missing values to 'post-portrait' (the legacy sharepic).
+   */
+  formatId?: string;
 }
 
 export interface EditSessionData {
@@ -117,7 +123,7 @@ export function parseSharepicForEditing(
 export async function loadGalleryEditData(
   editData: GalleryEditData
 ): Promise<Record<string, unknown>> {
-  const { shareToken, content, styling, originalImageUrl, title } = editData;
+  const { shareToken, content, styling, originalImageUrl, title, formatId } = editData;
   const sharepicType = content?.sharepicType || styling?.sharepicType;
   const mappedType = sharepicType ? LEGACY_TYPE_MAP[sharepicType] || sharepicType : null;
 
@@ -129,6 +135,9 @@ export async function loadGalleryEditData(
     hasOriginalImage: !!originalImageUrl,
     category: IMAGE_STUDIO_CATEGORIES.TEMPLATES,
     type: mappedType,
+    // Multi-format: legacy gallery rows lack formatId — fall back to the
+    // default sharepic dimensions so existing saves still load correctly.
+    selectedFormatId: formatId ?? 'post-portrait',
     // Use CANVAS_EDIT step for canvas-enabled templates so they open in the canvas editor
     currentStep: FORM_STEPS.CANVAS_EDIT,
     editingSource: 'gallery',
@@ -178,7 +187,13 @@ export async function loadGalleryEditData(
       formData.uploadedImage = response.data;
       formData.file = response.data;
     } catch (error) {
-      console.warn('[loadGalleryEditData] Failed to fetch original image:', error);
+      // 404 just means the original was never stored or has been cleaned up —
+      // expected for shares saved without a background image. The backend
+      // self-heals stale metadata on the next request, so this won't repeat.
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status !== 404) {
+        console.warn('[loadGalleryEditData] Failed to fetch original image:', error);
+      }
     }
   }
 

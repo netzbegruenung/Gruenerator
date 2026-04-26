@@ -1,10 +1,20 @@
-import React, { useMemo, useCallback } from 'react';
+import {
+  CANVAS_FORMATS,
+  CANVAS_FORMAT_GROUP_LABEL,
+  CANVAS_FORMAT_GROUP_ORDER,
+  DEFAULT_FORMAT_ID,
+  type CanvasFormat,
+  type CanvasFormatGroup,
+} from '@gruenerator/canvas-editor/formats';
+import React, { useMemo, useCallback, useState, useDeferredValue } from 'react';
 import { HiExternalLink, HiPhotograph } from 'react-icons/hi';
+import { PiMagnifyingGlass } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
 import { StatusBadge } from '../../../components/common/StatusBadge';
 import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { cn } from '../../../utils/cn';
 import {
   getCategoryConfig,
   getTypesForCategory,
@@ -20,10 +30,105 @@ import TypeCard from './TypeCard';
 
 import type { TypeConfig } from '../utils/typeConfig/types';
 
+// Brand color per format group — drives the FeatureCard backgroundColor when
+// no preview image is available. Picked from CANVAS_COLORS in shared/canvas-editor.
+const GROUP_BACKGROUND: Record<CanvasFormatGroup, string> = {
+  sharepic: '#005538', // TANNE
+  story: '#0BA1DD', // HIMMEL
+  praesentation: '#008939', // KLEE
+  flyer: '#46962b', // KLEE-alt
+  plakat: '#2E2E3D', // DUNKELGRAU
+};
+
+interface FormatBrowserProps {
+  activeFormatId: string;
+  onSelect: (id: string) => void;
+}
+
+const FormatBrowser: React.FC<FormatBrowserProps> = ({ activeFormatId, onSelect }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const deferredQuery = useDeferredValue(searchQuery);
+
+  const grouped = useMemo(() => {
+    const q = deferredQuery.trim().toLowerCase();
+    const matchesQuery = (f: CanvasFormat) =>
+      !q ||
+      f.label.toLowerCase().includes(q) ||
+      f.description.toLowerCase().includes(q) ||
+      CANVAS_FORMAT_GROUP_LABEL[f.group].toLowerCase().includes(q);
+
+    const out: Record<CanvasFormatGroup, CanvasFormat[]> = {
+      sharepic: [],
+      story: [],
+      praesentation: [],
+      flyer: [],
+      plakat: [],
+    };
+    for (const f of CANVAS_FORMATS) {
+      if (matchesQuery(f)) out[f.group].push(f);
+    }
+    return out;
+  }, [deferredQuery]);
+
+  const totalMatches = CANVAS_FORMAT_GROUP_ORDER.reduce((acc, g) => acc + grouped[g].length, 0);
+
+  return (
+    <div className="mt-lg text-left">
+      <div className="relative max-w-[500px] mx-auto mb-lg">
+        <PiMagnifyingGlass className="absolute left-md top-1/2 -translate-y-1/2 text-grey-400 text-lg" />
+        <input
+          type="text"
+          placeholder="Format suchen..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-2xl pr-md py-sm bg-background border border-grey-200 dark:border-grey-700 rounded-lg text-base text-foreground placeholder:text-grey-400 focus:outline-none focus:border-primary-500 transition-colors"
+        />
+      </div>
+
+      {totalMatches === 0 ? (
+        <p className="text-center text-foreground-muted text-sm py-md">
+          Keine Formate für „{searchQuery}&ldquo; gefunden
+        </p>
+      ) : (
+        CANVAS_FORMAT_GROUP_ORDER.map((group) => {
+          const formats = grouped[group];
+          if (formats.length === 0) return null;
+          return (
+            <div key={group} className="mb-xl">
+              <h2 className="text-xl font-semibold text-foreground-heading mt-lg mb-md text-center">
+                {CANVAS_FORMAT_GROUP_LABEL[group]}
+              </h2>
+              <div className="grid grid-cols-3 gap-8 max-[1024px]:grid-cols-2 max-[1024px]:gap-6 max-[768px]:grid-cols-2 max-[768px]:gap-4 max-[480px]:grid-cols-1">
+                {formats.map((f) => (
+                  <TypeCard
+                    key={f.id}
+                    onClick={() => onSelect(f.id)}
+                    label={f.label}
+                    description={f.description}
+                    backgroundColor={GROUP_BACKGROUND[f.group]}
+                    className={cn(
+                      'aspect-[3/4]',
+                      activeFormatId === f.id && 'ring-2 ring-primary-600 ring-offset-2'
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+};
+
 const ImageStudioTypeSelector: React.FC = () => {
   const navigate = useNavigate();
   const category = useImageStudioStore((state) => state.category);
   const setType = useImageStudioStore((state) => state.setType);
+  const selectedFormatId = useImageStudioStore((state) => state.selectedFormatId);
+  const updateFormData = useImageStudioStore((state) => state.updateFormData);
+
+  const activeFormatId = selectedFormatId ?? DEFAULT_FORMAT_ID;
 
   const user = useAuthStore((s) => s.user);
   const isAustrianUser = user?.locale === 'de-AT';
@@ -136,6 +241,15 @@ const ImageStudioTypeSelector: React.FC = () => {
               <StatusBadge type="early-access" variant="inline" />
             </h1>
           </div>
+
+          {/* Format selection — recherche-page style: section headers per group
+              with a search box. Choice is written to the store before the user
+              picks a template, so the editor opens with the correct dimensions. */}
+          <FormatBrowser
+            activeFormatId={activeFormatId}
+            onSelect={(id) => updateFormData({ selectedFormatId: id })}
+          />
+
           <div className="grid grid-cols-3 gap-8 mt-8 max-[1024px]:grid-cols-2 max-[1024px]:gap-6 max-[768px]:grid-cols-2 max-[768px]:gap-4 max-[480px]:grid-cols-1">
             {typesInCategory.map((config) => {
               const Icon = config.icon || HiPhotograph;
