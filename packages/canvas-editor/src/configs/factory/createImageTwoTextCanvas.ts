@@ -10,9 +10,9 @@
  */
 
 import { HiPhotograph } from 'react-icons/hi';
-import { PiSquaresFourFill } from 'react-icons/pi';
+import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { ImageBackgroundSection, AssetsSection } from '../../sidebar/sections';
+import { ImageBackgroundSection, AssetsSection, CombinedTextSection } from '../../sidebar/sections';
 import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
@@ -244,6 +244,12 @@ export function createImageTwoTextCanvas(
     tabs: [
       { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
       {
+        id: 'text',
+        icon: PiTextAa,
+        label: 'Text',
+        ariaLabel: 'Text bearbeiten',
+      },
+      {
         id: 'assets',
         icon: PiSquaresFourFill,
         label: 'Elemente',
@@ -253,7 +259,7 @@ export function createImageTwoTextCanvas(
       chatTab,
     ],
 
-    getVisibleTabs: () => ['image', 'assets', 'uploads', 'chat', 'share'],
+    getVisibleTabs: () => ['image', 'text', 'assets', 'uploads', 'chat', 'share'],
 
     getAutoSwitchTab: (selectedElement) =>
       selectedElement?.startsWith('frame-') ? 'assets' : null,
@@ -275,6 +281,16 @@ export function createImageTwoTextCanvas(
           onScaleChange: actions.setImageScale,
           isLocked: state.isBackgroundLocked,
           onToggleLock: actions.toggleBackgroundLock,
+        }),
+      },
+      text: {
+        component: CombinedTextSection,
+        propsFactory: (state, actions) => ({
+          additionalTexts: state.additionalTexts,
+          onAddHeader: actions.addHeader,
+          onAddText: actions.addText,
+          onUpdateText: actions.updateAdditionalText,
+          onRemoveText: actions.removeAdditionalText,
         }),
       },
       assets: {

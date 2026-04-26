@@ -2,7 +2,11 @@ export { MasterCanvasEditor } from './MasterCanvasEditor';
 export { ControllableCanvasWrapper } from './CanvasEditorRouter';
 export type { ControllableCanvasWrapperProps } from './CanvasEditorRouter';
 export { CanvasEditorProvider, useCanvasEditorServices } from './CanvasEditorProvider';
-export type { CanvasEditorServices, ChatOpenContext } from './CanvasEditorProvider';
+export type {
+  CanvasEditorServices,
+  ChatSectionContentProps,
+  CanvasAiEditBridge,
+} from './CanvasEditorProvider';
 
 export { ProfilbildCanvas } from './ProfilbildCanvas';
 export { StandaloneCanvas } from './components/StandaloneCanvas';
@@ -71,6 +75,8 @@ export type { CanvasSidebarState } from './stores/canvasSidebarStore';
 export {
   CanvasStoreProvider,
   useCanvasStore,
+  useCanvasStoreSelector,
+  useCanvasStoreShallow,
   useIsElementSelected,
 } from './stores/CanvasStoreProvider';
 export type {

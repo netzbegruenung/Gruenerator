@@ -63,6 +63,14 @@ export interface CanvasEditorState {
   renderVersion: number;
 
   stateRestorationCallback: ((state: Record<string, unknown>) => void) | null;
+
+  /**
+   * Tracks the most recently auto-applied AI suggestion so the canvas top
+   * bar can show an accept/revert banner. Just a UI flag — revert delegates
+   * to the canvas's standard `undo()`, which restores template state via
+   * `stateRestorationCallback`.
+   */
+  pendingAiSuggestion: { title: string } | null;
 }
 
 export interface CanvasEditorActions {
@@ -96,6 +104,8 @@ export interface CanvasEditorActions {
 
   triggerRender: () => void;
   resetStore: () => void;
+
+  setPendingAiSuggestion: (pending: { title: string } | null) => void;
 }
 
 export interface CanvasEditorGetters {
@@ -134,6 +144,7 @@ const initialState: CanvasEditorState = {
   elementPositions: {},
   renderVersion: 0,
   stateRestorationCallback: null,
+  pendingAiSuggestion: null,
 };
 
 // =============================================================================
@@ -355,6 +366,12 @@ export function createCanvasEditorStore() {
 
       // Reset
       resetStore: () => set({ ...initialState }),
+
+      // AI suggestion accept/revert state
+      setPendingAiSuggestion: (pending) =>
+        set((state) => {
+          state.pendingAiSuggestion = pending;
+        }),
     }))
   );
 }
