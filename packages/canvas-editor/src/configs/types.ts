@@ -399,6 +399,13 @@ export interface FullCanvasConfig<
     /** Whether to show loading state until font loads (default: true) */
     requireFontLoad?: boolean;
   };
+
+  /**
+   * Optional AI capability declaration. Templates that supply this gain
+   * an AI sidebar tab; templates that don't never see the AI section.
+   * See @gruenerator/canvas-editor/src/ai/types.ts for shape.
+   */
+  ai?: import('../ai/types').TemplateAiCapabilities<TState, TActions>;
 }
 
 // ============================================================================

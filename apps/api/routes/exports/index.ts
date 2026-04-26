@@ -10,6 +10,7 @@
 
 import express from 'express';
 
+import canvasPdfRouter from './canvasPdfController.js';
 import chatMessageRouter from './chatMessageExport.js';
 import docxRouter from './docxController.js';
 import pdfRouter from './pdfController.js';
@@ -21,6 +22,7 @@ const router = express.Router();
 // Mount sub-routers
 router.use('/pdf', pdfRouter);
 router.use('/pdf-slides', pdfSlidesRouter);
+router.use('/canvas-pdf', canvasPdfRouter);
 router.use('/docx', docxRouter);
 router.use('/zip', zipRouter);
 router.use('/chat-message', chatMessageRouter);
@@ -33,6 +35,7 @@ export { default as docxController } from './docxController.js';
 export { default as zipController } from './zipController.js';
 export { default as chatMessageExport } from './chatMessageExport.js';
 export { default as pdfSlidesController } from './pdfSlidesController.js';
+export { default as canvasPdfController } from './canvasPdfController.js';
 
 // Utility exports
 export * from './contentParser.js';

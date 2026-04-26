@@ -99,7 +99,6 @@ export interface DreizeilenFullState {
 
   // === UI State ===
   isDesktop: boolean;
-  alternatives: Array<{ id: string; line1: string; line2: string; line3: string }>;
 
   [key: string]: unknown;
 }
@@ -117,12 +116,6 @@ export interface DreizeilenFullActions {
   setLine3: (text: string) => void;
   setFontSize: (size: number) => void;
   setColorSchemeId: (id: string) => void;
-  handleSelectAlternative: (alt: {
-    id: string;
-    line1: string;
-    line2: string;
-    line3: string;
-  }) => void;
 
   // === Balken Actions ===
   setBalkenWidthScale: (scale: number) => void;

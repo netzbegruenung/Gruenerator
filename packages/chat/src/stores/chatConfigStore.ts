@@ -26,10 +26,13 @@ export interface ChatConfig {
     title?: string,
     existingDocId?: string
   ) => Promise<string | void>;
-  /** Opens a sharepic in the canvas editor for editing. */
-  onEditSharepic?: (data: import('../hooks/useChatGraphStream').SharepicData) => void;
+  /** Opens a single sharepic variant in the canvas editor for editing. */
+  onEditSharepic?: (variant: import('../hooks/useChatGraphStream').SharepicVariant) => void;
   /** Renders a sharepic to a base64 PNG using the canvas editor. */
-  renderSharepic?: (canvasType: string, initialProps: Record<string, unknown>) => Promise<string | null>;
+  renderSharepic?: (
+    canvasType: string,
+    initialProps: Record<string, unknown>
+  ) => Promise<string | null>;
 }
 
 export interface ResolvedEndpoints {
@@ -60,8 +63,11 @@ interface ChatConfigStore extends ResolvedChatConfig {
     title?: string,
     existingDocId?: string
   ) => Promise<string | void>;
-  onEditSharepic?: (data: import('../hooks/useChatGraphStream').SharepicData) => void;
-  renderSharepic?: (canvasType: string, initialProps: Record<string, unknown>) => Promise<string | null>;
+  onEditSharepic?: (variant: import('../hooks/useChatGraphStream').SharepicVariant) => void;
+  renderSharepic?: (
+    canvasType: string,
+    initialProps: Record<string, unknown>
+  ) => Promise<string | null>;
 }
 
 const DEFAULT_ENDPOINTS: ResolvedEndpoints = {

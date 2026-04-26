@@ -13,6 +13,36 @@ export const SNAP_THRESHOLD = 20; // pixels - ~2% of 1000px canvas
 // Extended threshold for bounding box pre-check (skip elements that are far away)
 const SNAP_PROXIMITY_THRESHOLD = 200;
 
+// Once snapped to a guide, the cursor must drift this multiple of SNAP_THRESHOLD
+// past it before releasing — eliminates the threshold-edge oscillation that
+// causes snap to flicker on/off as the cursor crosses the engage boundary.
+const SNAP_RELEASE_MULTIPLIER = 2.5;
+
+// When two guides compete on the same axis, the previously-engaged guide gets
+// this score advantage in pixels — prevents the snap line from flickering
+// between two near-equidistant targets.
+const SNAP_SWITCH_HYSTERESIS_PX = 4;
+
+// Tolerance for "is this candidate the same guide we were already snapped to?"
+// Sub-pixel distance is treated as the same line.
+const SNAP_GUIDE_IDENTITY_PX = 0.5;
+
+export interface SnapHysteresis {
+  /** Position (in stage coords) of the vertical guide we are currently snapped to, or null. */
+  lastGuidePosH: number | null;
+  /** Position (in stage coords) of the horizontal guide we are currently snapped to, or null. */
+  lastGuidePosV: number | null;
+}
+
+export function createSnapHysteresis(): SnapHysteresis {
+  return { lastGuidePosH: null, lastGuidePosV: null };
+}
+
+export function resetSnapHysteresis(h: SnapHysteresis): void {
+  h.lastGuidePosH = null;
+  h.lastGuidePosV = null;
+}
+
 export interface SnapResult {
   x: number;
   y: number;
@@ -50,7 +80,8 @@ export function calculateSnapPosition(
   nodeWidth: number,
   nodeHeight: number,
   stageWidth: number,
-  stageHeight: number
+  stageHeight: number,
+  hysteresis?: SnapHysteresis
 ): SnapResult {
   const nodeCenterX = nodeX + nodeWidth / 2;
   const nodeCenterY = nodeY + nodeHeight / 2;
@@ -62,14 +93,26 @@ export function calculateSnapPosition(
   let snapH = false;
   let snapV = false;
 
-  // Snap to horizontal center (vertical line)
-  if (Math.abs(nodeCenterX - stageCenterX) < SNAP_THRESHOLD) {
+  // Sticky thresholds: if we were already snapped to this exact guide, use the
+  // wider release threshold so the snap holds until the user clearly drags away.
+  const stickyH =
+    hysteresis?.lastGuidePosH !== null &&
+    hysteresis !== undefined &&
+    Math.abs(stageCenterX - hysteresis.lastGuidePosH) < SNAP_GUIDE_IDENTITY_PX;
+  const limitH = stickyH ? SNAP_THRESHOLD * SNAP_RELEASE_MULTIPLIER : SNAP_THRESHOLD;
+
+  if (Math.abs(nodeCenterX - stageCenterX) < limitH) {
     snapX = stageCenterX - nodeWidth / 2;
     snapH = true;
   }
 
-  // Snap to vertical center (horizontal line)
-  if (Math.abs(nodeCenterY - stageCenterY) < SNAP_THRESHOLD) {
+  const stickyV =
+    hysteresis?.lastGuidePosV !== null &&
+    hysteresis !== undefined &&
+    Math.abs(stageCenterY - hysteresis.lastGuidePosV) < SNAP_GUIDE_IDENTITY_PX;
+  const limitV = stickyV ? SNAP_THRESHOLD * SNAP_RELEASE_MULTIPLIER : SNAP_THRESHOLD;
+
+  if (Math.abs(nodeCenterY - stageCenterY) < limitV) {
     snapY = stageCenterY - nodeHeight / 2;
     snapV = true;
   }
@@ -119,7 +162,8 @@ export function calculateElementSnapPosition(
   nodeHeight: number,
   targets: SnapTarget[],
   stageWidth: number,
-  stageHeight: number
+  stageHeight: number,
+  hysteresis?: SnapHysteresis
 ): ElementSnapResult {
   const baseResult = calculateSnapPosition(
     nodeX,
@@ -127,14 +171,22 @@ export function calculateElementSnapPosition(
     nodeWidth,
     nodeHeight,
     stageWidth,
-    stageHeight
+    stageHeight,
+    hysteresis
   );
   const result: ElementSnapResult = {
     ...baseResult,
     snapLines: [],
   };
 
-  // Add center snap lines if snapped to center
+  // Best-candidate per-axis state (lower score wins). Center snap from
+  // calculateSnapPosition is the seed candidate; element snaps may beat it.
+  let bestScoreH = baseResult.snapH ? 0 : Infinity;
+  let bestGuidePosH: number | null = baseResult.snapH ? stageWidth / 2 : null;
+  let bestScoreV = baseResult.snapV ? 0 : Infinity;
+  let bestGuidePosV: number | null = baseResult.snapV ? stageHeight / 2 : null;
+
+  // Seed snap lines from center-snap result
   if (baseResult.snapH) {
     result.snapLines.push({
       orientation: 'vertical',
@@ -152,13 +204,11 @@ export function calculateElementSnapPosition(
     });
   }
 
-  // Early exit if already snapped to center in both directions
-  if (result.snapH && result.snapV) {
-    return result;
-  }
-
-  // Skip element snapping if no targets
   if (!targets || targets.length === 0) {
+    if (hysteresis) {
+      hysteresis.lastGuidePosH = bestGuidePosH;
+      hysteresis.lastGuidePosV = bestGuidePosV;
+    }
     return result;
   }
 
@@ -168,64 +218,108 @@ export function calculateElementSnapPosition(
   const nodeEdgeValsV = [nodeY, nodeY + nodeHeight / 2, nodeY + nodeHeight];
   const nodeEdgeOffsetsV = [0, nodeHeight / 2, nodeHeight];
 
-  // Track if we found element snaps (separate from center snaps)
-  let elementSnapH = false;
-  let elementSnapV = false;
+  type BestH = { id: string; pos: number; nodeEdgeIdx: number; targetY: number; targetH: number };
+  type BestV = { id: string; pos: number; nodeEdgeIdx: number; targetX: number; targetW: number };
+  let bestH: BestH | null = null;
+  let bestV: BestV | null = null;
 
   for (const target of targets) {
-    // Early exit if we found both snaps
-    if (elementSnapH && elementSnapV) break;
-
-    // Proximity pre-check: skip targets that are too far away
     if (!isWithinSnapProximity(nodeX, nodeY, nodeWidth, nodeHeight, target)) {
       continue;
     }
 
-    // Precompute target edge values
     const targetEdgeValsH = [target.x, target.x + target.width / 2, target.x + target.width];
     const targetEdgeValsV = [target.y, target.y + target.height / 2, target.y + target.height];
 
-    // Horizontal alignment (left, center, right edges)
-    if (!elementSnapH && !result.snapH) {
-      outerH: for (let i = 0; i < 3; i++) {
-        for (let j = 0; j < 3; j++) {
-          if (Math.abs(nodeEdgeValsH[i] - targetEdgeValsH[j]) < SNAP_THRESHOLD) {
-            result.x = targetEdgeValsH[j] - nodeEdgeOffsetsH[i];
-            result.snapH = true;
-            result.snapToElementId = target.id;
-            elementSnapH = true;
-            result.snapLines.push({
-              orientation: 'vertical',
-              position: targetEdgeValsH[j],
-              start: Math.min(nodeY, target.y),
-              end: Math.max(nodeY + nodeHeight, target.y + target.height),
-            });
-            break outerH;
-          }
+    // Horizontal candidates (left, center, right edges of target vs node)
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        const candidatePos = targetEdgeValsH[j];
+        const distance = Math.abs(nodeEdgeValsH[i] - candidatePos);
+
+        const sticky =
+          hysteresis !== undefined &&
+          hysteresis.lastGuidePosH !== null &&
+          Math.abs(candidatePos - hysteresis.lastGuidePosH) < SNAP_GUIDE_IDENTITY_PX;
+        const limit = sticky ? SNAP_THRESHOLD * SNAP_RELEASE_MULTIPLIER : SNAP_THRESHOLD;
+        if (distance > limit) continue;
+
+        // Sticky guide gets a score advantage so it wins ties against new guides
+        const score = distance - (sticky ? SNAP_SWITCH_HYSTERESIS_PX : 0);
+        if (score < bestScoreH) {
+          bestScoreH = score;
+          bestGuidePosH = candidatePos;
+          bestH = {
+            id: target.id,
+            pos: candidatePos,
+            nodeEdgeIdx: i,
+            targetY: target.y,
+            targetH: target.height,
+          };
         }
       }
     }
 
-    // Vertical alignment (top, center, bottom edges)
-    if (!elementSnapV && !result.snapV) {
-      outerV: for (let i = 0; i < 3; i++) {
-        for (let j = 0; j < 3; j++) {
-          if (Math.abs(nodeEdgeValsV[i] - targetEdgeValsV[j]) < SNAP_THRESHOLD) {
-            result.y = targetEdgeValsV[j] - nodeEdgeOffsetsV[i];
-            result.snapV = true;
-            result.snapToElementId = target.id;
-            elementSnapV = true;
-            result.snapLines.push({
-              orientation: 'horizontal',
-              position: targetEdgeValsV[j],
-              start: Math.min(nodeX, target.x),
-              end: Math.max(nodeX + nodeWidth, target.x + target.width),
-            });
-            break outerV;
-          }
+    // Vertical candidates (top, center, bottom edges of target vs node)
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) {
+        const candidatePos = targetEdgeValsV[j];
+        const distance = Math.abs(nodeEdgeValsV[i] - candidatePos);
+
+        const sticky =
+          hysteresis !== undefined &&
+          hysteresis.lastGuidePosV !== null &&
+          Math.abs(candidatePos - hysteresis.lastGuidePosV) < SNAP_GUIDE_IDENTITY_PX;
+        const limit = sticky ? SNAP_THRESHOLD * SNAP_RELEASE_MULTIPLIER : SNAP_THRESHOLD;
+        if (distance > limit) continue;
+
+        const score = distance - (sticky ? SNAP_SWITCH_HYSTERESIS_PX : 0);
+        if (score < bestScoreV) {
+          bestScoreV = score;
+          bestGuidePosV = candidatePos;
+          bestV = {
+            id: target.id,
+            pos: candidatePos,
+            nodeEdgeIdx: i,
+            targetX: target.x,
+            targetW: target.width,
+          };
         }
       }
     }
+  }
+
+  // If an element snap won over the center snap on H axis, replace position + line
+  if (bestH && bestGuidePosH !== stageWidth / 2) {
+    result.x = bestH.pos - nodeEdgeOffsetsH[bestH.nodeEdgeIdx];
+    result.snapH = true;
+    result.snapToElementId = bestH.id;
+    result.snapLines = result.snapLines.filter((l) => l.orientation !== 'vertical');
+    result.snapLines.push({
+      orientation: 'vertical',
+      position: bestH.pos,
+      start: Math.min(nodeY, bestH.targetY),
+      end: Math.max(nodeY + nodeHeight, bestH.targetY + bestH.targetH),
+    });
+  }
+
+  if (bestV && bestGuidePosV !== stageHeight / 2) {
+    result.y = bestV.pos - nodeEdgeOffsetsV[bestV.nodeEdgeIdx];
+    result.snapV = true;
+    result.snapToElementId = bestV.id;
+    result.snapLines = result.snapLines.filter((l) => l.orientation !== 'horizontal');
+    result.snapLines.push({
+      orientation: 'horizontal',
+      position: bestV.pos,
+      start: Math.min(nodeX, bestV.targetX),
+      end: Math.max(nodeX + nodeWidth, bestV.targetX + bestV.targetW),
+    });
+  }
+
+  // Persist engaged guide positions for next call's sticky check
+  if (hysteresis) {
+    hysteresis.lastGuidePosH = result.snapH ? bestGuidePosH : null;
+    hysteresis.lastGuidePosV = result.snapV ? bestGuidePosV : null;
   }
 
   return result;

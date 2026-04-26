@@ -37,6 +37,7 @@ export {
   notificationsContract,
   adminVorlagenContract,
   authStatusContract,
+  canvasAiContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -64,3 +65,4 @@ export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/authStatus.js';
+export * from './schemas/canvasAi.js';

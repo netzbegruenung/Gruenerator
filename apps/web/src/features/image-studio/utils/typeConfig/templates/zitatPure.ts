@@ -33,10 +33,6 @@ interface ZitatPureResult {
   quote?: string;
 }
 
-interface ZitatPureAlternative {
-  quote?: string;
-}
-
 export const zitatPureFieldConfig: TemplateFieldConfig = {
   inputFields: [
     {
@@ -57,17 +53,12 @@ export const zitatPureFieldConfig: TemplateFieldConfig = {
   responseMapping: (result: ZitatPureResult) => ({
     quote: result.quote || '',
   }),
-  alternativesMapping: (alt: ZitatPureAlternative) => ({
-    quote: alt.quote || '',
-  }),
   showImageUpload: false,
   showColorControls: false,
   showFontSizeControl: true,
   showAdvancedEditing: false,
   showCredit: false,
-  showAlternatives: true,
   showEditPanel: true,
   showAutoSave: true,
   showSocialGeneration: true,
-  alternativesButtonText: 'Andere Zitate',
 };

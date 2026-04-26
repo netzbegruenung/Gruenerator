@@ -344,7 +344,7 @@ export const toolMentionables: Mentionable[] = [
           trigger: '@' as const,
           identifier: 'sharepic',
           title: 'Sharepic',
-          description: 'Sharepic erstellen und bearbeiten',
+          description: 'Drei Sharepic-Varianten erstellen (Dreizeiler, Zitat, Info)',
           avatar: '🖼️',
           backgroundColor: '#46962b',
           mention: 'sharepic',

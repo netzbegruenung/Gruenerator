@@ -7,12 +7,14 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 
 import authMiddleware from './middleware/authMiddleware.js';
+import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountAuthStatusContractRouter } from './routes/auth/authStatusContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
+import { mountCanvasAiContractRouter } from './routes/canvas/aiSuggestRoute.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
@@ -353,6 +355,24 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/zitat_pure_canvas', standardMutationLimiter, zitatPureSharepicCanvasRoute);
   app.use('/api/info_canvas', standardMutationLimiter, infoSharepicCanvasRoute);
   app.use('/api/imagine_label_canvas', standardMutationLimiter, imagineLabelCanvasRoute);
+  // Canvas AI suggestions: dedicated Redis-based rate limit bucket
+  // (canvas_ai resource) plus the abuse-prevention IP limiter shared with
+  // other AI routes. The IP limiter runs first; the Redis middleware
+  // auto-increments on success so each completed suggestion request
+  // counts against the per-user daily quota.
+  app.use(
+    '/api/canvas/ai-suggest',
+    aiGenerationLimiter,
+    rateLimitMiddleware('canvas_ai', { autoIncrement: true })
+  );
+  mountCanvasAiContractRouter(app);
+
+  // Canvas documents (collaborative): /api/canvas CRUD. Mounted AFTER the
+  // AI-suggest contract router above so /api/canvas/ai-suggest matches first
+  // and falls through to this CRUD router for everything else.
+  const { default: canvasDocumentsRouter } = await import('./routes/canvas/canvasController.js');
+  app.use('/api/canvas', requireAuth, authenticatedReadLimiter, canvasDocumentsRouter);
+
   // ts-rest contract router — mount before legacy campaignCanvasRoute
   mountCampaignCanvasContractRouter(app);
   app.use('/api/campaign_canvas', standardMutationLimiter, campaignCanvasRoute);
@@ -477,6 +497,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/subtitler', standardMutationLimiter, subtitlerSocialRouter);
   app.use('/api/subtitler/projects', standardMutationLimiter, subtitlerProjectRouter);
   app.use('/api/subtitler/share', publicReadLimiter, subtitlerShareRouter);
+  // Populate req.user for /api/share without rejecting unauthenticated reads.
+  // The contract router below checks req.user.id per write handler; the legacy
+  // router keeps public preview/download/thumbnail endpoints reachable.
+  app.use('/api/share', optionalAuth);
   // ts-rest contract router — mount before legacy shareRouter
   mountShareContractRouter(app);
   app.use('/api/share', publicReadLimiter, shareRouter);

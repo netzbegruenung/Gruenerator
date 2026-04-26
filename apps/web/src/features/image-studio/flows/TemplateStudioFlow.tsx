@@ -7,6 +7,7 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import useImageGenerationLimit from '../../../hooks/useImageGenerationLimit';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { cn } from '../../../utils/cn';
+import { CanvasChatProvider } from '../CanvasChatProvider';
 import StepFlow from '../components/StepFlow';
 import { useImageGeneration } from '../hooks/useImageGeneration';
 import TemplateResultStep from '../steps/TemplateResultStep';
@@ -138,84 +139,86 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
 
   return (
     <ErrorBoundary>
-      <LayoutGroup>
-        <div
-          className={cn('w-full flex justify-center p-8 max-[768px]:p-4', isCanvasEdit && 'p-0')}
-        >
+      <CanvasChatProvider>
+        <LayoutGroup>
           <div
-            className={cn(
-              'w-full max-w-[var(--container-max-width)] mx-auto px-6 pb-16 text-center max-[768px]:px-4',
-              isCanvasEdit && 'p-0 max-w-none'
-            )}
+            className={cn('w-full flex justify-center p-8 max-[768px]:p-4', isCanvasEdit && 'p-0')}
           >
-            {flowTitle && (
-              <div className="flex flex-col mb-lg">
-                <h1 className="flex items-center justify-center gap-sm flex-wrap">
-                  {flowTitle}
-                  <StatusBadge type="early-access" variant="inline" />
-                </h1>
-                {flowSubtitle && (
-                  <p className="text-base text-grey-500 mt-sm mb-0 leading-snug text-center max-[768px]:text-[0.9rem]">
-                    {flowSubtitle}
-                  </p>
-                )}
-              </div>
-            )}
-
             <div
               className={cn(
-                'relative w-full max-w-[700px] mx-auto min-[1200px]:max-w-[900px] max-[768px]:p-0',
-                isWideStep &&
-                  'max-w-[1000px] min-[1200px]:max-w-[1200px] min-[1400px]:max-w-[1400px]',
-                isCanvasEdit && 'max-w-none min-[1200px]:max-w-none'
+                'w-full max-w-[var(--container-max-width)] mx-auto px-6 pb-16 text-center max-[768px]:px-4',
+                isCanvasEdit && 'p-0 max-w-none'
               )}
             >
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentStep}
-                  variants={stepVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={stepTransition}
-                  className="w-full"
-                  onAnimationStart={handleAnimationStart}
-                  onAnimationComplete={handleAnimationComplete}
-                >
-                  {(() => {
-                    const shouldRenderStepFlow =
-                      currentStep === FORM_STEPS.IMAGE_UPLOAD ||
-                      currentStep === FORM_STEPS.INPUT ||
-                      currentStep === FORM_STEPS.IMAGE_SIZE_SELECT ||
-                      currentStep === FORM_STEPS.CANVAS_EDIT;
-                    return shouldRenderStepFlow ? (
-                      <StepFlow
-                        onBack={onBack}
-                        onComplete={() =>
-                          useImageStudioStore.getState().setCurrentStep(FORM_STEPS.RESULT)
-                        }
-                        onStepChange={handleStepChange}
-                        imageLimitData={typeConfig?.hasRateLimit ? imageLimitData : null}
-                        startAtCanvasEdit={currentStep === FORM_STEPS.CANVAS_EDIT}
-                      />
-                    ) : null;
-                  })()}
-
-                  {currentStep === FORM_STEPS.RESULT && (
-                    <TemplateResultStep
-                      onRegenerate={handleImageRegenerate}
-                      loading={loading}
-                      onGoBackToCanvas={
-                        typeConfig?.hasBackgroundRemoval ? handleGoBackToCanvas : undefined
-                      }
-                    />
+              {flowTitle && (
+                <div className="flex flex-col mb-lg">
+                  <h1 className="flex items-center justify-center gap-sm flex-wrap">
+                    {flowTitle}
+                    <StatusBadge type="early-access" variant="inline" />
+                  </h1>
+                  {flowSubtitle && (
+                    <p className="text-base text-grey-500 mt-sm mb-0 leading-snug text-center max-[768px]:text-[0.9rem]">
+                      {flowSubtitle}
+                    </p>
                   )}
-                </motion.div>
-              </AnimatePresence>
+                </div>
+              )}
+
+              <div
+                className={cn(
+                  'relative w-full max-w-[700px] mx-auto min-[1200px]:max-w-[900px] max-[768px]:p-0',
+                  isWideStep &&
+                    'max-w-[1000px] min-[1200px]:max-w-[1200px] min-[1400px]:max-w-[1400px]',
+                  isCanvasEdit && 'max-w-none min-[1200px]:max-w-none'
+                )}
+              >
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentStep}
+                    variants={stepVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={stepTransition}
+                    className="w-full"
+                    onAnimationStart={handleAnimationStart}
+                    onAnimationComplete={handleAnimationComplete}
+                  >
+                    {(() => {
+                      const shouldRenderStepFlow =
+                        currentStep === FORM_STEPS.IMAGE_UPLOAD ||
+                        currentStep === FORM_STEPS.INPUT ||
+                        currentStep === FORM_STEPS.IMAGE_SIZE_SELECT ||
+                        currentStep === FORM_STEPS.CANVAS_EDIT;
+                      return shouldRenderStepFlow ? (
+                        <StepFlow
+                          onBack={onBack}
+                          onComplete={() =>
+                            useImageStudioStore.getState().setCurrentStep(FORM_STEPS.RESULT)
+                          }
+                          onStepChange={handleStepChange}
+                          imageLimitData={typeConfig?.hasRateLimit ? imageLimitData : null}
+                          startAtCanvasEdit={currentStep === FORM_STEPS.CANVAS_EDIT}
+                        />
+                      ) : null;
+                    })()}
+
+                    {currentStep === FORM_STEPS.RESULT && (
+                      <TemplateResultStep
+                        onRegenerate={handleImageRegenerate}
+                        loading={loading}
+                        onGoBackToCanvas={
+                          typeConfig?.hasBackgroundRemoval ? handleGoBackToCanvas : undefined
+                        }
+                      />
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             </div>
           </div>
-        </div>
-      </LayoutGroup>
+        </LayoutGroup>
+      </CanvasChatProvider>
     </ErrorBoundary>
   );
 };
