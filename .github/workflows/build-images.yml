@@ -80,6 +80,13 @@ permissions:
   contents: read
   packages: write
 
+# Serialize builds per branch so concurrent merges can't race for the `:latest` tag.
+# `cancel-in-progress: false` queues runs — each commit still gets its immutable
+# `:sha-XXXXXXX` tag, and `:latest` always reflects merge order.
+concurrency:
+  group: build-images-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/gruenerator

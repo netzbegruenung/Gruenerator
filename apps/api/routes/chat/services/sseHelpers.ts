@@ -34,6 +34,7 @@ export type SSEEventType =
   | 'thinking_step'
   | 'text_delta'
   | 'reasoning_delta'
+  | 'fallback'
   | 'interrupt'
   | 'document_indexed'
   | 'document_created'
@@ -43,6 +44,11 @@ export type SSEEventType =
   | 'completion'
   | 'done'
   | 'error';
+
+/**
+ * Reasons a primary model can fail in a way that triggers fallback.
+ */
+export type FallbackReason = 'first_token_timeout' | 'empty_completion' | 'upstream_error';
 
 /**
  * Search result structure sent to the client.
@@ -115,6 +121,11 @@ export interface SSEEventPayloads {
   thinking_step: ThinkingStepPayload;
   text_delta: { text: string };
   reasoning_delta: { text: string };
+  fallback: {
+    from: { id: string; name: string };
+    to: { id: string; name: string };
+    reason: FallbackReason;
+  };
   document_indexed: { documentId: string; title: string };
   document_created: { documentId: string; title: string; subtype: string; url: string };
   interrupt: {
