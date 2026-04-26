@@ -5,8 +5,6 @@ import apiClient from '../../../components/utils/apiClient';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { IMAGE_STUDIO_TYPES, getTypeConfig } from '../utils/typeConfig';
 
-import type { SloganAlternative } from '../types/storeTypes';
-
 interface TextFormData {
   thema?: string;
   name?: string;
@@ -148,16 +146,6 @@ interface DreizeilenApiResponse extends ApiResponseBase {
 
 interface UseImageGenerationReturn {
   generateText: (type: string, formData: TextFormData) => Promise<TextGenerationResult | null>;
-  generateAlternatives: (
-    type: string,
-    formData: TextFormData
-  ) => Promise<TextGenerationResult | null>;
-  fetchAlternativesInBackground: (
-    type: string,
-    formData: TextFormData,
-    onComplete: (alternatives: SloganAlternative[]) => void,
-    onError?: (error: Error) => void
-  ) => Promise<void>;
   generateImage: (
     type: string,
     formData: TemplateImageFormData | KiImageFormData
@@ -165,14 +153,12 @@ interface UseImageGenerationReturn {
   generateTemplateImage: (type: string, formData: TemplateImageFormData) => Promise<string>;
   generateKiImage: (type: string, formData: KiImageFormData) => Promise<string>;
   loading: boolean;
-  alternativesLoading: boolean;
   error: string;
   setError: (error: string) => void;
 }
 
 export const useImageGeneration = (): UseImageGenerationReturn => {
   const [loading, setLoading] = useState(false);
-  const [alternativesLoading, setAlternativesLoading] = useState(false);
   const [error, setError] = useState('');
 
   const quoteSubmit = useApiSubmit('zitat_claude');
@@ -335,218 +321,6 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
     [
       quoteSubmit,
       dreizeilenSubmit,
-      infoSubmit,
-      zitatPureSubmit,
-      veranstaltungSubmit,
-      simpleSubmit,
-      sliderSubmit,
-    ]
-  );
-
-  const generateAlternatives = useCallback(
-    async (type: string, formData: TextFormData): Promise<TextGenerationResult | null> => {
-      const config = getTypeConfig(type);
-      if (!config?.hasTextGeneration) {
-        return null;
-      }
-
-      setAlternativesLoading(true);
-      setError('');
-
-      try {
-        let submitFn: (data: Record<string, unknown>) => Promise<Record<string, unknown>>;
-        let isQuoteType = false;
-        let isInfoType = false;
-        let isVeranstaltungType = false;
-        let isSliderType = false;
-
-        switch (type) {
-          case IMAGE_STUDIO_TYPES.ZITAT:
-            submitFn = quoteSubmit.submitForm;
-            isQuoteType = true;
-            break;
-          case IMAGE_STUDIO_TYPES.ZITAT_PURE:
-            submitFn = zitatPureSubmit.submitForm;
-            isQuoteType = true;
-            break;
-          case IMAGE_STUDIO_TYPES.INFO:
-            submitFn = infoSubmit.submitForm;
-            isInfoType = true;
-            break;
-          case IMAGE_STUDIO_TYPES.VERANSTALTUNG:
-            submitFn = veranstaltungSubmit.submitForm;
-            isVeranstaltungType = true;
-            break;
-          case IMAGE_STUDIO_TYPES.SLIDER:
-            submitFn = sliderSubmit.submitForm;
-            isSliderType = true;
-            break;
-          case IMAGE_STUDIO_TYPES.DREIZEILEN:
-          default:
-            submitFn = dreizeilenSubmit.submitForm;
-            break;
-        }
-
-        const dataToSend = {
-          ...formData,
-          source: 'image-studio',
-          count: 5,
-        };
-
-        const rawResponse = await submitFn(dataToSend);
-
-        if (isQuoteType) {
-          const response = rawResponse as QuoteApiResponse;
-          if (!response || !response.quote) {
-            throw new Error('Unerwartete Antwortstruktur von der API');
-          }
-          return {
-            quote: response.quote,
-            name: formData.name,
-            alternatives: response.alternatives || [],
-          };
-        } else if (isInfoType) {
-          const response = rawResponse as InfoApiResponse;
-          if (!response || !response.header || !response.body) {
-            throw new Error('Unerwartete Antwortstruktur von der API');
-          }
-          return {
-            header: response.header,
-            subheader: response.subheader || '',
-            body: response.body,
-            alternatives: response.alternatives || [],
-            searchTerms: response.searchTerms || [],
-          };
-        } else if (isVeranstaltungType) {
-          const response = rawResponse as VeranstaltungApiResponse;
-          const mainEvent = response.mainEvent ?? response;
-          if (!mainEvent || !mainEvent.eventTitle) {
-            throw new Error('Unerwartete Antwortstruktur von der API');
-          }
-          return {
-            eventTitle: mainEvent.eventTitle || '',
-            beschreibung: mainEvent.beschreibung || '',
-            weekday: mainEvent.weekday || '',
-            date: mainEvent.date || '',
-            time: mainEvent.time || '',
-            locationName: mainEvent.locationName || '',
-            address: mainEvent.address || '',
-            alternatives: response.alternatives || [],
-            searchTerms: response.searchTerms || [],
-          };
-        } else if (isSliderType) {
-          const response = rawResponse as SliderApiResponse;
-          const mainSlider = response.mainSlider ?? response;
-          if (!mainSlider || !mainSlider.headline) {
-            throw new Error('Unerwartete Antwortstruktur von der API');
-          }
-          return {
-            label: mainSlider.label || 'Wusstest du?',
-            headline: mainSlider.headline,
-            subtext: mainSlider.subtext || '',
-            alternatives: response.alternatives || [],
-            searchTerms: response.searchTerms || [],
-          };
-        } else {
-          const response = rawResponse as DreizeilenApiResponse;
-          if (!response || !response.mainSlogan || !response.alternatives) {
-            throw new Error('Unerwartete Antwortstruktur von der API');
-          }
-          return {
-            mainSlogan: response.mainSlogan,
-            alternatives: response.alternatives,
-            searchTerms: response.searchTerms || [],
-          };
-        }
-      } catch (err) {
-        let errorMessage = 'Ein Fehler ist aufgetreten';
-        if (err instanceof Error) {
-          errorMessage = err.message;
-        } else if (typeof err === 'object' && err !== null && 'response' in err) {
-          const errObj = err as Record<string, unknown>;
-          const response = errObj.response as Record<string, unknown> | undefined;
-          errorMessage =
-            ((response?.data as Record<string, unknown>)?.message as string) || errorMessage;
-        }
-        setError(errorMessage);
-        console.error('Error generating alternatives:', err);
-        throw err;
-      } finally {
-        setAlternativesLoading(false);
-      }
-    },
-    [
-      quoteSubmit,
-      dreizeilenSubmit,
-      infoSubmit,
-      zitatPureSubmit,
-      veranstaltungSubmit,
-      simpleSubmit,
-      sliderSubmit,
-    ]
-  );
-
-  const fetchAlternativesInBackground = useCallback(
-    async (
-      type: string,
-      formData: TextFormData,
-      onComplete: (alternatives: SloganAlternative[]) => void,
-      onError?: (error: Error) => void
-    ) => {
-      try {
-        const dataToSend = {
-          ...formData,
-          source: 'image-studio',
-          count: 5,
-        };
-
-        let submitFn: (data: Record<string, unknown>) => Promise<Record<string, unknown>>;
-
-        switch (type) {
-          case IMAGE_STUDIO_TYPES.ZITAT:
-            submitFn = quoteSubmit.submitForm;
-            break;
-          case IMAGE_STUDIO_TYPES.ZITAT_PURE:
-            submitFn = zitatPureSubmit.submitForm;
-            break;
-          case IMAGE_STUDIO_TYPES.INFO:
-            submitFn = infoSubmit.submitForm;
-            break;
-          case IMAGE_STUDIO_TYPES.VERANSTALTUNG:
-            submitFn = veranstaltungSubmit.submitForm;
-            break;
-          case IMAGE_STUDIO_TYPES.SIMPLE:
-            submitFn = simpleSubmit.submitForm;
-            break;
-          case IMAGE_STUDIO_TYPES.SLIDER:
-            submitFn = sliderSubmit.submitForm;
-            break;
-          case IMAGE_STUDIO_TYPES.DREIZEILEN:
-          default:
-            submitFn = dreizeilenSubmit.submitForm;
-            break;
-        }
-
-        const rawResponse = await submitFn(dataToSend);
-        const response = rawResponse as ApiResponseBase;
-        const alternatives = response.alternatives || [];
-
-        if (alternatives.length > 0) {
-          onComplete(alternatives as SloganAlternative[]);
-        } else {
-          onComplete([]);
-        }
-      } catch (err) {
-        console.error('[Background alternatives] Fetch failed:', err);
-        if (onError) {
-          onError(err instanceof Error ? err : new Error('Unknown error'));
-        }
-        onComplete([]);
-      }
-    },
-    [
-      dreizeilenSubmit,
-      quoteSubmit,
       infoSubmit,
       zitatPureSubmit,
       veranstaltungSubmit,
@@ -876,13 +650,10 @@ export const useImageGeneration = (): UseImageGenerationReturn => {
 
   return {
     generateText,
-    generateAlternatives,
-    fetchAlternativesInBackground,
     generateImage,
     generateTemplateImage,
     generateKiImage,
     loading,
-    alternativesLoading,
     error,
     setError,
   };

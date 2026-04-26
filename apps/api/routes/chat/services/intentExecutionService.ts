@@ -20,11 +20,10 @@ import { env } from '../../../config/env.js';
 import { type ExpressRequest as SharepicExpressRequest } from '../../../services/chat/sharepicGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
 
-import { generateSharepicVariants } from './sharepicVariantHelpers.js';
-
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import { extractTextContent } from './messageHelpers.js';
 import { pendingActionStore } from './pendingActionStore.js';
+import { generateSharepicVariants } from './sharepicVariantHelpers.js';
 import { PROGRESS_MESSAGES } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 

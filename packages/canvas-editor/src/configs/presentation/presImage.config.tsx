@@ -5,18 +5,24 @@
  * and large title text. Used for visual impact slides.
  */
 
-import { HiPhotograph } from 'react-icons/hi';
+import { HiPhotograph, HiSparkles } from 'react-icons/hi';
 import { PiPaintBrushBroadFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { ImageBackgroundSection, AssetsSection, PresentationDesignSection } from '../../sidebar/sections';
+import { createAiSectionRegistration } from '../../ai/createAiSectionRegistration';
+import {
+  ImageBackgroundSection,
+  AssetsSection,
+  PresentationDesignSection,
+} from '../../sidebar/sections';
+import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
-import { alternativesTab, createAlternativesSection } from '../alternativesSection';
 import { createShareSection } from '../shareSection';
 
 import { PRES_CONFIG, getPresColors } from './presentationTheme';
 import { createPresentationActions } from './createPresentationActions';
 import { calculateImageLayout } from './presentationLayout';
 import { createFooterElements } from './createFooterElements';
+import { createPresentationAiCapabilities } from './presentationAi';
 import { createPresentationInitialState } from './presentationTypes';
 
 import type {
@@ -106,6 +112,15 @@ const subtitleTextElement: TextElementConfig<PresentationSlideState> = {
 };
 
 // ============================================================================
+// AI CAPABILITY
+// ============================================================================
+
+const presImageAiCapabilities = createPresentationAiCapabilities({
+  template: 'pres-image',
+  fields: ['title', 'subtitle'],
+});
+
+// ============================================================================
 // CONFIG EXPORT
 // ============================================================================
 
@@ -147,6 +162,8 @@ export const presImageConfig: FullCanvasConfig<PresentationSlideState, Presentat
     },
   },
 
+  ai: presImageAiCapabilities,
+
   tabs: [
     {
       id: 'background',
@@ -166,16 +183,18 @@ export const presImageConfig: FullCanvasConfig<PresentationSlideState, Presentat
       label: 'Elemente',
       ariaLabel: 'Dekorative Elemente',
     },
+    uploadsTab,
     {
       id: 'design',
       icon: PiPaintBrushBroadFill,
       label: 'Design',
       ariaLabel: 'Farbschema und Fußzeile',
     },
-    alternativesTab,
+    { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
+    chatTab,
   ],
 
-  getVisibleTabs: () => ['background', 'text', 'assets', 'design'],
+  getVisibleTabs: () => ['background', 'text', 'assets', 'uploads', 'design', 'ai', 'chat'],
 
   sections: {
     background: {
@@ -199,6 +218,8 @@ export const presImageConfig: FullCanvasConfig<PresentationSlideState, Presentat
         ...injectFeatureProps(state, actions, context),
       }),
     },
+    uploads: uploadsSectionEntry,
+    chat: createChatSection('pres-image'),
     design: {
       component: PresentationDesignSection,
       propsFactory: (state, actions) => ({
@@ -212,12 +233,6 @@ export const presImageConfig: FullCanvasConfig<PresentationSlideState, Presentat
         onShowSlideNumberChange: actions.setShowSlideNumber,
       }),
     },
-    alternatives: createAlternativesSection<PresentationSlideState, PresentationSlideActions>({
-      type: 'string',
-      getAlternatives: (state) => state.alternatives as string[],
-      getCurrentValue: (state) => state.title,
-      getSelectAction: (actions) => actions.handleSelectAlternative as (alt: string) => void,
-    }),
     share: createShareSection<PresentationSlideState, PresentationSlideActions>(
       'pres-image',
       (state) => {
@@ -226,6 +241,7 @@ export const presImageConfig: FullCanvasConfig<PresentationSlideState, Presentat
         return [title, subtitle].filter(Boolean).join('\n');
       }
     ),
+    ai: createAiSectionRegistration('pres-image', presImageAiCapabilities),
   },
 
   elements: [
@@ -241,10 +257,17 @@ export const presImageConfig: FullCanvasConfig<PresentationSlideState, Presentat
   createInitialState: (props) => createPresentationInitialState(props, 'light'),
 
   createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) =>
-    createPresentationActions(getState, setState, saveToHistory, debouncedSaveToHistory, callbacks, {
-      canvasWidth: PRES_CONFIG.canvas.width,
-      canvasHeight: PRES_CONFIG.canvas.height,
-      getFontColor: () => '#FFFFFF',
-      hasImageBackground: true,
-    }),
+    createPresentationActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      callbacks,
+      {
+        canvasWidth: PRES_CONFIG.canvas.width,
+        canvasHeight: PRES_CONFIG.canvas.height,
+        getFontColor: () => '#FFFFFF',
+        hasImageBackground: true,
+      }
+    ),
 };

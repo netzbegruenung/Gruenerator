@@ -49,16 +49,6 @@ interface VeranstaltungResult {
   address?: string;
 }
 
-interface VeranstaltungAlternative {
-  eventTitle?: string;
-  beschreibung?: string;
-  weekday?: string;
-  date?: string;
-  time?: string;
-  locationName?: string;
-  address?: string;
-}
-
 export const veranstaltungFieldConfig: TemplateFieldConfig = {
   inputFields: [
     {
@@ -116,22 +106,12 @@ export const veranstaltungFieldConfig: TemplateFieldConfig = {
     locationName: result.mainEvent?.locationName || result.locationName || '',
     address: result.mainEvent?.address || result.address || '',
   }),
-  alternativesMapping: (alt: VeranstaltungAlternative) => ({
-    eventTitle: alt.eventTitle || '',
-    beschreibung: alt.beschreibung || '',
-    weekday: alt.weekday || '',
-    date: alt.date || '',
-    time: alt.time || '',
-    locationName: alt.locationName || '',
-    address: alt.address || '',
-  }),
   showImageUpload: true,
   showColorControls: false,
   showFontSizeControl: true,
   showGroupedFontSizeControl: true,
   showAdvancedEditing: false,
   showCredit: false,
-  showAlternatives: true,
   showEditPanel: true,
   showAutoSave: true,
   showSocialGeneration: true,

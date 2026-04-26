@@ -36,11 +36,6 @@ interface PresentationResult {
   bodyText?: string;
 }
 
-interface PresentationAlternative {
-  title?: string;
-  subtitle?: string;
-}
-
 export const presentationFieldConfig: TemplateFieldConfig = {
   inputFields: [
     {
@@ -64,18 +59,12 @@ export const presentationFieldConfig: TemplateFieldConfig = {
     subtitle: result.subtitle || '',
     bodyText: result.bodyText || '',
   }),
-  alternativesMapping: (alt: PresentationAlternative) => ({
-    title: alt.title || '',
-    subtitle: alt.subtitle || '',
-  }),
   showImageUpload: false,
   showColorControls: false,
   showFontSizeControl: true,
   showAdvancedEditing: false,
   showCredit: false,
-  showAlternatives: true,
   showEditPanel: true,
   showAutoSave: true,
   showSocialGeneration: false,
-  alternativesButtonText: 'Andere Varianten',
 };

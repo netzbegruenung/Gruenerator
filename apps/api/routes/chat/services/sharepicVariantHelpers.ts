@@ -46,7 +46,10 @@ interface SharepicResponseShape {
   body?: string;
 }
 
-function buildInitialPropsForType(sharepic: SharepicResponseShape, canvasType: string): Record<string, unknown> {
+function buildInitialPropsForType(
+  sharepic: SharepicResponseShape,
+  canvasType: string
+): Record<string, unknown> {
   switch (canvasType) {
     case 'dreizeilen': {
       const slogan = sharepic.mainSlogan ?? {};
@@ -79,7 +82,9 @@ interface GenerateVariantsArgs {
   text: string;
 }
 
-export async function generateSharepicVariants(args: GenerateVariantsArgs): Promise<SharepicVariant[]> {
+export async function generateSharepicVariants(
+  args: GenerateVariantsArgs
+): Promise<SharepicVariant[]> {
   const settled = await Promise.allSettled(
     SHAREPIC_VARIANT_TYPES.map((type) =>
       generateSharepicForChat(args.req, type, {

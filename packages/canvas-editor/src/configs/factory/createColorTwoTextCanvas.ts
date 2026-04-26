@@ -14,11 +14,7 @@ import { HiPhotograph } from 'react-icons/hi';
 import { PiSquaresFourFill } from 'react-icons/pi';
 
 import { BackgroundSection, AssetsSection } from '../../sidebar/sections';
-import {
-  alternativesTab,
-  createAlternativesSection,
-  isAlternativesEmpty,
-} from '../alternativesSection';
+import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
 import { createShareSection } from '../shareSection';
@@ -59,7 +55,6 @@ export interface ColorTwoTextState {
   // Base state
   assetInstances: AssetInstance[];
   isDesktop: boolean;
-  alternatives: string[];
   selectedIcons: string[];
   iconStates: Record<string, IconState>;
   shapeInstances: ShapeInstance[];
@@ -115,7 +110,6 @@ export interface ColorTwoTextActions {
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
   removeFrame: (id: string) => void;
   setFrameImage: (id: string, file: File, objectUrl: string) => void;
-  handleSelectAlternative: (alt: string) => void;
 }
 
 // ============================================================================
@@ -254,16 +248,14 @@ export function createColorTwoTextCanvas(
         label: 'Elemente',
         ariaLabel: 'Dekorative Elemente',
       },
-      alternativesTab,
+      uploadsTab,
+      chatTab,
     ],
 
-    getVisibleTabs: () => ['background', 'assets', 'alternatives', 'share'],
+    getVisibleTabs: () => ['background', 'assets', 'uploads', 'chat', 'share'],
 
     getAutoSwitchTab: (selectedElement) =>
       selectedElement?.startsWith('frame-') ? 'assets' : null,
-
-    getDisabledTabs: (state) =>
-      isAlternativesEmpty(state, (s) => s.alternatives) ? ['alternatives'] : [],
 
     sections: {
       background: {
@@ -284,12 +276,8 @@ export function createColorTwoTextCanvas(
           ...injectFeatureProps(state, actions, context),
         }),
       },
-      alternatives: createAlternativesSection<ColorTwoTextState, ColorTwoTextActions>({
-        type: 'string',
-        getAlternatives: (state) => state.alternatives,
-        getCurrentValue: (state) => state[primaryField.key] as string,
-        getSelectAction: (actions) => actions.handleSelectAlternative,
-      }),
+      uploads: uploadsSectionEntry,
+      chat: createChatSection(id),
       share: createShareSection<ColorTwoTextState, ColorTwoTextActions>(
         id,
         getCanvasText || defaultGetCanvasText
@@ -324,7 +312,6 @@ export function createColorTwoTextCanvas(
       // Base state
       assetInstances: [],
       isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-      alternatives: (props.alternatives as string[]) || [],
       selectedIcons: [],
       iconStates: {},
       shapeInstances: [],
@@ -386,13 +373,6 @@ export function createColorTwoTextCanvas(
         // Background color
         setBackgroundColor: (color: string) => {
           setState({ backgroundColor: color } as Partial<ColorTwoTextState>);
-          saveToHistory(getState());
-        },
-
-        // Alternatives
-        handleSelectAlternative: (alt: string) => {
-          setState({ [primaryField.key]: alt } as Partial<ColorTwoTextState>);
-          callbacks[primaryCallbackKey]?.(alt);
           saveToHistory(getState());
         },
       };

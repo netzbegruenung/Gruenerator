@@ -91,7 +91,6 @@ const ImageStudioPageContent: React.FC = () => {
     sharepicPrompt,
     updateFormData,
     setGeneratedImage,
-    setSloganAlternatives,
     goToNextStep,
     resetStore,
     loadGalleryEditData,
@@ -257,6 +256,56 @@ const ImageStudioPageContent: React.FC = () => {
     void loadSession();
   }, [searchParams, loadEditSessionData, navigate, location.pathname]);
 
+  // Handle sharepic handoff from chat (?handoff=<id> → load variant from localStorage)
+  useEffect(() => {
+    const handoffId = searchParams.get('handoff');
+    if (!handoffId) return;
+
+    const storageKey = `gruenerator:sharepic-handoff:${handoffId}`;
+    let raw: string | null = null;
+    try {
+      raw = localStorage.getItem(storageKey);
+      localStorage.removeItem(storageKey);
+    } catch (err) {
+      console.error('[ImageStudioPage] Failed to read sharepic handoff:', err);
+    }
+
+    const stripParam = () => {
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('handoff');
+      void navigate(`${location.pathname}?${newParams.toString()}`.replace(/\?$/, ''), {
+        replace: true,
+      });
+    };
+
+    if (!raw) {
+      stripParam();
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        canvasType?: string;
+        initialProps?: Record<string, unknown>;
+        ts?: number;
+      };
+      const isFresh = parsed.ts && Date.now() - parsed.ts < 5 * 60 * 1000;
+      if (!isFresh || !parsed.canvasType || !parsed.initialProps) {
+        stripParam();
+        return;
+      }
+
+      useImageStudioStore
+        .getState()
+        .loadFromAIGeneration(parsed.canvasType, parsed.initialProps as Record<string, string>);
+      useImageStudioStore.getState().setCurrentStep(FORM_STEPS.CANVAS_EDIT);
+    } catch (err) {
+      console.error('[ImageStudioPage] Failed to parse sharepic handoff payload:', err);
+    }
+
+    stripParam();
+  }, [searchParams, navigate, location.pathname]);
+
   useEffect(() => {
     return () => {
       // Only reset if NOT navigating internally (aiGeneratedContent means internal navigation)
@@ -384,10 +433,8 @@ const ImageStudioPageContent: React.FC = () => {
                 line3: result.mainSlogan.line3 || '',
                 searchTerms: result.searchTerms || [],
               });
-              setSloganAlternatives(result.alternatives || []);
             } else if (result.quote) {
               updateFormData({ quote: result.quote });
-              setSloganAlternatives(result.alternatives || []);
             } else if (result.header) {
               updateFormData({
                 header: result.header,
@@ -395,7 +442,6 @@ const ImageStudioPageContent: React.FC = () => {
                 body: result.body,
                 searchTerms: result.searchTerms || [],
               });
-              setSloganAlternatives(result.alternatives || []);
             }
           }
           goToNextStep();
@@ -515,7 +561,6 @@ const ImageStudioPageContent: React.FC = () => {
     precisionInstruction,
     selectedInfrastructure,
     updateFormData,
-    setSloganAlternatives,
     setGeneratedImage,
     goToNextStep,
     refetchImageLimit,

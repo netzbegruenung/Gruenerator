@@ -5,11 +5,18 @@
  * Uses createImageTwoTextCanvas factory for shared infrastructure.
  */
 
+import { HiSparkles } from 'react-icons/hi';
+
+import { buildAssetCapability } from '../ai/assetCapability';
+import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
+import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { ZITAT_CONFIG, calculateZitatLayout } from '../utils/zitatLayout';
 
-import { createImageTwoTextCanvas } from './factory';
+import { createImageTwoTextCanvas, type ImageTwoTextActions } from './factory';
 
+import type { TemplateAiCapabilities } from '../ai/types';
 import type { ImageTwoTextState } from './factory';
+import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 import type {
   LayoutResult,
   TextElementConfig,
@@ -129,7 +136,7 @@ const nameTextElement: TextElementConfig<ImageTwoTextState> = {
 // CONFIG EXPORT
 // ============================================================================
 
-export const zitatFullConfig = createImageTwoTextCanvas({
+const baseZitatConfig = createImageTwoTextCanvas({
   id: 'zitat',
 
   canvas: {
@@ -163,6 +170,67 @@ export const zitatFullConfig = createImageTwoTextCanvas({
     return `„${quote}"\n— ${name}`.trim();
   },
 });
+
+// ============================================================================
+// AI CAPABILITY
+// ============================================================================
+
+const zitatAiCapabilities: TemplateAiCapabilities<ImageTwoTextState, ImageTwoTextActions> = {
+  supportedOperations: [
+    'set-text',
+    'add-illustration',
+    'add-asset',
+    'update-element',
+    'remove-element',
+  ],
+
+  illustrations: buildIllustrationCapability(),
+  assets: buildAssetCapability('zitat'),
+
+  describeForAi: (state): CanvasAiSnapshot => ({
+    template: 'zitat',
+    textFields: [
+      { field: 'quote', label: 'Zitat', value: (state.quote as string) || '' },
+      { field: 'name', label: 'Name', value: (state.name as string) || '' },
+    ],
+    elementsSummary: [],
+  }),
+
+  applyOverrides: {
+    'set-text': (op, actions) => {
+      if (op.field === 'quote') {
+        actions.setPrimary?.(op.value);
+        return;
+      }
+      if (op.field === 'name') {
+        actions.setSecondary?.(op.value);
+        return;
+      }
+      throw new Error(`Zitat-Vorlage hat kein Feld "${op.field}"`);
+    },
+  },
+};
+
+// ============================================================================
+// FINAL CONFIG (factory result + AI overlay)
+// ============================================================================
+
+export const zitatFullConfig = {
+  ...baseZitatConfig,
+  ai: zitatAiCapabilities,
+  tabs: [
+    ...baseZitatConfig.tabs,
+    { id: 'ai' as const, icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
+  ],
+  getVisibleTabs: (state: ImageTwoTextState, context?: { selectedElement?: string | null }) => {
+    const base = baseZitatConfig.getVisibleTabs?.(state, context) ?? [];
+    return [...base, 'ai' as const];
+  },
+  sections: {
+    ...baseZitatConfig.sections,
+    ai: createAiSectionRegistration('zitat', zitatAiCapabilities),
+  },
+};
 
 // Re-export types for backward compatibility
 export type ZitatFullState = ImageTwoTextState;

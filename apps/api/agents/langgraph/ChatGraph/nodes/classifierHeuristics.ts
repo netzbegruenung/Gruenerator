@@ -219,8 +219,7 @@ export function heuristicClassify(userContent: string): HeuristicResult {
   // Bare "als Dokument/Protokoll/Notiz/Checkliste" must be paired with an explicit
   // save imperative — otherwise prose mentions like "Pressemitteilung über das Dokument"
   // or "gilt als Protokoll" would falsely trigger document creation.
-  const saveImperative =
-    /\b(speicher|abspeicher|sicher|exportier|ableg|festhalt|merk)[etns]*\b/i;
+  const saveImperative = /\b(speicher|abspeicher|sicher|exportier|ableg|festhalt|merk)[etns]*\b/i;
   const saveAsBarePattern = /\bals\s+(neues\s+)?(dokument|protokoll|notiz|checkliste)\b/i;
   const docWithVerbPattern =
     /\b(dokument|protokoll|notiz|checkliste)\s+(erstellen|speichern|anlegen|abspeichern|exportieren)\b/i;
@@ -275,10 +274,7 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     /\b(erstell|generier|mach|bau|baue|visualisier|zeig|zeichn|erzeug|stell)[etn]*\b/i;
   const dataVisualizePattern = /\bvisualisier.{0,15}(daten|statistik|chart|werte|zahlen)\b/i;
 
-  if (
-    (chartTypeNoun.test(q) && chartCreateImperative.test(q)) ||
-    dataVisualizePattern.test(q)
-  ) {
+  if ((chartTypeNoun.test(q) && chartCreateImperative.test(q)) || dataVisualizePattern.test(q)) {
     return {
       intent: 'chart',
       searchQuery: userContent,

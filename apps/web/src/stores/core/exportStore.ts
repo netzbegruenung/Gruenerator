@@ -22,6 +22,13 @@ interface ExportState {
     citations: unknown[],
     sources?: unknown[]
   ) => Promise<void>;
+  generateCanvasPdf: (args: {
+    imageDataUrl: string;
+    formatId: string;
+    withBleed?: boolean;
+    title?: string;
+    filename: string;
+  }) => Promise<void>;
 }
 
 // Export store for managing PDF and DOCX generation
@@ -100,6 +107,34 @@ export const useExportStore = create<ExportState>((set, get) => ({
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('DOCX generation error:', error);
+      throw error;
+    } finally {
+      setTimeout(() => set({ isGenerating: false }), 500);
+    }
+  },
+
+  // Canvas PDF Generation: client renders Konva canvas to high-DPI PNG,
+  // server wraps it in a properly-sized PDF page (with optional print bleed).
+  // See apps/api/routes/exports/canvasPdfController.ts for the server side.
+  generateCanvasPdf: async ({ imageDataUrl, formatId, withBleed, title, filename }) => {
+    set({ isGenerating: true });
+    try {
+      const response = await apiClient.post<Blob>(
+        '/exports/canvas-pdf',
+        { imageDataUrl, formatId, withBleed, title },
+        { responseType: 'blob' }
+      );
+      const blob = response.data;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Canvas PDF generation error:', error);
       throw error;
     } finally {
       setTimeout(() => set({ isGenerating: false }), 500);

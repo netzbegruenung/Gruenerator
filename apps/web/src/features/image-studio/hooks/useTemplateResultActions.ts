@@ -1,8 +1,10 @@
+import { getCanvasFormat } from '@gruenerator/canvas-editor/formats';
 import { useShareStore } from '@gruenerator/shared/share';
 import { useState, useCallback } from 'react';
 
 import useAltTextGeneration from '../../../components/hooks/useAltTextGeneration';
 import { useGenerateSocialPost } from '../../../components/hooks/useGenerateSocialPost';
+import { useExportStore } from '../../../stores/core/exportStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { formatDownloadFilename } from '../utils/templateResultUtils';
 import { getTypeConfig } from '../utils/typeConfig';
@@ -16,6 +18,9 @@ interface GeneratedPosts {
 
 interface UseTemplateResultActionsReturn {
   handleDownload: () => void;
+  handleDownloadPdf: (() => Promise<void>) | null;
+  pdfBleedSupported: boolean;
+  isPdfDownloading: boolean;
   handleShareToInstagram: () => Promise<void>;
   handleGenerateAltText: () => Promise<void>;
   handleGenerateInstagramText: () => Promise<void>;
@@ -45,7 +50,10 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
     galleryEditMode,
     editShareToken,
     editTitle,
+    selectedFormatId,
   } = useImageStudioStore();
+  const generateCanvasPdf = useExportStore((s) => s.generateCanvasPdf);
+  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
 
   const { updateImageShare, isCreating: isUpdating } = useShareStore();
   const { getOriginalImageBase64, buildShareMetadata } = useImageHelpers();
@@ -76,11 +84,35 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
     if (!generatedImageSrc) return;
     const link = document.createElement('a');
     link.href = generatedImageSrc;
-    link.download = formatDownloadFilename(type);
+    link.download = formatDownloadFilename(type, { formatId: selectedFormatId, ext: 'png' });
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [generatedImageSrc, type]);
+  }, [generatedImageSrc, type, selectedFormatId]);
+
+  const format = selectedFormatId ? getCanvasFormat(selectedFormatId) : null;
+  const canExportPdf = !!format && format.exportable.includes('pdf');
+  const pdfBleedSupported = !!format?.bleedPx;
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!generatedImageSrc || !format) return;
+    setIsPdfDownloading(true);
+    try {
+      await generateCanvasPdf({
+        imageDataUrl: generatedImageSrc,
+        formatId: format.id,
+        // For v1 the result-step "PDF herunterladen" button defaults bleed off.
+        // The DownloadSection inside the editor exposes the toggle separately.
+        withBleed: false,
+        title: type ?? undefined,
+        filename: formatDownloadFilename(type, { formatId: format.id, ext: 'pdf' }),
+      });
+    } catch (err) {
+      console.error('[useTemplateResultActions] PDF download failed:', err);
+    } finally {
+      setIsPdfDownloading(false);
+    }
+  }, [generatedImageSrc, format, generateCanvasPdf, type]);
 
   const handleShareToInstagram = useCallback(async () => {
     if (!generatedImageSrc) return;
@@ -207,6 +239,9 @@ export const useTemplateResultActions = (): UseTemplateResultActionsReturn => {
 
   return {
     handleDownload,
+    handleDownloadPdf: canExportPdf ? handleDownloadPdf : null,
+    pdfBleedSupported,
+    isPdfDownloading,
     handleShareToInstagram,
     handleGenerateAltText,
     handleGenerateInstagramText,

@@ -37,10 +37,10 @@ const log = createLogger('sharesContract');
  * 401 response for unauthenticated requests to auth-required contract handlers.
  *
  * Background: this router can't use prefix-level `requireAuth` because the
- * legacy `/api/share` router (mounted at routes.ts:459 with `publicReadLimiter`)
- * serves public read endpoints (preview/download/thumbnail) that must remain
- * reachable without a session. The per-handler guards below protect the six
- * write endpoints modeled by this contract.
+ * legacy `/api/share` router serves public read endpoints (preview/download/
+ * thumbnail) that must remain reachable without a session. Instead, routes.ts
+ * applies `optionalAuth` at `/api/share` so `req.user` is populated when a
+ * session exists; each write handler below enforces auth via `getUserId`.
  */
 const UNAUTHORIZED = {
   status: 401 as const,
@@ -598,7 +598,7 @@ export const shareContractRouter = s.router(sharesContract, {
       const service = await getSharedMediaService();
       await service.markAsTemplate(userId, shareToken, title || 'Template', visibility, userName);
 
-      const templateUrl = `/image-studio?template=${shareToken}`;
+      const templateUrl = `/studio?template=${shareToken}`;
 
       log.info(
         `Share ${shareToken} marked as template with visibility: ${visibility} by user ${userId}`

@@ -36,12 +36,6 @@ interface SliderResult {
   subtext?: string;
 }
 
-interface SliderAlternative {
-  label?: string;
-  headline?: string;
-  subtext?: string;
-}
-
 export const sliderFieldConfig: TemplateFieldConfig = {
   inputFields: [
     {
@@ -65,19 +59,12 @@ export const sliderFieldConfig: TemplateFieldConfig = {
     headline: result.headline || '',
     subtext: result.subtext || '',
   }),
-  alternativesMapping: (alt: SliderAlternative) => ({
-    label: alt.label || 'Wusstest du?',
-    headline: alt.headline || '',
-    subtext: alt.subtext || '',
-  }),
   showImageUpload: false,
   showColorControls: false,
   showFontSizeControl: true,
   showAdvancedEditing: false,
   showCredit: false,
-  showAlternatives: true,
   showEditPanel: true,
   showAutoSave: true,
   showSocialGeneration: true,
-  alternativesButtonText: 'Andere Varianten',
 };

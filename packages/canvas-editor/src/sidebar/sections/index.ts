@@ -19,8 +19,10 @@ export { UnifiedTextSection } from './UnifiedTextSection';
 export type { UnifiedTextSectionProps } from './UnifiedTextSection';
 export { CombinedTextSection } from './CombinedTextSection';
 export type { CombinedTextSectionProps } from './CombinedTextSection';
-export { AlternativesSection } from './AlternativesSection';
-export type { AlternativesSectionProps } from './AlternativesSection';
+export { AiSection } from './AiSection';
+export type { AiSectionProps } from './AiSection';
+export { ChatSection } from './ChatSection';
+export type { ChatSectionProps } from './ChatSection';
 export const IconsSection = lazy(() =>
   import('./IconsSection').then((m) => ({ default: m.IconsSection }))
 );

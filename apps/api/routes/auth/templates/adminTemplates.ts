@@ -157,7 +157,10 @@ router.post(
   '/admin/vorlagen/:id/reject',
   ensureAuthenticated,
   validateBody(rejectSchema),
-  async (req: TypedRequest<z.infer<typeof rejectSchema>, { id: string }>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<z.infer<typeof rejectSchema>, { id: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       if (!(await verifyAdmin(req as AuthRequest<{ id: string }>, res))) return;
 

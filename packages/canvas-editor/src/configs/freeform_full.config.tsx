@@ -8,18 +8,23 @@
  * balkens, badges, frames — all features the config system offers.
  */
 
-import { HiPhotograph } from 'react-icons/hi';
-import { HiArrowUpTray } from 'react-icons/hi2';
+import { HiPhotograph, HiSparkles } from 'react-icons/hi';
 import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { AssetsSection, BackgroundSection, UploadsSection } from '../sidebar';
+import { buildAssetCapability } from '../ai/assetCapability';
+import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
+import { buildIllustrationCapability } from '../ai/illustrationCapability';
+import { AssetsSection, BackgroundSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
+
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 
+import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
+import type { TemplateAiCapabilities } from '../ai/types';
 import type {
   BaseCanvasState,
   ImageBackgroundState,
@@ -27,6 +32,7 @@ import type {
 } from './factory/baseTypes';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
+import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================
 // CONSTANTS
@@ -67,6 +73,56 @@ export type FreeformActions = Record<string, any>;
 const calculateLayout = (_state: FreeformState): LayoutResult => ({});
 
 // ============================================================================
+// AI CAPABILITY
+// ============================================================================
+
+const freeformAiCapabilities: TemplateAiCapabilities<FreeformState, FreeformActions> = {
+  supportedOperations: [
+    'set-text',
+    'set-background-color',
+    'remove-element',
+    'add-illustration',
+    'add-asset',
+    'update-element',
+  ],
+
+  illustrations: buildIllustrationCapability(),
+  assets: buildAssetCapability('freeform'),
+
+  describeForAi: (state): CanvasAiSnapshot => {
+    // Existing additionalTexts become AI-targetable text fields. The AI can
+    // either update one (by id) or add a new body via the special id `new-body`.
+    const existingTexts = (state.additionalTexts ?? []).map((t, i) => ({
+      field: t.id,
+      label: `Bestehender Text ${i + 1} (${t.type})`,
+      value: t.text,
+    }));
+
+    return {
+      template: 'freeform',
+      textFields: [
+        ...existingTexts,
+        {
+          field: 'new-body',
+          label: 'Neuen Text hinzufügen',
+          value: '',
+        },
+      ],
+      currentBackgroundColor:
+        state.backgroundMode === 'color' ? (state.backgroundColor as `#${string}`) : undefined,
+      elementsSummary: (state.additionalTexts ?? []).map((t) => ({
+        id: t.id,
+        kind: 'text' as const,
+        label: t.text.slice(0, 40),
+      })),
+    };
+  },
+  // Default applier handles `set-text` (additionalText id lookup or new-body),
+  // `set-background-color` (actions.setBackgroundColor), and `remove-element`
+  // (tries each remove action). No overrides needed.
+};
+
+// ============================================================================
 // FULL CONFIG
 // ============================================================================
 
@@ -96,6 +152,8 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     requireFontLoad: true,
   },
 
+  ai: freeformAiCapabilities,
+
   tabs: [
     {
       id: 'background',
@@ -115,15 +173,17 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       label: 'Elemente',
       ariaLabel: 'Elemente hinzufügen',
     },
+    uploadsTab,
     {
-      id: 'uploads',
-      icon: HiArrowUpTray,
-      label: 'Uploads',
-      ariaLabel: 'Bilder hochladen',
+      id: 'ai',
+      icon: HiSparkles,
+      label: 'KI',
+      ariaLabel: 'KI-Vorschläge',
     },
+    chatTab,
   ],
 
-  getVisibleTabs: () => ['background', 'text', 'elements', 'uploads'],
+  getVisibleTabs: () => ['background', 'text', 'elements', 'uploads', 'ai', 'chat'],
 
   getAutoSwitchTab: (selectedElement) =>
     selectedElement?.startsWith('frame-') ? 'elements' : null,
@@ -176,21 +236,12 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       }),
     },
 
-    uploads: {
-      component: UploadsSection as unknown as React.ComponentType<Record<string, unknown>>,
-      propsFactory: (state, actions) => ({
-        userImages: state.userImageInstances,
-        onAddImage: actions.addUserImage,
-        onRemoveImage: actions.removeUserImage,
-        onSelectImage: (id: string) => {
-          // Selection is handled by clicking on the canvas element directly
-          // but clicking a sidebar thumbnail should also work
-          actions.selectElement?.(id);
-        },
-      }),
-    },
+    uploads: uploadsSectionEntry,
+    chat: createChatSection('freeform'),
 
     share: createShareSection<FreeformState>('freeform', () => ''),
+
+    ai: createAiSectionRegistration('freeform', freeformAiCapabilities),
   },
 
   elements: [
@@ -259,7 +310,6 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
 
     // UI state
     isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-    alternatives: [],
   }),
 
   createActions: (getState, setState, saveToHistory, debouncedSaveToHistory) => {
@@ -275,8 +325,6 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
 
     return {
       ...baseActions,
-
-      handleSelectAlternative: () => {},
 
       // === Background Actions ===
       setBackgroundMode: (mode: 'color' | 'image') => {

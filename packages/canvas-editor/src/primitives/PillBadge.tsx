@@ -119,7 +119,8 @@ function PillBadgeInner({
         contentHeight,
         getSnapTargets(id) as unknown as SnapTarget[],
         stageWidth,
-        stageHeight
+        stageHeight,
+        snap.hysteresis
       );
 
       node.position({ x: result.x, y: result.y });

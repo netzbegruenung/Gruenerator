@@ -14,7 +14,10 @@ import { createFrameInstance } from '../../utils/frameUtils';
 import { createIllustration } from '../../utils/illustrations/registry';
 import { createPillBadgeInstance } from '../../utils/pillBadgeUtils';
 import { BRAND_COLORS, createShape } from '../../utils/shapes';
-import { createUserImageInstance } from '../../utils/userImageUtils';
+import {
+  createUserImageInstance,
+  createUserImageInstanceFromUrl,
+} from '../../utils/userImageUtils';
 
 import type { IconState, BaseCanvasState } from './baseTypes';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
@@ -347,6 +350,26 @@ export function createAdditionalTextActions<TState extends { additionalTexts: Ad
       }));
       saveToHistory(getState());
     },
+    /**
+     * Add a body text with explicit content. Used by AI-suggestion appliers
+     * that need to emit a finished text element rather than a placeholder.
+     */
+    addBodyTextWithContent: (content: string) => {
+      const newText: AdditionalText = {
+        id: uuid(),
+        text: content,
+        type: 'body',
+        x: canvasWidth / 2 - 200,
+        y: canvasHeight / 2,
+        ...ADDITIONAL_TEXT_DEFAULTS.body,
+        fill: fontColor,
+      };
+      setState((prev) => ({
+        ...prev,
+        additionalTexts: [...prev.additionalTexts, newText],
+      }));
+      saveToHistory(getState());
+    },
     updateAdditionalText: (id: string, partial: Partial<AdditionalText>) => {
       setState((prev) => ({
         ...prev,
@@ -569,6 +592,17 @@ export function createUserImageActions<TState extends { userImageInstances: User
         saveToHistory(getState());
       });
     },
+    addUserImageFromUrl: (url: string, fileName: string) => {
+      void createUserImageInstanceFromUrl(url, fileName, canvasWidth, canvasHeight).then(
+        (instance) => {
+          setState((prev) => ({
+            ...prev,
+            userImageInstances: [...prev.userImageInstances, instance],
+          }));
+          saveToHistory(getState());
+        }
+      );
+    },
     updateUserImage: (id: string, partial: Partial<UserImageInstance>) => {
       setState((prev) => ({
         ...prev,
@@ -579,7 +613,7 @@ export function createUserImageActions<TState extends { userImageInstances: User
     },
     removeUserImage: (id: string) => {
       const instance = getState().userImageInstances.find((u) => u.id === id);
-      if (instance?.src) {
+      if (instance?.src.startsWith('blob:')) {
         URL.revokeObjectURL(instance.src);
       }
       setState((prev) => ({

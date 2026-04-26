@@ -10,9 +10,11 @@
  * - Background inheritance when adding pages with different templates
  */
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { v4 as uuid } from 'uuid';
+import * as Y from 'yjs';
 
+import { useYjsPages } from '../collab/useYjsPages';
 import { loadCanvasConfig, isValidCanvasType } from '../configs/configLoader';
 
 import type { CanvasConfigId, HeterogeneousPage, FullCanvasConfig } from '../configs/types';
@@ -29,6 +31,16 @@ export interface UsePageManagerOptions {
   maxPages?: number;
   /** Pre-populated pages — when provided, overrides single-page initialization from initialProps */
   initialPages?: InitialPageDef[];
+  /**
+   * When provided, the pages list is backed by a Yjs doc instead of local
+   * useState. Mutations route through `ydoc.transact` so they propagate to
+   * remote peers. Pages from the Y.Doc shadow `initialProps`/`initialPages`
+   * — those are only used to seed the doc on first load.
+   */
+  collaborative?: {
+    ydoc: Y.Doc;
+    isSynced: boolean;
+  };
 }
 
 export interface UsePageManagerReturn {
@@ -51,6 +63,8 @@ export interface UsePageManagerReturn {
   getConfigForPage: (configId: CanvasConfigId) => Promise<FullCanvasConfig>;
   loadedConfigs: Map<CanvasConfigId, FullCanvasConfig>;
   isLoadingConfig: boolean;
+  /** When in collaborative mode, returns the page's Y.Map for that index; null otherwise. */
+  getPageYMap: (index: number) => Y.Map<unknown> | null;
 }
 
 /**
@@ -90,13 +104,16 @@ export function usePageManager({
   initialProps,
   maxPages = 10,
   initialPages,
+  collaborative,
 }: UsePageManagerOptions): UsePageManagerReturn {
   // Config cache - loaded configs are stored here to avoid re-fetching
   const configCacheRef = useRef<Map<CanvasConfigId, FullCanvasConfig>>(new Map());
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
-  // Initialize pages: use initialPages if provided, otherwise single page from initialProps
-  const [pages, setPages] = useState<HeterogeneousPage[]>(() => {
+  const yjsPages = useYjsPages(collaborative?.ydoc ?? null, collaborative?.isSynced ?? false);
+
+  const [localPages, setLocalPages] = useState<HeterogeneousPage[]>(() => {
+    if (collaborative) return [];
     if (initialPages && initialPages.length > 0) {
       return initialPages.map((def, index) => ({
         id: uuid(),
@@ -115,7 +132,36 @@ export function usePageManager({
     ];
   });
 
+  // seedIfEmpty itself early-returns once pages exist, so re-runs from
+  // changing initialProps/initialPages identity are harmless.
+  useEffect(() => {
+    if (!yjsPages || yjsPages.isSeeded) return;
+    const seed =
+      initialPages && initialPages.length > 0
+        ? initialPages.map((def) => ({ id: uuid(), configId: def.configId, state: def.state }))
+        : [{ id: uuid(), configId: initialConfigId, state: initialProps }];
+    yjsPages.seedIfEmpty(seed);
+  }, [yjsPages, initialPages, initialConfigId, initialProps]);
+
+  const collabPagesView: HeterogeneousPage[] = useMemo(() => {
+    if (!yjsPages) return [];
+    return yjsPages.pages.map((p, idx) => ({
+      id: p.id,
+      configId: p.configId as CanvasConfigId,
+      state: p.state,
+      order: idx,
+    }));
+  }, [yjsPages]);
+
+  const pages: HeterogeneousPage[] = collaborative ? collabPagesView : localPages;
+
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  // Clamp current index when the collaborative page list shrinks under us.
+  useEffect(() => {
+    if (currentPageIndex >= pages.length && pages.length > 0) {
+      setCurrentPageIndex(pages.length - 1);
+    }
+  }, [pages.length, currentPageIndex]);
 
   const canAddMore = pages.length < maxPages;
 
@@ -183,12 +229,16 @@ export function usePageManager({
         order: pages.length,
       };
 
-      setPages((prev) => [...prev, newPage]);
+      if (yjsPages) {
+        yjsPages.addPage({ id: newPage.id, configId, state: newPageState });
+      } else {
+        setLocalPages((prev) => [...prev, newPage]);
+      }
 
       // Auto-switch to new page
       setCurrentPageIndex(pages.length);
     },
-    [canAddMore, pages, currentPageIndex, getConfigForPage]
+    [canAddMore, pages, currentPageIndex, getConfigForPage, yjsPages, setLocalPages]
   );
 
   /**
@@ -207,9 +257,17 @@ export function usePageManager({
       order: pages.length,
     };
 
-    setPages((prev) => [...prev, duplicatedPage]);
+    if (yjsPages) {
+      yjsPages.addPage({
+        id: duplicatedPage.id,
+        configId: duplicatedPage.configId,
+        state: duplicatedPage.state,
+      });
+    } else {
+      setLocalPages((prev) => [...prev, duplicatedPage]);
+    }
     setCurrentPageIndex(pages.length);
-  }, [canAddMore, pages, currentPageIndex]);
+  }, [canAddMore, pages, currentPageIndex, yjsPages, setLocalPages]);
 
   /**
    * Duplicate a specific page by ID (inserts after the original)
@@ -229,14 +287,22 @@ export function usePageManager({
         order: 0,
       };
 
-      setPages((prev) => {
-        const next = [...prev];
-        next.splice(sourceIndex + 1, 0, duplicated);
-        return next.map((p, i) => ({ ...p, order: i }));
-      });
+      if (yjsPages) {
+        yjsPages.insertPage(sourceIndex + 1, {
+          id: duplicated.id,
+          configId: duplicated.configId,
+          state: duplicated.state,
+        });
+      } else {
+        setLocalPages((prev) => {
+          const next = [...prev];
+          next.splice(sourceIndex + 1, 0, duplicated);
+          return next.map((p, i) => ({ ...p, order: i }));
+        });
+      }
       setCurrentPageIndex(sourceIndex + 1);
     },
-    [canAddMore, pages]
+    [canAddMore, pages, yjsPages, setLocalPages]
   );
 
   /**
@@ -250,11 +316,15 @@ export function usePageManager({
       const targetIndex = direction === 'up' ? index - 1 : index + 1;
       if (targetIndex < 0 || targetIndex >= pages.length) return;
 
-      setPages((prev) => {
-        const next = [...prev];
-        [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
-        return next.map((p, i) => ({ ...p, order: i }));
-      });
+      if (yjsPages) {
+        yjsPages.movePage(id, direction);
+      } else {
+        setLocalPages((prev) => {
+          const next = [...prev];
+          [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+          return next.map((p, i) => ({ ...p, order: i }));
+        });
+      }
 
       // Follow the moved page
       if (currentPageIndex === index) {
@@ -263,7 +333,7 @@ export function usePageManager({
         setCurrentPageIndex(index);
       }
     },
-    [pages, currentPageIndex]
+    [pages, currentPageIndex, yjsPages, setLocalPages]
   );
 
   /**
@@ -273,25 +343,45 @@ export function usePageManager({
     (id: string) => {
       if (pages.length <= 1) return; // Keep at least one
 
-      setPages((prev) => {
-        const filtered = prev.filter((p) => p.id !== id);
-        return filtered.map((p, i) => ({ ...p, order: i }));
-      });
+      if (yjsPages) {
+        yjsPages.removePage(id);
+      } else {
+        setLocalPages((prev) => {
+          const filtered = prev.filter((p) => p.id !== id);
+          return filtered.map((p, i) => ({ ...p, order: i }));
+        });
+      }
 
       // Adjust current index if needed
       setCurrentPageIndex((prev) => Math.min(prev, pages.length - 2));
     },
-    [pages.length]
+    [pages.length, yjsPages, setLocalPages]
   );
 
   /**
    * Update a specific page's state
    */
-  const updatePageState = useCallback((id: string, partial: Record<string, unknown>) => {
-    setPages((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, state: { ...p.state, ...partial } } : p))
-    );
-  }, []);
+  const updatePageState = useCallback(
+    (id: string, partial: Record<string, unknown>) => {
+      if (yjsPages) {
+        yjsPages.updatePageState(id, partial);
+        return;
+      }
+      setLocalPages((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, state: { ...p.state, ...partial } } : p))
+      );
+    },
+    [yjsPages, setLocalPages]
+  );
+
+  const getPageYMap = useCallback(
+    (index: number): Y.Map<unknown> | null => {
+      if (!yjsPages) return null;
+      const view = yjsPages.pages[index];
+      return view ? view.yMap : null;
+    },
+    [yjsPages]
+  );
 
   const currentPage = useMemo(() => pages[currentPageIndex], [pages, currentPageIndex]);
 
@@ -314,5 +404,6 @@ export function usePageManager({
     getConfigForPage,
     loadedConfigs,
     isLoadingConfig,
+    getPageYMap,
   };
 }

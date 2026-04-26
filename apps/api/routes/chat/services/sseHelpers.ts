@@ -5,6 +5,7 @@
  * Used by chat controllers to provide real-time feedback during AI processing.
  */
 
+import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type {
   SearchIntent,
   SearchSource,
@@ -13,7 +14,6 @@ import type {
   ConfirmActionType,
   ChartData,
 } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type { Response } from 'express';
 
 /**

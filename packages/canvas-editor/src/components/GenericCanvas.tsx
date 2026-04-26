@@ -18,6 +18,7 @@ import React, {
 } from 'react';
 import { Layer } from 'react-konva';
 
+import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
 import {
   CanvasStoreProvider,
   useCanvasStore,
@@ -32,6 +33,7 @@ import {
 import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
 import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
+import { getCanvasFormatOrDefault } from '../formats';
 import { CanvasStage, SnapGuidelines, AttributionOverlay } from '../primitives';
 import { alignElementX, alignElementY } from '../utils/alignment';
 import { calculateAttributionOverlay } from '../utils/attributionOverlay';
@@ -86,6 +88,16 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
   mobileBridge?: MobileBridgeProps;
   /** Callback to report toolbar state to parent (for layout-level toolbar rendering) */
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
+  /**
+   * When provided, the per-instance Zustand store is bound to the supplied
+   * page Y.Map for collaborative editing. The page Y.Map owns its own
+   * `layers` (Y.Array<Y.Map>) and `config` (Y.Map) sub-collections so each
+   * page in a multi-page canvas has independent CRDT state.
+   */
+  collaborative?: {
+    pageYMap: import('yjs').Map<unknown>;
+    isSynced: boolean;
+  };
 }
 
 export interface GenericCanvasRef {
@@ -249,11 +261,23 @@ function GenericCanvasWithRef<
   const store = useCanvasStore();
   const { setSnapLines, updateElementPosition } = store.getState();
 
-  // Auto-save hook for gallery integration
+  // Output canvas dimensions are driven by the chosen format. Layout calculators
+  // continue to operate in the template's reference space (config.canvas.{width,height});
+  // CanvasStage scales them up to the format dims via a Konva Group when they differ.
+  const formatId = useCanvasStoreSelector((s) => s.formatId);
+  const format = getCanvasFormatOrDefault(formatId);
+  const stageWidth = format.width;
+  const stageHeight = format.height;
+  const referenceWidth = config.canvas.width;
+  const referenceHeight = config.canvas.height;
+
+  // Auto-save hook for gallery integration. Skipped in collaborative mode —
+  // Hocuspocus persists Yjs updates server-side; the gallery share-token path
+  // would race with Y.Doc state.
   useCanvasAutoSave(exportedImage, {
     canvasType: config.id,
     canvasState: state,
-    enabled: !mobileBridge,
+    enabled: !mobileBridge && !props.collaborative,
   });
 
   // History-synced auto-save: capture canvas whenever undo/redo history changes
@@ -410,8 +434,10 @@ function GenericCanvasWithRef<
     <>
       <CanvasStage
         ref={stageRef}
-        width={config.canvas.width}
-        height={config.canvas.height}
+        width={stageWidth}
+        height={stageHeight}
+        logicalWidth={referenceWidth}
+        logicalHeight={referenceHeight}
         responsive
         maxContainerWidth={maxWidth}
         onStageClick={handleStageClick}
@@ -475,12 +501,29 @@ const MemoizedGenericCanvas = memo(GenericCanvasWithRef) as typeof GenericCanvas
  * The provider's context value (store reference) is stable, so wrapping adds zero re-render cost.
  * Outer component is NOT memo'd — the inner MemoizedGenericCanvas handles prop comparison.
  */
+function CanvasYjsBindingMount({
+  pageYMap,
+  isSynced,
+}: {
+  pageYMap: import('yjs').Map<unknown>;
+  isSynced: boolean;
+}) {
+  useYjsCanvasBinding({ parent: pageYMap, isSynced });
+  return null;
+}
+
 function GenericCanvasWithProvider<
   TState extends Record<string, unknown>,
   TActions extends OptionalCanvasActions,
 >(props: GenericCanvasProps<TState, TActions> & { forwardedRef?: React.Ref<GenericCanvasRef> }) {
   return (
     <CanvasStoreProvider>
+      {props.collaborative ? (
+        <CanvasYjsBindingMount
+          pageYMap={props.collaborative.pageYMap}
+          isSynced={props.collaborative.isSynced}
+        />
+      ) : null}
       <MemoizedGenericCanvas {...props} />
     </CanvasStoreProvider>
   );

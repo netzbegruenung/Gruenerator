@@ -6,40 +6,45 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Slider,
-  Badge,
 } from '@gruenerator/ui';
 import { useState } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
 import Spinner from '../../common/Spinner';
 
+export type CanvasDownloadChoice = 'png' | 'jpeg' | 'pdf' | 'pdf-print';
+
 export interface DownloadSectionProps {
   onDownload: (format: 'png' | 'jpeg', pixelRatio: number) => void;
   onDownloadAllZip?: () => Promise<void>;
-  canvasWidth: number;
-  canvasHeight: number;
+  /**
+   * Server-side PDF wrap. The canvas-editor produces the high-DPI PNG; the
+   * consumer uploads it. `withBleed` is meaningful only for print formats —
+   * the UI only exposes it when `bleedSupported` is true (via the dedicated
+   * "PDF Druck" option).
+   */
+  onDownloadPdf?: (withBleed: boolean) => Promise<void>;
+  bleedSupported?: boolean;
   pageCount: number;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
 }
 
+const DEFAULT_RASTER_PIXEL_RATIO = 2;
+
 export function DownloadSection({
   onDownload,
   onDownloadAllZip,
-  canvasWidth,
-  canvasHeight,
+  onDownloadPdf,
+  bleedSupported = false,
   pageCount,
   isMultiExporting = false,
   exportProgress,
 }: DownloadSectionProps) {
-  const [fileFormat, setFileFormat] = useState<'png' | 'jpeg'>('png');
-  const [pixelRatio, setPixelRatio] = useState(2);
+  const [choice, setChoice] = useState<CanvasDownloadChoice>('png');
   const [pageSelection, setPageSelection] = useState<'current' | 'all'>('current');
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const outputWidth = Math.round(canvasWidth * pixelRatio);
-  const outputHeight = Math.round(canvasHeight * pixelRatio);
   const isMultiPage = pageCount > 1 && onDownloadAllZip;
 
   const handleDownload = async () => {
@@ -47,8 +52,21 @@ export function DownloadSection({
     try {
       if (pageSelection === 'all' && onDownloadAllZip) {
         await onDownloadAllZip();
-      } else {
-        onDownload(fileFormat, pixelRatio);
+        return;
+      }
+      switch (choice) {
+        case 'png':
+          onDownload('png', DEFAULT_RASTER_PIXEL_RATIO);
+          break;
+        case 'jpeg':
+          onDownload('jpeg', DEFAULT_RASTER_PIXEL_RATIO);
+          break;
+        case 'pdf':
+          if (onDownloadPdf) await onDownloadPdf(false);
+          break;
+        case 'pdf-print':
+          if (onDownloadPdf) await onDownloadPdf(true);
+          break;
       }
     } finally {
       setIsDownloading(false);
@@ -57,47 +75,23 @@ export function DownloadSection({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* File type */}
       <div className="flex flex-col gap-1.5">
-        <Label className="text-xs font-medium text-foreground-muted">Dateityp</Label>
-        <Select value={fileFormat} onValueChange={(v) => setFileFormat(v as 'png' | 'jpeg')}>
+        <Label className="text-xs font-medium text-foreground-muted">Format</Label>
+        <Select value={choice} onValueChange={(v) => setChoice(v as CanvasDownloadChoice)}>
           <SelectTrigger size="sm" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent position="popper" className="z-[10001]">
-            <SelectItem value="png">
-              <span className="flex items-center gap-2">
-                PNG
-                <Badge className="text-[10px] px-1.5 py-0">Empfohlen</Badge>
-              </span>
-            </SelectItem>
+            <SelectItem value="png">PNG</SelectItem>
             <SelectItem value="jpeg">JPG</SelectItem>
+            {onDownloadPdf && <SelectItem value="pdf">PDF</SelectItem>}
+            {onDownloadPdf && bleedSupported && (
+              <SelectItem value="pdf-print">PDF Druck</SelectItem>
+            )}
           </SelectContent>
         </Select>
       </div>
 
-      {/* Quality / scale */}
-      <div className="flex flex-col gap-1.5">
-        <Label className="text-xs font-medium text-foreground-muted">Qualität</Label>
-        <div className="flex items-center gap-3">
-          <Slider
-            value={[pixelRatio]}
-            onValueChange={(v) => setPixelRatio(v[0])}
-            min={1}
-            max={3}
-            step={1}
-            className="flex-1"
-          />
-          <span className="text-xs font-semibold text-foreground tabular-nums w-6 text-right">
-            {pixelRatio}x
-          </span>
-        </div>
-        <span className="text-[11px] text-foreground-muted tabular-nums">
-          {outputWidth.toLocaleString('de-DE')} × {outputHeight.toLocaleString('de-DE')} px
-        </span>
-      </div>
-
-      {/* Page selection (multi-page only) */}
       {isMultiPage && (
         <div className="flex flex-col gap-1.5">
           <Label className="text-xs font-medium text-foreground-muted">Seiten auswählen</Label>
@@ -116,7 +110,6 @@ export function DownloadSection({
         </div>
       )}
 
-      {/* Progress bar */}
       {isMultiExporting && exportProgress && exportProgress.total > 0 && (
         <div className="relative w-full h-5 bg-grey-100 dark:bg-grey-800 rounded-full overflow-hidden">
           <div
@@ -129,7 +122,6 @@ export function DownloadSection({
         </div>
       )}
 
-      {/* Download button */}
       <Button
         variant="brand"
         className="w-full rounded-lg"

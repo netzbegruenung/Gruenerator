@@ -339,7 +339,8 @@ function BalkenGroupInner({
         contentHeight,
         getSnapTargets('balken-group') as unknown as SnapTarget[],
         stageWidth,
-        stageHeight
+        stageHeight,
+        snap.hysteresis
       );
 
       node.position({ x: result.x + contentWidth / 2, y: result.y + contentHeight / 2 });

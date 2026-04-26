@@ -1,5 +1,5 @@
 import { lazy, type ComponentType, type LazyExoticComponent, type FC, createElement } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useParams } from 'react-router-dom';
 
 import { isDesktopApp } from '../utils/platform';
 
@@ -18,10 +18,14 @@ export interface RouteConfig {
 }
 
 /**
- * Redirect components for deprecated routes
+ * Redirect components for deprecated routes. Preserves the current search
+ * string so links like `/image-studio?template=…` survive the hop to `/studio`.
  */
 const createRedirect = (to: string): FC<Record<string, unknown>> => {
-  return () => createElement(Navigate, { to, replace: true });
+  return () => {
+    const { search } = useLocation();
+    return createElement(Navigate, { to: { pathname: to, search }, replace: true });
+  };
 };
 
 // Redirects for /image-studio/* routes to /studio/*
@@ -160,6 +164,9 @@ const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
 const BoardsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/docs') }));
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
 const PublicBoardPage = lazy(() => import('../features/boards/PublicBoardPage'));
+const CollabCanvasStudioPage = lazy(
+  () => import('../features/image-studio/CollabCanvasStudioPage')
+);
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
 const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
 const MonitorPage = lazy(() => import('../features/monitor/MonitorPage'));
@@ -367,6 +374,9 @@ const standardRoutes: RouteConfig[] = [
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
   { path: '/studio/gallery', component: GrueneratorenBundle.ImageGallery, devOnly: true },
+  // Collaborative canvas — must come before /studio/:category so the literal
+  // "canvas" segment matches first instead of being interpreted as a category.
+  { path: '/studio/canvas/:id', component: CollabCanvasStudioPage, layoutMode: 'noChrome' },
   {
     path: '/studio/:category',
     component: GrueneratorenBundle.ImageStudio,

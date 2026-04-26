@@ -6,6 +6,8 @@ interface TypeCardProps {
   onKeyDown?: (e: React.KeyboardEvent) => void;
   previewImage?: string | null;
   previewImageFallback?: string;
+  /** Solid background color when no preview image exists (e.g. format picker). */
+  backgroundColor?: string;
   label: string;
   description?: string;
   isBeta?: boolean;
@@ -22,6 +24,7 @@ const TypeCard: React.FC<TypeCardProps> = ({
   onKeyDown,
   previewImage,
   previewImageFallback,
+  backgroundColor,
   label,
   description,
   isComingSoon = false,
@@ -39,6 +42,7 @@ const TypeCard: React.FC<TypeCardProps> = ({
       description={description}
       image={previewImage ?? undefined}
       imageFallback={previewImageFallback}
+      backgroundColor={backgroundColor}
       disabled={isComingSoon}
       variant={variant}
       badge={badge}
