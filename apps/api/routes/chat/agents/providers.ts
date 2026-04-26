@@ -7,7 +7,6 @@ import { createMistral } from '@ai-sdk/mistral';
 import { createOpenAI } from '@ai-sdk/openai';
 
 import { env } from '../../../config/env.js';
-import { litellmFetchWithThinkingDisabled } from '../../../services/ai/litellmThinkingFetch.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
 import { regoloFetchWithThinkingDisabled } from '../../../services/ai/regoloThinkingFetch.js';
 
@@ -30,69 +29,33 @@ export { isVisionCapable };
  * Maps user-facing model IDs to provider/model configurations.
  * contextWindow is in tokens — used by downstream context management to adapt budgets.
  */
-export interface ModelConfig {
-  provider: 'mistral' | 'litellm' | 'regolo';
-  model: string;
-  contextWindow: number;
-  /**
-   * User-facing model ID to fall back to when this model fails to produce
-   * output (first-token timeout, empty completion, or upstream HTTP error).
-   *
-   * Chinese-trained models (Qwen) intentionally have NO fallback. The user
-   * sees an explicit "Chinesisches Modell"-warning before selecting them
-   * (informed-consent boundary in chatStore.ts MODEL_OPTIONS); auto-routing
-   * either INTO or OUT OF Qwen would break that contract. Qwen failures must
-   * surface as errors so the user can choose to retry or switch manually.
-   */
-  fallback?: string;
-}
-
-export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
+export const AVAILABLE_MODELS: Record<
+  string,
+  { provider: 'mistral' | 'litellm' | 'regolo'; model: string; contextWindow: number }
+> = {
   // 'mistral' is intentionally absent — it uses agent defaults (like 'auto')
   // Legacy IDs kept for backward compatibility (old stored client preferences)
   'mistral-large': { provider: 'mistral', model: 'mistral-large-latest', contextWindow: 128000 },
   'mistral-medium': { provider: 'mistral', model: 'mistral-medium-latest', contextWindow: 128000 },
   'pixtral-large': { provider: 'mistral', model: 'pixtral-large-latest', contextWindow: 128000 },
-  litellm: {
-    provider: 'litellm',
-    model: 'gpt-oss:120b',
-    contextWindow: 16384,
-    fallback: 'gpt-oss-regolo',
-  },
+  litellm: { provider: 'litellm', model: 'gpt-oss:120b', contextWindow: 16384 },
   regolo: {
     provider: 'regolo',
     model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
     contextWindow: 32768,
   },
-  'gpt-oss-regolo': {
-    provider: 'regolo',
-    model: 'gpt-oss-120b',
-    contextWindow: 32768,
-    fallback: 'gemma-litellm',
-  },
-  // Chinese-trained models — no `fallback` field by design. See ModelConfig.
+  'gpt-oss-regolo': { provider: 'regolo', model: 'gpt-oss-120b', contextWindow: 32768 },
+  'gemma-regolo': { provider: 'regolo', model: 'gemma4-31b', contextWindow: 32768 },
   'qwen-regolo': { provider: 'regolo', model: 'qwen3.5-122b', contextWindow: 32768 },
-  'qwen3.6-regolo': { provider: 'regolo', model: 'qwen3.6-27b', contextWindow: 32768 },
 };
-
-const GEMMA_LITELLM: ModelConfig = {
-  provider: 'litellm',
-  model: 'gpt-oss:120b',
-  contextWindow: 32768,
-  fallback: 'gpt-oss-regolo',
-};
-AVAILABLE_MODELS['gemma-litellm'] = GEMMA_LITELLM;
-// Legacy ID — old persisted client state may still send 'gemma-regolo'.
-// Aliased to the LiteLLM-served gemma so requests don't hit Regolo's broken
-// gemma4-31b endpoint. ChatStore migration upgrades the persisted ID on next
-// page load.
-AVAILABLE_MODELS['gemma-regolo'] = GEMMA_LITELLM;
 
 /**
  * Get model configuration by user-facing model ID.
  * Returns null if model ID is not recognized.
  */
-export function getModelConfig(modelId: string): ModelConfig | null {
+export function getModelConfig(
+  modelId: string
+): { provider: 'mistral' | 'litellm' | 'regolo'; model: string; contextWindow: number } | null {
   return AVAILABLE_MODELS[modelId] || null;
 }
 
@@ -145,7 +108,6 @@ function getLiteLLMProvider() {
       baseURL: `${baseURL}/v1`,
       apiKey: env.LITELLM_API_KEY || '',
       name: 'litellm',
-      fetch: litellmFetchWithThinkingDisabled,
     });
   }
   return litellmInstance;
@@ -207,10 +169,9 @@ export function getModel(provider: string, modelId: string): LanguageModel {
       return model;
     }
     case 'litellm': {
-      const resolvedModel = modelId || LITELLM_DEFAULT_MODEL;
-      console.log(`[providers] Creating LiteLLM model: ${resolvedModel}`);
+      console.log(`[providers] Creating LiteLLM model with default: ${LITELLM_DEFAULT_MODEL}`);
       const litellm = getLiteLLMProvider();
-      const model = litellm.chat(resolvedModel);
+      const model = litellm.chat(LITELLM_DEFAULT_MODEL);
       console.log(`[providers] LiteLLM model created successfully`);
       return model;
     }
