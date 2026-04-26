@@ -399,13 +399,19 @@ export function GrueneratorChatProvider({
     useChatConfigStore.getState().configure(config);
   }
 
-  // Safety net: suppress "Thread not found" unhandled rejections from @assistant-ui
-  // internals (generateTitle, initialize, rename) that we can't intercept via onClick
+  // Safety net: suppress unhandled rejections from @assistant-ui internals
+  // (generateTitle, initialize, rename) that we can't intercept via onClick.
+  // - "Thread not found": optimistic rollback after a delete
+  // - "Unauthorized": stale cached userId triggers eager initialize() before
+  //   useAuth clears the session, then the 401 surfaces after redirect.
+  //   onUnauthorized() in chatConfig has already fired the redirect.
   useEffect(() => {
     const handler = (event: PromiseRejectionEvent) => {
-      if (event.reason instanceof Error && event.reason.message === 'Thread not found') {
+      if (!(event.reason instanceof Error)) return;
+      const msg = event.reason.message;
+      if (msg === 'Thread not found' || msg === 'Unauthorized') {
         event.preventDefault();
-        console.warn('[ThreadList] Suppressed unhandled "Thread not found" rejection');
+        console.warn(`[ThreadList] Suppressed unhandled "${msg}" rejection`);
       }
     };
     window.addEventListener('unhandledrejection', handler);
