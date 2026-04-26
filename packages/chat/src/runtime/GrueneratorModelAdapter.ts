@@ -11,6 +11,7 @@ import type {
   GeneratedImage,
   ChatProgress,
   Citation,
+  FallbackInfo,
   SearchResult,
   StreamMetadata,
   ProgressStep,
@@ -409,27 +410,38 @@ async function* parseSSEStream(
         }
 
         case 'sharepic_complete': {
-          const {
-            message,
-            canvasType,
-            initialProps,
-            alternatives,
-            error: sharepicError,
-          } = data as {
+          const payload = data as {
             message: string;
-            canvasType: string;
-            initialProps: Record<string, unknown>;
+            variants?: import('../hooks/useChatGraphStream').SharepicVariant[];
+            canvasType?: string;
+            initialProps?: Record<string, unknown>;
             alternatives?: unknown[];
             error?: string;
           };
-          if (!sharepicError && canvasType && initialProps) {
-            receivedSharepicData = { canvasType, initialProps, alternatives };
+          if (!payload.error) {
+            if (payload.variants && payload.variants.length > 0) {
+              receivedSharepicData = { variants: payload.variants };
+            } else if (payload.canvasType && payload.initialProps) {
+              const legacyId =
+                typeof crypto !== 'undefined' && 'randomUUID' in crypto
+                  ? crypto.randomUUID()
+                  : `legacy-${Date.now()}`;
+              receivedSharepicData = {
+                variants: [
+                  {
+                    id: legacyId,
+                    canvasType: payload.canvasType,
+                    initialProps: payload.initialProps,
+                  },
+                ],
+              };
+            }
           }
-          transitionStep(sharepicError ? 'error' : 'generating');
+          transitionStep(payload.error ? 'error' : 'generating');
           currentProgress = {
             ...currentProgress,
-            stage: sharepicError ? 'error' : 'generating',
-            message,
+            stage: payload.error ? 'error' : 'generating',
+            message: payload.message,
           };
           yield buildResult();
           break;
@@ -500,6 +512,15 @@ async function* parseSSEStream(
             lastYieldTime = now;
             yield buildResult();
           }
+          break;
+        }
+
+        case 'fallback': {
+          // Server switched models silently — log only, no UI.
+          const info = data as FallbackInfo;
+          console.warn(
+            `[GrueneratorModelAdapter] Model fallback: ${info.from.id} → ${info.to.id} (${info.reason})`
+          );
           break;
         }
 
