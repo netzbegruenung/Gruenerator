@@ -14,6 +14,7 @@ export interface RouteConfig {
   withForm?: boolean;
   layoutMode?: LayoutMode;
   auth?: 'required' | 'guest';
+  devOnly?: boolean;
 }
 
 /**
@@ -350,23 +351,33 @@ const standardRoutes: RouteConfig[] = [
   { path: '/apps', component: AppsPage },
   // Media Library Route
   { path: '/media-library', component: MediaLibraryPage },
-  // Legacy /image-studio/* redirects to /studio/*
-  { path: '/image-studio', component: ImageStudioRedirect },
-  { path: '/image-studio/:category', component: ImageStudioCategoryRedirect },
-  { path: '/image-studio/:category/:type', component: ImageStudioCategoryTypeRedirect },
+  // Legacy /image-studio/* redirects to /studio/* (dev-only — target is sharepics)
+  { path: '/image-studio', component: ImageStudioRedirect, devOnly: true },
+  { path: '/image-studio/:category', component: ImageStudioCategoryRedirect, devOnly: true },
+  {
+    path: '/image-studio/:category/:type',
+    component: ImageStudioCategoryTypeRedirect,
+    devOnly: true,
+  },
   // Studio Routes - KI routes redirect to /imagine
   { path: '/imagine', component: ImaginePage, withForm: true },
   { path: '/imagine/:type', component: ImaginePage, withForm: true },
-  { path: '/studio', component: GrueneratorenBundle.ImageStudio, withForm: true },
+  { path: '/studio', component: GrueneratorenBundle.ImageStudio, withForm: true, devOnly: true },
   { path: '/studio/ki', component: ImageStudioKiRedirect },
   { path: '/studio/ki/:type', component: ImageStudioKiTypeRedirect },
   { path: '/studio/video', component: GrueneratorenBundle.Reel },
-  { path: '/studio/gallery', component: GrueneratorenBundle.ImageGallery },
-  { path: '/studio/:category', component: GrueneratorenBundle.ImageStudio, withForm: true },
+  { path: '/studio/gallery', component: GrueneratorenBundle.ImageGallery, devOnly: true },
+  {
+    path: '/studio/:category',
+    component: GrueneratorenBundle.ImageStudio,
+    withForm: true,
+    devOnly: true,
+  },
   {
     path: '/studio/:category/:type',
     component: GrueneratorenBundle.ImageStudio,
     withForm: true,
+    devOnly: true,
   },
   // Pages Feature Routes
   // Docs: overview and editor
@@ -394,10 +405,12 @@ export interface Routes {
   special: RouteConfig[];
 }
 
+const enabledRoutes = standardRoutes.filter((r) => !r.devOnly || import.meta.env.DEV);
+
 export const routes: Routes = {
-  guest: standardRoutes.filter((r) => r.auth === 'guest'),
-  protected: standardRoutes.filter((r) => r.auth === 'required'),
-  public: standardRoutes.filter((r) => !r.auth),
+  guest: enabledRoutes.filter((r) => r.auth === 'guest'),
+  protected: enabledRoutes.filter((r) => r.auth === 'required'),
+  public: enabledRoutes.filter((r) => !r.auth),
   special: specialRoutes,
 };
 
