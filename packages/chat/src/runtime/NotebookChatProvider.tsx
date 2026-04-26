@@ -15,6 +15,7 @@ import {
   createNotebookModelAdapter,
   type NotebookAdapterConfig,
   type NotebookMessageMetadata,
+  type SharepicContextConfig,
 } from './NotebookModelAdapter';
 
 interface NotebookCollection {
@@ -22,6 +23,14 @@ interface NotebookCollection {
   name: string;
   linkType?: string;
 }
+
+/**
+ * Re-exported from NotebookModelAdapter so consumers can import the type
+ * alongside `NotebookChatProvider`. Used by the canvas-editor's in-section
+ * chat to auto-include the rendered sharepic image, structured text, and a
+ * custom system prompt on every message.
+ */
+export type SharepicContext = SharepicContextConfig;
 
 export interface NotebookChatProviderProps {
   children: ReactNode;
@@ -38,6 +47,8 @@ export interface NotebookChatProviderProps {
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
+  /** Optional sharepic context auto-attached to every message (canvas-editor chat). */
+  sharepicContext?: SharepicContext;
 }
 
 /**
@@ -64,6 +75,7 @@ function NotebookChatProviderInner({
   endpoint,
   documentIds,
   threadId: initialThreadId,
+  sharepicContext,
 }: NotebookChatProviderProps) {
   const isMulti = collections.length > 1;
   // Refs for all config inputs so the adapter — and therefore the AUI runtime
@@ -90,6 +102,8 @@ function NotebookChatProviderInner({
   endpointRef.current = endpoint;
   const documentIdsRef = useRef(documentIds);
   documentIdsRef.current = documentIds;
+  const sharepicContextRef = useRef(sharepicContext);
+  sharepicContextRef.current = sharepicContext;
 
   const handleThreadCreated = useCallback(
     (newThreadId: string) => {
@@ -112,6 +126,7 @@ function NotebookChatProviderInner({
       endpoint: endpointRef.current,
       documentIds: documentIdsRef.current,
       threadId: threadIdRef.current,
+      sharepicContext: sharepicContextRef.current,
     };
   }, []);
 
