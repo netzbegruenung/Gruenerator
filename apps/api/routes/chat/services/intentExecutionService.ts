@@ -17,15 +17,13 @@ import {
   buildCitations,
 } from '../../../agents/langgraph/ChatGraph/index.js';
 import { env } from '../../../config/env.js';
-import {
-  generateSharepicForChat,
-  type ExpressRequest as SharepicExpressRequest,
-} from '../../../services/chat/sharepicGenerationService.js';
+import { type ExpressRequest as SharepicExpressRequest } from '../../../services/chat/sharepicGenerationService.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import { extractTextContent } from './messageHelpers.js';
 import { pendingActionStore } from './pendingActionStore.js';
+import { generateSharepicVariants } from './sharepicVariantHelpers.js';
 import { PROGRESS_MESSAGES } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
@@ -494,68 +492,36 @@ export async function executeIntentPipeline(opts: {
         }
       }
     } else if (currentIntent === 'sharepic') {
-      sse.send('image_start', { message: 'Erstelle Sharepic...' });
+      sse.send('image_start', { message: 'Erstelle Sharepic-Varianten...' });
       try {
-        const sharepicType = finalState.contentType || 'dreizeilen';
-        const message = finalState.messages?.[finalState.messages.length - 1]?.content || '';
-        const messageText = typeof message === 'string' ? message : '';
+        const lastMsg = finalState.messages?.[finalState.messages.length - 1];
+        const rawText = lastMsg ? extractTextContent(lastMsg.content) : '';
+        const messageText = rawText.replace(/@sharepic\b/gi, '').trim();
+        log.info(`[ChatGraph] Sharepic topic: "${messageText.slice(0, 100)}"`);
 
         if (!opts.req) throw new Error('Express request required for sharepic generation');
-        const result = await generateSharepicForChat(
-          opts.req as SharepicExpressRequest,
-          sharepicType,
-          {
-            text: messageText,
-            subject: messageText,
-            count: 1,
-          }
-        );
+        const variants = await generateSharepicVariants({
+          req: opts.req as SharepicExpressRequest,
+          text: messageText,
+        });
 
-        if (result.success) {
-          const { sharepic } = result.content;
-          const canvasTypeMap: Record<string, string> = {
-            info: 'info',
-            zitat_pure: 'zitat-pure',
-            zitat: 'zitat',
-            dreizeilen: 'dreizeilen',
-          };
-          const canvasType = canvasTypeMap[sharepic.type] || 'dreizeilen';
-
-          const initialProps: Record<string, unknown> = {};
-          if (sharepic.textData) {
-            if (sharepic.type === 'dreizeilen') {
-              initialProps.zeile1 = sharepic.textData.line1 || '';
-              initialProps.zeile2 = sharepic.textData.line2 || '';
-              initialProps.zeile3 = sharepic.textData.line3 || '';
-            } else if (sharepic.type === 'zitat_pure' || sharepic.type === 'zitat') {
-              initialProps.quote = sharepic.textData.quote || '';
-              initialProps.name = sharepic.textData.name || '';
-            } else if (sharepic.type === 'info') {
-              initialProps.headline = sharepic.textData.header || '';
-              initialProps.subtext = sharepic.textData.subheader || sharepic.textData.body || '';
-            }
-          }
-
+        if (variants.length === 0) {
           sse.send('sharepic_complete', {
-            message: 'Sharepic erstellt',
-            canvasType,
-            initialProps,
-            alternatives: (sharepic.alternatives as unknown[]) || [],
+            message: 'Sharepic-Erstellung fehlgeschlagen',
+            variants: [],
+            error: 'All variant generations failed',
           });
         } else {
           sse.send('sharepic_complete', {
-            message: 'Sharepic-Erstellung fehlgeschlagen',
-            canvasType: 'dreizeilen',
-            initialProps: {},
-            error: 'Generation failed',
+            message: `${variants.length} Sharepic-Varianten erstellt`,
+            variants,
           });
         }
       } catch (error) {
-        log.error('[ChatGraph] Sharepic generation failed:', error);
+        log.error('[ChatGraph] Sharepic variant generation failed:', error);
         sse.send('sharepic_complete', {
           message: 'Sharepic-Erstellung fehlgeschlagen',
-          canvasType: 'dreizeilen',
-          initialProps: {},
+          variants: [],
           error: error instanceof Error ? error.message : 'Unknown error',
         });
       }

@@ -5,6 +5,7 @@
  * Used by chat controllers to provide real-time feedback during AI processing.
  */
 
+import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type {
   SearchIntent,
   SearchSource,
@@ -107,9 +108,7 @@ export interface SSEEventPayloads {
   };
   sharepic_complete: {
     message: string;
-    canvasType: string;
-    initialProps: Record<string, unknown>;
-    alternatives?: unknown[];
+    variants: SharepicVariant[];
     error?: string;
   };
   response_start: { message: string };
