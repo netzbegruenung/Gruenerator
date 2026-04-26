@@ -23,11 +23,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@blocknote/core": "^0.47.3",
-    "@blocknote/react": "^0.47.3",
-    "@blocknote/shadcn": "^0.47.3",
-    "@blocknote/xl-ai": "^0.47.3",
-    "@blocknote/xl-docx-exporter": "^0.47.3",
+    "@blocknote/core": "^0.49.0",
+    "@blocknote/react": "^0.49.0",
+    "@blocknote/shadcn": "^0.49.0",
+    "@blocknote/xl-ai": "^0.49.0",
+    "@blocknote/xl-docx-exporter": "^0.49.0",
     "@floating-ui/react": "^0.27.19",
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/ui": "workspace:*",
