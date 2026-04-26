@@ -106,6 +106,9 @@ export {
   type FetchFullTextFn,
 } from './context/CitationContext';
 
+// Markdown streaming animation toggle (per-thread)
+export { MarkdownStreamingProvider, useMarkdownSmooth } from './context/MarkdownStreamingContext';
+
 // Citation Panel (chunk-level navigation)
 export {
   CitationPanelProvider,
