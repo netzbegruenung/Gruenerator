@@ -1,20 +1,32 @@
 /**
  * useMediaLibrary hook
- * React Query-based hook for fetching and managing media library
  *
- * Note: This hook requires @tanstack/react-query to be installed in the consuming app.
- * It uses the global API client configured by the platform.
+ * Auto-fetching media library backed by @tanstack/react-query's useInfiniteQuery.
+ * Offset-based pagination via pageParam; mutations splice cached pages in place.
+ *
+ * Requires @tanstack/react-query (declared as peerDependency on this package)
+ * and a QueryClientProvider mounted in the consuming app.
  */
 
-import { useState, useCallback } from 'react';
+import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
+import { useCallback, useMemo, useState } from 'react';
 
 import { mediaApi } from '../api/index.js';
 import { DEFAULT_PAGINATION } from '../constants.js';
 
-import type { MediaItem, MediaFilters, MediaPagination, MediaListResponse } from '../types.js';
+import type {
+  MediaFilters,
+  MediaItem,
+  MediaListResponse,
+  MediaPagination,
+  MediaUpdateParams,
+} from '../types.js';
+
+export const MEDIA_LIBRARY_QUERY_KEY = ['media-library'] as const;
 
 interface UseMediaLibraryOptions {
   initialFilters?: MediaFilters;
+  enabled?: boolean;
 }
 
 interface UseMediaLibraryReturn {
@@ -27,120 +39,149 @@ interface UseMediaLibraryReturn {
   refetch: () => Promise<void>;
   loadMore: () => Promise<void>;
   deleteItem: (id: string) => Promise<boolean>;
-  updateItem: (id: string, updates: { title?: string; altText?: string }) => Promise<boolean>;
+  updateItem: (id: string, updates: MediaUpdateParams) => Promise<boolean>;
 }
 
-/**
- * Hook for managing media library state and operations
- * Uses manual state management for compatibility across platforms
- */
+const initialPagination: MediaPagination = {
+  total: 0,
+  limit: DEFAULT_PAGINATION.limit,
+  offset: 0,
+  hasMore: false,
+};
+
 export function useMediaLibrary(options: UseMediaLibraryOptions = {}): UseMediaLibraryReturn {
-  const [items, setItems] = useState<MediaItem[]>([]);
-  const [pagination, setPagination] = useState<MediaPagination>({
-    total: 0,
-    limit: DEFAULT_PAGINATION.limit,
-    offset: 0,
-    hasMore: false,
-  });
-  const [filters, setFiltersState] = useState<MediaFilters>({
+  const queryClient = useQueryClient();
+
+  const [filters, setFiltersState] = useState<MediaFilters>(() => ({
     type: 'all',
     sort: 'newest',
     limit: DEFAULT_PAGINATION.limit,
-    offset: 0,
     ...options.initialFilters,
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  }));
 
-  const fetchMedia = useCallback(async (currentFilters: MediaFilters, append = false) => {
-    setIsLoading(true);
-    setError(null);
+  const enabled = options.enabled ?? true;
 
-    try {
-      const response: MediaListResponse = await mediaApi.getMediaLibrary(currentFilters);
-
-      if (response.success) {
-        setItems((prev) => (append ? [...prev, ...response.data] : response.data));
-        setPagination(response.pagination);
-      } else {
-        throw new Error(response.error || 'Failed to fetch media');
+  const query = useInfiniteQuery<MediaListResponse, Error, InfiniteData<MediaListResponse>>({
+    queryKey: [
+      ...MEDIA_LIBRARY_QUERY_KEY,
+      filters.type,
+      filters.search,
+      filters.sort,
+      filters.limit,
+    ],
+    queryFn: async ({ pageParam }) => {
+      const response = await mediaApi.getMediaLibrary({
+        ...filters,
+        offset: pageParam as number,
+      });
+      if (!response.success) {
+        throw new Error(response.error ?? 'Failed to fetch media');
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch media';
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const setFilters = useCallback(
-    (newFilters: Partial<MediaFilters>) => {
-      const updatedFilters = { ...filters, ...newFilters, offset: 0 };
-      setFiltersState(updatedFilters);
-      void fetchMedia(updatedFilters);
+      return response;
     },
-    [filters, fetchMedia]
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.pagination.hasMore
+        ? lastPage.pagination.offset + lastPage.pagination.limit
+        : undefined,
+    enabled,
+  });
+
+  const items = useMemo<MediaItem[]>(
+    () => query.data?.pages.flatMap((page) => page.data) ?? [],
+    [query.data]
   );
 
-  const refetch = useCallback(async () => {
-    await fetchMedia({ ...filters, offset: 0 });
-  }, [filters, fetchMedia]);
+  const pagination = useMemo<MediaPagination>(() => {
+    const lastPage = query.data?.pages.at(-1);
+    return lastPage?.pagination ?? initialPagination;
+  }, [query.data]);
 
-  const loadMore = useCallback(async () => {
-    if (!pagination.hasMore || isLoading) return;
-
-    const newOffset = pagination.offset + pagination.limit;
-    const updatedFilters = { ...filters, offset: newOffset };
-    setFiltersState(updatedFilters);
-    await fetchMedia(updatedFilters, true);
-  }, [filters, pagination, isLoading, fetchMedia]);
-
-  const deleteItem = useCallback(async (id: string): Promise<boolean> => {
-    try {
-      const response = await mediaApi.deleteMedia(id);
-      if (response.success) {
-        setItems((prev) => prev.filter((item) => item.id !== id));
-        setPagination((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
-        return true;
-      }
-      return false;
-    } catch {
-      return false;
-    }
+  const setFilters = useCallback((patch: Partial<MediaFilters>) => {
+    setFiltersState((prev) => ({ ...prev, ...patch }));
   }, []);
 
-  const updateItem = useCallback(
-    async (id: string, updates: { title?: string; altText?: string }): Promise<boolean> => {
+  const refetch = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: MEDIA_LIBRARY_QUERY_KEY });
+  }, [queryClient]);
+
+  const loadMore = useCallback(async () => {
+    if (!query.hasNextPage || query.isFetchingNextPage) return;
+    await query.fetchNextPage();
+  }, [query]);
+
+  const deleteItem = useCallback(
+    async (id: string): Promise<boolean> => {
       try {
-        const response = await mediaApi.updateMedia(id, updates);
-        if (response.success) {
-          setItems((prev) =>
-            prev.map((item) =>
-              item.id === id
-                ? {
-                    ...item,
-                    title: updates.title ?? item.title,
-                    altText: updates.altText ?? item.altText,
-                  }
-                : item
-            )
-          );
-          return true;
-        }
-        return false;
+        const response = await mediaApi.deleteMedia(id);
+        if (!response.success) return false;
+
+        queryClient.setQueriesData<InfiniteData<MediaListResponse>>(
+          { queryKey: MEDIA_LIBRARY_QUERY_KEY },
+          (old) =>
+            old
+              ? {
+                  ...old,
+                  pages: old.pages.map((page) => ({
+                    ...page,
+                    data: page.data.filter((item) => item.id !== id),
+                    pagination: {
+                      ...page.pagination,
+                      total: Math.max(0, page.pagination.total - 1),
+                    },
+                  })),
+                }
+              : old
+        );
+        return true;
       } catch {
         return false;
       }
     },
-    []
+    [queryClient]
+  );
+
+  const updateItem = useCallback(
+    async (id: string, updates: MediaUpdateParams): Promise<boolean> => {
+      try {
+        const response = await mediaApi.updateMedia(id, updates);
+        if (!response.success) return false;
+
+        queryClient.setQueriesData<InfiniteData<MediaListResponse>>(
+          { queryKey: MEDIA_LIBRARY_QUERY_KEY },
+          (old) =>
+            old
+              ? {
+                  ...old,
+                  pages: old.pages.map((page) => ({
+                    ...page,
+                    data: page.data.map((item) =>
+                      item.id === id
+                        ? {
+                            ...item,
+                            ...(updates.title !== undefined && { title: updates.title }),
+                            ...(updates.altText !== undefined && { altText: updates.altText }),
+                          }
+                        : item
+                    ),
+                  })),
+                }
+              : old
+        );
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [queryClient]
   );
 
   return {
     items,
     pagination,
     filters,
-    isLoading,
-    error,
+    isLoading: query.isLoading || query.isFetchingNextPage,
+    error: query.error?.message ?? null,
     setFilters,
     refetch,
     loadMore,

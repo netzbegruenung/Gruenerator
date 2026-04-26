@@ -41,7 +41,6 @@ export const CanvasMobileTabBar = memo(function CanvasMobileTabBar() {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
         const isDisabled = disabledTabs.includes(tab.id);
-        const isAlternativesLoading = tab.id === 'alternatives' && isDisabled;
 
         return (
           <button
@@ -51,8 +50,7 @@ export const CanvasMobileTabBar = memo(function CanvasMobileTabBar() {
               isActive
                 ? 'bg-[#E8F5EE] text-[#005538] dark:bg-primary-900/40 dark:text-primary-200'
                 : 'text-grey-500 dark:text-grey-400',
-              isDisabled && 'opacity-40 cursor-not-allowed',
-              isAlternativesLoading && 'animate-canvas-pulse'
+              isDisabled && 'opacity-40 cursor-not-allowed'
             )}
             onClick={() => handleTabClick(tab.id as SidebarTabId)}
             disabled={isDisabled}

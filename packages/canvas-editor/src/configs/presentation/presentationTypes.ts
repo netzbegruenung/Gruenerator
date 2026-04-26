@@ -67,9 +67,7 @@ export interface PresentationSlideState extends BaseCanvasState {
 // ============================================================================
 
 export interface PresentationSlideActions
-  extends BaseCanvasActions,
-    ImageBackgroundActions,
-    ColorBackgroundActions {
+  extends BaseCanvasActions, ImageBackgroundActions, ColorBackgroundActions {
   // Text setters
   setTitle: (val: string) => void;
   setSubtitle: (val: string) => void;
@@ -134,7 +132,6 @@ export function createPresentationInitialState(
     // Base state
     assetInstances: [],
     isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-    alternatives: (props.alternatives as string[]) || [],
     selectedIcons: [],
     iconStates: {},
     shapeInstances: [],

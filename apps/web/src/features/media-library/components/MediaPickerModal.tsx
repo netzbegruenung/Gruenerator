@@ -1,6 +1,6 @@
 import { useMediaLibrary, useMediaUpload, useMediaPicker } from '@gruenerator/shared/media-library';
 import { Button } from '@gruenerator/ui';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { FaImage, FaVideo, FaCheck, FaTimes, FaUpload } from 'react-icons/fa';
 
 import { cn } from '../../../utils/cn';
@@ -20,20 +20,11 @@ const MediaPickerModal: React.FC = () => {
     confirmSelection,
   } = useMediaPicker();
 
-  const { items, pagination, isLoading, setFilters, refetch, loadMore } = useMediaLibrary({
+  const { items, pagination, isLoading, setFilters, loadMore } = useMediaLibrary({
     initialFilters: { type: mediaTypeFilter },
   });
 
-  const { upload, isUploading, progress } = useMediaUpload({
-    onSuccess: () => refetch(),
-  });
-
-  useEffect(() => {
-    if (isOpen) {
-      setFilters({ type: mediaTypeFilter });
-      void refetch();
-    }
-  }, [isOpen, mediaTypeFilter]);
+  const { upload, isUploading, progress } = useMediaUpload();
 
   const handleFileUpload = async (files: FileList | null) => {
     if (!files) return;

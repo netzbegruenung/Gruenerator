@@ -39,17 +39,6 @@ export interface ImageStudioFormSectionProps {
   updateFormData: (data: FormDataUpdate) => void;
 }
 
-// Slogan alternative type for text generation results
-export interface SloganAlternative {
-  line1?: string;
-  line2?: string;
-  line3?: string;
-  quote?: string;
-  header?: string;
-  subheader?: string;
-  body?: string;
-}
-
 // URL type map keys
 export type UrlTypeMapKey =
   | 'dreizeilen'

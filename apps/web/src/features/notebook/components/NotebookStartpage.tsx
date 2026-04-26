@@ -142,7 +142,7 @@ export function NotebookStartpage({
               className={cn(pillBase, activeView === 'globalChat' ? pillActive : pillInactive)}
               aria-pressed={activeView === 'globalChat'}
             >
-              Globaler Chat
+              Chat
             </button>
           )}
         </div>

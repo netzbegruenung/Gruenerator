@@ -35,7 +35,6 @@ export type {
   SelectOption,
   Endpoints,
   ResponseMapper,
-  AlternativesMapper,
 } from './types';
 
 // Export variant system

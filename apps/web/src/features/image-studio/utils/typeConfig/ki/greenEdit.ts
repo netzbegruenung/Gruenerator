@@ -74,7 +74,6 @@ export const greenEditFieldConfig: TemplateFieldConfig = {
   showFontSizeControl: false,
   showAdvancedEditing: false,
   showCredit: false,
-  showAlternatives: false,
   showEditPanel: false,
   showAutoSave: true,
   showSocialGeneration: true,

@@ -20,16 +20,9 @@ import type { AdditionalText, LayoutResult } from '../types';
 // SHARED STATE TYPES
 // ============================================================================
 
-/** Generic alternative type - can be string or structured object */
-export type AlternativeItem =
-  | string
-  | { headline: string; subtext: string }
-  | { line1: string; line2: string; line3: string };
-
 /** Base state shared by ALL canvas templates */
 export interface BaseCanvasState {
   isDesktop: boolean;
-  alternatives: AlternativeItem[];
   assetInstances: AssetInstance[];
   selectedIcons: string[];
   iconStates: Record<string, IconState>;
@@ -141,9 +134,6 @@ export interface BaseCanvasActions {
   addUserImage: (file: File, objectUrl: string) => void;
   updateUserImage: (id: string, partial: Partial<UserImageInstance>) => void;
   removeUserImage: (id: string) => void;
-
-  // Alternatives
-  handleSelectAlternative: (alt: AlternativeItem) => void;
 }
 
 /** Actions for image background templates */

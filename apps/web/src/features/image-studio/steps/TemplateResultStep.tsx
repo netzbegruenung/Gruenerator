@@ -1,9 +1,4 @@
-import {
-  ControllableCanvasWrapper,
-  type CanvasConfigId,
-  type DreizeilenAlternative,
-  type InitialPageDef,
-} from '@gruenerator/canvas-editor';
+import { ControllableCanvasWrapper } from '@gruenerator/canvas-editor';
 import { useShareStore } from '@gruenerator/shared/share';
 import { Button } from '@gruenerator/ui';
 import { motion } from 'motion/react';
@@ -13,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { Markdown } from '../../../components/common/Markdown';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
+import apiClient from '../../../components/utils/apiClient';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { cn } from '../../../utils/cn';
 import { AiHistoryTimeline } from '../components/AiHistoryTimeline';
@@ -22,12 +18,11 @@ import { TemplateResultActionButtons } from '../components/TemplateResultActionB
 import { useAiEditorHistory } from '../hooks/useAiEditorHistory';
 import { useAutoSaveStore } from '../hooks/useAutoSaveStore';
 import { useEditPanel } from '../hooks/useEditPanel';
-import { useImageGeneration } from '../hooks/useImageGeneration';
 import { useImageHelpers } from '../hooks/useImageHelpers';
 import { useLightbox } from '../hooks/useLightbox';
 import { useTemplateResultActions } from '../hooks/useTemplateResultActions';
 import { useTemplateResultAutoSave } from '../hooks/useTemplateResultAutoSave';
-import { getAlternativePreview, buildPreviewValues } from '../utils/templateResultUtils';
+import { buildPreviewValues } from '../utils/templateResultUtils';
 import {
   getTypeConfig,
   getTemplateFieldConfig,
@@ -37,8 +32,6 @@ import {
 
 import type {
   TemplateResultStepProps,
-  SloganAlternativeWithIndex,
-  SloganAlternative,
   VeranstaltungFieldFontSizes,
 } from '../types/templateResultTypes';
 
@@ -63,7 +56,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     type,
     category,
     subcategory,
-    thema,
     generatedImageSrc,
     line1,
     line2,
@@ -95,13 +87,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     updateFormData,
     setCurrentStep,
     goBack,
-    sloganAlternatives,
-    setSloganAlternatives,
-    handleSloganSelect,
-    cacheSloganImage,
-    getCachedSloganImage,
-    currentAlternativeIndex,
-    setCurrentAlternativeIndex,
     isAdvancedEditingOpen,
     toggleAdvancedEditing,
     galleryEditMode,
@@ -122,8 +107,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     isOpen: isEditPanelOpen,
     openPanel: openEditPanel,
     closePanel: closeEditPanel,
-    isAlternativesOpen,
-    setIsAlternativesOpen,
   } = useEditPanel();
   const { currentImagePreview, buildShareMetadata, getOriginalImageBase64 } = useImageHelpers();
   const {
@@ -143,8 +126,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
 
   useTemplateResultAutoSave();
 
-  const { generateAlternatives, alternativesLoading } = useImageGeneration();
-
   // AI Editor history (undo/redo)
   const isAiEditor = typeConfig?.hasAiEditor === true;
   const { undo, redo, canUndo, canRedo } = useAiEditorHistory();
@@ -162,6 +143,65 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
         : false,
     [type]
   );
+
+  const [savingCollabCanvas, setSavingCollabCanvas] = useState(false);
+  const handleSaveAsCollabCanvas = useCallback(async () => {
+    if (!type) return;
+    setSavingCollabCanvas(true);
+    try {
+      const initial_state: Record<string, unknown> = {
+        line1,
+        line2,
+        line3,
+        quote,
+        name,
+        header,
+        subheader,
+        body,
+        headline,
+        subtext,
+        label,
+        eventTitle,
+        beschreibung,
+        weekday,
+        date,
+        time,
+        locationName,
+        address,
+      };
+      const res = await apiClient.post<{ id: string }>('/canvas', {
+        title: 'Neuer Canvas',
+        template_type: type,
+        initial_state,
+      });
+      void navigate(`/studio/canvas/${res.data.id}`);
+    } catch (err) {
+      console.error('[TemplateResultStep] Failed to save as collab canvas:', err);
+    } finally {
+      setSavingCollabCanvas(false);
+    }
+  }, [
+    type,
+    navigate,
+    line1,
+    line2,
+    line3,
+    quote,
+    name,
+    header,
+    subheader,
+    body,
+    headline,
+    subtext,
+    label,
+    eventTitle,
+    beschreibung,
+    weekday,
+    date,
+    time,
+    locationName,
+    address,
+  ]);
 
   const handleCanvasExport = useCallback(
     (base64: string) => {
@@ -205,7 +245,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
       uploadedImage: null,
       selectedImage: null,
       generatedImageSrc: null,
-      sloganAlternatives: [],
       searchTerms: [],
     });
 
@@ -249,14 +288,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
               line2: line2 || '',
               line3: line3 || '',
               currentImageSrc: uploadedImageUrl || '',
-              alternatives: sloganAlternatives.map(
-                (alt, index): DreizeilenAlternative => ({
-                  id: `alt-${index}`,
-                  line1: alt.line1 || '',
-                  line2: alt.line2 || '',
-                  line3: alt.line3 || '',
-                })
-              ),
             }}
             imageSrc={uploadedImageUrl}
             onExport={handleCanvasExport}
@@ -270,7 +301,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             initialState={{
               quote: quote || '',
               name: name || '',
-              alternatives: sloganAlternatives?.map((a: SloganAlternative) => a.quote || '') || [],
             }}
             imageSrc={uploadedImageUrl || ''}
             onExport={handleCanvasExport}
@@ -284,7 +314,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             initialState={{
               quote: quote || '',
               name: name || '',
-              alternatives: sloganAlternatives?.map((a: SloganAlternative) => a.quote || '') || [],
             }}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
@@ -297,7 +326,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             initialState={{
               header: header || '',
               body: body || '',
-              alternatives: sloganAlternatives || [],
             }}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
@@ -315,7 +343,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
               time: time || '',
               locationName: locationName || '',
               address: address || '',
-              alternatives: sloganAlternatives || [],
             }}
             imageSrc={uploadedImageUrl || ''}
             onExport={handleCanvasExport}
@@ -330,36 +357,9 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
               label: label || '',
               headline: headline || '',
               subtext: subtext || '',
-              alternatives: sloganAlternatives || [],
             }}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
-            initialPages={
-              sloganAlternatives && sloganAlternatives.length > 0
-                ? [
-                    {
-                      configId: 'slider' as CanvasConfigId,
-                      state: {
-                        label: label || '',
-                        headline: headline || '',
-                        subtext: subtext || '',
-                        slideVariant: 'cover',
-                      },
-                    },
-                    ...sloganAlternatives.slice(1).map(
-                      (alt: SloganAlternative, index: number): InitialPageDef => ({
-                        configId: 'slider' as CanvasConfigId,
-                        state: {
-                          label: alt.label || 'Wusstest du?',
-                          headline: alt.headline || '',
-                          subtext: alt.subtext || '',
-                          slideVariant: index < sloganAlternatives.length - 2 ? 'content' : 'cover',
-                        },
-                      })
-                    ),
-                  ]
-                : undefined
-            }
           />
         );
       case IMAGE_STUDIO_TYPES.FREEFORM:
@@ -394,12 +394,10 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     locationName,
     address,
     uploadedImageUrl,
-    sloganAlternatives,
     handleCanvasExport,
     handleCanvasCancel,
   ]);
 
-  const stableAlternativesRef = useRef<SloganAlternativeWithIndex[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const previewValues = useMemo(
@@ -436,29 +434,11 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     ]
   );
 
-  if (stableAlternativesRef.current === null && sloganAlternatives?.length > 0) {
-    stableAlternativesRef.current = sloganAlternatives.map(
-      (alt: SloganAlternative, idx: number) =>
-        ({
-          ...alt,
-          _index: idx,
-        }) as unknown as SloganAlternativeWithIndex
-    );
-  }
-
-  const displayAlternatives: SloganAlternativeWithIndex[] = stableAlternativesRef.current || [];
-
   useEffect(() => {
     setIsNewImage(true);
     const timer = setTimeout(() => setIsNewImage(false), 1000);
     return () => clearTimeout(timer);
   }, [generatedImageSrc]);
-
-  useEffect(() => {
-    if (generatedImageSrc) {
-      cacheSloganImage(currentAlternativeIndex, generatedImageSrc);
-    }
-  }, [generatedImageSrc, currentAlternativeIndex, cacheSloganImage]);
 
   useEffect(() => {
     const checkShareCapability = async () => {
@@ -481,33 +461,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     };
     void checkShareCapability();
   }, []);
-
-  const handleSloganSwitch = useCallback(
-    (selected: SloganAlternative, alternativeIndex: number) => {
-      cacheSloganImage(currentAlternativeIndex, generatedImageSrc);
-      const cachedImage = getCachedSloganImage(alternativeIndex);
-      handleSloganSelect(selected);
-      setCurrentAlternativeIndex(alternativeIndex);
-
-      if (cachedImage) {
-        updateFormData({ generatedImageSrc: cachedImage });
-      } else {
-        onRegenerate();
-      }
-      setIsAlternativesOpen(false);
-    },
-    [
-      cacheSloganImage,
-      getCachedSloganImage,
-      handleSloganSelect,
-      setCurrentAlternativeIndex,
-      currentAlternativeIndex,
-      generatedImageSrc,
-      updateFormData,
-      onRegenerate,
-      setIsAlternativesOpen,
-    ]
-  );
 
   const handleControlChange = useCallback(
     (controlName: string, value: unknown) => {
@@ -548,22 +501,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     },
     [updateFormData]
   );
-
-  const handleGenerateAlternatives = useCallback(async () => {
-    if (!type) return;
-
-    const result = await generateAlternatives(type, { thema, name, quote });
-    if (result?.alternatives && result.alternatives.length > 0) {
-      setSloganAlternatives(result.alternatives);
-      stableAlternativesRef.current = result.alternatives.map(
-        (alt, idx) =>
-          ({
-            ...alt,
-            _index: idx,
-          }) as unknown as SloganAlternativeWithIndex
-      );
-    }
-  }, [type, thema, name, quote, generateAlternatives, setSloganAlternatives]);
 
   if (!generatedImageSrc && !supportsCanvas) {
     if (loading) {
@@ -608,6 +545,16 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
+        <div className="w-full flex justify-end px-md py-xs">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleSaveAsCollabCanvas}
+            disabled={savingCollabCanvas}
+          >
+            {savingCollabCanvas ? 'Speichere...' : 'Gemeinsam bearbeiten'}
+          </Button>
+        </div>
         {renderCanvasEditor()}
       </motion.div>
     );
@@ -760,11 +707,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
         handleImageChange={handleImageChange}
         previewValues={previewValues}
         handleChange={handleTextFieldChange}
-        displayAlternatives={displayAlternatives}
-        isAlternativesOpen={isAlternativesOpen}
-        setIsAlternativesOpen={setIsAlternativesOpen}
-        handleSloganSwitch={handleSloganSwitch}
-        getAlternativePreview={getAlternativePreview}
         credit={credit}
         fontSize={fontSize}
         colorScheme={colorScheme}
@@ -779,8 +721,6 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
         type={type || undefined}
         loading={loading}
         onRegenerate={onRegenerate}
-        onGenerateAlternatives={handleGenerateAlternatives}
-        alternativesLoading={alternativesLoading}
       />
 
       <Lightbox

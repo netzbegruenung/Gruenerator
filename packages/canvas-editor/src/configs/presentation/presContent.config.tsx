@@ -6,25 +6,32 @@
  * Supports light/dark color mode toggle.
  */
 
-import { HiPhotograph } from 'react-icons/hi';
+import { HiPhotograph, HiSparkles } from 'react-icons/hi';
 import { PiPaintBrushBroadFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { BackgroundSection, AssetsSection, PresentationDesignSection } from '../../sidebar/sections';
+import { createAiSectionRegistration } from '../../ai/createAiSectionRegistration';
+import {
+  BackgroundSection,
+  AssetsSection,
+  PresentationDesignSection,
+} from '../../sidebar/sections';
+import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
-import { alternativesTab, createAlternativesSection } from '../alternativesSection';
 import { createShareSection } from '../shareSection';
 
-import { PRES_CONFIG, PRES_COLORS, PRES_BACKGROUND_COLORS, getPresColors } from './presentationTheme';
+import {
+  PRES_CONFIG,
+  PRES_COLORS,
+  PRES_BACKGROUND_COLORS,
+  getPresColors,
+} from './presentationTheme';
 import { createPresentationActions } from './createPresentationActions';
 import { calculateContentLayout } from './presentationLayout';
 import { createFooterElements } from './createFooterElements';
+import { createPresentationAiCapabilities } from './presentationAi';
 import { createPresentationInitialState } from './presentationTypes';
 
-import type {
-  FullCanvasConfig,
-  BackgroundElementConfig,
-  TextElementConfig,
-} from '../types';
+import type { FullCanvasConfig, BackgroundElementConfig, TextElementConfig } from '../types';
 import type { PresentationSlideState, PresentationSlideActions } from './presentationTypes';
 import type { PresentationColorMode } from './presentationTheme';
 
@@ -51,8 +58,7 @@ const titleTextElement: TextElementConfig<PresentationSlideState> = {
   order: 2,
   textKey: 'title',
   width: (_s, l) => (l['title-text'] as { width?: number })?.width ?? PRES_CONFIG.contentWidth,
-  fontSize: (_s, l) =>
-    (l['title-text'] as { fontSize?: number })?.fontSize ?? 80,
+  fontSize: (_s, l) => (l['title-text'] as { fontSize?: number })?.fontSize ?? 80,
   fontFamily: `${PRES_CONFIG.title.fontFamily}, Arial, sans-serif`,
   fontStyle: PRES_CONFIG.title.fontStyle,
   align: 'left',
@@ -114,148 +120,163 @@ const body2TextElement: TextElementConfig<PresentationSlideState> = {
 };
 
 // ============================================================================
+// AI CAPABILITY
+// ============================================================================
+
+const presContentAiCapabilities = createPresentationAiCapabilities({
+  template: 'pres-content',
+  fields: ['title', 'bodyText', 'bodyText2'],
+});
+
+// ============================================================================
 // CONFIG EXPORT
 // ============================================================================
 
-export const presContentConfig: FullCanvasConfig<
-  PresentationSlideState,
-  PresentationSlideActions
-> = {
-  id: 'pres-content',
+export const presContentConfig: FullCanvasConfig<PresentationSlideState, PresentationSlideActions> =
+  {
+    id: 'pres-content',
 
-  canvas: {
-    width: PRES_CONFIG.canvas.width,
-    height: PRES_CONFIG.canvas.height,
-  },
-
-  fonts: {
-    primary: 'GrueneTypeNeue',
-    fontSize: 80,
-    requireFontLoad: true,
-  },
-
-  features: {
-    icons: true,
-    shapes: true,
-    illustrations: true,
-  },
-
-  backgroundType: 'color',
-  useUnifiedTabs: true,
-
-  textFields: [
-    { key: 'title', label: 'Titel', multiline: false },
-    { key: 'bodyText', label: 'Inhalt', multiline: true },
-    { key: 'bodyText2', label: 'Zweite Spalte (optional)', multiline: true },
-  ],
-
-  multiPage: {
-    enabled: true,
-    maxPages: 30,
-    heterogeneous: true,
-    defaultNewPageState: {
-      title: '',
-      bodyText: '',
-      bodyText2: '',
+    canvas: {
+      width: PRES_CONFIG.canvas.width,
+      height: PRES_CONFIG.canvas.height,
     },
-  },
 
-  tabs: [
-    {
-      id: 'background',
-      icon: HiPhotograph,
-      label: 'Hintergrund',
-      ariaLabel: 'Farbschema wählen',
+    fonts: {
+      primary: 'GrueneTypeNeue',
+      fontSize: 80,
+      requireFontLoad: true,
     },
-    {
-      id: 'text',
-      icon: PiTextAa,
-      label: 'Text',
-      ariaLabel: 'Text bearbeiten',
-    },
-    {
-      id: 'assets',
-      icon: PiSquaresFourFill,
-      label: 'Elemente',
-      ariaLabel: 'Dekorative Elemente',
-    },
-    {
-      id: 'design',
-      icon: PiPaintBrushBroadFill,
-      label: 'Design',
-      ariaLabel: 'Farbschema und Fußzeile',
-    },
-    alternativesTab,
-  ],
 
-  getVisibleTabs: () => ['background', 'text', 'assets', 'design'],
-
-  sections: {
-    background: {
-      component: BackgroundSection,
-      propsFactory: (state, actions) => ({
-        currentColor: state.backgroundColor,
-        colors: PRES_BACKGROUND_COLORS,
-        onColorChange: (color: string) => {
-          const mode: PresentationColorMode = color === PRES_COLORS.dk2 ? 'dark' : 'light';
-          actions.setColorMode(mode);
-        },
-      }),
+    features: {
+      icons: true,
+      shapes: true,
+      illustrations: true,
     },
-    assets: {
-      component: AssetsSection,
-      propsFactory: (state, actions, context) => ({
-        assetInstances: state.assetInstances,
-        onAddAsset: actions.addAsset,
-        onUpdateAsset: actions.updateAsset,
-        onRemoveAsset: actions.removeAsset,
-        ...injectFeatureProps(state, actions, context),
-      }),
+
+    backgroundType: 'color',
+    useUnifiedTabs: true,
+
+    textFields: [
+      { key: 'title', label: 'Titel', multiline: false },
+      { key: 'bodyText', label: 'Inhalt', multiline: true },
+      { key: 'bodyText2', label: 'Zweite Spalte (optional)', multiline: true },
+    ],
+
+    multiPage: {
+      enabled: true,
+      maxPages: 30,
+      heterogeneous: true,
+      defaultNewPageState: {
+        title: '',
+        bodyText: '',
+        bodyText2: '',
+      },
     },
-    design: {
-      component: PresentationDesignSection,
-      propsFactory: (state, actions) => ({
-        colorMode: state.colorMode,
-        onColorModeChange: actions.setColorMode,
-        footerDate: state.footerDate,
-        onFooterDateChange: actions.setFooterDate,
-        footerCustomText: state.footerCustomText,
-        onFooterCustomTextChange: actions.setFooterCustomText,
-        showSlideNumber: state.showSlideNumber,
-        onShowSlideNumberChange: actions.setShowSlideNumber,
-      }),
+
+    ai: presContentAiCapabilities,
+
+    tabs: [
+      {
+        id: 'background',
+        icon: HiPhotograph,
+        label: 'Hintergrund',
+        ariaLabel: 'Farbschema wählen',
+      },
+      {
+        id: 'text',
+        icon: PiTextAa,
+        label: 'Text',
+        ariaLabel: 'Text bearbeiten',
+      },
+      {
+        id: 'assets',
+        icon: PiSquaresFourFill,
+        label: 'Elemente',
+        ariaLabel: 'Dekorative Elemente',
+      },
+      uploadsTab,
+      {
+        id: 'design',
+        icon: PiPaintBrushBroadFill,
+        label: 'Design',
+        ariaLabel: 'Farbschema und Fußzeile',
+      },
+      { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
+      chatTab,
+    ],
+
+    getVisibleTabs: () => ['background', 'text', 'assets', 'uploads', 'design', 'ai', 'chat'],
+
+    sections: {
+      background: {
+        component: BackgroundSection,
+        propsFactory: (state, actions) => ({
+          currentColor: state.backgroundColor,
+          colors: PRES_BACKGROUND_COLORS,
+          onColorChange: (color: string) => {
+            const mode: PresentationColorMode = color === PRES_COLORS.dk2 ? 'dark' : 'light';
+            actions.setColorMode(mode);
+          },
+        }),
+      },
+      assets: {
+        component: AssetsSection,
+        propsFactory: (state, actions, context) => ({
+          assetInstances: state.assetInstances,
+          onAddAsset: actions.addAsset,
+          onUpdateAsset: actions.updateAsset,
+          onRemoveAsset: actions.removeAsset,
+          ...injectFeatureProps(state, actions, context),
+        }),
+      },
+      uploads: uploadsSectionEntry,
+      chat: createChatSection('pres-content'),
+      design: {
+        component: PresentationDesignSection,
+        propsFactory: (state, actions) => ({
+          colorMode: state.colorMode,
+          onColorModeChange: actions.setColorMode,
+          footerDate: state.footerDate,
+          onFooterDateChange: actions.setFooterDate,
+          footerCustomText: state.footerCustomText,
+          onFooterCustomTextChange: actions.setFooterCustomText,
+          showSlideNumber: state.showSlideNumber,
+          onShowSlideNumberChange: actions.setShowSlideNumber,
+        }),
+      },
+      share: createShareSection<PresentationSlideState, PresentationSlideActions>(
+        'pres-content',
+        (state) => {
+          const parts = [state.title, state.bodyText, state.bodyText2].filter(Boolean);
+          return parts.join('\n\n');
+        }
+      ),
+      ai: createAiSectionRegistration('pres-content', presContentAiCapabilities),
     },
-    alternatives: createAlternativesSection<PresentationSlideState, PresentationSlideActions>({
-      type: 'string',
-      getAlternatives: (state) => state.alternatives as string[],
-      getCurrentValue: (state) => state.title,
-      getSelectAction: (actions) => actions.handleSelectAlternative as (alt: string) => void,
-    }),
-    share: createShareSection<PresentationSlideState, PresentationSlideActions>(
-      'pres-content',
-      (state) => {
-        const parts = [state.title, state.bodyText, state.bodyText2].filter(Boolean);
-        return parts.join('\n\n');
-      }
-    ),
-  },
 
-  elements: [
-    backgroundElement,
-    titleTextElement,
-    bodyTextElement,
-    body2TextElement,
-    ...createFooterElements(10),
-  ],
+    elements: [
+      backgroundElement,
+      titleTextElement,
+      bodyTextElement,
+      body2TextElement,
+      ...createFooterElements(10),
+    ],
 
-  calculateLayout: calculateContentLayout,
+    calculateLayout: calculateContentLayout,
 
-  createInitialState: (props) => createPresentationInitialState(props, 'light'),
+    createInitialState: (props) => createPresentationInitialState(props, 'light'),
 
-  createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) =>
-    createPresentationActions(getState, setState, saveToHistory, debouncedSaveToHistory, callbacks, {
-      canvasWidth: PRES_CONFIG.canvas.width,
-      canvasHeight: PRES_CONFIG.canvas.height,
-      getFontColor: (state) => getPresColors(state.colorMode).text,
-    }),
-};
+    createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) =>
+      createPresentationActions(
+        getState,
+        setState,
+        saveToHistory,
+        debouncedSaveToHistory,
+        callbacks,
+        {
+          canvasWidth: PRES_CONFIG.canvas.width,
+          canvasHeight: PRES_CONFIG.canvas.height,
+          getFontColor: (state) => getPresColors(state.colorMode).text,
+        }
+      ),
+  };

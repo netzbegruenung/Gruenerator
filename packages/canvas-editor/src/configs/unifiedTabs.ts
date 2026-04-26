@@ -16,11 +16,11 @@
  * | background  | ImageBackgroundSection   | BackgroundSection         |
  * | text        | UnifiedTextSection       | UnifiedTextSection        |
  * | elements    | AssetsSection            | AssetsSection             |
- * | alternatives| AlternativesSection      | AlternativesSection       |
  * | share       | GenericShareSection      | GenericShareSection       |
  */
 
-import { HiPhotograph, HiSparkles } from 'react-icons/hi';
+import { HiPhotograph } from 'react-icons/hi';
+import { HiArrowUpTray } from 'react-icons/hi2';
 import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import type { SidebarTab } from '../sidebar/types';
@@ -33,7 +33,7 @@ import type { SidebarTab } from '../sidebar/types';
  * Standard tab IDs used across all templates in unified mode.
  * These replace template-specific IDs like 'image-background', 'position', etc.
  */
-export type UnifiedTabId = 'background' | 'text' | 'elements' | 'alternatives';
+export type UnifiedTabId = 'background' | 'text' | 'elements' | 'uploads';
 
 // ============================================================================
 // UNIFIED TAB DEFINITIONS
@@ -63,10 +63,10 @@ export const UNIFIED_TABS: SidebarTab[] = [
     ariaLabel: 'Dekorative Elemente hinzufügen',
   },
   {
-    id: 'alternatives',
-    icon: HiSparkles,
-    label: 'Varianten',
-    ariaLabel: 'Alternative Texte anzeigen',
+    id: 'uploads',
+    icon: HiArrowUpTray,
+    label: 'Uploads',
+    ariaLabel: 'Eigene Bilder hochladen',
   },
 ];
 
@@ -129,12 +129,7 @@ export const DREIZEILEN_EXTRA_TAB: SidebarTab = {
  * Standard visible tabs for most templates.
  * Excludes 'position' which is Dreizeilen-specific.
  */
-export const STANDARD_VISIBLE_TABS: UnifiedTabId[] = [
-  'background',
-  'text',
-  'elements',
-  'alternatives',
-];
+export const STANDARD_VISIBLE_TABS: UnifiedTabId[] = ['background', 'text', 'elements', 'uploads'];
 
 /**
  * Visible tabs for Dreizeilen (includes position tab).
@@ -145,7 +140,7 @@ export const DREIZEILEN_VISIBLE_TABS = [
   'position',
   'text',
   'elements',
-  'alternatives',
+  'uploads',
 ] as const;
 
 // ============================================================================
@@ -161,6 +156,6 @@ export const TAB_ORDER = {
   position: 1, // Dreizeilen-specific, inserted after background
   text: 2,
   elements: 3,
-  alternatives: 4,
+  uploads: 4,
   share: 5,
 } as const;

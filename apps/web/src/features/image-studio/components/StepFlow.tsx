@@ -67,7 +67,6 @@ const StepFlow: React.FC<StepFlowProps> = ({
   const handleChange = useImageStudioStore((s) => s.handleChange);
   const updateFormData = useImageStudioStore((s) => s.updateFormData);
   const uploadedImage = useImageStudioStore((s) => s.uploadedImage);
-  const sloganAlternatives = useImageStudioStore((s) => s.sloganAlternatives);
   const user = useAuthStore((s) => s.user);
 
   const {
@@ -195,7 +194,6 @@ const StepFlow: React.FC<StepFlowProps> = ({
             <CanvasEditStep
               typeConfig={typeConfig ?? undefined}
               uploadedImageUrl={uploadedImageUrl}
-              sloganAlternatives={sloganAlternatives}
               getFieldValue={getFieldValue}
               handleCanvasExport={handleCanvasExport}
               handleBack={handleBack}

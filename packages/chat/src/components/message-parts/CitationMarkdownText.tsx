@@ -4,6 +4,7 @@ import { memo, useMemo } from 'react';
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useCitations } from '../../context/CitationContext';
+import { useMarkdownSmooth } from '../../context/MarkdownStreamingContext';
 import { escapeCitationMarkers } from '../../lib/citationProcessing';
 import { makeCitationComponents } from '../../lib/citationMarkdownComponents';
 
@@ -11,6 +12,7 @@ const remarkPlugins = [remarkGfm];
 
 function CitationMarkdownTextImpl() {
   const citations = useCitations();
+  const smooth = useMarkdownSmooth();
   const citationMap = useMemo(() => new Map(citations.map((c) => [c.id, c])), [citations]);
   const components = useMemo(() => makeCitationComponents(citationMap), [citationMap]);
 
@@ -19,6 +21,7 @@ function CitationMarkdownTextImpl() {
       remarkPlugins={remarkPlugins}
       components={components}
       preprocess={escapeCitationMarkers}
+      smooth={smooth}
     />
   );
 }

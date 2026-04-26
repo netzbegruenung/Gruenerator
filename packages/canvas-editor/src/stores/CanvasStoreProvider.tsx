@@ -16,16 +16,10 @@ import { createContext, useContext, useRef } from 'react';
 import { useStore } from 'zustand';
 import { useShallow } from 'zustand/shallow';
 
-import {
-  createCanvasEditorStore,
-  defaultCanvasEditorStore,
-} from './createCanvasEditorStore';
+import { createCanvasEditorStore, defaultCanvasEditorStore } from './createCanvasEditorStore';
 
 import type { ReactNode } from 'react';
-import type {
-  CanvasEditorStoreApi,
-  CanvasEditorStoreState,
-} from './createCanvasEditorStore';
+import type { CanvasEditorStoreApi, CanvasEditorStoreState } from './createCanvasEditorStore';
 
 // =============================================================================
 // CONTEXT
@@ -37,15 +31,22 @@ const CanvasStoreContext = createContext<CanvasEditorStoreApi | null>(null);
 // PROVIDER
 // =============================================================================
 
-export function CanvasStoreProvider({ children }: { children: ReactNode }) {
+export function CanvasStoreProvider({
+  children,
+  initialFormatId,
+}: {
+  children: ReactNode;
+  initialFormatId?: string;
+}) {
   const storeRef = useRef<CanvasEditorStoreApi | null>(null);
   if (!storeRef.current) {
     storeRef.current = createCanvasEditorStore();
+    if (initialFormatId) {
+      storeRef.current.getState().setFormat(initialFormatId);
+    }
   }
   return (
-    <CanvasStoreContext.Provider value={storeRef.current}>
-      {children}
-    </CanvasStoreContext.Provider>
+    <CanvasStoreContext.Provider value={storeRef.current}>{children}</CanvasStoreContext.Provider>
   );
 }
 
@@ -68,9 +69,7 @@ export function useCanvasStore(): CanvasEditorStoreApi {
  *
  * Use for primitive values: `useCanvasStoreSelector((s) => s.renderVersion)`
  */
-export function useCanvasStoreSelector<T>(
-  selector: (state: CanvasEditorStoreState) => T
-): T {
+export function useCanvasStoreSelector<T>(selector: (state: CanvasEditorStoreState) => T): T {
   const store = useCanvasStore();
   return useStore(store, selector);
 }
@@ -81,9 +80,7 @@ export function useCanvasStoreSelector<T>(
  *
  * Use for objects/arrays: `useCanvasStoreShallow((s) => ({ a: s.a, b: s.b }))`
  */
-export function useCanvasStoreShallow<T>(
-  selector: (state: CanvasEditorStoreState) => T
-): T {
+export function useCanvasStoreShallow<T>(selector: (state: CanvasEditorStoreState) => T): T {
   const store = useCanvasStore();
   return useStore(store, useShallow(selector));
 }

@@ -5,12 +5,19 @@
  * Uses createImageTwoTextCanvas factory for shared infrastructure.
  */
 
+import { HiSparkles } from 'react-icons/hi';
+
+import { buildAssetCapability } from '../ai/assetCapability';
+import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
+import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { SIMPLE_CONFIG, calculateSimpleLayout } from '../utils/simpleLayout';
 
-import { createImageTwoTextCanvas } from './factory';
+import { createImageTwoTextCanvas, type ImageTwoTextActions } from './factory';
 
+import type { TemplateAiCapabilities } from '../ai/types';
 import type { ImageTwoTextState } from './factory';
 import type { LayoutResult, TextElementConfig, RectElementConfig } from './types';
+import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================
 // LAYOUT CALCULATOR
@@ -111,7 +118,7 @@ const gradientOverlay: RectElementConfig<ImageTwoTextState> = {
 // CONFIG EXPORT
 // ============================================================================
 
-export const simpleFullConfig = createImageTwoTextCanvas({
+const baseSimpleConfig = createImageTwoTextCanvas({
   id: 'simple',
 
   canvas: {
@@ -144,10 +151,71 @@ export const simpleFullConfig = createImageTwoTextCanvas({
     const subtext = (state.subtext as string) || '';
     return `${headline}\n${subtext}`.trim();
   },
-
-  // Simple uses headline/subtext structured alternatives
-  alternativesType: 'two-text',
 });
+
+// ============================================================================
+// AI CAPABILITY
+// ============================================================================
+
+const simpleAiCapabilities: TemplateAiCapabilities<ImageTwoTextState, ImageTwoTextActions> = {
+  supportedOperations: [
+    'set-text',
+    'add-illustration',
+    'add-asset',
+    'update-element',
+    'remove-element',
+  ],
+
+  illustrations: buildIllustrationCapability(),
+  assets: buildAssetCapability('simple'),
+
+  describeForAi: (state): CanvasAiSnapshot => ({
+    template: 'simple',
+    textFields: [
+      { field: 'headline', label: 'Überschrift', value: (state.headline as string) || '' },
+      { field: 'subtext', label: 'Unterzeile', value: (state.subtext as string) || '' },
+    ],
+    elementsSummary: [],
+  }),
+
+  applyOverrides: {
+    'set-text': (op, actions) => {
+      // Simple's two text fields go through setPrimary/setSecondary on the
+      // factory-built actions. Default applier handles this, but we override
+      // so we can validate the field name explicitly.
+      if (op.field === 'headline') {
+        actions.setPrimary?.(op.value);
+        return;
+      }
+      if (op.field === 'subtext') {
+        actions.setSecondary?.(op.value);
+        return;
+      }
+      throw new Error(`Simple template hat kein Feld "${op.field}"`);
+    },
+  },
+};
+
+// ============================================================================
+// FINAL CONFIG (factory result + AI overlay)
+// ============================================================================
+
+export const simpleFullConfig = {
+  ...baseSimpleConfig,
+  ai: simpleAiCapabilities,
+  tabs: [
+    ...baseSimpleConfig.tabs,
+    { id: 'ai' as const, icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
+  ],
+  getVisibleTabs: (state: ImageTwoTextState, context?: { selectedElement?: string | null }) => {
+    const base = baseSimpleConfig.getVisibleTabs?.(state, context) ?? [];
+    return [...base, 'ai' as const];
+  },
+  sections: {
+    ...baseSimpleConfig.sections,
+    ai: createAiSectionRegistration('simple', simpleAiCapabilities),
+  },
+};
 
 // Re-export types for backward compatibility
 export type SimpleFullState = ImageTwoTextState;

@@ -30,6 +30,7 @@ import { usePageManager, useMultiPageExport, usePresentationExport } from '../ho
 import { useMobileBridge } from '../hooks/useMobileBridge';
 import { CanvasEditorLayout } from '../layouts';
 import { MobileSubsectionBridgeContext } from '../sidebar/MobileSubsectionBridgeContext';
+import { UserUploadsProvider } from '../sidebar/UserUploadsProvider';
 import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import { useCanvasSidebarStore } from '../stores/canvasSidebarStore';
 
@@ -94,6 +95,14 @@ interface CanvasEditorProps {
   externalSidebar?: boolean;
   /** When true + externalSidebar, syncs mobile subsection state to canvasSidebarStore for external mobile UI */
   externalMobileMode?: boolean;
+  /**
+   * Collaborative mode — fed into usePageManager to back the pages list with
+   * a Yjs doc, and used to derive each page's Y.Map for layers/config sync.
+   */
+  collaborative?: {
+    ydoc: import('yjs').Doc;
+    isSynced: boolean;
+  };
 }
 
 interface PageWrapperProps {
@@ -125,6 +134,14 @@ interface PageWrapperProps {
   ) => void;
   mobileBridge?: MobileBridgeProps;
   onToolbarStateChange?: (state: ToolbarStateReport) => void;
+  /**
+   * Per-page collaborative binding. The page Y.Map under which `layers` and
+   * `config` are stored. Set on every page in collab mode (one Y.Map per page).
+   */
+  pageCollaborative?: {
+    pageYMap: import('yjs').Map<unknown>;
+    isSynced: boolean;
+  };
 }
 
 /**
@@ -150,6 +167,7 @@ const PageWrapper = memo(function PageWrapper({
   onStateChange,
   onToolbarStateChange,
   mobileBridge,
+  pageCollaborative,
 }: PageWrapperProps) {
   const lastReportedRef = useRef<{
     state: Record<string, unknown> | null;
@@ -168,7 +186,11 @@ const PageWrapper = memo(function PageWrapper({
         const selectedElement = ref.getSelectedElement?.() ?? null;
         if (state && actions) {
           const last = lastReportedRef.current;
-          if (last.state !== state || last.actions !== actions || last.selectedElement !== selectedElement) {
+          if (
+            last.state !== state ||
+            last.actions !== actions ||
+            last.selectedElement !== selectedElement
+          ) {
             lastReportedRef.current = { state, actions, selectedElement };
             onStateChange(page.id, state, actions, selectedElement);
           }
@@ -239,6 +261,7 @@ const PageWrapper = memo(function PageWrapper({
           multiPageExport={multiPageExport}
           mobileBridge={mobileBridge}
           onToolbarStateChange={onToolbarStateChange}
+          collaborative={pageCollaborative}
         />
       </ZoomableViewport>
     </div>
@@ -256,6 +279,7 @@ export function CanvasEditor({
   mobileBridge,
   externalSidebar = false,
   externalMobileMode = false,
+  collaborative,
 }: CanvasEditorProps) {
   const isMobileBridge = Boolean(mobileBridge);
   const isExternalSidebar = externalSidebar && !isMobileBridge;
@@ -288,11 +312,13 @@ export function CanvasEditor({
     canAddMore,
     pageCount,
     getConfigForPage,
+    getPageYMap,
   } = usePageManager({
     initialConfigId,
     initialProps,
     maxPages,
     initialPages,
+    collaborative,
   });
 
   // Store loaded configs for rendering
@@ -327,6 +353,15 @@ export function CanvasEditor({
   while (canvasRefsRef.current.length < pages.length) {
     canvasRefsRef.current.push(React.createRef<GenericCanvasRef>());
   }
+
+  const pageCollaborativeAt = useCallback(
+    (index: number) => {
+      if (!collaborative) return undefined;
+      const pageYMap = getPageYMap(index);
+      return pageYMap ? { pageYMap, isSynced: collaborative.isSynced } : undefined;
+    },
+    [collaborative, getPageYMap]
+  );
 
   // Load configs for all pages
   useEffect(() => {
@@ -747,8 +782,19 @@ export function CanvasEditor({
       onDownloadPptx: isPresentationMode ? exportAsPptx : undefined,
       onDownloadPdf: isPresentationMode ? exportAsPdf : undefined,
     }),
-    [pageCount, downloadAllAsZip, shareAllPages, isMultiExporting, exportProgress, currentPageIndex,
-     isPresentationMode, isPresentationExporting, presentationExportProgress, exportAsPptx, exportAsPdf]
+    [
+      pageCount,
+      downloadAllAsZip,
+      shareAllPages,
+      isMultiExporting,
+      exportProgress,
+      currentPageIndex,
+      isPresentationMode,
+      isPresentationExporting,
+      presentationExportProgress,
+      exportAsPptx,
+      exportAsPdf,
+    ]
   );
 
   // Render the active section based on configuration
@@ -925,65 +971,68 @@ export function CanvasEditor({
     ) : null;
 
   return (
-    <CanvasEditorLayout
-      sidebar={panel}
-      tabBar={tabBar}
-      actions={null}
-      toolbar={toolbarElement}
-      hideMobileChrome={isMobileBridge}
-      externalSidebar={isExternalSidebar}
-      subsectionBar={webSubsectionBar}
-    >
-      <div className="heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs">
-        {pages.map((page, index) => {
-          const config = loadedConfigs.get(page.configId);
-          if (!config) return null;
+    <UserUploadsProvider>
+      <CanvasEditorLayout
+        sidebar={panel}
+        tabBar={tabBar}
+        actions={null}
+        toolbar={toolbarElement}
+        hideMobileChrome={isMobileBridge}
+        externalSidebar={isExternalSidebar}
+        subsectionBar={webSubsectionBar}
+      >
+        <div className="heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs">
+          {pages.map((page, index) => {
+            const config = loadedConfigs.get(page.configId);
+            if (!config) return null;
 
-          const isActive = index === currentPageIndex;
-          const canDelete = pageCount > 1 && index > 0;
+            const isActive = index === currentPageIndex;
+            const canDelete = pageCount > 1 && index > 0;
 
-          return (
-            <PageWrapper
-              key={page.id}
-              page={page}
-              index={index}
-              pageCount={pageCount}
-              config={config}
-              isActive={isActive}
-              canDelete={canDelete}
-              canvasRef={canvasRefsRef.current[index]}
-              onSelect={handlePageSelect}
-              onDelete={removePage}
-              onMovePage={movePage}
-              onDuplicatePage={duplicatePage}
-              onExport={handleExport}
-              onCancel={onCancel}
-              callbacks={callbacks}
-              multiPageExport={index === 0 ? multiPageExportProps : undefined}
-              onStateChange={handlePageStateChange}
-              onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
-              mobileBridge={isActive ? mobileBridge : undefined}
-            />
-          );
-        })}
+            return (
+              <PageWrapper
+                key={page.id}
+                page={page}
+                index={index}
+                pageCount={pageCount}
+                config={config}
+                isActive={isActive}
+                canDelete={canDelete}
+                canvasRef={canvasRefsRef.current[index]}
+                onSelect={handlePageSelect}
+                onDelete={removePage}
+                onMovePage={movePage}
+                onDuplicatePage={duplicatePage}
+                onExport={handleExport}
+                onCancel={onCancel}
+                callbacks={callbacks}
+                multiPageExport={index === 0 ? multiPageExportProps : undefined}
+                onStateChange={handlePageStateChange}
+                onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
+                mobileBridge={isActive ? mobileBridge : undefined}
+                pageCollaborative={pageCollaborativeAt(index)}
+              />
+            );
+          })}
 
-        {/* Add page button at the end */}
-        {canAddMore && (
-          <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs">
-            <AddPageButton
-              onSelectTemplate={handleAddPage}
-              onDuplicateCurrent={duplicateCurrentPage}
-              currentTemplateId={pages[currentPageIndex]?.configId}
-              disabled={!canAddMore}
-              onAddSliderVariant={
-                pages[0]?.configId === 'slider' ? handleAddSliderVariant : undefined
-              }
-              templateFilter={isPresentationMode ? 'pres-' : undefined}
-            />
-          </div>
-        )}
-      </div>
-    </CanvasEditorLayout>
+          {/* Add page button at the end */}
+          {canAddMore && (
+            <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs">
+              <AddPageButton
+                onSelectTemplate={handleAddPage}
+                onDuplicateCurrent={duplicateCurrentPage}
+                currentTemplateId={pages[currentPageIndex]?.configId}
+                disabled={!canAddMore}
+                onAddSliderVariant={
+                  pages[0]?.configId === 'slider' ? handleAddSliderVariant : undefined
+                }
+                templateFilter={isPresentationMode ? 'pres-' : undefined}
+              />
+            </div>
+          )}
+        </div>
+      </CanvasEditorLayout>
+    </UserUploadsProvider>
   );
 }
 

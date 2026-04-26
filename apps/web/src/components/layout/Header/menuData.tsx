@@ -62,6 +62,15 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
     activePaths: ['/docs'],
   };
 
+  items.studio = {
+    id: 'studio',
+    path: '/studio',
+    title: 'Studio',
+    description: 'Sharepics erstellen und gemeinsam bearbeiten',
+    icon: getIcon('navigation', 'sharepic'),
+    activePaths: ['/studio'],
+  };
+
   return items;
 };
 
