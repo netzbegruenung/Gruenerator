@@ -15,7 +15,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
-import { Stage, Layer } from 'react-konva';
+import { Stage, Layer, Group, Rect } from 'react-konva';
 
 import type { ExportOptions } from '@gruenerator/shared/canvas-editor';
 import type Konva from 'konva';
@@ -25,6 +25,14 @@ import { cn } from '../utils/cn';
 export interface CanvasStageProps {
   width: number;
   height: number;
+  /**
+   * Logical coordinate space used by layout calculators. Defaults to width/height (no scaling).
+   * When different from width/height, children are wrapped in a Konva Group with the
+   * appropriate scale so reference-space layouts render proportionally on a different
+   * canvas size (e.g. 1080×1350 layouts on a 2480×3508 A4 flyer).
+   */
+  logicalWidth?: number;
+  logicalHeight?: number;
   responsive?: boolean;
   maxContainerWidth?: number;
   maxContainerHeight?: number;
@@ -46,6 +54,8 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
     {
       width,
       height,
+      logicalWidth,
+      logicalHeight,
       responsive = true,
       maxContainerWidth = 600,
       maxContainerHeight,
@@ -160,7 +170,25 @@ export const CanvasStage = forwardRef<CanvasStageRef, CanvasStageProps>(
             onMouseDown={onStageClick}
             onTouchStart={onStageClick}
           >
-            <Layer>{children}</Layer>
+            <Layer>
+              {logicalWidth &&
+              logicalHeight &&
+              (logicalWidth !== width || logicalHeight !== height) ? (
+                <>
+                  {/* Solid-color backdrop for non-default formats. Sharepic
+                      templates were designed with their own backgrounds (image
+                      or color); for non-sharepic formats (Story, Präsentation,
+                      Flyer, Plakat) we render a clean SAND base behind the
+                      scaled design so it never sits on a transparent canvas. */}
+                  <Rect x={0} y={0} width={width} height={height} fill="#f5f1e9" />
+                  <Group scaleX={width / logicalWidth} scaleY={height / logicalHeight}>
+                    {children}
+                  </Group>
+                </>
+              ) : (
+                children
+              )}
+            </Layer>
           </Stage>
         </div>
       </>

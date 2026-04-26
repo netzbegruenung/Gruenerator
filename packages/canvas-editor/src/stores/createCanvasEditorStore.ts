@@ -17,6 +17,8 @@ import {
 import { createStore } from 'zustand/vanilla';
 import { immer } from 'zustand/middleware/immer';
 
+import { DEFAULT_FORMAT_ID } from '../formats';
+
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type {
   Layer,
@@ -40,6 +42,14 @@ export interface CanvasEditorState {
     responsive: boolean;
     maxContainerWidth: number;
   };
+  /**
+   * Identifies the chosen output format (see CANVAS_FORMATS).
+   * The `config` width/height are the *reference* coordinate space layouts use;
+   * the format determines the *output* canvas pixel dimensions. When they differ,
+   * CanvasStage applies a Konva Group scale to render reference-space layouts
+   * proportionally on the format's canvas size.
+   */
+  formatId: string;
   containerSize: { width: number; height: number };
 
   history: CanvasHistoryEntry[];
@@ -57,6 +67,7 @@ export interface CanvasEditorState {
 
 export interface CanvasEditorActions {
   setConfig: (config: Partial<CanvasEditorConfig>) => void;
+  setFormat: (formatId: string) => void;
   setContainerSize: (size: { width: number; height: number }) => void;
 
   addLayer: (layer: Omit<Layer, 'id'>) => string;
@@ -113,6 +124,7 @@ const initialState: CanvasEditorState = {
     responsive: true,
     maxContainerWidth: 600,
   },
+  formatId: DEFAULT_FORMAT_ID,
   containerSize: { width: 400, height: 400 },
   history: [],
   historyIndex: -1,
@@ -159,6 +171,11 @@ export function createCanvasEditorStore() {
       setConfig: (config) =>
         set((state) => {
           Object.assign(state.config, config);
+        }),
+
+      setFormat: (formatId) =>
+        set((state) => {
+          state.formatId = formatId;
         }),
 
       setContainerSize: (size) =>
