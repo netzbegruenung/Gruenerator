@@ -127,6 +127,11 @@ const standardMutationLimiter = isRateLimitDisabled
       max: 200,
       standardHeaders: true,
       legacyHeaders: false,
+      // Skip GETs so polling endpoints (e.g. /api/subtitler/export-progress/:token,
+      // fired every 2s during export) don't consume the mutation budget. The
+      // limiter's purpose is abuse-prevention on writes; reads are covered by
+      // authenticatedReadLimiter where it matters.
+      skip: (req) => req.method === 'GET',
       message: { error: 'Too many requests, please try again later.' },
     });
 
