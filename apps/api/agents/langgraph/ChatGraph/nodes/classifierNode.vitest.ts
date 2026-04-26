@@ -9,6 +9,7 @@ import {
   extractFilters,
   heuristicExtractFilters,
   looksMultiTopic,
+  HEURISTIC_CONFIDENCE_THRESHOLD,
 } from './classifierNode.js';
 
 // ─── extractSearchTopic ───────────────────────────────────────────────────
@@ -407,6 +408,18 @@ describe('heuristicClassify: chart intent', () => {
     const result = heuristicClassify('Visualisiere die Statistik als Chart');
     expect(result.intent).toBe('chart');
   });
+
+  it('does not commit chart at high confidence on bare "Diagramm" mention', () => {
+    // Fuzzy match still returns chart at 0.65, but pipeline only commits ≥0.85.
+    // Below threshold the LLM gets consulted, which is the safe behavior.
+    const result = heuristicClassify('Im Diagramm der Auswertung sehen wir steigende Zahlen');
+    expect(result.confidence).toBeLessThan(HEURISTIC_CONFIDENCE_THRESHOLD);
+  });
+
+  it('does not commit chart at high confidence on questions about a chart', () => {
+    const result = heuristicClassify('Erkläre mir bitte das Chart auf Seite drei');
+    expect(result.confidence).toBeLessThan(HEURISTIC_CONFIDENCE_THRESHOLD);
+  });
 });
 
 // ─── save_as_doc: heuristic detects explicit phrasing ──────────────
@@ -418,6 +431,23 @@ describe('heuristicClassify: doc/board action intents', () => {
   it('detects explicit save_as_doc phrasing', () => {
     const result = heuristicClassify('Speichere das als Dokument');
     expect(result.intent).toBe('save_as_doc');
+  });
+
+  it('does not trigger save_as_doc on bare "Dokument" mention without save action', () => {
+    const result = heuristicClassify(
+      'Schreib eine Pressemitteilung über das Dokument der Arbeitsgruppe'
+    );
+    expect(result.intent).not.toBe('save_as_doc');
+  });
+
+  it('does not trigger save_as_doc on "als Protokoll" without save action', () => {
+    const result = heuristicClassify('Das Treffen gilt als Protokoll der Sitzung');
+    expect(result.intent).not.toBe('save_as_doc');
+  });
+
+  it('does not trigger save_as_doc on questions about a document', () => {
+    const result = heuristicClassify('Was steht im Dokument zur Klimapolitik?');
+    expect(result.intent).not.toBe('save_as_doc');
   });
 
   it('does not heuristic-detect modify_doc (requires LLM + @doc)', () => {

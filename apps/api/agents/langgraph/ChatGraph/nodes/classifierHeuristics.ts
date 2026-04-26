@@ -215,11 +215,22 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     };
   }
 
-  // High confidence (0.90): Save as document requests
+  // High confidence (0.90): Save as document requests.
+  // Bare "als Dokument/Protokoll/Notiz/Checkliste" must be paired with an explicit
+  // save imperative — otherwise prose mentions like "Pressemitteilung über das Dokument"
+  // or "gilt als Protokoll" would falsely trigger document creation.
+  const saveImperative =
+    /\b(speicher|abspeicher|sicher|exportier|ableg|festhalt|merk)[etns]*\b/i;
+  const saveAsBarePattern = /\bals\s+(neues\s+)?(dokument|protokoll|notiz|checkliste)\b/i;
+  const docWithVerbPattern =
+    /\b(dokument|protokoll|notiz|checkliste)\s+(erstellen|speichern|anlegen|abspeichern|exportieren)\b/i;
+  const machDarausPattern =
+    /\bmach[etn]*\b.{0,15}\b(dokument|protokoll|notiz|checkliste)\s+daraus\b/i;
+
   if (
-    /\b(als\s+dokument|dokument\s+(erstellen|speichern|anlegen)|als\s+(protokoll|notiz|checkliste)|mach.{0,10}dokument\s+daraus)\b/i.test(
-      q
-    )
+    (saveAsBarePattern.test(q) && saveImperative.test(q)) ||
+    docWithVerbPattern.test(q) ||
+    machDarausPattern.test(q)
   ) {
     return {
       intent: 'save_as_doc',
@@ -255,10 +266,19 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     };
   }
 
-  // High confidence (0.88): Chart/data visualization requests
-  const chartKeywords =
-    /\b(diagramm|balkendiagramm|kreisdiagramm|liniendiagramm|tortendiagramm|chart|graph\b.{0,10}erstell|visualisier.{0,15}(daten|statistik|chart|werte))\b/i;
-  if (chartKeywords.test(q)) {
+  // High confidence (0.88): Chart/data visualization requests.
+  // Bare chart-type nouns must be paired with a creation imperative — otherwise
+  // prose mentions like "Im Diagramm sehen wir..." or "Erkläre mir das Chart" trigger.
+  const chartTypeNoun =
+    /\b(diagramm|balkendiagramm|kreisdiagramm|liniendiagramm|tortendiagramm|chart|graph)\b/i;
+  const chartCreateImperative =
+    /\b(erstell|generier|mach|bau|baue|visualisier|zeig|zeichn|erzeug|stell)[etn]*\b/i;
+  const dataVisualizePattern = /\bvisualisier.{0,15}(daten|statistik|chart|werte|zahlen)\b/i;
+
+  if (
+    (chartTypeNoun.test(q) && chartCreateImperative.test(q)) ||
+    dataVisualizePattern.test(q)
+  ) {
     return {
       intent: 'chart',
       searchQuery: userContent,
