@@ -3,19 +3,16 @@
  * Event sharepic with photo, green section, and date circle
  */
 
-import { HiPhotograph } from 'react-icons/hi';
+import { HiPhotograph, HiSparkles } from 'react-icons/hi';
 import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
+import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
 import { ImageBackgroundSection, AssetsSection } from '../sidebar/sections';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
-import {
-  alternativesTab,
-  createAlternativesSection,
-  isAlternativesEmpty,
-} from './alternativesSection';
+import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from './commonSections';
 import {
   createAssetActions,
   createIconActions,
@@ -25,12 +22,15 @@ import {
   createBalkenActions,
   createCircleBadgeActions,
   createFrameActions,
+  createUserImageActions,
 } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
 import { createShareSection } from './shareSection';
 
+import type { TemplateAiCapabilities } from '../ai/types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
+import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
@@ -38,6 +38,7 @@ import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type { IllustrationInstance } from '../utils/illustrations/types';
 import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance, ShapeType } from '../utils/shapes';
+import type { UserImageInstance } from '../utils/userImageUtils';
 
 // ============================================================================
 // STATE TYPE
@@ -64,7 +65,6 @@ export interface VeranstaltungFullState {
   beschreibungColor?: string;
   assetInstances: AssetInstance[];
   isDesktop: boolean;
-  alternatives: string[];
   // Icons & Shapes
   selectedIcons: string[];
   iconStates: Record<
@@ -83,6 +83,7 @@ export interface VeranstaltungFullState {
   balkenInstances: BalkenInstance[];
   // Frame instances
   frameInstances: FrameInstance[];
+  userImageInstances: UserImageInstance[];
   // Attribution
   imageAttribution?: StockImageAttribution | null;
 
@@ -104,7 +105,6 @@ export interface VeranstaltungFullActions {
   addAsset: (assetId: string) => void;
   updateAsset: (id: string, partial: Partial<AssetInstance>) => void;
   removeAsset: (id: string) => void;
-  handleSelectAlternative: (alt: string) => void;
   // Icons & Shapes
   toggleIcon: (id: string, selected: boolean) => void;
   updateIcon: (
@@ -259,6 +259,51 @@ function createInitialDateCircleBadge(
 // FULL CONFIG
 // ============================================================================
 
+// ============================================================================
+// AI CAPABILITY
+// ============================================================================
+
+const veranstaltungAiCapabilities: TemplateAiCapabilities<
+  VeranstaltungFullState,
+  VeranstaltungFullActions
+> = {
+  supportedOperations: ['set-text', 'set-font-size'],
+
+  describeForAi: (state): CanvasAiSnapshot => ({
+    template: 'veranstaltung',
+    textFields: [
+      { field: 'eventTitle', label: 'Titel', value: state.eventTitle },
+      { field: 'beschreibung', label: 'Beschreibung', value: state.beschreibung },
+    ],
+    elementsSummary: [],
+  }),
+
+  applyOverrides: {
+    'set-text': (op, actions) => {
+      if (op.field === 'eventTitle') {
+        actions.setEventTitle(op.value);
+        return;
+      }
+      if (op.field === 'beschreibung') {
+        actions.setBeschreibung(op.value);
+        return;
+      }
+      throw new Error(`Veranstaltungs-Vorlage hat kein Feld "${op.field}"`);
+    },
+    'set-font-size': (op, actions) => {
+      if (op.field === 'eventTitle') {
+        actions.handleEventTitleFontSizeChange(op.size);
+        return;
+      }
+      if (op.field === 'beschreibung') {
+        actions.handleBeschreibungFontSizeChange(op.size);
+        return;
+      }
+      throw new Error(`Veranstaltungs-Vorlage hat kein Schriftgrößen-Feld "${op.field}"`);
+    },
+  },
+};
+
 export const veranstaltungFullConfig: FullCanvasConfig<
   VeranstaltungFullState,
   VeranstaltungFullActions
@@ -290,19 +335,20 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     },
   },
 
+  ai: veranstaltungAiCapabilities,
+
   tabs: [
     { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
     { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Dekorative Elemente' },
-    alternativesTab,
+    uploadsTab,
+    { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
+    chatTab,
   ],
 
-  getVisibleTabs: () => ['image', 'text', 'assets', 'alternatives'],
+  getVisibleTabs: () => ['image', 'text', 'assets', 'uploads', 'ai', 'chat'],
 
   getAutoSwitchTab: (selectedElement) => (selectedElement?.startsWith('frame-') ? 'assets' : null),
-
-  getDisabledTabs: (state) =>
-    isAlternativesEmpty(state, (s) => s.alternatives) ? ['alternatives'] : [],
 
   sections: {
     image: {
@@ -345,15 +391,12 @@ export const veranstaltungFullConfig: FullCanvasConfig<
         ...injectFeatureProps(state, actions, context),
       }),
     },
-    alternatives: createAlternativesSection<VeranstaltungFullState, VeranstaltungFullActions>({
-      type: 'string',
-      getAlternatives: (s) => s.alternatives,
-      getCurrentValue: (s) => s.eventTitle,
-      getSelectAction: (a) => a.handleSelectAlternative,
-    }),
+    uploads: uploadsSectionEntry,
+    chat: createChatSection('veranstaltung'),
     share: createShareSection<VeranstaltungFullState>('veranstaltung', (state) =>
       `${state.eventTitle}\n${state.beschreibung}\n${state.weekday} ${state.date} ${state.time}\n${state.locationName}`.trim()
     ),
+    ai: createAiSectionRegistration('veranstaltung', veranstaltungAiCapabilities),
   },
 
   // Veranstaltung has complex elements (circle with rotated text, clipped photo)
@@ -477,10 +520,6 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       beschreibungOpacity: 1,
       assetInstances: [],
       isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-      alternatives:
-        (props.alternatives as Array<Record<string, unknown>> | undefined)?.map(
-          (a: Record<string, unknown>) => String(a.eventTitle) || ''
-        ) ?? [],
       selectedIcons: [],
       iconStates: {},
       shapeInstances: [],
@@ -565,6 +604,14 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       CANVAS_HEIGHT
     );
 
+    const userImageActions = createUserImageActions(
+      getState,
+      setState,
+      saveToHistory,
+      CANVAS_WIDTH,
+      CANVAS_HEIGHT
+    );
+
     return {
       // === Spread common actions ===
       ...assetActions,
@@ -575,6 +622,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       ...pillBadgeActions,
       ...balkenActions,
       ...frameActions,
+      ...userImageActions,
 
       // === Text Actions ===
       setEventTitle: (val: string) => {
@@ -614,13 +662,6 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       setImageAttribution: (attribution: StockImageAttribution | null) => {
         setState((prev) => ({ ...prev, imageAttribution: attribution }));
         debouncedSaveToHistory({ ...getState(), imageAttribution: attribution });
-      },
-
-      // === Alternative Selection ===
-      handleSelectAlternative: (alt: string) => {
-        setState((prev) => ({ ...prev, eventTitle: alt }));
-        callbacks.onEventTitleChange?.(alt);
-        saveToHistory({ ...getState(), eventTitle: alt });
       },
 
       // === Additional Text Actions (Veranstaltung-specific with GrueneTypeNeue) ===

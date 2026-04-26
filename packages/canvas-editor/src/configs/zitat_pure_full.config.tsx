@@ -5,13 +5,20 @@
  * Uses createColorTwoTextCanvas factory for shared infrastructure.
  */
 
+import { HiSparkles } from 'react-icons/hi';
+
+import { buildAssetCapability } from '../ai/assetCapability';
+import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
+import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { ZITAT_PURE_CONFIG, calculateZitatPureLayout } from '../utils/zitatPureLayout';
 
-import { createColorTwoTextCanvas } from './factory';
+import { createColorTwoTextCanvas, type ColorTwoTextActions } from './factory';
 
+import type { TemplateAiCapabilities } from '../ai/types';
 import type { ColorTwoTextState } from './factory';
 import type { LayoutResult, TextElementConfig, ImageElementConfig } from './types';
 import type { BackgroundColorOption } from '../sidebar/types';
+import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================
 // CONSTANTS
@@ -155,7 +162,7 @@ const nameTextElement: TextElementConfig<ColorTwoTextState> = {
 // CONFIG EXPORT
 // ============================================================================
 
-export const zitatPureFullConfig = createColorTwoTextCanvas({
+const baseZitatPureConfig = createColorTwoTextCanvas({
   id: 'zitat-pure',
 
   canvas: {
@@ -193,6 +200,69 @@ export const zitatPureFullConfig = createColorTwoTextCanvas({
     return `„${quote}"\n— ${name}`.trim();
   },
 });
+
+// ============================================================================
+// AI CAPABILITY
+// ============================================================================
+
+const zitatPureAiCapabilities: TemplateAiCapabilities<ColorTwoTextState, ColorTwoTextActions> = {
+  supportedOperations: [
+    'set-text',
+    'set-background-color',
+    'add-illustration',
+    'add-asset',
+    'update-element',
+    'remove-element',
+  ],
+
+  illustrations: buildIllustrationCapability(),
+  assets: buildAssetCapability('zitat-pure'),
+
+  describeForAi: (state): CanvasAiSnapshot => ({
+    template: 'zitat-pure',
+    textFields: [
+      { field: 'quote', label: 'Zitat', value: (state.quote as string) || '' },
+      { field: 'name', label: 'Name', value: (state.name as string) || '' },
+    ],
+    currentBackgroundColor: state.backgroundColor as `#${string}`,
+    elementsSummary: [],
+  }),
+
+  applyOverrides: {
+    'set-text': (op, actions) => {
+      if (op.field === 'quote') {
+        actions.setPrimary?.(op.value);
+        return;
+      }
+      if (op.field === 'name') {
+        actions.setSecondary?.(op.value);
+        return;
+      }
+      throw new Error(`Zitat-Pure-Vorlage hat kein Feld "${op.field}"`);
+    },
+  },
+};
+
+// ============================================================================
+// FINAL CONFIG (factory result + AI overlay)
+// ============================================================================
+
+export const zitatPureFullConfig = {
+  ...baseZitatPureConfig,
+  ai: zitatPureAiCapabilities,
+  tabs: [
+    ...baseZitatPureConfig.tabs,
+    { id: 'ai' as const, icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
+  ],
+  getVisibleTabs: (state: ColorTwoTextState, context?: { selectedElement?: string | null }) => {
+    const base = baseZitatPureConfig.getVisibleTabs?.(state, context) ?? [];
+    return [...base, 'ai' as const];
+  },
+  sections: {
+    ...baseZitatPureConfig.sections,
+    ai: createAiSectionRegistration('zitat-pure', zitatPureAiCapabilities),
+  },
+};
 
 // Re-export types for backward compatibility
 export type ZitatPureFullState = ColorTwoTextState;

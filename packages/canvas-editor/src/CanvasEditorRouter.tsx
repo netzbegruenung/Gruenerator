@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import './canvas-editor.css';
+import { useYjsFormState } from './collab/useYjsFormState';
 import { CanvasEditor } from './components/CanvasEditor';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
 import { ProfilbildCanvas } from './ProfilbildCanvas';
@@ -8,6 +9,7 @@ import { ProfilbildCanvas } from './ProfilbildCanvas';
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
 import type { MobileBridgeProps } from './hooks/useMobileBridge';
 import type { InitialPageDef } from './hooks/usePageManager';
+import type * as Y from 'yjs';
 
 type CanvasState = Record<string, unknown>;
 
@@ -56,6 +58,16 @@ export interface ControllableCanvasWrapperProps {
   externalSidebar?: boolean;
   /** When true + externalSidebar, syncs mobile subsection state to canvasSidebarStore for external mobile UI */
   externalMobileMode?: boolean;
+  /**
+   * When provided, the editor enters collaborative mode: layers/config/formState
+   * are bound to the supplied Y.Doc. The local initialState is used only as a
+   * seed when the Y.Doc is empty; subsequent changes flow through Y.Doc and
+   * onStateChange is suppressed to prevent fighting Yjs updates.
+   */
+  collaborative?: {
+    ydoc: Y.Doc;
+    isSynced: boolean;
+  };
 }
 
 export function ControllableCanvasWrapper({
@@ -70,7 +82,9 @@ export function ControllableCanvasWrapper({
   mobileBridge,
   externalSidebar,
   externalMobileMode,
+  collaborative,
 }: ControllableCanvasWrapperProps) {
+  const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
   const [componentKey, setComponentKey] = useState(Date.now());
   const [config, setConfig] = useState<FullCanvasConfig | null>(null);
@@ -79,6 +93,14 @@ export function ControllableCanvasWrapper({
   // Track previous initialState to detect actual content changes
   const prevInitialStateRef = useRef<CanvasState>(initialState);
   const readyFiredRef = useRef(false);
+
+  const { formState: yFormState, updateFormState } = useYjsFormState({
+    ydoc: collaborative?.ydoc ?? null,
+    isSynced: collaborative?.isSynced ?? false,
+    fallback: initialState,
+  });
+
+  const effectiveState = isCollab ? yFormState : internalState;
 
   // Load config dynamically when type changes (for config-driven canvases)
   // Now includes 'zitat' and 'dreizeilen' for unified multi-page support
@@ -126,8 +148,10 @@ export function ControllableCanvasWrapper({
   }, [configLoading, config, type, onReady]);
 
   // Only update state and key when initialState CONTENT actually changes
-  // This prevents remounting when parent re-renders with same values but new object reference
+  // This prevents remounting when parent re-renders with same values but new object reference.
+  // Skipped in collaborative mode — Y.Doc is the source of truth there.
   useEffect(() => {
+    if (isCollab) return;
     const prevState = prevInitialStateRef.current;
     const hasContentChanged = !stateEqual(prevState, initialState);
 
@@ -136,15 +160,19 @@ export function ControllableCanvasWrapper({
       setComponentKey(Date.now());
       prevInitialStateRef.current = initialState;
     }
-  }, [initialState]);
+  }, [initialState, isCollab]);
 
   const handlePartChange = useCallback(
     (change: Partial<CanvasState>) => {
+      if (isCollab) {
+        updateFormState(change);
+        return;
+      }
       const newState = { ...internalState, ...change };
       setInternalState(newState);
       onStateChange?.(newState);
     },
-    [internalState, onStateChange]
+    [internalState, onStateChange, isCollab, updateFormState]
   );
 
   const commonProps = {
@@ -177,61 +205,54 @@ export function ControllableCanvasWrapper({
       switch (type) {
         case 'zitat':
           return {
-            quote: internalState.quote || '',
-            name: internalState.name || '',
+            quote: effectiveState.quote || '',
+            name: effectiveState.name || '',
             imageSrc: imageSrc || '',
-            alternatives: internalState.alternatives || [],
           };
         case 'zitat-pure':
           return {
-            quote: internalState.quote || '',
-            name: internalState.name || '',
-            alternatives: internalState.alternatives || [],
+            quote: effectiveState.quote || '',
+            name: effectiveState.name || '',
           };
         case 'info':
           return {
-            header: internalState.header || '',
-            body: internalState.body || '',
-            alternatives: internalState.alternatives || [],
+            header: effectiveState.header || '',
+            body: effectiveState.body || '',
           };
         case 'veranstaltung':
           return {
-            eventTitle: internalState.eventTitle || '',
-            beschreibung: internalState.beschreibung || '',
-            weekday: internalState.weekday || '',
-            date: internalState.date || '',
-            time: internalState.time || '',
-            locationName: internalState.locationName || '',
-            address: internalState.address || '',
+            eventTitle: effectiveState.eventTitle || '',
+            beschreibung: effectiveState.beschreibung || '',
+            weekday: effectiveState.weekday || '',
+            date: effectiveState.date || '',
+            time: effectiveState.time || '',
+            locationName: effectiveState.locationName || '',
+            address: effectiveState.address || '',
             imageSrc: imageSrc || '',
-            alternatives: internalState.alternatives || [],
           };
         case 'simple':
           return {
-            headline: internalState.headline || '',
-            subtext: internalState.subtext || '',
+            headline: effectiveState.headline || '',
+            subtext: effectiveState.subtext || '',
             imageSrc: imageSrc || '',
-            alternatives: internalState.alternatives || [],
           };
         case 'slider':
           return {
-            label: internalState.label || '',
-            headline: internalState.headline || '',
-            subtext: internalState.subtext || '',
-            alternatives: internalState.alternatives || [],
+            label: effectiveState.label || '',
+            headline: effectiveState.headline || '',
+            subtext: effectiveState.subtext || '',
           };
         case 'dreizeilen':
           return {
-            line1: internalState.line1 || '',
-            line2: internalState.line2 || '',
-            line3: internalState.line3 || '',
+            line1: effectiveState.line1 || '',
+            line2: effectiveState.line2 || '',
+            line3: effectiveState.line3 || '',
             currentImageSrc: imageSrc || '',
-            alternatives: internalState.alternatives || [],
           };
         case 'freeform':
           return {
-            backgroundMode: internalState.backgroundMode || 'color',
-            backgroundColor: internalState.backgroundColor || '#005538',
+            backgroundMode: effectiveState.backgroundMode || 'color',
+            backgroundColor: effectiveState.backgroundColor || '#005538',
             currentImageSrc: imageSrc || '',
           };
         case 'pres-title':
@@ -239,15 +260,14 @@ export function ControllableCanvasWrapper({
         case 'pres-content':
         case 'presentation':
           return {
-            title: internalState.title || '',
-            subtitle: internalState.subtitle || '',
-            bodyText: internalState.bodyText || '',
-            bodyText2: internalState.bodyText2 || '',
+            title: effectiveState.title || '',
+            subtitle: effectiveState.subtitle || '',
+            bodyText: effectiveState.bodyText || '',
+            bodyText2: effectiveState.bodyText2 || '',
             currentImageSrc: imageSrc || '',
-            alternatives: internalState.alternatives || [],
           };
         default:
-          return internalState;
+          return effectiveState;
       }
     };
 
@@ -308,6 +328,7 @@ export function ControllableCanvasWrapper({
             mobileBridge={mobileBridge}
             externalSidebar={externalSidebar}
             externalMobileMode={externalMobileMode}
+            collaborative={collaborative}
           />
         );
 

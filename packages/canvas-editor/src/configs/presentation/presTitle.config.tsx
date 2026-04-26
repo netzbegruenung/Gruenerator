@@ -7,19 +7,29 @@
  * Light/dark color mode toggle.
  */
 
-import { HiPhotograph } from 'react-icons/hi';
+import { HiPhotograph, HiSparkles } from 'react-icons/hi';
 import { PiPaintBrushBroadFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-
-import { BackgroundSection, AssetsSection, PresentationDesignSection } from '../../sidebar/sections';
+import { createAiSectionRegistration } from '../../ai/createAiSectionRegistration';
+import {
+  BackgroundSection,
+  AssetsSection,
+  PresentationDesignSection,
+} from '../../sidebar/sections';
+import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
-import { alternativesTab, createAlternativesSection } from '../alternativesSection';
 import { createShareSection } from '../shareSection';
 
-import { PRES_CONFIG, PRES_COLORS, PRES_BACKGROUND_COLORS, getPresColors } from './presentationTheme';
+import {
+  PRES_CONFIG,
+  PRES_COLORS,
+  PRES_BACKGROUND_COLORS,
+  getPresColors,
+} from './presentationTheme';
 import { createPresentationActions } from './createPresentationActions';
 import { calculateTitleLayout } from './presentationLayout';
 import { createFooterElements } from './createFooterElements';
+import { createPresentationAiCapabilities } from './presentationAi';
 import { createPresentationInitialState } from './presentationTypes';
 
 import type {
@@ -109,6 +119,15 @@ const subtitleTextElement: TextElementConfig<PresentationSlideState> = {
 };
 
 // ============================================================================
+// AI CAPABILITY
+// ============================================================================
+
+const presTitleAiCapabilities = createPresentationAiCapabilities({
+  template: 'pres-title',
+  fields: ['title', 'subtitle'],
+});
+
+// ============================================================================
 // CONFIG EXPORT
 // ============================================================================
 
@@ -150,6 +169,8 @@ export const presTitleConfig: FullCanvasConfig<PresentationSlideState, Presentat
     },
   },
 
+  ai: presTitleAiCapabilities,
+
   tabs: [
     {
       id: 'background',
@@ -169,16 +190,18 @@ export const presTitleConfig: FullCanvasConfig<PresentationSlideState, Presentat
       label: 'Elemente',
       ariaLabel: 'Dekorative Elemente',
     },
+    uploadsTab,
     {
       id: 'design',
       icon: PiPaintBrushBroadFill,
       label: 'Design',
       ariaLabel: 'Farbschema und Fußzeile',
     },
-    alternativesTab,
+    { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
+    chatTab,
   ],
 
-  getVisibleTabs: () => ['background', 'text', 'assets', 'design'],
+  getVisibleTabs: () => ['background', 'text', 'assets', 'uploads', 'design', 'ai', 'chat'],
 
   sections: {
     background: {
@@ -202,6 +225,8 @@ export const presTitleConfig: FullCanvasConfig<PresentationSlideState, Presentat
         ...injectFeatureProps(state, actions, context),
       }),
     },
+    uploads: uploadsSectionEntry,
+    chat: createChatSection('pres-title'),
     design: {
       component: PresentationDesignSection,
       propsFactory: (state, actions) => ({
@@ -215,12 +240,6 @@ export const presTitleConfig: FullCanvasConfig<PresentationSlideState, Presentat
         onShowSlideNumberChange: actions.setShowSlideNumber,
       }),
     },
-    alternatives: createAlternativesSection<PresentationSlideState, PresentationSlideActions>({
-      type: 'string',
-      getAlternatives: (state) => state.alternatives as string[],
-      getCurrentValue: (state) => state.title,
-      getSelectAction: (actions) => actions.handleSelectAlternative as (alt: string) => void,
-    }),
     share: createShareSection<PresentationSlideState, PresentationSlideActions>(
       'pres-title',
       (state) => {
@@ -229,6 +248,7 @@ export const presTitleConfig: FullCanvasConfig<PresentationSlideState, Presentat
         return [title, subtitle].filter(Boolean).join('\n');
       }
     ),
+    ai: createAiSectionRegistration('pres-title', presTitleAiCapabilities),
   },
 
   elements: [
@@ -244,9 +264,16 @@ export const presTitleConfig: FullCanvasConfig<PresentationSlideState, Presentat
   createInitialState: (props) => createPresentationInitialState(props, 'light'),
 
   createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) =>
-    createPresentationActions(getState, setState, saveToHistory, debouncedSaveToHistory, callbacks, {
-      canvasWidth: PRES_CONFIG.canvas.width,
-      canvasHeight: PRES_CONFIG.canvas.height,
-      getFontColor: (state) => getPresColors(state.colorMode).text,
-    }),
+    createPresentationActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      callbacks,
+      {
+        canvasWidth: PRES_CONFIG.canvas.width,
+        canvasHeight: PRES_CONFIG.canvas.height,
+        getFontColor: (state) => getPresColors(state.colorMode).text,
+      }
+    ),
 };

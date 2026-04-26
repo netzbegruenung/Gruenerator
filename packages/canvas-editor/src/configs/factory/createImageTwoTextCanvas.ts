@@ -13,18 +13,14 @@ import { HiPhotograph } from 'react-icons/hi';
 import { PiSquaresFourFill } from 'react-icons/pi';
 
 import { ImageBackgroundSection, AssetsSection } from '../../sidebar/sections';
-import {
-  alternativesTab,
-  createAlternativesSection,
-  isAlternativesEmpty,
-} from '../alternativesSection';
+import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
 import { createShareSection } from '../shareSection';
 
 import { createBaseActions } from './commonActions';
 
-import type { CanvasFeatures, CanvasDimensions, IconState, AlternativeItem } from './baseTypes';
+import type { CanvasFeatures, CanvasDimensions, IconState } from './baseTypes';
 import type { StockImageAttribution } from '../../common/imageSourceTypes';
 import type { BalkenInstance, BalkenMode } from '../../utils/balkenUtils';
 import type { AssetInstance } from '../../utils/canvasAssets';
@@ -64,7 +60,6 @@ export interface ImageTwoTextState {
   // Base state
   assetInstances: AssetInstance[];
   isDesktop: boolean;
-  alternatives: AlternativeItem[];
   selectedIcons: string[];
   iconStates: Record<string, IconState>;
   shapeInstances: ShapeInstance[];
@@ -123,7 +118,6 @@ export interface ImageTwoTextActions {
   updateFrame: (id: string, partial: Partial<FrameInstance>) => void;
   removeFrame: (id: string) => void;
   setFrameImage: (id: string, file: File, objectUrl: string) => void;
-  handleSelectAlternative: (alt: AlternativeItem) => void;
 }
 
 // ============================================================================
@@ -169,13 +163,6 @@ export interface ImageTwoTextOptions {
 
   /** Optional: Custom gradient opacity state key */
   gradientOpacityStateKey?: string;
-
-  /**
-   * Optional: Alternatives type
-   * - 'string': Single string alternatives (default, for Zitat/quote templates)
-   * - 'two-text': Two-text alternatives with headline/subtext (for Simple template)
-   */
-  alternativesType?: 'string' | 'two-text';
 }
 
 // ============================================================================
@@ -197,7 +184,6 @@ export function createImageTwoTextCanvas(
     getCanvasText,
     gradientOpacity,
     gradientOpacityStateKey,
-    alternativesType = 'string',
   } = options;
 
   // Build base elements
@@ -263,16 +249,14 @@ export function createImageTwoTextCanvas(
         label: 'Elemente',
         ariaLabel: 'Dekorative Elemente',
       },
-      alternativesTab,
+      uploadsTab,
+      chatTab,
     ],
 
-    getVisibleTabs: () => ['image', 'assets', 'alternatives', 'share'],
+    getVisibleTabs: () => ['image', 'assets', 'uploads', 'chat', 'share'],
 
     getAutoSwitchTab: (selectedElement) =>
       selectedElement?.startsWith('frame-') ? 'assets' : null,
-
-    getDisabledTabs: (state) =>
-      isAlternativesEmpty(state, (s) => s.alternatives) ? ['alternatives'] : [],
 
     sections: {
       image: {
@@ -303,27 +287,8 @@ export function createImageTwoTextCanvas(
           ...injectFeatureProps(state, actions, context),
         }),
       },
-      alternatives:
-        alternativesType === 'two-text'
-          ? createAlternativesSection<ImageTwoTextState, ImageTwoTextActions>({
-              type: 'two-text',
-              getAlternatives: (state) =>
-                state.alternatives as Array<{ headline: string; subtext: string }>,
-              getCurrentHeadline: (state) => state[primaryField.key] as string,
-              getCurrentSubtext: (state) => state[secondaryField.key] as string,
-              getSelectAction: (actions) =>
-                actions.handleSelectAlternative as unknown as (alt: {
-                  headline: string;
-                  subtext: string;
-                }) => void,
-            })
-          : createAlternativesSection<ImageTwoTextState, ImageTwoTextActions>({
-              type: 'string',
-              getAlternatives: (state) => state.alternatives as string[],
-              getCurrentValue: (state) => state[primaryField.key] as string,
-              getSelectAction: (actions) =>
-                actions.handleSelectAlternative as (alt: string) => void,
-            }),
+      uploads: uploadsSectionEntry,
+      chat: createChatSection(id),
       share: createShareSection<ImageTwoTextState, ImageTwoTextActions>(
         id,
         getCanvasText || defaultGetCanvasText
@@ -350,7 +315,6 @@ export function createImageTwoTextCanvas(
       // Base state
       assetInstances: [],
       isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-      alternatives: (props.alternatives as string[]) || [],
       selectedIcons: [],
       iconStates: {},
       shapeInstances: [],
@@ -418,24 +382,6 @@ export function createImageTwoTextCanvas(
         },
         setImageAttribution: (attribution: StockImageAttribution | null) => {
           setState({ imageAttribution: attribution } as Partial<ImageTwoTextState>);
-        },
-
-        // Alternatives - handles both string and two-text types
-        handleSelectAlternative: (alt: AlternativeItem) => {
-          if (typeof alt === 'object' && alt !== null && 'headline' in alt) {
-            // Two-text alternative (headline + subtext)
-            setState({
-              [primaryField.key]: alt.headline,
-              [secondaryField.key]: alt.subtext,
-            } as Partial<ImageTwoTextState>);
-            callbacks[primaryCallbackKey]?.(alt.headline);
-            callbacks[secondaryCallbackKey]?.(alt.subtext);
-          } else {
-            // String alternative
-            setState({ [primaryField.key]: alt as string } as Partial<ImageTwoTextState>);
-            callbacks[primaryCallbackKey]?.(alt as string);
-          }
-          saveToHistory(getState());
         },
       };
     },

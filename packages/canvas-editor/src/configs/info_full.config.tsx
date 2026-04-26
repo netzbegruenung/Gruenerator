@@ -5,13 +5,20 @@
  * Uses createColorTwoTextCanvas factory for shared infrastructure.
  */
 
+import { HiSparkles } from 'react-icons/hi';
+
+import { buildAssetCapability } from '../ai/assetCapability';
+import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
+import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { INFO_CONFIG, calculateInfoLayout } from '../utils/infoLayout';
 
-import { createColorTwoTextCanvas } from './factory';
+import { createColorTwoTextCanvas, type ColorTwoTextActions } from './factory';
 
+import type { TemplateAiCapabilities } from '../ai/types';
 import type { ColorTwoTextState } from './factory';
 import type { LayoutResult, TextElementConfig, ImageElementConfig } from './types';
 import type { BackgroundColorOption } from '../sidebar/types';
+import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
 // ============================================================================
 // CONSTANTS
@@ -156,7 +163,7 @@ const bodyTextElement: TextElementConfig<ColorTwoTextState> = {
 // CONFIG EXPORT
 // ============================================================================
 
-export const infoFullConfig = createColorTwoTextCanvas({
+const baseInfoConfig = createColorTwoTextCanvas({
   id: 'info',
 
   canvas: {
@@ -195,6 +202,69 @@ export const infoFullConfig = createColorTwoTextCanvas({
     return `${header}\n${body}`.trim();
   },
 });
+
+// ============================================================================
+// AI CAPABILITY
+// ============================================================================
+
+const infoAiCapabilities: TemplateAiCapabilities<ColorTwoTextState, ColorTwoTextActions> = {
+  supportedOperations: [
+    'set-text',
+    'set-background-color',
+    'add-illustration',
+    'add-asset',
+    'update-element',
+    'remove-element',
+  ],
+
+  illustrations: buildIllustrationCapability(),
+  assets: buildAssetCapability('info'),
+
+  describeForAi: (state): CanvasAiSnapshot => ({
+    template: 'info',
+    textFields: [
+      { field: 'header', label: 'Überschrift', value: (state.header as string) || '' },
+      { field: 'body', label: 'Text', value: (state.body as string) || '' },
+    ],
+    currentBackgroundColor: state.backgroundColor as `#${string}`,
+    elementsSummary: [],
+  }),
+
+  applyOverrides: {
+    'set-text': (op, actions) => {
+      if (op.field === 'header') {
+        actions.setPrimary?.(op.value);
+        return;
+      }
+      if (op.field === 'body') {
+        actions.setSecondary?.(op.value);
+        return;
+      }
+      throw new Error(`Info-Vorlage hat kein Feld "${op.field}"`);
+    },
+  },
+};
+
+// ============================================================================
+// FINAL CONFIG (factory result + AI overlay)
+// ============================================================================
+
+export const infoFullConfig = {
+  ...baseInfoConfig,
+  ai: infoAiCapabilities,
+  tabs: [
+    ...baseInfoConfig.tabs,
+    { id: 'ai' as const, icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
+  ],
+  getVisibleTabs: (state: ColorTwoTextState, context?: { selectedElement?: string | null }) => {
+    const base = baseInfoConfig.getVisibleTabs?.(state, context) ?? [];
+    return [...base, 'ai' as const];
+  },
+  sections: {
+    ...baseInfoConfig.sections,
+    ai: createAiSectionRegistration('info', infoAiCapabilities),
+  },
+};
 
 // Re-export types for backward compatibility
 export type InfoFullState = ColorTwoTextState;
