@@ -10,6 +10,7 @@ import {
 } from '@assistant-ui/react';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
 import { MarkdownStreamingProvider } from '../context/MarkdownStreamingContext';
+import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
 import {
   createNotebookModelAdapter,
   type NotebookAdapterConfig,
@@ -144,10 +145,11 @@ function NotebookChatProviderInner({
   }
 
   const dictationAdapter = useMemo(() => new VoxtralDictationAdapter(), []);
+  const attachmentAdapter = useMemo(() => new GrueneratorAttachmentAdapter(), []);
 
   const runtime = useLocalRuntime(adapter, {
     initialMessages,
-    adapters: { dictation: dictationAdapter },
+    adapters: { dictation: dictationAdapter, attachments: attachmentAdapter },
   });
 
   return (

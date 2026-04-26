@@ -31,10 +31,15 @@ export type SearchIntent =
   | 'summary'
   | 'direct';
 
-export interface SharepicData {
+export interface SharepicVariant {
+  id: string;
   canvasType: string;
   initialProps: Record<string, unknown>;
-  alternatives?: unknown[];
+  label?: string;
+}
+
+export interface SharepicData {
+  variants: SharepicVariant[];
 }
 
 export interface GeneratedImage {

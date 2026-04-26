@@ -411,19 +411,15 @@ async function* parseSSEStream(
         case 'sharepic_complete': {
           const {
             message,
-            canvasType,
-            initialProps,
-            alternatives,
+            variants,
             error: sharepicError,
           } = data as {
             message: string;
-            canvasType: string;
-            initialProps: Record<string, unknown>;
-            alternatives?: unknown[];
+            variants?: import('../hooks/useChatGraphStream').SharepicVariant[];
             error?: string;
           };
-          if (!sharepicError && canvasType && initialProps) {
-            receivedSharepicData = { canvasType, initialProps, alternatives };
+          if (!sharepicError && variants && variants.length > 0) {
+            receivedSharepicData = { variants };
           }
           transitionStep(sharepicError ? 'error' : 'generating');
           currentProgress = {

@@ -643,6 +643,22 @@ class SharedMediaService {
     return fullPath;
   }
 
+  // Clears stale `hasOriginalImage` / `originalImageFilename` flags when the
+  // backing file is gone. Prevents the gallery from repeatedly trying to load
+  // an original that no longer exists. Safe to call when the keys aren't set.
+  async clearOriginalImageMetadata(shareToken: string): Promise<void> {
+    await this.ensureInitialized();
+    const query = `
+      UPDATE shared_media
+      SET image_metadata = (
+        COALESCE(image_metadata, '{}'::jsonb)
+        - 'originalImageFilename'
+      ) || '{"hasOriginalImage": false}'::jsonb
+      WHERE share_token = $1
+    `;
+    await this.postgres!.query(query, [shareToken]);
+  }
+
   async getMediaLibrary(
     userId: string,
     filters: Partial<MediaLibraryFiltersInternal> = {}

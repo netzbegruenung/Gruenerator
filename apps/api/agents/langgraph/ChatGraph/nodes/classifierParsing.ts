@@ -221,31 +221,31 @@ export function parseClassifierResponse(
       searchQuery: null,
       reasoning: 'Fallback: image detected in response',
     };
-  if (intentFieldPattern('save_as_doc').test(content) || /\bdokument|speicher/i.test(content))
+  if (intentFieldPattern('save_as_doc').test(content))
     return {
       intent: 'save_as_doc',
       searchQuery: null,
       reasoning: 'Fallback: save_as_doc detected in response',
     };
-  if (intentFieldPattern('share_doc').test(content) || /\bteile\s+mit|freigeben/i.test(content))
+  if (intentFieldPattern('share_doc').test(content))
     return {
       intent: 'share_doc',
       searchQuery: null,
       reasoning: 'Fallback: share_doc detected in response',
     };
-  if (intentFieldPattern('chart').test(content) || /\bdiagramm|chart\b/i.test(content))
+  if (intentFieldPattern('chart').test(content))
     return {
       intent: 'chart',
       searchQuery: userContent,
       reasoning: 'Fallback: chart detected in response',
     };
-  if (intentFieldPattern('summary').test(content) || /\bzusammenfass/i.test(content))
+  if (intentFieldPattern('summary').test(content))
     return {
       intent: 'summary',
       searchQuery: null,
       reasoning: 'Fallback: summary detected in response',
     };
-  if (intentFieldPattern('direct').test(content) || /\bdirekt|kreativ/i.test(content))
+  if (intentFieldPattern('direct').test(content))
     return {
       intent: 'direct',
       searchQuery: null,

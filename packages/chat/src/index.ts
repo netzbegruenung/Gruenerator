@@ -163,6 +163,8 @@ export {
   type SearchResult,
   type StreamMetadata,
   type ChatMessage,
+  type SharepicData,
+  type SharepicVariant,
   type UseChatGraphStreamOptions,
   type UseChatGraphStreamReturn,
 } from './hooks/useChatGraphStream';
@@ -281,7 +283,12 @@ export {
   type FileSummary,
 } from './lib/fileUtils';
 
-// Grün-O-Mat embeddable components
+// Generic modal-style chat primitives (reusable across contexts)
+export { ChatModalDialog, type ChatModalDialogProps } from './components/modal/ChatModalDialog';
+export { CompactThread, type CompactThreadProps } from './components/modal/CompactThread';
+export { CompactWelcome, type CompactWelcomeProps } from './components/modal/CompactWelcome';
+
+// Grün-O-Mat embeddable components (presets layered on the generic primitives)
 export { GruenOMatModal, type GruenOMatModalProps } from './components/gruen-o-mat/GruenOMatModal';
 export {
   GruenOMatDialog,
