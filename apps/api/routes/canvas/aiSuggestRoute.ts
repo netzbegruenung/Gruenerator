@@ -121,6 +121,118 @@ function buildSystemPrompt(
   lines.push(
     'Jeder Vorschlag darf nur die oben aufgeführten Operations-Typen enthalten und nur Felder/IDs verwenden, die explizit gelistet sind.'
   );
+  lines.push('');
+  lines.push('PFLICHT-FORMAT eines Vorschlags (genaues Schema, andere Schlüssel sind ungültig):');
+  lines.push('```json');
+  lines.push('{');
+  lines.push('  "title": "Kurze Bezeichnung des Vorschlags",');
+  lines.push('  "description": "1-2 Sätze, warum das hilft (optional)",');
+  lines.push('  "operations": [ /* eine oder mehrere Operationen, siehe Schemas unten */ ]');
+  lines.push('}');
+  lines.push('```');
+  lines.push('');
+  lines.push('Strikte Top-Level-Regeln:');
+  lines.push('- Top-Level: { "suggestions": [ { Vorschlag }, ... ] }');
+  lines.push(
+    '- Jeder Vorschlag MUSS "title" und "operations" enthalten. "description" ist optional.'
+  );
+  lines.push(
+    '- Operationen werden NIEMALS direkt in "suggestions" platziert — sie liegen IMMER in "operations" innerhalb eines Vorschlags.'
+  );
+  lines.push(
+    '- Jede Operation verwendet den Schlüssel "kind" (NICHT "type"). Schlüssel sind je Operations-Typ unterschiedlich, siehe Schemas unten.'
+  );
+  lines.push('');
+  lines.push('OPERATION-SCHEMAS (NUR diese Typen sind in dieser Vorlage erlaubt):');
+  const supportedSet = new Set(capabilities.supportedOperations);
+  if (supportedSet.has('set-text')) {
+    lines.push(
+      '  - { "kind": "set-text", "field": "<field>", "label": "<Feld-Label>", "value": "<neuer Text>" }'
+    );
+    lines.push(
+      '    "field" MUSS einer der oben unter "Aktueller Inhalt" gelisteten Feld-Identifier sein (z.B. "quote", "line1", "title"). "value" enthält den NEUEN Text. Niemals "text" als Schlüssel verwenden.'
+    );
+  }
+  if (supportedSet.has('set-color-scheme')) {
+    lines.push('  - { "kind": "set-color-scheme", "schemeId": "<id aus Liste oben>" }');
+    lines.push(
+      '    "schemeId" MUSS exakt einer der gelisteten ids sein. Erfinde keine neuen Schemes.'
+    );
+  }
+  if (supportedSet.has('set-background-color')) {
+    lines.push('  - { "kind": "set-background-color", "color": "#RRGGBB" }');
+    lines.push(
+      '    Schlüssel ist "color" (NICHT "value"). Hex-Format mit # und 6 Ziffern (z.B. "#005538"). Lowercase oder Uppercase ok.'
+    );
+  }
+  if (supportedSet.has('set-color-mode')) {
+    lines.push('  - { "kind": "set-color-mode", "mode": "light" | "dark" }');
+    lines.push('    "mode" ist EXAKT einer dieser zwei Strings. Keine anderen Werte.');
+  }
+  if (supportedSet.has('add-illustration')) {
+    lines.push(
+      '  - { "kind": "add-illustration", "illustrationId": "<id aus Liste oben>", "color"?: "#RRGGBB" }'
+    );
+    lines.push(
+      '    "color" ist optional und tönt die Illustration. Lasse das Feld weg, wenn die Standardfarbe passt.'
+    );
+  }
+  if (supportedSet.has('add-asset')) {
+    lines.push('  - { "kind": "add-asset", "assetId": "<id aus Liste oben>" }');
+    lines.push('    "assetId" MUSS exakt einer der gelisteten ids sein.');
+  }
+  if (supportedSet.has('remove-element')) {
+    lines.push(
+      '  - { "kind": "remove-element", "elementId": "<id aus den platzierten Elementen>" }'
+    );
+    lines.push(
+      '    "elementId" MUSS aus dem Abschnitt "Bereits platzierte Elemente" stammen. Niemals raten.'
+    );
+  }
+  if (supportedSet.has('toggle-sunflower')) {
+    lines.push('  - { "kind": "toggle-sunflower", "visible": true | false }');
+  }
+  if (supportedSet.has('set-font-size')) {
+    lines.push(
+      '  - { "kind": "set-font-size", "field": "<field>", "label": "<Feld-Label>", "size": <integer 1..500> }'
+    );
+    lines.push(
+      '    "size" ist eine ganze Zahl in Pixeln. Realistische Werte: Headlines 60–120, Body 28–48.'
+    );
+  }
+  if (supportedSet.has('update-element')) {
+    lines.push('  - { "kind": "update-element", "elementId": "<id>", "patch": { ... } }');
+    lines.push('    "patch" muss MINDESTENS EIN Feld aus dieser Liste enthalten:');
+    lines.push('      - "color": "#RRGGBB"');
+    lines.push('      - "opacity": Zahl 0..1 (z.B. 0.5)');
+    lines.push('      - "scale": positive Zahl, max 10 (z.B. 1.2)');
+    lines.push('      - "rotation": Grad zwischen -360 und 360');
+    lines.push('      - "x": Zahl (Pixel-Position)');
+    lines.push('      - "y": Zahl (Pixel-Position)');
+    lines.push(
+      '    "elementId" MUSS aus "Bereits platzierte Elemente" stammen. Werte außerhalb des erlaubten Bereichs werden zurückgewiesen.'
+    );
+  }
+
+  // Strong preference rules: prevent "invented hex colors" when a scheme list is available.
+  if (
+    supportedSet.has('set-color-scheme') &&
+    capabilities.colorSchemes &&
+    capabilities.colorSchemes.length > 0
+  ) {
+    lines.push('');
+    lines.push(
+      'WICHTIG zu Farben: Diese Vorlage hat ein festes Farbschema (siehe oben). Wenn du Farben ändern willst, nutze IMMER set-color-scheme mit einer schemeId aus der Liste. Erfinde NIEMALS eigene Hex-Farben (z.B. #2E7D32, #4A90E2). Set-background-color ist nur für Vorlagen ohne Farbschema gedacht.'
+    );
+  } else if (supportedSet.has('set-background-color')) {
+    lines.push('');
+    lines.push(
+      'WICHTIG zu Farben: Beschränke Hex-Farben auf das Grüne CI. Bevorzugte Markenfarben: Tanne #005538, Sand #F5F1E9, Lila #6F2DA8, Pink #FF7F8E, Gelb #FFD320. Erfinde keine willkürlichen Farben (z.B. #2E7D32, #4A90E2) — die wirken off-brand.'
+    );
+    lines.push(
+      'KONTRAST-PFLICHT: Stelle sicher, dass die Hintergrundfarbe genug Kontrast zu Texten und Elementen auf der Vorlage bietet. Wenn die aktuelle Hintergrundfarbe bereits dunkel ist (z.B. Tanne #005538), schlage KEINE weitere dunkle Farbe vor. Wenn der Text auf der Vorlage z.B. weiß ist, wähle dunkle Hintergründe. Vermeide Grün-auf-Grün, Hell-auf-Hell, Dunkel-auf-Dunkel.'
+    );
+  }
 
   return lines.join('\n');
 }
@@ -218,7 +330,16 @@ export const canvasAiContractRouter = s.router(canvasAiContract, {
             // mismatch (regolo doesn't serve gpt-oss:120b which the
             // service's selector picked).
             systemPrompt,
-            messages: [{ role: 'user', content: prompt }],
+            // User message is prefixed with an explicit tool-use directive.
+            // gpt-oss tends to fall back to plain-text answers on long
+            // prompts even with `tool_choice: 'required'`; weighting the
+            // user turn shifts its preference toward calling the tool.
+            messages: [
+              {
+                role: 'user',
+                content: `Verwende JETZT das Tool ${TOOL_NAME} mit 3 bis 5 Vorschlägen für folgende Anweisung:\n\n${prompt}\n\nAntworte ausschließlich über den Tool-Aufruf — keinen Begleittext.`,
+              },
+            ],
             options: {
               tools: [tool],
               // 'required' forces the model to emit a tool call. We only
@@ -228,7 +349,11 @@ export const canvasAiContractRouter = s.router(canvasAiContract, {
               // downgrades unknown shapes to 'auto'), which let
               // models silently skip the tool call.
               tool_choice: 'required',
-              temperature: 0.7,
+              // Low temperature: this is a tool-call task with strict schema
+              // adherence. 0.7 caused the model to generalize keys across
+              // operation kinds (e.g. emitting "value" for set-background-color
+              // because set-text uses "value"). 0.3 keeps schemas precise.
+              temperature: 0.3,
             },
           },
           req
@@ -243,7 +368,12 @@ export const canvasAiContractRouter = s.router(canvasAiContract, {
         const toolInput = extractToolCall(result);
         if (!toolInput) {
           lastError = 'No tool call in response';
-          log.warn(`[canvas_ai_suggest] attempt ${attempt}: no tool call`);
+          // Diagnostic: when the model skips the tool, log stop_reason +
+          // content preview so we can see what it returned instead.
+          const contentPreview = (result.content ?? '').slice(0, 400);
+          log.warn(
+            `[canvas_ai_suggest] attempt ${attempt}: no tool call (stop_reason=${result.stop_reason ?? 'unknown'}) content="${contentPreview}"`
+          );
           continue;
         }
 
