@@ -13,6 +13,7 @@ import type {
   ConfirmActionType,
   ChartData,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type { Response } from 'express';
 
 /**
@@ -113,12 +114,7 @@ export interface SSEEventPayloads {
   };
   sharepic_complete: {
     message: string;
-    variants: Array<{
-      id: string;
-      canvasType: string;
-      initialProps: Record<string, unknown>;
-      label?: string;
-    }>;
+    variants: SharepicVariant[];
     error?: string;
   };
   response_start: { message: string };
