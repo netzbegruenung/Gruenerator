@@ -11,9 +11,9 @@
  */
 
 import { HiPhotograph } from 'react-icons/hi';
-import { PiSquaresFourFill } from 'react-icons/pi';
+import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { BackgroundSection, AssetsSection } from '../../sidebar/sections';
+import { BackgroundSection, AssetsSection, CombinedTextSection } from '../../sidebar/sections';
 import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
@@ -243,6 +243,12 @@ export function createColorTwoTextCanvas(
         ariaLabel: 'Hintergrundfarbe wählen',
       },
       {
+        id: 'text',
+        icon: PiTextAa,
+        label: 'Text',
+        ariaLabel: 'Text bearbeiten',
+      },
+      {
         id: 'assets',
         icon: PiSquaresFourFill,
         label: 'Elemente',
@@ -252,7 +258,7 @@ export function createColorTwoTextCanvas(
       chatTab,
     ],
 
-    getVisibleTabs: () => ['background', 'assets', 'uploads', 'chat', 'share'],
+    getVisibleTabs: () => ['background', 'text', 'assets', 'uploads', 'chat', 'share'],
 
     getAutoSwitchTab: (selectedElement) =>
       selectedElement?.startsWith('frame-') ? 'assets' : null,
@@ -264,6 +270,16 @@ export function createColorTwoTextCanvas(
           currentColor: state.backgroundColor,
           colors: backgroundColors,
           onColorChange: actions.setBackgroundColor,
+        }),
+      },
+      text: {
+        component: CombinedTextSection,
+        propsFactory: (state, actions) => ({
+          additionalTexts: state.additionalTexts,
+          onAddHeader: actions.addHeader,
+          onAddText: actions.addText,
+          onUpdateText: actions.updateAdditionalText,
+          onRemoveText: actions.removeAdditionalText,
         }),
       },
       assets: {

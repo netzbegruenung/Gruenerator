@@ -346,7 +346,8 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     chatTab,
   ],
 
-  getVisibleTabs: () => ['image', 'text', 'assets', 'uploads', 'ai', 'chat'],
+  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
+  getVisibleTabs: () => ['image', 'text', 'assets', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) => (selectedElement?.startsWith('frame-') ? 'assets' : null),
 
@@ -392,7 +393,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       }),
     },
     uploads: uploadsSectionEntry,
-    chat: createChatSection('veranstaltung'),
+    chat: createChatSection('veranstaltung', veranstaltungAiCapabilities),
     share: createShareSection<VeranstaltungFullState>('veranstaltung', (state) =>
       `${state.eventTitle}\n${state.beschreibung}\n${state.weekday} ${state.date} ${state.time}\n${state.locationName}`.trim()
     ),

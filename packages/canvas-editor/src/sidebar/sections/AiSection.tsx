@@ -189,15 +189,13 @@ function AiSectionEnabled<TState, TActions extends CanvasAiActionsBase>({
   );
 }
 
-function SuggestionCard({
-  suggestion,
-  applyResults,
-  onApply,
-}: {
+export interface SuggestionCardProps {
   suggestion: CanvasAiSuggestion;
   applyResults: ApplyResult[] | undefined;
   onApply: () => void;
-}) {
+}
+
+export function SuggestionCard({ suggestion, applyResults, onApply }: SuggestionCardProps) {
   const applied = !!applyResults;
   const failed = applyResults?.some((r) => !r.ok) ?? false;
   const failedOps = applyResults
@@ -248,7 +246,7 @@ function SuggestionCard({
   );
 }
 
-function OperationPreview({ op }: { op: CanvasAiOperation }) {
+export function OperationPreview({ op }: { op: CanvasAiOperation }) {
   switch (op.kind) {
     case 'set-text':
       return (
