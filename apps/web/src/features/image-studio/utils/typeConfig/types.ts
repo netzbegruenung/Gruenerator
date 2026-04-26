@@ -123,17 +123,12 @@ export type TypeConfig = TemplateTypeConfig | KiTypeConfig;
 export type ResponseMapper<T = Record<string, unknown>> = (
   result: T
 ) => Record<string, string | string[]>;
-export type AlternativesMapper<T = Record<string, unknown>> = (
-  alt: T,
-  index?: number
-) => Record<string, string>;
 
 export interface TemplateFieldConfig {
   inputFields: InputField[];
   previewFields: PreviewField[];
   resultFields: string[];
   responseMapping?: ResponseMapper;
-  alternativesMapping?: AlternativesMapper;
   afterLastInputTrigger?: string;
   showPreviewLabels?: boolean;
   showImageUpload: boolean;
@@ -142,11 +137,9 @@ export interface TemplateFieldConfig {
   showGroupedFontSizeControl?: boolean;
   showAdvancedEditing: boolean;
   showCredit: boolean;
-  showAlternatives: boolean;
   showEditPanel: boolean;
   showAutoSave: boolean;
   showSocialGeneration: boolean;
-  alternativesButtonText?: string;
   skipSloganStep?: boolean;
   minimalLayout?: boolean;
 }

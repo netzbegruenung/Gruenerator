@@ -3,6 +3,7 @@ import {
   ChatThreadList,
   TooltipProvider,
   useAgentStore,
+  type SharepicVariant,
 } from '@gruenerator/chat';
 import {
   lazy,
@@ -18,12 +19,10 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
-import { FORM_STEPS } from '../features/image-studio/utils/typeConfig/constants';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { useAuthStore } from '../stores/authStore';
-import useImageStudioStore from '../stores/imageStudioStore';
 import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
 
 const DocsEditorModal = lazy(() => import('@/components/common/DocsEditorModal'));
@@ -142,15 +141,29 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         }
       },
       renderSharepic: renderSharepicToImage,
-      onEditSharepic: (data: {
-        canvasType: string;
-        initialProps: Record<string, unknown>;
-        alternatives?: unknown[];
-      }) => {
-        const store = useImageStudioStore.getState();
-        store.loadFromAIGeneration(data.canvasType, data.initialProps as Record<string, string>);
-        store.setCurrentStep(FORM_STEPS.CANVAS_EDIT);
-        void navigate(`/studio/vorlagen/${data.canvasType}`);
+      onEditSharepic: (variant: SharepicVariant) => {
+        const handoffId =
+          typeof crypto !== 'undefined' && 'randomUUID' in crypto
+            ? crypto.randomUUID()
+            : `handoff-${Date.now()}`;
+        const payload = {
+          canvasType: variant.canvasType,
+          initialProps: variant.initialProps,
+          ts: Date.now(),
+        };
+        try {
+          localStorage.setItem(
+            `gruenerator:sharepic-handoff:${handoffId}`,
+            JSON.stringify(payload)
+          );
+        } catch (err) {
+          console.error('[GlobalChatProvider] Failed to persist sharepic handoff:', err);
+        }
+        window.open(
+          `/studio/vorlagen/${variant.canvasType}?handoff=${handoffId}`,
+          '_blank',
+          'noopener,noreferrer'
+        );
       },
       onEditInDocs: async (content: string, title?: string, existingDocId?: string) => {
         if (existingDocId) {

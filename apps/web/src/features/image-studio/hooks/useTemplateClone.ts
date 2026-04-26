@@ -59,22 +59,26 @@ export function useTemplateClone(): TemplateCloneResult {
         );
         const share = cloneResponse.data.share ?? {};
 
+        const imageType = template.image_type ?? '';
+        const normalizedType = imageType.toLowerCase().replace(/_/g, '-');
+
         const routeMap: Record<string, string> = {
           dreizeilen: '/studio/templates/dreizeilen',
           zitat: '/studio/templates/zitat',
           'zitat-pure': '/studio/templates/zitat-pure',
           info: '/studio/templates/info',
           headline: '/studio/templates/headline',
-          Dreizeilen: '/studio/templates/dreizeilen',
-          Zitat: '/studio/templates/zitat',
-          Zitat_Pure: '/studio/templates/zitat-pure',
-          Info: '/studio/templates/info',
-          Headline: '/studio/templates/headline',
+          veranstaltung: '/studio/templates/veranstaltung',
+          simple: '/studio/templates/simple',
+          slider: '/studio/templates/slider',
+          freeform: '/studio/templates/freeform',
+          'pres-title': '/studio/templates/pres-title',
+          'pres-image': '/studio/templates/pres-image',
+          'pres-content': '/studio/templates/pres-content',
+          presentation: '/studio/templates/pres-title',
         };
 
-        const imageType = template.image_type ?? '';
-        const route = routeMap[imageType] ?? '/studio/templates';
-        const normalizedType = imageType.toLowerCase().replace('_', '-');
+        const route = routeMap[normalizedType] ?? '/studio/templates';
 
         void navigate(route, {
           replace: true,

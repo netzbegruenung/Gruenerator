@@ -36,12 +36,6 @@ interface InfoResult {
   searchTerms?: string[];
 }
 
-interface InfoAlternative {
-  header?: string;
-  subheader?: string;
-  body?: string;
-}
-
 export const infoFieldConfig: TemplateFieldConfig = {
   inputFields: [
     {
@@ -66,19 +60,12 @@ export const infoFieldConfig: TemplateFieldConfig = {
     body: result.body || '',
     searchTerms: result.searchTerms || [],
   }),
-  alternativesMapping: (alt: InfoAlternative) => ({
-    header: alt.header || '',
-    subheader: alt.subheader || '',
-    body: alt.body || '',
-  }),
   showImageUpload: false,
   showColorControls: false,
   showFontSizeControl: false,
   showAdvancedEditing: false,
   showCredit: false,
-  showAlternatives: true,
   showEditPanel: true,
   showAutoSave: true,
   showSocialGeneration: true,
-  alternativesButtonText: 'Andere Varianten',
 };

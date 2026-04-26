@@ -1,7 +1,7 @@
 import { Button } from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useCallback } from 'react';
-import { FaTimes, FaChevronDown, FaExchangeAlt, FaImage, FaRedo } from 'react-icons/fa';
+import { FaTimes, FaChevronDown, FaImage, FaRedo } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi';
 
 import {
@@ -17,10 +17,7 @@ import { cn } from '../../../utils/cn';
 
 import ConfigDrivenFields from './ConfigDrivenFields';
 
-import type {
-  TemplateResultEditPanelProps,
-  SloganAlternativeWithIndex,
-} from '../types/templateResultTypes';
+import type { TemplateResultEditPanelProps } from '../types/templateResultTypes';
 
 export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
   isOpen,
@@ -31,11 +28,6 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
   handleImageChange,
   previewValues,
   handleChange,
-  displayAlternatives,
-  isAlternativesOpen,
-  setIsAlternativesOpen,
-  handleSloganSwitch,
-  getAlternativePreview,
   credit,
   fontSize,
   colorScheme,
@@ -50,8 +42,6 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
   type,
   loading,
   onRegenerate,
-  onGenerateAlternatives,
-  alternativesLoading,
 }) => {
   const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
 
@@ -183,65 +173,6 @@ export const EditPanel: React.FC<TemplateResultEditPanelProps> = ({
               />
             )}
           </div>
-
-          {fieldConfig?.showAlternatives && (
-            <div className="flex flex-col gap-sm">
-              {displayAlternatives.length === 0 ? (
-                <Button
-                  variant="brand-outline"
-                  size="brand"
-                  onClick={onGenerateAlternatives}
-                  disabled={loading || alternativesLoading}
-                  type="button"
-                >
-                  {alternativesLoading ? <div className="button-spinner" /> : <HiSparkles />}
-                  Mehr Alternativen generieren
-                </Button>
-              ) : (
-                <>
-                  <button
-                    className={cn(
-                      'flex items-center gap-sm w-full bg-transparent border-none cursor-pointer py-sm px-0 text-foreground text-base font-semibold transition-colors duration-200 hover:text-[var(--interactive-accent-color)]',
-                      '[&_svg:last-child]:ml-auto [&_svg:last-child]:transition-transform [&_svg:last-child]:duration-200',
-                      isAlternativesOpen && '[&_svg:last-child]:rotate-180'
-                    )}
-                    onClick={() => setIsAlternativesOpen(!isAlternativesOpen)}
-                    type="button"
-                  >
-                    <FaExchangeAlt />
-                    Text-Alternativen ({displayAlternatives.length})
-                    <FaChevronDown />
-                  </button>
-
-                  <AnimatePresence>
-                    {isAlternativesOpen && (
-                      <motion.div
-                        className="overflow-hidden"
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <div className="flex flex-wrap gap-xs py-sm">
-                          {displayAlternatives.map((alt) => (
-                            <button
-                              key={alt._index}
-                              className="bg-background-alt border border-grey-200 dark:border-grey-700 rounded-full px-sm py-xs text-sm cursor-pointer transition-all duration-200 max-w-[200px] overflow-hidden text-ellipsis whitespace-nowrap hover:bg-[var(--tanne-10)] hover:border-[var(--tanne)] hover:text-[var(--tanne)]"
-                              onClick={() => handleSloganSwitch(alt, alt._index)}
-                              disabled={loading}
-                              type="button"
-                            >
-                              {getAlternativePreview(alt)}
-                            </button>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </>
-              )}
-            </div>
-          )}
 
           {(fieldConfig?.showCredit ||
             (fieldConfig?.showFontSizeControl && !fieldConfig?.showGroupedFontSizeControl)) && (

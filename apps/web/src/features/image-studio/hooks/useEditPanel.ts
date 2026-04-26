@@ -4,15 +4,12 @@ interface UseEditPanelReturn {
   isOpen: boolean;
   openPanel: () => void;
   closePanel: () => void;
-  isAlternativesOpen: boolean;
-  setIsAlternativesOpen: (open: boolean) => void;
   isAdvancedOpen: boolean;
   toggleAdvanced: () => void;
 }
 
 export const useEditPanel = (): UseEditPanelReturn => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isAlternativesOpen, setIsAlternativesOpen] = useState(false);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   const openPanel = useCallback(() => {
@@ -53,8 +50,6 @@ export const useEditPanel = (): UseEditPanelReturn => {
     isOpen,
     openPanel,
     closePanel,
-    isAlternativesOpen,
-    setIsAlternativesOpen,
     isAdvancedOpen,
     toggleAdvanced,
   };

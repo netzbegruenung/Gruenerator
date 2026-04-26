@@ -1,11 +1,7 @@
 import type { ColorScheme, ColorSchemeItem } from './shared';
-import type {
-  VeranstaltungFieldFontSizes,
-  SloganAlternative,
-} from '../../../stores/imageStudioStore';
+import type { VeranstaltungFieldFontSizes } from '../../../stores/imageStudioStore';
 import type { InputField } from '../utils/typeConfig';
 import type { RefObject, ChangeEvent } from 'react';
-
 
 export interface FieldConfig {
   showImageUpload?: boolean;
@@ -18,12 +14,7 @@ export interface FieldConfig {
   showAdvancedEditing?: boolean;
   showAutoSave?: boolean;
   showSocialGeneration?: boolean;
-  showAlternatives?: boolean;
 }
-
-export type SloganAlternativeWithIndex = SloganAlternative & {
-  _index: number;
-};
 
 export interface PreviewValues {
   line1?: string;
@@ -51,11 +42,6 @@ export interface TemplateResultEditPanelProps {
   handleImageChange: (e: ChangeEvent<HTMLInputElement>) => void;
   previewValues: PreviewValues;
   handleChange: (e: { target: { name: string; value: string } }) => void;
-  displayAlternatives: SloganAlternativeWithIndex[];
-  isAlternativesOpen: boolean;
-  setIsAlternativesOpen: (open: boolean) => void;
-  handleSloganSwitch: (alt: SloganAlternativeWithIndex, index: number) => void;
-  getAlternativePreview: (alt: SloganAlternativeWithIndex) => string;
   credit?: string;
   fontSize?: number;
   colorScheme?: ColorSchemeItem[] | ColorScheme;
@@ -70,8 +56,6 @@ export interface TemplateResultEditPanelProps {
   type?: string;
   loading?: boolean;
   onRegenerate: () => void;
-  onGenerateAlternatives?: () => void;
-  alternativesLoading?: boolean;
 }
 
 export interface TemplateResultLightboxProps {
@@ -146,7 +130,6 @@ export interface ShareMetadata {
     additionalTexts?: unknown[];
   };
   searchTerms?: string[];
-  sloganAlternatives?: SloganAlternative[];
   kiConfig?: {
     kiType: string;
     prompt: string | null;
@@ -155,5 +138,5 @@ export interface ShareMetadata {
   };
 }
 
-export { SloganAlternative, VeranstaltungFieldFontSizes };
+export type { VeranstaltungFieldFontSizes };
 export type { ColorScheme, ColorSchemeItem } from './shared';

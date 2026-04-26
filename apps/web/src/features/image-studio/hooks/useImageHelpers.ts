@@ -25,7 +25,6 @@ export const useImageHelpers = (): UseImageHelpersReturn => {
     sunflowerOffset,
     credit,
     searchTerms,
-    sloganAlternatives,
     quote,
     name,
     header,
@@ -94,7 +93,6 @@ export const useImageHelpers = (): UseImageHelpersReturn => {
         credit,
       },
       searchTerms,
-      sloganAlternatives,
     };
 
     if (typeConfig?.usesFluxApi) {
@@ -136,7 +134,6 @@ export const useImageHelpers = (): UseImageHelpersReturn => {
     sunflowerOffset,
     credit,
     searchTerms,
-    sloganAlternatives,
     quote,
     name,
     header,

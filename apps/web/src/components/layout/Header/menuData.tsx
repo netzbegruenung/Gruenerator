@@ -48,7 +48,7 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
   items.startseite = {
     id: 'startseite',
     path: '/',
-    title: 'Startseite',
+    title: 'Workplace',
     description: 'Erstellen, Dokumente & Medien',
     icon: getIcon('navigation', 'home'),
   };
@@ -56,10 +56,19 @@ export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuI
   items.docs = {
     id: 'docs',
     path: '/docs',
-    title: 'Dokumente',
+    title: 'Dokumente und Boards',
     description: 'Dokumente & Präsentationen',
     icon: getIcon('navigation', 'docs'),
     activePaths: ['/docs'],
+  };
+
+  items.studio = {
+    id: 'studio',
+    path: '/studio',
+    title: 'Studio',
+    description: 'Sharepics erstellen und gemeinsam bearbeiten',
+    icon: getIcon('navigation', 'sharepic'),
+    activePaths: ['/studio'],
   };
 
   return items;
