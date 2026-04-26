@@ -11,7 +11,6 @@ import type {
   GeneratedImage,
   ChatProgress,
   Citation,
-  FallbackInfo,
   SearchResult,
   StreamMetadata,
   ProgressStep,
@@ -410,38 +409,27 @@ async function* parseSSEStream(
         }
 
         case 'sharepic_complete': {
-          const payload = data as {
+          const {
+            message,
+            canvasType,
+            initialProps,
+            alternatives,
+            error: sharepicError,
+          } = data as {
             message: string;
-            variants?: import('../hooks/useChatGraphStream').SharepicVariant[];
-            canvasType?: string;
-            initialProps?: Record<string, unknown>;
+            canvasType: string;
+            initialProps: Record<string, unknown>;
             alternatives?: unknown[];
             error?: string;
           };
-          if (!payload.error) {
-            if (payload.variants && payload.variants.length > 0) {
-              receivedSharepicData = { variants: payload.variants };
-            } else if (payload.canvasType && payload.initialProps) {
-              const legacyId =
-                typeof crypto !== 'undefined' && 'randomUUID' in crypto
-                  ? crypto.randomUUID()
-                  : `legacy-${Date.now()}`;
-              receivedSharepicData = {
-                variants: [
-                  {
-                    id: legacyId,
-                    canvasType: payload.canvasType,
-                    initialProps: payload.initialProps,
-                  },
-                ],
-              };
-            }
+          if (!sharepicError && canvasType && initialProps) {
+            receivedSharepicData = { canvasType, initialProps, alternatives };
           }
-          transitionStep(payload.error ? 'error' : 'generating');
+          transitionStep(sharepicError ? 'error' : 'generating');
           currentProgress = {
             ...currentProgress,
-            stage: payload.error ? 'error' : 'generating',
-            message: payload.message,
+            stage: sharepicError ? 'error' : 'generating',
+            message,
           };
           yield buildResult();
           break;
@@ -512,15 +500,6 @@ async function* parseSSEStream(
             lastYieldTime = now;
             yield buildResult();
           }
-          break;
-        }
-
-        case 'fallback': {
-          // Server switched models silently — log only, no UI.
-          const info = data as FallbackInfo;
-          console.warn(
-            `[GrueneratorModelAdapter] Model fallback: ${info.from.id} → ${info.to.id} (${info.reason})`
-          );
           break;
         }
 
@@ -1012,26 +991,14 @@ export function createGrueneratorModelAdapter(
 
       const streamOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
       const resolvedAgentId = effectiveAgentId || config.agentId;
-      try {
-        yield* parseSSEStream(
-          response,
-          callbacks,
-          streamOutcome,
-          resolvedAgentId
-            ? { agentId: resolvedAgentId, agentMention: effectiveAgentMention }
-            : undefined
-        );
-      } catch (err) {
-        // Mid-stream connection drop (proxy timeout, mobile blip, worker recycle)
-        // surfaces as TypeError; treat it as a graceful end so it doesn't reach Sentry.
-        if (
-          err instanceof TypeError &&
-          /network error|failed to fetch|load failed|error in input stream/i.test(err.message)
-        ) {
-          return;
-        }
-        throw err;
-      }
+      yield* parseSSEStream(
+        response,
+        callbacks,
+        streamOutcome,
+        resolvedAgentId
+          ? { agentId: resolvedAgentId, agentMention: effectiveAgentMention }
+          : undefined
+      );
 
       // Persist server-indexed document IDs to thread for follow-up messages
       if (streamOutcome.indexedDocumentIds.length > 0 && config.threadId) {

@@ -4,7 +4,7 @@
  * notebook controller and the public Gruen-O-Mat controller.
  */
 
-import { type ModelMessage } from 'ai';
+import { streamText, type ModelMessage } from 'ai';
 
 import {
   buildConcisePromptGrundsatz,
@@ -15,7 +15,10 @@ import {
   getSystemCollectionConfig,
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
-import { isRegoloReasoningModel } from '../../services/ai/regoloReasoningStream.js';
+import {
+  isRegoloReasoningModel,
+  streamRegoloWithReasoning,
+} from '../../services/ai/regoloReasoningStream.js';
 import { notebookQAService } from '../../services/notebook/index.js';
 import { rerankNotebookResults } from '../../services/notebook/rerankNotebookResults.js';
 import {
@@ -27,11 +30,7 @@ import { createLogger } from '../../utils/logger.js';
 import { containsPromptLeakage } from '../gruenomat/topicGuard.js';
 
 import { isProviderConfigured } from './agents/providers.js';
-import {
-  resolveModel,
-  streamForResolution,
-  streamWithFallback,
-} from './services/responseStreamingService.js';
+import { resolveModel } from './services/responseStreamingService.js';
 import { SSEWriter } from './services/sseHelpers.js';
 
 import type { SearchContext } from '../../services/notebook/types.js';
@@ -254,10 +253,14 @@ export async function handleNotebookStream(
 
     // Determine AI provider and model (same resolution as chat — handles model ID → real name)
     const defaultAgentConfig = { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL };
-    const primaryResolution = resolveModel(defaultAgentConfig, model);
+    const {
+      model: aiModel,
+      provider: resolvedProvider,
+      modelName: resolvedModelName,
+    } = resolveModel(defaultAgentConfig, model);
 
-    if (!isProviderConfigured(primaryResolution.provider)) {
-      sse.send('error', { error: `Provider "${primaryResolution.provider}" is not configured` });
+    if (!isProviderConfigured(resolvedProvider)) {
+      sse.send('error', { error: `Provider "${resolvedProvider}" is not configured` });
       sse.end();
       return null;
     }
@@ -278,42 +281,127 @@ export async function handleNotebookStream(
     const t2 = Date.now();
     log.debug(`⏱ Model setup: ${t2 - t1}ms`);
 
-    // Reasoning models need extra room for the <think> block before content.
+    const useReasoningStream = isRegoloReasoningModel(resolvedProvider, resolvedModelName);
+    // Reasoning models spend most of their budget on the <think> block before
+    // emitting the answer. Triple the ceiling so there's room for both phases.
     const baseMaxOutput = isFast ? 3000 : 16000;
+    const maxOutputTokens = useReasoningStream ? Math.max(baseMaxOutput, 9000) : baseMaxOutput;
 
     sse.send('response_start', { message: 'Generiere Antwort...' });
 
-    const fullText = await streamWithFallback({
-      primary: primaryResolution,
-      sse,
-      logPrefix: '[Notebook]',
-      buildStream: async (resolution) => {
-        const isReasoning = isRegoloReasoningModel(resolution.provider, resolution.modelName);
-        return streamForResolution({
-          resolution,
+    let fullText = '';
+    let firstChunkTime: number | undefined;
+
+    try {
+      if (useReasoningStream) {
+        for await (const chunk of streamRegoloWithReasoning({
+          model: resolvedModelName,
           messages: aiMessages,
-          maxTokens: isReasoning ? Math.max(baseMaxOutput, 9000) : baseMaxOutput,
+          maxTokens: maxOutputTokens,
           temperature: 0.2,
-          sse,
           signal: abortController.signal,
-          logPrefix: '[Notebook]',
+        })) {
+          if (abortController.signal.aborted) break;
+          if (!firstChunkTime) {
+            firstChunkTime = Date.now();
+            log.debug(`⏱ First token latency: ${firstChunkTime - t2}ms`);
+          }
+          if (chunk.type === 'text') {
+            fullText += chunk.delta;
+            sse.send('text_delta', { text: chunk.delta });
+          } else {
+            sse.send('reasoning_delta', { text: chunk.delta });
+          }
+        }
+      } else {
+        const result = streamText({
+          model: aiModel,
+          messages: aiMessages,
+          maxOutputTokens,
+          temperature: 0.2,
+          abortSignal: abortController.signal,
         });
-      },
-    });
+        for await (const chunk of result.textStream) {
+          if (abortController.signal.aborted) break;
+          if (!firstChunkTime) {
+            firstChunkTime = Date.now();
+            log.debug(`⏱ First token latency: ${firstChunkTime - t2}ms`);
+          }
+          fullText += chunk;
+          sse.send('text_delta', { text: chunk });
+        }
+      }
+    } catch (streamError: unknown) {
+      if (abortController.signal.aborted) {
+        log.debug('Notebook stream aborted by client disconnect');
+        log.debug(`⏱ Total (aborted): ${Date.now() - t0}ms, ${fullText.length} chars`);
+        sse.end();
+        return null;
+      }
+      const streamErrMsg = streamError instanceof Error ? streamError.message : String(streamError);
+      const t4err = Date.now();
+      log.warn('Stream error (accumulated %d chars): %s', fullText.length, streamErrMsg);
+      log.debug(
+        `⏱ Streaming (error): ${t4err - (firstChunkTime || t2)}ms, ${fullText.length} chars`
+      );
 
-    if (fullText === null) {
-      log.debug(`⏱ Total (stream failed): ${Date.now() - t0}ms`);
-      return null;
-    }
+      if (fullText.length > 0) {
+        try {
+          const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(
+            fullText,
+            searchContext.referencesMap
+          );
+          const { cleanDraft, citations, sources } = validateAndInjectCitations(
+            renumberedDraft,
+            newReferencesMap
+          );
+          const allSources = searchContext.sortedResults
+            .filter((_, i) => !citations.some((c) => c.index === String(i + 1)))
+            .slice(0, 10);
 
-    if (abortController.signal.aborted) {
-      log.debug('Notebook stream aborted by client disconnect');
+          let sourcesByCollection: SourcesByCollection | undefined;
+          if (searchContext.isMulti && searchContext.effectiveCollectionIds) {
+            const collectionsConfig: { [collectionId: string]: CollectionConfig } = {};
+            for (const id of searchContext.effectiveCollectionIds) {
+              const config = SYSTEM_COLLECTIONS[id];
+              if (config) collectionsConfig[id] = { name: config.name };
+            }
+            sourcesByCollection = groupSourcesByCollection(
+              citations,
+              searchContext.sortedResults,
+              collectionsConfig
+            );
+          }
+
+          sse.send('completion', {
+            answer: cleanDraft,
+            citations,
+            sources,
+            allSources,
+            ...(sourcesByCollection && { sourcesByCollection }),
+            metadata: {
+              isMulti: searchContext.isMulti,
+              collectionName: searchContext.collectionName,
+              effectiveCollectionIds: searchContext.effectiveCollectionIds,
+              totalResults: searchContext.sortedResults.length,
+              citationsCount: citations.length,
+              partial: true,
+            },
+          });
+        } catch (citationError: unknown) {
+          log.error('Failed to process partial citations:', citationError);
+          sse.send('error', { error: streamErrMsg || 'Stream interrupted' });
+        }
+      } else {
+        sse.send('error', { error: streamErrMsg || 'Stream interrupted' });
+      }
+      log.debug(`⏱ Total (error path): ${Date.now() - t0}ms`);
       sse.end();
       return null;
     }
 
     const t4 = Date.now();
-    log.debug(`⏱ Streaming: ${t4 - t2}ms, ${fullText.length} chars`);
+    log.debug(`⏱ Streaming: ${t4 - (firstChunkTime || t2)}ms, ${fullText.length} chars`);
 
     // Layer 5: Output leakage detection — check if the LLM leaked system prompt fragments
     if (options.systemPromptOverride && containsPromptLeakage(fullText)) {
@@ -378,7 +466,7 @@ export async function handleNotebookStream(
 
     const t6 = Date.now();
     log.debug(
-      `⏱ Total: ${t6 - t0}ms [${isFast ? 'fast' : 'deep'}] (search=${t1 - t0}, setup=${t2 - t1}, stream=${t4 - t2}, cite=${t5 - t4})`
+      `⏱ Total: ${t6 - t0}ms [${isFast ? 'fast' : 'deep'}] (search=${t1 - t0}, setup=${t2 - t1}, ttft=${(firstChunkTime || t2) - t2}, stream=${t4 - (firstChunkTime || t2)}, cite=${t5 - t4})`
     );
     sse.end();
 

@@ -30,12 +30,7 @@ interface TriggerCompactionResponse {
 
 export type Provider = 'mistral' | 'litellm' | 'regolo';
 
-export type ModelId =
-  | 'gpt-oss-regolo'
-  | 'litellm'
-  | 'gemma-litellm'
-  | 'qwen-regolo'
-  | 'qwen3.6-regolo';
+export type ModelId = 'gpt-oss-regolo' | 'litellm' | 'gemma-regolo' | 'qwen-regolo';
 
 export type ToolKey = 'search' | 'web' | 'examples' | 'research';
 
@@ -52,16 +47,13 @@ export interface ModelOption {
   warning?: string;
 }
 
-const QWEN_WARNING =
-  'Chinesisches Modell – unterliegt staatlicher Zensur. Antworten zu politisch sensiblen Themen können eingeschränkt sein.';
-
 export const MODEL_OPTIONS: ModelOption[] = [
   {
-    id: 'gemma-litellm',
+    id: 'gemma-regolo',
     name: 'Gemma 4',
     description: 'Leichtgewichtig, antwortet schnell',
-    model: 'gpt-oss:120b',
-    provider: 'litellm',
+    model: 'gemma4-31b',
+    provider: 'regolo',
     icon: 'zap',
   },
   {
@@ -87,16 +79,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
     model: 'qwen3.5-122b',
     provider: 'regolo',
     icon: 'brain',
-    warning: QWEN_WARNING,
-  },
-  {
-    id: 'qwen3.6-regolo',
-    name: 'Qwen 3.6 27B',
-    description: 'Kompaktes Reasoning-Modell, denkt sichtbar mit',
-    model: 'qwen3.6-27b',
-    provider: 'regolo',
-    icon: 'brain',
-    warning: QWEN_WARNING,
+    warning:
+      'Chinesisches Modell – unterliegt staatlicher Zensur. Antworten zu politisch sensiblen Themen können eingeschränkt sein.',
   },
 ];
 
@@ -190,8 +174,8 @@ export const useAgentStore = create<AgentState>()(
   persist(
     (set) => ({
       selectedAgentId: null,
-      selectedProvider: 'litellm',
-      selectedModel: 'gemma-litellm',
+      selectedProvider: 'regolo',
+      selectedModel: 'gemma-regolo',
       currentThreadId: null,
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
       selectedNotebookId: 'gruenerator-notebook',
@@ -374,7 +358,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 6,
+      version: 5,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -398,35 +382,15 @@ export const useAgentStore = create<AgentState>()(
         if (version < 5) {
           const validIds = new Set(['gpt-oss-regolo', 'litellm', 'gemma-regolo', 'qwen-regolo']);
           if (!validIds.has(state.selectedModel as string)) {
-            // Default to current valid ID; v6 below remaps any legacy
-            // 'gemma-regolo' that survives this point.
-            state.selectedModel = 'gemma-litellm';
-          }
-        }
-        if (version < 6) {
-          // Regolo's gemma4-31b endpoint hangs upstream; route Gemma through
-          // LiteLLM (which serves the same gemma4 family) instead.
-          if (state.selectedModel === 'gemma-regolo') {
-            state.selectedModel = 'gemma-litellm';
-          }
-          const validIds = new Set([
-            'gpt-oss-regolo',
-            'litellm',
-            'gemma-litellm',
-            'qwen-regolo',
-            'qwen3.6-regolo',
-          ]);
-          if (!validIds.has(state.selectedModel as string)) {
-            state.selectedModel = 'gemma-litellm';
+            state.selectedModel = 'gemma-regolo';
           }
           const providerByModel: Record<string, string> = {
             'gpt-oss-regolo': 'regolo',
             litellm: 'litellm',
-            'gemma-litellm': 'litellm',
+            'gemma-regolo': 'regolo',
             'qwen-regolo': 'regolo',
-            'qwen3.6-regolo': 'regolo',
           };
-          state.selectedProvider = providerByModel[state.selectedModel as string] ?? 'litellm';
+          state.selectedProvider = providerByModel[state.selectedModel as string] ?? 'regolo';
         }
         return state;
       },
