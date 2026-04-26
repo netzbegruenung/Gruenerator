@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import type { SnapLine } from '../utils/snapping';
+import { createSnapHysteresis, resetSnapHysteresis } from '../utils/snapping';
+
+import type { SnapHysteresis, SnapLine } from '../utils/snapping';
 
 interface SnapCallbacks {
   onSnapChange: (snapH: boolean, snapV: boolean) => void;
@@ -21,6 +23,9 @@ export function useSnapScheduler(callbacks: SnapCallbacks) {
   const lastLinesCountRef = useRef(0);
   const rafIdRef = useRef<number | null>(null);
   const isDraggingRef = useRef(false);
+  // Per-drag hysteresis state — reset on dragEnd so each drag starts fresh.
+  // Mutated in place by calculateElementSnapPosition during drag moves.
+  const hysteresisRef = useRef<SnapHysteresis>(createSnapHysteresis());
 
   useEffect(
     () => () => {
@@ -53,6 +58,7 @@ export function useSnapScheduler(callbacks: SnapCallbacks) {
 
   const onDragStart = useCallback(() => {
     isDraggingRef.current = true;
+    resetSnapHysteresis(hysteresisRef.current);
   }, []);
 
   const onDragEnd = useCallback(() => {
@@ -63,9 +69,10 @@ export function useSnapScheduler(callbacks: SnapCallbacks) {
     }
     lastSnapRef.current = { snapH: false, snapV: false };
     lastLinesCountRef.current = 0;
+    resetSnapHysteresis(hysteresisRef.current);
     onSnapChange(false, false);
     onSnapLinesChange([]);
   }, [onSnapChange, onSnapLinesChange]);
 
-  return { scheduleSnap, onDragStart, onDragEnd };
+  return { scheduleSnap, onDragStart, onDragEnd, hysteresis: hysteresisRef.current };
 }

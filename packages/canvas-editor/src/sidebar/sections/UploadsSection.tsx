@@ -1,60 +1,114 @@
-/**
- * UploadsSection - User-uploaded image management for the canvas editor.
- *
- * Provides a file upload button and displays uploaded images in a grid.
- * Each image can be clicked to select it on canvas, or deleted via hover button.
- */
-
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { FaTrash } from 'react-icons/fa';
-import { HiArrowUpTray } from 'react-icons/hi2';
+import { HiArrowUpTray, HiMagnifyingGlass } from 'react-icons/hi2';
 
 import { cn } from '../../utils/cn';
 import { SidebarHint } from '../components/SidebarHint';
 import { SIDEBAR_SECTION } from '../primitives';
+import { useUserUploads } from '../UserUploadsProvider';
 
-import type { UserImageInstance } from '../../utils/userImageUtils';
+import type { MediaItem } from '@gruenerator/shared/media-library';
 
 export interface UploadsSectionProps {
-  userImages: UserImageInstance[];
-  onAddImage: (file: File, objectUrl: string) => void;
-  onRemoveImage: (id: string) => void;
-  onSelectImage: (id: string) => void;
+  onPlaceFromUrl?: (url: string, fileName: string) => void;
 }
 
-export function UploadsSection({
-  userImages,
-  onAddImage,
-  onRemoveImage,
-  onSelectImage,
-}: UploadsSectionProps) {
+function buildPlacementUrl(item: MediaItem): string | null {
+  if (item.mediaUrl) return item.mediaUrl;
+  if (item.shareToken) return `/api/share/${item.shareToken}/download`;
+  return item.thumbnailUrl;
+}
+
+export function UploadsSection({ onPlaceFromUrl }: UploadsSectionProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    items,
+    isLoading,
+    error,
+    search,
+    setSearch,
+    upload,
+    deleteFromLibrary,
+    isUploading,
+    uploadProgress,
+    uploadError,
+    hasMore,
+    loadMore,
+  } = useUserUploads();
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
+  const [isDragOver, setIsDragOver] = useState(false);
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+  const acceptFiles = async (files: FileList | File[]) => {
+    for (const file of Array.from(files)) {
       if (!file.type.startsWith('image/')) continue;
-      const objectUrl = URL.createObjectURL(file);
-      onAddImage(file, objectUrl);
-    }
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      const result = await upload(file);
+      if (result && onPlaceFromUrl) {
+        const url = buildPlacementUrl(result);
+        if (url) onPlaceFromUrl(url, result.originalFilename ?? result.title ?? file.name);
+      }
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    await acceptFiles(files);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handlePlace = (item: MediaItem) => {
+    if (!onPlaceFromUrl) return;
+    const url = buildPlacementUrl(item);
+    if (!url) return;
+    onPlaceFromUrl(url, item.originalFilename ?? item.title ?? 'image');
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (!e.dataTransfer.files.length) return;
+    await acceptFiles(e.dataTransfer.files);
+  };
+
+  const showEmpty = !isLoading && items.length === 0 && !isUploading;
+  const displayedError = uploadError ?? error;
+
   return (
-    <div className={cn(SIDEBAR_SECTION, 'gap-md p-md max-canvas-mobile:p-sm')}>
+    <div
+      className={cn(
+        SIDEBAR_SECTION,
+        'gap-md p-md max-canvas-mobile:p-sm',
+        isDragOver && 'ring-2 ring-primary-500 ring-offset-2'
+      )}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsDragOver(true);
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={handleDrop}
+    >
+      <div className="relative">
+        <HiMagnifyingGlass
+          size={16}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground/50 pointer-events-none"
+        />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Bilder durchsuchen"
+          className="w-full pl-9 pr-3 py-2 rounded-lg bg-[var(--card-background)] border border-[var(--card-border)] text-sm focus:outline-none focus:border-primary-500"
+        />
+      </div>
+
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        className="flex items-center justify-center gap-xs py-sm px-md bg-primary-600 text-white border-none rounded-lg cursor-pointer text-sm font-semibold transition-colors duration-150 hover:bg-primary-700"
+        disabled={isUploading}
+        className="flex items-center justify-center gap-xs py-sm px-md bg-primary-600 text-white border-none rounded-lg cursor-pointer text-sm font-semibold transition-colors duration-150 hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed"
       >
         <HiArrowUpTray size={16} />
-        Bild hochladen
+        {isUploading ? `Lädt hoch… ${uploadProgress}%` : 'Dateien hochladen'}
       </button>
 
       <input
@@ -66,47 +120,75 @@ export function UploadsSection({
         className="hidden"
       />
 
-      {userImages.length > 0 && (
-        <div className="flex flex-col gap-xs">
-          <span className="text-xs font-semibold text-foreground uppercase tracking-wide">
-            Hochgeladene Bilder
-          </span>
-          <div className="grid grid-cols-2 gap-xs">
-            {userImages.map((img) => (
+      {displayedError ? (
+        <div
+          role="alert"
+          className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-md px-2 py-1"
+        >
+          {displayedError}
+        </div>
+      ) : null}
+
+      {(items.length > 0 || isUploading) && (
+        <div className="grid grid-cols-3 gap-2">
+          {isUploading ? (
+            <div className="relative aspect-square overflow-hidden rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] flex items-center justify-center">
               <div
-                key={img.id}
-                className="group relative aspect-square overflow-hidden rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] cursor-pointer transition-colors duration-150 hover:border-primary-500"
-                onClick={() => onSelectImage(img.id)}
+                className="absolute inset-x-0 bottom-0 h-1 bg-primary-500 transition-all"
+                style={{ width: `${uploadProgress}%` }}
+              />
+              <span className="text-[10px] text-foreground/60">{uploadProgress}%</span>
+            </div>
+          ) : null}
+          {items.map((item) => (
+            <div
+              key={item.id}
+              className="group relative aspect-square overflow-hidden rounded-lg border border-[var(--card-border)] bg-[var(--card-background)] transition-colors duration-150 hover:border-primary-500"
+            >
+              <button
+                type="button"
+                onClick={() => handlePlace(item)}
+                className="absolute inset-0 p-0 bg-transparent border-none cursor-pointer"
+                title={item.title ?? item.originalFilename ?? ''}
               >
-                <img
-                  src={img.src}
-                  alt={img.fileName}
-                  className="size-full object-cover"
-                  draggable={false}
-                />
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveImage(img.id);
-                  }}
-                  className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/60 text-white border-none rounded-md cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-                  aria-label="Bild entfernen"
-                >
-                  <FaTrash size={10} />
-                </button>
-              </div>
-            ))}
-          </div>
+                {item.thumbnailUrl ? (
+                  <img
+                    src={item.thumbnailUrl}
+                    alt={item.altText ?? item.title ?? ''}
+                    className="size-full object-cover"
+                    draggable={false}
+                  />
+                ) : null}
+              </button>
+              <button
+                type="button"
+                onClick={() => void deleteFromLibrary(item.id)}
+                aria-label="Bild aus Bibliothek entfernen"
+                className="absolute top-1 right-1 size-6 flex items-center justify-center bg-black/60 text-white border-none rounded-md cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100"
+              >
+                <FaTrash size={10} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
-      {userImages.length === 0 && (
+      {hasMore && !isLoading ? (
+        <button
+          type="button"
+          onClick={() => void loadMore()}
+          className="text-xs text-primary-600 hover:underline self-center cursor-pointer bg-transparent border-none"
+        >
+          Mehr anzeigen
+        </button>
+      ) : null}
+
+      {showEmpty ? (
         <SidebarHint>
-          Lade eigene Bilder hoch, um sie auf der Leinwand zu platzieren. Du kannst sie dann per Drag
-          & Drop positionieren und skalieren.
+          Lade eigene Bilder hoch, um sie auf der Leinwand zu platzieren. Du kannst sie auch per
+          Drag &amp; Drop in dieses Feld ziehen.
         </SidebarHint>
-      )}
+      ) : null}
     </div>
   );
 }

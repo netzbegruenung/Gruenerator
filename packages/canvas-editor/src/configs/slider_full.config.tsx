@@ -9,18 +9,20 @@
  * - Two color schemes (sand-tanne, tanne-sand)
  */
 
-import { HiPhotograph } from 'react-icons/hi';
+import { HiPhotograph, HiSparkles } from 'react-icons/hi';
 import { PiSquaresFourFill } from 'react-icons/pi';
 
+import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
 import { BackgroundSection, AssetsSection } from '../sidebar/sections';
 import { createPillBadgeInstance, getPillBadgeColorsForScheme } from '../utils/pillBadgeUtils';
 import { SLIDER_CONFIG, calculateSliderLayout, getSliderColors } from '../utils/sliderLayout';
 
-import { alternativesTab, createAlternativesSection } from './alternativesSection';
+import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
+import type { TemplateAiCapabilities } from '../ai/types';
 import type {
   FullCanvasConfig,
   LayoutResult,
@@ -30,6 +32,7 @@ import type {
   ImageElementConfig,
   AdditionalText,
 } from './types';
+import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 import type { BackgroundColorOption } from '../sidebar/types';
 import type { BalkenInstance, BalkenMode } from '../utils/balkenUtils';
 import type { AssetInstance } from '../utils/canvasAssets';
@@ -89,7 +92,6 @@ export interface SliderState extends BaseCanvasState {
   // Base state (from BaseCanvasState)
   assetInstances: AssetInstance[];
   isDesktop: boolean;
-  alternatives: string[];
   selectedIcons: string[];
   iconStates: Record<string, IconState>;
   shapeInstances: ShapeInstance[];
@@ -155,7 +157,6 @@ export interface SliderActions {
   addText: () => void;
   updateAdditionalText: (id: string, partial: Partial<AdditionalText>) => void;
   removeAdditionalText: (id: string) => void;
-  handleSelectAlternative: (alt: string) => void;
 }
 
 // ============================================================================
@@ -332,6 +333,79 @@ const subtext2TextElement: TextElementConfig<SliderState> = {
 // CONFIG EXPORT
 // ============================================================================
 
+// ============================================================================
+// AI CAPABILITY
+// ============================================================================
+
+const SLIDER_COLOR_SCHEMES = [
+  { id: 'sand-tanne', label: 'Sand & Tanne (heller Hintergrund)' },
+  { id: 'tanne-sand', label: 'Tanne & Sand (dunkler Hintergrund)' },
+];
+
+const sliderAiCapabilities: TemplateAiCapabilities<SliderState, SliderActions> = {
+  supportedOperations: ['set-text', 'set-color-scheme', 'set-font-size'],
+
+  colorSchemes: SLIDER_COLOR_SCHEMES,
+
+  describeForAi: (state): CanvasAiSnapshot => ({
+    template: 'slider',
+    textFields: [
+      { field: 'label', label: 'Label (Pill-Badge)', value: state.label },
+      { field: 'headline', label: 'Headline', value: state.headline },
+      { field: 'subtext', label: 'Untertext', value: state.subtext },
+      { field: 'subtext2', label: 'Zusatztext', value: state.subtext2 },
+    ],
+    currentColorScheme: state.colorScheme,
+    currentBackgroundColor: state.backgroundColor as `#${string}`,
+    elementsSummary: [],
+  }),
+
+  applyOverrides: {
+    'set-text': (op, actions) => {
+      switch (op.field) {
+        case 'label':
+          actions.setLabel(op.value);
+          return;
+        case 'headline':
+          actions.setHeadline(op.value);
+          return;
+        case 'subtext':
+          actions.setSubtext(op.value);
+          return;
+        case 'subtext2':
+          actions.setSubtext2(op.value);
+          return;
+        default:
+          throw new Error(`Slider-Vorlage hat kein Feld "${op.field}"`);
+      }
+    },
+    'set-color-scheme': (op, actions) => {
+      if (op.schemeId !== 'sand-tanne' && op.schemeId !== 'tanne-sand') {
+        throw new Error(`Unbekanntes Farbschema "${op.schemeId}"`);
+      }
+      actions.setColorScheme(op.schemeId);
+    },
+    'set-font-size': (op, actions) => {
+      switch (op.field) {
+        case 'label':
+          actions.handleLabelFontSizeChange(op.size);
+          return;
+        case 'headline':
+          actions.handleHeadlineFontSizeChange(op.size);
+          return;
+        case 'subtext':
+          actions.handleSubtextFontSizeChange(op.size);
+          return;
+        case 'subtext2':
+          actions.handleSubtext2FontSizeChange(op.size);
+          return;
+        default:
+          throw new Error(`Slider-Vorlage hat kein Schriftgrößen-Feld "${op.field}"`);
+      }
+    },
+  },
+};
+
 export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
   id: 'slider',
 
@@ -365,6 +439,8 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
     },
   },
 
+  ai: sliderAiCapabilities,
+
   tabs: [
     {
       id: 'background',
@@ -378,10 +454,17 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       label: 'Elemente',
       ariaLabel: 'Dekorative Elemente',
     },
-    alternativesTab,
+    uploadsTab,
+    {
+      id: 'ai',
+      icon: HiSparkles,
+      label: 'KI',
+      ariaLabel: 'KI-Vorschläge',
+    },
+    chatTab,
   ],
 
-  getVisibleTabs: () => ['background', 'assets'],
+  getVisibleTabs: () => ['background', 'assets', 'uploads', 'ai', 'chat'],
 
   getAutoSwitchTab: (selectedElement) => (selectedElement?.startsWith('frame-') ? 'assets' : null),
 
@@ -408,18 +491,15 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         ...injectFeatureProps(state, actions, context),
       }),
     },
-    alternatives: createAlternativesSection<SliderState, SliderActions>({
-      type: 'string',
-      getAlternatives: (state) => state.alternatives,
-      getCurrentValue: (state) => state.headline,
-      getSelectAction: (actions) => actions.handleSelectAlternative,
-    }),
+    uploads: uploadsSectionEntry,
+    chat: createChatSection('slider'),
     share: createShareSection<SliderState, SliderActions>('slider', (state) => {
       const label = state.label || '';
       const headline = state.headline || '';
       const subtext = state.subtext || '';
       return [label, headline, subtext].filter(Boolean).join('\n');
     }),
+    ai: createAiSectionRegistration('slider', sliderAiCapabilities),
   },
 
   elements: [
@@ -493,7 +573,6 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       // Base state
       assetInstances: [],
       isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-      alternatives: (props.alternatives as string[]) || [],
       selectedIcons: includeArrow ? [ARROW_ICON_ID] : [],
       iconStates: includeArrow ? { [ARROW_ICON_ID]: arrowIconState } : {},
       shapeInstances: [],
@@ -656,13 +735,6 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         const state = getState();
         const updatedPillBadges = state.pillBadgeInstances.filter((pill) => pill.id !== id);
         setState({ pillBadgeInstances: updatedPillBadges } as Partial<SliderState>);
-        saveToHistory(getState());
-      },
-
-      // Alternatives
-      handleSelectAlternative: (alt: string) => {
-        setState({ headline: alt } as Partial<SliderState>);
-        callbacks.onHeadlineChange?.(alt);
         saveToHistory(getState());
       },
     };

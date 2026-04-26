@@ -148,7 +148,8 @@ function CanvasTextInner({
           nodeHeight,
           snapTargets || [],
           stageWidth,
-          stageHeight
+          stageHeight,
+          snap.hysteresis
         );
 
         node.position({ x: result.x, y: result.y });

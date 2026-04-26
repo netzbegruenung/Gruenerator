@@ -23,7 +23,11 @@ interface CreatePresentationActionsOptions {
 
 export function createPresentationActions(
   getState: () => PresentationSlideState,
-  setState: (partial: Partial<PresentationSlideState> | ((prev: PresentationSlideState) => PresentationSlideState)) => void,
+  setState: (
+    partial:
+      | Partial<PresentationSlideState>
+      | ((prev: PresentationSlideState) => PresentationSlideState)
+  ) => void,
   saveToHistory: (state: PresentationSlideState) => void,
   debouncedSaveToHistory: (state: PresentationSlideState) => void,
   callbacks: Record<string, ((val: unknown) => void) | undefined>,
@@ -135,13 +139,6 @@ export function createPresentationActions(
     setShowSlideNumber: (val: boolean) => {
       setState({ showSlideNumber: val } as Partial<PresentationSlideState>);
       debouncedSaveToHistory(getState());
-    },
-
-    handleSelectAlternative: (alt) => {
-      const text = typeof alt === 'string' ? alt : 'headline' in alt ? alt.headline : alt.line1;
-      setState({ title: text } as Partial<PresentationSlideState>);
-      callbacks.onTitleChange?.(text);
-      saveToHistory(getState());
     },
   };
 }

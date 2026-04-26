@@ -61,14 +61,17 @@ export function CanvasEditorLayout({
       {toolbar}
       {hasSidebar && (
         <div
-          className="canvas-sidebar flex fixed left-0 top-0 bottom-0 z-[100] max-canvas-mobile:static max-canvas-mobile:contents"
+          className="canvas-sidebar fixed left-0 top-0 bottom-0 z-[120] max-canvas-mobile:static max-canvas-mobile:contents"
           style={SIDEBAR_FONT_SIZES}
         >
           {tabBar}
+        </div>
+      )}
+      {hasPanel && (
+        <div className="max-canvas-mobile:contents" style={SIDEBAR_FONT_SIZES}>
           {sidebar}
         </div>
       )}
-      {!hasSidebar && hasPanel && <div style={SIDEBAR_FONT_SIZES}>{sidebar}</div>}
       {subsectionBar}
 
       <div className="canvas-editor-layout__main flex flex-col justify-start items-center flex-1 min-h-0 overflow-hidden max-canvas-mobile:flex-1 max-canvas-mobile:p-0">

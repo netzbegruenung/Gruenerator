@@ -187,7 +187,8 @@ function CanvasImageInner({
           nodeHeight,
           snapTargets || [],
           stageWidth,
-          stageHeight
+          stageHeight,
+          snap.hysteresis
         );
         finalX = result.x;
         finalY = result.y;

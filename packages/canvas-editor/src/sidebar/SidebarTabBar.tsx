@@ -24,7 +24,6 @@ const TabButton = memo(function TabButton({
   onTabClick,
 }: TabButtonProps) {
   const Icon = tab.icon;
-  const isAlternativesLoading = tab.id === 'alternatives' && isDisabled;
 
   const handleClick = useCallback(() => {
     onTabClick(tab.id as SidebarTabId);
@@ -38,8 +37,7 @@ const TabButton = memo(function TabButton({
           isActive
             ? 'bg-[#E8F5EE] text-[#005538] dark:bg-primary-900/40 dark:text-primary-200'
             : 'text-grey-500 dark:text-grey-400',
-          isDisabled && 'opacity-40 cursor-not-allowed',
-          isAlternativesLoading && 'animate-canvas-pulse'
+          isDisabled && 'opacity-40 cursor-not-allowed'
         )}
         onClick={handleClick}
         disabled={isDisabled}
@@ -60,8 +58,7 @@ const TabButton = memo(function TabButton({
       className={cn(
         'sidebar-tab-bar__tab relative w-[72px] h-14 flex flex-col items-center justify-center gap-0.5 border-none bg-transparent rounded-lg cursor-pointer text-foreground transition-[background-color,color] duration-200 p-1 [&>svg]:size-[22px] [&>svg]:shrink-0 hover:enabled:bg-background-alt disabled:opacity-40 disabled:cursor-not-allowed',
         isActive &&
-          'sidebar-tab-bar__tab--active bg-background-alt text-[var(--interactive-accent-color)] before:content-[""] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-6 before:bg-[var(--interactive-accent-color)] before:rounded-r',
-        isAlternativesLoading && 'animate-canvas-pulse'
+          'sidebar-tab-bar__tab--active bg-background-alt text-[var(--interactive-accent-color)] before:content-[""] before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-[3px] before:h-6 before:bg-[var(--interactive-accent-color)] before:rounded-r'
       )}
       onClick={handleClick}
       disabled={isDisabled}
