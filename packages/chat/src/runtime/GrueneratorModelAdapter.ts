@@ -991,14 +991,26 @@ export function createGrueneratorModelAdapter(
 
       const streamOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
       const resolvedAgentId = effectiveAgentId || config.agentId;
-      yield* parseSSEStream(
-        response,
-        callbacks,
-        streamOutcome,
-        resolvedAgentId
-          ? { agentId: resolvedAgentId, agentMention: effectiveAgentMention }
-          : undefined
-      );
+      try {
+        yield* parseSSEStream(
+          response,
+          callbacks,
+          streamOutcome,
+          resolvedAgentId
+            ? { agentId: resolvedAgentId, agentMention: effectiveAgentMention }
+            : undefined
+        );
+      } catch (err) {
+        // Mid-stream connection drop (proxy timeout, mobile blip, worker recycle)
+        // surfaces as TypeError; treat it as a graceful end so it doesn't reach Sentry.
+        if (
+          err instanceof TypeError &&
+          /network error|failed to fetch|load failed|error in input stream/i.test(err.message)
+        ) {
+          return;
+        }
+        throw err;
+      }
 
       // Persist server-indexed document IDs to thread for follow-up messages
       if (streamOutcome.indexedDocumentIds.length > 0 && config.threadId) {

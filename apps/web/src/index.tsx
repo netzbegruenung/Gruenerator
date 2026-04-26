@@ -20,6 +20,8 @@ if (sentryDsn) {
       'NetworkError',
       'Failed to fetch',
       'Load failed', // Safari equivalent of "Failed to fetch"
+      'network error', // Chrome streaming-body drop (mid-SSE TCP close)
+      'Error in input stream', // Firefox streaming-body drop (mid-SSE TCP close)
       /Loading chunk [\d]+ failed/,
       'Importing a module script failed',
       'Failed to fetch dynamically imported module',
