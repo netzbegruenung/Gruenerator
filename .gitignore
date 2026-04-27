@@ -172,10 +172,6 @@ typecheck_output.txt
 # Remotion renderer (local-only, standalone service)
 services/remotion/
 
-# ComfyUI (local-only, not deployed via CI)
-apps/api/services/comfyui/
-services/comfyui/
-
 # Windows Zone.Identifier metadata files
 *:Zone.Identifier
 

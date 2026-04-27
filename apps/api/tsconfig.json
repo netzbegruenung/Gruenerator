@@ -29,7 +29,6 @@
     "tests",
     "scripts",
     "**/test-*.ts",
-    "**/*.vitest.ts",
-    "services/comfyui"
+    "**/*.vitest.ts"
   ]
 }
