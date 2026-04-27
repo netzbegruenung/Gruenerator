@@ -142,6 +142,22 @@ services:
     labels:
       - 'com.gruenerator.service=doku'
 
+  iconify:
+    image: ghcr.io/netzbegruenung/gruenerator-iconify:${TAG:-latest}
+    restart: unless-stopped
+    environment:
+      - PORT=3100
+    networks:
+      - gruenerator
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://localhost:3100/collections']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - 'com.gruenerator.service=iconify'
+
   nginx:
     image: nginx:alpine
     restart: unless-stopped
