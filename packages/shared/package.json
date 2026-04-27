@@ -108,6 +108,12 @@
       "import": "./dist/components/EditorTopBar/index.js",
       "default": "./dist/components/EditorTopBar/index.js"
     },
+    "./components/EditableTitle": {
+      "development": "./src/components/EditableTitle/index.ts",
+      "types": "./src/components/EditableTitle/index.ts",
+      "import": "./dist/components/EditableTitle/index.js",
+      "default": "./dist/components/EditableTitle/index.js"
+    },
     "./groups": {
       "development": "./src/groups/index.ts",
       "types": "./src/groups/index.ts",
