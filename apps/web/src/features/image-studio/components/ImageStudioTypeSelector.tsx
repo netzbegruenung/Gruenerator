@@ -1,7 +1,7 @@
 import {
   CANVAS_FORMATS,
   CANVAS_FORMAT_GROUP_LABEL,
-  type CanvasFormat,
+  CANVAS_FORMAT_GROUP_ORDER,
   type CanvasFormatGroup,
 } from '@gruenerator/canvas-editor/formats';
 import React, { useMemo, useCallback, useState, useDeferredValue } from 'react';
@@ -38,14 +38,6 @@ const GROUP_BACKGROUND: Record<CanvasFormatGroup, string> = {
   plakat: '#2E2E3D', // DUNKELGRAU
 };
 
-/** Section header text per format. Single-size groups (sharepic, story) drop
- *  the size and use the plural group label; multi-size groups use the
- *  format-specific label (e.g. "Flyer A4", "Plakat A2"). */
-function getSectionLabel(format: CanvasFormat): string {
-  const sameGroupCount = CANVAS_FORMATS.filter((f) => f.group === format.group).length;
-  return sameGroupCount === 1 ? CANVAS_FORMAT_GROUP_LABEL[format.group] : format.label;
-}
-
 interface FormatBrowserProps {
   variants: TypeConfig[];
   onSelect: (variantId: string, formatId: string) => void;
@@ -54,30 +46,40 @@ interface FormatBrowserProps {
 const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const deferredQuery = useDeferredValue(searchQuery);
+  // Per-group selected size (formatId) — only meaningful for multi-size groups
+  // like flyer/plakat/praesentation. Defaults to each group's first format.
+  const [selectedSizeByGroup, setSelectedSizeByGroup] = useState<
+    Partial<Record<CanvasFormatGroup, string>>
+  >({});
 
-  // For each format (size) build the list of variants that match the search.
-  // Search hits anywhere in {format label/description, group label, variant
-  // label/description}. A format-level hit shows all variants under it; a
-  // variant-only hit shows just that variant in every section.
+  // Build sections grouped by CanvasFormatGroup. Within a group, all sizes
+  // share the same templates (same aspect ratio), so we render one section
+  // per group with a size selector instead of one section per format.
   const sections = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
-    return CANVAS_FORMATS.map((format) => {
-      const formatHit =
+    return CANVAS_FORMAT_GROUP_ORDER.map((group) => {
+      const formats = CANVAS_FORMATS.filter((f) => f.group === group);
+      if (formats.length === 0) return null;
+
+      const groupHit =
         !q ||
-        format.label.toLowerCase().includes(q) ||
-        format.description.toLowerCase().includes(q) ||
-        CANVAS_FORMAT_GROUP_LABEL[format.group].toLowerCase().includes(q) ||
-        getSectionLabel(format).toLowerCase().includes(q);
+        CANVAS_FORMAT_GROUP_LABEL[group].toLowerCase().includes(q) ||
+        formats.some(
+          (f) =>
+            f.label.toLowerCase().includes(q) || f.description.toLowerCase().includes(q)
+        );
 
       const groupVariants = variants.filter((v) =>
-        (v.supportedFormatGroups ?? ['sharepic']).includes(format.group)
+        (v.supportedFormatGroups ?? ['sharepic']).includes(group)
       );
       const visibleVariants = groupVariants.filter((v) => {
-        if (formatHit) return true;
+        if (groupHit) return true;
         return v.label.toLowerCase().includes(q) || (v.description ?? '').toLowerCase().includes(q);
       });
-      return { format, variants: visibleVariants };
-    }).filter((s) => s.variants.length > 0);
+      return { group, formats, variants: visibleVariants };
+    })
+      .filter((s): s is NonNullable<typeof s> => s !== null)
+      .filter((s) => s.variants.length > 0);
   }, [deferredQuery, variants]);
 
   return (
@@ -98,41 +100,69 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
           Keine Ergebnisse für „{searchQuery}&ldquo;
         </p>
       ) : (
-        sections.map(({ format, variants: secVariants }) => (
-          <div key={format.id} className="mb-xl">
-            <h2 className="text-xl font-semibold text-foreground-heading mt-lg mb-md text-center">
-              {getSectionLabel(format)}
-            </h2>
-            <div className="grid grid-cols-3 gap-8 max-[1024px]:grid-cols-2 max-[1024px]:gap-6 max-[768px]:grid-cols-2 max-[768px]:gap-4 max-[480px]:grid-cols-1">
-              {secVariants.map((v) => {
-                // Use the authored previewImage only when this section's group
-                // matches what the template was designed for; otherwise swap in
-                // the per-group default placeholder so non-sharepic sections
-                // don't show sharepic-shaped thumbnails.
-                const authoredHere = (v.primaryFormatGroup ?? 'sharepic') === format.group;
-                const groupDefault = GROUP_DEFAULT_PREVIEW[format.group];
-                const effectivePreview = authoredHere ? v.previewImage : groupDefault?.webp;
-                const effectivePreviewFallback = authoredHere
-                  ? v.previewImageFallback
-                  : groupDefault?.png;
-                const fallbackBg = !effectivePreview ? GROUP_BACKGROUND[format.group] : undefined;
-                return (
-                  <TypeCard
-                    key={`${format.id}-${v.id}`}
-                    onClick={() => onSelect(v.id, format.id)}
-                    previewImage={effectivePreview}
-                    previewImageFallback={effectivePreviewFallback}
-                    label={v.label}
-                    description={v.description}
-                    backgroundColor={fallbackBg}
-                    className="aspect-[3/4]"
-                    badge={v.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined}
-                  />
-                );
-              })}
+        sections.map(({ group, formats, variants: secVariants }) => {
+          const selectedFormatId = selectedSizeByGroup[group] ?? formats[0].id;
+          const isMultiSize = formats.length > 1;
+          return (
+            <div key={group} className="mb-xl">
+              <h2 className="text-xl font-semibold text-foreground-heading mt-lg mb-md text-center">
+                {CANVAS_FORMAT_GROUP_LABEL[group]}
+              </h2>
+              {isMultiSize && (
+                <div className="flex justify-center gap-xs mb-md flex-wrap">
+                  {formats.map((f) => {
+                    const isActive = f.id === selectedFormatId;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() =>
+                          setSelectedSizeByGroup((prev) => ({ ...prev, [group]: f.id }))
+                        }
+                        aria-pressed={isActive}
+                        className={`px-md py-xs text-sm rounded-full border transition-colors ${
+                          isActive
+                            ? 'bg-primary-500 text-white border-primary-500'
+                            : 'bg-background text-foreground border-grey-200 dark:border-grey-700 hover:border-primary-500'
+                        }`}
+                      >
+                        {f.label.replace(`${CANVAS_FORMAT_GROUP_LABEL[group]} `, '')}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-8 max-[1024px]:grid-cols-2 max-[1024px]:gap-6 max-[768px]:grid-cols-2 max-[768px]:gap-4 max-[480px]:grid-cols-1">
+                {secVariants.map((v) => {
+                  // Use the authored previewImage only when this section's group
+                  // matches what the template was designed for; otherwise swap
+                  // in the per-group default placeholder so non-sharepic
+                  // sections don't show sharepic-shaped thumbnails.
+                  const authoredHere = (v.primaryFormatGroup ?? 'sharepic') === group;
+                  const groupDefault = GROUP_DEFAULT_PREVIEW[group];
+                  const effectivePreview = authoredHere ? v.previewImage : groupDefault?.webp;
+                  const effectivePreviewFallback = authoredHere
+                    ? v.previewImageFallback
+                    : groupDefault?.png;
+                  const fallbackBg = !effectivePreview ? GROUP_BACKGROUND[group] : undefined;
+                  return (
+                    <TypeCard
+                      key={`${group}-${v.id}`}
+                      onClick={() => onSelect(v.id, selectedFormatId)}
+                      previewImage={effectivePreview}
+                      previewImageFallback={effectivePreviewFallback}
+                      label={v.label}
+                      description={v.description}
+                      backgroundColor={fallbackBg}
+                      className="aspect-[3/4]"
+                      badge={v.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );
