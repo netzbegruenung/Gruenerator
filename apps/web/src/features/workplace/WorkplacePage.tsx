@@ -10,7 +10,7 @@ import CreatorSection from './components/CreatorSection';
 import NotebooksSection from './components/NotebooksSection';
 import RecentlyCreatedSection from './components/RecentlyCreatedSection';
 import ReelsSection from './components/ReelsSection';
-import ToolsSection, { ExperimentalToolsSection } from './components/ToolsSection';
+import ToolsSection, { FavoritesSection } from './components/ToolsSection';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -213,8 +213,8 @@ const WorkplacePage = () => {
         </section>
 
         <section className="mb-xl">
-          <SectionHeader title="Experimentelle Tools" />
-          <ExperimentalToolsSection />
+          <SectionHeader title="Grünerators Favoriten" />
+          <FavoritesSection />
         </section>
 
         {/* <GrassWithSheep /> */}
