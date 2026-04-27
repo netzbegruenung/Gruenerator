@@ -22,8 +22,6 @@ import {
   KI_SUBCATEGORIES,
   TYPE_CONFIG,
 } from '../utils/typeConfig';
-import { GROUP_DEFAULT_PREVIEW } from '../utils/typeConfig/groupDefaults';
-
 import TypeCard from './TypeCard';
 
 import type { TypeConfig } from '../utils/typeConfig/types';
@@ -111,12 +109,15 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
               <div className="grid grid-cols-3 gap-8 max-[1024px]:grid-cols-2 max-[1024px]:gap-6 max-[768px]:grid-cols-2 max-[768px]:gap-4 max-[480px]:grid-cols-1">
                 {secVariants.flatMap((v) =>
                   formats.map((f) => {
+                    // Show the authored preview image only when this section's
+                    // group matches what the variant was designed for. Anywhere
+                    // else, render the solid GROUP_BACKGROUND color — no image
+                    // load attempted, no broken-image flash.
                     const authoredHere = (v.primaryFormatGroup ?? 'sharepic') === group;
-                    const groupDefault = GROUP_DEFAULT_PREVIEW[group];
-                    const effectivePreview = authoredHere ? v.previewImage : groupDefault?.webp;
+                    const effectivePreview = authoredHere ? v.previewImage : undefined;
                     const effectivePreviewFallback = authoredHere
                       ? v.previewImageFallback
-                      : groupDefault?.png;
+                      : undefined;
                     const fallbackBg = !effectivePreview ? GROUP_BACKGROUND[group] : undefined;
                     const cardLabel = isMultiSize
                       ? f.label.replace(`${groupLabel} `, '')

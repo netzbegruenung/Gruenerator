@@ -111,7 +111,8 @@ export interface TypeConfigBase {
   /**
    * Canvas-format group the `previewImage` was authored for. When the
    * template is rendered under a different group's section in the picker,
-   * the FormatBrowser swaps in `GROUP_DEFAULT_PREVIEW[group]` instead.
+   * the FormatBrowser drops the preview and falls back to the solid
+   * GROUP_BACKGROUND color instead of a wrong-aspect thumbnail.
    */
   primaryFormatGroup?: CanvasFormatGroup;
   /**
