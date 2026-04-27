@@ -49,8 +49,7 @@ import { useBlockNoteComments } from '../../hooks/useBlockNoteComments';
 import { useResolveUsers } from '../../hooks/useResolveUsers';
 import { useMentionUsers } from '../../hooks/useMentionUsers';
 import { useDocsAdapter } from '../../context/DocsContext';
-import { useIsTouchDevice } from '../../hooks/useIsTouchDevice';
-import { useMobileKeyboardOffset } from '../../hooks/useMobileKeyboardOffset';
+import { useIsTouchDevice, useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Mention } from './Mention';
@@ -115,7 +114,6 @@ const shadCNComponentOverrides = {
   Tooltip: { ...ShadCNDefaultComponents.Tooltip, Tooltip: ToolbarTooltip },
 };
 
-
 const BlockNoteEditorInner = ({
   documentId,
   initialContent = '',
@@ -149,7 +147,7 @@ const BlockNoteEditorInner = ({
     const anchorEl =
       anchorNode?.nodeType === Node.ELEMENT_NODE
         ? (anchorNode as Element)
-        : anchorNode?.parentElement ?? null;
+        : (anchorNode?.parentElement ?? null);
     const blockEl = anchorEl?.closest('[data-id], .bn-block-content') ?? anchorEl;
     if (!blockEl) return;
 

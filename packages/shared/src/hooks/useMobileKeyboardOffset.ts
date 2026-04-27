@@ -1,7 +1,19 @@
 import { useEffect, useRef } from 'react';
-import { useIsTouchDevice } from './useIsTouchDevice';
+
+import { useIsTouchDevice } from './useIsTouchDevice.js';
 
 import type { RefObject } from 'react';
+
+interface VirtualKeyboard extends EventTarget {
+  overlaysContent: boolean;
+  boundingRect: DOMRectReadOnly;
+}
+
+declare global {
+  interface Navigator {
+    virtualKeyboard?: VirtualKeyboard;
+  }
+}
 
 interface MobileKeyboardOffsetOptions {
   /** Called (debounced 100ms) when the keyboard offset changes. */
@@ -41,8 +53,7 @@ export function useMobileKeyboardOffset<T extends HTMLElement>(
       document.documentElement.style.removeProperty('--mobile-keyboard-offset');
 
     // Prefer VirtualKeyboard API (Chrome/Edge 94+)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const vk = (navigator as any).virtualKeyboard;
+    const vk = navigator.virtualKeyboard;
     if (vk) {
       vk.overlaysContent = true;
       const onGeometryChange = () => setOffset(vk.boundingRect.height);

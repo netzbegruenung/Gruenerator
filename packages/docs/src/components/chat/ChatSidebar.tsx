@@ -3,7 +3,7 @@ import { useRef, useEffect, useCallback } from 'react';
 import { FiX, FiMessageCircle } from 'react-icons/fi';
 import { ChatMessageComponent } from './ChatMessage';
 import { ChatComposer } from './ChatComposer';
-import { useMobileKeyboardOffset } from '../../hooks/useMobileKeyboardOffset';
+import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import type { ChatMessage } from '../../hooks/useDocumentChat';
 
 interface ChatSidebarProps {

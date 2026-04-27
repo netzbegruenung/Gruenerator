@@ -1,4 +1,5 @@
 import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
+import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { Button } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -258,6 +259,7 @@ export const CardComments = memo(function CardComments({
   const { id: boardId } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  useMobileKeyboardOffset(textareaRef);
 
   const [commentText, setCommentText] = useState('');
   const [replyToId, setReplyToId] = useState<string | null>(null);
