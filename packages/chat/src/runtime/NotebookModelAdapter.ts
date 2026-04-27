@@ -45,12 +45,24 @@ export interface NotebookAdapterConfig {
   filters?: Record<string, unknown>;
   locale?: string;
   extraParams?: Record<string, unknown>;
+  /**
+   * Dynamic counterpart to `extraParams` — evaluated at request time so the
+   * payload can include values that must be fresh (e.g. a canvas snapshot
+   * captured at the moment of submission). Merged on top of `extraParams`.
+   */
+  getExtraParams?: () => Record<string, unknown> | undefined;
   mode?: 'fast' | 'deep';
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
   /** Optional sharepic context: per-message image + text + system prompt. */
   sharepicContext?: SharepicContextConfig;
+  /**
+   * Called for SSE events the adapter does not recognize. Lets specialized
+   * surfaces (e.g. the canvas-editor in-section chat) pull custom events
+   * like `canvas_operations` out of the stream without forking the adapter.
+   */
+  onCustomEvent?: (event: string, data: unknown) => void;
 }
 
 export interface Citation {
@@ -161,6 +173,15 @@ export function createNotebookModelAdapter(
       }
       const sharepicSystemPrompt = config.sharepicContext?.systemPrompt;
 
+      // Resolve dynamic extras at request time so values that must be fresh
+      // (e.g. a canvas snapshot captured at submission) are not stale.
+      let dynamicExtras: Record<string, unknown> | undefined;
+      try {
+        dynamicExtras = config.getExtraParams?.();
+      } catch (err) {
+        console.warn('[Notebook] getExtraParams threw:', err);
+      }
+
       const payload = {
         messages: [{ role: 'user', content: question }],
         ...(isMulti
@@ -176,6 +197,7 @@ export function createNotebookModelAdapter(
         ...(sharepicText && { sharepicText }),
         ...(sharepicSystemPrompt && { systemPrompt: sharepicSystemPrompt }),
         ...config.extraParams,
+        ...dynamicExtras,
       };
 
       const { fetch: configFetch } = useChatConfigStore.getState();
@@ -357,6 +379,19 @@ export function createNotebookModelAdapter(
               case 'error': {
                 const { error } = data as { error: string };
                 throw new Error(error);
+              }
+
+              default: {
+                // Surface unrecognized events to consumers via callback.
+                // Used by the canvas-editor chat to pull `canvas_operations`,
+                // `canvas_operations_start`, and `canvas_operations_error`
+                // out of the stream without forking the adapter.
+                try {
+                  config.onCustomEvent?.(event, data);
+                } catch (err) {
+                  console.warn(`[Notebook] onCustomEvent for "${event}" threw:`, err);
+                }
+                break;
               }
             }
           }
