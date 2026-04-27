@@ -8,7 +8,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  FeatureToggle,
 } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -30,7 +29,6 @@ import {
   type Memory,
   type MemoryCategory,
 } from '@/features/auth/services/profileApiService';
-import { useBetaFeatures } from '@/hooks/useBetaFeatures';
 import { useAuthStore } from '@/stores/authStore';
 
 // Kept inline because apps/web cannot import from apps/api.
@@ -78,8 +76,6 @@ const CONFIDENCE_COLORS: Record<string, string> = {
 export default memo(function MemoriesSection() {
   const user = useAuthStore((s) => s.user);
   const userId = user?.id;
-  const { getBetaFeatureState, updateUserBetaFeatures } = useBetaFeatures();
-  const memoriesEnabled = getBetaFeatureState('memories');
   const queryClient = useQueryClient();
 
   const queryKey = ['memories', userId];
@@ -91,7 +87,7 @@ export default memo(function MemoriesSection() {
   } = useQuery<Memory[]>({
     queryKey,
     queryFn: () => profileApiService.getMemories(userId!),
-    enabled: !!userId && memoriesEnabled,
+    enabled: !!userId,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -229,32 +225,22 @@ export default memo(function MemoriesSection() {
   return (
     <div>
       <div className="flex items-center gap-sm mb-sm">
-        <FeatureToggle
-          isActive={memoriesEnabled}
-          onToggle={(checked) => updateUserBetaFeatures('memories', checked)}
-          label={
-            memoriesEnabled ? `Erinnerungen (${isLoading ? '…' : memories.length})` : 'Erinnerungen'
-          }
-          icon={Brain}
-          noBorder
-          className="flex-1 p-0"
-        />
-        {memoriesEnabled && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-grey-500 hover:text-foreground"
-            onClick={() => setShowAddForm(!showAddForm)}
-          >
-            <Plus className="size-4" />
-            Hinzufügen
-          </Button>
-        )}
+        <div className="flex-1 flex items-center gap-xs text-sm font-medium text-foreground-heading">
+          <Brain className="size-4 text-grey-500" />
+          Erinnerungen ({isLoading ? '…' : memories.length})
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-grey-500 hover:text-foreground"
+          onClick={() => setShowAddForm(!showAddForm)}
+        >
+          <Plus className="size-4" />
+          Hinzufügen
+        </Button>
       </div>
 
-      {!memoriesEnabled && <p className="text-sm text-grey-400">Erinnerungen sind deaktiviert.</p>}
-
-      {memoriesEnabled && error && (
+      {error && (
         <div className="flex items-center gap-sm rounded-md border border-red-300 bg-red-50 p-sm mb-md text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
           <AlertTriangle className="size-4 shrink-0" />
           <span className="flex-1">{error}</span>
@@ -264,7 +250,7 @@ export default memo(function MemoriesSection() {
         </div>
       )}
 
-      {memoriesEnabled && showAddForm && (
+      {showAddForm && (
         <div className="flex flex-col gap-sm rounded-lg bg-background-alt p-md mb-md">
           <textarea
             value={newText}
@@ -307,7 +293,7 @@ export default memo(function MemoriesSection() {
       )}
 
       {/* Search & Filter bar */}
-      {memoriesEnabled && memories.length > 0 && (
+      {memories.length > 0 && (
         <div className="flex flex-col gap-sm mb-md sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-grey-400" />
@@ -338,7 +324,7 @@ export default memo(function MemoriesSection() {
         </div>
       )}
 
-      {!memoriesEnabled ? null : isLoading ? (
+      {isLoading ? (
         <div className="space-y-sm">
           {[1, 2, 3].map((i) => (
             <div key={i} className="animate-pulse rounded-lg bg-background-alt p-md">
@@ -471,7 +457,7 @@ export default memo(function MemoriesSection() {
         </div>
       )}
 
-      {memoriesEnabled && memories.length > 0 && (
+      {memories.length > 0 && (
         <div className="mt-md flex items-center justify-between">
           <Button
             variant="ghost"

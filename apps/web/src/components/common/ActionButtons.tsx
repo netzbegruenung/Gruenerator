@@ -8,7 +8,6 @@ import {
   IoArrowRedoOutline,
 } from 'react-icons/io5';
 
-import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { awaitDeferredTitle } from '../../hooks/useDeferredTitle';
 import { useSaveToLibrary } from '../../hooks/useSaveToLibrary';
 import { useAuthStore } from '../../stores/authStore';
@@ -107,7 +106,6 @@ const ActionButtons = ({
   hideDefaultExportOptions = false,
 }: ActionButtonsProps): JSX.Element => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const { getBetaFeatureState } = useBetaFeatures();
   const getGeneratedText = useGeneratedTextStore((state) => state.getGeneratedText);
   const getGeneratedTextMetadata = useGeneratedTextStore((state) => state.getGeneratedTextMetadata);
   const generatedText = getGeneratedText(componentName);
@@ -139,7 +137,7 @@ const ActionButtons = ({
     );
   });
 
-  const hasDatabaseAccess = isAuthenticated && getBetaFeatureState('database');
+  const hasDatabaseAccess = isAuthenticated;
 
   // Use generatedContent prop if available, fall back to store's generatedText
   const activeContent = generatedContent || generatedText;

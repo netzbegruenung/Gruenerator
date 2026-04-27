@@ -10,7 +10,6 @@ import React, {
 } from 'react';
 
 import { useAutosave } from '../../../../../../hooks/useAutosave';
-import { useBetaFeatures } from '../../../../../../hooks/useBetaFeatures';
 import { useAuthStore } from '../../../../../../stores/authStore';
 import { useProfileStore } from '../../../../../../stores/profileStore';
 import { useProfile } from '../../../../hooks/useProfileData';
@@ -64,12 +63,6 @@ const ProfileInfoTabContainer = ({
   const profile = profileData as Profile | undefined;
   const updateAvatarOptimistic = useProfileStore((s) => s.updateAvatarOptimistic);
   const syncProfile = useProfileStore((s) => s.syncProfile);
-
-  const {
-    getBetaFeatureState,
-    updateUserBetaFeatures,
-    isUpdating: isBetaFeaturesUpdating,
-  } = useBetaFeatures();
 
   // State hooks - must be called unconditionally
   const [displayName, setDisplayName] = useState('');
@@ -363,7 +356,6 @@ const ProfileInfoTabContainer = ({
         deleteAccountError={deleteAccountError}
         isDeletingAccount={isDeletingAccount}
         onDeleteAccountSubmit={handleDeleteAccountSubmit}
-        isBetaFeaturesUpdating={isBetaFeaturesUpdating}
         onSuccessMessage={onSuccessMessage}
       />
 
