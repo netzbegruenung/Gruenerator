@@ -14,6 +14,7 @@ import type {
   ConfirmActionType,
   ChartData,
 } from '../../../agents/langgraph/ChatGraph/types.js';
+import type { CanvasAiSuggestion } from '@gruenerator/contracts';
 import type { Response } from 'express';
 
 /**
@@ -42,6 +43,9 @@ export type SSEEventType =
   | 'chart_data'
   | 'memory_context'
   | 'completion'
+  | 'canvas_operations_start'
+  | 'canvas_operations'
+  | 'canvas_operations_error'
   | 'done'
   | 'error';
 
@@ -162,6 +166,9 @@ export interface SSEEventPayloads {
     sourcesByCollection?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
   };
+  canvas_operations_start: { message: string };
+  canvas_operations: { suggestions: CanvasAiSuggestion[] };
+  canvas_operations_error: { error: string };
   done: {
     threadId?: string | null;
     citations?: unknown[];

@@ -9,7 +9,6 @@ import {
   type FallbackInfo,
 } from '../hooks/useChatGraphStream';
 import { parseSSELine } from '../lib/sseParser';
-import { chatLog, chatLogRate } from '../lib/chatDebug';
 import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 
@@ -33,6 +32,12 @@ function mapToChatCitations(citations: Citation[]): ChatCitation[] {
   }));
 }
 
+export interface SharepicContextConfig {
+  captureImage?: () => Promise<string | null>;
+  getText?: () => string;
+  systemPrompt?: string;
+}
+
 export interface NotebookAdapterConfig {
   collectionId?: string;
   collectionIds?: string[];
@@ -40,10 +45,24 @@ export interface NotebookAdapterConfig {
   filters?: Record<string, unknown>;
   locale?: string;
   extraParams?: Record<string, unknown>;
+  /**
+   * Dynamic counterpart to `extraParams` — evaluated at request time so the
+   * payload can include values that must be fresh (e.g. a canvas snapshot
+   * captured at the moment of submission). Merged on top of `extraParams`.
+   */
+  getExtraParams?: () => Record<string, unknown> | undefined;
   mode?: 'fast' | 'deep';
   endpoint?: string;
   documentIds?: string[];
   threadId?: string | null;
+  /** Optional sharepic context: per-message image + text + system prompt. */
+  sharepicContext?: SharepicContextConfig;
+  /**
+   * Called for SSE events the adapter does not recognize. Lets specialized
+   * surfaces (e.g. the canvas-editor in-section chat) pull custom events
+   * like `canvas_operations` out of the stream without forking the adapter.
+   */
+  onCustomEvent?: (event: string, data: unknown) => void;
 }
 
 export interface Citation {
@@ -134,6 +153,35 @@ export function createNotebookModelAdapter(
 
       const selectedModel = useAgentStore.getState().selectedModel;
 
+      // Resolve optional sharepic context (canvas-editor in-section chat).
+      // Captured before the request so image data + structured text travel with
+      // the user's message and can be routed to a vision-capable model.
+      let sharepicImage: string | null = null;
+      let sharepicText: string | undefined;
+      if (config.sharepicContext) {
+        try {
+          sharepicImage = (await config.sharepicContext.captureImage?.()) ?? null;
+        } catch (err) {
+          console.warn('[Notebook] Sharepic image capture failed:', err);
+        }
+        try {
+          const t = config.sharepicContext.getText?.();
+          if (t && t.trim().length > 0) sharepicText = t;
+        } catch (err) {
+          console.warn('[Notebook] Sharepic getText failed:', err);
+        }
+      }
+      const sharepicSystemPrompt = config.sharepicContext?.systemPrompt;
+
+      // Resolve dynamic extras at request time so values that must be fresh
+      // (e.g. a canvas snapshot captured at submission) are not stale.
+      let dynamicExtras: Record<string, unknown> | undefined;
+      try {
+        dynamicExtras = config.getExtraParams?.();
+      } catch (err) {
+        console.warn('[Notebook] getExtraParams threw:', err);
+      }
+
       const payload = {
         messages: [{ role: 'user', content: question }],
         ...(isMulti
@@ -145,7 +193,11 @@ export function createNotebookModelAdapter(
         ...(config.documentIds?.length && { documentIds: config.documentIds }),
         ...(config.threadId && { threadId: config.threadId }),
         model: selectedModel,
+        ...(sharepicImage && { sharepicImage }),
+        ...(sharepicText && { sharepicText }),
+        ...(sharepicSystemPrompt && { systemPrompt: sharepicSystemPrompt }),
         ...config.extraParams,
+        ...dynamicExtras,
       };
 
       const { fetch: configFetch } = useChatConfigStore.getState();
@@ -283,9 +335,6 @@ export function createNotebookModelAdapter(
                   console.debug(
                     `[Notebook] ⏱ First token: ${Math.round(performance.now() - c0)}ms`
                   );
-                  chatLog('adapter', 'first-delta', {
-                    sinceRequest: Math.round(performance.now() - c0),
-                  });
                   lastYieldTime = performance.now();
                   yield buildResult();
                   break;
@@ -295,19 +344,6 @@ export function createNotebookModelAdapter(
                 if (now - lastYieldTime >= YIELD_INTERVAL) {
                   lastYieldTime = now;
                   yield buildResult();
-                  // Throttled per-yield tick (one log per 500ms regardless of
-                  // 50ms yield cadence) so we can correlate adapter rhythm
-                  // with viewport content/reflow events.
-                  chatLogRate(
-                    'adapter',
-                    'yield',
-                    {
-                      len: accumulatedText.length,
-                      cites: (accumulatedText.match(/\[(\d+)\]/g) ?? []).length,
-                    },
-                    'notebook:yield',
-                    500
-                  );
                 }
                 break;
               }
@@ -343,6 +379,19 @@ export function createNotebookModelAdapter(
               case 'error': {
                 const { error } = data as { error: string };
                 throw new Error(error);
+              }
+
+              default: {
+                // Surface unrecognized events to consumers via callback.
+                // Used by the canvas-editor chat to pull `canvas_operations`,
+                // `canvas_operations_start`, and `canvas_operations_error`
+                // out of the stream without forking the adapter.
+                try {
+                  config.onCustomEvent?.(event, data);
+                } catch (err) {
+                  console.warn(`[Notebook] onCustomEvent for "${event}" threw:`, err);
+                }
+                break;
               }
             }
           }
@@ -397,30 +446,6 @@ export function createNotebookModelAdapter(
           completionData.answer.length
         );
         currentProgress = { stage: 'complete', message: '' };
-
-        // Diagnose the streamed→final text swap. If the canonical answer
-        // differs in length, citation marker count, or citation IDs, the
-        // entire message reflows on the very last yield — a leading suspect
-        // for the "jumps" the user reports.
-        const streamedText = accumulatedText;
-        const finalText = completionData.answer;
-        const streamCites = streamedText.match(/\[(\d+)\]/g) ?? [];
-        const finalCites = finalText.match(/\[(\d+)\]/g) ?? [];
-        chatLog('adapter', 'final-swap', {
-          streamedLen: streamedText.length,
-          finalLen: finalText.length,
-          deltaLen: finalText.length - streamedText.length,
-          streamedCites: streamCites.length,
-          finalCites: finalCites.length,
-          identical: streamedText === finalText,
-          // Sample of the FIRST citation marker that differs between streamed
-          // and final — if you see this, the LLM emitted IDs that the backend
-          // renumbered, and badge widths shift on swap.
-          firstCiteDiff:
-            streamCites.find((m, i) => finalCites[i] !== m) !== undefined
-              ? { streamed: streamCites.slice(0, 5), final: finalCites.slice(0, 5) }
-              : null,
-        });
 
         // Swap in the backend's canonical answer so citation IDs in the text
         // match completionCitations. The LLM emits raw IDs during streaming

@@ -2,20 +2,45 @@ import { createContext, useContext, useEffect } from 'react';
 
 import { setIconifyApiUrl } from './utils/canvasIcons';
 
+import type { ApplyResult } from './ai/applyOperation';
 import type { UseGenerateCanvasSuggestions } from './common/canvasAiTypes';
 import type { StockImage, StockImageAttribution } from './common/imageSourceTypes';
-import type { ReactNode } from 'react';
+import type {
+  CanvasAiCapabilities,
+  CanvasAiOperation,
+  CanvasAiSnapshot,
+} from '@gruenerator/contracts';
+import type { ComponentType, ReactNode } from 'react';
 
 /**
- * Information about the current canvas passed to the chat service when the
- * user opens the in-canvas chat. Used by the chat composer to insert sharepic
- * content via the "Sharepic einfügen" button.
+ * Bridge between the canvas-editor's typed state/actions/capabilities and the
+ * host app's chat UI. Built inside `createChatSection` as a closure so the
+ * host never sees the generic TState/TActions and can render suggestion cards
+ * without depending on each template's internal types.
  */
-export interface ChatOpenContext {
+export interface CanvasAiEditBridge {
+  /** Capability list to send with the suggest request. */
+  capabilityList: CanvasAiCapabilities;
+  /** Builds a fresh CanvasAiSnapshot at request-time. */
+  getSnapshot: () => CanvasAiSnapshot;
+  /** Applies an array of operations and returns one ApplyResult per op. */
+  applyOperations: (ops: CanvasAiOperation[]) => ApplyResult[];
+}
+
+/**
+ * Props passed to the host-supplied chat component when the user opens the
+ * Chat sidebar tab. The component renders inline inside the sidebar panel.
+ */
+export interface ChatSectionContentProps {
   /** Template id (e.g. 'zitat', 'simple', 'dreizeilen'). */
   canvasType: string;
   /** Returns a structured German text description of the current canvas. */
   getSharepicText: () => string;
+  /** Captures the current canvas as a PNG data URL (or null if not ready). */
+  captureCanvasImage?: () => Promise<string | null>;
+  /** Optional bridge to canvas-AI edit operations. Present only when the
+   *  template declares AI capabilities. */
+  aiEdit?: CanvasAiEditBridge;
 }
 
 export interface CanvasEditorServices {
@@ -78,11 +103,11 @@ export interface CanvasEditorServices {
   useGenerateCanvasSuggestions?: UseGenerateCanvasSuggestions;
 
   /**
-   * Optional handler invoked when the user opens the Chat section. The host
-   * app (apps/web) implements this by rendering a chat modal. When omitted,
-   * the Chat section shows a "not configured" hint.
+   * Optional component rendered inside the Chat sidebar section. The host
+   * app (apps/web) supplies the actual chat UI here. When omitted, the Chat
+   * section shows a "not configured" hint.
    */
-  openChat?: (context: ChatOpenContext) => void;
+  ChatSectionContent?: ComponentType<ChatSectionContentProps>;
 }
 
 const CanvasEditorContext = createContext<CanvasEditorServices>({});
