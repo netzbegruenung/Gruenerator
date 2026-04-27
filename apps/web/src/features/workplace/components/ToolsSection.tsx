@@ -14,6 +14,13 @@ interface ToolItem {
   devOnly?: boolean;
 }
 
+interface FavoriteItem {
+  id: string;
+  title: string;
+  href: string;
+  icon: IconType;
+}
+
 const MAIN_TOOLS: ToolItem[] = [
   {
     id: 'gruen-veraendern',
@@ -47,9 +54,6 @@ const MAIN_TOOLS: ToolItem[] = [
     icon: getIcon('actions', 'upload')!,
     devOnly: true,
   },
-];
-
-const EXPERIMENTAL_TOOLS: ToolItem[] = [
   {
     id: 'scanner',
     title: 'Text digitalisieren',
@@ -67,6 +71,39 @@ const EXPERIMENTAL_TOOLS: ToolItem[] = [
     title: 'Mit ChatGPT & co verbinden',
     path: '/apps',
     icon: getIcon('actions', 'link')!,
+  },
+];
+
+const FAVORITES: FavoriteItem[] = [
+  {
+    id: 'verdigado',
+    title: 'Verdigado',
+    href: 'https://verdigado.com/',
+    icon: getIcon('actions', 'link')!,
+  },
+  {
+    id: 'sunflower-theme',
+    title: 'Sunflower-Theme',
+    href: 'https://sunflower-theme.de/',
+    icon: getIcon('actions', 'link')!,
+  },
+  {
+    id: 'gruene-wolke',
+    title: 'Grüne Wolke',
+    href: 'https://wolke.netzbegruenung.de/',
+    icon: getIcon('actions', 'cloud')!,
+  },
+  {
+    id: 'gruenes-doodle',
+    title: 'Grünes Doodle',
+    href: 'https://termine.netzbegruenung.de',
+    icon: getIcon('actions', 'link')!,
+  },
+  {
+    id: 'netzbegruenung',
+    title: 'Netzbegrünung',
+    href: 'https://netzbegruenung.de/',
+    icon: getIcon('navigation', 'home')!,
   },
 ];
 
@@ -93,6 +130,24 @@ function ToolIconRow({ tools }: { tools: ToolItem[] }) {
   );
 }
 
+function FavoriteIconRow({ favorites }: { favorites: FavoriteItem[] }) {
+  return (
+    <IconButtonRow>
+      {favorites.map((fav) => {
+        const Icon = fav.icon;
+        return (
+          <IconButton
+            key={fav.id}
+            icon={<Icon />}
+            label={fav.title}
+            onClick={() => window.open(fav.href, '_blank', 'noopener,noreferrer')}
+          />
+        );
+      })}
+    </IconButtonRow>
+  );
+}
+
 const ToolsSection = React.memo(() => {
   const tools = filterTools(MAIN_TOOLS);
   return <ToolIconRow tools={tools} />;
@@ -100,11 +155,8 @@ const ToolsSection = React.memo(() => {
 
 ToolsSection.displayName = 'ToolsSection';
 
-export const ExperimentalToolsSection = React.memo(() => {
-  const tools = filterTools(EXPERIMENTAL_TOOLS);
-  return <ToolIconRow tools={tools} />;
-});
+export const FavoritesSection = React.memo(() => <FavoriteIconRow favorites={FAVORITES} />);
 
-ExperimentalToolsSection.displayName = 'ExperimentalToolsSection';
+FavoritesSection.displayName = 'FavoritesSection';
 
 export default ToolsSection;
