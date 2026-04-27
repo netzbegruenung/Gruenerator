@@ -21,8 +21,6 @@ export const freeformTypeConfig: TemplateTypeConfig = {
   endpoints: {},
   steps: [FORM_STEPS.CANVAS_EDIT],
   legacyType: 'Freeform',
-  primaryFormatGroup: 'sharepic',
-  supportedFormatGroups: ['sharepic', 'story', 'praesentation', 'flyer', 'plakat'],
 };
 
 export const freeformFieldConfig: TemplateFieldConfig = {
