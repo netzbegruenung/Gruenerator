@@ -8,15 +8,12 @@ import React, { useState } from 'react';
 import { FaChevronDown, FaChevronUp, FaCloud, FaFolder, FaUsers } from 'react-icons/fa';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
-import { useBetaFeatures } from '../../../../hooks/useBetaFeatures';
-
 import type { IconType } from 'react-icons';
 
 interface MenuItem {
   key: string;
   label: string;
   path: string;
-  betaFeature?: string;
   icon: IconType;
   hasSubmenu?: boolean;
 }
@@ -38,7 +35,6 @@ const PROFILE_MENU_ITEMS: MenuItem[] = [
     key: 'gruppen',
     label: 'Gruppen',
     path: '/gruppen',
-    betaFeature: 'groups',
     icon: FaUsers,
     hasSubmenu: true,
   },
@@ -54,15 +50,7 @@ const ProfileMenu = ({
 }: ProfileMenuProps): React.ReactElement => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { shouldShowTab } = useBetaFeatures();
   const [expandedSubmenu, setExpandedSubmenu] = useState<string | null>(null);
-
-  const filteredItems = PROFILE_MENU_ITEMS.filter((item) => {
-    if (item.betaFeature) {
-      return shouldShowTab(item.betaFeature);
-    }
-    return true;
-  });
 
   const isActive = (path: string): boolean => {
     if (path === '/profile') {
@@ -80,7 +68,7 @@ const ProfileMenu = ({
   if (variant === 'dropdown') {
     return (
       <div className={className}>
-        {filteredItems.map((item) => {
+        {PROFILE_MENU_ITEMS.map((item) => {
           const hasGroups = item.key === 'gruppen' && item.hasSubmenu && groups.length > 0;
 
           if (hasGroups) {
@@ -131,7 +119,7 @@ const ProfileMenu = ({
 
   return (
     <div className={`profile-menu profile-menu--sidebar ${className}`}>
-      {filteredItems.map((item) => {
+      {PROFILE_MENU_ITEMS.map((item) => {
         const hasGroups = item.key === 'gruppen' && item.hasSubmenu && groups.length > 0;
         const isExpanded = expandedSubmenu === item.key;
 

@@ -9,6 +9,7 @@ import { HiSparkles } from 'react-icons/hi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
+import { createChatSection } from './commonSections';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { INFO_CONFIG, calculateInfoLayout } from '../utils/infoLayout';
 
@@ -256,13 +257,14 @@ export const infoFullConfig = {
     ...baseInfoConfig.tabs,
     { id: 'ai' as const, icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
   ],
+  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
   getVisibleTabs: (state: ColorTwoTextState, context?: { selectedElement?: string | null }) => {
-    const base = baseInfoConfig.getVisibleTabs?.(state, context) ?? [];
-    return [...base, 'ai' as const];
+    return baseInfoConfig.getVisibleTabs?.(state, context) ?? [];
   },
   sections: {
     ...baseInfoConfig.sections,
     ai: createAiSectionRegistration('info', infoAiCapabilities),
+    chat: createChatSection('info', infoAiCapabilities),
   },
 };
 

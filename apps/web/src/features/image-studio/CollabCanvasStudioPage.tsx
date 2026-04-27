@@ -1,6 +1,6 @@
 import { useCanvasCollaboration, MasterCanvasEditor } from '@gruenerator/canvas-editor';
-import { useQuery } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
@@ -15,6 +15,8 @@ import { CanvasPageHeader } from './components/CanvasPageHeader';
 interface CanvasDocument {
   id: string;
   title: string;
+  created_by: string;
+  permissions: Record<string, { level: string }> | null;
   template_type: string;
   base_template_id: string | null;
   thumbnail_url: string | null;
@@ -29,6 +31,8 @@ function CollabCanvasStudioContent() {
   const config = useCollaborationConfig();
   const [shareOpen, setShareOpen] = useState(false);
 
+  const queryClient = useQueryClient();
+
   const { data: canvas, isLoading } = useQuery<CanvasDocument>({
     queryKey: ['canvas', id],
     queryFn: async () => {
@@ -37,6 +41,36 @@ function CollabCanvasStudioContent() {
     },
     enabled: !!id,
   });
+
+  const canEdit = useMemo(() => {
+    if (!canvas || !user) return false;
+    const uid = String(user.id);
+    if (canvas.created_by === uid) return true;
+    const perm = canvas.permissions?.[uid];
+    return perm ? ['owner', 'editor'].includes(perm.level) : false;
+  }, [canvas, user]);
+
+  const handleTitleChange = useCallback(
+    async (newTitle: string) => {
+      if (!id) return;
+      const key = ['canvas', id];
+      const previous = queryClient.getQueryData<CanvasDocument>(key);
+      queryClient.setQueryData<CanvasDocument>(key, (old) =>
+        old ? { ...old, title: newTitle } : old
+      );
+      try {
+        await apiClient.patch(`/canvas/${id}`, { title: newTitle });
+      } catch (err) {
+        console.error('[canvas-rename] PATCH failed, reverting', err);
+        queryClient.setQueryData(key, previous);
+      }
+    },
+    [id, queryClient]
+  );
+
+  useEffect(() => {
+    if (canvas?.title) document.title = canvas.title;
+  }, [canvas?.title]);
 
   const collaborationUser = useMemo(
     () =>
@@ -82,6 +116,8 @@ function CollabCanvasStudioContent() {
       <CanvasPageHeader
         canvasId={canvas.id}
         title={canvas.title}
+        editable={canEdit}
+        onTitleChange={handleTitleChange}
         provider={collab.provider}
         isConnected={collab.isConnected}
         isSynced={collab.isSynced}

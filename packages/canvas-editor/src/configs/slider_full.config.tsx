@@ -10,10 +10,10 @@
  */
 
 import { HiPhotograph, HiSparkles } from 'react-icons/hi';
-import { PiSquaresFourFill } from 'react-icons/pi';
+import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
-import { BackgroundSection, AssetsSection } from '../sidebar/sections';
+import { BackgroundSection, AssetsSection, CombinedTextSection } from '../sidebar/sections';
 import { createPillBadgeInstance, getPillBadgeColorsForScheme } from '../utils/pillBadgeUtils';
 import { SLIDER_CONFIG, calculateSliderLayout, getSliderColors } from '../utils/sliderLayout';
 
@@ -449,6 +449,12 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       ariaLabel: 'Farbschema wählen',
     },
     {
+      id: 'text',
+      icon: PiTextAa,
+      label: 'Text',
+      ariaLabel: 'Text bearbeiten',
+    },
+    {
       id: 'assets',
       icon: PiSquaresFourFill,
       label: 'Elemente',
@@ -464,7 +470,8 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
     chatTab,
   ],
 
-  getVisibleTabs: () => ['background', 'assets', 'uploads', 'ai', 'chat'],
+  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
+  getVisibleTabs: () => ['background', 'text', 'assets', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) => (selectedElement?.startsWith('frame-') ? 'assets' : null),
 
@@ -480,6 +487,16 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         },
       }),
     },
+    text: {
+      component: CombinedTextSection,
+      propsFactory: (state, actions) => ({
+        additionalTexts: state.additionalTexts,
+        onAddHeader: actions.addHeader,
+        onAddText: actions.addText,
+        onUpdateText: actions.updateAdditionalText,
+        onRemoveText: actions.removeAdditionalText,
+      }),
+    },
     assets: {
       component: AssetsSection,
       propsFactory: (state, actions, context) => ({
@@ -492,7 +509,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       }),
     },
     uploads: uploadsSectionEntry,
-    chat: createChatSection('slider'),
+    chat: createChatSection('slider', sliderAiCapabilities),
     share: createShareSection<SliderState, SliderActions>('slider', (state) => {
       const label = state.label || '';
       const headline = state.headline || '';

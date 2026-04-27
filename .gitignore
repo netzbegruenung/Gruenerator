@@ -107,6 +107,10 @@ sync-summary.json
 webinar-einladung-kompakt.md
 TODO-CI-CLEANUP.md
 MAJOR-DEPS-UPGRADE-PLAN.md
+GEMINI.md
+
+# Python virtual environments
+**/.venv/
 
 # Scripts directory (root only)
 /scripts/
@@ -171,10 +175,6 @@ typecheck_output.txt
 
 # Remotion renderer (local-only, standalone service)
 services/remotion/
-
-# ComfyUI (local-only, not deployed via CI)
-apps/api/services/comfyui/
-services/comfyui/
 
 # Windows Zone.Identifier metadata files
 *:Zone.Identifier

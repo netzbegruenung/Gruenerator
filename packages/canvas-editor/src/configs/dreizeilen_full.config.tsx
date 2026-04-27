@@ -266,7 +266,9 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       | 'ai'
       | 'chat'
       | 'share'
-    )[] = ['image-background', 'text', 'assets', 'uploads', 'ai', 'chat', 'share'];
+    )[] =
+    // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
+      ['image-background', 'text', 'assets', 'uploads', 'chat', 'share'];
     if (context?.selectedElement?.includes('balken')) {
       return ['image-background', 'settings', ...base.slice(1)];
     }
@@ -342,7 +344,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     ai: createAiSectionRegistration('dreizeilen', dreizeilenAiCapabilities),
 
     uploads: uploadsSectionEntry,
-    chat: createChatSection('dreizeilen'),
+    chat: createChatSection('dreizeilen', dreizeilenAiCapabilities),
 
     share: createShareSection<DreizeilenFullState>('dreizeilen', (state) =>
       `${state.line1}\n${state.line2}\n${state.line3}`.trim()

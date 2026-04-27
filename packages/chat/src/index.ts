@@ -49,12 +49,14 @@ export { ExternalThreadProvider, useExternalThread } from './context/ExternalThr
 export {
   NotebookChatProvider,
   type NotebookChatProviderProps,
+  type SharepicContext,
 } from './runtime/NotebookChatProvider';
 export {
   createNotebookModelAdapter,
   type NotebookAdapterConfig,
   type NotebookMessageMetadata,
   type NotebookAdapterCallbacks,
+  type SharepicContextConfig,
 } from './runtime/NotebookModelAdapter';
 export {
   NotebookComposer,

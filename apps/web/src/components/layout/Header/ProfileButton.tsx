@@ -9,7 +9,6 @@ import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
 import NotificationList from '../../../features/notifications/components/NotificationList';
 import { useUnreadCount } from '../../../features/notifications/hooks/useNotifications';
-import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useAuthStore } from '../../../stores/authStore';
 
 import type { AvatarDisplay, Profile } from '../../../features/auth/services/profileApiService';
@@ -23,11 +22,10 @@ interface NavItem {
   label: string;
   path: string;
   icon: IconType;
-  betaFeature?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers, betaFeature: 'groups' },
+  { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers },
   { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
   { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
   { key: 'einstellungen', label: 'Einstellungen', path: '/profile', icon: HiCog },
@@ -79,7 +77,6 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
   const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
   const navigate = useNavigate();
   const location = useLocation();
-  const { shouldShowTab } = useBetaFeatures();
 
   const { data: profile } = useProfile(user.id);
 
@@ -91,10 +88,6 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
     display_name: displayName,
     email: user.email,
   });
-
-  const filteredNavItems = NAV_ITEMS.filter((item) =>
-    item.betaFeature ? shouldShowTab(item.betaFeature) : true
-  );
 
   return (
     <>
@@ -114,7 +107,7 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
       </div>
 
       <div className="flex items-center justify-center gap-xs px-md py-sm">
-        {filteredNavItems.map((item) => {
+        {NAV_ITEMS.map((item) => {
           const isActive =
             item.key === 'einstellungen'
               ? location.pathname === '/profile'

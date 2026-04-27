@@ -53,11 +53,11 @@ function ModalAssistantMessageInner({ assistantIcon, agentColor }: ModalAssistan
   );
 
   return (
-    <div className="flex w-full items-start gap-2 py-2">
+    <div className="flex w-full items-start gap-2 py-2 text-left">
       <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center text-primary">
         {assistantIcon}
       </span>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 text-left">
         {isRunning &&
           !text &&
           (progress?.stage === 'searching' || progress?.stage === 'generating' ? (
@@ -67,7 +67,7 @@ function ModalAssistantMessageInner({ assistantIcon, agentColor }: ModalAssistan
           ))}
 
         <CitationProvider citations={mappedCitations}>
-          <div className="prose prose-sm max-w-none text-xs">
+          <div className="prose prose-sm max-w-none text-xs text-left">
             <MarkdownContent content={text} />
             {isRunning && text && (
               <span className="inline-block animate-pulse text-foreground-muted">▋</span>
@@ -100,7 +100,7 @@ function ModalComposer({ placeholder, extras }: ModalComposerProps) {
         <ComposerPrimitive.Input
           autoFocus
           placeholder={placeholder}
-          className="h-10 flex-grow resize-none bg-transparent px-2 text-xs text-foreground outline-none placeholder:text-foreground-muted"
+          className="min-h-10 max-h-28 flex-grow resize-none overflow-y-auto bg-transparent px-2 py-2.5 text-xs leading-snug text-foreground outline-none placeholder:text-foreground-muted"
           rows={1}
         />
         {extras}

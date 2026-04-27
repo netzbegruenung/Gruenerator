@@ -551,32 +551,6 @@ updates:
           - 'serde*'
 
   # =============================================================================
-  # VOXTRAL - Self-hosted transcription service (Python)
-  # =============================================================================
-  - package-ecosystem: 'pip'
-    directory: '/services/voxtral'
-    schedule:
-      interval: 'weekly'
-      day: 'saturday'
-      time: '05:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'voxtral'
-    groups:
-      ml-deps:
-        patterns:
-          - 'torch'
-          - 'transformers'
-          - 'mistral-common'
-      server-deps:
-        patterns:
-          - 'fastapi'
-          - 'uvicorn'
-          - 'python-multipart'
-
-  # =============================================================================
   # WORDPRESS (apps/wordpress)
   # =============================================================================
   - package-ecosystem: 'npm'

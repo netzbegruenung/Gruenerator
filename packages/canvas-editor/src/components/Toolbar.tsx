@@ -1,9 +1,11 @@
 import React, { memo, useState, useEffect } from 'react';
 
+import { useCanvasStoreSelector } from '../stores/CanvasStoreProvider';
 import { FONT_COLORS } from '../utils/shapes';
 
 import { TopBar } from './TopBar/TopBar';
 import { ShareDropdown, type ShareDropdownProps } from './TopBar/ShareDropdown';
+import { FloatingAiSuggestionBanner } from './TopBar/modules/FloatingAiSuggestionBanner';
 import { FloatingColorPicker } from './TopBar/modules/FloatingColorPicker';
 import { FloatingFontSizeControl } from './TopBar/modules/FloatingFontSizeControl';
 import { FloatingHistoryControls } from './TopBar/modules/FloatingHistoryControls';
@@ -82,6 +84,7 @@ export const Toolbar = memo(
     const [isMobile, setIsMobile] = useState(
       typeof window !== 'undefined' && window.innerWidth < 900
     );
+    const hasPendingAiSuggestion = useCanvasStoreSelector((s) => s.pendingAiSuggestion !== null);
 
     useEffect(() => {
       const handleResize = () => setIsMobile(window.innerWidth < 900);
@@ -91,6 +94,21 @@ export const Toolbar = memo(
 
     // On mobile, hide other controls when color picker is expanded
     const shouldHideOtherControls = isMobile && isColorPickerExpanded;
+
+    // Override mode: when an AI suggestion is pending, replace the normal
+    // toolbar contents with the accept/revert banner. Keeps the user's eye on
+    // the canvas with a single clear decision. We pass the toolbar's `undo`
+    // handler directly — that's the per-page canvas's undo (via the imperative
+    // ref), which hits the correct inner store. Selecting `s.undo` from
+    // `useCanvasStoreSelector` here would fall through to the singleton store
+    // (no history) since this component is outside the per-page provider.
+    if (hasPendingAiSuggestion) {
+      return (
+        <TopBar visible={true}>
+          <FloatingAiSuggestionBanner onUndo={handlers.undo} />
+        </TopBar>
+      );
+    }
 
     return (
       <TopBar visible={true}>

@@ -757,6 +757,7 @@ export function CanvasEditor({
       autoSaveStatus: 'idle' as const,
       shareToken: null,
       onCaptureCanvas: () => {},
+      captureCanvasImage: handleCaptureCanvas,
       onDownload: async () => {
         const ref = canvasRefsRef.current[currentPageIndex];
         if (ref?.current) {
@@ -794,6 +795,7 @@ export function CanvasEditor({
       presentationExportProgress,
       exportAsPptx,
       exportAsPdf,
+      handleCaptureCanvas,
     ]
   );
 
