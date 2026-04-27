@@ -103,10 +103,10 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
           // variant label (e.g. "Standard-Sharepic").
           return (
             <div key={group} className="mb-xl">
-              <h2 className="text-xl font-semibold text-foreground-heading mt-lg mb-md text-center">
+              <h2 className="text-xl font-semibold text-foreground-heading mt-lg mb-md text-left">
                 {groupLabel}
               </h2>
-              <div className="grid grid-cols-3 gap-8 max-[1024px]:grid-cols-2 max-[1024px]:gap-6 max-[768px]:grid-cols-2 max-[768px]:gap-4 max-[480px]:grid-cols-1">
+              <div className="grid grid-cols-5 gap-4 max-[1280px]:grid-cols-4 max-[1024px]:grid-cols-3 max-[768px]:grid-cols-3 max-[480px]:grid-cols-2">
                 {secVariants.flatMap((v) =>
                   formats.map((f) => {
                     // Show the authored preview image only when this section's
