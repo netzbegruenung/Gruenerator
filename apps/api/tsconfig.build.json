@@ -14,7 +14,6 @@
     "**/*.vitest.ts",
     "vitest.config.ts",
     "eslint.config.js",
-    "services/comfyui",
     "scrape-*.ts"
   ]
 }

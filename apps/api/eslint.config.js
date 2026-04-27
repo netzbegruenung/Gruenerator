@@ -18,7 +18,6 @@ export default [
       'scripts/**',
       'eslint.config.js',
       '**/test-*.ts',
-      'services/comfyui/**',
     ],
   },
 ];
