@@ -183,7 +183,8 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     chatTab,
   ],
 
-  getVisibleTabs: () => ['background', 'text', 'elements', 'uploads', 'ai', 'chat'],
+  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
+  getVisibleTabs: () => ['background', 'text', 'elements', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) =>
     selectedElement?.startsWith('frame-') ? 'elements' : null,
@@ -237,7 +238,7 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     },
 
     uploads: uploadsSectionEntry,
-    chat: createChatSection('freeform'),
+    chat: createChatSection('freeform', freeformAiCapabilities),
 
     share: createShareSection<FreeformState>('freeform', () => ''),
 
