@@ -65,6 +65,12 @@ export interface NotebookStreamOptions {
   documentIds?: string[];
   /** Shared SSE writer — if provided, used instead of creating one internally. */
   sse?: SSEWriter;
+  /**
+   * When false, the function does NOT call `sse.end()` on success or error
+   * paths — the caller is responsible for closing the stream after running
+   * its own follow-up work (e.g. canvas-suggest tail step). Defaults to true.
+   */
+  closeStream?: boolean;
 }
 
 export interface NotebookStreamResult {
@@ -109,20 +115,20 @@ export async function handleNotebookStream(
   try {
     if (!messages || messages.length === 0) {
       sse.send('error', { error: 'Messages are required' });
-      sse.end();
+      if (options.closeStream !== false) sse.end();
       return null;
     }
 
     if (!collectionId && (!collectionIds || collectionIds.length === 0)) {
       sse.send('error', { error: 'collectionId or collectionIds is required' });
-      sse.end();
+      if (options.closeStream !== false) sse.end();
       return null;
     }
 
     const lastUserMessage = messages.filter((m) => m.role === 'user').pop();
     if (!lastUserMessage || typeof lastUserMessage.content !== 'string') {
       sse.send('error', { error: 'No user message found' });
-      sse.end();
+      if (options.closeStream !== false) sse.end();
       return null;
     }
 
@@ -161,7 +167,7 @@ export async function handleNotebookStream(
       sse.send('error', {
         error: error instanceof Error ? error.message : 'Failed to get search context',
       });
-      sse.end();
+      if (options.closeStream !== false) sse.end();
       return null;
     }
 
@@ -226,7 +232,7 @@ export async function handleNotebookStream(
           qualityGateTriggered: true,
         },
       });
-      sse.end();
+      if (options.closeStream !== false) sse.end();
       return null;
     }
 
@@ -248,7 +254,7 @@ export async function handleNotebookStream(
           citationsCount: 0,
         },
       });
-      sse.end();
+      if (options.closeStream !== false) sse.end();
       return null;
     }
 
@@ -258,7 +264,7 @@ export async function handleNotebookStream(
 
     if (!isProviderConfigured(primaryResolution.provider)) {
       sse.send('error', { error: `Provider "${primaryResolution.provider}" is not configured` });
-      sse.end();
+      if (options.closeStream !== false) sse.end();
       return null;
     }
 
@@ -308,7 +314,7 @@ export async function handleNotebookStream(
 
     if (abortController.signal.aborted) {
       log.debug('Notebook stream aborted by client disconnect');
-      sse.end();
+      if (options.closeStream !== false) sse.end();
       return null;
     }
 
@@ -327,7 +333,7 @@ export async function handleNotebookStream(
         allSources: [],
         metadata: { totalResults: searchContext.sortedResults.length, leakageDetected: true },
       });
-      sse.end();
+      if (options.closeStream !== false) sse.end();
       return null;
     }
 
@@ -380,13 +386,13 @@ export async function handleNotebookStream(
     log.debug(
       `⏱ Total: ${t6 - t0}ms [${isFast ? 'fast' : 'deep'}] (search=${t1 - t0}, setup=${t2 - t1}, stream=${t4 - t2}, cite=${t5 - t4})`
     );
-    sse.end();
+    if (options.closeStream !== false) sse.end();
 
     return { answer: cleanDraft, citations, sources, question };
   } catch (error: unknown) {
     log.error('Notebook stream error:', error);
     sse.send('error', { error: 'Internal server error' });
-    sse.end();
+    if (options.closeStream !== false) sse.end();
     return null;
   }
 }

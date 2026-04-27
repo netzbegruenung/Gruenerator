@@ -15,6 +15,7 @@ import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminV
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
 import { mountCanvasAiContractRouter } from './routes/canvas/aiSuggestRoute.js';
+import canvasChatEditRouter from './routes/canvas/canvasChatEditController.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
@@ -366,6 +367,17 @@ export async function setupRoutes(app: Application): Promise<void> {
     rateLimitMiddleware('canvas_ai', { autoIncrement: true })
   );
   mountCanvasAiContractRouter(app);
+
+  // Canvas chat-edit stream: streaming endpoint that wraps notebook chat
+  // (research + citations + prose) with a tail canvas-AI-suggest call so
+  // operations are research-grounded. Mounted before the canvas CRUD router
+  // for the same reason as ai-suggest above.
+  app.use(
+    '/api/canvas/chat-edit/stream',
+    aiGenerationLimiter,
+    rateLimitMiddleware('canvas_chat_edit', { autoIncrement: true }),
+    canvasChatEditRouter
+  );
 
   // Canvas documents (collaborative): /api/canvas CRUD. Mounted AFTER the
   // AI-suggest contract router above so /api/canvas/ai-suggest matches first
