@@ -1,6 +1,7 @@
 /**
  * TypeScript interfaces for Image Studio type configuration
  */
+import type { CanvasFormatGroup } from '@gruenerator/canvas-editor/formats';
 import type { IconType } from 'react-icons';
 
 export interface VariantStyle {
@@ -107,6 +108,18 @@ export interface TypeConfigBase {
   validation?: Record<string, ValidationRule>;
   placementOptions?: PlacementOption[];
   variants?: Variant[];
+  /**
+   * Canvas-format group the `previewImage` was authored for. When the
+   * template is rendered under a different group's section in the picker,
+   * the FormatBrowser drops the preview and falls back to the solid
+   * GROUP_BACKGROUND color instead of a wrong-aspect thumbnail.
+   */
+  primaryFormatGroup?: CanvasFormatGroup;
+  /**
+   * Format groups the template can be opened under. Defaults to
+   * `['sharepic']` if omitted (back-compat with all existing templates).
+   */
+  supportedFormatGroups?: readonly CanvasFormatGroup[];
 }
 
 export interface TemplateTypeConfig extends TypeConfigBase {
