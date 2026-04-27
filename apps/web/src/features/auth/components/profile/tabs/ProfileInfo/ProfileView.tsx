@@ -68,7 +68,6 @@ interface ProfileViewProps {
   deleteAccountError: string;
   isDeletingAccount: boolean;
   onDeleteAccountSubmit: (e: FormEvent<HTMLFormElement>) => void;
-  isBetaFeaturesUpdating: boolean;
   onSuccessMessage: (message: string) => void;
 }
 
@@ -98,7 +97,6 @@ const ProfileView = ({
   deleteAccountError,
   isDeletingAccount,
   onDeleteAccountSubmit,
-  isBetaFeaturesUpdating,
   onSuccessMessage,
 }: ProfileViewProps) => {
   const { locale, updateLocale } = useAuthStore();
@@ -201,13 +199,7 @@ const ProfileView = ({
       {/* Dein Grünerator — inline role management */}
       <RolesSection />
 
-      {/* Experimental Features */}
-      <SettingsSection
-        isActive={true}
-        isBetaFeaturesUpdating={isBetaFeaturesUpdating}
-        onSuccessMessage={onSuccessMessage}
-        onErrorMessage={() => {}}
-      />
+      <SettingsSection onSuccessMessage={onSuccessMessage} onErrorMessage={() => {}} />
 
       <MemoriesSection />
 
