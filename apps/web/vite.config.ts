@@ -143,80 +143,31 @@ export default defineConfig(({ command }) => ({
           }
           return 'assets/[name].[hash][extname]';
         },
-      },
-      codeSplitting: {
-        groups: [
-          {
-            name: 'core-vendor',
-            test: /node_modules[\\/](react|react-dom|react-router)/,
-            priority: 20,
-          },
-          {
-            name: 'state-vendor',
-            test: /node_modules[\\/](@tanstack[\\/]react-query|zustand)/,
-            priority: 10,
-          },
-          {
-            name: 'ui-vendor',
-            test: /node_modules[\\/](react-tooltip|react-hook-form|react-dropzone)/,
-            priority: 10,
-          },
-          {
-            name: 'utils-vendor',
-            test: /node_modules[\\/](uuid|dompurify)/,
-            priority: 10,
-          },
-          {
-            name: 'motion-vendor',
-            test: /node_modules[\\/]motion/,
-            priority: 10,
-          },
-          {
-            name: 'canvas-vendor',
-            test: /node_modules[\\/](konva|react-konva|use-image)/,
-            priority: 10,
-          },
-          {
-            name: 'ai-vendor',
-            test: /node_modules[\\/](onnxruntime-web|@imgly[\\/]background-removal)/,
-            priority: 10,
-          },
-          {
-            name: 'editor-vendor',
-            test: /node_modules[\\/](@mdxeditor[\\/]editor|marked|react-markdown)/,
-            priority: 10,
-          },
-          {
-            name: 'chat-vendor',
-            test: /node_modules[\\/](@assistant-ui[\\/]react|lucide-react)/,
-            priority: 10,
-          },
-          {
-            name: 'shared-pkg',
-            test: /packages[\\/]shared[\\/]src/,
-            priority: 5,
-          },
-          {
-            name: 'canvas-editor-pkg',
-            test: /packages[\\/]canvas-editor[\\/]src/,
-            priority: 5,
-          },
-          {
-            name: 'chat-pkg',
-            test: /packages[\\/]chat[\\/]src/,
-            priority: 5,
-          },
-          {
-            name: 'docs-pkg',
-            test: /packages[\\/]docs[\\/]src/,
-            priority: 5,
-          },
-          {
-            name: 'collab-pkg',
-            test: /packages[\\/]collab[\\/]src/,
-            priority: 5,
-          },
-        ],
+        // Disable code-splitting entirely as an emergency safety measure.
+        //
+        // The previous `codeSplitting.groups` config has been silently dead
+        // since the Vite 8 → Rolldown migration: Rolldown's `codeSplitting`
+        // accepts either a boolean or `AdvancedChunksSchema`, but
+        // AdvancedChunksSchema does not include a `groups` field, so the
+        // entire vendor-grouping block was being dropped at config parse.
+        // With no manual chunking active, Rolldown's auto-chunker had been
+        // producing a chunk topology with multiple circular cross-chunk
+        // imports — surfacing in production as both
+        //   "TypeError: s is not a function" (in the react-markdown chunk,
+        //    where bindings from the still-initializing entry chunk were
+        //    used at module-init time)
+        // and
+        //   "Cannot read properties of undefined (reading 'displayName')"
+        //    (at radix-ui's Primitive factory in another chunk, same root
+        //    cause: a sibling-chunk binding undefined at use time).
+        //
+        // `codeSplitting: false` puts all modules into one chunk and
+        // inlines every dynamic `import()`, eliminating all cross-chunk
+        // imports and therefore any possibility of circular-init bugs.
+        // The cost is initial bundle size (no on-demand splits) — a real
+        // regression we'll claw back in a follow-up PR with a working
+        // chunking config plus a CI smoke test that catches cycles.
+        codeSplitting: false,
       },
     },
   },
