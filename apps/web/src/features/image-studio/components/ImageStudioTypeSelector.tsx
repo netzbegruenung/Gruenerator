@@ -61,6 +61,7 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
   // variant-only hit shows just that variant in every section.
   const sections = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
+    const searchActive = q !== '';
     return CANVAS_FORMATS.map((format) => {
       const formatHit =
         !q ||
@@ -76,8 +77,12 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
         if (formatHit) return true;
         return v.label.toLowerCase().includes(q) || (v.description ?? '').toLowerCase().includes(q);
       });
-      return { format, variants: visibleVariants };
-    }).filter((s) => s.variants.length > 0);
+      // Sections with no group-supported variants render a "coming soon"
+      // placeholder when not searching, so users still see the format exists.
+      // While searching, drop them — the empty-state message takes over.
+      const showAsComingSoon = !searchActive && groupVariants.length === 0;
+      return { format, variants: visibleVariants, showAsComingSoon };
+    }).filter((s) => s.variants.length > 0 || s.showAsComingSoon);
   }, [deferredQuery, variants]);
 
   return (
@@ -98,11 +103,16 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
           Keine Ergebnisse für „{searchQuery}&ldquo;
         </p>
       ) : (
-        sections.map(({ format, variants: secVariants }) => (
+        sections.map(({ format, variants: secVariants, showAsComingSoon }) => (
           <div key={format.id} className="mb-xl">
             <h2 className="text-xl font-semibold text-foreground-heading mt-lg mb-md text-center">
               {getSectionLabel(format)}
             </h2>
+            {showAsComingSoon ? (
+              <p className="text-center text-foreground-muted text-sm py-md">
+                Vorlagen für dieses Format folgen bald.
+              </p>
+            ) : (
             <div className="grid grid-cols-3 gap-8 max-[1024px]:grid-cols-2 max-[1024px]:gap-6 max-[768px]:grid-cols-2 max-[768px]:gap-4 max-[480px]:grid-cols-1">
               {secVariants.map((v) => {
                 // Use the authored previewImage only when this section's group
@@ -131,6 +141,7 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
                 );
               })}
             </div>
+            )}
           </div>
         ))
       )}
