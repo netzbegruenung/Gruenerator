@@ -46,11 +46,6 @@ interface FormatBrowserProps {
 const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const deferredQuery = useDeferredValue(searchQuery);
-  // Per-group selected size (formatId) — only meaningful for multi-size groups
-  // like flyer/plakat/praesentation. Defaults to each group's first format.
-  const [selectedSizeByGroup, setSelectedSizeByGroup] = useState<
-    Partial<Record<CanvasFormatGroup, string>>
-  >({});
 
   // Build sections grouped by CanvasFormatGroup. Within a group, all sizes
   // share the same templates (same aspect ratio), so we render one section
@@ -101,64 +96,46 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
         </p>
       ) : (
         sections.map(({ group, formats, variants: secVariants }) => {
-          const selectedFormatId = selectedSizeByGroup[group] ?? formats[0].id;
           const isMultiSize = formats.length > 1;
+          const groupLabel = CANVAS_FORMAT_GROUP_LABEL[group];
+          // Render one card per (variant × format) pair. In multi-size groups
+          // (flyer/plakat/praesentation) the size is what distinguishes cards,
+          // so the card label is the size (e.g. "A3"). In single-size groups
+          // (sharepic/story) sizes are redundant, so we fall back to the
+          // variant label (e.g. "Standard-Sharepic").
           return (
             <div key={group} className="mb-xl">
               <h2 className="text-xl font-semibold text-foreground-heading mt-lg mb-md text-center">
-                {CANVAS_FORMAT_GROUP_LABEL[group]}
+                {groupLabel}
               </h2>
-              {isMultiSize && (
-                <div className="flex justify-center gap-xs mb-md flex-wrap">
-                  {formats.map((f) => {
-                    const isActive = f.id === selectedFormatId;
-                    return (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() =>
-                          setSelectedSizeByGroup((prev) => ({ ...prev, [group]: f.id }))
-                        }
-                        aria-pressed={isActive}
-                        className={`px-md py-xs text-sm rounded-full border transition-colors ${
-                          isActive
-                            ? 'bg-primary-500 text-white border-primary-500'
-                            : 'bg-background text-foreground border-grey-200 dark:border-grey-700 hover:border-primary-500'
-                        }`}
-                      >
-                        {f.label.replace(`${CANVAS_FORMAT_GROUP_LABEL[group]} `, '')}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
               <div className="grid grid-cols-3 gap-8 max-[1024px]:grid-cols-2 max-[1024px]:gap-6 max-[768px]:grid-cols-2 max-[768px]:gap-4 max-[480px]:grid-cols-1">
-                {secVariants.map((v) => {
-                  // Use the authored previewImage only when this section's group
-                  // matches what the template was designed for; otherwise swap
-                  // in the per-group default placeholder so non-sharepic
-                  // sections don't show sharepic-shaped thumbnails.
-                  const authoredHere = (v.primaryFormatGroup ?? 'sharepic') === group;
-                  const groupDefault = GROUP_DEFAULT_PREVIEW[group];
-                  const effectivePreview = authoredHere ? v.previewImage : groupDefault?.webp;
-                  const effectivePreviewFallback = authoredHere
-                    ? v.previewImageFallback
-                    : groupDefault?.png;
-                  const fallbackBg = !effectivePreview ? GROUP_BACKGROUND[group] : undefined;
-                  return (
-                    <TypeCard
-                      key={`${group}-${v.id}`}
-                      onClick={() => onSelect(v.id, selectedFormatId)}
-                      previewImage={effectivePreview}
-                      previewImageFallback={effectivePreviewFallback}
-                      label={v.label}
-                      description={v.description}
-                      backgroundColor={fallbackBg}
-                      className="aspect-[3/4]"
-                      badge={v.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined}
-                    />
-                  );
-                })}
+                {secVariants.flatMap((v) =>
+                  formats.map((f) => {
+                    const authoredHere = (v.primaryFormatGroup ?? 'sharepic') === group;
+                    const groupDefault = GROUP_DEFAULT_PREVIEW[group];
+                    const effectivePreview = authoredHere ? v.previewImage : groupDefault?.webp;
+                    const effectivePreviewFallback = authoredHere
+                      ? v.previewImageFallback
+                      : groupDefault?.png;
+                    const fallbackBg = !effectivePreview ? GROUP_BACKGROUND[group] : undefined;
+                    const cardLabel = isMultiSize
+                      ? f.label.replace(`${groupLabel} `, '')
+                      : v.label;
+                    return (
+                      <TypeCard
+                        key={`${group}-${v.id}-${f.id}`}
+                        onClick={() => onSelect(v.id, f.id)}
+                        previewImage={effectivePreview}
+                        previewImageFallback={effectivePreviewFallback}
+                        label={cardLabel}
+                        description={isMultiSize ? f.description : v.description}
+                        backgroundColor={fallbackBg}
+                        className="aspect-[3/4]"
+                        badge={v.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined}
+                      />
+                    );
+                  })
+                )}
               </div>
             </div>
           );
