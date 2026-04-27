@@ -17,7 +17,6 @@ export default tseslint.config(
         projectService: {
           allowDefaultProject: [
             'eslint.config.mjs',
-            'apps/docs/eslint.config.js',
             'apps/desktop/eslint.config.mjs',
             'apps/mobile/shims/isomorphic-webcrypto.js',
             'apps/web/src/components/utils/errorMessages.tsx',
