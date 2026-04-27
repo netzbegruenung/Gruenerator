@@ -40,6 +40,8 @@ export interface NotebookChatProviderProps {
   /** Getter that reads filters directly from the store at request time — bypasses React render pipeline */
   getFilters?: () => Record<string, unknown> | undefined;
   extraParams?: Record<string, unknown>;
+  /** Dynamic extras evaluated per-request — used for values that must be fresh (e.g. canvas snapshot). */
+  getExtraParams?: () => Record<string, unknown> | undefined;
   initialMessages?: readonly ThreadMessageLike[];
   onComplete?: (metadata: NotebookMessageMetadata) => void;
   onThreadCreated?: (threadId: string) => void;
@@ -49,6 +51,8 @@ export interface NotebookChatProviderProps {
   threadId?: string | null;
   /** Optional sharepic context auto-attached to every message (canvas-editor chat). */
   sharepicContext?: SharepicContext;
+  /** Called for SSE events the adapter does not recognize (e.g. canvas_operations). */
+  onCustomEvent?: (event: string, data: unknown) => void;
 }
 
 /**
@@ -68,6 +72,7 @@ function NotebookChatProviderInner({
   filters,
   getFilters,
   extraParams,
+  getExtraParams,
   initialMessages,
   onComplete,
   onThreadCreated,
@@ -76,6 +81,7 @@ function NotebookChatProviderInner({
   documentIds,
   threadId: initialThreadId,
   sharepicContext,
+  onCustomEvent,
 }: NotebookChatProviderProps) {
   const isMulti = collections.length > 1;
   // Refs for all config inputs so the adapter — and therefore the AUI runtime
@@ -104,6 +110,10 @@ function NotebookChatProviderInner({
   documentIdsRef.current = documentIds;
   const sharepicContextRef = useRef(sharepicContext);
   sharepicContextRef.current = sharepicContext;
+  const getExtraParamsRef = useRef(getExtraParams);
+  getExtraParamsRef.current = getExtraParams;
+  const onCustomEventRef = useRef(onCustomEvent);
+  onCustomEventRef.current = onCustomEvent;
 
   const handleThreadCreated = useCallback(
     (newThreadId: string) => {
@@ -116,17 +126,24 @@ function NotebookChatProviderInner({
   const getConfig = useCallback((): NotebookAdapterConfig => {
     const cs = collectionsRef.current;
     const multi = isMultiRef.current;
+    const stableGetExtraParams = (): Record<string, unknown> | undefined =>
+      getExtraParamsRef.current?.();
+    const stableOnCustomEvent = (event: string, data: unknown): void => {
+      onCustomEventRef.current?.(event, data);
+    };
     return {
       ...(multi ? { collectionIds: cs.map((c) => c.id) } : { collectionId: cs[0]?.id }),
       collectionLinkType: multi ? 'url' : cs[0]?.linkType,
       filters: getFiltersRef.current?.() ?? filtersRef.current,
       locale: localeRef.current,
       extraParams: extraParamsRef.current,
+      getExtraParams: stableGetExtraParams,
       mode: modeRef.current,
       endpoint: endpointRef.current,
       documentIds: documentIdsRef.current,
       threadId: threadIdRef.current,
       sharepicContext: sharepicContextRef.current,
+      onCustomEvent: stableOnCustomEvent,
     };
   }, []);
 
