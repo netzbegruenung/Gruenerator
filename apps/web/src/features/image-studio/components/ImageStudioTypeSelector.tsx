@@ -1,7 +1,6 @@
 import {
   CANVAS_FORMATS,
   CANVAS_FORMAT_GROUP_LABEL,
-  type CanvasFormat,
   type CanvasFormatGroup,
 } from '@gruenerator/canvas-editor/formats';
 import React, { useMemo, useCallback, useState, useDeferredValue } from 'react';
@@ -22,7 +21,6 @@ import {
   KI_SUBCATEGORIES,
   TYPE_CONFIG,
 } from '../utils/typeConfig';
-
 import TypeCard from './TypeCard';
 
 import type { TypeConfig } from '../utils/typeConfig/types';
@@ -37,13 +35,25 @@ const GROUP_BACKGROUND: Record<CanvasFormatGroup, string> = {
   plakat: '#2E2E3D', // DUNKELGRAU
 };
 
-/** Section header text per format. Single-size groups (sharepic, story) drop
- *  the size and use the plural group label; multi-size groups use the
- *  format-specific label (e.g. "Flyer A4", "Plakat A2"). */
-function getSectionLabel(format: CanvasFormat): string {
-  const sameGroupCount = CANVAS_FORMATS.filter((f) => f.group === format.group).length;
-  return sameGroupCount === 1 ? CANVAS_FORMAT_GROUP_LABEL[format.group] : format.label;
+// Section topology for the picker. Print collapses Flyer + Plakat into one
+// section because they share the print-export workflow (PDF/PNG @ 300 dpi)
+// and the user wants them browsed together.
+interface SectionDef {
+  key: string;
+  label: string;
+  groups: readonly CanvasFormatGroup[];
 }
+
+const SECTION_DEFS: readonly SectionDef[] = [
+  { key: 'sharepic', label: CANVAS_FORMAT_GROUP_LABEL.sharepic, groups: ['sharepic'] },
+  { key: 'story', label: CANVAS_FORMAT_GROUP_LABEL.story, groups: ['story'] },
+  {
+    key: 'praesentation',
+    label: CANVAS_FORMAT_GROUP_LABEL.praesentation,
+    groups: ['praesentation'],
+  },
+  { key: 'print', label: 'Print', groups: ['flyer', 'plakat'] },
+];
 
 interface FormatBrowserProps {
   variants: TypeConfig[];
@@ -54,26 +64,34 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
   const [searchQuery, setSearchQuery] = useState('');
   const deferredQuery = useDeferredValue(searchQuery);
 
-  // For each format (size) build the list of variants that match the search.
-  // Search hits anywhere in {format label/description, group label, variant
-  // label/description}. A format-level hit shows all variants under it; a
-  // variant-only hit shows just that variant in every section.
+  // Build sections from SECTION_DEFS — most are 1:1 with a CanvasFormatGroup,
+  // but "Print" merges flyer + plakat into a single section.
   const sections = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
-    return CANVAS_FORMATS.map((format) => {
-      const formatHit =
-        !q ||
-        format.label.toLowerCase().includes(q) ||
-        format.description.toLowerCase().includes(q) ||
-        CANVAS_FORMAT_GROUP_LABEL[format.group].toLowerCase().includes(q) ||
-        getSectionLabel(format).toLowerCase().includes(q);
+    return SECTION_DEFS.map((def) => {
+      const formats = CANVAS_FORMATS.filter((f) => def.groups.includes(f.group));
+      if (formats.length === 0) return null;
 
-      const visibleVariants = variants.filter((v) => {
-        if (formatHit) return true;
+      const sectionHit =
+        !q ||
+        def.label.toLowerCase().includes(q) ||
+        formats.some(
+          (f) =>
+            f.label.toLowerCase().includes(q) || f.description.toLowerCase().includes(q)
+        );
+
+      const sectionVariants = variants.filter((v) => {
+        const supported = v.supportedFormatGroups ?? ['sharepic'];
+        return def.groups.some((g) => supported.includes(g));
+      });
+      const visibleVariants = sectionVariants.filter((v) => {
+        if (sectionHit) return true;
         return v.label.toLowerCase().includes(q) || (v.description ?? '').toLowerCase().includes(q);
       });
-      return { format, variants: visibleVariants };
-    }).filter((s) => s.variants.length > 0);
+      return { def, formats, variants: visibleVariants };
+    })
+      .filter((s): s is NonNullable<typeof s> => s !== null)
+      .filter((s) => s.variants.length > 0);
   }, [deferredQuery, variants]);
 
   return (
@@ -94,31 +112,54 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
           Keine Ergebnisse für „{searchQuery}&ldquo;
         </p>
       ) : (
-        sections.map(({ format, variants: secVariants }) => (
-          <div key={format.id} className="mb-xl">
-            <h2 className="text-xl font-semibold text-foreground-heading mt-lg mb-md text-center">
-              {getSectionLabel(format)}
-            </h2>
-            <div className="grid grid-cols-3 gap-8 max-[1024px]:grid-cols-2 max-[1024px]:gap-6 max-[768px]:grid-cols-2 max-[768px]:gap-4 max-[480px]:grid-cols-1">
-              {secVariants.map((v) => {
-                const fallbackBg = !v.previewImage ? GROUP_BACKGROUND[format.group] : undefined;
-                return (
-                  <TypeCard
-                    key={`${format.id}-${v.id}`}
-                    onClick={() => onSelect(v.id, format.id)}
-                    previewImage={v.previewImage}
-                    previewImageFallback={v.previewImageFallback}
-                    label={v.label}
-                    description={v.description}
-                    backgroundColor={fallbackBg}
-                    className="aspect-[3/4]"
-                    badge={v.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined}
-                  />
-                );
-              })}
+        sections.map(({ def, formats, variants: secVariants }) => {
+          const isMultiSize = formats.length > 1;
+          const isMergedSection = def.groups.length > 1;
+          // Card-label rule:
+          //  - merged section (Print): full format label "Flyer A5" — needed
+          //    to distinguish across groups inside the section.
+          //  - single-group multi-size (Präsentation): strip the group prefix
+          //    so cards read "16:9", "4:3".
+          //  - single-group single-size (Sharepics, Story): show the variant
+          //    label since the size is redundant.
+          return (
+            <div key={def.key} className="mb-xl">
+              <h2 className="text-xl font-semibold text-foreground-heading mt-lg mb-md text-left">
+                {def.label}
+              </h2>
+              <div className="grid grid-cols-5 gap-4 max-[1280px]:grid-cols-4 max-[1024px]:grid-cols-3 max-[768px]:grid-cols-3 max-[480px]:grid-cols-2">
+                {secVariants.flatMap((v) =>
+                  formats.map((f) => {
+                    const authoredHere = (v.primaryFormatGroup ?? 'sharepic') === f.group;
+                    const effectivePreview = authoredHere ? v.previewImage : undefined;
+                    const effectivePreviewFallback = authoredHere
+                      ? v.previewImageFallback
+                      : undefined;
+                    const fallbackBg = !effectivePreview ? GROUP_BACKGROUND[f.group] : undefined;
+                    const cardLabel = isMergedSection
+                      ? f.label
+                      : isMultiSize
+                        ? f.label.replace(`${def.label} `, '')
+                        : v.label;
+                    return (
+                      <TypeCard
+                        key={`${def.key}-${v.id}-${f.id}`}
+                        onClick={() => onSelect(v.id, f.id)}
+                        previewImage={effectivePreview}
+                        previewImageFallback={effectivePreviewFallback}
+                        label={cardLabel}
+                        description={isMultiSize ? f.description : v.description}
+                        backgroundColor={fallbackBg}
+                        className="aspect-[3/4]"
+                        badge={v.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined}
+                      />
+                    );
+                  })
+                )}
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );
