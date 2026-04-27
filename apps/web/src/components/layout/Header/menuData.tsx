@@ -4,10 +4,7 @@ import type { BadgeType } from '../../common/StatusBadge';
 import type { JSX, ComponentType } from 'react';
 import type { IconType } from 'react-icons';
 
-// Beta features interface
-export interface BetaFeatures {
-  databaseBetaEnabled?: boolean;
-  youBetaEnabled?: boolean;
+export interface MenuFlags {
   isAustrian?: boolean;
 }
 
@@ -42,7 +39,7 @@ export interface MenuItemsResult {
 export type DirectMenuItemsResult = Record<string, MenuItemType>;
 
 // Direkte Menüpunkte ohne Dropdown
-export const getDirectMenuItems = (betaFeatures: BetaFeatures = {}): DirectMenuItemsResult => {
+export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResult => {
   const items: DirectMenuItemsResult = {};
 
   items.startseite = {
@@ -96,7 +93,7 @@ export const getFooterLinks = (): MenuItemType[] => [
 ];
 
 // Funktion zur Generierung der Hauptmenüstruktur - simplified, no more dropdowns
-export const getMenuItems = (betaFeatures: BetaFeatures = {}): MenuItemsResult => {
+export const getMenuItems = (_flags: MenuFlags = {}): MenuItemsResult => {
   // All items moved to direct menu items - keeping this for backwards compatibility
   const result: MenuItemsResult = {
     bildUndVideo: { title: 'Bild und Video', items: [] },
