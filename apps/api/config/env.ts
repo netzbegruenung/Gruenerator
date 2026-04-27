@@ -140,6 +140,7 @@ const envSchema = z.object({
   // ── Scraping / crawling ────────────────────────────────────────────────
   CRAWLER_MODE: z.string().optional(),
   CONTENT_SYNC_EMAIL: z.string().optional(),
+  TEST_EMAIL_TO: z.string().optional(),
   BACKUP_DIR: z.string().optional(),
   STATS_OUTPUT_PATH: z.string().optional(),
   SYNC_SUMMARY_PATH: z.string().optional(),
