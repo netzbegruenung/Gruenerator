@@ -107,6 +107,10 @@ sync-summary.json
 webinar-einladung-kompakt.md
 TODO-CI-CLEANUP.md
 MAJOR-DEPS-UPGRADE-PLAN.md
+GEMINI.md
+
+# Python virtual environments
+**/.venv/
 
 # Scripts directory (root only)
 /scripts/
