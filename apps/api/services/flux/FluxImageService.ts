@@ -12,7 +12,7 @@ const sleep = promisify(setTimeout);
 
 type AxiosConfigWithFamily = AxiosRequestConfig & { family?: 4 | 6 };
 
-export type FluxBackend = 'hosted' | 'local' | 'regolo' | 'ionos';
+export type FluxBackend = 'hosted' | 'regolo' | 'ionos';
 
 type FluxApiError = Error & {
   code?: string;
@@ -122,24 +122,8 @@ class FluxImageService {
   private retryableErrors: Set<string>;
   private circuitBreaker: CircuitBreaker;
 
-  /**
-   * Factory method to create the appropriate image service based on backend selection.
-   *
-   * @param backend - 'hosted' for BFL API, 'local' for ComfyUI. Defaults to FLUX_BACKEND env var or 'hosted'.
-   * @returns FluxImageService for hosted backend, ComfyUIImageService for local backend
-   */
   static async create(backend?: FluxBackend): Promise<FluxImageService> {
     const useBackend = backend || (env.FLUX_BACKEND as FluxBackend) || 'hosted';
-
-    if (useBackend === 'local') {
-      console.log('[FluxImageService] Using local ComfyUI backend');
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore - comfyui module is excluded from Docker build
-      const mod = (await import('../comfyui/ComfyUIImageService.js')) as {
-        default: new () => FluxImageService;
-      };
-      return new mod.default();
-    }
 
     if (useBackend === 'regolo') {
       console.log('[FluxImageService] Using Regolo Qwen-Image backend');

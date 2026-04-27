@@ -14,6 +14,7 @@ import { createAiSectionRegistration } from '../../ai/createAiSectionRegistratio
 import {
   BackgroundSection,
   AssetsSection,
+  CombinedTextSection,
   PresentationDesignSection,
 } from '../../sidebar/sections';
 import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from '../commonSections';
@@ -38,6 +39,7 @@ import type {
   ImageElementConfig,
   TextElementConfig,
 } from '../types';
+import type { TextFieldConfig } from '../unifiedTabs';
 import type { PresentationSlideState, PresentationSlideActions } from './presentationTypes';
 import type { PresentationColorMode } from './presentationTheme';
 
@@ -127,6 +129,16 @@ const presTitleAiCapabilities = createPresentationAiCapabilities({
   fields: ['title', 'subtitle'],
 });
 
+const TEXT_FIELDS: TextFieldConfig[] = [
+  { key: 'title', label: 'Titel', multiline: false, fontSizeStateKey: 'customTitleFontSize' },
+  {
+    key: 'subtitle',
+    label: 'Untertitel',
+    multiline: false,
+    fontSizeStateKey: 'customSubtitleFontSize',
+  },
+];
+
 // ============================================================================
 // CONFIG EXPORT
 // ============================================================================
@@ -154,10 +166,7 @@ export const presTitleConfig: FullCanvasConfig<PresentationSlideState, Presentat
   backgroundType: 'color',
   useUnifiedTabs: true,
 
-  textFields: [
-    { key: 'title', label: 'Titel', multiline: false },
-    { key: 'subtitle', label: 'Untertitel', multiline: false },
-  ],
+  textFields: TEXT_FIELDS,
 
   multiPage: {
     enabled: true,
@@ -201,7 +210,8 @@ export const presTitleConfig: FullCanvasConfig<PresentationSlideState, Presentat
     chatTab,
   ],
 
-  getVisibleTabs: () => ['background', 'text', 'assets', 'uploads', 'design', 'ai', 'chat'],
+  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
+  getVisibleTabs: () => ['background', 'text', 'assets', 'uploads', 'design', 'chat'],
 
   sections: {
     background: {
@@ -215,6 +225,37 @@ export const presTitleConfig: FullCanvasConfig<PresentationSlideState, Presentat
         },
       }),
     },
+    text: {
+      component: CombinedTextSection,
+      propsFactory: (state, actions) => ({
+        textFields: TEXT_FIELDS,
+        values: {
+          title: state.title,
+          subtitle: state.subtitle,
+        },
+        onFieldChange: (key: string, value: string) => {
+          if (key === 'title') actions.setTitle(value);
+          else if (key === 'subtitle') actions.setSubtitle(value);
+        },
+        fontSizes: {
+          ...(state.customTitleFontSize !== null
+            ? { customTitleFontSize: state.customTitleFontSize }
+            : {}),
+          ...(state.customSubtitleFontSize !== null
+            ? { customSubtitleFontSize: state.customSubtitleFontSize }
+            : {}),
+        },
+        onFontSizeChange: (key: string, size: number) => {
+          if (key === 'customTitleFontSize') actions.handleTitleFontSizeChange(size);
+          else if (key === 'customSubtitleFontSize') actions.handleSubtitleFontSizeChange(size);
+        },
+        additionalTexts: state.additionalTexts,
+        onAddHeader: actions.addHeader,
+        onAddText: actions.addText,
+        onUpdateText: actions.updateAdditionalText,
+        onRemoveText: actions.removeAdditionalText,
+      }),
+    },
     assets: {
       component: AssetsSection,
       propsFactory: (state, actions, context) => ({
@@ -226,7 +267,7 @@ export const presTitleConfig: FullCanvasConfig<PresentationSlideState, Presentat
       }),
     },
     uploads: uploadsSectionEntry,
-    chat: createChatSection('pres-title'),
+    chat: createChatSection('pres-title', presTitleAiCapabilities),
     design: {
       component: PresentationDesignSection,
       propsFactory: (state, actions) => ({

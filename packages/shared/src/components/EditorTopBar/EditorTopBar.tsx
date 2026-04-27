@@ -1,4 +1,6 @@
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode } from 'react';
+
+import { EditableTitle } from '../EditableTitle';
 
 import './EditorTopBar.css';
 
@@ -19,57 +21,6 @@ export const EditorTopBar = ({
   onTitleChange,
   editable = false,
 }: EditorTopBarProps) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(title || '');
-  const inputRef = useRef<HTMLInputElement>(null);
-  const committedRef = useRef(false);
-
-  useEffect(() => {
-    setEditValue(title || '');
-  }, [title]);
-
-  useEffect(() => {
-    if (isEditing) {
-      inputRef.current?.focus();
-      inputRef.current?.select();
-    }
-  }, [isEditing]);
-
-  const commitEdit = useCallback(() => {
-    if (committedRef.current) return;
-    committedRef.current = true;
-    setIsEditing(false);
-    const trimmed = editValue.trim();
-    const newTitle = trimmed || 'Unbenannt';
-    const currentTitle = title || 'Unbenannt';
-    if (newTitle !== currentTitle) {
-      console.log('[docs-rename] EditorTopBar commitEdit: "%s" → "%s"', currentTitle, newTitle);
-      onTitleChange?.(newTitle);
-    } else {
-      console.log('[docs-rename] EditorTopBar commitEdit: no change (both "%s")', currentTitle);
-    }
-  }, [editValue, title, onTitleChange]);
-
-  const cancelEdit = useCallback(() => {
-    setEditValue(title || '');
-    setIsEditing(false);
-  }, [title]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        commitEdit();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        cancelEdit();
-      }
-    },
-    [commitEdit, cancelEdit]
-  );
-
-  const canEditTitle = editable && !!onTitleChange;
-
   return (
     <header className="editor-topbar">
       <div className="editor-topbar__left">
@@ -93,32 +44,16 @@ export const EditorTopBar = ({
         {title != null && (
           <>
             <span className="glass-divider editor-topbar__divider" />
-            {isEditing ? (
-              <input
-                ref={inputRef}
-                className="editor-topbar__title-input"
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onBlur={commitEdit}
-                onKeyDown={handleKeyDown}
-                aria-label="Dokumenttitel bearbeiten"
-              />
-            ) : (
-              <h1
-                className={`editor-topbar__title${canEditTitle ? ' editor-topbar__title--editable' : ''}`}
-                onClick={
-                  canEditTitle
-                    ? () => {
-                        committedRef.current = false;
-                        setIsEditing(true);
-                      }
-                    : undefined
-                }
-                title={canEditTitle ? 'Klicken zum Umbenennen' : undefined}
-              >
-                {title || 'Unbenannt'}
-              </h1>
-            )}
+            <EditableTitle
+              title={title}
+              editable={editable}
+              onTitleChange={onTitleChange}
+              className="editor-topbar__title"
+              editableClassName="editor-topbar__title--editable"
+              inputClassName="editor-topbar__title-input"
+              ariaLabel="Dokumenttitel bearbeiten"
+              as="h1"
+            />
           </>
         )}
         {connectionStatus && (

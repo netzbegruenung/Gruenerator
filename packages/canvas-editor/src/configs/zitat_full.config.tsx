@@ -9,6 +9,7 @@ import { HiSparkles } from 'react-icons/hi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
+import { createChatSection } from './commonSections';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { ZITAT_CONFIG, calculateZitatLayout } from '../utils/zitatLayout';
 
@@ -222,13 +223,14 @@ export const zitatFullConfig = {
     ...baseZitatConfig.tabs,
     { id: 'ai' as const, icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
   ],
+  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
   getVisibleTabs: (state: ImageTwoTextState, context?: { selectedElement?: string | null }) => {
-    const base = baseZitatConfig.getVisibleTabs?.(state, context) ?? [];
-    return [...base, 'ai' as const];
+    return baseZitatConfig.getVisibleTabs?.(state, context) ?? [];
   },
   sections: {
     ...baseZitatConfig.sections,
     ai: createAiSectionRegistration('zitat', zitatAiCapabilities),
+    chat: createChatSection('zitat', zitatAiCapabilities),
   },
 };
 

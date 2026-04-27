@@ -13,7 +13,6 @@ import { PiSun, PiMoon, PiStarFill, PiSignIn } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
-import { useBetaFeatures } from '../../../hooks/useBetaFeatures';
 import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import useSidebarStore from '../../../stores/sidebarStore';
@@ -65,9 +64,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const user = useAuthStore((s) => s.user);
   const setLoginIntent = useAuthStore((s) => s.setLoginIntent);
-  const { getBetaFeatureState } = useBetaFeatures();
 
-  const databaseBetaEnabled = useMemo(() => getBetaFeatureState('database'), [getBetaFeatureState]);
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
 
@@ -77,19 +74,9 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     () => document.documentElement.getAttribute('data-theme') === 'dark'
   );
 
-  const menuItems = useMemo(
-    () =>
-      getMenuItems({
-        databaseBetaEnabled,
-        isAustrian,
-      }),
-    [databaseBetaEnabled, isAustrian]
-  );
+  const menuItems = useMemo(() => getMenuItems({ isAustrian }), [isAustrian]);
 
-  const directMenuItems = useMemo(
-    () => getDirectMenuItems({ databaseBetaEnabled, isAustrian }),
-    [databaseBetaEnabled, isAustrian]
-  );
+  const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
   const additionalItems = useMemo<MenuItemType[]>(
     () => [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)],

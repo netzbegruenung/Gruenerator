@@ -1,44 +1,44 @@
-import { HiChatBubbleLeftRight } from 'react-icons/hi2';
-
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-import { SIDEBAR_HINT, SIDEBAR_SECTION } from '../primitives';
+import { SIDEBAR_HINT } from '../primitives';
+
+import type { CanvasAiEditBridge } from '../../CanvasEditorProvider';
 
 export interface ChatSectionProps {
   /** Canvas template id (e.g. 'zitat', 'simple'). */
   canvasType: string;
   /** Returns a structured text description of the current canvas content. */
   getSharepicText: () => string;
+  /** Captures the current canvas as a PNG data URL (or null if not ready). */
+  captureCanvasImage?: () => Promise<string | null>;
+  /** Bridge for canvas-AI edit operations. Present only when the template
+   *  declares AI capabilities. */
+  aiEdit?: CanvasAiEditBridge;
 }
 
-export function ChatSection({ canvasType, getSharepicText }: ChatSectionProps) {
-  const services = useCanvasEditorServices();
+export function ChatSection({
+  canvasType,
+  getSharepicText,
+  captureCanvasImage,
+  aiEdit,
+}: ChatSectionProps) {
+  const { ChatSectionContent } = useCanvasEditorServices();
 
-  if (!services.openChat) {
+  if (!ChatSectionContent) {
     return (
-      <div className={SIDEBAR_SECTION}>
+      <div className="flex flex-col gap-sm">
         <div className={SIDEBAR_HINT}>Chat ist in dieser Umgebung nicht verfügbar.</div>
       </div>
     );
   }
 
-  const handleOpen = () => {
-    services.openChat?.({ canvasType, getSharepicText });
-  };
-
   return (
-    <div className={SIDEBAR_SECTION}>
-      <p className={SIDEBAR_HINT}>
-        Diskutiere dein Sharepic mit der KI. Du kannst den aktuellen Inhalt mit einem Klick in den
-        Chat einfügen.
-      </p>
-      <button
-        type="button"
-        onClick={handleOpen}
-        className="flex items-center justify-center gap-sm rounded-[var(--card-border-radius-small)] bg-primary px-md py-sm text-sm font-medium text-white transition-colors hover:bg-primary-700"
-      >
-        <HiChatBubbleLeftRight className="size-4" aria-hidden="true" />
-        Chat öffnen
-      </button>
+    <div className="flex h-full min-h-0 flex-col">
+      <ChatSectionContent
+        canvasType={canvasType}
+        getSharepicText={getSharepicText}
+        captureCanvasImage={captureCanvasImage}
+        aiEdit={aiEdit}
+      />
     </div>
   );
 }

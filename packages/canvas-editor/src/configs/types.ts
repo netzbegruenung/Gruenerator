@@ -244,6 +244,8 @@ export interface SectionContext {
   autoSaveStatus?: 'idle' | 'saving' | 'saved' | 'error';
   shareToken?: string | null;
   onCaptureCanvas?: () => void;
+  /** Returns the current page's canvas as a PNG data URL (or null if not ready). */
+  captureCanvasImage?: () => Promise<string | null>;
   onDownload?: () => void;
   onNavigateToGallery?: () => void;
   /** Font color from layout meta (for text elements) */

@@ -9,6 +9,7 @@ import { HiSparkles } from 'react-icons/hi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
+import { createChatSection } from './commonSections';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { SIMPLE_CONFIG, calculateSimpleLayout } from '../utils/simpleLayout';
 
@@ -207,13 +208,14 @@ export const simpleFullConfig = {
     ...baseSimpleConfig.tabs,
     { id: 'ai' as const, icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
   ],
+  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
   getVisibleTabs: (state: ImageTwoTextState, context?: { selectedElement?: string | null }) => {
-    const base = baseSimpleConfig.getVisibleTabs?.(state, context) ?? [];
-    return [...base, 'ai' as const];
+    return baseSimpleConfig.getVisibleTabs?.(state, context) ?? [];
   },
   sections: {
     ...baseSimpleConfig.sections,
     ai: createAiSectionRegistration('simple', simpleAiCapabilities),
+    chat: createChatSection('simple', simpleAiCapabilities),
   },
 };
 

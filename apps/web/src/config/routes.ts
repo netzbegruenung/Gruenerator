@@ -221,7 +221,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/admin', component: AdminDashboardPage },
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/playground', component: PlaygroundPage },
-  { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
+  { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe, devOnly: true },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   {
@@ -312,7 +312,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/reel/beta', component: SubtitlerBetaPage },
   { path: '/reel/studio', component: SubStudioPage },
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
-  { path: '/transfer', component: GrueneratorenBundle.Transfer },
+  { path: '/transfer', component: GrueneratorenBundle.Transfer, devOnly: true },
   { path: '/transkription', component: GrueneratorenBundle.Transkription },
   { path: '/subtitler/share/:shareToken', component: SharedVideoPage, layoutMode: 'noChrome' },
   { path: '/share/:shareToken', component: SharedMediaPage, layoutMode: 'noChrome' },

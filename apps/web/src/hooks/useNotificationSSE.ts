@@ -4,8 +4,6 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { useNotificationStore } from '../stores/notificationStore';
 
-import { useBetaFeatures } from './useBetaFeatures';
-
 const RECONNECT_BASE_DELAY = 1000;
 const RECONNECT_MAX_DELAY = 30000;
 
@@ -18,7 +16,6 @@ type OnNotificationCallback = (data: SSENotificationData) => void;
 
 export function useNotificationSSE(onNotification?: OnNotificationCallback): void {
   const user = useAuthStore((s) => s.user);
-  const { canAccessBetaFeature } = useBetaFeatures();
   const queryClient = useQueryClient();
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectAttemptRef = useRef(0);
@@ -26,7 +23,7 @@ export function useNotificationSSE(onNotification?: OnNotificationCallback): voi
   const onNotificationRef = useRef(onNotification);
   onNotificationRef.current = onNotification;
 
-  const isEnabled = !!user?.id && canAccessBetaFeature('workplace');
+  const isEnabled = !!user?.id;
 
   const connect = useCallback(() => {
     if (eventSourceRef.current) {
