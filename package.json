@@ -54,7 +54,6 @@
   "workspaces": [
     "apps/*",
     "packages/*",
-    "services/comfyui",
     "services/hocuspocus",
     "services/mcp",
     "documentation"

@@ -1235,7 +1235,7 @@ CREATE INDEX IF NOT EXISTS idx_monitor_snapshots_created ON monitor_snapshots(cr
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- SECTION: PRESENTATIONS
--- Collaborative presentation editor (Presenton-based slide system)
+-- Collaborative presentation editor
 -- ════════════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS collaborative_presentations (

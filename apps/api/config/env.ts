@@ -93,12 +93,9 @@ const envSchema = z.object({
   FLUX_BASE_DELAY: numStr(1000),
   FLUX_MAX_DELAY: numStr(30000),
   UNSPLASH_ACCESS_KEY: z.string().optional(),
-  COMFYUI_URL: z.string().optional(),
-  COMFYUI_TIMEOUT_MS: numStr(120000),
 
   // ── Voice / Transcription ──────────────────────────────────────────────
   TRANSCRIPTION_PROVIDER: z.string().optional(),
-  VOXTRAL_SELF_HOSTED_URL: z.string().optional(),
   VOXTRAL_DEFAULT_VOICE_ID: z.string().optional(),
   VISION_DEFAULT_MODEL: z.string().optional(),
 
