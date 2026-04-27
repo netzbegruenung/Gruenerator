@@ -22,6 +22,7 @@ import {
   KI_SUBCATEGORIES,
   TYPE_CONFIG,
 } from '../utils/typeConfig';
+import { GROUP_DEFAULT_PREVIEW } from '../utils/typeConfig/groupDefaults';
 
 import TypeCard from './TypeCard';
 
@@ -68,7 +69,10 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
         CANVAS_FORMAT_GROUP_LABEL[format.group].toLowerCase().includes(q) ||
         getSectionLabel(format).toLowerCase().includes(q);
 
-      const visibleVariants = variants.filter((v) => {
+      const groupVariants = variants.filter((v) =>
+        (v.supportedFormatGroups ?? ['sharepic']).includes(format.group)
+      );
+      const visibleVariants = groupVariants.filter((v) => {
         if (formatHit) return true;
         return v.label.toLowerCase().includes(q) || (v.description ?? '').toLowerCase().includes(q);
       });
@@ -101,13 +105,23 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
             </h2>
             <div className="grid grid-cols-3 gap-8 max-[1024px]:grid-cols-2 max-[1024px]:gap-6 max-[768px]:grid-cols-2 max-[768px]:gap-4 max-[480px]:grid-cols-1">
               {secVariants.map((v) => {
-                const fallbackBg = !v.previewImage ? GROUP_BACKGROUND[format.group] : undefined;
+                // Use the authored previewImage only when this section's group
+                // matches what the template was designed for; otherwise swap in
+                // the per-group default placeholder so non-sharepic sections
+                // don't show sharepic-shaped thumbnails.
+                const authoredHere = (v.primaryFormatGroup ?? 'sharepic') === format.group;
+                const groupDefault = GROUP_DEFAULT_PREVIEW[format.group];
+                const effectivePreview = authoredHere ? v.previewImage : groupDefault?.webp;
+                const effectivePreviewFallback = authoredHere
+                  ? v.previewImageFallback
+                  : groupDefault?.png;
+                const fallbackBg = !effectivePreview ? GROUP_BACKGROUND[format.group] : undefined;
                 return (
                   <TypeCard
                     key={`${format.id}-${v.id}`}
                     onClick={() => onSelect(v.id, format.id)}
-                    previewImage={v.previewImage}
-                    previewImageFallback={v.previewImageFallback}
+                    previewImage={effectivePreview}
+                    previewImageFallback={effectivePreviewFallback}
                     label={v.label}
                     description={v.description}
                     backgroundColor={fallbackBg}
