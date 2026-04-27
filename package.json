@@ -101,7 +101,6 @@
     "build:desktop": "turbo run build --filter=@gruenerator/desktop",
     "dev:sites": "turbo run dev --filter=@gruenerator/sites",
     "build:sites": "turbo run build --filter=@gruenerator/sites",
-    "dev:docs": "turbo run dev --filter=@gruenerator/apps-docs",
     "dev:hocuspocus": "turbo run dev --filter=@gruenerator/hocuspocus",
     "build:docs": "turbo run build --filter=@gruenerator/docs",
     "dev:chat": "turbo run dev --filter=@gruenerator/chat",

@@ -29,7 +29,7 @@ import { BottomSheet } from '../common/BottomSheet';
 
 import type { Theme } from '../../theme/colors';
 
-const DOCS_BASE_URL = 'https://docs.gruenerator.eu';
+const DOCS_BASE_URL = 'https://gruenerator.eu';
 
 const SHARE_MODE_CONFIG: Array<{
   mode: ShareMode;
@@ -370,7 +370,7 @@ export function NativeShareModal({
   const [showPermissions, setShowPermissions] = useState(false);
   const [showDownload, setShowDownload] = useState(false);
 
-  const shareUrl = `${DOCS_BASE_URL}/document/${documentId}`;
+  const shareUrl = `${DOCS_BASE_URL}/docs/${documentId}`;
 
   const handleCopyLink = useCallback(async () => {
     await Clipboard.setStringAsync(shareUrl);
@@ -415,8 +415,7 @@ export function NativeShareModal({
       try {
         const token = await secureStorage.getToken();
         if (!token) return;
-        const API_BASE_URL =
-          process.env.EXPO_PUBLIC_DOCS_API_URL || 'https://docs.gruenerator.eu/api';
+        const API_BASE_URL = process.env.EXPO_PUBLIC_DOCS_API_URL || 'https://gruenerator.eu/api';
         const res = await fetch(`${API_BASE_URL}/docs/${documentId}/export/${format}`, {
           headers: { Authorization: `Bearer ${token}` },
         });

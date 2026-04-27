@@ -42,21 +42,6 @@ services:
       retries: 3
       start_period: 40s
 
-  docs:
-    image: gruenerator-docs:test
-    restart: unless-stopped
-    environment:
-      - PORT=3000
-      - NODE_ENV=production
-    networks:
-      - gruenerator
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
   hocuspocus:
     image: gruenerator-hocuspocus:test
     restart: unless-stopped
@@ -147,7 +132,6 @@ services:
       - web
       - sites
       - api
-      - docs
       - hocuspocus
       - mcp
       - doku

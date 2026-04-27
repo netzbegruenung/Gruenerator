@@ -191,17 +191,15 @@ This is a **pnpm + Turborepo** monorepo with 10 apps, 7 packages, and 4 services
 
 ### Apps
 
-| Workspace          | Description                             |
-| ------------------ | --------------------------------------- |
-| `apps/web`         | React 19 + Vite 7 frontend              |
-| `apps/api`         | Express 5 backend + LangGraph agents    |
-| `apps/mobile`      | Expo 55 / React Native mobile app       |
-| `apps/desktop`     | Tauri 2 desktop wrapper                 |
-| `apps/docs`        | Collaborative document editor (Mantine) |
-| `apps/docs-expo`   | Document editor for mobile (Expo)       |
-| `apps/sites`       | Site builder                            |
-| `apps/gruen-o-mat` | Political compass tool                  |
-| `apps/wordpress`   | WordPress plugin                        |
+| Workspace          | Description                          |
+| ------------------ | ------------------------------------ |
+| `apps/web`         | React 19 + Vite 7 frontend           |
+| `apps/api`         | Express 5 backend + LangGraph agents |
+| `apps/mobile`      | Expo 55 / React Native mobile app    |
+| `apps/desktop`     | Tauri 2 desktop wrapper              |
+| `apps/sites`       | Site builder                         |
+| `apps/gruen-o-mat` | Political compass tool               |
+| `apps/wordpress`   | WordPress plugin                     |
 
 ### Packages
 
