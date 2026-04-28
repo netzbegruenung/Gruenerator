@@ -243,7 +243,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      expect(mockGetModel).toHaveBeenCalledWith('litellm', 'mistral-large-latest');
+      expect(mockGetModel).toHaveBeenCalledWith('litellm', 'gpt-oss:120b');
     });
 
     it('falls back to regolo when litellm is not configured', async () => {
@@ -257,7 +257,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      expect(mockGetModel).toHaveBeenCalledWith('regolo', 'mistral-large-latest');
+      expect(mockGetModel).toHaveBeenCalledWith('regolo', 'mistral-small-4-119b');
     });
 
     it('falls back to mistral when litellm and regolo are not configured', async () => {
