@@ -58,7 +58,7 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     id: 'veranstaltung-plakat',
     label: 'Event-Plakat',
     description: 'Veranstaltungsankündigung im Plakat-Format',
-    previewImage: '/imagine/previews/veranstaltung-preview.webp',
+    previewImage: '/imagine/previews/veranstaltung-plakat-preview.svg',
   },
   slider: {
     id: 'slider',
