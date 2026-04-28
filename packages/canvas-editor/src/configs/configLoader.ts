@@ -17,6 +17,7 @@ type CanvasConfigType =
   | 'zitat-pure'
   | 'info'
   | 'veranstaltung'
+  | 'veranstaltung-plakat'
   | 'simple'
   | 'dreizeilen'
   | 'zitat'
@@ -45,6 +46,9 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
 
     case 'veranstaltung':
       return (await import('./veranstaltung_full.config')).veranstaltungFullConfig;
+
+    case 'veranstaltung-plakat':
+      return (await import('./veranstaltung_plakat_full.config')).veranstaltungPlakatFullConfig;
 
     case 'simple':
       return (await import('./simple_full.config')).simpleFullConfig;
@@ -83,6 +87,7 @@ export function isValidCanvasType(type: string): type is CanvasConfigType {
     'zitat-pure',
     'info',
     'veranstaltung',
+    'veranstaltung-plakat',
     'simple',
     'dreizeilen',
     'zitat',

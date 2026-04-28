@@ -110,6 +110,7 @@ export function ControllableCanvasWrapper({
       'zitat-pure',
       'info',
       'veranstaltung',
+      'veranstaltung-plakat',
       'simple',
       'dreizeilen',
       'slider',
@@ -220,6 +221,7 @@ export function ControllableCanvasWrapper({
             body: effectiveState.body || '',
           };
         case 'veranstaltung':
+        case 'veranstaltung-plakat':
           return {
             eventTitle: effectiveState.eventTitle || '',
             beschreibung: effectiveState.beschreibung || '',
@@ -280,6 +282,7 @@ export function ControllableCanvasWrapper({
         case 'info':
           return createCallbacks(['header', 'body']);
         case 'veranstaltung':
+        case 'veranstaltung-plakat':
           return createCallbacks(['eventTitle', 'beschreibung']);
         case 'simple':
           return createCallbacks(['headline', 'subtext']);
@@ -305,6 +308,7 @@ export function ControllableCanvasWrapper({
       case 'zitat-pure':
       case 'info':
       case 'veranstaltung':
+      case 'veranstaltung-plakat':
       case 'simple':
       case 'slider':
       case 'dreizeilen':

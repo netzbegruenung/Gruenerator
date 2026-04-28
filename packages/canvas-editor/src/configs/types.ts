@@ -275,6 +275,7 @@ export type CanvasConfigId =
   | 'zitat-pure'
   | 'info'
   | 'veranstaltung'
+  | 'veranstaltung-plakat'
   | 'simple'
   | 'dreizeilen'
   | 'slider'

@@ -6,6 +6,10 @@ export { zitatTypeConfig, zitatFieldConfig } from './zitat';
 export { zitatPureTypeConfig, zitatPureFieldConfig } from './zitatPure';
 export { infoTypeConfig, infoFieldConfig } from './info';
 export { veranstaltungTypeConfig, veranstaltungFieldConfig } from './veranstaltung';
+export {
+  veranstaltungPlakatTypeConfig,
+  veranstaltungPlakatFieldConfig,
+} from './veranstaltungPlakat';
 export { profilbildTypeConfig, profilbildFieldConfig } from './profilbild';
 export { simpleTypeConfig, simpleFieldConfig } from './simple';
 export { sliderTypeConfig, sliderFieldConfig } from './slider';
@@ -20,6 +24,10 @@ import { profilbildTypeConfig, profilbildFieldConfig } from './profilbild';
 import { simpleTypeConfig, simpleFieldConfig } from './simple';
 import { sliderTypeConfig, sliderFieldConfig } from './slider';
 import { veranstaltungTypeConfig, veranstaltungFieldConfig } from './veranstaltung';
+import {
+  veranstaltungPlakatTypeConfig,
+  veranstaltungPlakatFieldConfig,
+} from './veranstaltungPlakat';
 import { zitatTypeConfig, zitatFieldConfig } from './zitat';
 import { zitatPureTypeConfig, zitatPureFieldConfig } from './zitatPure';
 
@@ -31,6 +39,7 @@ export const templateTypeConfigs: Record<string, TypeConfig> = {
   [zitatPureTypeConfig.id]: zitatPureTypeConfig,
   [infoTypeConfig.id]: infoTypeConfig,
   [veranstaltungTypeConfig.id]: veranstaltungTypeConfig,
+  [veranstaltungPlakatTypeConfig.id]: veranstaltungPlakatTypeConfig,
   [profilbildTypeConfig.id]: profilbildTypeConfig,
   [simpleTypeConfig.id]: simpleTypeConfig,
   [sliderTypeConfig.id]: sliderTypeConfig,
@@ -44,6 +53,7 @@ export const templateFieldConfigs: Record<string, TemplateFieldConfig> = {
   [zitatPureTypeConfig.id]: zitatPureFieldConfig,
   [infoTypeConfig.id]: infoFieldConfig,
   [veranstaltungTypeConfig.id]: veranstaltungFieldConfig,
+  [veranstaltungPlakatTypeConfig.id]: veranstaltungPlakatFieldConfig,
   [profilbildTypeConfig.id]: profilbildFieldConfig,
   [simpleTypeConfig.id]: simpleFieldConfig,
   [sliderTypeConfig.id]: sliderFieldConfig,
