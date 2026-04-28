@@ -129,6 +129,7 @@ export const CANVAS_RECOMMENDED_ASSETS: Record<string, string[]> = {
   info: ['arrow'],
   dreizeilen: ['sunflower'],
   veranstaltung: [],
+  'veranstaltung-plakat': [],
 };
 
 /**
