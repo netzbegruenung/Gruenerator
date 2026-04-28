@@ -6,7 +6,8 @@
  * that cause the "Das Benutzerkonto existiert bereits" error on login.
  *
  * Usage:
- *   npx tsx scripts/diagnose-federated-links.ts [options]
+ *   In dev:        npx tsx diagnose-federated-links.ts [options]
+ *   In container:  node dist/diagnose-federated-links.js [options]
  *
  * Options:
  *   --email <email>   Check a specific user by email
@@ -22,8 +23,8 @@ import {
   KeycloakApiClient,
   type KeycloakUser,
   type FederatedIdentity,
-} from '../utils/keycloak/apiClient.js';
-import { getPostgresInstance, type PostgresService } from '../database/services/PostgresService.js';
+} from './utils/keycloak/apiClient.js';
+import { getPostgresInstance, type PostgresService } from './database/services/PostgresService.js';
 
 const KEYCLOAK_USERS_PAGE_SIZE = 50;
 
