@@ -55,7 +55,7 @@ function parseArgs(): { email?: string; fix: boolean; verbose: boolean } {
     }
   }
 
-  return { email, fix, verbose };
+  return { ...(email ? { email } : {}), fix, verbose };
 }
 
 async function getAllKeycloakUsers(client: KeycloakApiClient): Promise<KeycloakUser[]> {
@@ -167,7 +167,8 @@ async function main() {
 
     if (db) {
       try {
-        const profile = await db.queryOne(
+        type ProfileRow = { id: string; keycloak_id: string; email: string };
+        const profile = await db.queryOne<ProfileRow>(
           'SELECT id, keycloak_id, email FROM profiles WHERE keycloak_id = $1',
           [user.id]
         );
@@ -177,7 +178,7 @@ async function main() {
           result.profileKeycloakId = profile.keycloak_id;
         } else {
           const profileByEmail = user.email
-            ? await db.queryOne(
+            ? await db.queryOne<ProfileRow>(
                 'SELECT id, keycloak_id, email FROM profiles WHERE LOWER(email) = LOWER($1)',
                 [user.email]
               )
