@@ -101,11 +101,16 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
 
     log.info(`[DocsAI] Tool definitions received: ${Object.keys(toolDefinitions).join(', ')}`);
 
-    const providerChain: AgentConfig['provider'][] = ['litellm', 'regolo', 'mistral'];
+    // Order: regolo first (mistral-small-4-119b — fast Mistral-family, follows
+    // BlockNote's HTML format conventions), then mistral direct (mistral-large
+    // gold standard), litellm last (gpt-oss over-wraps list items in <ul>,
+    // which BlockNote's tryParseHTMLToBlocks rejects — see
+    // aiController.htmlFormat.vitest.ts).
+    const providerChain: AgentConfig['provider'][] = ['regolo', 'mistral', 'litellm'];
     const provider = providerChain.find((p) => isProviderConfigured(p));
 
     if (!provider) {
-      log.error('[DocsAI] No AI provider configured (tried: litellm, regolo, mistral)');
+      log.error('[DocsAI] No AI provider configured (tried: regolo, mistral, litellm)');
       return res.status(500).json({ error: 'AI provider not configured' });
     }
 
