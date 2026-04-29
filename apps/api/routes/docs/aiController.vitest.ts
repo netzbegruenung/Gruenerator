@@ -212,11 +212,11 @@ describe('aiController – POST /api/docs/ai', () => {
       await handleAiRequest(req, res);
 
       expect(mockLogError).toHaveBeenCalledWith(
-        '[DocsAI] No AI provider configured (tried: regolo, mistral, litellm)'
+        '[DocsAI] No AI provider configured (tried: mistral, regolo, litellm)'
       );
     });
 
-    it('tries providers in order: regolo → mistral → litellm', async () => {
+    it('tries providers in order: mistral → regolo → litellm', async () => {
       mockIsProviderConfigured.mockReturnValue(false);
       const { res } = createMockRes();
       const req = createMockReq({
@@ -226,26 +226,12 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      expect(mockIsProviderConfigured).toHaveBeenCalledWith('regolo');
       expect(mockIsProviderConfigured).toHaveBeenCalledWith('mistral');
+      expect(mockIsProviderConfigured).toHaveBeenCalledWith('regolo');
       expect(mockIsProviderConfigured).toHaveBeenCalledWith('litellm');
     });
 
-    it('selects regolo when it is the first configured provider', async () => {
-      setupHappyPath();
-      mockIsProviderConfigured.mockImplementation((p: string) => p === 'regolo');
-      const { res } = createMockRes();
-      const req = createMockReq({
-        messages: sampleMessages,
-        toolDefinitions: sampleToolDefinitions,
-      });
-
-      await handleAiRequest(req, res);
-
-      expect(mockGetModel).toHaveBeenCalledWith('regolo', 'mistral-small-4-119b');
-    });
-
-    it('falls back to mistral when regolo is not configured', async () => {
+    it('selects mistral when it is the first configured provider', async () => {
       setupHappyPath();
       mockIsProviderConfigured.mockImplementation((p: string) => p === 'mistral');
       const { res } = createMockRes();
@@ -259,7 +245,21 @@ describe('aiController – POST /api/docs/ai', () => {
       expect(mockGetModel).toHaveBeenCalledWith('mistral', 'mistral-large-latest');
     });
 
-    it('falls back to litellm when regolo and mistral are not configured', async () => {
+    it('falls back to regolo when mistral is not configured', async () => {
+      setupHappyPath();
+      mockIsProviderConfigured.mockImplementation((p: string) => p === 'regolo');
+      const { res } = createMockRes();
+      const req = createMockReq({
+        messages: sampleMessages,
+        toolDefinitions: sampleToolDefinitions,
+      });
+
+      await handleAiRequest(req, res);
+
+      expect(mockGetModel).toHaveBeenCalledWith('regolo', 'mistral-small-4-119b');
+    });
+
+    it('falls back to litellm when mistral and regolo are not configured', async () => {
       setupHappyPath();
       mockIsProviderConfigured.mockImplementation((p: string) => p === 'litellm');
       const { res } = createMockRes();
