@@ -278,7 +278,7 @@ router.get('/filters', async (req: Request, res: Response): Promise<void> => {
           const existing = mergedFilters[result.field];
           if (result.min && (!existing.min || result.min < existing.min)) existing.min = result.min;
           if (result.max && (!existing.max || result.max > existing.max)) existing.max = result.max;
-        } else if (result.min || result.max) {
+        } else {
           mergedFilters[result.field] = {
             label: result.label,
             type: 'date_range',
@@ -705,7 +705,7 @@ export async function warmFilterCache(): Promise<void> {
           const existing = mergedFilters[result.field];
           if (result.min && (!existing.min || result.min < existing.min)) existing.min = result.min;
           if (result.max && (!existing.max || result.max > existing.max)) existing.max = result.max;
-        } else if (result.min || result.max) {
+        } else {
           mergedFilters[result.field] = {
             label: result.label,
             type: 'date_range',
