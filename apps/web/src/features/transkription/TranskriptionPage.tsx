@@ -10,7 +10,7 @@ import {
   Ripple,
   StepBreadcrumb,
 } from '@gruenerator/ui';
-import { lazy, Suspense, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { HiDocumentText, HiDownload } from 'react-icons/hi';
 import { IoCopyOutline } from 'react-icons/io5';
 import { PiCheckSquare, PiKanban, PiMicrophone, PiNotePencil, PiUsersThree } from 'react-icons/pi';
@@ -21,8 +21,6 @@ import SubmitButton from '../../components/common/SubmitButton';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useContentActions } from '../../hooks/useContentActions';
 import { downloadFile } from '../../utils/downloadFile';
-
-const DocsEditorModal = lazy(() => import('../../components/common/DocsEditorModal'));
 
 import AudioVisualizer from './components/AudioVisualizer';
 import TranscriptionResult from './components/TranscriptionResult';
@@ -100,14 +98,8 @@ const TranskriptionPage = () => {
     [selectedFile]
   );
 
-  const {
-    handleOpenInDocs,
-    handleCreateTodoList,
-    handleCreateBoard,
-    actionLoading,
-    editorModal,
-    closeEditorModal,
-  } = useContentActions({ getContent: getActiveContent, getTitle });
+  const { handleOpenInDocs, handleCreateTodoList, handleCreateBoard, actionLoading } =
+    useContentActions({ getContent: getActiveContent, getTitle });
 
   const handleFileSelected = useCallback((file: File) => {
     setSelectedFile(file);
@@ -472,16 +464,6 @@ const TranskriptionPage = () => {
               Erneut versuchen
             </button>
           </div>
-        )}
-        {editorModal && (
-          <Suspense fallback={null}>
-            <DocsEditorModal
-              documentId={editorModal.documentId}
-              initialContent={editorModal.initialContent}
-              title={editorModal.title}
-              onClose={closeEditorModal}
-            />
-          </Suspense>
         )}
       </PageContainer>
     </ErrorBoundary>
