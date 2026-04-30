@@ -424,14 +424,20 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         };
         const { depth, maxSources } = depthConfig[complexity];
 
-        // Use research brief (compressed intent) when available, fall back to raw query
-        const question = state.researchBrief || searchQuery || '';
+        // The brief is a natural-language research plan written for the LLM
+        // synthesis step — it must NOT be used as a search-engine query.
+        // Pass the raw user query to the searcher and forward the brief
+        // separately as synthesis context.
+        const question = searchQuery || '';
+        const brief = state.researchBrief;
         log.info(
-          `[Search] Research depth: ${depth}, maxSources: ${maxSources} (complexity: ${complexity}, brief: ${!!state.researchBrief})`
+          `[Search] Research depth: ${depth}, maxSources: ${maxSources} (complexity: ${complexity}, brief: ${!!brief})`
         );
 
         const researchResult = await executeResearch({
           question,
+          brief,
+          aiWorkerPool: state.aiWorkerPool,
           depth,
           maxSources,
         });
