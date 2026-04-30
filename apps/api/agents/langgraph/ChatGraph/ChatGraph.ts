@@ -676,6 +676,16 @@ export async function runChatGraph(input: ChatGraphInput): Promise<ChatGraphOutp
       `[ChatGraph] Complete: intent=${result.intent}, searches=${result.searchCount}, image=${result.generatedImage ? 'yes' : 'no'}, time=${totalTimeMs}ms`
     );
 
+    // Reliability summary — only log when something noteworthy happened so the line
+    // stays useful for grep instead of getting drowned in happy-path noise.
+    const errCount = result.searchErrors?.length ?? 0;
+    if (errCount > 0 || result.rerankFailed || result.briefGenerationFailed) {
+      const errSources = result.searchErrors?.map((e) => e.source).join(',') || 'none';
+      log.warn(
+        `[ChatGraph] Reliability: errors=${errCount} (${errSources}), rerankFailed=${!!result.rerankFailed}, briefFailed=${!!result.briefGenerationFailed}, results=${result.searchResults.length}`
+      );
+    }
+
     return {
       success: !result.error,
       threadId: result.threadId,
