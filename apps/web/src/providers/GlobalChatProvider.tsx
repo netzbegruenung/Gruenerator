@@ -2,9 +2,9 @@ import {
   GrueneratorChatProvider,
   ChatThreadList,
   TooltipProvider,
-  useAgentStore,
   type SharepicVariant,
 } from '@gruenerator/chat';
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -58,11 +58,17 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const location = useLocation();
   const qaCollectionsLength = useNotebookStore((s) => s.qaCollections.length);
 
-  const mentionablesActivated = useAgentStore((s) => s.mentionablesActivated);
-  useEffect(() => {
-    if (!mentionablesActivated || qaCollectionsLength > 0) return;
-    void useNotebookStore.getState().fetchQACollections();
-  }, [mentionablesActivated, qaCollectionsLength]);
+  // Notebook collections power @notebook mention metadata; fetch lazily when
+  // an authenticated user actually needs them. React Query caches the result.
+  useQuery({
+    queryKey: ['qa-collections', userId],
+    queryFn: async () => {
+      await useNotebookStore.getState().fetchQACollections();
+      return useNotebookStore.getState().qaCollections;
+    },
+    enabled: !!userId && qaCollectionsLength === 0,
+    staleTime: 5 * 60_000,
+  });
 
   useEffect(() => {
     const handler = (e: Event) => {

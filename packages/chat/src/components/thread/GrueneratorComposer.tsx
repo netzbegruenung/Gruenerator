@@ -17,6 +17,7 @@ import { PlusMenu } from './PlusMenu';
 import { ModelPicker } from './ModelPicker';
 import { getCaretCoords } from '../../lib/caretPosition';
 import { registerDocumentSlug } from '../../lib/documentMentionables';
+import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
 import type { Mentionable } from '../../lib/mentionables';
 import type { DocumentMention } from '../../lib/documentMentionables';
 
@@ -120,6 +121,10 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLButtonElement>(null);
   const [mention, setMention] = useState<MentionState>(INITIAL_MENTION_STATE);
+
+  // Composer mount drives lazy fetching of mentionable data (custom agents,
+  // boards, docs). The query is deduplicated across consumers via React Query.
+  useMentionablesQuery();
 
   const dismissPopover = useCallback(() => setMention(INITIAL_MENTION_STATE), []);
 
