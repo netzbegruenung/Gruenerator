@@ -109,7 +109,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
 
   const handleExternalClick = useCallback(
     (path: string) => {
-      void navigate(path);
+      void navigate(path, { state: { resumeNotebookChat: true } });
     },
     [navigate]
   );
