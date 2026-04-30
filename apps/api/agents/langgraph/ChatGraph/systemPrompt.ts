@@ -459,4 +459,5 @@ const RESPONSE_RULES = `## ANTWORT-REGELN
 4. Erfinde keine Fakten oder Quellennamen
 5. Wenn der Gesprächsverlauf bereits genug Kontext enthält, antworte direkt OHNE Tool-Aufruf
 6. Erstelle KEINE Quellenliste oder "(Quelle: ...)"-Zeilen am Ende — Quellen werden automatisch angezeigt
-7. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen. Keine horizontalen Trennlinien (--- oder ___) — weder am Anfang noch am Ende der Antwort`;
+7. Kompakte Formatierung: Maximal eine Leerzeile zwischen Absätzen. Keine doppelten Leerzeilen. Keine horizontalen Trennlinien (--- oder ___) — weder am Anfang noch am Ende der Antwort
+8. Gendere Personenbezeichnungen mit Genderstern (z.B. Bürger*innen, der*die Sprecher*in) — außer der Agent verlangt explizit eine andere Form (z.B. Leichte Sprache)`;
