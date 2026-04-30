@@ -58,8 +58,23 @@ export interface LandesverbandSource {
   dormant?: boolean; // Optional: when true, scrapeAllSources skips this source. Set for sources that no longer publish (e.g. dissolved Fraktionen). Direct scrapeSource(id) calls are unaffected.
 }
 
+/**
+ * A curated list tags existing scraped documents (matched by URL) with a
+ * category id. The same document can appear in multiple lists. Use this when
+ * a sub-set of canonical content should be filterable independently of the
+ * scraper that produced it (e.g. "Wahlprogramm" inside a generic Beschlüsse
+ * sitemap), without re-fetching the same URLs under aliases.
+ */
+export interface CuratedList {
+  id: string;
+  label: string;
+  shortName?: string;
+  urls: string[];
+}
+
 export interface LandesverbaendeConfig {
   sources: LandesverbandSource[];
+  curatedLists?: CuratedList[];
 }
 
 export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
@@ -438,48 +453,6 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       },
       excludePatterns: ['/tag/', '/author/', '/wp-content/', '/wp-admin/', '#', 'javascript:'],
     },
-    {
-      id: 'berlin-lv-wahlprogramm',
-      name: 'Grüne Berlin Wahlprogramm',
-      shortName: 'BE',
-      type: 'landesverband',
-      baseUrl: 'https://gruene.berlin',
-      cms: 'typo3',
-      maxAgeYears: 5,
-      contentPaths: [
-        {
-          type: 'wahlprogramm',
-          path: '/news',
-          listSelector: 'h2 a[href], h3 a[href]',
-          staticUrls: [
-            'https://gruene.berlin/news/unser-wahlprogramm_3762',
-            'https://gruene.berlin/news/unser-wahlprogramm-1_3763',
-            'https://gruene.berlin/news/unser-wahlprogramm-kapitel-2_3764',
-            'https://gruene.berlin/news/unser-wahlprogramm-kapitel-3_3765',
-            'https://gruene.berlin/news/unser-wahlprogramm-kapitel-4_3766',
-            'https://gruene.berlin/news/unser-wahlprogramm-kapitel-5_3767',
-            'https://gruene.berlin/news/unser-wahlprogramm-kapitel-6_3768',
-          ],
-        },
-      ],
-      contentSelectors: {
-        title: ['h1', 'meta[property="og:title"]'],
-        date: ['time[datetime]', '.tx_xblog_pi1 .date', 'meta[property="article:published_time"]'],
-        content: ['.tx_xblog_pi1', '.bodytext', 'article', 'main .content'],
-        categories: ['.tx_xblog_pi1 .tags a', '.categories a'],
-        author: ['.author', '.byline'],
-      },
-      excludePatterns: [
-        '/fileadmin/',
-        '/typo3/',
-        'tx_xblog_pi1[catKey]',
-        '#',
-        'javascript:',
-        '.pdf',
-        '.jpg',
-        '.png',
-      ],
-    },
 
     // ═══════════════════════════════════════════════════════════════════
     // THÜRINGEN
@@ -675,6 +648,22 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       excludePatterns: ['/fileadmin/', '/typo3/', '#', 'javascript:', '.jpg', '.png'],
     },
   ],
+  curatedLists: [
+    {
+      id: 'wahlprogramm-be',
+      label: 'Wahlprogramm',
+      shortName: 'BE',
+      urls: [
+        'https://gruene.berlin/beschluesse/unser-wahlprogramm_3762',
+        'https://gruene.berlin/beschluesse/unser-wahlprogramm-1_3763',
+        'https://gruene.berlin/beschluesse/unser-wahlprogramm-kapitel-2_3764',
+        'https://gruene.berlin/beschluesse/unser-wahlprogramm-kapitel-3_3765',
+        'https://gruene.berlin/beschluesse/unser-wahlprogramm-kapitel-4_3766',
+        'https://gruene.berlin/beschluesse/unser-wahlprogramm-kapitel-5_3767',
+        'https://gruene.berlin/beschluesse/unser-wahlprogramm-kapitel-6_3768',
+      ],
+    },
+  ],
 };
 
 export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
@@ -709,6 +698,47 @@ export function getSourcesByLandesverband(shortName: string): LandesverbandSourc
 
 export function getAllSourceIds(): string[] {
   return LANDESVERBAENDE_CONFIG.sources.map((s) => s.id);
+}
+
+/**
+ * Extract the trailing TYPO3-style id (e.g. `_3763`) from a URL pathname,
+ * keyed by hostname so /beschluesse/foo_3763 and /news/foo_3763 collide
+ * but /beschluesse/foo_3763 on different domains do not.
+ */
+function trailingSlugKey(url: string): string | null {
+  try {
+    const u = new URL(url);
+    const m = u.pathname.match(/_(\d+)$/);
+    return m ? `${u.hostname}#_${m[1]}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Return the curated-list ids whose `urls` include the given URL. Matches
+ * either by exact URL or by trailing TYPO3 slug id within the same hostname,
+ * so curated lists keep working when a CMS aliases the same entry under
+ * multiple paths (e.g. /beschluesse/x_NNN vs /news/x_NNN).
+ */
+export function getCuratedListsForUrl(url: string): string[] {
+  const lists = LANDESVERBAENDE_CONFIG.curatedLists;
+  if (!lists?.length) return [];
+
+  const targetSlug = trailingSlugKey(url);
+  const matched: string[] = [];
+
+  for (const list of lists) {
+    if (list.urls.includes(url)) {
+      matched.push(list.id);
+      continue;
+    }
+    if (targetSlug && list.urls.some((u) => trailingSlugKey(u) === targetSlug)) {
+      matched.push(list.id);
+    }
+  }
+
+  return matched;
 }
 
 export default LANDESVERBAENDE_CONFIG;
