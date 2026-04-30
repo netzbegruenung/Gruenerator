@@ -147,7 +147,6 @@ interface AgentState {
   customSystemPrompt: string | null;
   customRoleName: string | null;
   customEnabledTools: Record<string, boolean> | null;
-  mentionablesActivated: boolean;
   setSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: ModelId) => void;
@@ -170,7 +169,6 @@ interface AgentState {
   setCustomEnabledTools: (tools: Record<string, boolean> | null) => void;
   loadThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
-  activateMentionables: () => void;
 }
 
 const DEFAULT_ENABLED_TOOLS: Record<ToolKey, boolean> = {
@@ -208,7 +206,6 @@ export const useAgentStore = create<AgentState>()(
       customSystemPrompt: null,
       customRoleName: null,
       customEnabledTools: null,
-      mentionablesActivated: false,
 
       setSelectedAgent: (agentId) => set({ selectedAgentId: agentId }),
 
@@ -356,8 +353,6 @@ export const useAgentStore = create<AgentState>()(
           console.error('Failed to save thread settings:', error);
         }
       },
-
-      activateMentionables: () => set({ mentionablesActivated: true }),
     }),
     {
       name: 'gruenerator-chat-store',

@@ -1384,6 +1384,9 @@ importers:
       '@hocuspocus/provider':
         specifier: ^3.4.3
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
+      '@tanstack/react-query':
+        specifier: ^5.0.0
+        version: 5.100.5(react@19.2.4)
       lucide-react:
         specifier: ^1.11.0
         version: 1.11.0(react@19.2.4)
