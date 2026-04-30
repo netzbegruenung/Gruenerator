@@ -18,6 +18,7 @@ export interface TagInputConfig {
   key: string;
   label: string;
   placeholder: string;
+  condition?: (state: ModeState) => boolean;
 }
 
 export interface ModeDefinition {
