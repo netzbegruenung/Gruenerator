@@ -99,8 +99,11 @@ Erstelle einen klaren, fokussierten Recherche-Auftrag.`;
     const timeMs = Date.now() - startTime;
 
     if (!brief) {
-      log.warn(`[BriefGenerator] Empty response, falling back to searchQuery`);
-      return {};
+      log.error(`[BriefGenerator] Empty response, falling back to searchQuery`);
+      return {
+        briefGenerationFailed: true,
+        searchErrors: [{ source: 'briefGenerator', message: 'empty LLM response' }],
+      };
     }
 
     log.info(`[BriefGenerator] Generated brief (${brief.length} chars) in ${timeMs}ms`);
@@ -108,9 +111,11 @@ Erstelle einen klaren, fokussierten Recherche-Auftrag.`;
 
     return { researchBrief: brief };
   } catch (error: unknown) {
-    log.error(
-      `[BriefGenerator] Error: ${error instanceof Error ? error.message : String(error)}, falling back to searchQuery`
-    );
-    return {};
+    const errMsg = error instanceof Error ? error.message : String(error);
+    log.error(`[BriefGenerator] Error: ${errMsg}, falling back to searchQuery`);
+    return {
+      briefGenerationFailed: true,
+      searchErrors: [{ source: 'briefGenerator', message: errMsg }],
+    };
   }
 }

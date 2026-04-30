@@ -272,6 +272,11 @@ export interface ChatGraphState {
   qualityScore: number;
   qualityAssessmentTimeMs: number;
 
+  // Reliability flags & structured error log
+  searchErrors: { source: string; message: string }[];
+  briefGenerationFailed: boolean;
+  rerankFailed: boolean;
+
   // Image generation
   imagePrompt: string | null;
   imageStyle: ImageStyle | null;

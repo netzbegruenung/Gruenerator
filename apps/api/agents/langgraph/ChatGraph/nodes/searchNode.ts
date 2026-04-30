@@ -69,6 +69,12 @@ export function getSupplementaryCollectionsForLocale(locale: string | undefined)
  * Execute document search across collections (extracted from case 'search').
  * Searches all sub-queries across all specified collections in parallel.
  */
+export interface DocumentSearchParallelResult {
+  results: SearchResult[];
+  searchedCollections: string[];
+  errors: { source: string; message: string }[];
+}
+
 export async function executeDocumentSearchParallel(
   query: string,
   subQueries: string[] | null,
@@ -77,7 +83,7 @@ export async function executeDocumentSearchParallel(
   filters?: SubcategoryFilters | null,
   userLocale?: string,
   defaultNotebookCollectionIds?: string[]
-): Promise<{ results: SearchResult[]; searchedCollections: string[] }> {
+): Promise<DocumentSearchParallelResult> {
   let collectionsToSearch: string[];
   if (notebookCollectionIds && notebookCollectionIds.length > 0) {
     collectionsToSearch = notebookCollectionIds;
@@ -102,6 +108,7 @@ export async function executeDocumentSearchParallel(
   // (the collection's defaultFilter already handles this)
   const searchFilters = filters || undefined;
 
+  const collectedErrors: { source: string; message: string }[] = [];
   const searchPromises = uniqueCollections.flatMap((collection) =>
     queries.map((sq) => {
       const params: Parameters<typeof executeDirectSearch>[0] = {
@@ -113,9 +120,9 @@ export async function executeDocumentSearchParallel(
         params.filters = searchFilters;
       }
       return executeDirectSearch(params).catch((err: unknown) => {
-        log.warn(
-          `[Search] Collection ${collection} failed for query "${sq}": ${err instanceof Error ? err.message : String(err)}`
-        );
+        const msg = err instanceof Error ? err.message : String(err);
+        log.warn(`[Search] Collection ${collection} failed for query "${sq}": ${msg}`);
+        collectedErrors.push({ source: `documents:${collection}`, message: msg });
         return null;
       });
     })
@@ -148,16 +155,29 @@ export async function executeDocumentSearchParallel(
   }
 
   allResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-  return { results: allResults.slice(0, 8), searchedCollections: uniqueCollections };
+  // Only surface errors when the source produced zero usable results.
+  // Partial failures (some collections OK, some failed) are already logged as warns.
+  const errors = allResults.length === 0 ? collectedErrors : [];
+  return {
+    results: allResults.slice(0, 8),
+    searchedCollections: uniqueCollections,
+    errors,
+  };
 }
 
 /**
  * Execute web search with query expansion and crawling (extracted from case 'web').
  */
+export interface WebSearchParallelResult {
+  results: SearchResult[];
+  errors: { source: string; message: string }[];
+}
+
 export async function executeWebSearchParallel(
   query: string,
   aiWorkerPool: AIWorkerPool
-): Promise<SearchResult[]> {
+): Promise<WebSearchParallelResult> {
+  const collectedErrors: { source: string; message: string }[] = [];
   let allWebQueries = [query];
   try {
     const expanded = await expandQuery(query, aiWorkerPool);
@@ -177,9 +197,9 @@ export async function executeWebSearchParallel(
       searchType: 'general',
       maxResults: 5,
     }).catch((err: unknown) => {
-      log.warn(
-        `[Search] Web search failed for variant "${q}": ${err instanceof Error ? err.message : String(err)}`
-      );
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn(`[Search] Web search failed for variant "${q}": ${msg}`);
+      collectedErrors.push({ source: 'web', message: msg });
       return null;
     })
   );
@@ -204,7 +224,9 @@ export async function executeWebSearchParallel(
   }
 
   allWebResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
-  return allWebResults.slice(0, 8);
+  // Only surface when zero usable results — partial variant failures are normal.
+  const errors = allWebResults.length === 0 ? collectedErrors : [];
+  return { results: allWebResults.slice(0, 8), errors };
 }
 
 /**
@@ -297,7 +319,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       const query = truncateQuery(searchQuery || '');
       log.info(`[Search] Multi-source parallel search: ${searchSources.join(' + ')}`);
 
-      const sourcePromises: Promise<{ results: SearchResult[]; collections: string[] }>[] = [];
+      type SourceResult = {
+        results: SearchResult[];
+        collections: string[];
+        errors: { source: string; message: string }[];
+      };
+      const sourcePromises: Promise<SourceResult>[] = [];
 
       if (searchSources.includes('documents')) {
         sourcePromises.push(
@@ -310,12 +337,19 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             state.userLocale,
             state.defaultNotebookCollectionIds
           )
-            .then((r) => ({ results: r.results, collections: r.searchedCollections }))
+            .then((r) => ({
+              results: r.results,
+              collections: r.searchedCollections,
+              errors: r.errors,
+            }))
             .catch((err) => {
-              log.warn(
-                `[Search] Document search failed in multi-source: ${err instanceof Error ? err.message : String(err)}`
-              );
-              return { results: [], collections: [] };
+              const msg = err instanceof Error ? err.message : String(err);
+              log.error(`[Search] Document search failed in multi-source: ${msg}`);
+              return {
+                results: [],
+                collections: [],
+                errors: [{ source: 'documents', message: msg }],
+              };
             })
         );
       }
@@ -323,12 +357,15 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       if (searchSources.includes('web')) {
         sourcePromises.push(
           executeWebSearchParallel(query, state.aiWorkerPool)
-            .then((r) => ({ results: r, collections: ['web'] }))
+            .then((r) => ({ results: r.results, collections: ['web'], errors: r.errors }))
             .catch((err) => {
-              log.warn(
-                `[Search] Web search failed in multi-source: ${err instanceof Error ? err.message : String(err)}`
-              );
-              return { results: [], collections: [] };
+              const msg = err instanceof Error ? err.message : String(err);
+              log.error(`[Search] Web search failed in multi-source: ${msg}`);
+              return {
+                results: [],
+                collections: [],
+                errors: [{ source: 'web', message: msg }],
+              };
             })
         );
       }
@@ -353,12 +390,16 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
                 relevance: 0.8,
               })),
               collections: ['examples'],
+              errors: [] as { source: string; message: string }[],
             }))
             .catch((err: unknown) => {
-              log.warn(
-                `[Search] Examples search failed in multi-source: ${err instanceof Error ? (err as Error).message : String(err)}`
-              );
-              return { results: [], collections: [] };
+              const msg = err instanceof Error ? err.message : String(err);
+              log.error(`[Search] Examples search failed in multi-source: ${msg}`);
+              return {
+                results: [],
+                collections: [],
+                errors: [{ source: 'examples', message: msg }],
+              };
             })
         );
       }
@@ -366,6 +407,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       const sourceResults = await Promise.all(sourcePromises);
       const allResults = sourceResults.map((s) => s.results);
       searchedCollections = sourceResults.flatMap((s) => s.collections);
+      const aggregatedErrors = sourceResults.flatMap((s) => s.errors);
 
       results = mergeSearchResults(...allResults);
 
@@ -389,9 +431,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             log.info(`[Search] Crawled ${crawledCount} web results for full content`);
           }
         } catch (err: unknown) {
-          log.warn(
-            `[Search] Crawling failed in multi-source: ${err instanceof Error ? err.message : String(err)}`
-          );
+          const msg = err instanceof Error ? err.message : String(err);
+          log.warn(`[Search] Crawling failed in multi-source: ${msg}`);
+          aggregatedErrors.push({ source: 'crawl', message: msg });
         }
       }
 
@@ -400,7 +442,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       const docCount = results.filter((r) => r.source !== 'web').length;
       const webCount = results.filter((r) => r.source === 'web').length;
       log.info(
-        `[Search] Multi-source complete: ${results.length} results (${docCount} docs, ${webCount} web) in ${Date.now() - startTime}ms`
+        `[Search] Multi-source complete: ${results.length} results (${docCount} docs, ${webCount} web), ${aggregatedErrors.length} errors in ${Date.now() - startTime}ms`
       );
 
       return {
@@ -409,6 +451,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         searchCount: 1,
         searchTimeMs: Date.now() - startTime,
         searchedCollections,
+        ...(aggregatedErrors.length > 0 && { searchErrors: aggregatedErrors }),
       };
     }
 
@@ -424,20 +467,14 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         };
         const { depth, maxSources } = depthConfig[complexity];
 
-        // The brief is a natural-language research plan written for the LLM
-        // synthesis step — it must NOT be used as a search-engine query.
-        // Pass the raw user query to the searcher and forward the brief
-        // separately as synthesis context.
-        const question = searchQuery || '';
-        const brief = state.researchBrief;
+        // Use research brief (compressed intent) when available, fall back to raw query
+        const question = state.researchBrief || searchQuery || '';
         log.info(
-          `[Search] Research depth: ${depth}, maxSources: ${maxSources} (complexity: ${complexity}, brief: ${!!brief})`
+          `[Search] Research depth: ${depth}, maxSources: ${maxSources} (complexity: ${complexity}, brief: ${!!state.researchBrief})`
         );
 
         const researchResult = await executeResearch({
           question,
-          brief,
-          aiWorkerPool: state.aiWorkerPool,
           depth,
           maxSources,
         });
@@ -835,17 +872,16 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       ...(searchedCollections.length > 0 && { searchedCollections }),
     };
   } catch (error: unknown) {
-    log.error(
-      `[Search] Error during ${intent} search:`,
-      error instanceof Error ? error.message : String(error)
-    );
+    const errMsg = error instanceof Error ? error.message : String(error);
+    log.error(`[Search] Error during ${intent} search:`, errMsg);
 
     return {
       searchResults: [],
       citations: [],
       searchCount: 1,
       searchTimeMs: Date.now() - startTime,
-      error: `Search failed: ${error instanceof Error ? error.message : String(error)}`,
+      error: `Search failed: ${errMsg}`,
+      searchErrors: [{ source: 'search', message: errMsg }],
     };
   }
 }
