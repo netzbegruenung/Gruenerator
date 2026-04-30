@@ -201,14 +201,14 @@ async function startWorker(): Promise<void> {
     if (shouldSkipBodyParser(req)) {
       return next();
     }
-    express.json({ limit: '10mb' })(req, res, next);
+    express.json({ limit: '50mb' })(req, res, next);
   });
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (shouldSkipBodyParser(req)) {
       return next();
     }
-    express.urlencoded({ limit: '10mb', extended: true })(req, res, next);
+    express.urlencoded({ limit: '50mb', extended: true })(req, res, next);
   });
 
   // Response timeout
