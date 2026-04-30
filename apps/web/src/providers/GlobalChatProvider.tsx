@@ -5,14 +5,7 @@ import {
   useAgentStore,
   type SharepicVariant,
 } from '@gruenerator/chat';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -160,16 +153,11 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           return existingDocId;
         }
 
-        const htmlContent = content
-          .split('\n\n')
-          .map((block) => `<p>${block.replace(/\n/g, '<br />')}</p>`)
-          .join('');
-
         const response = await fetch('/api/docs/from-export', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ content: htmlContent, title, documentType: 'chat-response' }),
+          body: JSON.stringify({ content, title, documentType: 'chat-response' }),
         });
         if (!response.ok) throw new Error('Document creation failed');
         const data = (await response.json()) as { documentId?: string; title?: string };
