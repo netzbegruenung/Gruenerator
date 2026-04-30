@@ -30,13 +30,50 @@ export async function updateThreadTitleInDB(threadId: string, title: string): Pr
     .where(eq(chatThreads.id, threadId));
 }
 
+// Salutations that often start a German letter/email/post and make a poor
+// thread title. When matched at the start of a sentence we skip it and try
+// the next sentence.
+const SALUTATION_PATTERNS = [
+  /^liebe[*r]?\s/i,
+  /^liebes\s/i,
+  /^sehr\s+geehrte[r]?\s/i,
+  /^hallo\b/i,
+  /^guten\s+(tag|morgen|abend)\b/i,
+  /^moin\b/i,
+];
+
+function stripMarkdown(input: string): string {
+  return input
+    .replace(/\*\*/g, '')
+    .replace(/__/g, '')
+    .replace(/(^|\s)[*_]([^*_\s][^*_]*)[*_](?=\s|$|[.,;:!?])/g, '$1$2')
+    .replace(/`/g, '')
+    .replace(/^\s*#+\s+/, '')
+    .replace(/^\s*>\s+/, '')
+    .replace(/^\s*[-*+]\s+/, '')
+    .replace(/^\s*\d+\.\s+/, '')
+    .trim();
+}
+
 /**
  * Extract a fallback title from text using the first-sentence heuristic.
+ *
+ * Sanitises the assistant response so that titles do not contain raw
+ * markdown (`**Visuelle Idee:**`), salutations (`Liebe Freundinnen…`),
+ * or literal newlines.
  */
 export function extractFallbackTitle(text: string, hasImage?: boolean): string | null {
   if (text && text.length > 10) {
-    const firstSentence = text.split(/[.!?]/)[0];
-    return firstSentence.length > 50 ? firstSentence.slice(0, 50) + '...' : firstSentence;
+    const collapsed = text.replace(/\s+/g, ' ').trim();
+    const sentences = collapsed.split(/(?<=[.!?])\s+/).filter((s) => s.length > 0);
+
+    for (const raw of sentences) {
+      const cleaned = stripMarkdown(raw).trim();
+      if (cleaned.length < 10) continue;
+      if (SALUTATION_PATTERNS.some((re) => re.test(cleaned))) continue;
+      const trimmed = cleaned.replace(/[.!?]+$/, '');
+      return trimmed.length > 50 ? trimmed.slice(0, 50) + '...' : trimmed;
+    }
   }
   if (hasImage) {
     return 'Generiertes Bild';
