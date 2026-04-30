@@ -200,8 +200,9 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
         return `\n\n## RECHERCHE-ERGEBNISSE\n\n${cleaned}`;
       }
     } catch (error) {
-      log.warn(
-        `[Respond] Findings cleaning failed, falling back to budget truncation: ${error instanceof Error ? error.message : error}`
+      const errMsg = error instanceof Error ? error.message : String(error);
+      log.error(
+        `[Respond] Findings cleaning failed, falling back to budget truncation: ${errMsg}`
       );
     }
   }

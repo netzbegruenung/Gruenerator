@@ -237,6 +237,20 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x ?? 0,
   }),
 
+  // Reliability flags & structured error log (visibility for silent failure surfaces).
+  // searchErrors uses APPEND reducer so errors persist across the qualityGate→search loop;
+  // searchResults uses replace, so without append we'd lose failures from prior iterations.
+  searchErrors: Annotation<{ source: string; message: string }[]>({
+    reducer: (x, y) => [...(x ?? []), ...(y ?? [])],
+    default: () => [],
+  }),
+  briefGenerationFailed: Annotation<boolean>({
+    reducer: (x, y) => y ?? x ?? false,
+  }),
+  rerankFailed: Annotation<boolean>({
+    reducer: (x, y) => y ?? x ?? false,
+  }),
+
   // Image generation
   imagePrompt: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
@@ -595,6 +609,11 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Quality gate
     qualityScore: 0,
     qualityAssessmentTimeMs: 0,
+
+    // Reliability flags & structured error log
+    searchErrors: [],
+    briefGenerationFailed: false,
+    rerankFailed: false,
 
     // Image generation (will be set by image node)
     imagePrompt: null,

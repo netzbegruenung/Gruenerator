@@ -125,7 +125,7 @@ describe('briefGeneratorNode', () => {
     expect(promptContent.length).toBeLessThan(5000);
   });
 
-  it('handles empty response from LLM gracefully', async () => {
+  it('flags briefGenerationFailed and records error when LLM returns empty', async () => {
     const state = makeState({
       aiWorkerPool: {
         processRequest: vi.fn().mockResolvedValue({ content: '' }),
@@ -133,10 +133,14 @@ describe('briefGeneratorNode', () => {
     });
 
     const result = await briefGeneratorNode(state);
-    expect(result).toEqual({});
+    expect(result.briefGenerationFailed).toBe(true);
+    expect(result.researchBrief).toBeUndefined();
+    expect(result.searchErrors).toEqual([
+      { source: 'briefGenerator', message: 'empty LLM response' },
+    ]);
   });
 
-  it('handles LLM error gracefully', async () => {
+  it('flags briefGenerationFailed and records error on LLM rejection', async () => {
     const state = makeState({
       aiWorkerPool: {
         processRequest: vi.fn().mockRejectedValue(new Error('LLM timeout')),
@@ -144,7 +148,11 @@ describe('briefGeneratorNode', () => {
     });
 
     const result = await briefGeneratorNode(state);
-    expect(result).toEqual({});
+    expect(result.briefGenerationFailed).toBe(true);
+    expect(result.researchBrief).toBeUndefined();
+    expect(result.searchErrors).toEqual([
+      { source: 'briefGenerator', message: 'LLM timeout' },
+    ]);
   });
 
   it('truncates generated brief to MAX_BRIEF_LENGTH (500)', async () => {
