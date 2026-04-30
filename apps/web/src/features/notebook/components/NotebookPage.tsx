@@ -140,26 +140,32 @@ export const NotebookPageContent = ({
   const activeFiltersStore = useNotebookStore((s) => s.activeFilters);
   const [mode, setMode] = useState<'fast' | 'deep'>('fast');
   const [searchParams, setSearchParams] = useSearchParams();
-  const [threadId, setThreadId] = useState<string | null>(
-    threadIdProp || searchParams.get('thread')
-  );
-  const handleThreadCreated = useCallback(
-    (newThreadId: string) => {
-      setThreadId(newThreadId);
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set('thread', newThreadId);
-          return next;
-        },
-        { replace: true }
-      );
-    },
-    [setSearchParams]
-  );
+  const [threadId, setThreadId] = useState<string | null>(threadIdProp ?? null);
+  const handleThreadCreated = useCallback((newThreadId: string) => {
+    setThreadId(newThreadId);
+  }, []);
+
+  // Strip a stale ?thread= query param once on mount: the chat is no longer
+  // restored from the URL, so leaving the param around just confuses bookmarks.
+  useEffect(() => {
+    if (!searchParams.get('thread')) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('thread');
+        return next;
+      },
+      { replace: true }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const location = useLocation();
-  const freshConversation = (location.state as { freshConversation?: boolean } | null)
-    ?.freshConversation;
+  const navState = location.state as
+    | { freshConversation?: boolean; resumeNotebookChat?: boolean }
+    | null;
+  const freshConversation = navState?.freshConversation;
+  const resumeFromCache = navState?.resumeNotebookChat ?? false;
 
   const localeCollections = useMemo(() => {
     if (!isMulti) return config.collections;
@@ -212,6 +218,7 @@ export const NotebookPageContent = ({
     collections: selectedCollections,
     persistMessages: config.persistMessages,
     freshConversation,
+    resumeFromCache,
   });
 
   const providerCollections = useMemo(
