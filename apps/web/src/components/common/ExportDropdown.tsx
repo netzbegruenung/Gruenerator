@@ -76,8 +76,6 @@ interface ExportDropdownProps {
   showMoreMenu?: boolean;
   onEditInDocs?: () => void;
   editInDocsLoading?: boolean;
-  onEditInDocsInline?: () => void;
-  editInDocsInlineLoading?: boolean;
 }
 
 const ExportDropdown = ({
@@ -92,8 +90,6 @@ const ExportDropdown = ({
   showMoreMenu = true,
   onEditInDocs,
   editInDocsLoading = false,
-  onEditInDocsInline,
-  editInDocsInlineLoading = false,
 }: ExportDropdownProps): JSX.Element | null => {
   const [uploadingToWolke, setUploadingToWolke] = useState<boolean>(false);
   const [saveIcon, setSaveIcon] = useState<string>('save');
@@ -211,12 +207,6 @@ const ExportDropdown = ({
   const handleEditInDocsClick = () => {
     onEditInDocs?.();
   };
-
-  /* Inline editor handler — disabled for now
-  const handleEditInDocsInlineClick = () => {
-    onEditInDocsInline?.();
-  };
-  */
 
   const handleEtherpadExport = async () => {
     try {
@@ -451,7 +441,6 @@ const ExportDropdown = ({
     isGenerating ||
     etherpadLoading ||
     editInDocsLoading ||
-    editInDocsInlineLoading ||
     uploadingToWolke ||
     saveToLibraryLoading ||
     !!wpPublishingToSiteId;
@@ -587,15 +576,6 @@ const ExportDropdown = ({
                     WordPress verbinden
                   </DropdownMenuItem>
                 )}
-
-                {/* Inline editor temporarily disabled
-                {onEditInDocsInline && isAuthenticated && (
-                  <DropdownMenuItem onSelect={handleEditInDocsInlineClick} disabled={editInDocsInlineLoading}>
-                    <IoCreateOutline />
-                    {editInDocsInlineLoading ? 'Öffne Editor...' : 'Im Editor bearbeiten'}
-                  </DropdownMenuItem>
-                )}
-                */}
 
                 {/* Save to library temporarily disabled
                 {isAuthenticated && onSaveToLibrary && (
