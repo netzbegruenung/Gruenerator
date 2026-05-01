@@ -111,14 +111,22 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
       };
     }
 
-    // If parsing fails, assume results are sufficient
-    log.warn('[QualityGate] Failed to parse response, assuming sufficient');
-    return { qualityScore: 3, qualityAssessmentTimeMs };
-  } catch (error: unknown) {
-    log.error('[QualityGate] Error:', error instanceof Error ? error.message : String(error));
+    // Parse failure: route to respond (qualityScore=0 < 3 but no refinedQuery means no loop)
+    // and record the failure so respond / telemetry can see the gate was bypassed.
+    const parseFailMsg = 'qualityGate response could not be parsed';
+    log.error(`[QualityGate] ${parseFailMsg} — bypassing gate`);
     return {
-      qualityScore: 3,
+      qualityScore: 0,
+      qualityAssessmentTimeMs,
+      searchErrors: [{ source: 'qualityGate', message: parseFailMsg }],
+    };
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    log.error('[QualityGate] Error:', errMsg);
+    return {
+      qualityScore: 0,
       qualityAssessmentTimeMs: Date.now() - startTime,
+      searchErrors: [{ source: 'qualityGate', message: errMsg }],
     };
   }
 }
