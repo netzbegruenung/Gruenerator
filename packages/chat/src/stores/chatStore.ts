@@ -31,6 +31,7 @@ interface TriggerCompactionResponse {
 export type Provider = 'mistral' | 'litellm' | 'regolo';
 
 export type ModelId =
+  | 'mistral-medium-3.5'
   | 'gpt-oss-regolo'
   | 'litellm'
   | 'gemma-litellm'
@@ -56,6 +57,14 @@ const QWEN_WARNING =
   'Chinesisches Modell – unterliegt staatlicher Zensur. Antworten zu politisch sensiblen Themen können eingeschränkt sein.';
 
 export const MODEL_OPTIONS: ModelOption[] = [
+  {
+    id: 'mistral-medium-3.5',
+    name: 'Mistral Medium 3.5',
+    description: 'Aktuelles Mistral-Modell (EU), stark bei Texten',
+    model: 'mistral-medium-2604',
+    provider: 'mistral',
+    icon: 'sparkles',
+  },
   {
     id: 'gemma-litellm',
     name: 'Gemma 4',
@@ -369,7 +378,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 6,
+      version: 7,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -422,6 +431,21 @@ export const useAgentStore = create<AgentState>()(
             'qwen3.6-regolo': 'regolo',
           };
           state.selectedProvider = providerByModel[state.selectedModel as string] ?? 'litellm';
+        }
+        if (version < 7) {
+          // Mistral Medium 3.5 added as selectable option. Existing valid IDs stay.
+          const validIds = new Set([
+            'mistral-medium-3.5',
+            'gpt-oss-regolo',
+            'litellm',
+            'gemma-litellm',
+            'qwen-regolo',
+            'qwen3.6-regolo',
+          ]);
+          if (!validIds.has(state.selectedModel as string)) {
+            state.selectedModel = 'gemma-litellm';
+            state.selectedProvider = 'litellm';
+          }
         }
         return state;
       },
