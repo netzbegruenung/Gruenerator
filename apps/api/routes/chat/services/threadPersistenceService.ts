@@ -61,6 +61,30 @@ export async function createThread(
 }
 
 /**
+ * Ensure a chat thread exists for the given collaborative document. Idempotent —
+ * one thread per doc, shared across all collaborators (real-time sharing rides
+ * the existing thread permissions/collab layer). The first user to open the doc
+ * becomes user_id; downstream access checks should consult both user_id and
+ * the doc's permissions.
+ */
+export async function ensureDocChatThread(
+  docId: string,
+  userId: string,
+  agentId: string = 'gruenerator-universal'
+): Promise<{ id: string }> {
+  const postgres = getPostgresInstance();
+  const result = (await postgres.query(
+    `INSERT INTO chat_threads (user_id, agent_id, title, thread_type, doc_id)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (doc_id) WHERE doc_id IS NOT NULL
+     DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+     RETURNING id`,
+    [userId, agentId, 'Dokument-Chat', 'chat', docId]
+  )) as { id: string }[];
+  return result[0];
+}
+
+/**
  * Save a message to the thread.
  */
 export async function createMessage(
