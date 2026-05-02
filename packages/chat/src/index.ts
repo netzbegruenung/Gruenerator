@@ -24,10 +24,15 @@ export {
   useChatEndpoints,
   type ChatConfig,
   type ResolvedEndpoints,
+  type ChatRequestContext,
+  type ChatRequestContextProvider,
 } from './stores/chatConfigStore';
 
 // Runtime
-export { GrueneratorChatProvider } from './runtime/GrueneratorChatProvider';
+export {
+  GrueneratorChatProvider,
+  convertToThreadMessageLike,
+} from './runtime/GrueneratorChatProvider';
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {
   createGrueneratorModelAdapter,
@@ -44,6 +49,13 @@ export {
 
 // External Thread Context
 export { ExternalThreadProvider, useExternalThread } from './context/ExternalThreadContext';
+
+// Chat Collaboration (presence, typing) — surface-scoped, e.g. for docs editor
+export {
+  ChatCollaborationProvider,
+  useChatCollaborationContext,
+} from './context/ChatCollaborationContext';
+export { useChatCollaboration } from './hooks/useChatCollaboration';
 
 // Notebook Runtime
 export {

@@ -20,7 +20,7 @@ export interface ChatConfig {
   };
   /** Base URL for the Docs app. Auto-detected from hostname if not set. */
   docsBaseUrl?: string;
-  /** Opens content in an inline docs editor instead of a new tab. Returns documentId for reuse. */
+  /** Optional override for the "Edit in Docs" action. If unset, MessageActions falls back to opening `${getDocsUrl()}/document/${id}` in a new tab. Returns documentId for reuse. */
   onEditInDocs?: (
     content: string,
     title?: string,
@@ -55,6 +55,19 @@ interface ResolvedChatConfig {
   docsBaseUrl?: string;
 }
 
+/**
+ * Per-message context a chat surface (e.g. the docs editor) can inject into
+ * outgoing requests without owning the model adapter. Keyed by threadId in
+ * `contextProviders` so multiple surfaces coexist without clobbering each other.
+ */
+export interface ChatRequestContext {
+  documentChatIds?: string[];
+  attachmentContext?: string;
+  selectionText?: string;
+}
+
+export type ChatRequestContextProvider = () => Promise<ChatRequestContext> | ChatRequestContext;
+
 interface ChatConfigStore extends ResolvedChatConfig {
   configure: (config?: ChatConfig) => void;
   getDocsUrl: () => string;
@@ -68,6 +81,10 @@ interface ChatConfigStore extends ResolvedChatConfig {
     canvasType: string,
     initialProps: Record<string, unknown>
   ) => Promise<string | null>;
+  /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
+  contextProviders: Map<string, ChatRequestContextProvider>;
+  /** Register a context provider for a thread. Returns the unregister function. */
+  registerContextProvider: (threadId: string, provider: ChatRequestContextProvider) => () => void;
 }
 
 const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
@@ -122,6 +139,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   endpoints: DEFAULT_ENDPOINTS,
   docsBaseUrl: undefined,
   onEditInDocs: undefined,
+  contextProviders: new Map(),
 
   configure: (config?: ChatConfig) => {
     set({
@@ -133,6 +151,19 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       onEditSharepic: config?.onEditSharepic,
       renderSharepic: config?.renderSharepic,
     });
+  },
+
+  registerContextProvider: (threadId, provider) => {
+    const next = new Map(get().contextProviders);
+    next.set(threadId, provider);
+    set({ contextProviders: next });
+    return () => {
+      const after = new Map(get().contextProviders);
+      if (after.get(threadId) === provider) {
+        after.delete(threadId);
+        set({ contextProviders: after });
+      }
+    };
   },
 
   getDocsUrl: () => resolveDocsUrl(get().docsBaseUrl),

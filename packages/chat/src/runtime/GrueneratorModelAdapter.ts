@@ -671,6 +671,13 @@ async function* parseSSEStream(
   }
 }
 
+function truncateAttachmentContext(text: string, maxChars: number): string | undefined {
+  if (!text) return undefined;
+  if (text.length <= maxChars) return text;
+  const half = Math.floor((maxChars - 40) / 2);
+  return `${text.slice(0, half)}\n\n[...gekürzt...]\n\n${text.slice(-half)}`;
+}
+
 export function createGrueneratorModelAdapter(
   getConfig: () => GrueneratorAdapterConfig,
   callbacks: GrueneratorAdapterCallbacks
@@ -914,7 +921,37 @@ export function createGrueneratorModelAdapter(
       const dcStore = useDocumentChatStore.getState();
       const documentChatIds = dcStore.getForThread(config.threadId);
 
-      const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
+      const { fetch: configFetch, endpoints, contextProviders } = useChatConfigStore.getState();
+
+      // Surface-injected context (e.g. docs editor markdown + selected text).
+      // Keyed by threadId, so global chat threads and the docs thread coexist.
+      let injectedDocIds: string[] = [];
+      let injectedAttachmentContext: string | undefined;
+      if (config.threadId) {
+        const provider = contextProviders.get(config.threadId);
+        if (provider) {
+          try {
+            const ctx = await provider();
+            if (ctx.documentChatIds?.length) injectedDocIds = ctx.documentChatIds;
+            const parts: string[] = [];
+            if (ctx.selectionText) parts.push(`## Auswahl:\n${ctx.selectionText}`);
+            if (ctx.attachmentContext) parts.push(ctx.attachmentContext);
+            const merged = parts.join('\n\n');
+            // Cap at 80k chars to keep request bodies bounded.
+            injectedAttachmentContext = truncateAttachmentContext(merged, 80_000);
+          } catch (err) {
+            console.warn(
+              '[ChatAdapter] contextProvider threw, continuing without injected context',
+              err
+            );
+          }
+        }
+      }
+
+      const mergedDocChatIds = injectedDocIds.length
+        ? Array.from(new Set([...documentChatIds, ...injectedDocIds]))
+        : documentChatIds;
+
       const threadMode = config.threadMode || 'chat';
 
       // Mode-aware endpoint selection
@@ -968,8 +1005,9 @@ export function createGrueneratorModelAdapter(
           textIds: textIds.length > 0 ? textIds : undefined,
           boardIds: boardIds.length > 0 ? boardIds : undefined,
           docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
-          documentChatIds: documentChatIds.length > 0 ? documentChatIds : undefined,
-          documentChatMode: hasDocumentChat || documentChatIds.length > 0 || undefined,
+          documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
+          documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
+          attachmentContext: injectedAttachmentContext,
           defaultNotebookId: config.selectedNotebookId || undefined,
           customSystemPrompt: config.customSystemPrompt || undefined,
           roleName: config.customRoleName || undefined,
@@ -991,8 +1029,9 @@ export function createGrueneratorModelAdapter(
           textIds: textIds.length > 0 ? textIds : undefined,
           boardIds: boardIds.length > 0 ? boardIds : undefined,
           docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
-          documentChatIds: documentChatIds.length > 0 ? documentChatIds : undefined,
-          documentChatMode: hasDocumentChat || documentChatIds.length > 0 || undefined,
+          documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
+          documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
+          attachmentContext: injectedAttachmentContext,
           defaultNotebookId: config.selectedNotebookId || undefined,
           customSystemPrompt: config.customSystemPrompt || undefined,
         };

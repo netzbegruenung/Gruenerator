@@ -112,7 +112,7 @@ function extractContent(content: unknown): string {
   return content;
 }
 
-function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLike[] {
+export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLike[] {
   return messages.map((m) => {
     const textContent = extractContent(m.content);
 
