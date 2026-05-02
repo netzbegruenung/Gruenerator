@@ -242,7 +242,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      expect(mockGetModel).toHaveBeenCalledWith('mistral', 'mistral-large-latest');
+      expect(mockGetModel).toHaveBeenCalledWith('mistral', 'mistral-medium-2604');
     });
 
     it('falls back to regolo when mistral is not configured', async () => {

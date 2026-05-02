@@ -25,9 +25,10 @@ export interface AgentLLMConfig {
  */
 const MODEL_MAP: Record<string, string> = {
   // 'mistral' is intentionally absent — it uses agent defaults (like 'auto')
-  // Legacy IDs kept for backward compatibility
-  'mistral-large': 'mistral-large-latest',
-  'mistral-medium': 'mistral-medium-latest',
+  'mistral-medium-3.5': 'mistral-medium-2604',
+  // Legacy IDs kept for backward compatibility — repointed to current Medium 3.5
+  'mistral-large': 'mistral-medium-2604',
+  'mistral-medium': 'mistral-medium-2604',
   'pixtral-large': 'pixtral-large-latest',
 };
 
