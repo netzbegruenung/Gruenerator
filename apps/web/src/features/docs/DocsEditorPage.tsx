@@ -45,6 +45,9 @@ const ShareModal = lazyWithRetry(() =>
 const ChatSidebar = lazyWithRetry(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ChatSidebar }))
 );
+const DocsAssistantChat = lazyWithRetry(() =>
+  import('./DocsAssistantChat').then((m) => ({ default: m.DocsAssistantChat }))
+);
 
 const GUEST_COLORS = [
   '#FF6B6B',
@@ -89,11 +92,18 @@ function getOrCreateGuestIdentity(): GuestIdentity {
   return identity;
 }
 
-const SIDEBAR_TABS = [
-  { label: 'Chat', value: 'chat' as const },
-  { label: 'Kommentare', value: 'comments' as const },
-  { label: 'Versionen', value: 'versions' as const },
+type SidebarTab = 'chat' | 'legacy-chat' | 'comments' | 'versions';
+
+const BASE_SIDEBAR_TABS: { label: string; value: SidebarTab }[] = [
+  { label: 'Chat', value: 'chat' },
+  { label: 'Kommentare', value: 'comments' },
+  { label: 'Versionen', value: 'versions' },
 ];
+
+const LEGACY_CHAT_TAB: { label: string; value: SidebarTab } = {
+  label: 'Älterer Chat',
+  value: 'legacy-chat',
+};
 
 function EditorFAB({
   showDisconnected,
@@ -186,7 +196,7 @@ function EditorContent() {
   const [showWolkeModal, setShowWolkeModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<'chat' | 'comments' | 'versions'>('chat');
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('chat');
   const [editor, setEditor] = useState<BlockNoteEditor | null>(null);
 
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -415,6 +425,17 @@ function EditorContent() {
 
   const localUser = getLocalUser();
 
+  const hasLegacyMessages = messages.length > 0;
+  const visibleSidebarTabs: { label: string; value: SidebarTab }[] = hasLegacyMessages
+    ? [BASE_SIDEBAR_TABS[0], LEGACY_CHAT_TAB, ...BASE_SIDEBAR_TABS.slice(1)]
+    : BASE_SIDEBAR_TABS;
+
+  // If the user landed on legacy-chat but the messages disappeared (rare race),
+  // fall through to the AI chat content. Derived during render — no setState
+  // round-trip — per project convention to avoid useEffect+setState patterns.
+  const effectiveSidebarTab: SidebarTab =
+    sidebarTab === 'legacy-chat' && !hasLegacyMessages ? 'chat' : sidebarTab;
+
   return (
     <div className="h-full flex flex-col relative">
       {isEmbedded ? (
@@ -584,12 +605,12 @@ function EditorContent() {
             <div className="py-2 px-3 border-b border-grey-200 dark:border-grey-700 shrink-0">
               <div className="flex items-center gap-2">
                 <div className="inline-flex flex-1 rounded-lg bg-grey-100 p-0.5 dark:bg-grey-800">
-                  {SIDEBAR_TABS.map((tab) => (
+                  {visibleSidebarTabs.map((tab) => (
                     <button
                       key={tab.value}
                       onClick={() => setSidebarTab(tab.value)}
                       className={`flex-1 rounded-md px-3 py-1 text-xs font-medium transition-all ${
-                        sidebarTab === tab.value
+                        effectiveSidebarTab === tab.value
                           ? 'bg-background-pure text-foreground shadow-sm'
                           : 'text-grey-500 hover:text-grey-700 dark:text-grey-400 dark:hover:text-grey-200'
                       }`}
@@ -608,28 +629,44 @@ function EditorContent() {
               </div>
             </div>
 
-            {sidebarTab === 'chat' && (
+            {effectiveSidebarTab === 'chat' && id && (
               <Suspense fallback={null}>
-                <ChatSidebar
-                  messages={messages}
-                  currentUserId={localUser?.id ?? null}
-                  onSend={sendMessage}
-                  isConnected={isConnected}
-                  hideHeader
-                  typingUsers={typingUsers}
-                  onTypingChange={setTyping}
-                  embedded
+                <DocsAssistantChat
+                  documentId={id}
+                  userId={user ? String(user.id) : null}
+                  userName={user?.display_name ?? null}
                 />
               </Suspense>
             )}
 
-            {sidebarTab === 'comments' && (
+            {effectiveSidebarTab === 'legacy-chat' && hasLegacyMessages && (
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <div className="bg-amber-50 dark:bg-amber-950/40 border-l-4 border-amber-400 px-3 py-2 text-sm text-amber-900 dark:text-amber-200 shrink-0">
+                  Dieser Chat wurde durch den KI-Assistenten ersetzt. Verlauf bleibt einsehbar; neue
+                  Nachrichten bitte im KI-Chat.
+                </div>
+                <Suspense fallback={null}>
+                  <ChatSidebar
+                    messages={messages}
+                    currentUserId={localUser?.id ?? null}
+                    onSend={sendMessage}
+                    isConnected={isConnected}
+                    hideHeader
+                    typingUsers={typingUsers}
+                    onTypingChange={setTyping}
+                    embedded
+                  />
+                </Suspense>
+              </div>
+            )}
+
+            {effectiveSidebarTab === 'comments' && (
               <div className="flex-1 overflow-y-auto">
                 <div className="p-2" ref={commentsPortalRef} />
               </div>
             )}
 
-            {sidebarTab === 'versions' && id && (
+            {effectiveSidebarTab === 'versions' && id && (
               <VersionHistory
                 documentId={id}
                 apiClient={apiClient}
