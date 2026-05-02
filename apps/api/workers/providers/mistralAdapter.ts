@@ -236,7 +236,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     );
   }
 
-  const model = options.model || 'mistral-large-2512';
+  const model = options.model || 'mistral-medium-2604';
   const platforms = (requestMetadata as { platforms?: string[] }).platforms;
 
   // Get content-type specific configuration

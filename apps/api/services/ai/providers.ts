@@ -22,7 +22,7 @@ export type ProviderName = 'mistral' | 'litellm' | 'ionos' | 'regolo';
 
 // Default models per provider
 const PROVIDER_DEFAULTS = {
-  mistral: 'mistral-large-2512',
+  mistral: 'mistral-medium-2604',
   litellm: 'gpt-oss:120b',
   ionos: 'openai/gpt-oss-120b',
   regolo: env.REGOLO_DEFAULT_MODEL ?? 'qwen3.5-122b',
