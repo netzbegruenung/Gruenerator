@@ -323,7 +323,10 @@ export const CardDetailPanel = memo(function CardDetailPanel({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div
+          className="flex-1 overflow-y-auto"
+          style={{ paddingBottom: 'var(--mobile-keyboard-offset, 0px)' }}
+        >
           <div className="px-4 pt-6 pb-2 sm:px-6">
             <div className="flex items-start gap-2">
               <EmojiPicker

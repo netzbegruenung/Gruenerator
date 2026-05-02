@@ -2,19 +2,10 @@ import {
   GrueneratorChatProvider,
   ChatThreadList,
   TooltipProvider,
-  useAgentStore,
   type SharepicVariant,
 } from '@gruenerator/chat';
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -24,8 +15,6 @@ import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
 import { useAuthStore } from '../stores/authStore';
 import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
-
-const DocsEditorModal = lazy(() => import('@/components/common/DocsEditorModal'));
 
 const PORTAL_SLOT_ID = 'chat-thread-portal-slot';
 
@@ -69,18 +58,17 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const location = useLocation();
   const qaCollectionsLength = useNotebookStore((s) => s.qaCollections.length);
 
-  const [editorModal, setEditorModal] = useState<{
-    documentId: string;
-    initialContent: string;
-    title: string;
-  } | null>(null);
-  const editorModalSetterRef = useRef(setEditorModal);
-
-  const mentionablesActivated = useAgentStore((s) => s.mentionablesActivated);
-  useEffect(() => {
-    if (!mentionablesActivated || qaCollectionsLength > 0) return;
-    void useNotebookStore.getState().fetchQACollections();
-  }, [mentionablesActivated, qaCollectionsLength]);
+  // Notebook collections power @notebook mention metadata; fetch lazily when
+  // an authenticated user actually needs them. React Query caches the result.
+  useQuery({
+    queryKey: ['qa-collections', userId],
+    queryFn: async () => {
+      await useNotebookStore.getState().fetchQACollections();
+      return useNotebookStore.getState().qaCollections;
+    },
+    enabled: !!userId && qaCollectionsLength === 0,
+    staleTime: 5 * 60_000,
+  });
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -127,7 +115,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
 
   const handleExternalClick = useCallback(
     (path: string) => {
-      void navigate(path);
+      void navigate(path, { state: { resumeNotebookChat: true } });
     },
     [navigate]
   );
@@ -167,33 +155,20 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       },
       onEditInDocs: async (content: string, title?: string, existingDocId?: string) => {
         if (existingDocId) {
-          editorModalSetterRef.current({
-            documentId: existingDocId,
-            initialContent: content,
-            title: title || 'Dokument',
-          });
+          window.open(`/docs/${existingDocId}`, '_blank', 'noopener,noreferrer');
           return existingDocId;
         }
-
-        const htmlContent = content
-          .split('\n\n')
-          .map((block) => `<p>${block.replace(/\n/g, '<br />')}</p>`)
-          .join('');
 
         const response = await fetch('/api/docs/from-export', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ content: htmlContent, title, documentType: 'chat-response' }),
+          body: JSON.stringify({ content, title, documentType: 'chat-response' }),
         });
         if (!response.ok) throw new Error('Document creation failed');
         const data = (await response.json()) as { documentId?: string; title?: string };
         if (data.documentId) {
-          editorModalSetterRef.current({
-            documentId: data.documentId,
-            initialContent: content,
-            title: title ?? data.title ?? 'Dokument',
-          });
+          window.open(`/docs/${data.documentId}`, '_blank', 'noopener,noreferrer');
           return data.documentId;
         }
       },
@@ -214,16 +189,6 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         {children}
         {userId && <ChatThreadPortal />}
       </TooltipProvider>
-      {editorModal && (
-        <Suspense fallback={null}>
-          <DocsEditorModal
-            documentId={editorModal.documentId}
-            initialContent={editorModal.initialContent}
-            title={editorModal.title}
-            onClose={() => setEditorModal(null)}
-          />
-        </Suspense>
-      )}
     </GrueneratorChatProvider>
   );
 }

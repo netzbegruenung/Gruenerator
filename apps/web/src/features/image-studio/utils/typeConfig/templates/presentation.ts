@@ -28,6 +28,8 @@ export const presentationTypeConfig: TemplateTypeConfig = {
   formComponent: 'PresentationForm',
   steps: [FORM_STEPS.INPUT, FORM_STEPS.CANVAS_EDIT, FORM_STEPS.RESULT],
   legacyType: 'Presentation',
+  primaryFormatGroup: 'praesentation',
+  supportedFormatGroups: ['praesentation'],
 };
 
 interface PresentationResult {

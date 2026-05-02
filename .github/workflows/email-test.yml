@@ -1,0 +1,36 @@
+name: Email Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      to:
+        description: 'Recipient address (defaults to CONTENT_SYNC_EMAIL var)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  send:
+    name: Send test email
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+
+      - name: Send test email
+        env:
+          BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
+          BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
+          BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
+          BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASS }}
+          EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
+          TEST_EMAIL_TO: ${{ inputs.to || vars.CONTENT_SYNC_EMAIL }}
+        run: npx tsx apps/api/test-email.ts

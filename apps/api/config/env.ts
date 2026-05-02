@@ -120,11 +120,15 @@ const envSchema = z.object({
   GRUENE_API_PASSWORD: z.string().optional(),
 
   // ── Email (Brevo SMTP) ─────────────────────────────────────────────────
-  BREVO_SMTP_HOST: z.string().optional(),
+  // .trim() defends against trailing whitespace/newlines pasted into GitHub
+  // Actions secrets — that exact bug caused getaddrinfo ENOTFOUND on every
+  // content-sync email send until Apr 2026. Port is z.coerce.number() so
+  // Number("587\n") still parses correctly there.
+  BREVO_SMTP_HOST: z.string().trim().optional(),
   BREVO_SMTP_PORT: numStr(587),
-  BREVO_SMTP_USER: z.string().optional(),
-  BREVO_SMTP_PASS: z.string().optional(),
-  EMAIL_FROM: z.string().optional(),
+  BREVO_SMTP_USER: z.string().trim().optional(),
+  BREVO_SMTP_PASS: z.string().trim().optional(),
+  EMAIL_FROM: z.string().trim().optional(),
 
   // ── Credential encryption ──────────────────────────────────────────────
   CREDENTIAL_ENCRYPTION_KEY: z.string().optional(),
@@ -139,7 +143,8 @@ const envSchema = z.object({
 
   // ── Scraping / crawling ────────────────────────────────────────────────
   CRAWLER_MODE: z.string().optional(),
-  CONTENT_SYNC_EMAIL: z.string().optional(),
+  CONTENT_SYNC_EMAIL: z.string().trim().optional(),
+  TEST_EMAIL_TO: z.string().trim().optional(),
   BACKUP_DIR: z.string().optional(),
   STATS_OUTPUT_PATH: z.string().optional(),
   SYNC_SUMMARY_PATH: z.string().optional(),

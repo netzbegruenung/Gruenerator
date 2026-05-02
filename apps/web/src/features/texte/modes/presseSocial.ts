@@ -31,10 +31,10 @@ export const presseSocialMode: ModeDefinition = {
       multiple: true,
     },
   ],
-  extraFields: [
+  tagInputs: [
     {
       key: 'zitatgeber',
-      type: 'input',
+      label: 'Wer wird zitiert',
       placeholder: 'Name der*des Zitatgeber*in...',
       condition: (state) => {
         const platforms = state.platforms;
@@ -44,6 +44,6 @@ export const presseSocialMode: ModeDefinition = {
   ],
   defaults: {
     platforms: ['instagram'],
-    zitatgeber: '',
+    zitatgeber: [],
   },
 };

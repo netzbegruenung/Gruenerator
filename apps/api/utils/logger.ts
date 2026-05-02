@@ -13,9 +13,18 @@ const logger = winston.createLogger({
     // specifiers appear literally in output. Template literals continue to
     // work either way; splat only activates when extra args are passed.
     winston.format.splat(),
-    winston.format.printf(({ level, message, timestamp, service }) => {
+    winston.format.printf(({ level, message, timestamp, service, ...rest }) => {
       const svc = service ? `[${service}]` : '';
-      return `${timestamp} ${level.toUpperCase().padEnd(5)} ${svc} ${message}`;
+      // Serialize structured metadata so log.error('msg', { error }) actually
+      // surfaces the error in stdout. Without this, second-arg objects are
+      // silently dropped by the formatter and failures look mysterious in CI.
+      const meta = Object.keys(rest).length
+        ? ' ' +
+          JSON.stringify(rest, (_k, v) =>
+            v instanceof Error ? { name: v.name, message: v.message, stack: v.stack } : v
+          )
+        : '';
+      return `${timestamp} ${level.toUpperCase().padEnd(5)} ${svc} ${message}${meta}`;
     })
   ),
   transports: [new winston.transports.Console()],

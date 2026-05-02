@@ -22,6 +22,10 @@ const SINGLE_PASS_THRESHOLD = 4000;
 const MAP_REDUCE_THRESHOLD = 12000;
 const SEGMENT_SIZE = 6000;
 const SEGMENT_OVERLAP = 200;
+// Below this many characters in the last user message, summary intent will
+// fall through to the conversation summary; above it the message body is
+// treated as the document to summarize (paste-to-summarize).
+const LONG_PASTE_THRESHOLD = 500;
 
 const SINGLE_PASS_PROMPT = `Du bist ein Zusammenfassungs-Assistent. Erstelle eine strukturierte Zusammenfassung des folgenden Dokuments.
 
@@ -331,6 +335,35 @@ export async function summarizeNode(state: ChatGraphState): Promise<Partial<Chat
 
       const summaryTimeMs = Date.now() - startTime;
       return { summaryContext: summary, summaryTimeMs };
+    }
+
+    // Paste-to-summarize: when the user pasted a long block of text directly
+    // into their message instead of attaching a document, treat that body as
+    // the document to summarize before falling through to conversation summary.
+    const lastUserMessage = [...state.messages].reverse().find((m) => m.role === 'user');
+    if (lastUserMessage) {
+      const userText =
+        typeof lastUserMessage.content === 'string'
+          ? lastUserMessage.content
+          : Array.isArray(lastUserMessage.content)
+            ? lastUserMessage.content
+                .filter((p) => p && typeof p === 'object' && p.type === 'text')
+                .map((p) => (p as { text: string }).text)
+                .join('')
+            : String(lastUserMessage.content || '');
+
+      if (userText.length > LONG_PASTE_THRESHOLD) {
+        log.info(
+          `[Summarize] Using long user message (${userText.length} chars) as paste-to-summarize input`
+        );
+        const summary =
+          userText.length <= MAP_REDUCE_THRESHOLD
+            ? await singlePassSummarize(aiWorkerPool, 'Eingefügter Text', userText)
+            : await mapReduceSummarize(aiWorkerPool, 'Eingefügter Text', userText);
+
+        const summaryTimeMs = Date.now() - startTime;
+        return { summaryContext: summary, summaryTimeMs };
+      }
     }
 
     // Final fallback: summarize conversation

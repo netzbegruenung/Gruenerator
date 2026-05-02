@@ -1,5 +1,6 @@
 import { motion, AnimatePresence, LayoutGroup, useReducedMotion } from 'motion/react';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useShallow } from 'zustand/react/shallow';
 
 import { StatusBadge } from '../../../components/common/StatusBadge';
@@ -10,6 +11,7 @@ import { cn } from '../../../utils/cn';
 import { CanvasChatProvider } from '../CanvasChatProvider';
 import StepFlow from '../components/StepFlow';
 import { useImageGeneration } from '../hooks/useImageGeneration';
+import { mintCanvasFromStudioStore } from '../services/canvasMintService';
 import TemplateResultStep from '../steps/TemplateResultStep';
 import { FORM_STEPS, getTypeConfig, getTemplateFieldConfig } from '../utils/typeConfig';
 
@@ -38,11 +40,40 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
   const [isWideStep, setIsWideStep] = useState(false);
 
   const [isCanvasEdit, setIsCanvasEdit] = useState(false);
+  const [isMintingCanvas, setIsMintingCanvas] = useState(false);
 
   const handleStepChange = useCallback((stepType: string) => {
     setIsWideStep(stepType === 'image_upload');
     setIsCanvasEdit(stepType === 'canvas_edit');
   }, []);
+
+  const navigate = useNavigate();
+  const mintingRef = useRef(false);
+
+  useEffect(() => {
+    if (currentStep !== FORM_STEPS.CANVAS_EDIT) return;
+    if (mintingRef.current) return;
+    if (!type) return;
+
+    mintingRef.current = true;
+    setIsMintingCanvas(true);
+
+    const run = async () => {
+      try {
+        const state = useImageStudioStore.getState();
+        const { id } = await mintCanvasFromStudioStore(state);
+        void navigate(`/studio/canvas/${id}`, { replace: true });
+      } catch (err) {
+        console.error('[TemplateStudioFlow] Canvas mint failed:', err);
+        void import('sonner').then(({ toast }) =>
+          toast.error('Leinwand konnte nicht gespeichert werden. Bitte erneut versuchen.')
+        );
+        mintingRef.current = false;
+        setIsMintingCanvas(false);
+      }
+    };
+    void run();
+  }, [currentStep, type, navigate]);
 
   const handleAnimationStart = useCallback(() => {
     useImageStudioStore.getState().setIsAnimating(true);
@@ -135,6 +166,15 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
 
   if (!fieldConfig) {
     return <div className="error-message">Konfiguration für diesen Typ nicht gefunden.</div>;
+  }
+
+  if (isMintingCanvas) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center gap-sm text-foreground">
+        <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+        <span className="text-sm">Leinwand wird vorbereitet…</span>
+      </div>
+    );
   }
 
   return (

@@ -5,12 +5,13 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useFirstName } from '../../hooks/useFirstName';
+import { useAuthStore } from '../../stores/authStore';
 
 import CreatorSection from './components/CreatorSection';
 import NotebooksSection from './components/NotebooksSection';
 import RecentlyCreatedSection from './components/RecentlyCreatedSection';
 import ReelsSection from './components/ReelsSection';
-import ToolsSection, { ExperimentalToolsSection } from './components/ToolsSection';
+import ToolsSection, { FavoritesSection } from './components/ToolsSection';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -183,6 +184,8 @@ Sun.displayName = 'Sun';
 
 const WorkplacePage = () => {
   const firstName = useFirstName();
+  const locale = useAuthStore((state) => state.locale);
+  const isAustrian = locale === 'de-AT';
 
   return (
     <ErrorBoundary>
@@ -212,10 +215,12 @@ const WorkplacePage = () => {
           <ToolsSection />
         </section>
 
-        <section className="mb-xl">
-          <SectionHeader title="Experimentelle Tools" />
-          <ExperimentalToolsSection />
-        </section>
+        {!isAustrian && (
+          <section className="mb-xl">
+            <SectionHeader title="Grünerators Favoriten" />
+            <FavoritesSection />
+          </section>
+        )}
 
         {/* <GrassWithSheep /> */}
       </PageContainer>

@@ -20,7 +20,7 @@ export interface ChatConfig {
   };
   /** Base URL for the Docs app. Auto-detected from hostname if not set. */
   docsBaseUrl?: string;
-  /** Opens content in an inline docs editor instead of a new tab. Returns documentId for reuse. */
+  /** Optional override for the "Edit in Docs" action. If unset, MessageActions falls back to opening `${getDocsUrl()}/document/${id}` in a new tab. Returns documentId for reuse. */
   onEditInDocs?: (
     content: string,
     title?: string,

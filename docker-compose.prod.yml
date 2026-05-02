@@ -8,7 +8,6 @@
 #   - web: Static frontend (nginx serving Vite build)
 #   - sites: Candidate website builder (nginx serving Vite build)
 #   - api: Backend API (Node.js, port 3001)
-#   - docs: Documentation/collaboration service (Node.js, port 3003)
 #   - mcp: MCP server for AI integrations (Node.js, port 3004)
 #   - doku: Static Docusaurus documentation
 #   - nginx: Internal reverse proxy
@@ -68,23 +67,6 @@ services:
       - 'com.gruenerator.service=api'
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:3001/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  docs:
-    image: ghcr.io/netzbegruenung/gruenerator-docs:${TAG:-latest}
-    restart: unless-stopped
-    environment:
-      - PORT=3000
-      - NODE_ENV=production
-    networks:
-      - gruenerator
-    labels:
-      - 'com.gruenerator.service=docs'
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
       interval: 30s
       timeout: 10s
       retries: 3

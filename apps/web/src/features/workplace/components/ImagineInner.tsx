@@ -1,9 +1,8 @@
 import { useShareStore } from '@gruenerator/shared/share';
 import { AIPromptInput, Button, SettingsDropdown } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { Download, ExternalLink, X } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import React, { memo, useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import { Lightbox } from '../../image-studio/components/Lightbox';
@@ -16,7 +15,6 @@ const IMAGINE_MODE_ID = 'imagine';
 const ImagineInner: React.FC = memo(() => {
   const [prompt, setPrompt] = useState('');
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { createImageShare } = useShareStore();
   const { isOpen, openLightbox, closeLightbox } = useLightbox();
@@ -118,23 +116,6 @@ const ImagineInner: React.FC = memo(() => {
             <Button variant="brand-outline" size="sm" onClick={handleDownload}>
               <Download className="size-3.5" />
               Download
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() =>
-                navigate('/studio/ki/ai-editor', {
-                  state: {
-                    imagineHandoff: true,
-                    generatedImage,
-                    prompt: prompt.trim(),
-                    variant: modeState.variant ?? null,
-                  },
-                })
-              }
-            >
-              <ExternalLink className="size-3.5" />
-              Im Studio bearbeiten
             </Button>
           </div>
         </div>

@@ -43,15 +43,17 @@ const ModeToolbar: React.FC<ModeToolbarProps> = memo(
             onChange={(val) => onStateChange(config.key, val)}
           />
         ))}
-        {def?.tagInputs?.map((config) => (
-          <SettingsTagInput
-            key={config.key}
-            items={(state[config.key] as string[]) ?? []}
-            onChange={(items) => onStateChange(config.key, items)}
-            triggerLabel={config.label}
-            placeholder={config.placeholder}
-          />
-        ))}
+        {def?.tagInputs
+          ?.filter((config) => !config.condition || config.condition(state))
+          .map((config) => (
+            <SettingsTagInput
+              key={config.key}
+              items={(state[config.key] as string[]) ?? []}
+              onChange={(items) => onStateChange(config.key, items)}
+              triggerLabel={config.label}
+              placeholder={config.placeholder}
+            />
+          ))}
       </>
     );
   }

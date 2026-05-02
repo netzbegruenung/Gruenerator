@@ -3,12 +3,11 @@ import reactConfig from './packages/eslint-config/react.js';
 import nodeConfig from './packages/eslint-config/node.js';
 
 export default [
-  // React apps: web, sites, docs, mobile, desktop
+  // React apps: web, sites, mobile, desktop
   {
     files: [
       'apps/web/**/*.{ts,tsx,js,jsx}',
       'apps/sites/**/*.{ts,tsx,js,jsx}',
-      'apps/docs/**/*.{ts,tsx,js,jsx}',
       'apps/mobile/**/*.{ts,tsx,js,jsx}',
       'apps/desktop/**/*.{ts,tsx,js,jsx}',
       'apps/gruen-o-mat/**/*.{ts,tsx,js,jsx}',
@@ -20,7 +19,6 @@ export default [
     files: [
       'apps/web/**/*.{ts,tsx,js,jsx}',
       'apps/sites/**/*.{ts,tsx,js,jsx}',
-      'apps/docs/**/*.{ts,tsx,js,jsx}',
       'apps/mobile/**/*.{ts,tsx,js,jsx}',
       'apps/desktop/**/*.{ts,tsx,js,jsx}',
       'apps/gruen-o-mat/**/*.{ts,tsx,js,jsx}',
