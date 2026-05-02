@@ -104,6 +104,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         textIds: rawTextIds,
         documentChatIds: rawDocumentChatIds,
         documentChatMode,
+        attachmentContext: rawClientAttachmentContext,
         defaultNotebookId: rawDefaultNotebookId,
         boardIds: rawBoardIds,
         docMentionIds: rawDocMentionIds,
@@ -210,10 +211,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       }
 
       // === Process attachments ===
-      const { attachmentContext, imageAttachments, processedMeta } = await processAttachments(
-        attachments as ProcessedAttachment[] | undefined,
-        requestId
-      );
+      const {
+        attachmentContext: derivedAttachmentContext,
+        imageAttachments,
+        processedMeta,
+      } = await processAttachments(attachments as ProcessedAttachment[] | undefined, requestId);
+
+      // Merge any client-injected context (e.g. docs editor markdown + selection)
+      // with what processAttachments derived from uploaded files.
+      const clientAttachmentContext =
+        (rawClientAttachmentContext as string | null | undefined)?.trim() || undefined;
+      const attachmentContext =
+        clientAttachmentContext && derivedAttachmentContext
+          ? `${clientAttachmentContext}\n\n---\n\n${derivedAttachmentContext}`
+          : clientAttachmentContext || derivedAttachmentContext;
 
       const docAttachments =
         (attachments as ProcessedAttachment[] | undefined)?.filter((a) => !a.isImage) ?? [];
