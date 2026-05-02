@@ -20,8 +20,11 @@ export { TemplateCarousel } from './components/document/TemplateCarousel';
 export { TemplatePicker } from './components/document/TemplatePicker';
 
 // Components — Chat
+/** @deprecated Replaced by `DocsAssistantChat` in apps/web/src/features/docs/. Kept only to render legacy Yjs chat history on documents created before the AI-chat migration. */
 export { ChatSidebar } from './components/chat/ChatSidebar';
+/** @deprecated See {@link ChatSidebar}. */
 export { ChatMessageComponent } from './components/chat/ChatMessage';
+/** @deprecated See {@link ChatSidebar}. */
 export { ChatComposer } from './components/chat/ChatComposer';
 
 // Components — Permissions
@@ -35,6 +38,7 @@ export { ErrorBoundary } from './components/common/ErrorBoundary';
 
 // Hooks
 export { useCollaborators, type CollaborationUser } from '@gruenerator/collab';
+/** @deprecated Yjs peer-to-peer chat replaced by `DocsAssistantChat`. Hook is retained so the legacy tab can still display history on docs that have prior messages. */
 export { useDocumentChat, type ChatMessage } from './hooks/useDocumentChat';
 export { useBlockNoteComments } from './hooks/useBlockNoteComments';
 export {
