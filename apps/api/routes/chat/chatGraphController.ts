@@ -98,6 +98,7 @@ const chatStreamSchema = z.object({
   textIds: z.array(z.string()).nullish(),
   documentChatIds: z.array(z.string()).nullish(),
   documentChatMode: z.boolean().nullish(),
+  attachmentContext: z.string().nullish(),
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
   docMentionIds: z.array(z.string()).nullish(),
@@ -118,6 +119,7 @@ type ChatStreamBody = {
   textIds?: string[];
   documentChatIds?: string[];
   documentChatMode?: boolean;
+  attachmentContext?: string;
   defaultNotebookId?: string;
   boardIds?: string[];
   docMentionIds?: string[];
@@ -165,6 +167,7 @@ router.post(
         textIds: rawTextIds,
         documentChatIds: rawDocumentChatIds,
         documentChatMode,
+        attachmentContext: rawClientAttachmentContext,
         defaultNotebookId: rawDefaultNotebookId,
         boardIds: rawBoardIds,
         docMentionIds: rawDocMentionIds,
@@ -269,10 +272,20 @@ router.post(
       }
 
       // === Process attachments ===
-      const { attachmentContext, imageAttachments, processedMeta } = await processAttachments(
-        attachments,
-        requestId
-      );
+      const {
+        attachmentContext: derivedAttachmentContext,
+        imageAttachments,
+        processedMeta,
+      } = await processAttachments(attachments, requestId);
+
+      // Merge any client-injected context (e.g. docs editor markdown + selection)
+      // with what processAttachments derived from uploaded files. Both can be
+      // present; concatenate with a separator so neither is lost.
+      const clientAttachmentContext = rawClientAttachmentContext?.trim() || undefined;
+      const attachmentContext =
+        clientAttachmentContext && derivedAttachmentContext
+          ? `${clientAttachmentContext}\n\n---\n\n${derivedAttachmentContext}`
+          : clientAttachmentContext || derivedAttachmentContext;
 
       const docAttachments = attachments?.filter((a) => !a.isImage) ?? [];
 
