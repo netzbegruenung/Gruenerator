@@ -31,6 +31,7 @@ export const chatStreamBodySchema = z.object({
   textIds: z.array(z.string()).nullish(),
   documentChatIds: z.array(z.string()).nullish(),
   documentChatMode: z.boolean().nullish(),
+  attachmentContext: z.string().nullish(),
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
   docMentionIds: z.array(z.string()).nullish(),
