@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import aiController from './aiController.js';
+import docChatThreadController from './docChatThreadController.js';
 import documentController from './documentController.js';
 import exportController from './exportController.js';
 import exportToDocsController from './exportToDocsController.js';
@@ -22,6 +23,7 @@ router.use('/', exportToDocsController);
 router.use('/', importController);
 router.use('/', snapshotController);
 router.use('/', aiController);
+router.use('/', docChatThreadController);
 router.use('/', documentController);
 
 export default router;
