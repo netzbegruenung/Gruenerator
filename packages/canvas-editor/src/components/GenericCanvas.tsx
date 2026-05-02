@@ -101,8 +101,14 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
 }
 
 export interface GenericCanvasRef {
-  toDataURL: (options?: { format?: 'png' | 'jpeg'; pixelRatio?: number }) => string | undefined;
+  toDataURL: (options?: {
+    format?: 'png' | 'jpeg';
+    pixelRatio?: number;
+    quality?: number;
+  }) => string | undefined;
   captureCanvas: () => Promise<string | null>;
+  /** Lightweight JPEG capture for sending the canvas to vision models. */
+  captureCanvasForAi: () => Promise<string | null>;
   /** Get the current canvas state (for shared sidebar in multi-page mode) */
   getState: () => Record<string, unknown>;
   /** Get the canvas actions (for shared sidebar in multi-page mode) */
@@ -406,6 +412,15 @@ function GenericCanvasWithRef<
           await new Promise((resolve) => setTimeout(resolve, 50));
         }
         return stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 }) ?? null;
+      },
+      captureCanvasForAi: async () => {
+        if (store.getState().selectedElement) {
+          setSelectedElement(null);
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        return (
+          stageRef.current?.toDataURL({ format: 'jpeg', pixelRatio: 1, quality: 0.85 }) ?? null
+        );
       },
       getState: () => state as Record<string, unknown>,
       getActions: () => actions as unknown as Record<string, unknown>,

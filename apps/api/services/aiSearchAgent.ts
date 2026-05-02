@@ -390,7 +390,7 @@ class AISearchAgent {
             },
           ],
           options: {
-            model: 'mistral-large-2512',
+            model: 'mistral-medium-2604',
             max_tokens: 1000,
             temperature: 0.3,
             provider: 'mistral',

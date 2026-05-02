@@ -1,12 +1,9 @@
-import { useDocumentStore, createDocsApiClient } from '@gruenerator/docs';
-import React, { forwardRef, lazy, Suspense, type ReactNode, useMemo } from 'react';
+import React, { forwardRef, type ReactNode } from 'react';
 
-import { webAppDocsAdapter } from '../../../features/docs/docsAdapter';
 import { useDeferredTitle, awaitDeferredTitle } from '../../../hooks/useDeferredTitle';
 import { useSaveToLibrary } from '../../../hooks/useSaveToLibrary';
 import { useAuthStore } from '../../../stores/authStore';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
-import { getDocsUrl } from '../../../utils/docsUrl';
 import useApiSubmit from '../../hooks/useApiSubmit';
 import { extractHTMLContent as extractHTMLContentJs } from '../../utils/contentExtractor';
 import ActionButtons from '../ActionButtons';
@@ -25,8 +22,6 @@ import type {
 import { cn } from '@/utils/cn';
 
 const extractHTMLContent = extractHTMLContentJs as unknown as (content: unknown) => Promise<string>;
-
-const DocsEditorModal = lazy(() => import('../DocsEditorModal'));
 
 // Extended content type for internal use that includes all possible properties
 interface ExtendedContent {
@@ -207,16 +202,7 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       }
     }, [currentExportableContent, title, componentName, saveToLibrary]);
 
-    // "Edit in Docs" — inline modal (backup) and new-tab (default)
-    const createDocument = useDocumentStore((state) => state.createDocument);
-    const docsApiClient = useMemo(() => createDocsApiClient(webAppDocsAdapter), []);
-    const [editInDocsInlineLoading, setEditInDocsInlineLoading] = React.useState(false);
-    const [editorModal, setEditorModal] = React.useState<{
-      documentId: string;
-      initialContent: string;
-      title: string;
-    } | null>(null);
-    const { submitForm: submitDocsExport, loading: editInDocsNewTabLoading } =
+    const { submitForm: submitDocsExport, loading: editInDocsLoading } =
       useApiSubmit('docs/from-export');
 
     useDeferredTitle(
@@ -226,32 +212,7 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
       isStreaming
     );
 
-    // Inline modal handler (backup — available in dropdown menu)
-    const handleEditInDocsInline = React.useCallback(async () => {
-      if (!currentExportableContent) return;
-
-      setEditInDocsInlineLoading(true);
-      try {
-        await awaitDeferredTitle(componentName);
-        const meta = useGeneratedTextStore
-          .getState()
-          .getGeneratedTextMetadata(componentName) as ContentMetadata | null;
-        const docTitle = meta?.title || title || 'Generierter Text';
-        const doc = await createDocument(docsApiClient, docTitle);
-        setEditorModal({
-          documentId: doc.id,
-          initialContent: currentExportableContent,
-          title: docTitle,
-        });
-      } catch (error) {
-        console.error('[DisplaySection] Failed to create document:', error);
-      } finally {
-        setEditInDocsInlineLoading(false);
-      }
-    }, [currentExportableContent, componentName, title, createDocument, docsApiClient]);
-
-    // New-tab handler (default — opens full Docs app in new tab)
-    const handleEditInDocsNewTab = React.useCallback(async () => {
+    const handleEditInDocs = React.useCallback(async () => {
       if (!currentExportableContent) return;
 
       try {
@@ -271,8 +232,7 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
         });
 
         if (response && response.documentId) {
-          const docsBase = getDocsUrl();
-          window.open(`${docsBase}/document/${response.documentId}`, '_blank');
+          window.open(`/docs/${response.documentId}`, '_blank', 'noopener,noreferrer');
         }
       } catch (error) {
         console.error('[DisplaySection] Failed to open document in new tab:', error);
@@ -302,10 +262,8 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
         title={storeGeneratedTextMetadata?.title || title}
         componentName={componentName}
         onRequestEdit={onRequestEdit}
-        onEditInDocs={handleEditInDocsInline}
-        editInDocsLoading={editInDocsInlineLoading}
-        onEditInDocsInline={handleEditInDocsNewTab}
-        editInDocsInlineLoading={editInDocsNewTabLoading}
+        onEditInDocs={handleEditInDocs}
+        editInDocsLoading={editInDocsLoading}
         showReset={showResetButton}
         onReset={onReset}
         customExportOptions={customExportOptions}
@@ -377,16 +335,6 @@ const DisplaySection = forwardRef<HTMLDivElement, DisplaySectionProps>(
         )}
         {displayActions && (
           <div className="mt-lg pt-md flex flex-col items-start">{displayActions}</div>
-        )}
-        {editorModal && (
-          <Suspense fallback={null}>
-            <DocsEditorModal
-              documentId={editorModal.documentId}
-              initialContent={editorModal.initialContent}
-              title={editorModal.title}
-              onClose={() => setEditorModal(null)}
-            />
-          </Suspense>
         )}
       </div>
     );

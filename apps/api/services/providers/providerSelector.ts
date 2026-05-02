@@ -19,7 +19,7 @@ import type {
 export function isLiteLLMCompatibleModel(modelName: string = ''): boolean {
   const name = String(modelName || '').toLowerCase();
   // LiteLLM models typically use prefixes like gpt-oss, or are mistral/mixtral variants
-  // Exclude Mistral API models (mistral-large-2512, etc.)
+  // Exclude Mistral API models (mistral-medium-2604, etc.)
   if (name.includes('gpt-oss') || name.includes('gpt-4') || name.includes('gpt-3')) {
     return true;
   }
@@ -113,12 +113,12 @@ export function selectProviderAndModel({
   // Notebook enrichment - fast model
   if (type === 'notebook_enrich') {
     provider = 'mistral';
-    model = options.model || 'mistral-large-2512';
+    model = options.model || 'mistral-medium-2604';
   }
   // Fast mode QA draft - fast model
   else if (type === 'qa_draft_fast') {
     provider = 'mistral';
-    model = options.model || 'mistral-large-2512';
+    model = options.model || 'mistral-medium-2604';
   }
   // QA draft (final answer) — GPT-OSS with reasoning
   else if (type === 'qa_draft') {
@@ -128,7 +128,7 @@ export function selectProviderAndModel({
   // QA intermediate steps (planner, repair, tools) — fast model
   else if (type === 'qa_tools' || type === 'qa_planner' || type === 'qa_repair') {
     provider = 'mistral';
-    model = options.model || 'mistral-large-2512';
+    model = options.model || 'mistral-medium-2604';
   }
   // Legislative documents — GPT-OSS (reasoning handled via reasoningEffort)
   else if (

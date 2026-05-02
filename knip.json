@@ -10,10 +10,6 @@
       "project": ["**/*.{ts,js,mts,mjs}"],
       "ignore": ["test/**", "tests/**", "scripts/**"]
     },
-    "apps/docs": {
-      "entry": ["src/main.tsx", "server.ts", "vite.config.ts"],
-      "project": ["src/**/*.{ts,tsx}", "*.ts"]
-    },
     "apps/sites": {
       "entry": ["src/main.tsx", "vite.config.ts"],
       "project": ["src/**/*.{ts,tsx}"]

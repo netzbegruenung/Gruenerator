@@ -5,23 +5,31 @@
  * Each source handles its own deduplication (Qdrant URL check + content hash).
  *
  * Flags:
- *   --source <id>      Run only one source group (landesverbaende, gruenblog,
- *                       gruene-at, kommunalwiki, boell-stiftung)
- *   --force            Force re-process even if already stored
- *   --dry-run          Preview without storing (only supported by landesverbaende)
- *   --concurrency <n>  Max parallel source groups (default: 2)
+ *   --source <id>            Run only one source group (landesverbaende, gruenblog,
+ *                             gruene-at, kommunalwiki, boell-stiftung, bundestag)
+ *   --landesverband <code>   Run only one Landesverband by shortName prefix
+ *                             (e.g. BE = Berlin, BB = Brandenburg, HH = Hamburg,
+ *                             LSA = Sachsen-Anhalt, MV = Mecklenburg-Vorpommern,
+ *                             TH = Thüringen). Email recipient is read from
+ *                             apps/api/config/landesverbaendeContacts.json and
+ *                             only sent when stored/updated/errors > 0.
+ *   --force                  Force re-process even if already stored
+ *   --dry-run                Preview without storing (only supported by landesverbaende)
+ *   --concurrency <n>        Max parallel source groups (default: 2)
  *
  * Examples:
- *   npx tsx apps/api/update-all-content.ts                         # Sync all
- *   npx tsx apps/api/update-all-content.ts --source gruenblog      # Only Gruenblog
- *   npx tsx apps/api/update-all-content.ts --dry-run               # Preview
- *   npx tsx apps/api/update-all-content.ts --force                 # Force re-index
+ *   npx tsx apps/api/update-all-content.ts                              # Sync all
+ *   npx tsx apps/api/update-all-content.ts --source gruenblog           # Only Gruenblog
+ *   npx tsx apps/api/update-all-content.ts --landesverband BE           # Only Berlin LV
+ *   npx tsx apps/api/update-all-content.ts --dry-run                    # Preview
+ *   npx tsx apps/api/update-all-content.ts --force                      # Force re-index
  *
  * Run: npx tsx apps/api/update-all-content.ts
  */
 
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { Mistral } from '@mistralai/mistralai';
 
@@ -33,11 +41,13 @@ import { gruenblogScraperService } from './services/scrapers/implementations/Gru
 import { grueneAtScraperService } from './services/scrapers/implementations/GrueneAtScraper.js';
 import { kommunalwikiScraper } from './services/scrapers/implementations/KommunalwikiScraper.js';
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
+import { getSourcesByLandesverband } from './config/landesverbaendeConfig.js';
 import { scrapeAndIndexSocialMedia } from './services/scrapers/implementations/SocialMediaExamplesScraper.js';
 import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
 
 interface CliArgs {
   source?: string;
+  landesverband?: string;
   force: boolean;
   dryRun: boolean;
   concurrency: number;
@@ -52,6 +62,9 @@ function parseArgs(): CliArgs {
     switch (args[i]) {
       case '--source':
         result.source = args[++i];
+        break;
+      case '--landesverband':
+        result.landesverband = args[++i];
         break;
       case '--force':
         result.force = true;
@@ -69,6 +82,20 @@ function parseArgs(): CliArgs {
   }
 
   return result;
+}
+
+function loadLandesverbandContacts(): Record<string, string> {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const contactsPath = path.join(here, 'config', 'landesverbaendeContacts.json');
+  try {
+    const raw = readFileSync(contactsPath, 'utf-8');
+    return JSON.parse(raw) as Record<string, string>;
+  } catch (err) {
+    console.warn(
+      `Could not load ${contactsPath} (${err instanceof Error ? err.message : err}); falling back to CONTENT_SYNC_EMAIL`
+    );
+    return {};
+  }
 }
 
 interface SourceGroup {
@@ -335,7 +362,38 @@ async function main() {
 
   // Resolve which groups to run
   let groups = SOURCE_GROUPS;
-  if (args.source) {
+  if (args.landesverband) {
+    const lvCode = args.landesverband;
+    const matchingSources = getSourcesByLandesverband(lvCode);
+    if (matchingSources.length === 0) {
+      console.error(`Unknown landesverband: ${lvCode}`);
+      console.error(
+        `Hint: shortName prefix from landesverbaendeConfig.ts (e.g. BB, BE, HH, LSA, MV, TH)`
+      );
+      process.exit(1);
+    }
+    groups = [
+      {
+        id: `landesverband-${lvCode}`,
+        name: `Landesverband ${lvCode} (${matchingSources.length} sources)`,
+        async run(a) {
+          await landesverbandScraperService.init();
+          const result = await landesverbandScraperService.scrapeAllSources({
+            forceUpdate: a.force,
+            dryRun: a.dryRun,
+            landesverband: lvCode,
+          });
+          return {
+            stored: result.stored,
+            updated: result.updated,
+            skipped: result.skipped,
+            fetchErrors: result.errors,
+            errors: 0,
+          };
+        },
+      },
+    ];
+  } else if (args.source) {
     groups = SOURCE_GROUPS.filter((g) => g.id === args.source);
     if (groups.length === 0) {
       console.error(`Unknown source: ${args.source}`);
@@ -434,31 +492,47 @@ async function main() {
   writeFileSync(summaryPath, JSON.stringify(summary, null, 2));
   console.log(`Summary written to ${summaryPath}`);
 
-  // Send email notification via existing Brevo SMTP (never crash on email failure)
-  const emailTo = env.CONTENT_SYNC_EMAIL;
-  if (emailTo && !args.noEmail) {
-    try {
-      const runId = env.GITHUB_RUN_ID;
-      const repo = env.GITHUB_REPOSITORY;
-      const server = env.GITHUB_SERVER_URL ?? 'https://github.com';
-      const runUrl = runId && repo ? `${server}/${repo}/actions/runs/${runId}` : undefined;
+  // Send email notification via existing Brevo SMTP (never crash on email failure).
+  // Per-LV runs (--landesverband): recipient comes from landesverbaendeContacts.json,
+  // and the email is suppressed when nothing changed (stored + updated + hard errors == 0).
+  // Other invocations (no flag, --source <id>) keep the previous behavior.
+  if (!args.noEmail) {
+    const isLvRun = !!args.landesverband;
+    const hasChanges = totals.stored + totals.updated + totals.errors > 0;
 
-      const sent = await sendContentSyncEmail(emailTo, {
-        timestamp: summary.timestamp,
-        totalDuration: summary.totalDuration,
-        sources: summary.sources,
-        totals: summary.totals,
-        runUrl,
-        dryRun: args.dryRun,
-      });
+    if (isLvRun && !hasChanges) {
       console.log(
-        sent ? `Email sent to ${emailTo}` : 'Email sending skipped (SMTP not configured)'
+        `Per-LV run ${args.landesverband}: no new/updated docs and no hard errors — skipping email`
       );
-    } catch (err) {
-      console.error(
-        'Email notification failed (non-fatal):',
-        err instanceof Error ? err.message : err
-      );
+    } else {
+      const emailTo = isLvRun
+        ? (loadLandesverbandContacts()[args.landesverband as string] ?? env.CONTENT_SYNC_EMAIL)
+        : env.CONTENT_SYNC_EMAIL;
+      if (emailTo) {
+        try {
+          const runId = env.GITHUB_RUN_ID;
+          const repo = env.GITHUB_REPOSITORY;
+          const server = env.GITHUB_SERVER_URL ?? 'https://github.com';
+          const runUrl = runId && repo ? `${server}/${repo}/actions/runs/${runId}` : undefined;
+
+          const sent = await sendContentSyncEmail(emailTo, {
+            timestamp: summary.timestamp,
+            totalDuration: summary.totalDuration,
+            sources: summary.sources,
+            totals: summary.totals,
+            runUrl,
+            dryRun: args.dryRun,
+          });
+          console.log(
+            sent ? `Email sent to ${emailTo}` : 'Email sending skipped (SMTP not configured)'
+          );
+        } catch (err) {
+          console.error(
+            'Email notification failed (non-fatal):',
+            err instanceof Error ? err.message : err
+          );
+        }
+      }
     }
   }
 

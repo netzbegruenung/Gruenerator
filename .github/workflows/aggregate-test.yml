@@ -1,0 +1,31 @@
+name: Aggregate Smoke Test
+
+on:
+  pull_request:
+    paths:
+      - apps/api/aggregate-sync-summaries.ts
+      - apps/api/test-aggregate.ts
+      - apps/api/types/syncTypes.ts
+      - .github/workflows/content-sync.yml
+      - .github/workflows/aggregate-test.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run aggregator smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+
+      - name: Run aggregate test
+        run: npx tsx apps/api/test-aggregate.ts

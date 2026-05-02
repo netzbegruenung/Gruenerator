@@ -523,6 +523,12 @@ export function CanvasEditor({
     return await ref.current.captureCanvas();
   }, [currentPageIndex]);
 
+  const handleCaptureCanvasForAi = useCallback(async () => {
+    const ref = canvasRefsRef.current[currentPageIndex];
+    if (!ref?.current) return null;
+    return await ref.current.captureCanvasForAi();
+  }, [currentPageIndex]);
+
   const handleDownload = useCallback(
     (format: 'png' | 'jpeg' = 'png', pixelRatio = 2) => {
       const ref = canvasRefsRef.current[currentPageIndex];
@@ -758,6 +764,7 @@ export function CanvasEditor({
       shareToken: null,
       onCaptureCanvas: () => {},
       captureCanvasImage: handleCaptureCanvas,
+      captureCanvasImageForAi: handleCaptureCanvasForAi,
       onDownload: async () => {
         const ref = canvasRefsRef.current[currentPageIndex];
         if (ref?.current) {
@@ -796,6 +803,7 @@ export function CanvasEditor({
       exportAsPptx,
       exportAsPdf,
       handleCaptureCanvas,
+      handleCaptureCanvasForAi,
     ]
   );
 

@@ -53,7 +53,10 @@ export function createChatSection<TState, TActions extends CanvasAiActionsBase>(
     propsFactory: (
       state: TState,
       actions: TActions,
-      context?: { captureCanvasImage?: () => Promise<string | null> }
+      context?: {
+        captureCanvasImage?: () => Promise<string | null>;
+        captureCanvasImageForAi?: () => Promise<string | null>;
+      }
     ): ChatSectionProps => {
       const aiEdit: CanvasAiEditBridge | undefined = capabilities
         ? {
@@ -72,7 +75,7 @@ export function createChatSection<TState, TActions extends CanvasAiActionsBase>(
       return {
         canvasType,
         getSharepicText: () => buildSharepicText(state as Record<string, unknown>),
-        captureCanvasImage: context?.captureCanvasImage,
+        captureCanvasImage: context?.captureCanvasImageForAi ?? context?.captureCanvasImage,
         aiEdit,
       };
     },

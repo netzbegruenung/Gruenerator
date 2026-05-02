@@ -2,12 +2,16 @@ name: Content Sync
 
 on:
   schedule:
-    - cron: '0 4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 * * *' # Hourly 06-22 CET → landesverbaende only
+    - cron: '0 4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20 * * *' # Hourly 06-22 CET → landesverbände only
     - cron: '0 2 * * *' # Daily 03:00 CET → all sources
   workflow_dispatch:
     inputs:
       source:
-        description: 'Source group (empty = all). Options: landesverbaende, gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag'
+        description: 'Single non-LV source (gruenblog, gruene-at, kommunalwiki, boell-stiftung, bundestag). Mutually exclusive with landesverband.'
+        required: false
+        type: string
+      landesverband:
+        description: 'Single Landesverband shortName prefix (BB, BE, HH, LSA, MV, TH). Mutually exclusive with source.'
         required: false
         type: string
       dry_run:
@@ -33,37 +37,119 @@ jobs:
     name: Setup
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-      use_matrix: ${{ steps.set-matrix.outputs.use_matrix }}
+      lv_matrix: ${{ steps.set.outputs.lv_matrix }}
+      source_matrix: ${{ steps.set.outputs.source_matrix }}
+      single_kind: ${{ steps.set.outputs.single_kind }}
+      single_value: ${{ steps.set.outputs.single_value }}
     steps:
-      - id: set-matrix
+      - id: set
         env:
           SCHEDULE: ${{ github.event.schedule }}
-          SOURCE: ${{ inputs.source }}
+          INPUT_SOURCE: ${{ inputs.source }}
+          INPUT_LV: ${{ inputs.landesverband }}
         run: |
-          if [ -n "$SOURCE" ]; then
-            # Manual single-source run
-            echo 'use_matrix=false' >> $GITHUB_OUTPUT
-            echo "matrix={\"source\":[\"$SOURCE\"]}" >> $GITHUB_OUTPUT
-          elif [ "$SCHEDULE" = "0 2 * * *" ] || [ -z "$SCHEDULE" ]; then
-            # Daily 3 AM CET or manual dispatch (no source) → all sources
-            echo 'use_matrix=true' >> $GITHUB_OUTPUT
-            echo 'matrix={"source":["landesverbaende","gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag"]}' >> $GITHUB_OUTPUT
-          else
-            # Hourly schedule → landesverbaende only
-            echo 'use_matrix=false' >> $GITHUB_OUTPUT
-            echo 'matrix={"source":["landesverbaende"]}' >> $GITHUB_OUTPUT
+          ALL_LVS='["BB","BE","HH","LSA","MV","TH"]'
+          ALL_SOURCES='["gruenblog","gruene-at","kommunalwiki","boell-stiftung","bundestag"]'
+          EMPTY='[]'
+
+          if [ -n "$INPUT_SOURCE" ] && [ -n "$INPUT_LV" ]; then
+            echo "::error::Provide either 'source' or 'landesverband', not both."
+            exit 1
           fi
 
-  # ─── Matrix: one job per source group ──────────────────────────
-  sync:
-    name: Sync ${{ matrix.source }}
+          if [ -n "$INPUT_LV" ]; then
+            echo "single_kind=landesverband" >> "$GITHUB_OUTPUT"
+            echo "single_value=$INPUT_LV" >> "$GITHUB_OUTPUT"
+            echo "lv_matrix=$EMPTY" >> "$GITHUB_OUTPUT"
+            echo "source_matrix=$EMPTY" >> "$GITHUB_OUTPUT"
+          elif [ -n "$INPUT_SOURCE" ]; then
+            echo "single_kind=source" >> "$GITHUB_OUTPUT"
+            echo "single_value=$INPUT_SOURCE" >> "$GITHUB_OUTPUT"
+            echo "lv_matrix=$EMPTY" >> "$GITHUB_OUTPUT"
+            echo "source_matrix=$EMPTY" >> "$GITHUB_OUTPUT"
+          elif [ "$SCHEDULE" = "0 2 * * *" ] || [ -z "$SCHEDULE" ]; then
+            # Daily 3 AM CET or manual dispatch (no input) → both matrices
+            echo "single_kind=" >> "$GITHUB_OUTPUT"
+            echo "single_value=" >> "$GITHUB_OUTPUT"
+            echo "lv_matrix=$ALL_LVS" >> "$GITHUB_OUTPUT"
+            echo "source_matrix=$ALL_SOURCES" >> "$GITHUB_OUTPUT"
+          else
+            # Hourly schedule → LVs only
+            echo "single_kind=" >> "$GITHUB_OUTPUT"
+            echo "single_value=" >> "$GITHUB_OUTPUT"
+            echo "lv_matrix=$ALL_LVS" >> "$GITHUB_OUTPUT"
+            echo "source_matrix=$EMPTY" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ─── Per-Landesverband matrix: one job, one mail per LV ────────
+  sync-lv:
+    name: Sync LV ${{ matrix.lv }}
     needs: setup
-    if: needs.setup.outputs.use_matrix == 'true'
+    if: needs.setup.outputs.lv_matrix != '[]' && needs.setup.outputs.lv_matrix != ''
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
-      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+      matrix:
+        lv: ${{ fromJSON(needs.setup.outputs.lv_matrix) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
+
+      - name: Run LV sync (sends own email if anything changed)
+        id: sync
+        continue-on-error: true
+        run: |
+          ARGS="--landesverband ${{ matrix.lv }}"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
+          npx tsx apps/api/update-all-content.ts $ARGS
+        env:
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+          QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
+          QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
+          BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
+          BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
+          BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASS }}
+          EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
+          CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
+          # Unique per-matrix path so the aggregate job (download-artifact with
+          # merge-multiple=true) doesn't collide same-named files into one.
+          SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary-lv-${{ matrix.lv }}.json
+
+      - name: Upload summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-summary-lv-${{ matrix.lv }}
+          path: sync-summary-lv-${{ matrix.lv }}.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Fail if sync had errors
+        if: steps.sync.outcome == 'failure'
+        run: exit 1
+
+  # ─── Non-LV source matrix: aggregator handles email ────────────
+  sync-source:
+    name: Sync ${{ matrix.source }}
+    needs: setup
+    if: needs.setup.outputs.source_matrix != '[]' && needs.setup.outputs.source_matrix != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        source: ${{ fromJSON(needs.setup.outputs.source_matrix) }}
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -95,14 +181,15 @@ jobs:
           BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
           BREVO_SMTP_PASS: ${{ secrets.BREVO_SMTP_PASS }}
           EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
-          SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary.json
+          # Unique per-matrix path — see sync-lv comment above.
+          SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary-source-${{ matrix.source }}.json
 
       - name: Upload summary
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: sync-summary-${{ matrix.source }}
-          path: sync-summary.json
+          name: sync-summary-source-${{ matrix.source }}
+          path: sync-summary-source-${{ matrix.source }}.json
           if-no-files-found: warn
           retention-days: 7
 
@@ -110,11 +197,11 @@ jobs:
         if: steps.sync.outcome == 'failure'
         run: exit 1
 
-  # ─── Aggregate matrix results ──────────────────────────────────
+  # ─── Aggregate digest: one mail to admin covering ALL artifacts ─
   aggregate:
     name: Aggregate & Report
-    needs: [setup, sync]
-    if: always() && needs.setup.outputs.use_matrix == 'true'
+    needs: [setup, sync-lv, sync-source]
+    if: always() && (needs.setup.outputs.lv_matrix != '[]' || needs.setup.outputs.source_matrix != '[]')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -156,7 +243,6 @@ jobs:
             exit 0
           fi
 
-          # Parse JSON summary
           TIMESTAMP=$(jq -r '.timestamp' "$SUMMARY_FILE")
           DRY_RUN=$(jq -r '.dryRun' "$SUMMARY_FILE")
           FORCE=$(jq -r '.force' "$SUMMARY_FILE")
@@ -170,7 +256,6 @@ jobs:
           ERRORS=$(jq -r '.totals.errors' "$SUMMARY_FILE")
           DURATION=$(jq -r '.totalDuration' "$SUMMARY_FILE")
 
-          # Determine status
           if [ "$FAILED" -gt 0 ] || [ "$ERRORS" -gt 0 ]; then
             STATUS_ICON="⚠️"
           else
@@ -183,7 +268,6 @@ jobs:
             TITLE="$STATUS_ICON Content Sync Report"
           fi
 
-          # Build summary
           {
             echo "## $TITLE"
             echo ""
@@ -212,7 +296,6 @@ jobs:
 
             echo ""
 
-            # Show failed sources with error messages
             FAILED_SOURCES=$(jq -r '.sources[] | select(.status == "failed") | "- **\(.name):** \(.error)"' "$SUMMARY_FILE")
             if [ -n "$FAILED_SOURCES" ]; then
               echo "### ❌ Failed Sources"
@@ -221,7 +304,6 @@ jobs:
               echo ""
             fi
 
-            # Show sources with new content
             NEW_CONTENT=$(jq -r '.sources[] | select(.stored > 0) | "- **\(.name):** +\(.stored) new documents"' "$SUMMARY_FILE")
             if [ -n "$NEW_CONTENT" ]; then
               echo "### 📥 New Content"
@@ -252,11 +334,11 @@ jobs:
           delete-branch: true
           labels: automated
 
-  # ─── Single-source run (no matrix overhead) ────────────────────
+  # ─── Single-source / single-LV manual dispatch ─────────────────
   sync-single:
-    name: Sync ${{ inputs.source }}
+    name: Sync ${{ needs.setup.outputs.single_value }}
     needs: setup
-    if: needs.setup.outputs.use_matrix == 'false'
+    if: needs.setup.outputs.single_kind != ''
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -271,13 +353,9 @@ jobs:
       - name: Run content sync
         id: sync
         continue-on-error: true
-        run: |
-          ARGS="--source ${{ inputs.source || 'landesverbaende' }}"
-          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
-          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
-          echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
-          npx tsx apps/api/update-all-content.ts $ARGS
         env:
+          KIND: ${{ needs.setup.outputs.single_kind }}
+          VAL: ${{ needs.setup.outputs.single_value }}
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
@@ -291,6 +369,17 @@ jobs:
           EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
           CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
           SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary.json
+        run: |
+          if [ "$KIND" = "landesverband" ]; then
+            FLAG="--landesverband"
+          else
+            FLAG="--source"
+          fi
+          ARGS="$FLAG $VAL"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
+          echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
+          npx tsx apps/api/update-all-content.ts $ARGS
 
       - name: Generate job summary
         if: always()
@@ -312,7 +401,7 @@ jobs:
           DURATION=$(jq -r '.totalDuration' "$SUMMARY_FILE")
 
           if [ "$ERRORS" -gt 0 ]; then STATUS_ICON="⚠️"; else STATUS_ICON="✅"; fi
-          if [ "$DRY_RUN" = "true" ]; then TITLE="$STATUS_ICON ${{ inputs.source }} — Dry Run"; else TITLE="$STATUS_ICON ${{ inputs.source }}"; fi
+          if [ "$DRY_RUN" = "true" ]; then TITLE="$STATUS_ICON ${{ needs.setup.outputs.single_value }} — Dry Run"; else TITLE="$STATUS_ICON ${{ needs.setup.outputs.single_value }}"; fi
 
           {
             echo "## $TITLE"
