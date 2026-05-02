@@ -49,9 +49,15 @@ export interface ModelConfig {
 
 export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   // 'mistral' is intentionally absent — it uses agent defaults (like 'auto')
-  // Legacy IDs kept for backward compatibility (old stored client preferences)
-  'mistral-large': { provider: 'mistral', model: 'mistral-large-latest', contextWindow: 128000 },
-  'mistral-medium': { provider: 'mistral', model: 'mistral-medium-latest', contextWindow: 128000 },
+  'mistral-medium-3.5': {
+    provider: 'mistral',
+    model: 'mistral-medium-2604',
+    contextWindow: 128000,
+    fallback: 'gemma-litellm',
+  },
+  // Legacy IDs — repointed to current Mistral generation (Medium 3.5)
+  'mistral-large': { provider: 'mistral', model: 'mistral-medium-2604', contextWindow: 128000 },
+  'mistral-medium': { provider: 'mistral', model: 'mistral-medium-2604', contextWindow: 128000 },
   'pixtral-large': { provider: 'mistral', model: 'pixtral-large-latest', contextWindow: 128000 },
   litellm: {
     provider: 'litellm',

@@ -74,8 +74,8 @@ interface AIRequestBody {
 const DOCS_AI_MODELS: Record<AgentConfig['provider'], string> = {
   litellm: 'gpt-oss:120b',
   regolo: 'mistral-small-4-119b',
-  mistral: 'mistral-large-latest',
-  anthropic: 'mistral-large-latest',
+  mistral: 'mistral-medium-2604',
+  anthropic: 'mistral-medium-2604',
 };
 
 /**
@@ -101,8 +101,7 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
 
     log.info(`[DocsAI] Tool definitions received: ${Object.keys(toolDefinitions).join(', ')}`);
 
-    // Order: mistral first (mistral-large-latest — gold standard, the model
-    // BlockNote's xl-ai prompts were authored against), then regolo
+    // Order: mistral first (mistral-medium-2604 / Medium 3.5), then regolo
     // (mistral-small-4-119b), litellm last (gpt-oss).
     const providerChain: AgentConfig['provider'][] = ['mistral', 'regolo', 'litellm'];
     const provider = providerChain.find((p) => isProviderConfigured(p));
