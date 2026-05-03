@@ -71,6 +71,8 @@ function buildCanvasShareMetadata(
       sunflowerVisible: canvasState.sunflowerVisible as boolean | undefined,
       sunflowerOpacity: canvasState.sunflowerOpacity as number | undefined,
       balkenOpacity: canvasState.balkenOpacity as number | undefined,
+      currentImageSrc: canvasState.currentImageSrc as string | undefined,
+      backgroundImageOpacity: canvasState.backgroundImageOpacity as number | undefined,
       imageOffset: canvasState.imageOffset as { x: number; y: number } | undefined,
       imageScale: canvasState.imageScale as number | undefined,
       selectedIcons: canvasState.selectedIcons as string[] | undefined,
@@ -87,6 +89,8 @@ function buildCanvasShareMetadata(
     metadata.styling = {
       fontSize: canvasState.fontSize as number | undefined,
       colorScheme: canvasState.colorSchemeId as string | undefined,
+      currentImageSrc: canvasState.currentImageSrc as string | undefined,
+      backgroundImageOpacity: canvasState.backgroundImageOpacity as number | undefined,
       imageOffset: canvasState.imageOffset as { x: number; y: number } | undefined,
       imageScale: canvasState.imageScale as number | undefined,
       sunflowerPos: canvasState.sunflowerPos as { x: number; y: number } | null | undefined,
@@ -108,6 +112,8 @@ function buildCanvasShareMetadata(
     metadata.styling = {
       fontSize: canvasState.fontSize as number | undefined,
       colorScheme: canvasState.colorSchemeId as string | undefined,
+      currentImageSrc: canvasState.currentImageSrc as string | undefined,
+      backgroundImageOpacity: canvasState.backgroundImageOpacity as number | undefined,
       imageOffset: canvasState.imageOffset as { x: number; y: number } | undefined,
       imageScale: canvasState.imageScale as number | undefined,
       sunflowerPos: canvasState.sunflowerPos as { x: number; y: number } | null | undefined,
