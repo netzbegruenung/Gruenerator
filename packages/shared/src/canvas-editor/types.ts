@@ -14,14 +14,6 @@ export interface CanvasState {
   backgroundColor: string;
 }
 
-export interface ProfilbildCanvasProps {
-  transparentImage: string;
-  backgroundColor?: string;
-  canvasSize?: number;
-  onExport: (base64: string) => void;
-  onCancel: () => void;
-}
-
 // =============================================================================
 // LAYER TYPES
 // =============================================================================

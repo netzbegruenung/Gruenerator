@@ -54,6 +54,12 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     description: 'Veranstaltungsankündigung',
     previewImage: '/imagine/previews/veranstaltung-preview.webp',
   },
+  'veranstaltung-plakat': {
+    id: 'veranstaltung-plakat',
+    label: 'Event-Plakat',
+    description: 'Veranstaltungsankündigung im Plakat-Format',
+    previewImage: '/imagine/previews/veranstaltung-plakat-preview.svg',
+  },
   slider: {
     id: 'slider',
     label: 'Slider',
@@ -84,6 +90,12 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     description: 'Titel mit Text, optional zweispaltig',
     previewImage: '/imagine/previews/pres-content-preview.webp',
   },
+  profilbild: {
+    id: 'profilbild',
+    label: 'Profilbild',
+    description: 'Profilbild mit transparentem Vordergrund auf farbigem Hintergrund',
+    previewImage: '/imagine/previews/profilbild-preview.webp',
+  },
 };
 
 /**
@@ -105,12 +117,22 @@ export function getAllTemplates(): TemplateInfo[] {
  * Used to determine if background can be inherited
  */
 export function templateSupportsImageBackground(configId: CanvasConfigId): boolean {
-  return ['zitat', 'simple', 'veranstaltung', 'dreizeilen', 'freeform', 'pres-image'].includes(configId);
+  return [
+    'zitat',
+    'simple',
+    'veranstaltung',
+    'veranstaltung-plakat',
+    'dreizeilen',
+    'freeform',
+    'pres-image',
+  ].includes(configId);
 }
 
 /**
  * Check if a template supports solid color backgrounds
  */
 export function templateSupportsSolidBackground(configId: CanvasConfigId): boolean {
-  return ['info', 'zitat-pure', 'slider', 'freeform', 'pres-title', 'pres-content'].includes(configId);
+  return ['info', 'zitat-pure', 'slider', 'freeform', 'pres-title', 'pres-content'].includes(
+    configId
+  );
 }

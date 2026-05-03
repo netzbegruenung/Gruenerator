@@ -13,6 +13,7 @@ import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../stores/authStore';
 
 import { ShareCanvasDialog } from './components/ShareCanvasDialog';
+import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
 interface CanvasDocument {
   id: string;
@@ -144,21 +145,25 @@ function CollabCanvasStudioContent() {
   }
 
   return (
-    <div className="relative flex flex-col h-dvh bg-background">
-      <div className="flex-1 min-h-0">
-        <MasterCanvasEditor
-          type={canvas.template_type}
-          initialState={canvas.initial_state}
-          onExport={handleExport}
-          onCancel={handleCancel}
-          collaborative={collab.ydoc ? { ydoc: collab.ydoc, isSynced: collab.isSynced } : undefined}
-          chromeCenter={chromeCenter}
-          chromeRight={chromeRight}
-          onInvitePeople={() => setShareOpen(true)}
-        />
+    <WebCanvasEditorProvider>
+      <div className="relative flex flex-col h-dvh bg-background">
+        <div className="flex-1 min-h-0">
+          <MasterCanvasEditor
+            type={canvas.template_type}
+            initialState={canvas.initial_state}
+            onExport={handleExport}
+            onCancel={handleCancel}
+            collaborative={
+              collab.ydoc ? { ydoc: collab.ydoc, isSynced: collab.isSynced } : undefined
+            }
+            chromeCenter={chromeCenter}
+            chromeRight={chromeRight}
+            onInvitePeople={() => setShareOpen(true)}
+          />
+        </div>
+        <ShareCanvasDialog canvasId={canvas.id} open={shareOpen} onOpenChange={setShareOpen} />
       </div>
-      <ShareCanvasDialog canvasId={canvas.id} open={shareOpen} onOpenChange={setShareOpen} />
-    </div>
+    </WebCanvasEditorProvider>
   );
 }
 

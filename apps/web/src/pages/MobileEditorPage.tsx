@@ -1,7 +1,7 @@
 import { MasterCanvasEditor } from '@gruenerator/canvas-editor';
 import { useState, useEffect, useCallback } from 'react';
 
-import { CanvasChatProvider } from '../features/image-studio/CanvasChatProvider';
+import { WebCanvasEditorProvider } from '../features/image-studio/WebCanvasEditorProvider';
 import { useAuthStore } from '../stores/authStore';
 
 interface MobileEditorData {
@@ -88,7 +88,7 @@ export default function MobileEditorPage() {
   };
 
   return (
-    <CanvasChatProvider>
+    <WebCanvasEditorProvider>
       <MasterCanvasEditor
         type={data.type}
         initialState={initialState}
@@ -96,7 +96,7 @@ export default function MobileEditorPage() {
         onExport={handleExport}
         onCancel={handleCancel}
       />
-    </CanvasChatProvider>
+    </WebCanvasEditorProvider>
   );
 }
 

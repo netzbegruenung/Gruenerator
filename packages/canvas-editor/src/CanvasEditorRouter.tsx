@@ -4,8 +4,6 @@ import './canvas-editor.css';
 import { useYjsFormState } from './collab/useYjsFormState';
 import { CanvasEditor } from './components/CanvasEditor';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
-import { ProfilbildCanvas } from './ProfilbildCanvas';
-
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
 import type { MobileBridgeProps } from './hooks/useMobileBridge';
 import type { InitialPageDef } from './hooks/usePageManager';
@@ -125,6 +123,7 @@ export function ControllableCanvasWrapper({
       'zitat-pure',
       'info',
       'veranstaltung',
+      'veranstaltung-plakat',
       'simple',
       'dreizeilen',
       'slider',
@@ -133,6 +132,7 @@ export function ControllableCanvasWrapper({
       'pres-image',
       'pres-content',
       'presentation',
+      'profilbild',
     ].includes(type);
 
     // 'presentation' is an alias — load the default pres-title config
@@ -152,15 +152,14 @@ export function ControllableCanvasWrapper({
     }
   }, [type]);
 
-  // Fire onReady when config is loaded (or immediately for profilbild)
+  // Fire onReady when config is loaded
   useEffect(() => {
     if (readyFiredRef.current) return;
-    const isProfilbild = type === 'profilbild';
-    if (isProfilbild || (!configLoading && config)) {
+    if (!configLoading && config) {
       readyFiredRef.current = true;
       onReady?.();
     }
-  }, [configLoading, config, type, onReady]);
+  }, [configLoading, config, onReady]);
 
   // Only update state and key when initialState CONTENT actually changes
   // This prevents remounting when parent re-renders with same values but new object reference.
@@ -189,12 +188,6 @@ export function ControllableCanvasWrapper({
     },
     [internalState, onStateChange, isCollab, updateFormState]
   );
-
-  const commonProps = {
-    key: componentKey,
-    onExport,
-    onCancel,
-  };
 
   // Create callbacks object for GenericCanvas
   const createCallbacks = useCallback(
@@ -235,6 +228,7 @@ export function ControllableCanvasWrapper({
             body: effectiveState.body || '',
           };
         case 'veranstaltung':
+        case 'veranstaltung-plakat':
           return {
             eventTitle: effectiveState.eventTitle || '',
             beschreibung: effectiveState.beschreibung || '',
@@ -281,6 +275,11 @@ export function ControllableCanvasWrapper({
             bodyText2: effectiveState.bodyText2 || '',
             currentImageSrc: imageSrc || '',
           };
+        case 'profilbild':
+          return {
+            transparentImage: imageSrc || '',
+            backgroundColor: (effectiveState.backgroundColor as string) || '',
+          };
         default:
           return effectiveState;
       }
@@ -295,6 +294,7 @@ export function ControllableCanvasWrapper({
         case 'info':
           return createCallbacks(['header', 'body']);
         case 'veranstaltung':
+        case 'veranstaltung-plakat':
           return createCallbacks(['eventTitle', 'beschreibung']);
         case 'simple':
           return createCallbacks(['headline', 'subtext']);
@@ -320,6 +320,7 @@ export function ControllableCanvasWrapper({
       case 'zitat-pure':
       case 'info':
       case 'veranstaltung':
+      case 'veranstaltung-plakat':
       case 'simple':
       case 'slider':
       case 'dreizeilen':
@@ -328,6 +329,7 @@ export function ControllableCanvasWrapper({
       case 'pres-image':
       case 'pres-content':
       case 'presentation':
+      case 'profilbild':
         if (!config) return <div>Lädt Konfiguration...</div>;
 
         return (
@@ -350,9 +352,6 @@ export function ControllableCanvasWrapper({
             onInvitePeople={onInvitePeople}
           />
         );
-
-      case 'profilbild':
-        return <ProfilbildCanvas {...commonProps} transparentImage={imageSrc || ''} />;
 
       default:
         return <div>Editor type &quot;{type}&quot; not found.</div>;

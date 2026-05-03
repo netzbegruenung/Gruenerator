@@ -1,5 +1,6 @@
 import { useGenerateSocialPost } from '../../components/hooks/useGenerateSocialPost';
 
+import { CanvasInlineChatSection } from './CanvasInlineChatSection';
 import {
   fetchStockImages,
   fetchStockImageAsFile,
@@ -8,6 +9,7 @@ import {
   trackUnsplashDownloadLive,
   fetchUnsplashImageAsFile,
   openUnsplashSearch,
+  generateAiBackgroundImage,
 } from './services/imageSourceService';
 import { useGenerateCanvasSuggestions } from './useGenerateCanvasSuggestions';
 
@@ -21,8 +23,10 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   trackUnsplashDownloadLive,
   fetchUnsplashImageAsFile,
   openUnsplashSearch,
+  generateAiBackgroundImage,
   useGenerateSocialPost,
   useGenerateCanvasSuggestions,
+  ChatSectionContent: CanvasInlineChatSection,
   apiBaseUrl: (import.meta.env.VITE_API_URL as string | undefined) ?? '',
   iconifyApiUrl: (import.meta.env.VITE_ICONIFY_API_URL as string | undefined) ?? '',
 };
