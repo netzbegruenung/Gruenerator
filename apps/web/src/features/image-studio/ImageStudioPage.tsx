@@ -107,6 +107,16 @@ const ImageStudioPageContent: React.FC = () => {
   const [_formErrors, setFormErrors] = useState<FormErrors>({});
   const cloneInitiatedRef = useRef(false);
 
+  // When opening a saved sharepic (gallery edit) or a cloned template, the
+  // store's currentStep is INPUT until loadGalleryEditData() resolves and
+  // flips it to CANVAS_EDIT. Without a gate, the InputStep paints for one
+  // frame before being replaced by the canvas — a visible flash. The lazy
+  // initializer ensures the spinner is rendered in the very first commit.
+  const [isHydratingExisting, setIsHydratingExisting] = useState<boolean>(() => {
+    const state = location.state as (GalleryEditLocationState & TemplateLocationState) | null;
+    return Boolean(state?.galleryEditMode || state?.templateMode);
+  });
+
   const typeConfig = useMemo(() => getTypeConfig(type || ''), [type]);
 
   useEffect(() => {
@@ -173,10 +183,13 @@ const ImageStudioPageContent: React.FC = () => {
         title: state.title,
       };
 
-      await loadGalleryEditData(editData);
-
-      // Clear location state to prevent reloading on refresh
-      window.history.replaceState({}, document.title);
+      try {
+        await loadGalleryEditData(editData);
+        // Clear location state to prevent reloading on refresh
+        window.history.replaceState({}, document.title);
+      } finally {
+        setIsHydratingExisting(false);
+      }
     };
 
     void loadGalleryEdit();
@@ -197,14 +210,18 @@ const ImageStudioPageContent: React.FC = () => {
         styling: state.styling,
       };
 
-      await loadGalleryEditData(editData);
+      try {
+        await loadGalleryEditData(editData);
 
-      // Store templateCreator for display in canvas editor
-      if (state.templateCreator) {
-        updateFormData({ templateCreator: state.templateCreator });
+        // Store templateCreator for display in canvas editor
+        if (state.templateCreator) {
+          updateFormData({ templateCreator: state.templateCreator });
+        }
+
+        window.history.replaceState({}, document.title);
+      } finally {
+        setIsHydratingExisting(false);
       }
-
-      window.history.replaceState({}, document.title);
     };
 
     void loadTemplateData();
@@ -586,6 +603,27 @@ const ImageStudioPageContent: React.FC = () => {
       >
         <Spinner size="medium" />
         <p>Vorlage wird geladen...</p>
+      </div>
+    );
+  }
+
+  // Show loading state while hydrating an existing sharepic (gallery edit
+  // or template clone). Without this guard, InputStep paints for one frame
+  // before loadGalleryEditData() flips currentStep to CANVAS_EDIT.
+  if (isHydratingExisting) {
+    return (
+      <div
+        className="container"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '50vh',
+          gap: 'var(--spacing-medium)',
+        }}
+      >
+        <Spinner size="medium" />
       </div>
     );
   }
