@@ -1,6 +1,16 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import {
+  MODEL_OPTIONS,
+  MODEL_BY_ID,
+  type ModelId,
+  type ModelOption,
+  type Provider,
+} from '@gruenerator/shared/models';
 import type { ChatApiClient } from '../context/ChatContext';
+
+export { MODEL_OPTIONS };
+export type { ModelId, ModelOption, Provider };
 
 export interface CompactionState {
   summary: string | null;
@@ -28,77 +38,10 @@ interface TriggerCompactionResponse {
   compactionState: CompactionState;
 }
 
-export type Provider = 'mistral' | 'litellm' | 'regolo';
-
-export type ModelId =
-  | 'gpt-oss-regolo'
-  | 'litellm'
-  | 'gemma-litellm'
-  | 'qwen-regolo'
-  | 'qwen3.6-regolo';
-
 export type ToolKey = 'search' | 'web' | 'examples' | 'research';
 
 export type ThreadMode = 'chat' | 'notebook' | 'search' | 'eigener';
 export type SearchMode = 'web' | 'deep';
-
-export interface ModelOption {
-  id: ModelId;
-  name: string;
-  description: string;
-  model: string;
-  provider: Provider;
-  icon: 'sparkles' | 'server' | 'zap' | 'brain';
-  warning?: string;
-}
-
-const QWEN_WARNING =
-  'Chinesisches Modell – unterliegt staatlicher Zensur. Antworten zu politisch sensiblen Themen können eingeschränkt sein.';
-
-export const MODEL_OPTIONS: ModelOption[] = [
-  {
-    id: 'gemma-litellm',
-    name: 'Gemma 4',
-    description: 'Leichtgewichtig, antwortet schnell',
-    model: 'gpt-oss:120b',
-    provider: 'litellm',
-    icon: 'zap',
-  },
-  {
-    id: 'gpt-oss-regolo',
-    name: 'GPT-OSS',
-    description: 'Offenes Modell über Regolo',
-    model: 'gpt-oss-120b',
-    provider: 'regolo',
-    icon: 'sparkles',
-  },
-  {
-    id: 'litellm',
-    name: 'Verdigado',
-    description: 'Selbst gehostet bei Verdigado',
-    model: 'gpt-oss:120b',
-    provider: 'litellm',
-    icon: 'server',
-  },
-  {
-    id: 'qwen-regolo',
-    name: 'Qwen 120B',
-    description: 'Groß & vielseitig, für komplexe Aufgaben',
-    model: 'qwen3.5-122b',
-    provider: 'regolo',
-    icon: 'brain',
-    warning: QWEN_WARNING,
-  },
-  {
-    id: 'qwen3.6-regolo',
-    name: 'Qwen 3.6 27B',
-    description: 'Kompaktes Reasoning-Modell, denkt sichtbar mit',
-    model: 'qwen3.6-27b',
-    provider: 'regolo',
-    icon: 'brain',
-    warning: QWEN_WARNING,
-  },
-];
 
 export interface ProviderOption {
   id: Provider;
@@ -132,6 +75,7 @@ interface AgentState {
   selectedProvider: Provider;
   selectedModel: ModelId;
   currentThreadId: string | null;
+  currentThreadTitle: string | null;
   enabledTools: Record<ToolKey, boolean>;
   selectedNotebookId: string;
   compactionState: CompactionState;
@@ -147,11 +91,11 @@ interface AgentState {
   customSystemPrompt: string | null;
   customRoleName: string | null;
   customEnabledTools: Record<string, boolean> | null;
-  mentionablesActivated: boolean;
   setSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: ModelId) => void;
   setCurrentThread: (threadId: string | null) => void;
+  setCurrentThreadTitle: (title: string | null) => void;
   toggleTool: (tool: ToolKey) => void;
   setAllTools: (enabled: boolean) => void;
   setSelectedNotebook: (notebookId: string) => void;
@@ -170,7 +114,6 @@ interface AgentState {
   setCustomEnabledTools: (tools: Record<string, boolean> | null) => void;
   loadThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
   saveThreadSettings: (threadId: string, apiClient: ChatApiClient) => Promise<void>;
-  activateMentionables: () => void;
 }
 
 const DEFAULT_ENABLED_TOOLS: Record<ToolKey, boolean> = {
@@ -191,8 +134,9 @@ export const useAgentStore = create<AgentState>()(
     (set) => ({
       selectedAgentId: null,
       selectedProvider: 'litellm',
-      selectedModel: 'gemma-litellm',
+      selectedModel: 'gemma-4',
       currentThreadId: null,
+      currentThreadTitle: null,
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
       selectedNotebookId: 'gruenerator-notebook',
       compactionState: { ...DEFAULT_COMPACTION_STATE },
@@ -208,7 +152,6 @@ export const useAgentStore = create<AgentState>()(
       customSystemPrompt: null,
       customRoleName: null,
       customEnabledTools: null,
-      mentionablesActivated: false,
 
       setSelectedAgent: (agentId) => set({ selectedAgentId: agentId }),
 
@@ -225,11 +168,14 @@ export const useAgentStore = create<AgentState>()(
         if (useAgentStore.getState().currentThreadId === threadId) return;
         set({
           currentThreadId: threadId,
+          currentThreadTitle: null,
           compactionState: { ...DEFAULT_COMPACTION_STATE },
           messageCount: 0,
           needsCompaction: false,
         });
       },
+
+      setCurrentThreadTitle: (title) => set({ currentThreadTitle: title }),
 
       toggleTool: (tool) =>
         set((state) => ({
@@ -356,8 +302,6 @@ export const useAgentStore = create<AgentState>()(
           console.error('Failed to save thread settings:', error);
         }
       },
-
-      activateMentionables: () => set({ mentionablesActivated: true }),
     }),
     {
       name: 'gruenerator-chat-store',
@@ -374,7 +318,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 6,
+      version: 8,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -398,14 +342,10 @@ export const useAgentStore = create<AgentState>()(
         if (version < 5) {
           const validIds = new Set(['gpt-oss-regolo', 'litellm', 'gemma-regolo', 'qwen-regolo']);
           if (!validIds.has(state.selectedModel as string)) {
-            // Default to current valid ID; v6 below remaps any legacy
-            // 'gemma-regolo' that survives this point.
             state.selectedModel = 'gemma-litellm';
           }
         }
         if (version < 6) {
-          // Regolo's gemma4-31b endpoint hangs upstream; route Gemma through
-          // LiteLLM (which serves the same gemma4 family) instead.
           if (state.selectedModel === 'gemma-regolo') {
             state.selectedModel = 'gemma-litellm';
           }
@@ -419,14 +359,51 @@ export const useAgentStore = create<AgentState>()(
           if (!validIds.has(state.selectedModel as string)) {
             state.selectedModel = 'gemma-litellm';
           }
-          const providerByModel: Record<string, string> = {
-            'gpt-oss-regolo': 'regolo',
-            litellm: 'litellm',
-            'gemma-litellm': 'litellm',
-            'qwen-regolo': 'regolo',
-            'qwen3.6-regolo': 'regolo',
+        }
+        if (version < 7) {
+          // v7 originally pinned offByDefault models to 'gemma-litellm'. After
+          // the v8 collapse below, that ID gets remapped to 'gemma-4', so
+          // this branch effectively pins offByDefault models to the new
+          // gemma-4 lane via the v8 step.
+          const current = state.selectedModel as string;
+          if (current === 'qwen-regolo' || current === 'qwen3.6-regolo') {
+            state.selectedModel = 'gemma-litellm';
+          }
+        }
+        if (version < 8) {
+          // Collapse legacy IDs onto the new overflow lanes. The old picker
+          // had three options ('Gemma 4', 'GPT-OSS', 'Verdigado') that
+          // resolved to only two real targets — now unified into two
+          // load-balanced lanes (Verdigado primary, Regolo overflow).
+          const remap: Record<string, string> = {
+            'gemma-litellm': 'gemma-4',
+            'gemma-regolo': 'gemma-4',
+            'gpt-oss-regolo': 'gpt-oss',
+            litellm: 'gpt-oss',
           };
-          state.selectedProvider = providerByModel[state.selectedModel as string] ?? 'litellm';
+          const current = state.selectedModel as string;
+          if (current in remap) {
+            state.selectedModel = remap[current];
+            state.selectedProvider = 'litellm';
+          }
+          // Anything still not in the new catalog → default to gemma-4.
+          const validIds = new Set([
+            'gpt-oss',
+            'gemma-4',
+            'mistral-large',
+            'qwen-regolo',
+            'qwen3.6-regolo',
+          ]);
+          if (!validIds.has(state.selectedModel as string)) {
+            state.selectedModel = 'gemma-4';
+            state.selectedProvider = 'litellm';
+          }
+          // Re-apply the v7 offByDefault pin against the new ID set.
+          const def = MODEL_BY_ID[state.selectedModel as ModelId];
+          if (def?.offByDefault) {
+            state.selectedModel = 'gemma-4';
+            state.selectedProvider = 'litellm';
+          }
         }
         return state;
       },

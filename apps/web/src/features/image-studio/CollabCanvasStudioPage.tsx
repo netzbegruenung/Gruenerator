@@ -2,10 +2,11 @@ import { useCanvasCollaboration, MasterCanvasEditor } from '@gruenerator/canvas-
 import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
+import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import apiClient from '../../components/utils/apiClient';
@@ -71,9 +72,7 @@ function CollabCanvasStudioContent() {
     [id, queryClient]
   );
 
-  useEffect(() => {
-    if (canvas?.title) document.title = canvas.title;
-  }, [canvas?.title]);
+  useDocumentTitle(canvas?.title);
 
   const collaborationUser = useMemo(
     () =>
