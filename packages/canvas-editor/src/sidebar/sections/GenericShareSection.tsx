@@ -16,7 +16,8 @@ import {
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 import { MdTextFields } from 'react-icons/md';
 
-import Spinner from '../../common/Spinner';
+import { Skeleton } from '@gruenerator/ui';
+
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useAutoSaveStore } from '../../stores/useAutoSaveStore';
 import { SubsectionTabBar } from '../SubsectionTabBar';
@@ -256,7 +257,7 @@ function DownloadShareSubsection({
             type="button"
           >
             {downloadState === 'capturing' ? (
-              <Spinner size="small" />
+              <Skeleton className="size-4 rounded-full" />
             ) : downloadState === 'success' ? (
               <FaCheck />
             ) : (
@@ -291,7 +292,7 @@ function DownloadShareSubsection({
                 >
                   {isMultiExporting ? (
                     <>
-                      <Spinner size="small" />
+                      <Skeleton className="size-4 rounded-full" />
                       <span>Exportiere...</span>
                     </>
                   ) : (
@@ -344,7 +345,7 @@ function DownloadShareSubsection({
               type="button"
             >
               {isSharing ? (
-                <Spinner size="small" />
+                <Skeleton className="size-4 rounded-full" />
               ) : shareSuccess ? (
                 <FaCheck />
               ) : (
@@ -402,7 +403,7 @@ function DownloadShareSubsection({
 
       {downloadState === 'success' && autoSaveStatus === 'saving' && (
         <div className="flex items-center gap-2 text-sm text-foreground-muted">
-          <Spinner size="small" />
+          <Skeleton className="size-3 rounded-full" />
           <span>Wird synchronisiert...</span>
         </div>
       )}
@@ -499,7 +500,7 @@ function TemplateSubsection({
         >
           {isSaving ? (
             <>
-              <Spinner size="small" />
+              <Skeleton className="size-4 rounded-full" />
               Speichern...
             </>
           ) : (
@@ -588,7 +589,7 @@ function InstagramTextSubsection({
         >
           {loading ? (
             <>
-              <Spinner size="small" />
+              <Skeleton className="size-4 rounded-full" />
               Generiere...
             </>
           ) : (

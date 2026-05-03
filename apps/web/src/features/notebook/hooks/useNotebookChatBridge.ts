@@ -17,6 +17,9 @@ interface UseNotebookChatBridgeOptions {
   persistMessages?: boolean;
   welcomeMessage?: string;
   freshConversation?: boolean;
+  // Default false. Setting true seeds initialMessages from cache so the chat
+  // view (not the landing page) is shown — used by the sidebar resume click.
+  resumeFromCache?: boolean;
 }
 
 function convertToThreadMessages(messages: NotebookChatMessage[]): ThreadMessageLike[] {
@@ -64,6 +67,7 @@ export function useNotebookChatBridge({
   persistMessages = true,
   welcomeMessage,
   freshConversation,
+  resumeFromCache = false,
 }: UseNotebookChatBridgeOptions) {
   const user = useAuthStore((s) => s.user);
   const { setGeneratedText, setGeneratedTextMetadata } = useGeneratedTextStore();
@@ -93,11 +97,16 @@ export function useNotebookChatBridge({
   // Read store imperatively — initialMessages is a seed value, not a live subscription.
   // This breaks the feedback loop: onComplete → addMessage → store update no longer
   // triggers initialMessages recalculation → no runtime reinitialization.
-  const initialMessages = useMemo(() => {
+  const initialMessages = useMemo<ThreadMessageLike[]>(() => {
     if (freshConversation && !freshHandled.current) return [];
     if (!persistMessages) return [];
-    const stored = useNotebookChatStore.getState().chats[collectionKey]?.messages || [];
-    if (stored.length === 0 && welcomeMessage) {
+
+    if (resumeFromCache) {
+      const stored = useNotebookChatStore.getState().chats[collectionKey]?.messages || [];
+      if (stored.length > 0) return convertToThreadMessages(stored);
+    }
+
+    if (welcomeMessage) {
       return convertToThreadMessages([
         {
           type: 'assistant',
@@ -107,8 +116,8 @@ export function useNotebookChatBridge({
         },
       ]);
     }
-    return convertToThreadMessages(stored);
-  }, [persistMessages, collectionKey, welcomeMessage, freshConversation]);
+    return [];
+  }, [persistMessages, collectionKey, welcomeMessage, freshConversation, resumeFromCache]);
 
   const onComplete = useCallback(
     (metadata: NotebookMessageMetadata) => {

@@ -113,7 +113,7 @@ export async function searchExecutorNode(
   if (state.searchSources.includes('web')) {
     searchPromises.push(
       executeWebSearchParallel(searchQuery, aiWorkerPool)
-        .then((results) => ({ source: 'web', results }))
+        .then(({ results }) => ({ source: 'web', results }))
         .catch((err: unknown) => {
           log.warn(
             `[SearchExecutor] Web search failed: ${err instanceof Error ? err.message : err}`

@@ -5,6 +5,7 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useFirstName } from '../../hooks/useFirstName';
+import { useAuthStore } from '../../stores/authStore';
 
 import CreatorSection from './components/CreatorSection';
 import NotebooksSection from './components/NotebooksSection';
@@ -183,6 +184,8 @@ Sun.displayName = 'Sun';
 
 const WorkplacePage = () => {
   const firstName = useFirstName();
+  const locale = useAuthStore((state) => state.locale);
+  const isAustrian = locale === 'de-AT';
 
   return (
     <ErrorBoundary>
@@ -212,10 +215,12 @@ const WorkplacePage = () => {
           <ToolsSection />
         </section>
 
-        <section className="mb-xl">
-          <SectionHeader title="Grünerators Favoriten" />
-          <FavoritesSection />
-        </section>
+        {!isAustrian && (
+          <section className="mb-xl">
+            <SectionHeader title="Grünerators Favoriten" />
+            <FavoritesSection />
+          </section>
+        )}
 
         {/* <GrassWithSheep /> */}
       </PageContainer>

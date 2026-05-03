@@ -220,40 +220,6 @@ updates:
           - '@tus/*'
 
   # =============================================================================
-  # DOCS - Collaborative document editor (apps/docs)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/apps/docs'
-    schedule:
-      interval: 'weekly'
-      day: 'tuesday'
-      time: '06:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'docs'
-    groups:
-      blocknote:
-        patterns:
-          - '@blocknote/*'
-      mantine:
-        patterns:
-          - '@mantine/*'
-      all-minor-patch:
-        update-types:
-          - 'minor'
-          - 'patch'
-        exclude-patterns:
-          - '@blocknote/*'
-          - '@mantine/*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-      - dependency-name: 'react-dom'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
   # SITES - Site builder/management interface (apps/sites)
   # =============================================================================
   - package-ecosystem: 'npm'

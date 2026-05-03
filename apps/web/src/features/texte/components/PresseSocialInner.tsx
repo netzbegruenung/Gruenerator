@@ -75,10 +75,15 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
 
     setStoreIsLoading(true);
     try {
+      const zitatgeberRaw = currentState.zitatgeber;
+      const zitatgeber = Array.isArray(zitatgeberRaw)
+        ? zitatgeberRaw.join(', ')
+        : (zitatgeberRaw as string) || '';
+
       const formData: PresseSocialFormData = {
         inhalt: currentPrompt,
         platforms: filteredPlatforms,
-        zitatgeber: (currentState.zitatgeber as string) || '',
+        zitatgeber,
       };
 
       const result = setup.features.useAgentMode

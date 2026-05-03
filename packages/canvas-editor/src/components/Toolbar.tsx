@@ -65,6 +65,12 @@ interface ToolbarProps {
   shareProps?: ShareDropdownProps;
   /** Optional page info for multi-page navigation */
   pageInfo?: PageInfo;
+  /** Host-supplied content rendered at the very left of the bar (in-flow). */
+  chromeLeft?: React.ReactNode;
+  /** Host-supplied content rendered absolute-centered inside the bar (e.g. doc title, sync badge). */
+  chromeCenter?: React.ReactNode;
+  /** Host-supplied content rendered in the right cluster, before the ShareDropdown (e.g. presence, people-share). */
+  chromeRight?: React.ReactNode;
 }
 
 export const Toolbar = memo(
@@ -79,6 +85,9 @@ export const Toolbar = memo(
     onDelete,
     shareProps,
     pageInfo,
+    chromeLeft,
+    chromeCenter,
+    chromeRight,
   }: ToolbarProps) => {
     const [isColorPickerExpanded, setIsColorPickerExpanded] = useState(false);
     const [isMobile, setIsMobile] = useState(
@@ -102,16 +111,35 @@ export const Toolbar = memo(
     // ref), which hits the correct inner store. Selecting `s.undo` from
     // `useCanvasStoreSelector` here would fall through to the singleton store
     // (no history) since this component is outside the per-page provider.
+    const rightCluster =
+      chromeRight || shareProps ? (
+        <div className="ml-auto flex items-center gap-sm">
+          {chromeRight}
+          {shareProps && <ShareDropdown {...shareProps} />}
+        </div>
+      ) : null;
+
+    const centerSlot = chromeCenter ? (
+      <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 flex items-center max-w-[50%] min-w-0 pointer-events-none [&>*]:pointer-events-auto">
+        {chromeCenter}
+      </div>
+    ) : null;
+
     if (hasPendingAiSuggestion) {
       return (
         <TopBar visible={true}>
+          {chromeLeft}
+          {centerSlot}
           <FloatingAiSuggestionBanner onUndo={handlers.undo} />
+          {rightCluster}
         </TopBar>
       );
     }
 
     return (
       <TopBar visible={true}>
+        {chromeLeft}
+        {centerSlot}
         {!shouldHideOtherControls && onDelete && (
           <>
             <button
@@ -358,7 +386,7 @@ export const Toolbar = memo(
           </>
         )}
 
-        {shareProps && <ShareDropdown {...shareProps} />}
+        {rightCluster}
       </TopBar>
     );
   }

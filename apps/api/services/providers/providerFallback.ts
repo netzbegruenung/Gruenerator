@@ -41,7 +41,7 @@ export function getPrivacyModelForProvider(provider: ProviderName): ModelName {
     case 'litellm':
       return 'gpt-oss:120b';
     case 'mistral':
-      return 'mistral-large-2512';
+      return 'mistral-medium-2604';
     case 'regolo':
       return env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
     default:
@@ -55,7 +55,7 @@ export function getPrivacyModelForProvider(provider: ProviderName): ModelName {
 export function getSharepicFallbackModel(provider: ProviderName): ModelName {
   switch (provider) {
     case 'mistral':
-      return 'mistral-large-2512';
+      return 'mistral-medium-2604';
     case 'ionos':
       return 'openai/gpt-oss-120b';
     case 'litellm':
@@ -63,7 +63,7 @@ export function getSharepicFallbackModel(provider: ProviderName): ModelName {
     case 'regolo':
       return env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
     default:
-      return 'mistral-large-2512';
+      return 'mistral-medium-2604';
   }
 }
 

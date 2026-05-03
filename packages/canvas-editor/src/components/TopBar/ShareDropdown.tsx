@@ -7,13 +7,13 @@ import {
   Separator,
   IconButton,
   IconButtonRow,
+  Skeleton,
 } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
-import { FaCheck, FaDownload, FaSave, FaInstagram, FaCopy } from 'react-icons/fa';
+import { FaCheck, FaDownload, FaSave, FaInstagram, FaCopy, FaUserPlus } from 'react-icons/fa';
 import { PiArrowLeft } from 'react-icons/pi';
 import { IoShareOutline } from 'react-icons/io5';
 
-import Spinner from '../../common/Spinner';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useAutoSaveStore } from '../../stores/useAutoSaveStore';
 
@@ -35,6 +35,13 @@ export interface ShareDropdownProps {
   onShareAllPages?: () => Promise<void>;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
+  /**
+   * Optional host-supplied "invite people" action. When provided, the share
+   * popover shows a "Personen" icon button that opens the host's collaborator
+   * dialog. Kept opaque so the canvas-editor package stays unaware of who
+   * resolves people/permissions.
+   */
+  onInvitePeople?: () => void;
 }
 
 interface GeneratedPosts {
@@ -58,6 +65,7 @@ export function ShareDropdown({
   onShareAllPages,
   isMultiExporting = false,
   exportProgress,
+  onInvitePeople,
 }: ShareDropdownProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'main' | 'download'>('main');
@@ -231,7 +239,7 @@ export function ShareDropdown({
                   size="sm"
                   icon={
                     isSharing ? (
-                      <Spinner size="small" />
+                      <Skeleton className="size-4 rounded-full" />
                     ) : shareSuccess ? (
                       <FaCheck />
                     ) : (
@@ -248,7 +256,7 @@ export function ShareDropdown({
                 size="sm"
                 icon={
                   isSavingTemplate ? (
-                    <Spinner size="small" />
+                    <Skeleton className="size-4 rounded-full" />
                   ) : templateUrl ? (
                     <FaCheck />
                   ) : (
@@ -259,6 +267,18 @@ export function ShareDropdown({
                 onClick={templateUrl ? handleCopyTemplateLink : handleSaveAsTemplate}
                 disabled={isSavingTemplate}
               />
+
+              {onInvitePeople && (
+                <IconButton
+                  size="sm"
+                  icon={<FaUserPlus />}
+                  label="Personen"
+                  onClick={() => {
+                    setOpen(false);
+                    onInvitePeople();
+                  }}
+                />
+              )}
             </IconButtonRow>
 
             {/* Template link (shown after saving) */}
@@ -296,7 +316,11 @@ export function ShareDropdown({
                   onClick={handleGenerateInstagram}
                   disabled={socialLoading || !canvasText.trim()}
                 >
-                  {socialLoading ? <Spinner size="small" /> : <FaInstagram className="size-3.5" />}
+                  {socialLoading ? (
+                    <Skeleton className="size-3.5 rounded-full" />
+                  ) : (
+                    <FaInstagram className="size-3.5" />
+                  )}
                   {socialLoading ? 'Generiere...' : 'Text generieren'}
                 </Button>
               ) : (
