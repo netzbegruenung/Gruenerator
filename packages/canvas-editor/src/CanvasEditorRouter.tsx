@@ -171,6 +171,10 @@ export function ControllableCanvasWrapper({
 
   const handlePartChange = useCallback(
     (change: Partial<CanvasState>) => {
+      console.log('[CanvasCollab][handlePartChange]', {
+        isCollab,
+        keys: Object.keys(change),
+      });
       if (isCollab) {
         updateFormState(change);
         return;

@@ -14,9 +14,23 @@ export function useYjsCanvasBinding({ parent, isSynced }: Options): void {
   const store = useCanvasStore();
 
   useEffect(() => {
-    if (!parent || !isSynced) return undefined;
-    if (!parent.doc) return undefined;
+    console.log('[CanvasCollab][useYjsCanvasBinding] effect tick', {
+      hasParent: !!parent,
+      isSynced,
+      parentHasDoc: !!parent?.doc,
+    });
+    if (!parent || !isSynced) {
+      console.log('[CanvasCollab][useYjsCanvasBinding] skip: parent missing or not synced');
+      return undefined;
+    }
+    if (!parent.doc) {
+      console.log('[CanvasCollab][useYjsCanvasBinding] skip: parent has no doc');
+      return undefined;
+    }
     const binding = bindCanvasStoreToYMap({ store, parent });
-    return () => binding.destroy();
+    return () => {
+      console.log('[CanvasCollab][useYjsCanvasBinding] tearing down binding');
+      binding.destroy();
+    };
   }, [store, parent, isSynced]);
 }

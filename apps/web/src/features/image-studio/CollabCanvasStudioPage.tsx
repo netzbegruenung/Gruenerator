@@ -99,6 +99,16 @@ function CollabCanvasStudioContent() {
     void navigate('/studio');
   }, [navigate]);
 
+  console.log('[CanvasCollab][CollabCanvasStudioPage] render', {
+    docId: id,
+    isLoading,
+    hasCanvas: !!canvas,
+    canvasType: canvas?.template_type,
+    hasYdoc: !!collab.ydoc,
+    isSynced: collab.isSynced,
+    isConnected: collab.isConnected,
+  });
+
   if (isLoading || !canvas) {
     return (
       <div className="relative flex flex-col h-dvh bg-background">
