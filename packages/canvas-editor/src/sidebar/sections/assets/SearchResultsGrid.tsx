@@ -31,7 +31,7 @@ import {
   getIllustrationPath,
   getIllustrationThumbPath,
 } from '../../../utils/illustrations/registry';
-import { assertNever, EUCALYPTUS } from '../../../utils/shapes';
+import { assertNever } from '../../../utils/shapes';
 import { CARD_GRID, SELECTABLE_CARD } from '../../primitives';
 
 import { PREVIEW_COMPONENTS } from './constants';
@@ -130,7 +130,7 @@ export function SearchResultsGrid({
               type="button"
               title={shape.name}
             >
-              <div className="flex items-center justify-center w-full h-full relative">
+              <div className="flex items-center justify-center w-full h-full relative text-secondary-600 dark:text-secondary-300">
                 <ShapeSearchPreview type={shape.id} />
               </div>
             </button>
@@ -239,17 +239,26 @@ export function SearchResultsGrid({
 function ShapeSearchPreview({ type }: { type: ShapeType }): React.ReactElement {
   switch (type) {
     case 'rect':
-      return <div className="formen-preview formen-preview--rect" />;
+      return <div className="w-6 h-6 bg-current shrink-0" />;
     case 'rounded-rect':
-      return <div className="w-6 h-6 bg-foreground rounded-md" />;
+      return <div className="w-6 h-6 bg-current rounded-md shrink-0" />;
     case 'circle':
-      return <div className="formen-preview formen-preview--circle" />;
+      return <div className="w-6 h-6 bg-current rounded-full shrink-0" />;
     case 'ellipse':
-      return <div className="w-6 h-4 bg-foreground rounded-full" />;
+      return <div className="w-6 h-4 bg-current rounded-full shrink-0" />;
     case 'ring':
-      return <div className="w-6 h-6 rounded-full border-[5px] border-foreground" />;
+      return <div className="w-6 h-6 rounded-full border-[5px] border-current shrink-0" />;
     case 'triangle':
-      return <div className="formen-preview formen-preview--triangle" />;
+      return (
+        <div
+          className="w-0 h-0 shrink-0"
+          style={{
+            borderLeft: '12px solid transparent',
+            borderRight: '12px solid transparent',
+            borderBottom: '20px solid currentColor',
+          }}
+        />
+      );
     case 'diamond':
       return <PiDiamondFill size={24} />;
     case 'pentagon':
@@ -303,13 +312,13 @@ function ShapeSearchPreview({ type }: { type: ShapeType }): React.ReactElement {
     case 'line':
       return (
         <svg width={26} height={10} viewBox="0 0 100 10" aria-hidden="true">
-          <line x1="2" y1="5" x2="98" y2="5" stroke={EUCALYPTUS} strokeWidth="5" strokeLinecap="round" />
+          <line x1="2" y1="5" x2="98" y2="5" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
         </svg>
       );
     case 'line-thick':
       return (
         <svg width={26} height={14} viewBox="0 0 100 14" aria-hidden="true">
-          <line x1="2" y1="7" x2="98" y2="7" stroke={EUCALYPTUS} strokeWidth="12" strokeLinecap="round" />
+          <line x1="2" y1="7" x2="98" y2="7" stroke="currentColor" strokeWidth="12" strokeLinecap="round" />
         </svg>
       );
     case 'line-dashed':
@@ -320,7 +329,7 @@ function ShapeSearchPreview({ type }: { type: ShapeType }): React.ReactElement {
             y1="5"
             x2="98"
             y2="5"
-            stroke={EUCALYPTUS}
+            stroke="currentColor"
             strokeWidth="5"
             strokeDasharray="14 8"
           />
@@ -334,7 +343,7 @@ function ShapeSearchPreview({ type }: { type: ShapeType }): React.ReactElement {
             y1="5"
             x2="96"
             y2="5"
-            stroke={EUCALYPTUS}
+            stroke="currentColor"
             strokeWidth="5"
             strokeLinecap="round"
             strokeDasharray="0 14"
@@ -344,15 +353,15 @@ function ShapeSearchPreview({ type }: { type: ShapeType }): React.ReactElement {
     case 'line-double':
       return (
         <svg width={26} height={14} viewBox="0 0 100 14" aria-hidden="true">
-          <line x1="2" y1="4" x2="98" y2="4" stroke={EUCALYPTUS} strokeWidth="2.5" />
-          <line x1="2" y1="10" x2="98" y2="10" stroke={EUCALYPTUS} strokeWidth="2.5" />
+          <line x1="2" y1="4" x2="98" y2="4" stroke="currentColor" strokeWidth="2.5" />
+          <line x1="2" y1="10" x2="98" y2="10" stroke="currentColor" strokeWidth="2.5" />
         </svg>
       );
     case 'line-arrow':
       return (
         <svg width={26} height={12} viewBox="0 0 100 12" aria-hidden="true">
-          <line x1="2" y1="6" x2="78" y2="6" stroke={EUCALYPTUS} strokeWidth="4" strokeLinecap="round" />
-          <polygon points="78,1 98,6 78,11" fill={EUCALYPTUS} />
+          <line x1="2" y1="6" x2="78" y2="6" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+          <polygon points="78,1 98,6 78,11" fill="currentColor" />
         </svg>
       );
     case 'asterisk':
