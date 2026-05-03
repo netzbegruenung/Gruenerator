@@ -155,6 +155,9 @@ export function createGrueneratorThreadListAdapter(
     async rename(remoteId: string, title: string) {
       if (isExternal(remoteId)) return;
       await apiClient.patch('/api/chat-service/threads', { threadId: remoteId, title });
+      if (useAgentStore.getState().currentThreadId === remoteId) {
+        useAgentStore.getState().setCurrentThreadTitle(title);
+      }
     },
 
     async archive(remoteId: string) {
@@ -200,6 +203,8 @@ export function createGrueneratorThreadListAdapter(
         useAgentStore.getState().setThreadMode(threadType);
       }
 
+      useAgentStore.getState().setCurrentThreadTitle(thread.title ?? null);
+
       return {
         remoteId: thread.id,
         status: (thread.status === 'archived' ? 'archived' : 'regular') as 'regular' | 'archived',
@@ -238,6 +243,10 @@ export function createGrueneratorThreadListAdapter(
           title = title.slice(0, 47) + '...';
         }
         controller.appendText(title);
+
+        if (useAgentStore.getState().currentThreadId === remoteId) {
+          useAgentStore.getState().setCurrentThreadTitle(title);
+        }
 
         apiClient
           .patch('/api/chat-service/threads', { threadId: remoteId, title })
