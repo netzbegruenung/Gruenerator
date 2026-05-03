@@ -19,17 +19,13 @@ import {
   CombinedTextSection,
   FrameSettingsSection,
 } from '../../sidebar/sections';
-import {
-  chatTab,
-  createCommonSectionEntries,
-  toolsTab,
-  uploadsTab,
-} from '../commonSections';
+import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
 import { createShareSection } from '../shareSection';
 
 import { createBaseActions } from './commonActions';
+import { makeSectionDefiner } from './defineSection';
 
 import type { CanvasFeatures, CanvasDimensions, IconState } from './baseTypes';
 import type { BackgroundColorOption } from '../../sidebar/types';
@@ -47,8 +43,14 @@ import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalTex
 // STATE TYPE
 // ============================================================================
 
-export interface ColorTwoTextState {
-  // Text fields (dynamic keys set at config time)
+/**
+ * Fixed-shape portion of the factory state. Dynamic per-template text
+ * fields live in the `Record<TFields, string>` half of the public
+ * `ColorTwoTextState<TFields>` type below. The `[key: string]: unknown`
+ * index signature is required by the runtime element renderer for
+ * dynamic state-key access (e.g. `state[opacityStateKey]`).
+ */
+export interface ColorTwoTextStateBase {
   [key: string]: unknown;
 
   // Color background
@@ -76,6 +78,14 @@ export interface ColorTwoTextState {
   frameInstances: FrameInstance[];
   userImageInstances: UserImageInstance[];
 }
+
+/**
+ * Specialize at the template site (e.g. `ColorTwoTextState<'quote' | 'name'>`)
+ * to type-check `state.quote` as `string` directly — no `as string` casts
+ * at read sites. Default `TFields = never` keeps the bare type backward-compatible.
+ */
+export type ColorTwoTextState<TFields extends string = never> = ColorTwoTextStateBase &
+  Record<TFields, string>;
 
 // ============================================================================
 // ACTIONS TYPE
@@ -126,7 +136,10 @@ export interface ColorTwoTextActions {
 // FACTORY OPTIONS
 // ============================================================================
 
-export interface ColorTwoTextOptions {
+export interface ColorTwoTextOptions<
+  TPrimary extends string = string,
+  TSecondary extends string = string,
+> {
   /** Unique config identifier */
   id: string;
 
@@ -135,18 +148,18 @@ export interface ColorTwoTextOptions {
 
   /** Primary text field configuration */
   primaryField: {
-    key: string;
+    key: TPrimary;
     label: string;
   };
 
   /** Secondary text field configuration */
   secondaryField: {
-    key: string;
+    key: TSecondary;
     label: string;
   };
 
   /** Layout calculator */
-  calculateLayout: (state: ColorTwoTextState) => LayoutResult;
+  calculateLayout: (state: ColorTwoTextState<TPrimary | TSecondary>) => LayoutResult;
 
   /** Background color options */
   backgroundColors: BackgroundColorOption[];
@@ -158,7 +171,7 @@ export interface ColorTwoTextOptions {
   textColorMap: Record<string, string>;
 
   /** Optional: Custom elements to add to the canvas */
-  elements?: CanvasElementConfig<ColorTwoTextState>[];
+  elements?: CanvasElementConfig<ColorTwoTextState<TPrimary | TSecondary>>[];
 
   /** Optional: Features to enable */
   features?: CanvasFeatures;
@@ -167,7 +180,7 @@ export interface ColorTwoTextOptions {
   maxPages?: number;
 
   /** Optional: Function to get text for sharing */
-  getCanvasText?: (state: ColorTwoTextState) => string;
+  getCanvasText?: (state: ColorTwoTextState<TPrimary | TSecondary>) => string;
 
   /** Optional: Background image that changes with color */
   backgroundImageMap?: Record<string, string>;
@@ -177,9 +190,13 @@ export interface ColorTwoTextOptions {
 // FACTORY FUNCTION
 // ============================================================================
 
-export function createColorTwoTextCanvas(
-  options: ColorTwoTextOptions
-): FullCanvasConfig<ColorTwoTextState, ColorTwoTextActions> {
+export function createColorTwoTextCanvas<
+  const TPrimary extends string,
+  const TSecondary extends string,
+>(
+  options: ColorTwoTextOptions<TPrimary, TSecondary>
+): FullCanvasConfig<ColorTwoTextState<TPrimary | TSecondary>, ColorTwoTextActions> {
+  type State = ColorTwoTextState<TPrimary | TSecondary>;
   const {
     id,
     canvas,
@@ -197,7 +214,7 @@ export function createColorTwoTextCanvas(
   } = options;
 
   // Build base elements
-  const baseElements: CanvasElementConfig<ColorTwoTextState>[] = [];
+  const baseElements: CanvasElementConfig<State>[] = [];
 
   // Add background element - either image mapped or solid color
   if (backgroundImageMap) {
@@ -224,11 +241,13 @@ export function createColorTwoTextCanvas(
   }
 
   // Default getCanvasText if not provided
-  const defaultGetCanvasText = (state: ColorTwoTextState) => {
-    const primary = (state[primaryField.key] as string) || '';
-    const secondary = (state[secondaryField.key] as string) || '';
+  const defaultGetCanvasText = (state: State) => {
+    const primary = state[primaryField.key] || '';
+    const secondary = state[secondaryField.key] || '';
     return [primary, secondary].filter(Boolean).join('\n');
   };
+
+  const section = makeSectionDefiner<State, ColorTwoTextActions>();
 
   return {
     id,
@@ -239,10 +258,12 @@ export function createColorTwoTextCanvas(
       enabled: true,
       maxPages,
       heterogeneous: true,
+      // Cast: computed property keys widen to `string` in literals; runtime
+      // shape is exactly `Record<TPrimary | TSecondary, string>`.
       defaultNewPageState: {
         [primaryField.key]: getPlaceholder(primaryField.key),
         [secondaryField.key]: getPlaceholder(secondaryField.key),
-      },
+      } as Partial<State>,
     },
 
     tabs: [
@@ -286,15 +307,15 @@ export function createColorTwoTextCanvas(
     },
 
     sections: {
-      background: {
+      background: section({
         component: BackgroundSection,
         propsFactory: (state, actions) => ({
           currentColor: state.backgroundColor,
           colors: backgroundColors,
           onColorChange: actions.setBackgroundColor,
         }),
-      },
-      text: {
+      }),
+      text: section({
         component: CombinedTextSection,
         propsFactory: (state, actions) => ({
           additionalTexts: state.additionalTexts,
@@ -303,8 +324,8 @@ export function createColorTwoTextCanvas(
           onUpdateText: actions.updateAdditionalText,
           onRemoveText: actions.removeAdditionalText,
         }),
-      },
-      assets: {
+      }),
+      assets: section({
         component: AssetsSection,
         propsFactory: (state, actions, context) => ({
           assetInstances: state.assetInstances,
@@ -313,8 +334,8 @@ export function createColorTwoTextCanvas(
           onRemoveAsset: actions.removeAsset,
           ...injectFeatureProps(state, actions, context),
         }),
-      },
-      'frame-settings': {
+      }),
+      'frame-settings': section({
         component: FrameSettingsSection,
         propsFactory: (state, actions, context) => {
           const selectedId = context?.selectedElement ?? null;
@@ -328,9 +349,9 @@ export function createColorTwoTextCanvas(
             onRemoveFrame: actions.removeFrame,
           };
         },
-      },
+      }),
       ...createCommonSectionEntries(id),
-      share: createShareSection<ColorTwoTextState, ColorTwoTextActions>(
+      share: createShareSection<State, ColorTwoTextActions>(
         id,
         getCanvasText || defaultGetCanvasText
       ),
@@ -351,30 +372,33 @@ export function createColorTwoTextCanvas(
       };
     },
 
-    createInitialState: (props: Record<string, unknown>): ColorTwoTextState => ({
-      // Text fields
-      [primaryField.key]: (props[primaryField.key] as string) || '',
-      [secondaryField.key]: (props[secondaryField.key] as string) || '',
-      customPrimaryFontSize: null,
-      customSecondaryFontSize: null,
+    // Cast: computed property keys widen to `string` in object literals.
+    // Runtime shape matches `Record<TPrimary | TSecondary, string>` correctly.
+    createInitialState: (props: Record<string, unknown>): State =>
+      ({
+        // Text fields
+        [primaryField.key]: (props[primaryField.key] as string) || '',
+        [secondaryField.key]: (props[secondaryField.key] as string) || '',
+        customPrimaryFontSize: null,
+        customSecondaryFontSize: null,
 
-      // Background color
-      backgroundColor: (props.backgroundColor as string) || defaultBackgroundColor,
+        // Background color
+        backgroundColor: (props.backgroundColor as string) || defaultBackgroundColor,
 
-      // Base state
-      assetInstances: [],
-      isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-      selectedIcons: [],
-      iconStates: {},
-      shapeInstances: [],
-      illustrationInstances: [],
-      additionalTexts: [],
-      pillBadgeInstances: [],
-      circleBadgeInstances: [],
-      balkenInstances: [],
-      frameInstances: [],
-      userImageInstances: [],
-    }),
+        // Base state
+        assetInstances: [],
+        isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
+        selectedIcons: [],
+        iconStates: {},
+        shapeInstances: [],
+        illustrationInstances: [],
+        additionalTexts: [],
+        pillBadgeInstances: [],
+        circleBadgeInstances: [],
+        balkenInstances: [],
+        frameInstances: [],
+        userImageInstances: [],
+      }) as State,
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
       // Get font color for additional text actions
@@ -402,29 +426,29 @@ export function createColorTwoTextCanvas(
 
         // Primary text field
         setPrimary: (val: string) => {
-          setState({ [primaryField.key]: val } as Partial<ColorTwoTextState>);
+          setState({ [primaryField.key]: val } as Partial<State>);
           callbacks[primaryCallbackKey]?.(val);
           debouncedSaveToHistory(getState());
         },
         handlePrimaryFontSizeChange: (size: number) => {
-          setState({ customPrimaryFontSize: size } as Partial<ColorTwoTextState>);
+          setState({ customPrimaryFontSize: size } as Partial<State>);
           debouncedSaveToHistory(getState());
         },
 
         // Secondary text field
         setSecondary: (val: string) => {
-          setState({ [secondaryField.key]: val } as Partial<ColorTwoTextState>);
+          setState({ [secondaryField.key]: val } as Partial<State>);
           callbacks[secondaryCallbackKey]?.(val);
           debouncedSaveToHistory(getState());
         },
         handleSecondaryFontSizeChange: (size: number) => {
-          setState({ customSecondaryFontSize: size } as Partial<ColorTwoTextState>);
+          setState({ customSecondaryFontSize: size } as Partial<State>);
           debouncedSaveToHistory(getState());
         },
 
         // Background color
         setBackgroundColor: (color: string) => {
-          setState({ backgroundColor: color } as Partial<ColorTwoTextState>);
+          setState({ backgroundColor: color } as Partial<State>);
           saveToHistory(getState());
         },
       };

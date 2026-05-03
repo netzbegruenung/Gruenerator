@@ -5,44 +5,14 @@
  * and large title text. Used for visual impact slides.
  */
 
-import { HiPhotograph, HiSparkles } from 'react-icons/hi';
-import { PiPaintBrushBroadFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
+import { fromLayout } from '../factory/layoutAccessors';
 
-import { createAiSectionRegistration } from '../../ai/createAiSectionRegistration';
-import {
-  ImageBackgroundSection,
-  AssetsSection,
-  CombinedTextSection,
-  PresentationDesignSection,
-} from '../../sidebar/sections';
-import {
-  chatTab,
-  createCommonSectionEntries,
-  toolsTab,
-  uploadsTab,
-} from '../commonSections';
-import { injectFeatureProps } from '../featureInjector';
-import { createShareSection } from '../shareSection';
-
-import { PRES_CONFIG, getPresColors } from './presentationTheme';
-import { createPresentationActions } from './createPresentationActions';
+import { createPresentationSlide } from './createPresentationSlide';
 import { calculateImageLayout } from './presentationLayout';
-import { createFooterElements } from './createFooterElements';
-import { createPresentationAiCapabilities } from './presentationAi';
-import { createPresentationInitialState } from './presentationTypes';
+import { PRES_CONFIG, getPresColors } from './presentationTheme';
 
-import type {
-  FullCanvasConfig,
-  ImageElementConfig,
-  RectElementConfig,
-  TextElementConfig,
-} from '../types';
-import type { TextFieldConfig } from '../unifiedTabs';
-import type { PresentationSlideState, PresentationSlideActions } from './presentationTypes';
-
-// ============================================================================
-// ELEMENTS
-// ============================================================================
+import type { ImageElementConfig, RectElementConfig, TextElementConfig } from '../types';
+import type { PresentationSlideState } from './presentationTypes';
 
 const backgroundImageElement: ImageElementConfig<PresentationSlideState> = {
   id: 'background-image',
@@ -75,13 +45,12 @@ const overlayRectElement: RectElementConfig<PresentationSlideState> = {
 const titleTextElement: TextElementConfig<PresentationSlideState> = {
   id: 'title-text',
   type: 'text',
-  x: (_s, l) => (l['title-text'] as { x?: number })?.x ?? PRES_CONFIG.margins.left,
-  y: (_s, l) => (l['title-text'] as { y?: number })?.y ?? 160,
+  x: fromLayout('title-text', 'x', PRES_CONFIG.margins.left),
+  y: fromLayout('title-text', 'y', 160),
   order: 3,
   textKey: 'title',
   width: PRES_CONFIG.title.maxWidth,
-  fontSize: (_s, l) =>
-    (l['title-text'] as { fontSize?: number })?.fontSize ?? PRES_CONFIG.title.fontSize,
+  fontSize: fromLayout('title-text', 'fontSize', PRES_CONFIG.title.fontSize),
   fontFamily: `${PRES_CONFIG.title.fontFamily}, Arial, sans-serif`,
   fontStyle: PRES_CONFIG.title.fontStyle,
   align: 'left',
@@ -98,13 +67,12 @@ const titleTextElement: TextElementConfig<PresentationSlideState> = {
 const subtitleTextElement: TextElementConfig<PresentationSlideState> = {
   id: 'subtitle-text',
   type: 'text',
-  x: (_s, l) => (l['subtitle-text'] as { x?: number })?.x ?? PRES_CONFIG.margins.left,
-  y: (_s, l) => (l['subtitle-text'] as { y?: number })?.y ?? 500,
+  x: fromLayout('subtitle-text', 'x', PRES_CONFIG.margins.left),
+  y: fromLayout('subtitle-text', 'y', 500),
   order: 4,
   textKey: 'subtitle',
   width: PRES_CONFIG.subtitle.maxWidth,
-  fontSize: (_s, l) =>
-    (l['subtitle-text'] as { fontSize?: number })?.fontSize ?? PRES_CONFIG.subtitle.fontSize,
+  fontSize: fromLayout('subtitle-text', 'fontSize', PRES_CONFIG.subtitle.fontSize),
   fontFamily: `${PRES_CONFIG.subtitle.fontFamily}, Calibri, sans-serif`,
   fontStyle: PRES_CONFIG.subtitle.fontStyle,
   align: 'left',
@@ -119,207 +87,37 @@ const subtitleTextElement: TextElementConfig<PresentationSlideState> = {
   visible: (state) => !!state.subtitle,
 };
 
-// ============================================================================
-// AI CAPABILITY
-// ============================================================================
-
-const presImageAiCapabilities = createPresentationAiCapabilities({
-  template: 'pres-image',
-  fields: ['title', 'subtitle'],
-});
-
-const TEXT_FIELDS: TextFieldConfig[] = [
-  { key: 'title', label: 'Titel', multiline: false, fontSizeStateKey: 'customTitleFontSize' },
-  {
-    key: 'subtitle',
-    label: 'Untertitel',
-    multiline: false,
-    fontSizeStateKey: 'customSubtitleFontSize',
-  },
-];
-
-// ============================================================================
-// CONFIG EXPORT
-// ============================================================================
-
-export const presImageConfig: FullCanvasConfig<PresentationSlideState, PresentationSlideActions> = {
+export const presImageConfig = createPresentationSlide({
   id: 'pres-image',
-
-  canvas: {
-    width: PRES_CONFIG.canvas.width,
-    height: PRES_CONFIG.canvas.height,
-  },
-
-  fonts: {
-    primary: 'GrueneTypeNeue',
-    fontSize: 120,
-    requireFontLoad: true,
-  },
-
-  features: {
-    icons: true,
-    shapes: true,
-    illustrations: true,
-  },
-
-  backgroundType: 'image',
-  useUnifiedTabs: true,
-
-  textFields: TEXT_FIELDS,
-
-  multiPage: {
-    enabled: true,
-    maxPages: 30,
-    heterogeneous: true,
-    defaultNewPageState: {
-      title: '',
-      subtitle: '',
-    },
-  },
-
-  ai: presImageAiCapabilities,
-
-  tabs: [
+  fontPreloadSize: 120,
+  background: { kind: 'image' },
+  textFields: [
     {
-      id: 'background',
-      icon: HiPhotograph,
-      label: 'Bild',
-      ariaLabel: 'Hintergrundbild wählen',
+      config: {
+        key: 'title',
+        label: 'Titel',
+        multiline: false,
+        fontSizeStateKey: 'customTitleFontSize',
+      },
+      aiField: 'title',
+      read: (s) => s.title,
+      setText: (a, v) => a.setTitle(v),
+      setFontSize: (a, size) => a.handleTitleFontSizeChange(size),
     },
     {
-      id: 'text',
-      icon: PiTextAa,
-      label: 'Text',
-      ariaLabel: 'Text bearbeiten',
+      config: {
+        key: 'subtitle',
+        label: 'Untertitel',
+        multiline: false,
+        fontSizeStateKey: 'customSubtitleFontSize',
+      },
+      aiField: 'subtitle',
+      read: (s) => s.subtitle,
+      setText: (a, v) => a.setSubtitle(v),
+      setFontSize: (a, size) => a.handleSubtitleFontSizeChange(size),
     },
-    {
-      id: 'assets',
-      icon: PiSquaresFourFill,
-      label: 'Elemente',
-      ariaLabel: 'Dekorative Elemente',
-    },
-    toolsTab,
-    uploadsTab,
-    {
-      id: 'design',
-      icon: PiPaintBrushBroadFill,
-      label: 'Design',
-      ariaLabel: 'Farbschema und Fußzeile',
-    },
-    { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
-    chatTab,
   ],
-
-  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  // 'background' tab kept registered but hidden — opened via getAutoSwitchTab when
-  // the canvas background is clicked.
-  getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'design', 'chat'],
-
-  getAutoSwitchTab: (selectedElement) =>
-    selectedElement === 'background' ? 'background' : null,
-
-  sections: {
-    background: {
-      component: ImageBackgroundSection,
-      propsFactory: (state, actions) => ({
-        currentImageSrc: state.currentImageSrc,
-        onImageChange: actions.setCurrentImageSrc,
-        imageScale: state.imageScale,
-        onImageScaleChange: actions.setImageScale,
-        imageAttribution: state.imageAttribution ?? null,
-        onImageAttributionChange: actions.setImageAttribution ?? (() => {}),
-      }),
-    },
-    text: {
-      component: CombinedTextSection,
-      propsFactory: (state, actions) => ({
-        textFields: TEXT_FIELDS,
-        values: {
-          title: state.title,
-          subtitle: state.subtitle,
-        },
-        onFieldChange: (key: string, value: string) => {
-          if (key === 'title') actions.setTitle(value);
-          else if (key === 'subtitle') actions.setSubtitle(value);
-        },
-        fontSizes: {
-          ...(state.customTitleFontSize !== null
-            ? { customTitleFontSize: state.customTitleFontSize }
-            : {}),
-          ...(state.customSubtitleFontSize !== null
-            ? { customSubtitleFontSize: state.customSubtitleFontSize }
-            : {}),
-        },
-        onFontSizeChange: (key: string, size: number) => {
-          if (key === 'customTitleFontSize') actions.handleTitleFontSizeChange(size);
-          else if (key === 'customSubtitleFontSize') actions.handleSubtitleFontSizeChange(size);
-        },
-        additionalTexts: state.additionalTexts,
-        onAddHeader: actions.addHeader,
-        onAddText: actions.addText,
-        onUpdateText: actions.updateAdditionalText,
-        onRemoveText: actions.removeAdditionalText,
-      }),
-    },
-    assets: {
-      component: AssetsSection,
-      propsFactory: (state, actions, context) => ({
-        assetInstances: state.assetInstances,
-        onAddAsset: actions.addAsset,
-        onUpdateAsset: actions.updateAsset,
-        onRemoveAsset: actions.removeAsset,
-        ...injectFeatureProps(state, actions, context),
-      }),
-    },
-    ...createCommonSectionEntries('pres-image', presImageAiCapabilities),
-    design: {
-      component: PresentationDesignSection,
-      propsFactory: (state, actions) => ({
-        colorMode: state.colorMode,
-        onColorModeChange: actions.setColorMode,
-        footerDate: state.footerDate,
-        onFooterDateChange: actions.setFooterDate,
-        footerCustomText: state.footerCustomText,
-        onFooterCustomTextChange: actions.setFooterCustomText,
-        showSlideNumber: state.showSlideNumber,
-        onShowSlideNumberChange: actions.setShowSlideNumber,
-      }),
-    },
-    share: createShareSection<PresentationSlideState, PresentationSlideActions>(
-      'pres-image',
-      (state) => {
-        const title = state.title || '';
-        const subtitle = state.subtitle || '';
-        return [title, subtitle].filter(Boolean).join('\n');
-      }
-    ),
-    ai: createAiSectionRegistration('pres-image', presImageAiCapabilities),
-  },
-
-  elements: [
-    backgroundImageElement,
-    overlayRectElement,
-    titleTextElement,
-    subtitleTextElement,
-    ...createFooterElements(10),
-  ],
-
+  defaultNewPageState: { title: '', subtitle: '' },
   calculateLayout: calculateImageLayout,
-
-  createInitialState: (props) => createPresentationInitialState(props, 'light'),
-
-  createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) =>
-    createPresentationActions(
-      getState,
-      setState,
-      saveToHistory,
-      debouncedSaveToHistory,
-      callbacks,
-      {
-        canvasWidth: PRES_CONFIG.canvas.width,
-        canvasHeight: PRES_CONFIG.canvas.height,
-        getFontColor: () => '#FFFFFF',
-        hasImageBackground: true,
-      }
-    ),
-};
+  elements: [backgroundImageElement, overlayRectElement, titleTextElement, subtitleTextElement],
+});
