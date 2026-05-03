@@ -4,8 +4,6 @@ import './canvas-editor.css';
 import { useYjsFormState } from './collab/useYjsFormState';
 import { CanvasEditor } from './components/CanvasEditor';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
-import { ProfilbildCanvas } from './ProfilbildCanvas';
-
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
 import type { MobileBridgeProps } from './hooks/useMobileBridge';
 import type { InitialPageDef } from './hooks/usePageManager';
@@ -68,6 +66,17 @@ export interface ControllableCanvasWrapperProps {
     ydoc: Y.Doc;
     isSynced: boolean;
   };
+  /** Host-supplied content rendered at the very left of the toolbar (in-flow). */
+  chromeLeft?: React.ReactNode;
+  /** Host-supplied content rendered absolute-centered in the toolbar (e.g. doc title, sync badge). */
+  chromeCenter?: React.ReactNode;
+  /** Host-supplied content rendered in the toolbar's right cluster (e.g. presence avatars). */
+  chromeRight?: React.ReactNode;
+  /**
+   * When provided, the share popover shows a "Personen" entry that triggers
+   * this callback. Used by collab hosts to open their invite/permissions dialog.
+   */
+  onInvitePeople?: () => void;
 }
 
 export function ControllableCanvasWrapper({
@@ -83,6 +92,10 @@ export function ControllableCanvasWrapper({
   externalSidebar,
   externalMobileMode,
   collaborative,
+  chromeLeft,
+  chromeCenter,
+  chromeRight,
+  onInvitePeople,
 }: ControllableCanvasWrapperProps) {
   const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
@@ -119,6 +132,7 @@ export function ControllableCanvasWrapper({
       'pres-image',
       'pres-content',
       'presentation',
+      'profilbild',
     ].includes(type);
 
     // 'presentation' is an alias — load the default pres-title config
@@ -138,15 +152,14 @@ export function ControllableCanvasWrapper({
     }
   }, [type]);
 
-  // Fire onReady when config is loaded (or immediately for profilbild)
+  // Fire onReady when config is loaded
   useEffect(() => {
     if (readyFiredRef.current) return;
-    const isProfilbild = type === 'profilbild';
-    if (isProfilbild || (!configLoading && config)) {
+    if (!configLoading && config) {
       readyFiredRef.current = true;
       onReady?.();
     }
-  }, [configLoading, config, type, onReady]);
+  }, [configLoading, config, onReady]);
 
   // Only update state and key when initialState CONTENT actually changes
   // This prevents remounting when parent re-renders with same values but new object reference.
@@ -175,12 +188,6 @@ export function ControllableCanvasWrapper({
     },
     [internalState, onStateChange, isCollab, updateFormState]
   );
-
-  const commonProps = {
-    key: componentKey,
-    onExport,
-    onCancel,
-  };
 
   // Create callbacks object for GenericCanvas
   const createCallbacks = useCallback(
@@ -268,6 +275,11 @@ export function ControllableCanvasWrapper({
             bodyText2: effectiveState.bodyText2 || '',
             currentImageSrc: imageSrc || '',
           };
+        case 'profilbild':
+          return {
+            transparentImage: imageSrc || '',
+            backgroundColor: (effectiveState.backgroundColor as string) || '',
+          };
         default:
           return effectiveState;
       }
@@ -317,6 +329,7 @@ export function ControllableCanvasWrapper({
       case 'pres-image':
       case 'pres-content':
       case 'presentation':
+      case 'profilbild':
         if (!config) return <div>Lädt Konfiguration...</div>;
 
         return (
@@ -333,11 +346,12 @@ export function ControllableCanvasWrapper({
             externalSidebar={externalSidebar}
             externalMobileMode={externalMobileMode}
             collaborative={collaborative}
+            chromeLeft={chromeLeft}
+            chromeCenter={chromeCenter}
+            chromeRight={chromeRight}
+            onInvitePeople={onInvitePeople}
           />
         );
-
-      case 'profilbild':
-        return <ProfilbildCanvas {...commonProps} transparentImage={imageSrc || ''} />;
 
       default:
         return <div>Editor type &quot;{type}&quot; not found.</div>;

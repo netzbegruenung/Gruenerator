@@ -90,6 +90,12 @@ export const TEMPLATE_REGISTRY: Record<CanvasConfigId, TemplateInfo> = {
     description: 'Titel mit Text, optional zweispaltig',
     previewImage: '/imagine/previews/pres-content-preview.webp',
   },
+  profilbild: {
+    id: 'profilbild',
+    label: 'Profilbild',
+    description: 'Profilbild mit transparentem Vordergrund auf farbigem Hintergrund',
+    previewImage: '/imagine/previews/profilbild-preview.webp',
+  },
 };
 
 /**
@@ -126,5 +132,7 @@ export function templateSupportsImageBackground(configId: CanvasConfigId): boole
  * Check if a template supports solid color backgrounds
  */
 export function templateSupportsSolidBackground(configId: CanvasConfigId): boolean {
-  return ['info', 'zitat-pure', 'slider', 'freeform', 'pres-title', 'pres-content'].includes(configId);
+  return ['info', 'zitat-pure', 'slider', 'freeform', 'pres-title', 'pres-content'].includes(
+    configId
+  );
 }

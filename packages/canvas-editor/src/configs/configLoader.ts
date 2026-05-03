@@ -25,7 +25,8 @@ type CanvasConfigType =
   | 'freeform'
   | 'pres-title'
   | 'pres-image'
-  | 'pres-content';
+  | 'pres-content'
+  | 'profilbild';
 
 // Use a flexible type that accepts any state/action types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,6 +75,9 @@ export async function loadCanvasConfig(type: CanvasConfigType): Promise<AnyCanva
     case 'pres-content':
       return (await import('./presentation/presContent.config')).presContentConfig;
 
+    case 'profilbild':
+      return (await import('./profilbild_full.config')).profilbildFullConfig;
+
     default:
       throw new Error(`Unknown canvas type: ${type}`);
   }
@@ -96,5 +100,6 @@ export function isValidCanvasType(type: string): type is CanvasConfigType {
     'pres-title',
     'pres-image',
     'pres-content',
+    'profilbild',
   ].includes(type);
 }

@@ -289,7 +289,8 @@ export type CanvasConfigId =
   | 'freeform'
   | 'pres-title'
   | 'pres-image'
-  | 'pres-content';
+  | 'pres-content'
+  | 'profilbild';
 
 /** A page in a heterogeneous multi-page document */
 export interface HeterogeneousPage {
