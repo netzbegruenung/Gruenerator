@@ -111,7 +111,12 @@ export interface GenericCanvasRef {
   captureCanvasForAi: () => Promise<string | null>;
   /** Get the current canvas state (for shared sidebar in multi-page mode) */
   getState: () => Record<string, unknown>;
-  /** Get the canvas actions (for shared sidebar in multi-page mode) */
+  /**
+   * Get the canvas actions (for shared sidebar in multi-page mode).
+   * Existentially typed: each page's GenericCanvas holds its own concrete
+   * TActions; the multi-page CanvasEditor consumes them polymorphically.
+   * Use OptionalCanvasActions for typed access to shared optional methods.
+   */
   getActions: () => Record<string, unknown>;
   /** Get the currently selected element ID (for shared sidebar tab visibility) */
   getSelectedElement?: () => string | null;
@@ -330,8 +335,7 @@ function GenericCanvasWithRef<
   useCanvasKeyboardHandlers({
     store,
     state,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    actions: actions as any, // TActions may have different shape; keyboard handlers check with optional chaining
+    actions,
     setState: setStateWrapper,
     setSelectedElement,
   });
