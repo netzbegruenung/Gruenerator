@@ -272,11 +272,30 @@ export function createCanvasEditorStore() {
       // History (Undo/Redo)
       saveToHistory: (componentState) =>
         set((state) => {
+          const layersJson = JSON.stringify(state.layers);
+          const componentStateJson = componentState ? JSON.stringify(componentState) : null;
+
+          // Skip no-op snapshots: drag-end events that didn't move anything,
+          // text-input debounces that fire with unchanged content, etc.
+          // Keeps history navigable rather than padded with identical entries.
+          const lastEntry = state.history[state.historyIndex];
+          if (lastEntry) {
+            const lastComponentStateJson = lastEntry.componentState
+              ? JSON.stringify(lastEntry.componentState)
+              : null;
+            if (
+              JSON.stringify(lastEntry.layers) === layersJson &&
+              lastComponentStateJson === componentStateJson
+            ) {
+              return;
+            }
+          }
+
           const entry: CanvasHistoryEntry = {
-            layers: JSON.parse(JSON.stringify(state.layers)),
+            layers: JSON.parse(layersJson),
             selectedLayerIds: [...state.selectedLayerIds],
             timestamp: Date.now(),
-            componentState: componentState ? JSON.parse(JSON.stringify(componentState)) : undefined,
+            componentState: componentStateJson ? JSON.parse(componentStateJson) : undefined,
           };
 
           if (state.historyIndex < state.history.length - 1) {
@@ -304,7 +323,7 @@ export function createCanvasEditorStore() {
             s.renderVersion++;
           });
           if (entry.componentState && state.stateRestorationCallback) {
-            setTimeout(() => state.stateRestorationCallback!(entry.componentState!), 0);
+            state.stateRestorationCallback(entry.componentState);
           }
         }
       },
@@ -321,7 +340,7 @@ export function createCanvasEditorStore() {
             s.renderVersion++;
           });
           if (entry.componentState && state.stateRestorationCallback) {
-            setTimeout(() => state.stateRestorationCallback!(entry.componentState!), 0);
+            state.stateRestorationCallback(entry.componentState);
           }
         }
       },
