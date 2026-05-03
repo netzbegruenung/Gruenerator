@@ -684,6 +684,30 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         debouncedSaveToHistory(getState());
       },
 
+      setBalkenText: (id: string, index: number, text: string) => {
+        if (id === 'dreizeilen-balken') {
+          const field = index === 0 ? 'line1' : index === 1 ? 'line2' : 'line3';
+          setState((prev) => {
+            const newState = { ...prev, [field]: text };
+            return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+          });
+          if (index === 0) callbacks.onLine1Change?.(text);
+          else if (index === 1) callbacks.onLine2Change?.(text);
+          else if (index === 2) callbacks.onLine3Change?.(text);
+          debouncedSaveToHistory(getState());
+        } else {
+          setState((prev) => ({
+            ...prev,
+            balkenInstances: prev.balkenInstances.map((b) =>
+              b.id === id
+                ? { ...b, texts: b.texts.map((t, i) => (i === index ? text : t)) }
+                : b
+            ),
+          }));
+          debouncedSaveToHistory(getState());
+        }
+      },
+
       updateBalken: (id: string, partial: Partial<BalkenInstance>) => {
         if (id === 'dreizeilen-balken') {
           setState((prev) => {

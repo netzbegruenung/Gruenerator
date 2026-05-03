@@ -101,6 +101,7 @@ interface CanvasRenderLayerProps<
       scale: number,
       rotation: number
     ) => void;
+    handleBalkenTextChange: (id: string, index: number, text: string) => void;
     handleIconDragEnd: (id: string, x: number, y: number) => void;
     handleIconTransformEnd: (
       id: string,
@@ -251,24 +252,7 @@ function CanvasRenderLayerInner<
               rotation={balken.rotation}
               barOffsets={balken.barOffsets}
               onSelect={() => handlers.handleBalkenSelect(balken.id)}
-              onTextChange={(idx, txt) => {
-                const stateWithActions = state as unknown as Record<string, unknown>;
-                if (
-                  (
-                    stateWithActions.actions as unknown as Record<
-                      string,
-                      (id: string, idx: number, txt: string) => void
-                    >
-                  )?.setBalkenText
-                ) {
-                  (
-                    stateWithActions.actions as unknown as Record<
-                      string,
-                      (id: string, idx: number, txt: string) => void
-                    >
-                  ).setBalkenText(balken.id, idx, txt);
-                }
-              }}
+              onTextChange={(idx, txt) => handlers.handleBalkenTextChange(balken.id, idx, txt)}
               onDragEnd={(x, y) => handlers.handleBalkenDragEnd(balken.id, x, y)}
               onTransformEnd={(x, y, s, r) =>
                 handlers.handleBalkenTransformEnd(balken.id, x, y, s, r)
