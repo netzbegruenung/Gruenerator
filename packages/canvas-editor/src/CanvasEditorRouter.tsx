@@ -120,6 +120,12 @@ export interface ControllableCanvasWrapperProps {
    * this callback. Used by collab hosts to open their invite/permissions dialog.
    */
   onInvitePeople?: () => void;
+  /**
+   * Seeds the per-instance AutoSaveStore so reloads update the existing
+   * gallery record instead of creating a new draft. Routes that load an
+   * existing share by token should pass it through here.
+   */
+  initialShareToken?: string | null;
 }
 
 export function ControllableCanvasWrapper({
@@ -139,6 +145,7 @@ export function ControllableCanvasWrapper({
   chromeCenter,
   chromeRight,
   onInvitePeople,
+  initialShareToken,
 }: ControllableCanvasWrapperProps) {
   const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
@@ -396,6 +403,7 @@ export function ControllableCanvasWrapper({
             chromeCenter={chromeCenter}
             chromeRight={chromeRight}
             onInvitePeople={onInvitePeople}
+            initialShareToken={initialShareToken}
           />
         );
 
