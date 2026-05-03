@@ -28,130 +28,122 @@ export type ShapeType =
   | 'line-double'
   | 'line-arrow';
 
-export interface ShapeDef {
-  id: ShapeType;
+export interface ShapeDef<T extends ShapeType = ShapeType> {
+  id: T;
   name: string;
-  tags: string[];
+  tags: readonly string[];
 }
 
-export const ALL_SHAPES: ShapeDef[] = [
-  {
+/**
+ * Source of truth for shape metadata. Typed as `Record<ShapeType, ShapeDef>` so
+ * adding a new ShapeType without registering it here is a compile error.
+ * Object key insertion order is the search-result order; ALL_SHAPES is derived.
+ */
+const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
+  rect: {
     id: 'rect',
     name: 'Rechteck',
     tags: ['rechteck', 'rectangle', 'quadrat', 'square', 'box', 'kasten'],
   },
-  { id: 'circle', name: 'Kreis', tags: ['kreis', 'circle', 'rund', 'round', 'punkt', 'dot'] },
-  { id: 'triangle', name: 'Dreieck', tags: ['dreieck', 'triangle', 'spitz', 'pyramide'] },
-  { id: 'star', name: 'Stern', tags: ['stern', 'star', 'sterne', 'funkel', 'sparkle'] },
-  { id: 'arrow', name: 'Pfeil', tags: ['pfeil', 'arrow', 'richtung', 'zeiger', 'hinweis'] },
-  { id: 'heart', name: 'Herz', tags: ['herz', 'heart', 'liebe', 'love', 'romantik'] },
-  { id: 'cloud', name: 'Wolke', tags: ['wolke', 'cloud', 'himmel', 'sky', 'wetter'] },
-  {
-    id: 'hexagon',
-    name: 'Sechseck',
-    tags: ['sechseck', 'hexagon', 'wabe', 'badge', 'sechs'],
-  },
-  {
-    id: 'pentagon',
-    name: 'Fünfeck',
-    tags: ['fuenfeck', 'fünfeck', 'pentagon', 'fuenf', 'fünf'],
-  },
-  {
-    id: 'diamond',
-    name: 'Raute',
-    tags: ['raute', 'diamond', 'rhombus', 'karo', 'fokus'],
-  },
-  {
-    id: 'ellipse',
-    name: 'Ellipse',
-    tags: ['ellipse', 'oval', 'eierform', 'lang'],
-  },
-  {
+  circle: { id: 'circle', name: 'Kreis', tags: ['kreis', 'circle', 'rund', 'round', 'punkt', 'dot'] },
+  triangle: { id: 'triangle', name: 'Dreieck', tags: ['dreieck', 'triangle', 'spitz', 'pyramide'] },
+  star: { id: 'star', name: 'Stern', tags: ['stern', 'star', 'sterne', 'funkel', 'sparkle'] },
+  arrow: { id: 'arrow', name: 'Pfeil', tags: ['pfeil', 'arrow', 'richtung', 'zeiger', 'hinweis'] },
+  heart: { id: 'heart', name: 'Herz', tags: ['herz', 'heart', 'liebe', 'love', 'romantik'] },
+  cloud: { id: 'cloud', name: 'Wolke', tags: ['wolke', 'cloud', 'himmel', 'sky', 'wetter'] },
+  hexagon: { id: 'hexagon', name: 'Sechseck', tags: ['sechseck', 'hexagon', 'wabe', 'badge', 'sechs'] },
+  pentagon: { id: 'pentagon', name: 'Fünfeck', tags: ['fuenfeck', 'fünfeck', 'pentagon', 'fuenf', 'fünf'] },
+  diamond: { id: 'diamond', name: 'Raute', tags: ['raute', 'diamond', 'rhombus', 'karo', 'fokus'] },
+  ellipse: { id: 'ellipse', name: 'Ellipse', tags: ['ellipse', 'oval', 'eierform', 'lang'] },
+  'rounded-rect': {
     id: 'rounded-rect',
     name: 'Abgerundetes Rechteck',
     tags: ['abgerundet', 'rounded', 'rechteck', 'rectangle', 'pille', 'pill', 'soft'],
   },
-  {
-    id: 'ring',
-    name: 'Ring',
-    tags: ['ring', 'donut', 'donat', 'kranz', 'kreis', 'rahmen'],
-  },
-  {
+  ring: { id: 'ring', name: 'Ring', tags: ['ring', 'donut', 'donat', 'kranz', 'kreis', 'rahmen'] },
+  chevron: {
     id: 'chevron',
     name: 'Chevron',
     tags: ['chevron', 'pfeilspitze', 'spitze', 'pfeil', 'weiter', 'next'],
   },
-  {
+  'double-arrow': {
     id: 'double-arrow',
     name: 'Doppelpfeil',
     tags: ['doppelpfeil', 'double', 'arrow', 'beidseitig', 'vergleich', 'versus'],
   },
-  {
+  wavy: {
     id: 'wavy',
     name: 'Wellenlinie',
     tags: ['welle', 'wave', 'wellenlinie', 'linie', 'trenner', 'divider'],
   },
-  {
+  'speech-round': {
     id: 'speech-round',
     name: 'Sprechblase',
     tags: ['sprechblase', 'speech', 'bubble', 'zitat', 'quote', 'sagen', 'rund'],
   },
-  {
+  'speech-rect': {
     id: 'speech-rect',
     name: 'Sprechblase eckig',
     tags: ['sprechblase', 'speech', 'bubble', 'zitat', 'quote', 'eckig', 'rectangle'],
   },
-  {
+  sparkle: {
     id: 'sparkle',
     name: 'Funkeln',
     tags: ['funkeln', 'sparkle', 'glanz', 'glitzern', 'magie', 'twinkle'],
   },
-  {
+  checkmark: {
     id: 'checkmark',
     name: 'Häkchen',
     tags: ['haekchen', 'häkchen', 'check', 'checkmark', 'ja', 'erledigt', 'tick', 'ok'],
   },
-  {
-    id: 'blob',
-    name: 'Blob',
-    tags: ['blob', 'organisch', 'klecks', 'form', 'modern', 'fluid'],
-  },
-  {
+  blob: { id: 'blob', name: 'Blob', tags: ['blob', 'organisch', 'klecks', 'form', 'modern', 'fluid'] },
+  leaf: {
     id: 'leaf',
     name: 'Blatt',
     tags: ['blatt', 'leaf', 'natur', 'nature', 'grün', 'gruen', 'pflanze', 'oeko'],
   },
-  {
+  line: {
     id: 'line',
     name: 'Linie',
     tags: ['linie', 'line', 'strich', 'trenner', 'divider', 'duenn', 'dünn'],
   },
-  {
+  'line-thick': {
     id: 'line-thick',
     name: 'Dicke Linie',
     tags: ['dicke', 'thick', 'linie', 'line', 'balken', 'fett', 'bold'],
   },
-  {
+  'line-dashed': {
     id: 'line-dashed',
     name: 'Gestrichelte Linie',
     tags: ['gestrichelt', 'dashed', 'linie', 'line', 'strich', 'unterbrochen'],
   },
-  {
+  'line-dotted': {
     id: 'line-dotted',
     name: 'Gepunktete Linie',
     tags: ['gepunktet', 'dotted', 'linie', 'line', 'punkte', 'dots'],
   },
-  {
+  'line-double': {
     id: 'line-double',
     name: 'Doppellinie',
     tags: ['doppellinie', 'double', 'linie', 'line', 'zwei', 'parallel'],
   },
-  {
+  'line-arrow': {
     id: 'line-arrow',
     name: 'Linie mit Pfeil',
     tags: ['pfeillinie', 'pfeil', 'arrow', 'linie', 'line', 'richtung'],
   },
-];
+};
+
+export const ALL_SHAPES: ReadonlyArray<ShapeDef> = Object.values(SHAPE_DEFS);
+export const getShapeDef = <T extends ShapeType>(type: T): ShapeDef<T> => SHAPE_DEFS[type];
+
+/**
+ * Exhaustiveness assertion. Use as the `default` case of a switch on a discriminated
+ * union — adding a new union variant without handling it becomes a compile error.
+ */
+export function assertNever(x: never): never {
+  throw new Error(`Unexpected value: ${JSON.stringify(x)}`);
+}
 
 export interface ShapeInstance {
   id: string;
