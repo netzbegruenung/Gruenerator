@@ -1375,6 +1375,9 @@ importers:
       '@gruenerator/collab':
         specifier: workspace:*
         version: link:../collab
+      '@gruenerator/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@gruenerator/ui':
         specifier: workspace:*
         version: link:../ui
@@ -1382,7 +1385,7 @@ importers:
         specifier: workspace:*
         version: link:../voice
       '@hocuspocus/provider':
-        specifier: ^3.4.3
+        specifier: ^3.4.4
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
       '@tanstack/react-query':
         specifier: ^5.0.0
