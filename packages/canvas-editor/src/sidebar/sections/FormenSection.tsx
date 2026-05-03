@@ -26,7 +26,6 @@ import {
 import {
   CATEGORY_LABELS,
   CATEGORY_ORDER,
-  EUCALYPTUS,
   getShapeDef,
   type ShapeCategory,
   type ShapeType,
@@ -62,7 +61,7 @@ const PreviewSvg = ({
     width={width}
     height={height}
     viewBox={viewBox}
-    fill="var(--font-color)"
+    fill="currentColor"
     aria-hidden="true"
     className="shrink-0"
   >
@@ -80,34 +79,34 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
   rect: {
     id: 'rect',
     title: 'Rechteck hinzufügen',
-    renderPreview: () => <div className="w-[32px] h-[32px] bg-[var(--font-color)] shrink-0" />,
+    renderPreview: () => <div className="w-[32px] h-[32px] bg-current shrink-0" />,
   },
   'rounded-rect': {
     id: 'rounded-rect',
     title: 'Abgerundetes Rechteck hinzufügen',
     renderPreview: () => (
-      <div className="w-[32px] h-[32px] bg-[var(--font-color)] shrink-0 rounded-[8px]" />
+      <div className="w-[32px] h-[32px] bg-current shrink-0 rounded-[8px]" />
     ),
   },
   circle: {
     id: 'circle',
     title: 'Kreis hinzufügen',
     renderPreview: () => (
-      <div className="w-[32px] h-[32px] bg-[var(--font-color)] shrink-0 rounded-full" />
+      <div className="w-[32px] h-[32px] bg-current shrink-0 rounded-full" />
     ),
   },
   ellipse: {
     id: 'ellipse',
     title: 'Ellipse hinzufügen',
     renderPreview: () => (
-      <div className="w-[32px] h-[20px] bg-[var(--font-color)] shrink-0 rounded-full" />
+      <div className="w-[32px] h-[20px] bg-current shrink-0 rounded-full" />
     ),
   },
   ring: {
     id: 'ring',
     title: 'Ring hinzufügen',
     renderPreview: () => (
-      <div className="w-[32px] h-[32px] shrink-0 rounded-full border-[6px] border-[var(--font-color)]" />
+      <div className="w-[32px] h-[32px] shrink-0 rounded-full border-[6px] border-current" />
     ),
   },
   triangle: {
@@ -119,7 +118,7 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
         style={{
           borderLeft: '16px solid transparent',
           borderRight: '16px solid transparent',
-          borderBottom: '32px solid var(--font-color)',
+          borderBottom: '32px solid currentColor',
         }}
       />
     ),
@@ -163,7 +162,7 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Linie hinzufügen',
     renderPreview: () => (
       <svg width={32} height={12} viewBox="0 0 100 12" aria-hidden="true" className="shrink-0">
-        <line x1="2" y1="6" x2="98" y2="6" stroke={EUCALYPTUS} strokeWidth="6" strokeLinecap="round" />
+        <line x1="2" y1="6" x2="98" y2="6" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -172,7 +171,7 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Dicke Linie hinzufügen',
     renderPreview: () => (
       <svg width={32} height={16} viewBox="0 0 100 16" aria-hidden="true" className="shrink-0">
-        <line x1="2" y1="8" x2="98" y2="8" stroke={EUCALYPTUS} strokeWidth="14" strokeLinecap="round" />
+        <line x1="2" y1="8" x2="98" y2="8" stroke="currentColor" strokeWidth="14" strokeLinecap="round" />
       </svg>
     ),
   },
@@ -186,7 +185,7 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
           y1="6"
           x2="98"
           y2="6"
-          stroke={EUCALYPTUS}
+          stroke="currentColor"
           strokeWidth="6"
           strokeLinecap="butt"
           strokeDasharray="14 8"
@@ -204,7 +203,7 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
           y1="6"
           x2="96"
           y2="6"
-          stroke={EUCALYPTUS}
+          stroke="currentColor"
           strokeWidth="6"
           strokeLinecap="round"
           strokeDasharray="0 14"
@@ -217,8 +216,8 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Doppellinie hinzufügen',
     renderPreview: () => (
       <svg width={32} height={16} viewBox="0 0 100 16" aria-hidden="true" className="shrink-0">
-        <line x1="2" y1="4" x2="98" y2="4" stroke={EUCALYPTUS} strokeWidth="3" />
-        <line x1="2" y1="12" x2="98" y2="12" stroke={EUCALYPTUS} strokeWidth="3" />
+        <line x1="2" y1="4" x2="98" y2="4" stroke="currentColor" strokeWidth="3" />
+        <line x1="2" y1="12" x2="98" y2="12" stroke="currentColor" strokeWidth="3" />
       </svg>
     ),
   },
@@ -227,8 +226,8 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Linie mit Pfeil hinzufügen',
     renderPreview: () => (
       <svg width={32} height={14} viewBox="0 0 100 14" aria-hidden="true" className="shrink-0">
-        <line x1="2" y1="7" x2="78" y2="7" stroke={EUCALYPTUS} strokeWidth="5" strokeLinecap="round" />
-        <polygon points="78,1 98,7 78,13" fill={EUCALYPTUS} />
+        <line x1="2" y1="7" x2="78" y2="7" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+        <polygon points="78,1 98,7 78,13" fill="currentColor" />
       </svg>
     ),
   },
@@ -239,7 +238,7 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
       <PreviewSvg viewBox="0 0 100 40">
         <path
           d="M0,20 C12,4 28,36 50,20 C72,4 88,36 100,20 L100,28 C88,44 72,12 50,28 C28,44 12,12 0,28 Z"
-          fill="var(--font-color)"
+          fill="currentColor"
         />
       </PreviewSvg>
     ),
@@ -421,7 +420,9 @@ export function FormenSection({
       onClick={() => onAddShape(shape.id)}
       title={shape.title}
     >
-      <div className={CARD_PREVIEW}>{shape.renderPreview()}</div>
+      <div className={cn(CARD_PREVIEW, 'text-secondary-600 dark:text-secondary-300')}>
+        {shape.renderPreview()}
+      </div>
     </button>
   );
 
