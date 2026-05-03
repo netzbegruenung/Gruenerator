@@ -52,6 +52,7 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Teilen</DialogTitle>
+            <DialogDescription>Lade Freigabe-Einstellungen...</DialogDescription>
           </DialogHeader>
           <p className="text-sm text-grey-500 py-md">Laden...</p>
         </DialogContent>
