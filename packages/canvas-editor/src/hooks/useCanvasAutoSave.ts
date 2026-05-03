@@ -147,6 +147,13 @@ export const useCanvasAutoSave = (
   options: CanvasAutoSaveOptions
 ): CanvasAutoSaveReturn => {
   const autoSaveStoreApi = useAutoSaveStoreApi();
+  console.log('[AutoSave][useCanvasAutoSave] render', {
+    canvasType: options.canvasType,
+    enabled: options.enabled,
+    hasGeneratedImage: !!generatedImage,
+    storeShareToken: autoSaveStoreApi.getState().autoSavedShareToken,
+    storeStatus: autoSaveStoreApi.getState().autoSaveStatus,
+  });
   // Only get action setters - no state subscriptions to avoid re-renders
   const setAutoSaveStatus = useAutoSaveStore((s) => s.setAutoSaveStatus);
   const setAutoSavedShareToken = useAutoSaveStore((s) => s.setAutoSavedShareToken);
@@ -184,10 +191,32 @@ export const useCanvasAutoSave = (
     // Read current store state directly to avoid stale closures
     const storeState = autoSaveStoreApi.getState();
 
-    if (!imageSrc) return;
-    if (refs.enabled === false) return;
-    if (storeState.autoSaveStatus === 'saving') return;
-    if (storeState.lastAutoSavedImageSrc === imageSrc) return;
+    console.log('[AutoSave][performAutoSave] entry', {
+      canvasType: refs.canvasType,
+      enabled: refs.enabled,
+      hasImageSrc: !!imageSrc,
+      imageSrcLen: imageSrc?.length ?? 0,
+      currentStatus: storeState.autoSaveStatus,
+      currentToken: storeState.autoSavedShareToken,
+      lastSavedImageSame: storeState.lastAutoSavedImageSrc === imageSrc,
+    });
+
+    if (!imageSrc) {
+      console.log('[AutoSave][performAutoSave] skip: no imageSrc');
+      return;
+    }
+    if (refs.enabled === false) {
+      console.log('[AutoSave][performAutoSave] skip: enabled=false');
+      return;
+    }
+    if (storeState.autoSaveStatus === 'saving') {
+      console.log('[AutoSave][performAutoSave] skip: already saving');
+      return;
+    }
+    if (storeState.lastAutoSavedImageSrc === imageSrc) {
+      console.log('[AutoSave][performAutoSave] skip: imageSrc identical to last save (dedup)');
+      return;
+    }
 
     refs.setAutoSaveStatus('saving');
 
@@ -229,6 +258,10 @@ export const useCanvasAutoSave = (
 
       // If we already have a shareToken, update the existing entry instead of creating new
       if (storeState.autoSavedShareToken) {
+        console.log('[AutoSave][performAutoSave] branch: UPDATE', {
+          shareToken: storeState.autoSavedShareToken,
+          hasOriginalImage: !!originalImageBase64,
+        });
         share = await refs.updateImageShare({
           shareToken: storeState.autoSavedShareToken,
           imageBase64: imageSrc,
@@ -237,6 +270,9 @@ export const useCanvasAutoSave = (
           originalImage: originalImageBase64,
         });
       } else {
+        console.log('[AutoSave][performAutoSave] branch: CREATE (no token in store)', {
+          hasOriginalImage: !!originalImageBase64,
+        });
         share = await refs.createImageShare({
           imageData: imageSrc,
           title,
@@ -247,22 +283,36 @@ export const useCanvasAutoSave = (
         });
       }
 
+      console.log('[AutoSave][performAutoSave] api response', {
+        gotShareToken: !!share?.shareToken,
+        shareToken: share?.shareToken ?? null,
+      });
+
       if (share?.shareToken) {
         refs.setAutoSavedShareToken(share.shareToken);
         refs.setLastAutoSavedImageSrc(imageSrc);
         refs.setAutoSaveStatus('saved');
+      } else {
+        console.warn(
+          '[AutoSave][performAutoSave] api returned no shareToken — status stays at "saving"'
+        );
       }
     } catch (error) {
-      console.error('[AutoSave] Error:', error);
+      console.error('[AutoSave][performAutoSave] error:', error);
       refs.setAutoSaveStatus('error');
     }
   }, [autoSaveStoreApi]);
 
   // Only trigger on generatedImage changes
   useEffect(() => {
+    console.log('[AutoSave][trigger-effect] generatedImage changed', {
+      hasImage: !!generatedImage,
+      imageLen: generatedImage?.length ?? 0,
+    });
     if (!generatedImage) return;
 
     const timer = setTimeout(() => {
+      console.log('[AutoSave][trigger-effect] debounce fired, calling performAutoSave');
       performAutoSave(generatedImage);
     }, 500);
 
