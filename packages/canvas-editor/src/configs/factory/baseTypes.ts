@@ -34,6 +34,8 @@ export interface BaseCanvasState {
   balkenInstances: BalkenInstance[];
   frameInstances: FrameInstance[];
   userImageInstances: UserImageInstance[];
+  layerOrder?: string[];
+  imageAttribution?: StockImageAttribution | null;
   [key: string]: unknown;
 }
 

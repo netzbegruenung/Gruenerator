@@ -49,7 +49,7 @@ export interface AdditionalText {
   width: number;
   fontSize: number;
   fontFamily: string;
-  fontStyle?: string;
+  fontStyle?: 'normal' | 'italic' | 'bold' | 'bold italic';
   fill: string;
   rotation?: number;
   scale?: number;
