@@ -257,7 +257,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
   ],
 
   getVisibleTabs: () => {
-    // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
+      // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
     // 'settings' tab kept registered but hidden — opened via getAutoSwitchTab on balken
     // selection so the icon strip doesn't shift when a balken is clicked.
     return ['image-background', 'text', 'assets', 'uploads', 'chat', 'share'];
@@ -354,6 +354,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       scaleKey: 'imageScale',
       draggable: true,
       transformable: true,
+      coverFit: true,
       visible: (state: DreizeilenFullState) => state.hasBackgroundImage,
       opacity: (state: DreizeilenFullState) => state.backgroundImageOpacity ?? 1,
       opacityStateKey: 'backgroundImageOpacity',
