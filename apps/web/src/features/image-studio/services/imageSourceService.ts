@@ -65,3 +65,33 @@ export async function fetchUnsplashImageAsFile(image: StockImage): Promise<File>
   const filename = image.filename || 'unsplash-image.jpg';
   return new File([blob], filename, { type: blob.type || 'image/jpeg' });
 }
+
+interface ImaginePureResponse {
+  image: { base64: string; filename?: string };
+  usage?: { remaining?: number };
+}
+
+export async function generateAiBackgroundImage(
+  prompt: string,
+  opts: { variant: 'illustration' | 'realistic' | 'pixel'; width?: number; height?: number }
+): Promise<{ file: File; remaining: number | null }> {
+  const variantValue = `${opts.variant}-pure`;
+  const response = await apiClient.post<ImaginePureResponse>('/imagine/pure', {
+    prompt,
+    variant: variantValue,
+    backend: 'regolo',
+    ...(opts.width && opts.height ? { width: opts.width, height: opts.height } : {}),
+  });
+
+  const base64 = response.data?.image?.base64;
+  if (!base64) {
+    throw new Error('Keine Bilddaten empfangen');
+  }
+
+  const blob = await (await fetch(base64)).blob();
+  const filename = response.data.image.filename ?? 'ai-background.png';
+  const file = new File([blob], filename, { type: blob.type || 'image/png' });
+  const remaining = response.data.usage?.remaining ?? null;
+
+  return { file, remaining };
+}
