@@ -30,6 +30,7 @@ const PATH_VIEWBOX = 100;
 /** Subset of ShapeType rendered via Konva.Path with a hand-tuned SVG path. */
 type PathShapeType =
   | 'arrow'
+  | 'arrow-curved'
   | 'heart'
   | 'cloud'
   | 'chevron'
@@ -40,13 +41,26 @@ type PathShapeType =
   | 'speech-cloud'
   | 'speech-pointed'
   | 'cloud-fluffy'
+  | 'cloud-puff'
+  | 'cloud-thin'
   | 'heart-broken'
   | 'heart-double'
+  | 'heart-arrow'
   | 'drop'
+  | 'drop-pin'
+  | 'drop-tear'
+  | 'drop-flame'
   | 'banner-ribbon'
   | 'banner-flag'
+  | 'banner-tag'
+  | 'banner-scroll'
   | 'gear'
   | 'plus'
+  | 'minus'
+  | 'x-mark'
+  | 'tree'
+  | 'mountain'
+  | 'blob-2'
   | 'checkmark'
   | 'blob'
   | 'leaf';
@@ -78,7 +92,31 @@ const SHAPE_PATHS: Record<PathShapeType, string> = {
   plus: 'M40,5 L60,5 L60,40 L95,40 L95,60 L60,60 L60,95 L40,95 L40,60 L5,60 L5,40 L40,40 Z',
   checkmark: 'M10,52 L38,80 L90,18 L78,8 L38,58 L22,42 Z',
   blob: 'M50,4 C72,6 90,22 94,44 C98,66 88,86 70,93 C52,100 30,96 18,82 C6,68 4,46 14,28 C24,10 38,2 50,4 Z',
+  'blob-2': 'M52,6 C75,12 95,28 92,52 C90,72 75,90 52,92 C32,93 12,82 8,62 C4,42 18,18 30,12 C38,8 45,5 52,6 Z',
   leaf: 'M50,4 C76,12 92,36 88,62 C84,84 64,94 50,94 C36,94 16,84 12,62 C8,36 24,12 50,4 Z',
+  'arrow-curved':
+    'M8,72 C8,42 32,22 60,28 L60,16 L92,38 L60,60 L60,48 C42,46 26,58 26,72 Z',
+  'cloud-puff':
+    'M22,60 C8,60 5,45 18,38 C18,22 38,18 48,30 C58,18 78,22 78,40 C92,40 92,58 78,62 C78,72 60,72 56,66 C50,72 30,72 22,60 Z',
+  'cloud-thin':
+    'M5,55 C5,40 22,30 32,40 C36,30 50,28 58,38 C72,30 88,38 90,52 C95,55 95,65 85,65 L15,65 C5,65 5,58 5,55 Z',
+  'heart-arrow':
+    'M50,90 C50,90 12,68 12,38 C12,15 30,5 50,28 C70,5 88,15 88,38 C88,68 50,90 50,90 Z M0,46 L20,46 L20,38 L32,52 L20,66 L20,58 L0,58 Z M68,52 L80,52 L80,44 L100,58 L80,72 L80,64 L68,64 Z',
+  'drop-pin':
+    'M50,5 C32,5 18,18 18,35 C18,55 50,92 50,92 C50,92 82,55 82,35 C82,18 68,5 50,5 Z',
+  'drop-tear':
+    'M50,8 C42,28 28,52 32,70 C34,82 42,90 50,90 C58,90 66,82 68,70 C72,52 58,28 50,8 Z',
+  'drop-flame':
+    'M50,5 C45,18 35,28 38,42 C30,50 30,62 38,72 C32,75 32,82 38,88 C45,93 55,93 62,88 C68,82 68,75 62,72 C70,62 70,50 62,42 C65,28 55,18 50,5 Z',
+  'banner-tag':
+    'M5,25 L70,25 L95,50 L70,75 L5,75 Z',
+  'banner-scroll':
+    'M0,42 C0,32 12,28 22,32 L22,68 C12,72 0,68 0,58 Z M22,28 L78,28 L78,72 L22,72 Z M78,32 C88,28 100,32 100,42 L100,58 C100,68 88,72 78,68 Z',
+  tree: 'M40,72 L60,72 L60,90 L40,90 Z M50,8 L72,40 L62,40 L82,68 L66,68 L78,90 L22,90 L34,68 L18,68 L38,40 L28,40 Z',
+  mountain: 'M5,82 L32,38 L48,58 L62,30 L95,82 Z',
+  minus: 'M5,42 L95,42 L95,58 L5,58 Z',
+  'x-mark':
+    'M14,5 L50,40 L86,5 L95,14 L60,50 L95,86 L86,95 L50,60 L14,95 L5,86 L40,50 L5,14 Z',
 };
 
 const PATH_OFFSETS: Record<PathShapeType, { x: number; y: number }> = {
@@ -102,7 +140,21 @@ const PATH_OFFSETS: Record<PathShapeType, { x: number; y: number }> = {
   plus: { x: 50, y: 50 },
   checkmark: { x: 50, y: 50 },
   blob: { x: 50, y: 50 },
+  'blob-2': { x: 50, y: 50 },
   leaf: { x: 50, y: 50 },
+  'arrow-curved': { x: 50, y: 50 },
+  'cloud-puff': { x: 50, y: 50 },
+  'cloud-thin': { x: 50, y: 50 },
+  'heart-arrow': { x: 50, y: 50 },
+  'drop-pin': { x: 50, y: 50 },
+  'drop-tear': { x: 50, y: 50 },
+  'drop-flame': { x: 50, y: 50 },
+  'banner-tag': { x: 50, y: 50 },
+  'banner-scroll': { x: 50, y: 50 },
+  tree: { x: 50, y: 50 },
+  mountain: { x: 50, y: 60 },
+  minus: { x: 50, y: 50 },
+  'x-mark': { x: 50, y: 50 },
 };
 
 
@@ -255,7 +307,68 @@ function renderShape(
           outerRadius={shape.width / 2}
         />
       );
+    case 'flower-8':
+      return (
+        <Star
+          ref={shapeRef as React.RefObject<Konva.Star>}
+          {...commonProps}
+          numPoints={8}
+          innerRadius={shape.width * 0.3}
+          outerRadius={shape.width / 2}
+        />
+      );
+    case 'star-burst':
+      return (
+        <Star
+          ref={shapeRef as React.RefObject<Konva.Star>}
+          {...commonProps}
+          numPoints={8}
+          innerRadius={shape.width / 12}
+          outerRadius={shape.width / 2}
+        />
+      );
+    case 'sun':
+      return (
+        <Star
+          ref={shapeRef as React.RefObject<Konva.Star>}
+          {...commonProps}
+          numPoints={12}
+          innerRadius={shape.width * 0.32}
+          outerRadius={shape.width / 2}
+        />
+      );
+    case 'gear-12':
+      return (
+        <Star
+          ref={shapeRef as React.RefObject<Konva.Star>}
+          {...commonProps}
+          numPoints={12}
+          innerRadius={shape.width * 0.4}
+          outerRadius={shape.width / 2}
+        />
+      );
+    case 'gear-6':
+      return (
+        <Star
+          ref={shapeRef as React.RefObject<Konva.Star>}
+          {...commonProps}
+          numPoints={6}
+          innerRadius={shape.width * 0.36}
+          outerRadius={shape.width / 2}
+        />
+      );
+    case 'gear-fine':
+      return (
+        <Star
+          ref={shapeRef as React.RefObject<Konva.Star>}
+          {...commonProps}
+          numPoints={20}
+          innerRadius={shape.width * 0.42}
+          outerRadius={shape.width / 2}
+        />
+      );
     case 'arrow':
+    case 'arrow-curved':
     case 'heart':
     case 'cloud':
     case 'chevron':
@@ -266,13 +379,26 @@ function renderShape(
     case 'speech-cloud':
     case 'speech-pointed':
     case 'cloud-fluffy':
+    case 'cloud-puff':
+    case 'cloud-thin':
     case 'heart-broken':
     case 'heart-double':
+    case 'heart-arrow':
     case 'drop':
+    case 'drop-pin':
+    case 'drop-tear':
+    case 'drop-flame':
     case 'banner-ribbon':
     case 'banner-flag':
+    case 'banner-tag':
+    case 'banner-scroll':
     case 'gear':
     case 'plus':
+    case 'minus':
+    case 'x-mark':
+    case 'tree':
+    case 'mountain':
+    case 'blob-2':
     case 'checkmark':
     case 'blob':
     case 'leaf': {
