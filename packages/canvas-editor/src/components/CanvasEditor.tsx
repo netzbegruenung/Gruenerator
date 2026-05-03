@@ -25,7 +25,8 @@ import React, {
   lazy,
 } from 'react';
 
-import Spinner from '../common/Spinner';
+import { Skeleton } from '@gruenerator/ui';
+
 import { usePageManager, useMultiPageExport, usePresentationExport } from '../hooks';
 import { useMobileBridge } from '../hooks/useMobileBridge';
 import { CanvasEditorLayout } from '../layouts';
@@ -65,12 +66,18 @@ const sidebarLoadingFallback = (
   <div
     style={{
       display: 'flex',
-      justifyContent: 'center',
+      flexDirection: 'column',
+      gap: 'var(--spacing-small)',
       padding: 'var(--spacing-large)',
       minHeight: '200px',
+      width: '100%',
+      maxWidth: '20rem',
     }}
   >
-    <Spinner size="medium" />
+    <Skeleton className="h-6 w-3/4 rounded" />
+    <Skeleton className="h-20 w-full rounded-lg" />
+    <Skeleton className="h-4 w-1/2 rounded" />
+    <Skeleton className="h-4 w-2/3 rounded" />
   </div>
 );
 

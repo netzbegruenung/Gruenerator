@@ -7,13 +7,13 @@ import {
   Separator,
   IconButton,
   IconButtonRow,
+  Skeleton,
 } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
 import { FaCheck, FaDownload, FaSave, FaInstagram, FaCopy, FaUserPlus } from 'react-icons/fa';
 import { PiArrowLeft } from 'react-icons/pi';
 import { IoShareOutline } from 'react-icons/io5';
 
-import Spinner from '../../common/Spinner';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useAutoSaveStore } from '../../stores/useAutoSaveStore';
 
@@ -239,7 +239,7 @@ export function ShareDropdown({
                   size="sm"
                   icon={
                     isSharing ? (
-                      <Spinner size="small" />
+                      <Skeleton className="size-4 rounded-full" />
                     ) : shareSuccess ? (
                       <FaCheck />
                     ) : (
@@ -256,7 +256,7 @@ export function ShareDropdown({
                 size="sm"
                 icon={
                   isSavingTemplate ? (
-                    <Spinner size="small" />
+                    <Skeleton className="size-4 rounded-full" />
                   ) : templateUrl ? (
                     <FaCheck />
                   ) : (
@@ -316,7 +316,11 @@ export function ShareDropdown({
                   onClick={handleGenerateInstagram}
                   disabled={socialLoading || !canvasText.trim()}
                 >
-                  {socialLoading ? <Spinner size="small" /> : <FaInstagram className="size-3.5" />}
+                  {socialLoading ? (
+                    <Skeleton className="size-3.5 rounded-full" />
+                  ) : (
+                    <FaInstagram className="size-3.5" />
+                  )}
                   {socialLoading ? 'Generiere...' : 'Text generieren'}
                 </Button>
               ) : (
