@@ -14,7 +14,12 @@ import { HiPhotograph } from 'react-icons/hi';
 import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { BackgroundSection, AssetsSection, CombinedTextSection } from '../../sidebar/sections';
-import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from '../commonSections';
+import {
+  chatTab,
+  createCommonSectionEntries,
+  toolsTab,
+  uploadsTab,
+} from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
 import { createShareSection } from '../shareSection';
@@ -254,14 +259,20 @@ export function createColorTwoTextCanvas(
         label: 'Elemente',
         ariaLabel: 'Dekorative Elemente',
       },
+      toolsTab,
       uploadsTab,
       chatTab,
     ],
 
-    getVisibleTabs: () => ['background', 'text', 'assets', 'uploads', 'chat', 'share'],
+    // 'background' tab kept registered but hidden — opened via getAutoSwitchTab when
+    // the canvas background is clicked.
+    getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat', 'share'],
 
-    getAutoSwitchTab: (selectedElement) =>
-      selectedElement?.startsWith('frame-') ? 'assets' : null,
+    getAutoSwitchTab: (selectedElement) => {
+      if (selectedElement === 'background') return 'background';
+      if (selectedElement?.startsWith('frame-')) return 'assets';
+      return null;
+    },
 
     sections: {
       background: {
@@ -292,8 +303,7 @@ export function createColorTwoTextCanvas(
           ...injectFeatureProps(state, actions, context),
         }),
       },
-      uploads: uploadsSectionEntry,
-      chat: createChatSection(id),
+      ...createCommonSectionEntries(id),
       share: createShareSection<ColorTwoTextState, ColorTwoTextActions>(
         id,
         getCanvasText || defaultGetCanvasText

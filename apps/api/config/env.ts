@@ -136,6 +136,7 @@ const envSchema = z.object({
   // ── OCR ────────────────────────────────────────────────────────────────
   OCR_PROVIDER: z.string().optional(),
   DOCLING_URL: z.string().optional(),
+  REMBG_URL: z.string().optional(),
 
   // ── Hocuspocus / Yjs ──────────────────────────────────────────────────
   HOCUSPOCUS_ENABLED: boolFlag(false),

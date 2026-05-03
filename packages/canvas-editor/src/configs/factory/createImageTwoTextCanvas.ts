@@ -13,7 +13,12 @@ import { HiPhotograph } from 'react-icons/hi';
 import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { ImageBackgroundSection, AssetsSection, CombinedTextSection } from '../../sidebar/sections';
-import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from '../commonSections';
+import {
+  chatTab,
+  createCommonSectionEntries,
+  toolsTab,
+  uploadsTab,
+} from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
 import { createShareSection } from '../shareSection';
@@ -256,11 +261,12 @@ export function createImageTwoTextCanvas(
         label: 'Elemente',
         ariaLabel: 'Dekorative Elemente',
       },
+      toolsTab,
       uploadsTab,
       chatTab,
     ],
 
-    getVisibleTabs: () => ['image', 'text', 'assets', 'uploads', 'chat', 'share'],
+    getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat', 'share'],
 
     getAutoSwitchTab: (selectedElement) =>
       selectedElement?.startsWith('frame-') ? 'assets' : null,
@@ -304,8 +310,7 @@ export function createImageTwoTextCanvas(
           ...injectFeatureProps(state, actions, context),
         }),
       },
-      uploads: uploadsSectionEntry,
-      chat: createChatSection(id),
+      ...createCommonSectionEntries(id),
       share: createShareSection<ImageTwoTextState, ImageTwoTextActions>(
         id,
         getCanvasText || defaultGetCanvasText

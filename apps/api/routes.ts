@@ -11,7 +11,6 @@ import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountAuthStatusContractRouter } from './routes/auth/authStatusContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
-import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
@@ -45,6 +44,7 @@ import { mountNotebookContractRouter } from './routes/notebook/notebookContractR
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
+import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
 import researchRouter from './routes/research/researchController.js';
@@ -56,6 +56,7 @@ import {
 import searchGraphRouter from './routes/search/searchGraphController.js';
 import { mountShareContractRouter } from './routes/share/shareContractRouter.js';
 import shareRouter from './routes/share/shareController.js';
+import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
 import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImageModification.js';
@@ -402,6 +403,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/dreizeilen_claude', aiGenerationLimiter, sharepicClaudeRoute);
   app.use('/api/sharepic/edit-session', standardMutationLimiter, editSessionRouter);
   app.use('/api/sharepic', aiGenerationLimiter, promptRoute);
+  app.use('/api/background-removal', aiGenerationLimiter, requireAuth, backgroundRemovalRoute);
 
   app.post(
     '/api/zitat_claude',

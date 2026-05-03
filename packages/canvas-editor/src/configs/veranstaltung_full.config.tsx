@@ -12,7 +12,12 @@ import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
-import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from './commonSections';
+import {
+  chatTab,
+  createCommonSectionEntries,
+  toolsTab,
+  uploadsTab,
+} from './commonSections';
 import {
   createAssetActions,
   createIconActions,
@@ -341,13 +346,14 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
     { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Dekorative Elemente' },
+    toolsTab,
     uploadsTab,
     { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
     chatTab,
   ],
 
   // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  getVisibleTabs: () => ['image', 'text', 'assets', 'uploads', 'chat'],
+  getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat'],
 
   getAutoSwitchTab: (selectedElement) => (selectedElement?.startsWith('frame-') ? 'assets' : null),
 
@@ -392,8 +398,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
         ...injectFeatureProps(state, actions, context),
       }),
     },
-    uploads: uploadsSectionEntry,
-    chat: createChatSection('veranstaltung', veranstaltungAiCapabilities),
+    ...createCommonSectionEntries('veranstaltung', veranstaltungAiCapabilities),
     share: createShareSection<VeranstaltungFullState>('veranstaltung', (state) =>
       `${state.eventTitle}\n${state.beschreibung}\n${state.weekday} ${state.date} ${state.time}\n${state.locationName}`.trim()
     ),

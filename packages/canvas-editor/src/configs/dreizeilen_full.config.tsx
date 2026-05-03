@@ -14,7 +14,12 @@ import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
-import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from './commonSections';
+import {
+  chatTab,
+  createCommonSectionEntries,
+  toolsTab,
+  uploadsTab,
+} from './commonSections';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
@@ -251,6 +256,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Balken-Einstellungen' },
     { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
+    toolsTab,
     uploadsTab,
     { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
     chatTab,
@@ -260,7 +266,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
     // 'settings' tab kept registered but hidden — opened via getAutoSwitchTab on balken
     // selection so the icon strip doesn't shift when a balken is clicked.
-    return ['image-background', 'text', 'assets', 'uploads', 'chat', 'share'];
+    return ['image-background', 'text', 'assets', 'tools', 'uploads', 'chat', 'share'];
   },
 
   getAutoSwitchTab: (selectedElement) => {
@@ -331,8 +337,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
     ai: createAiSectionRegistration('dreizeilen', dreizeilenAiCapabilities),
 
-    uploads: uploadsSectionEntry,
-    chat: createChatSection('dreizeilen', dreizeilenAiCapabilities),
+    ...createCommonSectionEntries('dreizeilen', dreizeilenAiCapabilities),
 
     share: createShareSection<DreizeilenFullState>('dreizeilen', (state) =>
       `${state.line1}\n${state.line2}\n${state.line3}`.trim()

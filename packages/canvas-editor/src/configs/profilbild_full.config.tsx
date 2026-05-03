@@ -18,7 +18,12 @@ import {
 import { HiPaintBrush } from 'react-icons/hi2';
 
 import { createBaseActions } from './factory/commonActions';
-import { chatTab, createChatSection } from './commonSections';
+import {
+  chatTab,
+  createCommonSectionEntries,
+  toolsTab,
+  uploadsTab,
+} from './commonSections';
 import { BackgroundSection } from '../sidebar/sections';
 
 import type { BaseCanvasState } from './factory/baseTypes';
@@ -198,10 +203,12 @@ export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, Profilb
 
   tabs: [
     { id: 'background', icon: HiPaintBrush, label: 'Farbe', ariaLabel: 'Hintergrundfarbe' },
+    toolsTab,
+    uploadsTab,
     chatTab,
   ],
 
-  getVisibleTabs: () => ['background', 'chat'],
+  getVisibleTabs: () => ['background', 'tools', 'uploads', 'chat'],
 
   sections: {
     background: {
@@ -212,7 +219,7 @@ export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, Profilb
         onColorChange: actions.setBackgroundColor,
       }),
     },
-    chat: createChatSection('profilbild', profilbildAiCapabilities),
+    ...createCommonSectionEntries('profilbild', profilbildAiCapabilities),
   },
 
   elements: [backgroundElement, avatarElement],

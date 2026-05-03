@@ -17,7 +17,12 @@ import { BackgroundSection, AssetsSection, CombinedTextSection } from '../sideba
 import { createPillBadgeInstance, getPillBadgeColorsForScheme } from '../utils/pillBadgeUtils';
 import { SLIDER_CONFIG, calculateSliderLayout, getSliderColors } from '../utils/sliderLayout';
 
-import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from './commonSections';
+import {
+  chatTab,
+  createCommonSectionEntries,
+  toolsTab,
+  uploadsTab,
+} from './commonSections';
 import { createBaseActions } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
@@ -460,6 +465,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       label: 'Elemente',
       ariaLabel: 'Dekorative Elemente',
     },
+    toolsTab,
     uploadsTab,
     {
       id: 'ai',
@@ -471,9 +477,15 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
   ],
 
   // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  getVisibleTabs: () => ['background', 'text', 'assets', 'uploads', 'chat'],
+  // 'background' tab kept registered but hidden — opened via getAutoSwitchTab when
+  // the canvas background is clicked.
+  getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat'],
 
-  getAutoSwitchTab: (selectedElement) => (selectedElement?.startsWith('frame-') ? 'assets' : null),
+  getAutoSwitchTab: (selectedElement) => {
+    if (selectedElement === 'background') return 'background';
+    if (selectedElement?.startsWith('frame-')) return 'assets';
+    return null;
+  },
 
   sections: {
     background: {
@@ -508,8 +520,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         ...injectFeatureProps(state, actions, context),
       }),
     },
-    uploads: uploadsSectionEntry,
-    chat: createChatSection('slider', sliderAiCapabilities),
+    ...createCommonSectionEntries('slider', sliderAiCapabilities),
     share: createShareSection<SliderState, SliderActions>('slider', (state) => {
       const label = state.label || '';
       const headline = state.headline || '';

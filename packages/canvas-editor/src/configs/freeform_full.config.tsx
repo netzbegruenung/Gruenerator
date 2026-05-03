@@ -19,7 +19,12 @@ import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 
-import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from './commonSections';
+import {
+  chatTab,
+  createCommonSectionEntries,
+  toolsTab,
+  uploadsTab,
+} from './commonSections';
 import { createBaseActions } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
@@ -173,6 +178,7 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       label: 'Elemente',
       ariaLabel: 'Elemente hinzufügen',
     },
+    toolsTab,
     uploadsTab,
     {
       id: 'ai',
@@ -184,10 +190,15 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
   ],
 
   // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  getVisibleTabs: () => ['background', 'text', 'elements', 'uploads', 'chat'],
+  // 'background' tab kept registered but hidden — opened via getAutoSwitchTab when
+  // the canvas background is clicked.
+  getVisibleTabs: () => ['text', 'elements', 'tools', 'uploads', 'chat'],
 
-  getAutoSwitchTab: (selectedElement) =>
-    selectedElement?.startsWith('frame-') ? 'elements' : null,
+  getAutoSwitchTab: (selectedElement) => {
+    if (selectedElement === 'background') return 'background';
+    if (selectedElement?.startsWith('frame-')) return 'elements';
+    return null;
+  },
 
   sections: {
     background: {
@@ -237,8 +248,7 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       }),
     },
 
-    uploads: uploadsSectionEntry,
-    chat: createChatSection('freeform', freeformAiCapabilities),
+    ...createCommonSectionEntries('freeform', freeformAiCapabilities),
 
     share: createShareSection<FreeformState>('freeform', () => ''),
 

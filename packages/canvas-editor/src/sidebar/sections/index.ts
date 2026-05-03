@@ -66,3 +66,8 @@ export const UploadsSection = lazy(() =>
   import('./UploadsSection').then((m) => ({ default: m.UploadsSection }))
 );
 export type { UploadsSectionProps } from './UploadsSection';
+
+export const ToolsSection = lazy(() =>
+  import('./tools').then((m) => ({ default: m.ToolsSection }))
+);
+export type { ToolsSectionProps } from './tools';
