@@ -295,6 +295,7 @@ const MemoizedImageElement = memo(
         height={height}
         opacity={opacity}
         color={typeof fill === 'string' ? fill : undefined}
+        coverFit={config.coverFit}
         draggable={config.draggable && !isLocked}
         selected={selected}
         onSelect={handleSelect}
