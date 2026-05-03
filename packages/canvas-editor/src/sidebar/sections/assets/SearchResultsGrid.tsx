@@ -2,6 +2,7 @@ import { FaCheck } from 'react-icons/fa';
 import {
   PiArrowRightBold,
   PiArrowsLeftRightBold,
+  PiArrowUUpRightBold,
   PiAsteriskBold,
   PiCaretRightBold,
   PiChatCenteredFill,
@@ -11,17 +12,29 @@ import {
   PiCloudFill,
   PiDiamondFill,
   PiDropFill,
+  PiFireFill,
   PiFlagFill,
   PiFlowerFill,
+  PiFlowerLotusFill,
   PiGearFill,
+  PiGearSixFill,
   PiHeartBreakFill,
   PiHeartFill,
   PiHexagonFill,
   PiLeafFill,
   PiMagnifyingGlass,
+  PiMapPinFill,
+  PiMinusBold,
+  PiMountainsFill,
   PiPlusBold,
+  PiScrollFill,
   PiSparkleFill,
   PiStarFill,
+  PiStarFourFill,
+  PiSunFill,
+  PiTagFill,
+  PiTreeFill,
+  PiXBold,
 } from 'react-icons/pi';
 import { Icon } from '@iconify/react';
 
@@ -413,6 +426,92 @@ function ShapeSearchPreview({ type }: { type: ShapeType }): React.ReactElement {
       return <PiFlowerFill size={24} />;
     case 'plus':
       return <PiPlusBold size={24} />;
+    case 'minus':
+      return <PiMinusBold size={24} />;
+    case 'x-mark':
+      return <PiXBold size={24} />;
+    case 'arrow-curved':
+      return <PiArrowUUpRightBold size={24} />;
+    case 'star-burst':
+      return <PiStarFourFill size={24} />;
+    case 'cloud-puff':
+      return (
+        <svg width={24} height={24} viewBox="0 0 100 100" aria-hidden="true">
+          <path
+            d="M22,60 C8,60 5,45 18,38 C18,22 38,18 48,30 C58,18 78,22 78,40 C92,40 92,58 78,62 C78,72 60,72 56,66 C50,72 30,72 22,60 Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case 'cloud-thin':
+      return (
+        <svg width={28} height={14} viewBox="0 0 100 50" aria-hidden="true">
+          <path
+            d="M5,28 C5,15 22,8 32,18 C36,8 50,6 58,16 C72,8 88,16 90,28 C95,30 95,38 85,38 L15,38 C5,38 5,30 5,28 Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case 'heart-arrow':
+      return (
+        <svg width={24} height={24} viewBox="0 0 100 100" aria-hidden="true">
+          <path
+            d="M50,90 C50,90 12,68 12,38 C12,15 30,5 50,28 C70,5 88,15 88,38 C88,68 50,90 50,90 Z M0,46 L20,46 L20,38 L32,52 L20,66 L20,58 L0,58 Z M68,52 L80,52 L80,44 L100,58 L80,72 L80,64 L68,64 Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case 'drop-pin':
+      return <PiMapPinFill size={24} />;
+    case 'drop-tear':
+      return (
+        <svg width={20} height={24} viewBox="0 0 100 100" aria-hidden="true">
+          <path
+            d="M50,8 C42,28 28,52 32,70 C34,82 42,90 50,90 C58,90 66,82 68,70 C72,52 58,28 50,8 Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case 'drop-flame':
+      return <PiFireFill size={24} />;
+    case 'banner-tag':
+      return <PiTagFill size={24} />;
+    case 'banner-scroll':
+      return <PiScrollFill size={24} />;
+    case 'gear-12':
+      return <PiGearSixFill size={24} />;
+    case 'gear-6':
+      return (
+        <svg width={24} height={24} viewBox="0 0 100 100" aria-hidden="true">
+          <polygon
+            points="50,5 65,18 85,15 82,35 95,50 82,65 85,85 65,82 50,95 35,82 15,85 18,65 5,50 18,35 15,15 35,18"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case 'gear-fine':
+      return (
+        <svg width={24} height={24} viewBox="0 0 100 100" aria-hidden="true">
+          <circle cx="50" cy="50" r="40" fill="currentColor" />
+        </svg>
+      );
+    case 'flower-8':
+      return <PiFlowerLotusFill size={24} />;
+    case 'blob-2':
+      return (
+        <svg width={24} height={24} viewBox="0 0 100 100" aria-hidden="true">
+          <path
+            d="M52,6 C75,12 95,28 92,52 C90,72 75,90 52,92 C32,93 12,82 8,62 C4,42 18,18 30,12 C38,8 45,5 52,6 Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case 'tree':
+      return <PiTreeFill size={24} />;
+    case 'mountain':
+      return <PiMountainsFill size={24} />;
+    case 'sun':
+      return <PiSunFill size={24} />;
     default:
       return assertNever(type);
   }

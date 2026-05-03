@@ -30,15 +30,35 @@ export type ShapeType =
   | 'speech-cloud'
   | 'speech-pointed'
   | 'cloud-fluffy'
+  | 'cloud-puff'
+  | 'cloud-thin'
   | 'heart-broken'
   | 'heart-double'
+  | 'heart-arrow'
   | 'drop'
+  | 'drop-pin'
+  | 'drop-tear'
+  | 'drop-flame'
   | 'banner-ribbon'
   | 'banner-flag'
+  | 'banner-tag'
+  | 'banner-scroll'
   | 'gear'
+  | 'gear-12'
+  | 'gear-6'
+  | 'gear-fine'
   | 'asterisk'
+  | 'star-burst'
   | 'flower'
-  | 'plus';
+  | 'flower-8'
+  | 'blob-2'
+  | 'tree'
+  | 'mountain'
+  | 'sun'
+  | 'plus'
+  | 'minus'
+  | 'x-mark'
+  | 'arrow-curved';
 
 /**
  * Display category for the Formen palette. Each shape belongs to exactly one
@@ -147,6 +167,12 @@ const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
     tags: ['doppelpfeil', 'double', 'arrow', 'beidseitig', 'vergleich', 'versus'],
     category: 'arrows',
   },
+  'arrow-curved': {
+    id: 'arrow-curved',
+    name: 'Geschwungener Pfeil',
+    tags: ['pfeil', 'arrow', 'curved', 'geschwungen', 'bogen', 'rueckkehr'],
+    category: 'arrows',
+  },
   line: {
     id: 'line',
     name: 'Linie',
@@ -207,6 +233,12 @@ const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
     tags: ['asterisk', 'sternchen', 'stern', 'sechs', 'arme', 'quadratischer stern'],
     category: 'stars',
   },
+  'star-burst': {
+    id: 'star-burst',
+    name: 'Sternenexplosion',
+    tags: ['sternenexplosion', 'starburst', 'explosion', 'stern', 'strahlen'],
+    category: 'stars',
+  },
   'speech-round': {
     id: 'speech-round',
     name: 'Sprechblase',
@@ -243,6 +275,18 @@ const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
     tags: ['wolke', 'cloud', 'flauschig', 'fluffy', 'rund'],
     category: 'clouds',
   },
+  'cloud-puff': {
+    id: 'cloud-puff',
+    name: 'Wölkchen',
+    tags: ['woelkchen', 'wölkchen', 'cloud', 'klein', 'puff', 'mini'],
+    category: 'clouds',
+  },
+  'cloud-thin': {
+    id: 'cloud-thin',
+    name: 'Schwaden',
+    tags: ['schwaden', 'cloud', 'flach', 'thin', 'stratus', 'lang'],
+    category: 'clouds',
+  },
   heart: {
     id: 'heart',
     name: 'Herz',
@@ -261,10 +305,34 @@ const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
     tags: ['herz', 'heart', 'doppel', 'double', 'zwei', 'paar'],
     category: 'hearts',
   },
+  'heart-arrow': {
+    id: 'heart-arrow',
+    name: 'Herz mit Pfeil',
+    tags: ['herz', 'heart', 'pfeil', 'arrow', 'amor', 'cupid', 'liebe'],
+    category: 'hearts',
+  },
   drop: {
     id: 'drop',
     name: 'Tropfen',
-    tags: ['tropfen', 'drop', 'tear', 'träne', 'wasser', 'water', 'pin'],
+    tags: ['tropfen', 'drop', 'tear', 'träne', 'wasser', 'water'],
+    category: 'drops',
+  },
+  'drop-pin': {
+    id: 'drop-pin',
+    name: 'Stecknadel',
+    tags: ['stecknadel', 'pin', 'map', 'standort', 'location', 'marker'],
+    category: 'drops',
+  },
+  'drop-tear': {
+    id: 'drop-tear',
+    name: 'Träne',
+    tags: ['träne', 'traene', 'tear', 'tropfen', 'klein'],
+    category: 'drops',
+  },
+  'drop-flame': {
+    id: 'drop-flame',
+    name: 'Flamme',
+    tags: ['flamme', 'flame', 'feuer', 'fire', 'heiß', 'heiss'],
     category: 'drops',
   },
   'banner-ribbon': {
@@ -279,10 +347,40 @@ const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
     tags: ['wimpel', 'flag', 'fahne', 'banner', 'pennant'],
     category: 'banners',
   },
+  'banner-tag': {
+    id: 'banner-tag',
+    name: 'Etikett',
+    tags: ['etikett', 'tag', 'label', 'preis', 'banner'],
+    category: 'banners',
+  },
+  'banner-scroll': {
+    id: 'banner-scroll',
+    name: 'Schriftrolle',
+    tags: ['schriftrolle', 'scroll', 'banner', 'rolle', 'titel'],
+    category: 'banners',
+  },
   gear: {
     id: 'gear',
     name: 'Zahnrad',
     tags: ['zahnrad', 'gear', 'cog', 'einstellungen', 'settings', 'mechanik'],
+    category: 'gears',
+  },
+  'gear-12': {
+    id: 'gear-12',
+    name: 'Zahnrad fein',
+    tags: ['zahnrad', 'gear', 'cog', 'fein', 'zwoelf', 'mechanik'],
+    category: 'gears',
+  },
+  'gear-6': {
+    id: 'gear-6',
+    name: 'Zahnrad grob',
+    tags: ['zahnrad', 'gear', 'cog', 'grob', 'sechs', 'einfach'],
+    category: 'gears',
+  },
+  'gear-fine': {
+    id: 'gear-fine',
+    name: 'Zahnrad feinverzahnt',
+    tags: ['zahnrad', 'gear', 'cog', 'feinverzahnt', 'praezise', 'mechanik'],
     category: 'gears',
   },
   blob: {
@@ -297,10 +395,40 @@ const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
     tags: ['blume', 'flower', 'blüte', 'organisch', 'natur', 'sechs'],
     category: 'organic',
   },
+  'flower-8': {
+    id: 'flower-8',
+    name: 'Blüte',
+    tags: ['blüte', 'bluete', 'flower', 'acht', 'blume', 'gross'],
+    category: 'organic',
+  },
+  'blob-2': {
+    id: 'blob-2',
+    name: 'Blob 2',
+    tags: ['blob', 'organisch', 'klecks', 'rund', 'fluid', 'abstrakt'],
+    category: 'organic',
+  },
   leaf: {
     id: 'leaf',
     name: 'Blatt',
     tags: ['blatt', 'leaf', 'natur', 'nature', 'grün', 'gruen', 'pflanze', 'oeko'],
+    category: 'nature',
+  },
+  tree: {
+    id: 'tree',
+    name: 'Baum',
+    tags: ['baum', 'tree', 'natur', 'wald', 'pflanze'],
+    category: 'nature',
+  },
+  mountain: {
+    id: 'mountain',
+    name: 'Berg',
+    tags: ['berg', 'mountain', 'gipfel', 'natur', 'landschaft'],
+    category: 'nature',
+  },
+  sun: {
+    id: 'sun',
+    name: 'Sonne',
+    tags: ['sonne', 'sun', 'strahlen', 'natur', 'sommer', 'wetter'],
     category: 'nature',
   },
   checkmark: {
@@ -312,7 +440,19 @@ const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
   plus: {
     id: 'plus',
     name: 'Plus',
-    tags: ['plus', 'mehr', 'add', 'kreuz', 'cross'],
+    tags: ['plus', 'mehr', 'add', 'kreuz'],
+    category: 'symbols',
+  },
+  minus: {
+    id: 'minus',
+    name: 'Minus',
+    tags: ['minus', 'weniger', 'remove', 'subtract', 'strich'],
+    category: 'symbols',
+  },
+  'x-mark': {
+    id: 'x-mark',
+    name: 'Kreuz',
+    tags: ['kreuz', 'cross', 'x', 'nein', 'no', 'close', 'schliessen'],
     category: 'symbols',
   },
 };
@@ -419,9 +559,20 @@ const DEFAULT_DIMENSIONS: Partial<Record<ShapeType, { width: number; height: num
   chevron: { width: 200, height: 240 },
   leaf: { width: 240, height: 300 },
   drop: { width: 220, height: 300 },
+  'drop-pin': { width: 220, height: 320 },
+  'drop-tear': { width: 200, height: 280 },
+  'drop-flame': { width: 220, height: 300 },
   'banner-ribbon': { width: 360, height: 160 },
   'banner-flag': { width: 360, height: 240 },
+  'banner-tag': { width: 360, height: 200 },
+  'banner-scroll': { width: 360, height: 180 },
   'heart-double': { width: 360, height: 220 },
+  'heart-arrow': { width: 360, height: 280 },
+  'cloud-puff': { width: 280, height: 200 },
+  'cloud-thin': { width: 360, height: 160 },
+  tree: { width: 240, height: 320 },
+  mountain: { width: 360, height: 240 },
+  'arrow-curved': { width: 320, height: 260 },
   line: { width: 360, height: 24 },
   'line-thick': { width: 360, height: 32 },
   'line-dashed': { width: 360, height: 24 },

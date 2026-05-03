@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
 import {
   PiStarFill,
+  PiStarFourFill,
   PiHeartFill,
   PiHeartBreakFill,
   PiCloudFill,
   PiArrowRightBold,
+  PiArrowUUpRightBold,
   PiHexagonFill,
   PiDiamondFill,
   PiCaretRightBold,
@@ -16,11 +18,22 @@ import {
   PiAsteriskBold,
   PiCheckBold,
   PiPlusBold,
+  PiMinusBold,
+  PiXBold,
   PiLeafFill,
   PiDropFill,
+  PiMapPinFill,
+  PiFireFill,
   PiFlagFill,
+  PiTagFill,
+  PiScrollFill,
   PiGearFill,
+  PiGearSixFill,
   PiFlowerFill,
+  PiFlowerLotusFill,
+  PiTreeFill,
+  PiMountainsFill,
+  PiSunFill,
 } from 'react-icons/pi';
 
 import {
@@ -157,6 +170,11 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Doppelpfeil hinzufügen',
     renderPreview: () => <PiArrowsLeftRightBold size={32} />,
   },
+  'arrow-curved': {
+    id: 'arrow-curved',
+    title: 'Geschwungener Pfeil hinzufügen',
+    renderPreview: () => <PiArrowUUpRightBold size={32} />,
+  },
   line: {
     id: 'line',
     title: 'Linie hinzufügen',
@@ -258,6 +276,11 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Asterisk hinzufügen',
     renderPreview: () => <PiAsteriskBold size={32} />,
   },
+  'star-burst': {
+    id: 'star-burst',
+    title: 'Sternenexplosion hinzufügen',
+    renderPreview: () => <PiStarFourFill size={32} />,
+  },
   'speech-round': {
     id: 'speech-round',
     title: 'Sprechblase hinzufügen',
@@ -296,6 +319,24 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
       </PreviewSvg>
     ),
   },
+  'cloud-puff': {
+    id: 'cloud-puff',
+    title: 'Wölkchen hinzufügen',
+    renderPreview: () => (
+      <PreviewSvg>
+        <path d="M22,60 C8,60 5,45 18,38 C18,22 38,18 48,30 C58,18 78,22 78,40 C92,40 92,58 78,62 C78,72 60,72 56,66 C50,72 30,72 22,60 Z" />
+      </PreviewSvg>
+    ),
+  },
+  'cloud-thin': {
+    id: 'cloud-thin',
+    title: 'Schwaden hinzufügen',
+    renderPreview: () => (
+      <PreviewSvg viewBox="0 0 100 50">
+        <path d="M5,28 C5,15 22,8 32,18 C36,8 50,6 58,16 C72,8 88,16 90,28 C95,30 95,38 85,38 L15,38 C5,38 5,30 5,28 Z" />
+      </PreviewSvg>
+    ),
+  },
   heart: {
     id: 'heart',
     title: 'Herz hinzufügen',
@@ -315,10 +356,38 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
       </PreviewSvg>
     ),
   },
+  'heart-arrow': {
+    id: 'heart-arrow',
+    title: 'Herz mit Pfeil hinzufügen',
+    renderPreview: () => (
+      <PreviewSvg>
+        <path d="M50,90 C50,90 12,68 12,38 C12,15 30,5 50,28 C70,5 88,15 88,38 C88,68 50,90 50,90 Z M0,46 L20,46 L20,38 L32,52 L20,66 L20,58 L0,58 Z M68,52 L80,52 L80,44 L100,58 L80,72 L80,64 L68,64 Z" />
+      </PreviewSvg>
+    ),
+  },
   drop: {
     id: 'drop',
     title: 'Tropfen hinzufügen',
     renderPreview: () => <PiDropFill size={32} />,
+  },
+  'drop-pin': {
+    id: 'drop-pin',
+    title: 'Stecknadel hinzufügen',
+    renderPreview: () => <PiMapPinFill size={32} />,
+  },
+  'drop-tear': {
+    id: 'drop-tear',
+    title: 'Träne hinzufügen',
+    renderPreview: () => (
+      <PreviewSvg>
+        <path d="M50,8 C42,28 28,52 32,70 C34,82 42,90 50,90 C58,90 66,82 68,70 C72,52 58,28 50,8 Z" />
+      </PreviewSvg>
+    ),
+  },
+  'drop-flame': {
+    id: 'drop-flame',
+    title: 'Flamme hinzufügen',
+    renderPreview: () => <PiFireFill size={32} />,
   },
   'banner-ribbon': {
     id: 'banner-ribbon',
@@ -334,15 +403,63 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Wimpel hinzufügen',
     renderPreview: () => <PiFlagFill size={32} />,
   },
+  'banner-tag': {
+    id: 'banner-tag',
+    title: 'Etikett hinzufügen',
+    renderPreview: () => <PiTagFill size={32} />,
+  },
+  'banner-scroll': {
+    id: 'banner-scroll',
+    title: 'Schriftrolle hinzufügen',
+    renderPreview: () => <PiScrollFill size={32} />,
+  },
   gear: {
     id: 'gear',
     title: 'Zahnrad hinzufügen',
     renderPreview: () => <PiGearFill size={32} />,
   },
+  'gear-12': {
+    id: 'gear-12',
+    title: 'Zahnrad fein hinzufügen',
+    renderPreview: () => <PiGearSixFill size={32} />,
+  },
+  'gear-6': {
+    id: 'gear-6',
+    title: 'Zahnrad grob hinzufügen',
+    renderPreview: () => (
+      <PreviewSvg>
+        <polygon points="50,5 65,18 85,15 82,35 95,50 82,65 85,85 65,82 50,95 35,82 15,85 18,65 5,50 18,35 15,15 35,18" />
+      </PreviewSvg>
+    ),
+  },
+  'gear-fine': {
+    id: 'gear-fine',
+    title: 'Zahnrad feinverzahnt hinzufügen',
+    renderPreview: () => (
+      <PreviewSvg>
+        <circle cx="50" cy="50" r="40" />
+        <circle cx="50" cy="50" r="22" fill="white" />
+      </PreviewSvg>
+    ),
+  },
   flower: {
     id: 'flower',
     title: 'Blume hinzufügen',
     renderPreview: () => <PiFlowerFill size={32} />,
+  },
+  'flower-8': {
+    id: 'flower-8',
+    title: 'Blüte hinzufügen',
+    renderPreview: () => <PiFlowerLotusFill size={32} />,
+  },
+  'blob-2': {
+    id: 'blob-2',
+    title: 'Zweiter Blob hinzufügen',
+    renderPreview: () => (
+      <PreviewSvg>
+        <path d="M52,6 C75,12 95,28 92,52 C90,72 75,90 52,92 C32,93 12,82 8,62 C4,42 18,18 30,12 C38,8 45,5 52,6 Z" />
+      </PreviewSvg>
+    ),
   },
   blob: {
     id: 'blob',
@@ -358,6 +475,21 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Blatt hinzufügen',
     renderPreview: () => <PiLeafFill size={32} />,
   },
+  tree: {
+    id: 'tree',
+    title: 'Baum hinzufügen',
+    renderPreview: () => <PiTreeFill size={32} />,
+  },
+  mountain: {
+    id: 'mountain',
+    title: 'Berg hinzufügen',
+    renderPreview: () => <PiMountainsFill size={32} />,
+  },
+  sun: {
+    id: 'sun',
+    title: 'Sonne hinzufügen',
+    renderPreview: () => <PiSunFill size={32} />,
+  },
   checkmark: {
     id: 'checkmark',
     title: 'Häkchen hinzufügen',
@@ -367,6 +499,16 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     id: 'plus',
     title: 'Plus hinzufügen',
     renderPreview: () => <PiPlusBold size={32} />,
+  },
+  minus: {
+    id: 'minus',
+    title: 'Minus hinzufügen',
+    renderPreview: () => <PiMinusBold size={32} />,
+  },
+  'x-mark': {
+    id: 'x-mark',
+    title: 'Kreuz hinzufügen',
+    renderPreview: () => <PiXBold size={32} />,
   },
 };
 
