@@ -2,16 +2,24 @@ import { FaCheck } from 'react-icons/fa';
 import {
   PiArrowRightBold,
   PiArrowsLeftRightBold,
+  PiAsteriskBold,
   PiCaretRightBold,
   PiChatCenteredFill,
   PiChatCircleFill,
+  PiChatTeardropFill,
   PiCheckBold,
   PiCloudFill,
   PiDiamondFill,
+  PiDropFill,
+  PiFlagFill,
+  PiFlowerFill,
+  PiGearFill,
+  PiHeartBreakFill,
   PiHeartFill,
   PiHexagonFill,
   PiLeafFill,
   PiMagnifyingGlass,
+  PiPlusBold,
   PiSparkleFill,
   PiStarFill,
 } from 'react-icons/pi';
@@ -347,6 +355,55 @@ function ShapeSearchPreview({ type }: { type: ShapeType }): React.ReactElement {
           <polygon points="78,1 98,6 78,11" fill={EUCALYPTUS} />
         </svg>
       );
+    case 'asterisk':
+      return <PiAsteriskBold size={24} />;
+    case 'speech-cloud':
+      return <PiChatTeardropFill size={24} />;
+    case 'speech-pointed':
+      return (
+        <svg width={24} height={24} viewBox="0 0 100 100" aria-hidden="true">
+          <path
+            d="M5,8 L95,8 L95,68 L60,68 L72,90 L40,68 L5,68 Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case 'cloud-fluffy':
+      return (
+        <svg width={24} height={24} viewBox="0 0 100 100" aria-hidden="true">
+          <path
+            d="M30,55 C20,55 12,48 14,38 C16,28 28,26 34,32 C36,20 52,16 62,28 C68,20 82,22 84,36 C92,38 94,50 86,56 C92,62 88,72 78,70 C72,76 60,76 56,70 C46,76 36,76 32,70 C24,76 16,70 22,62 C14,62 18,55 30,55 Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case 'heart-broken':
+      return <PiHeartBreakFill size={24} />;
+    case 'heart-double':
+      return (
+        <svg width={28} height={20} viewBox="0 0 100 70" aria-hidden="true">
+          <path
+            d="M28,62 C28,62 4,48 4,22 C4,2 22,-8 30,10 C38,-8 56,2 56,22 C56,48 28,62 28,62 Z M68,62 C68,62 44,48 44,22 C44,2 62,-8 70,10 C78,-8 96,2 96,22 C96,48 68,62 68,62 Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case 'drop':
+      return <PiDropFill size={24} />;
+    case 'banner-ribbon':
+      return (
+        <svg width={28} height={14} viewBox="0 0 100 40" aria-hidden="true">
+          <path d="M5,12 L75,12 L95,20 L75,28 L5,28 L20,20 Z" fill="currentColor" />
+        </svg>
+      );
+    case 'banner-flag':
+      return <PiFlagFill size={24} />;
+    case 'gear':
+      return <PiGearFill size={24} />;
+    case 'flower':
+      return <PiFlowerFill size={24} />;
+    case 'plus':
+      return <PiPlusBold size={24} />;
     default:
       return assertNever(type);
   }

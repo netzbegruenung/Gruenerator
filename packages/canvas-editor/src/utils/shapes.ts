@@ -26,116 +26,337 @@ export type ShapeType =
   | 'line-dashed'
   | 'line-dotted'
   | 'line-double'
-  | 'line-arrow';
+  | 'line-arrow'
+  | 'speech-cloud'
+  | 'speech-pointed'
+  | 'cloud-fluffy'
+  | 'heart-broken'
+  | 'heart-double'
+  | 'drop'
+  | 'banner-ribbon'
+  | 'banner-flag'
+  | 'gear'
+  | 'asterisk'
+  | 'flower'
+  | 'plus';
+
+/**
+ * Display category for the Formen palette. Each shape belongs to exactly one
+ * category — the FormenSection groups by this field at render time and emits
+ * a German-labeled subheader per category.
+ */
+export type ShapeCategory =
+  | 'basic'
+  | 'polygons'
+  | 'arrows'
+  | 'lines'
+  | 'stars'
+  | 'speech'
+  | 'clouds'
+  | 'hearts'
+  | 'drops'
+  | 'banners'
+  | 'gears'
+  | 'organic'
+  | 'symbols'
+  | 'nature';
 
 export interface ShapeDef<T extends ShapeType = ShapeType> {
   id: T;
   name: string;
   tags: readonly string[];
+  category: ShapeCategory;
 }
 
 /**
- * Source of truth for shape metadata. Typed as `Record<ShapeType, ShapeDef>` so
- * adding a new ShapeType without registering it here is a compile error.
- * Object key insertion order is the search-result order; ALL_SHAPES is derived.
+ * Source of truth for shape metadata. Typed as `{ [K in ShapeType]: ShapeDef<K> }`
+ * so adding a new ShapeType without registering it here is a compile error.
+ * Each entry's `id` is bound to its key — `rect: { id: 'circle', ... }` won't
+ * compile. Object key insertion order is the search-result order.
  */
 const SHAPE_DEFS: { readonly [K in ShapeType]: ShapeDef<K> } = {
   rect: {
     id: 'rect',
     name: 'Rechteck',
     tags: ['rechteck', 'rectangle', 'quadrat', 'square', 'box', 'kasten'],
+    category: 'basic',
   },
-  circle: { id: 'circle', name: 'Kreis', tags: ['kreis', 'circle', 'rund', 'round', 'punkt', 'dot'] },
-  triangle: { id: 'triangle', name: 'Dreieck', tags: ['dreieck', 'triangle', 'spitz', 'pyramide'] },
-  star: { id: 'star', name: 'Stern', tags: ['stern', 'star', 'sterne', 'funkel', 'sparkle'] },
-  arrow: { id: 'arrow', name: 'Pfeil', tags: ['pfeil', 'arrow', 'richtung', 'zeiger', 'hinweis'] },
-  heart: { id: 'heart', name: 'Herz', tags: ['herz', 'heart', 'liebe', 'love', 'romantik'] },
-  cloud: { id: 'cloud', name: 'Wolke', tags: ['wolke', 'cloud', 'himmel', 'sky', 'wetter'] },
-  hexagon: { id: 'hexagon', name: 'Sechseck', tags: ['sechseck', 'hexagon', 'wabe', 'badge', 'sechs'] },
-  pentagon: { id: 'pentagon', name: 'Fünfeck', tags: ['fuenfeck', 'fünfeck', 'pentagon', 'fuenf', 'fünf'] },
-  diamond: { id: 'diamond', name: 'Raute', tags: ['raute', 'diamond', 'rhombus', 'karo', 'fokus'] },
-  ellipse: { id: 'ellipse', name: 'Ellipse', tags: ['ellipse', 'oval', 'eierform', 'lang'] },
   'rounded-rect': {
     id: 'rounded-rect',
     name: 'Abgerundetes Rechteck',
     tags: ['abgerundet', 'rounded', 'rechteck', 'rectangle', 'pille', 'pill', 'soft'],
+    category: 'basic',
   },
-  ring: { id: 'ring', name: 'Ring', tags: ['ring', 'donut', 'donat', 'kranz', 'kreis', 'rahmen'] },
+  circle: {
+    id: 'circle',
+    name: 'Kreis',
+    tags: ['kreis', 'circle', 'rund', 'round', 'punkt', 'dot'],
+    category: 'basic',
+  },
+  ellipse: {
+    id: 'ellipse',
+    name: 'Ellipse',
+    tags: ['ellipse', 'oval', 'eierform', 'lang'],
+    category: 'basic',
+  },
+  ring: {
+    id: 'ring',
+    name: 'Ring',
+    tags: ['ring', 'donut', 'donat', 'kranz', 'kreis', 'rahmen'],
+    category: 'basic',
+  },
+  triangle: {
+    id: 'triangle',
+    name: 'Dreieck',
+    tags: ['dreieck', 'triangle', 'spitz', 'pyramide'],
+    category: 'polygons',
+  },
+  diamond: {
+    id: 'diamond',
+    name: 'Raute',
+    tags: ['raute', 'diamond', 'rhombus', 'karo', 'fokus'],
+    category: 'polygons',
+  },
+  pentagon: {
+    id: 'pentagon',
+    name: 'Fünfeck',
+    tags: ['fuenfeck', 'fünfeck', 'pentagon', 'fuenf', 'fünf'],
+    category: 'polygons',
+  },
+  hexagon: {
+    id: 'hexagon',
+    name: 'Sechseck',
+    tags: ['sechseck', 'hexagon', 'wabe', 'badge', 'sechs'],
+    category: 'polygons',
+  },
+  arrow: {
+    id: 'arrow',
+    name: 'Pfeil',
+    tags: ['pfeil', 'arrow', 'richtung', 'zeiger', 'hinweis'],
+    category: 'arrows',
+  },
   chevron: {
     id: 'chevron',
     name: 'Chevron',
     tags: ['chevron', 'pfeilspitze', 'spitze', 'pfeil', 'weiter', 'next'],
+    category: 'arrows',
   },
   'double-arrow': {
     id: 'double-arrow',
     name: 'Doppelpfeil',
     tags: ['doppelpfeil', 'double', 'arrow', 'beidseitig', 'vergleich', 'versus'],
-  },
-  wavy: {
-    id: 'wavy',
-    name: 'Wellenlinie',
-    tags: ['welle', 'wave', 'wellenlinie', 'linie', 'trenner', 'divider'],
-  },
-  'speech-round': {
-    id: 'speech-round',
-    name: 'Sprechblase',
-    tags: ['sprechblase', 'speech', 'bubble', 'zitat', 'quote', 'sagen', 'rund'],
-  },
-  'speech-rect': {
-    id: 'speech-rect',
-    name: 'Sprechblase eckig',
-    tags: ['sprechblase', 'speech', 'bubble', 'zitat', 'quote', 'eckig', 'rectangle'],
-  },
-  sparkle: {
-    id: 'sparkle',
-    name: 'Funkeln',
-    tags: ['funkeln', 'sparkle', 'glanz', 'glitzern', 'magie', 'twinkle'],
-  },
-  checkmark: {
-    id: 'checkmark',
-    name: 'Häkchen',
-    tags: ['haekchen', 'häkchen', 'check', 'checkmark', 'ja', 'erledigt', 'tick', 'ok'],
-  },
-  blob: { id: 'blob', name: 'Blob', tags: ['blob', 'organisch', 'klecks', 'form', 'modern', 'fluid'] },
-  leaf: {
-    id: 'leaf',
-    name: 'Blatt',
-    tags: ['blatt', 'leaf', 'natur', 'nature', 'grün', 'gruen', 'pflanze', 'oeko'],
+    category: 'arrows',
   },
   line: {
     id: 'line',
     name: 'Linie',
     tags: ['linie', 'line', 'strich', 'trenner', 'divider', 'duenn', 'dünn'],
+    category: 'lines',
   },
   'line-thick': {
     id: 'line-thick',
     name: 'Dicke Linie',
     tags: ['dicke', 'thick', 'linie', 'line', 'balken', 'fett', 'bold'],
+    category: 'lines',
   },
   'line-dashed': {
     id: 'line-dashed',
     name: 'Gestrichelte Linie',
     tags: ['gestrichelt', 'dashed', 'linie', 'line', 'strich', 'unterbrochen'],
+    category: 'lines',
   },
   'line-dotted': {
     id: 'line-dotted',
     name: 'Gepunktete Linie',
     tags: ['gepunktet', 'dotted', 'linie', 'line', 'punkte', 'dots'],
+    category: 'lines',
   },
   'line-double': {
     id: 'line-double',
     name: 'Doppellinie',
     tags: ['doppellinie', 'double', 'linie', 'line', 'zwei', 'parallel'],
+    category: 'lines',
   },
   'line-arrow': {
     id: 'line-arrow',
     name: 'Linie mit Pfeil',
     tags: ['pfeillinie', 'pfeil', 'arrow', 'linie', 'line', 'richtung'],
+    category: 'lines',
+  },
+  wavy: {
+    id: 'wavy',
+    name: 'Wellenlinie',
+    tags: ['welle', 'wave', 'wellenlinie', 'linie', 'trenner', 'divider'],
+    category: 'lines',
+  },
+  star: {
+    id: 'star',
+    name: 'Stern',
+    tags: ['stern', 'star', 'sterne'],
+    category: 'stars',
+  },
+  sparkle: {
+    id: 'sparkle',
+    name: 'Funkeln',
+    tags: ['funkeln', 'sparkle', 'glanz', 'glitzern', 'magie', 'twinkle'],
+    category: 'stars',
+  },
+  asterisk: {
+    id: 'asterisk',
+    name: 'Asterisk',
+    tags: ['asterisk', 'sternchen', 'stern', 'sechs', 'arme', 'quadratischer stern'],
+    category: 'stars',
+  },
+  'speech-round': {
+    id: 'speech-round',
+    name: 'Sprechblase',
+    tags: ['sprechblase', 'speech', 'bubble', 'zitat', 'quote', 'sagen', 'rund'],
+    category: 'speech',
+  },
+  'speech-rect': {
+    id: 'speech-rect',
+    name: 'Sprechblase eckig',
+    tags: ['sprechblase', 'speech', 'bubble', 'zitat', 'quote', 'eckig', 'rectangle'],
+    category: 'speech',
+  },
+  'speech-cloud': {
+    id: 'speech-cloud',
+    name: 'Denkblase',
+    tags: ['denkblase', 'thought', 'bubble', 'wolke', 'denken', 'idee'],
+    category: 'speech',
+  },
+  'speech-pointed': {
+    id: 'speech-pointed',
+    name: 'Spitze Sprechblase',
+    tags: ['sprechblase', 'speech', 'spitz', 'pointed', 'tag', 'banner'],
+    category: 'speech',
+  },
+  cloud: {
+    id: 'cloud',
+    name: 'Wolke',
+    tags: ['wolke', 'cloud', 'himmel', 'sky', 'wetter'],
+    category: 'clouds',
+  },
+  'cloud-fluffy': {
+    id: 'cloud-fluffy',
+    name: 'Flauschige Wolke',
+    tags: ['wolke', 'cloud', 'flauschig', 'fluffy', 'rund'],
+    category: 'clouds',
+  },
+  heart: {
+    id: 'heart',
+    name: 'Herz',
+    tags: ['herz', 'heart', 'liebe', 'love', 'romantik'],
+    category: 'hearts',
+  },
+  'heart-broken': {
+    id: 'heart-broken',
+    name: 'Gebrochenes Herz',
+    tags: ['herz', 'heart', 'gebrochen', 'broken', 'liebeskummer'],
+    category: 'hearts',
+  },
+  'heart-double': {
+    id: 'heart-double',
+    name: 'Doppeltes Herz',
+    tags: ['herz', 'heart', 'doppel', 'double', 'zwei', 'paar'],
+    category: 'hearts',
+  },
+  drop: {
+    id: 'drop',
+    name: 'Tropfen',
+    tags: ['tropfen', 'drop', 'tear', 'träne', 'wasser', 'water', 'pin'],
+    category: 'drops',
+  },
+  'banner-ribbon': {
+    id: 'banner-ribbon',
+    name: 'Banner',
+    tags: ['banner', 'ribbon', 'fahne', 'titel', 'header'],
+    category: 'banners',
+  },
+  'banner-flag': {
+    id: 'banner-flag',
+    name: 'Wimpel',
+    tags: ['wimpel', 'flag', 'fahne', 'banner', 'pennant'],
+    category: 'banners',
+  },
+  gear: {
+    id: 'gear',
+    name: 'Zahnrad',
+    tags: ['zahnrad', 'gear', 'cog', 'einstellungen', 'settings', 'mechanik'],
+    category: 'gears',
+  },
+  blob: {
+    id: 'blob',
+    name: 'Blob',
+    tags: ['blob', 'organisch', 'klecks', 'form', 'modern', 'fluid', 'abstrakt'],
+    category: 'organic',
+  },
+  flower: {
+    id: 'flower',
+    name: 'Blume',
+    tags: ['blume', 'flower', 'blüte', 'organisch', 'natur', 'sechs'],
+    category: 'organic',
+  },
+  leaf: {
+    id: 'leaf',
+    name: 'Blatt',
+    tags: ['blatt', 'leaf', 'natur', 'nature', 'grün', 'gruen', 'pflanze', 'oeko'],
+    category: 'nature',
+  },
+  checkmark: {
+    id: 'checkmark',
+    name: 'Häkchen',
+    tags: ['haekchen', 'häkchen', 'check', 'checkmark', 'ja', 'erledigt', 'tick', 'ok'],
+    category: 'symbols',
+  },
+  plus: {
+    id: 'plus',
+    name: 'Plus',
+    tags: ['plus', 'mehr', 'add', 'kreuz', 'cross'],
+    category: 'symbols',
   },
 };
 
 export const ALL_SHAPES: ReadonlyArray<ShapeDef> = Object.values(SHAPE_DEFS);
 export const getShapeDef = <T extends ShapeType>(type: T): ShapeDef<T> => SHAPE_DEFS[type];
+
+/**
+ * German display labels for shape categories. Used for FormenSection subheaders.
+ * Order is the display order (top-to-bottom in the panel).
+ */
+export const CATEGORY_ORDER: readonly ShapeCategory[] = [
+  'basic',
+  'polygons',
+  'arrows',
+  'lines',
+  'stars',
+  'speech',
+  'clouds',
+  'hearts',
+  'drops',
+  'banners',
+  'gears',
+  'organic',
+  'nature',
+  'symbols',
+];
+
+export const CATEGORY_LABELS: Record<ShapeCategory, string> = {
+  basic: 'Grundformen',
+  polygons: 'Vielecke',
+  arrows: 'Pfeile',
+  lines: 'Linien',
+  stars: 'Sterne',
+  speech: 'Sprechblasen',
+  clouds: 'Wolken',
+  hearts: 'Herzen',
+  drops: 'Tropfen',
+  banners: 'Banner',
+  gears: 'Zahnräder',
+  organic: 'Organische Formen',
+  nature: 'Natur',
+  symbols: 'Symbole',
+};
 
 /**
  * Exhaustiveness assertion. Use as the `default` case of a switch on a discriminated
@@ -191,10 +412,16 @@ const DEFAULT_DIMENSIONS: Partial<Record<ShapeType, { width: number; height: num
   ellipse: { width: 300, height: 180 },
   'speech-round': { width: 320, height: 260 },
   'speech-rect': { width: 320, height: 220 },
+  'speech-cloud': { width: 320, height: 260 },
+  'speech-pointed': { width: 320, height: 220 },
   wavy: { width: 320, height: 80 },
   'double-arrow': { width: 320, height: 120 },
   chevron: { width: 200, height: 240 },
   leaf: { width: 240, height: 300 },
+  drop: { width: 220, height: 300 },
+  'banner-ribbon': { width: 360, height: 160 },
+  'banner-flag': { width: 360, height: 240 },
+  'heart-double': { width: 360, height: 220 },
   line: { width: 360, height: 24 },
   'line-thick': { width: 360, height: 32 },
   'line-dashed': { width: 360, height: 24 },
