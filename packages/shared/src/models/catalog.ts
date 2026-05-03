@@ -1,7 +1,6 @@
 export type Provider = 'mistral' | 'litellm' | 'regolo';
 
 export type ModelId =
-  | 'mistral-medium-3.5'
   | 'gpt-oss-regolo'
   | 'litellm'
   | 'gemma-litellm'
@@ -28,15 +27,6 @@ export const QWEN_WARNING =
   'Chinesisches Modell – unterliegt staatlicher Zensur. Antworten zu politisch sensiblen Themen können eingeschränkt sein.';
 
 export const MODEL_OPTIONS: ModelOption[] = [
-  {
-    id: 'mistral-medium-3.5',
-    name: 'Mistral Medium 3.5',
-    description: 'Aktuelles Mistral-Modell (EU), stark bei Texten',
-    model: 'mistral-medium-2604',
-    provider: 'mistral',
-    icon: 'sparkles',
-    region: 'eu',
-  },
   {
     id: 'gemma-litellm',
     name: 'Gemma 4',
