@@ -36,20 +36,34 @@ export interface CreateAutoSaveStoreOptions {
 
 export function createAutoSaveStore(options: CreateAutoSaveStoreOptions = {}) {
   const initialShareToken = options.initialShareToken ?? null;
+  const instanceId = Math.random().toString(36).slice(2, 7);
+  console.log('[AutoSave][createStore]', {
+    instanceId,
+    initialShareToken,
+    seeded: initialShareToken !== null,
+  });
   return createStore<AutoSaveStore>()((set) => ({
     autoSaveStatus: 'idle',
     autoSavedShareToken: initialShareToken,
     lastAutoSavedImageSrc: null,
 
-    setAutoSaveStatus: (status) => set({ autoSaveStatus: status }),
-    setAutoSavedShareToken: (token) => set({ autoSavedShareToken: token }),
+    setAutoSaveStatus: (status) => {
+      console.log('[AutoSave][setStatus]', { instanceId, status });
+      set({ autoSaveStatus: status });
+    },
+    setAutoSavedShareToken: (token) => {
+      console.log('[AutoSave][setShareToken]', { instanceId, token });
+      set({ autoSavedShareToken: token });
+    },
     setLastAutoSavedImageSrc: (src) => set({ lastAutoSavedImageSrc: src }),
-    clearAutoSaveState: () =>
+    clearAutoSaveState: () => {
+      console.log('[AutoSave][clearAutoSaveState]', { instanceId });
       set({
         autoSaveStatus: 'idle',
         autoSavedShareToken: null,
         lastAutoSavedImageSrc: null,
-      }),
+      });
+    },
   }));
 }
 

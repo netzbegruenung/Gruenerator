@@ -291,23 +291,47 @@ function GenericCanvasWithRef<
   const lastAutoSaveHistoryIndexRef = useRef(-1);
 
   useEffect(() => {
-    // Skip initial render, invalid states, and when already exporting
-    if (historyIndex < 0 || isExporting) return;
-    // Skip if element is selected (read non-reactively — no rerender on selection change)
-    if (store.getState().selectedElement) return;
-    // Skip if already saved for this history index
-    if (lastAutoSaveHistoryIndexRef.current === historyIndex) return;
+    console.log('[AutoSave][historyEffect] tick', {
+      historyIndex,
+      isExporting,
+      lastSavedAt: lastAutoSaveHistoryIndexRef.current,
+      selectedElement: store.getState().selectedElement,
+    });
+    if (historyIndex < 0 || isExporting) {
+      console.log('[AutoSave][historyEffect] skip: initial or exporting');
+      return;
+    }
+    if (store.getState().selectedElement) {
+      console.log('[AutoSave][historyEffect] skip: element selected');
+      return;
+    }
+    if (lastAutoSaveHistoryIndexRef.current === historyIndex) {
+      console.log('[AutoSave][historyEffect] skip: already captured for this historyIndex');
+      return;
+    }
 
     // Debounce screenshot capture — toDataURL at pixelRatio:2 is expensive (~100-200ms).
     // 1500ms ensures we only capture after the user stops editing.
     const timer = setTimeout(() => {
       // Re-check at capture time in case selection changed during debounce
-      if (store.getState().selectedElement) return;
+      if (store.getState().selectedElement) {
+        console.log('[AutoSave][historyEffect] capture aborted: element selected at capture time');
+        return;
+      }
+      console.log('[AutoSave][historyEffect] capturing stage at historyIndex', historyIndex);
       const dataUrl = stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 });
       if (dataUrl) {
+        console.log('[AutoSave][historyEffect] capture OK, setExportedImage', {
+          historyIndex,
+          dataUrlLen: dataUrl.length,
+        });
         setExportedImage(dataUrl);
         exportedImageRef.current = dataUrl;
         lastAutoSaveHistoryIndexRef.current = historyIndex;
+      } else {
+        console.warn('[AutoSave][historyEffect] capture FAILED: stageRef.current.toDataURL() returned null', {
+          stageRefSet: !!stageRef.current,
+        });
       }
     }, 1500);
 

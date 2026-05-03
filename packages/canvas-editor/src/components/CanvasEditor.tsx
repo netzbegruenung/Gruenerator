@@ -275,6 +275,12 @@ const PageWrapper = memo(function PageWrapper({
 });
 
 export function CanvasEditor(props: CanvasEditorProps) {
+  console.log('[AutoSave][CanvasEditor] outer render', {
+    initialConfigId: props.initialConfigId,
+    initialShareToken: props.initialShareToken ?? null,
+    collaborative: !!props.collaborative,
+    mobileBridge: !!props.mobileBridge,
+  });
   return (
     <AutoSaveStoreProvider initialShareToken={props.initialShareToken ?? null}>
       <CanvasEditorInner {...props} />

@@ -2,6 +2,7 @@ import { ProfilbildCanvas, ControllableCanvasWrapper } from '@gruenerator/canvas
 import { motion } from 'motion/react';
 import React, { useEffect } from 'react';
 
+import useImageStudioStore from '../../../stores/imageStudioStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { slideVariants } from '../components/StepFlow';
 import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
@@ -106,6 +107,13 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
   onHeadlineChange,
   onSubtextChange,
 }) => {
+  const editShareToken = useImageStudioStore((s) => s.editShareToken);
+  console.log('[AutoSave][CanvasEditStep] render', {
+    typeId: typeConfig?.id,
+    editShareToken,
+    galleryEditMode: useImageStudioStore.getState().galleryEditMode,
+  });
+
   useEffect(() => {
     useSidebarStore.getState().requestHideSidebar('canvas');
     useSidebarStore.getState().requestHideHeader('canvas');
@@ -156,6 +164,7 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
             imageSrc={getImageSrc(config, uploadedImageUrl)}
             onExport={handleCanvasExport}
             onCancel={handleBack}
+            initialShareToken={editShareToken}
             onStateChange={
               config.hasStateChange
                 ? (state: CanvasState) => {
