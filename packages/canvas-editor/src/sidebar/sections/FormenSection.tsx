@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import {
   PiStarFill,
   PiHeartFill,
+  PiHeartBreakFill,
   PiCloudFill,
   PiArrowRightBold,
   PiHexagonFill,
@@ -10,12 +11,26 @@ import {
   PiArrowsLeftRightBold,
   PiChatCircleFill,
   PiChatCenteredFill,
+  PiChatTeardropFill,
   PiSparkleFill,
+  PiAsteriskBold,
   PiCheckBold,
+  PiPlusBold,
   PiLeafFill,
+  PiDropFill,
+  PiFlagFill,
+  PiGearFill,
+  PiFlowerFill,
 } from 'react-icons/pi';
 
-import { EUCALYPTUS, getShapeDef, type ShapeType } from '../../utils/shapes';
+import {
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  EUCALYPTUS,
+  getShapeDef,
+  type ShapeCategory,
+  type ShapeType,
+} from '../../utils/shapes';
 import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../primitives';
 
 import { cn } from '../../utils/cn';
@@ -35,13 +50,17 @@ interface ShapeDefinition<T extends ShapeType = ShapeType> {
 const PreviewSvg = ({
   children,
   viewBox = '0 0 100 100',
+  width = 32,
+  height = 32,
 }: {
   children: React.ReactNode;
   viewBox?: string;
+  width?: number;
+  height?: number;
 }) => (
   <svg
-    width={32}
-    height={32}
+    width={width}
+    height={height}
     viewBox={viewBox}
     fill="var(--font-color)"
     aria-hidden="true"
@@ -54,8 +73,8 @@ const PreviewSvg = ({
 /**
  * Source of truth for the Formen palette. Typed as `{ [K in ShapeType]: ShapeDefinition<K> }`
  * so adding a new ShapeType without registering a preview is a compile error.
- * Object key insertion order is the palette display order — first COLLAPSED_COUNT entries
- * are visible in the mobile collapsed view.
+ * Order is the within-category display order; categories are ordered separately
+ * by CATEGORY_ORDER from shapes.ts.
  */
 const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
   rect: {
@@ -139,18 +158,6 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Doppelpfeil hinzufügen',
     renderPreview: () => <PiArrowsLeftRightBold size={32} />,
   },
-  wavy: {
-    id: 'wavy',
-    title: 'Wellenlinie hinzufügen',
-    renderPreview: () => (
-      <PreviewSvg viewBox="0 0 100 40">
-        <path
-          d="M0,20 C12,4 28,36 50,20 C72,4 88,36 100,20 L100,28 C88,44 72,12 50,28 C28,44 12,12 0,28 Z"
-          fill="var(--font-color)"
-        />
-      </PreviewSvg>
-    ),
-  },
   line: {
     id: 'line',
     title: 'Linie hinzufügen',
@@ -225,6 +232,18 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
       </svg>
     ),
   },
+  wavy: {
+    id: 'wavy',
+    title: 'Wellenlinie hinzufügen',
+    renderPreview: () => (
+      <PreviewSvg viewBox="0 0 100 40">
+        <path
+          d="M0,20 C12,4 28,36 50,20 C72,4 88,36 100,20 L100,28 C88,44 72,12 50,28 C28,44 12,12 0,28 Z"
+          fill="var(--font-color)"
+        />
+      </PreviewSvg>
+    ),
+  },
   star: {
     id: 'star',
     title: 'Stern hinzufügen',
@@ -235,10 +254,10 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Funkeln hinzufügen',
     renderPreview: () => <PiSparkleFill size={32} />,
   },
-  heart: {
-    id: 'heart',
-    title: 'Herz hinzufügen',
-    renderPreview: () => <PiHeartFill size={32} />,
+  asterisk: {
+    id: 'asterisk',
+    title: 'Asterisk hinzufügen',
+    renderPreview: () => <PiAsteriskBold size={32} />,
   },
   'speech-round': {
     id: 'speech-round',
@@ -250,15 +269,81 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Eckige Sprechblase hinzufügen',
     renderPreview: () => <PiChatCenteredFill size={32} />,
   },
+  'speech-cloud': {
+    id: 'speech-cloud',
+    title: 'Denkblase hinzufügen',
+    renderPreview: () => <PiChatTeardropFill size={32} />,
+  },
+  'speech-pointed': {
+    id: 'speech-pointed',
+    title: 'Spitze Sprechblase hinzufügen',
+    renderPreview: () => (
+      <PreviewSvg>
+        <path d="M5,8 L95,8 L95,68 L60,68 L72,90 L40,68 L5,68 Z" />
+      </PreviewSvg>
+    ),
+  },
   cloud: {
     id: 'cloud',
     title: 'Wolke hinzufügen',
     renderPreview: () => <PiCloudFill size={32} />,
   },
-  leaf: {
-    id: 'leaf',
-    title: 'Blatt hinzufügen',
-    renderPreview: () => <PiLeafFill size={32} />,
+  'cloud-fluffy': {
+    id: 'cloud-fluffy',
+    title: 'Flauschige Wolke hinzufügen',
+    renderPreview: () => (
+      <PreviewSvg>
+        <path d="M30,55 C20,55 12,48 14,38 C16,28 28,26 34,32 C36,20 52,16 62,28 C68,20 82,22 84,36 C92,38 94,50 86,56 C92,62 88,72 78,70 C72,76 60,76 56,70 C46,76 36,76 32,70 C24,76 16,70 22,62 C14,62 18,55 30,55 Z" />
+      </PreviewSvg>
+    ),
+  },
+  heart: {
+    id: 'heart',
+    title: 'Herz hinzufügen',
+    renderPreview: () => <PiHeartFill size={32} />,
+  },
+  'heart-broken': {
+    id: 'heart-broken',
+    title: 'Gebrochenes Herz hinzufügen',
+    renderPreview: () => <PiHeartBreakFill size={32} />,
+  },
+  'heart-double': {
+    id: 'heart-double',
+    title: 'Doppeltes Herz hinzufügen',
+    renderPreview: () => (
+      <PreviewSvg viewBox="0 0 100 70">
+        <path d="M28,62 C28,62 4,48 4,22 C4,2 22,-8 30,10 C38,-8 56,2 56,22 C56,48 28,62 28,62 Z M68,62 C68,62 44,48 44,22 C44,2 62,-8 70,10 C78,-8 96,2 96,22 C96,48 68,62 68,62 Z" />
+      </PreviewSvg>
+    ),
+  },
+  drop: {
+    id: 'drop',
+    title: 'Tropfen hinzufügen',
+    renderPreview: () => <PiDropFill size={32} />,
+  },
+  'banner-ribbon': {
+    id: 'banner-ribbon',
+    title: 'Banner hinzufügen',
+    renderPreview: () => (
+      <PreviewSvg viewBox="0 0 100 40">
+        <path d="M5,12 L75,12 L95,20 L75,28 L5,28 L20,20 Z" />
+      </PreviewSvg>
+    ),
+  },
+  'banner-flag': {
+    id: 'banner-flag',
+    title: 'Wimpel hinzufügen',
+    renderPreview: () => <PiFlagFill size={32} />,
+  },
+  gear: {
+    id: 'gear',
+    title: 'Zahnrad hinzufügen',
+    renderPreview: () => <PiGearFill size={32} />,
+  },
+  flower: {
+    id: 'flower',
+    title: 'Blume hinzufügen',
+    renderPreview: () => <PiFlowerFill size={32} />,
   },
   blob: {
     id: 'blob',
@@ -269,45 +354,93 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
       </PreviewSvg>
     ),
   },
+  leaf: {
+    id: 'leaf',
+    title: 'Blatt hinzufügen',
+    renderPreview: () => <PiLeafFill size={32} />,
+  },
   checkmark: {
     id: 'checkmark',
     title: 'Häkchen hinzufügen',
     renderPreview: () => <PiCheckBold size={32} />,
   },
+  plus: {
+    id: 'plus',
+    title: 'Plus hinzufügen',
+    renderPreview: () => <PiPlusBold size={32} />,
+  },
 };
 
-const SHAPES: ReadonlyArray<ShapeDefinition> = Object.values(SHAPE_PREVIEWS);
+const ALL_PALETTE_SHAPES: ReadonlyArray<ShapeDefinition> = Object.values(SHAPE_PREVIEWS);
 const COLLAPSED_COUNT = 6;
+
+/** Index of palette entries grouped by category (computed once at module load). */
+const SHAPES_BY_CATEGORY: Record<ShapeCategory, ReadonlyArray<ShapeDefinition>> = (() => {
+  const acc = {} as Record<ShapeCategory, ShapeDefinition[]>;
+  for (const cat of CATEGORY_ORDER) acc[cat] = [];
+  for (const shape of ALL_PALETTE_SHAPES) {
+    const def = getShapeDef(shape.id);
+    acc[def.category].push(shape);
+  }
+  return acc;
+})();
+
+function shapeMatchesQuery(shape: ShapeDefinition, q: string): boolean {
+  const def = getShapeDef(shape.id);
+  return def.name.toLowerCase().includes(q) || def.tags.some((tag) => tag.toLowerCase().includes(q));
+}
 
 export function FormenSection({
   onAddShape,
   isExpanded = false,
   searchQuery = '',
 }: FormenSectionProps) {
-  const visibleShapes = useMemo(() => {
-    const base = isExpanded ? SHAPES : SHAPES.slice(0, COLLAPSED_COUNT);
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return base;
-    return base.filter((shape) => {
-      const def = getShapeDef(shape.id);
-      return def.name.toLowerCase().includes(q) || def.tags.some((tag) => tag.toLowerCase().includes(q));
-    });
-  }, [isExpanded, searchQuery]);
+  const q = searchQuery.trim().toLowerCase();
+
+  // Collapsed (mobile) view: flat first-N grid, no subheaders.
+  const collapsedShapes = useMemo(() => {
+    const base = ALL_PALETTE_SHAPES.slice(0, COLLAPSED_COUNT);
+    return q ? base.filter((s) => shapeMatchesQuery(s, q)) : base;
+  }, [q]);
+
+  // Expanded view: grouped by category with subheaders.
+  const groupedShapes = useMemo(() => {
+    const groups: { category: ShapeCategory; shapes: ReadonlyArray<ShapeDefinition> }[] = [];
+    for (const cat of CATEGORY_ORDER) {
+      const all = SHAPES_BY_CATEGORY[cat];
+      const filtered = q ? all.filter((s) => shapeMatchesQuery(s, q)) : all;
+      if (filtered.length > 0) groups.push({ category: cat, shapes: filtered });
+    }
+    return groups;
+  }, [q]);
+
+  const renderShapeButton = (shape: ShapeDefinition) => (
+    <button
+      key={shape.id}
+      className={SELECTABLE_CARD}
+      onClick={() => onAddShape(shape.id)}
+      title={shape.title}
+    >
+      <div className={CARD_PREVIEW}>{shape.renderPreview()}</div>
+    </button>
+  );
+
+  if (!isExpanded) {
+    return (
+      <div className={cn(SIDEBAR_SECTION, 'gap-md max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>
+        <div className={CARD_GRID}>{collapsedShapes.map(renderShapeButton)}</div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn(SIDEBAR_SECTION, 'gap-md max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>
-      <div className={CARD_GRID}>
-        {visibleShapes.map((shape) => (
-          <button
-            key={shape.id}
-            className={SELECTABLE_CARD}
-            onClick={() => onAddShape(shape.id)}
-            title={shape.title}
-          >
-            <div className={CARD_PREVIEW}>{shape.renderPreview()}</div>
-          </button>
-        ))}
-      </div>
+      {groupedShapes.map(({ category, shapes }) => (
+        <section key={category} className="flex flex-col gap-2">
+          <h5 className="text-sm font-bold text-foreground m-0">{CATEGORY_LABELS[category]}</h5>
+          <div className={CARD_GRID}>{shapes.map(renderShapeButton)}</div>
+        </section>
+      ))}
     </div>
   );
 }
