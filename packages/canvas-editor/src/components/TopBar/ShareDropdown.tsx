@@ -9,7 +9,7 @@ import {
   IconButtonRow,
 } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
-import { FaCheck, FaDownload, FaSave, FaInstagram, FaCopy } from 'react-icons/fa';
+import { FaCheck, FaDownload, FaSave, FaInstagram, FaCopy, FaUserPlus } from 'react-icons/fa';
 import { PiArrowLeft } from 'react-icons/pi';
 import { IoShareOutline } from 'react-icons/io5';
 
@@ -35,6 +35,13 @@ export interface ShareDropdownProps {
   onShareAllPages?: () => Promise<void>;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
+  /**
+   * Optional host-supplied "invite people" action. When provided, the share
+   * popover shows a "Personen" icon button that opens the host's collaborator
+   * dialog. Kept opaque so the canvas-editor package stays unaware of who
+   * resolves people/permissions.
+   */
+  onInvitePeople?: () => void;
 }
 
 interface GeneratedPosts {
@@ -58,6 +65,7 @@ export function ShareDropdown({
   onShareAllPages,
   isMultiExporting = false,
   exportProgress,
+  onInvitePeople,
 }: ShareDropdownProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'main' | 'download'>('main');
@@ -259,6 +267,18 @@ export function ShareDropdown({
                 onClick={templateUrl ? handleCopyTemplateLink : handleSaveAsTemplate}
                 disabled={isSavingTemplate}
               />
+
+              {onInvitePeople && (
+                <IconButton
+                  size="sm"
+                  icon={<FaUserPlus />}
+                  label="Personen"
+                  onClick={() => {
+                    setOpen(false);
+                    onInvitePeople();
+                  }}
+                />
+              )}
             </IconButtonRow>
 
             {/* Template link (shown after saving) */}
