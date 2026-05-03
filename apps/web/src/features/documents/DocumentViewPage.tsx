@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
+import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import apiClient from '../../components/utils/apiClient';
 import { useDocumentsStore } from '../../stores/documentsStore';
 
@@ -20,6 +21,8 @@ const DocumentViewPage = () => {
   const [document, setDocument] = useState<DocumentData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useDocumentTitle(document?.title);
 
   useEffect(() => {
     const fetchDocument = async () => {

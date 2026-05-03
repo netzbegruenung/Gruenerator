@@ -29,6 +29,7 @@ import { PiSun, PiMoon } from 'react-icons/pi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import useDarkMode from '../../components/hooks/useDarkMode';
+import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 
@@ -164,6 +165,8 @@ function EditorContent() {
     staleTime: 30_000,
   });
 
+  useDocumentTitle(docData?.title);
+
   const canEdit = useMemo(() => {
     if (!docData) return false;
     if (isGuest) return docData.share_permission !== 'viewer';
@@ -182,7 +185,6 @@ function EditorContent() {
       queryClient.setQueryData(activeKey, (old: Document | undefined) =>
         old ? { ...old, title: newTitle } : old
       );
-      document.title = newTitle;
       try {
         await apiClient.put(`/docs/${id}`, { title: newTitle });
       } catch {
