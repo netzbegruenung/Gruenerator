@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FaCheck } from 'react-icons/fa';
-import { HiAdjustments, HiSparkles } from 'react-icons/hi';
-import { HiMagnifyingGlass, HiXMark, HiPhoto } from 'react-icons/hi2';
+import { HiAdjustments } from 'react-icons/hi';
+import { HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
 
 import UnsplashAttribution from '../../common/UnsplashAttribution';
-import { useAiBackgroundGeneration, type AiVariant } from '../../hooks/useAiBackgroundGeneration';
 import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { SidebarSlider } from '../components/SidebarSlider';
@@ -22,12 +21,6 @@ function buildUploadUrl(item: MediaItem): string | null {
   if (item.shareToken) return `/api/share/${item.shareToken}/download`;
   return item.thumbnailUrl;
 }
-
-const AI_VARIANT_OPTIONS: { value: AiVariant; label: string }[] = [
-  { value: 'realistic', label: 'Realistisch' },
-  { value: 'illustration', label: 'Illustration' },
-  { value: 'pixel', label: 'Pixel Art' },
-];
 
 export interface ImageBackgroundSectionProps {
   currentImageSrc?: string;
@@ -381,121 +374,6 @@ function AdjustmentsContent({
   );
 }
 
-/**
- * AI Content - prompt-based image generation. Collapsed to a single tool
- * button by default; click reveals prompt + variant + generate controls.
- */
-function AiContent({ onImageChange }: Pick<ImageBackgroundSectionProps, 'onImageChange'>) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [prompt, setPrompt] = useState('');
-  const [variant, setVariant] = useState<AiVariant>('realistic');
-  const { generate, isGenerating, generationError, remaining } = useAiBackgroundGeneration();
-
-  const handleGenerate = useCallback(async () => {
-    const result = await generate(prompt, variant);
-    if (result) {
-      onImageChange(result.file, result.objectUrl, null);
-    }
-  }, [generate, prompt, variant, onImageChange]);
-
-  const canSubmit = prompt.trim().length >= 5 && !isGenerating;
-
-  if (!isOpen) {
-    return (
-      <div
-        className={cn(
-          SIDEBAR_SECTION,
-          'gap-3 p-4 px-3 max-canvas-mobile:p-3 max-canvas-mobile:px-2'
-        )}
-      >
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          className="w-full py-2.5 bg-primary-600 text-white border-none rounded-lg cursor-pointer text-sm hover:bg-primary-700 flex items-center justify-center gap-2"
-        >
-          <HiSparkles size={16} />
-          KI-Bild erstellen
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={cn(SIDEBAR_SECTION, 'gap-3 p-4 px-3 max-canvas-mobile:p-3 max-canvas-mobile:px-2')}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-foreground-muted">
-          KI-Bild erstellen
-        </span>
-        <button
-          type="button"
-          onClick={() => setIsOpen(false)}
-          aria-label="KI-Eingabe schließen"
-          className="bg-none border-none cursor-pointer p-1 flex items-center text-foreground-muted hover:text-foreground"
-        >
-          <HiXMark size={16} />
-        </button>
-      </div>
-
-      <textarea
-        value={prompt}
-        onChange={(e) => setPrompt(e.target.value)}
-        placeholder="Beschreibe dein Wunschbild (z.B. abstrakter grüner Naturhintergrund, weich und unscharf)"
-        rows={3}
-        maxLength={500}
-        className="w-full p-3 bg-background border border-[var(--font-color)] rounded-lg text-foreground text-sm outline-none resize-none focus:border-primary-600"
-      />
-
-      <label className="flex flex-col gap-1 text-foreground-muted text-xs">
-        Stil
-        <select
-          value={variant}
-          onChange={(e) => setVariant(e.target.value as AiVariant)}
-          className="w-full py-2 px-3 bg-background border border-[var(--font-color)] rounded-lg text-foreground text-sm outline-none focus:border-primary-600"
-        >
-          {AI_VARIANT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <button
-        type="button"
-        onClick={handleGenerate}
-        disabled={!canSubmit}
-        className="w-full py-2.5 bg-primary-600 text-white border-none rounded-lg cursor-pointer text-sm hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-      >
-        <HiSparkles size={16} />
-        {isGenerating ? 'Generiere Bild...' : 'Generieren'}
-      </button>
-
-      {generationError && (
-        <div className="p-3 text-foreground-muted text-sm rounded-lg bg-[var(--background-alt)]">
-          <p className="m-0">{generationError}</p>
-          {!isGenerating && prompt.trim().length >= 5 && (
-            <button
-              type="button"
-              onClick={handleGenerate}
-              className="mt-2 py-1.5 px-3 bg-primary-600 text-white border-none rounded-md cursor-pointer text-xs"
-            >
-              Erneut versuchen
-            </button>
-          )}
-        </div>
-      )}
-
-      {remaining !== null && !generationError && (
-        <p className="m-0 text-foreground-muted text-xs text-center">
-          Noch {remaining} {remaining === 1 ? 'Bild' : 'Bilder'} heute verfügbar
-        </p>
-      )}
-    </div>
-  );
-}
-
 export function ImageBackgroundSection({
   currentImageSrc,
   onImageChange,
@@ -506,7 +384,6 @@ export function ImageBackgroundSection({
   isLocked,
   onToggleLock,
 }: ImageBackgroundSectionProps) {
-  const { generateAiBackgroundImage } = useCanvasEditorServices();
   const hasAdjustments =
     (scale !== undefined && onScaleChange !== undefined) ||
     (gradientOpacity !== undefined && onGradientOpacityChange !== undefined);
@@ -519,15 +396,6 @@ export function ImageBackgroundSection({
       content: <SearchContent currentImageSrc={currentImageSrc} onImageChange={onImageChange} />,
     },
   ];
-
-  if (generateAiBackgroundImage) {
-    subsections.push({
-      id: 'ai-generate',
-      icon: HiSparkles,
-      label: 'KI',
-      content: <AiContent onImageChange={onImageChange} />,
-    });
-  }
 
   if (hasAdjustments) {
     subsections.push({

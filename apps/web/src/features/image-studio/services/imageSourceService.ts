@@ -71,7 +71,7 @@ interface ImaginePureResponse {
   usage?: { remaining?: number };
 }
 
-export async function generateAiBackgroundImage(
+export async function generateAiImage(
   prompt: string,
   opts: { variant: 'illustration' | 'realistic' | 'pixel'; width?: number; height?: number }
 ): Promise<{ file: File; remaining: number | null }> {

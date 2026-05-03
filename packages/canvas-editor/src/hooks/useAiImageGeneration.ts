@@ -9,7 +9,7 @@ export interface GeneratedAiImage {
   objectUrl: string;
 }
 
-export interface UseAiBackgroundGenerationReturn {
+export interface UseAiImageGenerationReturn {
   generatedImage: GeneratedAiImage | null;
   remaining: number | null;
   isGenerating: boolean;
@@ -19,8 +19,8 @@ export interface UseAiBackgroundGenerationReturn {
   clear: () => void;
 }
 
-export function useAiBackgroundGeneration(): UseAiBackgroundGenerationReturn {
-  const { generateAiBackgroundImage } = useCanvasEditorServices();
+export function useAiImageGeneration(): UseAiImageGenerationReturn {
+  const { generateAiImage } = useCanvasEditorServices();
 
   const [generatedImage, setGeneratedImage] = useState<GeneratedAiImage | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
@@ -43,7 +43,7 @@ export function useAiBackgroundGeneration(): UseAiBackgroundGenerationReturn {
         setGenerationError('Bitte gib eine Bildbeschreibung ein.');
         return null;
       }
-      if (!generateAiBackgroundImage) {
+      if (!generateAiImage) {
         setGenerationError('KI-Bildgenerierung ist in dieser Umgebung nicht verfügbar.');
         return null;
       }
@@ -53,7 +53,7 @@ export function useAiBackgroundGeneration(): UseAiBackgroundGenerationReturn {
       setLastPrompt(trimmed);
 
       try {
-        const { file, remaining: nextRemaining } = await generateAiBackgroundImage(trimmed, {
+        const { file, remaining: nextRemaining } = await generateAiImage(trimmed, {
           variant,
         });
         const objectUrl = URL.createObjectURL(file);
@@ -72,7 +72,7 @@ export function useAiBackgroundGeneration(): UseAiBackgroundGenerationReturn {
         setIsGenerating(false);
       }
     },
-    [generateAiBackgroundImage]
+    [generateAiImage]
   );
 
   const clear = useCallback(() => {

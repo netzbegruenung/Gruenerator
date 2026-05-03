@@ -15,7 +15,12 @@ import {
   CombinedTextSection,
   PresentationDesignSection,
 } from '../../sidebar/sections';
-import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from '../commonSections';
+import {
+  chatTab,
+  createCommonSectionEntries,
+  toolsTab,
+  uploadsTab,
+} from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { createShareSection } from '../shareSection';
 
@@ -193,6 +198,7 @@ export const presImageConfig: FullCanvasConfig<PresentationSlideState, Presentat
       label: 'Elemente',
       ariaLabel: 'Dekorative Elemente',
     },
+    toolsTab,
     uploadsTab,
     {
       id: 'design',
@@ -205,7 +211,12 @@ export const presImageConfig: FullCanvasConfig<PresentationSlideState, Presentat
   ],
 
   // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  getVisibleTabs: () => ['background', 'text', 'assets', 'uploads', 'design', 'chat'],
+  // 'background' tab kept registered but hidden — opened via getAutoSwitchTab when
+  // the canvas background is clicked.
+  getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'design', 'chat'],
+
+  getAutoSwitchTab: (selectedElement) =>
+    selectedElement === 'background' ? 'background' : null,
 
   sections: {
     background: {
@@ -260,8 +271,7 @@ export const presImageConfig: FullCanvasConfig<PresentationSlideState, Presentat
         ...injectFeatureProps(state, actions, context),
       }),
     },
-    uploads: uploadsSectionEntry,
-    chat: createChatSection('pres-image', presImageAiCapabilities),
+    ...createCommonSectionEntries('pres-image', presImageAiCapabilities),
     design: {
       component: PresentationDesignSection,
       propsFactory: (state, actions) => ({
