@@ -10,11 +10,10 @@ import {
   Skeleton,
 } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
-import { FaCheck, FaDownload, FaSave, FaInstagram, FaCopy, FaUserPlus } from 'react-icons/fa';
+import { FaCheck, FaDownload, FaSave, FaCopy, FaUserPlus } from 'react-icons/fa';
 import { PiArrowLeft } from 'react-icons/pi';
 import { IoShareOutline } from 'react-icons/io5';
 
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { useAutoSaveStore } from '../../stores/useAutoSaveStore';
 
 import { DownloadSection } from './DownloadSection';
@@ -44,11 +43,6 @@ export interface ShareDropdownProps {
   onInvitePeople?: () => void;
 }
 
-interface GeneratedPosts {
-  instagram?: string;
-  [key: string]: string | undefined;
-}
-
 export function ShareDropdown({
   onCaptureCanvas,
   onDownload,
@@ -74,28 +68,10 @@ export function ShareDropdown({
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [templateUrl, setTemplateUrl] = useState<string | null>(null);
   const [templateCopied, setTemplateCopied] = useState(false);
-  const [instagramCopied, setInstagramCopied] = useState(false);
 
   const currentShareToken = useAutoSaveStore((s) => s.autoSavedShareToken);
   const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
   const { saveAsTemplate } = useShareStore();
-
-  const services = useCanvasEditorServices();
-  const socialPostHook = services.useGenerateSocialPost?.() as unknown as
-    | {
-        generatedPosts: GeneratedPosts;
-        generatePost: (
-          thema: string,
-          details: string,
-          platforms: string[],
-          includeActionIdeas: boolean
-        ) => Promise<unknown>;
-        loading: boolean;
-      }
-    | undefined;
-  const generatedPosts = socialPostHook?.generatedPosts;
-  const generatePost = socialPostHook?.generatePost;
-  const socialLoading = socialPostHook?.loading ?? false;
 
   const publishDraftIfNeeded = useCallback(async () => {
     const token = shareToken || useAutoSaveStore.getState().autoSavedShareToken;
@@ -155,19 +131,6 @@ export function ShareDropdown({
       console.error('Failed to save template:', error);
     } finally {
       setIsSavingTemplate(false);
-    }
-  };
-
-  const handleGenerateInstagram = async () => {
-    if (!canvasText.trim() || socialLoading || !generatePost) return;
-    await generatePost(canvasText, `Sharepic: ${canvasType}`, ['instagram'], false);
-  };
-
-  const handleCopyInstagram = async () => {
-    if (generatedPosts?.instagram) {
-      await navigator.clipboard.writeText(generatedPosts.instagram);
-      setInstagramCopied(true);
-      setTimeout(() => setInstagramCopied(false), 2000);
     }
   };
 
@@ -303,51 +266,6 @@ export function ShareDropdown({
                 </div>
               </>
             )}
-
-            {/* Instagram text section */}
-            <Separator />
-            <div className="px-4 py-3 flex flex-col gap-2">
-              <span className="text-xs font-medium text-foreground-muted">Instagram Text</span>
-              {!generatedPosts?.instagram ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={handleGenerateInstagram}
-                  disabled={socialLoading || !canvasText.trim()}
-                >
-                  {socialLoading ? (
-                    <Skeleton className="size-3.5 rounded-full" />
-                  ) : (
-                    <FaInstagram className="size-3.5" />
-                  )}
-                  {socialLoading ? 'Generiere...' : 'Text generieren'}
-                </Button>
-              ) : (
-                <>
-                  <textarea
-                    readOnly
-                    value={generatedPosts.instagram}
-                    className="w-full py-2 px-2.5 text-xs text-foreground bg-grey-100 dark:bg-grey-800 border border-grey-200 dark:border-grey-700 rounded-md outline-none resize-none leading-relaxed"
-                    rows={4}
-                    onClick={(e) => e.currentTarget.select()}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={handleCopyInstagram}
-                  >
-                    {instagramCopied ? (
-                      <FaCheck className="size-3.5" />
-                    ) : (
-                      <FaCopy className="size-3.5" />
-                    )}
-                    {instagramCopied ? 'Kopiert!' : 'Kopieren'}
-                  </Button>
-                </>
-              )}
-            </div>
           </>
         )}
       </PopoverContent>
