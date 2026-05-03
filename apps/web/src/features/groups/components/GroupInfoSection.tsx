@@ -32,9 +32,15 @@ import {
   HiX,
 } from 'react-icons/hi';
 import { PiSquaresFour } from 'react-icons/pi';
+import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
-import { useGroupMembers, getGroupInitials, type GroupLink } from '../hooks/useGroups';
+import {
+  useCloneCanvasTemplate,
+  useGroupMembers,
+  getGroupInitials,
+  type GroupLink,
+} from '../hooks/useGroups';
 
 import AddContentToGroupModal from './AddContentToGroupModal';
 import GroupLinksSection from './GroupLinksSection';
@@ -156,9 +162,26 @@ const GroupInfoSection = memo(
     isAddingLink,
     isUpdatingLink,
   }: GroupInfoSectionProps) => {
+    const navigate = useNavigate();
     const { members, isLoadingMembers } = useGroupMembers(groupId, { isActive: true });
     const [membersPopoverOpen, setMembersPopoverOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const cloneTemplate = useCloneCanvasTemplate();
+
+    const handleCloneTemplate = useCallback(
+      (templateId: string) => {
+        if (cloneTemplate.isPending) return;
+        cloneTemplate.mutate(templateId, {
+          onSuccess: ({ newCanvasId }) => {
+            if (newCanvasId) void navigate(`/studio/canvas/${newCanvasId}`);
+          },
+          onError: (err) => {
+            console.error('[GroupInfoSection] Failed to clone Vorlage:', err);
+          },
+        });
+      },
+      [cloneTemplate, navigate]
+    );
     const [showAddContent, setShowAddContent] = useState(false);
     const popoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const memberActionOpenRef = useRef(false);
@@ -475,6 +498,7 @@ const GroupInfoSection = memo(
               icon: typeof HiOutlineDocumentText;
               getLink?: (item: SharedItem) => string;
               variant?: 'thumbnail';
+              cloneOnOpen?: boolean;
             }[] = [
               {
                 label: 'Docs',
@@ -503,8 +527,8 @@ const GroupInfoSection = memo(
                 items: sharedContent.canvasTemplates,
                 contentType: 'canvas_template',
                 icon: HiOutlinePhotograph,
-                getLink: (item) => `/studio/canvas/${item.id}`,
                 variant: 'thumbnail',
+                cloneOnOpen: true,
               },
               {
                 label: 'Grüneratoren',
@@ -577,6 +601,10 @@ const GroupInfoSection = memo(
 
                           if (isThumbnailVariant) {
                             const thumbnailUrl = item.thumbnail_url ?? null;
+                            const isCloningThis =
+                              cloneTemplate.isPending &&
+                              cloneTemplate.variables === String(item.id);
+                            const isCloning = isCloningThis;
                             const cardInner = (
                               <>
                                 <div className="aspect-[4/3] bg-grey-100 dark:bg-grey-800 flex items-center justify-center overflow-hidden">
@@ -600,6 +628,11 @@ const GroupInfoSection = memo(
                                       Geteilt von {item.shared_by_name}
                                     </p>
                                   )}
+                                  {section.cloneOnOpen && (
+                                    <p className="text-[10px] text-primary-600 mt-xxs m-0">
+                                      {isCloning ? 'Vorlage wird geöffnet...' : 'Klicken um Kopie zu erstellen'}
+                                    </p>
+                                  )}
                                 </div>
                               </>
                             );
@@ -608,7 +641,16 @@ const GroupInfoSection = memo(
                                 key={item.id}
                                 className="group relative flex flex-col rounded-md border border-grey-200 dark:border-grey-700 bg-background overflow-hidden transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600"
                               >
-                                {href ? (
+                                {section.cloneOnOpen ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCloneTemplate(String(item.id))}
+                                    disabled={cloneTemplate.isPending}
+                                    className="flex flex-col text-left bg-transparent border-none p-0 m-0 cursor-pointer text-foreground disabled:opacity-60 disabled:cursor-wait"
+                                  >
+                                    {cardInner}
+                                  </button>
+                                ) : href ? (
                                   <a href={href} className="flex flex-col no-underline text-foreground">
                                     {cardInner}
                                   </a>
