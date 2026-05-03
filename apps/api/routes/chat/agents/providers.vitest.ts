@@ -13,7 +13,8 @@ describe('AVAILABLE_MODELS', () => {
 describe('getContextWindow', () => {
   it('returns correct context window for known models', () => {
     expect(getContextWindow('mistral-large')).toBe(128000);
-    expect(getContextWindow('litellm')).toBe(16384);
+    expect(getContextWindow('gpt-oss')).toBe(32768);
+    expect(getContextWindow('gemma-4')).toBe(32768);
     expect(getContextWindow('regolo')).toBe(32768);
   });
 
@@ -32,17 +33,38 @@ describe('getContextWindow', () => {
     expect(getContextWindow('auto', 'regolo')).toBe(32768);
   });
 
-  it('prefers model lookup over provider fallback', () => {
-    expect(getContextWindow('litellm', 'mistral')).toBe(16384);
+  it('legacy litellm ID resolves to overflow lane window', () => {
+    expect(getContextWindow('litellm', 'mistral')).toBe(32768);
   });
 });
 
 describe('getModelConfig', () => {
-  it('returns config with contextWindow for known models', () => {
-    const config = getModelConfig('litellm');
+  it('returns single config for pinned models', () => {
+    const config = getModelConfig('mistral-large');
     expect(config).not.toBeNull();
-    expect(config!.contextWindow).toBe(16384);
-    expect(config!.provider).toBe('litellm');
+    expect(config!.kind).toBe('single');
+    if (config!.kind === 'single') {
+      expect(config.provider).toBe('mistral');
+      expect(config.contextWindow).toBe(128000);
+    }
+  });
+
+  it('returns overflow config for the gpt-oss lane', () => {
+    const config = getModelConfig('gpt-oss');
+    expect(config).not.toBeNull();
+    expect(config!.kind).toBe('overflow');
+    if (config!.kind === 'overflow') {
+      expect(config.primary.provider).toBe('litellm');
+      expect(config.overflow.provider).toBe('regolo');
+      expect(config.contextWindow).toBe(32768);
+    }
+  });
+
+  it('aliases legacy IDs to the new overflow lanes', () => {
+    expect(getModelConfig('litellm')).toBe(getModelConfig('gpt-oss'));
+    expect(getModelConfig('gpt-oss-regolo')).toBe(getModelConfig('gpt-oss'));
+    expect(getModelConfig('gemma-litellm')).toBe(getModelConfig('gemma-4'));
+    expect(getModelConfig('gemma-regolo')).toBe(getModelConfig('gemma-4'));
   });
 
   it('returns null for unknown model', () => {

@@ -576,9 +576,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           defaultModel: finalState.agentConfig.defaultModel,
         }),
       };
-      const { model: aiModel } = resolveModel(agentConfigForResolve, modelId ?? undefined, {
-        hasImages: imageAttachments.length > 0,
-      });
+      const resolution = await resolveModel(
+        agentConfigForResolve,
+        modelId ?? undefined,
+        requestId,
+        {
+          hasImages: imageAttachments.length > 0,
+        }
+      );
+      const { model: aiModel } = resolution;
 
       const prunedValidMessages = pruneMessages(
         validMessages as Parameters<typeof pruneMessages>[0]
@@ -602,13 +608,18 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         requestId
       );
 
-      const fullText = await streamAndAccumulate({
-        model: aiModel,
-        messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
-        maxTokens: finalState.agentConfig.params.max_tokens,
-        temperature: finalState.agentConfig.params.temperature,
-        sse,
-      });
+      let fullText: string | null;
+      try {
+        fullText = await streamAndAccumulate({
+          model: aiModel,
+          messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
+          maxTokens: finalState.agentConfig.params.max_tokens,
+          temperature: finalState.agentConfig.params.temperature,
+          sse,
+        });
+      } finally {
+        if (resolution.releaseSlot) await resolution.releaseSlot();
+      }
 
       if (fullText === null) return { status: 200 as const, body: null };
 
@@ -843,22 +854,29 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           defaultModel: finalState.agentConfig.defaultModel,
         }),
       };
-      const { model: aiModel } = resolveModel(agentConfigForResolve2, modelId, {
+      const resumeRequestId = `resume_contract_${Date.now()}`;
+      const resolution2 = await resolveModel(agentConfigForResolve2, modelId, resumeRequestId, {
         hasImages: resumeImageAttachments.length > 0,
       });
+      const { model: aiModel } = resolution2;
 
       const validMessages = requestContext.validMessages;
       const prunedValidMessages = pruneMessages(validMessages);
       const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
 
-      const fullText = await streamAndAccumulate({
-        model: aiModel,
-        messages: messagesForAI,
-        maxTokens: finalState.agentConfig.params.max_tokens,
-        temperature: finalState.agentConfig.params.temperature,
-        sse,
-        logPrefix: '[ChatGraph:Resume]',
-      });
+      let fullText: string | null;
+      try {
+        fullText = await streamAndAccumulate({
+          model: aiModel,
+          messages: messagesForAI,
+          maxTokens: finalState.agentConfig.params.max_tokens,
+          temperature: finalState.agentConfig.params.temperature,
+          sse,
+          logPrefix: '[ChatGraph:Resume]',
+        });
+      } finally {
+        if (resolution2.releaseSlot) await resolution2.releaseSlot();
+      }
 
       if (fullText === null) return { status: 200 as const, body: null };
 
