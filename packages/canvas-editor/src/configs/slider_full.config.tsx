@@ -10,10 +10,15 @@
  */
 
 import { HiPhotograph, HiSparkles } from 'react-icons/hi';
-import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
+import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
-import { BackgroundSection, AssetsSection, CombinedTextSection } from '../sidebar/sections';
+import {
+  AssetsSection,
+  BackgroundSection,
+  CombinedTextSection,
+  FrameSettingsSection,
+} from '../sidebar/sections';
 import { createPillBadgeInstance, getPillBadgeColorsForScheme } from '../utils/pillBadgeUtils';
 import { SLIDER_CONFIG, calculateSliderLayout, getSliderColors } from '../utils/sliderLayout';
 
@@ -465,6 +470,12 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       label: 'Elemente',
       ariaLabel: 'Dekorative Elemente',
     },
+    {
+      id: 'frame-settings',
+      icon: PiFrameCornersFill,
+      label: 'Rahmen',
+      ariaLabel: 'Rahmen-Einstellungen',
+    },
     toolsTab,
     uploadsTab,
     {
@@ -483,7 +494,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
 
   getAutoSwitchTab: (selectedElement) => {
     if (selectedElement === 'background') return 'background';
-    if (selectedElement?.startsWith('frame-')) return 'assets';
+    if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
   },
 
@@ -519,6 +530,21 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         onAddPillBadge: actions.addPillBadge,
         ...injectFeatureProps(state, actions, context),
       }),
+    },
+    'frame-settings': {
+      component: FrameSettingsSection,
+      propsFactory: (state, actions, context) => {
+        const selectedId = context?.selectedElement ?? null;
+        const selectedFrame = selectedId
+          ? (state.frameInstances?.find((f) => f.id === selectedId) ?? null)
+          : null;
+        return {
+          selectedFrame,
+          onSetFrameImage: actions.setFrameImage,
+          onUpdateFrame: actions.updateFrame,
+          onRemoveFrame: actions.removeFrame,
+        };
+      },
     },
     ...createCommonSectionEntries('slider', sliderAiCapabilities),
     share: createShareSection<SliderState, SliderActions>('slider', (state) => {

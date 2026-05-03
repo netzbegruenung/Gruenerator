@@ -10,9 +10,14 @@
  */
 
 import { HiPhotograph } from 'react-icons/hi';
-import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
+import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { ImageBackgroundSection, AssetsSection, CombinedTextSection } from '../../sidebar/sections';
+import {
+  AssetsSection,
+  CombinedTextSection,
+  FrameSettingsSection,
+  ImageBackgroundSection,
+} from '../../sidebar/sections';
 import {
   chatTab,
   createCommonSectionEntries,
@@ -261,6 +266,12 @@ export function createImageTwoTextCanvas(
         label: 'Elemente',
         ariaLabel: 'Dekorative Elemente',
       },
+      {
+        id: 'frame-settings',
+        icon: PiFrameCornersFill,
+        label: 'Rahmen',
+        ariaLabel: 'Rahmen-Einstellungen',
+      },
       toolsTab,
       uploadsTab,
       chatTab,
@@ -269,7 +280,7 @@ export function createImageTwoTextCanvas(
     getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat', 'share'],
 
     getAutoSwitchTab: (selectedElement) =>
-      selectedElement?.startsWith('frame-') ? 'assets' : null,
+      selectedElement?.startsWith('frame-') ? 'frame-settings' : null,
 
     sections: {
       image: {
@@ -309,6 +320,21 @@ export function createImageTwoTextCanvas(
           onRemoveAsset: actions.removeAsset,
           ...injectFeatureProps(state, actions, context),
         }),
+      },
+      'frame-settings': {
+        component: FrameSettingsSection,
+        propsFactory: (state, actions, context) => {
+          const selectedId = context?.selectedElement ?? null;
+          const selectedFrame = selectedId
+            ? (state.frameInstances?.find((f) => f.id === selectedId) ?? null)
+            : null;
+          return {
+            selectedFrame,
+            onSetFrameImage: actions.setFrameImage,
+            onUpdateFrame: actions.updateFrame,
+            onRemoveFrame: actions.removeFrame,
+          };
+        },
       },
       ...createCommonSectionEntries(id),
       share: createShareSection<ImageTwoTextState, ImageTwoTextActions>(

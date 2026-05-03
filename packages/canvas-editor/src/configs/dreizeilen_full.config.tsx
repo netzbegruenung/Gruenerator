@@ -6,7 +6,7 @@
  */
 
 import { HiCog, HiPhotograph, HiSparkles } from 'react-icons/hi';
-import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
+import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
@@ -14,6 +14,7 @@ import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
+import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import {
   chatTab,
   createCommonSectionEntries,
@@ -254,6 +255,12 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       ariaLabel: 'Hintergrundbild ändern',
     },
     { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Balken-Einstellungen' },
+    {
+      id: 'frame-settings',
+      icon: PiFrameCornersFill,
+      label: 'Rahmen',
+      ariaLabel: 'Rahmen-Einstellungen',
+    },
     { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
     toolsTab,
@@ -271,7 +278,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
   getAutoSwitchTab: (selectedElement) => {
     if (selectedElement?.includes('balken')) return 'settings';
-    if (selectedElement?.startsWith('frame-')) return 'assets';
+    if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
   },
 
@@ -290,6 +297,22 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           onDuplicateBalken: actions.duplicateBalken,
           colorSchemes: COLOR_SCHEMES,
           isPrimary: (selectedId ?? 'dreizeilen-balken') === 'dreizeilen-balken',
+        };
+      },
+    },
+
+    'frame-settings': {
+      component: FrameSettingsSection,
+      propsFactory: (state, actions, context) => {
+        const selectedId = context?.selectedElement ?? null;
+        const selectedFrame = selectedId
+          ? (state.frameInstances?.find((f) => f.id === selectedId) ?? null)
+          : null;
+        return {
+          selectedFrame,
+          onSetFrameImage: actions.setFrameImage,
+          onUpdateFrame: actions.updateFrame,
+          onRemoveFrame: actions.removeFrame,
         };
       },
     },

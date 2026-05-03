@@ -9,12 +9,13 @@
  */
 
 import { HiPhotograph, HiSparkles } from 'react-icons/hi';
-import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
+import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, BackgroundSection } from '../sidebar';
+import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
@@ -178,6 +179,12 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       label: 'Elemente',
       ariaLabel: 'Elemente hinzufügen',
     },
+    {
+      id: 'frame-settings',
+      icon: PiFrameCornersFill,
+      label: 'Rahmen',
+      ariaLabel: 'Rahmen-Einstellungen',
+    },
     toolsTab,
     uploadsTab,
     {
@@ -196,7 +203,7 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
 
   getAutoSwitchTab: (selectedElement) => {
     if (selectedElement === 'background') return 'background';
-    if (selectedElement?.startsWith('frame-')) return 'elements';
+    if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
   },
 
@@ -246,6 +253,22 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
         recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['dreizeilen'],
         ...injectFeatureProps(state, actions, context),
       }),
+    },
+
+    'frame-settings': {
+      component: FrameSettingsSection,
+      propsFactory: (state, actions, context) => {
+        const selectedId = context?.selectedElement ?? null;
+        const selectedFrame = selectedId
+          ? (state.frameInstances?.find((f) => f.id === selectedId) ?? null)
+          : null;
+        return {
+          selectedFrame,
+          onSetFrameImage: actions.setFrameImage,
+          onUpdateFrame: actions.updateFrame,
+          onRemoveFrame: actions.removeFrame,
+        };
+      },
     },
 
     ...createCommonSectionEntries('freeform', freeformAiCapabilities),
