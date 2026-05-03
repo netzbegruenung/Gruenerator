@@ -63,6 +63,13 @@ function SearchContent({
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [pickError, setPickError] = useState<string | null>(null);
+  // Tracks which library item produced the current background blob URL, so we
+  // can dedupe it from the grid. The pipeline mediaUrl → blob URL erases
+  // identity, so we cache the mapping locally while it's still active.
+  const [activeLibraryRef, setActiveLibraryRef] = useState<{
+    id: string;
+    blobUrl: string;
+  } | null>(null);
 
   const {
     items: uploadItems,
@@ -115,6 +122,7 @@ function SearchContent({
         const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
         const objectUrl = URL.createObjectURL(file);
         onImageChange(file, objectUrl, null);
+        setActiveLibraryRef({ id: item.id, blobUrl: objectUrl });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Fehler beim Laden des Bildes';
         setPickError(message);
@@ -134,6 +142,7 @@ function SearchContent({
           await trackUnsplashDownloadLive(image.attribution.downloadLocation);
         }
         onImageChange(file, objectUrl, image.attribution ?? null);
+        setActiveLibraryRef(null);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Fehler beim Laden des Bildes';
         setPickError(message);
@@ -144,14 +153,15 @@ function SearchContent({
 
   const handleClearActive = useCallback(() => {
     onImageChange(null);
+    setActiveLibraryRef(null);
   }, [onImageChange]);
 
   const displayedError = pickError ?? uploadsError ?? unsplashError;
   const hasActive = !!currentImageSrc;
-  const dedupedUploads = currentImageSrc
-    ? uploadItems.filter(
-        (item) => item.mediaUrl !== currentImageSrc && item.thumbnailUrl !== currentImageSrc
-      )
+  const activeLibraryId =
+    activeLibraryRef && activeLibraryRef.blobUrl === currentImageSrc ? activeLibraryRef.id : null;
+  const dedupedUploads = activeLibraryId
+    ? uploadItems.filter((item) => item.id !== activeLibraryId)
     : uploadItems;
   const hasLibrary = hasActive || dedupedUploads.length > 0;
   const hasUnsplash = unsplashResults.length > 0;
