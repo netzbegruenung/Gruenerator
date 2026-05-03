@@ -13,6 +13,45 @@ import type * as Y from 'yjs';
 
 type CanvasState = Record<string, unknown>;
 
+/**
+ * Per-template shape of the props seeded into the inner CanvasEditor.
+ *
+ * Every branch in `buildInitialProps` is `satisfies`-checked against its
+ * entry here — so dropping or mistyping a field (e.g. forgetting to thread
+ * a background URL) is a compile error rather than a silent runtime '' fallback.
+ */
+export interface CanvasInitialPropsMap {
+  zitat: { quote: string; name: string; imageSrc: string };
+  'zitat-pure': { quote: string; name: string };
+  info: { header: string; body: string };
+  veranstaltung: {
+    eventTitle: string;
+    beschreibung: string;
+    weekday: string;
+    date: string;
+    time: string;
+    locationName: string;
+    address: string;
+    imageSrc: string;
+  };
+  simple: { headline: string; subtext: string; imageSrc: string };
+  slider: { label: string; headline: string; subtext: string };
+  dreizeilen: { line1: string; line2: string; line3: string; currentImageSrc: string };
+  freeform: { backgroundMode: string; backgroundColor: string; currentImageSrc: string };
+  'pres-title': PresentationInitialProps;
+  'pres-image': PresentationInitialProps;
+  'pres-content': PresentationInitialProps;
+  presentation: PresentationInitialProps;
+}
+
+interface PresentationInitialProps {
+  title: string;
+  subtitle: string;
+  bodyText: string;
+  bodyText2: string;
+  currentImageSrc: string;
+}
+
 // Compare two values with special handling for arrays
 function valuesEqual(a: unknown, b: unknown): boolean {
   // Same reference or primitive value
@@ -200,72 +239,75 @@ export function ControllableCanvasWrapper({
       return <div>Lädt Editor...</div>;
     }
 
-    // Build initial props based on canvas type
+    // Build initial props based on canvas type.
+    // Each branch returns an object `satisfies CanvasInitialPropsMap['<key>']` so
+    // the field set is structurally checked at compile time (see top of file).
+    const str = (v: unknown): string => (typeof v === 'string' ? v : '');
     const buildInitialProps = (): Record<string, unknown> => {
       switch (type) {
         case 'zitat':
           return {
-            quote: effectiveState.quote || '',
-            name: effectiveState.name || '',
-            imageSrc: (effectiveState.imageSrc as string) || imageSrc || '',
-          };
+            quote: str(effectiveState.quote),
+            name: str(effectiveState.name),
+            imageSrc: str(effectiveState.imageSrc) || imageSrc || '',
+          } satisfies CanvasInitialPropsMap['zitat'];
         case 'zitat-pure':
           return {
-            quote: effectiveState.quote || '',
-            name: effectiveState.name || '',
-          };
+            quote: str(effectiveState.quote),
+            name: str(effectiveState.name),
+          } satisfies CanvasInitialPropsMap['zitat-pure'];
         case 'info':
           return {
-            header: effectiveState.header || '',
-            body: effectiveState.body || '',
-          };
+            header: str(effectiveState.header),
+            body: str(effectiveState.body),
+          } satisfies CanvasInitialPropsMap['info'];
         case 'veranstaltung':
           return {
-            eventTitle: effectiveState.eventTitle || '',
-            beschreibung: effectiveState.beschreibung || '',
-            weekday: effectiveState.weekday || '',
-            date: effectiveState.date || '',
-            time: effectiveState.time || '',
-            locationName: effectiveState.locationName || '',
-            address: effectiveState.address || '',
-            imageSrc: (effectiveState.imageSrc as string) || imageSrc || '',
-          };
+            eventTitle: str(effectiveState.eventTitle),
+            beschreibung: str(effectiveState.beschreibung),
+            weekday: str(effectiveState.weekday),
+            date: str(effectiveState.date),
+            time: str(effectiveState.time),
+            locationName: str(effectiveState.locationName),
+            address: str(effectiveState.address),
+            imageSrc: str(effectiveState.imageSrc) || imageSrc || '',
+          } satisfies CanvasInitialPropsMap['veranstaltung'];
         case 'simple':
           return {
-            headline: effectiveState.headline || '',
-            subtext: effectiveState.subtext || '',
-            imageSrc: (effectiveState.imageSrc as string) || imageSrc || '',
-          };
+            headline: str(effectiveState.headline),
+            subtext: str(effectiveState.subtext),
+            imageSrc: str(effectiveState.imageSrc) || imageSrc || '',
+          } satisfies CanvasInitialPropsMap['simple'];
         case 'slider':
           return {
-            label: effectiveState.label || '',
-            headline: effectiveState.headline || '',
-            subtext: effectiveState.subtext || '',
-          };
+            label: str(effectiveState.label),
+            headline: str(effectiveState.headline),
+            subtext: str(effectiveState.subtext),
+          } satisfies CanvasInitialPropsMap['slider'];
         case 'dreizeilen':
           return {
-            line1: effectiveState.line1 || '',
-            line2: effectiveState.line2 || '',
-            line3: effectiveState.line3 || '',
-            currentImageSrc: (effectiveState.currentImageSrc as string) || imageSrc || '',
-          };
+            line1: str(effectiveState.line1),
+            line2: str(effectiveState.line2),
+            line3: str(effectiveState.line3),
+            currentImageSrc: str(effectiveState.currentImageSrc) || imageSrc || '',
+          } satisfies CanvasInitialPropsMap['dreizeilen'];
         case 'freeform':
           return {
-            backgroundMode: effectiveState.backgroundMode || 'color',
-            backgroundColor: effectiveState.backgroundColor || '#005538',
-            currentImageSrc: (effectiveState.currentImageSrc as string) || imageSrc || '',
-          };
+            backgroundMode: str(effectiveState.backgroundMode) || 'color',
+            backgroundColor: str(effectiveState.backgroundColor) || '#005538',
+            currentImageSrc: str(effectiveState.currentImageSrc) || imageSrc || '',
+          } satisfies CanvasInitialPropsMap['freeform'];
         case 'pres-title':
         case 'pres-image':
         case 'pres-content':
         case 'presentation':
           return {
-            title: effectiveState.title || '',
-            subtitle: effectiveState.subtitle || '',
-            bodyText: effectiveState.bodyText || '',
-            bodyText2: effectiveState.bodyText2 || '',
-            currentImageSrc: (effectiveState.currentImageSrc as string) || imageSrc || '',
-          };
+            title: str(effectiveState.title),
+            subtitle: str(effectiveState.subtitle),
+            bodyText: str(effectiveState.bodyText),
+            bodyText2: str(effectiveState.bodyText2),
+            currentImageSrc: str(effectiveState.currentImageSrc) || imageSrc || '',
+          } satisfies PresentationInitialProps;
         default:
           return effectiveState;
       }
