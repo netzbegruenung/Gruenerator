@@ -36,7 +36,7 @@ import { cn } from '../../../utils/cn';
 // --- Sub-components ---
 
 function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick: () => void }) {
-  const { Icon, label, iconColor, border, hoverBorder, ring, anim } = card;
+  const { Icon, label, iconColor, hoverShadow, ring } = card;
   return (
     <button
       type="button"
@@ -49,15 +49,18 @@ function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick:
     >
       <div
         className={cn(
-          'flex items-center justify-center size-12 rounded-full shadow-md',
-          'bg-background-pure dark:bg-grey-700 border-2',
-          'transition-[transform,border-color] duration-200 ease-out',
-          'group-hover:scale-105',
-          border,
-          hoverBorder,
+          'flex items-center justify-center size-12 rounded-full',
+          'bg-background-pure dark:bg-grey-700',
+          'transition-[box-shadow] duration-200 ease-out',
+          hoverShadow,
         )}
       >
-        <span className={cn('text-lg inline-flex', iconColor, anim)}>
+        <span
+          className={cn(
+            'text-lg inline-flex transition-transform duration-200 ease-out group-hover:scale-110',
+            iconColor,
+          )}
+        >
           <Icon />
         </span>
       </div>
