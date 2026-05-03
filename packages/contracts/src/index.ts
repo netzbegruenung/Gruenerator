@@ -35,6 +35,7 @@ export {
   transferContract,
   unsplashContract,
   notificationsContract,
+  modelPreferencesContract,
   adminVorlagenContract,
   authStatusContract,
   canvasAiContract,
@@ -63,6 +64,7 @@ export * from './schemas/wordpress.js';
 export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
+export * from './schemas/modelPreferences.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/authStatus.js';
 export * from './schemas/canvasAi.js';
