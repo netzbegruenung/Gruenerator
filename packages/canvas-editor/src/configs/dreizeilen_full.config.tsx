@@ -267,7 +267,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       | 'chat'
       | 'share'
     )[] =
-    // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
+      // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
       ['image-background', 'text', 'assets', 'uploads', 'chat', 'share'];
     if (context?.selectedElement?.includes('balken')) {
       return ['image-background', 'settings', ...base.slice(1)];
@@ -366,6 +366,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       scaleKey: 'imageScale',
       draggable: true,
       transformable: true,
+      coverFit: true,
       visible: (state: DreizeilenFullState) => state.hasBackgroundImage,
       opacity: (state: DreizeilenFullState) => state.backgroundImageOpacity ?? 1,
       opacityStateKey: 'backgroundImageOpacity',
