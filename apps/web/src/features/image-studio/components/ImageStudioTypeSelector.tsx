@@ -21,6 +21,7 @@ import {
   KI_SUBCATEGORIES,
   TYPE_CONFIG,
 } from '../utils/typeConfig';
+
 import TypeCard from './TypeCard';
 
 import type { TypeConfig } from '../utils/typeConfig/types';
@@ -55,6 +56,16 @@ const SECTION_DEFS: readonly SectionDef[] = [
   { key: 'print', label: 'Print', groups: ['flyer', 'plakat'] },
 ];
 
+// Beta wins over KI — "in early access" is the more specific UX promise.
+// AI is implied for most beta studio features anyway.
+const renderTemplateBadge = (config: TypeConfig): React.ReactNode => {
+  if (config.isBeta) return <StatusBadge type="beta" variant="card" />;
+  if (config.hasTextGeneration || config.usesFluxApi) {
+    return <StatusBadge type="ki" variant="card" />;
+  }
+  return undefined;
+};
+
 interface FormatBrowserProps {
   variants: TypeConfig[];
   onSelect: (variantId: string, formatId: string) => void;
@@ -76,8 +87,7 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
         !q ||
         def.label.toLowerCase().includes(q) ||
         formats.some(
-          (f) =>
-            f.label.toLowerCase().includes(q) || f.description.toLowerCase().includes(q)
+          (f) => f.label.toLowerCase().includes(q) || f.description.toLowerCase().includes(q)
         );
 
       const sectionVariants = variants.filter((v) => {
@@ -132,18 +142,14 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
               <div className="grid grid-cols-5 gap-4 max-[1280px]:grid-cols-4 max-[1024px]:grid-cols-3 max-[768px]:grid-cols-3 max-[480px]:grid-cols-2">
                 {secVariants.flatMap((v) =>
                   formats
-                    .filter((f) =>
-                      (v.supportedFormatGroups ?? ['sharepic']).includes(f.group)
-                    )
+                    .filter((f) => (v.supportedFormatGroups ?? ['sharepic']).includes(f.group))
                     .map((f) => {
                       const authoredHere = (v.primaryFormatGroup ?? 'sharepic') === f.group;
                       const effectivePreview = authoredHere ? v.previewImage : undefined;
                       const effectivePreviewFallback = authoredHere
                         ? v.previewImageFallback
                         : undefined;
-                      const fallbackBg = !effectivePreview
-                        ? GROUP_BACKGROUND[f.group]
-                        : undefined;
+                      const fallbackBg = !effectivePreview ? GROUP_BACKGROUND[f.group] : undefined;
                       let cardLabel: string;
                       let cardDescription: string | undefined;
                       if (isMultiVariant) {
@@ -169,9 +175,7 @@ const FormatBrowser: React.FC<FormatBrowserProps> = ({ variants, onSelect }) => 
                           description={cardDescription}
                           backgroundColor={fallbackBg}
                           className="aspect-[3/4]"
-                          badge={
-                            v.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined
-                          }
+                          badge={renderTemplateBadge(v)}
                         />
                       );
                     })
@@ -340,7 +344,7 @@ const ImageStudioTypeSelector: React.FC = () => {
                 previewImage={config.previewImage}
                 previewImageFallback={config.previewImageFallback}
                 label={config.label}
-                badge={config.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined}
+                badge={renderTemplateBadge(config)}
               />
             ) : (
               <TypeCard
@@ -348,7 +352,7 @@ const ImageStudioTypeSelector: React.FC = () => {
                 onClick={() => handleTypeSelect(config.id)}
                 label={config.label}
                 description={config.description}
-                badge={config.isBeta ? <StatusBadge type="beta" variant="card" /> : undefined}
+                badge={renderTemplateBadge(config)}
               >
                 <div className="text-5xl mb-4">
                   <Icon />
