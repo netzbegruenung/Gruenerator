@@ -152,10 +152,10 @@ function DocsAssistantThreadShell({
   // text into every outgoing request as attachmentContext. Read at request
   // time so edits made between sends are reflected.
   useEffect(() => {
-    const provider = (): ChatRequestContext => {
+    const provider = async (): Promise<ChatRequestContext> => {
       const editor = useEditorStore.getState().getEditor(documentId);
       if (!editor) return {};
-      const markdown = editor.blocksToMarkdownLossy(editor.document);
+      const markdown = await editor.blocksToMarkdownLossy(editor.document);
       const selection = editor.getSelectedText() || undefined;
       return {
         documentChatIds: [documentId],
