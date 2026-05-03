@@ -14,7 +14,7 @@ import { FaCheck, FaDownload, FaSave, FaCopy, FaUserPlus } from 'react-icons/fa'
 import { PiArrowLeft } from 'react-icons/pi';
 import { IoShareOutline } from 'react-icons/io5';
 
-import { useAutoSaveStore } from '../../stores/useAutoSaveStore';
+import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 
 import { DownloadSection } from './DownloadSection';
 
@@ -69,12 +69,13 @@ export function ShareDropdown({
   const [templateUrl, setTemplateUrl] = useState<string | null>(null);
   const [templateCopied, setTemplateCopied] = useState(false);
 
+  const autoSaveStoreApi = useAutoSaveStoreApi();
   const currentShareToken = useAutoSaveStore((s) => s.autoSavedShareToken);
   const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
   const { saveAsTemplate } = useShareStore();
 
   const publishDraftIfNeeded = useCallback(async () => {
-    const token = shareToken || useAutoSaveStore.getState().autoSavedShareToken;
+    const token = shareToken || autoSaveStoreApi.getState().autoSavedShareToken;
     if (token) {
       try {
         await shareApi.publishShare(token);
@@ -82,7 +83,7 @@ export function ShareDropdown({
         console.warn('[ShareDropdown] Failed to publish draft:', err);
       }
     }
-  }, [shareToken]);
+  }, [shareToken, autoSaveStoreApi]);
 
   const handleNativeShare = useCallback(async () => {
     setIsSharing(true);
@@ -115,14 +116,14 @@ export function ShareDropdown({
         await onCaptureCanvas();
         await new Promise<void>((resolve, reject) => {
           const check = () => {
-            const s = useAutoSaveStore.getState();
+            const s = autoSaveStoreApi.getState();
             if (s.autoSaveStatus === 'saved' && s.autoSavedShareToken) resolve();
             else if (s.autoSaveStatus === 'error') reject(new Error('Auto-save failed'));
             else setTimeout(check, 100);
           };
           setTimeout(check, 200);
         });
-        tokenToUse = useAutoSaveStore.getState().autoSavedShareToken;
+        tokenToUse = autoSaveStoreApi.getState().autoSavedShareToken;
       }
       if (!tokenToUse) throw new Error('Kein Share-Token verfügbar');
       const result = await saveAsTemplate(tokenToUse, `${canvasType} Vorlage`, 'public');

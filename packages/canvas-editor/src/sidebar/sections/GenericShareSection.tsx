@@ -15,7 +15,7 @@ import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 
 import { Skeleton } from '@gruenerator/ui';
 
-import { useAutoSaveStore } from '../../stores/useAutoSaveStore';
+import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 import { SubsectionTabBar } from '../SubsectionTabBar';
 
 export interface GenericShareSectionProps {
@@ -123,12 +123,13 @@ function DownloadShareSubsection({
   const dlDropdown = usePortalDropdown();
   const shareDropdown = usePortalDropdown();
 
+  const autoSaveStoreApi = useAutoSaveStoreApi();
   const autoSaveStatus = useAutoSaveStore((s) => s.autoSaveStatus);
   const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
   const isMultiPage = pageCount > 1 && onDownloadAllZip;
 
   const publishDraftIfNeeded = useCallback(async () => {
-    const token = shareToken || useAutoSaveStore.getState().autoSavedShareToken;
+    const token = shareToken || autoSaveStoreApi.getState().autoSavedShareToken;
     if (token) {
       try {
         await shareApi.publishShare(token);
@@ -136,7 +137,7 @@ function DownloadShareSubsection({
         console.warn('[DownloadShareSubsection] Failed to publish draft:', err);
       }
     }
-  }, [shareToken]);
+  }, [shareToken, autoSaveStoreApi]);
 
   const handleSingleDownload = async () => {
     dlDropdown.setOpen(false);
@@ -176,7 +177,7 @@ function DownloadShareSubsection({
       await new Promise((resolve) => setTimeout(resolve, 150));
     }
 
-    const imageToShare = exportedImage || useAutoSaveStore.getState().autoSavedShareToken;
+    const imageToShare = exportedImage || autoSaveStoreApi.getState().autoSavedShareToken;
     if (!imageToShare) return;
 
     setIsSharing(true);
@@ -432,6 +433,7 @@ function TemplateSubsection({
   const [isSaving, setIsSaving] = useState(false);
   const [templateUrl, setTemplateUrl] = useState<string | null>(null);
   const { saveAsTemplate } = useShareStore();
+  const autoSaveStoreApi = useAutoSaveStoreApi();
   const currentShareToken = useAutoSaveStore((s) => s.autoSavedShareToken);
 
   const handleSaveAsTemplate = async () => {
@@ -444,8 +446,8 @@ function TemplateSubsection({
         onCaptureCanvas();
         await new Promise<void>((resolve, reject) => {
           const checkStatus = () => {
-            const status = useAutoSaveStore.getState().autoSaveStatus;
-            const token = useAutoSaveStore.getState().autoSavedShareToken;
+            const status = autoSaveStoreApi.getState().autoSaveStatus;
+            const token = autoSaveStoreApi.getState().autoSavedShareToken;
             if (status === 'saved' && token) {
               resolve();
             } else if (status === 'error') {
@@ -456,7 +458,7 @@ function TemplateSubsection({
           };
           setTimeout(checkStatus, 200);
         });
-        tokenToUse = useAutoSaveStore.getState().autoSavedShareToken;
+        tokenToUse = autoSaveStoreApi.getState().autoSavedShareToken;
       }
 
       if (!tokenToUse) {
