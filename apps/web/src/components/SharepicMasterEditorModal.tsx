@@ -94,6 +94,13 @@ export function SharepicMasterEditorModal({
     return undefined;
   }, [sharepic.original_image, sharepic.image]);
 
+  const shareToken =
+    typeof sharepic.share_token === 'string'
+      ? sharepic.share_token
+      : typeof sharepic.shareToken === 'string'
+        ? sharepic.shareToken
+        : null;
+
   if (!isOpen) {
     return null;
   }
@@ -108,6 +115,7 @@ export function SharepicMasterEditorModal({
           imageSrc={editorImageSrc} // Pass the appropriate image source
           onExport={onExport}
           onCancel={onCancel}
+          initialShareToken={shareToken}
         />
       </WebCanvasEditorProvider>
     </GenericModal>
