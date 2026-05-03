@@ -15,7 +15,7 @@ import {
   PiLeafFill,
 } from 'react-icons/pi';
 
-import { ALL_SHAPES, type ShapeType } from '../../utils/shapes';
+import { ALL_SHAPES, EUCALYPTUS, type ShapeType } from '../../utils/shapes';
 import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../primitives';
 
 import { cn } from '../../utils/cn';
@@ -145,6 +145,80 @@ const SHAPES: ShapeDefinition[] = [
           fill="var(--font-color)"
         />
       </PreviewSvg>
+    ),
+  },
+  {
+    id: 'line',
+    title: 'Linie hinzufügen',
+    renderPreview: () => (
+      <svg width={32} height={12} viewBox="0 0 100 12" aria-hidden="true" className="shrink-0">
+        <line x1="2" y1="6" x2="98" y2="6" stroke={EUCALYPTUS} strokeWidth="6" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: 'line-thick',
+    title: 'Dicke Linie hinzufügen',
+    renderPreview: () => (
+      <svg width={32} height={16} viewBox="0 0 100 16" aria-hidden="true" className="shrink-0">
+        <line x1="2" y1="8" x2="98" y2="8" stroke={EUCALYPTUS} strokeWidth="14" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: 'line-dashed',
+    title: 'Gestrichelte Linie hinzufügen',
+    renderPreview: () => (
+      <svg width={32} height={12} viewBox="0 0 100 12" aria-hidden="true" className="shrink-0">
+        <line
+          x1="2"
+          y1="6"
+          x2="98"
+          y2="6"
+          stroke={EUCALYPTUS}
+          strokeWidth="6"
+          strokeLinecap="butt"
+          strokeDasharray="14 8"
+        />
+      </svg>
+    ),
+  },
+  {
+    id: 'line-dotted',
+    title: 'Gepunktete Linie hinzufügen',
+    renderPreview: () => (
+      <svg width={32} height={12} viewBox="0 0 100 12" aria-hidden="true" className="shrink-0">
+        <line
+          x1="4"
+          y1="6"
+          x2="96"
+          y2="6"
+          stroke={EUCALYPTUS}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeDasharray="0 14"
+        />
+      </svg>
+    ),
+  },
+  {
+    id: 'line-double',
+    title: 'Doppellinie hinzufügen',
+    renderPreview: () => (
+      <svg width={32} height={16} viewBox="0 0 100 16" aria-hidden="true" className="shrink-0">
+        <line x1="2" y1="4" x2="98" y2="4" stroke={EUCALYPTUS} strokeWidth="3" />
+        <line x1="2" y1="12" x2="98" y2="12" stroke={EUCALYPTUS} strokeWidth="3" />
+      </svg>
+    ),
+  },
+  {
+    id: 'line-arrow',
+    title: 'Linie mit Pfeil hinzufügen',
+    renderPreview: () => (
+      <svg width={32} height={14} viewBox="0 0 100 14" aria-hidden="true" className="shrink-0">
+        <line x1="2" y1="7" x2="78" y2="7" stroke={EUCALYPTUS} strokeWidth="5" strokeLinecap="round" />
+        <polygon points="78,1 98,7 78,13" fill={EUCALYPTUS} />
+      </svg>
     ),
   },
   {
