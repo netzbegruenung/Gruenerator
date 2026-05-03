@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { CanvasClipboard } from '../utils/canvasClipboard';
 
+import type { OptionalCanvasActions } from './useCanvasElementHandlers';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { BalkenInstance } from '../primitives';
 import type { ShapeInstance } from '../utils/shapes';
@@ -17,23 +18,10 @@ import type { ShapeInstance } from '../utils/shapes';
  * Automatically prevents actions when typing in input/textarea fields.
  */
 
-export interface CanvasActions {
-  removeBalken?: (id: string) => void;
-  toggleIcon?: (id: string, enabled: boolean) => void;
-  removeShape?: (id: string) => void;
-  removeAdditionalText?: (id: string) => void;
-  removeIllustration?: (id: string) => void;
-  removeAsset?: (id: string) => void;
-  removePillBadge?: (id: string) => void;
-  removeFrame?: (id: string) => void;
-  setFrameImage?: (id: string, file: File, objectUrl: string) => void;
-  removeUserImage?: (id: string) => void;
-}
-
 export interface UseCanvasKeyboardHandlersOptions<TState> {
   store: CanvasEditorStoreApi;
   state: TState;
-  actions: CanvasActions;
+  actions: OptionalCanvasActions;
   setState: (partial: Partial<TState> | ((prev: TState) => TState)) => void;
   setSelectedElement: (id: string | null) => void;
 }
