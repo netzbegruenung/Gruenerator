@@ -4,6 +4,11 @@ import { CanvasClipboard } from '../utils/canvasClipboard';
 
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
 import type { BalkenInstance } from '../primitives';
+import type { AssetInstance } from '../utils/canvasAssets';
+import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
+import type { FrameInstance } from '../utils/frameUtils';
+import type { IllustrationInstance } from '../utils/illustrations/types';
+import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
 import type { ShapeInstance } from '../utils/shapes';
 
 /**
@@ -169,95 +174,95 @@ export function useCanvasKeyboardHandlers<TState>(
 
       // PASTE (Ctrl+V)
       if (isCtrlOrCmd && e.key === 'v') {
-        const clipboardData = CanvasClipboard.paste();
-        if (!clipboardData) return;
+        const entry = CanvasClipboard.paste();
+        if (!entry) return;
 
-        const { type, data } = clipboardData;
-        const newId = `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const newId = `${entry.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const offset = 20;
 
         setState((prev) => {
           const newState = { ...prev } as Record<string, unknown>;
           const prevState = prev as Record<string, unknown>;
 
-          if (type === 'shape' && typeof data === 'object' && data !== null) {
-            const shapeData = data as { x: number; y: number };
-            const newShape = {
-              ...shapeData,
-              id: newId,
-              x: shapeData.x + offset,
-              y: shapeData.y + offset,
-            };
-            const existing = getStateArray<unknown>(prevState, 'shapeInstances');
-            (newState as Record<string, unknown>).shapeInstances = [...existing, newShape];
-          } else if (type === 'illustration' && typeof data === 'object' && data !== null) {
-            const illData = data as { x: number; y: number };
-            const newIll = { ...illData, id: newId, x: illData.x + offset, y: illData.y + offset };
-            const existing = getStateArray<unknown>(prevState, 'illustrationInstances');
-            (newState as Record<string, unknown>).illustrationInstances = [...existing, newIll];
-          } else if (type === 'balken' && typeof data === 'object' && data !== null) {
-            const balkenData = data as { offset?: { x: number; y: number } };
-            const newBalken = {
-              ...balkenData,
-              id: newId,
-              offset: {
-                x: (balkenData.offset?.x || 0) + offset,
-                y: (balkenData.offset?.y || 0) + offset,
-              },
-            };
-            const existing = getStateArray<unknown>(prevState, 'balkenInstances');
-            (newState as Record<string, unknown>).balkenInstances = [...existing, newBalken];
-          } else if (type === 'additional-text' && typeof data === 'object' && data !== null) {
-            const textData = data as { x: number; y: number };
-            const newText = {
-              ...textData,
-              id: newId,
-              x: textData.x + offset,
-              y: textData.y + offset,
-            };
-            const existing = getStateArray<unknown>(prevState, 'additionalTexts');
-            (newState as Record<string, unknown>).additionalTexts = [...existing, newText];
-          } else if (type === 'asset' && typeof data === 'object' && data !== null) {
-            const assetData = data as { x: number; y: number };
-            const newAsset = {
-              ...assetData,
-              id: newId,
-              x: assetData.x + offset,
-              y: assetData.y + offset,
-            };
-            const existing = getStateArray<unknown>(prevState, 'assetInstances');
-            (newState as Record<string, unknown>).assetInstances = [...existing, newAsset];
-          } else if (type === 'pill-badge' && typeof data === 'object' && data !== null) {
-            const pillData = data as { x: number; y: number };
-            const newPill = {
-              ...pillData,
-              id: newId,
-              x: pillData.x + offset,
-              y: pillData.y + offset,
-            };
-            const existing = getStateArray<unknown>(prevState, 'pillBadgeInstances');
-            (newState as Record<string, unknown>).pillBadgeInstances = [...existing, newPill];
-          } else if (type === 'frame' && typeof data === 'object' && data !== null) {
-            const frameData = data as { x: number; y: number; imageSrc?: string | null };
-            const newFrame = {
-              ...frameData,
-              id: newId,
-              x: frameData.x + offset,
-              y: frameData.y + offset,
-              imageSrc: null, // Don't share object URL references
-            };
-            const existing = getStateArray<unknown>(prevState, 'frameInstances');
-            (newState as Record<string, unknown>).frameInstances = [...existing, newFrame];
-          } else if (type === 'user-image' && typeof data === 'object' && data !== null) {
-            const imgData = data as { x: number; y: number };
-            const newImg = {
-              ...imgData,
-              id: newId,
-              x: imgData.x + offset,
-              y: imgData.y + offset,
-            };
-            const existing = getStateArray<unknown>(prevState, 'userImageInstances');
-            (newState as Record<string, unknown>).userImageInstances = [...existing, newImg];
+          // Discriminated narrowing on entry.type recovers the precise data shape
+          // for each clipboard kind — see ClipboardDataMap in canvasClipboard.ts.
+          switch (entry.type) {
+            case 'shape': {
+              const d = entry.data;
+              const next = { ...d, id: newId, x: d.x + offset, y: d.y + offset };
+              const existing = getStateArray<unknown>(prevState, 'shapeInstances');
+              newState.shapeInstances = [...existing, next];
+              break;
+            }
+            case 'illustration': {
+              const d = entry.data;
+              const next = { ...d, id: newId, x: d.x + offset, y: d.y + offset };
+              const existing = getStateArray<unknown>(prevState, 'illustrationInstances');
+              newState.illustrationInstances = [...existing, next];
+              break;
+            }
+            case 'balken': {
+              const d = entry.data;
+              const next = {
+                ...d,
+                id: newId,
+                offset: {
+                  x: (d.offset?.x || 0) + offset,
+                  y: (d.offset?.y || 0) + offset,
+                },
+              };
+              const existing = getStateArray<unknown>(prevState, 'balkenInstances');
+              newState.balkenInstances = [...existing, next];
+              break;
+            }
+            case 'additional-text': {
+              const d = entry.data;
+              const next = { ...d, id: newId, x: d.x + offset, y: d.y + offset };
+              const existing = getStateArray<unknown>(prevState, 'additionalTexts');
+              newState.additionalTexts = [...existing, next];
+              break;
+            }
+            case 'asset': {
+              const d = entry.data;
+              const next = { ...d, id: newId, x: d.x + offset, y: d.y + offset };
+              const existing = getStateArray<unknown>(prevState, 'assetInstances');
+              newState.assetInstances = [...existing, next];
+              break;
+            }
+            case 'pill-badge': {
+              const d = entry.data;
+              const next = { ...d, id: newId, x: d.x + offset, y: d.y + offset };
+              const existing = getStateArray<unknown>(prevState, 'pillBadgeInstances');
+              newState.pillBadgeInstances = [...existing, next];
+              break;
+            }
+            case 'circle-badge': {
+              const d = entry.data;
+              const next = { ...d, id: newId, x: d.x + offset, y: d.y + offset };
+              const existing = getStateArray<unknown>(prevState, 'circleBadgeInstances');
+              newState.circleBadgeInstances = [...existing, next];
+              break;
+            }
+            case 'frame': {
+              const d = entry.data;
+              const next = {
+                ...d,
+                id: newId,
+                x: d.x + offset,
+                y: d.y + offset,
+                imageSrc: null, // Don't share object URL references
+              };
+              const existing = getStateArray<unknown>(prevState, 'frameInstances');
+              newState.frameInstances = [...existing, next];
+              break;
+            }
+            case 'user-image': {
+              const d = entry.data;
+              const next = { ...d, id: newId, x: d.x + offset, y: d.y + offset };
+              const existing = getStateArray<unknown>(prevState, 'userImageInstances');
+              newState.userImageInstances = [...existing, next];
+              break;
+            }
           }
 
           return newState as TState;
@@ -278,11 +283,11 @@ export function useCanvasKeyboardHandlers<TState>(
           return;
         }
 
-        const illustrations = getStateArray<unknown>(currentState, 'illustrationInstances');
-        const ill = illustrations.find((i: unknown) => {
-          const illObj = i as { id?: string };
-          return illObj.id === selectedElement;
-        });
+        const illustrations = getStateArray<IllustrationInstance>(
+          currentState,
+          'illustrationInstances'
+        );
+        const ill = illustrations.find((i) => i.id === selectedElement);
         if (ill) {
           CanvasClipboard.copy('illustration', ill);
           return;
@@ -295,48 +300,52 @@ export function useCanvasKeyboardHandlers<TState>(
           return;
         }
 
-        const texts = getStateArray<{ id: string }>(currentState, 'additionalTexts');
+        const texts = getStateArray<{ id: string; x: number; y: number }>(
+          currentState,
+          'additionalTexts'
+        );
         const text = texts.find((t) => t.id === selectedElement);
         if (text) {
           CanvasClipboard.copy('additional-text', text);
           return;
         }
 
-        const assets = getStateArray<unknown>(currentState, 'assetInstances');
-        const asset = assets.find((a: unknown) => {
-          const assetObj = a as { id?: string };
-          return assetObj.id === selectedElement;
-        });
+        const assets = getStateArray<AssetInstance>(currentState, 'assetInstances');
+        const asset = assets.find((a) => a.id === selectedElement);
         if (asset) {
           CanvasClipboard.copy('asset', asset);
           return;
         }
 
-        const pillBadges = getStateArray<unknown>(currentState, 'pillBadgeInstances');
-        const pillBadge = pillBadges.find((p: unknown) => {
-          const pillObj = p as { id?: string };
-          return pillObj.id === selectedElement;
-        });
+        const pillBadges = getStateArray<PillBadgeInstance>(currentState, 'pillBadgeInstances');
+        const pillBadge = pillBadges.find((p) => p.id === selectedElement);
         if (pillBadge) {
           CanvasClipboard.copy('pill-badge', pillBadge);
           return;
         }
 
-        const frames = getStateArray<unknown>(currentState, 'frameInstances');
-        const frame = frames.find((f: unknown) => {
-          const frameObj = f as { id?: string };
-          return frameObj.id === selectedElement;
-        });
+        const circleBadges = getStateArray<CircleBadgeInstance>(
+          currentState,
+          'circleBadgeInstances'
+        );
+        const circleBadge = circleBadges.find((c) => c.id === selectedElement);
+        if (circleBadge) {
+          CanvasClipboard.copy('circle-badge', circleBadge);
+          return;
+        }
+
+        const frames = getStateArray<FrameInstance>(currentState, 'frameInstances');
+        const frame = frames.find((f) => f.id === selectedElement);
         if (frame) {
           CanvasClipboard.copy('frame', frame);
           return;
         }
 
-        const userImages = getStateArray<unknown>(currentState, 'userImageInstances');
-        const userImage = userImages.find((u: unknown) => {
-          const imgObj = u as { id?: string };
-          return imgObj.id === selectedElement;
-        });
+        const userImages = getStateArray<{ id: string; x: number; y: number }>(
+          currentState,
+          'userImageInstances'
+        );
+        const userImage = userImages.find((u) => u.id === selectedElement);
         if (userImage) {
           CanvasClipboard.copy('user-image', userImage);
           return;
