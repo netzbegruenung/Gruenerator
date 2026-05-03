@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback, memo } from 'react';
-import { Group, Image as KonvaImage, Shape, Transformer, Text, Rect } from 'react-konva';
+import { Circle, Group, Image as KonvaImage, Line, Rect, Shape, Transformer } from 'react-konva';
 
 import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type Konva from 'konva';
@@ -200,18 +200,43 @@ function FramePrimitiveInner({
             <KonvaImage image={image} x={imgX} y={imgY} width={scaledW} height={scaledH} />
           ) : (
             <>
-              {/* Empty placeholder background */}
-              <Rect x={0} y={0} width={w} height={h} fill="#f0f0f0" />
-              <Text
-                text="Bild\nhinzufuegen"
-                x={0}
-                y={h / 2 - 30}
-                width={w}
-                align="center"
-                fontSize={16}
-                fill="#999999"
-                listening={false}
-              />
+              {/* Empty placeholder: soft fill + Canva-style image glyph */}
+              <Rect x={0} y={0} width={w} height={h} fill="#f3f4f6" />
+              {(() => {
+                const glyphScale = Math.min(w, h) * 0.3;
+                const cx = w / 2;
+                const cy = h / 2;
+                return (
+                  <Group x={cx} y={cy} listening={false}>
+                    {/* Mountain ridge */}
+                    <Line
+                      points={[
+                        -glyphScale,
+                        glyphScale * 0.4,
+                        -glyphScale * 0.35,
+                        -glyphScale * 0.25,
+                        glyphScale * 0.1,
+                        glyphScale * 0.15,
+                        glyphScale * 0.55,
+                        -glyphScale * 0.45,
+                        glyphScale,
+                        glyphScale * 0.4,
+                      ]}
+                      stroke="#9ca3af"
+                      strokeWidth={Math.max(2, glyphScale * 0.05)}
+                      lineJoin="round"
+                      lineCap="round"
+                    />
+                    {/* Sun */}
+                    <Circle
+                      x={-glyphScale * 0.5}
+                      y={-glyphScale * 0.45}
+                      radius={glyphScale * 0.15}
+                      fill="#9ca3af"
+                    />
+                  </Group>
+                );
+              })()}
             </>
           )}
         </Group>

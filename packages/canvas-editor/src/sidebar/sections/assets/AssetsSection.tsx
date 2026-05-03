@@ -197,6 +197,7 @@ function MobileView({
   onAddFrame,
   onRemoveFrame,
   onSetFrameImage,
+  onUpdateFrame,
 }: MobileViewProps) {
   const [formenExpanded, setFormenExpanded] = useState(false);
   const [iconsExpanded, setIconsExpanded] = useState(false);
@@ -383,6 +384,7 @@ function MobileView({
             onAddFrame={onAddFrame!}
             selectedFrame={selectedFrame}
             onSetFrameImage={onSetFrameImage}
+            onUpdateFrame={onUpdateFrame}
             onRemoveFrame={onRemoveFrame}
           />
         </>

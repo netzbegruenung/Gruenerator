@@ -443,6 +443,7 @@ export function BrowseView(props: BrowseViewProps) {
               null
             }
             onSetFrameImage={sectionProps.onSetFrameImage}
+            onUpdateFrame={sectionProps.onUpdateFrame}
             onRemoveFrame={sectionProps.onRemoveFrame}
             searchQuery={debouncedDrillDownQuery}
           />
