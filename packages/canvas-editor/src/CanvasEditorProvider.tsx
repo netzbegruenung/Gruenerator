@@ -108,19 +108,6 @@ export interface CanvasEditorServices {
     instruction: string
   ) => Promise<{ file: File; objectUrl: string }>;
 
-  /** Social post generation hook factory */
-  useGenerateSocialPost?: () => {
-    generatedPosts: Record<string, unknown>;
-    generatePost: (
-      thema: string,
-      details: string,
-      platforms: string[],
-      includeActionIdeas: boolean
-    ) => Promise<Record<string, unknown>>;
-    loading: boolean;
-    error: unknown;
-  };
-
   /** API base URL for multi-page export */
   apiBaseUrl?: string;
 

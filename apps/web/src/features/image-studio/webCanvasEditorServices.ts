@@ -1,5 +1,3 @@
-import { useGenerateSocialPost } from '../../components/hooks/useGenerateSocialPost';
-
 import { CanvasInlineChatSection } from './CanvasInlineChatSection';
 // import { removeBackgroundFromImage } from './services/backgroundRemovalService';
 import { editAiImage } from './services/imageEditingService';
@@ -31,7 +29,6 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   // re-enable by uncommenting both lines (import + property below).
   // removeBackgroundFromImage,
   editAiImage,
-  useGenerateSocialPost,
   useGenerateCanvasSuggestions,
   ChatSectionContent: CanvasInlineChatSection,
   apiBaseUrl: (import.meta.env.VITE_API_URL as string | undefined) ?? '',

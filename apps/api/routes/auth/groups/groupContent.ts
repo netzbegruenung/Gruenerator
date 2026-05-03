@@ -203,6 +203,7 @@ const tableNameMap: Record<string, string> = {
   user_templates: 'user_templates',
   instructions: 'user_instructions',
   user_instructions: 'user_instructions',
+  canvas_template: 'collaborative_documents',
 };
 
 // ============================================================================
@@ -228,7 +229,10 @@ router.post(
       // System notebooks are globally available — skip ownership check
       if (contentType !== 'system_notebooks') {
         const tableName = tableNameMap[contentType] || contentType;
-        const ownerColumn = contentType === 'collaborative_documents' ? 'created_by' : 'user_id';
+        const ownerColumn =
+          contentType === 'collaborative_documents' || contentType === 'canvas_template'
+            ? 'created_by'
+            : 'user_id';
 
         // Build ownership query based on content type
         let ownershipSQL = `SELECT ${ownerColumn} FROM ${tableName} WHERE id = $1`;
@@ -243,6 +247,11 @@ router.post(
         // For collaborative_documents, also filter out deleted
         if (contentType === 'collaborative_documents') {
           ownershipSQL += ` AND is_deleted = false`;
+        }
+
+        // For canvas_template (also lives in collaborative_documents), only allow non-deleted canvases
+        if (contentType === 'canvas_template') {
+          ownershipSQL += ` AND is_deleted = false AND document_subtype = 'canvas'`;
         }
 
         const contentOwnership = await postgres.queryOne<{ [key: string]: string }>(
@@ -321,6 +330,7 @@ router.post(
         collaborative_documents: 'ein Dokument',
         database: 'einen Datenbank-Eintrag',
         system_notebooks: 'ein Notizbuch',
+        canvas_template: 'eine Sharepic-Vorlage',
       };
       import('../../../services/notifications/index.js')
         .then(({ notifyGroupMembers }) => {
@@ -472,6 +482,7 @@ router.get(
         database: [],
         collaborative_documents: [],
         system_notebooks: [],
+        canvas_template: [],
       };
 
       sharedContent.forEach((share: ShareRecord) => {
@@ -627,6 +638,30 @@ router.get(
         );
       }
 
+      if (contentByType.canvas_template.length > 0) {
+        const ids = contentByType.canvas_template.map((s: ShareRecord) => s.content_id);
+        fetchPromises.push(
+          postgres
+            .query(
+              `SELECT cd.id, cd.title, cd.created_by,
+                      cd.created_at, cd.updated_at,
+                      cdoc.template_type, cdoc.thumbnail_url, cdoc.format
+               FROM collaborative_documents cd
+               INNER JOIN canvas_documents cdoc ON cdoc.document_id = cd.id
+               WHERE cd.id = ANY($1::uuid[])
+                 AND cd.is_deleted = false
+                 AND cd.document_subtype = 'canvas'`,
+              [ids],
+              { table: 'collaborative_documents' }
+            )
+            .then((data) => ({
+              type: 'canvas_template',
+              result: { data: data || [] },
+              shares: contentByType.canvas_template,
+            }))
+        );
+      }
+
       const contentResults = (await Promise.all(fetchPromises)).filter(Boolean) as ContentResult[];
 
       // Process and format results
@@ -638,6 +673,7 @@ router.get(
         templates: [],
         collaborative_documents: [],
         system_notebooks: [],
+        canvas_templates: [],
       };
 
       contentResults.forEach(({ type, result, shares }) => {
@@ -680,6 +716,7 @@ router.get(
           database: 'templates',
           collaborative_documents: 'collaborative_documents',
           system_notebooks: 'system_notebooks',
+          canvas_template: 'canvas_templates',
         };
 
         groupContent[keyMap[type]] = items;
