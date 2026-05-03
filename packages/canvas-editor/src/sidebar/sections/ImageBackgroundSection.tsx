@@ -51,53 +51,10 @@ export interface ImageBackgroundSectionProps {
 }
 
 /**
- * Image Preview Content - displays the currently selected background image
- * and lets the user remove it. Uploading happens in the global Uploads tab.
- */
-function ImagePreviewContent({
-  currentImageSrc,
-  onImageChange,
-}: Pick<ImageBackgroundSectionProps, 'currentImageSrc' | 'onImageChange'>) {
-  const handleRemoveImage = useCallback(() => {
-    onImageChange(null);
-  }, [onImageChange]);
-
-  return (
-    <div
-      className={cn(
-        SIDEBAR_SECTION,
-        'gap-3 p-4 px-3 items-center max-canvas-mobile:p-3 max-canvas-mobile:px-2'
-      )}
-    >
-      {currentImageSrc ? (
-        <div className="group relative w-full max-w-[220px] aspect-square rounded-lg overflow-hidden bg-background-alt border border-border">
-          <img
-            src={currentImageSrc}
-            alt="Aktueller Hintergrund"
-            className="w-full h-full object-cover"
-          />
-          <button
-            type="button"
-            className="absolute top-2 right-2 bg-black/70 border-none rounded-md p-1.5 flex items-center justify-center text-white cursor-pointer opacity-0 transition-opacity duration-200 group-hover:opacity-100 max-canvas-mobile:opacity-100"
-            onClick={handleRemoveImage}
-            aria-label="Bild entfernen"
-          >
-            <HiXMark size={16} />
-          </button>
-        </div>
-      ) : (
-        <div className="w-full max-w-[220px] aspect-square rounded-lg overflow-hidden bg-background-alt border border-border flex flex-col items-center justify-center gap-2 text-foreground-muted">
-          <HiPhoto size={28} />
-          <span className="text-sm">Kein Bild ausgewählt</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
  * Unified Search Content - searches the user's upload library AND Unsplash
- * with one input. Selecting from either source converges on onImageChange.
+ * with one input. The currently active background pins to the front of the
+ * library grid with an "active" marker. Selecting from either source
+ * converges on onImageChange.
  */
 function SearchContent({
   currentImageSrc,
@@ -185,11 +142,21 @@ function SearchContent({
     [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive]
   );
 
+  const handleClearActive = useCallback(() => {
+    onImageChange(null);
+  }, [onImageChange]);
+
   const displayedError = pickError ?? uploadsError ?? unsplashError;
-  const hasUploads = uploadItems.length > 0;
+  const hasActive = !!currentImageSrc;
+  const dedupedUploads = currentImageSrc
+    ? uploadItems.filter(
+        (item) => item.mediaUrl !== currentImageSrc && item.thumbnailUrl !== currentImageSrc
+      )
+    : uploadItems;
+  const hasLibrary = hasActive || dedupedUploads.length > 0;
   const hasUnsplash = unsplashResults.length > 0;
   const showEmpty =
-    !isUploadsLoading && !isUnsplashLoading && !hasUploads && !hasUnsplash && !displayedError;
+    !isUploadsLoading && !isUnsplashLoading && !hasLibrary && !hasUnsplash && !displayedError;
 
   return (
     <div
@@ -226,50 +193,62 @@ function SearchContent({
         </div>
       )}
 
-      {/* Section: User Uploads */}
-      {hasUploads && (
+      {/* Section: Active image + User Uploads */}
+      {hasLibrary && (
         <section className="flex flex-col gap-2">
           <h3 className="m-0 text-xs font-semibold uppercase tracking-wide text-foreground-muted">
             Deine Bilder
           </h3>
           <div className="grid grid-cols-3 gap-2">
-            {uploadItems.map((item) => {
-              const isSelected =
-                currentImageSrc !== undefined &&
-                (currentImageSrc === item.mediaUrl || currentImageSrc === item.thumbnailUrl);
-              return (
+            {hasActive && currentImageSrc && (
+              <div
+                className="group relative aspect-square overflow-hidden rounded-lg border-2 border-primary-600 ring-2 ring-primary-200 bg-[var(--card-background)]"
+                title="Aktuelles Hintergrundbild"
+              >
+                <img
+                  src={currentImageSrc}
+                  alt="Aktuelles Hintergrundbild"
+                  className="size-full object-cover"
+                  draggable={false}
+                />
+                <div className="absolute top-1 left-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
+                  <FaCheck size={10} color="white" />
+                </div>
                 <button
-                  key={item.id}
                   type="button"
-                  onClick={() => void handlePickUpload(item)}
-                  className={cn(
-                    'group relative aspect-square overflow-hidden rounded-lg border bg-[var(--card-background)] transition-colors duration-150 cursor-pointer p-0',
-                    isSelected
-                      ? 'border-2 border-primary-600'
-                      : 'border-[var(--card-border)] hover:border-primary-500'
-                  )}
-                  title={item.title ?? item.originalFilename ?? ''}
+                  onClick={handleClearActive}
+                  aria-label="Hintergrund entfernen"
+                  className="absolute top-1 right-1 size-5 flex items-center justify-center bg-black/70 text-white border-none rounded-full cursor-pointer opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus:opacity-100 max-canvas-mobile:opacity-100"
                 >
-                  {item.thumbnailUrl ? (
-                    <img
-                      src={item.thumbnailUrl}
-                      alt={item.altText ?? item.title ?? ''}
-                      className="size-full object-cover"
-                      draggable={false}
-                    />
-                  ) : (
-                    <div className="size-full flex items-center justify-center text-foreground-muted">
-                      <HiPhoto size={20} />
-                    </div>
-                  )}
-                  {isSelected && (
-                    <div className="absolute top-1 right-1 bg-primary-600 rounded-full size-5 flex items-center justify-center">
-                      <FaCheck size={10} color="white" />
-                    </div>
-                  )}
+                  <HiXMark size={10} />
                 </button>
-              );
-            })}
+              </div>
+            )}
+            {dedupedUploads.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => void handlePickUpload(item)}
+                className={cn(
+                  'group relative aspect-square overflow-hidden rounded-lg border bg-[var(--card-background)] transition-colors duration-150 cursor-pointer p-0',
+                  'border-[var(--card-border)] hover:border-primary-500'
+                )}
+                title={item.title ?? item.originalFilename ?? ''}
+              >
+                {item.thumbnailUrl ? (
+                  <img
+                    src={item.thumbnailUrl}
+                    alt={item.altText ?? item.title ?? ''}
+                    className="size-full object-cover"
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="size-full flex items-center justify-center text-foreground-muted">
+                    <HiPhoto size={20} />
+                  </div>
+                )}
+              </button>
+            ))}
           </div>
           {uploadsHasMore && !isUploadsLoading && (
             <button
@@ -343,7 +322,7 @@ function SearchContent({
       )}
 
       {/* Loading hints */}
-      {(isUploadsLoading || isUnsplashLoading) && !hasUploads && !hasUnsplash && (
+      {(isUploadsLoading || isUnsplashLoading) && !hasLibrary && !hasUnsplash && (
         <div className="p-4 text-center text-foreground-muted text-sm">
           <p>Suche läuft…</p>
         </div>
@@ -524,17 +503,9 @@ export function ImageBackgroundSection({
 
   const subsections: Subsection[] = [
     {
-      id: 'image-source',
-      icon: HiPhoto,
-      label: 'Bild',
-      content: (
-        <ImagePreviewContent currentImageSrc={currentImageSrc} onImageChange={onImageChange} />
-      ),
-    },
-    {
       id: 'image-search',
       icon: HiMagnifyingGlass,
-      label: 'Suche',
+      label: 'Bilder',
       content: <SearchContent currentImageSrc={currentImageSrc} onImageChange={onImageChange} />,
     },
   ];
@@ -564,5 +535,5 @@ export function ImageBackgroundSection({
     });
   }
 
-  return <SubsectionTabBar subsections={subsections} defaultSubsection="image-source" />;
+  return <SubsectionTabBar subsections={subsections} defaultSubsection="image-search" />;
 }
