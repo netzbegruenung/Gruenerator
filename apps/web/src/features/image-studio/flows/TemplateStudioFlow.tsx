@@ -8,12 +8,12 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import useImageGenerationLimit from '../../../hooks/useImageGenerationLimit';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { cn } from '../../../utils/cn';
-import { CanvasChatProvider } from '../CanvasChatProvider';
 import StepFlow from '../components/StepFlow';
 import { useImageGeneration } from '../hooks/useImageGeneration';
 import { mintCanvasFromStudioStore } from '../services/canvasMintService';
 import TemplateResultStep from '../steps/TemplateResultStep';
 import { FORM_STEPS, getTypeConfig, getTemplateFieldConfig } from '../utils/typeConfig';
+import { WebCanvasEditorProvider } from '../WebCanvasEditorProvider';
 
 interface TemplateStudioFlowProps {
   onBack: () => void;
@@ -179,7 +179,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
 
   return (
     <ErrorBoundary>
-      <CanvasChatProvider>
+      <WebCanvasEditorProvider>
         <LayoutGroup>
           <div
             className={cn('w-full flex justify-center p-8 max-[768px]:p-4', isCanvasEdit && 'p-0')}
@@ -258,7 +258,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
             </div>
           </div>
         </LayoutGroup>
-      </CanvasChatProvider>
+      </WebCanvasEditorProvider>
     </ErrorBoundary>
   );
 };

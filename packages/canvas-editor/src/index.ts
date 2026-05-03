@@ -8,7 +8,6 @@ export type {
   CanvasAiEditBridge,
 } from './CanvasEditorProvider';
 
-export { ProfilbildCanvas } from './ProfilbildCanvas';
 export { StandaloneCanvas } from './components/StandaloneCanvas';
 export type { StandaloneCanvasProps } from './components/StandaloneCanvas';
 

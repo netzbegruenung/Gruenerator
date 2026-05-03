@@ -52,6 +52,7 @@ const backgroundImageElement: ImageElementConfig<PresentationSlideState> = {
   scaleKey: 'imageScale',
   listening: false,
   draggable: false,
+  coverFit: true,
 };
 
 const overlayRectElement: RectElementConfig<PresentationSlideState> = {

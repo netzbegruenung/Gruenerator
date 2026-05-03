@@ -202,6 +202,7 @@ export function createImageTwoTextCanvas(
       draggable: true,
       lockedKey: 'isBackgroundLocked',
       opacityStateKey: 'backgroundImageOpacity',
+      coverFit: true,
     },
   ];
 

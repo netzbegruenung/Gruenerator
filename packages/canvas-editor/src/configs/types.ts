@@ -135,6 +135,13 @@ export interface ImageElementConfig<
   fill?: FillValue<TState>;
   /** State key for custom fill color override */
   fillStateKey?: string;
+  /**
+   * When true, the source image is center-cropped to match the displayed
+   * width/height aspect ratio (CSS object-fit: cover). Use for background
+   * images that should preserve their natural aspect ratio inside a
+   * fixed-aspect canvas.
+   */
+  coverFit?: boolean;
 }
 
 /** Rectangle element configuration */
@@ -275,13 +282,15 @@ export type CanvasConfigId =
   | 'zitat-pure'
   | 'info'
   | 'veranstaltung'
+  | 'veranstaltung-plakat'
   | 'simple'
   | 'dreizeilen'
   | 'slider'
   | 'freeform'
   | 'pres-title'
   | 'pres-image'
-  | 'pres-content';
+  | 'pres-content'
+  | 'profilbild';
 
 /** A page in a heterogeneous multi-page document */
 export interface HeterogeneousPage {

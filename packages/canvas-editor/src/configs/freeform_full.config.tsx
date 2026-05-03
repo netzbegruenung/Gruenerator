@@ -272,6 +272,7 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       scaleKey: 'imageScale',
       draggable: true,
       transformable: true,
+      coverFit: true,
       visible: (state: FreeformState) =>
         state.backgroundMode === 'image' && state.hasBackgroundImage,
       opacity: (state: FreeformState) => state.backgroundImageOpacity,
