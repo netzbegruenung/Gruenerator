@@ -41,11 +41,12 @@ interface CanvasAutoSaveReturn {
  */
 function buildCanvasShareMetadata(
   canvasType: string,
-  canvasState: Record<string, unknown>
+  canvasState: Record<string, unknown>,
+  hasOriginalImage: boolean
 ): ShareMetadata {
   const metadata: ShareMetadata = {
     sharepicType: canvasType,
-    hasOriginalImage: !!canvasState.currentImageSrc,
+    hasOriginalImage,
     content: {},
     styling: {},
     generatedAt: new Date().toISOString(),
@@ -184,21 +185,40 @@ export const useCanvasAutoSave = (
     refs.setAutoSaveStatus('saving');
 
     try {
-      const metadata = buildCanvasShareMetadata(refs.canvasType, refs.canvasState);
       const title = `Canvas: ${refs.canvasType}`;
 
       let share;
 
-      // Convert backgroundImageFile to base64 if present
+      // Resolve the original background. Prefer the in-state Blob; if unavailable
+      // (image arrived via imageSrc URL prop), fetch the URL once. Without this
+      // fallback, sharepics created with a default background lose it on reload
+      // because hasOriginalImage flagged true but no file was ever uploaded.
       let originalImageBase64: string | undefined;
       const bgFile = refs.canvasState.backgroundImageFile as File | Blob | null | undefined;
+      const currentImageSrc = refs.canvasState.currentImageSrc as string | undefined;
       if (bgFile) {
         try {
           originalImageBase64 = await fileToBase64(bgFile);
         } catch (err) {
           console.warn('[AutoSave] Failed to convert background image to base64:', err);
         }
+      } else if (currentImageSrc) {
+        try {
+          const res = await fetch(currentImageSrc);
+          if (res.ok) {
+            const blob = await res.blob();
+            originalImageBase64 = await fileToBase64(blob);
+          }
+        } catch (err) {
+          console.warn('[AutoSave] Failed to fetch background image URL for upload:', err);
+        }
       }
+
+      const metadata = buildCanvasShareMetadata(
+        refs.canvasType,
+        refs.canvasState,
+        !!originalImageBase64
+      );
 
       // If we already have a shareToken, update the existing entry instead of creating new
       if (storeState.autoSavedShareToken) {
