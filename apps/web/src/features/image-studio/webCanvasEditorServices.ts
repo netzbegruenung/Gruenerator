@@ -8,6 +8,7 @@ import {
   trackUnsplashDownloadLive,
   fetchUnsplashImageAsFile,
   openUnsplashSearch,
+  generateAiBackgroundImage,
 } from './services/imageSourceService';
 import { useGenerateCanvasSuggestions } from './useGenerateCanvasSuggestions';
 
@@ -21,6 +22,7 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   trackUnsplashDownloadLive,
   fetchUnsplashImageAsFile,
   openUnsplashSearch,
+  generateAiBackgroundImage,
   useGenerateSocialPost,
   useGenerateCanvasSuggestions,
   apiBaseUrl: (import.meta.env.VITE_API_URL as string | undefined) ?? '',
