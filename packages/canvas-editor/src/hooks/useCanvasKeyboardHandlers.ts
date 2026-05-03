@@ -147,118 +147,121 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
 
       // PASTE (Ctrl+V) — clipboard data crosses the type boundary; cast at the seam.
       if (isCtrlOrCmd && e.key === 'v') {
-        const clipboardData = CanvasClipboard.paste();
-        if (!clipboardData) return;
+        const entry = CanvasClipboard.paste();
+        if (!entry) return;
 
-        const { type, data } = clipboardData;
-        if (typeof data !== 'object' || data === null) return;
-
-        const newId = `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const newId = `${entry.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const offset = 20;
 
+        // Discriminated narrowing on entry.type recovers the precise data shape
+        // for each clipboard kind — see ClipboardDataMap in canvasClipboard.ts.
+        // Uses test-branch's typed BaseCanvasState access (prev.fooInstances?.find)
+        // and spread-into-prev pattern, no getStateArray cast helper needed.
         setState((prev) => {
-          if (type === 'shape') {
-            const src = data as unknown as ShapeInstance;
-            return {
-              ...prev,
-              shapeInstances: [
-                ...(prev.shapeInstances ?? []),
-                { ...src, id: newId, x: src.x + offset, y: src.y + offset },
-              ],
-            };
-          }
-          if (type === 'illustration') {
-            const src = data as unknown as IllustrationInstance;
-            return {
-              ...prev,
-              illustrationInstances: [
-                ...(prev.illustrationInstances ?? []),
-                { ...src, id: newId, x: src.x + offset, y: src.y + offset },
-              ],
-            };
-          }
-          if (type === 'balken') {
-            const src = data as unknown as BalkenInstance;
-            return {
-              ...prev,
-              balkenInstances: [
-                ...(prev.balkenInstances ?? []),
-                {
-                  ...src,
-                  id: newId,
-                  offset: {
-                    x: (src.offset?.x || 0) + offset,
-                    y: (src.offset?.y || 0) + offset,
+          switch (entry.type) {
+            case 'shape': {
+              const d = entry.data;
+              return {
+                ...prev,
+                shapeInstances: [
+                  ...(prev.shapeInstances ?? []),
+                  { ...d, id: newId, x: d.x + offset, y: d.y + offset },
+                ],
+              };
+            }
+            case 'illustration': {
+              const d = entry.data;
+              return {
+                ...prev,
+                illustrationInstances: [
+                  ...(prev.illustrationInstances ?? []),
+                  { ...d, id: newId, x: d.x + offset, y: d.y + offset },
+                ],
+              };
+            }
+            case 'balken': {
+              const d = entry.data;
+              return {
+                ...prev,
+                balkenInstances: [
+                  ...(prev.balkenInstances ?? []),
+                  {
+                    ...d,
+                    id: newId,
+                    offset: {
+                      x: (d.offset?.x || 0) + offset,
+                      y: (d.offset?.y || 0) + offset,
+                    },
                   },
-                },
-              ],
-            };
-          }
-          if (type === 'additional-text') {
-            const src = data as unknown as AdditionalText;
-            return {
-              ...prev,
-              additionalTexts: [
-                ...(prev.additionalTexts ?? []),
-                { ...src, id: newId, x: src.x + offset, y: src.y + offset },
-              ],
-            };
-          }
-          if (type === 'asset') {
-            const src = data as unknown as AssetInstance;
-            return {
-              ...prev,
-              assetInstances: [
-                ...(prev.assetInstances ?? []),
-                { ...src, id: newId, x: src.x + offset, y: src.y + offset },
-              ],
-            };
-          }
-          if (type === 'pill-badge') {
-            const src = data as unknown as PillBadgeInstance;
-            return {
-              ...prev,
-              pillBadgeInstances: [
-                ...(prev.pillBadgeInstances ?? []),
-                { ...src, id: newId, x: src.x + offset, y: src.y + offset },
-              ],
-            };
-          }
-          if (type === 'frame') {
-            const src = data as unknown as FrameInstance;
-            return {
-              ...prev,
-              frameInstances: [
-                ...(prev.frameInstances ?? []),
-                {
-                  ...src,
-                  id: newId,
-                  x: src.x + offset,
-                  y: src.y + offset,
-                  imageSrc: null, // Don't share object URL references
-                },
-              ],
-            };
-          }
-          if (type === 'user-image') {
-            const src = data as unknown as UserImageInstance;
-            return {
-              ...prev,
-              userImageInstances: [
-                ...(prev.userImageInstances ?? []),
-                { ...src, id: newId, x: src.x + offset, y: src.y + offset },
-              ],
-            };
-          }
-          if (type === 'circle-badge') {
-            const src = data as unknown as CircleBadgeInstance;
-            return {
-              ...prev,
-              circleBadgeInstances: [
-                ...(prev.circleBadgeInstances ?? []),
-                { ...src, id: newId, x: src.x + offset, y: src.y + offset },
-              ],
-            };
+                ],
+              };
+            }
+            case 'additional-text': {
+              const d = entry.data;
+              return {
+                ...prev,
+                additionalTexts: [
+                  ...(prev.additionalTexts ?? []),
+                  { ...d, id: newId, x: d.x + offset, y: d.y + offset },
+                ],
+              };
+            }
+            case 'asset': {
+              const d = entry.data;
+              return {
+                ...prev,
+                assetInstances: [
+                  ...(prev.assetInstances ?? []),
+                  { ...d, id: newId, x: d.x + offset, y: d.y + offset },
+                ],
+              };
+            }
+            case 'pill-badge': {
+              const d = entry.data;
+              return {
+                ...prev,
+                pillBadgeInstances: [
+                  ...(prev.pillBadgeInstances ?? []),
+                  { ...d, id: newId, x: d.x + offset, y: d.y + offset },
+                ],
+              };
+            }
+            case 'circle-badge': {
+              const d = entry.data;
+              return {
+                ...prev,
+                circleBadgeInstances: [
+                  ...(prev.circleBadgeInstances ?? []),
+                  { ...d, id: newId, x: d.x + offset, y: d.y + offset },
+                ],
+              };
+            }
+            case 'frame': {
+              const d = entry.data;
+              return {
+                ...prev,
+                frameInstances: [
+                  ...(prev.frameInstances ?? []),
+                  {
+                    ...d,
+                    id: newId,
+                    x: d.x + offset,
+                    y: d.y + offset,
+                    imageSrc: null, // Don't share object URL references
+                  },
+                ],
+              };
+            }
+            case 'user-image': {
+              const d = entry.data;
+              return {
+                ...prev,
+                userImageInstances: [
+                  ...(prev.userImageInstances ?? []),
+                  { ...d, id: newId, x: d.x + offset, y: d.y + offset },
+                ],
+              };
+            }
           }
 
           return prev;
@@ -305,6 +308,14 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
         const pillBadge = currentState.pillBadgeInstances?.find((p) => p.id === selectedElement);
         if (pillBadge) {
           CanvasClipboard.copy('pill-badge', pillBadge);
+          return;
+        }
+
+        const circleBadge = currentState.circleBadgeInstances?.find(
+          (c) => c.id === selectedElement
+        );
+        if (circleBadge) {
+          CanvasClipboard.copy('circle-badge', circleBadge);
           return;
         }
 
