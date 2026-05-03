@@ -270,41 +270,21 @@ function FramePrimitiveInner({
     };
   }, [frame.imageSrc]);
 
-  // Attach transformer when selected — deps intentionally narrow.
-  // Re-running on every frame state change causes Konva to fire phantom
-  // transform events that corrupt state. See investigation notes in console logs.
+  // Attach transformer when selected. Deps deliberately narrow: re-running
+  // on every frame field change made Konva fire phantom transform events.
   useEffect(() => {
     if (isSelected && trRef.current && groupRef.current) {
-      console.log('[FramePrimitive] attaching Transformer', {
-        id: frame.id,
-        beforeAttach: {
-          nodeScaleX: groupRef.current.scaleX(),
-          nodeScaleY: groupRef.current.scaleY(),
-          stateWidth: frame.width,
-          stateHeight: frame.height,
-        },
-      });
       trRef.current.nodes([groupRef.current]);
       trRef.current.getLayer()?.batchDraw();
-      console.log('[FramePrimitive] attached Transformer', { id: frame.id });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSelected]);
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
-      console.log('[FramePrimitive] handleDragEnd', {
-        id: frame.id,
-        clipType: frame.clipType,
-        from: { x: frame.x, y: frame.y },
-        to: { x: e.target.x(), y: e.target.y() },
-        nodeScale: { x: e.target.scaleX(), y: e.target.scaleY() },
-        nodeSize: { w: e.target.width(), h: e.target.height() },
-        stateSize: { w: frame.width, h: frame.height },
-      });
       onChange({ x: e.target.x(), y: e.target.y() });
     },
-    [onChange, frame.id, frame.clipType, frame.x, frame.y, frame.width, frame.height]
+    [onChange]
   );
 
   const handleTransformEnd = useCallback(() => {
@@ -326,73 +306,33 @@ function FramePrimitiveInner({
       Math.abs(nodeH - frame.height) < SCALE_EPSILON &&
       Math.abs(rotation - frame.rotation) < ROTATION_EPSILON;
 
-    // Konva's keepRatio measures the *bbox* aspect ratio (which includes
-    // stroke widths from border Shapes), not the explicit width/height. For a
-    // 300×300 frame with strokes, the bbox can be 305×302 — so keepRatio
-    // preserves 305:302, not 1:1, and the frame slowly drifts to portrait.
-    // Defeat this by enforcing a single uniform scale ourselves.
-    const uniformScale = (scaleX + scaleY) / 2;
-    const newWidth = Math.max(20, frame.width * uniformScale);
-    const newHeight = Math.max(20, frame.height * uniformScale);
-
-    console.log(
-      '[FramePrimitive] handleTransformEnd ' +
-        JSON.stringify({
-          id: frame.id,
-          scaleX: Number(scaleX.toFixed(6)),
-          scaleY: Number(scaleY.toFixed(6)),
-          scaleRatio: Number((scaleY / scaleX).toFixed(6)),
-          nodeW: Number(nodeW.toFixed(2)),
-          nodeH: Number(nodeH.toFixed(2)),
-          stateW: frame.width,
-          stateH: frame.height,
-          newW: Number(newWidth.toFixed(2)),
-          newH: Number(newHeight.toFixed(2)),
-          aspectChange: Number((newHeight / newWidth).toFixed(4)),
-          rotation: Number(rotation.toFixed(4)),
-          isPhantom,
-        })
-    );
-
-    // Always reset the Konva node scale back to 1, even on phantom — otherwise
-    // accumulated scale on the node desynchronises from state on next render.
+    // Always reset node scale to 1 — even on phantom — so the Konva node and
+    // React state stay in sync. Konva's keepRatio measures the bbox aspect
+    // (which drifts from 1:1 due to border strokes) so we enforce a single
+    // uniform scale ourselves to guarantee the frame's aspect ratio survives.
     node.scaleX(1);
     node.scaleY(1);
 
-    if (isPhantom) {
-      return;
-    }
+    if (isPhantom) return;
 
+    const uniformScale = (scaleX + scaleY) / 2;
     onChange({
       x: node.x(),
       y: node.y(),
       rotation,
-      width: newWidth,
-      height: newHeight,
+      width: Math.max(20, frame.width * uniformScale),
+      height: Math.max(20, frame.height * uniformScale),
       scaleX: 1,
       scaleY: 1,
     });
-  }, [onChange, frame.id, frame.width, frame.height, frame.rotation]);
+  }, [onChange, frame.width, frame.height, frame.rotation]);
 
   const handleSelect = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-      console.log('[FramePrimitive] handleSelect (touch/click)', {
-        id: frame.id,
-        clipType: frame.clipType,
-        wasSelected: isSelected,
-        stateSize: { w: frame.width, h: frame.height },
-        stateScale: { x: frame.scaleX, y: frame.scaleY },
-        nodeScale: groupRef.current
-          ? { x: groupRef.current.scaleX(), y: groupRef.current.scaleY() }
-          : null,
-        nodeSize: groupRef.current
-          ? { w: groupRef.current.width(), h: groupRef.current.height() }
-          : null,
-      });
       e.cancelBubble = true;
       onSelect(frame.id);
     },
-    [onSelect, frame.id, frame.clipType, frame.width, frame.height, frame.scaleX, frame.scaleY, isSelected]
+    [onSelect, frame.id]
   );
 
   const { width: w, height: h } = frame;
@@ -437,28 +377,7 @@ function FramePrimitiveInner({
         draggable={draggable}
         onClick={handleSelect}
         onTap={handleSelect}
-        onDragStart={(e) => {
-          console.log('[FramePrimitive] onDragStart', {
-            id: frame.id,
-            x: e.target.x(),
-            y: e.target.y(),
-            scaleX: e.target.scaleX(),
-            scaleY: e.target.scaleY(),
-          });
-        }}
         onDragEnd={handleDragEnd}
-        onTransformStart={(e) => {
-          console.log(
-            '[FramePrimitive] onTransformStart ' +
-              JSON.stringify({
-                id: frame.id,
-                scaleX: e.target.scaleX(),
-                scaleY: e.target.scaleY(),
-                width: e.target.width(),
-                height: e.target.height(),
-              })
-          );
-        }}
         onTransformEnd={handleTransformEnd}
         name={`frame-${frame.id}`}
       >
@@ -545,10 +464,25 @@ function FramePrimitiveInner({
           enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
           keepRatio={true}
           boundBoxFunc={(oldBox, newBox) => {
-            if (newBox.width < 20 || newBox.height < 20) {
+            // Konva's keepRatio uses the bbox aspect (which includes stroke
+            // width drift), so during the live drag the frame can flash a
+            // wrong aspect ratio before we normalize on transformend. Enforce
+            // uniform scaling here: pick whichever axis the user pulled
+            // *more* (proportionally) and lock the other to it.
+            const wScale = newBox.width / oldBox.width;
+            const hScale = newBox.height / oldBox.height;
+            const masterScale =
+              Math.abs(wScale - 1) > Math.abs(hScale - 1) ? wScale : hScale;
+            const adjustedWidth = oldBox.width * masterScale;
+            const adjustedHeight = oldBox.height * masterScale;
+            if (adjustedWidth < 20 || adjustedHeight < 20) {
               return oldBox;
             }
-            return newBox;
+            return {
+              ...newBox,
+              width: adjustedWidth,
+              height: adjustedHeight,
+            };
           }}
           anchorSize={10}
           anchorCornerRadius={5}
