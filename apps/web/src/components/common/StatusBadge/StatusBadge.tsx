@@ -1,6 +1,6 @@
 import { cn } from '../../../utils/cn';
 
-export type BadgeType = 'early-access' | 'beta' | 'coming-soon';
+export type BadgeType = 'early-access' | 'beta' | 'coming-soon' | 'ki';
 export type BadgeVariant = 'card' | 'inline' | 'sidebar';
 
 interface StatusBadgeProps {
@@ -13,12 +13,14 @@ const BADGE_LABELS: Record<BadgeType, string> = {
   'early-access': 'Early Access',
   beta: 'Beta',
   'coming-soon': 'Coming Soon',
+  ki: 'KI',
 };
 
 const typeStyles: Record<BadgeType, string> = {
   'early-access': 'text-foreground shadow-md',
   beta: 'bg-primary-600 text-white shadow-md',
   'coming-soon': 'bg-black/50 text-white',
+  ki: 'bg-primary-600 text-white shadow-md',
 };
 
 const variantStyles: Record<BadgeVariant, string> = {
