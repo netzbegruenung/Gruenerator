@@ -6,22 +6,17 @@ import {
   FaImages,
   FaSave,
   FaCheck,
-  FaInstagram,
-  FaCopy,
   FaFileArchive,
   FaFileImage,
   FaFilePowerpoint,
   FaFilePdf,
 } from 'react-icons/fa';
 import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
-import { MdTextFields } from 'react-icons/md';
 
-import Spinner from '../../common/Spinner';
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
+import { Skeleton } from '@gruenerator/ui';
+
 import { useAutoSaveStore } from '../../stores/useAutoSaveStore';
 import { SubsectionTabBar } from '../SubsectionTabBar';
-
-import { cn } from '../../utils/cn';
 
 export interface GenericShareSectionProps {
   exportedImage: string | null;
@@ -256,7 +251,7 @@ function DownloadShareSubsection({
             type="button"
           >
             {downloadState === 'capturing' ? (
-              <Spinner size="small" />
+              <Skeleton className="size-4 rounded-full" />
             ) : downloadState === 'success' ? (
               <FaCheck />
             ) : (
@@ -291,7 +286,7 @@ function DownloadShareSubsection({
                 >
                   {isMultiExporting ? (
                     <>
-                      <Spinner size="small" />
+                      <Skeleton className="size-4 rounded-full" />
                       <span>Exportiere...</span>
                     </>
                   ) : (
@@ -344,7 +339,7 @@ function DownloadShareSubsection({
               type="button"
             >
               {isSharing ? (
-                <Spinner size="small" />
+                <Skeleton className="size-4 rounded-full" />
               ) : shareSuccess ? (
                 <FaCheck />
               ) : (
@@ -402,7 +397,7 @@ function DownloadShareSubsection({
 
       {downloadState === 'success' && autoSaveStatus === 'saving' && (
         <div className="flex items-center gap-2 text-sm text-foreground-muted">
-          <Spinner size="small" />
+          <Skeleton className="size-3 rounded-full" />
           <span>Wird synchronisiert...</span>
         </div>
       )}
@@ -499,7 +494,7 @@ function TemplateSubsection({
         >
           {isSaving ? (
             <>
-              <Spinner size="small" />
+              <Skeleton className="size-4 rounded-full" />
               Speichern...
             </>
           ) : (
@@ -528,88 +523,6 @@ function TemplateSubsection({
 
           <button className={secondaryBtn} onClick={copyTemplateLink} type="button">
             Link kopieren
-          </button>
-        </>
-      )}
-    </div>
-  );
-}
-
-interface GeneratedPosts {
-  instagram?: string;
-  [key: string]: string | undefined;
-}
-
-function InstagramTextSubsection({
-  canvasText,
-  canvasType,
-}: Pick<GenericShareSectionProps, 'canvasText' | 'canvasType'>) {
-  const [copied, setCopied] = useState(false);
-  const services = useCanvasEditorServices();
-  const socialPostHook = services.useGenerateSocialPost?.() as unknown as
-    | {
-        generatedPosts: GeneratedPosts;
-        generatePost: (
-          thema: string,
-          details: string,
-          platforms: string[],
-          includeActionIdeas: boolean
-        ) => Promise<unknown>;
-        loading: boolean;
-      }
-    | undefined;
-  const generatedPosts = socialPostHook?.generatedPosts;
-  const generatePost = socialPostHook?.generatePost;
-  const loading = socialPostHook?.loading ?? false;
-
-  const handleGenerate = async () => {
-    if (!canvasText.trim() || loading || !generatePost) return;
-    await generatePost(canvasText, `Sharepic: ${canvasType}`, ['instagram'], false);
-  };
-
-  const handleCopy = async () => {
-    if (generatedPosts?.instagram) {
-      await navigator.clipboard.writeText(generatedPosts.instagram);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold text-foreground m-0">Instagram Text</h3>
-
-      {!generatedPosts?.instagram ? (
-        <button
-          className={primaryBtn}
-          onClick={handleGenerate}
-          disabled={loading || !canvasText.trim()}
-          type="button"
-        >
-          {loading ? (
-            <>
-              <Spinner size="small" />
-              Generiere...
-            </>
-          ) : (
-            <>
-              <FaInstagram />
-              Text generieren
-            </>
-          )}
-        </button>
-      ) : (
-        <>
-          <textarea
-            readOnly
-            value={generatedPosts.instagram}
-            className="w-full py-2 px-3 text-sm text-foreground bg-grey-100 dark:bg-grey-800 border border-grey-200 dark:border-grey-700 rounded-lg outline-none resize-none leading-relaxed"
-            rows={6}
-            onClick={(e) => e.currentTarget.select()}
-          />
-          <button className={cn(secondaryBtn)} onClick={handleCopy} type="button">
-            {copied ? <FaCheck /> : <FaCopy />}
-            {copied ? 'Kopiert!' : 'Kopieren'}
           </button>
         </>
       )}
@@ -668,12 +581,6 @@ export function GenericShareSection({
             canvasType={canvasType}
           />
         ),
-      },
-      {
-        id: 'instagram-text',
-        icon: MdTextFields,
-        label: 'Text',
-        content: <InstagramTextSubsection canvasText={canvasText} canvasType={canvasType} />,
       },
     ],
     [

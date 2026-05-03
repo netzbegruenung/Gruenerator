@@ -8,8 +8,9 @@ import {
   DialogTitle,
 } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
-import { FiTrash2, FiUsers } from 'react-icons/fi';
+import { FiCheckCircle, FiTrash2, FiUsers } from 'react-icons/fi';
 
+import apiClient from '../../../components/utils/apiClient';
 import { useCanvasSharing } from '../hooks/useCanvasSharing';
 
 interface ShareCanvasDialogProps {
@@ -21,6 +22,12 @@ interface ShareCanvasDialogProps {
 export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasDialogProps) {
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [groupPermission, setGroupPermission] = useState<'viewer' | 'editor'>('editor');
+  const [vorlageGroupId, setVorlageGroupId] = useState('');
+  const [vorlageStatus, setVorlageStatus] = useState<'idle' | 'sharing' | 'shared' | 'error'>(
+    'idle'
+  );
+  const [vorlageError, setVorlageError] = useState<string | null>(null);
+  const [vorlageSharedGroupName, setVorlageSharedGroupName] = useState<string | null>(null);
 
   const {
     collaborators,
@@ -46,12 +53,37 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
     );
   }, [selectedGroupId, groupPermission, shareWithGroup]);
 
+  const handleShareAsVorlage = useCallback(async () => {
+    if (!vorlageGroupId) return;
+    const targetGroup = userGroups.find((g) => g.id === vorlageGroupId);
+    setVorlageStatus('sharing');
+    setVorlageError(null);
+    try {
+      await apiClient.post(`/auth/groups/${vorlageGroupId}/share`, {
+        contentType: 'canvas_template',
+        contentId: canvasId,
+        permissions: { read: true },
+      });
+      setVorlageStatus('shared');
+      setVorlageSharedGroupName(targetGroup?.name ?? null);
+      setVorlageGroupId('');
+    } catch (err) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error).message ||
+        'Fehler beim Teilen';
+      setVorlageStatus('error');
+      setVorlageError(message);
+    }
+  }, [vorlageGroupId, userGroups, canvasId]);
+
   if (isLoading || !shareSettings) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Teilen</DialogTitle>
+            <DialogDescription>Lade Freigabe-Einstellungen...</DialogDescription>
           </DialogHeader>
           <p className="text-sm text-grey-500 py-md">Laden...</p>
         </DialogContent>
@@ -127,6 +159,53 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {userGroups.length > 0 && (
+          <div className="border-t border-grey-200 dark:border-grey-700 pt-md">
+            <label className="text-xs font-medium text-grey-500 mb-1 block">
+              Als Vorlage in Gruppe teilen
+            </label>
+            <p className="text-[11px] text-grey-500 mb-1.5">
+              Gruppenmitglieder*innen können dieses Sharepic als Vorlage nutzen.
+            </p>
+            <div className="flex gap-2">
+              <select
+                value={vorlageGroupId}
+                onChange={(e) => {
+                  setVorlageGroupId(e.target.value);
+                  if (vorlageStatus !== 'idle') {
+                    setVorlageStatus('idle');
+                    setVorlageError(null);
+                  }
+                }}
+                className="flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-background px-2 py-1.5 text-sm outline-none focus:border-primary-500"
+              >
+                <option value="">Gruppe auswählen...</option>
+                {userGroups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                onClick={handleShareAsVorlage}
+                disabled={!vorlageGroupId || vorlageStatus === 'sharing'}
+              >
+                {vorlageStatus === 'sharing' ? 'Teile...' : 'Als Vorlage teilen'}
+              </Button>
+            </div>
+            {vorlageStatus === 'shared' && vorlageSharedGroupName && (
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-primary-600">
+                <FiCheckCircle size={13} />
+                <span>Als Vorlage in „{vorlageSharedGroupName}" geteilt.</span>
+              </div>
+            )}
+            {vorlageStatus === 'error' && vorlageError && (
+              <p className="mt-1.5 text-xs text-red-600">{vorlageError}</p>
+            )}
           </div>
         )}
 

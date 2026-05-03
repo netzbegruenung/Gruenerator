@@ -101,9 +101,38 @@ const GroupDetailSection = memo(
         [key: string]: unknown;
       }
       const allCollabDocs = (groupContent?.collaborative_documents ?? []) as CollabDoc[];
+
+      const collabDocs: CollabDoc[] = [];
+      const boards: CollabDoc[] = [];
+      const canvases: CollabDoc[] = [];
+      for (const doc of allCollabDocs) {
+        switch (doc.document_subtype) {
+          case 'boards':
+            boards.push(doc);
+            break;
+          case 'canvas':
+            canvases.push(doc);
+            break;
+          case 'blank':
+          case undefined:
+          case null:
+          case '':
+            collabDocs.push(doc);
+            break;
+          default:
+            console.warn(
+              '[GroupDetailSection] Unknown document_subtype, bucketing as Doc:',
+              doc.document_subtype,
+              doc.id
+            );
+            collabDocs.push(doc);
+        }
+      }
+
       return {
-        collabDocs: allCollabDocs.filter((d) => d.document_subtype !== 'boards'),
-        boards: allCollabDocs.filter((d) => d.document_subtype === 'boards'),
+        collabDocs,
+        boards,
+        canvases,
         documents: (groupContent?.documents ?? []) as SharedItem[],
         generators: (groupContent?.generators ?? []) as SharedItem[],
         notebooks: [
@@ -114,6 +143,7 @@ const GroupDetailSection = memo(
           }),
         ] as SharedItem[],
         texts: (groupContent?.texts ?? []) as SharedItem[],
+        canvasTemplates: (groupContent?.canvas_templates ?? []) as SharedItem[],
       };
     }, [groupContent]);
 
