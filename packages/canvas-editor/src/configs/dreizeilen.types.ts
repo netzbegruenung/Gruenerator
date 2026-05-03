@@ -124,6 +124,7 @@ export interface DreizeilenFullActions {
   setBalkenOpacity: (opacity: number) => void;
   addBalken: (mode: BalkenMode) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
+  setBalkenText: (id: string, index: number, text: string) => void;
   removeBalken: (id: string) => void;
   duplicateBalken: (id: string) => void;
 
