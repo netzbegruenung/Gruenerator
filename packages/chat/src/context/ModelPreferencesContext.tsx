@@ -25,7 +25,9 @@ export function ModelPreferencesProvider({
     [enabledModelIds]
   );
   return (
-    <ModelPreferencesContext.Provider value={value}>{children}</ModelPreferencesContext.Provider>
+    <ModelPreferencesContext.Provider value={value}>
+      {children}
+    </ModelPreferencesContext.Provider>
   );
 }
 

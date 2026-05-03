@@ -1,6 +1,6 @@
-import { type ModelId } from '@gruenerator/shared/models';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { type ModelId } from '@gruenerator/shared/models';
 
 import {
   fetchModelPreferences,
@@ -83,7 +83,8 @@ export function useModelPreferences(options: UseModelPreferencesOptions = {}) {
     defaults: query.data?.defaults ?? {},
     enabledModelIds,
     isLoading: query.isLoading,
-    toggleModel: (modelId: ModelId, enabled: boolean) => mutation.mutateAsync({ modelId, enabled }),
+    toggleModel: (modelId: ModelId, enabled: boolean) =>
+      mutation.mutateAsync({ modelId, enabled }),
     isSaving: mutation.isPending,
   };
 }

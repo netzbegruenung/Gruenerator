@@ -110,16 +110,19 @@ describe('modelPreferences', () => {
 
       const prefs = await setModelPreference('user-1', 'qwen-regolo', true);
 
-      expect(updateUserDefaultMock).toHaveBeenCalledWith('user-1', 'models', 'qwen-regolo', {
-        enabled: true,
-      });
+      expect(updateUserDefaultMock).toHaveBeenCalledWith(
+        'user-1',
+        'models',
+        'qwen-regolo',
+        { enabled: true }
+      );
       expect(prefs['qwen-regolo'].enabled).toBe(true);
     });
 
     it('rejects unknown model ids', async () => {
-      await expect(setModelPreference('user-1', 'nonsense' as never, true)).rejects.toThrow(
-        /Unknown modelId/
-      );
+      await expect(
+        setModelPreference('user-1', 'nonsense' as never, true)
+      ).rejects.toThrow(/Unknown modelId/);
       expect(updateUserDefaultMock).not.toHaveBeenCalled();
     });
   });

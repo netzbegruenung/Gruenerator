@@ -7,7 +7,6 @@
 import { z } from 'zod';
 
 export const modelIdSchema = z.enum([
-  'mistral-medium-3.5',
   'gpt-oss-regolo',
   'litellm',
   'gemma-litellm',
