@@ -1,7 +1,6 @@
 'use client';
 
 import { memo, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, ChevronDown } from 'lucide-react';
 import {
   cn,
   DropdownMenuItem,
@@ -63,12 +62,6 @@ export const ModelPicker = memo(function ModelPicker() {
             )}
           >
             <span className="text-sm font-medium leading-tight">{model.name}</span>
-            {model.warning && (
-              <AlertTriangle
-                className="h-3 w-3 text-amber-600 dark:text-amber-500"
-                aria-label={model.warning}
-              />
-            )}
           </DropdownMenuItem>
         );
       })}
@@ -83,15 +76,7 @@ export const ModelPicker = memo(function ModelPicker() {
           active={selectedModel === model.id}
           onClick={() => handleSelect(model.id)}
         >
-          <div className="flex items-center gap-2">
-            <span className="font-medium">{model.name}</span>
-            {model.warning && (
-              <AlertTriangle
-                className="h-3 w-3 text-amber-600 dark:text-amber-500"
-                aria-label={model.warning}
-              />
-            )}
-          </div>
+          <span className="font-medium">{model.name}</span>
         </ResponsiveMenuItem>
       ))}
     </ResponsiveMenuSection>
@@ -113,13 +98,6 @@ export const ModelPicker = memo(function ModelPicker() {
           }
         >
           <span>{current.name}</span>
-          {current.warning && (
-            <AlertTriangle
-              className="h-3.5 w-3.5 text-amber-600 dark:text-amber-500"
-              aria-hidden="true"
-            />
-          )}
-          <ChevronDown className="h-3.5 w-3.5 opacity-60" />
         </button>
       }
       desktopContent={desktopContent}
