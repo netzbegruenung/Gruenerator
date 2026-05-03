@@ -149,6 +149,7 @@ const VALID_CONTENT_TYPES = [
   'database',
   'collaborative_documents',
   'system_notebooks',
+  'canvas_template',
 ] as const;
 
 export const groupContentShareSchema = z.object({
