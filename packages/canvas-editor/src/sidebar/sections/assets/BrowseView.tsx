@@ -51,6 +51,7 @@ function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick:
         className={cn(
           'flex items-center justify-center size-12 rounded-full',
           'bg-background-pure dark:bg-grey-700',
+          'shadow-sm dark:shadow-none',
           'transition-[box-shadow] duration-200 ease-out',
           hoverShadow,
         )}
