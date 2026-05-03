@@ -1,7 +1,7 @@
 import { useShareStore } from '@gruenerator/shared/share';
 import { useEffect, useRef, useCallback } from 'react';
 
-import { useAutoSaveStore } from '../stores/useAutoSaveStore';
+import { useAutoSaveStore, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
 
 interface ShareMetadata {
   [key: string]: unknown;
@@ -146,6 +146,7 @@ export const useCanvasAutoSave = (
   generatedImage: string | null,
   options: CanvasAutoSaveOptions
 ): CanvasAutoSaveReturn => {
+  const autoSaveStoreApi = useAutoSaveStoreApi();
   // Only get action setters - no state subscriptions to avoid re-renders
   const setAutoSaveStatus = useAutoSaveStore((s) => s.setAutoSaveStatus);
   const setAutoSavedShareToken = useAutoSaveStore((s) => s.setAutoSavedShareToken);
@@ -181,7 +182,7 @@ export const useCanvasAutoSave = (
   const performAutoSave = useCallback(async (imageSrc: string) => {
     const refs = latestRefs.current;
     // Read current store state directly to avoid stale closures
-    const storeState = useAutoSaveStore.getState();
+    const storeState = autoSaveStoreApi.getState();
 
     if (!imageSrc) return;
     if (refs.enabled === false) return;
@@ -255,7 +256,7 @@ export const useCanvasAutoSave = (
       console.error('[AutoSave] Error:', error);
       refs.setAutoSaveStatus('error');
     }
-  }, []);
+  }, [autoSaveStoreApi]);
 
   // Only trigger on generatedImage changes
   useEffect(() => {
@@ -270,8 +271,8 @@ export const useCanvasAutoSave = (
 
   // Return status by reading directly from store (no subscription = no re-renders)
   return {
-    status: useAutoSaveStore.getState().autoSaveStatus,
-    shareToken: useAutoSaveStore.getState().autoSavedShareToken,
+    status: autoSaveStoreApi.getState().autoSaveStatus,
+    shareToken: autoSaveStoreApi.getState().autoSavedShareToken,
     retry: () => performAutoSave(generatedImage || ''),
   };
 };

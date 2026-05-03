@@ -32,7 +32,7 @@ import { useMobileBridge } from '../hooks/useMobileBridge';
 import { CanvasEditorLayout } from '../layouts';
 import { MobileSubsectionBridgeContext } from '../sidebar/MobileSubsectionBridgeContext';
 import { UserUploadsProvider } from '../sidebar/UserUploadsProvider';
-import { useAutoSaveStore } from '../stores/useAutoSaveStore';
+import { AutoSaveStoreProvider, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
 import { useCanvasSidebarStore } from '../stores/canvasSidebarStore';
 
 import { GenericCanvas } from './GenericCanvas';
@@ -121,6 +121,12 @@ interface CanvasEditorProps {
    * this callback. Used by collab hosts to open their invite/permissions dialog.
    */
   onInvitePeople?: () => void;
+  /**
+   * Seeds the per-instance AutoSaveStore with a known share token, e.g. when
+   * the editor is opened against an existing share via URL. Without this seed,
+   * the first save after a page reload creates a new draft instead of updating.
+   */
+  initialShareToken?: string | null;
 }
 
 interface PageWrapperProps {
@@ -286,7 +292,15 @@ const PageWrapper = memo(function PageWrapper({
   );
 });
 
-export function CanvasEditor({
+export function CanvasEditor(props: CanvasEditorProps) {
+  return (
+    <AutoSaveStoreProvider initialShareToken={props.initialShareToken ?? null}>
+      <CanvasEditorInner {...props} />
+    </AutoSaveStoreProvider>
+  );
+}
+
+function CanvasEditorInner({
   initialConfigId,
   initialProps,
   onExport,
@@ -303,6 +317,7 @@ export function CanvasEditor({
   chromeRight,
   onInvitePeople,
 }: CanvasEditorProps) {
+  const autoSaveStoreApi = useAutoSaveStoreApi();
   const isMobileBridge = Boolean(mobileBridge);
   const isExternalSidebar = externalSidebar && !isMobileBridge;
 
@@ -684,26 +699,26 @@ export function CanvasEditor({
   // External sidebar store: sync tab state + auto-save status on changes
   useEffect(() => {
     if (!isExternalSidebar) return;
-    const autoSave = useAutoSaveStore.getState().autoSaveStatus;
+    const autoSave = autoSaveStoreApi.getState().autoSaveStatus;
     useCanvasSidebarStore.getState().update({
       tabs: visibleTabs,
       activeTab,
       disabledTabs,
       autoSaveStatus: autoSave,
     });
-  }, [isExternalSidebar, visibleTabs, activeTab, disabledTabs]);
+  }, [isExternalSidebar, visibleTabs, activeTab, disabledTabs, autoSaveStoreApi]);
 
   // Subscribe to auto-save changes separately (different store)
   useEffect(() => {
     if (!isExternalSidebar) return;
-    let prevStatus = useAutoSaveStore.getState().autoSaveStatus;
-    return useAutoSaveStore.subscribe((state) => {
+    let prevStatus = autoSaveStoreApi.getState().autoSaveStatus;
+    return autoSaveStoreApi.subscribe((state) => {
       if (state.autoSaveStatus !== prevStatus) {
         prevStatus = state.autoSaveStatus;
         useCanvasSidebarStore.getState().update({ autoSaveStatus: state.autoSaveStatus });
       }
     });
-  }, [isExternalSidebar]);
+  }, [isExternalSidebar, autoSaveStoreApi]);
 
   // External mobile mode: sync onMobileSubsectionClick callback to store
   useEffect(() => {
