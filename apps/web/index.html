@@ -46,7 +46,41 @@
     }
     </script>
     <link rel="canonical" href="https://www.gruenerator.de" />
-    
+
+    <!-- Pre-paint theme application: prevents flash of wrong theme. Must mirror
+         the storage format used by src/components/hooks/useDarkMode.ts -->
+    <script>
+      (function () {
+        try {
+          var EXPIRY = 7 * 24 * 60 * 60 * 1000;
+          var dark = null;
+          var saved = localStorage.getItem('darkMode');
+          if (saved) {
+            try {
+              var parsed = JSON.parse(saved);
+              if (
+                parsed &&
+                typeof parsed.value === 'boolean' &&
+                typeof parsed.timestamp === 'number' &&
+                Date.now() - parsed.timestamp < EXPIRY
+              ) {
+                dark = parsed.value;
+              }
+            } catch (e) {}
+          }
+          if (dark === null) {
+            var legacy = localStorage.getItem('theme');
+            if (legacy === 'dark') dark = true;
+            else if (legacy === 'light') dark = false;
+          }
+          if (dark === null) {
+            dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          }
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        } catch (e) {}
+      })();
+    </script>
+
     <!-- React Scan (dev only) - highlights unnecessary re-renders -->
     <script>
       if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
