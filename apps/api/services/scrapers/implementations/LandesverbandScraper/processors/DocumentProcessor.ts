@@ -4,7 +4,10 @@
  * Handles: validation, age filter, deduplication, chunking, embedding, storage
  */
 
-import { CONTENT_TYPE_LABELS } from '../../../../../config/landesverbaendeConfig.js';
+import {
+  CONTENT_TYPE_LABELS,
+  getCuratedListsForUrl,
+} from '../../../../../config/landesverbaendeConfig.js';
 import {
   scrollDocuments,
   batchDelete,
@@ -122,6 +125,7 @@ export class DocumentProcessor {
     const embeddings = await mistralEmbeddingService.generateBatchEmbeddings(chunkTexts);
 
     // STEP 8: Build Qdrant points (with quality scoring)
+    const curatedLists = getCuratedListsForUrl(url);
     const points = chunks.map((chunk, index) => ({
       id: this.generatePointId(url, index),
       vector: embeddings[index],
@@ -145,6 +149,7 @@ export class DocumentProcessor {
         published_at: publishedAt || null,
         indexed_at: new Date().toISOString(),
         source: 'landesverbaende_gruene',
+        ...(curatedLists.length > 0 ? { curated_lists: curatedLists } : {}),
         ...(index === 0 ? { full_text: text } : {}),
       },
     }));

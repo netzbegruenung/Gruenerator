@@ -13,7 +13,9 @@ import {
   stripUngroundedCitations,
 } from '../../../services/search/CitationGrounder.js';
 import { applyMMR } from '../../../services/search/DiversityReranker.js';
+import { expandQuery } from '../../../services/search/QueryExpansionService.js';
 import { createLogger } from '../../../utils/logger.js';
+import { type AIWorkerPool } from '../../../workers/types.js';
 
 import { executeDirectSearch, executeDirectWebSearch } from './directSearchExecutors.js';
 import { getIntermediateModel } from './providers.js';
@@ -119,9 +121,14 @@ function planResearch(question: string): SearchPlan {
 
 /**
  * Execute all planned searches and collect sources.
+ *
+ * Web queries are run through `expandQuery` (when an `aiWorkerPool` is supplied)
+ * to generate keyword variants — same coverage strategy used by the @web tool —
+ * and the variants are searched in parallel and deduplicated by URL.
  */
 async function executeSearches(
-  plan: SearchPlan
+  plan: SearchPlan,
+  aiWorkerPool?: AIWorkerPool
 ): Promise<{ sources: CollectedSource[]; searchSteps: ResearchResult['searchSteps'] }> {
   const sources: CollectedSource[] = [];
   const searchSteps: ResearchResult['searchSteps'] = [];
@@ -131,26 +138,49 @@ async function executeSearches(
     try {
       switch (query.tool) {
         case 'web_search': {
-          const webResults = await executeDirectWebSearch({
-            query: query.query,
-            searchType: 'general',
-            maxResults: 5,
-          });
-          searchSteps.push({
-            tool: 'web_search',
-            query: query.query,
-            resultsCount: webResults.resultsCount,
-          });
-          for (const result of webResults.results) {
-            sources.push({
-              id: sourceId++,
-              title: result.title,
-              url: result.url,
-              domain: result.domain,
-              snippet: result.snippet,
-              relevance: 1 - (result.rank - 1) * 0.1,
-              sourceType: 'web',
+          let variants = [query.query];
+          if (aiWorkerPool) {
+            const expanded = await expandQuery(query.query, aiWorkerPool);
+            if (expanded.alternatives.length > 0) {
+              variants = [query.query, ...expanded.alternatives];
+              log.info(`[Research] Expanded query into ${variants.length} variants`);
+            }
+          }
+
+          const webResultsList = await Promise.all(
+            variants.map((q) =>
+              executeDirectWebSearch({
+                query: q,
+                searchType: 'general',
+                maxResults: 5,
+              }).catch((err: unknown) => {
+                log.warn(
+                  `[Research] Web search failed for variant "${q}": ${err instanceof Error ? err.message : String(err)}`
+                );
+                return null;
+              })
+            )
+          );
+
+          for (let i = 0; i < variants.length; i++) {
+            const webResults = webResultsList[i];
+            if (!webResults) continue;
+            searchSteps.push({
+              tool: 'web_search',
+              query: variants[i],
+              resultsCount: webResults.resultsCount,
             });
+            for (const result of webResults.results) {
+              sources.push({
+                id: sourceId++,
+                title: result.title,
+                url: result.url,
+                domain: result.domain,
+                snippet: result.snippet,
+                relevance: 1 - (result.rank - 1) * 0.1,
+                sourceType: 'web',
+              });
+            }
           }
           break;
         }
@@ -323,7 +353,8 @@ function synthesizeAnswer(
 async function synthesizeAnswerWithLLM(
   question: string,
   sources: CollectedSource[],
-  strategy: string
+  strategy: string,
+  brief?: string | null
 ): Promise<{ answer: string; confidence: 'high' | 'medium' | 'low' }> {
   if (sources.length === 0) {
     return {
@@ -349,13 +380,17 @@ Regeln:
     .map((s, i) => `[${i + 1}] ${s.title} (${s.domain})\n${s.snippet}`)
     .join('\n\n');
 
+  const userContent = brief
+    ? `Frage: ${question}\n\nRecherche-Auftrag (zur Orientierung beim Synthetisieren — nicht als Quelle zitieren):\n${brief}\n\nQuellen:\n${sourcesText}`
+    : `Frage: ${question}\n\nQuellen:\n${sourcesText}`;
+
   try {
     const result = await generateText({
       model: aiModel,
       messages: [
         {
           role: 'user',
-          content: `Frage: ${question}\n\nQuellen:\n${sourcesText}`,
+          content: userContent,
         },
       ],
       system: systemPrompt,
@@ -392,14 +427,15 @@ async function synthesizeWithFallback(
   question: string,
   sources: CollectedSource[],
   strategy: string,
-  useLLM: boolean
+  useLLM: boolean,
+  brief?: string | null
 ): Promise<{ answer: string; confidence: 'high' | 'medium' | 'low' }> {
   if (!useLLM) {
     return synthesizeAnswer(question, sources, strategy);
   }
 
   try {
-    return await synthesizeAnswerWithLLM(question, sources, strategy);
+    return await synthesizeAnswerWithLLM(question, sources, strategy, brief);
   } catch (error: unknown) {
     log.warn('[Research] LLM synthesis failed, falling back to template', {
       error: error instanceof Error ? error.message : String(error),
@@ -412,18 +448,32 @@ async function synthesizeWithFallback(
  * Execute a structured research workflow with planning, searching, and synthesis.
  * This is the main entry point for the research tool.
  *
- * @param params.question - The research question to answer
+ * @param params.question - Search-friendly query (short, keyword-focused). Used for
+ *   the planner heuristics and the search engines.
+ * @param params.brief - Optional natural-language research plan to forward to the
+ *   LLM synthesis stage as additional orientation. Must NOT be used as a search
+ *   query — keyword indexes don't match prose directives.
+ * @param params.aiWorkerPool - Required to run query expansion on web searches.
  * @param params.depth - Search depth: 'quick' (default) or 'thorough'
  * @param params.maxSources - Maximum number of sources to include (default: 8)
  * @param params.useLLMSynthesis - Use Mistral-small for coherent synthesis (default: true)
  */
 export async function executeResearch(params: {
   question: string;
+  brief?: string | null;
+  aiWorkerPool?: AIWorkerPool;
   depth?: 'quick' | 'thorough';
   maxSources?: number;
   useLLMSynthesis?: boolean;
 }): Promise<ResearchResult> {
-  const { question, depth = 'quick', maxSources = 8, useLLMSynthesis = true } = params;
+  const {
+    question,
+    brief,
+    aiWorkerPool,
+    depth = 'quick',
+    maxSources = 8,
+    useLLMSynthesis = true,
+  } = params;
 
   log.info(`[Research] Starting research for: "${truncateText(question, 100)}" (depth: ${depth})`);
 
@@ -462,7 +512,7 @@ export async function executeResearch(params: {
   );
 
   // Phase 2: Execute searches
-  const { sources, searchSteps } = await executeSearches(plan);
+  const { sources, searchSteps } = await executeSearches(plan, aiWorkerPool);
   log.info(`[Research] Collected ${sources.length} sources from ${searchSteps.length} searches`);
 
   // B3: Apply MMR diversity to sources before synthesis
@@ -482,7 +532,8 @@ export async function executeResearch(params: {
     question,
     limitedSources,
     plan.synthesisStrategy,
-    useLLMSynthesis
+    useLLMSynthesis,
+    brief
   );
 
   // B4: Validate citation grounding

@@ -2,7 +2,8 @@ import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { Icon } from '@iconify/react';
 
-import Spinner from '../../common/Spinner';
+import { Skeleton } from '@gruenerator/ui';
+
 import { usePaginatedIcons } from '../../hooks/usePaginatedIcons';
 import { loadAllIcons, getIconsSync, type IconDef } from '../../utils/canvasIcons';
 import {
@@ -112,13 +113,12 @@ export function IconsSection({
 
   if (iconsLoading) {
     return (
-      <div
-        className={cn(
-          SIDEBAR_SECTION,
-          'w-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0 flex items-center justify-center min-h-[100px]'
-        )}
-      >
-        <Spinner size="small" />
+      <div className={cn(SIDEBAR_SECTION, 'w-full max-canvas-mobile:!p-0 max-canvas-mobile:!m-0')}>
+        <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]')}>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-square rounded-lg" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -153,12 +153,24 @@ export function IconsSection({
         })}
       </div>
 
-      {(isExpanded || hasSearch) && paginationLoading && <Spinner size="small" />}
+      {(isExpanded || hasSearch) && paginationLoading && (
+        <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]', 'mt-2')}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-square rounded-lg" />
+          ))}
+        </div>
+      )}
 
       {isExpanded && !hasSearch && (
         <>
           <div ref={sentinelRef} className="h-px w-full" />
-          {hasMore && !paginationLoading && <Spinner size="small" />}
+          {hasMore && !paginationLoading && (
+            <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]', 'mt-2')}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-square rounded-lg" />
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>

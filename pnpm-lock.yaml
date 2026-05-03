@@ -9,7 +9,7 @@ overrides:
   react-dom: 19.2.4
   '@types/react': ^19.2.14
   '@types/react-dom': ^19.2.3
-  '@hocuspocus/provider': ^3.4.3
+  '@hocuspocus/provider': ^3.4.4
   '@isaacs/brace-expansion': '>=5.0.1'
   diff: '>=5.2.2'
   hono: '>=4.12.12'
@@ -444,7 +444,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/wolke
       '@hocuspocus/provider':
-        specifier: ^3.4.3
+        specifier: ^3.4.4
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
       '@react-pdf/renderer':
         specifier: ^4.5.1
@@ -961,7 +961,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/wolke
       '@hocuspocus/provider':
-        specifier: ^3.4.3
+        specifier: ^3.4.4
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
       '@imgly/background-removal':
         specifier: ^1.7.0
@@ -1303,7 +1303,7 @@ importers:
         specifier: workspace:*
         version: link:../ui
       '@hocuspocus/provider':
-        specifier: ^3.4.3
+        specifier: ^3.4.4
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
       '@iconify/react':
         specifier: ^6.0.2
@@ -1375,6 +1375,9 @@ importers:
       '@gruenerator/collab':
         specifier: workspace:*
         version: link:../collab
+      '@gruenerator/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@gruenerator/ui':
         specifier: workspace:*
         version: link:../ui
@@ -1382,8 +1385,11 @@ importers:
         specifier: workspace:*
         version: link:../voice
       '@hocuspocus/provider':
-        specifier: ^3.4.3
+        specifier: ^3.4.4
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
+      '@tanstack/react-query':
+        specifier: ^5.0.0
+        version: 5.100.5(react@19.2.4)
       lucide-react:
         specifier: ^1.11.0
         version: 1.11.0(react@19.2.4)
@@ -1431,7 +1437,7 @@ importers:
   packages/collab:
     dependencies:
       '@hocuspocus/provider':
-        specifier: ^3.4.3
+        specifier: ^3.4.4
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
       react:
         specifier: 19.2.4
@@ -1499,7 +1505,7 @@ importers:
         specifier: workspace:*
         version: link:../ui
       '@hocuspocus/provider':
-        specifier: ^3.4.3
+        specifier: ^3.4.4
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
       '@tanstack/react-query':
         specifier: ^5.0.0

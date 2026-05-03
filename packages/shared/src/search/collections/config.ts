@@ -196,9 +196,15 @@ export const COLLECTIONS: CollectionConfigMap = {
         valueLabels: {
           'berlin-lv-presse': 'LV Presse',
           'berlin-lv-beschluesse': 'LV Beschlüsse',
-          'berlin-lv-wahlprogramm': 'LV Wahlprogramm',
           'berlin-fraktion-presse': 'Fraktion Presse',
           'berlin-fraktion-beschluesse': 'Fraktion Beschlüsse',
+        },
+      },
+      curated_lists: {
+        label: 'Liste',
+        type: 'keyword',
+        valueLabels: {
+          'wahlprogramm-be': 'Wahlprogramm',
         },
       },
       published_at: { label: 'Datum', type: 'date_range' },

@@ -256,23 +256,11 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
     chatTab,
   ],
 
-  getVisibleTabs: (_state, context) => {
-    const base: (
-      | 'image-background'
-      | 'settings'
-      | 'text'
-      | 'assets'
-      | 'uploads'
-      | 'ai'
-      | 'chat'
-      | 'share'
-    )[] =
-      // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-      ['image-background', 'text', 'assets', 'uploads', 'chat', 'share'];
-    if (context?.selectedElement?.includes('balken')) {
-      return ['image-background', 'settings', ...base.slice(1)];
-    }
-    return base;
+  getVisibleTabs: () => {
+    // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
+    // 'settings' tab kept registered but hidden — opened via getAutoSwitchTab on balken
+    // selection so the icon strip doesn't shift when a balken is clicked.
+    return ['image-background', 'text', 'assets', 'uploads', 'chat', 'share'];
   },
 
   getAutoSwitchTab: (selectedElement) => {
@@ -366,7 +354,6 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       scaleKey: 'imageScale',
       draggable: true,
       transformable: true,
-      coverFit: true,
       visible: (state: DreizeilenFullState) => state.hasBackgroundImage,
       opacity: (state: DreizeilenFullState) => state.backgroundImageOpacity ?? 1,
       opacityStateKey: 'backgroundImageOpacity',

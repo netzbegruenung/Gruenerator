@@ -24,6 +24,7 @@ export { wordpressContract } from './wordpressContract.js';
 export { transferContract } from './transferContract.js';
 export { unsplashContract } from './unsplashContract.js';
 export { notificationsContract } from './notificationsContract.js';
+export { modelPreferencesContract } from './modelPreferencesContract.js';
 export { adminVorlagenContract } from './adminVorlagenContract.js';
 export { authStatusContract } from './authStatusContract.js';
 export { canvasAiContract } from './canvasAi.js';

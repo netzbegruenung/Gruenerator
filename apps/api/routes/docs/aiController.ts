@@ -67,6 +67,17 @@ interface AIRequestBody {
   toolDefinitions: Record<string, unknown>;
 }
 
+// Per-provider model map. Model IDs are not portable across providers — LiteLLM's
+// verdigado proxy has no Mistral models, and Regolo's gpt-oss endpoint leaks
+// reasoning into content (verified failure for tool calls). Each entry below was
+// probed against a tool-call request and confirmed to return finish_reason:tool_calls.
+const DOCS_AI_MODELS: Record<AgentConfig['provider'], string> = {
+  litellm: 'gpt-oss:120b',
+  regolo: 'mistral-small-4-119b',
+  mistral: 'mistral-medium-2604',
+  anthropic: 'mistral-medium-2604',
+};
+
 /**
  * @route   POST /api/docs/ai
  * @desc    Process AI requests for document editing
@@ -90,16 +101,19 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
 
     log.info(`[DocsAI] Tool definitions received: ${Object.keys(toolDefinitions).join(', ')}`);
 
-    const providerChain: AgentConfig['provider'][] = ['litellm', 'regolo', 'mistral'];
+    // Order: mistral first (mistral-medium-2604 / Medium 3.5), then regolo
+    // (mistral-small-4-119b), litellm last (gpt-oss).
+    const providerChain: AgentConfig['provider'][] = ['mistral', 'regolo', 'litellm'];
     const provider = providerChain.find((p) => isProviderConfigured(p));
 
     if (!provider) {
-      log.error('[DocsAI] No AI provider configured (tried: litellm, regolo, mistral)');
+      log.error('[DocsAI] No AI provider configured (tried: mistral, regolo, litellm)');
       return res.status(500).json({ error: 'AI provider not configured' });
     }
 
-    log.info(`[DocsAI] Using provider: ${provider}`);
-    const model = getModel(provider, 'mistral-large-latest');
+    const modelId = DOCS_AI_MODELS[provider];
+    log.info(`[DocsAI] Using provider: ${provider}, model: ${modelId}`);
+    const model = getModel(provider, modelId);
 
     const messagesWithDocState = injectDocumentStateMessages(messages);
     log.info(
@@ -126,6 +140,7 @@ export async function handleAiRequest(req: RateLimitRequest, res: Response) {
       tools,
       toolChoice: 'auto',
       maxOutputTokens: 4096,
+      maxRetries: 1,
       temperature: 0.3,
       onFinish: ({ toolCalls, text, finishReason, usage }) => {
         log.info(

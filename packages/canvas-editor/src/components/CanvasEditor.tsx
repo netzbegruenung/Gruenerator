@@ -25,7 +25,8 @@ import React, {
   lazy,
 } from 'react';
 
-import Spinner from '../common/Spinner';
+import { Skeleton } from '@gruenerator/ui';
+
 import { usePageManager, useMultiPageExport, usePresentationExport } from '../hooks';
 import { useMobileBridge } from '../hooks/useMobileBridge';
 import { CanvasEditorLayout } from '../layouts';
@@ -65,12 +66,18 @@ const sidebarLoadingFallback = (
   <div
     style={{
       display: 'flex',
-      justifyContent: 'center',
+      flexDirection: 'column',
+      gap: 'var(--spacing-small)',
       padding: 'var(--spacing-large)',
       minHeight: '200px',
+      width: '100%',
+      maxWidth: '20rem',
     }}
   >
-    <Spinner size="medium" />
+    <Skeleton className="h-6 w-3/4 rounded" />
+    <Skeleton className="h-20 w-full rounded-lg" />
+    <Skeleton className="h-4 w-1/2 rounded" />
+    <Skeleton className="h-4 w-2/3 rounded" />
   </div>
 );
 
@@ -103,6 +110,17 @@ interface CanvasEditorProps {
     ydoc: import('yjs').Doc;
     isSynced: boolean;
   };
+  /** Host-supplied content rendered at the very left of the toolbar (in-flow). */
+  chromeLeft?: React.ReactNode;
+  /** Host-supplied content rendered absolute-centered in the toolbar (e.g. doc title, sync badge). */
+  chromeCenter?: React.ReactNode;
+  /** Host-supplied content rendered in the toolbar's right cluster (e.g. presence avatars). */
+  chromeRight?: React.ReactNode;
+  /**
+   * When provided, the share popover shows a "Personen" entry that triggers
+   * this callback. Used by collab hosts to open their invite/permissions dialog.
+   */
+  onInvitePeople?: () => void;
 }
 
 interface PageWrapperProps {
@@ -280,6 +298,10 @@ export function CanvasEditor({
   externalSidebar = false,
   externalMobileMode = false,
   collaborative,
+  chromeLeft,
+  chromeCenter,
+  chromeRight,
+  onInvitePeople,
 }: CanvasEditorProps) {
   const isMobileBridge = Boolean(mobileBridge);
   const isExternalSidebar = externalSidebar && !isMobileBridge;
@@ -551,11 +573,14 @@ export function CanvasEditor({
   const currentPage = pages[currentPageIndex];
   const activeConfig = currentPage ? loadedConfigs.get(currentPage.configId) : undefined;
 
-  // Use synced state/actions/selectedElement from PageWrapper
-  const activeState = activePageData?.pageId === currentPage?.id ? activePageData.state : null;
-  const activeActions = activePageData?.pageId === currentPage?.id ? activePageData.actions : null;
-  const activeSelectedElement =
-    activePageData?.pageId === currentPage?.id ? activePageData.selectedElement : null;
+  // Use synced state/actions/selectedElement from PageWrapper.
+  // Guard on currentPage existing so we don't hit `undefined === undefined`
+  // when pages is empty during the first collaborative render.
+  const activeData =
+    currentPage && activePageData?.pageId === currentPage.id ? activePageData : null;
+  const activeState = activeData?.state ?? null;
+  const activeActions = activeData?.actions ?? null;
+  const activeSelectedElement = activeData?.selectedElement ?? null;
 
   // Compute visible tabs for active config
   const visibleTabs = useMemo(() => {
@@ -899,6 +924,7 @@ export function CanvasEditor({
       onShareAllPages: shareAllPages,
       isMultiExporting,
       exportProgress,
+      onInvitePeople,
     }),
     [
       handleCaptureCanvas,
@@ -913,6 +939,7 @@ export function CanvasEditor({
       shareAllPages,
       isMultiExporting,
       exportProgress,
+      onInvitePeople,
     ]
   );
 
@@ -965,20 +992,29 @@ export function CanvasEditor({
       </Suspense>
     ) : null;
 
-  const toolbarElement =
-    !isMobileBridge && toolbarState ? (
-      <Toolbar
-        selectedElement={toolbarState.selectedElement}
-        activeFloatingModule={toolbarState.activeFloatingModule}
-        canUndo={toolbarState.canUndo}
-        canRedo={toolbarState.canRedo}
-        canMoveUp={toolbarState.canMoveUp}
-        canMoveDown={toolbarState.canMoveDown}
-        handlers={toolbarHandlers}
-        onDelete={toolbarOnDelete}
-        shareProps={toolbarShareProps}
-      />
-    ) : null;
+  // Render the toolbar whenever there is something to put in it — either the
+  // canvas has reported edit state (toolbarState) or the host has supplied
+  // chrome slots (title, sync indicator, presence). This keeps host chrome
+  // visible during the pre-sync "Synchronisiere..." phase in collab mode,
+  // when toolbarState is still null.
+  const showToolbar =
+    !isMobileBridge && (toolbarState !== null || chromeLeft || chromeCenter || chromeRight);
+  const toolbarElement = showToolbar ? (
+    <Toolbar
+      selectedElement={toolbarState?.selectedElement ?? null}
+      activeFloatingModule={toolbarState?.activeFloatingModule ?? null}
+      canUndo={toolbarState?.canUndo ?? false}
+      canRedo={toolbarState?.canRedo ?? false}
+      canMoveUp={toolbarState?.canMoveUp ?? false}
+      canMoveDown={toolbarState?.canMoveDown ?? false}
+      handlers={toolbarHandlers}
+      onDelete={toolbarState ? toolbarOnDelete : undefined}
+      shareProps={toolbarState ? toolbarShareProps : undefined}
+      chromeLeft={chromeLeft}
+      chromeCenter={chromeCenter}
+      chromeRight={chromeRight}
+    />
+  ) : null;
 
   return (
     <UserUploadsProvider>

@@ -27,7 +27,7 @@ import {
   getFormattingToolbarItems,
   ThreadsSidebar,
 } from '@blocknote/react';
-import { filterSuggestionItems } from '@blocknote/core/extensions';
+import { filterSuggestionItems, ForkYDocExtension } from '@blocknote/core/extensions';
 import { BlockNoteView, ShadCNDefaultComponents } from '@blocknote/shadcn';
 import {
   AIExtension,
@@ -254,7 +254,7 @@ const BlockNoteEditorInner = ({
     }
 
     return exts;
-  }, [showComments, threadStore, resolveUsers, aiApiUrl]);
+  }, [showComments, threadStore, resolveUsers, aiApiUrl, collaborationOptions]);
 
   const editor = useCreateBlockNote(
     {
@@ -282,6 +282,25 @@ const BlockNoteEditorInner = ({
 
     setEditorInStore(documentId, editor);
     setIsReady(true);
+
+    // Diagnostic: verify whether ForkYDocExtension is auto-registered by core
+    // when `collaboration` is passed to useCreateBlockNote. xl-ai's
+    // acceptChanges calls editor.getExtension(ForkYDocExtension)?.merge() —
+    // if this logs `false` while collab is active, AI accept will silently
+    // no-op and the suggestion diff won't render. Per the BlockNote expert
+    // review, default-extension auto-registration is the expected source of
+    // ForkYDoc; manual push only needed if this returns false.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const forkExt = (editor as any).getExtension?.(ForkYDocExtension);
+    // eslint-disable-next-line no-console
+    console.log(
+      '[BlockNoteEditor] ForkYDoc present?',
+      !!forkExt,
+      '| collab active?',
+      !!collaborationOptions,
+      '| doc:',
+      documentId
+    );
 
     // Fix checkbox multi-click: intercept click on checkbox inputs and
     // toggle the block directly via editor API, bypassing ProseMirror's

@@ -18,12 +18,6 @@ interface BoardGenerateResponse {
   generatedStructure?: unknown;
 }
 
-interface EditorModalState {
-  documentId: string;
-  initialContent: string;
-  title: string;
-}
-
 interface UseContentActionsOptions {
   getContent: () => string;
   getTitle: () => string;
@@ -32,7 +26,6 @@ interface UseContentActionsOptions {
 export function useContentActions({ getContent, getTitle }: UseContentActionsOptions) {
   const navigate = useNavigate();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [editorModal, setEditorModal] = useState<EditorModalState | null>(null);
 
   const handleOpenInDocs = useCallback(async () => {
     setActionLoading('docs');
@@ -45,7 +38,7 @@ export function useContentActions({ getContent, getTitle }: UseContentActionsOpt
         title,
         documentType: 'transkription',
       });
-      setEditorModal({ documentId: res.data.documentId, initialContent: content, title });
+      window.open(`/docs/${res.data.documentId}`, '_blank', 'noopener,noreferrer');
     } finally {
       setActionLoading(null);
     }
@@ -66,11 +59,7 @@ export function useContentActions({ getContent, getTitle }: UseContentActionsOpt
         title: `Aufgaben — ${title}`,
         documentType: 'checkliste',
       });
-      setEditorModal({
-        documentId: docRes.data.documentId,
-        initialContent: html,
-        title: `Aufgaben — ${title}`,
-      });
+      window.open(`/docs/${docRes.data.documentId}`, '_blank', 'noopener,noreferrer');
     } finally {
       setActionLoading(null);
     }
@@ -101,15 +90,11 @@ export function useContentActions({ getContent, getTitle }: UseContentActionsOpt
     downloadFile(content, `${title}.txt`, 'text/plain');
   }, [getContent, getTitle]);
 
-  const closeEditorModal = useCallback(() => setEditorModal(null), []);
-
   return {
     handleOpenInDocs,
     handleCreateTodoList,
     handleCreateBoard,
     handleDownloadTxt,
     actionLoading,
-    editorModal,
-    closeEditorModal,
   };
 }

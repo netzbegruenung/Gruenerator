@@ -119,6 +119,12 @@
       "types": "./src/groups/index.ts",
       "import": "./dist/groups/index.js",
       "default": "./dist/groups/index.js"
+    },
+    "./models": {
+      "development": "./src/models/index.ts",
+      "types": "./src/models/index.ts",
+      "import": "./dist/models/index.js",
+      "default": "./dist/models/index.js"
     }
   },
   "scripts": {
