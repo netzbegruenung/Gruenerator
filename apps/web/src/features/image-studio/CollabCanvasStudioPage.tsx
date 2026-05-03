@@ -107,6 +107,17 @@ function CollabCanvasStudioContent() {
   const isLive = collab.isSynced && collab.isConnected;
   const offlineReason = !collab.isSynced ? 'Synchronisiere...' : 'Verbindung getrennt';
 
+  console.log('[CanvasCollab][CollabCanvasStudioPage] render', {
+    docId: id,
+    isLoading,
+    hasCanvas: !!canvas,
+    canvasType: canvas?.template_type,
+    hasYdoc: !!collab.ydoc,
+    isSynced: collab.isSynced,
+    isConnected: collab.isConnected,
+    isLive,
+  });
+
   const chromeCenter = canvas ? (
     <div className="flex items-center gap-sm min-w-0">
       <EditableTitle
