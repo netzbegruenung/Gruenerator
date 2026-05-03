@@ -1,9 +1,14 @@
-import { useUnsplashSearch as useUnsplashSearchShared } from '@gruenerator/shared/image-studio';
+import {
+  useUnsplashSearch as useUnsplashSearchShared,
+  type UnsplashSearchFn,
+  type UseUnsplashSearchReturn,
+} from '@gruenerator/shared/image-studio';
+import { useCallback } from 'react';
 
 import { searchUnsplashImages } from '../services/imageSourceService';
 
-import type { UseUnsplashSearchReturn } from '@gruenerator/shared/image-studio';
-
 export function useUnsplashSearch(): UseUnsplashSearchReturn {
-  return useUnsplashSearchShared((q, p, pp) => searchUnsplashImages(q, p, pp));
+  const searchFn = useCallback<UnsplashSearchFn>((q, p, pp) => searchUnsplashImages(q, p, pp), []);
+
+  return useUnsplashSearchShared(searchFn);
 }
