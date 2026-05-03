@@ -7,6 +7,8 @@ import {
   Path,
   Ellipse,
   Ring,
+  Line,
+  Arrow,
   Transformer,
 } from 'react-konva';
 
@@ -244,6 +246,43 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
         />
       )}
 
+      {(shape.type === 'line' ||
+        shape.type === 'line-thick' ||
+        shape.type === 'line-dashed' ||
+        shape.type === 'line-dotted') && (
+        <Line
+          ref={shapeRef as React.RefObject<Konva.Line>}
+          {...commonProps}
+          points={[-shape.width / 2, 0, shape.width / 2, 0]}
+          stroke={shape.fill}
+          strokeWidth={shape.strokeWidth ?? 6}
+          dash={shape.dash}
+          lineCap={shape.type === 'line-dotted' ? 'round' : 'butt'}
+        />
+      )}
+
+      {shape.type === 'line-double' && (
+        <Path
+          ref={shapeRef as React.RefObject<Konva.Path>}
+          {...commonProps}
+          data={`M -${shape.width / 2},-6 L ${shape.width / 2},-6 M -${shape.width / 2},6 L ${shape.width / 2},6`}
+          stroke={shape.fill}
+          strokeWidth={shape.strokeWidth ?? 6}
+        />
+      )}
+
+      {shape.type === 'line-arrow' && (
+        <Arrow
+          ref={shapeRef as React.RefObject<Konva.Arrow>}
+          {...commonProps}
+          points={[-shape.width / 2, 0, shape.width / 2, 0]}
+          stroke={shape.fill}
+          strokeWidth={shape.strokeWidth ?? 6}
+          pointerLength={Math.max(16, (shape.strokeWidth ?? 6) * 2.5)}
+          pointerWidth={Math.max(16, (shape.strokeWidth ?? 6) * 2.5)}
+        />
+      )}
+
       {isSelected && (
         <Transformer
           ref={trRef}
@@ -285,6 +324,8 @@ export const ShapePrimitive = memo(ShapePrimitiveInner, (prevProps, nextProps) =
   if (prevShape.scaleY !== nextShape.scaleY) return false;
   if (prevShape.opacity !== nextShape.opacity) return false;
   if (prevShape.cornerRadius !== nextShape.cornerRadius) return false;
+  if (prevShape.strokeWidth !== nextShape.strokeWidth) return false;
+  if (prevShape.dash !== nextShape.dash) return false;
 
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.draggable !== nextProps.draggable) return false;
