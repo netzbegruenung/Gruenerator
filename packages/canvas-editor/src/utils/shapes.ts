@@ -20,7 +20,13 @@ export type ShapeType =
   | 'sparkle'
   | 'checkmark'
   | 'blob'
-  | 'leaf';
+  | 'leaf'
+  | 'line'
+  | 'line-thick'
+  | 'line-dashed'
+  | 'line-dotted'
+  | 'line-double'
+  | 'line-arrow';
 
 export interface ShapeDef {
   id: ShapeType;
@@ -115,6 +121,36 @@ export const ALL_SHAPES: ShapeDef[] = [
     name: 'Blatt',
     tags: ['blatt', 'leaf', 'natur', 'nature', 'grün', 'gruen', 'pflanze', 'oeko'],
   },
+  {
+    id: 'line',
+    name: 'Linie',
+    tags: ['linie', 'line', 'strich', 'trenner', 'divider', 'duenn', 'dünn'],
+  },
+  {
+    id: 'line-thick',
+    name: 'Dicke Linie',
+    tags: ['dicke', 'thick', 'linie', 'line', 'balken', 'fett', 'bold'],
+  },
+  {
+    id: 'line-dashed',
+    name: 'Gestrichelte Linie',
+    tags: ['gestrichelt', 'dashed', 'linie', 'line', 'strich', 'unterbrochen'],
+  },
+  {
+    id: 'line-dotted',
+    name: 'Gepunktete Linie',
+    tags: ['gepunktet', 'dotted', 'linie', 'line', 'punkte', 'dots'],
+  },
+  {
+    id: 'line-double',
+    name: 'Doppellinie',
+    tags: ['doppellinie', 'double', 'linie', 'line', 'zwei', 'parallel'],
+  },
+  {
+    id: 'line-arrow',
+    name: 'Linie mit Pfeil',
+    tags: ['pfeillinie', 'pfeil', 'arrow', 'linie', 'line', 'richtung'],
+  },
 ];
 
 export interface ShapeInstance {
@@ -130,7 +166,12 @@ export interface ShapeInstance {
   scaleY: number;
   opacity: number;
   cornerRadius?: number;
+  strokeWidth?: number;
+  dash?: number[];
 }
+
+/** Eucalyptus (--secondary-600), used as the default neutral color for line variants. */
+export const EUCALYPTUS = '#5F8575';
 
 export const BRAND_COLORS = [
   { id: 'tanne', name: 'Tanne', value: '#005538' },
@@ -162,10 +203,39 @@ const DEFAULT_DIMENSIONS: Partial<Record<ShapeType, { width: number; height: num
   'double-arrow': { width: 320, height: 120 },
   chevron: { width: 200, height: 240 },
   leaf: { width: 240, height: 300 },
+  line: { width: 360, height: 24 },
+  'line-thick': { width: 360, height: 32 },
+  'line-dashed': { width: 360, height: 24 },
+  'line-dotted': { width: 360, height: 24 },
+  'line-double': { width: 360, height: 32 },
+  'line-arrow': { width: 360, height: 32 },
 };
 
 const DEFAULT_CORNER_RADIUS: Partial<Record<ShapeType, number>> = {
   'rounded-rect': 32,
+};
+
+const DEFAULT_STROKE_WIDTH: Partial<Record<ShapeType, number>> = {
+  line: 6,
+  'line-thick': 18,
+  'line-dashed': 6,
+  'line-dotted': 6,
+  'line-double': 6,
+  'line-arrow': 6,
+};
+
+const DEFAULT_DASH: Partial<Record<ShapeType, number[]>> = {
+  'line-dashed': [22, 14],
+  'line-dotted': [0.1, 14],
+};
+
+const DEFAULT_FILL_OVERRIDE: Partial<Record<ShapeType, string>> = {
+  line: EUCALYPTUS,
+  'line-thick': EUCALYPTUS,
+  'line-dashed': EUCALYPTUS,
+  'line-dotted': EUCALYPTUS,
+  'line-double': EUCALYPTUS,
+  'line-arrow': EUCALYPTUS,
 };
 
 export const createShape = (
@@ -182,12 +252,18 @@ export const createShape = (
     y,
     width: dims.width,
     height: dims.height,
-    fill: color,
+    fill: DEFAULT_FILL_OVERRIDE[type] ?? color,
     rotation: 0,
     scaleX: 1,
     scaleY: 1,
     opacity: 1,
   };
+  const overrides: Partial<ShapeInstance> = {};
   const cornerRadius = DEFAULT_CORNER_RADIUS[type];
-  return cornerRadius !== undefined ? { ...base, cornerRadius } : base;
+  if (cornerRadius !== undefined) overrides.cornerRadius = cornerRadius;
+  const strokeWidth = DEFAULT_STROKE_WIDTH[type];
+  if (strokeWidth !== undefined) overrides.strokeWidth = strokeWidth;
+  const dash = DEFAULT_DASH[type];
+  if (dash !== undefined) overrides.dash = dash;
+  return { ...base, ...overrides };
 };
