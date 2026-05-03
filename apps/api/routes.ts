@@ -42,6 +42,7 @@ import { markdownController as markdownRouter } from './routes/markdown/index.js
 import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
 import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
+import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
@@ -307,6 +308,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/auth/notebook', authenticatedReadLimiter, notebookInteractionRouter);
   app.use('/api/auth/notebook', authenticatedReadLimiter, notebookRecentDocumentsRouter);
   app.use('/api/auth/notebook', authenticatedReadLimiter, notebookStatisticsRouter);
+  // External API for partner integrations (MCP / programmatic access).
+  // Auth: per-route Bearer API key middleware (requireApiKey). Rate-limited
+  // per-key via apiKeyRateLimit. LV scope enforced inside each handler.
+  app.use('/api/v1/notebooks', v1NotebooksRouter);
   // ts-rest contract router for /api/documents — mounts BEFORE the legacy documentsRouter
   // so ts-rest matches its own routes first; unmatched paths fall through.
   // requireAuth is applied at the prefix because all 3 contract routes require auth.
