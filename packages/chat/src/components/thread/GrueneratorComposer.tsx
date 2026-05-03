@@ -252,11 +252,17 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (!mention.visible) return;
 
-      // In datei/docs mode, only handle Escape (cmdk handles arrow keys internally)
+      // In datei/docs mode, only handle Escape (cmdk handles arrow keys internally).
+      // Enter is swallowed so the textarea doesn't submit the form while the picker
+      // is open — the user must select via the picker or dismiss with Escape first.
       if (mention.mode === 'datei' || mention.mode === 'docs') {
         if (e.key === 'Escape') {
           e.preventDefault();
           dismissPopover();
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
         }
         return;
       }
