@@ -207,7 +207,7 @@ export function ControllableCanvasWrapper({
           return {
             quote: effectiveState.quote || '',
             name: effectiveState.name || '',
-            imageSrc: imageSrc || '',
+            imageSrc: (effectiveState.imageSrc as string) || imageSrc || '',
           };
         case 'zitat-pure':
           return {
@@ -228,13 +228,13 @@ export function ControllableCanvasWrapper({
             time: effectiveState.time || '',
             locationName: effectiveState.locationName || '',
             address: effectiveState.address || '',
-            imageSrc: imageSrc || '',
+            imageSrc: (effectiveState.imageSrc as string) || imageSrc || '',
           };
         case 'simple':
           return {
             headline: effectiveState.headline || '',
             subtext: effectiveState.subtext || '',
-            imageSrc: imageSrc || '',
+            imageSrc: (effectiveState.imageSrc as string) || imageSrc || '',
           };
         case 'slider':
           return {
@@ -247,13 +247,13 @@ export function ControllableCanvasWrapper({
             line1: effectiveState.line1 || '',
             line2: effectiveState.line2 || '',
             line3: effectiveState.line3 || '',
-            currentImageSrc: imageSrc || '',
+            currentImageSrc: (effectiveState.currentImageSrc as string) || imageSrc || '',
           };
         case 'freeform':
           return {
             backgroundMode: effectiveState.backgroundMode || 'color',
             backgroundColor: effectiveState.backgroundColor || '#005538',
-            currentImageSrc: imageSrc || '',
+            currentImageSrc: (effectiveState.currentImageSrc as string) || imageSrc || '',
           };
         case 'pres-title':
         case 'pres-image':
@@ -264,7 +264,7 @@ export function ControllableCanvasWrapper({
             subtitle: effectiveState.subtitle || '',
             bodyText: effectiveState.bodyText || '',
             bodyText2: effectiveState.bodyText2 || '',
-            currentImageSrc: imageSrc || '',
+            currentImageSrc: (effectiveState.currentImageSrc as string) || imageSrc || '',
           };
         default:
           return effectiveState;
@@ -333,7 +333,12 @@ export function ControllableCanvasWrapper({
         );
 
       case 'profilbild':
-        return <ProfilbildCanvas {...commonProps} transparentImage={imageSrc || ''} />;
+        return (
+          <ProfilbildCanvas
+            {...commonProps}
+            transparentImage={(effectiveState.transparentImage as string) || imageSrc || ''}
+          />
+        );
 
       default:
         return <div>Editor type &quot;{type}&quot; not found.</div>;
