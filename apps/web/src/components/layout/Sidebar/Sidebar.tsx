@@ -17,6 +17,7 @@ import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { StatusBadge } from '../../common/StatusBadge';
+import useDarkMode from '../../hooks/useDarkMode';
 import {
   getMenuItems,
   getDirectMenuItems,
@@ -70,9 +71,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
 
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const newMenuOpenRef = useRef(false);
-  const [darkMode, setDarkMode] = useState(
-    () => document.documentElement.getAttribute('data-theme') === 'dark'
-  );
+  const [darkMode, toggleDarkMode] = useDarkMode();
 
   const menuItems = useMemo(() => getMenuItems({ isAustrian }), [isAustrian]);
 
@@ -92,18 +91,6 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       close();
     }
   }, [location.pathname]);
-
-  useEffect(() => {
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.attributeName === 'data-theme') {
-          setDarkMode(document.documentElement.getAttribute('data-theme') === 'dark');
-        }
-      });
-    });
-    observer.observe(document.documentElement, { attributes: true });
-    return () => observer.disconnect();
-  }, []);
 
   // Keyboard shortcuts: Escape to close, Ctrl/Cmd+B to toggle
   useEffect(() => {
@@ -160,13 +147,6 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       void navigate('/chat');
     }
   }, [navigate, onNavigate, location.pathname]);
-
-  const toggleDarkMode = useCallback(() => {
-    const newTheme = darkMode ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    setDarkMode(!darkMode);
-  }, [darkMode]);
 
   const handleMouseLeave = useCallback(() => {
     if (!newMenuOpenRef.current) {
