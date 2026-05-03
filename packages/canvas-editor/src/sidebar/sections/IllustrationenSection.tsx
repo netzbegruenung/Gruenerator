@@ -125,8 +125,7 @@ export function IllustrationenSection({
         className={cn(
           CARD_GRID,
           'grid-cols-[repeat(auto-fill,minmax(64px,1fr))]',
-          !isExpanded &&
-            'max-h-[400px] overflow-y-auto pr-1 scrollbar-thin scrollbar-color-[var(--grey-200)_transparent]'
+          !isExpanded && 'max-h-[400px] overflow-y-auto pr-1 scrollbar-thin'
         )}
       >
         {visibleIllustrations.map((illDef) => {

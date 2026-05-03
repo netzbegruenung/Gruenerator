@@ -92,3 +92,31 @@ input[type="number"].hide-spinner {
   -moz-appearance: textfield;
 }
 
+/* ── Thin scrollbar (mirrors packages/chat scrollbar-thin) ── */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--grey-300) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--grey-300);
+  border-radius: 3px;
+}
+
+[data-theme="dark"] .scrollbar-thin {
+  scrollbar-color: var(--grey-600) transparent;
+}
+
+[data-theme="dark"] .scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--grey-600);
+}
+

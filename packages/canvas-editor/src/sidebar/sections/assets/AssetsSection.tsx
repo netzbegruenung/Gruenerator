@@ -229,7 +229,7 @@ function MobileView({
           className={cn(
             '[contain:layout_style]',
             search.hasQuery && 'min-h-[60px]',
-            'max-canvas-mobile:order-1 max-canvas-mobile:flex-1 max-canvas-mobile:max-h-[45vh] max-canvas-mobile:overflow-y-auto max-canvas-mobile:overscroll-contain',
+            'max-canvas-mobile:order-1 max-canvas-mobile:flex-1 max-canvas-mobile:max-h-[45vh] max-canvas-mobile:overflow-y-auto max-canvas-mobile:overscroll-contain scrollbar-thin',
             search.hasQuery && 'max-canvas-mobile:min-h-[80px]'
           )}
         >

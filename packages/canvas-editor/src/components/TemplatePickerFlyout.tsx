@@ -183,7 +183,7 @@ export function TemplatePickerFlyout({
   return (
     <div
       ref={flyoutRef}
-      className="bg-background-pure border border-border rounded-xl shadow-lg p-4 z-[1000] min-w-[320px] max-w-[400px] max-h-[calc(100vh-32px)] overflow-y-auto animate-[flyout-enter_0.15s_ease-out] max-[480px]:!fixed max-[480px]:!bottom-0 max-[480px]:!left-0 max-[480px]:!top-auto max-[480px]:!right-0 max-[480px]:min-w-full max-[480px]:max-w-full max-[480px]:rounded-t-2xl max-[480px]:rounded-b-none max-[480px]:max-h-[70vh]"
+      className="bg-background-pure border border-border rounded-xl shadow-lg p-4 z-[1000] min-w-[320px] max-w-[400px] max-h-[calc(100vh-32px)] overflow-y-auto scrollbar-thin animate-[flyout-enter_0.15s_ease-out] max-[480px]:!fixed max-[480px]:!bottom-0 max-[480px]:!left-0 max-[480px]:!top-auto max-[480px]:!right-0 max-[480px]:min-w-full max-[480px]:max-w-full max-[480px]:rounded-t-2xl max-[480px]:rounded-b-none max-[480px]:max-h-[70vh]"
       style={{
         position: 'fixed',
         top: position.top,
