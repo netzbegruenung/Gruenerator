@@ -80,7 +80,7 @@ export function SidebarPanel({
           </div>
         )}
 
-        <div className="sidebar-panel__content flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-3 max-canvas-mobile:max-h-[calc(75vh-var(--mobile-tab-bar-height,60px)-60px)] max-canvas-mobile:p-0 max-canvas-mobile:pb-md">
+        <div className="sidebar-panel__content flex-1 min-h-0 overflow-y-auto scrollbar-thin p-3 flex flex-col gap-3 max-canvas-mobile:max-h-[calc(75vh-var(--mobile-tab-bar-height,60px)-60px)] max-canvas-mobile:p-0 max-canvas-mobile:pb-md">
           {children}
         </div>
       </div>
