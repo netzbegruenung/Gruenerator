@@ -292,6 +292,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             imageSrc={uploadedImageUrl}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialShareToken={editShareToken}
           />
         );
       case IMAGE_STUDIO_TYPES.ZITAT:
@@ -305,6 +306,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             imageSrc={uploadedImageUrl || ''}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialShareToken={editShareToken}
           />
         );
       case IMAGE_STUDIO_TYPES.ZITAT_PURE:
@@ -317,6 +319,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             }}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialShareToken={editShareToken}
           />
         );
       case IMAGE_STUDIO_TYPES.INFO:
@@ -329,6 +332,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             }}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialShareToken={editShareToken}
           />
         );
       case IMAGE_STUDIO_TYPES.VERANSTALTUNG:
@@ -347,6 +351,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             imageSrc={uploadedImageUrl || ''}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialShareToken={editShareToken}
           />
         );
       case IMAGE_STUDIO_TYPES.SLIDER:
@@ -360,6 +365,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             }}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialShareToken={editShareToken}
           />
         );
       case IMAGE_STUDIO_TYPES.FREEFORM:
@@ -369,6 +375,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
             initialState={{}}
             onExport={handleCanvasExport}
             onCancel={handleCanvasCancel}
+            initialShareToken={editShareToken}
           />
         );
       default:
@@ -396,6 +403,7 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
     uploadedImageUrl,
     handleCanvasExport,
     handleCanvasCancel,
+    editShareToken,
   ]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);

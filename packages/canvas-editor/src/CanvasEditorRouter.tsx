@@ -68,6 +68,12 @@ export interface ControllableCanvasWrapperProps {
     ydoc: Y.Doc;
     isSynced: boolean;
   };
+  /**
+   * Seeds the per-instance AutoSaveStore so reloads update the existing
+   * gallery record instead of creating a new draft. Routes that load an
+   * existing share by token should pass it through here.
+   */
+  initialShareToken?: string | null;
 }
 
 export function ControllableCanvasWrapper({
@@ -83,6 +89,7 @@ export function ControllableCanvasWrapper({
   externalSidebar,
   externalMobileMode,
   collaborative,
+  initialShareToken,
 }: ControllableCanvasWrapperProps) {
   const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
@@ -329,6 +336,7 @@ export function ControllableCanvasWrapper({
             externalSidebar={externalSidebar}
             externalMobileMode={externalMobileMode}
             collaborative={collaborative}
+            initialShareToken={initialShareToken}
           />
         );
 
