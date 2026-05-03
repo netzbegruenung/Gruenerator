@@ -37,6 +37,16 @@ type PathShapeType =
   | 'wavy'
   | 'speech-round'
   | 'speech-rect'
+  | 'speech-cloud'
+  | 'speech-pointed'
+  | 'cloud-fluffy'
+  | 'heart-broken'
+  | 'heart-double'
+  | 'drop'
+  | 'banner-ribbon'
+  | 'banner-flag'
+  | 'gear'
+  | 'plus'
   | 'checkmark'
   | 'blob'
   | 'leaf';
@@ -52,6 +62,20 @@ const SHAPE_PATHS: Record<PathShapeType, string> = {
   'speech-round':
     'M50,5 C22,5 5,22 5,42 C5,58 16,72 32,78 L24,95 L46,80 C47,80 48,80 50,80 C78,80 95,63 95,42 C95,22 78,5 50,5 Z',
   'speech-rect': 'M5,8 L95,8 L95,72 L42,72 L24,92 L24,72 L5,72 Z',
+  'speech-cloud':
+    'M50,8 C28,8 12,22 12,40 C12,52 18,60 28,66 L24,82 L42,68 C45,69 48,70 50,70 C72,70 88,56 88,40 C88,22 72,8 50,8 Z M22,84 C20,84 19,87 21,88 C23,89 25,87 24,85 Z M14,93 C13,93 12,95 13,96 C15,97 17,95 16,94 Z',
+  'speech-pointed': 'M5,8 L95,8 L95,68 L60,68 L72,90 L40,68 L5,68 Z',
+  'cloud-fluffy':
+    'M30,55 C20,55 12,48 14,38 C16,28 28,26 34,32 C36,20 52,16 62,28 C68,20 82,22 84,36 C92,38 94,50 86,56 C92,62 88,72 78,70 C72,76 60,76 56,70 C46,76 36,76 32,70 C24,76 16,70 22,62 C14,62 18,55 30,55 Z',
+  'heart-broken':
+    'M50,90 C50,90 10,70 10,40 C10,15 30,5 50,30 L42,42 L52,50 L42,62 L50,90 Z M50,90 L60,62 L50,50 L60,42 L50,30 C70,5 90,15 90,40 C90,70 50,90 50,90 Z',
+  'heart-double':
+    'M28,72 C28,72 4,58 4,32 C4,12 22,2 30,20 C38,2 56,12 56,32 C56,58 28,72 28,72 Z M68,72 C68,72 44,58 44,32 C44,12 62,2 70,20 C78,2 96,12 96,32 C96,58 68,72 68,72 Z',
+  drop: 'M50,5 C50,5 70,30 80,55 C85,75 70,92 50,92 C30,92 15,75 20,55 C30,30 50,5 50,5 Z',
+  'banner-ribbon': 'M5,30 L75,30 L95,50 L75,70 L5,70 L20,50 Z',
+  'banner-flag': 'M10,8 L10,92 L14,92 L14,55 L88,38 L14,18 Z',
+  gear: 'M50,5 L57,12 L62,8 L67,18 L80,15 L82,28 L92,33 L88,42 L95,50 L88,58 L92,67 L82,72 L80,85 L67,82 L62,92 L57,88 L50,95 L43,88 L38,92 L33,82 L20,85 L18,72 L8,67 L12,58 L5,50 L12,42 L8,33 L18,28 L20,15 L33,18 L38,8 L43,12 Z',
+  plus: 'M40,5 L60,5 L60,40 L95,40 L95,60 L60,60 L60,95 L40,95 L40,60 L5,60 L5,40 L40,40 Z',
   checkmark: 'M10,52 L38,80 L90,18 L78,8 L38,58 L22,42 Z',
   blob: 'M50,4 C72,6 90,22 94,44 C98,66 88,86 70,93 C52,100 30,96 18,82 C6,68 4,46 14,28 C24,10 38,2 50,4 Z',
   leaf: 'M50,4 C76,12 92,36 88,62 C84,84 64,94 50,94 C36,94 16,84 12,62 C8,36 24,12 50,4 Z',
@@ -66,10 +90,21 @@ const PATH_OFFSETS: Record<PathShapeType, { x: number; y: number }> = {
   wavy: { x: 50, y: 50 },
   'speech-round': { x: 50, y: 45 },
   'speech-rect': { x: 50, y: 45 },
+  'speech-cloud': { x: 50, y: 45 },
+  'speech-pointed': { x: 50, y: 45 },
+  'cloud-fluffy': { x: 50, y: 50 },
+  'heart-broken': { x: 50, y: 50 },
+  'heart-double': { x: 50, y: 40 },
+  drop: { x: 50, y: 50 },
+  'banner-ribbon': { x: 50, y: 50 },
+  'banner-flag': { x: 50, y: 50 },
+  gear: { x: 50, y: 50 },
+  plus: { x: 50, y: 50 },
   checkmark: { x: 50, y: 50 },
   blob: { x: 50, y: 50 },
   leaf: { x: 50, y: 50 },
 };
+
 
 interface CommonShapeProps {
   x: number;
@@ -200,6 +235,26 @@ function renderShape(
           outerRadius={shape.width / 2}
         />
       );
+    case 'asterisk':
+      return (
+        <Star
+          ref={shapeRef as React.RefObject<Konva.Star>}
+          {...commonProps}
+          numPoints={6}
+          innerRadius={shape.width / 12}
+          outerRadius={shape.width / 2}
+        />
+      );
+    case 'flower':
+      return (
+        <Star
+          ref={shapeRef as React.RefObject<Konva.Star>}
+          {...commonProps}
+          numPoints={6}
+          innerRadius={shape.width * 0.28}
+          outerRadius={shape.width / 2}
+        />
+      );
     case 'arrow':
     case 'heart':
     case 'cloud':
@@ -208,6 +263,16 @@ function renderShape(
     case 'wavy':
     case 'speech-round':
     case 'speech-rect':
+    case 'speech-cloud':
+    case 'speech-pointed':
+    case 'cloud-fluffy':
+    case 'heart-broken':
+    case 'heart-double':
+    case 'drop':
+    case 'banner-ribbon':
+    case 'banner-flag':
+    case 'gear':
+    case 'plus':
     case 'checkmark':
     case 'blob':
     case 'leaf': {
@@ -296,12 +361,20 @@ const ShapePrimitiveInner: React.FC<ShapePrimitiveProps> = ({
     const node = shapeRef.current;
     if (!node) return;
 
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+
+    node.scaleX(1);
+    node.scaleY(1);
+
     onChange({
       x: node.x(),
       y: node.y(),
       rotation: node.rotation(),
-      scaleX: node.scaleX(),
-      scaleY: node.scaleY(),
+      width: Math.max(5, shape.width * scaleX),
+      height: Math.max(5, shape.height * scaleY),
+      scaleX: 1,
+      scaleY: 1,
     });
   };
 
