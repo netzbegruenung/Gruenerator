@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { PiArrowLeft } from 'react-icons/pi';
 
-import { IconButton } from '@gruenerator/ui';
-
 import useDebounce from '../../../hooks/useDebounce';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { ALL_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
@@ -38,8 +36,36 @@ import { cn } from '../../../utils/cn';
 // --- Sub-components ---
 
 function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick: () => void }) {
-  const { Icon, label } = card;
-  return <IconButton size="sm" icon={<Icon />} label={label} onClick={onClick} />;
+  const { Icon, label, iconColor, border, hoverBorder, ring, anim } = card;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'group flex flex-col items-center gap-sm cursor-pointer bg-transparent border-none p-0 rounded-lg',
+        'focus-visible:outline-none focus-visible:ring-2',
+        ring,
+      )}
+    >
+      <div
+        className={cn(
+          'flex items-center justify-center size-12 rounded-full shadow-md',
+          'bg-background-pure dark:bg-grey-700 border-2',
+          'transition-[transform,border-color] duration-200 ease-out',
+          'group-hover:scale-105',
+          border,
+          hoverBorder,
+        )}
+      >
+        <span className={cn('text-lg inline-flex', iconColor, anim)}>
+          <Icon />
+        </span>
+      </div>
+      <span className="text-xs text-foreground text-center leading-tight max-w-20">
+        {label}
+      </span>
+    </button>
+  );
 }
 
 interface RecentItem {
@@ -333,8 +359,7 @@ export function BrowseView(props: BrowseViewProps) {
 
             {availableCategories.length > 0 && (
               <div>
-                <h4 className={cn(SECTION_LABEL, 'mb-2')}>Kategorien durchsuchen</h4>
-                <div className="grid grid-cols-3 gap-x-2 gap-y-3 justify-items-center">
+                <div className="grid grid-cols-2 gap-x-2 gap-y-3 justify-items-center">
                   {availableCategories.map((card) => (
                     <CategoryIconButton
                       key={card.id}
