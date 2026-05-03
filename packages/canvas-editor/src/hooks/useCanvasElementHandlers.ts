@@ -80,6 +80,18 @@ export interface OptionalCanvasActions {
   updateFrame?: (id: string, attrs: Partial<FrameInstance>) => void;
   setFrameImage?: (id: string, file: File, objectUrl: string) => void;
   updateUserImage?: (id: string, attrs: Partial<UserImageInstance>) => void;
+
+  // Removal / toggle actions (consumed by useCanvasKeyboardHandlers for
+  // delete-key shortcuts; same factory-provided implementations).
+  removeBalken?: (id: string) => void;
+  toggleIcon?: (id: string, enabled: boolean) => void;
+  removeShape?: (id: string) => void;
+  removeAdditionalText?: (id: string) => void;
+  removeIllustration?: (id: string) => void;
+  removeAsset?: (id: string) => void;
+  removePillBadge?: (id: string) => void;
+  removeFrame?: (id: string) => void;
+  removeUserImage?: (id: string) => void;
 }
 
 export interface UseCanvasElementHandlersOptions<

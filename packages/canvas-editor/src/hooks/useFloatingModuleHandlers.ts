@@ -57,17 +57,14 @@ export function useFloatingModuleHandlers<
         }
       } else if (activeFloatingModule.type === 'icon') {
         if (actions.updateIcon) {
-          actions.updateIcon(activeFloatingModule.data.id, { color } as unknown as Parameters<
-            typeof actions.updateIcon
-          >[1]);
+          actions.updateIcon(activeFloatingModule.data.id, { color });
         }
       } else if (activeFloatingModule.type === 'illustration') {
         if (actions.updateIllustration) {
-          actions.updateIllustration(activeFloatingModule.data.id, {
-            color,
-          } as unknown as Parameters<typeof actions.updateIllustration>[1]);
+          actions.updateIllustration(activeFloatingModule.data.id, { color });
         }
       } else if (activeFloatingModule.type === 'asset') {
+        // AssetInstance has no color field, so this is currently a no-op; cast keeps the call site honest.
         if (actions.updateAsset) {
           actions.updateAsset(activeFloatingModule.data.id, { color } as unknown as Parameters<
             typeof actions.updateAsset
