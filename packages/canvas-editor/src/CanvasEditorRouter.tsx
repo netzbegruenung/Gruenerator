@@ -68,6 +68,17 @@ export interface ControllableCanvasWrapperProps {
     ydoc: Y.Doc;
     isSynced: boolean;
   };
+  /** Host-supplied content rendered at the very left of the toolbar (in-flow). */
+  chromeLeft?: React.ReactNode;
+  /** Host-supplied content rendered absolute-centered in the toolbar (e.g. doc title, sync badge). */
+  chromeCenter?: React.ReactNode;
+  /** Host-supplied content rendered in the toolbar's right cluster (e.g. presence avatars). */
+  chromeRight?: React.ReactNode;
+  /**
+   * When provided, the share popover shows a "Personen" entry that triggers
+   * this callback. Used by collab hosts to open their invite/permissions dialog.
+   */
+  onInvitePeople?: () => void;
 }
 
 export function ControllableCanvasWrapper({
@@ -83,6 +94,10 @@ export function ControllableCanvasWrapper({
   externalSidebar,
   externalMobileMode,
   collaborative,
+  chromeLeft,
+  chromeCenter,
+  chromeRight,
+  onInvitePeople,
 }: ControllableCanvasWrapperProps) {
   const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
@@ -329,6 +344,10 @@ export function ControllableCanvasWrapper({
             externalSidebar={externalSidebar}
             externalMobileMode={externalMobileMode}
             collaborative={collaborative}
+            chromeLeft={chromeLeft}
+            chromeCenter={chromeCenter}
+            chromeRight={chromeRight}
+            onInvitePeople={onInvitePeople}
           />
         );
 
