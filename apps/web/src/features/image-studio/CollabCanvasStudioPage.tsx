@@ -1,4 +1,6 @@
 import { useCanvasCollaboration, MasterCanvasEditor } from '@gruenerator/canvas-editor';
+import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
+import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -10,7 +12,8 @@ import apiClient from '../../components/utils/apiClient';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../stores/authStore';
 
-import { CanvasPageHeader } from './components/CanvasPageHeader';
+import { ShareCanvasDialog } from './components/ShareCanvasDialog';
+import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
 
 interface CanvasDocument {
   id: string;
@@ -99,6 +102,36 @@ function CollabCanvasStudioContent() {
     void navigate('/studio');
   }, [navigate]);
 
+  const collaborators = useCollaborators(collab.provider);
+
+  const isLive = collab.isSynced && collab.isConnected;
+  const offlineReason = !collab.isSynced ? 'Synchronisiere...' : 'Verbindung getrennt';
+
+  const chromeCenter = canvas ? (
+    <div className="flex items-center gap-sm min-w-0">
+      <EditableTitle
+        as="span"
+        title={canvas.title}
+        editable={canEdit}
+        onTitleChange={handleTitleChange}
+        className="text-sm font-medium text-foreground-heading truncate"
+        editableClassName="cursor-pointer rounded px-1 -mx-1 hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors"
+        inputClassName="text-sm font-medium text-foreground-heading bg-transparent border border-secondary-400 dark:border-secondary-600 rounded px-1 -mx-1 outline-none w-64 max-w-full"
+        ariaLabel="Canvas-Titel bearbeiten"
+      />
+      {!isLive && (
+        <span
+          className="size-2 rounded-full bg-red-500 shrink-0"
+          title={offlineReason}
+          aria-label={offlineReason}
+          role="status"
+        />
+      )}
+    </div>
+  ) : null;
+
+  const chromeRight = <PresenceAvatars collaborators={collaborators} compact />;
+
   if (isLoading || !canvas) {
     return (
       <div className="relative flex flex-col h-dvh bg-background">
@@ -112,29 +145,25 @@ function CollabCanvasStudioContent() {
   }
 
   return (
-    <div className="relative flex flex-col h-dvh bg-background">
-      <CanvasPageHeader
-        canvasId={canvas.id}
-        title={canvas.title}
-        editable={canEdit}
-        onTitleChange={handleTitleChange}
-        provider={collab.provider}
-        isConnected={collab.isConnected}
-        isSynced={collab.isSynced}
-        onShareClick={() => setShareOpen(true)}
-        shareOpen={shareOpen}
-        onShareOpenChange={setShareOpen}
-      />
-      <div className="flex-1 min-h-0">
-        <MasterCanvasEditor
-          type={canvas.template_type}
-          initialState={canvas.initial_state}
-          onExport={handleExport}
-          onCancel={handleCancel}
-          collaborative={collab.ydoc ? { ydoc: collab.ydoc, isSynced: collab.isSynced } : undefined}
-        />
+    <WebCanvasEditorProvider>
+      <div className="relative flex flex-col h-dvh bg-background">
+        <div className="flex-1 min-h-0">
+          <MasterCanvasEditor
+            type={canvas.template_type}
+            initialState={canvas.initial_state}
+            onExport={handleExport}
+            onCancel={handleCancel}
+            collaborative={
+              collab.ydoc ? { ydoc: collab.ydoc, isSynced: collab.isSynced } : undefined
+            }
+            chromeCenter={chromeCenter}
+            chromeRight={chromeRight}
+            onInvitePeople={() => setShareOpen(true)}
+          />
+        </div>
+        <ShareCanvasDialog canvasId={canvas.id} open={shareOpen} onOpenChange={setShareOpen} />
       </div>
-    </div>
+    </WebCanvasEditorProvider>
   );
 }
 

@@ -1,5 +1,6 @@
 import { useGenerateSocialPost } from '../../components/hooks/useGenerateSocialPost';
 
+import { CanvasInlineChatSection } from './CanvasInlineChatSection';
 import {
   fetchStockImages,
   fetchStockImageAsFile,
@@ -25,6 +26,7 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   generateAiBackgroundImage,
   useGenerateSocialPost,
   useGenerateCanvasSuggestions,
+  ChatSectionContent: CanvasInlineChatSection,
   apiBaseUrl: (import.meta.env.VITE_API_URL as string | undefined) ?? '',
   iconifyApiUrl: (import.meta.env.VITE_ICONIFY_API_URL as string | undefined) ?? '',
 };
