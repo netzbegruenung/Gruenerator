@@ -74,12 +74,12 @@ export interface CanvasEditorServices {
   openUnsplashSearch?: (query: string) => void;
 
   /**
-   * Generate a background image from a text prompt via the host's AI image
-   * pipeline. The host is expected to wrap an authenticated endpoint that
-   * enforces per-user quota; the returned `remaining` is surfaced in the UI.
-   * When omitted, the AI subsection is hidden.
+   * Generate an image from a text prompt via the host's AI image pipeline.
+   * The host is expected to wrap an authenticated endpoint that enforces
+   * per-user quota; the returned `remaining` is surfaced in the UI. When
+   * omitted, the AI-create tool is hidden.
    */
-  generateAiBackgroundImage?: (
+  generateAiImage?: (
     prompt: string,
     opts: {
       variant: 'illustration' | 'realistic' | 'pixel';
@@ -88,18 +88,25 @@ export interface CanvasEditorServices {
     }
   ) => Promise<{ file: File; remaining: number | null }>;
 
-  /** Social post generation hook factory */
-  useGenerateSocialPost?: () => {
-    generatedPosts: Record<string, unknown>;
-    generatePost: (
-      thema: string,
-      details: string,
-      platforms: string[],
-      includeActionIdeas: boolean
-    ) => Promise<Record<string, unknown>>;
-    loading: boolean;
-    error: unknown;
-  };
+  /**
+   * Remove the background of an image via the host's `@imgly/background-removal`
+   * pipeline. Lives in the host so canvas-editor stays free of the WASM/ONNX
+   * runtime bundle. When omitted, the bg-removal tool is hidden.
+   */
+  removeBackgroundFromImage?: (
+    file: File | Blob,
+    onProgress?: (p: { phase: string; progress: number; message: string }) => void
+  ) => Promise<{ file: File; objectUrl: string }>;
+
+  /**
+   * Edit an image with a natural-language instruction via Flux. The host
+   * wraps the authenticated endpoint and rate-limit checks. When omitted,
+   * the AI-edit tool is hidden.
+   */
+  editAiImage?: (
+    image: File,
+    instruction: string
+  ) => Promise<{ file: File; objectUrl: string }>;
 
   /** API base URL for multi-page export */
   apiBaseUrl?: string;
