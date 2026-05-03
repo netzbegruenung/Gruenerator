@@ -1,5 +1,20 @@
 import { FaCheck } from 'react-icons/fa';
-import { PiMagnifyingGlass } from 'react-icons/pi';
+import {
+  PiArrowRightBold,
+  PiArrowsLeftRightBold,
+  PiCaretRightBold,
+  PiChatCenteredFill,
+  PiChatCircleFill,
+  PiCheckBold,
+  PiCloudFill,
+  PiDiamondFill,
+  PiHeartFill,
+  PiHexagonFill,
+  PiLeafFill,
+  PiMagnifyingGlass,
+  PiSparkleFill,
+  PiStarFill,
+} from 'react-icons/pi';
 import { Icon } from '@iconify/react';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
@@ -106,19 +121,7 @@ export function SearchResultsGrid({
               title={shape.name}
             >
               <div className="flex items-center justify-center w-full h-full relative">
-                {shape.id === 'rect' && <div className="formen-preview formen-preview--rect" />}
-                {shape.id === 'circle' && <div className="formen-preview formen-preview--circle" />}
-                {shape.id === 'triangle' && (
-                  <div className="formen-preview formen-preview--triangle" />
-                )}
-                {['star', 'heart', 'cloud', 'arrow'].includes(shape.id) && (
-                  <span style={{ fontSize: 24 }}>
-                    {shape.id === 'star' && '★'}
-                    {shape.id === 'heart' && '♥'}
-                    {shape.id === 'cloud' && '☁'}
-                    {shape.id === 'arrow' && '→'}
-                  </span>
-                )}
+                <ShapeSearchPreview type={shape.id} />
               </div>
             </button>
           );
@@ -219,4 +222,73 @@ export function SearchResultsGrid({
       })}
     </div>
   );
+}
+
+// --- Shape preview (used inside search results) ---
+
+function ShapeSearchPreview({ type }: { type: ShapeType }) {
+  switch (type) {
+    case 'rect':
+      return <div className="formen-preview formen-preview--rect" />;
+    case 'rounded-rect':
+      return <div className="w-6 h-6 bg-foreground rounded-md" />;
+    case 'circle':
+      return <div className="formen-preview formen-preview--circle" />;
+    case 'ellipse':
+      return <div className="w-6 h-4 bg-foreground rounded-full" />;
+    case 'ring':
+      return <div className="w-6 h-6 rounded-full border-[5px] border-foreground" />;
+    case 'triangle':
+      return <div className="formen-preview formen-preview--triangle" />;
+    case 'diamond':
+      return <PiDiamondFill size={24} />;
+    case 'pentagon':
+      return (
+        <svg width={24} height={24} viewBox="0 0 100 100" aria-hidden="true">
+          <polygon points="50,5 95,38 78,90 22,90 5,38" fill="currentColor" />
+        </svg>
+      );
+    case 'hexagon':
+      return <PiHexagonFill size={24} />;
+    case 'star':
+      return <PiStarFill size={24} />;
+    case 'sparkle':
+      return <PiSparkleFill size={24} />;
+    case 'arrow':
+      return <PiArrowRightBold size={24} />;
+    case 'chevron':
+      return <PiCaretRightBold size={24} />;
+    case 'double-arrow':
+      return <PiArrowsLeftRightBold size={24} />;
+    case 'wavy':
+      return (
+        <svg width={28} height={14} viewBox="0 0 100 40" aria-hidden="true">
+          <path
+            d="M0,20 C12,4 28,36 50,20 C72,4 88,36 100,20 L100,28 C88,44 72,12 50,28 C28,44 12,12 0,28 Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case 'heart':
+      return <PiHeartFill size={24} />;
+    case 'speech-round':
+      return <PiChatCircleFill size={24} />;
+    case 'speech-rect':
+      return <PiChatCenteredFill size={24} />;
+    case 'cloud':
+      return <PiCloudFill size={24} />;
+    case 'leaf':
+      return <PiLeafFill size={24} />;
+    case 'blob':
+      return (
+        <svg width={24} height={24} viewBox="0 0 100 100" aria-hidden="true">
+          <path
+            d="M50,4 C72,6 90,22 94,44 C98,66 88,86 70,93 C52,100 30,96 18,82 C6,68 4,46 14,28 C24,10 38,2 50,4 Z"
+            fill="currentColor"
+          />
+        </svg>
+      );
+    case 'checkmark':
+      return <PiCheckBold size={24} />;
+  }
 }
