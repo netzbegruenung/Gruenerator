@@ -1,6 +1,8 @@
-import { FaPuzzlePiece, FaShapes } from 'react-icons/fa';
-import { HiSparkles } from 'react-icons/hi2';
-import { PiFrameCornersFill, PiSmileyWink, PiTagFill } from 'react-icons/pi';
+import { FaPuzzlePiece } from 'react-icons/fa';
+// import { FaShapes } from 'react-icons/fa';
+// import { HiSparkles } from 'react-icons/hi2';
+import { PiTagFill } from 'react-icons/pi';
+// import { PiFrameCornersFill, PiSmileyWink } from 'react-icons/pi';
 import {
   Planet,
   Cat,
@@ -37,54 +39,59 @@ export interface CategoryCardDef {
   ring: string;
 }
 
+const EUCALYPTUS_ICON = 'text-secondary-600 dark:text-secondary-300';
+const EUCALYPTUS_HOVER_SHADOW =
+  'group-hover:shadow-lg group-hover:shadow-secondary-600/50 dark:group-hover:shadow-secondary-300/40';
+const EUCALYPTUS_RING = 'focus-visible:ring-secondary-600/50';
+
 export const CATEGORY_CARDS: CategoryCardDef[] = [
   {
     id: 'grafiken',
     label: 'Grafiken',
     Icon: FaPuzzlePiece,
-    iconColor: 'text-emerald-400 dark:text-emerald-200',
-    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-emerald-400/50 dark:group-hover:shadow-emerald-300/40',
-    ring: 'focus-visible:ring-emerald-400/50',
+    iconColor: EUCALYPTUS_ICON,
+    hoverShadow: EUCALYPTUS_HOVER_SHADOW,
+    ring: EUCALYPTUS_RING,
   },
   {
     id: 'extras',
     label: 'Extras',
     Icon: PiTagFill,
-    iconColor: 'text-amber-400 dark:text-amber-200',
-    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-amber-400/50 dark:group-hover:shadow-amber-300/40',
-    ring: 'focus-visible:ring-amber-400/50',
+    iconColor: EUCALYPTUS_ICON,
+    hoverShadow: EUCALYPTUS_HOVER_SHADOW,
+    ring: EUCALYPTUS_RING,
   },
   {
     id: 'formen',
     label: 'Formen',
     Icon: FaShapes,
-    iconColor: 'text-violet-400 dark:text-violet-200',
-    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-violet-400/50 dark:group-hover:shadow-violet-300/40',
-    ring: 'focus-visible:ring-violet-400/50',
+    iconColor: EUCALYPTUS_ICON,
+    hoverShadow: EUCALYPTUS_HOVER_SHADOW,
+    ring: EUCALYPTUS_RING,
   },
   {
     id: 'rahmen',
     label: 'Rahmen',
     Icon: PiFrameCornersFill,
-    iconColor: 'text-sky-400 dark:text-sky-200',
-    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-sky-400/50 dark:group-hover:shadow-sky-300/40',
-    ring: 'focus-visible:ring-sky-400/50',
+    iconColor: EUCALYPTUS_ICON,
+    hoverShadow: EUCALYPTUS_HOVER_SHADOW,
+    ring: EUCALYPTUS_RING,
   },
   {
     id: 'illustrationen',
     label: 'Illustrationen',
     Icon: PiSmileyWink,
-    iconColor: 'text-rose-400 dark:text-rose-200',
-    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-rose-400/50 dark:group-hover:shadow-rose-300/40',
-    ring: 'focus-visible:ring-rose-400/50',
+    iconColor: EUCALYPTUS_ICON,
+    hoverShadow: EUCALYPTUS_HOVER_SHADOW,
+    ring: EUCALYPTUS_RING,
   },
   {
     id: 'icons',
     label: 'Icons',
     Icon: HiSparkles,
-    iconColor: 'text-yellow-400 dark:text-yellow-200',
-    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-yellow-400/50 dark:group-hover:shadow-yellow-300/40',
-    ring: 'focus-visible:ring-yellow-400/50',
+    iconColor: EUCALYPTUS_ICON,
+    hoverShadow: EUCALYPTUS_HOVER_SHADOW,
+    ring: EUCALYPTUS_RING,
   },
 ];
 
