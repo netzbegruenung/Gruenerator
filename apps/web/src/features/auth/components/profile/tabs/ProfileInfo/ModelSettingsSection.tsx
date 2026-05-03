@@ -2,13 +2,12 @@ import {
   MODEL_OPTIONS,
   REGION_LABELS,
   REGION_ORDER,
-  type ModelIcon,
   type ModelId,
   type ModelOption,
   type ModelRegion,
 } from '@gruenerator/shared/models';
 import { Switch } from '@gruenerator/ui';
-import { Brain, Server, Sparkles, Zap, Info, AlertTriangle } from 'lucide-react';
+import { Info, AlertTriangle } from 'lucide-react';
 import React from 'react';
 
 import { useModelPreferences } from '../../../../../models/hooks/useModelPreferences';
@@ -17,13 +16,6 @@ interface ModelSettingsSectionProps {
   onSuccessMessage: (message: string) => void;
   onErrorMessage: (message: string) => void;
 }
-
-const ICONS: Record<ModelIcon, React.ComponentType<{ className?: string }>> = {
-  sparkles: Sparkles,
-  server: Server,
-  zap: Zap,
-  brain: Brain,
-};
 
 function groupByRegion(models: ModelOption[]): Map<ModelRegion, ModelOption[]> {
   const grouped = new Map<ModelRegion, ModelOption[]>();
@@ -89,7 +81,6 @@ const ModelSettingsSection = React.memo(
 
               <div className="divide-y divide-grey-100 dark:divide-grey-800">
                 {models.map((model) => {
-                  const Icon = ICONS[model.icon];
                   const enabled = preferences[model.id]?.enabled ?? !model.offByDefault;
 
                   return (
@@ -97,7 +88,6 @@ const ModelSettingsSection = React.memo(
                       key={model.id}
                       className="flex items-start gap-md px-md py-sm hover:bg-grey-50 dark:hover:bg-grey-800/30 transition-colors"
                     >
-                      <Icon className="w-4 h-4 mt-0.5 shrink-0 text-grey-400 dark:text-grey-500" />
                       <div className="grow min-w-0">
                         <p className="text-sm font-medium text-foreground">{model.name}</p>
                         <p className="text-xs text-grey-500 dark:text-grey-400">

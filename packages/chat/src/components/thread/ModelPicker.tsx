@@ -12,7 +12,6 @@ import {
 import { useShallow } from 'zustand/shallow';
 import { isModelEnabledByDefault } from '@gruenerator/shared/models';
 
-import { MODEL_ICONS } from '../../lib/modelIcons';
 import { composerToolbarButtonClass } from '../../lib/utils';
 import { MODEL_OPTIONS, useAgentStore, type ModelId } from '../../stores/chatStore';
 import { useModelPreferencesContext } from '../../context/ModelPreferencesContext';
@@ -36,7 +35,6 @@ export const ModelPicker = memo(function ModelPicker() {
 
   const fallback = visibleModels[0] ?? MODEL_OPTIONS[0];
   const current = visibleModels.find((m) => m.id === selectedModel) ?? fallback;
-  const CurrentIcon = MODEL_ICONS[current.icon];
 
   useEffect(() => {
     if (!visibleModels.length) return;
@@ -114,8 +112,7 @@ export const ModelPicker = memo(function ModelPicker() {
             current.warning ? `Modell wählen – ${current.name} (Warnhinweis)` : 'Modell wählen'
           }
         >
-          <CurrentIcon className="h-4 w-4" />
-          <span className="hidden sm:inline">{current.name}</span>
+          <span>{current.name}</span>
           {current.warning && (
             <AlertTriangle
               className="h-3.5 w-3.5 text-amber-600 dark:text-amber-500"
