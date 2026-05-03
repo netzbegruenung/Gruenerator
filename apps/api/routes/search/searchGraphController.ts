@@ -281,7 +281,10 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
     // ── Step 6: Stream AI Response ──
     sse.sendRaw('response_start', { message: 'Erstelle Antwort...' });
 
-    const { model: aiModel } = resolveModel(state.agentConfig);
+    // SearchGraph uses the agent's default (Mistral) — no user model override,
+    // so the overflow alternator never fires and there's no slot to release.
+    const searchRequestId = `search_${Date.now()}`;
+    const { model: aiModel } = await resolveModel(state.agentConfig, undefined, searchRequestId);
     // Cap conversation history to last 4 messages to stay under Mistral's quality threshold (~40k tokens)
     const recentMessages = state.messages.slice(-4);
     const messagesForAI = buildMessagesForAI(state.responseText, recentMessages);
