@@ -33,10 +33,8 @@ export interface CategoryCardDef {
   label: string;
   Icon: IconType;
   iconColor: string;
-  border: string;
-  hoverBorder: string;
+  hoverShadow: string;
   ring: string;
-  anim: string;
 }
 
 export const CATEGORY_CARDS: CategoryCardDef[] = [
@@ -44,61 +42,49 @@ export const CATEGORY_CARDS: CategoryCardDef[] = [
     id: 'grafiken',
     label: 'Grafiken',
     Icon: FaPuzzlePiece,
-    iconColor: 'text-emerald-500 dark:text-emerald-300',
-    border: 'border-emerald-500/60 dark:border-emerald-400/60',
-    hoverBorder: 'group-hover:border-emerald-500 dark:group-hover:border-emerald-400',
-    ring: 'focus-visible:ring-emerald-500/50',
-    anim: 'cat-anim-tilt',
+    iconColor: 'text-emerald-400 dark:text-emerald-200',
+    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-emerald-400/50 dark:group-hover:shadow-emerald-300/40',
+    ring: 'focus-visible:ring-emerald-400/50',
   },
   {
     id: 'extras',
     label: 'Extras',
     Icon: PiTagFill,
-    iconColor: 'text-amber-500 dark:text-amber-300',
-    border: 'border-amber-500/60 dark:border-amber-400/60',
-    hoverBorder: 'group-hover:border-amber-500 dark:group-hover:border-amber-400',
-    ring: 'focus-visible:ring-amber-500/50',
-    anim: 'cat-anim-swing',
+    iconColor: 'text-amber-400 dark:text-amber-200',
+    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-amber-400/50 dark:group-hover:shadow-amber-300/40',
+    ring: 'focus-visible:ring-amber-400/50',
   },
   {
     id: 'formen',
     label: 'Formen',
     Icon: FaShapes,
-    iconColor: 'text-violet-500 dark:text-violet-300',
-    border: 'border-violet-500/60 dark:border-violet-400/60',
-    hoverBorder: 'group-hover:border-violet-500 dark:group-hover:border-violet-400',
-    ring: 'focus-visible:ring-violet-500/50',
-    anim: 'cat-anim-spin',
+    iconColor: 'text-violet-400 dark:text-violet-200',
+    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-violet-400/50 dark:group-hover:shadow-violet-300/40',
+    ring: 'focus-visible:ring-violet-400/50',
   },
   {
     id: 'rahmen',
     label: 'Rahmen',
     Icon: PiFrameCornersFill,
-    iconColor: 'text-sky-500 dark:text-sky-300',
-    border: 'border-sky-500/60 dark:border-sky-400/60',
-    hoverBorder: 'group-hover:border-sky-500 dark:group-hover:border-sky-400',
-    ring: 'focus-visible:ring-sky-500/50',
-    anim: 'cat-anim-pulse',
+    iconColor: 'text-sky-400 dark:text-sky-200',
+    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-sky-400/50 dark:group-hover:shadow-sky-300/40',
+    ring: 'focus-visible:ring-sky-400/50',
   },
   {
     id: 'illustrationen',
     label: 'Illustrationen',
     Icon: PiSmileyWink,
-    iconColor: 'text-rose-500 dark:text-rose-300',
-    border: 'border-rose-500/60 dark:border-rose-400/60',
-    hoverBorder: 'group-hover:border-rose-500 dark:group-hover:border-rose-400',
-    ring: 'focus-visible:ring-rose-500/50',
-    anim: 'cat-anim-wink',
+    iconColor: 'text-rose-400 dark:text-rose-200',
+    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-rose-400/50 dark:group-hover:shadow-rose-300/40',
+    ring: 'focus-visible:ring-rose-400/50',
   },
   {
     id: 'icons',
     label: 'Icons',
     Icon: HiSparkles,
-    iconColor: 'text-yellow-500 dark:text-yellow-300',
-    border: 'border-yellow-500/60 dark:border-yellow-400/60',
-    hoverBorder: 'group-hover:border-yellow-500 dark:group-hover:border-yellow-400',
-    ring: 'focus-visible:ring-yellow-500/50',
-    anim: 'cat-anim-twinkle',
+    iconColor: 'text-yellow-400 dark:text-yellow-200',
+    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-yellow-400/50 dark:group-hover:shadow-yellow-300/40',
+    ring: 'focus-visible:ring-yellow-400/50',
   },
 ];
 
