@@ -21,6 +21,7 @@
   "dependencies": {
     "@assistant-ui/react-markdown": "0.12.9",
     "@gruenerator/collab": "workspace:*",
+    "@gruenerator/shared": "workspace:*",
     "@gruenerator/ui": "workspace:*",
     "@gruenerator/voice": "workspace:*",
     "@hocuspocus/provider": "^3.4.4",

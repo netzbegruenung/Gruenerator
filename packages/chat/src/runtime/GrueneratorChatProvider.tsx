@@ -21,6 +21,7 @@ import {
   RuntimeAdapterProvider,
   ExportedMessageRepository,
 } from '@assistant-ui/react';
+import { type ModelId } from '@gruenerator/shared/models';
 import { createChatApiClient } from '../context/ChatContext';
 import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore, type ChatConfig } from '../stores/chatConfigStore';
@@ -38,6 +39,7 @@ import {
   type ExternalThreadEntry,
 } from './GrueneratorThreadListAdapter';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
+import { ModelPreferencesProvider } from '../context/ModelPreferencesContext';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
 import { chatSuggestions } from '../lib/suggestions';
 import type {
@@ -55,6 +57,7 @@ interface GrueneratorChatProviderProps {
   getExternalThreads?: () => ExternalThreadEntry[];
   onExternalThreadClick?: (externalId: string) => void;
   activePath?: string;
+  enabledModelIds?: ReadonlySet<ModelId> | null;
 }
 
 interface PersistedToolCall {
@@ -383,6 +386,7 @@ export function GrueneratorChatProvider({
   getExternalThreads,
   onExternalThreadClick,
   activePath,
+  enabledModelIds,
 }: GrueneratorChatProviderProps) {
   // Sync config store during render (before any hooks read from it).
   // useEffect runs AFTER render, which creates a race: providerApiClient
@@ -413,19 +417,25 @@ export function GrueneratorChatProvider({
   }, []);
 
   if (!userId) {
-    return <>{children}</>;
+    return (
+      <ModelPreferencesProvider enabledModelIds={enabledModelIds}>
+        {children}
+      </ModelPreferencesProvider>
+    );
   }
 
   return (
-    <GrueneratorChatRuntimeProvider
-      userId={userId}
-      userName={userName}
-      getExternalThreads={getExternalThreads}
-      onExternalThreadClick={onExternalThreadClick}
-      activePath={activePath}
-    >
-      {children}
-    </GrueneratorChatRuntimeProvider>
+    <ModelPreferencesProvider enabledModelIds={enabledModelIds}>
+      <GrueneratorChatRuntimeProvider
+        userId={userId}
+        userName={userName}
+        getExternalThreads={getExternalThreads}
+        onExternalThreadClick={onExternalThreadClick}
+        activePath={activePath}
+      >
+        {children}
+      </GrueneratorChatRuntimeProvider>
+    </ModelPreferencesProvider>
   );
 }
 
