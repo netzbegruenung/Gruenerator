@@ -73,6 +73,21 @@ export interface CanvasEditorServices {
   /** Open Unsplash search in browser */
   openUnsplashSearch?: (query: string) => void;
 
+  /**
+   * Generate a background image from a text prompt via the host's AI image
+   * pipeline. The host is expected to wrap an authenticated endpoint that
+   * enforces per-user quota; the returned `remaining` is surfaced in the UI.
+   * When omitted, the AI subsection is hidden.
+   */
+  generateAiBackgroundImage?: (
+    prompt: string,
+    opts: {
+      variant: 'illustration' | 'realistic' | 'pixel';
+      width?: number;
+      height?: number;
+    }
+  ) => Promise<{ file: File; remaining: number | null }>;
+
   /** Social post generation hook factory */
   useGenerateSocialPost?: () => {
     generatedPosts: Record<string, unknown>;
