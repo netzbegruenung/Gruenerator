@@ -287,6 +287,13 @@ export class SSEWriter {
     if (this.ended) return;
     this.ended = true;
     this.res.end();
+    // @ts-rest/express's mainReqHandler unconditionally calls
+    // res.status(...).json(...) after our handler resolves, which throws
+    // ERR_HTTP_HEADERS_SENT once SSE headers are already flushed. Neutralise
+    // the response writers so the wrapper's trailing call is a no-op.
+    const noop = (): Response => this.res;
+    this.res.json = noop;
+    this.res.send = noop;
   }
 
   /**

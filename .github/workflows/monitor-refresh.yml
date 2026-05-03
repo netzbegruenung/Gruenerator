@@ -23,28 +23,86 @@ jobs:
       - name: Trigger refresh
         id: refresh
         continue-on-error: true
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: |
-          echo "Triggering monitor refresh at $API_URL..."
-          RESULT=$(curl -sf -X POST "$API_URL/api/internal/monitor/refresh" \
-            -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
-            --max-time 600)
+          if [ -z "$ADMIN_TOKEN" ]; then
+            echo "::error::ADMIN_TOKEN repository secret is empty or unset."
+            echo "status=missing-secret" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
 
-          echo "$RESULT" | jq .
-          echo "result<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$RESULT" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "Triggering monitor refresh at $API_URL..."
+          HTTP_CODE=$(curl -s -o /tmp/refresh-body -w '%{http_code}' \
+            -X POST "$API_URL/api/internal/monitor/refresh" \
+            -H "x-admin-token: $ADMIN_TOKEN" \
+            --max-time 600 || echo "000")
+
+          BODY=$(cat /tmp/refresh-body 2>/dev/null || echo "")
+          echo "HTTP $HTTP_CODE"
+          echo "$BODY" | jq . 2>/dev/null || echo "$BODY"
+
+          {
+            echo "status=$HTTP_CODE"
+            echo "result<<EOF"
+            echo "$BODY"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            exit 1
+          fi
 
       - name: Generate summary
         if: always()
         run: |
+          STATUS='${{ steps.refresh.outputs.status }}'
           RESULT='${{ steps.refresh.outputs.result }}'
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          REPO="${{ github.repository }}"
 
-          if [ -z "$RESULT" ] || [ "$RESULT" = "" ]; then
+          if [ "$STATUS" = "missing-secret" ]; then
             {
-              echo "## :x: Monitor Refresh — No Result"
+              echo "## :x: Monitor Refresh — ADMIN_TOKEN missing"
               echo ""
-              echo "The refresh endpoint did not return a result. Check the [workflow logs]($RUN_URL)."
+              echo "The \`ADMIN_TOKEN\` repository secret is empty or unset."
+              echo "Set it with: \`gh secret set ADMIN_TOKEN --repo $REPO\`"
+              echo "(value must match \`env.ADMIN_TOKEN\` on the server at $API_URL)"
+              echo ""
+              echo "[Workflow logs]($RUN_URL)"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$STATUS" = "403" ]; then
+            {
+              echo "## :x: Monitor Refresh — Auth rejected (HTTP 403)"
+              echo ""
+              echo "The API rejected the admin token. The \`ADMIN_TOKEN\` GitHub secret does not match the server's \`env.ADMIN_TOKEN\` at $API_URL."
+              echo ""
+              echo "[Workflow logs]($RUN_URL)"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$STATUS" = "000" ] || [ -z "$STATUS" ]; then
+            {
+              echo "## :x: Monitor Refresh — Network failure"
+              echo ""
+              echo "Could not reach $API_URL (timeout, DNS, or TLS error)."
+              echo ""
+              echo "[Workflow logs]($RUN_URL)"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          if [ "$STATUS" != "200" ]; then
+            {
+              echo "## :x: Monitor Refresh — HTTP $STATUS"
+              echo ""
+              echo "Refresh endpoint at $API_URL returned an unexpected status."
+              echo ""
+              echo "[Workflow logs]($RUN_URL)"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi

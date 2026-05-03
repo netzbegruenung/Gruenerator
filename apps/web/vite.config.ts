@@ -100,8 +100,16 @@ export default defineConfig(({ command }) => ({
       '@mdxeditor/editor',
       '@assistant-ui/react',
       'recharts',
+      'motion',
+      'motion/react',
+      'react-markdown',
+      'lucide-react',
     ],
-    exclude: ['motion', 'browser-image-compression', '@imgly/background-removal'],
+    // Keep heavy/native-binary deps out of prebundling — they handle their
+    // own ESM and break esbuild's transformer (onnxruntime ships .wasm,
+    // imgly ships ONNX models, browser-image-compression uses dynamic
+    // workers).
+    exclude: ['browser-image-compression', '@imgly/background-removal', 'onnxruntime-web'],
     rolldownOptions: {
       transform: {
         define: {},
