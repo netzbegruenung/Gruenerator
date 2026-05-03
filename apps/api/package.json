@@ -39,7 +39,8 @@
     "update:all:dry-run": "cross-env NODE_OPTIONS=--conditions=development npx tsx update-all-content.ts --dry-run",
     "export:finetuning": "cross-env NODE_OPTIONS=--conditions=development npx tsx scripts/exportFineTuningData.ts",
     "export:finetuning:dry-run": "cross-env NODE_OPTIONS=--conditions=development npx tsx scripts/exportFineTuningData.ts --dry-run",
-    "export:finetuning:test": "cross-env NODE_OPTIONS=--conditions=development npx tsx scripts/exportFineTuningData.ts --limit 10"
+    "export:finetuning:test": "cross-env NODE_OPTIONS=--conditions=development npx tsx scripts/exportFineTuningData.ts --limit 10",
+    "mint-api-key": "cross-env NODE_OPTIONS=--conditions=development npx tsx scripts/mintApiKey.ts"
   },
   "keywords": [],
   "author": "",
