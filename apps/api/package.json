@@ -24,7 +24,6 @@
     "start:hocuspocus": "cross-env NODE_OPTIONS=--conditions=development npx tsx ../../services/hocuspocus/src/index.ts",
     "start:prod": "cross-env NODE_ENV=production npm run start:backend",
     "test:embedding": "node scripts/testEmbedding.mjs",
-    "download-whisper": "npx nodejs-whisper download",
     "offboarding": "node scripts/offboarding-cron.js",
     "offboarding:status": "node -e \"require('./services/offboardingService').OffboardingService.validateConfig(); console.log('✓ Offboarding configuration is valid');\"",
     "backfill:previews": "node scripts/backfillContentPreviews.mjs",
