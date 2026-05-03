@@ -98,6 +98,13 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
 
   const { autoSaveStatus } = useAutoSaveStore();
 
+  console.log('[AutoSave][TemplateResultStep] render', {
+    type,
+    editShareToken,
+    galleryEditMode,
+    autoSaveStatus,
+  });
+
   const { isCreating: isUpdating } = useShareStore();
   const typeConfig = useMemo(() => (type ? getTypeConfig(type) : null), [type]);
   const fieldConfig = useMemo(() => (type ? getTemplateFieldConfig(type) : null), [type]);

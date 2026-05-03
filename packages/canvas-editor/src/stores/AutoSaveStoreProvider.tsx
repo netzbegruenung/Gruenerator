@@ -27,6 +27,10 @@ export function AutoSaveStoreProvider({
 }) {
   const storeRef = useRef<AutoSaveStoreApi | null>(null);
   if (!storeRef.current) {
+    console.log('[AutoSave][Provider] mount', {
+      initialShareTokenProp: initialShareToken,
+      seededWith: initialShareToken ?? null,
+    });
     storeRef.current = createAutoSaveStore({ initialShareToken });
   }
   return (
