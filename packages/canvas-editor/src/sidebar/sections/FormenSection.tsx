@@ -15,7 +15,7 @@ import {
   PiLeafFill,
 } from 'react-icons/pi';
 
-import { ALL_SHAPES, EUCALYPTUS, type ShapeType } from '../../utils/shapes';
+import { EUCALYPTUS, getShapeDef, type ShapeType } from '../../utils/shapes';
 import { CARD_GRID, CARD_PREVIEW, SELECTABLE_CARD, SIDEBAR_SECTION } from '../primitives';
 
 import { cn } from '../../utils/cn';
@@ -26,13 +26,11 @@ export interface FormenSectionProps {
   searchQuery?: string;
 }
 
-interface ShapeDefinition {
-  id: ShapeType;
+interface ShapeDefinition<T extends ShapeType = ShapeType> {
+  id: T;
   title: string;
   renderPreview: () => React.ReactNode;
 }
-
-const SHAPE_DEF_MAP = new Map(ALL_SHAPES.map((s) => [s.id, s]));
 
 const PreviewSvg = ({
   children,
@@ -53,41 +51,47 @@ const PreviewSvg = ({
   </svg>
 );
 
-const SHAPES: ShapeDefinition[] = [
-  {
+/**
+ * Source of truth for the Formen palette. Typed as `{ [K in ShapeType]: ShapeDefinition<K> }`
+ * so adding a new ShapeType without registering a preview is a compile error.
+ * Object key insertion order is the palette display order — first COLLAPSED_COUNT entries
+ * are visible in the mobile collapsed view.
+ */
+const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
+  rect: {
     id: 'rect',
     title: 'Rechteck hinzufügen',
     renderPreview: () => <div className="w-[32px] h-[32px] bg-[var(--font-color)] shrink-0" />,
   },
-  {
+  'rounded-rect': {
     id: 'rounded-rect',
     title: 'Abgerundetes Rechteck hinzufügen',
     renderPreview: () => (
       <div className="w-[32px] h-[32px] bg-[var(--font-color)] shrink-0 rounded-[8px]" />
     ),
   },
-  {
+  circle: {
     id: 'circle',
     title: 'Kreis hinzufügen',
     renderPreview: () => (
       <div className="w-[32px] h-[32px] bg-[var(--font-color)] shrink-0 rounded-full" />
     ),
   },
-  {
+  ellipse: {
     id: 'ellipse',
     title: 'Ellipse hinzufügen',
     renderPreview: () => (
       <div className="w-[32px] h-[20px] bg-[var(--font-color)] shrink-0 rounded-full" />
     ),
   },
-  {
+  ring: {
     id: 'ring',
     title: 'Ring hinzufügen',
     renderPreview: () => (
       <div className="w-[32px] h-[32px] shrink-0 rounded-full border-[6px] border-[var(--font-color)]" />
     ),
   },
-  {
+  triangle: {
     id: 'triangle',
     title: 'Dreieck hinzufügen',
     renderPreview: () => (
@@ -101,12 +105,12 @@ const SHAPES: ShapeDefinition[] = [
       />
     ),
   },
-  {
+  diamond: {
     id: 'diamond',
     title: 'Raute hinzufügen',
     renderPreview: () => <PiDiamondFill size={32} />,
   },
-  {
+  pentagon: {
     id: 'pentagon',
     title: 'Fünfeck hinzufügen',
     renderPreview: () => (
@@ -115,27 +119,27 @@ const SHAPES: ShapeDefinition[] = [
       </PreviewSvg>
     ),
   },
-  {
+  hexagon: {
     id: 'hexagon',
     title: 'Sechseck hinzufügen',
     renderPreview: () => <PiHexagonFill size={32} />,
   },
-  {
+  arrow: {
     id: 'arrow',
     title: 'Pfeil hinzufügen',
     renderPreview: () => <PiArrowRightBold size={32} />,
   },
-  {
+  chevron: {
     id: 'chevron',
     title: 'Chevron hinzufügen',
     renderPreview: () => <PiCaretRightBold size={32} />,
   },
-  {
+  'double-arrow': {
     id: 'double-arrow',
     title: 'Doppelpfeil hinzufügen',
     renderPreview: () => <PiArrowsLeftRightBold size={32} />,
   },
-  {
+  wavy: {
     id: 'wavy',
     title: 'Wellenlinie hinzufügen',
     renderPreview: () => (
@@ -147,7 +151,7 @@ const SHAPES: ShapeDefinition[] = [
       </PreviewSvg>
     ),
   },
-  {
+  line: {
     id: 'line',
     title: 'Linie hinzufügen',
     renderPreview: () => (
@@ -156,7 +160,7 @@ const SHAPES: ShapeDefinition[] = [
       </svg>
     ),
   },
-  {
+  'line-thick': {
     id: 'line-thick',
     title: 'Dicke Linie hinzufügen',
     renderPreview: () => (
@@ -165,7 +169,7 @@ const SHAPES: ShapeDefinition[] = [
       </svg>
     ),
   },
-  {
+  'line-dashed': {
     id: 'line-dashed',
     title: 'Gestrichelte Linie hinzufügen',
     renderPreview: () => (
@@ -183,7 +187,7 @@ const SHAPES: ShapeDefinition[] = [
       </svg>
     ),
   },
-  {
+  'line-dotted': {
     id: 'line-dotted',
     title: 'Gepunktete Linie hinzufügen',
     renderPreview: () => (
@@ -201,7 +205,7 @@ const SHAPES: ShapeDefinition[] = [
       </svg>
     ),
   },
-  {
+  'line-double': {
     id: 'line-double',
     title: 'Doppellinie hinzufügen',
     renderPreview: () => (
@@ -211,7 +215,7 @@ const SHAPES: ShapeDefinition[] = [
       </svg>
     ),
   },
-  {
+  'line-arrow': {
     id: 'line-arrow',
     title: 'Linie mit Pfeil hinzufügen',
     renderPreview: () => (
@@ -221,42 +225,42 @@ const SHAPES: ShapeDefinition[] = [
       </svg>
     ),
   },
-  {
+  star: {
     id: 'star',
     title: 'Stern hinzufügen',
     renderPreview: () => <PiStarFill size={32} />,
   },
-  {
+  sparkle: {
     id: 'sparkle',
     title: 'Funkeln hinzufügen',
     renderPreview: () => <PiSparkleFill size={32} />,
   },
-  {
+  heart: {
     id: 'heart',
     title: 'Herz hinzufügen',
     renderPreview: () => <PiHeartFill size={32} />,
   },
-  {
+  'speech-round': {
     id: 'speech-round',
     title: 'Sprechblase hinzufügen',
     renderPreview: () => <PiChatCircleFill size={32} />,
   },
-  {
+  'speech-rect': {
     id: 'speech-rect',
     title: 'Eckige Sprechblase hinzufügen',
     renderPreview: () => <PiChatCenteredFill size={32} />,
   },
-  {
+  cloud: {
     id: 'cloud',
     title: 'Wolke hinzufügen',
     renderPreview: () => <PiCloudFill size={32} />,
   },
-  {
+  leaf: {
     id: 'leaf',
     title: 'Blatt hinzufügen',
     renderPreview: () => <PiLeafFill size={32} />,
   },
-  {
+  blob: {
     id: 'blob',
     title: 'Blob hinzufügen',
     renderPreview: () => (
@@ -265,13 +269,14 @@ const SHAPES: ShapeDefinition[] = [
       </PreviewSvg>
     ),
   },
-  {
+  checkmark: {
     id: 'checkmark',
     title: 'Häkchen hinzufügen',
     renderPreview: () => <PiCheckBold size={32} />,
   },
-];
+};
 
+const SHAPES: ReadonlyArray<ShapeDefinition> = Object.values(SHAPE_PREVIEWS);
 const COLLAPSED_COUNT = 6;
 
 export function FormenSection({
@@ -281,15 +286,11 @@ export function FormenSection({
 }: FormenSectionProps) {
   const visibleShapes = useMemo(() => {
     const base = isExpanded ? SHAPES : SHAPES.slice(0, COLLAPSED_COUNT);
-    if (!searchQuery.trim()) return base;
-    const q = searchQuery.toLowerCase();
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return base;
     return base.filter((shape) => {
-      const shapeDef = SHAPE_DEF_MAP.get(shape.id);
-      if (!shapeDef) return false;
-      return (
-        shapeDef.name.toLowerCase().includes(q) ||
-        shapeDef.tags.some((tag) => tag.toLowerCase().includes(q))
-      );
+      const def = getShapeDef(shape.id);
+      return def.name.toLowerCase().includes(q) || def.tags.some((tag) => tag.toLowerCase().includes(q));
     });
   }, [isExpanded, searchQuery]);
 

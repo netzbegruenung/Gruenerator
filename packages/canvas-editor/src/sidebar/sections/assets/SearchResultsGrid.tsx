@@ -23,11 +23,12 @@ import {
   getIllustrationPath,
   getIllustrationThumbPath,
 } from '../../../utils/illustrations/registry';
-import { EUCALYPTUS } from '../../../utils/shapes';
+import { assertNever, EUCALYPTUS } from '../../../utils/shapes';
 import { CARD_GRID, SELECTABLE_CARD } from '../../primitives';
 
 import { PREVIEW_COMPONENTS } from './constants';
 
+import type React from 'react';
 import type { SearchResult } from './useAssetSearch';
 import type { FrameClipType } from '../../../utils/frameUtils';
 import type { KawaiiDef, SvgDef } from '../../../utils/illustrations/types';
@@ -227,7 +228,7 @@ export function SearchResultsGrid({
 
 // --- Shape preview (used inside search results) ---
 
-function ShapeSearchPreview({ type }: { type: ShapeType }) {
+function ShapeSearchPreview({ type }: { type: ShapeType }): React.ReactElement {
   switch (type) {
     case 'rect':
       return <div className="formen-preview formen-preview--rect" />;
@@ -346,5 +347,7 @@ function ShapeSearchPreview({ type }: { type: ShapeType }) {
           <polygon points="78,1 98,6 78,11" fill={EUCALYPTUS} />
         </svg>
       );
+    default:
+      return assertNever(type);
   }
 }

@@ -2,12 +2,15 @@ import { type IconDef } from './canvasIcons';
 import { type IllustrationDef } from './illustrations/types';
 import { getEnglishSearchTerms } from './searchTranslations';
 
-export function matchesQuery(query: string, ...fields: (string | string[] | undefined)[]): boolean {
+export function matchesQuery(
+  query: string,
+  ...fields: (string | readonly string[] | undefined)[]
+): boolean {
   const q = query.toLowerCase();
   return fields.some((field) => {
     if (!field) return false;
-    if (Array.isArray(field)) return field.some((t) => t.toLowerCase().includes(q));
-    return field.toLowerCase().includes(q);
+    if (typeof field === 'string') return field.toLowerCase().includes(q);
+    return field.some((t) => t.toLowerCase().includes(q));
   });
 }
 
