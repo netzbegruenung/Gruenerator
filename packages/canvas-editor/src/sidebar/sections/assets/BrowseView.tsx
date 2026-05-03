@@ -36,7 +36,8 @@ import { cn } from '../../../utils/cn';
 // --- Sub-components ---
 
 function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick: () => void }) {
-  const { Icon, label, iconColor, hoverShadow, ring } = card;
+  const { Icon, IconComponent, image, maskImage, label, iconColor, hoverShadow, ring } = card;
+  const usesIconColor = !image && !maskImage && !IconComponent;
   return (
     <button
       type="button"
@@ -49,20 +50,40 @@ function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick:
     >
       <div
         className={cn(
-          'flex items-center justify-center size-12 rounded-full',
-          'bg-background-pure dark:bg-grey-700',
-          'shadow-sm dark:shadow-none',
+          'flex items-center justify-center size-20 rounded-full bg-transparent',
           'transition-[box-shadow] duration-200 ease-out',
           hoverShadow,
         )}
       >
         <span
           className={cn(
-            'text-lg inline-flex transition-transform duration-200 ease-out group-hover:scale-110',
-            iconColor,
+            'inline-flex items-center justify-center transition-transform duration-200 ease-out group-hover:scale-[1.04]',
+            usesIconColor && 'text-3xl',
+            usesIconColor && iconColor,
           )}
         >
-          <Icon />
+          {image ? (
+            <img src={image} alt="" className="size-12 object-contain" />
+          ) : maskImage ? (
+            <span
+              aria-hidden
+              className="block size-12 bg-secondary-600 dark:bg-secondary-300"
+              style={{
+                WebkitMaskImage: `url(${maskImage})`,
+                maskImage: `url(${maskImage})`,
+                WebkitMaskSize: 'contain',
+                maskSize: 'contain',
+                WebkitMaskRepeat: 'no-repeat',
+                maskRepeat: 'no-repeat',
+                WebkitMaskPosition: 'center',
+                maskPosition: 'center',
+              }}
+            />
+          ) : IconComponent ? (
+            <IconComponent size={48} />
+          ) : (
+            <Icon />
+          )}
         </span>
       </div>
       <span className="text-xs text-foreground text-center leading-tight max-w-20">
@@ -227,10 +248,7 @@ export function BrowseView(props: BrowseViewProps) {
   const hasAssetsFeature = sectionProps.onAddAsset !== undefined;
   const hasIconsFeature =
     sectionProps.selectedIcons !== undefined && sectionProps.onIconToggle !== undefined;
-  const hasBadgesFeature =
-    sectionProps.onAddPillBadge !== undefined ||
-    sectionProps.onAddCircleBadge !== undefined ||
-    sectionProps.onAddBalken !== undefined;
+  const hasBalkenFeature = sectionProps.onAddBalken !== undefined;
   const hasShapesFeature = sectionProps.onAddShape !== undefined;
   const hasIllustrationsFeature = sectionProps.onAddIllustration !== undefined;
   const hasFramesFeature = sectionProps.onAddFrame !== undefined;
@@ -243,7 +261,7 @@ export function BrowseView(props: BrowseViewProps) {
   const availableCategories = useMemo(() => {
     const featureMap: Record<string, boolean> = {
       grafiken: hasAssetsFeature,
-      extras: hasBadgesFeature,
+      extras: hasBalkenFeature,
       formen: hasShapesFeature,
       rahmen: hasFramesFeature,
       illustrationen: hasIllustrationsFeature,
@@ -252,7 +270,7 @@ export function BrowseView(props: BrowseViewProps) {
     return CATEGORY_CARDS.filter((card) => featureMap[card.id]);
   }, [
     hasAssetsFeature,
-    hasBadgesFeature,
+    hasBalkenFeature,
     hasShapesFeature,
     hasFramesFeature,
     hasIllustrationsFeature,
@@ -386,7 +404,7 @@ export function BrowseView(props: BrowseViewProps) {
     const categoryLabel = CATEGORY_CARDS.find((c) => c.id === activeView)?.label ?? '';
 
     return (
-      <div className="flex flex-col gap-2 w-full min-w-[260px]">
+      <div className="flex flex-col gap-2 w-full min-w-0">
         <DrillDownHeader label={categoryLabel} onBack={() => setActiveView('browse')} />
 
         {activeView !== 'extras' && (
@@ -405,12 +423,8 @@ export function BrowseView(props: BrowseViewProps) {
           />
         )}
 
-        {activeView === 'extras' && hasBadgesFeature && (
-          <BadgeSection
-            onAddPillBadge={sectionProps.onAddPillBadge}
-            onAddCircleBadge={sectionProps.onAddCircleBadge}
-            onAddBalken={sectionProps.onAddBalken}
-          />
+        {activeView === 'extras' && hasBalkenFeature && (
+          <BadgeSection onAddBalken={sectionProps.onAddBalken} />
         )}
 
         {activeView === 'formen' && hasShapesFeature && (
