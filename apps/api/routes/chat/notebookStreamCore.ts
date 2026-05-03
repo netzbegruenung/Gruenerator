@@ -260,9 +260,13 @@ export async function handleNotebookStream(
 
     // Determine AI provider and model (same resolution as chat — handles model ID → real name)
     const defaultAgentConfig = { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL };
-    const primaryResolution = resolveModel(defaultAgentConfig, model);
+    const notebookRequestId = `notebook_${Date.now()}`;
+    const primaryResolution = await resolveModel(defaultAgentConfig, model, notebookRequestId);
 
     if (!isProviderConfigured(primaryResolution.provider)) {
+      // If we acquired the Verdigado slot but can't actually use the resolution,
+      // release it so the next request isn't blocked.
+      if (primaryResolution.releaseSlot) await primaryResolution.releaseSlot();
       sse.send('error', { error: `Provider "${primaryResolution.provider}" is not configured` });
       if (options.closeStream !== false) sse.end();
       return null;
@@ -289,23 +293,30 @@ export async function handleNotebookStream(
 
     sse.send('response_start', { message: 'Generiere Antwort...' });
 
-    const fullText = await streamWithFallback({
-      primary: primaryResolution,
-      sse,
-      logPrefix: '[Notebook]',
-      buildStream: async (resolution) => {
-        const isReasoning = isRegoloReasoningModel(resolution.provider, resolution.modelName);
-        return streamForResolution({
-          resolution,
-          messages: aiMessages,
-          maxTokens: isReasoning ? Math.max(baseMaxOutput, 9000) : baseMaxOutput,
-          temperature: 0.2,
-          sse,
-          signal: abortController.signal,
-          logPrefix: '[Notebook]',
-        });
-      },
-    });
+    let fullText: string | null;
+    try {
+      fullText = await streamWithFallback({
+        primary: primaryResolution,
+        sse,
+        logPrefix: '[Notebook]',
+        buildStream: async (resolution) => {
+          const isReasoning = isRegoloReasoningModel(resolution.provider, resolution.modelName);
+          return streamForResolution({
+            resolution,
+            messages: aiMessages,
+            maxTokens: isReasoning ? Math.max(baseMaxOutput, 9000) : baseMaxOutput,
+            temperature: 0.2,
+            sse,
+            signal: abortController.signal,
+            logPrefix: '[Notebook]',
+          });
+        },
+      });
+    } finally {
+      if (primaryResolution.releaseSlot) {
+        await primaryResolution.releaseSlot();
+      }
+    }
 
     if (fullText === null) {
       log.debug(`⏱ Total (stream failed): ${Date.now() - t0}ms`);

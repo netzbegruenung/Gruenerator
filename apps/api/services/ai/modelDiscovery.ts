@@ -35,6 +35,11 @@ const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision:
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: false },
   'mistral-small-2503': { name: 'Mistral Small (Vision)', reasoning: false, vision: true },
   'gemma4-31b': { name: 'Gemma 4 31B', reasoning: false, vision: true },
+  // Verdigado/LiteLLM serves Gemma 4 under the bare alias 'gemma' (resolves
+  // server-side to gemma4:26b-ctx16k). Without this entry, isVisionCapable
+  // would return false and the vision-override would hijack every image
+  // request on the gemma-4 overflow lane to Regolo, defeating alternation.
+  gemma: { name: 'Gemma 4', reasoning: false, vision: true },
   'mistral-medium-latest': { name: 'Mistral Medium', reasoning: false, vision: false },
   'pixtral-large-latest': { name: 'Pixtral Large', reasoning: false, vision: true },
   'gpt-oss-120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
