@@ -27,6 +27,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } fro
 import { FiClock, FiCloud, FiDownload, FiShare2, FiSidebar, FiX } from 'react-icons/fi';
 import { PiSun, PiMoon } from 'react-icons/pi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { z } from 'zod';
 
 import useDarkMode from '../../components/hooks/useDarkMode';
 import { useAuth } from '../../hooks/useAuth';
@@ -62,21 +63,23 @@ const GUEST_COLORS = [
   '#52B788',
 ];
 
-interface GuestIdentity {
-  guestId: string;
-  guestName: string;
-  guestColor: string;
-  guestAnimalIndex: number;
-}
+const guestIdentitySchema = z.object({
+  guestId: z.string(),
+  guestName: z.string(),
+  guestColor: z.string(),
+  guestAnimalIndex: z.number(),
+});
+
+type GuestIdentity = z.infer<typeof guestIdentitySchema>;
 
 function getOrCreateGuestIdentity(): GuestIdentity {
   const stored = localStorage.getItem('docs-guest-identity');
   if (stored) {
     try {
-      const parsed = JSON.parse(stored) as GuestIdentity;
-      if (parsed.guestAnimalIndex !== undefined) return parsed;
+      const parsed = guestIdentitySchema.safeParse(JSON.parse(stored));
+      if (parsed.success) return parsed.data;
     } catch {
-      /* regenerate */
+      /* malformed JSON — fall through to regenerate */
     }
   }
 
