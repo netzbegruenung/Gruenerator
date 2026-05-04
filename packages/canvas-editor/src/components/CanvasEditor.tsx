@@ -603,10 +603,16 @@ function CanvasEditorInner({
   const activeActions = activeData?.actions ?? null;
   const activeSelectedElement = activeData?.selectedElement ?? null;
 
-  // Compute visible tabs for active config
+  // Compute visible tabs for active config.
+  // Always call getVisibleTabs when defined — gating on `activeState` causes a
+  // sticky stale-render after slide switches: the previous slide's PageWrapper
+  // callback owns `activePageData`, so `activeState` collapses to null until
+  // the new slide re-reports state, falling through to the unfiltered `tabs:`
+  // list (which intentionally contains hidden entries like `settings`/
+  // `frame-settings` for `getAutoSwitchTab` to target).
   const visibleTabs = useMemo(() => {
     if (!activeConfig) return [];
-    if (activeConfig.getVisibleTabs && activeState) {
+    if (activeConfig.getVisibleTabs) {
       const visibleIds = activeConfig.getVisibleTabs(activeState, {
         selectedElement: activeSelectedElement,
       });
