@@ -11,6 +11,11 @@
  * and frontend form validation.
  */
 
+// ── ts-rest core utilities re-exported for frontend client construction ─────
+// Frontends import `initClient` from here instead of taking a direct
+// `@ts-rest/core` dependency. The contracts package already has it.
+export { initClient, type ClientInferRequest, type ClientInferResponses } from '@ts-rest/core';
+
 // ── Contracts ───────────────────────────────────────────────────────────────
 export {
   threadsContract,

@@ -18,18 +18,20 @@ import {
   type ChatRequestContext,
   type GrueneratorAdapterConfig,
 } from '@gruenerator/chat';
+import {
+  chatThreadResponseSchema,
+  type ChatThreadResponse,
+} from '@gruenerator/contracts';
 import { useEditorStore } from '@gruenerator/docs';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useMemo, useRef } from 'react';
+import { z } from 'zod';
 
 interface DocsAssistantChatProps {
   documentId: string;
   userId: string | null;
   userName: string | null;
-}
-
-interface ChatThreadResponse {
-  threadId: string;
 }
 
 /**
@@ -68,14 +70,20 @@ function DocsAssistantChatInner({
   userId: string;
   userName: string | null;
 }) {
-  const fetchFn = useChatConfigStore((s) => s.fetch);
-
   const { data: threadResp } = useQuery<ChatThreadResponse>({
     queryKey: ['docs', documentId, 'chat-thread'],
     queryFn: async () => {
-      const res = await fetchFn(`/api/docs/${documentId}/chat-thread`);
-      if (!res.ok) throw new Error(`Chat thread lookup failed: ${res.status}`);
-      return (await res.json()) as ChatThreadResponse;
+      // Typed ts-rest client — auth via shared axios interceptors. The Zod
+      // parse below is defense-in-depth: ts-rest's default config does not
+      // validate responses, so a backend shape regression would otherwise
+      // pass through silently.
+      const result = await getContractsClient().docs.getChatThread({
+        params: { id: documentId },
+      });
+      if (result.status !== 200) {
+        throw new Error(`Chat thread lookup failed: ${result.status}`);
+      }
+      return chatThreadResponseSchema.parse(result.body);
     },
     staleTime: 5 * 60_000,
   });
@@ -101,12 +109,20 @@ function DocsAssistantChatInner({
   );
 }
 
-interface LoadedMessageShape {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  metadata?: Record<string, unknown>;
-}
+/**
+ * Wire format for thread messages from /api/chat/messages. Validates the
+ * structural skeleton (id/role/content). Metadata is permissive because the
+ * package's `convertToThreadMessageLike` reads only specific optional fields
+ * (intent, citations, toolCalls, ...) and ignores the rest.
+ */
+const loadedMessageSchema = z.object({
+  id: z.string(),
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+const loadedMessagesSchema = z.array(loadedMessageSchema);
 
 function DocsAssistantThreadShell({
   threadId,
@@ -132,11 +148,12 @@ function DocsAssistantThreadShell({
     queryFn: async () => {
       const res = await fetchFn(`${endpoints.messages}?threadId=${threadId}`);
       if (!res.ok) return [];
-      const raw = (await res.json()) as LoadedMessageShape[];
-      // convertToThreadMessageLike expects the package's LoadedMessage shape;
-      // the wire format matches structurally (id/role/content/metadata).
+      const parsed = loadedMessagesSchema.parse(await res.json());
+      // The converter's `LoadedMessage.metadata` is a typed object with specific
+      // optional fields (not exported by @gruenerator/chat), so we cast on the
+      // already-validated value rather than redefining internal types here.
       return convertToThreadMessageLike(
-        raw as unknown as Parameters<typeof convertToThreadMessageLike>[0]
+        parsed as Parameters<typeof convertToThreadMessageLike>[0]
       );
     },
     staleTime: 30_000,
@@ -174,7 +191,7 @@ function DocsAssistantThreadShell({
   const getConfig = useMemo<() => GrueneratorAdapterConfig>(
     () => () => ({
       agentId: 'gruenerator-universal',
-      modelId: 'gemma-litellm',
+      modelId: 'gemma-4',
       enabledTools: { search: true, web: true, examples: true, research: true },
       threadId: threadIdRef.current,
       threadMode: 'chat',
