@@ -21,16 +21,11 @@ import {
   RuntimeAdapterProvider,
   ExportedMessageRepository,
 } from '@assistant-ui/react';
+import { type ModelId } from '@gruenerator/shared/models';
 import { createChatApiClient } from '../context/ChatContext';
 import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore, type ChatConfig } from '../stores/chatConfigStore';
 import { getDefaultAgent } from '../lib/agents';
-import {
-  setCustomAgents,
-  setBoardMentionables,
-  setDocMentionables,
-  type CustomAgentMentionable,
-} from '../lib/mentionables';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
 import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
@@ -44,6 +39,7 @@ import {
   type ExternalThreadEntry,
 } from './GrueneratorThreadListAdapter';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
+import { ModelPreferencesProvider } from '../context/ModelPreferencesContext';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
 import { chatSuggestions } from '../lib/suggestions';
 import type {
@@ -61,6 +57,7 @@ interface GrueneratorChatProviderProps {
   getExternalThreads?: () => ExternalThreadEntry[];
   onExternalThreadClick?: (externalId: string) => void;
   activePath?: string;
+  enabledModelIds?: ReadonlySet<ModelId> | null;
 }
 
 interface PersistedToolCall {
@@ -389,6 +386,7 @@ export function GrueneratorChatProvider({
   getExternalThreads,
   onExternalThreadClick,
   activePath,
+  enabledModelIds,
 }: GrueneratorChatProviderProps) {
   // Sync config store during render (before any hooks read from it).
   // useEffect runs AFTER render, which creates a race: providerApiClient
@@ -419,19 +417,25 @@ export function GrueneratorChatProvider({
   }, []);
 
   if (!userId) {
-    return <>{children}</>;
+    return (
+      <ModelPreferencesProvider enabledModelIds={enabledModelIds}>
+        {children}
+      </ModelPreferencesProvider>
+    );
   }
 
   return (
-    <GrueneratorChatRuntimeProvider
-      userId={userId}
-      userName={userName}
-      getExternalThreads={getExternalThreads}
-      onExternalThreadClick={onExternalThreadClick}
-      activePath={activePath}
-    >
-      {children}
-    </GrueneratorChatRuntimeProvider>
+    <ModelPreferencesProvider enabledModelIds={enabledModelIds}>
+      <GrueneratorChatRuntimeProvider
+        userId={userId}
+        userName={userName}
+        getExternalThreads={getExternalThreads}
+        onExternalThreadClick={onExternalThreadClick}
+        activePath={activePath}
+      >
+        {children}
+      </GrueneratorChatRuntimeProvider>
+    </ModelPreferencesProvider>
   );
 }
 
@@ -475,109 +479,10 @@ function GrueneratorChatRuntimeProvider({
     [fetchFn, onUnauthorized]
   );
 
-  // Auto-activate mentionables on chat-related routes
-  const mentionablesActivated = useAgentStore((s) => s.mentionablesActivated);
-  useEffect(() => {
-    if (mentionablesActivated) return;
-    const isChatRoute =
-      activePath?.startsWith('/chat') ||
-      activePath?.startsWith('/gruene-') ||
-      activePath?.startsWith('/kommunalwiki') ||
-      activePath?.startsWith('/boell-stiftung') ||
-      activePath?.startsWith('/gruenblog') ||
-      activePath?.startsWith('/notebook') ||
-      activePath?.startsWith('/gruenerator-notebook') ||
-      activePath?.startsWith('/suche') ||
-      activePath?.startsWith('/ask') ||
-      activePath?.startsWith('/gruen-o-mat');
-    if (isChatRoute) {
-      useAgentStore.getState().activateMentionables();
-    }
-  }, [activePath, mentionablesActivated]);
-
-  // Load @mention data (custom agents, boards, docs) — deferred until chat is used
-  useEffect(() => {
-    if (!mentionablesActivated) return;
-
-    const loadCustomAgents = async () => {
-      try {
-        const [ownPrompts, savedPrompts] = await Promise.all([
-          providerApiClient.get<{ prompts?: CustomAgentMentionable[] }>('/auth/custom_prompts'),
-          providerApiClient.get<{ prompts?: CustomAgentMentionable[] }>('/auth/saved_prompts'),
-        ]);
-        const own = ownPrompts?.prompts || [];
-        const saved = savedPrompts?.prompts || [];
-        const seenIds = new Set<string>();
-        const merged: CustomAgentMentionable[] = [];
-        for (const p of [...own, ...saved]) {
-          if (!seenIds.has(p.id)) {
-            seenIds.add(p.id);
-            merged.push(p);
-          }
-        }
-        setCustomAgents(merged);
-      } catch {
-        // Silently ignore — custom agents in @mention are optional
-      }
-    };
-    loadCustomAgents();
-
-    const loadBoards = async () => {
-      try {
-        const boards =
-          await providerApiClient.get<Array<{ id: string; title: string }>>('/api/boards');
-        if (Array.isArray(boards)) {
-          setBoardMentionables(
-            boards.map((b) => ({
-              id: b.id,
-              title: b.title,
-              slug: b.title
-                .toLowerCase()
-                .replace(/[äÄ]/g, 'ae')
-                .replace(/[öÖ]/g, 'oe')
-                .replace(/[üÜ]/g, 'ue')
-                .replace(/ß/g, 'ss')
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-|-$/g, ''),
-            }))
-          );
-        }
-      } catch {
-        // Silently ignore — boards in @mention are optional
-      }
-    };
-    loadBoards();
-
-    const loadDocs = async () => {
-      try {
-        const docs =
-          await providerApiClient.get<
-            Array<{ id: string; title: string; document_subtype?: string }>
-          >('/api/docs');
-        if (Array.isArray(docs)) {
-          setDocMentionables(
-            docs
-              .filter((d) => d.document_subtype !== 'boards')
-              .map((d) => ({
-                id: d.id,
-                title: d.title,
-                slug: d.title
-                  .toLowerCase()
-                  .replace(/[äÄ]/g, 'ae')
-                  .replace(/[öÖ]/g, 'oe')
-                  .replace(/[üÜ]/g, 'ue')
-                  .replace(/ß/g, 'ss')
-                  .replace(/[^a-z0-9]+/g, '-')
-                  .replace(/^-|-$/g, ''),
-              }))
-          );
-        }
-      } catch {
-        // Silently ignore — docs in @mention are optional
-      }
-    };
-    loadDocs();
-  }, [providerApiClient, userId, mentionablesActivated]);
+  // Dynamic @mention data (custom agents, boards, docs) is fetched via
+  // useMentionablesQuery() inside GrueneratorComposer — keeps loading lazy
+  // (only fires once a chat composer mounts) and removes manual cache
+  // management.
 
   const getExternalThreadsRef = useRef(getExternalThreads);
   getExternalThreadsRef.current = getExternalThreads;

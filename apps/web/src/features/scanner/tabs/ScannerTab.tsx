@@ -24,8 +24,6 @@ import { useContentActions } from '../../../hooks/useContentActions';
 import useResponsive from '../../../hooks/useResponsive';
 import useGeneratedTextStore from '../../../stores/core/generatedTextStore';
 import { cn } from '../../../utils/cn';
-
-const DocsEditorModal = lazy(() => import('../../../components/common/DocsEditorModal'));
 import { uploadZoneVariants, AnimatedUploadIcon, AnimatedFileIcon } from '../ScannerAnimations';
 
 const CameraScanner = lazy(() => import('../CameraScanner'));
@@ -86,14 +84,8 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
     () => (selectedFiles.length === 1 ? selectedFiles[0].name.replace(/\.[^.]+$/, '') : 'Scanner'),
     [selectedFiles]
   );
-  const {
-    handleOpenInDocs,
-    handleCreateTodoList,
-    handleCreateBoard,
-    actionLoading,
-    editorModal,
-    closeEditorModal,
-  } = useContentActions({ getContent, getTitle });
+  const { handleOpenInDocs, handleCreateTodoList, handleCreateBoard, actionLoading } =
+    useContentActions({ getContent, getTitle });
 
   useEffect(() => {
     onProcessingChange?.(scannerState === 'processing');
@@ -545,17 +537,6 @@ const ScannerTab = ({ onProcessingChange, onResultsChange }: ScannerTabProps) =>
           }
         >
           <CameraScanner onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />
-        </Suspense>
-      )}
-
-      {editorModal && (
-        <Suspense fallback={null}>
-          <DocsEditorModal
-            documentId={editorModal.documentId}
-            initialContent={editorModal.initialContent}
-            title={editorModal.title}
-            onClose={closeEditorModal}
-          />
         </Suspense>
       )}
     </div>

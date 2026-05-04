@@ -27,7 +27,7 @@ export function configureMobileChat(): void {
   useChatConfigStore.getState().configure({
     fetch: mobileFetch,
     onUnauthorized: mobileOnUnauthorized,
-    docsBaseUrl: 'https://docs.gruenerator.eu',
+    docsBaseUrl: 'https://gruenerator.eu',
   });
   cachedApiClient = null;
 }

@@ -48,6 +48,14 @@ export interface ModelConfigSingle {
   provider: Provider;
   model: string;
   contextWindow: number;
+  /**
+   * Optional first-token-timeout fallback (single-step). For Mistral lanes
+   * this is typically a Gemma/GPT-OSS overflow lane so a hung Mistral
+   * upstream still produces an answer for the user. Qwen entries
+   * intentionally have NO fallback — the "Chinese-only-when-selected"
+   * informed-consent boundary forbids auto-routing IN or OUT.
+   */
+  fallback?: string;
 }
 
 export interface ModelConfigOverflow {
@@ -75,16 +83,24 @@ const GEMMA_4_OVERFLOW: ModelConfigOverflow = {
 
 export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   // 'mistral' is intentionally absent — it uses agent defaults (like 'auto')
+  'mistral-medium-3.5': {
+    kind: 'single',
+    provider: 'mistral',
+    model: 'mistral-medium-2604',
+    contextWindow: 128000,
+    fallback: 'gemma-4',
+  },
+  // Legacy IDs — repointed to current Mistral generation (Medium 3.5)
   'mistral-large': {
     kind: 'single',
     provider: 'mistral',
-    model: 'mistral-large-latest',
+    model: 'mistral-medium-2604',
     contextWindow: 128000,
   },
   'mistral-medium': {
     kind: 'single',
     provider: 'mistral',
-    model: 'mistral-medium-latest',
+    model: 'mistral-medium-2604',
     contextWindow: 128000,
   },
   'pixtral-large': {
@@ -161,11 +177,25 @@ export async function resolveModelTuple(
   if (!config) return null;
 
   if (config.kind === 'single') {
-    return {
+    const result: ResolvedModelTuple = {
       provider: config.provider,
       model: config.model,
       contextWindow: config.contextWindow,
     };
+    // Honor configured fallback (e.g. mistral-medium-3.5 → gemma-4). For
+    // overflow-lane fallbacks we deterministically use the overflow (Regolo)
+    // side — we don't acquire the Verdigado slot from a fallback path,
+    // since the slot would have to be held across the primary's failure
+    // window and that risks deadlock on slot release ordering.
+    if (config.fallback) {
+      const sib = AVAILABLE_MODELS[config.fallback];
+      if (sib?.kind === 'single') {
+        result.sibling = { provider: sib.provider, model: sib.model };
+      } else if (sib?.kind === 'overflow') {
+        result.sibling = { provider: sib.overflow.provider, model: sib.overflow.model };
+      }
+    }
+    return result;
   }
 
   const acquired = await tryAcquireVerdigadoSlot(requestId);

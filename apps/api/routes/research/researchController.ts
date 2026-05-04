@@ -16,6 +16,7 @@ import { getQdrantInstance } from '../../database/services/QdrantService/index.j
 import { scrollDocuments } from '../../database/services/QdrantService/operations/batchOperations.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
+import { rerankPipeline } from '../../services/search/rerankPipeline.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { DocumentResult, TopChunk } from '../../services/BaseSearchService/types.js';
@@ -278,7 +279,7 @@ router.get('/filters', async (req: Request, res: Response): Promise<void> => {
           const existing = mergedFilters[result.field];
           if (result.min && (!existing.min || result.min < existing.min)) existing.min = result.min;
           if (result.max && (!existing.max || result.max > existing.max)) existing.max = result.max;
-        } else if (result.min || result.max) {
+        } else {
           mergedFilters[result.field] = {
             label: result.label,
             type: 'date_range',
@@ -427,8 +428,32 @@ router.post(
 
       let deduped = Array.from(dedupMap.values()).filter((r) => r.similarity_score >= 0.35);
 
-      // Sort
-      if (sortBy === 'date_desc') {
+      // Cross-encoder rerank for relevance mode. Bi-encoder embeddings can't tell
+      // "Artenschutz" from "Datenschutz" (both project to "Schutz" topics);
+      // a cross-encoder reads query+document together and scores the actual match.
+      if (sortBy === 'relevance' && deduped.length > 3) {
+        const rerankInputLimit = 30;
+        const candidates = deduped.slice(0, rerankInputLimit);
+        const items = candidates.map((r) => ({
+          title: r.title ?? '',
+          content: (r.relevant_content ?? '').slice(0, 500),
+          relevance: r.similarity_score,
+        }));
+        const { rankedIndices, scores } = await rerankPipeline({
+          query: trimmedQuery,
+          items,
+          inputLimit: rerankInputLimit,
+          outputLimit: effectiveLimit,
+          minRelevance: 0.05,
+          minKeep: Math.min(5, candidates.length),
+          applyDiversity: true,
+        });
+        deduped = rankedIndices.flatMap((i) => {
+          const c = candidates[i];
+          if (!c) return [];
+          return [{ ...c, similarity_score: scores.get(i) ?? c.similarity_score }];
+        });
+      } else if (sortBy === 'date_desc') {
         deduped.sort((a, b) => {
           const dateA = a.published_at || '';
           const dateB = b.published_at || '';
@@ -705,7 +730,7 @@ export async function warmFilterCache(): Promise<void> {
           const existing = mergedFilters[result.field];
           if (result.min && (!existing.min || result.min < existing.min)) existing.min = result.min;
           if (result.max && (!existing.max || result.max > existing.max)) existing.max = result.max;
-        } else if (result.min || result.max) {
+        } else {
           mergedFilters[result.field] = {
             label: result.label,
             type: 'date_range',

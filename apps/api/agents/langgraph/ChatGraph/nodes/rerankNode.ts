@@ -67,7 +67,7 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
     return item;
   });
 
-  const { rankedIndices, scores, rerankTimeMs } = await rerankPipeline({
+  const pipelineResult = await rerankPipeline({
     query: queryStr,
     items,
     inputLimit,
@@ -75,6 +75,7 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
     instruct,
     sourceTagFn: (item) => getSourceTag(item.source || ''),
   });
+  const { rankedIndices, scores, rerankTimeMs } = pipelineResult;
 
   const reranked = rankedIndices.flatMap((i) => {
     const candidate = candidates[i];
@@ -91,6 +92,18 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
   log.info(
     `[Rerank] Complete: ${candidates.length} → ${reranked.length} results (diversity applied) in ${rerankTimeMs}ms`
   );
+
+  if (pipelineResult.failed) {
+    log.error(`[Rerank] Cross-encoder failed; returning input order. error=${pipelineResult.error}`);
+    return {
+      searchResults: reranked,
+      rerankTimeMs,
+      rerankFailed: true,
+      searchErrors: [
+        { source: 'rerank', message: pipelineResult.error ?? 'rerank failed (unknown error)' },
+      ],
+    };
+  }
 
   return {
     searchResults: reranked,

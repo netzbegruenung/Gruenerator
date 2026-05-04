@@ -21,10 +21,14 @@ export const CitationBadge = memo(function CitationBadge({
   const citationPanel = useCitationPanel();
 
   if (!citation) {
+    // Numberless dot during streaming — the mid-stream IDs the LLM emits don't
+    // match the post-stream first-mention renumbering, so we keep the inline box
+    // (avoids reflow when chips swap in at done) but drop the digit.
     return (
-      <sup className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] text-[10px] font-semibold bg-secondary-600 text-white dark:bg-primary-400 dark:text-grey-950 rounded-full px-0.5 mx-0.5 align-super">
-        {citationId}
-      </sup>
+      <sup
+        aria-hidden="true"
+        className="inline-flex items-center justify-center min-w-[1.1rem] h-[1.1rem] bg-secondary-600/40 dark:bg-primary-400/40 rounded-full px-0.5 mx-0.5 align-super"
+      />
     );
   }
 

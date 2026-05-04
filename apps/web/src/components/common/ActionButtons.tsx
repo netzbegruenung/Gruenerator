@@ -54,8 +54,6 @@ interface ActionButtonsProps {
   componentName?: string;
   onEditInDocs?: () => void;
   editInDocsLoading?: boolean;
-  onEditInDocsInline?: () => void;
-  editInDocsInlineLoading?: boolean;
   customExportOptions?: {
     id?: string;
     label?: string;
@@ -100,8 +98,6 @@ const ActionButtons = ({
   componentName = 'default',
   onEditInDocs,
   editInDocsLoading = false,
-  onEditInDocsInline,
-  editInDocsInlineLoading = false,
   customExportOptions = [],
   hideDefaultExportOptions = false,
 }: ActionButtonsProps): JSX.Element => {
@@ -293,8 +289,6 @@ const ActionButtons = ({
       hideDefaultOptions: hideDefaultExportOptions,
       onEditInDocs,
       editInDocsLoading,
-      onEditInDocsInline,
-      editInDocsInlineLoading,
     };
 
     const buttons = {
