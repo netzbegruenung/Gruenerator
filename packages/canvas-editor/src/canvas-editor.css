@@ -64,6 +64,24 @@
   overflow: visible;
 }
 
+/* ── Zoom (CSS scale) on the entire pages container ── */
+.heterogeneous-multipage__pages-container {
+  transform: scale(var(--canvas-zoom, 1));
+  transform-origin: top center;
+  transition: transform 0.12s ease-out;
+}
+
+/* ── Bottom-fixed page navigator: leave clearance so last page can scroll above it ── */
+.heterogeneous-multipage__pages-container.has-page-navigator {
+  padding-bottom: 6.5rem;
+}
+
+@media (max-width: 899px) {
+  .heterogeneous-multipage__pages-container.has-page-navigator {
+    padding-bottom: 0;
+  }
+}
+
 /* Hide drag handle when subsection bar is active */
 body:has(#subsection-bar-portal:not(:empty)) .sidebar-panel__drag-handle {
   display: none;

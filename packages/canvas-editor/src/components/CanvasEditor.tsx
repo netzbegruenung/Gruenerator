@@ -27,7 +27,12 @@ import React, {
 
 import { Skeleton } from '@gruenerator/ui';
 
-import { usePageManager, useMultiPageExport, usePresentationExport } from '../hooks';
+import {
+  usePageManager,
+  useMultiPageExport,
+  usePresentationExport,
+  usePageThumbnails,
+} from '../hooks';
 import { useMobileBridge } from '../hooks/useMobileBridge';
 import { CanvasEditorLayout } from '../layouts';
 import { MobileSubsectionBridgeContext } from '../sidebar/MobileSubsectionBridgeContext';
@@ -35,7 +40,11 @@ import { UserUploadsProvider } from '../sidebar/UserUploadsProvider';
 import { AutoSaveStoreProvider, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
 import { useCanvasSidebarStore } from '../stores/canvasSidebarStore';
 
+import { CanvasMetaBar } from './CanvasMetaBar';
+import { getCategoryForTemplate } from '../utils/templateRegistry';
+
 import { GenericCanvas } from './GenericCanvas';
+import { PageThumbnailStrip } from './PageThumbnailStrip';
 import { PageToolbar } from './PageToolbar';
 import { Toolbar } from './Toolbar';
 import { AddPageButton } from './TemplatePickerFlyout';
@@ -166,6 +175,8 @@ interface PageWrapperProps {
     pageYMap: import('yjs').Map<unknown>;
     isSynced: boolean;
   };
+  /** Forwarded ref to the wrapper div — used for IntersectionObserver tracking */
+  pageRef?: React.Ref<HTMLDivElement>;
 }
 
 /**
@@ -192,6 +203,7 @@ const PageWrapper = memo(function PageWrapper({
   onToolbarStateChange,
   mobileBridge,
   pageCollaborative,
+  pageRef,
 }: PageWrapperProps) {
   const lastReportedRef = useRef<{
     state: Record<string, unknown> | null;
@@ -248,6 +260,8 @@ const PageWrapper = memo(function PageWrapper({
 
   return (
     <div
+      ref={pageRef}
+      data-page-index={index}
       className={cn(
         'heterogeneous-multipage__page-wrapper group relative cursor-pointer w-fit focus-visible:outline-2 focus-visible:outline-[var(--tanne,#0a2b1e)] focus-visible:outline-offset-1',
         '[&_.zoomable-viewport-wrapper]:w-fit [&_.zoomable-viewport-container]:p-0 [&_.zoomable-viewport-container]:overflow-visible',
@@ -356,6 +370,10 @@ function CanvasEditorInner({
     pageCount,
     getConfigForPage,
     getPageYMap,
+    undoPageOp,
+    redoPageOp,
+    canUndoPageOp,
+    canRedoPageOp,
   } = usePageManager({
     initialConfigId,
     initialProps,
@@ -396,6 +414,23 @@ function CanvasEditorInner({
   while (canvasRefsRef.current.length < pages.length) {
     canvasRefsRef.current.push(React.createRef<GenericCanvasRef>());
   }
+
+  // DOM refs to each PageWrapper root — used for IntersectionObserver scroll tracking
+  // and scroll-into-view from the thumbnail strip.
+  const pageDomRefsRef = useRef<React.RefObject<HTMLDivElement | null>[]>([]);
+  while (pageDomRefsRef.current.length < pages.length) {
+    pageDomRefsRef.current.push(React.createRef<HTMLDivElement>());
+  }
+  pageDomRefsRef.current.length = pages.length;
+
+  const pagesContainerRef = useRef<HTMLDivElement>(null);
+  const ignoreScrollSyncUntilRef = useRef(0);
+
+  const [zoom, setZoom] = useState(1);
+
+  useEffect(() => {
+    pagesContainerRef.current?.style.setProperty('--canvas-zoom', String(zoom));
+  }, [zoom]);
 
   const pageCollaborativeAt = useCallback(
     (index: number) => {
@@ -504,6 +539,132 @@ function CanvasEditorInner({
     [setCurrentPageIndex]
   );
 
+  // Thumbnail-strip click: select page AND smooth-scroll its full-size wrapper into view.
+  // We briefly suppress IntersectionObserver scroll-driven updates so the destination
+  // page stays selected during the smooth-scroll animation.
+  const handleThumbnailSelect = useCallback(
+    (index: number) => {
+      setCurrentPageIndex(index);
+      ignoreScrollSyncUntilRef.current = Date.now() + 700;
+      pageDomRefsRef.current[index]?.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    },
+    [setCurrentPageIndex]
+  );
+
+  // Track which page is most-visible in the viewport and mirror that as the
+  // active page (so the thumbnail strip's highlight follows the user's scroll).
+  useEffect(() => {
+    if (pages.length < 2) return undefined;
+    const refs = pageDomRefsRef.current;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (Date.now() < ignoreScrollSyncUntilRef.current) return;
+        let bestIdx = -1;
+        let bestRatio = 0;
+        entries.forEach((entry) => {
+          if (entry.intersectionRatio > bestRatio) {
+            bestRatio = entry.intersectionRatio;
+            const idxAttr = (entry.target as HTMLElement).dataset.pageIndex;
+            if (idxAttr != null) bestIdx = Number(idxAttr);
+          }
+        });
+        if (bestIdx !== -1) {
+          setCurrentPageIndex(bestIdx);
+        }
+      },
+      { root: null, threshold: [0, 0.25, 0.5, 0.75, 1] }
+    );
+    refs.forEach((r) => {
+      if (r.current) observer.observe(r.current);
+    });
+    return () => observer.disconnect();
+  }, [pages.length, setCurrentPageIndex]);
+
+  // Capture per-page PNG snapshots for the thumbnail strip
+  const pageThumbnails = usePageThumbnails({
+    pages,
+    canvasRefs: canvasRefsRef.current,
+    currentPageIndex,
+  });
+
+  // Page-level undo/redo via capture-phase keydown. We run BEFORE the
+  // per-page useCanvasUndoRedo handlers so that when the active page has no
+  // element-level undo available, we route Ctrl+Z to the page-array
+  // UndoManager (which restores deleted/duplicated/moved pages). If the
+  // active page DOES have element undo, we let the per-page handler take it.
+  const activePageCanUndo = toolbarState?.canUndo ?? false;
+  const activePageCanRedo = toolbarState?.canRedo ?? false;
+  useEffect(() => {
+    if (isMobileBridge) return undefined;
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      const isMac = navigator.platform.toLowerCase().includes('mac');
+      const modKey = isMac ? e.metaKey : e.ctrlKey;
+      if (!modKey) return;
+      const k = e.key.toLowerCase();
+      const isUndo = k === 'z' && !e.shiftKey;
+      const isRedo = k === 'y' || (k === 'z' && e.shiftKey);
+      if (!isUndo && !isRedo) return;
+
+      if (isUndo && !activePageCanUndo && canUndoPageOp) {
+        e.preventDefault();
+        e.stopPropagation();
+        undoPageOp();
+      } else if (isRedo && !activePageCanRedo && canRedoPageOp) {
+        e.preventDefault();
+        e.stopPropagation();
+        redoPageOp();
+      }
+    };
+    window.addEventListener('keydown', handler, true);
+    return () => window.removeEventListener('keydown', handler, true);
+  }, [
+    isMobileBridge,
+    activePageCanUndo,
+    activePageCanRedo,
+    canUndoPageOp,
+    canRedoPageOp,
+    undoPageOp,
+    redoPageOp,
+  ]);
+
+  // Auto-scroll to a newly added page so the user sees the result of
+  // "Seite duplizieren" / "Seite hinzufügen" without manually scrolling.
+  // We only scroll when BOTH the page count AND the active index changed in
+  // the same render — that's the signature of an add/duplicate, not a plain
+  // scroll-driven IntersectionObserver update.
+  const prevPagesSignatureRef = useRef({
+    length: pages.length,
+    index: currentPageIndex,
+  });
+  useEffect(() => {
+    const prev = prevPagesSignatureRef.current;
+    const lengthIncreased = pages.length > prev.length;
+    const indexChanged = currentPageIndex !== prev.index;
+    if (lengthIncreased && indexChanged) {
+      const target = pageDomRefsRef.current[currentPageIndex];
+      ignoreScrollSyncUntilRef.current = Date.now() + 800;
+      const t = setTimeout(() => {
+        target?.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 60);
+      prevPagesSignatureRef.current = { length: pages.length, index: currentPageIndex };
+      return () => clearTimeout(t);
+    }
+    prevPagesSignatureRef.current = { length: pages.length, index: currentPageIndex };
+    return undefined;
+  }, [pages.length, currentPageIndex]);
+
   // Callback for PageWrapper to report state changes
   const handlePageStateChange = useCallback(
     (
@@ -548,8 +709,22 @@ function CanvasEditorInner({
   const toolbarHandlers = useMemo(() => {
     const ref = canvasRefsRef.current[currentPageIndex];
     return {
-      undo: () => ref?.current?.undo?.(),
-      redo: () => ref?.current?.redo?.(),
+      // Toolbar Undo/Redo: prefer per-page (element) history; if none, fall
+      // back to page-array history (restores deleted/duplicated/moved pages).
+      undo: () => {
+        if (toolbarState?.canUndo) {
+          ref?.current?.undo?.();
+        } else if (canUndoPageOp) {
+          undoPageOp();
+        }
+      },
+      redo: () => {
+        if (toolbarState?.canRedo) {
+          ref?.current?.redo?.();
+        } else if (canRedoPageOp) {
+          redoPageOp();
+        }
+      },
       handleMoveLayer: (direction: 'up' | 'down') => ref?.current?.handleMoveLayer?.(direction),
       handleColorSelect: (color: string) => ref?.current?.handleColorSelect?.(color),
       handleOpacityChange: (id: string, opacity: number, type: string) =>
@@ -558,7 +733,15 @@ function CanvasEditorInner({
         ref?.current?.handleFontSizeChange?.(id, size),
       handleAlign: (direction: AlignmentDirection) => ref?.current?.handleAlign?.(direction),
     };
-  }, [currentPageIndex]);
+  }, [
+    currentPageIndex,
+    toolbarState?.canUndo,
+    toolbarState?.canRedo,
+    canUndoPageOp,
+    canRedoPageOp,
+    undoPageOp,
+    redoPageOp,
+  ]);
 
   const handleCaptureCanvas = useCallback(async () => {
     const ref = canvasRefsRef.current[currentPageIndex];
@@ -1030,8 +1213,8 @@ function CanvasEditorInner({
     <Toolbar
       selectedElement={toolbarState?.selectedElement ?? null}
       activeFloatingModule={toolbarState?.activeFloatingModule ?? null}
-      canUndo={toolbarState?.canUndo ?? false}
-      canRedo={toolbarState?.canRedo ?? false}
+      canUndo={(toolbarState?.canUndo ?? false) || canUndoPageOp}
+      canRedo={(toolbarState?.canRedo ?? false) || canRedoPageOp}
       canMoveUp={toolbarState?.canMoveUp ?? false}
       canMoveDown={toolbarState?.canMoveDown ?? false}
       handlers={toolbarHandlers}
@@ -1043,6 +1226,42 @@ function CanvasEditorInner({
     />
   ) : null;
 
+  const showPageNavigator = !isMobileBridge && pages.length > 1;
+  const currentTemplateId = pages[currentPageIndex]?.configId;
+  const sliderVariantHandler = pages[0]?.configId === 'slider' ? handleAddSliderVariant : undefined;
+  // Restrict the template picker to the same category as the current template
+  // (sharepic, slider, presentation, plakat, profilbild) so e.g. a Zitat page
+  // can't insert a presentation slide.
+  const categoryFilter = currentTemplateId ? getCategoryForTemplate(currentTemplateId) : undefined;
+
+  const bottomBar = showPageNavigator ? (
+    <div className="canvas-bottom-bar flex items-stretch bg-white/85 dark:bg-[rgba(20,20,20,0.78)] backdrop-blur-[12px] border-t border-black/[0.06] dark:border-white/[0.08]">
+      <div className="flex-1 min-w-0">
+        <PageThumbnailStrip
+          pages={pages}
+          currentPageIndex={currentPageIndex}
+          thumbnails={pageThumbnails}
+          loadedConfigs={loadedConfigs}
+          currentTemplateId={currentTemplateId}
+          canAddMore={canAddMore}
+          onSelect={handleThumbnailSelect}
+          onAddPage={handleAddPage}
+          onDuplicateCurrent={duplicateCurrentPage}
+          onAddSliderVariant={sliderVariantHandler}
+          templateFilter={categoryFilter}
+        />
+      </div>
+      <div className="shrink-0 flex items-center border-l border-black/[0.06] dark:border-white/[0.08]">
+        <CanvasMetaBar
+          pageCount={pageCount}
+          currentPageIndex={currentPageIndex}
+          zoom={zoom}
+          onZoomChange={setZoom}
+        />
+      </div>
+    </div>
+  ) : null;
+
   return (
     <UserUploadsProvider>
       <CanvasEditorLayout
@@ -1050,17 +1269,24 @@ function CanvasEditorInner({
         tabBar={tabBar}
         actions={null}
         toolbar={toolbarElement}
+        bottomBar={bottomBar}
         hideMobileChrome={isMobileBridge}
         externalSidebar={isExternalSidebar}
         subsectionBar={webSubsectionBar}
       >
-        <div className="heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs">
+        <div
+          ref={pagesContainerRef}
+          className={cn(
+            'heterogeneous-multipage__pages-container flex flex-col items-center gap-md p-sm pb-lg w-full max-canvas-mobile:gap-sm max-canvas-mobile:p-xs',
+            showPageNavigator && 'has-page-navigator'
+          )}
+        >
           {pages.map((page, index) => {
             const config = loadedConfigs.get(page.configId);
             if (!config) return null;
 
             const isActive = index === currentPageIndex;
-            const canDelete = pageCount > 1 && index > 0;
+            const canDelete = pageCount > 1;
 
             return (
               <PageWrapper
@@ -1072,6 +1298,7 @@ function CanvasEditorInner({
                 isActive={isActive}
                 canDelete={canDelete}
                 canvasRef={canvasRefsRef.current[index]}
+                pageRef={pageDomRefsRef.current[index]}
                 onSelect={handlePageSelect}
                 onDelete={removePage}
                 onMovePage={movePage}
@@ -1088,18 +1315,16 @@ function CanvasEditorInner({
             );
           })}
 
-          {/* Add page button at the end */}
-          {canAddMore && (
+          {/* Tail AddPageButton — only when no strip is shown (single page or mobile bridge) */}
+          {canAddMore && !showPageNavigator && (
             <div className="w-full max-w-[28rem] pt-sm max-canvas-mobile:pt-xs max-canvas-mobile:px-xs">
               <AddPageButton
                 onSelectTemplate={handleAddPage}
                 onDuplicateCurrent={duplicateCurrentPage}
-                currentTemplateId={pages[currentPageIndex]?.configId}
+                currentTemplateId={currentTemplateId}
                 disabled={!canAddMore}
-                onAddSliderVariant={
-                  pages[0]?.configId === 'slider' ? handleAddSliderVariant : undefined
-                }
-                templateFilter={isPresentationMode ? 'pres-' : undefined}
+                onAddSliderVariant={sliderVariantHandler}
+                templateFilter={categoryFilter}
               />
             </div>
           )}
