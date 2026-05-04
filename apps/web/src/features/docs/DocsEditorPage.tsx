@@ -589,7 +589,7 @@ function EditorContent() {
       )}
 
       <div className="flex-1 flex flex-row overflow-hidden max-md:flex-col">
-        <main className="flex-1 min-w-0 overflow-y-auto py-4 px-6 bg-grey-100 dark:bg-grey-900 max-sm:px-0 max-sm:pt-0 max-sm:pb-[var(--mobile-keyboard-offset,0px)] max-sm:bg-background dark:max-sm:bg-background">
+        <main className="flex-1 min-w-0 overflow-y-auto scrollbar-thin py-4 px-6 bg-grey-100 dark:bg-grey-900 max-sm:px-0 max-sm:pt-0 max-sm:pb-[var(--mobile-keyboard-offset,0px)] max-sm:bg-background dark:max-sm:bg-background">
           <MemoizedBlockNoteEditor
             documentId={id!}
             initialContent={initialContent}
