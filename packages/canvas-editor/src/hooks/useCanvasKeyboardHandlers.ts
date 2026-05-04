@@ -5,15 +5,6 @@ import { CanvasClipboard } from '../utils/canvasClipboard';
 import type { OptionalCanvasActions } from './useCanvasElementHandlers';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
-import type { AssetInstance } from '../utils/canvasAssets';
-import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
-import type { FrameInstance } from '../utils/frameUtils';
-import type { IllustrationInstance } from '../utils/illustrations/types';
-import type { PillBadgeInstance } from '../utils/pillBadgeUtils';
-import type { ShapeInstance } from '../utils/shapes';
-import type { UserImageInstance } from '../utils/userImageUtils';
-import type { BalkenInstance } from '../primitives';
-import type { AdditionalText } from '../configs/types';
 
 /**
  * Canvas Keyboard Handlers - Keyboard shortcuts for canvas
@@ -145,20 +136,20 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
         return;
       }
 
-      // PASTE (Ctrl+V) — clipboard data crosses the type boundary; cast at the seam.
+      // PASTE (Ctrl+V) — `ClipboardItem` is a discriminated union, so each
+      // branch below auto-narrows `clipboardData.data` to the right shape.
+      // We deliberately do NOT destructure (destructuring breaks the link
+      // between the discriminant and the payload).
       if (isCtrlOrCmd && e.key === 'v') {
         const clipboardData = CanvasClipboard.paste();
         if (!clipboardData) return;
 
-        const { type, data } = clipboardData;
-        if (typeof data !== 'object' || data === null) return;
-
-        const newId = `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const newId = `${clipboardData.type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const offset = 20;
 
         setState((prev) => {
-          if (type === 'shape') {
-            const src = data as unknown as ShapeInstance;
+          if (clipboardData.type === 'shape') {
+            const src = clipboardData.data;
             return {
               ...prev,
               shapeInstances: [
@@ -167,8 +158,8 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
               ],
             };
           }
-          if (type === 'illustration') {
-            const src = data as unknown as IllustrationInstance;
+          if (clipboardData.type === 'illustration') {
+            const src = clipboardData.data;
             return {
               ...prev,
               illustrationInstances: [
@@ -177,8 +168,8 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
               ],
             };
           }
-          if (type === 'balken') {
-            const src = data as unknown as BalkenInstance;
+          if (clipboardData.type === 'balken') {
+            const src = clipboardData.data;
             return {
               ...prev,
               balkenInstances: [
@@ -194,8 +185,8 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
               ],
             };
           }
-          if (type === 'additional-text') {
-            const src = data as unknown as AdditionalText;
+          if (clipboardData.type === 'additional-text') {
+            const src = clipboardData.data;
             return {
               ...prev,
               additionalTexts: [
@@ -204,8 +195,8 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
               ],
             };
           }
-          if (type === 'asset') {
-            const src = data as unknown as AssetInstance;
+          if (clipboardData.type === 'asset') {
+            const src = clipboardData.data;
             return {
               ...prev,
               assetInstances: [
@@ -214,8 +205,8 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
               ],
             };
           }
-          if (type === 'pill-badge') {
-            const src = data as unknown as PillBadgeInstance;
+          if (clipboardData.type === 'pill-badge') {
+            const src = clipboardData.data;
             return {
               ...prev,
               pillBadgeInstances: [
@@ -224,8 +215,8 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
               ],
             };
           }
-          if (type === 'frame') {
-            const src = data as unknown as FrameInstance;
+          if (clipboardData.type === 'frame') {
+            const src = clipboardData.data;
             return {
               ...prev,
               frameInstances: [
@@ -240,8 +231,8 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
               ],
             };
           }
-          if (type === 'user-image') {
-            const src = data as unknown as UserImageInstance;
+          if (clipboardData.type === 'user-image') {
+            const src = clipboardData.data;
             return {
               ...prev,
               userImageInstances: [
@@ -250,8 +241,8 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
               ],
             };
           }
-          if (type === 'circle-badge') {
-            const src = data as unknown as CircleBadgeInstance;
+          if (clipboardData.type === 'circle-badge') {
+            const src = clipboardData.data;
             return {
               ...prev,
               circleBadgeInstances: [
