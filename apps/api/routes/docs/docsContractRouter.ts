@@ -1,9 +1,11 @@
 /**
  * ts-rest contract router for /api/docs (collaborative documents, permissions, sharing, group shares).
  *
- * Wraps the same DB queries and access checks as the legacy controllers in
- * documentController.ts, permissionsController.ts, shareController.ts, and
- * groupShareController.ts using a contract-driven router from @ts-rest/express.
+ * Owns the migrated routes: getDocumentById, listDocuments, createDocument,
+ * generateDocument, getChatThread, listPermissions, getShareSettings,
+ * enableSharing, disableSharing, setSharePermission, setShareMode,
+ * addGroupShare, updateGroupShare. Replaces the legacy share controller
+ * entirely; documentController.ts retains only PUT/DELETE/duplicate.
  *
  * Mount BEFORE the legacy docsRouter in routes.ts so ts-rest matches its own
  * routes first; unmatched paths fall through to the legacy router.
@@ -22,7 +24,15 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 
-import { DOCS_SUBTYPES, GRANTED_BY_SHARE_LINK } from './constants.js';
+import {
+  DOCUMENT_GENERATION_PROMPT,
+  parseDocumentResponse,
+  createDocumentWithContent,
+} from '../../services/docs/DocGenerationService.js';
+import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
+
+import { DOCS_ONLY_SUBTYPES, DOCS_SUBTYPES, GRANTED_BY_SHARE_LINK } from './constants.js';
 import { checkDocumentAccess, autoGrantSharePermission } from './documentAccess.js';
 
 import type { CollaborativeDocument } from './types.js';
@@ -106,7 +116,12 @@ export const docsContractRouter = s.router(docsContract, {
       interface DocumentWithPermissions {
         id: string;
         created_by: string;
-        permissions: Record<string, { level: string; granted_at: string }> | null;
+        // The DB constrains `level` to these three values; reflecting that here
+        // satisfies the strict enum in permissionListEntrySchema.
+        permissions: Record<
+          string,
+          { level: 'owner' | 'editor' | 'viewer'; granted_at: string }
+        > | null;
         [key: string]: unknown;
       }
       interface ProfileRow {
@@ -178,7 +193,7 @@ export const docsContractRouter = s.router(docsContract, {
         type: 'group' as const,
         group_id: gs.group_id,
         group_name: gs.group_name,
-        permission_level: gs.permissions?.write ? 'editor' : 'viewer',
+        permission_level: (gs.permissions?.write ? 'editor' : 'viewer') as 'editor' | 'viewer',
         shared_at: gs.shared_at,
         member_count: gs.member_count,
       }));
@@ -383,7 +398,360 @@ export const docsContractRouter = s.router(docsContract, {
       };
     }
   },
+
+  getChatThread: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { id } = args.params;
+
+      const docs = (await db.query(
+        `SELECT id, created_by, permissions, is_public, share_mode
+         FROM collaborative_documents
+         WHERE id = $1
+         LIMIT 1`,
+        [id]
+      )) as CollaborativeDocument[];
+
+      const doc = docs[0];
+      if (!doc) {
+        return { status: 404 as const, body: { error: 'Document not found' } };
+      }
+
+      const access = await checkDocumentAccess(doc, userId);
+      if (!access.hasAccess) {
+        return { status: 403 as const, body: { error: 'No access to document' } };
+      }
+
+      const thread = await ensureDocChatThread(id, doc.created_by);
+      return { status: 200 as const, body: { threadId: thread.id } };
+    } catch (error) {
+      log.error('[docsContract.getChatThread] Error:', error);
+      return { status: 500 as const, body: { error: 'Failed to resolve chat thread' } };
+    }
+  },
+
+  createDocument: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const {
+        title = 'Untitled Document',
+        folder_id = null,
+        document_subtype = 'blank',
+      } = args.body;
+
+      const subtype = DOCS_SUBTYPES.includes(document_subtype ?? 'blank')
+        ? (document_subtype ?? 'blank')
+        : 'blank';
+
+      const result = (await db.query(
+        `INSERT INTO collaborative_documents
+          (title, created_by, last_edited_by, document_subtype, folder_id, permissions, is_public)
+         VALUES ($1, $2, $2, $3, $4, $5, false)
+         RETURNING *`,
+        [
+          title,
+          userId,
+          subtype,
+          folder_id,
+          JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
+        ]
+      )) as CollaborativeDocument[];
+
+      return { status: 201 as const, body: result[0] };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[docsContract.createDocument] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to create document', details: message },
+      };
+    }
+  },
+
+  generateDocument: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { description } = args.body;
+
+      if (description.trim().length < 3) {
+        return {
+          status: 400 as const,
+          body: { error: 'Description is required (min 3 characters)' },
+        };
+      }
+
+      const aiResult = await getAIWorkerPool(args.req).processRequest(
+        {
+          type: 'doc_generation',
+          systemPrompt: DOCUMENT_GENERATION_PROMPT,
+          messages: [{ role: 'user', content: description.trim() }],
+          options: { temperature: 0.7, max_tokens: 4000 },
+        },
+        args.req
+      );
+
+      const generated =
+        aiResult.success && aiResult.content
+          ? parseDocumentResponse(aiResult.content)
+          : { title: 'Neues Dokument', subtype: 'blank', content: '' };
+
+      const document = await createDocumentWithContent(
+        generated.title,
+        generated.content,
+        generated.subtype,
+        userId
+      );
+
+      return { status: 201 as const, body: document as unknown as CollaborativeDocument };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[docsContract.generateDocument] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to generate document', details: message },
+      };
+    }
+  },
+
+  listDocuments: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const limitParam = args.query.limit ? Number(args.query.limit) : NaN;
+      const limit =
+        Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 200) : null;
+
+      const params: unknown[] = [userId, userId, DOCS_ONLY_SUBTYPES];
+      const limitClause = limit ? `LIMIT $${params.push(limit)}` : '';
+
+      const result = (await db.query(
+        `SELECT
+          cd.*,
+          p.display_name as creator_name,
+          le.display_name as last_editor_name,
+          CASE
+            WHEN cd.created_by = $1 THEN 'owner'
+            WHEN cd.permissions ? $2::text THEN 'direct'
+            WHEN cd.id IN (
+              SELECT gcs.content_id::uuid
+              FROM group_content_shares gcs
+              INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+              WHERE gcs.content_type = 'collaborative_documents'
+                AND (gcs.permissions->>'read')::boolean IS NOT FALSE
+            ) THEN 'group'
+          END AS access_type,
+          COALESCE(
+            (SELECT json_agg(json_build_object('group_id', g.id, 'group_name', g.name))
+             FROM group_content_shares gcs2
+             INNER JOIN group_memberships gm2 ON gm2.group_id = gcs2.group_id AND gm2.user_id = $1
+             INNER JOIN groups g ON g.id = gcs2.group_id
+             WHERE gcs2.content_type = 'collaborative_documents'
+               AND gcs2.content_id = cd.id::text
+            ), '[]'::json
+          ) AS group_shares
+         FROM collaborative_documents cd
+         LEFT JOIN profiles p ON cd.created_by = p.id
+         LEFT JOIN profiles le ON cd.last_edited_by = le.id
+         WHERE
+          cd.document_subtype = ANY($3::text[])
+          AND cd.is_deleted = false
+          AND (
+            cd.created_by = $1
+            OR cd.permissions ? $1::text
+            OR cd.id IN (
+              SELECT gcs.content_id::uuid
+              FROM group_content_shares gcs
+              INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+              WHERE gcs.content_type = 'collaborative_documents'
+                AND (gcs.permissions->>'read')::boolean IS NOT FALSE
+            )
+          )
+         ORDER BY cd.updated_at DESC
+         ${limitClause}`,
+        params
+      )) as CollaborativeDocument[];
+
+      return { status: 200 as const, body: result };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      log.error('[docsContract.listDocuments] Error:', error);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to list documents', details: message },
+      };
+    }
+  },
+
+  getShareSettings: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const doc = await getOwnedShareRow(args.params.id, userId);
+      if (doc.kind !== 'ok') return doc.response;
+
+      return {
+        status: 200 as const,
+        body: {
+          is_public: doc.row.is_public,
+          share_permission: doc.row.share_permission ?? 'editor',
+          share_mode: doc.row.share_mode ?? 'private',
+        },
+      };
+    } catch (error) {
+      log.error('[docsContract.getShareSettings] Error:', error);
+      return { status: 500 as const, body: { error: 'Failed to fetch share settings' } };
+    }
+  },
+
+  enableSharing: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const doc = await getOwnedShareRow(args.params.id, userId);
+      if (doc.kind !== 'ok') return doc.response;
+
+      await db.query(
+        `UPDATE collaborative_documents
+         SET is_public = true, share_mode = 'public', updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [args.params.id]
+      );
+
+      return {
+        status: 200 as const,
+        body: {
+          is_public: true,
+          share_permission: doc.row.share_permission ?? 'editor',
+          share_mode: 'public',
+        },
+      };
+    } catch (error) {
+      log.error('[docsContract.enableSharing] Error:', error);
+      return { status: 500 as const, body: { error: 'Failed to enable sharing' } };
+    }
+  },
+
+  setSharePermission: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const doc = await getOwnedShareRow(args.params.id, userId);
+      if (doc.kind !== 'ok') return doc.response;
+
+      const { permission } = args.body;
+      await db.query(
+        `UPDATE collaborative_documents
+         SET share_permission = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2`,
+        [permission, args.params.id]
+      );
+
+      return {
+        status: 200 as const,
+        body: {
+          is_public: doc.row.is_public,
+          share_permission: permission,
+          share_mode: doc.row.share_mode ?? 'private',
+        },
+      };
+    } catch (error) {
+      log.error('[docsContract.setSharePermission] Error:', error);
+      return { status: 500 as const, body: { error: 'Failed to update share permission' } };
+    }
+  },
+
+  setShareMode: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const doc = await getOwnedShareRow(args.params.id, userId);
+      if (doc.kind !== 'ok') return doc.response;
+
+      const { mode } = args.body;
+      const isPublic = mode === 'public';
+
+      if (mode === 'authenticated') {
+        await db.query(
+          `UPDATE collaborative_documents
+           SET share_mode = $1, is_public = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $3`,
+          [mode, isPublic, args.params.id]
+        );
+      } else {
+        // Revoke auto-granted permissions when leaving authenticated mode.
+        await db.query(
+          `UPDATE collaborative_documents
+           SET share_mode = $1,
+               is_public = $2,
+               permissions = (
+                 SELECT COALESCE(jsonb_object_agg(key, value), '{}'::jsonb)
+                 FROM jsonb_each(COALESCE(permissions, '{}'::jsonb))
+                 WHERE value->>'granted_by' IS DISTINCT FROM $4
+               ),
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $3`,
+          [mode, isPublic, args.params.id, GRANTED_BY_SHARE_LINK]
+        );
+      }
+
+      return {
+        status: 200 as const,
+        body: {
+          is_public: isPublic,
+          share_permission: doc.row.share_permission ?? 'editor',
+          share_mode: mode,
+        },
+      };
+    } catch (error) {
+      log.error('[docsContract.setShareMode] Error:', error);
+      return { status: 500 as const, body: { error: 'Failed to update share mode' } };
+    }
+  },
 });
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+interface OwnedShareRow {
+  id: string;
+  created_by: string;
+  permissions: Record<string, { level?: string }> | null;
+  is_public: boolean;
+  share_permission?: string | null;
+  share_mode?: string | null;
+}
+
+type ShareLookupResult =
+  | { kind: 'ok'; row: OwnedShareRow }
+  | {
+      kind: 'fail';
+      response:
+        | { status: 403; body: { error: string } }
+        | { status: 404; body: { error: string } };
+    };
+
+/**
+ * Fetch a document and confirm the caller is the owner. Returns a tagged
+ * union so handlers can early-return with the right ts-rest response shape.
+ */
+async function getOwnedShareRow(id: string, userId: string): Promise<ShareLookupResult> {
+  const result = (await db.query(
+    `SELECT id, created_by, permissions, is_public, share_permission, share_mode, is_deleted
+     FROM collaborative_documents
+     WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false`,
+    [id, DOCS_SUBTYPES]
+  )) as OwnedShareRow[];
+
+  if (result.length === 0) {
+    return { kind: 'fail', response: { status: 404, body: { error: 'Document not found' } } };
+  }
+
+  const row = result[0];
+  const isOwner = row.created_by === userId || row.permissions?.[userId]?.level === 'owner';
+
+  if (!isOwner) {
+    return {
+      kind: 'fail',
+      response: { status: 403, body: { error: 'Only owners can manage sharing settings' } },
+    };
+  }
+
+  return { kind: 'ok', row };
+}
 
 /**
  * Mount the ts-rest docs contract router onto an Express app.
