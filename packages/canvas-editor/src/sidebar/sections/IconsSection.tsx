@@ -1,11 +1,12 @@
-import { useCallback, useMemo, useRef, useEffect, useState } from 'react';
+import { useCallback, useMemo, useRef, useEffect } from 'react';
 import { FaCheck } from 'react-icons/fa';
 import { Icon } from '@iconify/react';
 
 import { Skeleton } from '@gruenerator/ui';
 
+import { useIconCatalog } from '../../hooks/useIconCatalog';
 import { usePaginatedIcons } from '../../hooks/usePaginatedIcons';
-import { loadAllIcons, getIconsSync, type IconDef } from '../../utils/canvasIcons';
+import { type IconDef } from '../../utils/canvasIcons';
 import {
   CARD_GRID,
   CARD_CHECK_SMALL,
@@ -40,22 +41,7 @@ export function IconsSection({
   searchQuery = '',
 }: IconsSectionProps) {
   const sentinelRef = useRef<HTMLDivElement>(null);
-  const [allIcons, setAllIcons] = useState<IconDef[]>(() => getIconsSync() ?? []);
-  const [iconsLoading, setIconsLoading] = useState(!getIconsSync());
-
-  useEffect(() => {
-    if (getIconsSync()) return;
-    let cancelled = false;
-    loadAllIcons().then((icons) => {
-      if (!cancelled) {
-        setAllIcons(icons);
-        setIconsLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { data: allIcons = [], isLoading: iconsLoading } = useIconCatalog();
 
   const recommendedIcons = useMemo(
     () =>
