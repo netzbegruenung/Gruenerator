@@ -6,19 +6,20 @@ import { useCanvasStore } from '../stores/CanvasStoreProvider';
 
 import type { CanvasEditorStoreState } from '../stores/createCanvasEditorStore';
 
-interface UseCanvasUndoRedoReturn {
+interface UseCanvasUndoRedoReturn<
+  TComponentState extends Record<string, unknown> = Record<string, unknown>,
+> {
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  saveToHistory: (componentState?: Record<string, unknown>) => void;
-  debouncedSaveToHistory: (componentState?: Record<string, unknown>) => void;
+  saveToHistory: (componentState?: TComponentState) => void;
+  debouncedSaveToHistory: (componentState?: TComponentState) => void;
 }
 
 // Stable selectors defined outside component
 const selectCanUndo = (s: CanvasEditorStoreState) => s.historyIndex > 0;
-const selectCanRedo = (s: CanvasEditorStoreState) =>
-  s.historyIndex < s.history.length - 1;
+const selectCanRedo = (s: CanvasEditorStoreState) => s.historyIndex < s.history.length - 1;
 
 /**
  * Hook for canvas undo/redo functionality
@@ -27,11 +28,17 @@ const selectCanRedo = (s: CanvasEditorStoreState) =>
  * - Includes debounced save for text input scenarios
  * - Uses getState() for stable store access without re-renders
  * - Accepts optional onRestore callback to restore component-level state
+ *
+ * The generic `TComponentState` parameter ties the saved state shape to the
+ * restoration callback shape so per-config templates get end-to-end typing
+ * (`saveToHistory(getState())` is checked against `onRestore`'s parameter).
  */
-export function useCanvasUndoRedo(
+export function useCanvasUndoRedo<
+  TComponentState extends Record<string, unknown> = Record<string, unknown>,
+>(
   debounceMs = 250,
-  onRestore?: (state: Record<string, unknown>) => void
-): UseCanvasUndoRedoReturn {
+  onRestore?: (state: TComponentState) => void
+): UseCanvasUndoRedoReturn<TComponentState> {
   const store = useCanvasStore();
   // Use individual selectors to avoid subscribing to entire store
   const canUndo = useStore(store, selectCanUndo);
@@ -59,13 +66,19 @@ export function useCanvasUndoRedo(
     }
   }, []);
 
-  // Register restoration callback on mount (using ref for stable callback)
+  // Register restoration callback on mount (using ref for stable callback).
+  // Variance bridge: the provider store is typed at the default
+  // `Record<string, unknown>`, while this hook is parameterised in
+  // `TComponentState extends Record<string, unknown>`. Function-parameter
+  // contravariance prevents direct assignment, but at runtime the values
+  // are interchangeable — the typed callback only ever receives state that
+  // the same template's `getState()` produced.
   useEffect(() => {
     if (onRestoreRef.current) {
-      const callback = (state: Record<string, unknown>) => {
+      const callback = (state: TComponentState) => {
         onRestoreRef.current?.(state);
       };
-      getStore().setStateRestorationCallback(callback);
+      getStore().setStateRestorationCallback(callback as (state: Record<string, unknown>) => void);
       return () => {
         getStore().setStateRestorationCallback(null);
       };
@@ -88,9 +101,11 @@ export function useCanvasUndoRedo(
 
   // Stable saveToHistory function - flushes any pending debounce first
   // so this immediate snapshot creates a clean boundary instead of being
-  // swallowed by the next debounced fire
+  // swallowed by the next debounced fire.
+  // `TComponentState extends Record<string, unknown>` means the value is
+  // structurally compatible with the default-typed store's parameter.
   const saveToHistory = useCallback(
-    (componentState?: Record<string, unknown>) => {
+    (componentState?: TComponentState) => {
       flushDebouncedSave();
       getStore().saveToHistory(componentState);
     },
@@ -150,7 +165,7 @@ export function useCanvasUndoRedo(
 
   // Debounced save for text input scenarios - stable reference
   const debouncedSaveToHistory = useCallback(
-    (componentState?: Record<string, unknown>) => {
+    (componentState?: TComponentState) => {
       pendingComponentStateRef.current = componentState;
       if (debounceTimeoutRef.current) {
         clearTimeout(debounceTimeoutRef.current);

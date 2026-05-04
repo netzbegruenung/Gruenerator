@@ -274,17 +274,36 @@ function FramePrimitiveInner({
   // on every frame field change made Konva fire phantom transform events.
   useEffect(() => {
     if (isSelected && trRef.current && groupRef.current) {
+      console.log('[FramePrimitive] attaching Transformer', {
+        id: frame.id,
+        beforeAttach: {
+          nodeScaleX: groupRef.current.scaleX(),
+          nodeScaleY: groupRef.current.scaleY(),
+          stateWidth: frame.width,
+          stateHeight: frame.height,
+        },
+      });
       trRef.current.nodes([groupRef.current]);
       trRef.current.getLayer()?.batchDraw();
+      console.log('[FramePrimitive] attached Transformer', { id: frame.id });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSelected]);
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
+      console.log('[FramePrimitive] handleDragEnd', {
+        id: frame.id,
+        clipType: frame.clipType,
+        from: { x: frame.x, y: frame.y },
+        to: { x: e.target.x(), y: e.target.y() },
+        nodeScale: { x: e.target.scaleX(), y: e.target.scaleY() },
+        nodeSize: { w: e.target.width(), h: e.target.height() },
+        stateSize: { w: frame.width, h: frame.height },
+      });
       onChange({ x: e.target.x(), y: e.target.y() });
     },
-    [onChange]
+    [onChange, frame.id, frame.clipType, frame.x, frame.y, frame.width, frame.height]
   );
 
   const handleTransformEnd = useCallback(() => {
@@ -329,10 +348,23 @@ function FramePrimitiveInner({
 
   const handleSelect = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      console.log('[FramePrimitive] handleSelect (touch/click)', {
+        id: frame.id,
+        clipType: frame.clipType,
+        wasSelected: isSelected,
+        stateSize: { w: frame.width, h: frame.height },
+        stateScale: { x: frame.scaleX, y: frame.scaleY },
+        nodeScale: groupRef.current
+          ? { x: groupRef.current.scaleX(), y: groupRef.current.scaleY() }
+          : null,
+        nodeSize: groupRef.current
+          ? { w: groupRef.current.width(), h: groupRef.current.height() }
+          : null,
+      });
       e.cancelBubble = true;
       onSelect(frame.id);
     },
-    [onSelect, frame.id]
+    [onSelect, frame.id, frame.clipType, frame.width, frame.height, frame.scaleX, frame.scaleY, isSelected]
   );
 
   const { width: w, height: h } = frame;
@@ -377,7 +409,28 @@ function FramePrimitiveInner({
         draggable={draggable}
         onClick={handleSelect}
         onTap={handleSelect}
+        onDragStart={(e) => {
+          console.log('[FramePrimitive] onDragStart', {
+            id: frame.id,
+            x: e.target.x(),
+            y: e.target.y(),
+            scaleX: e.target.scaleX(),
+            scaleY: e.target.scaleY(),
+          });
+        }}
         onDragEnd={handleDragEnd}
+        onTransformStart={(e) => {
+          console.log(
+            '[FramePrimitive] onTransformStart ' +
+              JSON.stringify({
+                id: frame.id,
+                scaleX: e.target.scaleX(),
+                scaleY: e.target.scaleY(),
+                width: e.target.width(),
+                height: e.target.height(),
+              })
+          );
+        }}
         onTransformEnd={handleTransformEnd}
         name={`frame-${frame.id}`}
       >

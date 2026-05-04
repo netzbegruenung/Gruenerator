@@ -9,6 +9,7 @@ import { useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
+import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
 import { useFirstName } from '@/hooks/useFirstName';
 import { useHydrateUserProfile } from '@/hooks/useHydrateUserProfile';
@@ -23,8 +24,10 @@ function ChatPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
+  const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
   useHydrateUserProfile();
+  useDocumentTitle(chatViewMode === 'thread' ? currentThreadTitle : null);
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
