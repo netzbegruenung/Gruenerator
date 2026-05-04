@@ -65,6 +65,12 @@ export interface UsePageManagerReturn {
   isLoadingConfig: boolean;
   /** When in collaborative mode, returns the page's Y.Map for that index; null otherwise. */
   getPageYMap: (index: number) => Y.Map<unknown> | null;
+  /** Undo the last page-level operation (add/remove/duplicate/move). */
+  undoPageOp: () => void;
+  /** Redo the most recently undone page-level operation. */
+  redoPageOp: () => void;
+  canUndoPageOp: boolean;
+  canRedoPageOp: boolean;
 }
 
 /**
@@ -388,6 +394,15 @@ export function usePageManager({
   // Expose loaded configs map for components that need it
   const loadedConfigs = useMemo(() => configCacheRef.current, []);
 
+  // Page-level undo/redo. Collab mode is fully wired via Yjs UndoManager;
+  // local (non-collab) mode is a no-op here for now — pages persist via
+  // host auto-save, and most users hit this path through the collab editor.
+  const noopUndo = useCallback(() => {}, []);
+  const undoPageOp = yjsPages?.undoPageOp ?? noopUndo;
+  const redoPageOp = yjsPages?.redoPageOp ?? noopUndo;
+  const canUndoPageOp = yjsPages?.canUndoPageOp ?? false;
+  const canRedoPageOp = yjsPages?.canRedoPageOp ?? false;
+
   return {
     pages,
     currentPageIndex,
@@ -405,5 +420,9 @@ export function usePageManager({
     loadedConfigs,
     isLoadingConfig,
     getPageYMap,
+    undoPageOp,
+    redoPageOp,
+    canUndoPageOp,
+    canRedoPageOp,
   };
 }
