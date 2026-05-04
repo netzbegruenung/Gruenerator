@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 
 // ─── Module mocks (hoisted before imports) ────────────────────
 
@@ -57,12 +57,14 @@ vi.mock('../../middleware/types.js', () => ({}));
 
 // ─── Import handler after mocks are in place ──────────────────
 
-const { handleAiRequest } = await import('./aiController.js');
+const { handleAiRequest, aiRequestBodySchema } = await import('./aiController.js');
 
 // ─── Test helpers ─────────────────────────────────────────────
 
-function createMockReq(body: Record<string, unknown> = {}): Request {
-  return { body } as unknown as Request;
+// The handler is now typed against TypedRequest<AiRequestBody> (validation happens
+// in middleware), so we cast the mock through `unknown` at the test boundary.
+function createMockReq(body: Record<string, unknown> = {}) {
+  return { body } as unknown as Parameters<typeof handleAiRequest>[0];
 }
 
 function createMockRes() {
@@ -127,60 +129,51 @@ describe('aiController – POST /api/docs/ai', () => {
     vi.clearAllMocks();
   });
 
-  // ── Validation ────────────────────────────────────────────
+  // ── Validation (schema-level) ─────────────────────────────
+  // Validation moved from the handler to a validateBody middleware in the router.
+  // We assert the Zod contract directly; the middleware itself is third-party-tested.
 
-  describe('Validation', () => {
-    it('returns 400 when messages is missing', async () => {
-      const { res, statusFn, jsonFn } = createMockRes();
-      const req = createMockReq({ toolDefinitions: sampleToolDefinitions });
-
-      await handleAiRequest(req, res);
-
-      expect(statusFn).toHaveBeenCalledWith(400);
-      expect(jsonFn).toHaveBeenCalledWith({ error: 'Messages array is required' });
+  describe('Request body schema', () => {
+    it('rejects bodies without messages', () => {
+      const result = aiRequestBodySchema.safeParse({ toolDefinitions: sampleToolDefinitions });
+      expect(result.success).toBe(false);
     });
 
-    it('returns 400 when messages is not an array', async () => {
-      const { res, statusFn, jsonFn } = createMockRes();
-      const req = createMockReq({
+    it('rejects bodies where messages is not an array', () => {
+      const result = aiRequestBodySchema.safeParse({
         messages: 'not-an-array',
         toolDefinitions: sampleToolDefinitions,
       });
-
-      await handleAiRequest(req, res);
-
-      expect(statusFn).toHaveBeenCalledWith(400);
-      expect(jsonFn).toHaveBeenCalledWith({ error: 'Messages array is required' });
+      expect(result.success).toBe(false);
     });
 
-    it('returns 400 when toolDefinitions is missing', async () => {
-      const { res, statusFn, jsonFn } = createMockRes();
-      const req = createMockReq({ messages: sampleMessages });
-
-      await handleAiRequest(req, res);
-
-      expect(statusFn).toHaveBeenCalledWith(400);
-      expect(jsonFn).toHaveBeenCalledWith({ error: 'Tool definitions object is required' });
+    it('rejects bodies without toolDefinitions', () => {
+      const result = aiRequestBodySchema.safeParse({ messages: sampleMessages });
+      expect(result.success).toBe(false);
     });
 
-    it('returns 400 when toolDefinitions is not an object', async () => {
-      const { res, statusFn, jsonFn } = createMockRes();
-      const req = createMockReq({ messages: sampleMessages, toolDefinitions: 'bad' });
-
-      await handleAiRequest(req, res);
-
-      expect(statusFn).toHaveBeenCalledWith(400);
-      expect(jsonFn).toHaveBeenCalledWith({ error: 'Tool definitions object is required' });
+    it('rejects bodies where toolDefinitions is not an object', () => {
+      const result = aiRequestBodySchema.safeParse({
+        messages: sampleMessages,
+        toolDefinitions: 'bad',
+      });
+      expect(result.success).toBe(false);
     });
 
-    it('returns 400 when toolDefinitions is null', async () => {
-      const { res, statusFn, jsonFn } = createMockRes();
-      const req = createMockReq({ messages: sampleMessages, toolDefinitions: null });
+    it('rejects bodies where toolDefinitions is null', () => {
+      const result = aiRequestBodySchema.safeParse({
+        messages: sampleMessages,
+        toolDefinitions: null,
+      });
+      expect(result.success).toBe(false);
+    });
 
-      await handleAiRequest(req, res);
-
-      expect(statusFn).toHaveBeenCalledWith(400);
-      expect(jsonFn).toHaveBeenCalledWith({ error: 'Tool definitions object is required' });
+    it('accepts a well-formed body and returns the typed value', () => {
+      const result = aiRequestBodySchema.safeParse({
+        messages: sampleMessages,
+        toolDefinitions: sampleToolDefinitions,
+      });
+      expect(result.success).toBe(true);
     });
   });
 
@@ -226,9 +219,9 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      expect(mockIsProviderConfigured).toHaveBeenCalledWith('mistral');
-      expect(mockIsProviderConfigured).toHaveBeenCalledWith('regolo');
       expect(mockIsProviderConfigured).toHaveBeenCalledWith('litellm');
+      expect(mockIsProviderConfigured).toHaveBeenCalledWith('regolo');
+      expect(mockIsProviderConfigured).toHaveBeenCalledWith('mistral');
     });
 
     it('selects mistral when it is the first configured provider', async () => {
@@ -242,7 +235,7 @@ describe('aiController – POST /api/docs/ai', () => {
 
       await handleAiRequest(req, res);
 
-      expect(mockGetModel).toHaveBeenCalledWith('mistral', 'mistral-medium-2604');
+      expect(mockGetModel).toHaveBeenCalledWith('mistral', 'mistral-large-latest');
     });
 
     it('falls back to regolo when mistral is not configured', async () => {
