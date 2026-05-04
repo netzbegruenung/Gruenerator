@@ -3,6 +3,10 @@
  *
  * Manages a session-level clipboard for canvas elements (shapes, balkens, icons, etc.)
  * Enables copy (Ctrl+C) and paste (Ctrl+V) functionality across canvas instances.
+ *
+ * `ClipboardItem` is a discriminated union: each `type` literal maps to its
+ * specific data shape, so paste-side branches narrow `data` automatically
+ * without unsafe casts.
  */
 
 import type { AdditionalText } from '../configs/types';
@@ -55,7 +59,8 @@ export class CanvasClipboard {
   }
 
   /**
-   * Paste the clipboard contents (returns null if empty)
+   * Paste the clipboard contents (returns null if empty).
+   * Callers should narrow on `result.type` to access `result.data` safely.
    */
   static paste(): ClipboardEntry | null {
     return CanvasClipboard.instance;

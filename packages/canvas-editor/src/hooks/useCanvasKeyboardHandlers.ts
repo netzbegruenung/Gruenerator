@@ -145,7 +145,9 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
         return;
       }
 
-      // PASTE (Ctrl+V) — clipboard data crosses the type boundary; cast at the seam.
+      // PASTE (Ctrl+V) — `ClipboardEntry` is a discriminated union, so each
+      // branch below auto-narrows `entry.data` to the right shape via the
+      // switch on `entry.type`.
       if (isCtrlOrCmd && e.key === 'v') {
         const entry = CanvasClipboard.paste();
         if (!entry) return;

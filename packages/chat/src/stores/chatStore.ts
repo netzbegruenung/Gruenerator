@@ -75,6 +75,7 @@ interface AgentState {
   selectedProvider: Provider;
   selectedModel: ModelId;
   currentThreadId: string | null;
+  currentThreadTitle: string | null;
   enabledTools: Record<ToolKey, boolean>;
   selectedNotebookId: string;
   compactionState: CompactionState;
@@ -94,6 +95,7 @@ interface AgentState {
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: ModelId) => void;
   setCurrentThread: (threadId: string | null) => void;
+  setCurrentThreadTitle: (title: string | null) => void;
   toggleTool: (tool: ToolKey) => void;
   setAllTools: (enabled: boolean) => void;
   setSelectedNotebook: (notebookId: string) => void;
@@ -132,8 +134,9 @@ export const useAgentStore = create<AgentState>()(
     (set) => ({
       selectedAgentId: null,
       selectedProvider: 'litellm',
-      selectedModel: 'gemma-litellm',
+      selectedModel: 'gemma-4',
       currentThreadId: null,
+      currentThreadTitle: null,
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
       selectedNotebookId: 'gruenerator-notebook',
       compactionState: { ...DEFAULT_COMPACTION_STATE },
@@ -165,11 +168,14 @@ export const useAgentStore = create<AgentState>()(
         if (useAgentStore.getState().currentThreadId === threadId) return;
         set({
           currentThreadId: threadId,
+          currentThreadTitle: null,
           compactionState: { ...DEFAULT_COMPACTION_STATE },
           messageCount: 0,
           needsCompaction: false,
         });
       },
+
+      setCurrentThreadTitle: (title) => set({ currentThreadTitle: title }),
 
       toggleTool: (tool) =>
         set((state) => ({
@@ -336,14 +342,10 @@ export const useAgentStore = create<AgentState>()(
         if (version < 5) {
           const validIds = new Set(['gpt-oss-regolo', 'litellm', 'gemma-regolo', 'qwen-regolo']);
           if (!validIds.has(state.selectedModel as string)) {
-            // Default to current valid ID; v6 below remaps any legacy
-            // 'gemma-regolo' that survives this point.
             state.selectedModel = 'gemma-litellm';
           }
         }
         if (version < 6) {
-          // Regolo's gemma4-31b endpoint hangs upstream; route Gemma through
-          // LiteLLM (which serves the same gemma4 family) instead.
           if (state.selectedModel === 'gemma-regolo') {
             state.selectedModel = 'gemma-litellm';
           }
@@ -357,14 +359,51 @@ export const useAgentStore = create<AgentState>()(
           if (!validIds.has(state.selectedModel as string)) {
             state.selectedModel = 'gemma-litellm';
           }
-          const providerByModel: Record<string, string> = {
-            'gpt-oss-regolo': 'regolo',
-            litellm: 'litellm',
-            'gemma-litellm': 'litellm',
-            'qwen-regolo': 'regolo',
-            'qwen3.6-regolo': 'regolo',
+        }
+        if (version < 7) {
+          // v7 originally pinned offByDefault models to 'gemma-litellm'. After
+          // the v8 collapse below, that ID gets remapped to 'gemma-4', so
+          // this branch effectively pins offByDefault models to the new
+          // gemma-4 lane via the v8 step.
+          const current = state.selectedModel as string;
+          if (current === 'qwen-regolo' || current === 'qwen3.6-regolo') {
+            state.selectedModel = 'gemma-litellm';
+          }
+        }
+        if (version < 8) {
+          // Collapse legacy IDs onto the new overflow lanes. The old picker
+          // had three options ('Gemma 4', 'GPT-OSS', 'Verdigado') that
+          // resolved to only two real targets — now unified into two
+          // load-balanced lanes (Verdigado primary, Regolo overflow).
+          const remap: Record<string, string> = {
+            'gemma-litellm': 'gemma-4',
+            'gemma-regolo': 'gemma-4',
+            'gpt-oss-regolo': 'gpt-oss',
+            litellm: 'gpt-oss',
           };
-          state.selectedProvider = providerByModel[state.selectedModel as string] ?? 'litellm';
+          const current = state.selectedModel as string;
+          if (current in remap) {
+            state.selectedModel = remap[current];
+            state.selectedProvider = 'litellm';
+          }
+          // Anything still not in the new catalog → default to gemma-4.
+          const validIds = new Set([
+            'gpt-oss',
+            'gemma-4',
+            'mistral-large',
+            'qwen-regolo',
+            'qwen3.6-regolo',
+          ]);
+          if (!validIds.has(state.selectedModel as string)) {
+            state.selectedModel = 'gemma-4';
+            state.selectedProvider = 'litellm';
+          }
+          // Re-apply the v7 offByDefault pin against the new ID set.
+          const def = MODEL_BY_ID[state.selectedModel as ModelId];
+          if (def?.offByDefault) {
+            state.selectedModel = 'gemma-4';
+            state.selectedProvider = 'litellm';
+          }
         }
         if (version < 7) {
           // Mistral Medium 3.5 added as selectable option. Existing valid IDs stay.

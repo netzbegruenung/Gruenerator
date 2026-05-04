@@ -30,7 +30,9 @@ import type {
 // TYPES
 // =============================================================================
 
-export interface CanvasEditorState {
+export interface CanvasEditorState<
+  TComponentState extends Record<string, unknown> = Record<string, unknown>,
+> {
   layers: Layer[];
   selectedLayerIds: string[];
   selectedElement: string | null;
@@ -52,7 +54,7 @@ export interface CanvasEditorState {
   formatId: string;
   containerSize: { width: number; height: number };
 
-  history: CanvasHistoryEntry[];
+  history: CanvasHistoryEntry<TComponentState>[];
   historyIndex: number;
   maxHistorySize: number;
 
@@ -62,7 +64,7 @@ export interface CanvasEditorState {
 
   renderVersion: number;
 
-  stateRestorationCallback: ((state: Record<string, unknown>) => void) | null;
+  stateRestorationCallback: ((state: TComponentState) => void) | null;
 
   /**
    * Tracks the most recently auto-applied AI suggestion so the canvas top
@@ -73,7 +75,9 @@ export interface CanvasEditorState {
   pendingAiSuggestion: { title: string } | null;
 }
 
-export interface CanvasEditorActions {
+export interface CanvasEditorActions<
+  TComponentState extends Record<string, unknown> = Record<string, unknown>,
+> {
   setConfig: (config: Partial<CanvasEditorConfig>) => void;
   setFormat: (formatId: string) => void;
   setContainerSize: (size: { width: number; height: number }) => void;
@@ -88,12 +92,10 @@ export interface CanvasEditorActions {
   selectLayer: (id: string, addToSelection?: boolean) => void;
   deselectAll: () => void;
 
-  saveToHistory: (componentState?: Record<string, unknown>) => void;
+  saveToHistory: (componentState?: TComponentState) => void;
   undo: () => void;
   redo: () => void;
-  setStateRestorationCallback: (
-    callback: ((state: Record<string, unknown>) => void) | null
-  ) => void;
+  setStateRestorationCallback: (callback: ((state: TComponentState) => void) | null) => void;
 
   setSelectedElement: (id: string | null) => void;
 
@@ -117,35 +119,41 @@ export interface CanvasEditorGetters {
   getSnapTargets: (excludeId: string) => SnapTarget[];
 }
 
-export type CanvasEditorStoreState = CanvasEditorState & CanvasEditorActions & CanvasEditorGetters;
+export type CanvasEditorStoreState<
+  TComponentState extends Record<string, unknown> = Record<string, unknown>,
+> = CanvasEditorState<TComponentState> & CanvasEditorActions<TComponentState> & CanvasEditorGetters;
 
 // =============================================================================
 // INITIAL STATE
 // =============================================================================
 
-const initialState: CanvasEditorState = {
-  layers: [],
-  selectedLayerIds: [],
-  selectedElement: null,
-  config: {
-    width: DEFAULT_CANVAS_SIZE,
-    height: DEFAULT_CANVAS_HEIGHT,
-    backgroundColor: DEFAULT_BACKGROUND_COLOR,
-    responsive: true,
-    maxContainerWidth: 600,
-  },
-  formatId: DEFAULT_FORMAT_ID,
-  containerSize: { width: 400, height: 400 },
-  history: [],
-  historyIndex: -1,
-  maxHistorySize: 50,
-  snapGuides: { h: false, v: false },
-  snapLines: [],
-  elementPositions: {},
-  renderVersion: 0,
-  stateRestorationCallback: null,
-  pendingAiSuggestion: null,
-};
+function createInitialState<
+  TComponentState extends Record<string, unknown>,
+>(): CanvasEditorState<TComponentState> {
+  return {
+    layers: [],
+    selectedLayerIds: [],
+    selectedElement: null,
+    config: {
+      width: DEFAULT_CANVAS_SIZE,
+      height: DEFAULT_CANVAS_HEIGHT,
+      backgroundColor: DEFAULT_BACKGROUND_COLOR,
+      responsive: true,
+      maxContainerWidth: 600,
+    },
+    formatId: DEFAULT_FORMAT_ID,
+    containerSize: { width: 400, height: 400 },
+    history: [],
+    historyIndex: -1,
+    maxHistorySize: 50,
+    snapGuides: { h: false, v: false },
+    snapLines: [],
+    elementPositions: {},
+    renderVersion: 0,
+    stateRestorationCallback: null,
+    pendingAiSuggestion: null,
+  };
+}
 
 // =============================================================================
 // HELPERS
@@ -157,10 +165,12 @@ const generateLayerId = () => `layer-${Date.now()}-${Math.random().toString(36).
 // FACTORY
 // =============================================================================
 
-export function createCanvasEditorStore() {
-  return createStore<CanvasEditorStoreState>()(
+export function createCanvasEditorStore<
+  TComponentState extends Record<string, unknown> = Record<string, unknown>,
+>() {
+  return createStore<CanvasEditorStoreState<TComponentState>>()(
     immer((set, get) => ({
-      ...initialState,
+      ...createInitialState<TComponentState>(),
 
       // Computed getters
       displayScale: () => {
@@ -291,7 +301,7 @@ export function createCanvasEditorStore() {
             }
           }
 
-          const entry: CanvasHistoryEntry = {
+          const entry: CanvasHistoryEntry<TComponentState> = {
             layers: JSON.parse(layersJson),
             selectedLayerIds: [...state.selectedLayerIds],
             timestamp: Date.now(),
@@ -302,7 +312,10 @@ export function createCanvasEditorStore() {
             state.history = state.history.slice(0, state.historyIndex + 1);
           }
 
-          state.history.push(entry);
+          // Immer's Draft<T> conditional cannot resolve for a generic
+          // `TComponentState` parameter, so we cast at the push site. The
+          // runtime values are identical; this bypasses only the TS check.
+          state.history.push(entry as (typeof state.history)[number]);
 
           if (state.history.length > state.maxHistorySize) {
             state.history.shift();
@@ -384,7 +397,7 @@ export function createCanvasEditorStore() {
         }),
 
       // Reset
-      resetStore: () => set({ ...initialState }),
+      resetStore: () => set({ ...createInitialState<TComponentState>() }),
 
       // AI suggestion accept/revert state
       setPendingAiSuggestion: (pending) =>
@@ -395,7 +408,9 @@ export function createCanvasEditorStore() {
   );
 }
 
-export type CanvasEditorStoreApi = ReturnType<typeof createCanvasEditorStore>;
+export type CanvasEditorStoreApi<
+  TComponentState extends Record<string, unknown> = Record<string, unknown>,
+> = ReturnType<typeof createCanvasEditorStore<TComponentState>>;
 
 // Default singleton for backward compatibility
 export const defaultCanvasEditorStore = createCanvasEditorStore();

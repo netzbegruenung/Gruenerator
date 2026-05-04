@@ -144,11 +144,11 @@ export interface CanvasEditorConfig {
 // HISTORY TYPES
 // =============================================================================
 
-export interface CanvasHistoryEntry {
+export interface CanvasHistoryEntry<TComponentState = Record<string, unknown>> {
   layers: Layer[];
   selectedLayerIds: string[];
   timestamp: number;
-  componentState?: Record<string, unknown>;
+  componentState?: TComponentState;
 }
 
 // =============================================================================
