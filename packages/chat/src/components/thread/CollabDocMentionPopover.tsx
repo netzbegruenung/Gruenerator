@@ -8,7 +8,7 @@ import {
   CommandList,
   ScrollArea,
 } from '@gruenerator/ui';
-import { getDocMentionables } from '../../lib/mentionables';
+import { useDocMentionables } from '../../hooks/useMentionablesQuery';
 
 export interface CollabDocSelection {
   id: string;
@@ -38,11 +38,11 @@ export function CollabDocMentionPopover({
     [onDismiss]
   );
 
-  if (!visible) return null;
+  // useQuery dedupes with the same query in GrueneratorComposer so this is just
+  // a cache subscription — popover re-renders automatically when docs arrive.
+  const docs = useDocMentionables();
 
-  const docs = getDocMentionables().filter(
-    (m) => m.identifier !== 'dokument-erstellen' && m.identifier !== 'docs-picker-trigger'
-  );
+  if (!visible) return null;
 
   return (
     <div

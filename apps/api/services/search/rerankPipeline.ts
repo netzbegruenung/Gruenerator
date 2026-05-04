@@ -41,6 +41,10 @@ export interface RerankPipelineResult {
   rankedIndices: number[];
   scores: Map<number, number>;
   rerankTimeMs: number;
+  /** True when the cross-encoder call failed and we returned the items in original order. */
+  failed?: boolean;
+  /** Error message captured when failed=true; undefined on success. */
+  error?: string;
 }
 
 const SKIP_THRESHOLD = 2;
@@ -142,11 +146,14 @@ export async function rerankPipeline(
       rerankTimeMs,
     };
   } catch (error: unknown) {
-    log.error('Rerank error:', error instanceof Error ? error.message : String(error));
+    const errMsg = error instanceof Error ? error.message : String(error);
+    log.error('Rerank error:', errMsg);
     return {
       rankedIndices: candidates.map((_, i) => i).slice(0, outputLimit),
       scores: new Map(candidates.map((item, i) => [i, item.relevance ?? DEFAULT_RELEVANCE])),
       rerankTimeMs: Date.now() - startTime,
+      failed: true,
+      error: errMsg,
     };
   }
 }

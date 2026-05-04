@@ -21,6 +21,7 @@
   "dependencies": {
     "@assistant-ui/react-markdown": "0.12.9",
     "@gruenerator/collab": "workspace:*",
+    "@gruenerator/shared": "workspace:*",
     "@gruenerator/ui": "workspace:*",
     "@gruenerator/voice": "workspace:*",
     "@hocuspocus/provider": "^3.4.4",
@@ -38,6 +39,7 @@
   },
   "peerDependencies": {
     "@assistant-ui/react": ">=0.12.0",
+    "@tanstack/react-query": "^5.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwindcss": "4",

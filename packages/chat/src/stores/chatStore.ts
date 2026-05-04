@@ -405,6 +405,29 @@ export const useAgentStore = create<AgentState>()(
             state.selectedProvider = 'litellm';
           }
         }
+        if (version < 7) {
+          // Mistral Medium 3.5 added as selectable option. Existing valid IDs stay.
+          const validIds = new Set([
+            'mistral-medium-3.5',
+            'gpt-oss-regolo',
+            'litellm',
+            'gemma-litellm',
+            'qwen-regolo',
+            'qwen3.6-regolo',
+          ]);
+          if (!validIds.has(state.selectedModel as string)) {
+            state.selectedModel = 'gemma-litellm';
+            state.selectedProvider = 'litellm';
+          }
+        }
+        if (version < 8) {
+          const current = state.selectedModel as string | undefined;
+          const def = current ? MODEL_BY_ID[current as ModelId] : undefined;
+          if (def?.offByDefault) {
+            state.selectedModel = 'gemma-litellm';
+            state.selectedProvider = 'litellm';
+          }
+        }
         return state;
       },
       partialize: (state) => ({

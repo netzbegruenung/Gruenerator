@@ -232,7 +232,7 @@ export async function fetchRecentImages(
     title: row.title || 'Ohne Titel',
     date: row.created_at,
     type: 'image' as const,
-    href: '/studio/gallery',
+    href: `/share/${row.share_token}`,
     thumbnailUrl: row.thumbnail_path ? `/api/share/${row.share_token}/thumbnail` : undefined,
     deleteEndpoint: `/api/share/${row.share_token}`,
   }));

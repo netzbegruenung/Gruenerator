@@ -237,6 +237,20 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x ?? 0,
   }),
 
+  // Reliability flags & structured error log (visibility for silent failure surfaces).
+  // searchErrors uses APPEND reducer so errors persist across the qualityGate→search loop;
+  // searchResults uses replace, so without append we'd lose failures from prior iterations.
+  searchErrors: Annotation<{ source: string; message: string }[]>({
+    reducer: (x, y) => [...(x ?? []), ...(y ?? [])],
+    default: () => [],
+  }),
+  briefGenerationFailed: Annotation<boolean>({
+    reducer: (x, y) => y ?? x ?? false,
+  }),
+  rerankFailed: Annotation<boolean>({
+    reducer: (x, y) => y ?? x ?? false,
+  }),
+
   // Image generation
   imagePrompt: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
@@ -596,6 +610,11 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     qualityScore: 0,
     qualityAssessmentTimeMs: 0,
 
+    // Reliability flags & structured error log
+    searchErrors: [],
+    briefGenerationFailed: false,
+    rerankFailed: false,
+
     // Image generation (will be set by image node)
     imagePrompt: null,
     imageStyle: null,
@@ -656,6 +675,16 @@ export async function runChatGraph(input: ChatGraphInput): Promise<ChatGraphOutp
     log.info(
       `[ChatGraph] Complete: intent=${result.intent}, searches=${result.searchCount}, image=${result.generatedImage ? 'yes' : 'no'}, time=${totalTimeMs}ms`
     );
+
+    // Reliability summary — only log when something noteworthy happened so the line
+    // stays useful for grep instead of getting drowned in happy-path noise.
+    const errCount = result.searchErrors?.length ?? 0;
+    if (errCount > 0 || result.rerankFailed || result.briefGenerationFailed) {
+      const errSources = result.searchErrors?.map((e) => e.source).join(',') || 'none';
+      log.warn(
+        `[ChatGraph] Reliability: errors=${errCount} (${errSources}), rerankFailed=${!!result.rerankFailed}, briefFailed=${!!result.briefGenerationFailed}, results=${result.searchResults.length}`
+      );
+    }
 
     return {
       success: !result.error,

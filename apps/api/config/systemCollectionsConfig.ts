@@ -274,9 +274,16 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
         valueLabels: {
           'berlin-lv-presse': 'LV Presse',
           'berlin-lv-beschluesse': 'LV Beschlüsse',
-          'berlin-lv-wahlprogramm': 'LV Wahlprogramm',
           'berlin-fraktion-presse': 'Fraktion Presse',
           'berlin-fraktion-beschluesse': 'Fraktion Beschlüsse',
+        },
+      },
+      {
+        field: 'curated_lists',
+        label: 'Liste',
+        type: 'keyword',
+        valueLabels: {
+          'wahlprogramm-be': 'Wahlprogramm',
         },
       },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -437,6 +444,7 @@ export function buildSubcategoryFilter(
     'landesverband',
     'gremium',
     'source_id',
+    'curated_lists',
   ];
 
   for (const filterKey of filterKeys) {

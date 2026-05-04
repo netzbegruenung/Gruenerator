@@ -50,7 +50,7 @@ export class MistralWebSearchService {
       console.log(`[MistralWebSearchService] Creating ${config.name}`);
 
       const agent = await this.client!.beta.agents.create({
-        model: 'mistral-large-2512',
+        model: 'mistral-medium-2604',
         name: config.name,
         instructions: config.instructions,
         description: config.description,

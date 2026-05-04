@@ -26,6 +26,7 @@ import {
   wordpressContract,
   transferContract,
   notificationsContract,
+  modelPreferencesContract,
   adminVorlagenContract,
   authStatusContract,
 } from '@gruenerator/contracts';
@@ -131,6 +132,7 @@ const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
 const _wordpressClient = () => initClient(wordpressContract, CLIENT_OPTS);
 const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
+const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
 const _authStatusClient = () => initClient(authStatusContract, CLIENT_OPTS);
 
@@ -144,6 +146,7 @@ export interface ContractsClient {
   wordpress: ReturnType<typeof _wordpressClient>;
   transfer: ReturnType<typeof _transferClient>;
   notifications: ReturnType<typeof _notificationsClient>;
+  modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
   authStatus: ReturnType<typeof _authStatusClient>;
 }
@@ -174,6 +177,7 @@ export function getContractsClient(): ContractsClient {
     wordpress: _wordpressClient(),
     transfer: _transferClient(),
     notifications: _notificationsClient(),
+    modelPreferences: _modelPreferencesClient(),
     adminVorlagen: _adminVorlagenClient(),
     authStatus: _authStatusClient(),
   };

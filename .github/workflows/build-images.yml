@@ -31,11 +31,6 @@ on:
         required: false
         default: 'false'
         type: boolean
-      build_docs:
-        description: 'Build docs image only'
-        required: false
-        default: 'false'
-        type: boolean
       build_mcp:
         description: 'Build MCP image only'
         required: false
@@ -93,7 +88,6 @@ jobs:
       web: ${{ steps.filter.outputs.web }}
       api: ${{ steps.filter.outputs.api }}
       sites: ${{ steps.filter.outputs.sites }}
-      docs: ${{ steps.filter.outputs.docs }}
       hocuspocus: ${{ steps.filter.outputs.hocuspocus }}
       mcp: ${{ steps.filter.outputs.mcp }}
       doku: ${{ steps.filter.outputs.doku }}
@@ -133,14 +127,6 @@ jobs:
               - 'apps/sites/**'
               - 'packages/shared/**'
               - 'packages/sites-design/**'
-              - 'pnpm-lock.yaml'
-            docs:
-              - 'apps/docs/**'
-              - 'packages/shared/**'
-              - 'packages/docs/**'
-              - 'packages/collab/**'
-              - 'packages/ui/**'
-              - 'packages/wolke/**'
               - 'pnpm-lock.yaml'
             hocuspocus:
               - 'services/hocuspocus/**'
@@ -321,56 +307,6 @@ jobs:
             VITE_API_BASE_URL=/api
             VITE_APP_ENV=production
             VITE_SENTRY_DSN=${{ vars.VITE_SENTRY_DSN }}
-
-  build-docs:
-    needs: detect-changes
-    if: >
-      needs.detect-changes.outputs.docs == 'true' ||
-      github.event.inputs.force_all == 'true' ||
-      github.event.inputs.build_docs == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE_PREFIX }}-docs
-          tags: |
-            type=ref,event=branch
-            type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/docs/Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.IMAGE_PREFIX }}-docs:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_PREFIX }}-docs:buildcache,mode=max,image-manifest=true,oci-mediatypes=true
 
   build-hocuspocus:
     needs: detect-changes
@@ -678,7 +614,6 @@ jobs:
         build-web,
         build-api,
         build-sites,
-        build-docs,
         build-hocuspocus,
         build-mcp,
         build-gruen-o-mat,
@@ -699,7 +634,6 @@ jobs:
           echo "| web | ${{ needs.build-web.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| api | ${{ needs.build-api.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| sites | ${{ needs.build-sites.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| docs | ${{ needs.build-docs.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| hocuspocus | ${{ needs.build-hocuspocus.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| mcp | ${{ needs.build-mcp.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| gruen-o-mat | ${{ needs.build-gruen-o-mat.result }} |" >> $GITHUB_STEP_SUMMARY

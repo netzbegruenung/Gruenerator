@@ -23,8 +23,8 @@ import {
 import { useDocsStore } from '../../stores/docsStore';
 import { lightTheme, darkTheme, colors } from '../../theme';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_DOCS_API_URL || 'https://docs.gruenerator.eu/api';
-const HOCUSPOCUS_URL = process.env.EXPO_PUBLIC_HOCUSPOCUS_URL || 'wss://docs.gruenerator.eu/ws';
+const API_BASE_URL = process.env.EXPO_PUBLIC_DOCS_API_URL || 'https://gruenerator.eu/api';
+const HOCUSPOCUS_URL = process.env.EXPO_PUBLIC_HOCUSPOCUS_URL || 'wss://gruenerator.eu/ws';
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return (

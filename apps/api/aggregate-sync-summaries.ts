@@ -74,31 +74,43 @@ async function main() {
 
   const emailTo = env.CONTENT_SYNC_EMAIL;
   if (emailTo) {
-    const runId = env.GITHUB_RUN_ID;
-    const repo = env.GITHUB_REPOSITORY;
-    const server = env.GITHUB_SERVER_URL ?? 'https://github.com';
-    const runUrl = runId && repo ? `${server}/${repo}/actions/runs/${runId}` : undefined;
-
-    try {
-      const params: Parameters<typeof sendContentSyncEmail>[1] = {
-        timestamp: merged.timestamp,
-        totalDuration: merged.totalDuration,
-        sources: merged.sources,
-        totals: merged.totals,
-        dryRun: merged.dryRun,
-      };
-      if (runUrl != null) {
-        params.runUrl = runUrl;
-      }
-      const sent = await sendContentSyncEmail(emailTo, params);
+    // Skip the digest when nothing of interest happened: no new/updated docs,
+    // no hard errors, no job failures. Transient fetchErrors don't count —
+    // flaky-site retries shouldn't spam the inbox. Mirrors the per-LV gate
+    // in update-all-content.ts so a fully quiet hour produces zero emails.
+    const t = merged.totals;
+    const noteworthy = t.stored + t.updated + t.errors + t.failed > 0;
+    if (!noteworthy) {
       console.log(
-        sent ? `Email sent to ${emailTo}` : 'Email sending skipped (SMTP not configured)'
+        'Aggregate digest: nothing noteworthy (stored=0, updated=0, errors=0, failed=0) — skipping email'
       );
-    } catch (err) {
-      console.error(
-        'Email notification failed (non-fatal):',
-        err instanceof Error ? err.message : err
-      );
+    } else {
+      const runId = env.GITHUB_RUN_ID;
+      const repo = env.GITHUB_REPOSITORY;
+      const server = env.GITHUB_SERVER_URL ?? 'https://github.com';
+      const runUrl = runId && repo ? `${server}/${repo}/actions/runs/${runId}` : undefined;
+
+      try {
+        const params: Parameters<typeof sendContentSyncEmail>[1] = {
+          timestamp: merged.timestamp,
+          totalDuration: merged.totalDuration,
+          sources: merged.sources,
+          totals: merged.totals,
+          dryRun: merged.dryRun,
+        };
+        if (runUrl != null) {
+          params.runUrl = runUrl;
+        }
+        const sent = await sendContentSyncEmail(emailTo, params);
+        console.log(
+          sent ? `Email sent to ${emailTo}` : 'Email sending skipped (SMTP not configured)'
+        );
+      } catch (err) {
+        console.error(
+          'Email notification failed (non-fatal):',
+          err instanceof Error ? err.message : err
+        );
+      }
     }
   }
 }

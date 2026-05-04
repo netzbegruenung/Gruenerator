@@ -4,7 +4,8 @@ import { HiSparkles } from 'react-icons/hi';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { applyOperation } from '../../ai/applyOperation';
 import { pickQuickPrompts } from '../../ai/quickPrompts';
-import Spinner from '../../common/Spinner';
+import { Skeleton } from '@gruenerator/ui';
+
 import { SIDEBAR_HINT, SIDEBAR_SECTION, SIDEBAR_SECTION_HINT } from '../primitives';
 
 import type { CanvasAiOperation, CanvasAiSuggestion } from '@gruenerator/contracts';
@@ -149,7 +150,7 @@ function AiSectionEnabled<TState, TActions extends CanvasAiActionsBase>({
             disabled={loading || prompt.trim().length === 0}
             className="flex items-center justify-center gap-xs rounded-md bg-[var(--interactive-accent-color)] px-md py-xs text-[length:var(--font-size-small)] font-medium text-background disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? <Spinner size="small" /> : <HiSparkles />}
+            {loading ? <Skeleton className="size-4 rounded-full" /> : <HiSparkles />}
             <span>{loading ? 'Generiere…' : 'Vorschläge erzeugen'}</span>
           </button>
           {(suggestions.length > 0 || error) && (
