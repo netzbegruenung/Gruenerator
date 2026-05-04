@@ -1,5 +1,4 @@
-import { FaPuzzlePiece, FaShapes } from 'react-icons/fa';
-import { HiSparkles } from 'react-icons/hi2';
+import { FaIcons, FaPuzzlePiece, FaShapes } from 'react-icons/fa';
 import { PiFrameCornersFill, PiSmileyWink, PiTagFill } from 'react-icons/pi';
 import {
   Planet,
@@ -16,8 +15,12 @@ import {
   type KawaiiProps,
 } from 'react-kawaii';
 
+import { SYSTEM_ASSETS } from '../../../utils/canvasAssets';
+import { TripleBalkenPreviewIcon } from '../BadgePreviewIcons';
+
 import type { KawaiiIllustrationType } from '../../../utils/illustrations/types';
 import type { IconType } from 'react-icons';
+import type { ComponentType } from 'react';
 
 export type AssetView =
   | 'browse'
@@ -32,59 +35,73 @@ export interface CategoryCardDef {
   id: AssetView;
   label: string;
   Icon: IconType;
+  /** Image file path rendered as-is in full color — takes precedence over Icon when set */
+  image?: string;
+  /** Image used as a CSS mask, painted with eucalyptus — silhouette tint, loses internal color detail */
+  maskImage?: string;
+  /** Custom SVG component taking a size prop — takes precedence over Icon when set */
+  IconComponent?: ComponentType<{ size?: number }>;
   iconColor: string;
   hoverShadow: string;
   ring: string;
 }
 
+const EUCALYPTUS_ICON = 'text-secondary-600 dark:text-secondary-300';
+const EUCALYPTUS_HOVER_SHADOW =
+  'group-hover:shadow-sm group-hover:shadow-secondary-600/15 dark:group-hover:shadow-secondary-300/15';
+const EUCALYPTUS_RING = 'focus-visible:ring-secondary-600/50';
+
 export const CATEGORY_CARDS: CategoryCardDef[] = [
   {
     id: 'grafiken',
-    label: 'Grafiken',
+    label: 'Logos',
     Icon: FaPuzzlePiece,
-    iconColor: 'text-emerald-400 dark:text-emerald-200',
-    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-emerald-400/50 dark:group-hover:shadow-emerald-300/40',
-    ring: 'focus-visible:ring-emerald-400/50',
+    image: SYSTEM_ASSETS.sunflower.green.src,
+    iconColor: EUCALYPTUS_ICON,
+    hoverShadow: EUCALYPTUS_HOVER_SHADOW,
+    ring: EUCALYPTUS_RING,
   },
   {
     id: 'extras',
-    label: 'Extras',
+    label: 'Balken',
     Icon: PiTagFill,
-    iconColor: 'text-amber-400 dark:text-amber-200',
-    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-amber-400/50 dark:group-hover:shadow-amber-300/40',
-    ring: 'focus-visible:ring-amber-400/50',
+    IconComponent: TripleBalkenPreviewIcon,
+    iconColor: EUCALYPTUS_ICON,
+    hoverShadow: EUCALYPTUS_HOVER_SHADOW,
+    ring: EUCALYPTUS_RING,
   },
   {
     id: 'formen',
     label: 'Formen',
     Icon: FaShapes,
-    iconColor: 'text-violet-400 dark:text-violet-200',
-    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-violet-400/50 dark:group-hover:shadow-violet-300/40',
-    ring: 'focus-visible:ring-violet-400/50',
+    iconColor: EUCALYPTUS_ICON,
+    hoverShadow: EUCALYPTUS_HOVER_SHADOW,
+    ring: EUCALYPTUS_RING,
   },
   {
     id: 'rahmen',
     label: 'Rahmen',
     Icon: PiFrameCornersFill,
-    iconColor: 'text-sky-400 dark:text-sky-200',
-    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-sky-400/50 dark:group-hover:shadow-sky-300/40',
-    ring: 'focus-visible:ring-sky-400/50',
+    iconColor: EUCALYPTUS_ICON,
+    hoverShadow: EUCALYPTUS_HOVER_SHADOW,
+    ring: EUCALYPTUS_RING,
   },
   {
     id: 'illustrationen',
     label: 'Illustrationen',
     Icon: PiSmileyWink,
-    iconColor: 'text-rose-400 dark:text-rose-200',
-    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-rose-400/50 dark:group-hover:shadow-rose-300/40',
-    ring: 'focus-visible:ring-rose-400/50',
+    maskImage: '/illustrations/undraw/eco-conscious_oqny.svg',
+    iconColor: EUCALYPTUS_ICON,
+    hoverShadow: EUCALYPTUS_HOVER_SHADOW,
+    ring: EUCALYPTUS_RING,
   },
   {
     id: 'icons',
     label: 'Icons',
-    Icon: HiSparkles,
-    iconColor: 'text-yellow-400 dark:text-yellow-200',
-    hoverShadow: 'group-hover:shadow-lg group-hover:shadow-yellow-400/50 dark:group-hover:shadow-yellow-300/40',
-    ring: 'focus-visible:ring-yellow-400/50',
+    Icon: FaIcons,
+    iconColor: EUCALYPTUS_ICON,
+    hoverShadow: EUCALYPTUS_HOVER_SHADOW,
+    ring: EUCALYPTUS_RING,
   },
 ];
 
