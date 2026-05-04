@@ -81,6 +81,10 @@ export {
 export type {
   CanvasEditorStoreApi,
   CanvasEditorStoreState,
+  CanvasEditorState,
+  CanvasEditorActions,
+  CanvasEditorGetters,
 } from './stores/createCanvasEditorStore';
+export type { CanvasHistoryEntry } from '@gruenerator/shared/canvas-editor';
 
 export * from './collab';
