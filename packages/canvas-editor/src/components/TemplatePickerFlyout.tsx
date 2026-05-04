@@ -3,9 +3,14 @@
  */
 
 import React, { useCallback, useState, useRef, useEffect, memo } from 'react';
+import { createPortal } from 'react-dom';
 import { HiOutlineDuplicate, HiX, HiPlus, HiTemplate, HiBookOpen, HiStop } from 'react-icons/hi';
 
-import { getAllTemplates, type TemplateInfo } from '../utils/templateRegistry';
+import {
+  getAllTemplates,
+  type TemplateCategory,
+  type TemplateInfo,
+} from '../utils/templateRegistry';
 
 import type { CanvasConfigId } from '../configs/types';
 
@@ -19,8 +24,8 @@ interface TemplatePickerFlyoutProps {
   isOpen: boolean;
   anchorRef?: React.RefObject<HTMLElement | null>;
   onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
-  /** Filter templates by prefix (e.g. 'pres-' to show only presentation layouts) */
-  templateFilter?: string;
+  /** Restrict shown templates to one category (e.g. 'sharepic'). Undefined shows all. */
+  templateFilter?: TemplateCategory;
 }
 
 interface TemplateCardProps {
@@ -30,7 +35,7 @@ interface TemplateCardProps {
 }
 
 const templateCardBase =
-  'flex flex-col items-center p-2 bg-background-alt border-2 border-transparent rounded-lg cursor-pointer transition-[border-color,transform,box-shadow] duration-150 hover:border-primary-600 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(70,150,43,0.15)]';
+  'flex flex-col items-center p-1.5 bg-background-alt border-2 border-transparent rounded-md cursor-pointer transition-[border-color,transform,box-shadow] duration-150 hover:border-primary-600 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(70,150,43,0.15)]';
 
 const TemplateCard = memo(function TemplateCard({
   template,
@@ -47,7 +52,7 @@ const TemplateCard = memo(function TemplateCard({
       onClick={handleClick}
       type="button"
     >
-      <div className="w-full aspect-square rounded overflow-hidden mb-1.5">
+      <div className="w-full aspect-square rounded overflow-hidden mb-1">
         <img
           src={template.previewImage}
           alt={template.label}
@@ -56,7 +61,7 @@ const TemplateCard = memo(function TemplateCard({
         />
       </div>
       <div className="flex flex-col items-center gap-0.5">
-        <span className="text-[11px] font-medium text-foreground text-center leading-tight">
+        <span className="text-[10px] font-medium text-foreground text-center leading-tight line-clamp-1">
           {template.label}
         </span>
         {isCurrent && (
@@ -84,9 +89,11 @@ export function TemplatePickerFlyout({
     top: 0,
     left: 0,
   });
-  const allTemplates = getAllTemplates();
+  // 'freeform' is reachable via "Aktuelle Seite duplizieren" — hide it as a
+  // distinct picker option so users don't get a redundant entry.
+  const allTemplates = getAllTemplates().filter((t) => t.id !== 'freeform');
   const templates = templateFilter
-    ? allTemplates.filter((t) => t.id.startsWith(templateFilter))
+    ? allTemplates.filter((t) => t.category === templateFilter)
     : allTemplates;
 
   useEffect(() => {
@@ -105,6 +112,11 @@ export function TemplatePickerFlyout({
       const spaceAbove = anchorRect.top - gap - padding;
       const spaceBelow = window.innerHeight - anchorRect.bottom - gap - padding;
 
+      // When the anchor sits in a bottom bar (chevron in the page navigator),
+      // we'd rather let the flyout overlap the bar than pin it to top with a
+      // wasted gap above the anchor. So if "above" fits naturally, use it;
+      // else allow the flyout to extend from top-padding all the way down to
+      // the anchor's bottom — overlapping whatever is below.
       let top: number;
       let maxHeight: number | undefined;
 
@@ -114,7 +126,10 @@ export function TemplatePickerFlyout({
         top = anchorRect.bottom + gap;
       } else if (spaceAbove >= spaceBelow) {
         top = padding;
-        maxHeight = spaceAbove;
+        // Extend down to anchor's bottom so the flyout uses every available
+        // pixel above and around the anchor — the bottom bar is allowed to
+        // be covered.
+        maxHeight = anchorRect.bottom - padding;
       } else {
         top = anchorRect.bottom + gap;
         maxHeight = spaceBelow;
@@ -180,10 +195,12 @@ export function TemplatePickerFlyout({
 
   if (!isOpen) return null;
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
       ref={flyoutRef}
-      className="bg-background-pure border border-border rounded-xl shadow-lg p-4 z-[1000] min-w-[320px] max-w-[400px] max-h-[calc(100vh-32px)] overflow-y-auto scrollbar-thin animate-[flyout-enter_0.15s_ease-out] max-[480px]:!fixed max-[480px]:!bottom-0 max-[480px]:!left-0 max-[480px]:!top-auto max-[480px]:!right-0 max-[480px]:min-w-full max-[480px]:max-w-full max-[480px]:rounded-t-2xl max-[480px]:rounded-b-none max-[480px]:max-h-[70vh]"
+      className="bg-background-pure border border-border rounded-xl shadow-lg p-3 z-[1000] min-w-[360px] max-w-[440px] max-h-[calc(100vh-32px)] overflow-y-auto scrollbar-thin animate-[flyout-enter_0.15s_ease-out] max-[480px]:!fixed max-[480px]:!bottom-0 max-[480px]:!left-0 max-[480px]:!top-auto max-[480px]:!right-0 max-[480px]:min-w-full max-[480px]:max-w-full max-[480px]:rounded-t-2xl max-[480px]:rounded-b-none max-[480px]:max-h-[70vh]"
       style={{
         position: 'fixed',
         top: position.top,
@@ -206,7 +223,7 @@ export function TemplatePickerFlyout({
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 mb-3 max-[480px]:gap-2.5">
+      <div className="grid grid-cols-4 gap-1.5 mb-3 max-[480px]:grid-cols-3 max-[480px]:gap-2">
         {templates.map((template) => (
           <TemplateCard
             key={template.id}
@@ -262,7 +279,8 @@ export function TemplatePickerFlyout({
         <HiOutlineDuplicate />
         <span>Aktuelle Seite duplizieren</span>
       </button>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -272,7 +290,7 @@ interface AddPageButtonProps {
   currentTemplateId?: CanvasConfigId;
   disabled?: boolean;
   onAddSliderVariant?: (variant: 'cover' | 'content' | 'last') => void;
-  templateFilter?: string;
+  templateFilter?: TemplateCategory;
 }
 
 export function AddPageButton({

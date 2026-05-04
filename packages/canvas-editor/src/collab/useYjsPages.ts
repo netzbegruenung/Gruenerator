@@ -31,6 +31,12 @@ export interface YjsPagesApi {
   movePage: (id: string, direction: 'up' | 'down') => void;
   /** Patch primitive fields on a page's `state` Y.Map. */
   updatePageState: (id: string, partial: Record<string, unknown>) => void;
+  /** Undo the last LOCAL page-array operation (add/remove/duplicate/move). */
+  undoPageOp: () => void;
+  /** Redo the most recently undone page-array operation. */
+  redoPageOp: () => void;
+  canUndoPageOp: boolean;
+  canRedoPageOp: boolean;
 }
 
 const buildPageYMap = (def: {
@@ -116,7 +122,9 @@ function migrateLegacyDocToPages(ydoc: Y.Doc, pagesArr: Y.Array<Y.Map<unknown>>)
  */
 export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi | null {
   const [version, setVersion] = useState(0);
+  const [historyVersion, setHistoryVersion] = useState(0);
   const promotedRef = useRef(false);
+  const undoManagerRef = useRef<Y.UndoManager | null>(null);
 
   useEffect(() => {
     if (!ydoc || !isSynced) return undefined;
@@ -127,18 +135,39 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
       migrateLegacyDocToPages(ydoc, pagesArr);
     }
 
-    // Local mutations already updated React state synchronously through
-    // their writer hooks — re-deriving on local-origin events would just
-    // burn a render. Skip them.
-    const onChange = (events: Y.YEvent<Y.AbstractType<unknown>>[]) => {
-      const fromLocal = events.every((e) => e.transaction.origin === LOCAL_ORIGIN);
-      if (fromLocal) return;
+    // Re-derive on every change — local AND remote. The writer hooks below
+    // mutate the Y.Doc only; they don't keep a separate React mirror, so
+    // skipping local-origin events would leave React showing stale data
+    // (new pages don't appear, deleted ones linger) until the next render
+    // triggered by something else.
+    const onChange = () => {
       setVersion((v) => v + 1);
     };
     pagesArr.observeDeep(onChange);
+
+    // Undo manager scoped to LOCAL_ORIGIN — only the user's own
+    // add/insert/remove/move operations are tracked here. Layer edits in
+    // `yjsBinding.ts` use a *different* LOCAL_ORIGIN symbol, so they don't
+    // pollute this stack. captureTimeout=0 ensures each page op is a
+    // discrete undo step (no auto-grouping of rapid clicks).
+    const undoManager = new Y.UndoManager(pagesArr, {
+      trackedOrigins: new Set([LOCAL_ORIGIN]),
+      captureTimeout: 0,
+    });
+    undoManagerRef.current = undoManager;
+    const onUndoChange = () => setHistoryVersion((v) => v + 1);
+    undoManager.on('stack-item-added', onUndoChange);
+    undoManager.on('stack-item-popped', onUndoChange);
+    undoManager.on('stack-cleared', onUndoChange);
+
     setVersion((v) => v + 1);
     return () => {
       pagesArr.unobserveDeep(onChange);
+      undoManager.off('stack-item-added', onUndoChange);
+      undoManager.off('stack-item-popped', onUndoChange);
+      undoManager.off('stack-cleared', onUndoChange);
+      undoManager.destroy();
+      undoManagerRef.current = null;
     };
   }, [ydoc, isSynced]);
 
@@ -235,6 +264,16 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
       }, LOCAL_ORIGIN);
     };
 
+    const undoManager = undoManagerRef.current;
+    const undoPageOp = () => {
+      undoManager?.undo();
+    };
+    const redoPageOp = () => {
+      undoManager?.redo();
+    };
+    const canUndoPageOp = (undoManager?.undoStack.length ?? 0) > 0;
+    const canRedoPageOp = (undoManager?.redoStack.length ?? 0) > 0;
+
     return {
       pages,
       isSeeded: pagesArr.length > 0,
@@ -245,8 +284,12 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
       removePage,
       movePage,
       updatePageState,
+      undoPageOp,
+      redoPageOp,
+      canUndoPageOp,
+      canRedoPageOp,
     };
-  }, [ydoc, isSynced, version]);
+  }, [ydoc, isSynced, version, historyVersion]);
 }
 
 /**
