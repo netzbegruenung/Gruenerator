@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 
 import type { OptionalCanvasActions } from './useCanvasElementHandlers';
 import type { FloatingModuleState } from './useFloatingModuleState';
+import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { FullCanvasConfig } from '../configs/types';
 
 /**
@@ -9,19 +10,15 @@ import type { FullCanvasConfig } from '../configs/types';
  *
  * Manages color, opacity, and other floating toolbar control changes
  * for different element types (text, image, shape, icon, illustration).
+ *
+ * `TState` is constrained to `Partial<BaseCanvasState>` so per-config state
+ * shapes still satisfy it (every config carries an optional
+ * `additionalTexts: AdditionalText[]`), while array access here stays
+ * type-safe without a lookup helper.
  */
-
-/**
- * Helper to safely access state array property
- */
-function getStateArray<T>(state: unknown, key: string): T[] {
-  const stateObj = state as Record<string, unknown>;
-  const value = stateObj[key];
-  return Array.isArray(value) ? (value as T[]) : [];
-}
 
 export interface UseFloatingModuleHandlersOptions<
-  TState,
+  TState extends Partial<BaseCanvasState>,
   TActions extends OptionalCanvasActions = OptionalCanvasActions,
 > {
   activeFloatingModule: FloatingModuleState | null;
@@ -41,7 +38,7 @@ export interface UseFloatingModuleHandlersResult {
  * Hook to handle floating toolbar interactions
  */
 export function useFloatingModuleHandlers<
-  TState,
+  TState extends Partial<BaseCanvasState>,
   TActions extends OptionalCanvasActions = OptionalCanvasActions,
 >(options: UseFloatingModuleHandlersOptions<TState, TActions>): UseFloatingModuleHandlersResult {
   const { activeFloatingModule, actions, config, state, setState, debouncedSaveToHistory } =
@@ -73,7 +70,7 @@ export function useFloatingModuleHandlers<
       } else if (activeFloatingModule.type === 'text') {
         const id = activeFloatingModule.data.id;
 
-        const additionalTexts = getStateArray<{ id: string }>(state, 'additionalTexts');
+        const additionalTexts = state.additionalTexts ?? [];
         if (additionalTexts.find((t) => t.id === id)) {
           if (actions.updateAdditionalText) {
             actions.updateAdditionalText(id, { fill: color });
@@ -138,7 +135,7 @@ export function useFloatingModuleHandlers<
           actions.updateAsset(id, { opacity });
         }
       } else if (type === 'text') {
-        const additionalTexts = getStateArray<{ id: string }>(state, 'additionalTexts');
+        const additionalTexts = state.additionalTexts ?? [];
         if (additionalTexts.find((t) => t.id === id)) {
           if (actions.updateAdditionalText) {
             actions.updateAdditionalText(id, { opacity });
