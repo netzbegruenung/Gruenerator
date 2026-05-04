@@ -1,3 +1,4 @@
+import { docImportResponseSchema, docsErrorSchema } from '@gruenerator/contracts';
 import { useDocsAdapter } from '@gruenerator/docs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, UploadZone } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
@@ -36,13 +37,15 @@ export default function FileImportDialog({ open, onOpenChange }: FileImportDialo
         });
 
         if (!response.ok) {
-          const err = (await response.json().catch(() => ({ error: 'Import fehlgeschlagen' }))) as {
-            error?: string;
-          };
-          throw new Error(err.error ?? `HTTP ${response.status}`);
+          const errParsed = docsErrorSchema.safeParse(
+            await response.json().catch(() => ({ error: 'Import fehlgeschlagen' }))
+          );
+          throw new Error(
+            errParsed.success ? errParsed.data.error : `HTTP ${response.status}`
+          );
         }
 
-        const { documentId } = (await response.json()) as { documentId: string };
+        const { documentId } = docImportResponseSchema.parse(await response.json());
         onOpenChange(false);
         adapter.navigateToDocument(documentId);
       } catch (err) {
