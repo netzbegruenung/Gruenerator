@@ -38,7 +38,7 @@ describe('modelPreferences', () => {
       expect(defaults['qwen-regolo']).toEqual({ enabled: false });
       expect(defaults['qwen3.6-regolo']).toEqual({ enabled: false });
       expect(defaults['gemma-litellm']).toEqual({ enabled: true });
-      expect(defaults['gpt-oss-regolo']).toEqual({ enabled: true });
+      expect(defaults['mistral-medium-3.5']).toEqual({ enabled: true });
       expect(defaults['litellm']).toEqual({ enabled: true });
     });
   });
@@ -58,7 +58,7 @@ describe('modelPreferences', () => {
       getProfileByIdMock.mockResolvedValue(null);
       const prefs = await getModelPreferencesForUser('ghost');
       expect(prefs['qwen-regolo'].enabled).toBe(false);
-      expect(prefs['gpt-oss-regolo'].enabled).toBe(true);
+      expect(prefs['mistral-medium-3.5'].enabled).toBe(true);
     });
 
     it('respects an explicit override for an off-by-default model', async () => {
@@ -78,7 +78,7 @@ describe('modelPreferences', () => {
       });
       const prefs = await getModelPreferencesForUser('user-1');
       expect(prefs['gemma-litellm'].enabled).toBe(false);
-      expect(prefs['gpt-oss-regolo'].enabled).toBe(true);
+      expect(prefs['mistral-medium-3.5'].enabled).toBe(true);
     });
 
     it('ignores malformed stored values and uses default', async () => {
@@ -110,19 +110,16 @@ describe('modelPreferences', () => {
 
       const prefs = await setModelPreference('user-1', 'qwen-regolo', true);
 
-      expect(updateUserDefaultMock).toHaveBeenCalledWith(
-        'user-1',
-        'models',
-        'qwen-regolo',
-        { enabled: true }
-      );
+      expect(updateUserDefaultMock).toHaveBeenCalledWith('user-1', 'models', 'qwen-regolo', {
+        enabled: true,
+      });
       expect(prefs['qwen-regolo'].enabled).toBe(true);
     });
 
     it('rejects unknown model ids', async () => {
-      await expect(
-        setModelPreference('user-1', 'nonsense' as never, true)
-      ).rejects.toThrow(/Unknown modelId/);
+      await expect(setModelPreference('user-1', 'nonsense' as never, true)).rejects.toThrow(
+        /Unknown modelId/
+      );
       expect(updateUserDefaultMock).not.toHaveBeenCalled();
     });
   });
