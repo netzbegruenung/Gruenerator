@@ -8,6 +8,7 @@ export { createVoiceAgentStore } from './stores/voiceAgentStore';
 export { splitSentences } from './lib/sentenceSplitter';
 export { float32ToWavBlob, base64PCM16ToFloat32, base64Float32LEToFloat32 } from './lib/pcmUtils';
 export { VoxtralDictationAdapter } from './adapters/VoxtralDictationAdapter';
+export type { VoxtralErrorReason } from './adapters/VoxtralDictationAdapter';
 export type {
   VoiceAgentPhase,
   VoiceAgentState,
