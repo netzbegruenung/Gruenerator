@@ -38,7 +38,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
   {
     id: 'mistral-medium-3.5',
-    name: 'Mistral Medium 4.5',
+    name: 'Mistral Medium (Mistral AI)',
     description: 'EU-gehostet, ausgewogen für allgemeine Aufgaben',
     model: 'mistral-medium-2604',
     provider: 'mistral',
