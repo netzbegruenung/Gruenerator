@@ -312,7 +312,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 8,
+      version: 9,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -386,6 +386,12 @@ export const useAgentStore = create<AgentState>()(
           const def = current ? MODEL_BY_ID[current as ModelId] : undefined;
           if (def?.offByDefault) {
             state.selectedModel = 'gemma-litellm';
+            state.selectedProvider = 'litellm';
+          }
+        }
+        if (version < 9) {
+          if ((state.selectedModel as string) === 'gpt-oss-regolo') {
+            state.selectedModel = 'litellm';
             state.selectedProvider = 'litellm';
           }
         }
