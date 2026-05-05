@@ -81,6 +81,7 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
     clarificationOptions: null,
     detectedFilters: null,
     researchBrief: null,
+    researchMeta: null,
     searchResults: [],
     citations: [],
     searchCount: 0,

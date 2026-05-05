@@ -28,6 +28,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     searchCount: 0,
     maxSearches: 2,
     researchBrief: null,
+    researchMeta: null,
     aiWorkerPool: {
       processRequest: vi.fn().mockResolvedValue({
         content: JSON.stringify({ score: 4, sufficient: true }),
@@ -102,8 +103,6 @@ describe('qualityGateNode', () => {
 
     const result = await qualityGateNode(state);
     expect(result.qualityScore).toBe(0);
-    expect(result.searchErrors).toEqual([
-      { source: 'qualityGate', message: 'worker pool down' },
-    ]);
+    expect(result.searchErrors).toEqual([{ source: 'qualityGate', message: 'worker pool down' }]);
   });
 });
