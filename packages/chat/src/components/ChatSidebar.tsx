@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import { cn } from '../lib/utils';
-import { PanelLeftClose, Sun, Moon, LogOut, MoreVertical } from 'lucide-react';
+import { Sun, Moon, LogOut, MoreVertical } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { ChatThreadList } from './ChatThreadList';
-import { ChatIcon } from './icons';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -31,20 +30,6 @@ export function ChatSidebar({ isOpen, onToggle, userId, onLogout, onNavigate }: 
             : '-translate-x-full lg:w-0 lg:translate-x-0 lg:overflow-hidden lg:border-r-0'
         )}
       >
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-2">
-            <ChatIcon size={28} />
-            <span className="font-semibold text-primary">Grünerator Chat</span>
-          </div>
-          <button
-            onClick={onToggle}
-            className="rounded-lg p-2 hover:bg-primary/10"
-            aria-label="Seitenleiste schließen"
-          >
-            <PanelLeftClose className="h-5 w-5" />
-          </button>
-        </div>
-
         <ChatThreadList />
 
         <SidebarFooter
