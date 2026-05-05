@@ -306,20 +306,6 @@ export const FRAME_PRESET_PATHS: Record<FrameClipType, string> = {
   ribbon: 'M2 14 L10 22 L2 30 L14 30 L14 38 L30 38 L30 30 L42 30 L34 22 L42 14 L30 14 L30 6 L14 6 L14 14 z',
 };
 
-// SVG path strings for each frame silhouette, normalized to a 44x44 viewBox.
-// Used to render filled mini-previews in the sidebar preset grid (Canva-style).
-export const FRAME_PRESET_PATHS: Record<FrameClipType, string> = {
-  circle: 'M22 2 a20 20 0 1 0 0 40 a20 20 0 1 0 0 -40',
-  'rounded-rect':
-    'M8 2 h28 a6 6 0 0 1 6 6 v28 a6 6 0 0 1 -6 6 h-28 a6 6 0 0 1 -6 -6 v-28 a6 6 0 0 1 6 -6 z',
-  square: 'M2 2 h40 v40 h-40 z',
-  oval: 'M22 2 a14 20 0 1 0 0 40 a14 20 0 1 0 0 -40',
-  hexagon: 'M22 2 L40 12 L40 32 L22 42 L4 32 L4 12 z',
-  diamond: 'M22 2 L42 22 L22 42 L2 22 z',
-  drop: 'M22 2 C 8 16, 8 36, 22 42 C 36 36, 36 16, 22 2 z',
-  leaf: 'M2 42 C 2 12, 12 2, 42 2 C 42 32, 32 42, 2 42 z',
-};
-
 export const DEFAULT_FRAME_SIZE = 300;
 
 /**
