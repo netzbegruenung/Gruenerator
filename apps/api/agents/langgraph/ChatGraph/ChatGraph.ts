@@ -39,6 +39,7 @@ import type {
   ThreadAttachment,
   UserLocale,
   ChartData,
+  ResearchToolResult,
 } from './types.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
@@ -202,6 +203,10 @@ const ChatStateAnnotation = Annotation.Root({
 
   // Research brief (compressed research intent for complex queries)
   researchBrief: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
+  researchMeta: Annotation<ResearchToolResult | null>({
     reducer: (x, y) => y ?? x,
   }),
 
@@ -599,6 +604,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
 
     // Research brief (will be set by briefGenerator node for complex research)
     researchBrief: null,
+    researchMeta: null,
 
     // Search results (will be set by search node)
     searchResults: [],

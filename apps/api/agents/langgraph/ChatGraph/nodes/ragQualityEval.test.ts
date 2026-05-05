@@ -12,8 +12,6 @@ import { buildSystemMessage } from './respondNode.js';
 
 import type { ChatGraphState, SearchResult } from '../types.js';
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-
 // ============================================================================
 // Scoring Utilities
 // ============================================================================
@@ -260,6 +258,10 @@ async function evaluateBudgetAllocation() {
     searchCount: 1,
     maxSearches: 3,
     researchBrief: null,
+    researchMeta: null,
+    searchErrors: [],
+    briefGenerationFailed: false,
+    rerankFailed: false,
     qualityScore: 0,
     qualityAssessmentTimeMs: 0,
     imagePrompt: null,
