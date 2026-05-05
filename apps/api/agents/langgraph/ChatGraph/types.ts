@@ -139,6 +139,22 @@ export interface Citation {
 }
 
 /**
+ * Research tool result shape persisted into `chat_messages.tool_calls[].result`.
+ * Mirrors the contract that `ResearchResultUI` reads in the chat package
+ * (`packages/chat/src/components/ToolCallUI.tsx#ResearchResultUI`).
+ *
+ * `citations` here uses the enriched `Citation` shape (not `ResearchCitation`)
+ * because the search node has already run citation enrichment on the results.
+ */
+export interface ResearchToolResult {
+  answer: string;
+  citations: Citation[];
+  confidence: 'high' | 'medium' | 'low';
+  searchSteps: Array<{ tool: string; query: string; resultsCount: number }>;
+  followUpQuestions: string[];
+}
+
+/**
  * Persisted thread attachment with summary for context in subsequent messages.
  */
 export interface ThreadAttachment {
@@ -267,6 +283,11 @@ export interface ChatGraphState {
 
   // Research brief (compressed research intent for complex queries)
   researchBrief: string | null;
+
+  // Full research metadata (set by search node when intent === 'research').
+  // Persisted into the `research` tool-call result so the UI can render
+  // confidence, search steps, and follow-up questions.
+  researchMeta: ResearchToolResult | null;
 
   // Quality gate (iterative search)
   qualityScore: number;

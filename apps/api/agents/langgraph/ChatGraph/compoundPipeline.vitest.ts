@@ -129,6 +129,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     searchCount: 0,
     maxSearches: 2,
     researchBrief: null,
+    researchMeta: null,
     qualityScore: 0,
     qualityAssessmentTimeMs: 0,
     imagePrompt: null,
