@@ -9,6 +9,7 @@ import {
   type ThreadMessageLike,
 } from '@assistant-ui/react';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
+import { handleDictationError } from '../lib/dictationErrorHandler';
 import { MarkdownStreamingProvider } from '../context/MarkdownStreamingContext';
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
 import {
@@ -176,7 +177,10 @@ function NotebookChatProviderInner({
     prevAdapterRef.current = adapter;
   }
 
-  const dictationAdapter = useMemo(() => new VoxtralDictationAdapter(), []);
+  const dictationAdapter = useMemo(
+    () => new VoxtralDictationAdapter({ onError: handleDictationError }),
+    []
+  );
   const attachmentAdapter = useMemo(() => new GrueneratorAttachmentAdapter(), []);
 
   const runtime = useLocalRuntime(adapter, {

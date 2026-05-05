@@ -29,6 +29,7 @@ import { getDefaultAgent } from '../lib/agents';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
 import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
 import { VoxtralDictationAdapter } from '@gruenerator/voice';
+import { handleDictationError } from '../lib/dictationErrorHandler';
 import {
   createGrueneratorModelAdapter,
   type GrueneratorAdapterConfig,
@@ -341,7 +342,10 @@ function useGrueneratorThreadRuntime() {
     [getConfig, onThreadCreated, onComplete]
   );
 
-  const dictationAdapter = useMemo(() => new VoxtralDictationAdapter(), []);
+  const dictationAdapter = useMemo(
+    () => new VoxtralDictationAdapter({ onError: handleDictationError }),
+    []
+  );
 
   return useLocalRuntime(modelAdapter, {
     unstable_humanToolNames: ['ask_human'],
