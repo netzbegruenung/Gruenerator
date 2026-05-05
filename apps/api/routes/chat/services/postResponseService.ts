@@ -24,6 +24,8 @@ import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
 import type {
   ChatGraphState,
   GeneratedImageResult,
+  ResearchToolResult,
+  SearchResult,
   SearchSource,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
@@ -37,7 +39,40 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   examples: 'gruenerator_examples_search',
 };
 
-function buildToolCalls(classifiedState: ChatGraphState, finalState: ChatGraphState) {
+/**
+ * Result payload shape for non-research tool calls (search, web, examples).
+ * The chat UI's generic result renderers read `result.results`.
+ */
+interface SearchToolCallResult {
+  results: SearchResult[];
+}
+
+type ToolCallResult = SearchToolCallResult | ResearchToolResult;
+
+interface PersistedToolCall {
+  toolCallId: string;
+  toolName: string;
+  args: { query: string };
+  result: ToolCallResult;
+}
+
+/**
+ * Build the result payload for a single tool call.
+ * Research intent gets the rich `ResearchToolResult` shape that
+ * `ResearchResultUI` expects (answer/citations/confidence/searchSteps).
+ * All other intents get the generic `{ results }` shape.
+ */
+function buildToolCallResult(toolName: string, finalState: ChatGraphState): ToolCallResult {
+  if (toolName === 'research' && finalState.researchMeta) {
+    return finalState.researchMeta;
+  }
+  return { results: finalState.searchResults?.slice(0, 10) || [] };
+}
+
+function buildToolCalls(
+  classifiedState: ChatGraphState,
+  finalState: ChatGraphState
+): PersistedToolCall[] | undefined {
   const toolName = INTENT_TO_TOOL[finalState.intent];
   if (!toolName) return undefined;
 
@@ -48,7 +83,7 @@ function buildToolCalls(classifiedState: ChatGraphState, finalState: ChatGraphSt
   if (hasMultiSearch) {
     const queries = subQueries?.length ? subQueries : [classifiedState.searchQuery || ''];
     const sources: (SearchSource | null)[] = searchSources.length > 1 ? searchSources : [null];
-    const toolCalls = [];
+    const toolCalls: PersistedToolCall[] = [];
     let idx = 0;
     for (const q of queries) {
       for (const src of sources) {
@@ -58,7 +93,7 @@ function buildToolCalls(classifiedState: ChatGraphState, finalState: ChatGraphSt
           toolCallId: `tc_${Date.now()}_${idx++}`,
           toolName: tn,
           args: { query: q },
-          result: { results: finalState.searchResults?.slice(0, 10) || [] },
+          result: buildToolCallResult(tn, finalState),
         });
       }
     }
@@ -70,7 +105,7 @@ function buildToolCalls(classifiedState: ChatGraphState, finalState: ChatGraphSt
       toolCallId: `tc_${Date.now()}`,
       toolName,
       args: { query: classifiedState.searchQuery || '' },
-      result: { results: finalState.searchResults?.slice(0, 10) || [] },
+      result: buildToolCallResult(toolName, finalState),
     },
   ];
 }
@@ -148,15 +183,9 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
         fullTextPreview: fullText?.slice(0, 100),
         imageGenerated: !!generatedImage,
       });
-      generateThreadTitle(
-        threadId,
-        userText,
-        fullText,
-        aiWorkerPool,
-        {
-          imageGenerated: !!generatedImage,
-        }
-      ).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
+      generateThreadTitle(threadId, userText, fullText, aiWorkerPool, {
+        imageGenerated: !!generatedImage,
+      }).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
     } else if (!isNewThread) {
       log.info(`[ChatGraph] Skipping title generation — not a new thread (threadId=${threadId})`);
     } else if (!lastUserMessage) {

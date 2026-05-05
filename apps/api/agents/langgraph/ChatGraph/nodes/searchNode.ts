@@ -21,7 +21,13 @@ import { expandQuery } from '../../../../services/search/QueryExpansionService.j
 import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type AIWorkerPool } from '../../../../workers/types.js';
-import { SOURCE_PREFIX, type ChatGraphState, type SearchResult, type Citation } from '../types.js';
+import {
+  SOURCE_PREFIX,
+  type ChatGraphState,
+  type SearchResult,
+  type Citation,
+  type ResearchToolResult,
+} from '../types.js';
 
 import {
   COLLECTION_LABELS,
@@ -311,6 +317,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     let results: SearchResult[] = [];
     let citations: Citation[] = [];
     let searchedCollections: string[] = [];
+    let researchMeta: ResearchToolResult | null = null;
 
     const searchSources = state.searchSources || [];
 
@@ -467,14 +474,17 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         };
         const { depth, maxSources } = depthConfig[complexity];
 
-        // Use research brief (compressed intent) when available, fall back to raw query
-        const question = state.researchBrief || searchQuery || '';
+        // Pass the user's actual short query to the search planner.
+        // The brief is for orienting the synthesis LLM, not for SearXNG —
+        // a 460-char paragraph as a search string returns near-random hits.
+        const question = searchQuery || state.researchBrief || '';
         log.info(
           `[Search] Research depth: ${depth}, maxSources: ${maxSources} (complexity: ${complexity}, brief: ${!!state.researchBrief})`
         );
 
         const researchResult = await executeResearch({
           question,
+          brief: state.researchBrief,
           depth,
           maxSources,
         });
@@ -501,6 +511,15 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
             relevance: 1.0,
           });
         }
+
+        // Capture full metadata for the persisted tool-call payload.
+        researchMeta = {
+          answer: researchResult.answer,
+          citations,
+          confidence: researchResult.confidence,
+          searchSteps: researchResult.searchSteps,
+          followUpQuestions: researchResult.followUpQuestions,
+        };
         break;
       }
 
@@ -869,6 +888,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       citations: citations.length > 0 ? citations : buildCitations(results),
       searchCount: 1,
       searchTimeMs,
+      researchMeta,
       ...(searchedCollections.length > 0 && { searchedCollections }),
     };
   } catch (error: unknown) {

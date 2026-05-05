@@ -22,7 +22,7 @@ import { getDefaultCollectionsForLocale } from './searchNode.js';
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
 import type { ChatGraphState, SearchResult } from '../types.js';
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
 // ============================================================================
 // Test Utilities
@@ -218,6 +218,10 @@ async function testExpandedContextWindow() {
     searchCount: 1,
     maxSearches: 3,
     researchBrief: null,
+    researchMeta: null,
+    searchErrors: [],
+    briefGenerationFailed: false,
+    rerankFailed: false,
     qualityScore: 0,
     qualityAssessmentTimeMs: 0,
     imagePrompt: null,
