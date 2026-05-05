@@ -1,7 +1,7 @@
 export type Provider = 'mistral' | 'litellm' | 'regolo';
 
 export type ModelId =
-  | 'gpt-oss-regolo'
+  | 'mistral-medium-3.5'
   | 'litellm'
   | 'gemma-litellm'
   | 'qwen-regolo'
@@ -37,18 +37,18 @@ export const MODEL_OPTIONS: ModelOption[] = [
     region: 'self-hosted',
   },
   {
-    id: 'gpt-oss-regolo',
-    name: 'GPT-OSS',
-    description: 'Offenes Modell über Regolo',
-    model: 'gpt-oss-120b',
-    provider: 'regolo',
+    id: 'mistral-medium-3.5',
+    name: 'Mistral Medium 4.5',
+    description: 'EU-gehostet, ausgewogen für allgemeine Aufgaben',
+    model: 'mistral-medium-2604',
+    provider: 'mistral',
     icon: 'sparkles',
     region: 'eu',
   },
   {
     id: 'litellm',
-    name: 'Verdigado',
-    description: 'Selbst gehostet bei Verdigado',
+    name: 'GPT-OSS',
+    description: 'Selbst gehostet bei Verdigado, Regolo als Overflow',
     model: 'gpt-oss:120b',
     provider: 'litellm',
     icon: 'server',
