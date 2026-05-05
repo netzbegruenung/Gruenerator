@@ -40,7 +40,6 @@ const MODE_CONFIG: Array<{
   Icon: typeof MessageSquare;
 }> = [
   { mode: 'chat', label: 'Chat', Icon: MessageSquare },
-  { mode: 'notebook', label: 'Notebook', Icon: BookOpen },
   { mode: 'search', label: 'Suche', Icon: Search },
 ];
 
@@ -85,7 +84,15 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
   const ActiveModeIcon =
     threadMode === 'eigener'
       ? Settings
-      : (MODE_CONFIG.find((m) => m.mode === threadMode)?.Icon ?? MessageSquare);
+      : threadMode === 'notebook'
+        ? BookOpen
+        : (MODE_CONFIG.find((m) => m.mode === threadMode)?.Icon ?? MessageSquare);
+
+  const activeNotebookLabel =
+    threadMode === 'notebook'
+      ? (notebookMentionables.find((nb) => nb.identifier === selectedNotebookId)?.title ??
+        'Notebook')
+      : null;
 
   const setCustomSystemPrompt = useAgentStore((s) => s.setCustomSystemPrompt);
   const setCustomRoleName = useAgentStore((s) => s.setCustomRoleName);
@@ -108,6 +115,13 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
       }
       return;
     }
+    if (value.startsWith('notebook:')) {
+      const id = value.slice('notebook:'.length);
+      setSelectedNotebook(id);
+      setCustomRoleName(null);
+      setThreadMode('notebook');
+      return;
+    }
     if (value !== 'eigener') {
       setCustomRoleName(null);
       setThreadMode(value as ThreadMode);
@@ -126,7 +140,9 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
             value={
               threadMode === 'eigener' && hasRoles
                 ? `role:${roles.findIndex((r) => r.systemPrompt === customSystemPrompt)}`
-                : threadMode
+                : threadMode === 'notebook'
+                  ? `notebook:${selectedNotebookId}`
+                  : threadMode
             }
             onValueChange={handleModeChange}
           >
@@ -134,6 +150,16 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
               <DropdownMenuRadioItem key={mode} value={mode}>
                 <Icon className="h-3.5 w-3.5" />
                 {label}
+              </DropdownMenuRadioItem>
+            ))}
+            {notebookMentionables.map((nb) => (
+              <DropdownMenuRadioItem
+                key={`notebook-${nb.identifier}`}
+                value={`notebook:${nb.identifier}`}
+                className="pr-1"
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                <span className="flex-1 truncate">{nb.title}</span>
               </DropdownMenuRadioItem>
             ))}
             {hasRoles ? (
@@ -163,25 +189,6 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
                   <Settings className="h-3 w-3" />
                   Rollen einrichten
                 </button>
-              </div>
-            </>
-          )}
-
-          {threadMode === 'notebook' && (
-            <>
-              <DropdownMenuSeparator />
-              <div className="px-2 py-1">
-                <select
-                  value={selectedNotebookId}
-                  onChange={(e) => setSelectedNotebook(e.target.value)}
-                  className="w-full rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] text-foreground"
-                >
-                  {notebookMentionables.map((nb) => (
-                    <option key={nb.identifier} value={nb.identifier}>
-                      {nb.avatar} {nb.title}
-                    </option>
-                  ))}
-                </select>
               </div>
             </>
           )}
@@ -232,6 +239,16 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
             {label}
           </ResponsiveMenuItem>
         ))}
+        {notebookMentionables.map((nb) => (
+          <ResponsiveMenuItem
+            key={`notebook-${nb.identifier}`}
+            icon={<BookOpen />}
+            active={threadMode === 'notebook' && selectedNotebookId === nb.identifier}
+            onClick={() => handleModeChange(`notebook:${nb.identifier}`)}
+          >
+            {nb.title}
+          </ResponsiveMenuItem>
+        ))}
         {hasRoles ? (
           roles.map((role, i) => (
             <ResponsiveMenuItem
@@ -252,22 +269,6 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
           >
             {eigenerBadgeLabel}
           </ResponsiveMenuItem>
-        )}
-
-        {threadMode === 'notebook' && (
-          <div className="mt-2 px-3">
-            <select
-              value={selectedNotebookId}
-              onChange={(e) => setSelectedNotebook(e.target.value)}
-              className="w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-background px-2.5 py-2 text-sm text-foreground"
-            >
-              {notebookMentionables.map((nb) => (
-                <option key={nb.identifier} value={nb.identifier}>
-                  {nb.avatar} {nb.title}
-                </option>
-              ))}
-            </select>
-          </div>
         )}
       </ResponsiveMenuSection>
 
@@ -312,7 +313,9 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
               <span className="rounded-full bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium leading-none text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 max-w-24 truncate">
                 {threadMode === 'eigener'
                   ? eigenerBadgeLabel
-                  : MODE_CONFIG.find((m) => m.mode === threadMode)?.label}
+                  : threadMode === 'notebook'
+                    ? activeNotebookLabel
+                    : MODE_CONFIG.find((m) => m.mode === threadMode)?.label}
               </span>
             )}
           </button>
