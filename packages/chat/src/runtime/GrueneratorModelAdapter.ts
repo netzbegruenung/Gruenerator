@@ -16,7 +16,7 @@ import type {
   StreamMetadata,
   ProgressStep,
 } from '../hooks/useChatGraphStream';
-import type { ToolKey, ThreadMode, SearchMode } from '../stores/chatStore';
+import { useAgentStore, type ToolKey, type ThreadMode, type SearchMode } from '../stores/chatStore';
 import { parseAllMentions } from '../lib/mentionParser';
 import { parseSSELine } from '../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
@@ -257,6 +257,10 @@ async function* parseSSEStream(
         case 'thread_created': {
           const { threadId: tid } = data as { threadId: string };
           callbacks.onThreadCreated?.(tid);
+          // Backend has now persisted any seeded initialAssistantMessage as
+          // the first row of this thread. Drop the local copy so a future
+          // new-thread creation doesn't replay a stale seed.
+          useAgentStore.getState().setPendingInitialAssistantMessage(null);
           break;
         }
 
@@ -567,6 +571,35 @@ async function* parseSSEStream(
         case 'document_indexed': {
           const { documentId } = data as { documentId: string };
           outcome.indexedDocumentIds.push(documentId);
+          break;
+        }
+
+        case 'trigger_doc_edit': {
+          // Live document edit (docs editor surface). The chat backend has
+          // classified intent=edit_current_doc and forwards the user's prompt
+          // here so the docs frontend can dispatch into BlockNote's AIExtension.
+          // Handlers are keyed by documentId — there's exactly one docs surface
+          // per document, registered when DocsAssistantChat mounts.
+          const payload = data as {
+            targetDocumentId: string;
+            userPrompt: string;
+            useSelection: boolean;
+          };
+          const handler = useChatConfigStore
+            .getState()
+            .documentEditHandlers.get(payload.targetDocumentId);
+          if (handler) {
+            try {
+              await handler(payload);
+            } catch (err) {
+              console.warn('[ChatAdapter] documentEditHandler threw', err);
+            }
+          } else {
+            console.warn(
+              '[ChatAdapter] trigger_doc_edit received but no handler registered for doc',
+              payload.targetDocumentId
+            );
+          }
           break;
         }
 
@@ -927,18 +960,37 @@ export function createGrueneratorModelAdapter(
       // Keyed by threadId, so global chat threads and the docs thread coexist.
       let injectedDocIds: string[] = [];
       let injectedAttachmentContext: string | undefined;
+      let injectedCurrentDocument:
+        | {
+            id: string;
+            title?: string | null;
+            markdown: string;
+            selectionText?: string | null;
+          }
+        | undefined;
       if (config.threadId) {
         const provider = contextProviders.get(config.threadId);
         if (provider) {
           try {
             const ctx = await provider();
             if (ctx.documentChatIds?.length) injectedDocIds = ctx.documentChatIds;
+            if (ctx.currentDocument) {
+              const cd = ctx.currentDocument;
+              injectedCurrentDocument = {
+                id: cd.id,
+                title: cd.title ?? null,
+                markdown: truncateAttachmentContext(cd.markdown, 80_000) ?? cd.markdown,
+                selectionText: cd.selectionText ?? null,
+              };
+            }
             const parts: string[] = [];
             if (ctx.selectionText) parts.push(`## Auswahl:\n${ctx.selectionText}`);
             if (ctx.attachmentContext) parts.push(ctx.attachmentContext);
             const merged = parts.join('\n\n');
             // Cap at 80k chars to keep request bodies bounded.
-            injectedAttachmentContext = truncateAttachmentContext(merged, 80_000);
+            injectedAttachmentContext = merged
+              ? truncateAttachmentContext(merged, 80_000)
+              : undefined;
           } catch (err) {
             console.warn(
               '[ChatAdapter] contextProvider threw, continuing without injected context',
@@ -953,6 +1005,13 @@ export function createGrueneratorModelAdapter(
         : documentChatIds;
 
       const threadMode = config.threadMode || 'chat';
+
+      // Workplace flow seeds an Antrag/PM/Social text in agent store; pass it
+      // along on the FIRST request (no threadId yet) so the backend persists
+      // it as the seed assistant message of the brand-new thread.
+      const seededInitialAssistantMessage = !config.threadId
+        ? useAgentStore.getState().pendingInitialAssistantMessage || undefined
+        : undefined;
 
       // Mode-aware endpoint selection
       const endpoint =
@@ -1007,10 +1066,12 @@ export function createGrueneratorModelAdapter(
           docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
           documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
           documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
+          currentDocument: injectedCurrentDocument,
           attachmentContext: injectedAttachmentContext,
           defaultNotebookId: config.selectedNotebookId || undefined,
           customSystemPrompt: config.customSystemPrompt || undefined,
           roleName: config.customRoleName || undefined,
+          initialAssistantMessage: seededInitialAssistantMessage,
         };
       } else {
         // Chat mode: full request with mentions, attachments, tools
@@ -1031,9 +1092,11 @@ export function createGrueneratorModelAdapter(
           docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
           documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
           documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
+          currentDocument: injectedCurrentDocument,
           attachmentContext: injectedAttachmentContext,
           defaultNotebookId: config.selectedNotebookId || undefined,
           customSystemPrompt: config.customSystemPrompt || undefined,
+          initialAssistantMessage: seededInitialAssistantMessage,
         };
       }
 

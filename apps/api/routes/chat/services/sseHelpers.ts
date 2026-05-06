@@ -39,6 +39,7 @@ export type SSEEventType =
   | 'interrupt'
   | 'document_indexed'
   | 'document_created'
+  | 'trigger_doc_edit'
   | 'confirm_action'
   | 'chart_data'
   | 'memory_context'
@@ -132,6 +133,7 @@ export interface SSEEventPayloads {
   };
   document_indexed: { documentId: string; title: string };
   document_created: { documentId: string; title: string; subtype: string; url: string };
+  trigger_doc_edit: { targetDocumentId: string; userPrompt: string; useSelection: boolean };
   interrupt: {
     interruptType: 'clarification';
     question: string;
@@ -204,6 +206,7 @@ export const INTENT_MESSAGES: Record<SearchIntent, string> = {
   chart: 'Erstelle Diagramm...',
   save_as_doc: 'Erstelle Dokument aus Antwort...',
   modify_doc: 'Bearbeite Dokument...',
+  edit_current_doc: 'Bearbeite das aktuelle Dokument...',
   modify_board: 'Aktualisiere Board...',
   share_doc: 'Teile Dokument mit Gruppe...',
   direct: 'Beantworte direkt...',

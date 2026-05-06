@@ -135,6 +135,12 @@ export function buildPendingAction(opts: {
     case 'chart':
     case 'share_doc':
     case 'direct':
+    case 'edit_current_doc':
+      // edit_current_doc auto-applies via the docs editor's BlockNote AI
+      // extension (triggered by the controller's `trigger_doc_edit` SSE
+      // event). No HITL confirmation card — the editor's undo stack is the
+      // safety net.
+      return null;
     default:
       return null;
   }

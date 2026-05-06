@@ -80,6 +80,7 @@ export {
   MAX_FILE_SIZE,
 } from './lib/blockNoteUtils';
 export { defaultDocumentContent } from './lib/defaultContent';
+export { invokeDocumentAI } from './lib/invokeDocumentAI';
 
 // Utils
 export { lazyWithRetry } from './utils/lazyWithRetry';
