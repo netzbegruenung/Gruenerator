@@ -16,7 +16,7 @@ import type {
   StreamMetadata,
   ProgressStep,
 } from '../hooks/useChatGraphStream';
-import type { ToolKey, ThreadMode, SearchMode } from '../stores/chatStore';
+import { useAgentStore, type ToolKey, type ThreadMode, type SearchMode } from '../stores/chatStore';
 import { parseAllMentions } from '../lib/mentionParser';
 import { parseSSELine } from '../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
@@ -257,6 +257,10 @@ async function* parseSSEStream(
         case 'thread_created': {
           const { threadId: tid } = data as { threadId: string };
           callbacks.onThreadCreated?.(tid);
+          // Backend has now persisted any seeded initialAssistantMessage as
+          // the first row of this thread. Drop the local copy so a future
+          // new-thread creation doesn't replay a stale seed.
+          useAgentStore.getState().setPendingInitialAssistantMessage(null);
           break;
         }
 
@@ -954,6 +958,14 @@ export function createGrueneratorModelAdapter(
 
       const threadMode = config.threadMode || 'chat';
 
+      // Workplace flow seeds an Antrag/PM/Social text in agent store; pass it
+      // along on the FIRST request (no threadId yet) so the backend persists
+      // it as the seed assistant message of the brand-new thread.
+      const seededInitialAssistantMessage =
+        !config.threadId
+          ? useAgentStore.getState().pendingInitialAssistantMessage || undefined
+          : undefined;
+
       // Mode-aware endpoint selection
       const endpoint =
         threadMode === 'search'
@@ -1011,6 +1023,7 @@ export function createGrueneratorModelAdapter(
           defaultNotebookId: config.selectedNotebookId || undefined,
           customSystemPrompt: config.customSystemPrompt || undefined,
           roleName: config.customRoleName || undefined,
+          initialAssistantMessage: seededInitialAssistantMessage,
         };
       } else {
         // Chat mode: full request with mentions, attachments, tools
@@ -1034,6 +1047,7 @@ export function createGrueneratorModelAdapter(
           attachmentContext: injectedAttachmentContext,
           defaultNotebookId: config.selectedNotebookId || undefined,
           customSystemPrompt: config.customSystemPrompt || undefined,
+          initialAssistantMessage: seededInitialAssistantMessage,
         };
       }
 

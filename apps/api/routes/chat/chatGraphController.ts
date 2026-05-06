@@ -104,6 +104,7 @@ const chatStreamSchema = z.object({
   docMentionIds: z.array(z.string()).nullish(),
   customSystemPrompt: z.string().nullish(),
   roleName: z.string().nullish(),
+  initialAssistantMessage: z.string().max(50_000).nullish(),
 });
 
 type ChatStreamBody = {
@@ -125,6 +126,7 @@ type ChatStreamBody = {
   docMentionIds?: string[];
   customSystemPrompt?: string;
   roleName?: string;
+  initialAssistantMessage?: string;
 };
 
 const chatResumeSchema = z.object({
@@ -173,6 +175,7 @@ router.post(
         docMentionIds: rawDocMentionIds,
         customSystemPrompt: rawCustomSystemPrompt,
         roleName: rawRoleName,
+        initialAssistantMessage: rawInitialAssistantMessage,
       } = req.body;
 
       // === Validate ===
@@ -261,6 +264,21 @@ router.post(
             return;
           }
         }
+
+        // Persist the seed (Antrag / PM / Social text the user came in with)
+        // BEFORE the user message so chat_messages is ordered seed → user →
+        // assistant-reply. Only on new threads — clients must not overwrite
+        // history of an existing thread by re-sending this field.
+        if (isNewThread && rawInitialAssistantMessage) {
+          await createMessage(
+            actualThreadId,
+            'assistant',
+            rawInitialAssistantMessage,
+            { seed: true },
+            userId
+          );
+        }
+
         const userText = extractTextContent(lastUserMessage.content);
         await createMessage(
           actualThreadId,
