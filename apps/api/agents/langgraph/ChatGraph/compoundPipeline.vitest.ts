@@ -104,6 +104,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     boardContext: null,
     docMentionIds: [],
     documentMentionContext: null,
+    currentDocument: null,
     customSystemPrompt: null,
     userInstructions: null,
     memoryContext: null,

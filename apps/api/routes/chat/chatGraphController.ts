@@ -102,6 +102,14 @@ const chatStreamSchema = z.object({
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
   docMentionIds: z.array(z.string()).nullish(),
+  currentDocument: z
+    .object({
+      id: z.string(),
+      title: z.string().nullish(),
+      markdown: z.string(),
+      selectionText: z.string().nullish(),
+    })
+    .nullish(),
   customSystemPrompt: z.string().nullish(),
   roleName: z.string().nullish(),
   initialAssistantMessage: z.string().max(50_000).nullish(),
@@ -124,6 +132,12 @@ type ChatStreamBody = {
   defaultNotebookId?: string;
   boardIds?: string[];
   docMentionIds?: string[];
+  currentDocument?: {
+    id: string;
+    title?: string | null;
+    markdown: string;
+    selectionText?: string | null;
+  } | null;
   customSystemPrompt?: string;
   roleName?: string;
   initialAssistantMessage?: string;
@@ -173,6 +187,7 @@ router.post(
         defaultNotebookId: rawDefaultNotebookId,
         boardIds: rawBoardIds,
         docMentionIds: rawDocMentionIds,
+        currentDocument: rawCurrentDocument,
         customSystemPrompt: rawCustomSystemPrompt,
         roleName: rawRoleName,
         initialAssistantMessage: rawInitialAssistantMessage,
@@ -387,7 +402,23 @@ router.post(
             ? []
             : undefined,
         boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
-        docMentionIds: rawDocMentionIds?.length ? rawDocMentionIds : undefined,
+        // When the docs editor sends a currentDocument, also surface its id as a
+        // doc-mention so the existing modify_doc / summary intent paths activate
+        // (they key off `hasDocMentions`). Explicit @doc mentions always take
+        // precedence — we only fall back to currentDocument.id otherwise.
+        docMentionIds: rawDocMentionIds?.length
+          ? rawDocMentionIds
+          : rawCurrentDocument?.id
+            ? [rawCurrentDocument.id]
+            : undefined,
+        currentDocument: rawCurrentDocument
+          ? {
+              id: rawCurrentDocument.id,
+              title: rawCurrentDocument.title ?? null,
+              markdown: rawCurrentDocument.markdown,
+              selectionText: rawCurrentDocument.selectionText ?? null,
+            }
+          : undefined,
         userLocale: user.locale || 'de-DE',
         customSystemPrompt: rawCustomSystemPrompt,
         userInstructions,
@@ -725,6 +756,25 @@ router.post(
             `[ChatGraph] Chart data extracted: ${chartData.type} with ${chartData.data.length} points`
           );
         }
+      }
+
+      // === Stage 3c: Live document edit trigger (docs editor surface only) ===
+      // For edit_current_doc intent, emit a `trigger_doc_edit` SSE event with
+      // the user's prompt + selection flag. The docs-editor frontend dispatches
+      // this into BlockNote's AIExtension.invokeAI(), which runs the existing
+      // /api/docs/ai pipeline (tool calls → applyDocumentOperations → Yjs sync).
+      // ChatGraph never edits the doc itself — it just classifies and forwards.
+      if (finalState.intent === 'edit_current_doc' && rawCurrentDocument?.id) {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const hasSelection = !!rawCurrentDocument.selectionText;
+        sse.send('trigger_doc_edit', {
+          targetDocumentId: rawCurrentDocument.id,
+          userPrompt: lastUserText,
+          useSelection: hasSelection,
+        });
+        log.info(
+          `[ChatGraph] Emitted trigger_doc_edit for doc ${rawCurrentDocument.id} (selection: ${hasSelection})`
+        );
       }
 
       // === Stage 4: Persist & complete ===

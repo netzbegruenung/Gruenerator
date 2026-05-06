@@ -32,6 +32,7 @@ import type {
   SearchSource,
   SearchResult,
   Citation,
+  CurrentDocument,
   ImageStyle,
   GatherSource,
   GeneratedImageResult,
@@ -114,6 +115,10 @@ const ChatStateAnnotation = Annotation.Root({
   // Collaborative document context (from @doc mentions)
   docMentionIds: Annotation<string[]>({
     reducer: (x, y) => y ?? x ?? [],
+  }),
+  // Current open document in the docs editor (primary context for docs surface)
+  currentDocument: Annotation<CurrentDocument | null>({
+    reducer: (x, y) => y ?? x ?? null,
   }),
   documentMentionContext: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
@@ -381,11 +386,15 @@ function routeAfterClassification(
   }
 
   // Action intents (save_as_doc, modify_doc, modify_board) = respond first, controller handles action
+  // edit_current_doc also falls here: respondNode generates a brief confirmation
+  // ("Wende Änderungen an...") while the controller emits a `trigger_doc_edit`
+  // SSE event the docs-editor frontend dispatches into BlockNote's AI extension.
   if (
     intent === 'save_as_doc' ||
     intent === 'modify_doc' ||
     intent === 'modify_board' ||
-    intent === 'share_doc'
+    intent === 'share_doc' ||
+    intent === 'edit_current_doc'
   ) {
     log.info(`[ChatGraph] Route: classifier → respond (${intent} handled by controller)`);
     return 'respond';
@@ -405,6 +414,7 @@ function routeAfterClassification(
     chart: 'chart',
     save_as_doc: 'save_as_doc',
     modify_doc: 'modify_doc',
+    edit_current_doc: 'edit_current_doc',
     modify_board: 'modify_board',
     share_doc: 'share_doc',
     direct: 'direct',
@@ -567,6 +577,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Collaborative document context (from @doc mentions, populated by controller)
     docMentionIds: input.docMentionIds || [],
     documentMentionContext: null,
+
+    // Current open document (docs editor surface)
+    currentDocument: input.currentDocument || null,
 
     // Custom system prompt (from thread or user settings)
     customSystemPrompt: input.customSystemPrompt || null,

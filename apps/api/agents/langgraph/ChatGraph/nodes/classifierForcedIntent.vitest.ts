@@ -59,6 +59,7 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
     boardContext: null,
     docMentionIds: [],
     documentMentionContext: null,
+    currentDocument: null,
     customSystemPrompt: null,
     userInstructions: null,
     memoryContext: null,

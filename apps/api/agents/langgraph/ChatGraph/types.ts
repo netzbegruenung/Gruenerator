@@ -44,7 +44,8 @@ export type SearchIntent =
   | 'summary' // Document summarization ("fasse zusammen", "zusammenfassung")
   | 'chart' // Data visualization ("erstelle Diagramm", "Balkendiagramm")
   | 'save_as_doc' // Save response as document ("speichere als Dokument")
-  | 'modify_doc' // Modify mentioned document ("ändere", "ergänze" with @doc)
+  | 'modify_doc' // Modify mentioned document ("ändere", "ergänze" with @doc) — for /chat surface
+  | 'edit_current_doc' // Live-edit the open document via BlockNote AI — for docs editor surface
   | 'modify_board' // Modify mentioned board ("füge Aufgabe hinzu" with @board)
   | 'share_doc' // Share document with group ("teile mit Gruppe", "share mit AG")
   | 'direct'; // No search needed (greetings, creative tasks without fact needs)
@@ -173,6 +174,19 @@ export interface ThreadAttachment {
  * NOTE: Does not include req/res - HTTP streaming is handled by the controller
  * using the @ai-sdk/langchain adapter.
  */
+/**
+ * Open document the user is currently editing — primary conversation context for
+ * the docs-editor surface. Distinct from `documentChatIds` (explicit @dokumentchat
+ * retrieval scope) and `attachmentContext` (uploaded files): this IS the document
+ * being talked about.
+ */
+export interface CurrentDocument {
+  id: string;
+  title: string | null;
+  markdown: string;
+  selectionText: string | null;
+}
+
 export interface ChatGraphInput {
   messages: ModelMessage[];
   threadId?: string | undefined;
@@ -189,6 +203,7 @@ export interface ChatGraphInput {
   documentChatIds?: string[] | undefined;
   boardIds?: string[] | undefined;
   docMentionIds?: string[] | undefined;
+  currentDocument?: CurrentDocument | undefined;
   userLocale?: UserLocale | undefined;
   customSystemPrompt?: string | undefined;
   userInstructions?: string | undefined;
@@ -236,6 +251,10 @@ export interface ChatGraphState {
   // Collaborative document context (from @doc mentions)
   docMentionIds: string[];
   documentMentionContext: string | null;
+
+  // Current open document in the docs editor (primary context, not retrieval scope).
+  // Set when chat is embedded in a document editor surface.
+  currentDocument: CurrentDocument | null;
 
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;

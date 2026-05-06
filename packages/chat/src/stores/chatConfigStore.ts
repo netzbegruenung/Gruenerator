@@ -64,9 +64,36 @@ export interface ChatRequestContext {
   documentChatIds?: string[];
   attachmentContext?: string;
   selectionText?: string;
+  /**
+   * The document the user is currently editing — primary conversation context
+   * when chat is embedded in a document editor. Distinct from `documentChatIds`
+   * (explicit @dokumentchat retrieval scope): this IS the conversation subject.
+   */
+  currentDocument?: {
+    id: string;
+    title?: string | null;
+    markdown: string;
+    selectionText?: string | null;
+  };
 }
 
 export type ChatRequestContextProvider = () => Promise<ChatRequestContext> | ChatRequestContext;
+
+/**
+ * Handler the docs-editor surface registers to receive `trigger_doc_edit` SSE
+ * events from the chat backend. The handler dispatches the prompt into
+ * BlockNote's AIExtension, which runs the existing /api/docs/ai pipeline and
+ * applies operations to the editor with Yjs sync.
+ */
+export interface DocumentEditTriggerPayload {
+  targetDocumentId: string;
+  userPrompt: string;
+  useSelection: boolean;
+}
+
+export type DocumentEditTriggerHandler = (
+  payload: DocumentEditTriggerPayload
+) => void | Promise<void>;
 
 interface ChatConfigStore extends ResolvedChatConfig {
   configure: (config?: ChatConfig) => void;
@@ -85,6 +112,13 @@ interface ChatConfigStore extends ResolvedChatConfig {
   contextProviders: Map<string, ChatRequestContextProvider>;
   /** Register a context provider for a thread. Returns the unregister function. */
   registerContextProvider: (threadId: string, provider: ChatRequestContextProvider) => () => void;
+  /** threadId → live-edit dispatcher (docs editor surface only). */
+  documentEditHandlers: Map<string, DocumentEditTriggerHandler>;
+  /** Register a live-edit handler for a thread. Returns the unregister function. */
+  registerDocumentEditHandler: (
+    threadId: string,
+    handler: DocumentEditTriggerHandler
+  ) => () => void;
 }
 
 const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
@@ -140,6 +174,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   docsBaseUrl: undefined,
   onEditInDocs: undefined,
   contextProviders: new Map(),
+  documentEditHandlers: new Map(),
 
   configure: (config?: ChatConfig) => {
     set({
@@ -162,6 +197,19 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       if (after.get(threadId) === provider) {
         after.delete(threadId);
         set({ contextProviders: after });
+      }
+    };
+  },
+
+  registerDocumentEditHandler: (threadId, handler) => {
+    const next = new Map(get().documentEditHandlers);
+    next.set(threadId, handler);
+    set({ documentEditHandlers: next });
+    return () => {
+      const after = new Map(get().documentEditHandlers);
+      if (after.get(threadId) === handler) {
+        after.delete(threadId);
+        set({ documentEditHandlers: after });
       }
     };
   },

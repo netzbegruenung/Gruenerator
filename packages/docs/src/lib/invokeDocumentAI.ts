@@ -1,0 +1,39 @@
+import { AIExtension } from '@blocknote/xl-ai';
+
+import { useEditorStore } from '../stores/editorStore';
+
+/**
+ * Programmatically trigger BlockNote's AI extension for a given document. Used
+ * by the docs-chat surface to dispatch `trigger_doc_edit` SSE events from the
+ * chat backend into the same pipeline that the editor's AI slash menu / toolbar
+ * uses (POST /api/docs/ai → applyDocumentOperations → Yjs sync).
+ *
+ * Returns false if no editor is mounted for the given documentId or the
+ * extension isn't registered (defensive: the editor decides whether AI is
+ * available — chat shouldn't crash if the user closes the doc mid-stream).
+ */
+export async function invokeDocumentAI(opts: {
+  documentId: string;
+  userPrompt: string;
+  useSelection?: boolean;
+}): Promise<boolean> {
+  const editor = useEditorStore.getState().getEditor(opts.documentId);
+  if (!editor) return false;
+
+  // BlockNote's `getExtension` lookup at runtime is loosely typed because
+  // extension registration is dynamic; the cast names the trust boundary.
+  const ext = (
+    editor as unknown as {
+      getExtension?: (factory: typeof AIExtension) => {
+        invokeAI: (o: { userPrompt: string; useSelection?: boolean }) => Promise<void>;
+      } | null;
+    }
+  ).getExtension?.(AIExtension);
+  if (!ext) return false;
+
+  await ext.invokeAI({
+    userPrompt: opts.userPrompt,
+    useSelection: opts.useSelection ?? false,
+  });
+  return true;
+}
