@@ -296,14 +296,14 @@ export const FRAME_PRESET_PATHS: Record<FrameClipType, string> = {
   // Equilateral triangle (point up)
   triangle: 'M22 2 L42 40 L2 40 z',
   // Speech bubble with bottom-left tail
-  'speech-bubble':
-    'M2 4 L42 4 L42 32 L20 32 L10 42 L12 32 L2 32 z',
+  'speech-bubble': 'M2 4 L42 4 L42 32 L20 32 L10 42 L12 32 L2 32 z',
   // Banner-tag: rect with chevron-cut left side (price-tag style)
   'banner-tag': 'M2 22 L12 4 L42 4 L42 40 L12 40 z',
   // Annular ring (donut) — outer + inner subpaths; even-odd fill in <path fill-rule="evenodd"> usage
   ring: 'M22 2 a20 20 0 1 0 0 40 a20 20 0 1 0 0 -40 z M22 14 a8 8 0 1 0 0 16 a8 8 0 1 0 0 -16 z',
   // Ribbon: rectangular middle with chevron tails left and right
-  ribbon: 'M2 14 L10 22 L2 30 L14 30 L14 38 L30 38 L30 30 L42 30 L34 22 L42 14 L30 14 L30 6 L14 6 L14 14 z',
+  ribbon:
+    'M2 14 L10 22 L2 30 L14 30 L14 38 L30 38 L30 30 L42 30 L34 22 L42 14 L30 14 L30 6 L14 6 L14 14 z',
 };
 
 export const DEFAULT_FRAME_SIZE = 300;
@@ -313,13 +313,14 @@ export const DEFAULT_FRAME_SIZE = 300;
  * non-square (banners, arches, ribbons) open at a sensible aspect ratio.
  * Anything not listed defaults to DEFAULT_FRAME_SIZE × DEFAULT_FRAME_SIZE.
  */
-const DEFAULT_FRAME_DIMENSIONS: Partial<Record<FrameClipType, { width: number; height: number }>> = {
-  arch: { width: 300, height: 380 },
-  'speech-bubble': { width: 360, height: 300 },
-  'banner-tag': { width: 380, height: 220 },
-  ribbon: { width: 380, height: 220 },
-  oval: { width: 300, height: 220 },
-};
+const DEFAULT_FRAME_DIMENSIONS: Partial<Record<FrameClipType, { width: number; height: number }>> =
+  {
+    arch: { width: 300, height: 380 },
+    'speech-bubble': { width: 360, height: 300 },
+    'banner-tag': { width: 380, height: 220 },
+    ribbon: { width: 380, height: 220 },
+    oval: { width: 300, height: 220 },
+  };
 
 let instanceCounter = 0;
 
