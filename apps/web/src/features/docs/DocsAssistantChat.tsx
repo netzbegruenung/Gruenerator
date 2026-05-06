@@ -14,15 +14,11 @@ import {
   createGrueneratorModelAdapter,
   useChatCollaboration,
   useChatConfigStore,
-  useDocumentChatStore,
   type ChatRequestContext,
   type GrueneratorAdapterConfig,
 } from '@gruenerator/chat';
-import {
-  chatThreadResponseSchema,
-  type ChatThreadResponse,
-} from '@gruenerator/contracts';
-import { useEditorStore } from '@gruenerator/docs';
+import { chatThreadResponseSchema, type ChatThreadResponse } from '@gruenerator/contracts';
+import { invokeDocumentAI, useEditorStore } from '@gruenerator/docs';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useMemo, useRef } from 'react';
@@ -138,7 +134,7 @@ function DocsAssistantThreadShell({
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const endpoints = useChatConfigStore((s) => s.endpoints);
   const registerContextProvider = useChatConfigStore((s) => s.registerContextProvider);
-  const addDocToThread = useDocumentChatStore((s) => s.addToThread);
+  const registerDocumentEditHandler = useChatConfigStore((s) => s.registerDocumentEditHandler);
 
   // Load existing messages once (fresh runtime is created with these as
   // initial state). Reloads on hard refresh; live multi-user sync is not
@@ -152,36 +148,48 @@ function DocsAssistantThreadShell({
       // The converter's `LoadedMessage.metadata` is a typed object with specific
       // optional fields (not exported by @gruenerator/chat), so we cast on the
       // already-validated value rather than redefining internal types here.
-      return convertToThreadMessageLike(
-        parsed as Parameters<typeof convertToThreadMessageLike>[0]
-      );
+      return convertToThreadMessageLike(parsed as Parameters<typeof convertToThreadMessageLike>[0]);
     },
     staleTime: 30_000,
   });
 
-  // Bind the doc to this thread so the model adapter automatically forwards
-  // documentChatIds on every send (see GrueneratorModelAdapter line ~915).
-  useEffect(() => {
-    addDocToThread(threadId, documentId);
-  }, [threadId, documentId, addDocToThread]);
-
   // Per-thread context registry: feed the editor's current markdown + selected
-  // text into every outgoing request as attachmentContext. Read at request
-  // time so edits made between sends are reflected.
+  // text into every outgoing request as the **currentDocument** primary-context
+  // field — distinct from `documentChatIds` (retrieval scope for @dokumentchat
+  // mentions). Read at request time so edits made between sends are reflected.
   useEffect(() => {
     const provider = async (): Promise<ChatRequestContext> => {
       const editor = useEditorStore.getState().getEditor(documentId);
       if (!editor) return {};
-      const markdown = await editor.blocksToMarkdownLossy(editor.document);
-      const selection = editor.getSelectedText() || undefined;
+      const markdown = editor.blocksToMarkdownLossy(editor.document);
+      const selection = editor.getSelectedText() || null;
       return {
-        documentChatIds: [documentId],
-        attachmentContext: markdown,
-        selectionText: selection,
+        currentDocument: {
+          id: documentId,
+          title: null,
+          markdown,
+          selectionText: selection,
+        },
       };
     };
     return registerContextProvider(threadId, provider);
   }, [threadId, documentId, registerContextProvider]);
+
+  // Live document edit dispatcher: when ChatGraph classifies intent as
+  // edit_current_doc, the chat backend emits a `trigger_doc_edit` SSE event.
+  // We forward it into BlockNote's AIExtension, which runs the existing
+  // /api/docs/ai pipeline (tool calls → applyDocumentOperations → Yjs sync →
+  // editor undo stack as safety net).
+  useEffect(() => {
+    return registerDocumentEditHandler(documentId, async (payload) => {
+      if (payload.targetDocumentId !== documentId) return;
+      await invokeDocumentAI({
+        documentId,
+        userPrompt: payload.userPrompt,
+        useSelection: payload.useSelection,
+      });
+    });
+  }, [documentId, registerDocumentEditHandler]);
 
   // Keep the adapter stable across renders. Without ref-stabilized config the
   // runtime gets recreated on every prop churn and resets streaming state.
@@ -190,9 +198,18 @@ function DocsAssistantThreadShell({
 
   const getConfig = useMemo<() => GrueneratorAdapterConfig>(
     () => () => ({
-      agentId: 'gruenerator-universal',
-      modelId: 'gemma-4',
+      agentId: 'gruenerator-docs-editor',
+      // Empty modelId → backend uses the docs-editor agent's defaultModel.
+      // The adapter requires the field but treats falsy values as "no override".
+      modelId: '',
       enabledTools: { search: true, web: true, examples: true, research: true },
+      customEnabledTools: {
+        summary: true,
+        edit_current_doc: true,
+        save_as_doc: true,
+        image: true,
+        chart: true,
+      },
       threadId: threadIdRef.current,
       threadMode: 'chat',
     }),
@@ -222,7 +239,7 @@ function DocsAssistantThreadShell({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <ChatCollaborationProvider value={collab}>
-        <GrueneratorThread firstName={userName ?? null} />
+        <GrueneratorThread firstName={userName ?? null} density="compact" />
       </ChatCollaborationProvider>
     </AssistantRuntimeProvider>
   );
