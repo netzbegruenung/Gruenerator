@@ -110,6 +110,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         docMentionIds: rawDocMentionIds,
         customSystemPrompt: rawCustomSystemPrompt,
         roleName: rawRoleName,
+        initialAssistantMessage: rawInitialAssistantMessage,
       } = args.body;
 
       // === Validate ===
@@ -200,6 +201,23 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             return { status: 200 as const, body: null };
           }
         }
+
+        // Seed message (Antrag / PM / Social text) — persisted BEFORE the user
+        // message so order is seed → user → assistant-reply. New threads only.
+        if (
+          isNewThread &&
+          typeof rawInitialAssistantMessage === 'string' &&
+          rawInitialAssistantMessage
+        ) {
+          await createMessage(
+            actualThreadId,
+            'assistant',
+            rawInitialAssistantMessage,
+            { seed: true },
+            userId
+          );
+        }
+
         const userText = extractTextContent(lastUserMessage.content);
         await createMessage(
           actualThreadId,
