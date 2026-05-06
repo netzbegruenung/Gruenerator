@@ -28,6 +28,7 @@ export const INTENT_KEYWORDS: Record<
     | 'sharepic'
     | 'save_as_doc'
     | 'modify_doc'
+    | 'edit_current_doc'
     | 'modify_board'
     | 'share_doc'
   >,

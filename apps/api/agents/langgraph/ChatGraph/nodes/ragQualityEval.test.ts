@@ -236,6 +236,7 @@ async function evaluateBudgetAllocation() {
     boardContext: null,
     docMentionIds: [],
     documentMentionContext: null,
+    currentDocument: null,
     searchSources: [],
     intent: 'search',
     secondaryIntent: null,

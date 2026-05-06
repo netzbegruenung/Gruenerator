@@ -66,7 +66,11 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     const hasDocMentions = state.docMentionIds && state.docMentionIds.length > 0;
     const hasAttachmentContext = !!state.attachmentContext;
     const hasImageAttachments = state.imageAttachments && state.imageAttachments.length > 0;
-    const hasAnyDocuments = hasDocumentChat || hasDocuments || hasAttachmentContext;
+    // Open document in the docs-editor is primary context, not retrieval scope.
+    // Distinct from documentChatIds — we do NOT force-route to search for it.
+    const hasCurrentDocument = !!state.currentDocument;
+    const hasAnyDocuments =
+      hasDocumentChat || hasDocuments || hasAttachmentContext || hasCurrentDocument;
 
     // ── TIER 1: Mutation intents (resource + action keywords) ──
     // These are the most specific signals — a user explicitly requesting a change
@@ -88,6 +92,28 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
         searchQuery: null,
         detectedFilters: null,
         reasoning: 'Board mention + modification keywords → modify_board',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs,
+      };
+    }
+
+    // Open document in docs editor + modification keywords → live edit via
+    // BlockNote AI. This MUST fire before the modify_doc branch below: a docs
+    // editor surface always has currentDocument, and we want the live-edit path
+    // (Yjs-synced, undoable in-place) instead of /chat's modify_doc HITL flow
+    // (DB-only update, breaks Yjs).
+    if (hasCurrentDocument && userContent.length > 0 && docModifyPattern.test(userContent)) {
+      const classificationTimeMs = Date.now() - startTime;
+      log.info(
+        `[Classifier] Live document edit detected (currentDocument set), forcing edit_current_doc intent`
+      );
+      return {
+        intent: 'edit_current_doc',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'currentDocument + modification keywords → edit_current_doc',
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs,

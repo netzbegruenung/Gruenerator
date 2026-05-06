@@ -201,9 +201,7 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
       }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      log.error(
-        `[Respond] Findings cleaning failed, falling back to budget truncation: ${errMsg}`
-      );
+      log.error(`[Respond] Findings cleaning failed, falling back to budget truncation: ${errMsg}`);
     }
   }
 
@@ -248,6 +246,32 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
     .join('\n\n');
 
   return `\n\n## SUCHERGEBNISSE\n\n${resultsText}\n\n---\n[Ende der Suchergebnisse. Insgesamt ${topResults.length} Quelle(n) verfügbar.]`;
+}
+
+/**
+ * Format the open document (docs-editor surface) as the primary conversation
+ * context. Distinct framing from `formatAttachmentContext` — this IS the
+ * document the user is talking about, not a side-loaded reference.
+ */
+function formatCurrentDocument(state: ChatGraphState): string {
+  if (!state.currentDocument) {
+    return '';
+  }
+  const { title, markdown, selectionText } = state.currentDocument;
+  const limitedMarkdown = limitAttachmentContext(markdown);
+  const titleLine = title ? `Titel: ${title}\n\n` : '';
+  const selection = selectionText
+    ? `\n\n### AUSGEWÄHLTER TEXT\n\n${selectionText.slice(0, 4000)}\n\nBezieht sich die Frage auf diese Auswahl, antworte spezifisch dazu.`
+    : '';
+  return `
+
+## AKTUELLES DOKUMENT (Gesprächsgegenstand)
+
+${titleLine}${limitedMarkdown}
+
+---
+Du chattest gerade ÜBER dieses Dokument. Beantworte Fragen primär aus diesem Inhalt.
+Wenn die Information NICHT im Dokument steht, sage das explizit — erfinde nichts.${selection}`;
 }
 
 /**
@@ -430,6 +454,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     documentMentionContext,
   } = state;
   const searchContext = await formatSearchContext(state);
+  const currentDocumentContext = formatCurrentDocument(state);
   const attachmentContext = formatAttachmentContext(state);
   const imageContext = formatImageContext(state);
   const summaryContextFormatted = formatSummaryContext(summaryContext);
@@ -441,12 +466,18 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const localeContext = formatLocaleContext(state.userLocale);
 
   const isDocumentChatMode = state.documentChatIds?.length > 0;
-  const intentGuidance = isDocumentChatMode
-    ? '\nDu chattest mit ausgewählten Dokumenten des Nutzers. Beantworte Fragen basierend auf den Dokumenten. Zitiere relevante Passagen.'
-    : intent === 'summary'
-      ? '\nDer Nutzer hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.'
-      : intent === 'chart'
-        ? `\nDer Nutzer möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
+  const isCurrentDocumentMode = !!state.currentDocument;
+  const intentGuidance =
+    intent === 'edit_current_doc'
+      ? '\nDu hast eine Änderung am aktuellen Dokument angefordert. Antworte mit EINEM EINZIGEN kurzen Satz auf Deutsch, der bestätigt, was du gleich änderst (z.B. "Kürze den letzten Absatz."). Schreibe NICHT den geänderten Text aus — die Bearbeitung passiert direkt im Dokument. Keine Aufzählungen, keine Markdown-Formatierung, keine Quellenverweise.'
+      : isCurrentDocumentMode
+        ? '\nDu chattest über das oben gezeigte AKTUELLE DOKUMENT. Es ist die Quelle der Wahrheit — Suchergebnisse (falls vorhanden) sind nur ergänzend. Wenn die Antwort nicht aus dem Dokument hervorgeht, sage das.'
+        : isDocumentChatMode
+          ? '\nDu chattest mit ausgewählten Dokumenten des Nutzers. Beantworte Fragen basierend auf den Dokumenten. Zitiere relevante Passagen.'
+          : intent === 'summary'
+            ? '\nDer Nutzer hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.'
+            : intent === 'chart'
+              ? `\nDer Nutzer möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
 Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
 
 \`\`\`chart
@@ -460,13 +491,13 @@ Regeln:
 - yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
 - Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
 - Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`
-        : intent === 'image'
-          ? state.generatedImage
-            ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
-            : '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.'
-          : intent === 'direct' || intent === 'save_as_doc'
-            ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
-            : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
+              : intent === 'image'
+                ? state.generatedImage
+                  ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
+                  : '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.'
+                : intent === 'direct' || intent === 'save_as_doc'
+                  ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
+                  : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
 
   const hasSources = state.searchResults.length > 0 && intent !== 'direct';
   const sourceCount = state.searchResults.filter((r) => r.url).length;
@@ -501,7 +532,7 @@ Regeln:
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -513,7 +544,7 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
   return `${systemRole}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo

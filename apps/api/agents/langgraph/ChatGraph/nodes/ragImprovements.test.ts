@@ -196,6 +196,7 @@ async function testExpandedContextWindow() {
     boardContext: null,
     docMentionIds: [],
     documentMentionContext: null,
+    currentDocument: null,
     searchSources: [],
     intent: 'search',
     secondaryIntent: null,

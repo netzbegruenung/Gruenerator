@@ -26,6 +26,8 @@ export {
   type ResolvedEndpoints,
   type ChatRequestContext,
   type ChatRequestContextProvider,
+  type DocumentEditTriggerPayload,
+  type DocumentEditTriggerHandler,
 } from './stores/chatConfigStore';
 
 // Runtime
@@ -79,6 +81,7 @@ export { type CategoryFilterField } from './components/notebook/CategoryFilterDr
 
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
+export { useChatDensity, type ChatDensity } from './components/thread/chatDensityContext';
 export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
 export { DocumentChatPicker } from './components/thread/DocumentChatPicker';

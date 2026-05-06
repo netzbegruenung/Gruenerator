@@ -18,6 +18,7 @@ import { ModelPicker } from './ModelPicker';
 import { getCaretCoords } from '../../lib/caretPosition';
 import { registerDocumentSlug } from '../../lib/documentMentionables';
 import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
+import { useChatDensity } from './chatDensityContext';
 import type { Mentionable } from '../../lib/mentionables';
 import type { DocumentMention } from '../../lib/documentMentionables';
 
@@ -118,6 +119,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showToolToggles = true,
 }: GrueneratorComposerProps) {
   const composerRuntime = useComposerRuntime();
+  const isCompact = useChatDensity() === 'compact';
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLButtonElement>(null);
   const [mention, setMention] = useState<MentionState>(INITIAL_MENTION_STATE);
@@ -370,8 +372,12 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           }
           placeholder={placeholder}
           minRows={1}
-          maxRows={8}
-          className="min-h-0 w-full flex-grow resize-none bg-transparent px-5 pt-3.5 pb-2.5 text-foreground outline-none placeholder:text-foreground-muted/60"
+          maxRows={isCompact ? 4 : 8}
+          className={
+            isCompact
+              ? 'min-h-0 w-full flex-grow resize-none bg-transparent px-3 pt-2 pb-1.5 text-[13px] text-foreground outline-none placeholder:text-foreground-muted/60'
+              : 'min-h-0 w-full flex-grow resize-none bg-transparent px-5 pt-3.5 pb-2.5 text-foreground outline-none placeholder:text-foreground-muted/60'
+          }
           onChange={showMentions ? handleChange : undefined}
           onKeyDown={showMentions ? handleKeyDown : undefined}
         />
