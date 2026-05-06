@@ -37,6 +37,11 @@ export const chatStreamBodySchema = z.object({
   docMentionIds: z.array(z.string()).nullish(),
   customSystemPrompt: z.string().nullish(),
   roleName: z.string().nullish(),
+  // Seed for a brand-new thread: the generated text (Antrag, PM, Social) the
+  // user came to chat about. Backend persists it as the first assistant
+  // message of the newly created thread so it survives reloads. Ignored when
+  // threadId is set (i.e. not a new-thread request).
+  initialAssistantMessage: z.string().max(50_000).nullish(),
 });
 
 export const chatResumeBodySchema = z.object({
