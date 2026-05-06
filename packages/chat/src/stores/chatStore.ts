@@ -406,6 +406,10 @@ export const useAgentStore = create<AgentState>()(
         selectedNotebookId: state.selectedNotebookId,
         threadMode: state.threadMode,
         searchMode: state.searchMode,
+        // Survive a reload that happens between text generation and the first
+        // user message (no thread exists yet, so server-side persistence
+        // hasn't kicked in). Cleared once the backend confirms thread_created.
+        pendingInitialAssistantMessage: state.pendingInitialAssistantMessage,
       }),
     }
   )
