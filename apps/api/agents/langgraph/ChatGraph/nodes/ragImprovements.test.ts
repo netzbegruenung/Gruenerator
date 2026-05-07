@@ -227,6 +227,7 @@ async function testExpandedContextWindow() {
     qualityAssessmentTimeMs: 0,
     imagePrompt: null,
     imageStyle: null,
+    imageEditStyle: null,
     generatedImage: null,
     imageTimeMs: 0,
     summaryContext: null,
