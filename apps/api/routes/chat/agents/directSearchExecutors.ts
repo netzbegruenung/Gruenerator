@@ -337,15 +337,18 @@ export async function executeDirectWebSearch(params: {
   searchType?: 'general' | 'news';
   maxResults?: number;
   timeRange?: string;
+  language?: string;
 }): Promise<DirectWebSearchResult> {
-  const { query, searchType = 'general', maxResults = 5, timeRange } = params;
+  const { query, searchType = 'general', maxResults = 5, timeRange, language = 'de-DE' } = params;
 
-  log.info(`[Direct Web Search] query="${query}" type="${searchType}" max=${maxResults}`);
+  log.info(
+    `[Direct Web Search] query="${query}" type="${searchType}" max=${maxResults} lang=${language}`
+  );
 
   try {
     const searchOptions: SearxngSearchOptions = {
       maxResults: Math.min(maxResults, 10),
-      language: 'de-DE',
+      language,
       safesearch: 0,
       categories: searchType === 'news' ? 'news' : 'general',
       page: 1,
