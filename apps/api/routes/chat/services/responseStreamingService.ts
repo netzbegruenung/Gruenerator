@@ -154,6 +154,32 @@ export function buildMessagesForAI(
   return sanitizeContentPartsForModel(stripEmptyAssistantMessages(messages as ModelMessage[]));
 }
 
+/**
+ * Hoist any role:'system' entries out of `messages` into a single concatenated
+ * `system` string. The Vercel AI SDK warns (and may eventually error) when
+ * system messages are passed inside the `messages` array, since they're a
+ * potential prompt-injection vector if user content ever leaks into history.
+ */
+function extractSystemFromMessages(messages: ModelMessage[]): {
+  system: string | undefined;
+  messages: ModelMessage[];
+} {
+  const systemParts: string[] = [];
+  const rest: ModelMessage[] = [];
+  for (const msg of messages) {
+    if (msg.role === 'system') {
+      const c = msg.content;
+      systemParts.push(typeof c === 'string' ? c : String(c));
+      continue;
+    }
+    rest.push(msg);
+  }
+  return {
+    system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
+    messages: rest,
+  };
+}
+
 class FirstTokenTimeoutError extends Error {
   readonly kind: FallbackReason = 'first_token_timeout';
   constructor() {
@@ -232,9 +258,14 @@ async function streamAndAccumulateOrThrow(params: {
   const { deadline, signal: deadlineSignal, clear } = createFirstTokenDeadline();
   const composed = signal ? AbortSignal.any([signal, deadlineSignal]) : deadlineSignal;
 
+  const { system, messages: messagesWithoutSystem } = extractSystemFromMessages(
+    messages as ModelMessage[]
+  );
+
   const result = streamText({
     model,
-    messages: messages as ModelMessage[],
+    ...(system != null && { system }),
+    messages: messagesWithoutSystem,
     maxOutputTokens: maxTokens,
     temperature,
     abortSignal: composed,

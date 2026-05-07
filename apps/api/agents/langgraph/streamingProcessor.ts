@@ -303,10 +303,11 @@ export async function processGraphRequestStreaming(
       `[streaming] Using provider=${effectiveProvider}, model=${effectiveModel}${reasoningEffort ? `, reasoningEffort=${reasoningEffort}` : ''}`
     );
 
-    // Build messages for streamText
-    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-      { role: 'system', content: promptResult.system },
-    ];
+    // Build messages for streamText. The system prompt is passed via the
+    // top-level `system` option (see streamText call below), not as a
+    // role:'system' entry in messages — the latter triggers an AI SDK warning
+    // and is treated as a prompt-injection vector.
+    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
 
     for (const msg of promptResult.messages) {
       let content: string;
@@ -330,6 +331,7 @@ export async function processGraphRequestStreaming(
 
     const result = streamText({
       model,
+      system: promptResult.system,
       messages,
       maxOutputTokens: reasoningEffort
         ? 32768
