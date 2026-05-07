@@ -1,6 +1,14 @@
 'use client';
 
-import { BookOpen, FileText, Loader2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  BookOpen,
+  FileText,
+  Loader2,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight,
+} from 'lucide-react';
 import { memo, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -44,6 +52,7 @@ export const ResearchArtifactCard = memo(function ResearchArtifactCard({
   result,
 }: ResearchArtifactCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showSources, setShowSources] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -214,12 +223,31 @@ export const ResearchArtifactCard = memo(function ResearchArtifactCard({
       </div>
 
       {citations.length > 0 && (
-        <div className="border-section-border border-t p-3">
-          <CitationList
-            id="research-citations"
-            citations={citations.map((c) => toSerializableCitation(c))}
-            variant="default"
-          />
+        <div className="border-section-border border-t">
+          <button
+            onClick={() => setShowSources((s) => !s)}
+            className="text-foreground-muted hover:bg-primary/5 flex w-full items-center gap-1.5 px-3 py-1.5 text-[11px] transition-colors"
+            type="button"
+            aria-expanded={showSources}
+          >
+            {showSources ? (
+              <ChevronDown className="h-3 w-3" />
+            ) : (
+              <ChevronRight className="h-3 w-3" />
+            )}
+            <span>
+              {citations.length} Quelle{citations.length === 1 ? '' : 'n'}
+            </span>
+          </button>
+          {showSources && (
+            <div className="px-3 pb-3 [&_*]:text-[11px]">
+              <CitationList
+                id="research-citations"
+                citations={citations.map((c) => toSerializableCitation(c))}
+                variant="default"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

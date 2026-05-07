@@ -166,6 +166,7 @@ async function planResearchDeep(
 
 Aufgabe: Zerlege die Nutzerfrage in 3–6 Sub-Fragen, die zusammen das Thema gut abdecken.
 - Jede Sub-Frage adressiert einen eigenen Aspekt (z.B. Biografie, Karriere, Positionen, Aktuelles, Kontroversen, Vergleiche).
+- WICHTIG: Jede Sub-Frage MUSS die zentrale Entität (Person, Partei, Thema, Ereignis) aus der Nutzerfrage explizit nennen. Schreibe z.B. "Welche politischen Positionen vertritt Mona Neubaur?" — NICHT "Welche politischen Positionen?". Sonst liefern Suchmaschinen ohne Kontext irrelevante Treffer.
 - Pro Sub-Frage wähle die passende Quellenart: 'qdrant' für Parteipositionen/Beschlüsse/interne Dokumente, 'web' für Aktuelles/Personen/externe Fakten.
 - Bestimme die Sprache/Land:
   * 'at' wenn Österreich-Bezug (z.B. Werner Kogler, Leonore Gewessler, .at-Domain, "Österreich")
@@ -931,10 +932,16 @@ async function executeDeepResearch(args: {
 
     if (coverage.score < 4 && coverage.weakAspects.length > 0) {
       onProgress?.(`Vertiefe Recherche zu: ${coverage.weakAspects[0]}…`);
+      // Refinement queries MUST carry entity context. The assessor returns
+      // terse phrases like "Herkunft", "politische Karriere" (per its prompt
+      // "kurze Suchphrasen (nicht ganze Fragen)"). Used as-is, search engines
+      // get no signal about WHO/WHAT — Mona Neubauer's "Herkunft" search
+      // returned random Bachelorarbeiten and montessori articles. Prefix the
+      // original question so the entity name carries through.
       const refinementPlan: DeepPlan = {
         subQuestions: coverage.weakAspects.slice(0, 3).map((aspect, i) => ({
           id: `r2-${i}`,
-          question: aspect,
+          question: `${question} ${aspect}`,
           sources: ['web', 'qdrant'],
         })),
         locale: plan.locale,

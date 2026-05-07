@@ -600,6 +600,9 @@ export async function executeIntentPipeline(opts: {
           message: PROGRESS_MESSAGES.searchComplete(resultCount),
           resultCount,
           results: payloadResults,
+          ...(currentIntent === 'research' && finalState.researchMeta
+            ? { researchMeta: finalState.researchMeta }
+            : {}),
         });
       }
     }

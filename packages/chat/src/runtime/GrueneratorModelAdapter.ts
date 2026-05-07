@@ -335,10 +335,11 @@ async function* parseSSEStream(
         }
 
         case 'search_complete': {
-          const { message, resultCount, results } = data as {
+          const { message, resultCount, results, researchMeta } = data as {
             message: string;
             resultCount: number;
             results?: SearchResult[];
+            researchMeta?: unknown;
           };
           if (results) receivedSearchResults = results;
           // Update searching step label with result count
@@ -356,15 +357,26 @@ async function* parseSSEStream(
             resultCount,
           };
 
-          // Mark all pending multi-search tool calls as complete
+          // Pick the right result shape per tool. Research toolcalls expect
+          // { answer, citations, confidence, searchSteps, followUpQuestions }
+          // (the orchestrator's researchMeta), not the generic { results }
+          // shape — otherwise ResearchArtifactCard renders empty.
+          const resultForTool = (toolName: string) =>
+            toolName === 'research' && researchMeta != null
+              ? (researchMeta as Record<string, unknown>)
+              : { results: results || [] };
+
           for (let i = 0; i < allToolCalls.length; i++) {
             if (!allToolCalls[i].result) {
-              allToolCalls[i] = { ...allToolCalls[i], result: { results: results || [] } };
+              allToolCalls[i] = {
+                ...allToolCalls[i],
+                result: resultForTool(allToolCalls[i].toolName),
+              };
             }
           }
           if (activeToolCall) {
             activeToolCall = Object.assign({}, activeToolCall, {
-              result: { results: results || [] },
+              result: resultForTool(activeToolCall.toolName),
             });
           }
           yield buildResult();
