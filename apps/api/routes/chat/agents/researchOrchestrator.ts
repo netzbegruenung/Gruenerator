@@ -727,6 +727,7 @@ export async function executeResearch(params: {
   useLLMSynthesis?: boolean;
   complexity?: 'simple' | 'moderate' | 'complex';
   userLocale?: string;
+  onProgress?: (message: string) => void;
 }): Promise<ResearchResult> {
   const {
     question,
@@ -737,7 +738,25 @@ export async function executeResearch(params: {
     useLLMSynthesis = true,
     complexity = 'moderate',
     userLocale,
+    onProgress,
   } = params;
+
+  // Defense in depth: refuse empty question. Without this, the deep planner
+  // hallucinates topics from context bias (locale, brief). The proper fix is
+  // upstream (chatGraphContractRouter populates searchQuery from the user's
+  // message when @-mentions force a search intent), but this guard catches
+  // any future caller that forgets to pass a question.
+  if (!question || !question.trim()) {
+    log.warn('[Research] Refusing to run with empty question');
+    return {
+      answer:
+        'Bitte stelle eine konkrete Recherche-Frage. Beispiel: "Recherchiere Friedrich Merz" oder "@recherche aktuelle Klimapolitik".',
+      citations: [],
+      followUpQuestions: [],
+      searchSteps: [],
+      confidence: 'low',
+    };
+  }
 
   log.info(
     `[Research] Starting research for: "${truncateText(question, 100)}" (depth: ${depth}, complexity: ${complexity})`
@@ -753,6 +772,7 @@ export async function executeResearch(params: {
   // so we don't gate on it. Bounded to ~17s by the 1-round refinement cap.
   // Opt-out is `useLLMSynthesis: false` for callers that explicitly want fast.
   if (useLLMSynthesis) {
+    onProgress?.('Plane Recherche…');
     const deepPlan = await planResearchDeep(question, defaultLocale, brief);
     if (deepPlan) {
       return executeDeepResearch({
@@ -761,6 +781,7 @@ export async function executeResearch(params: {
         plan: deepPlan,
         maxSources: Math.max(maxSources, 12),
         ...(aiWorkerPool ? { aiWorkerPool } : {}),
+        ...(onProgress ? { onProgress } : {}),
       });
     }
     log.info('[Research] Deep planner returned null — falling back to single-shot path');
@@ -884,13 +905,15 @@ async function executeDeepResearch(args: {
   plan: DeepPlan;
   maxSources: number;
   aiWorkerPool?: AIWorkerPool;
+  onProgress?: (message: string) => void;
 }): Promise<ResearchResult> {
-  const { question, brief, plan, maxSources, aiWorkerPool } = args;
+  const { question, brief, plan, maxSources, aiWorkerPool, onProgress } = args;
   log.info(
     `[Research/Deep] ${plan.subQuestions.length} sub-questions, locale=${plan.locale}, shape=${plan.reportShape}`
   );
 
   // Round 1: parallel fan-out across all sub-questions.
+  onProgress?.(`Suche zu ${plan.subQuestions.length} Sub-Fragen…`);
   const round1 = await executeDeepSearches(plan, aiWorkerPool, 1);
   log.info(
     `[Research/Deep] Round 1: ${round1.sources.length} sources from ${round1.searchSteps.length} searches`
@@ -907,6 +930,7 @@ async function executeDeepResearch(args: {
     );
 
     if (coverage.score < 4 && coverage.weakAspects.length > 0) {
+      onProgress?.(`Vertiefe Recherche zu: ${coverage.weakAspects[0]}…`);
       const refinementPlan: DeepPlan = {
         subQuestions: coverage.weakAspects.slice(0, 3).map((aspect, i) => ({
           id: `r2-${i}`,
@@ -947,6 +971,7 @@ async function executeDeepResearch(args: {
   log.info(
     `[Research/Deep] Synthesizing ${limitedSources.length} sources as ${plan.reportShape} report`
   );
+  onProgress?.('Erstelle Bericht…');
 
   const strategy =
     plan.reportShape === 'positional' || plan.reportShape === 'comparative'

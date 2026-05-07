@@ -286,7 +286,7 @@ async function* parseSSEStream(
               (subQueries && subQueries.length > 0) || (searchSources && searchSources.length > 1);
 
             if (hasMultiSearch) {
-              const queries = subQueries?.length ? subQueries : [searchQuery || message];
+              const queries = subQueries?.length ? subQueries : [searchQuery ?? ''];
               const sources =
                 searchSources?.length && searchSources.length > 1 ? searchSources : [null];
 
@@ -309,7 +309,10 @@ async function* parseSSEStream(
               }
               activeToolCall = null;
             } else {
-              const toolArgs = { query: searchQuery || message };
+              // Don't fall back to `message` (the German status copy) — that
+              // would display the status as the user's query. Empty string lets
+              // the UI hide the chip text gracefully.
+              const toolArgs = { query: searchQuery ?? '' };
               activeToolCall = {
                 type: 'tool-call',
                 toolCallId: `tc_${Date.now()}`,

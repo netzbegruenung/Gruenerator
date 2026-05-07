@@ -169,6 +169,82 @@ describe('DeepPlanSchema', () => {
   });
 });
 
+describe('executeResearch — empty question refusal', () => {
+  it('returns a graceful refusal when called with an empty question', async () => {
+    const result = await executeResearch({ question: '', complexity: 'complex' });
+    expect(result.citations).toHaveLength(0);
+    expect(result.searchSteps).toHaveLength(0);
+    expect(result.confidence).toBe('low');
+    expect(result.answer).toContain('konkrete Recherche-Frage');
+    expect(mockGenerateObject).not.toHaveBeenCalled();
+  });
+
+  it('returns the same refusal for whitespace-only question', async () => {
+    const result = await executeResearch({ question: '   \n\t  ', complexity: 'complex' });
+    expect(result.answer).toContain('konkrete Recherche-Frage');
+    expect(mockGenerateObject).not.toHaveBeenCalled();
+  });
+});
+
+describe('executeResearch — onProgress callback', () => {
+  it('fires progress at planner, search, and synthesis phases', async () => {
+    const onProgress = vi.fn();
+    mockGenerateObject.mockImplementation(async ({ schema }: { schema: unknown }) => {
+      if (schema === DeepPlanSchema) {
+        return {
+          object: {
+            subQuestions: [
+              { id: 'q1', question: 'a', sources: ['web'] },
+              { id: 'q2', question: 'b', sources: ['web'] },
+            ],
+            locale: 'de',
+            reportShape: 'general',
+          },
+        };
+      }
+      return { object: { score: 5, weakAspects: [] } };
+    });
+
+    await executeResearch({
+      question: 'eine frage',
+      complexity: 'complex',
+      onProgress,
+    });
+
+    const messages = onProgress.mock.calls.map((c) => c[0] as string);
+    expect(messages).toContain('Plane Recherche…');
+    expect(messages.some((m) => m.includes('Sub-Fragen'))).toBe(true);
+    expect(messages).toContain('Erstelle Bericht…');
+  });
+
+  it('fires the refinement progress message when round 2 runs', async () => {
+    const onProgress = vi.fn();
+    mockGenerateObject
+      .mockResolvedValueOnce({
+        object: {
+          subQuestions: [
+            { id: 'q1', question: 'a', sources: ['web'] },
+            { id: 'q2', question: 'b', sources: ['web'] },
+          ],
+          locale: 'de',
+          reportShape: 'general',
+        },
+      })
+      .mockResolvedValueOnce({
+        object: { score: 2, weakAspects: ['konkrete-aspect'] },
+      });
+
+    await executeResearch({
+      question: 'eine frage',
+      complexity: 'complex',
+      onProgress,
+    });
+
+    const messages = onProgress.mock.calls.map((c) => c[0] as string);
+    expect(messages.some((m) => m.includes('Vertiefe Recherche zu: konkrete-aspect'))).toBe(true);
+  });
+});
+
 describe('executeResearch — opt-out via useLLMSynthesis: false', () => {
   it('does NOT invoke the deep planner when useLLMSynthesis is false', async () => {
     await executeResearch({

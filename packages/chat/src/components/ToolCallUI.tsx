@@ -68,7 +68,16 @@ export const ToolCallUI = memo(function ToolCallUI({
     if (toolName !== 'research' || !result || state !== 'result') return null;
     const confidence = getString(result, 'confidence');
     const searchSteps = getArray(result, 'searchSteps');
-    return { confidence, searchStepsCount: searchSteps?.length ?? 0 };
+    const stepsList: Array<{ tool: string; query: string; resultsCount: number }> = [];
+    if (searchSteps) {
+      for (const s of searchSteps) {
+        const tool = getString(s, 'tool') ?? '';
+        const stepQuery = getString(s, 'query') ?? '';
+        const resultsCount = getNumber(s, 'resultsCount') ?? 0;
+        if (stepQuery) stepsList.push({ tool, query: stepQuery, resultsCount });
+      }
+    }
+    return { confidence, searchStepsCount: stepsList.length, stepsList };
   }, [toolName, result, state]);
 
   return (
@@ -135,6 +144,16 @@ export const ToolCallUI = memo(function ToolCallUI({
 
       {isExpanded && state === 'result' && result != null && (
         <div className="mt-2 ml-2 border-l-2 border-primary/20 pl-3">
+          {researchMeta && researchMeta.stepsList.length > 0 && (
+            <div className="mb-2 space-y-0.5">
+              {researchMeta.stepsList.map((step, i) => (
+                <div key={i} className="text-foreground-muted text-xs">
+                  <span aria-hidden>{step.tool === 'web_search' ? '🌐' : '📄'}</span> &bdquo;
+                  {step.query}&ldquo; &middot; {step.resultsCount} Quellen
+                </div>
+              ))}
+            </div>
+          )}
           <ToolResultRenderer toolName={toolName} args={args} result={result} />
         </div>
       )}

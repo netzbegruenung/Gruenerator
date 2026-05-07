@@ -233,6 +233,11 @@ export interface ChatGraphState {
   aiWorkerPool: AIWorkerPool;
   userLocale: UserLocale;
 
+  // Optional progress sink. Set by the controller for tools that produce
+  // multi-phase progress (deep research). Pure callback — graph stays
+  // HTTP-decoupled (no Response object on state).
+  onResearchProgress?: ((message: string) => void) | undefined;
+
   // Attachment context
   attachmentContext: string | null;
   imageAttachments: ImageAttachment[];
