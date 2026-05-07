@@ -1,0 +1,194 @@
+/* Editable Preview - Hover and click states for preview elements */
+
+/* Base editable element */
+.editable-element {
+  position: relative;
+  cursor: pointer;
+  transition: outline 0.15s ease, background-color 0.15s ease;
+  border-radius: 4px;
+}
+
+/* Hover state */
+.editable-element:hover {
+  outline: 2px dashed var(--primary-400, #66bb6a);
+  outline-offset: 4px;
+}
+
+/* Show edit hint on hover */
+.editable-element::after {
+  content: 'Klicken zum Bearbeiten';
+  position: absolute;
+  top: -28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary-700, #388e3c);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+}
+
+.editable-element::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--primary-700, #388e3c);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.editable-element:hover::after,
+.editable-element:hover::before {
+  opacity: 1;
+}
+
+/* Highlighted state (when field is focused in editor) */
+.editable-element--highlighted {
+  outline: 3px solid var(--primary-600, #43a047) !important;
+  outline-offset: 4px;
+  background-color: rgba(76, 175, 80, 0.08);
+}
+
+.editable-element--highlighted::after {
+  content: 'Wird bearbeitet';
+  background: var(--primary-600, #43a047);
+  opacity: 1;
+}
+
+.editable-element--highlighted::before {
+  border-top-color: var(--primary-600, #43a047);
+  opacity: 1;
+}
+
+/* Pulse animation for newly focused element */
+.editable-element--pulse {
+  animation: elementPulse 0.6s ease;
+}
+
+@keyframes elementPulse {
+  0%, 100% {
+    outline-width: 3px;
+    outline-offset: 4px;
+  }
+  50% {
+    outline-width: 5px;
+    outline-offset: 6px;
+  }
+}
+
+/* Section container highlighting */
+.editable-section {
+  position: relative;
+  transition: box-shadow 0.2s ease;
+}
+
+.editable-section--active {
+  box-shadow: inset 0 0 0 2px var(--primary-200, #a5d6a7);
+}
+
+/* Scroll anchor offset for sections */
+.editable-section-anchor {
+  scroll-margin-top: 80px;
+}
+
+/* Image editable element special styling */
+.editable-element--image {
+  display: block;
+}
+
+.editable-element--image:hover {
+  outline-offset: 0;
+}
+
+.editable-element--image::after {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.editable-element--image::before {
+  display: none;
+}
+
+/* Array item indicator */
+.editable-element[data-index]::after {
+  content: 'Element ' attr(data-index) ' bearbeiten';
+}
+
+.editable-element--highlighted[data-index]::after {
+  content: 'Element ' attr(data-index) ' wird bearbeitet';
+}
+
+/* Disable pointer events on child elements to ensure click bubbles to editable-element */
+.editable-element > * {
+  pointer-events: none;
+}
+
+/* Re-enable for interactive children if needed */
+.editable-element a,
+.editable-element button {
+  pointer-events: auto;
+}
+
+/* Mobile adjustments */
+@media (max-width: 1023px) {
+  .editable-element::after,
+  .editable-element::before {
+    display: none;
+  }
+
+  .editable-element:hover {
+    outline: none;
+    background-color: rgba(76, 175, 80, 0.05);
+  }
+
+  .editable-element:active {
+    outline: 2px solid var(--primary-400, #66bb6a);
+    outline-offset: 2px;
+    background-color: rgba(76, 175, 80, 0.1);
+  }
+
+  .editable-element--highlighted {
+    outline: 2px solid var(--primary-600, #43a047) !important;
+    outline-offset: 2px;
+  }
+}
+
+/* Preview mode indicator */
+.preview-edit-mode-indicator {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--grey-800, #343a40);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: var(--font-size-sm, 14px);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.preview-edit-mode-indicator--visible {
+  opacity: 1;
+}
+
+.preview-edit-mode-indicator .material-icons {
+  font-size: 18px;
+}
