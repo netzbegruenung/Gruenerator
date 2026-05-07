@@ -29,7 +29,7 @@ export const QWEN_WARNING =
 export const MODEL_OPTIONS: ModelOption[] = [
   {
     id: 'gemma-litellm',
-    name: 'Gemma 4',
+    name: '🌳 Gemma 4',
     description: 'Leichtgewichtig, antwortet schnell',
     model: 'gpt-oss:120b',
     provider: 'litellm',
@@ -38,7 +38,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
   {
     id: 'mistral-medium-3.5',
-    name: 'Mistral Medium (Mistral AI)',
+    name: '⭐ Mistral Medium',
     description: 'EU-gehostet, ausgewogen für allgemeine Aufgaben',
     model: 'mistral-medium-2604',
     provider: 'mistral',
@@ -47,7 +47,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
   {
     id: 'litellm',
-    name: 'GPT-OSS',
+    name: '🌳 GPT-OSS',
     description: 'Selbst gehostet bei Verdigado, Regolo als Overflow',
     model: 'gpt-oss:120b',
     provider: 'litellm',
