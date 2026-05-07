@@ -1,4 +1,5 @@
 import { Button } from '@gruenerator/ui';
+import { useQuery } from '@tanstack/react-query';
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaInstagram } from 'react-icons/fa';
 import QRCode from 'react-qr-code';
@@ -35,14 +36,10 @@ const SharedVideoPage = () => {
   const { shareToken } = useParams();
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const [shareData, setShareData] = useState<ShareData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [expired, setExpired] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [downloadError, setDownloadError] = useState('');
-  const [isRendering, setIsRendering] = useState(false);
+  const [manualExpired, setManualExpired] = useState(false);
   const [copied, setCopied] = useState(false);
   const [canNativeShare, setCanNativeShare] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -69,67 +66,33 @@ const SharedVideoPage = () => {
     void checkShareCapability();
   }, []);
 
-  useEffect(() => {
-    const fetchShareData = async () => {
-      try {
-        const response = await apiClient.get<ShareApiResponse>(`/subtitler/share/${shareToken}`, {
-          skipAuthRedirect: true,
-        } as Record<string, unknown>);
-        if (response.data.success) {
-          setShareData(response.data.share ?? null);
-          if (response.data.share?.status === 'rendering') {
-            setIsRendering(true);
-          } else if (response.data.share?.status === 'failed') {
-            setError(
-              'Das Video konnte nicht gerendert werden. Bitte erstelle einen neuen Share-Link.'
-            );
-          }
-        }
-      } catch (err) {
-        const apiErr = err as ApiError;
-        if (apiErr.response?.status === 410) {
-          setExpired(true);
-        } else if (apiErr.response?.status === 404) {
-          setError('Dieses Video existiert nicht oder wurde gelöscht.');
-        } else {
-          setError('Fehler beim Laden des Videos.');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
+  const shareQuery = useQuery<ShareData | null, ApiError>({
+    queryKey: ['subtitler-share', shareToken],
+    queryFn: async () => {
+      const response = await apiClient.get<ShareApiResponse>(`/subtitler/share/${shareToken}`, {
+        skipAuthRedirect: true,
+      } as Record<string, unknown>);
+      return response.data.success ? (response.data.share ?? null) : null;
+    },
+    enabled: Boolean(shareToken),
+    retry: false,
+    refetchInterval: (query) => (query.state.data?.status === 'rendering' ? 5000 : false),
+  });
 
-    void fetchShareData();
-  }, [shareToken]);
+  const shareData = shareQuery.data ?? null;
+  const loading = shareQuery.isLoading;
+  const isRendering = shareData?.status === 'rendering';
+  const queryStatus = (shareQuery.error as ApiError | null)?.response?.status;
+  const expired = manualExpired || queryStatus === 410;
 
-  useEffect(() => {
-    if (!isRendering) return;
-
-    const pollStatus = async () => {
-      try {
-        const response = await apiClient.get<ShareApiResponse>(`/subtitler/share/${shareToken}`, {
-          skipAuthRedirect: true,
-        } as Record<string, unknown>);
-        if (response.data.success) {
-          const newStatus = response.data.share?.status;
-          if (newStatus === 'ready') {
-            setIsRendering(false);
-            setShareData(response.data.share ?? null);
-          } else if (newStatus === 'failed') {
-            setIsRendering(false);
-            setError(
-              'Das Video konnte nicht gerendert werden. Bitte erstelle einen neuen Share-Link.'
-            );
-          }
-        }
-      } catch (_err) {
-        // Silently ignore polling errors
-      }
-    };
-
-    const interval = setInterval(pollStatus, 5000);
-    return () => clearInterval(interval);
-  }, [isRendering, shareToken]);
+  const error = (() => {
+    if (expired) return null;
+    if (shareData?.status === 'failed')
+      return 'Das Video konnte nicht gerendert werden. Bitte erstelle einen neuen Share-Link.';
+    if (queryStatus === 404) return 'Dieses Video existiert nicht oder wurde gelöscht.';
+    if (shareQuery.error) return 'Fehler beim Laden des Videos.';
+    return null;
+  })();
 
   const handleDownload = async () => {
     if (!isAuthenticated) return;
@@ -163,7 +126,7 @@ const SharedVideoPage = () => {
     } catch (err) {
       const apiErr = err as ApiError;
       if (apiErr.response?.status === 410) {
-        setExpired(true);
+        setManualExpired(true);
       } else {
         setDownloadError('Download fehlgeschlagen. Bitte versuche es erneut.');
       }

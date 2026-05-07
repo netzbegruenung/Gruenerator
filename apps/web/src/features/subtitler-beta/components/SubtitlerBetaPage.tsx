@@ -1,4 +1,5 @@
 import { Button, Skeleton, VideoCard } from '@gruenerator/ui';
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -69,19 +70,13 @@ interface ProjectListItem {
 }
 
 function ProjectPicker({ onSelectProject }: { onSelectProject: (projectId: string) => void }) {
-  const [projectsWithSubtitles, setProjectsWithSubtitles] = useState<ProjectListItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    apiClient
-      .get<{ projects: ProjectListItem[] }>('/subtitler/projects')
-      .then((res) => {
-        const all: ProjectListItem[] = res.data?.projects ?? [];
-        setProjectsWithSubtitles(all);
-      })
-      .catch(() => {})
-      .finally(() => setIsLoading(false));
-  }, []);
+  const { data: projectsWithSubtitles = [], isLoading } = useQuery<ProjectListItem[]>({
+    queryKey: ['subtitler-beta', 'projects'],
+    queryFn: async () => {
+      const res = await apiClient.get<{ projects: ProjectListItem[] }>('/subtitler/projects');
+      return res.data?.projects ?? [];
+    },
+  });
 
   const baseURL = apiClient.defaults.baseURL || '';
 
