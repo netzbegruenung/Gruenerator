@@ -58,6 +58,7 @@ interface UploadedDocument {
 }
 
 const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
+const MAX_DOCUMENTS = 20;
 
 interface NotebookEditorProps {
   onSave: (data: unknown) => Promise<void>;
@@ -73,7 +74,7 @@ const NotebookEditor = ({
   onCancel,
 }: NotebookEditorProps) => {
   const [step, setStep] = useState<1 | 2>(editingCollection ? 2 : 1);
-  const [uploadedDocument, setUploadedDocument] = useState<UploadedDocument | null>(null);
+  const [uploadedDocuments, setUploadedDocuments] = useState<UploadedDocument[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -99,53 +100,79 @@ const NotebookEditor = ({
       });
       setLabels(editingCollection.labels || []);
       if (editingCollection.documents?.length) {
-        const doc = editingCollection.documents[0];
-        setUploadedDocument({ id: doc.id, title: doc.title || 'Dokument' });
+        setUploadedDocuments(
+          editingCollection.documents.map((doc) => ({
+            id: doc.id,
+            title: doc.title || 'Dokument',
+          }))
+        );
         setStep(2);
       }
     } else {
       reset({ name: '', description: '' });
       setLabels([]);
-      setUploadedDocument(null);
+      setUploadedDocuments([]);
       setStep(1);
     }
   }, [editingCollection, reset]);
 
-  const handleFileUpload = useCallback(
-    async (file: File) => {
+  const handleFilesUpload = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return;
       setIsUploading(true);
       setUploadError(null);
 
+      const remainingSlots = MAX_DOCUMENTS - uploadedDocuments.length;
+      const filesToUpload = files.slice(0, remainingSlots);
+      const skipped = files.length - filesToUpload.length;
+
+      const wasEmpty = uploadedDocuments.length === 0;
+      const newDocs: UploadedDocument[] = [];
+
       try {
-        const doc = await uploadFileOnly(file, file.name);
-        setUploadedDocument({ id: doc.id, title: doc.title || file.name });
-        setValue('name', doc.title.replace(/\.[^/.]+$/, ''), { shouldValidate: true });
-        setStep(2);
+        for (const file of filesToUpload) {
+          const doc = await uploadFileOnly(file, file.name);
+          newDocs.push({ id: doc.id, title: doc.title || file.name });
+        }
+        if (newDocs.length > 0) {
+          setUploadedDocuments((prev) => [...prev, ...newDocs]);
+          if (wasEmpty) {
+            const firstTitle = newDocs[0].title.replace(/\.[^/.]+$/, '');
+            setValue('name', firstTitle, { shouldValidate: true });
+            setStep(2);
+          }
+        }
+        if (skipped > 0) {
+          setUploadError(
+            `${skipped} Datei${skipped === 1 ? '' : 'en'} übersprungen — maximal ${MAX_DOCUMENTS} Dateien pro Notebook.`
+          );
+        }
       } catch (err) {
         setUploadError(err instanceof Error ? err.message : 'Fehler beim Hochladen der Datei');
       } finally {
         setIsUploading(false);
       }
     },
-    [uploadFileOnly, setValue]
+    [uploadFileOnly, setValue, uploadedDocuments.length]
   );
 
   const handleFileSelect = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) void handleFileUpload(file);
+      const files = Array.from(e.target.files ?? []);
+      if (files.length > 0) void handleFilesUpload(files);
+      e.target.value = '';
     },
-    [handleFileUpload]
+    [handleFilesUpload]
   );
 
   const handleDrop = useCallback(
     (e: DragEvent<HTMLDivElement>) => {
       e.preventDefault();
       setIsDragOver(false);
-      const file = e.dataTransfer.files?.[0];
-      if (file) void handleFileUpload(file);
+      const files = Array.from(e.dataTransfer.files ?? []);
+      if (files.length > 0) void handleFilesUpload(files);
     },
-    [handleFileUpload]
+    [handleFilesUpload]
   );
 
   const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
@@ -158,8 +185,23 @@ const NotebookEditor = ({
     setIsDragOver(false);
   }, []);
 
-  const handleRemoveDocument = useCallback(() => {
-    setUploadedDocument(null);
+  const handleRemoveDocument = useCallback(
+    (id: string) => {
+      setUploadedDocuments((prev) => {
+        const next = prev.filter((doc) => doc.id !== id);
+        if (next.length === 0 && !editingCollection) {
+          setStep(1);
+          reset({ name: '', description: '' });
+          setLabels([]);
+        }
+        return next;
+      });
+    },
+    [reset, editingCollection]
+  );
+
+  const handleClearDocuments = useCallback(() => {
+    setUploadedDocuments([]);
     setStep(1);
     reset({ name: '', description: '' });
     setLabels([]);
@@ -190,12 +232,12 @@ const NotebookEditor = ({
   );
 
   const onSubmit = async (data: NotebookEditorFormData): Promise<void> => {
-    if (!uploadedDocument) return;
+    if (uploadedDocuments.length === 0) return;
 
     const qaData = {
       ...data,
       selectionMode: 'documents',
-      documents: [uploadedDocument.id],
+      documents: uploadedDocuments.map((doc) => doc.id),
       id: editingCollection?.id,
       labels,
     };
@@ -205,7 +247,7 @@ const NotebookEditor = ({
 
   const handleCancel = (): void => {
     reset();
-    setUploadedDocument(null);
+    setUploadedDocuments([]);
     setLabels([]);
     setNewLabel('');
     setStep(1);
@@ -286,6 +328,7 @@ const NotebookEditor = ({
                     <input
                       ref={fileInputRef}
                       type="file"
+                      multiple
                       accept={ACCEPTED_EXTENSIONS.join(',')}
                       onChange={handleFileSelect}
                       style={{ display: 'none' }}
@@ -300,10 +343,11 @@ const NotebookEditor = ({
                       <div className="flex flex-col items-center gap-xs p-lg text-center">
                         <HiUpload size={28} className="text-grey-400" />
                         <p className="m-0 text-[0.9rem] font-medium text-foreground">
-                          Datei hier ablegen oder klicken
+                          Dateien hier ablegen oder klicken
                         </p>
                         <p className="m-0 text-xs text-grey-500">
-                          PDF, DOCX, TXT, MD, ODT, RTF (max. 50 MB)
+                          PDF, DOCX, TXT, MD, ODT, RTF — bis zu {MAX_DOCUMENTS} Dateien (max. 50 MB
+                          pro Datei)
                         </p>
                       </div>
                     )}
@@ -323,40 +367,61 @@ const NotebookEditor = ({
             >
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-sm">
                 <div className="space-y-sm">
-                  {uploadedDocument && !editingCollection && (
+                  {uploadedDocuments.length > 0 && (
                     <div>
-                      <label className="text-sm font-medium text-foreground">Dokument</label>
-                      <div className="mt-xs flex items-center justify-between p-md bg-background-alt border border-green-300 rounded-lg">
-                        <div className="flex items-center gap-sm min-w-0">
-                          <HiCheckCircle size={20} className="text-green-600 shrink-0" />
-                          <span className="font-medium text-foreground truncate">
-                            {uploadedDocument.filename || uploadedDocument.title}
-                          </span>
-                        </div>
-                        <Button
+                      <label className="text-sm font-medium text-foreground">
+                        Dokumente ({uploadedDocuments.length}/{MAX_DOCUMENTS})
+                      </label>
+                      <div className="mt-xs flex flex-col gap-xs">
+                        {uploadedDocuments.map((doc) => (
+                          <div
+                            key={doc.id}
+                            className="flex items-center justify-between p-md bg-background-alt border border-green-300 rounded-lg"
+                          >
+                            <div className="flex items-center gap-sm min-w-0">
+                              <HiCheckCircle size={20} className="text-green-600 shrink-0" />
+                              <span className="font-medium text-foreground truncate">
+                                {doc.filename || doc.title}
+                              </span>
+                            </div>
+                            {!editingCollection && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => handleRemoveDocument(doc.id)}
+                                disabled={loading}
+                                aria-label={`${doc.title} entfernen`}
+                              >
+                                <HiX size={14} />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {!editingCollection && uploadedDocuments.length < MAX_DOCUMENTS && (
+                        <button
                           type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={handleRemoveDocument}
-                          disabled={loading}
+                          className="mt-xs text-sm text-primary-600 hover:underline disabled:opacity-50"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploading || loading}
                         >
-                          Ändern
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {editingCollection && uploadedDocument && (
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Dokument</label>
-                      <div className="mt-xs flex items-center justify-between p-md bg-background-alt border border-green-300 rounded-lg">
-                        <div className="flex items-center gap-sm min-w-0">
-                          <HiCheckCircle size={20} className="text-green-600 shrink-0" />
-                          <span className="font-medium text-foreground truncate">
-                            {uploadedDocument.title}
-                          </span>
-                        </div>
-                      </div>
+                          {isUploading
+                            ? 'Wird hochgeladen…'
+                            : `+ Weitere Datei hinzufügen (${MAX_DOCUMENTS - uploadedDocuments.length} verbleibend)`}
+                        </button>
+                      )}
+                      {!editingCollection && (
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          multiple
+                          accept={ACCEPTED_EXTENSIONS.join(',')}
+                          onChange={handleFileSelect}
+                          style={{ display: 'none' }}
+                        />
+                      )}
+                      {uploadError && <p className="mt-xs text-sm text-red-600">{uploadError}</p>}
                     </div>
                   )}
 
@@ -442,14 +507,14 @@ const NotebookEditor = ({
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={handleRemoveDocument}
+                      onClick={handleClearDocuments}
                       disabled={loading}
                     >
                       <HiArrowLeft size={14} />
                       Zurück
                     </Button>
                   )}
-                  <Button type="submit" disabled={loading || !uploadedDocument}>
+                  <Button type="submit" disabled={loading || uploadedDocuments.length === 0}>
                     {loading
                       ? 'Wird gespeichert...'
                       : editingCollection
