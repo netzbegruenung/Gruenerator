@@ -66,6 +66,13 @@ Return ONLY the JSON tool input. No prose, no markdown.`;
 export const aiRequestBodySchema = z.object({
   messages: z.array(z.unknown()),
   toolDefinitions: z.record(z.string(), z.unknown()),
+  // Optional: when the docs-chat panel forwards an edit request, the prior
+  // assistant turn (the rewritten Antrag, the drafted PM, etc.) is sent here
+  // so the model can resolve referential commands like "im dokument einfügen"
+  // / "füge dies ein". Surfaced into the system prompt — NOT mixed into
+  // userPrompt — so the model treats it as instructional context, not
+  // content to insert verbatim.
+  referenceContent: z.string().nullish(),
 });
 
 export type AiRequestBody = z.infer<typeof aiRequestBodySchema>;
@@ -88,10 +95,10 @@ const DOCS_AI_MODELS: Record<AgentConfig['provider'], string> = {
  */
 export async function handleAiRequest(req: TypedRequest<AiRequestBody>, res: Response) {
   try {
-    const { messages, toolDefinitions } = req.body;
+    const { messages, toolDefinitions, referenceContent } = req.body;
 
     log.info(
-      `[DocsAI] Request received: ${messages.length} messages, ${Object.keys(toolDefinitions).length} tools`
+      `[DocsAI] Request received: ${messages.length} messages, ${Object.keys(toolDefinitions).length} tools, refContentChars: ${referenceContent?.length ?? 0}`
     );
 
     log.info(`[DocsAI] Tool definitions received: ${Object.keys(toolDefinitions).join(', ')}`);
@@ -133,13 +140,39 @@ export async function handleAiRequest(req: TypedRequest<AiRequestBody>, res: Res
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
+    const referenceContentSection = referenceContent?.trim()
+      ? `\n\nADDITIONAL CONTEXT — CHAT-PROVIDED REFERENCE CONTENT:
+The docs-chat panel has forwarded the following content (the assistant's prior reply in the chat). When the user's instruction references it (e.g. "insert this", "füge dies ein", "im dokument einfügen", "übernimm das"), use this content as the source for the operation.
+
+CRITICAL RULES for handling this reference content:
+1. Insert it IN FULL. Include EVERY section: Antragstellende, Antragstext, Begründung, sub-points, lists, conclusions — everything. Do NOT cherry-pick, do NOT summarize, do NOT shorten.
+2. Preserve the original structure: headings stay headings, lists stay lists, paragraphs stay paragraphs. Map markdown elements to BlockNote HTML (h1/h2/h3, p, ul/li, ol/li, blockquote).
+3. Insert ONLY the content itself. Do NOT include this surrounding instruction text, the "ADDITIONAL CONTEXT" header, the "<reference_content>" tags, or any meta-commentary about what you're doing.
+4. Drop conversational chrome from the reference: closing questions to the user ("Passt das so?", "Soll ich noch etwas anpassen?"), self-referential meta ("Hier ist der überarbeitete Antrag…", "Warum das überzeugt: ✅ …"), and chat-style emoji bullets that aren't part of the document content. Keep the substantive document body.
+5. Only deviate from "insert in full" if the user's instruction explicitly limits scope (e.g. "nur die Begründung einfügen", "ersetze nur den Titel mit …").
+
+<reference_content>
+${referenceContent.trim()}
+</reference_content>`
+      : '';
+
     const result = streamText({
       model,
-      system: aiDocumentFormats.html.systemPrompt + '\n\n' + BLOCKNOTE_TOOL_STRICT_PROMPT,
+      system:
+        aiDocumentFormats.html.systemPrompt +
+        '\n\n' +
+        BLOCKNOTE_TOOL_STRICT_PROMPT +
+        referenceContentSection,
       messages: await convertToModelMessages(messagesWithDocState),
       tools,
       toolChoice: 'auto',
-      maxOutputTokens: 4096,
+      // 32k output budget: the prior 4k cap silently truncated mid-tool-call
+      // on long inserts (a full Antrag with Antragstellende + multi-item
+      // Antragstext + Begründung + sub-sections, serialized as JSON-escaped
+      // applyDocumentOperations args, can run several thousand tokens). 32k
+      // leaves comfortable headroom even for very long documents; you only
+      // pay for tokens actually generated.
+      maxOutputTokens: 32768,
       maxRetries: 1,
       temperature: 0.3,
       onFinish: ({ toolCalls, text, finishReason, usage }) => {
@@ -197,10 +230,7 @@ router.post(
  *    DefaultChatTransport's EventSourceParserStream expects on the frontend.
  *  - Gives a single grep target if we ever need to swap the underlying writer.
  */
-function pipeUiStreamToExpress(
-  result: ReturnType<typeof streamText>,
-  res: Response
-): void {
+function pipeUiStreamToExpress(result: ReturnType<typeof streamText>, res: Response): void {
   result.pipeUIMessageStreamToResponse(res as unknown as ServerResponse);
 }
 

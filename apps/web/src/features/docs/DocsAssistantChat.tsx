@@ -187,6 +187,7 @@ function DocsAssistantThreadShell({
         documentId,
         userPrompt: payload.userPrompt,
         useSelection: payload.useSelection,
+        ...(payload.referenceContent ? { referenceContent: payload.referenceContent } : {}),
       });
     });
   }, [documentId, registerDocumentEditHandler]);

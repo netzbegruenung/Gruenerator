@@ -108,6 +108,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         defaultNotebookId: rawDefaultNotebookId,
         boardIds: rawBoardIds,
         docMentionIds: rawDocMentionIds,
+        currentDocument: rawCurrentDocument,
         customSystemPrompt: rawCustomSystemPrompt,
         roleName: rawRoleName,
         initialAssistantMessage: rawInitialAssistantMessage,
@@ -324,7 +325,23 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             ? []
             : undefined,
         boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
-        docMentionIds: rawDocMentionIds?.length ? rawDocMentionIds : undefined,
+        // When the docs editor sends a currentDocument, also surface its id as a
+        // doc-mention so the existing modify_doc / summary intent paths activate
+        // (they key off `hasDocMentions`). Explicit @doc mentions always take
+        // precedence — we only fall back to currentDocument.id otherwise.
+        docMentionIds: rawDocMentionIds?.length
+          ? rawDocMentionIds
+          : rawCurrentDocument?.id
+            ? [rawCurrentDocument.id]
+            : undefined,
+        currentDocument: rawCurrentDocument
+          ? {
+              id: rawCurrentDocument.id,
+              title: rawCurrentDocument.title ?? null,
+              markdown: rawCurrentDocument.markdown,
+              selectionText: rawCurrentDocument.selectionText ?? null,
+            }
+          : undefined,
         userLocale: user.locale ?? 'de-DE',
         customSystemPrompt: rawCustomSystemPrompt ?? undefined,
         userInstructions,
@@ -398,6 +415,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         });
       }
 
+      // @bildbearbeiten is an alias for image_edit intent with explicit universal
+      // style — distinct identifier so @stadtbegruenen can keep its green-edit
+      // branding while @bildbearbeiten signals free-form editing.
+      const universalEditForced = !!forcedTools?.includes('image_edit_universal');
+      if (universalEditForced) {
+        classifiedState.intent = 'image_edit';
+        forcedTool = true;
+        log.info('[ChatGraph] Intent forced to "image_edit" via @bildbearbeiten mention');
+      }
+
       if (forcedTools && forcedTools.length > 0) {
         const searchClassTools = ['research', 'web', 'search'];
         const hasSearchTool = forcedTools.some((t) => searchClassTools.includes(t));
@@ -416,11 +443,24 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               ] as const);
 
         const forced = TOOL_PRIORITY.find((t) => forcedTools.includes(t));
-        if (forced) {
+        if (forced && !universalEditForced) {
           classifiedState.intent = forced;
           forcedTool = true;
           log.info(`[ChatGraph] Intent forced to "${forced}" via @tool mention`);
         }
+      }
+
+      // Resolve which FLUX edit-prompt builder imageEditNode should use.
+      // @stadtbegruenen (forcedTools includes 'image_edit') → green-urban branded;
+      // @bildbearbeiten (forcedTools includes 'image_edit_universal') → universal;
+      // auto-detected image_edit from heuristics → universal.
+      if (classifiedState.intent === 'image_edit') {
+        const greenEditMentionForced =
+          !!forcedTools?.includes('image_edit') && !universalEditForced;
+        classifiedState.imageEditStyle = greenEditMentionForced ? 'green-edit' : 'universal';
+        log.info(
+          `[ChatGraph] image_edit style resolved to "${classifiedState.imageEditStyle}" (greenEditForced=${greenEditMentionForced}, universalForced=${universalEditForced})`
+        );
       }
 
       sse.send('intent', {
@@ -600,6 +640,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         requestId,
         {
           hasImages: imageAttachments.length > 0,
+          intent: finalState.intent,
         }
       );
       const { model: aiModel } = resolution;
@@ -620,11 +661,17 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         finalSystemMessage,
         prunedValidMessages as Parameters<typeof buildMessagesForAI>[1]
       );
-      messagesForAI = injectImageAttachments(
-        messagesForAI as Parameters<typeof injectImageAttachments>[0],
-        imageAttachments,
-        requestId
-      );
+      // image_edit narrates from BILDVERGLEICH text descriptions; the raw image
+      // would put bytes in front of a non-vision model (since we no longer
+      // force-switch above) and create a redundant grounding source for vision
+      // models — skip injection so the descriptions are the single source.
+      if (finalState.intent !== 'image_edit') {
+        messagesForAI = injectImageAttachments(
+          messagesForAI as Parameters<typeof injectImageAttachments>[0],
+          imageAttachments,
+          requestId
+        );
+      }
 
       let fullText: string | null;
       try {
@@ -650,6 +697,49 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             `[ChatGraph] Chart data extracted: ${chartData.type} with ${chartData.data.length} points`
           );
         }
+      }
+
+      // === Stage 3c: Live document edit trigger (docs editor surface only) ===
+      // For edit_current_doc intent, emit a `trigger_doc_edit` SSE event with
+      // the user's prompt + selection flag. The docs-editor frontend dispatches
+      // this into BlockNote's AIExtension.invokeAI(), which runs the existing
+      // /api/docs/ai pipeline (tool calls → applyDocumentOperations → Yjs sync).
+      // ChatGraph never edits the doc itself — it just classifies and forwards.
+      //
+      // Reference content channel: short referential commands like "füge dies
+      // ein" or "im dokument einfügen" point at the previous assistant turn
+      // (the rewritten Antrag the chat produced earlier). BlockNote AI sees
+      // only the document — not chat history. We forward the prior substantive
+      // assistant message as a SEPARATE `referenceContent` field; it lands in
+      // the docs-AI route's *system prompt* as labeled instructional context,
+      // never concatenated into userPrompt (an earlier attempt did that and
+      // the model inserted the wrapper text verbatim into the document).
+      //
+      // "Substantive" = ≥200 chars, which skips the brief edit-confirmation
+      // ("Ich passe das Dokument an…") that respondNode itself just emitted
+      // and lands on the earlier turn that actually contains the content.
+      if (finalState.intent === 'edit_current_doc' && rawCurrentDocument?.id) {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const lastUserIdx = lastUserMessage ? validMessages.indexOf(lastUserMessage) : -1;
+        const priorMessages = lastUserIdx > 0 ? validMessages.slice(0, lastUserIdx) : [];
+        const SUBSTANTIVE_THRESHOLD = 200;
+        const prevAssistantText =
+          [...priorMessages]
+            .reverse()
+            .map((m) => (m.role === 'assistant' ? extractTextContent(m.content) : ''))
+            .find((t) => t.trim().length >= SUBSTANTIVE_THRESHOLD) ?? '';
+        const cappedPrev =
+          prevAssistantText.length > 8000 ? prevAssistantText.slice(0, 8000) : prevAssistantText;
+        const hasSelection = !!rawCurrentDocument.selectionText;
+        sse.send('trigger_doc_edit', {
+          targetDocumentId: rawCurrentDocument.id,
+          userPrompt: lastUserText,
+          useSelection: hasSelection,
+          ...(cappedPrev.trim() ? { referenceContent: cappedPrev } : {}),
+        });
+        log.info(
+          `[ChatGraph] Emitted trigger_doc_edit for doc ${rawCurrentDocument.id} (selection: ${hasSelection}, refContentChars: ${cappedPrev.length})`
+        );
       }
 
       // === Stage 4: Persist & complete ===
@@ -875,6 +965,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       const resumeRequestId = `resume_contract_${Date.now()}`;
       const resolution2 = await resolveModel(agentConfigForResolve2, modelId, resumeRequestId, {
         hasImages: resumeImageAttachments.length > 0,
+        intent: finalState.intent,
       });
       const { model: aiModel } = resolution2;
 
