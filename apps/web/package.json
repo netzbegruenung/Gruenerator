@@ -18,6 +18,8 @@
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/docs": "workspace:*",
     "@gruenerator/shared": "workspace:*",
+    "@gruenerator/sites": "workspace:*",
+    "@gruenerator/sites-design": "workspace:*",
     "@gruenerator/ui": "workspace:*",
     "@gruenerator/voice": "workspace:*",
     "@gruenerator/wolke": "workspace:*",
