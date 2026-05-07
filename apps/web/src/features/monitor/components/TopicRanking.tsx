@@ -72,10 +72,10 @@ export function TopicRanking({ topics, totalArticles, sourcesCount, onClick }: T
             <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
             <Bar
               dataKey="articles"
-              layout="vertical"
               radius={5}
-              onClick={(data: { topic?: unknown } | null) => {
-                if (data?.topic) onClick(data.topic as TopicCategory);
+              onClick={(data) => {
+                const topic = (data?.payload as { topic?: unknown } | undefined)?.topic;
+                if (topic) onClick(topic as TopicCategory);
               }}
               className="cursor-pointer"
             />

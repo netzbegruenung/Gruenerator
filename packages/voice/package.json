@@ -8,10 +8,10 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "zustand": "^5.0.12"
+    "zustand": "^5.0.13"
   },
   "peerDependencies": {
-    "@assistant-ui/react": ">=0.12.0",
+    "@assistant-ui/react": "^0.12.28",
     "react": "^19.0.0"
   },
   "devDependencies": {

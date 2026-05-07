@@ -20,11 +20,9 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { useAppInitialization } from '../hooks/useAppInitialization';
 import { queryClient } from '../services/queryClient';
-import { initSentry, Sentry } from '../services/sentry';
 import { lightTheme, darkTheme } from '../theme';
 
 void SplashScreen.preventAutoHideAsync();
-initSentry();
 
 function RootLayout() {
   const colorScheme = useColorScheme();
@@ -138,4 +136,4 @@ function RootLayout() {
   );
 }
 
-export default Sentry.wrap(RootLayout);
+export default RootLayout;
