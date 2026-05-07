@@ -15,6 +15,7 @@ import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer
 import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
+import { getActiveAnchors } from './anchorContext.js';
 import { heuristicExtractFilters } from './classifierFilters.js';
 import {
   heuristicClassify,
@@ -56,6 +57,11 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
 
     // Format prior conversation as context for the classifier LLM
     const conversationContext = formatConversationHistory(messages);
+
+    // Topical hints from state anchors (open doc, doc-mentions, board,
+    // attachments, images) so the query optimizer can resolve anaphoric
+    // references like "dazu", "dies", "darüber" to a concrete subject.
+    const topicalContext = formatTopicalContext(state);
 
     // Analyze temporality and complexity (used by all paths)
     const temporal = analyzeTemporality(userContent);
@@ -168,33 +174,16 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
         aiWorkerPool,
         userContent,
         conversationContext,
+        topicalContext,
         temporal,
         complexity,
         startTime,
       });
     }
 
-    // If file attachments were uploaded (OCR-extracted), force direct intent —
-    // the respondNode already formats attachmentContext into the system message.
-    if (hasAttachmentContext && userContent.length > 0) {
-      log.info(
-        `[Classifier] File attachment detected (${state.attachmentContext!.length} chars), forcing direct intent`
-      );
-      return {
-        intent: 'direct',
-        searchSources: [],
-        searchQuery: null,
-        detectedFilters: null,
-        reasoning: 'File attachment present — respondNode will use attachmentContext',
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs: Date.now() - startTime,
-      };
-    }
-
-    // Image edit detection — must run BEFORE the generic image-attachment
-    // short-circuit below, otherwise "bearbeite dieses Bild + image" would be
-    // forced to `direct` (vision Q&A) and never reach imageEditNode.
+    // Image edit detection — generation intent, exclusive. Must beat the
+    // search-capable branches below so "bearbeite das Bild + @berlin" still
+    // routes to imageEditNode rather than RAG.
     //
     // Two trigger patterns:
     //  1. Image attached + edit verb → image_edit (the natural-attach flow).
@@ -220,64 +209,10 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       };
     }
 
-    // If image attachments are present (and no edit verb above), force direct
-    // intent — the vision model will interpret the image in the respond step.
-    if (hasImageAttachments) {
-      log.info(
-        `[Classifier] Image attachment detected (${state.imageAttachments.length} images), forcing direct intent`
-      );
-      return {
-        intent: 'direct',
-        searchSources: [],
-        searchQuery: null,
-        detectedFilters: null,
-        reasoning: 'Image attachment present — vision model will interpret the image',
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs: Date.now() - startTime,
-      };
-    }
+    // Search-capable mentions take precedence over context-only branches.
+    // Co-present anchors (boards / doc-mentions / files / images) still inject
+    // into the system prompt via respondNode regardless of intent.
 
-    // If boards are mentioned (no mutation keywords — those were caught in Tier 1),
-    // force direct intent so respondNode uses the board context.
-    if (hasBoards && userContent.length > 0) {
-      const classificationTimeMs = Date.now() - startTime;
-      log.info(
-        `[Classifier] Board mention detected (${state.boardIds.length} board(s)), forcing direct intent`
-      );
-      return {
-        intent: 'direct',
-        searchSources: [],
-        searchQuery: null,
-        detectedFilters: null,
-        reasoning: 'Board mention forces direct intent — board context injected by controller',
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs,
-      };
-    }
-
-    // If collaborative documents are mentioned (no mutation keywords — caught in Tier 1),
-    // force direct intent so respondNode uses the document context.
-    if (hasDocMentions && userContent.length > 0) {
-      const classificationTimeMs = Date.now() - startTime;
-      log.info(
-        `[Classifier] Collaborative document mention detected (${state.docMentionIds.length} doc(s)), forcing direct intent`
-      );
-      return {
-        intent: 'direct',
-        searchSources: [],
-        searchQuery: null,
-        detectedFilters: null,
-        reasoning:
-          'Collaborative document mention forces direct intent — content injected by controller',
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs,
-      };
-    }
-
-    // If documents are mentioned, force search intent with LLM query optimization
     if (hasDocuments && userContent.length > 0) {
       return classifyWithForcedSearch({
         reason: 'Document',
@@ -285,6 +220,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
         aiWorkerPool,
         userContent,
         conversationContext,
+        topicalContext,
         temporal,
         complexity,
         startTime,
@@ -327,11 +263,85 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
         aiWorkerPool,
         userContent,
         conversationContext,
+        topicalContext,
         temporal,
         complexity,
         startTime,
         gatherSources,
       });
+    }
+
+    // Context-only fallback branches — fire only when no search-capable
+    // mention above already routed the request.
+
+    if (hasAttachmentContext && userContent.length > 0) {
+      log.info(
+        `[Classifier] File attachment detected (${state.attachmentContext!.length} chars), forcing direct intent`
+      );
+      return {
+        intent: 'direct',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'File attachment present — respondNode will use attachmentContext',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // Image attachments (no edit verb above) — vision model interprets in respond.
+    if (hasImageAttachments) {
+      log.info(
+        `[Classifier] Image attachment detected (${state.imageAttachments.length} images), forcing direct intent`
+      );
+      return {
+        intent: 'direct',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Image attachment present — vision model will interpret the image',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // Board mentions (no mutation, no co-present search source).
+    if (hasBoards && userContent.length > 0) {
+      const classificationTimeMs = Date.now() - startTime;
+      log.info(
+        `[Classifier] Board mention detected (${state.boardIds.length} board(s)), forcing direct intent`
+      );
+      return {
+        intent: 'direct',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Board mention forces direct intent — board context injected by controller',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs,
+      };
+    }
+
+    // Collaborative document mentions (no mutation, no co-present search source).
+    if (hasDocMentions && userContent.length > 0) {
+      const classificationTimeMs = Date.now() - startTime;
+      log.info(
+        `[Classifier] Collaborative document mention detected (${state.docMentionIds.length} doc(s)), forcing direct intent`
+      );
+      return {
+        intent: 'direct',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning:
+          'Collaborative document mention forces direct intent — content injected by controller',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs,
+      };
     }
 
     // ── TIER 3: Heuristic pre-check ──
@@ -500,6 +510,33 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
 }
 
 /**
+ * Compact topical hint for the query optimizer so anaphoric pronouns
+ * ("dazu", "dies", "darüber") can resolve to a concrete subject. Skips
+ * `documentChat` — that anchor lives in its own classifier branch above.
+ */
+function formatTopicalContext(state: ChatGraphState): string | null {
+  const lines = getActiveAnchors(state).flatMap((a): string[] => {
+    switch (a.kind) {
+      case 'currentDocument':
+        return [`- Aktuell geöffnetes Dokument: "${a.title}"`];
+      case 'documentMention':
+        return [`- Referenzierte Dokumente: ${a.titles.map((t) => `"${t}"`).join(', ')}`];
+      case 'board':
+        return ['- Ein Board ist referenziert (siehe Boardkontext im Gespräch).'];
+      case 'attachment':
+        return ['- Hochgeladene Datei(en) liegen vor.'];
+      case 'image':
+        return [`- Bilder angehängt: ${a.names.join(', ')}`];
+      case 'documentChat':
+        return [];
+    }
+  });
+
+  if (lines.length === 0) return null;
+  return `Themenkontext (zur Auflösung von "dazu", "dies" etc.):\n${lines.join('\n')}`;
+}
+
+/**
  * Helper for the 3 near-identical "force search intent with LLM query optimization" blocks.
  * Used by document chat, document mention, and notebook mention paths.
  */
@@ -509,6 +546,7 @@ async function classifyWithForcedSearch(opts: {
   aiWorkerPool: ChatGraphState['aiWorkerPool'];
   userContent: string;
   conversationContext: string | null;
+  topicalContext: string | null;
   temporal: { hasTemporal: boolean };
   complexity: 'simple' | 'moderate' | 'complex';
   startTime: number;
@@ -520,6 +558,7 @@ async function classifyWithForcedSearch(opts: {
     aiWorkerPool,
     userContent,
     conversationContext,
+    topicalContext,
     temporal,
     complexity,
     startTime,
@@ -527,10 +566,18 @@ async function classifyWithForcedSearch(opts: {
   } = opts;
 
   log.info(
-    `[Classifier] ${reason} detected (${docCount} item(s)), forcing search intent with LLM query optimization`
+    `[Classifier] ${reason} detected (${docCount} item(s)), forcing search intent with LLM query optimization${topicalContext ? ' + topical context' : ''}`
   );
 
   try {
+    const userMessageContent = [
+      topicalContext,
+      conversationContext,
+      `Aktuelle Nachricht: "${userContent}"`,
+    ]
+      .filter((p): p is string => !!p)
+      .join('\n\n');
+
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_intent_classification',
@@ -539,9 +586,7 @@ async function classifyWithForcedSearch(opts: {
         messages: [
           {
             role: 'user',
-            content: conversationContext
-              ? `${conversationContext}\n\nAktuelle Nachricht: "${userContent}"`
-              : `Analysiere: "${userContent}"`,
+            content: userMessageContent || `Analysiere: "${userContent}"`,
           },
         ],
         options: {

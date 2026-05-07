@@ -12,6 +12,8 @@ import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
+import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
+
 import type { ChatGraphState, ThreadAttachment } from '../types.js';
 
 const log = createLogger('ChatGraph:Respond');
@@ -261,17 +263,13 @@ function formatCurrentDocument(state: ChatGraphState): string {
   const limitedMarkdown = limitAttachmentContext(markdown);
   const titleLine = title ? `Titel: ${title}\n\n` : '';
   const selection = selectionText
-    ? `\n\n### AUSGEWÄHLTER TEXT\n\n${selectionText.slice(0, 4000)}\n\nBezieht sich die Frage auf diese Auswahl, antworte spezifisch dazu.`
+    ? `\n\n### AUSGEWÄHLTER TEXT\n\n${selectionText.slice(0, 4000)}`
     : '';
   return `
 
-## AKTUELLES DOKUMENT (Gesprächsgegenstand)
+## AKTUELLES DOKUMENT
 
-${titleLine}${limitedMarkdown}
-
----
-Du chattest gerade ÜBER dieses Dokument. Beantworte Fragen primär aus diesem Inhalt.
-Wenn die Information NICHT im Dokument steht, sage das explizit — erfinde nichts.${selection}`;
+${titleLine}${limitedMarkdown}${selection}`;
 }
 
 /**
@@ -290,12 +288,7 @@ function formatAttachmentContext(state: ChatGraphState): string {
 
 ## ANGEHÄNGTE DOKUMENTE
 
-Der Nutzer hat Dokumente angehängt. Hier ist der extrahierte Text:
-
-${limitedContext}
-
----
-Beantworte Fragen zu den Dokumenten basierend auf deren Inhalt.`;
+${limitedContext}`;
 }
 
 /**
@@ -312,7 +305,7 @@ function formatImageContext(state: ChatGraphState): string {
 
 ## ANGEHÄNGTE BILDER
 
-Der Nutzer hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar. Beziehe dich auf den Bildinhalt in deiner Antwort.`);
+Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar.`);
   }
 
   // Vision-grounded before/after descriptions populated by imageEditNode after a
@@ -389,12 +382,7 @@ function formatBoardContext(boardContext: string | null): string {
 
 ## BOARD-KONTEXT
 
-Der Nutzer hat ein Board referenziert. Hier ist der aktuelle Stand:
-
-${boardContext}
-
----
-Beantworte Fragen zum Board basierend auf dessen Inhalt (Spalten, Karten, Status).`;
+${boardContext}`;
 }
 
 /**
@@ -406,12 +394,9 @@ function formatDocumentMentionContext(documentMentionContext: string | null): st
 
   return `
 
-## REFERENZIERTE DOKUMENTE (vom Nutzer ausgewählt)
+## REFERENZIERTE DOKUMENTE
 
-${documentMentionContext}
-
----
-Beantworte Fragen basierend auf dem Inhalt dieser Dokumente.`;
+${documentMentionContext}`;
 }
 
 /**
@@ -456,6 +441,111 @@ Der Nutzer ist in Österreich. Beachte:
   return '';
 }
 
+/** Strict-output modes — anchor adjuncts skipped to keep their format rules clean. */
+const MODES_WITHOUT_ANCHORS: ReadonlySet<ChatGraphState['intent']> = new Set([
+  'edit_current_doc',
+  'image_edit',
+  'image',
+  'chart',
+]);
+
+const EDIT_CURRENT_DOC_GUIDANCE =
+  '\nDu hast eine Änderung am aktuellen Dokument angefordert. Antworte mit EINEM EINZIGEN kurzen Satz auf Deutsch, der bestätigt, was du gleich änderst (z.B. "Kürze den letzten Absatz."). Schreibe NICHT den geänderten Text aus — die Bearbeitung passiert direkt im Dokument. Keine Aufzählungen, keine Markdown-Formatierung, keine Quellenverweise.';
+
+const SUMMARY_GUIDANCE =
+  '\nDer*die Nutzer*in hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.';
+
+const CHART_GUIDANCE = `\nDer*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
+Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
+
+\`\`\`chart
+{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
+\`\`\`
+
+Regeln:
+- type: "bar", "line", "area", "pie" oder "donut"
+- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey
+- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
+- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
+- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
+- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
+
+const IMAGE_FAILED_GUIDANCE =
+  '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.';
+
+const IMAGE_EDIT_SUCCESS_GUIDANCE = `\nDu hast das angehängte Bild erfolgreich bearbeitet. Das Ergebnis wird dem*der Nutzer*in bereits angezeigt — du musst es NICHT erneut zeigen oder verlinken.
+
+ABSOLUTE AUSGABE-REGEL für diese Antwort:
+- NUR natürlicher deutscher Fließtext, 1-3 Sätze.
+- KEIN JSON, KEINE geschweiften Klammern { }, KEINE eckigen Klammern [ ] um Inhalte, KEINE Schlüssel-Wert-Paare wie "edit": ..., KEINE Markdown-Code-Blöcke, KEINE Aufzählungen.
+- Falls frühere Antworten in diesem Thread strukturierte Daten (JSON o.ä.) ausgegeben haben, ignoriere dieses Muster — es war ein Bug. Antworte ab jetzt ausschließlich in normaler Prosa.
+
+Beispiel einer guten Antwort: "Ich habe die Person sichtbar älter wirken lassen — graue Haare und feine Falten, während Kleidung und Pose erhalten bleiben. Sag mir, falls du eine andere Anpassung möchtest."
+
+Stütze dich für die Beschreibung auf den BILDVERGLEICH-Block oben (falls vorhanden); ansonsten halte dich an den Wunsch des*der Nutzer*in aus der letzten Nachricht. Verneine NICHT die Fähigkeit zur Bildbearbeitung — sie hat gerade stattgefunden.`;
+
+const IMAGE_EDIT_FAILED_GUIDANCE =
+  '\nDie Bildbearbeitung ist fehlgeschlagen. Entschuldige dich kurz in einem Satz und bitte um eine andere Formulierung oder ein anderes Bild. KEIN JSON, KEINE Code-Blöcke.';
+
+const DIRECT_GUIDANCE =
+  '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit aus dem verfügbaren Kontext.';
+
+const SEARCH_GUIDANCE =
+  '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
+
+function getModeGuidance(state: ChatGraphState): string {
+  switch (state.intent) {
+    case 'edit_current_doc':
+      return EDIT_CURRENT_DOC_GUIDANCE;
+    case 'summary':
+      return SUMMARY_GUIDANCE;
+    case 'chart':
+      return CHART_GUIDANCE;
+    case 'image':
+      return state.generatedImage
+        ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
+        : IMAGE_FAILED_GUIDANCE;
+    case 'image_edit':
+      return state.generatedImage ? IMAGE_EDIT_SUCCESS_GUIDANCE : IMAGE_EDIT_FAILED_GUIDANCE;
+    case 'direct':
+    case 'save_as_doc':
+      return DIRECT_GUIDANCE;
+    case 'research':
+    case 'search':
+    case 'web':
+    case 'examples':
+    case 'sharepic':
+    case 'modify_doc':
+    case 'modify_board':
+    case 'share_doc':
+      return SEARCH_GUIDANCE;
+    default:
+      return SEARCH_GUIDANCE;
+  }
+}
+
+const ANCHOR_ADJUNCTS: { [K in AnchorDescriptor['kind']]: string } = {
+  currentDocument:
+    '- Im Editor ist ein Dokument geöffnet (siehe AKTUELLES DOKUMENT). Wenn die Frage es konkret berührt, beziehe dich darauf. Schreibe das Dokument NICHT um, außer der*die Nutzer*in fragt explizit danach.',
+  documentChat:
+    '- Das Gespräch ist auf ausgewählte Dokumente des*der Nutzer*in begrenzt. Nutze deren Inhalt als primäre Antwortgrundlage; zitiere relevante Passagen.',
+  documentMention:
+    '- Der*die Nutzer*in hat Dokumente referenziert (REFERENZIERTE DOKUMENTE). Berücksichtige sie als zusätzlichen Kontext.',
+  attachment:
+    '- Hochgeladene Dateien sind oben eingebettet (ANGEHÄNGTE DOKUMENTE). Berücksichtige ihren Inhalt, soweit relevant.',
+  board: '- Ein Board ist referenziert (BOARD-KONTEXT). Berücksichtige Spalten, Karten und Status.',
+  image: '- Bilder sind angehängt (siehe Nachricht). Beziehe dich auf den Bildinhalt.',
+};
+
+function getAnchorAdjuncts(state: ChatGraphState): string {
+  if (MODES_WITHOUT_ANCHORS.has(state.intent)) return '';
+
+  const fragments = getActiveAnchors(state).map((a) => ANCHOR_ADJUNCTS[a.kind]);
+  if (fragments.length === 0) return '';
+
+  return `\n\n## ZUSÄTZLICHER KONTEXT\n\n${fragments.join('\n')}\n\nNutze die jeweils relevanten Quellen — keine ist exklusiv. Bei Recherche-Fragen sind Suchergebnisse die primäre Antwortgrundlage; offene/referenzierte Dokumente dienen als thematischer Kontext.`;
+}
+
 /**
  * Build the complete system message with agent role and search context.
  */
@@ -481,56 +571,13 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
   const localeContext = formatLocaleContext(state.userLocale);
 
-  const isDocumentChatMode = state.documentChatIds?.length > 0;
-  const isCurrentDocumentMode = !!state.currentDocument;
-  const intentGuidance =
-    intent === 'edit_current_doc'
-      ? '\nDu hast eine Änderung am aktuellen Dokument angefordert. Antworte mit EINEM EINZIGEN kurzen Satz auf Deutsch, der bestätigt, was du gleich änderst (z.B. "Kürze den letzten Absatz."). Schreibe NICHT den geänderten Text aus — die Bearbeitung passiert direkt im Dokument. Keine Aufzählungen, keine Markdown-Formatierung, keine Quellenverweise.'
-      : isCurrentDocumentMode
-        ? '\nDu chattest über das oben gezeigte AKTUELLE DOKUMENT. Es ist die Quelle der Wahrheit — Suchergebnisse (falls vorhanden) sind nur ergänzend. Wenn die Antwort nicht aus dem Dokument hervorgeht, sage das.'
-        : isDocumentChatMode
-          ? '\nDu chattest mit ausgewählten Dokumenten des Nutzers. Beantworte Fragen basierend auf den Dokumenten. Zitiere relevante Passagen.'
-          : intent === 'summary'
-            ? '\nDer Nutzer hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.'
-            : intent === 'chart'
-              ? `\nDer Nutzer möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
-Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
-
-\`\`\`chart
-{"type":"bar","title":"Titel","data":[{"name":"A","wert":10},{"name":"B","wert":20}],"xKey":"name","yKeys":["wert"]}
-\`\`\`
-
-Regeln:
-- type: "bar", "line", "area", "pie" oder "donut"
-- data: Array mit Objekten, jedes hat einen xKey und mindestens einen yKey
-- xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
-- yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
-- Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
-- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`
-              : intent === 'image'
-                ? state.generatedImage
-                  ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
-                  : '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.'
-                : intent === 'image_edit'
-                  ? state.generatedImage
-                    ? `\nDu hast das angehängte Bild erfolgreich bearbeitet. Das Ergebnis wird dem*der Nutzer*in bereits angezeigt — du musst es NICHT erneut zeigen oder verlinken.
-
-ABSOLUTE AUSGABE-REGEL für diese Antwort:
-- NUR natürlicher deutscher Fließtext, 1-3 Sätze.
-- KEIN JSON, KEINE geschweiften Klammern { }, KEINE eckigen Klammern [ ] um Inhalte, KEINE Schlüssel-Wert-Paare wie "edit": ..., KEINE Markdown-Code-Blöcke, KEINE Aufzählungen.
-- Falls frühere Antworten in diesem Thread strukturierte Daten (JSON o.ä.) ausgegeben haben, ignoriere dieses Muster — es war ein Bug. Antworte ab jetzt ausschließlich in normaler Prosa.
-
-Beispiel einer guten Antwort: "Ich habe die Person sichtbar älter wirken lassen — graue Haare und feine Falten, während Kleidung und Pose erhalten bleiben. Sag mir, falls du eine andere Anpassung möchtest."
-
-Stütze dich für die Beschreibung auf den BILDVERGLEICH-Block oben (falls vorhanden); ansonsten halte dich an den Wunsch des*der Nutzer*in aus der letzten Nachricht. Verneine NICHT die Fähigkeit zur Bildbearbeitung — sie hat gerade stattgefunden.`
-                    : '\nDie Bildbearbeitung ist fehlgeschlagen. Entschuldige dich kurz in einem Satz und bitte um eine andere Formulierung oder ein anderes Bild. KEIN JSON, KEINE Code-Blöcke.'
-                  : intent === 'direct' || intent === 'save_as_doc'
-                    ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
-                    : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
+  const intentGuidance = getModeGuidance(state) + getAnchorAdjuncts(state);
 
   const hasSources = state.searchResults.length > 0 && intent !== 'direct';
   const sourceCount = state.searchResults.filter((r) => r.url).length;
-  const isPolishedContent = !!state.contentType;
+  // Polished-content suppresses inline citations only when generating output;
+  // research questions always cite inline regardless of contentType heuristics.
+  const isPolishedContent = !!state.contentType && intent !== 'search';
 
   let citationInstruction = '';
   if (hasSources && isPolishedContent) {
