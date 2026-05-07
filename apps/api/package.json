@@ -49,7 +49,7 @@
     "@ai-sdk/mistral": "^3.0.35",
     "@ai-sdk/openai": "^3.0.62",
     "@better-auth/drizzle-adapter": "^1.6.9",
-    "@blocknote/xl-ai": "^0.49.0",
+    "@blocknote/xl-ai": "^0.50.0",
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/hocuspocus": "workspace:*",
     "@gruenerator/shared": "workspace:*",

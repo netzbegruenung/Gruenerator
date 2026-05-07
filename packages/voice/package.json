@@ -11,7 +11,7 @@
     "zustand": "^5.0.13"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.12.28",
+    "@assistant-ui/react": "^0.14.0",
     "react": "^19.0.0"
   },
   "devDependencies": {
