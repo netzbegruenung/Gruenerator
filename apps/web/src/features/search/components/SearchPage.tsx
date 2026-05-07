@@ -100,7 +100,7 @@ function SearchPage() {
 
   useEffect(() => {
     useAgentStore.getState().setThreadMode('search');
-    assistantRuntime.switchToNewThread();
+    void assistantRuntime.threads.switchToNewThread();
   }, [assistantRuntime]);
 
   const handleSwitchToThread = useCallback(() => {

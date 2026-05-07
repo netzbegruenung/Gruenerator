@@ -95,7 +95,7 @@ export function ChatOverview({
       useAgentStore.getState().setChatViewMode('thread');
       return;
     }
-    assistantRuntime.switchToNewThread();
+    void assistantRuntime.threads.switchToNewThread();
   }, [assistantRuntime]);
 
   return (
