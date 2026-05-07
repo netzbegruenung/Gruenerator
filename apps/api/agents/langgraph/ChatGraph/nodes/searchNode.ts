@@ -487,6 +487,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           brief: state.researchBrief,
           depth,
           maxSources,
+          complexity,
+          userLocale: state.userLocale,
+          aiWorkerPool: state.aiWorkerPool,
         });
 
         // Convert research citations to SearchResult format
@@ -870,6 +873,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'modify_doc':
       case 'modify_board':
       case 'share_doc':
+      case 'edit_current_doc':
       case 'direct':
         // These intents are handled by other graph nodes; no search needed.
         break;

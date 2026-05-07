@@ -557,8 +557,11 @@ export async function executeIntentPipeline(opts: {
           searchInputState = { ...finalState, ...briefResult } as ChatGraphState;
         }
 
+        const isDeepResearch = currentIntent === 'research' && finalState.complexity === 'complex';
         sse.send('search_start', {
-          message: PROGRESS_MESSAGES.searchStart,
+          message: isDeepResearch
+            ? 'Tiefgehende Recherche läuft (mehrere Quellen, dauert ca. 15–20s)…'
+            : PROGRESS_MESSAGES.searchStart,
           ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
         });
         const searchResult = await searchNode(searchInputState);
