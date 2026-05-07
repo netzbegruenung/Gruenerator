@@ -72,6 +72,8 @@ export default defineConfig(({ command }) => ({
       '~': path.resolve(__dirname, './'),
       '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
       '@gruenerator/chat': path.resolve(__dirname, '../../packages/chat/src'),
+      '@gruenerator/sites': path.resolve(__dirname, '../../packages/sites/src'),
+      '@gruenerator/sites-design': path.resolve(__dirname, '../../packages/sites-design/src'),
       // @gruenerator/contracts is imported transitively from within the
       // @gruenerator/shared alias path (e.g. shared/api/contractsClient.ts
       // imports notebookContract from @gruenerator/contracts). Vite's alias
