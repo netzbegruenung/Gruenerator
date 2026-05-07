@@ -176,6 +176,89 @@ describe('Tier 1 — mutation intents (resource + keywords)', () => {
     const result = await classifierNode(state);
     expect(result.intent).toBe('modify_doc');
   });
+
+  it('doc + "ersetz" → modify_doc', async () => {
+    const state = buildState({
+      userMessage: 'ersetze den ersten Absatz durch eine Einleitung',
+      docMentionIds: ['doc-ersetz'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('modify_doc');
+  });
+
+  it('doc + umlaut "ändere" → modify_doc (umlaut handled)', async () => {
+    const state = buildState({
+      userMessage: 'ändere den Titel auf "Mobilitätswende"',
+      docMentionIds: ['doc-umlaut'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('modify_doc');
+  });
+});
+
+// ── TIER 1: edit_current_doc (open document in editor + mutation keywords) ──
+
+const STUB_CURRENT_DOC = {
+  id: 'doc-open-1',
+  title: 'Antrag',
+  markdown: '# Antrag\n\nText.',
+  selectionText: null,
+};
+
+describe('Tier 1 — edit_current_doc (currentDocument + edit verb)', () => {
+  it('currentDocument + "füge … ein" → edit_current_doc (regression: user-reported phrasing)', async () => {
+    const state = buildState({
+      userMessage: 'füge dies im dokument ein',
+      currentDocument: STUB_CURRENT_DOC,
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('edit_current_doc');
+  });
+
+  it('currentDocument + "ersetze" → edit_current_doc', async () => {
+    const state = buildState({
+      userMessage: 'ersetze den ersten Absatz durch eine schärfere Einleitung',
+      currentDocument: STUB_CURRENT_DOC,
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('edit_current_doc');
+  });
+
+  it('currentDocument + umlaut "ändere" → edit_current_doc (umlaut handled)', async () => {
+    const state = buildState({
+      userMessage: 'ändere den Titel',
+      currentDocument: STUB_CURRENT_DOC,
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('edit_current_doc');
+  });
+
+  it('currentDocument + "verbessere" → edit_current_doc', async () => {
+    const state = buildState({
+      userMessage: 'verbessere die Begründung',
+      currentDocument: STUB_CURRENT_DOC,
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('edit_current_doc');
+  });
+
+  it('currentDocument + "füge … hinzu" → edit_current_doc (existing phrasing still works)', async () => {
+    const state = buildState({
+      userMessage: 'füge einen Absatz zur Verkehrswende hinzu',
+      currentDocument: STUB_CURRENT_DOC,
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('edit_current_doc');
+  });
+
+  it('currentDocument + plain question (no edit verb) → NOT edit_current_doc', async () => {
+    const state = buildState({
+      userMessage: 'was steht im dokument?',
+      currentDocument: STUB_CURRENT_DOC,
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('edit_current_doc');
+  });
 });
 
 // ── TIER 2: Context intents (resource presence, no mutation keywords) ────

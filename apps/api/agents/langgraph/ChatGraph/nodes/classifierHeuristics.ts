@@ -75,6 +75,17 @@ export function mentionsImageNoun(text: string): boolean {
   return IMAGE_NOUN_PATTERN.test(text);
 }
 
+// Document mutation verbs — used by classifierNode to route `edit_current_doc`
+// (open doc in editor) and `modify_doc` (collaborative doc mention) intents.
+// Same `(?:^|\W)` anchor reasoning as IMAGE_EDIT_VERB_PATTERN above: JS `\b` is
+// ASCII-only and silently fails before an umlaut. We list both umlaut and
+// ASCII-folded stems because `userContent` is NOT folded before testing.
+//
+// Separable-verb constructions ("füge X ein", "passe X an", "schreib X um")
+// use the `\S.{0,40}?` intervening-words window from IMAGE_EDIT_VERB_PATTERN.
+export const DOC_MODIFY_PATTERN =
+  /(?:^|\W)(aender|änder|ergaenz|ergänz|aktualisier|ueberarbeit|überarbeit|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+(?:hinzu|ein)|einf(?:ü|ue)g|vereinfach|umschreib|schreib\s+\S.{0,40}?\s+(?:um|neu)|kuerz|kürz|erweiter|ersetz|umformulier|formulier\s+\S.{0,40}?\s+(?:um|neu)|verbesser|korrigier|anpass|pass\s+\S.{0,40}?\s+an)/i;
+
 /**
  * Find intent using fuzzy (Levenshtein-based) matching.
  * Returns the intent if a word matches a keyword with similarity >= threshold.
