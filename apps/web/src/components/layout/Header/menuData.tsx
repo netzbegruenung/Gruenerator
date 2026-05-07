@@ -59,14 +59,16 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     activePaths: ['/docs'],
   };
 
-  items.sites = {
-    id: 'sites',
-    path: '/sites',
-    title: 'Sites',
-    description: 'Kandidat*innen-Site-Builder',
-    icon: getIcon('navigation', 'sharepic'),
-    activePaths: ['/sites'],
-  };
+  if (import.meta.env.DEV) {
+    items.sites = {
+      id: 'sites',
+      path: '/sites',
+      title: 'Sites',
+      description: 'Kandidat*innen-Site-Builder',
+      icon: getIcon('navigation', 'sharepic'),
+      activePaths: ['/sites'],
+    };
+  }
 
   if (import.meta.env.DEV) {
     items.studio = {
