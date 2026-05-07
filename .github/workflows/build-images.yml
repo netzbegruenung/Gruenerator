@@ -112,6 +112,8 @@ jobs:
               - 'packages/ui/**'
               - 'packages/collab/**'
               - 'packages/wolke/**'
+              - 'packages/sites/**'
+              - 'packages/sites-design/**'
               - 'pnpm-lock.yaml'
             api:
               - 'apps/api/**'
