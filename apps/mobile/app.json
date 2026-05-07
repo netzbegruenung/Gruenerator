@@ -52,7 +52,6 @@
       "bundler": "metro"
     },
     "plugins": [
-      "@sentry/react-native/expo",
       "expo-router",
       "expo-secure-store",
       "expo-document-picker",
@@ -92,7 +91,6 @@
       "expo-image",
       "expo-sharing",
       "expo-web-browser",
-      "@sentry/react-native",
       "expo-audio"
     ],
     "experiments": {
