@@ -96,7 +96,10 @@ describe('regoloFetchWithThinkingDisabled — body transformation', () => {
   });
 });
 
-describe.skipIf(!process.env.REGOLO_API_KEY)(
+// Live integration block: requires both an API key AND explicit opt-in via
+// RUN_LIVE_TESTS=1, so routine local runs (which may have a key in .env) don't
+// fail when api.regolo.ai is unreachable from the dev network.
+describe.skipIf(!process.env.REGOLO_API_KEY || process.env.RUN_LIVE_TESTS !== '1')(
   'regoloFetchWithThinkingDisabled — live Regolo integration',
   () => {
     const apiKey = process.env.REGOLO_API_KEY!;
