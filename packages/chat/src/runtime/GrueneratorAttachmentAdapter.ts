@@ -11,8 +11,19 @@ import {
   getAcceptedFileTypes,
 } from '../lib/fileUtils';
 
+// Synthetic content types used by @docs / @datei mention chips. These never
+// correspond to real File uploads — they flow through AUI's CreateAttachment
+// branch — but AUI's addAttachment still validates contentType against the
+// adapter's accept list, so they must appear here.
+const SYNTHETIC_MENTION_TYPES = [
+  'application/x-gruenerator-collab-doc',
+  'application/x-gruenerator-datei-notebook',
+  'application/x-gruenerator-datei-document',
+  'application/x-gruenerator-datei-text',
+];
+
 export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
-  accept = getAcceptedFileTypes();
+  accept = [getAcceptedFileTypes(), ...SYNTHETIC_MENTION_TYPES].join(',');
 
   async add({ file }: { file: File }): Promise<PendingAttachment> {
     validateFile(file);
