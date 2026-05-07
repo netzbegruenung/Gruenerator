@@ -37,7 +37,7 @@ export function SourceFilterDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" className={composerToolbarButtonClass}>
+        <button type="button" className={composerToolbarButtonClass()}>
           <ListFilter
             className={cn('h-4 w-4', activeCount < collections.length && 'text-primary')}
           />

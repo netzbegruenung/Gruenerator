@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { composerToolbarButtonClass, useChatDensity } from '@gruenerator/chat';
 import { Pencil, PencilOff } from 'lucide-react';
-import { composerToolbarButtonClass } from '@gruenerator/chat';
+import { useCallback, useEffect, useState } from 'react';
 
 const STORAGE_PREFIX = 'gruenerator.docs.ai-edit.';
 
@@ -46,8 +46,9 @@ interface DocAiEditToggleProps {
 }
 
 export function DocAiEditToggle({ enabled, onToggle }: DocAiEditToggleProps) {
+  const isCompact = useChatDensity() === 'compact';
   const Icon = enabled ? Pencil : PencilOff;
-  const label = enabled ? 'Bearbeiten an' : 'Nur lesen';
+  const label = isCompact ? (enabled ? 'An' : 'Aus') : enabled ? 'Bearbeiten an' : 'Nur lesen';
   const title = enabled
     ? 'KI darf dieses Dokument bearbeiten. Klicken zum Sperren.'
     : 'KI ist im Lesemodus. Klicken, damit die KI das Dokument bearbeiten darf.';
@@ -56,11 +57,11 @@ export function DocAiEditToggle({ enabled, onToggle }: DocAiEditToggleProps) {
     <button
       type="button"
       onClick={onToggle}
-      className={composerToolbarButtonClass}
+      className={composerToolbarButtonClass(isCompact)}
       aria-pressed={enabled}
       title={title}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
       <span>{label}</span>
     </button>
   );

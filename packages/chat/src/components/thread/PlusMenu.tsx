@@ -23,6 +23,7 @@ import {
   ResponsiveMenuItem,
 } from '@gruenerator/ui';
 import { composerToolbarButtonClass } from '../../lib/utils';
+import { useChatDensity } from './chatDensityContext';
 import { useAgentStore } from '../../stores/chatStore';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
 import {
@@ -47,6 +48,7 @@ export const PlusMenu = memo(function PlusMenu({
 }: PlusMenuProps) {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const isCompact = useChatDensity() === 'compact';
   const customAgents = getCustomAgentMentionables();
   const favorites = useSkillFavoritesStore((s) => s.favorites);
   const quickSkills = agentMentionables.filter(
@@ -213,8 +215,8 @@ export const PlusMenu = memo(function PlusMenu({
         onOpenChange={setMenuOpen}
         sheetTitle="Aktionen"
         trigger={
-          <button type="button" className={composerToolbarButtonClass}>
-            <PlusIcon className="h-5 w-5 stroke-[1.5px]" />
+          <button type="button" className={composerToolbarButtonClass(isCompact)}>
+            <PlusIcon className={isCompact ? 'h-4 w-4 stroke-[1.5px]' : 'h-5 w-5 stroke-[1.5px]'} />
           </button>
         }
         desktopContent={desktopContent}

@@ -74,7 +74,7 @@ export function CategoryFilterDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" className={composerToolbarButtonClass}>
+        <button type="button" className={composerToolbarButtonClass()}>
           <Filter className={cn('h-4 w-4', hasActiveFilters && 'text-primary')} />
           {hasActiveFilters && (
             <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
