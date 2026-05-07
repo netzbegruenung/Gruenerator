@@ -25,7 +25,7 @@ import { truncateText, deduplicateByUrl } from './searchFormatting.js';
 export type ResearchLocale = 'de' | 'at' | 'eu';
 export type ReportShape = 'biographical' | 'comparative' | 'positional' | 'event' | 'general';
 
-const DeepPlanSchema = z.object({
+export const DeepPlanSchema = z.object({
   subQuestions: z
     .array(
       z.object({
@@ -198,7 +198,7 @@ Gib NUR JSON zurück, das dem Schema entspricht.`,
 /**
  * Map a research locale to (Qdrant collection, SearXNG language) tuples.
  */
-function localeToSearchScope(locale: ResearchLocale): {
+export function localeToSearchScope(locale: ResearchLocale): {
   qdrantCollection: string;
   webLanguage: string;
 } {
@@ -746,10 +746,13 @@ export async function executeResearch(params: {
   const defaultLocale: ResearchLocale =
     userLocale === 'de-AT' ? 'at' : userLocale === 'de-EU' ? 'eu' : 'de';
 
-  // Deep path: complex queries get LLM-driven planning, parallel sub-question
-  // search, an optional refinement round, and a structured report. Bounded to
-  // ~17s by the 1-round cap on refinement.
-  if (complexity === 'complex' && useLLMSynthesis) {
+  // Deep path: explicit @recherche always gets LLM-driven planning, parallel
+  // sub-question search, an optional refinement round, and a structured report.
+  // The complexity heuristic is unreliable for short biographical questions
+  // ("wer ist X" is 22 chars → 'simple' but is exactly when deep mode helps),
+  // so we don't gate on it. Bounded to ~17s by the 1-round refinement cap.
+  // Opt-out is `useLLMSynthesis: false` for callers that explicitly want fast.
+  if (useLLMSynthesis) {
     const deepPlan = await planResearchDeep(question, defaultLocale, brief);
     if (deepPlan) {
       return executeDeepResearch({
