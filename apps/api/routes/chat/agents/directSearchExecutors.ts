@@ -350,10 +350,11 @@ export async function executeDirectWebSearch(params: {
     const linkup = getLinkupService();
     if (linkup) {
       log.info(`[Direct Web Search] Routing via Linkup (standard) for "${query}"`);
+      const fromDate = timeRange ? timeRangeToFromDate(timeRange) : undefined;
       const linkupRes = await linkup.webSearch({
         query,
         maxResults: Math.min(maxResults, 10),
-        ...(timeRange ? { fromDate: timeRangeToFromDate(timeRange) } : {}),
+        ...(fromDate ? { fromDate } : {}),
       });
       const linkupFormatted = linkupRes.results.slice(0, maxResults).map((r, i) => ({
         rank: i + 1,
