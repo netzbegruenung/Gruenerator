@@ -1,5 +1,5 @@
 import { CanvasInlineChatSection } from './CanvasInlineChatSection';
-// import { removeBackgroundFromImage } from './services/backgroundRemovalService';
+import { removeBackgroundFromImage } from './services/backgroundRemovalService';
 import { editAiImage } from './services/imageEditingService';
 import {
   fetchStockImages,
@@ -24,10 +24,7 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   fetchUnsplashImageAsFile,
   openUnsplashSearch,
   generateAiImage,
-  // Disabled until the rembg sidecar is deployed (Salt branch
-  // gruenerator-docker/rembg-bg-removal). Backend route + service are wired;
-  // re-enable by uncommenting both lines (import + property below).
-  // removeBackgroundFromImage,
+  removeBackgroundFromImage,
   editAiImage,
   useGenerateCanvasSuggestions,
   ChatSectionContent: CanvasInlineChatSection,
