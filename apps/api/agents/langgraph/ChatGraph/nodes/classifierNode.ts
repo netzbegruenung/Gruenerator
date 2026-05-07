@@ -24,6 +24,7 @@ import {
   hasImageEditVerb,
   mentionsImageNoun,
   looksMultiTopic,
+  DOC_MODIFY_PATTERN,
   HEURISTIC_CONFIDENCE_THRESHOLD,
 } from './classifierHeuristics.js';
 import {
@@ -80,8 +81,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     // otherwise an image attachment or OCR text would shadow the mutation intent.
     const boardModifyPattern =
       /\b(fuege?\s+(aufgabe|karte|eintrag)|neue\s+(karte|aufgabe)|aktualisiere\s+board|erstelle\s+aufgabe|aender|ergaenz|ueberarbeit|vereinfach|strukturier|umstrukturier|loesch|entfern|verschieb|sortier)/i;
-    const docModifyPattern =
-      /\b(aender|ergaenz|aktualisier|ueberarbeit|fuege?\s+hinzu|vereinfach|umschreib|kuerz|erweiter)/i;
+    const docModifyPattern = DOC_MODIFY_PATTERN;
 
     if (hasBoards && userContent.length > 0 && boardModifyPattern.test(userContent)) {
       const classificationTimeMs = Date.now() - startTime;
