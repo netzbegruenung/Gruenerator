@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import apiClient from '../../components/utils/apiClient';
-import { useDocumentsStore } from '../../stores/documentsStore';
 
 interface DocumentData {
   title: string;
@@ -18,52 +17,36 @@ interface DocumentData {
 const DocumentViewPage = () => {
   const { documentId } = useParams();
   const navigate = useNavigate();
-  const [document, setDocument] = useState<DocumentData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  const {
+    data: document,
+    isLoading,
+    error,
+  } = useQuery<DocumentData, Error>({
+    queryKey: ['document-content', documentId],
+    queryFn: async () => {
+      const response = await apiClient.get<{
+        success: boolean;
+        data: DocumentData;
+        message?: string;
+      }>(`/documents/${documentId}/content`);
+      if (!response.data.success) {
+        throw new Error(response.data.message ?? 'Fehler beim Laden des Dokuments');
+      }
+      return response.data.data;
+    },
+    enabled: Boolean(documentId),
+  });
 
   useDocumentTitle(document?.title);
 
-  useEffect(() => {
-    const fetchDocument = async () => {
-      if (!documentId) {
-        setError('Keine Dokument-ID angegeben');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        setError(null);
-
-        const response = await apiClient.get<{
-          success: boolean;
-          data: DocumentData;
-          message?: string;
-        }>(`/documents/${documentId}/content`);
-        const result = response.data;
-
-        if (result.success) {
-          setDocument(result.data);
-        } else {
-          throw new Error(result.message ?? 'Fehler beim Laden des Dokuments');
-        }
-      } catch (err) {
-        console.error('[DocumentViewPage] Error fetching document:', err);
-        setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void fetchDocument();
-  }, [documentId]);
-
   const handleGoBack = () => {
-    void navigate(-1); // Go back to previous page
+    void navigate(-1);
   };
 
-  if (loading) {
+  const errorMessage = !documentId ? 'Keine Dokument-ID angegeben' : error ? error.message : null;
+
+  if (isLoading) {
     return (
       <ErrorBoundary>
         <div className="container with-header">
@@ -76,13 +59,13 @@ const DocumentViewPage = () => {
     );
   }
 
-  if (error) {
+  if (errorMessage) {
     return (
       <ErrorBoundary>
         <div className="container with-header">
           <div className="text-center p-2xl bg-background-alt rounded-lg shadow-sm border border-grey-200 dark:border-grey-700">
             <h2>Fehler beim Laden des Dokuments</h2>
-            <p>{error}</p>
+            <p>{errorMessage}</p>
             <button onClick={handleGoBack} className="button-primary">
               Zurück
             </button>

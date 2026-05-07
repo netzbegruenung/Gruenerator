@@ -17,6 +17,7 @@ import {
   PopoverTrigger,
   Skeleton,
 } from '@gruenerator/ui';
+import { useQueries } from '@tanstack/react-query';
 import { ChevronLeft, XIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HiDocumentText, HiCollection, HiLink } from 'react-icons/hi';
@@ -137,7 +138,6 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
 }) => {
   const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
   const [selectedItems, setSelectedItems] = useState<SelectedItemsState>({});
-  const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [contentPage, setContentPage] = useState(1);
 
@@ -149,15 +149,6 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
   const [linkIconManual, setLinkIconManual] = useState(false);
   const [linkTitleManual, setLinkTitleManual] = useState(false);
   const [linkUrlError, setLinkUrlError] = useState<string | null>(null);
-
-  const [content, setContent] = useState<ContentState>({
-    collabDocs: [],
-    boards: [],
-    documents: [],
-    texts: [],
-    generators: [],
-    notebooks: [],
-  });
 
   useEffect(() => {
     if (!isOpen) {
@@ -172,52 +163,69 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
       setLinkIconManual(false);
       setLinkTitleManual(false);
       setLinkUrlError(null);
-      return;
     }
-
-    const loadContent = async () => {
-      setIsLoading(true);
-      try {
-        const [collabDocsRaw, boardsRaw, docs, texts, generators, notebooks] = await Promise.all([
-          apiClient
-            .get<ContentItem[]>('/docs')
-            .then((r) => r.data as ContentItem[])
-            .catch((): ContentItem[] => []),
-          apiClient
-            .get<ContentItem[]>('/boards')
-            .then((r) => r.data as ContentItem[])
-            .catch((): ContentItem[] => []),
-          profileApiService.getAvailableDocuments().catch((): ContentItem[] => []),
-          profileApiService.getUserTexts().catch((): ContentItem[] => []),
-          profileApiService.getCustomGenerators().catch((): ContentItem[] => []),
-          profileApiService.getNotebookCollections().catch((): ContentItem[] => []),
-        ]);
-
-        const collabDocs = Array.isArray(collabDocsRaw) ? collabDocsRaw : [];
-        const boards = Array.isArray(boardsRaw) ? boardsRaw : [];
-
-        const systemNotebookItems: ContentItem[] = SYSTEM_NOTEBOOKS.map((nb) => ({
-          id: `system:${nb.id}`,
-          title: nb.title,
-        }));
-
-        setContent({
-          collabDocs,
-          boards,
-          documents: docs || [],
-          texts: texts || [],
-          generators: generators || [],
-          notebooks: [...(notebooks || []), ...systemNotebookItems],
-        });
-      } catch (error) {
-        console.error('Error loading content:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void loadContent();
   }, [isOpen]);
+
+  const contentQueries = useQueries({
+    queries: [
+      {
+        queryKey: ['add-to-group', 'collabDocs'],
+        queryFn: async (): Promise<ContentItem[]> => {
+          const r = await apiClient.get<ContentItem[]>('/docs');
+          return Array.isArray(r.data) ? r.data : [];
+        },
+        enabled: isOpen,
+      },
+      {
+        queryKey: ['add-to-group', 'boards'],
+        queryFn: async (): Promise<ContentItem[]> => {
+          const r = await apiClient.get<ContentItem[]>('/boards');
+          return Array.isArray(r.data) ? r.data : [];
+        },
+        enabled: isOpen,
+      },
+      {
+        queryKey: ['add-to-group', 'documents'],
+        queryFn: () => profileApiService.getAvailableDocuments(),
+        enabled: isOpen,
+      },
+      {
+        queryKey: ['add-to-group', 'texts'],
+        queryFn: () => profileApiService.getUserTexts(),
+        enabled: isOpen,
+      },
+      {
+        queryKey: ['add-to-group', 'generators'],
+        queryFn: () => profileApiService.getCustomGenerators(),
+        enabled: isOpen,
+      },
+      {
+        queryKey: ['add-to-group', 'notebooks'],
+        queryFn: () => profileApiService.getNotebookCollections(),
+        enabled: isOpen,
+      },
+    ],
+  });
+
+  const isLoading = contentQueries.some((q) => q.isLoading);
+
+  const content = useMemo<ContentState>(() => {
+    const [collabDocs, boards, docs, texts, generators, notebooks] = contentQueries.map(
+      (q) => (q.data as ContentItem[] | undefined) ?? []
+    );
+    const systemNotebookItems: ContentItem[] = SYSTEM_NOTEBOOKS.map((nb) => ({
+      id: `system:${nb.id}`,
+      title: nb.title,
+    }));
+    return {
+      collabDocs,
+      boards,
+      documents: docs,
+      texts,
+      generators,
+      notebooks: [...notebooks, ...systemNotebookItems],
+    };
+  }, [contentQueries]);
 
   const handleToggleItem = useCallback((categoryId: CategoryId, itemId: string | number) => {
     setSelectedItems((prev) => {
