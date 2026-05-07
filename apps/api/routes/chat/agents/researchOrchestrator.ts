@@ -14,13 +14,14 @@ import {
   stripUngroundedCitations,
 } from '../../../services/search/CitationGrounder.js';
 import { applyMMR } from '../../../services/search/DiversityReranker.js';
+import { getLinkupService } from '../../../services/search/LinkupService.js';
 import { expandQuery } from '../../../services/search/QueryExpansionService.js';
 import { createLogger } from '../../../utils/logger.js';
 import { type AIWorkerPool } from '../../../workers/types.js';
 
 import { executeDirectSearch, executeDirectWebSearch } from './directSearchExecutors.js';
 import { getIntermediateModel } from './providers.js';
-import { truncateText, deduplicateByUrl } from './searchFormatting.js';
+import { truncateText, deduplicateByUrl, extractDomain } from './searchFormatting.js';
 
 export type ResearchLocale = 'de' | 'at' | 'eu';
 export type ReportShape = 'biographical' | 'comparative' | 'positional' | 'event' | 'general';
@@ -212,6 +213,59 @@ export function localeToSearchScope(locale: ResearchLocale): {
     default:
       return { qdrantCollection: 'deutschland', webLanguage: 'de-DE' };
   }
+}
+
+/**
+ * Execute deep research via Linkup. Replaces our planner+orchestrator when
+ * LINKUP_API_KEY is set. Maps Linkup's `sourcedAnswer` response onto our
+ * ResearchResult shape so the frontend ResearchArtifactCard works unchanged.
+ *
+ * Notes:
+ * - confidence is set to 'high': Linkup deep is exhaustive by design (up to
+ *   10 retrieval iterations with cross-pass context).
+ * - searchSteps is synthesized as a single entry so the toolCall chip's
+ *   expand panel still has something to show.
+ * - followUpQuestions is empty: Linkup doesn't return them; the UI handles
+ *   absence gracefully.
+ */
+async function executeResearchViaLinkup(args: {
+  linkup: NonNullable<ReturnType<typeof getLinkupService>>;
+  question: string;
+  locale: ResearchLocale;
+  onProgress?: (message: string) => void;
+}): Promise<ResearchResult> {
+  const { linkup, question, locale, onProgress } = args;
+
+  onProgress?.('Tiefgehende Recherche bei Linkup läuft…');
+  const start = Date.now();
+  const res = await linkup.deepResearch({ question, locale });
+  const elapsed = Date.now() - start;
+
+  const citations: ResearchCitation[] = res.sources.map((s, i) => ({
+    id: i + 1,
+    title: s.name || extractDomain(s.url),
+    url: s.url,
+    domain: extractDomain(s.url),
+    snippet: s.snippet || '',
+  }));
+
+  log.info(
+    `[Research] Linkup returned ${citations.length} sources in ${elapsed}ms for "${truncateText(question, 80)}"`
+  );
+
+  return {
+    answer: res.answer,
+    citations,
+    followUpQuestions: [],
+    searchSteps: [
+      {
+        tool: 'linkup_deep',
+        query: question,
+        resultsCount: citations.length,
+      },
+    ],
+    confidence: 'high',
+  };
 }
 
 /**
@@ -765,6 +819,22 @@ export async function executeResearch(params: {
 
   const defaultLocale: ResearchLocale =
     userLocale === 'de-AT' ? 'at' : userLocale === 'de-EU' ? 'eu' : 'de';
+
+  // Linkup deep research: when LINKUP_API_KEY is set, route the full question
+  // to Linkup `/search depth=deep` and skip our orchestrator entirely.
+  // Linkup does its own multi-iteration planning, search, and synthesis;
+  // result shape is mapped onto our ResearchResult so the artifact card works
+  // unchanged. Per env-presence-only gating, Linkup errors propagate.
+  const linkup = getLinkupService();
+  if (linkup) {
+    log.info('[Research] Routing via Linkup (deep)');
+    return executeResearchViaLinkup({
+      linkup,
+      question: question.trim(),
+      locale: defaultLocale,
+      ...(onProgress ? { onProgress } : {}),
+    });
+  }
 
   // Deep path: explicit @recherche always gets LLM-driven planning, parallel
   // sub-question search, an optional refinement round, and a structured report.

@@ -16,6 +16,7 @@ import {
 import { contentExamplesService } from '../../../services/contentExamplesService.js';
 import { DocumentSearchService } from '../../../services/document-services/index.js';
 import { withRetry } from '../../../services/search/index.js';
+import { getLinkupService } from '../../../services/search/LinkupService.js';
 import { searxngService } from '../../../services/search/SearxngService.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -346,6 +347,33 @@ export async function executeDirectWebSearch(params: {
   );
 
   try {
+    const linkup = getLinkupService();
+    if (linkup) {
+      log.info(`[Direct Web Search] Routing via Linkup (standard) for "${query}"`);
+      const linkupRes = await linkup.webSearch({
+        query,
+        maxResults: Math.min(maxResults, 10),
+        ...(timeRange ? { fromDate: timeRangeToFromDate(timeRange) } : {}),
+      });
+      const linkupFormatted = linkupRes.results.slice(0, maxResults).map((r, i) => ({
+        rank: i + 1,
+        title: r.name || 'Unbekannt',
+        url: r.url,
+        snippet: truncateText(r.content || '', 300),
+        domain: extractDomain(r.url),
+        publishedDate: null as string | null,
+      }));
+      log.info(
+        `[Direct Web Search] Linkup returned ${linkupFormatted.length} results for "${query}"`
+      );
+      return {
+        query,
+        searchType,
+        resultsCount: linkupFormatted.length,
+        results: linkupFormatted,
+      };
+    }
+
     const searchOptions: SearxngSearchOptions = {
       maxResults: Math.min(maxResults, 10),
       language,
@@ -403,4 +431,17 @@ export async function executeDirectWebSearch(params: {
       message: `Websuche fehlgeschlagen: ${errMsg}`,
     };
   }
+}
+
+/**
+ * Map a SearXNG-style `time_range` ("day"|"week"|"month"|"year") to a Linkup
+ * `fromDate` (YYYY-MM-DD). Unknown values yield no constraint.
+ */
+function timeRangeToFromDate(timeRange: string): string | undefined {
+  const days: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 };
+  const offset = days[timeRange.toLowerCase()];
+  if (!offset) return undefined;
+  const d = new Date();
+  d.setDate(d.getDate() - offset);
+  return d.toISOString().slice(0, 10);
 }
