@@ -1,7 +1,8 @@
 'use client';
 
-import { Loader2, Search, Image } from 'lucide-react';
+import { Search, Image } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { ShimmerText } from './ShimmerText';
 import type { ChatProgress } from '../../hooks/useChatGraphStream';
 
 interface ProgressIndicatorProps {
@@ -25,12 +26,8 @@ export function ProgressIndicator({ progress, agentColor }: ProgressIndicatorPro
         return <Search className="h-4 w-4" />;
       case 'generating_image':
         return <Image className="h-4 w-4" />;
-      case 'generating':
-        return <Loader2 className="h-4 w-4 animate-spin" />;
-      case 'error':
-        return null;
       default:
-        return <Loader2 className="h-4 w-4 animate-spin" />;
+        return null;
     }
   };
 
@@ -49,9 +46,11 @@ export function ProgressIndicator({ progress, agentColor }: ProgressIndicatorPro
           {getIcon()}
         </div>
       )}
-      <span className={progress.stage === 'generating' ? 'animate-pulse' : undefined}>
-        {progress.message}
-      </span>
+      {progress.stage === 'error' ? (
+        <span>{progress.message}</span>
+      ) : (
+        <ShimmerText>{progress.message}</ShimmerText>
+      )}
     </div>
   );
 }
