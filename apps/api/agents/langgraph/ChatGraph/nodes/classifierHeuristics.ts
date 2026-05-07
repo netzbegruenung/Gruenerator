@@ -48,11 +48,16 @@ export const INTENT_KEYWORDS: Record<
 // "edit a picture". Routing to `image_edit` requires combining the verb match
 // below with an image signal that only classifierNode sees, so we expose the
 // predicates separately instead of letting fuzzyMatchIntent fire on its own.
+//
+// We anchor with `(?:^|\W)` instead of `\b` because JS `\b` is ASCII-only —
+// a space-then-`ä` pair is non-word→non-word and yields no boundary, so
+// `\bändere` would silently fail. `(?:^|\W)` consumes the space (or matches
+// start-of-string) and works for both ASCII and umlaut alternatives.
 const IMAGE_EDIT_VERB_PATTERN =
-  /\b(bearbeit|editier|modifizier|transformier|umwandl|ändere|ändern|aender|mach\s+\S.{0,40}?\s+(rein|dazu|hinein|drauf)|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+hinzu|edit|change)/i;
+  /(?:^|\W)(bearbeit|editier|modifizier|transformier|umwandl|ändere|ändern|aender|mach\s+\S.{0,40}?\s+(?:rein|dazu|hinein|drauf)|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+hinzu|edit|change)/i;
 
 const IMAGE_NOUN_PATTERN =
-  /\b(bild|bilds|foto|fotos|image|images|picture|pictures|photo|photos)\b/i;
+  /(?:^|\W)(bild|bilds|foto|fotos|image|images|picture|pictures|photo|photos)(?:$|\W)/i;
 
 /**
  * True when the user's text contains an image-edit verb (e.g. "bearbeite",

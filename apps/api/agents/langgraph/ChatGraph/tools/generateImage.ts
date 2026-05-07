@@ -32,32 +32,42 @@ function detectStyle(description: string): ImageStyle {
   return 'illustration';
 }
 
+// `green-edit` and `universal` are image-edit styles, not generation variants —
+// generate_image never receives them, but the type union still contains them so
+// we exclude both here.
+type GenerationStyle = Exclude<ImageStyle, 'green-edit' | 'universal'>;
+
 function styleToVariant(style: ImageStyle): VariantKey {
-  const map: Record<Exclude<ImageStyle, 'green-edit'>, VariantKey> = {
+  const map: Record<GenerationStyle, VariantKey> = {
     realistic: 'realistic-pure',
     pixel: 'pixel-pure',
     illustration: 'illustration-pure',
   };
-  return map[style as Exclude<ImageStyle, 'green-edit'>] || 'illustration-pure';
+  return map[style as GenerationStyle] || 'illustration-pure';
 }
 
 export function createGenerateImageTool(deps: ToolDependencies): DynamicStructuredTool {
-    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
+  // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'generate_image',
     description:
       'Generiere ein Bild basierend auf einer Beschreibung. ' +
       'Nutze dieses Tool wenn der Nutzer ein Bild, eine Grafik, Illustration oder ein Foto erstellen möchte.',
-    schema: z.object({
-      description: z
-        .string()
-        .describe('Beschreibung des gewünschten Bildes (auf Deutsch oder Englisch)'),
-      style: z
-        .enum(['illustration', 'realistic', 'pixel'])
-        .optional()
-        .describe('Bildstil (Standard: wird aus Beschreibung erkannt)'),
-    }).describe('Bildgenerierung Tool'),
-    func: async (input: { description: string; style?: 'illustration' | 'realistic' | 'pixel' }) => {
+    schema: z
+      .object({
+        description: z
+          .string()
+          .describe('Beschreibung des gewünschten Bildes (auf Deutsch oder Englisch)'),
+        style: z
+          .enum(['illustration', 'realistic', 'pixel'])
+          .optional()
+          .describe('Bildstil (Standard: wird aus Beschreibung erkannt)'),
+      })
+      .describe('Bildgenerierung Tool'),
+    func: async (input: {
+      description: string;
+      style?: 'illustration' | 'realistic' | 'pixel';
+    }) => {
       const { description, style: requestedStyle } = input;
       const userId = deps.agentConfig.userId;
 
