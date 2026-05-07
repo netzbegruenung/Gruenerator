@@ -29,22 +29,17 @@ export const CONTEXT_CONFIG = {
  * Extract text content from a ModelMessage content field.
  * Handles both string content and AI SDK v6 parts array format.
  */
-export function extractTextContent(content: unknown): string {
+export function extractTextContent(content: ModelMessage['content']): string {
   if (typeof content === 'string') {
     return content;
   }
-
-  if (Array.isArray(content)) {
-    return (content as ContentPart[])
-      .filter(
-        (part): part is ContentPart & { text: string } =>
-          part.type === 'text' && typeof part.text === 'string'
-      )
-      .map((part) => part.text)
-      .join('');
-  }
-
-  return '';
+  return content
+    .filter(
+      (part): part is ContentPart & { text: string } =>
+        part.type === 'text' && typeof part.text === 'string'
+    )
+    .map((part) => part.text)
+    .join('');
 }
 
 /**
