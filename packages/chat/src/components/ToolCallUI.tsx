@@ -16,7 +16,6 @@ import remarkGfm from 'remark-gfm';
 import { CitationList } from './tool-ui/citation';
 import type { SerializableCitation } from './tool-ui/citation/schema';
 import { LinkPreview } from './tool-ui/link-preview';
-import { ResearchArtifactCard } from './ResearchArtifactCard';
 import { makeCitationComponents } from '../lib/citationMarkdownComponents';
 import { escapeCitationMarkers } from '../lib/citationProcessing';
 
@@ -55,15 +54,6 @@ export const ToolCallUI = memo(function ToolCallUI({
     const q = getString(args, 'query') || getString(args, 'question');
     return q ? (q.length > 60 ? q.slice(0, 60) + '...' : q) : null;
   }, [args]);
-
-  // Research gets its own artifact-style card (full headings TOC, preview,
-  // expand-to-full-report, export-as-document) — not the generic chip.
-  // The chip is still shown while loading, but once a result is in we promote
-  // the research output to a first-class artifact in the chat thread.
-  if (toolName === 'research' && state === 'result' && result != null) {
-    const fullQuery = getString(args, 'query') || getString(args, 'question') || '';
-    return <ResearchArtifactCard query={fullQuery} result={result} />;
-  }
 
   const resultCount = useMemo(() => {
     if (!result || state !== 'result') return 0;

@@ -146,7 +146,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
         {isStreaming &&
           hasToolCall &&
           !textContent &&
-          custom?.progress?.stage === 'generating' &&
+          (custom?.progress?.stage === 'generating' || custom?.progress?.stage === 'searching') &&
           (custom?.progress?.steps ? (
             <ProgressTracker
               steps={custom.progress.steps}

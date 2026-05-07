@@ -108,6 +108,13 @@ export interface SSEEventPayloads {
     message: string;
     resultCount: number;
     results?: SearchResultPayload[];
+    /**
+     * For deep research: the rich orchestrator result (answer, citations,
+     * confidence, searchSteps, followUpQuestions). Frontend stamps this onto
+     * the research toolCall so ResearchArtifactCard renders during streaming
+     * without waiting for persistence reload.
+     */
+    researchMeta?: unknown;
   };
   summary_start: { message: string; documentCount: number };
   summary_complete: { message: string; summaryLength: number; timeMs: number };
