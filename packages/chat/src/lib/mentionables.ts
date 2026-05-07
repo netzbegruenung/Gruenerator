@@ -336,6 +336,17 @@ export const toolMentionables: Mentionable[] = [
     backgroundColor: '#059669',
     mention: 'stadtbegruenen',
   },
+  {
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'image_edit_universal',
+    title: 'Bild bearbeiten',
+    description: 'Angehängtes Bild frei bearbeiten (z.B. "jünger machen", "mehr Grün")',
+    avatar: '🖼️',
+    backgroundColor: '#059669',
+    mention: 'bildbearbeiten',
+  },
   ...(typeof document !== 'undefined' && process.env.NODE_ENV !== 'production'
     ? [
         {

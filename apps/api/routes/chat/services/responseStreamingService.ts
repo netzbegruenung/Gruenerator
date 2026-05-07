@@ -59,7 +59,7 @@ export async function resolveModel(
   agentConfig: { provider: string; model: string; defaultModel?: string | undefined },
   modelId: string | undefined,
   requestId: string,
-  options?: { hasImages?: boolean }
+  options?: { hasImages?: boolean; intent?: string }
 ): Promise<ModelResolution> {
   let modelProvider = agentConfig.provider;
   let modelName = agentConfig.model;
@@ -81,11 +81,23 @@ export async function resolveModel(
     }
   }
 
+  // For image_edit, the chat model narrates from pre-grounded BILDVERGLEICH
+  // text descriptions (set by imageEditNode via VisionService) — it does NOT
+  // need to see the raw image. Skipping the vision-fallback keeps the user's
+  // chosen (typically larger, more system-prompt-compliant) model in charge.
+  // The controller MUST also skip injectImageAttachments for image_edit so the
+  // non-vision model doesn't receive image bytes it can't decode.
+  if (options?.intent === 'image_edit' && options.hasImages && !isVisionCapable(modelName)) {
+    log.info(
+      `[ChatGraph] image_edit intent — keeping user-selected model "${modelName}", BILDVERGLEICH descriptions provide grounding`
+    );
+  }
+
   // Vision override: only fire when the chosen primary AND its sibling both
   // lack vision support. Overflow lanes where both candidates are vision-
   // capable (e.g. Gemma 4: Verdigado/gemma + Regolo/gemma4-31b) skip the
   // override entirely so alternation isn't collapsed to a single provider.
-  if (options?.hasImages && !isVisionCapable(modelName)) {
+  if (options?.hasImages && !isVisionCapable(modelName) && options.intent !== 'image_edit') {
     const siblingVisionOk = sibling ? isVisionCapable(sibling.model) : false;
     if (!siblingVisionOk) {
       log.info(

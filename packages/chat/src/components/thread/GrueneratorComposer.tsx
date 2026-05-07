@@ -12,7 +12,7 @@ import { detectMention } from '../../lib/mentionDetection';
 import { getFilteredForMode } from '../../lib/mentionDetection';
 import { computeMentionInsertion } from '../../lib/mentionInsertion';
 import { FileMentionPopover } from './FileMentionPopover';
-import { CollabDocMentionPopover, type CollabDocSelection } from './CollabDocMentionPopover';
+import type { CollabDocSelection } from '../../lib/documentMentionables';
 import { PlusMenu } from './PlusMenu';
 import { ModelPicker } from './ModelPicker';
 import { getCaretCoords } from '../../lib/caretPosition';
@@ -91,7 +91,7 @@ function ComposerButtons({ isRunning }: { isRunning?: boolean }) {
 
 interface MentionState {
   visible: boolean;
-  mode: 'functions' | 'skills' | 'datei' | 'docs';
+  mode: 'functions' | 'skills' | 'datei';
   query: string;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
@@ -141,9 +141,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         return;
       }
 
-      // When user selects the @docs trigger, switch to collab doc picker mode
+      // When user selects the @docs trigger, also open the unified file/doc picker
       if (mentionable.type === 'doc' && mentionable.identifier === 'docs-picker-trigger') {
-        setMention((prev) => ({ ...prev, mode: 'docs' }));
+        setMention((prev) => ({ ...prev, mode: 'datei' }));
         return;
       }
 
@@ -168,64 +168,75 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [composerRuntime, mention.mentionStart, dismissPopover]
   );
 
+  const stripTriggerText = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || mention.mentionStart < 0) return;
+    const currentText = composerRuntime.getState().text;
+    const before = currentText.slice(0, mention.mentionStart);
+    const after = currentText.slice(textarea.selectionStart);
+    composerRuntime.setText(`${before}${after}`);
+  }, [composerRuntime, mention.mentionStart]);
+
   const handleDocumentSelect = useCallback(
     (doc: DocumentMention) => {
-      const textarea = textareaRef.current;
-      if (!textarea) return;
-
       registerDocumentSlug(doc.slug, doc);
 
-      const currentText = composerRuntime.getState().text;
-      const insertAt = mention.mentionStart >= 0 ? mention.mentionStart : currentText.length;
-      const before = currentText.slice(0, insertAt);
-      const after = mention.mentionStart >= 0 ? currentText.slice(textarea.selectionStart) : '';
-      const prefix =
-        before.length > 0 && !before.endsWith(' ') && mention.mentionStart < 0 ? ' ' : '';
-      const mentionText = `@datei:${doc.slug}`;
-      const newText = `${before}${prefix}${mentionText} ${after}`;
-
-      composerRuntime.setText(newText);
-      dismissPopover();
-
-      requestAnimationFrame(() => {
-        const cursorPos = before.length + prefix.length + mentionText.length + 1;
-        textarea.setSelectionRange(cursorPos, cursorPos);
-        textarea.focus();
+      void composerRuntime.addAttachment({
+        id: `gruenerator-datei-${doc.documentId}`,
+        type: 'document',
+        name: doc.documentTitle,
+        contentType: `application/x-gruenerator-datei-${doc.sourceType}`,
+        content: [
+          {
+            type: 'data',
+            name: 'gruenerator-mention',
+            data: {
+              kind: 'document',
+              documentId: doc.documentId,
+              documentTitle: doc.documentTitle,
+              collectionId: doc.collectionId,
+              collectionName: doc.collectionName,
+              slug: doc.slug,
+              sourceType: doc.sourceType,
+            },
+          },
+        ],
       });
+
+      stripTriggerText();
+      dismissPopover();
+      requestAnimationFrame(() => textareaRef.current?.focus());
     },
-    [composerRuntime, mention.mentionStart, dismissPopover]
+    [composerRuntime, dismissPopover, stripTriggerText]
   );
 
   const handleCollabDocSelect = useCallback(
     (doc: CollabDocSelection) => {
-      const textarea = textareaRef.current;
-      if (!textarea) return;
-
-      const currentText = composerRuntime.getState().text;
-      const insertAt = mention.mentionStart >= 0 ? mention.mentionStart : currentText.length;
-      const before = currentText.slice(0, insertAt);
-      const after = mention.mentionStart >= 0 ? currentText.slice(textarea.selectionStart) : '';
-      const prefix =
-        before.length > 0 && !before.endsWith(' ') && mention.mentionStart < 0 ? ' ' : '';
-      const mentionText = `@${doc.slug}`;
-      const newText = `${before}${prefix}${mentionText} ${after}`;
-
-      composerRuntime.setText(newText);
-      dismissPopover();
-
-      requestAnimationFrame(() => {
-        const cursorPos = before.length + prefix.length + mentionText.length + 1;
-        textarea.setSelectionRange(cursorPos, cursorPos);
-        textarea.focus();
+      void composerRuntime.addAttachment({
+        id: `gruenerator-collab-${doc.id}`,
+        type: 'document',
+        name: doc.title,
+        contentType: 'application/x-gruenerator-collab-doc',
+        content: [
+          {
+            type: 'data',
+            name: 'gruenerator-mention',
+            data: { kind: 'collab', id: doc.id, slug: doc.slug, title: doc.title },
+          },
+        ],
       });
+
+      stripTriggerText();
+      dismissPopover();
+      requestAnimationFrame(() => textareaRef.current?.focus());
     },
-    [composerRuntime, mention.mentionStart, dismissPopover]
+    [composerRuntime, dismissPopover, stripTriggerText]
   );
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       // Don't interfere when file/doc browser is open
-      if (mention.mode === 'datei' || mention.mode === 'docs') return;
+      if (mention.mode === 'datei') return;
 
       const textarea = e.target;
       const text = textarea.value;
@@ -257,7 +268,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       // In datei/docs mode, only handle Escape (cmdk handles arrow keys internally).
       // Enter is swallowed so the textarea doesn't submit the form while the picker
       // is open — the user must select via the picker or dismiss with Escape first.
-      if (mention.mode === 'datei' || mention.mode === 'docs') {
+      if (mention.mode === 'datei') {
         if (e.key === 'Escape') {
           e.preventDefault();
           dismissPopover();
@@ -316,10 +327,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     setMention((prev) => ({ ...prev, mode: 'datei', visible: true, mentionStart: -1 }));
   }, []);
 
-  const handlePlusMenuOpenDocBrowser = useCallback(() => {
-    setMention((prev) => ({ ...prev, mode: 'docs', visible: true, mentionStart: -1 }));
-  }, []);
-
   return (
     <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
       <ComposerPrimitive.Root className="composer-root relative mx-auto flex w-full max-w-3xl flex-col rounded-3xl border border-border bg-white shadow-lg transition-shadow focus-within:shadow-xl focus-within:border-primary/30 dark:bg-surface dark:shadow-sm dark:focus-within:shadow-md">
@@ -333,16 +340,12 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         <ComposerAttachments />
 
         {showMentions &&
-          (mention.mode === 'docs' ? (
-            <CollabDocMentionPopover
-              visible={mention.visible}
-              onSelect={handleCollabDocSelect}
-              onDismiss={dismissPopover}
-            />
-          ) : mention.mode === 'datei' ? (
+          (mention.mode === 'datei' ? (
             <FileMentionPopover
               visible={mention.visible}
-              onSelect={handleDocumentSelect}
+              onSelect={(s) =>
+                s.kind === 'document' ? handleDocumentSelect(s.doc) : handleCollabDocSelect(s.doc)
+              }
               onDismiss={dismissPopover}
             />
           ) : mention.mode === 'skills' ? (
@@ -391,7 +394,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
               <PlusMenu
                 onInsertMention={handleSelect}
                 onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
-                onOpenDocBrowser={handlePlusMenuOpenDocBrowser}
                 onUploadFile={handlePlusMenuUpload}
               />
             )}

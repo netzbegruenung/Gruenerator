@@ -230,6 +230,7 @@ async function testExpandedContextWindow() {
     imageEditStyle: null,
     generatedImage: null,
     imageTimeMs: 0,
+    imageEditDescriptions: null,
     summaryContext: null,
     summaryTimeMs: 0,
     chartData: null,

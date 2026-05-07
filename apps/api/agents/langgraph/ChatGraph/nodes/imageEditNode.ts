@@ -12,6 +12,7 @@ import {
   buildUniversalPrompt,
   type GenerateResult,
 } from '../../../../services/flux/index.js';
+import { visionService } from '../../../../services/vision/VisionService.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { redisClient } from '../../../../utils/redis/index.js';
 
@@ -123,11 +124,36 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
       generationTimeMs: imageTimeMs,
     };
 
+    // Vision grounding: describe BOTH the original and the edited image so respondNode
+    // can narrate the actual change instead of falling back to the model's training prior
+    // ("I can't edit images"). Failure here MUST NOT break the edit — degrade gracefully.
+    const groundingInstruction = 'Beschreibe in 1-2 kurzen Sätzen sachlich, was zu sehen ist.';
+    const originalDataUri = `data:${mimeType};base64,${attachment.data}`;
+    const editedDataUri = result.base64;
+    const describe = (uri: string, label: string) =>
+      visionService
+        .analyzeImage(uri, groundingInstruction, { maxTokens: 200 })
+        .catch((err: unknown) => {
+          log.warn(
+            `[ImageEditNode] vision describe(${label}) failed:`,
+            err instanceof Error ? err.message : String(err)
+          );
+          return null;
+        });
+
+    const [originalDesc, editedDesc] = await Promise.all([
+      describe(originalDataUri, 'original'),
+      describe(editedDataUri, 'edited'),
+    ]);
+    const imageEditDescriptions =
+      originalDesc || editedDesc ? { original: originalDesc, edited: editedDesc } : null;
+
     return {
       generatedImage: result,
       imagePrompt: prompt,
       imageStyle: resultStyle,
       imageTimeMs,
+      imageEditDescriptions,
     };
   } catch (error: unknown) {
     const imageTimeMs = Date.now() - startTime;
