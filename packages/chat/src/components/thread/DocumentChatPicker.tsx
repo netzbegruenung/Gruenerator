@@ -13,7 +13,7 @@ import {
   ScrollArea,
   Skeleton,
 } from '@gruenerator/ui';
-import { useFileMentionData } from '../../hooks/useFileMentionData';
+import { useCombinedContentQuery } from '../../hooks/useFileMentionData';
 import type { UserDocumentItem, UserTextItem } from '../../lib/documentMentionables';
 
 interface DocumentChatPickerProps {
@@ -24,14 +24,15 @@ interface DocumentChatPickerProps {
 
 export function DocumentChatPicker({ visible, onConfirm, onDismiss }: DocumentChatPickerProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const { documents, texts, loadingContent, fetchCombinedContent } = useFileMentionData();
+  const { data, isLoading: loadingContent } = useCombinedContentQuery(visible);
+  const documents = data?.documents ?? [];
+  const texts = data?.texts ?? [];
 
   useEffect(() => {
     if (visible) {
-      fetchCombinedContent();
       setSelectedIds(new Set());
     }
-  }, [visible, fetchCombinedContent]);
+  }, [visible]);
 
   const toggleSelection = useCallback((id: string) => {
     setSelectedIds((prev) => {

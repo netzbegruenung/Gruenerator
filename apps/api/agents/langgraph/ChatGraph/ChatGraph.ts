@@ -278,6 +278,9 @@ const ChatStateAnnotation = Annotation.Root({
   imageTimeMs: Annotation<number>({
     reducer: (x, y) => y ?? x ?? 0,
   }),
+  imageEditDescriptions: Annotation<{ original: string | null; edited: string | null } | null>({
+    reducer: (x, y) => y ?? x,
+  }),
 
   // Document summarization
   summaryContext: Annotation<string | null>({
@@ -644,6 +647,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     imageEditStyle: null,
     generatedImage: null,
     imageTimeMs: 0,
+    imageEditDescriptions: null,
 
     // Document summarization (will be set by summarizeNode)
     summaryContext: null,

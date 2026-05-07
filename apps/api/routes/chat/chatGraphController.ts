@@ -492,6 +492,16 @@ router.post(
         });
       }
 
+      // @bildbearbeiten is an alias for image_edit intent with explicit universal
+      // style — distinct identifier so @stadtbegruenen can keep its green-edit
+      // branding while @bildbearbeiten signals free-form editing.
+      const universalEditForced = !!forcedTools?.includes('image_edit_universal');
+      if (universalEditForced) {
+        classifiedState.intent = 'image_edit';
+        forcedTool = true;
+        log.info('[ChatGraph] Intent forced to "image_edit" via @bildbearbeiten mention');
+      }
+
       if (forcedTools && forcedTools.length > 0) {
         const searchClassTools = ['research', 'web', 'search'];
         const hasSearchTool = forcedTools.some((t) => searchClassTools.includes(t));
@@ -510,7 +520,7 @@ router.post(
               ] as const);
 
         const forced = TOOL_PRIORITY.find((t) => forcedTools.includes(t));
-        if (forced) {
+        if (forced && !universalEditForced) {
           classifiedState.intent = forced;
           forcedTool = true;
           log.info(`[ChatGraph] Intent forced to "${forced}" via @tool mention`);
@@ -518,15 +528,15 @@ router.post(
       }
 
       // Resolve which FLUX edit-prompt builder imageEditNode should use.
-      // The @stadtbegruenen mention (forcedTools includes 'image_edit') keeps
-      // its branded green-urban transformation; auto-detected image_edit
-      // intents from free text default to universal so the user's instruction
-      // drives the FLUX prompt directly.
+      // @stadtbegruenen (forcedTools includes 'image_edit') → green-urban branded;
+      // @bildbearbeiten (forcedTools includes 'image_edit_universal') → universal;
+      // auto-detected image_edit from heuristics → universal.
       if (classifiedState.intent === 'image_edit') {
-        const wasMentionForced = !!forcedTools?.includes('image_edit');
-        classifiedState.imageEditStyle = wasMentionForced ? 'green-edit' : 'universal';
+        const greenEditMentionForced =
+          !!forcedTools?.includes('image_edit') && !universalEditForced;
+        classifiedState.imageEditStyle = greenEditMentionForced ? 'green-edit' : 'universal';
         log.info(
-          `[ChatGraph] image_edit style resolved to "${classifiedState.imageEditStyle}" (mentionForced=${wasMentionForced})`
+          `[ChatGraph] image_edit style resolved to "${classifiedState.imageEditStyle}" (greenEditForced=${greenEditMentionForced}, universalForced=${universalEditForced})`
         );
       }
 
@@ -703,6 +713,7 @@ router.post(
       };
       const resolution = await resolveModel(agentConfigForResolve, modelId, requestId, {
         hasImages: imageAttachments.length > 0,
+        intent: finalState.intent,
       });
       const {
         model: aiModel,
@@ -727,11 +738,17 @@ router.post(
         finalSystemMessage,
         prunedValidMessages as Parameters<typeof buildMessagesForAI>[1]
       );
-      messagesForAI = injectImageAttachments(
-        messagesForAI as Parameters<typeof injectImageAttachments>[0],
-        imageAttachments,
-        requestId
-      );
+      // See chatGraphContractRouter.ts for rationale: image_edit narrates from
+      // BILDVERGLEICH text descriptions, raw image is redundant and would break
+      // non-vision models since the vision-fallback switch above is now skipped
+      // for this intent.
+      if (finalState.intent !== 'image_edit') {
+        messagesForAI = injectImageAttachments(
+          messagesForAI as Parameters<typeof injectImageAttachments>[0],
+          imageAttachments,
+          requestId
+        );
+      }
 
       let fullText: string | null;
       try {
@@ -1020,6 +1037,7 @@ router.post(
       const resumeRequestId = `resume_${threadId}_${Date.now()}`;
       const resolution2 = await resolveModel(agentConfigForResolve2, modelId, resumeRequestId, {
         hasImages: resumeImageAttachments.length > 0,
+        intent: finalState.intent,
       });
       const {
         model: aiModel,

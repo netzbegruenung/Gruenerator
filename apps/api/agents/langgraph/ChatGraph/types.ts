@@ -330,6 +330,7 @@ export interface ChatGraphState {
   imageEditStyle: ImageEditStyle | null;
   generatedImage: GeneratedImageResult | null;
   imageTimeMs: number;
+  imageEditDescriptions: { original: string | null; edited: string | null } | null;
 
   // Document summarization
   summaryContext: string | null;

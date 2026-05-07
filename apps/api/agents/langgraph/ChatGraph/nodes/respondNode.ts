@@ -303,18 +303,34 @@ Beantworte Fragen zu den Dokumenten basierend auf deren Inhalt.`;
  * Instructs the model to acknowledge and describe the attached images.
  */
 function formatImageContext(state: ChatGraphState): string {
-  if (!state.imageAttachments || state.imageAttachments.length === 0) {
-    return '';
-  }
+  const sections: string[] = [];
 
-  const count = state.imageAttachments.length;
-  const names = state.imageAttachments.map((img) => img.name).join(', ');
-
-  return `
+  if (state.imageAttachments && state.imageAttachments.length > 0) {
+    const count = state.imageAttachments.length;
+    const names = state.imageAttachments.map((img) => img.name).join(', ');
+    sections.push(`
 
 ## ANGEHÄNGTE BILDER
 
-Der Nutzer hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar. Beziehe dich auf den Bildinhalt in deiner Antwort.`;
+Der Nutzer hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar. Beziehe dich auf den Bildinhalt in deiner Antwort.`);
+  }
+
+  // Vision-grounded before/after descriptions populated by imageEditNode after a
+  // successful FLUX edit. Lets respondNode narrate the actual change instead of
+  // hallucinating ("I can't edit images") when the model isn't itself vision-capable.
+  const editDescriptions = state.imageEditDescriptions;
+  if (editDescriptions && (editDescriptions.original || editDescriptions.edited)) {
+    const before = editDescriptions.original ?? '(keine Beschreibung verfügbar)';
+    const after = editDescriptions.edited ?? '(keine Beschreibung verfügbar)';
+    sections.push(`
+
+## BILDVERGLEICH (vom Vision-Modell beschrieben)
+
+- Originalbild: ${before}
+- Bearbeitetes Bild: ${after}`);
+  }
+
+  return sections.join('');
 }
 
 /**
@@ -495,9 +511,22 @@ Regeln:
                 ? state.generatedImage
                   ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
                   : '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.'
-                : intent === 'direct' || intent === 'save_as_doc'
-                  ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
-                  : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
+                : intent === 'image_edit'
+                  ? state.generatedImage
+                    ? `\nDu hast das angehängte Bild erfolgreich bearbeitet. Das Ergebnis wird dem*der Nutzer*in bereits angezeigt — du musst es NICHT erneut zeigen oder verlinken.
+
+ABSOLUTE AUSGABE-REGEL für diese Antwort:
+- NUR natürlicher deutscher Fließtext, 1-3 Sätze.
+- KEIN JSON, KEINE geschweiften Klammern { }, KEINE eckigen Klammern [ ] um Inhalte, KEINE Schlüssel-Wert-Paare wie "edit": ..., KEINE Markdown-Code-Blöcke, KEINE Aufzählungen.
+- Falls frühere Antworten in diesem Thread strukturierte Daten (JSON o.ä.) ausgegeben haben, ignoriere dieses Muster — es war ein Bug. Antworte ab jetzt ausschließlich in normaler Prosa.
+
+Beispiel einer guten Antwort: "Ich habe die Person sichtbar älter wirken lassen — graue Haare und feine Falten, während Kleidung und Pose erhalten bleiben. Sag mir, falls du eine andere Anpassung möchtest."
+
+Stütze dich für die Beschreibung auf den BILDVERGLEICH-Block oben (falls vorhanden); ansonsten halte dich an den Wunsch des*der Nutzer*in aus der letzten Nachricht. Verneine NICHT die Fähigkeit zur Bildbearbeitung — sie hat gerade stattgefunden.`
+                    : '\nDie Bildbearbeitung ist fehlgeschlagen. Entschuldige dich kurz in einem Satz und bitte um eine andere Formulierung oder ein anderes Bild. KEIN JSON, KEINE Code-Blöcke.'
+                  : intent === 'direct' || intent === 'save_as_doc'
+                    ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
+                    : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
 
   const hasSources = state.searchResults.length > 0 && intent !== 'direct';
   const sourceCount = state.searchResults.filter((r) => r.url).length;

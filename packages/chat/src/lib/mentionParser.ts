@@ -170,6 +170,131 @@ export function parseAllMentions(text: string): ParsedMentions {
   };
 }
 
+export type MentionPreviewKind =
+  | 'document'
+  | 'doc'
+  | 'agent'
+  | 'tool'
+  | 'notebook'
+  | 'board'
+  | 'unresolved';
+
+export interface MentionPreview {
+  kind: MentionPreviewKind;
+  match: string;
+  start: number;
+  end: number;
+  title: string;
+  avatar?: string;
+}
+
+/**
+ * Extract mentions from `text` along with their display labels (title, avatar)
+ * and the substring span needed to remove them. Bare triggers like `@datei`
+ * are skipped — only resolved references and unresolved aliases produce chips.
+ */
+export function extractMentionPreviews(text: string): MentionPreview[] {
+  const previews: MentionPreview[] = [];
+  MENTION_RE.lastIndex = 0;
+
+  let match: RegExpExecArray | null;
+  while ((match = MENTION_RE.exec(text)) !== null) {
+    const trigger = match[1];
+    const alias = match[2];
+    const triggerIndex = match.index + match[0].indexOf(trigger);
+    const end = triggerIndex + alias.length + 1;
+    const literal = text.slice(triggerIndex, end);
+
+    // Skip mentions that aren't yet "committed" — i.e. the alias runs to the
+    // end of the input without a terminator. These are in-progress as the user
+    // types and shouldn't render chips (especially red unresolved ones).
+    if (end === text.length) continue;
+
+    if (trigger === '@' && (alias === 'datei' || alias === 'dokumentchat')) {
+      continue;
+    }
+
+    if (trigger === '@' && alias.startsWith('datei:')) {
+      const slug = alias.slice(6);
+      const doc = resolveDocumentSlug(slug);
+      if (doc) {
+        previews.push({
+          kind: 'document',
+          match: literal,
+          start: triggerIndex,
+          end,
+          title: doc.documentTitle,
+          avatar: doc.sourceType === 'text' ? '📝' : '📄',
+        });
+      } else {
+        previews.push({
+          kind: 'unresolved',
+          match: literal,
+          start: triggerIndex,
+          end,
+          title: alias,
+        });
+      }
+      continue;
+    }
+
+    const mentionable = resolveMentionable(alias);
+    if (!mentionable) {
+      if (trigger === '@') {
+        previews.push({
+          kind: 'unresolved',
+          match: literal,
+          start: triggerIndex,
+          end,
+          title: alias,
+        });
+      }
+      continue;
+    }
+
+    const kind: MentionPreviewKind =
+      mentionable.type === 'agent'
+        ? 'agent'
+        : mentionable.type === 'tool'
+          ? 'tool'
+          : mentionable.type === 'notebook'
+            ? 'notebook'
+            : mentionable.type === 'board'
+              ? 'board'
+              : mentionable.type === 'doc'
+                ? 'doc'
+                : 'unresolved';
+
+    previews.push({
+      kind,
+      match: literal,
+      start: triggerIndex,
+      end,
+      title: mentionable.title,
+      avatar: mentionable.avatar,
+    });
+  }
+
+  return previews;
+}
+
+/**
+ * Remove a single mention substring (matched by literal text and span) from
+ * `text` and collapse adjacent whitespace. Returns the rewritten text.
+ */
+export function removeMentionFromText(text: string, preview: MentionPreview): string {
+  if (text.slice(preview.start, preview.end) !== preview.match) {
+    const idx = text.indexOf(preview.match);
+    if (idx === -1) return text;
+    return collapseSpaces(text.slice(0, idx) + text.slice(idx + preview.match.length));
+  }
+  return collapseSpaces(text.slice(0, preview.start) + text.slice(preview.end));
+}
+
+function collapseSpaces(s: string): string {
+  return s.replace(/  +/g, ' ');
+}
+
 /**
  * Parse a single @-mention or /mention at the start of a message text (legacy).
  */
