@@ -28,6 +28,7 @@ import {
   ResponsiveMenuToggle,
 } from '@gruenerator/ui';
 import { composerToolbarButtonClass } from '../lib/utils';
+import { useChatDensity } from './thread/chatDensityContext';
 import { useShallow } from 'zustand/shallow';
 import { useAgentStore, type ThreadMode, type ToolKey } from '../stores/chatStore';
 import { useUserProfileStore } from '../stores/userProfileStore';
@@ -56,6 +57,7 @@ interface ToolTogglesProps {
 }
 
 export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: ToolTogglesProps) {
+  const isCompact = useChatDensity() === 'compact';
   const {
     enabledTools,
     currentThreadId: threadId,
@@ -307,7 +309,7 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
         onOpenChange={setMenuOpen}
         sheetTitle="Einstellungen"
         trigger={
-          <button type="button" className={composerToolbarButtonClass}>
+          <button type="button" className={composerToolbarButtonClass(isCompact)}>
             <Wrench className="h-4 w-4" />
             {threadMode !== 'chat' && (
               <span className="rounded-full bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium leading-none text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 max-w-24 truncate">

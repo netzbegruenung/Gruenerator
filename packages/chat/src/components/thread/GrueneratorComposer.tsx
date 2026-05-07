@@ -4,6 +4,8 @@ import { memo, useRef, useState, useCallback } from 'react';
 import { ComposerPrimitive, useComposerRuntime } from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
 import { ArrowUp, Mic, Square, X } from 'lucide-react';
+import { cn } from '@gruenerator/ui';
+import { useAgentStore } from '../../stores/chatStore';
 import { ToolToggles } from '../ToolToggles';
 import { ComposerAttachments } from '../assistant-ui/attachment';
 import { MentionPopover } from './MentionPopover';
@@ -29,51 +31,59 @@ interface GrueneratorComposerProps {
   firstName?: string | null;
   placeholder?: string;
   disclaimer?: string;
+  disclaimerCompact?: string;
   showMentions?: boolean;
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
 }
 
+const ROUND_BTN_BASE = 'flex items-center justify-center rounded-full transition-opacity';
+const roundBtnSize = (isCompact: boolean) => (isCompact ? 'm-1.5 h-7 w-7' : 'm-2 h-8 w-8');
+
 function SendButton() {
+  const isCompact = useChatDensity() === 'compact';
   return (
     <ComposerPrimitive.Send
-      className="m-2 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white transition-opacity disabled:opacity-30"
+      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white disabled:opacity-30`}
       aria-label="Nachricht senden"
     >
-      <ArrowUp className="h-5 w-5" />
+      <ArrowUp className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
     </ComposerPrimitive.Send>
   );
 }
 
 function CancelButton() {
+  const isCompact = useChatDensity() === 'compact';
   return (
     <ComposerPrimitive.Cancel
-      className="m-2 flex h-8 w-8 items-center justify-center rounded-full bg-error text-white transition-opacity"
+      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-error text-white`}
       aria-label="Abbrechen"
     >
-      <Square className="h-4 w-4" />
+      <Square className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
     </ComposerPrimitive.Cancel>
   );
 }
 
 function DictateButton() {
+  const isCompact = useChatDensity() === 'compact';
   return (
     <ComposerPrimitive.Dictate
-      className="m-2 flex h-8 w-8 items-center justify-center rounded-full text-foreground-muted transition-colors hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-800"
+      className={`${roundBtnSize(isCompact)} flex items-center justify-center rounded-full text-foreground-muted transition-colors hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-800`}
       aria-label="Diktat starten"
     >
-      <Mic className="h-5 w-5" />
+      <Mic className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
     </ComposerPrimitive.Dictate>
   );
 }
 
 function StopDictationButton() {
+  const isCompact = useChatDensity() === 'compact';
   return (
     <ComposerPrimitive.StopDictation
-      className="m-2 flex h-8 w-8 items-center justify-center rounded-full bg-error text-white transition-opacity animate-pulse"
+      className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-error text-white animate-pulse`}
       aria-label="Diktat beenden"
     >
-      <Square className="h-4 w-4" />
+      <Square className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
     </ComposerPrimitive.StopDictation>
   );
 }
@@ -114,12 +124,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   firstName,
   placeholder = 'Nachricht schreiben...',
   disclaimer = 'Grünerator kann Fehler machen. Wichtige Infos bitte prüfen.',
+  disclaimerCompact = 'Kann Fehler machen.',
   showMentions = true,
   showPlusMenu = true,
   showToolToggles = true,
 }: GrueneratorComposerProps) {
   const composerRuntime = useComposerRuntime();
   const isCompact = useChatDensity() === 'compact';
+  const isMistral = useAgentStore((s) => s.selectedProvider === 'mistral');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadRef = useRef<HTMLButtonElement>(null);
   const [mention, setMention] = useState<MentionState>(INITIAL_MENTION_STATE);
@@ -329,8 +341,18 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 
   return (
     <div className="px-4 pb-[max(0.25rem,env(safe-area-inset-bottom))] sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <ComposerPrimitive.Root className="composer-root relative mx-auto flex w-full max-w-3xl flex-col rounded-3xl border border-border bg-white shadow-lg transition-shadow focus-within:shadow-xl focus-within:border-primary/30 dark:bg-surface dark:shadow-sm dark:focus-within:shadow-md">
-        <ComposerPrimitive.Quote className="mx-4 mt-4 flex items-start gap-2 rounded-r-lg border-l-4 border-primary/40 bg-primary/5 px-3 py-2 text-sm">
+      <ComposerPrimitive.Root
+        className={cn(
+          'composer-root relative mx-auto flex w-full max-w-3xl flex-col rounded-3xl border bg-white shadow-lg transition-shadow focus-within:shadow-xl focus-within:border-primary/30 dark:bg-surface dark:shadow-sm dark:focus-within:shadow-md',
+          isMistral ? 'border-[#003399]' : 'border-border'
+        )}
+      >
+        <ComposerPrimitive.Quote
+          className={cn(
+            'mx-4 mt-4 flex items-start gap-2 rounded-r-lg border-l-4 border-primary/40 bg-primary/5',
+            isCompact ? 'px-2.5 py-1.5 text-[13px]' : 'px-3 py-2 text-sm'
+          )}
+        >
           <ComposerPrimitive.QuoteText className="line-clamp-2 flex-1 italic text-foreground-muted" />
           <ComposerPrimitive.QuoteDismiss className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-foreground-muted hover:text-foreground">
             <X className="h-3 w-3" />
@@ -406,7 +428,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           </div>
         </div>
       </ComposerPrimitive.Root>
-      <p className="mt-1 hidden text-center text-xs text-foreground-muted sm:block">{disclaimer}</p>
+      <p
+        className={cn(
+          'mt-1 hidden text-center text-foreground-muted sm:block',
+          isCompact ? 'text-[11px]' : 'text-xs'
+        )}
+      >
+        {isCompact ? disclaimerCompact : disclaimer}
+      </p>
     </div>
   );
 });

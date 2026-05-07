@@ -12,6 +12,7 @@ import { useShallow } from 'zustand/shallow';
 import { isModelEnabledByDefault } from '@gruenerator/shared/models';
 
 import { composerToolbarButtonClass } from '../../lib/utils';
+import { useChatDensity } from './chatDensityContext';
 import { MODEL_OPTIONS, useAgentStore, type ModelId } from '../../stores/chatStore';
 import { useModelPreferencesContext } from '../../context/ModelPreferencesContext';
 
@@ -24,6 +25,7 @@ export const ModelPicker = memo(function ModelPicker() {
     }))
   );
   const { enabledModelIds } = useModelPreferencesContext();
+  const isCompact = useChatDensity() === 'compact';
 
   const visibleModels = useMemo(() => {
     if (enabledModelIds) {
@@ -92,7 +94,7 @@ export const ModelPicker = memo(function ModelPicker() {
       trigger={
         <button
           type="button"
-          className={composerToolbarButtonClass}
+          className={composerToolbarButtonClass(isCompact)}
           aria-label={
             current.warning ? `Modell wählen – ${current.name} (Warnhinweis)` : 'Modell wählen'
           }
