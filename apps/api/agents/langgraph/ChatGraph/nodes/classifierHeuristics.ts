@@ -43,6 +43,33 @@ export const INTENT_KEYWORDS: Record<
   chart: ['diagramm', 'balkendiagramm', 'kreisdiagramm', 'liniendiagramm', 'chart', 'statistik'],
 };
 
+// `image_edit` is intentionally NOT in INTENT_KEYWORDS: a bare "bearbeite" with
+// no image context (attachment or explicit noun) means "edit the text", not
+// "edit a picture". Routing to `image_edit` requires combining the verb match
+// below with an image signal that only classifierNode sees, so we expose the
+// predicates separately instead of letting fuzzyMatchIntent fire on its own.
+const IMAGE_EDIT_VERB_PATTERN =
+  /\b(bearbeit|editier|modifizier|transformier|umwandl|ändere|ändern|aender|mach\s+\S.{0,40}?\s+(rein|dazu|hinein|drauf)|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+hinzu|edit|change)/i;
+
+const IMAGE_NOUN_PATTERN =
+  /\b(bild|bilds|foto|fotos|image|images|picture|pictures|photo|photos)\b/i;
+
+/**
+ * True when the user's text contains an image-edit verb (e.g. "bearbeite",
+ * "ändere", "mach mehr Bäume rein").
+ */
+export function hasImageEditVerb(text: string): boolean {
+  return IMAGE_EDIT_VERB_PATTERN.test(text);
+}
+
+/**
+ * True when the user's text mentions a picture/photo/image noun, used to
+ * recognise the no-attachment edit case ("bearbeite das Foto").
+ */
+export function mentionsImageNoun(text: string): boolean {
+  return IMAGE_NOUN_PATTERN.test(text);
+}
+
 /**
  * Find intent using fuzzy (Levenshtein-based) matching.
  * Returns the intent if a word matches a keyword with similarity >= threshold.

@@ -63,6 +63,7 @@ export interface TemplateResultLightboxProps {
   onClose: () => void;
   imageSrc: string;
   altText?: string;
+  actions?: React.ReactNode;
 }
 
 export interface TemplateResultStepProps {

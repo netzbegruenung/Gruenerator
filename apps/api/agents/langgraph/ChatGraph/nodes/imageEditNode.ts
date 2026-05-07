@@ -6,12 +6,16 @@
  */
 
 import { ImageGenerationCounter } from '../../../../services/counters/index.js';
-import { buildGreenEditPrompt } from '../../../../services/flux/greenEditPrompt.js';
-import { FluxImageService, type GenerateResult } from '../../../../services/flux/index.js';
+import {
+  FluxImageService,
+  buildGreenEditPrompt,
+  buildUniversalPrompt,
+  type GenerateResult,
+} from '../../../../services/flux/index.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { redisClient } from '../../../../utils/redis/index.js';
 
-import type { ChatGraphState, GeneratedImageResult } from '../types.js';
+import type { ChatGraphState, GeneratedImageResult, ImageEditStyle, ImageStyle } from '../types.js';
 
 const log = createLogger('ChatGraph:ImageEditNode');
 
@@ -82,8 +86,17 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
     const imageBuffer = Buffer.from(attachment.data, 'base64');
     const mimeType = attachment.type;
 
-    const prompt = buildGreenEditPrompt(userContent);
-    log.info(`[ImageEditNode] Built green-edit prompt (${prompt.length} chars)`);
+    // `imageEditStyle` is set by the controller from forcedTools (mention path)
+    // or defaulted by the classifier route. `null` falls back to universal so a
+    // raw `image_edit` intent without controller wiring still produces a sane
+    // edit driven by the user's instruction.
+    const editStyle: ImageEditStyle = state.imageEditStyle ?? 'universal';
+    const prompt =
+      editStyle === 'green-edit'
+        ? buildGreenEditPrompt(userContent)
+        : buildUniversalPrompt(userContent);
+    const resultStyle: ImageStyle = editStyle;
+    log.info(`[ImageEditNode] Built ${editStyle} prompt (${prompt.length} chars)`);
 
     const flux = await FluxImageService.create();
     const { stored }: GenerateResult = await flux.generateFromImage(prompt, imageBuffer, mimeType, {
@@ -106,14 +119,14 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
       url: imageUrl,
       filename: stored.filename,
       prompt,
-      style: 'green-edit',
+      style: resultStyle,
       generationTimeMs: imageTimeMs,
     };
 
     return {
       generatedImage: result,
       imagePrompt: prompt,
-      imageStyle: 'green-edit',
+      imageStyle: resultStyle,
       imageTimeMs,
     };
   } catch (error: unknown) {

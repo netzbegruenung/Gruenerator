@@ -1,7 +1,10 @@
 import { Button } from '@gruenerator/ui';
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { FaInstagram } from 'react-icons/fa';
-import QRCode from 'react-qr-code';
+import QRCodeDefault from 'react-qr-code';
+
+const QRCode =
+  (QRCodeDefault as unknown as { QRCode?: typeof QRCodeDefault }).QRCode ?? QRCodeDefault;
 import { useParams } from 'react-router-dom';
 
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';

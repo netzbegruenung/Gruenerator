@@ -6,6 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { useFirstName } from '../../../hooks/useFirstName';
 import { useHydrateUserProfile } from '../../../hooks/useHydrateUserProfile';
 
+import SkillPresetRow from './SkillPresetRow';
+
 import { cn } from '@/utils/cn';
 
 function NavigateToChatOnSend() {
@@ -45,7 +47,11 @@ const ChatInner: React.FC = memo(() => {
       className={cn('w-full shrink-0', '[&>div]:px-0', '[&>div>p.text-center]:hidden')}
     >
       <NavigateToChatOnSend />
-      <GrueneratorComposer onNavigate={handleNavigate} firstName={firstName} />
+      <GrueneratorComposer
+        onNavigate={handleNavigate}
+        firstName={firstName}
+        toolbarExtra={<SkillPresetRow />}
+      />
     </ThreadPrimitive.Root>
   );
 });
