@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { ThreadPrimitive, SelectionToolbarPrimitive } from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
 import { QuoteIcon } from 'lucide-react';
@@ -21,12 +21,19 @@ interface GrueneratorThreadProps {
    * surfaces (e.g. docs editor sidebar). Defaults to `comfortable`.
    */
   density?: ChatDensity;
+  /**
+   * Extra elements rendered in the composer toolbar after the standard tool
+   * toggles. Used by embedded surfaces (e.g. docs sidebar) to inject
+   * context-specific controls without coupling them to the shared composer.
+   */
+  toolbarExtra?: ReactNode;
 }
 
 export function GrueneratorThread({
   onNavigate,
   firstName,
   density = 'comfortable',
+  toolbarExtra,
 }: GrueneratorThreadProps = {}) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
@@ -72,7 +79,12 @@ export function GrueneratorThread({
           </SelectionToolbarPrimitive.Quote>
         </SelectionToolbarPrimitive.Root>
 
-        <GrueneratorComposer isRunning={isRunning} onNavigate={onNavigate} firstName={firstName} />
+        <GrueneratorComposer
+          isRunning={isRunning}
+          onNavigate={onNavigate}
+          firstName={firstName}
+          toolbarExtra={toolbarExtra}
+        />
       </ThreadPrimitive.Root>
     </ChatDensityContext.Provider>
   );

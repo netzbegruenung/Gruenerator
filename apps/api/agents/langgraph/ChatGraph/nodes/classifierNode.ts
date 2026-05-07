@@ -111,7 +111,18 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     // editor surface always has currentDocument, and we want the live-edit path
     // (Yjs-synced, undoable in-place) instead of /chat's modify_doc HITL flow
     // (DB-only update, breaks Yjs).
-    if (hasCurrentDocument && userContent.length > 0 && docModifyPattern.test(userContent)) {
+    // Honor the docs-sidebar "AI may edit document" toggle: when the client
+    // explicitly disables `edit_current_doc`, fall through to normal intent
+    // classification so the assistant answers conversationally instead of
+    // patching the open document.
+    const editCurrentDocAllowed = state.enabledTools?.edit_current_doc !== false;
+
+    if (
+      hasCurrentDocument &&
+      editCurrentDocAllowed &&
+      userContent.length > 0 &&
+      docModifyPattern.test(userContent)
+    ) {
       const classificationTimeMs = Date.now() - startTime;
       log.info(
         `[Classifier] Live document edit detected (currentDocument set), forcing edit_current_doc intent`

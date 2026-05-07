@@ -23,6 +23,7 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useMemo, useRef } from 'react';
 import { z } from 'zod';
+import { DocAiEditToggle, useDocAiEditEnabled } from './DocAiEditToggle';
 
 interface DocsAssistantChatProps {
   documentId: string;
@@ -136,6 +137,13 @@ function DocsAssistantThreadShell({
   const registerContextProvider = useChatConfigStore((s) => s.registerContextProvider);
   const registerDocumentEditHandler = useChatConfigStore((s) => s.registerDocumentEditHandler);
 
+  const { enabled: aiEditEnabled, toggle: toggleAiEdit } = useDocAiEditEnabled(documentId);
+  // Mirror current value into a ref so the stable getConfig closure (memoized
+  // once to keep the runtime alive across renders) can read the live setting
+  // without forcing the adapter to reinitialize on every toggle.
+  const aiEditEnabledRef = useRef(aiEditEnabled);
+  aiEditEnabledRef.current = aiEditEnabled;
+
   // Load existing messages once (fresh runtime is created with these as
   // initial state). Reloads on hard refresh; live multi-user sync is not
   // wired in v1 — see plan file's "Risks & gotchas".
@@ -183,6 +191,9 @@ function DocsAssistantThreadShell({
   useEffect(() => {
     return registerDocumentEditHandler(documentId, async (payload) => {
       if (payload.targetDocumentId !== documentId) return;
+      // Defense-in-depth: if the user flipped the toggle off mid-flight,
+      // ignore the trigger even if the backend still emitted it.
+      if (!aiEditEnabledRef.current) return;
       await invokeDocumentAI({
         documentId,
         userPrompt: payload.userPrompt,
@@ -206,7 +217,7 @@ function DocsAssistantThreadShell({
       enabledTools: { search: true, web: true, examples: true, research: true },
       customEnabledTools: {
         summary: true,
-        edit_current_doc: true,
+        edit_current_doc: aiEditEnabledRef.current,
         save_as_doc: true,
         image: true,
         chart: true,
@@ -240,7 +251,11 @@ function DocsAssistantThreadShell({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <ChatCollaborationProvider value={collab}>
-        <GrueneratorThread firstName={userName ?? null} density="compact" />
+        <GrueneratorThread
+          firstName={userName ?? null}
+          density="compact"
+          toolbarExtra={<DocAiEditToggle enabled={aiEditEnabled} onToggle={toggleAiEdit} />}
+        />
       </ChatCollaborationProvider>
     </AssistantRuntimeProvider>
   );
