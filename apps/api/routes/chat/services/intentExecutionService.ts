@@ -564,6 +564,15 @@ export async function executeIntentPipeline(opts: {
             : PROGRESS_MESSAGES.searchStart,
           ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
         });
+
+        if (isDeepResearch) {
+          searchInputState = {
+            ...searchInputState,
+            onResearchProgress: (message: string) => {
+              sse.send('search_start', { message });
+            },
+          } as ChatGraphState;
+        }
         const searchResult = await searchNode(searchInputState);
         finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
 

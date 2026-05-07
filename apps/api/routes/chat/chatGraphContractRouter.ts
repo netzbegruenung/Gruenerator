@@ -447,6 +447,26 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           classifiedState.intent = forced;
           forcedTool = true;
           log.info(`[ChatGraph] Intent forced to "${forced}" via @tool mention`);
+
+          // When the classifier returned a non-search intent (e.g. 'direct')
+          // and the @-mention forces a search intent, the classifier never
+          // populated searchQuery — the orchestrator would then run on an
+          // empty question and the planner LLM hallucinates topics from
+          // context. Pull the user's last message text in as the query.
+          const FORCED_SEARCH_INTENTS = new Set(['research', 'web', 'search']);
+          if (
+            FORCED_SEARCH_INTENTS.has(forced) &&
+            (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+            lastUserMessage
+          ) {
+            const userText = extractTextContent(lastUserMessage.content).trim();
+            if (userText) {
+              classifiedState.searchQuery = userText;
+              log.info(
+                `[ChatGraph] searchQuery populated from last user message for forced ${forced}: "${userText.slice(0, 60)}"`
+              );
+            }
+          }
         }
       }
 

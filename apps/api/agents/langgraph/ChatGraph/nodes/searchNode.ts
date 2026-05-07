@@ -490,6 +490,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           complexity,
           userLocale: state.userLocale,
           aiWorkerPool: state.aiWorkerPool,
+          ...(state.onResearchProgress && { onProgress: state.onResearchProgress }),
         });
 
         // Convert research citations to SearchResult format
