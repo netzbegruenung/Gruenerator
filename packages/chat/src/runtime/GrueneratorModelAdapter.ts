@@ -584,6 +584,7 @@ async function* parseSSEStream(
             targetDocumentId: string;
             userPrompt: string;
             useSelection: boolean;
+            referenceContent?: string;
           };
           const handler = useChatConfigStore
             .getState()
@@ -949,6 +950,51 @@ export function createGrueneratorModelAdapter(
           }
           break;
         }
+
+      // Extract doc/document mentions from the user message's attachments
+      // (the "tag" UX). Each picked doc was attached as an assistant-ui
+      // CompleteAttachment with a `data` content part carrying our metadata.
+      if (isChatMode && lastUserMsg && 'attachments' in lastUserMsg) {
+        const seenDocs = new Set(documentIds);
+        const seenTexts = new Set(textIds);
+        const seenCollab = new Set(docMentionIds);
+        type GruenMentionData =
+          | { kind: 'collab'; id: string; slug: string; title: string }
+          | {
+              kind: 'document';
+              documentId: string;
+              sourceType: 'notebook' | 'document' | 'text';
+            };
+        const attachments = (lastUserMsg as { attachments: readonly CompleteAttachment[] })
+          .attachments;
+        for (const att of attachments) {
+          if (!att.contentType?.startsWith('application/x-gruenerator-')) continue;
+          for (const part of att.content) {
+            if (part.type !== 'data') continue;
+            const dataPart = part as { type: 'data'; name?: string; data: GruenMentionData };
+            if (dataPart.name !== 'gruenerator-mention') continue;
+            const data = dataPart.data;
+            if (data.kind === 'collab') {
+              if (!seenCollab.has(data.id)) {
+                seenCollab.add(data.id);
+                docMentionIds.push(data.id);
+              }
+            } else if (data.kind === 'document') {
+              if (data.sourceType === 'text') {
+                if (!seenTexts.has(data.documentId)) {
+                  seenTexts.add(data.documentId);
+                  textIds.push(data.documentId);
+                }
+              } else {
+                if (!seenDocs.has(data.documentId)) {
+                  seenDocs.add(data.documentId);
+                  documentIds.push(data.documentId);
+                }
+              }
+            }
+          }
+        }
+      }
 
       // Read thread-persisted documentChatIds for follow-up messages
       const dcStore = useDocumentChatStore.getState();

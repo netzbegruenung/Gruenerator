@@ -89,6 +89,10 @@ export interface DocumentEditTriggerPayload {
   targetDocumentId: string;
   userPrompt: string;
   useSelection: boolean;
+  // Prior chat assistant content the user references with "dies"/"das"/
+  // "im dokument einfügen". Forwarded to BlockNote AI as system-prompt
+  // context — never concatenated into userPrompt.
+  referenceContent?: string;
 }
 
 export type DocumentEditTriggerHandler = (
