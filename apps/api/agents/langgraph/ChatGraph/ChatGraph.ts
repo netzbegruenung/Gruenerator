@@ -34,6 +34,7 @@ import type {
   Citation,
   CurrentDocument,
   ImageStyle,
+  ImageEditStyle,
   GatherSource,
   GeneratedImageResult,
   ImageAttachment,
@@ -266,6 +267,9 @@ const ChatStateAnnotation = Annotation.Root({
     reducer: (x, y) => y ?? x,
   }),
   imageStyle: Annotation<ImageStyle | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+  imageEditStyle: Annotation<ImageEditStyle | null>({
     reducer: (x, y) => y ?? x,
   }),
   generatedImage: Annotation<GeneratedImageResult | null>({
@@ -637,6 +641,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Image generation (will be set by image node)
     imagePrompt: null,
     imageStyle: null,
+    imageEditStyle: null,
     generatedImage: null,
     imageTimeMs: 0,
 

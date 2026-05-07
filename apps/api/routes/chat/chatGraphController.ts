@@ -517,6 +517,19 @@ router.post(
         }
       }
 
+      // Resolve which FLUX edit-prompt builder imageEditNode should use.
+      // The @stadtbegruenen mention (forcedTools includes 'image_edit') keeps
+      // its branded green-urban transformation; auto-detected image_edit
+      // intents from free text default to universal so the user's instruction
+      // drives the FLUX prompt directly.
+      if (classifiedState.intent === 'image_edit') {
+        const wasMentionForced = !!forcedTools?.includes('image_edit');
+        classifiedState.imageEditStyle = wasMentionForced ? 'green-edit' : 'universal';
+        log.info(
+          `[ChatGraph] image_edit style resolved to "${classifiedState.imageEditStyle}" (mentionForced=${wasMentionForced})`
+        );
+      }
+
       sse.send('intent', {
         intent: classifiedState.intent,
         message: getIntentMessage(classifiedState.intent),

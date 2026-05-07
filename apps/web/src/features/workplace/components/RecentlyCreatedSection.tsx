@@ -12,7 +12,8 @@ import {
   VideoCard,
 } from '@gruenerator/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { memo, useCallback } from 'react';
+import { Download, Share2, Trash2 } from 'lucide-react';
+import React, { memo, useCallback, useState } from 'react';
 import { FaImage, FaVideo } from 'react-icons/fa';
 import {
   FiCalendar,
@@ -36,11 +37,13 @@ import {
 } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
 import { getIcon } from '../../../config/icons';
 import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
+import { Lightbox } from '../../image-studio/components/Lightbox';
 
 const DocsIcon = getIcon('navigation', 'docs');
 const BoardIcon = getIcon('navigation', 'boards');
@@ -157,6 +160,100 @@ const FavouriteMenuItem = memo(({ id }: { id: string }) => {
   );
 });
 FavouriteMenuItem.displayName = 'FavouriteMenuItem';
+
+const ImageOwnerCard = memo(
+  ({
+    item,
+    cardClass,
+    cardContent,
+    onDelete,
+  }: {
+    item: RecentItem;
+    cardClass: string;
+    cardContent: React.ReactNode;
+    onDelete: (item: RecentItem) => void;
+  }) => {
+    const [open, setOpen] = useState(false);
+    const [shareOpen, setShareOpen] = useState(false);
+    const previewUrl = `/api/share/${item.id}/preview`;
+
+    const handleDownload = useCallback(async () => {
+      try {
+        const res = await apiClient.get<Blob>(`/share/${item.id}/download`, {
+          responseType: 'blob',
+        });
+        const url = window.URL.createObjectURL(res.data as Blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${(item.title || 'bild').replace(/[^a-zA-Z0-9_.-]/g, '_')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.warn('[ImageOwnerCard] download failed', err);
+      }
+    }, [item.id, item.title]);
+
+    const actionBtn =
+      'inline-flex items-center gap-1.5 text-sm text-white/90 hover:text-white px-sm py-xs rounded-full hover:bg-white/10 transition-colors';
+
+    return (
+      <>
+        <button type="button" className={cn(cardClass, 'text-left')} onClick={() => setOpen(true)}>
+          {cardContent}
+        </button>
+        <Lightbox
+          isOpen={open}
+          onClose={() => setOpen(false)}
+          imageSrc={previewUrl}
+          altText={item.title}
+          actions={
+            <>
+              <button type="button" onClick={handleDownload} className={actionBtn}>
+                <Download className="size-4" /> Download
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setShareOpen(true);
+                }}
+                className={actionBtn}
+              >
+                <Share2 className="size-4" /> Teilen
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onDelete(item);
+                }}
+                className={cn(actionBtn, 'text-red-300 hover:text-red-200')}
+              >
+                <Trash2 className="size-4" /> Löschen
+              </button>
+            </>
+          }
+        />
+        <ShareMediaModal
+          isOpen={shareOpen}
+          onClose={() => setShareOpen(false)}
+          mediaType="image"
+          existingShare={{
+            shareToken: item.id,
+            mediaType: 'image',
+            title: item.title,
+            status: 'ready',
+            createdAt: item.date,
+            thumbnailUrl: item.thumbnailUrl,
+          }}
+        />
+      </>
+    );
+  }
+);
+ImageOwnerCard.displayName = 'ImageOwnerCard';
 
 const RecentItemCard = memo(
   ({
@@ -327,6 +424,17 @@ const RecentItemCard = memo(
         >
           {cardContent}
         </div>
+      );
+    }
+
+    if (item.type === 'image') {
+      return (
+        <ImageOwnerCard
+          item={item}
+          cardClass={cardClass}
+          cardContent={cardContent}
+          onDelete={onDelete}
+        />
       );
     }
 

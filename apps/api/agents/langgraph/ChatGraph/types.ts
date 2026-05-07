@@ -53,7 +53,14 @@ export type SearchIntent =
 /**
  * Image style for generation.
  */
-export type ImageStyle = 'illustration' | 'realistic' | 'pixel' | 'green-edit';
+export type ImageStyle = 'illustration' | 'realistic' | 'pixel' | 'green-edit' | 'universal';
+
+/**
+ * FLUX edit-prompt builder selector for `image_edit` intent.
+ * `green-edit` preserves the @stadtbegruenen branded behaviour;
+ * `universal` feeds the user's instruction to FLUX as-is.
+ */
+export type ImageEditStyle = 'green-edit' | 'universal';
 
 /**
  * Processed file attachment from the frontend.
@@ -320,6 +327,7 @@ export interface ChatGraphState {
   // Image generation
   imagePrompt: string | null;
   imageStyle: ImageStyle | null;
+  imageEditStyle: ImageEditStyle | null;
   generatedImage: GeneratedImageResult | null;
   imageTimeMs: number;
 

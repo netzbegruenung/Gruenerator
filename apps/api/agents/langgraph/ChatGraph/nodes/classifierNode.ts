@@ -21,6 +21,8 @@ import {
   extractSearchTopic,
   extractMessageText,
   formatConversationHistory,
+  hasImageEditVerb,
+  mentionsImageNoun,
   looksMultiTopic,
   HEURISTIC_CONFIDENCE_THRESHOLD,
 } from './classifierHeuristics.js';
@@ -190,8 +192,36 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
       };
     }
 
-    // If image attachments are present, force direct intent —
-    // the vision model will interpret the image directly in the respond step.
+    // Image edit detection — must run BEFORE the generic image-attachment
+    // short-circuit below, otherwise "bearbeite dieses Bild + image" would be
+    // forced to `direct` (vision Q&A) and never reach imageEditNode.
+    //
+    // Two trigger patterns:
+    //  1. Image attached + edit verb → image_edit (the natural-attach flow).
+    //  2. No attachment but verb + image noun ("bearbeite das Foto") →
+    //     image_edit anyway; the node returns the German "please attach an
+    //     image" error from imageEditNode.ts:64-72.
+    const editVerb = userContent.length > 0 && hasImageEditVerb(userContent);
+    if (editVerb && (hasImageAttachments || mentionsImageNoun(userContent))) {
+      log.info(
+        `[Classifier] Image edit detected (attached=${hasImageAttachments}, noun=${mentionsImageNoun(userContent)}), forcing image_edit intent`
+      );
+      return {
+        intent: 'image_edit',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: hasImageAttachments
+          ? 'Image attachment + edit verb → image_edit'
+          : 'Edit verb + image noun without attachment → image_edit (node will ask for attachment)',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // If image attachments are present (and no edit verb above), force direct
+    // intent — the vision model will interpret the image in the respond step.
     if (hasImageAttachments) {
       log.info(
         `[Classifier] Image attachment detected (${state.imageAttachments.length} images), forcing direct intent`

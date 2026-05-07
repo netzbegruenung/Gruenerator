@@ -91,6 +91,7 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
     qualityAssessmentTimeMs: 0,
     imagePrompt: null,
     imageStyle: null,
+    imageEditStyle: null,
     generatedImage: null,
     imageTimeMs: 0,
     summaryContext: null,
@@ -320,6 +321,62 @@ describe('Edge cases — multiple resource types combined', () => {
     const result = await classifierNode(state);
     // "kuerz" matches docModifyPattern but NOT boardModifyPattern → board tier 1 skipped → doc tier 1 fires
     expect(result.intent).toBe('modify_doc');
+  });
+});
+
+// ── TIER 2: image_edit ───────────────────────────────────────────────────
+
+describe('Tier 2 — image_edit (edit verb + image signal)', () => {
+  it('image attached + "bearbeite" → image_edit', async () => {
+    const state = buildState({
+      userMessage: 'bearbeite dieses Bild und mach mehr Bäume rein',
+      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('image_edit');
+  });
+
+  it('image attached + "ändere" → image_edit', async () => {
+    const state = buildState({
+      userMessage: 'ändere die Farbe der Tür',
+      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('image_edit');
+  });
+
+  it('image attached + "transformiere" → image_edit', async () => {
+    const state = buildState({
+      userMessage: 'transformiere das in Aquarell',
+      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('image_edit');
+  });
+
+  it('no attachment but verb + "Foto" → image_edit (node will ask for attachment)', async () => {
+    const state = buildState({
+      userMessage: 'bearbeite mein Foto',
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('image_edit');
+  });
+
+  it('image attached + plain question (no edit verb) → direct (vision Q&A preserved)', async () => {
+    const state = buildState({
+      userMessage: 'was siehst du auf diesem Bild?',
+      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('direct');
+  });
+
+  it('"bearbeite den Text" without image attachment or noun → NOT image_edit', async () => {
+    const state = buildState({
+      userMessage: 'bearbeite den Text und mach ihn kürzer',
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('image_edit');
   });
 });
 
