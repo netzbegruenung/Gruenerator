@@ -194,7 +194,7 @@ function OverflowIndicator({ citations, count, variant, onNavigate }: OverflowIn
         <PopoverContent
           side="top"
           align="start"
-          className="w-80 p-1"
+          className="w-80 max-w-[calc(100vw-1rem)] p-1"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onOpenAutoFocus={(e) => e.preventDefault()}
@@ -370,7 +370,7 @@ function StackedCitations({ id, citations, className, onNavigate }: StackedCitat
         <PopoverContent
           side="bottom"
           align="start"
-          className="w-80 p-1"
+          className="w-80 max-w-[calc(100vw-1rem)] p-1"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onBlur={handleBlur}
