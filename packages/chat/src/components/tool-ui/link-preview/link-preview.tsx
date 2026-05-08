@@ -55,7 +55,7 @@ export function LinkPreview(props: LinkPreviewProps) {
 
   return (
     <article
-      className={cn('relative w-full max-w-[28rem] min-w-0 sm:min-w-80', className)}
+      className={cn('relative w-full max-w-[28rem] min-w-0', className)}
       lang={locale}
       data-tool-ui-id={id}
       data-slot="link-preview"
