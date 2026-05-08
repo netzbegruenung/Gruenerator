@@ -31,10 +31,13 @@ export function useUserDefaultsQuery() {
         { skipAuthRedirect: true }
       );
       const blob = response.data.userDefaults ?? {};
-      console.log('[user-defaults] fetch ok', {
-        keys: Object.keys(blob),
-        profileRoles: (blob as { profile?: { roles?: unknown } }).profile?.roles,
-      });
+      const rawProfileRoles = (blob as { profile?: { roles?: unknown } }).profile?.roles;
+      console.log(
+        '[user-defaults] fetch ok | keys=' +
+          JSON.stringify(Object.keys(blob)) +
+          ' | profile.roles=' +
+          JSON.stringify(rawProfileRoles)
+      );
       return blob;
     },
     enabled: isAuthenticated,
@@ -67,9 +70,25 @@ export function useSetUserDefault<G extends UserDefaultsGenerator, K extends Use
 
   return useMutation({
     mutationFn: async ({ generator, key, value }: SetUserDefaultVariables<G, K>) => {
-      console.log('[user-defaults] mutate', { generator, key, value });
-      await apiClient.patch('/auth/profile/user-defaults', { generator, key, value });
-      console.log('[user-defaults] mutate ok', { generator, key });
+      console.log(
+        '[user-defaults] mutate start | gen=' +
+          generator +
+          ' | key=' +
+          key +
+          ' | value=' +
+          JSON.stringify(value)
+      );
+      const response = await apiClient.patch('/auth/profile/user-defaults', {
+        generator,
+        key,
+        value,
+      });
+      console.log(
+        '[user-defaults] mutate ok | status=' +
+          response.status +
+          ' | data=' +
+          JSON.stringify(response.data)
+      );
     },
     onMutate: async ({ generator, key, value }) => {
       await queryClient.cancelQueries({ queryKey: USER_DEFAULTS_QUERY_KEY });

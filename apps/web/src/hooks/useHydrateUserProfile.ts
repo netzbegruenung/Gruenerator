@@ -14,23 +14,30 @@ export function useHydrateUserProfile() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { data, isSuccess, isPending, isError, fetchStatus } = useUserDefaultsQuery();
 
-  console.log('[hydrate-bridge] render', {
-    isAuthenticated,
-    isPending,
-    isSuccess,
-    isError,
-    fetchStatus,
-    hasData: !!data,
-    rolesCount: data?.profile?.roles?.length ?? null,
-  });
+  console.log(
+    '[hydrate-bridge] render | auth=' +
+      isAuthenticated +
+      ' | pending=' +
+      isPending +
+      ' | success=' +
+      isSuccess +
+      ' | error=' +
+      isError +
+      ' | fetchStatus=' +
+      fetchStatus +
+      ' | rolesCount=' +
+      (data?.profile?.roles?.length ?? 'n/a')
+  );
 
   useEffect(() => {
     if (!isSuccess) return;
     const roles = data?.profile?.roles ?? [];
-    console.log('[hydrate-bridge] pushing to userProfileStore', {
-      rolesCount: roles.length,
-      locale: locale || 'de-DE',
-    });
+    console.log(
+      '[hydrate-bridge] push to userProfileStore | rolesCount=' +
+        roles.length +
+        ' | locale=' +
+        (locale || 'de-DE')
+    );
     useUserProfileStore.getState().hydrate({
       roles,
       locale: locale || 'de-DE',

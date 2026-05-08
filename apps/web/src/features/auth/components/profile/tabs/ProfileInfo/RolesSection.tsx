@@ -264,17 +264,21 @@ export default function RolesSection() {
 
   const [roles, setRoles] = useState<UserRole[]>(serverRoles ?? []);
   const seededRef = useRef(serverRoles !== undefined);
-  console.log('[RolesSection] render', {
-    serverRolesCount: serverRoles?.length ?? null,
-    serverRolesDefined: serverRoles !== undefined,
-    localRolesCount: roles.length,
-    seeded: seededRef.current,
-  });
+  console.log(
+    '[RolesSection] render | serverDefined=' +
+      (serverRoles !== undefined) +
+      ' | serverCount=' +
+      (serverRoles?.length ?? 'n/a') +
+      ' | localCount=' +
+      roles.length +
+      ' | seeded=' +
+      seededRef.current +
+      ' | server=' +
+      JSON.stringify(serverRoles)
+  );
   useEffect(() => {
     if (!seededRef.current && serverRoles !== undefined) {
-      console.log('[RolesSection] seeding local from server', {
-        count: serverRoles.length,
-      });
+      console.log('[RolesSection] seed local <- server | count=' + serverRoles.length);
       setRoles(serverRoles);
       seededRef.current = true;
     }
@@ -444,21 +448,23 @@ export default function RolesSection() {
   // ─── Save ─────────────────────────────────────────────────────────────────
 
   const handleSave = useCallback(async () => {
-    console.log('[RolesSection] save start', { rolesCount: roles.length, roles });
+    console.log(
+      '[RolesSection] SAVE START | count=' + roles.length + ' | roles=' + JSON.stringify(roles)
+    );
     setSaving(true);
     setErrorMessage(null);
     try {
       await setRolesMutation.mutateAsync({ generator: 'profile', key: 'roles', value: roles });
-      console.log('[RolesSection] mutation succeeded');
+      console.log('[RolesSection] SAVE: mutation done');
 
       const prompt = generateProfilePrompt(roles, isAustrian);
       await apiClient.put('/auth/profile', { custom_prompt: prompt || null });
-      console.log('[RolesSection] custom_prompt updated');
+      console.log('[RolesSection] SAVE: custom_prompt PUT done');
 
       setSuccessMessage('Profil gespeichert');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
-      console.error('[RolesSection] save failed', error);
+      console.error('[RolesSection] SAVE FAILED', error);
       const detail = error instanceof Error ? error.message : 'Unbekannter Fehler';
       setErrorMessage(`Speichern fehlgeschlagen: ${detail}`);
     } finally {
