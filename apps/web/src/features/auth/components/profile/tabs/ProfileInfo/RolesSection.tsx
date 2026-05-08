@@ -264,21 +264,8 @@ export default function RolesSection() {
 
   const [roles, setRoles] = useState<UserRole[]>(serverRoles ?? []);
   const seededRef = useRef(serverRoles !== undefined);
-  console.log(
-    '[RolesSection] render | serverDefined=' +
-      (serverRoles !== undefined) +
-      ' | serverCount=' +
-      (serverRoles?.length ?? 'n/a') +
-      ' | localCount=' +
-      roles.length +
-      ' | seeded=' +
-      seededRef.current +
-      ' | server=' +
-      JSON.stringify(serverRoles)
-  );
   useEffect(() => {
     if (!seededRef.current && serverRoles !== undefined) {
-      console.log('[RolesSection] seed local <- server | count=' + serverRoles.length);
       setRoles(serverRoles);
       seededRef.current = true;
     }
@@ -386,7 +373,6 @@ export default function RolesSection() {
   const persistRoles = useCallback(
     async (nextRoles: UserRole[]): Promise<{ ok: true } | { ok: false; detail: string }> => {
       try {
-        console.log('[RolesSection] persistRoles | count=' + nextRoles.length);
         await setRolesMutation.mutateAsync({
           generator: 'profile',
           key: 'roles',
@@ -396,7 +382,6 @@ export default function RolesSection() {
         await apiClient.put('/auth/profile', { custom_prompt: prompt || null });
         return { ok: true };
       } catch (error) {
-        console.error('[RolesSection] persistRoles failed', error);
         const detail = error instanceof Error ? error.message : 'Unbekannter Fehler';
         return { ok: false, detail };
       }
@@ -445,11 +430,9 @@ export default function RolesSection() {
         if (data.systemPrompt) newRole.systemPrompt = data.systemPrompt;
       } else {
         promptGenFailed = true;
-        console.warn('[RolesSection] system-prompt generation returned', response.status);
       }
-    } catch (error) {
+    } catch {
       promptGenFailed = true;
-      console.warn('[RolesSection] system-prompt generation threw', error);
     }
 
     const nextRoles = [...roles, newRole];
@@ -506,7 +489,6 @@ export default function RolesSection() {
   // ─── Save ─────────────────────────────────────────────────────────────────
 
   const handleSave = useCallback(async () => {
-    console.log('[RolesSection] manual SAVE | count=' + roles.length);
     setSaving(true);
     setErrorMessage(null);
     const result = await persistRoles(roles);
