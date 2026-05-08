@@ -14,8 +14,14 @@ import { useScrollRestoration } from './components/utils/commonFunctions';
 import ScrollToTop from './components/utils/ScrollToTop';
 import { routes } from './config/routes';
 import { useFirstRun } from './features/desktop/hooks/useFirstRun';
+import { useHydrateUserProfile } from './hooks/useHydrateUserProfile';
 import { useAuthStore } from './stores/authStore';
 import './App.css';
+
+function UserProfileHydrationBridge() {
+  useHydrateUserProfile();
+  return null;
+}
 
 // Lazy-load FirstRunWizard (desktop-only component)
 const FirstRunWizard = lazy(() =>
@@ -153,6 +159,7 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
+        <UserProfileHydrationBridge />
         <Router>
           <ScrollToTop />
           <RouteLogger />
