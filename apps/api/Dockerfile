@@ -57,9 +57,8 @@ RUN NODE_OPTIONS="--max-old-space-size=8192" pnpm exec tsc --project tsconfig.bu
 # - Dirs WITHOUT tsc output: rm + cp (clean copy)
 # - Dirs WITH tsc output (config, database): merge via cp -rT to avoid nesting
 #   (cp -r X dist/X nests as dist/X/X/ when dist/X/ already exists from tsc)
-RUN rm -rf dist/prompts dist/static-data dist/public dist/assets && \
+RUN rm -rf dist/prompts dist/public dist/assets && \
     cp -r prompts dist/prompts && \
-    cp -r static-data dist/static-data && \
     cp -rT config dist/config && \
     cp -rT database dist/database && \
     cp -r public dist/public && \
@@ -126,8 +125,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/dist ./apps/ap
 WORKDIR /app/apps/api
 
 # Symlink assets at WORKDIR level for code using process.cwd()-relative paths
-RUN ln -s dist/static-data static-data && \
-    ln -s dist/config config && \
+RUN ln -s dist/config config && \
     ln -s dist/public public
 
 # Create runtime directories owned by app user
