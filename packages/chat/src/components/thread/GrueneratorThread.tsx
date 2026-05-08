@@ -15,9 +15,14 @@ import { useChatCollaborationContext } from '../../context/ChatCollaborationCont
 interface GrueneratorThreadProps {
   onNavigate?: (path: string) => void;
   firstName?: string | null;
+  requireProfileHydration?: boolean;
 }
 
-export function GrueneratorThread({ onNavigate, firstName }: GrueneratorThreadProps = {}) {
+export function GrueneratorThread({
+  onNavigate,
+  firstName,
+  requireProfileHydration,
+}: GrueneratorThreadProps = {}) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
   const collab = useChatCollaborationContext();
@@ -54,7 +59,12 @@ export function GrueneratorThread({ onNavigate, firstName }: GrueneratorThreadPr
         </SelectionToolbarPrimitive.Quote>
       </SelectionToolbarPrimitive.Root>
 
-      <GrueneratorComposer isRunning={isRunning} onNavigate={onNavigate} firstName={firstName} />
+      <GrueneratorComposer
+        isRunning={isRunning}
+        onNavigate={onNavigate}
+        firstName={firstName}
+        requireProfileHydration={requireProfileHydration}
+      />
     </ThreadPrimitive.Root>
   );
 }

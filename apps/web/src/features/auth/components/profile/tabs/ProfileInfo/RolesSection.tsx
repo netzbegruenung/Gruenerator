@@ -1,3 +1,4 @@
+import { type UserRole } from '@gruenerator/chat';
 import {
   Button,
   SelectCard,
@@ -10,25 +11,18 @@ import {
   SmartInput,
   type SmartInputOption,
 } from '@gruenerator/ui';
-import { useState, useCallback, useMemo, memo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
 import { HiOutlineArrowLeft, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
 
 import apiClient from '../../../../../../components/utils/apiClient';
 import { searchMdBs } from '../../../../../../features/chat/grueneMdBs';
+import {
+  useSetUserDefault,
+  useUserDefault,
+} from '../../../../../../features/user-defaults/userDefaultsQueries';
 import { useAuthStore } from '../../../../../../stores/authStore';
-import { useUserDefaultsStore } from '../../../../../../stores/userDefaultsStore';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-interface UserRole {
-  ebene: string;
-  rolle: string;
-  bundesland?: string;
-  gliederung?: string;
-  abgeordnete?: string;
-  instructions?: string;
-  systemPrompt?: string;
-}
 
 interface EbeneConfig {
   id: string;
@@ -251,8 +245,8 @@ type WizardStep = 'ebene' | 'bundesland' | 'gliederung' | 'rolle' | 'instruction
 export default function RolesSection() {
   const locale = useAuthStore((s) => s.locale);
   const isAustrian = locale === 'de-AT';
-  const getDefault = useUserDefaultsStore((s) => s.getDefault);
-  const setDefault = useUserDefaultsStore((s) => s.setDefault);
+  const { value: serverRoles } = useUserDefault('profile', 'roles');
+  const setRolesMutation = useSetUserDefault<'profile', 'roles'>();
 
   const ebenen = isAustrian ? AT_EBENEN : DE_EBENEN;
   const rollenMap = isAustrian ? AT_ROLLEN : DE_ROLLEN;
@@ -268,9 +262,14 @@ export default function RolesSection() {
     [bundeslaender]
   );
 
-  const [roles, setRoles] = useState<UserRole[]>(
-    () => getDefault<UserRole[]>('profile', 'roles') || []
-  );
+  const [roles, setRoles] = useState<UserRole[]>(serverRoles ?? []);
+  const seededRef = useRef(serverRoles !== undefined);
+  useEffect(() => {
+    if (!seededRef.current && serverRoles !== undefined) {
+      setRoles(serverRoles);
+      seededRef.current = true;
+    }
+  }, [serverRoles]);
 
   // Wizard state for adding a new role
   const [addingRole, setAddingRole] = useState(false);
@@ -286,6 +285,7 @@ export default function RolesSection() {
 
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [generating, setGenerating] = useState(false);
 
@@ -436,8 +436,9 @@ export default function RolesSection() {
 
   const handleSave = useCallback(async () => {
     setSaving(true);
+    setErrorMessage(null);
     try {
-      void setDefault('profile', 'roles', roles);
+      await setRolesMutation.mutateAsync({ generator: 'profile', key: 'roles', value: roles });
 
       const prompt = generateProfilePrompt(roles, isAustrian);
       await apiClient.put('/auth/profile', { custom_prompt: prompt || null });
@@ -446,10 +447,12 @@ export default function RolesSection() {
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Failed to save profile:', error);
+      const detail = error instanceof Error ? error.message : 'Unbekannter Fehler';
+      setErrorMessage(`Speichern fehlgeschlagen: ${detail}`);
     } finally {
       setSaving(false);
     }
-  }, [roles, isAustrian, setDefault]);
+  }, [roles, isAustrian, setRolesMutation]);
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -469,6 +472,12 @@ export default function RolesSection() {
       {successMessage && (
         <div className="rounded-lg border border-green-200 bg-green-50 px-lg py-md text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
           {successMessage}
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-lg py-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          {errorMessage}
         </div>
       )}
 

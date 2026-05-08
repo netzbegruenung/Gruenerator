@@ -11,7 +11,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
 import { useFirstName } from '@/hooks/useFirstName';
-import { useHydrateUserProfile } from '@/hooks/useHydrateUserProfile';
 
 const notebookLinks: NotebookLink[] = SYSTEM_NOTEBOOKS.map((nb) => ({
   id: nb.id,
@@ -24,7 +23,6 @@ function ChatPage() {
   const navigate = useNavigate();
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
   const firstName = useFirstName();
-  useHydrateUserProfile();
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
@@ -71,9 +69,14 @@ function ChatPage() {
             onNavigate={handleNavigate}
             onSelectNotebook={handleSelectNotebook}
             onSelectRole={handleSelectRole}
+            requireProfileHydration
           />
         ) : (
-          <GrueneratorThread onNavigate={handleNavigate} firstName={firstName} />
+          <GrueneratorThread
+            onNavigate={handleNavigate}
+            firstName={firstName}
+            requireProfileHydration
+          />
         )}
       </main>
     </div>
