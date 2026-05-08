@@ -1,5 +1,6 @@
 import {
   MODEL_OPTIONS,
+  QWEN_WARNING,
   REGION_LABELS,
   REGION_ORDER,
   type ModelId,
@@ -7,7 +8,7 @@ import {
   type ModelRegion,
 } from '@gruenerator/shared/models';
 import { Switch } from '@gruenerator/ui';
-import { Info, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Info } from 'lucide-react';
 import React from 'react';
 
 import { useModelPreferences } from '../../../../../models/hooks/useModelPreferences';
@@ -92,6 +93,12 @@ const ModelSettingsSection = React.memo(
                     Souveränitätsstandards.
                   </p>
                 )}
+                {region === 'cn' && (
+                  <p className="text-xs text-amber-600 dark:text-amber-500 flex items-start gap-xs mt-xs">
+                    <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                    <span>{QWEN_WARNING}</span>
+                  </p>
+                )}
               </div>
 
               <div className="divide-y divide-grey-100 dark:divide-grey-800">
@@ -108,12 +115,6 @@ const ModelSettingsSection = React.memo(
                         <p className="text-xs text-grey-500 dark:text-grey-400">
                           {model.description}
                         </p>
-                        {model.warning && (
-                          <p className="text-xs text-amber-600 dark:text-amber-500 flex items-start gap-xs mt-xs">
-                            <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
-                            <span>{model.warning}</span>
-                          </p>
-                        )}
                       </div>
                       <div className="shrink-0 pt-0.5">
                         <Switch
