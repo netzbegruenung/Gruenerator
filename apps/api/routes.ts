@@ -11,6 +11,11 @@ import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountAuthStatusContractRouter } from './routes/auth/authStatusContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
+import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
+import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
+import notificationsRouter from './routes/notifications/index.js';
+import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
+import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
@@ -40,11 +45,6 @@ import {
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
-import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
-import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
-import notificationsRouter from './routes/notifications/index.js';
-import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
-import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
 import researchRouter from './routes/research/researchController.js';
@@ -231,6 +231,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: generatorConfiguratorRoute } =
     await import('./routes/custom_generators/generator_configurator.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
+  const { userAgentsRouter } = await import('./routes/userAgents/index.js');
   const {
     collectionsRouter: notebookCollectionsRouter,
     interactionRouter: notebookInteractionRouter,
@@ -507,6 +508,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/generate_generator_config', aiGenerationLimiter, generatorConfiguratorRoute);
   app.use('/api/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/auth/custom_prompt', aiGenerationLimiter, customPromptRoute);
+  app.use('/api/user-agents', userAgentsRouter);
   app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
   // requireAuth must run before the contract mount — createExpressEndpoints
   // registers handlers directly on the app, bypassing the legacy prefix

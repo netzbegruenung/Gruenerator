@@ -42,7 +42,7 @@ function ChatThreadPortal() {
 
   return createPortal(
     <div onClick={handleClick} className="contents">
-      <ChatThreadList />
+      <ChatThreadList noScroll />
     </div>,
     portalTarget
   );

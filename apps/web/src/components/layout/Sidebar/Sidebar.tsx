@@ -1,5 +1,10 @@
-import { useAgentStore } from '@gruenerator/chat';
+import { agentsList, type AgentListItem, useAgentStore } from '@gruenerator/chat';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
   Sheet,
   SheetContent,
   SheetTitle,
@@ -8,28 +13,96 @@ import {
   TooltipTrigger,
   useIsMobile,
 } from '@gruenerator/ui';
-import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
-import { PiSun, PiMoon, PiStarFill, PiSignIn } from 'react-icons/pi';
+
+/**
+ * Platform-specific social-media variants that should NOT appear as standalone
+ * agents in the inventory — they're represented by the merged "Social Media"
+ * default entry in the sidebar. They remain as `/instagram`, `@linkedin`, etc.
+ * skills in chat (the mention system uses agentsList directly).
+ */
+/**
+ * Mentions that the user wants only as `/mention` skills, NOT as standalone
+ * agents in the sidebar inventory or "Show all" modal. Either represented by
+ * a default entry (presse / social media / antrag) or skill-only by request
+ * (aktion). The mention system in chat continues to resolve all of these.
+ */
+const HIDDEN_INVENTORY_MENTIONS = new Set([
+  // Already represented by the "Presse" default
+  'presse',
+  // Social media platform variants — covered by the "Social Media" default
+  'instagram',
+  'facebook',
+  'twitter',
+  'linkedin',
+  'reel',
+  // Already represented by the "Anträge" default
+  'antrag',
+  // Aktionsideen — keep as /aktion skill, not in inventory
+  'aktion',
+]);
+
+interface DefaultAgentEntry {
+  key: string;
+  label: string;
+  identifier: string;
+  Icon: IconType;
+}
+
+/**
+ * Pinned defaults always shown in the sidebar regardless of favorites.
+ * "Öffentlichkeitsarbeit" is the combined Presse + Social Media agent — one
+ * model handling both formats with platform routing inside its system prompt
+ * (see `system.ts` Schritt 3a/3b). Splitting it into separate entries caused
+ * an `Array.find`-first-match display ambiguity (clicking Social Media showed
+ * "Pressemitteilung" because both pointed at the same identifier). Single
+ * entry resolves the ambiguity without splitting the agent.
+ */
+const DEFAULT_AGENT_ENTRIES: readonly DefaultAgentEntry[] = [
+  {
+    key: 'default-oeffentlichkeitsarbeit',
+    label: 'Öffentlichkeitsarbeit',
+    identifier: 'gruenerator-oeffentlichkeitsarbeit',
+    Icon: PiMegaphone,
+  },
+  {
+    key: 'default-antrag',
+    label: 'Anträge',
+    identifier: 'gruenerator-antrag',
+    Icon: PiNotePencil,
+  },
+];
+import { useEffect, useMemo, useCallback, useRef, useState, memo } from 'react';
+import {
+  PiSun,
+  PiMoon,
+  PiStarFill,
+  PiSignIn,
+  PiCaretRight,
+  PiSparkle,
+  PiMegaphone,
+  PiNotePencil,
+} from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
+import { useUserAgents } from '../../../features/agents/api';
+import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
 import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { StatusBadge } from '../../common/StatusBadge';
 import useDarkMode from '../../hooks/useDarkMode';
 import {
-  getMenuItems,
   getDirectMenuItems,
   getMobileOnlyMenuItems,
   getFooterLinks,
   type MenuItemType,
-  type MenuSection,
 } from '../Header/menuData';
 
 import NewItemDropdown from './NewItemDropdown';
-import SidebarSection from './SidebarSection';
 import { iconClass, menuLinkClass } from './sidebarStyles';
+
+import type { IconType } from 'react-icons';
 
 import { cn } from '@/utils/cn';
 import '../../../assets/styles/components/layout/sidebar.css';
@@ -69,11 +142,8 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
 
-  const [activeSection, setActiveSection] = useState<string | null>(null);
   const newMenuOpenRef = useRef(false);
   const [darkMode, toggleDarkMode] = useDarkMode();
-
-  const menuItems = useMemo(() => getMenuItems({ isAustrian }), [isAustrian]);
 
   const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
@@ -108,20 +178,22 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, close, toggle]);
 
-  const toggleSection = useCallback((sectionKey: string) => {
-    setActiveSection((prev) => (prev === sectionKey ? null : sectionKey));
-  }, []);
-
   const isActive = useCallback(
-    (path: string, activePaths?: string[]) => {
-      if (activePaths) {
-        return activePaths.some(
-          (p) => location.pathname === p || location.pathname.startsWith(p + '/')
-        );
+    (path: string, activePaths?: string[], activeQuery?: Record<string, string>) => {
+      const pathMatches = activePaths
+        ? activePaths.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'))
+        : location.pathname === path;
+      if (!pathMatches) return false;
+      if (!activeQuery) {
+        // Plain path match: if other entries claim a query param on this path,
+        // the no-query entry should NOT highlight when those params are set —
+        // but we don't know about siblings here. Keep current behaviour.
+        return true;
       }
-      return location.pathname === path;
+      const params = new URLSearchParams(location.search);
+      return Object.entries(activeQuery).every(([key, value]) => params.get(key) === value);
     },
-    [location.pathname]
+    [location.pathname, location.search]
   );
 
   const handleLinkClick = useCallback(
@@ -155,7 +227,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   }, [close]);
 
   const titleClass = cn(
-    'font-semibold text-[0.95rem] text-foreground-heading leading-snug transition-all duration-150 font-[Raleway,PT_Sans,Arial,sans-serif] xl:text-[1rem] 2xl:text-[1.05rem]',
+    'font-semibold text-sm text-foreground-heading leading-tight transition-all duration-150 font-[Raleway,PT_Sans,Arial,sans-serif]',
     sidebarExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
   );
 
@@ -187,7 +259,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       <nav className={cn('flex-none overflow-x-hidden pb-sm', isDesktop ? 'pt-3' : 'pt-12')}>
         {/* Direct menu items - main navigation */}
         {additionalItems.length > 0 && (
-          <div className="flex flex-col gap-0.5 p-0">
+          <div className="flex flex-col gap-0 p-0">
             {additionalItems.map((item) =>
               !item.path ? (
                 <span key={item.id} className={menuLinkClass(false, true)}>
@@ -207,8 +279,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                         ? handleChatClick()
                         : handleLinkClick(item.path!, item.title)
                     }
-                    className={menuLinkClass(isActive(item.path!, item.activePaths))}
-                    aria-current={isActive(item.path!, item.activePaths) ? 'page' : undefined}
+                    className={menuLinkClass(
+                      isActive(item.path!, item.activePaths, item.activeQuery)
+                    )}
+                    aria-current={
+                      isActive(item.path!, item.activePaths, item.activeQuery) ? 'page' : undefined
+                    }
                     type="button"
                   >
                     {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
@@ -259,33 +335,19 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           isActive={isActive}
           forceExpanded={forceExpanded}
         />
-
-        {/* Only render dropdown sections that have items */}
-        {(Object.entries(menuItems) as [keyof typeof menuItems, MenuSection][])
-          .filter(([_, menu]) => menu.items && menu.items.length > 0)
-          .map(([key, menu]) => (
-            <SidebarSection
-              key={key}
-              sectionKey={key}
-              title={menu.title}
-              items={menu.items}
-              isOpen={activeSection === key}
-              onToggle={() => toggleSection(key)}
-              onLinkClick={handleLinkClick}
-              isDesktop={isDesktop}
-              isActive={isActive}
-              sidebarExpanded={sidebarExpanded}
-            />
-          ))}
       </nav>
 
+      {/* Unified scroll region: agents + threads scroll together (ChatGPT-style) */}
       <div
-        id="chat-thread-portal-slot"
         className={cn(
-          'flex-1 flex flex-col overflow-hidden min-h-0 mt-2',
+          'flex-1 min-h-0 overflow-y-auto scrollbar-thin',
           !sidebarExpanded && 'hidden'
         )}
-      />
+      >
+        {user && <SidebarAgents sidebarExpanded={sidebarExpanded} onLinkClick={handleLinkClick} />}
+
+        <div id="chat-thread-portal-slot" className="mt-2" />
+      </div>
 
       {/* Login button for unauthenticated users */}
       {!user && (
@@ -339,7 +401,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           <SheetContent
             side="left"
             showCloseButton={false}
-            className="w-[85vw] max-w-[280px] p-0 bg-background flex flex-col gap-0 [&>div]:gap-0"
+            className="w-[85vw] max-w-[280px] p-0 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl flex flex-col gap-0 [&>div]:gap-0"
           >
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             {sidebarInner}
@@ -351,11 +413,12 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
       {(!isMobile || isDesktop) && (
         <aside
           className={cn(
-            'sidebar fixed top-0 left-0 h-dvh bg-background z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
-            // Desktop (non-Tauri)
-            !isDesktop && 'md:w-14',
+            'sidebar fixed top-0 left-0 h-dvh z-[1001] flex flex-col overflow-hidden transition-[width] duration-200',
+            // Desktop (non-Tauri) — frosted glass
+            !isDesktop &&
+              'md:w-14 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl border-r border-grey-200/60 dark:border-grey-800/60',
             !isDesktop && sidebarExpanded && 'md:w-[280px]',
-            // Tauri desktop mode
+            // Tauri desktop mode — keep native bar background, no blur
             isDesktop &&
               'top-[var(--titlebar-height)] h-[calc(100dvh-var(--titlebar-height))] bg-[var(--bar-background)]',
             isDesktop && !isOpen && 'w-16',
@@ -382,7 +445,7 @@ const SidebarFavourites = memo(function SidebarFavourites({
   isOpen: boolean;
   isDesktop: boolean;
   onLinkClick: (path: string, title: string) => void;
-  isActive: (path: string, activePaths?: string[]) => boolean;
+  isActive: (path: string, activePaths?: string[], activeQuery?: Record<string, string>) => boolean;
   forceExpanded: boolean;
 }) {
   const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
@@ -394,12 +457,12 @@ const SidebarFavourites = memo(function SidebarFavourites({
   const expanded = isOpen || forceExpanded;
 
   const titleClass = cn(
-    'font-semibold text-[0.95rem] text-foreground-heading leading-snug transition-all duration-150 font-[Raleway,PT_Sans,Arial,sans-serif] xl:text-[1rem] 2xl:text-[1.05rem]',
+    'font-semibold text-sm text-foreground-heading leading-tight transition-all duration-150 font-[Raleway,PT_Sans,Arial,sans-serif]',
     expanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
   );
 
   return (
-    <div className="flex flex-col gap-0.5 p-0 border-t border-grey-200 dark:border-grey-700 mt-1 pt-1">
+    <div className="flex flex-col gap-0 p-0 border-t border-grey-200 dark:border-grey-700 mt-1 pt-1">
       {items.map((item) => {
         const content = (
           <>
@@ -449,5 +512,261 @@ const SidebarFavourites = memo(function SidebarFavourites({
     </div>
   );
 });
+
+const AGENTS_EXPANDED_KEY = 'sidebar-agents-expanded';
+
+const SidebarAgents = memo(function SidebarAgents({
+  sidebarExpanded,
+  onLinkClick,
+}: {
+  sidebarExpanded: boolean;
+  onLinkClick: (path: string, title: string) => void;
+}) {
+  const { data: userAgents = [] } = useUserAgents();
+  // The "+ Neue*r Agent*in" CTA links to the unfinished agent-builder route at
+  // /agents/new — dev-only. The user-agents list itself (which includes
+  // virtualized custom_generators from the conversion work) is data-driven and
+  // safe in prod: users only see their own data.
+  const showCreateAgentCta = import.meta.env.DEV;
+
+  const favoriteMentions = useAgentFavoritesStore((s) => s.mentions);
+  const favoriteSkills = useMemo(() => {
+    const out: AgentListItem[] = [];
+    const seen = new Set<string>();
+    for (const mention of favoriteMentions) {
+      if (HIDDEN_INVENTORY_MENTIONS.has(mention)) continue;
+      const skill = agentsList.find((a) => a.mention === mention);
+      if (!skill) continue;
+      if (seen.has(skill.mention)) continue;
+      seen.add(skill.mention);
+      out.push(skill);
+    }
+    return out;
+  }, [favoriteMentions]);
+
+  const [isExpanded, setIsExpanded] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem(AGENTS_EXPANDED_KEY);
+      return stored === null ? true : stored === '1';
+    } catch {
+      return true;
+    }
+  });
+
+  const toggle = useCallback(() => {
+    setIsExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(AGENTS_EXPANDED_KEY, next ? '1' : '0');
+      } catch {
+        // localStorage unavailable
+      }
+      return next;
+    });
+  }, []);
+
+  const titleClass = cn(
+    'text-sm text-foreground leading-tight transition-all duration-150 truncate',
+    sidebarExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
+  );
+
+  return (
+    <div className="mt-3 px-xs">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={isExpanded}
+        className="flex w-full items-center gap-1.5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-grey-500 hover:text-foreground transition-colors"
+      >
+        <span>Grünerator Agents</span>
+        <PiCaretRight
+          className={cn('h-3 w-3 shrink-0 transition-transform', isExpanded && 'rotate-90')}
+          aria-hidden="true"
+        />
+      </button>
+      {isExpanded && (
+        <ul className="list-none m-0 p-0">
+          {DEFAULT_AGENT_ENTRIES.map((entry) => (
+            <li key={entry.key}>
+              <button
+                type="button"
+                onClick={() => onLinkClick(`/chat?agent=${entry.identifier}`, entry.label)}
+                className={menuLinkClass(false)}
+              >
+                <span className="shrink-0 w-6 h-6 flex items-center justify-center text-secondary-600">
+                  <entry.Icon aria-hidden="true" className="h-5 w-5" />
+                </span>
+                <span className={titleClass}>{entry.label}</span>
+              </button>
+            </li>
+          ))}
+
+          {favoriteSkills.map((skill) => (
+            <li key={`fav-${skill.mention}`}>
+              <button
+                type="button"
+                onClick={() => onLinkClick(`/chat?agent=${skill.identifier}`, skill.title)}
+                className={menuLinkClass(false)}
+              >
+                <span
+                  className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-sm"
+                  style={{ backgroundColor: skill.backgroundColor }}
+                >
+                  {skill.avatar}
+                </span>
+                <span className={titleClass}>{skill.title}</span>
+              </button>
+            </li>
+          ))}
+
+          {userAgents.map((agent) => (
+            <li key={agent.identifier}>
+              <button
+                type="button"
+                onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
+                className={menuLinkClass(false)}
+              >
+                <span className="shrink-0 w-6 h-6 flex items-center justify-center text-secondary-600">
+                  <PiSparkle aria-hidden="true" className="h-4 w-4" />
+                </span>
+                <span className={titleClass}>{agent.title}</span>
+              </button>
+            </li>
+          ))}
+
+          <li>
+            <AllAgentsDialog onLinkClick={onLinkClick} titleClass={titleClass} />
+          </li>
+
+          {showCreateAgentCta && (
+            <li>
+              <button
+                type="button"
+                onClick={() => onLinkClick('/agents/new', 'Neue*r Agent*in')}
+                className={cn(menuLinkClass(false), 'text-primary-600 dark:text-primary-300')}
+              >
+                <span className="shrink-0 w-6 h-6 flex items-center justify-center text-base">
+                  +
+                </span>
+                <span className={titleClass}>Neue*r Agent*in</span>
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
+});
+
+/**
+ * Modal listing every non-social-media skill with star toggles.
+ * Stars persist via `useAgentFavoritesStore`. Starred skills appear as
+ * additional rows in the sidebar agents section.
+ */
+function AllAgentsDialog({
+  onLinkClick,
+  titleClass,
+}: {
+  onLinkClick: (path: string, title: string) => void;
+  titleClass: string;
+}) {
+  const favoriteMentions = useAgentFavoritesStore((s) => s.mentions);
+  const toggle = useAgentFavoritesStore((s) => s.toggle);
+  const favoritesSet = useMemo(() => new Set(favoriteMentions), [favoriteMentions]);
+
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className={cn(menuLinkClass(false), 'text-grey-500 hover:text-foreground')}
+        >
+          <span className="shrink-0 w-6 h-6 flex items-center justify-center text-base">⋯</span>
+          <span className={titleClass}>Alle anzeigen</span>
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Alle Agents</DialogTitle>
+        </DialogHeader>
+        <ul className="list-none m-0 p-0 max-h-[60vh] overflow-y-auto scrollbar-thin">
+          {DEFAULT_AGENT_ENTRIES.map((entry) => (
+            <li
+              key={entry.key}
+              className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800/60"
+            >
+              <button
+                type="button"
+                onClick={() => onLinkClick(`/chat?agent=${entry.identifier}`, entry.label)}
+                className="flex flex-1 items-center gap-3 text-left"
+              >
+                <span className="shrink-0 w-7 h-7 flex items-center justify-center text-secondary-600">
+                  <entry.Icon aria-hidden="true" className="h-5 w-5" />
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-medium truncate">{entry.label}</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                disabled
+                className="shrink-0 p-1.5 rounded opacity-100 cursor-default"
+                aria-label="Standard-Favorit"
+                title="Standard-Favorit (immer angeheftet)"
+              >
+                <PiStarFill size={16} className="text-primary-600" />
+              </button>
+            </li>
+          ))}
+          <li className="my-2 border-t border-grey-200 dark:border-grey-800" aria-hidden="true" />
+          {agentsList
+            .filter((skill) => !HIDDEN_INVENTORY_MENTIONS.has(skill.mention ?? ''))
+            .map((skill) => {
+              const isFav = favoritesSet.has(skill.mention);
+              return (
+                <li
+                  key={skill.mention}
+                  className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800/60"
+                >
+                  <button
+                    type="button"
+                    onClick={() => onLinkClick(`/chat?agent=${skill.identifier}`, skill.title)}
+                    className="flex flex-1 items-center gap-3 text-left"
+                  >
+                    <span
+                      className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-sm"
+                      style={{ backgroundColor: skill.backgroundColor }}
+                    >
+                      {skill.avatar}
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium truncate">{skill.title}</span>
+                      {skill.description && (
+                        <span className="block text-xs text-grey-500 truncate">
+                          {skill.description}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggle(skill.mention)}
+                    className="shrink-0 p-1.5 rounded hover:bg-grey-200 dark:hover:bg-grey-700"
+                    aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                    title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                  >
+                    <PiStarFill
+                      size={16}
+                      className={cn(isFav ? 'text-primary-600' : 'text-grey-300')}
+                    />
+                  </button>
+                </li>
+              );
+            })}
+        </ul>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default memo(Sidebar);

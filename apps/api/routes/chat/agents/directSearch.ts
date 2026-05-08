@@ -20,12 +20,15 @@ export {
 export {
   executeDirectSearch,
   executeDirectExamplesSearch,
+  executeDirectPressemitteilungExamples,
   executeDirectWebSearch,
 } from './directSearchExecutors.js';
 
 export type {
   DirectSearchResult,
   DirectExamplesResult,
+  DirectPressemitteilungExamplesResult,
+  PressemitteilungExample,
   DirectWebSearchResult,
 } from './directSearchExecutors.js';
 

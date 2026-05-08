@@ -200,9 +200,20 @@ const ImageOwnerCard = memo(
 
     return (
       <>
-        <button type="button" className={cn(cardClass, 'text-left')} onClick={() => setOpen(true)}>
+        <div
+          role="button"
+          tabIndex={0}
+          className={cn(cardClass, 'text-left')}
+          onClick={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setOpen(true);
+            }
+          }}
+        >
           {cardContent}
-        </button>
+        </div>
         <Lightbox
           isOpen={open}
           onClose={() => setOpen(false)}

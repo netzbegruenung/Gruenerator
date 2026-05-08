@@ -7,6 +7,7 @@ interface WelcomeScreenProps {
   title?: string;
   description?: string;
   questions?: Array<{ text: string }>;
+  avatar?: string;
 }
 
 function AutoSuggestionItem() {
@@ -26,12 +27,17 @@ function AutoSuggestionItem() {
   );
 }
 
-export function WelcomeScreen({ title, description, questions }: WelcomeScreenProps = {}) {
+export function WelcomeScreen({ title, description, questions, avatar }: WelcomeScreenProps = {}) {
   const resolvedTitle = title ?? 'Grünerator Chat';
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-3xl flex-grow flex-col items-center justify-center px-4">
       <div className="flex w-full flex-col">
+        {avatar && (
+          <span aria-hidden className="mb-3 text-4xl leading-none">
+            {avatar}
+          </span>
+        )}
         <h1 className="m-0 text-2xl font-semibold text-foreground-heading">{resolvedTitle}</h1>
 
         {description && <p className="m-0 mt-1 text-sm text-foreground-muted">{description}</p>}

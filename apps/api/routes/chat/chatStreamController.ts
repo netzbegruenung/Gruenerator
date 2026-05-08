@@ -17,6 +17,7 @@ import {
   executeDirectSearch,
   // executeDirectPersonSearch, // DISABLED: Person search not production ready
   executeDirectExamplesSearch,
+  executeDirectPressemitteilungExamples,
   executeDirectWebSearch,
   executeResearch,
 } from './agents/directSearch.js';
@@ -34,12 +35,13 @@ const log = createLogger('ChatStreamController');
 const router = createAuthenticatedRouter();
 
 // DISABLED: 'person' - not production ready
-type ToolKey = 'search' | 'web' | 'examples' | 'research' | 'direct';
+type ToolKey = 'search' | 'web' | 'examples' | 'pressemitteilung_examples' | 'research' | 'direct';
 
 type SearchToolName =
   | 'gruenerator_search'
   // | 'gruenerator_person_search' // DISABLED: Person search not production ready
   | 'gruenerator_examples_search'
+  | 'gruenerator_pressemitteilung_examples'
   | 'web_search'
   | 'research'
   | 'direct_response';
@@ -49,6 +51,7 @@ const TOOL_KEY_TO_NAME: Record<ToolKey, SearchToolName> = {
   web: 'web_search',
   // person: 'gruenerator_person_search', // DISABLED: Person search not production ready
   examples: 'gruenerator_examples_search',
+  pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
   research: 'research',
   direct: 'direct_response',
 };
@@ -60,7 +63,10 @@ const chatStreamRequestSchema = z.object({
   model: z.string().optional(),
   threadId: z.string().optional(),
   enabledTools: z
-    .record(z.enum(['search', 'web', 'examples', 'research', 'direct']), z.boolean())
+    .record(
+      z.enum(['search', 'web', 'examples', 'pressemitteilung_examples', 'research', 'direct']),
+      z.boolean()
+    )
     .optional(),
 });
 type ChatStreamRequestBody = z.infer<typeof chatStreamRequestSchema>;
@@ -191,6 +197,33 @@ NICHT FÜR: Allgemeine Informationssuche, Fakten, Nachrichten`,
       } catch (error) {
         log.error('Direct examples search error:', error);
         return { error: 'Beispielsuche fehlgeschlagen', examples: [], resultsCount: 0 };
+      }
+    },
+  });
+
+  tools.gruenerator_pressemitteilung_examples = tool({
+    description: `Suche nach echten Pressemitteilungen aus Landesverbänden als Inspiration und Vorlage.
+
+NUTZE WENN:
+- Eine Pressemitteilung verfasst werden soll
+- Beispiele für journalistische PM-Sprache und Aufbau gebraucht werden
+- Du sehen willst, wie andere Landesverbände PMs zu ähnlichen Themen formulieren
+
+NICHT FÜR: Social-Media-Posts (nutze gruenerator_examples_search), allgemeine Recherche (nutze gruenerator_search), Anträge oder Reden.`,
+    inputSchema: z.object({
+      query: z.string().describe('Thema der Pressemitteilung'),
+    }),
+    execute: async ({ query }) => {
+      try {
+        const results = await executeDirectPressemitteilungExamples({ query });
+        return results;
+      } catch (error) {
+        log.error('Direct pressemitteilung examples error:', error);
+        return {
+          error: 'Pressemitteilung-Suche fehlgeschlagen',
+          examples: [],
+          resultsCount: 0,
+        };
       }
     },
   });
