@@ -9,6 +9,7 @@ import {
   templates,
   type TemplateType,
 } from '@gruenerator/docs';
+import { instantiateUserTemplate, type UserTemplateSummary } from '@gruenerator/shared';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -313,6 +314,25 @@ function DocumentsContent() {
     [createBoard, navigate]
   );
 
+  const handleUserTemplateSelect = useCallback(
+    async (template: UserTemplateSummary) => {
+      try {
+        const result = await instantiateUserTemplate({
+          templateId: template.id,
+          title: template.title,
+        });
+        if (result.subtype === 'boards') {
+          void navigate(`/boards/${result.documentId}`);
+        } else {
+          adapter.navigateToDocument(result.documentId);
+        }
+      } catch (err) {
+        console.error('Failed to instantiate user template:', err);
+      }
+    },
+    [adapter, navigate]
+  );
+
   return (
     <>
       <div className="mb-md mt-md flex items-center gap-sm">
@@ -359,6 +379,7 @@ function DocumentsContent() {
           onShowGallery={() => setShowGallery(true)}
           onCreateBoardFromTemplate={handleCreateBoardFromTemplate}
           onCreateWhiteboard={() => handleCreateBoard('whiteboard')}
+          onUserTemplateSelect={handleUserTemplateSelect}
         />
 
         {isLoading ? (

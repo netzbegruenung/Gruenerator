@@ -77,6 +77,32 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
   const [directShareSuccess, setDirectShareSuccess] = useState(false);
   const [isChangingMode, setIsChangingMode] = useState(false);
 
+  const [templateMode, setTemplateMode] = useState<'idle' | 'editing' | 'saving' | 'saved'>('idle');
+  const [templateTitle, setTemplateTitle] = useState(documentTitle ?? '');
+  const [templateError, setTemplateError] = useState<string | null>(null);
+
+  const saveAsTemplate = async () => {
+    const trimmed = templateTitle.trim();
+    if (!trimmed) {
+      setTemplateError('Bitte gib der Vorlage einen Titel.');
+      return;
+    }
+    try {
+      setTemplateMode('saving');
+      setTemplateError(null);
+      await apiClient.post(`/docs/${documentId}/save-as-template`, {
+        title: trimmed,
+        is_private: true,
+      });
+      setTemplateMode('saved');
+      setTimeout(() => setTemplateMode('idle'), 2500);
+    } catch (err) {
+      console.error('Failed to save as template:', err);
+      setTemplateError('Vorlage konnte nicht gespeichert werden.');
+      setTemplateMode('editing');
+    }
+  };
+
   const fetchCollaborators = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -396,6 +422,49 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
               </div>
             )}
           </div>
+        </div>
+
+        <div className="border-t border-grey-200 px-6 py-3 dark:border-grey-700">
+          {templateMode === 'idle' && (
+            <button
+              type="button"
+              onClick={() => setTemplateMode('editing')}
+              className="cursor-pointer bg-transparent border-none p-0 text-sm font-medium text-secondary-600 hover:underline"
+            >
+              Als Vorlage speichern
+            </button>
+          )}
+          {templateMode === 'editing' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={templateTitle}
+                onChange={(e) => setTemplateTitle(e.target.value)}
+                placeholder="Titel der Vorlage"
+                className="flex-1 min-w-[200px] h-8 rounded-md border border-grey-300 bg-background px-2 text-sm outline-none focus:border-primary-600 dark:border-grey-600"
+              />
+              <Button size="xs" onClick={saveAsTemplate}>
+                Speichern
+              </Button>
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={() => {
+                  setTemplateMode('idle');
+                  setTemplateError(null);
+                }}
+              >
+                Abbrechen
+              </Button>
+            </div>
+          )}
+          {templateMode === 'saving' && (
+            <p className="text-sm text-grey-500">Vorlage wird gespeichert…</p>
+          )}
+          {templateMode === 'saved' && (
+            <p className="text-sm text-green-600">✓ Vorlage gespeichert</p>
+          )}
+          {templateError && <p className="mt-1 text-xs text-red-600">{templateError}</p>}
         </div>
 
         <div className="flex items-center border-t border-grey-200 p-4 px-6 dark:border-grey-700">
