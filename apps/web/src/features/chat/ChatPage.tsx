@@ -44,9 +44,13 @@ function ChatPage() {
 
   useEffect(() => {
     const store = useAgentStore.getState();
-    if (agentParam && store.selectedAgentId !== agentParam) {
-      store.setSelectedAgent(agentParam);
-      store.setChatViewMode('thread');
+    if (agentParam) {
+      if (store.selectedAgentId !== agentParam) {
+        store.setSelectedAgent(agentParam);
+        store.setChatViewMode('thread');
+      }
+    } else if (store.selectedAgentId !== null) {
+      store.setSelectedAgent(null);
     }
     if (
       modeParam &&
