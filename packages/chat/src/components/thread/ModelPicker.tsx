@@ -96,7 +96,9 @@ export const ModelPicker = memo(function ModelPicker() {
           type="button"
           className={composerToolbarButtonClass(isCompact)}
           aria-label={
-            current.warning ? `Modell wählen – ${current.name} (Warnhinweis)` : 'Modell wählen'
+            current.region === 'cn'
+              ? `Modell wählen – ${current.name} (Warnhinweis)`
+              : 'Modell wählen'
           }
         >
           <span>{current.name}</span>
