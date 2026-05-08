@@ -43,6 +43,7 @@ interface GrueneratorComposerProps {
    * (mobile/desktop consumers without a hydration bridge are unaffected).
    */
   requireProfileHydration?: boolean;
+  insideAgent?: boolean;
 }
 
 const ROUND_BTN_BASE = 'flex items-center justify-center rounded-full transition-opacity';
@@ -159,6 +160,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showPlusMenu = true,
   showToolToggles = true,
   requireProfileHydration = false,
+  insideAgent = false,
 }: GrueneratorComposerProps) {
   const composerRuntime = useComposerRuntime();
   const isCompact = useChatDensity() === 'compact';
@@ -450,7 +452,13 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
                 onUploadFile={handlePlusMenuUpload}
               />
             )}
-            {showToolToggles && <ToolToggles onNavigate={onNavigate} firstName={firstName} />}
+            {showToolToggles && (
+              <ToolToggles
+                onNavigate={onNavigate}
+                firstName={firstName}
+                insideAgent={insideAgent}
+              />
+            )}
             {toolbarExtra}
           </div>
           <div className="flex items-center gap-0.5">

@@ -94,6 +94,7 @@ export function GrueneratorThread({
           firstName={firstName}
           toolbarExtra={toolbarExtra}
           requireProfileHydration={requireProfileHydration}
+          insideAgent={!!activeAgent}
         />
       </ThreadPrimitive.Root>
     </ChatDensityContext.Provider>
