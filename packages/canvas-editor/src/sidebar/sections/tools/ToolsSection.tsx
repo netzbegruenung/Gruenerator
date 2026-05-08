@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { HiSparkles } from 'react-icons/hi';
-import { HiPencilSquare, HiScissors } from 'react-icons/hi2';
+import { HiPencilSquare, HiQrCode, HiScissors } from 'react-icons/hi2';
 import { PiArrowLeft } from 'react-icons/pi';
 
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
@@ -8,6 +8,7 @@ import { cn } from '../../../utils/cn';
 
 import { AiCreateTool } from './AiCreateTool';
 import { AiEditTool } from './AiEditTool';
+import { QRCodeTool } from './QRCodeTool';
 import { RemoveBackgroundTool } from './RemoveBackgroundTool';
 
 import type { ComponentType } from 'react';
@@ -18,7 +19,7 @@ export interface ToolsSectionProps {
   onJumpToUploads?: () => void;
 }
 
-type ToolView = 'browse' | 'remove-bg' | 'ai-create' | 'ai-edit';
+type ToolView = 'browse' | 'remove-bg' | 'ai-create' | 'ai-edit' | 'qr-code';
 
 interface ToolCard {
   id: Exclude<ToolView, 'browse'>;
@@ -118,6 +119,16 @@ export function ToolsSection({ onJumpToUploads }: ToolsSectionProps) {
       ring: 'focus-visible:ring-primary-600',
       available: !!editAiImage,
     },
+    {
+      id: 'qr-code',
+      label: 'QR-Code erstellen',
+      icon: HiQrCode,
+      iconColor: 'text-foreground dark:text-foreground',
+      hoverShadow:
+        'group-hover:shadow-sm group-hover:shadow-foreground/15 dark:group-hover:shadow-foreground/15',
+      ring: 'focus-visible:ring-primary-600',
+      available: true,
+    },
   ];
 
   const availableCards = cards.filter((c) => c.available);
@@ -149,6 +160,7 @@ export function ToolsSection({ onJumpToUploads }: ToolsSectionProps) {
       {activeView === 'remove-bg' && <RemoveBackgroundTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'ai-create' && <AiCreateTool onJumpToUploads={onJumpToUploads} />}
       {activeView === 'ai-edit' && <AiEditTool onJumpToUploads={onJumpToUploads} />}
+      {activeView === 'qr-code' && <QRCodeTool onJumpToUploads={onJumpToUploads} />}
     </div>
   );
 }
