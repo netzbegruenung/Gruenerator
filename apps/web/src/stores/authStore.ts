@@ -6,8 +6,6 @@ import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
 import { isDesktopApp } from '../utils/platform';
 
-import { useUserDefaultsStore } from './userDefaultsStore';
-
 // =============================================================================
 // Type Definitions
 // =============================================================================
@@ -291,8 +289,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
 
     // Legacy cleanup - no longer needed with new auth system
+    // user-defaults RQ cache is cleared via win.queryClient.clear() above
 
-    useUserDefaultsStore.getState().reset();
     useUserProfileStore.getState().reset();
 
     // Reset store to default state
