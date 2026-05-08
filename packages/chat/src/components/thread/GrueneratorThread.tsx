@@ -91,6 +91,7 @@ export function GrueneratorThread({
           onNavigate={onNavigate}
           firstName={firstName}
           toolbarExtra={toolbarExtra}
+          insideAgent={!!activeAgent}
         />
       </ThreadPrimitive.Root>
     </ChatDensityContext.Provider>

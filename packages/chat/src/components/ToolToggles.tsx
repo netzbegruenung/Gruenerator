@@ -31,9 +31,14 @@ const MODE_CONFIG: Array<{
 interface ToolTogglesProps {
   onNavigate?: (path: string) => void;
   firstName?: string | null;
+  insideAgent?: boolean;
 }
 
-export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: ToolTogglesProps) {
+export const ToolToggles = memo(function ToolToggles({
+  onNavigate,
+  firstName,
+  insideAgent = false,
+}: ToolTogglesProps) {
   const isCompact = useChatDensity() === 'compact';
   const { threadMode, selectedNotebookId, customSystemPrompt } = useAgentStore(
     useShallow((s) => ({
@@ -90,7 +95,22 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
 
   const activeClass = 'bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300';
 
-  const desktopContent = (
+  const rolesEntry = onNavigate ? (
+    <DropdownMenuItem onSelect={() => onNavigate('/dein-gruenerator')}>
+      <Settings className="h-3.5 w-3.5" />
+      <span className="flex-1">Rollen einrichten</span>
+    </DropdownMenuItem>
+  ) : null;
+
+  const rolesEntryMobile = onNavigate ? (
+    <ResponsiveMenuItem icon={<Settings />} onClick={() => onNavigate('/dein-gruenerator')}>
+      Rollen einrichten
+    </ResponsiveMenuItem>
+  ) : null;
+
+  const desktopContent = insideAgent ? (
+    <>{rolesEntry}</>
+  ) : (
     <>
       {MODE_CONFIG.map(({ mode, label, Icon }) => (
         <DropdownMenuItem
@@ -170,7 +190,9 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
     </>
   );
 
-  const mobileContent = (
+  const mobileContent = insideAgent ? (
+    <ResponsiveMenuSection title="Profil">{rolesEntryMobile}</ResponsiveMenuSection>
+  ) : (
     <>
       <ResponsiveMenuSection title="Modus">
         {MODE_CONFIG.map(({ mode, label, Icon }) => (
@@ -221,20 +243,22 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
     </>
   );
 
+  const showModeBadge = !insideAgent && threadMode !== 'chat';
+
   return (
     <ResponsiveMenu
-      sheetTitle="Modus"
+      sheetTitle={insideAgent ? 'Profil' : 'Modus'}
       trigger={
         <button
           type="button"
           className={`${composerToolbarButtonClass(isCompact)} ${
-            threadMode !== 'chat'
+            showModeBadge
               ? 'rounded-full border border-primary-200 text-primary-700 dark:border-primary-400/30 dark:text-primary-300'
               : ''
           }`}
         >
           <Wrench className="h-4 w-4" />
-          {threadMode !== 'chat' && (
+          {showModeBadge && (
             <span className="max-w-32 truncate text-[12px] font-medium tracking-tight">
               {threadMode === 'eigener'
                 ? eigenerBadgeLabel
