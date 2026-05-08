@@ -35,6 +35,9 @@ export const INTENT_KEYWORDS: Record<
   string[]
 > = {
   research: ['recherchiere', 'recherche', 'untersuche', 'analysiere', 'erforsche'],
+  // 'compare' is upgraded post-classification (≥2 doc sources + compare verbs);
+  // keep this list empty so the heuristic doesn't fire it on single-doc queries.
+  compare: [],
   image: ['visualisiere', 'zeichne', 'illustriere', 'grafik', 'illustration'],
   web: ['internet', 'netz', 'online', 'aktuell', 'nachricht', 'news'],
   search: ['wahlprogramm', 'beschluss', 'grundsatzprogramm'],

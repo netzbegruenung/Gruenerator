@@ -22,8 +22,6 @@ import { getDefaultCollectionsForLocale } from './searchNode.js';
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
 import type { ChatGraphState, SearchResult } from '../types.js';
 
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 // ============================================================================
 // Test Utilities
 // ============================================================================
@@ -208,6 +206,9 @@ async function testExpandedContextWindow() {
     targetGroupName: null,
     isCompound: false,
     gatherSources: [],
+    documentSources: [],
+    perSourceResults: {},
+    synthesisMode: null,
     hasTemporal: false,
     complexity: 'moderate',
     needsClarification: false,
@@ -297,10 +298,10 @@ async function testRerankScoreParsing() {
   const validJson =
     '{ "scores": [{"index": 0, "score": 5}, {"index": 1, "score": 3}, {"index": 2, "score": 1}] }';
   try {
-    const parsed = JSON.parse(validJson);
+    const parsed = JSON.parse(validJson) as { scores: { index: number; score: number }[] };
     assert(parsed.scores.length === 3, 'Valid rerank JSON parses correctly');
     assert(
-      parsed.scores[0].score === 5 && parsed.scores[1].score === 3,
+      parsed.scores[0]!.score === 5 && parsed.scores[1]!.score === 3,
       'Scores have correct values'
     );
   } catch {
@@ -314,7 +315,7 @@ async function testRerankScoreParsing() {
   assert(jsonMatch !== null, 'JSON extracted from surrounding text');
   if (jsonMatch) {
     try {
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(jsonMatch[0]) as { scores?: { score: number }[] };
       assert(parsed.scores?.[0]?.score === 4, 'Extracted JSON has correct scores');
     } catch {
       assert(false, 'Extracted JSON should be parseable');
