@@ -5,7 +5,7 @@ import {
   useAgentStore,
   type UserRole,
 } from '@gruenerator/chat';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
@@ -27,7 +27,36 @@ function ChatPage() {
   const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
   useHydrateUserProfile();
-  useDocumentTitle(chatViewMode === 'thread' ? currentThreadTitle : null);
+
+  const agentParam = searchParams.get('agent');
+  const modeParam = searchParams.get('mode');
+
+  // When the URL carries an agent or mode param, jump straight into the thread —
+  // otherwise users land on the overview/role-picker first and have no idea
+  // their click on a sidebar agent entry "did anything".
+  const effectiveViewMode =
+    agentParam ||
+    (modeParam && (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener'))
+      ? 'thread'
+      : chatViewMode;
+
+  useDocumentTitle(effectiveViewMode === 'thread' ? currentThreadTitle : null);
+
+  useEffect(() => {
+    const store = useAgentStore.getState();
+    if (agentParam && store.selectedAgentId !== agentParam) {
+      store.setSelectedAgent(agentParam);
+      store.setChatViewMode('thread');
+    }
+    if (
+      modeParam &&
+      (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener') &&
+      store.threadMode !== modeParam
+    ) {
+      store.setThreadMode(modeParam);
+      store.setChatViewMode('thread');
+    }
+  }, [agentParam, modeParam]);
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
@@ -48,26 +77,10 @@ function ChatPage() {
     store.setChatViewMode('thread');
   }, []);
 
-  const agentParam = searchParams.get('agent');
-  const modeParam = searchParams.get('mode');
-  const store = useAgentStore.getState();
-  if (agentParam && store.selectedAgentId !== agentParam) {
-    store.setSelectedAgent(agentParam);
-    store.setChatViewMode('thread');
-  }
-  if (
-    modeParam &&
-    (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener') &&
-    store.threadMode !== modeParam
-  ) {
-    store.setThreadMode(modeParam);
-    store.setChatViewMode('thread');
-  }
-
   return (
     <div className="flex min-h-0 h-full bg-background">
       <main className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
-        {chatViewMode === 'overview' ? (
+        {effectiveViewMode === 'overview' ? (
           <ChatOverview
             firstName={firstName}
             notebooks={notebookLinks}

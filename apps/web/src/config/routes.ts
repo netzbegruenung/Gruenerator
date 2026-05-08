@@ -176,6 +176,8 @@ const SitesHomePage = lazy(() => import('../features/sites/SitesHomePage'));
 const SitesLoginPage = lazy(() => import('../features/sites/SitesLoginPage'));
 const SitesDemoPage = lazy(() => import('../features/sites/SitesDemoPage'));
 const SitesEditPage = lazy(() => import('../features/sites/SitesEditPage'));
+const AgentListPage = lazy(() => import('../features/agents/AgentListPage'));
+const AgentBuilderPage = lazy(() => import('../features/agents/AgentBuilderPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -209,6 +211,18 @@ const standardRoutes: RouteConfig[] = [
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   { path: '/workplace', component: WorkplacePage },
+  // Dev-only: user-created agents (Agent Creator + Overview).
+  ...(import.meta.env.DEV
+    ? [
+        { path: '/agents', component: AgentListPage, auth: 'required' as const },
+        { path: '/agents/new', component: AgentBuilderPage, auth: 'required' as const },
+        {
+          path: '/agents/:identifier/edit',
+          component: AgentBuilderPage,
+          auth: 'required' as const,
+        },
+      ]
+    : []),
   {
     path: '/desk',
     component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),

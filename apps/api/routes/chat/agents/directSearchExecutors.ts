@@ -68,6 +68,23 @@ export interface DirectExamplesResult {
   message?: string;
 }
 
+export interface PressemitteilungExample {
+  id: string;
+  title: string;
+  body: string;
+  lv: string;
+  sourceId?: string;
+  publishedAt?: string;
+  url?: string;
+}
+
+export interface DirectPressemitteilungExamplesResult {
+  resultsCount: number;
+  examples: PressemitteilungExample[];
+  error?: boolean;
+  message?: string;
+}
+
 export interface DirectWebSearchResult {
   query: string;
   searchType: string;
@@ -324,6 +341,102 @@ export async function executeDirectExamplesSearch(params: {
       examples: [],
       error: true,
       message: `Beispielsuche fehlgeschlagen: ${errMsg}`,
+    };
+  }
+}
+
+// Maps a Landesverband source_id (e.g. "berlin-lv-presse") to its short code.
+// The short code is the same one used in landesverbaendeConfig.shortName.
+function lvShortNameFromSourceId(sourceId: string | undefined): string {
+  if (!sourceId) return '';
+  const prefix = sourceId.split('-')[0];
+  const map: Record<string, string> = {
+    berlin: 'BE',
+    hamburg: 'HH',
+    thueringen: 'TH',
+    'mecklenburg-vorpommern': 'MV',
+    brandenburg: 'BB',
+    bayern: 'BY',
+    'schleswig-holstein': 'SH',
+  };
+  // mecklenburg-vorpommern source_ids start with "mecklenburg-vorpommern-..." so
+  // try the two-segment prefix first
+  const twoSeg = sourceId.split('-').slice(0, 2).join('-');
+  return map[twoSeg] ?? map[prefix] ?? '';
+}
+
+/**
+ * Execute a Pressemitteilung-examples search across all Landesverbände.
+ * Queries the `landesverbaende_documents` Qdrant collection filtered to
+ * `content_type='presse'`, ranked by semantic relevance to the query.
+ */
+export async function executeDirectPressemitteilungExamples(params: {
+  query: string;
+  limit?: number;
+}): Promise<DirectPressemitteilungExamplesResult> {
+  const { query, limit = 6 } = params;
+
+  log.info(`[Direct PM Examples] query="${query}" limit=${limit}`);
+
+  const additionalFilter: QdrantFilter = {
+    must: [{ key: 'content_type', match: { value: 'presse' } }],
+  };
+
+  try {
+    const response = await documentSearchService.search({
+      query,
+      userId: undefined,
+      options: {
+        limit,
+        mode: 'hybrid',
+        searchCollection: 'landesverbaende_documents',
+        threshold: 0.2,
+        additionalFilter,
+      },
+    });
+
+    if (!response.success || !response.results || response.results.length === 0) {
+      return {
+        resultsCount: 0,
+        examples: [],
+        message: 'Keine passenden Pressemitteilungen gefunden.',
+      };
+    }
+
+    const seenTitles = new Set<string>();
+    const examples: PressemitteilungExample[] = [];
+    for (const r of response.results as DocumentResult[]) {
+      const title = r.title ?? 'Pressemitteilung';
+      if (seenTitles.has(title)) continue;
+      seenTitles.add(title);
+
+      const sourceId = r.source_id ?? undefined;
+      const lv = lvShortNameFromSourceId(sourceId);
+      const publishedAt = r.published_at ?? undefined;
+      const url = r.source_url ?? undefined;
+      const body = truncateText(r.relevant_content ?? '', 1500);
+
+      examples.push({
+        id: String(r.document_id ?? title),
+        title,
+        body,
+        lv,
+        ...(sourceId && { sourceId }),
+        ...(publishedAt && { publishedAt }),
+        ...(url && { url }),
+      });
+    }
+
+    log.info(`[Direct PM Examples] returning ${examples.length} examples`);
+    return { resultsCount: examples.length, examples };
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    log.error(`[Direct PM Examples] Error:`, errMsg);
+    return {
+      resultsCount: 0,
+      examples: [],
+      error: true,
+      message: `Pressemitteilung-Suche fehlgeschlagen: ${errMsg}`,
     };
   }
 }
