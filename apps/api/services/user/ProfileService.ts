@@ -396,9 +396,12 @@ class ProfileService {
       }
       defaults[generator][key] = value;
 
+      console.log(
+        `[ProfileService.updateUserDefault] before write user=${userId} defaults=${JSON.stringify(defaults)}`
+      );
       const result = await this.updateProfile(userId, { user_defaults: defaults });
       console.log(
-        `[ProfileService] User default updated: ${generator}.${key} = ${value} for user ${userId}`
+        `[ProfileService.updateUserDefault] after write user=${userId} result.user_defaults=${JSON.stringify(result.user_defaults)}`
       );
       return result;
     } catch (error: unknown) {

@@ -83,11 +83,17 @@ export function useSetUserDefault<G extends UserDefaultsGenerator, K extends Use
         key,
         value,
       });
+      const respPayload = response.data as {
+        success?: boolean;
+        userDefaults?: { profile?: { roles?: unknown } };
+      };
       console.log(
         '[user-defaults] mutate ok | status=' +
           response.status +
-          ' | data=' +
-          JSON.stringify(response.data)
+          ' | success=' +
+          respPayload?.success +
+          ' | server.profile.roles=' +
+          JSON.stringify(respPayload?.userDefaults?.profile?.roles)
       );
     },
     onMutate: async ({ generator, key, value }) => {
