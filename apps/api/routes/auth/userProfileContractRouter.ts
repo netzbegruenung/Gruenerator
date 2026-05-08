@@ -318,6 +318,9 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       }
 
       const userDefaults = profileService.getUserDefaults(profile);
+      log.info(
+        `[User Defaults GET contract] user=${user.id} keys=${JSON.stringify(Object.keys(userDefaults))} profile.roles=${JSON.stringify((userDefaults as { profile?: { roles?: unknown } }).profile?.roles)}`
+      );
 
       return {
         status: 200 as const,
@@ -342,10 +345,14 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       const profileService = getProfileService();
       const { generator, key, value } = args.body;
 
+      log.info(
+        `[User Defaults PATCH contract] user=${userId} gen=${generator} key=${key} value=${JSON.stringify(value)}`
+      );
       const updatedProfile = await profileService.updateUserDefault(userId, generator, key, value);
       const userDefaults = profileService.getUserDefaults(updatedProfile);
-
-      log.debug(`[User Defaults Change] User ${userId}: ${generator}.${key} = ${String(value)}`);
+      log.info(
+        `[User Defaults PATCH contract] result user=${userId} keys=${JSON.stringify(Object.keys(userDefaults))} profile.roles=${JSON.stringify((userDefaults as { profile?: { roles?: unknown } }).profile?.roles)}`
+      );
 
       return {
         status: 200 as const,
