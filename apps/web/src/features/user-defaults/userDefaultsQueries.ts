@@ -25,20 +25,11 @@ export function useUserDefaultsQuery() {
   return useQuery({
     queryKey: USER_DEFAULTS_QUERY_KEY,
     queryFn: async (): Promise<UserDefaultsBlob> => {
-      console.log('[user-defaults] fetch start');
       const response = await apiClient.get<{ userDefaults?: UserDefaultsBlob }>(
         '/auth/profile/user-defaults',
         { skipAuthRedirect: true }
       );
-      const blob = response.data.userDefaults ?? {};
-      const rawProfileRoles = (blob as { profile?: { roles?: unknown } }).profile?.roles;
-      console.log(
-        '[user-defaults] fetch ok | keys=' +
-          JSON.stringify(Object.keys(blob)) +
-          ' | profile.roles=' +
-          JSON.stringify(rawProfileRoles)
-      );
-      return blob;
+      return response.data.userDefaults ?? {};
     },
     enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
@@ -70,31 +61,7 @@ export function useSetUserDefault<G extends UserDefaultsGenerator, K extends Use
 
   return useMutation({
     mutationFn: async ({ generator, key, value }: SetUserDefaultVariables<G, K>) => {
-      console.log(
-        '[user-defaults] mutate start | gen=' +
-          generator +
-          ' | key=' +
-          key +
-          ' | value=' +
-          JSON.stringify(value)
-      );
-      const response = await apiClient.patch('/auth/profile/user-defaults', {
-        generator,
-        key,
-        value,
-      });
-      const respPayload = response.data as {
-        success?: boolean;
-        userDefaults?: { profile?: { roles?: unknown } };
-      };
-      console.log(
-        '[user-defaults] mutate ok | status=' +
-          response.status +
-          ' | success=' +
-          respPayload?.success +
-          ' | server.profile.roles=' +
-          JSON.stringify(respPayload?.userDefaults?.profile?.roles)
-      );
+      await apiClient.patch('/auth/profile/user-defaults', { generator, key, value });
     },
     onMutate: async ({ generator, key, value }) => {
       await queryClient.cancelQueries({ queryKey: USER_DEFAULTS_QUERY_KEY });

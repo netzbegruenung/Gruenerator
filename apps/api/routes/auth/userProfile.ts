@@ -384,9 +384,6 @@ router.get(
       }
 
       const userDefaults = profileService.getUserDefaults(profile);
-      log.info(
-        `[User Defaults GET legacy] user=${req.user!.id} keys=${JSON.stringify(Object.keys(userDefaults))} profile.roles=${JSON.stringify((userDefaults as { profile?: { roles?: unknown } }).profile?.roles)}`
-      );
 
       res.json({
         success: true,
@@ -415,9 +412,6 @@ router.patch(
       const profileService = getProfileService();
       const { generator, key, value } = req.body;
 
-      log.info(
-        `[User Defaults PATCH legacy] user=${req.user!.id} gen=${generator} key=${key} value=${JSON.stringify(value)}`
-      );
       const updatedProfile = await profileService.updateUserDefault(
         req.user!.id,
         generator,
@@ -425,9 +419,6 @@ router.patch(
         value
       );
       const userDefaults = profileService.getUserDefaults(updatedProfile);
-      log.info(
-        `[User Defaults PATCH legacy] result user=${req.user!.id} keys=${JSON.stringify(Object.keys(userDefaults))} profile.roles=${JSON.stringify((userDefaults as { profile?: { roles?: unknown } }).profile?.roles)}`
-      );
 
       res.json({
         success: true,
