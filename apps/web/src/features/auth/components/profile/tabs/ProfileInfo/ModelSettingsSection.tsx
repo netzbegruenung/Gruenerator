@@ -77,6 +77,21 @@ const ModelSettingsSection = React.memo(
             >
               <div className="px-md py-sm bg-grey-50 dark:bg-grey-800/50 border-b border-grey-200 dark:border-grey-700">
                 <h4 className="text-sm font-semibold text-foreground">{REGION_LABELS[region]}</h4>
+                {region === 'self-hosted' && (
+                  <p className="text-xs text-grey-500 dark:text-grey-400 mt-xs">
+                    Diese Modelle laufen in europäischen Rechenzentren mit 100% erneuerbarer Energie
+                    und ohne Wasserkühlung. Jede Anfrage ist damit CO₂-neutral und schont knappe
+                    Wasserressourcen.
+                  </p>
+                )}
+                {region === 'eu' && (
+                  <p className="text-xs text-grey-500 dark:text-grey-400 mt-xs">
+                    Mistral AI ist Europas einziger ernstzunehmender Anbieter auf Augenhöhe mit den
+                    großen US-Laboren. Das französische Unternehmen entwickelt leistungsfähige,
+                    teils offen verfügbare Modelle nach europäischen Datenschutz- und
+                    Souveränitätsstandards.
+                  </p>
+                )}
               </div>
 
               <div className="divide-y divide-grey-100 dark:divide-grey-800">

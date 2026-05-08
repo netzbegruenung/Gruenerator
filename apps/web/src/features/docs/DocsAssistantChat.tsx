@@ -23,6 +23,7 @@ import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useMemo, useRef } from 'react';
 import { z } from 'zod';
+
 import { DocAiEditToggle, useDocAiEditEnabled } from './DocAiEditToggle';
 
 interface DocsAssistantChatProps {
@@ -214,7 +215,13 @@ function DocsAssistantThreadShell({
       // Empty modelId → backend uses the docs-editor agent's defaultModel.
       // The adapter requires the field but treats falsy values as "no override".
       modelId: '',
-      enabledTools: { search: true, web: true, examples: true, research: true },
+      enabledTools: {
+        search: true,
+        web: true,
+        examples: true,
+        pressemitteilung_examples: false,
+        research: true,
+      },
       customEnabledTools: {
         summary: true,
         edit_current_doc: aiEditEnabledRef.current,

@@ -93,7 +93,7 @@ export function isModelEnabledByDefault(id: ModelId): boolean {
 }
 
 export const REGION_LABELS: Record<ModelRegion, string> = {
-  'self-hosted': 'Selbst gehostet',
+  'self-hosted': 'Klimaneutral',
   eu: 'EU',
   us: 'USA',
   cn: 'Chinesisch',

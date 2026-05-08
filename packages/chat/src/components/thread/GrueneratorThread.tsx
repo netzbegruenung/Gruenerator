@@ -12,6 +12,7 @@ import { GrueneratorComposer } from './GrueneratorComposer';
 import { AutoMessageSender } from './AutoMessageSender';
 import { ChatDensityContext, type ChatDensity } from './chatDensityContext';
 import { useChatCollaborationContext } from '../../context/ChatCollaborationContext';
+import { useActiveAgentMeta } from '../../lib/useActiveAgentMeta';
 
 interface GrueneratorThreadProps {
   onNavigate?: (path: string) => void;
@@ -42,6 +43,7 @@ export function GrueneratorThread({
   const collab = useChatCollaborationContext();
   const collaborators = useCollaborators(collab?.provider ?? null);
   const isCompact = density === 'compact';
+  const activeAgent = useActiveAgentMeta();
 
   return (
     <ChatDensityContext.Provider value={density}>
@@ -63,7 +65,12 @@ export function GrueneratorThread({
             }
           >
             <ThreadPrimitive.Empty>
-              <WelcomeScreen />
+              <WelcomeScreen
+                title={activeAgent?.title}
+                description={activeAgent?.description}
+                questions={activeAgent?.openingQuestions?.map((text) => ({ text }))}
+                avatar={activeAgent?.avatar}
+              />
             </ThreadPrimitive.Empty>
 
             <ThreadPrimitive.Messages components={messageComponents} />
