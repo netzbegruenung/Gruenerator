@@ -1,8 +1,10 @@
 import { templates, type TemplateType } from '@gruenerator/docs';
+import { listUserTemplates, type UserTemplateSummary } from '@gruenerator/shared';
 import { cn } from '@gruenerator/ui';
+import { useQuery } from '@tanstack/react-query';
 import { memo, useEffect, useRef, useState } from 'react';
 import { FiChevronDown, FiMoreVertical } from 'react-icons/fi';
-import { PiKanban, PiPencilLine } from 'react-icons/pi';
+import { PiBookmarkSimple, PiKanban, PiPencilLine } from 'react-icons/pi';
 
 import { boardTemplates } from '../boards/boardTemplates';
 
@@ -13,6 +15,7 @@ interface TemplateCarouselProps {
   onShowGallery: () => void;
   onCreateBoardFromTemplate: (templateId: string) => void;
   onCreateWhiteboard: () => void;
+  onUserTemplateSelect: (template: UserTemplateSummary) => void;
 }
 
 export const TemplateCarousel = memo(
@@ -21,7 +24,19 @@ export const TemplateCarousel = memo(
     onShowGallery,
     onCreateBoardFromTemplate,
     onCreateWhiteboard,
+    onUserTemplateSelect,
   }: TemplateCarouselProps) => {
+    const { data: userTemplates = [] } = useQuery<UserTemplateSummary[]>({
+      queryKey: ['user-templates', 'docs-and-boards'],
+      queryFn: async () => {
+        const [docs, boards] = await Promise.all([
+          listUserTemplates({ kind: 'doc' }),
+          listUserTemplates({ kind: 'board' }),
+        ]);
+        return [...docs, ...boards];
+      },
+      staleTime: 30_000,
+    });
     const [isHidden, setIsHidden] = useState(() => {
       try {
         return localStorage.getItem(STORAGE_KEY) === 'true';
@@ -174,6 +189,49 @@ export const TemplateCarousel = memo(
                 </span>
               </div>
             </button>
+
+            {userTemplates.length > 0 && (
+              <>
+                <div className="w-px self-stretch bg-grey-200 dark:bg-grey-600 shrink-0 my-1" />
+                {userTemplates.map((tpl) => {
+                  const isBoard = tpl.template_type === 'board';
+                  return (
+                    <button
+                      key={tpl.id}
+                      className="group/item shrink-0 w-[118px] cursor-pointer bg-transparent border-none p-0 text-left font-[inherit]"
+                      onClick={() => onUserTemplateSelect(tpl)}
+                      title={tpl.description ?? tpl.title}
+                    >
+                      <div
+                        className={cn(
+                          'w-[118px] h-[150px] border border-grey-200 dark:border-grey-600 rounded overflow-hidden flex items-center justify-center transition-[box-shadow,border-color] duration-150 ease-out group-hover/item:shadow-sm',
+                          isBoard
+                            ? 'bg-secondary-50 dark:bg-secondary-900/20 group-hover/item:border-secondary-300 dark:group-hover/item:border-secondary-500'
+                            : 'bg-background-pure dark:bg-grey-700 group-hover/item:border-grey-300 dark:group-hover/item:border-grey-500'
+                        )}
+                      >
+                        {isBoard ? (
+                          <PiKanban
+                            size={32}
+                            className="text-secondary-600 dark:text-secondary-400"
+                          />
+                        ) : (
+                          <PiBookmarkSimple size={32} className="text-grey-400" />
+                        )}
+                      </div>
+                      <div className="pt-1.5 px-1">
+                        <span className="block text-[0.8125rem] font-medium text-foreground truncate">
+                          {tpl.title}
+                        </span>
+                        <span className="block text-xs font-light text-grey-500 truncate">
+                          Eigene Vorlage
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </>
+            )}
           </div>
         )}
       </div>

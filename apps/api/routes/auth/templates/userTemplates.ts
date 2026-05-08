@@ -13,6 +13,7 @@ import {
   urlCrawlerService,
   UrlValidator,
 } from '../../../services/scrapers/implementations/UrlCrawler/index.js';
+import { createDocFromTemplate } from '../../../services/templates/collaborativeTemplateService.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { AuthRequest } from '../types.js';
@@ -187,14 +188,25 @@ router.get(
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
+      const templateTypeFilter =
+        typeof req.query.template_type === 'string' ? req.query.template_type : null;
+
       // Fetch user's templates from user_templates table (excluding examples)
-      const templates = await postgres.query(
-        `SELECT * FROM user_templates
+      const templates = templateTypeFilter
+        ? await postgres.query(
+            `SELECT * FROM user_templates
+       WHERE user_id = $1 AND type = $2 AND is_example = $3 AND template_type = $4
+       ORDER BY updated_at DESC`,
+            [userId, 'template', false, templateTypeFilter],
+            { table: 'user_templates' }
+          )
+        : await postgres.query(
+            `SELECT * FROM user_templates
        WHERE user_id = $1 AND type = $2 AND is_example = $3
        ORDER BY updated_at DESC`,
-        [userId, 'template', false],
-        { table: 'user_templates' }
-      );
+            [userId, 'template', false],
+            { table: 'user_templates' }
+          );
 
       // Transform data to match frontend expectations
       const formattedTemplates = (
@@ -669,6 +681,58 @@ router.delete(
       res.status(500).json({
         success: false,
         message: err.message || 'Failed to perform bulk delete of templates',
+      });
+    }
+  }
+);
+
+// === INSTANTIATE: create a new collaborative document from a template ===
+
+const instantiateSchema = z.object({
+  title: z.string().min(1).max(200),
+});
+
+router.post(
+  '/user-templates/:id/instantiate',
+  ensureAuthenticated,
+  validateBody(instantiateSchema),
+  async (
+    req: TypedRequest<z.infer<typeof instantiateSchema>, { id: string }>,
+    res: Response
+  ): Promise<void> => {
+    try {
+      const userId = req.user!.id;
+      const { id } = req.params;
+      const { title } = req.body;
+
+      const result = await createDocFromTemplate(userId, id, title);
+
+      res.status(201).json({
+        success: true,
+        data: { documentId: result.documentId, subtype: result.subtype },
+      });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[User Templates /user-templates/:id/instantiate POST] Error:', err);
+      const message = err.message || '';
+      if (message.includes('not found')) {
+        res.status(404).json({ success: false, message: 'Vorlage nicht gefunden.' });
+        return;
+      }
+      if (message.includes('Not authorized')) {
+        res.status(403).json({ success: false, message: 'Keine Berechtigung für diese Vorlage.' });
+        return;
+      }
+      if (message.includes('no Yjs content')) {
+        res.status(400).json({
+          success: false,
+          message: 'Vorlage enthält keinen Inhalt zum Wiederherstellen.',
+        });
+        return;
+      }
+      res.status(500).json({
+        success: false,
+        message: 'Fehler beim Erstellen aus Vorlage.',
       });
     }
   }
