@@ -129,7 +129,7 @@ export const ResearchArtifactCard = memo(function ResearchArtifactCard({
 
   return (
     <div className="border-section-border my-2 overflow-hidden rounded-lg border bg-surface">
-      <div className="border-section-border flex items-start justify-between gap-3 border-b p-3">
+      <div className="border-section-border flex flex-wrap items-start justify-between gap-x-3 gap-y-1 border-b p-3">
         <div className="flex min-w-0 items-center gap-2">
           <BookOpen className="text-secondary-700 h-4 w-4 shrink-0" />
           <div className="min-w-0">
@@ -139,7 +139,7 @@ export const ResearchArtifactCard = memo(function ResearchArtifactCard({
             )}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2 text-[11px]">
+        <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
           {confidence && CONFIDENCE_LABELS[confidence as keyof typeof CONFIDENCE_LABELS] && (
             <span
               className={`flex items-center gap-1 ${CONFIDENCE_COLORS[confidence as keyof typeof CONFIDENCE_COLORS] ?? 'text-grey-500'}`}
@@ -219,7 +219,9 @@ export const ResearchArtifactCard = memo(function ResearchArtifactCard({
             Als Dokument speichern
           </button>
         )}
-        {exportError && <span className="text-status-red text-xs">{exportError}</span>}
+        {exportError && (
+          <span className="text-status-red w-full text-xs sm:w-auto">{exportError}</span>
+        )}
       </div>
 
       {citations.length > 0 && (
@@ -240,7 +242,7 @@ export const ResearchArtifactCard = memo(function ResearchArtifactCard({
             </span>
           </button>
           {showSources && (
-            <div className="px-3 pb-3 [&_*]:text-[11px]">
+            <div className="min-w-0 px-3 pb-3 [&_*]:text-[11px]">
               <CitationList
                 id="research-citations"
                 citations={citations.map((c) => toSerializableCitation(c))}
