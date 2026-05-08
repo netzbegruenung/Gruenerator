@@ -42,6 +42,8 @@ import type {
   UserLocale,
   ChartData,
   ResearchToolResult,
+  DocumentSource,
+  SynthesisMode,
 } from './types.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
@@ -154,6 +156,21 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   gatherSources: Annotation<GatherSource[]>({
     reducer: (x, y) => y ?? x ?? [],
+  }),
+
+  // Multi-document chat: normalized per-turn doc refs (built by classifier)
+  documentSources: Annotation<DocumentSource[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+  // Per-source retrieval results (replace when populated, mirrors searchResults)
+  perSourceResults: Annotation<Record<string, SearchResult[]>>({
+    reducer: (x, y) => {
+      if (y && Object.keys(y).length > 0) return y;
+      return x ?? {};
+    },
+  }),
+  synthesisMode: Annotation<SynthesisMode>({
+    reducer: (x, y) => y ?? x ?? null,
   }),
 
   // Classification output
@@ -410,6 +427,7 @@ function routeAfterClassification(
   // Map intent to tool key for enabled check
   const intentToToolKey: Record<SearchIntent, string> = {
     research: 'research',
+    compare: 'search',
     search: 'search',
     // person: 'person', // DISABLED: Person search not production ready
     web: 'web',
@@ -604,6 +622,11 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Compound query detection (will be set by classifier node)
     isCompound: false,
     gatherSources: [],
+
+    // Multi-document chat (will be set by classifier node)
+    documentSources: [],
+    perSourceResults: {},
+    synthesisMode: null,
 
     // Classification (will be set by classifier node)
     intent: 'direct' as SearchIntent,

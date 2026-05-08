@@ -202,6 +202,7 @@ export interface SSEEventPayloads {
  */
 export const INTENT_MESSAGES: Record<SearchIntent, string> = {
   research: 'Recherchiere im Web und in Dokumenten...',
+  compare: 'Vergleiche die referenzierten Dokumente...',
   search: 'Durchsuche Grüne Positionen und Programme...',
   // person: 'Suche Informationen zur Person...', // DISABLED: Person search not production ready
   web: 'Suche aktuelle Informationen im Web...',

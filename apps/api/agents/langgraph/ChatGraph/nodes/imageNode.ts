@@ -55,7 +55,7 @@ function styleToVariant(style: ImageStyle): VariantKey {
       return 'pixel-pure';
     case 'green-edit':
     case 'illustration':
-    default:
+    case 'universal':
       return 'illustration-pure';
   }
 }
