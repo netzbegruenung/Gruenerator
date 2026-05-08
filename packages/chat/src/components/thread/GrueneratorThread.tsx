@@ -27,6 +27,7 @@ interface GrueneratorThreadProps {
    * context-specific controls without coupling them to the shared composer.
    */
   toolbarExtra?: ReactNode;
+  requireProfileHydration?: boolean;
 }
 
 export function GrueneratorThread({
@@ -34,6 +35,7 @@ export function GrueneratorThread({
   firstName,
   density = 'comfortable',
   toolbarExtra,
+  requireProfileHydration,
 }: GrueneratorThreadProps = {}) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
@@ -84,6 +86,7 @@ export function GrueneratorThread({
           onNavigate={onNavigate}
           firstName={firstName}
           toolbarExtra={toolbarExtra}
+          requireProfileHydration={requireProfileHydration}
         />
       </ThreadPrimitive.Root>
     </ChatDensityContext.Provider>

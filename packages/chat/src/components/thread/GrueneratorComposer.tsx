@@ -23,6 +23,7 @@ import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
 import { useChatDensity } from './chatDensityContext';
 import type { Mentionable } from '../../lib/mentionables';
 import type { DocumentMention } from '../../lib/documentMentionables';
+import { useUserProfileStore } from '../../stores/userProfileStore';
 
 interface GrueneratorComposerProps {
   isRunning?: boolean;
@@ -35,13 +36,36 @@ interface GrueneratorComposerProps {
   showMentions?: boolean;
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
+  /**
+   * If true, the send button shows a spinner and is disabled until
+   * `useUserProfileStore.isHydrated === true`. Use in apps where roles
+   * must be loaded before the first message is sent. Default: false
+   * (mobile/desktop consumers without a hydration bridge are unaffected).
+   */
+  requireProfileHydration?: boolean;
 }
 
 const ROUND_BTN_BASE = 'flex items-center justify-center rounded-full transition-opacity';
 const roundBtnSize = (isCompact: boolean) => (isCompact ? 'm-1.5 h-7 w-7' : 'm-2 h-8 w-8');
 
-function SendButton() {
+function SendButton({ requireProfileHydration }: { requireProfileHydration?: boolean }) {
   const isCompact = useChatDensity() === 'compact';
+  const isHydrated = useUserProfileStore((s) => s.isHydrated);
+
+  if (requireProfileHydration && !isHydrated) {
+    return (
+      <button
+        type="button"
+        disabled
+        aria-label="Profil wird geladen"
+        title="Profil wird geladen…"
+        className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white opacity-30`}
+      >
+        <span className="block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
+      </button>
+    );
+  }
+
   return (
     <ComposerPrimitive.Send
       className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white disabled:opacity-30`}
@@ -88,7 +112,13 @@ function StopDictationButton() {
   );
 }
 
-function ComposerButtons({ isRunning }: { isRunning?: boolean }) {
+function ComposerButtons({
+  isRunning,
+  requireProfileHydration,
+}: {
+  isRunning?: boolean;
+  requireProfileHydration?: boolean;
+}) {
   const isDictating = useAuiState((s) => s.composer.dictation != null);
   const hasDictation = useAuiState((s) => s.thread.capabilities.dictation);
   const isEmpty = useAuiState((s) => s.composer.isEmpty);
@@ -96,7 +126,7 @@ function ComposerButtons({ isRunning }: { isRunning?: boolean }) {
   if (isRunning) return <CancelButton />;
   if (isDictating) return <StopDictationButton />;
   if (hasDictation && isEmpty) return <DictateButton />;
-  return <SendButton />;
+  return <SendButton requireProfileHydration={requireProfileHydration} />;
 }
 
 interface MentionState {
@@ -128,6 +158,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showMentions = true,
   showPlusMenu = true,
   showToolToggles = true,
+  requireProfileHydration = false,
 }: GrueneratorComposerProps) {
   const composerRuntime = useComposerRuntime();
   const isCompact = useChatDensity() === 'compact';
@@ -424,7 +455,10 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           </div>
           <div className="flex items-center gap-0.5">
             <ModelPicker />
-            <ComposerButtons isRunning={isRunning} />
+            <ComposerButtons
+              isRunning={isRunning}
+              requireProfileHydration={requireProfileHydration}
+            />
           </div>
         </div>
       </ComposerPrimitive.Root>

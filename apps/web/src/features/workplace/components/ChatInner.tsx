@@ -4,7 +4,6 @@ import React, { memo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useFirstName } from '../../../hooks/useFirstName';
-import { useHydrateUserProfile } from '../../../hooks/useHydrateUserProfile';
 
 import SkillPresetRow from './SkillPresetRow';
 
@@ -35,7 +34,6 @@ function NavigateToChatOnSend() {
 const ChatInner: React.FC = memo(() => {
   const navigate = useNavigate();
   const firstName = useFirstName();
-  useHydrateUserProfile();
   const threadRuntime = useThreadRuntime({ optional: true });
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
@@ -51,6 +49,7 @@ const ChatInner: React.FC = memo(() => {
         onNavigate={handleNavigate}
         firstName={firstName}
         toolbarExtra={<SkillPresetRow />}
+        requireProfileHydration
       />
     </ThreadPrimitive.Root>
   );
