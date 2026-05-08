@@ -34,6 +34,7 @@ export type UserLocale = 'de-DE' | 'de-AT';
  */
 export type SearchIntent =
   | 'research' // Complex multi-source research ("recherchiere", "finde heraus")
+  | 'compare' // Multi-document comparison (≥2 doc sources + compare verbs)
   | 'search' // Gruenerator document search (party programs, positions)
   // | 'person' // DISABLED: Person search not production ready (only searches 80 cached MPs)
   | 'web' // Web search (current events, external facts)
@@ -144,7 +145,47 @@ export interface Citation {
   chunkIndex?: number | undefined;
   similarityScore?: number | undefined;
   collectionId?: string | undefined;
+  // Set when this citation came from a fan-out per-document retrieval
+  // (multi-document chat). Lets the UI group source cards by referenced doc.
+  documentSourceId?: string | undefined;
 }
+
+/**
+ * Kind of document reference the user provided this turn.
+ * Drives how the search node retrieves evidence for that source.
+ */
+export type DocumentSourceKind =
+  | 'document' // documentIds (datei mention)
+  | 'document_chat' // documentChatIds (@dokumentchat multi-select)
+  | 'doc_mention' // docMentionIds (collab @doc)
+  | 'notebook' // notebookIds (collection scope)
+  | 'attachment' // threadAttachments (uploaded file context)
+  | 'current_doc'; // currentDocument (open in docs editor)
+
+/**
+ * Normalized reference to a single document the user is working with this turn.
+ * Built once at the top of classification (buildDocumentSources) and used by
+ * searchNode (per-source retrieval), rerankNode (per-source budget), and
+ * respondNode (labeled per-doc context blocks).
+ */
+export interface DocumentSource {
+  kind: DocumentSourceKind;
+  id: string;
+  label: string;
+  // For `notebook` kind: Qdrant collection keys for this notebook (a single
+  // notebook can span multiple collections). Empty for non-notebook kinds.
+  collectionIds?: string[] | undefined;
+}
+
+/**
+ * How respondNode should structure the answer when multiple documents are in play.
+ * Picked at classification time from intent + doc count + complexity.
+ *  - `table`              → markdown comparison table + short synthesis
+ *  - `per_doc_bullets`    → per-doc bullets, then Unterschiede / Gemeinsamkeiten
+ *  - `grounded_prose`     → narrative, but mandatory ≥1 citation per source
+ *  - `null`               → unchanged single-doc / no-doc behaviour
+ */
+export type SynthesisMode = 'table' | 'per_doc_bullets' | 'grounded_prose' | null;
 
 /**
  * Research tool result shape persisted into `chat_messages.tool_calls[].result`.
@@ -284,6 +325,20 @@ export interface ChatGraphState {
   // Compound query detection (notebook + skill → gather-then-apply pipeline)
   isCompound: boolean;
   gatherSources: GatherSource[];
+
+  // Multi-document chat: every document the user is referencing this turn,
+  // normalized from documentIds | documentChatIds | docMentionIds | notebookIds |
+  // threadAttachments | currentDocument. Source-of-truth for per-doc retrieval.
+  documentSources: DocumentSource[];
+
+  // Per-source retrieval results, keyed by DocumentSource.id. Populated by
+  // searchNode when documentSources.length >= 1; consumed by rerankNode (group
+  // rerank with per-source budget) and respondNode (labeled context blocks).
+  perSourceResults: Record<string, SearchResult[]>;
+
+  // How respondNode should structure the answer for multi-doc cases.
+  // Null when single-doc / no-doc — preserves existing behaviour.
+  synthesisMode: SynthesisMode;
 
   // Classification output
   intent: SearchIntent;

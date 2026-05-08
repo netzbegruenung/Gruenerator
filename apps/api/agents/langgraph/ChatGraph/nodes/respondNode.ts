@@ -14,7 +14,7 @@ import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 
-import type { ChatGraphState, ThreadAttachment } from '../types.js';
+import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
 
 const log = createLogger('ChatGraph:Respond');
 
@@ -248,6 +248,42 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
     .join('\n\n');
 
   return `\n\n## SUCHERGEBNISSE\n\n${resultsText}\n\n---\n[Ende der Suchergebnisse. Insgesamt ${topResults.length} Quelle(n) verfügbar.]`;
+}
+
+/**
+ * Format per-document context blocks for multi-doc chat.
+ * Each DocumentSource gets its own labeled section with its top-K reranked
+ * chunks, so the model sees evidence grouped by source instead of one merged
+ * pool. Per-doc budget = total / N to keep within context window.
+ *
+ * Returns empty string when there are <2 doc sources or no per-source
+ * results — the existing single-pool SUCHERGEBNISSE block handles those.
+ */
+function formatPerSourceContext(state: ChatGraphState): string {
+  const sources: DocumentSource[] = state.documentSources ?? [];
+  const perSource: Record<string, SearchResult[]> = state.perSourceResults ?? {};
+
+  if (sources.length < 2) return '';
+  const populatedSources = sources.filter((s) => (perSource[s.id]?.length ?? 0) > 0);
+  if (populatedSources.length === 0) return '';
+
+  const TOTAL_BUDGET = 8000;
+  const perDocBudget = Math.floor(TOTAL_BUDGET / populatedSources.length);
+
+  const blocks = populatedSources.map((src, idx) => {
+    const results = (perSource[src.id] ?? []).slice(0, 6);
+    const inner = results
+      .map((r, i) => {
+        const charBudget = Math.max(150, Math.floor(perDocBudget / Math.max(1, results.length)));
+        const content =
+          r.content.length > charBudget ? truncateDocument(r.content, charBudget) : r.content;
+        return `(${idx + 1}.${i + 1}) **${r.title}**\n${content}`.trim();
+      })
+      .join('\n\n');
+    return `### Dokument ${idx + 1}: ${src.label}\n\n${inner}`;
+  });
+
+  return `\n\n## QUELLEN PRO DOKUMENT\n\n${blocks.join('\n\n')}\n\n---\n[Ende der dokumentbezogenen Quellen. Halte die Aussagen je Dokument auseinander.]`;
 }
 
 /**
@@ -493,6 +529,33 @@ const DIRECT_GUIDANCE =
 const SEARCH_GUIDANCE =
   '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
 
+/**
+ * Synthesis-mode guidance for multi-document chat.
+ * Selected at classification time based on intent + doc count.
+ *
+ * `table`             — compare-style: markdown table + short synthesis
+ * `per_doc_bullets`   — many-doc compare: bullets per doc + diff section
+ * `grounded_prose`    — multi-doc background: narrative with mandatory grounding
+ */
+function getSynthesisGuidance(state: ChatGraphState): string {
+  const mode = state.synthesisMode;
+  const sources = state.documentSources ?? [];
+  if (!mode || sources.length < 2) return '';
+
+  const docList = sources.map((s, i) => `${i + 1}. **${s.label}** (Quelle ${i + 1})`).join('\n');
+
+  if (mode === 'table') {
+    return `\n\n## VERGLEICHS-MODUS\n\nDer*die Nutzer*in vergleicht ${sources.length} Dokumente:\n${docList}\n\nFormat der Antwort:\n1. Eine Markdown-Tabelle: Spalten = Dokumente (in obiger Reihenfolge), Zeilen = die Vergleichsdimensionen, die du selbst aus den Quellen ableitest (3–6 Dimensionen).\n2. Danach 2–4 Sätze Synthese: Übereinstimmungen, klare Unterschiede, mögliche Konflikte.\n3. Jede Zelle der Tabelle muss durch mindestens eine Inline-Quellenreferenz [N] gestützt sein.\n4. Wenn ein Dokument zu einer Dimension nichts sagt, schreibe "—" in die Zelle (nicht erfinden).\n5. Genderstern verwenden (Bürger*innen, der*die Sprecher*in).`;
+  }
+
+  if (mode === 'per_doc_bullets') {
+    return `\n\n## MEHR-DOKUMENT-MODUS\n\nDer*die Nutzer*in arbeitet mit ${sources.length} Dokumenten:\n${docList}\n\nFormat der Antwort:\n1. Pro Dokument ein Abschnitt mit dem Dokumentnamen als Überschrift und 3–5 Bullets der Kernaussagen — jeweils inline zitiert [N].\n2. Anschließend ein Abschnitt **Gemeinsamkeiten**.\n3. Anschließend ein Abschnitt **Unterschiede**.\n4. Genderstern verwenden.`;
+  }
+
+  // grounded_prose
+  return `\n\n## MEHR-DOKUMENT-KONTEXT\n\nDer*die Nutzer*in hat ${sources.length} Dokumente referenziert:\n${docList}\n\nAntworte als zusammenhängende Prosa, aber:\n1. Stütze jede Kernaussage durch eine Inline-Quellenreferenz [N].\n2. Wenn ein Dokument zur Frage relevant ist, muss es mindestens einmal zitiert werden — sonst kennzeichne explizit, dass es im jeweiligen Punkt schweigt.\n3. Mische nicht stillschweigend Quellen — der*die Leser*in soll erkennen können, welches Dokument welche Aussage stützt.\n4. Genderstern verwenden.`;
+}
+
 function getModeGuidance(state: ChatGraphState): string {
   switch (state.intent) {
     case 'edit_current_doc':
@@ -510,6 +573,7 @@ function getModeGuidance(state: ChatGraphState): string {
     case 'direct':
     case 'save_as_doc':
       return DIRECT_GUIDANCE;
+    case 'compare':
     case 'research':
     case 'search':
     case 'web':
@@ -560,6 +624,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     documentMentionContext,
   } = state;
   const searchContext = await formatSearchContext(state);
+  const perSourceContext = formatPerSourceContext(state);
   const currentDocumentContext = formatCurrentDocument(state);
   const attachmentContext = formatAttachmentContext(state);
   const imageContext = formatImageContext(state);
@@ -571,7 +636,8 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
   const localeContext = formatLocaleContext(state.userLocale);
 
-  const intentGuidance = getModeGuidance(state) + getAnchorAdjuncts(state);
+  const intentGuidance =
+    getModeGuidance(state) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
 
   const hasSources = state.searchResults.length > 0 && intent !== 'direct';
   const sourceCount = state.searchResults.filter((r) => r.url).length;
@@ -608,7 +674,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -620,7 +686,7 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
   return `${systemRole}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo

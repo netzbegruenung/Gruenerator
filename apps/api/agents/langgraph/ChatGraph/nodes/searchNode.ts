@@ -24,6 +24,7 @@ import { type AIWorkerPool } from '../../../../workers/types.js';
 import {
   SOURCE_PREFIX,
   type ChatGraphState,
+  type DocumentSource,
   type SearchResult,
   type Citation,
   type ResearchToolResult,
@@ -286,6 +287,128 @@ export function mergeSearchResults(...resultSets: SearchResult[][]): SearchResul
 }
 
 /**
+ * Execute per-source fan-out for multi-document chat.
+ *
+ * Each retrievable DocumentSource gets its own scoped retrieval call so the
+ * top-K budget is split evenly instead of one source dominating the merged
+ * pool. Results are tagged with `documentSourceId` for downstream grouping
+ * (rerank, respond, citations) and returned keyed by source id.
+ *
+ * Per-source budget is `max(3, floor(12 / N))` — enough headroom for rerank
+ * to pick decent chunks per doc without bloating the prompt.
+ */
+export interface MultiDocFanoutResult {
+  perSourceResults: Record<string, SearchResult[]>;
+  searchedCollections: string[];
+  errors: { source: string; message: string }[];
+}
+
+export async function executeMultiDocFanout(
+  query: string,
+  sources: DocumentSource[],
+  agentConfig: AgentConfig
+): Promise<MultiDocFanoutResult> {
+  const perSourceLimit = Math.max(3, Math.floor(12 / sources.length));
+  const errors: { source: string; message: string }[] = [];
+  const collections = new Set<string>();
+
+  const documentSearchService = (
+    await import('../../../../services/document-services/DocumentSearchService/index.js')
+  ).getQdrantDocumentService();
+
+  const sourcePromises = sources.map(async (src): Promise<[string, SearchResult[]]> => {
+    try {
+      if (src.kind === 'document' || src.kind === 'document_chat' || src.kind === 'doc_mention') {
+        const sourcePrefix =
+          src.kind === 'document_chat'
+            ? SOURCE_PREFIX.DOCUMENT_CHAT
+            : src.kind === 'doc_mention'
+              ? `${SOURCE_PREFIX.DOCUMENT}:`
+              : `${SOURCE_PREFIX.DOCUMENT}:`;
+        const response = await documentSearchService.search({
+          query,
+          userId: agentConfig.userId,
+          options: {
+            limit: perSourceLimit,
+            mode: 'hybrid',
+            threshold: 0.15,
+          },
+          filters: {
+            documentIds: [src.id],
+          },
+        });
+        collections.add(`${src.kind}:${src.id.slice(0, 8)}`);
+        const results: SearchResult[] = (response.results || []).map((r) => ({
+          source: `${sourcePrefix}${r.document_id || src.id}`,
+          title: r.title || src.label,
+          content: r.relevant_content || '',
+          url: r.source_url || undefined,
+          relevance: r.similarity_score ?? 0.5,
+          documentSourceId: src.id,
+        }));
+        return [src.id, results];
+      }
+
+      if (src.kind === 'notebook' && src.collectionIds && src.collectionIds.length > 0) {
+        const collectionPromises = src.collectionIds.map((collection) => {
+          collections.add(collection);
+          return executeDirectSearch({
+            query,
+            collection,
+            limit: perSourceLimit,
+          }).catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            errors.push({ source: `notebook:${src.id}:${collection}`, message: msg });
+            return null;
+          });
+        });
+        const responses = await Promise.all(collectionPromises);
+        const results: SearchResult[] = [];
+        for (const response of responses) {
+          if (!response?.results) continue;
+          for (const r of response.results) {
+            results.push({
+              source: `${SOURCE_PREFIX.GRUENERATOR}${response.collection}`,
+              title: deriveCitationTitle(r.source, r.url, response.collection),
+              content: r.excerpt || '',
+              url: r.url || undefined,
+              relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
+              contentType: r.contentType || undefined,
+              documentId: r.documentId,
+              chunkIndex: r.chunkIndex,
+              similarityScore: r.score,
+              collectionId: r.collectionId,
+              documentSourceId: src.id,
+            });
+          }
+        }
+        results.sort((a, b) => (b.relevance ?? 0) - (a.relevance ?? 0));
+        return [src.id, results.slice(0, perSourceLimit * 2)];
+      }
+
+      return [src.id, []];
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn(`[Search] Multi-doc source ${src.kind}:${src.id} failed: ${msg}`);
+      errors.push({ source: `${src.kind}:${src.id}`, message: msg });
+      return [src.id, []];
+    }
+  });
+
+  const entries = await Promise.all(sourcePromises);
+  const perSourceResults: Record<string, SearchResult[]> = {};
+  for (const [id, results] of entries) {
+    perSourceResults[id] = results;
+  }
+
+  return {
+    perSourceResults,
+    searchedCollections: [...collections],
+    errors,
+  };
+}
+
+/**
  * Search node implementation.
  * Routes to the appropriate search function based on intent.
  * Supports parallel multi-source search when searchSources has multiple entries.
@@ -320,6 +443,45 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     let researchMeta: ResearchToolResult | null = null;
 
     const searchSources = state.searchSources || [];
+    const documentSources = state.documentSources || [];
+    const retrievableDocSources = documentSources.filter(
+      (s) =>
+        s.kind === 'document' ||
+        s.kind === 'document_chat' ||
+        s.kind === 'doc_mention' ||
+        s.kind === 'notebook'
+    );
+
+    // Multi-document fan-out: when the user references ≥2 retrievable doc sources,
+    // run a doc-scoped retrieval per source so each gets its own evidence budget.
+    // Prevents one denser/better-embedded doc from starving the others at rerank time.
+    if (retrievableDocSources.length >= 2) {
+      const query = truncateQuery(searchQuery || '');
+      log.info(
+        `[Search] Multi-doc fan-out across ${retrievableDocSources.length} sources: ${retrievableDocSources.map((s) => `${s.kind}:${s.id.slice(0, 8)}`).join(', ')}`
+      );
+
+      const fanoutResult = await executeMultiDocFanout(query, retrievableDocSources, agentConfig);
+
+      const aggregatedErrors = fanoutResult.errors;
+      const flatResults = Object.values(fanoutResult.perSourceResults).flat();
+      flatResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
+      const citationsBuilt = buildCitations(flatResults);
+
+      log.info(
+        `[Search] Multi-doc complete: ${flatResults.length} total results across ${Object.keys(fanoutResult.perSourceResults).length} sources, ${aggregatedErrors.length} errors in ${Date.now() - startTime}ms`
+      );
+
+      return {
+        searchResults: flatResults,
+        perSourceResults: fanoutResult.perSourceResults,
+        citations: citationsBuilt,
+        searchCount: 1,
+        searchTimeMs: Date.now() - startTime,
+        searchedCollections: fanoutResult.searchedCollections,
+        ...(aggregatedErrors.length > 0 && { searchErrors: aggregatedErrors }),
+      };
+    }
 
     // Parallel multi-source search when classifier requests multiple backends
     if (searchSources.length > 1) {
@@ -462,8 +624,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       };
     }
 
-    // Single-source mode: existing switch logic (backward compatible)
-    switch (intent) {
+    // Single-source mode: existing switch logic (backward compatible).
+    // 'compare' degrades to plain search when only one (or zero) doc source
+    // is present — the multi-doc fan-out above is its real path.
+    const effectiveIntent = intent === 'compare' ? 'search' : intent;
+    switch (effectiveIntent) {
       case 'research': {
         // Dynamic research depth based on query complexity
         const complexity = state.complexity || 'moderate';

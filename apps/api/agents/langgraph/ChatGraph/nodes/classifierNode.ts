@@ -16,6 +16,11 @@ import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import { getActiveAnchors } from './anchorContext.js';
+import {
+  buildDocumentSources,
+  hasCompareVerbs,
+  pickSynthesisMode,
+} from './buildDocumentSources.js';
 import { heuristicExtractFilters } from './classifierFilters.js';
 import {
   heuristicClassify,
@@ -35,16 +40,66 @@ import {
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
 
-import type { ChatGraphState, GatherSource } from '../types.js';
+import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
 const log = createLogger('ChatGraph:Classifier');
 
 /**
- * Classifier node implementation.
+ * Public classifier node — wraps the inner implementation with multi-document
+ * normalization. Builds documentSources and picks synthesisMode based on the
+ * classified intent + doc count, and upgrades search/research → 'compare' when
+ * the user explicitly asks for a comparison and ≥2 doc sources are referenced.
+ *
+ * Kept as a wrapper so the inner classifier's many return paths stay focused
+ * on intent/query/filters and don't each have to remember the doc-source plumbing.
+ */
+export async function classifierNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
+  const result = await classifierNodeImpl(state);
+
+  const documentSources = buildDocumentSources({
+    documentIds: state.documentIds ?? [],
+    documentChatIds: state.documentChatIds ?? [],
+    docMentionIds: state.docMentionIds ?? [],
+    notebookIds: state.notebookIds ?? [],
+    threadAttachments: state.threadAttachments ?? [],
+    currentDocument: state.currentDocument ?? null,
+  });
+
+  // Upgrade search/research → 'compare' when the user explicitly asks for a
+  // comparison and ≥2 doc sources are in play. Other intents (image, summary,
+  // modify_doc, ...) are user-driven and shouldn't be silently rerouted.
+  const lastUserMessage = state.messages.filter((m) => m.role === 'user').pop();
+  const userText = extractMessageText(lastUserMessage?.content);
+  const COMPARE_UPGRADEABLE: ReadonlySet<SearchIntent> = new Set(['search', 'research']);
+  let intent = result.intent ?? state.intent;
+  if (
+    intent &&
+    COMPARE_UPGRADEABLE.has(intent) &&
+    documentSources.length >= 2 &&
+    hasCompareVerbs(userText)
+  ) {
+    log.info(
+      `[Classifier] Compare upgrade: ${intent} → compare (${documentSources.length} doc sources, compare verbs detected)`
+    );
+    intent = 'compare';
+  }
+
+  const synthesisMode = pickSynthesisMode(intent ?? 'direct', documentSources.length);
+
+  return {
+    ...result,
+    intent: intent ?? result.intent,
+    documentSources,
+    synthesisMode,
+  };
+}
+
+/**
+ * Inner classifier node implementation.
  * Uses heuristics-first approach: high-confidence patterns skip LLM entirely.
  * Falls back to LLM for ambiguous queries where heuristics are uncertain.
  */
-export async function classifierNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
+async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
   log.info('[Classifier] Starting intent classification');
 
