@@ -6,16 +6,31 @@ import { useAuthStore } from '../stores/authStore';
 
 /**
  * Bridge: pushes user-defaults RQ data into the chat package's userProfileStore.
- * Mount once in the authenticated app shell (AuthRoute). Idempotent — RQ dedupes
+ * Mount once at App level (inside QueryClientProvider). Idempotent — RQ dedupes
  * the underlying query, the store hydrate is a simple set().
  */
 export function useHydrateUserProfile() {
   const locale = useAuthStore((s) => s.locale);
-  const { data, isSuccess } = useUserDefaultsQuery();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { data, isSuccess, isPending, isError, fetchStatus } = useUserDefaultsQuery();
+
+  console.log('[hydrate-bridge] render', {
+    isAuthenticated,
+    isPending,
+    isSuccess,
+    isError,
+    fetchStatus,
+    hasData: !!data,
+    rolesCount: data?.profile?.roles?.length ?? null,
+  });
 
   useEffect(() => {
     if (!isSuccess) return;
     const roles = data?.profile?.roles ?? [];
+    console.log('[hydrate-bridge] pushing to userProfileStore', {
+      rolesCount: roles.length,
+      locale: locale || 'de-DE',
+    });
     useUserProfileStore.getState().hydrate({
       roles,
       locale: locale || 'de-DE',

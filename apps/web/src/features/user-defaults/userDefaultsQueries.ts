@@ -25,11 +25,17 @@ export function useUserDefaultsQuery() {
   return useQuery({
     queryKey: USER_DEFAULTS_QUERY_KEY,
     queryFn: async (): Promise<UserDefaultsBlob> => {
+      console.log('[user-defaults] fetch start');
       const response = await apiClient.get<{ userDefaults?: UserDefaultsBlob }>(
         '/auth/profile/user-defaults',
         { skipAuthRedirect: true }
       );
-      return response.data.userDefaults ?? {};
+      const blob = response.data.userDefaults ?? {};
+      console.log('[user-defaults] fetch ok', {
+        keys: Object.keys(blob),
+        profileRoles: (blob as { profile?: { roles?: unknown } }).profile?.roles,
+      });
+      return blob;
     },
     enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
@@ -61,7 +67,9 @@ export function useSetUserDefault<G extends UserDefaultsGenerator, K extends Use
 
   return useMutation({
     mutationFn: async ({ generator, key, value }: SetUserDefaultVariables<G, K>) => {
+      console.log('[user-defaults] mutate', { generator, key, value });
       await apiClient.patch('/auth/profile/user-defaults', { generator, key, value });
+      console.log('[user-defaults] mutate ok', { generator, key });
     },
     onMutate: async ({ generator, key, value }) => {
       await queryClient.cancelQueries({ queryKey: USER_DEFAULTS_QUERY_KEY });
