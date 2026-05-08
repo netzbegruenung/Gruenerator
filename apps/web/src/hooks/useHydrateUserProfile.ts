@@ -1,24 +1,25 @@
-import { useUserProfileStore, type UserRole } from '@gruenerator/chat';
+import { useUserProfileStore } from '@gruenerator/chat';
 import { useEffect } from 'react';
 
+import { useUserDefaultsQuery } from '../features/user-defaults/userDefaultsQueries';
 import { useAuthStore } from '../stores/authStore';
-import { useUserDefaultsStore } from '../stores/userDefaultsStore';
 
+/**
+ * Bridge: pushes user-defaults RQ data into the chat package's userProfileStore.
+ * Mount once in the authenticated app shell (AuthRoute). Idempotent — RQ dedupes
+ * the underlying query, the store hydrate is a simple set().
+ */
 export function useHydrateUserProfile() {
   const locale = useAuthStore((s) => s.locale);
-  const getDefault = useUserDefaultsStore((s) => s.getDefault);
-  const hydrate = useUserDefaultsStore((s) => s.hydrate);
-  const isHydrated = useUserDefaultsStore((s) => s.isHydrated);
+  const { data, isSuccess } = useUserDefaultsQuery();
 
   useEffect(() => {
-    if (!isHydrated) {
-      void hydrate();
-    }
-  }, [isHydrated, hydrate]);
-
-  useEffect(() => {
-    if (!isHydrated) return;
-    const roles = getDefault<UserRole[]>('profile', 'roles') || [];
-    useUserProfileStore.getState().hydrate({ roles, locale: locale || 'de-DE' });
-  }, [getDefault, isHydrated, locale]);
+    if (!isSuccess) return;
+    const roles = data?.profile?.roles ?? [];
+    useUserProfileStore.getState().hydrate({
+      roles,
+      locale: locale || 'de-DE',
+      isHydrated: true,
+    });
+  }, [data, isSuccess, locale]);
 }

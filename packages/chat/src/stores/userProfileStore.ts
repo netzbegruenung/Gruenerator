@@ -13,6 +13,7 @@ export interface UserRole {
 interface UserProfileState {
   roles: UserRole[];
   locale: string;
+  isHydrated: boolean;
 }
 
 interface UserProfileActions {
@@ -27,6 +28,7 @@ type UserProfileStore = UserProfileState & UserProfileActions;
 const INITIAL_STATE: UserProfileState = {
   roles: [],
   locale: 'de-DE',
+  isHydrated: false,
 };
 
 export const useUserProfileStore = create<UserProfileStore>()((set) => ({

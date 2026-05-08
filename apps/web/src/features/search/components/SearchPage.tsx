@@ -108,7 +108,9 @@ function SearchPage() {
   }, []);
 
   if (isThreadView) {
-    return <GrueneratorThread onNavigate={navigate} firstName={firstName} />;
+    return (
+      <GrueneratorThread onNavigate={navigate} firstName={firstName} requireProfileHydration />
+    );
   }
 
   return (
@@ -128,6 +130,7 @@ function SearchPage() {
           toolbarExtra={<SearchExampleSuggestions />}
           onNavigate={navigate}
           firstName={firstName}
+          requireProfileHydration
         />
       </ThreadPrimitive.Root>
 

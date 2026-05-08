@@ -4,7 +4,6 @@ import React, { memo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useFirstName } from '../../../hooks/useFirstName';
-import { useHydrateUserProfile } from '../../../hooks/useHydrateUserProfile';
 
 import { cn } from '@/utils/cn';
 
@@ -33,7 +32,6 @@ function NavigateToChatOnSend() {
 const ChatInner: React.FC = memo(() => {
   const navigate = useNavigate();
   const firstName = useFirstName();
-  useHydrateUserProfile();
   const threadRuntime = useThreadRuntime({ optional: true });
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
@@ -45,7 +43,11 @@ const ChatInner: React.FC = memo(() => {
       className={cn('w-full shrink-0', '[&>div]:px-0', '[&>div>p.text-center]:hidden')}
     >
       <NavigateToChatOnSend />
-      <GrueneratorComposer onNavigate={handleNavigate} firstName={firstName} />
+      <GrueneratorComposer
+        onNavigate={handleNavigate}
+        firstName={firstName}
+        requireProfileHydration
+      />
     </ThreadPrimitive.Root>
   );
 });
