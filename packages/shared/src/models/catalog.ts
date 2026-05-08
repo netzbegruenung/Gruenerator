@@ -19,7 +19,6 @@ export interface ModelOption {
   provider: Provider;
   icon: ModelIcon;
   region: ModelRegion;
-  warning?: string;
   offByDefault?: boolean;
 }
 
@@ -63,7 +62,6 @@ export const MODEL_OPTIONS: ModelOption[] = [
     icon: 'brain',
     region: 'cn',
     offByDefault: true,
-    warning: QWEN_WARNING,
   },
   {
     id: 'qwen3.6-regolo',
@@ -74,7 +72,6 @@ export const MODEL_OPTIONS: ModelOption[] = [
     icon: 'brain',
     region: 'cn',
     offByDefault: true,
-    warning: QWEN_WARNING,
   },
 ];
 
