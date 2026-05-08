@@ -35,6 +35,7 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  FiChevronDown,
   FiClock,
   FiCloud,
   FiDownload,
@@ -56,6 +57,7 @@ import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 
 import { webAppDocsAdapter } from './docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
+import { useDocsLiveWolkeSync } from './useDocsLiveWolkeSync';
 
 import type { BlockNoteEditor } from '@blocknote/core';
 
@@ -216,6 +218,7 @@ function EditorContent() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showWolkeModal, setShowWolkeModal] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showExportSubmenu, setShowExportSubmenu] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<SidebarPanel | null>(null);
   const [editor, setEditor] = useState<BlockNoteEditor | null>(null);
 
@@ -278,7 +281,10 @@ function EditorContent() {
   }, []);
 
   useEffect(() => {
-    if (!showActionsMenu) return;
+    if (!showActionsMenu) {
+      setShowExportSubmenu(false);
+      return;
+    }
     const handleClickOutside = (e: MouseEvent) => {
       if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
         setShowActionsMenu(false);
@@ -307,7 +313,6 @@ function EditorContent() {
     }
   }, [docData, editor]);
 
-  /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
   // @blocknote/xl-pdf-exporter and xl-odt-exporter ship no .d.ts in this install,
   // so dynamic-import members are typed as `any`. Scoped disable until upstream types arrive.
   const handleExportPDF = useCallback(async () => {
@@ -349,10 +354,9 @@ function EditorContent() {
       console.error('ODT export failed:', error);
     }
   }, [docData, editor]);
-  /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
 
   const handleSaveToWolke = useCallback(
-    async (shareLinkId: string, folderPath?: string) => {
+    async (shareLinkId: string, folderPath: string | undefined, liveSync: boolean) => {
       if (!docData || !editor) throw new Error('Editor not ready');
       const { DOCXExporter, docxDefaultSchemaMappings } =
         await import('@blocknote/xl-docx-exporter');
@@ -366,10 +370,17 @@ function EditorContent() {
       }
       const base64Content = btoa(binary);
       const filename = `${docData.title || 'Dokument'}.docx`;
-      await uploadToWolke(shareLinkId, base64Content, filename, folderPath);
+      await uploadToWolke(shareLinkId, base64Content, filename, {
+        ...(folderPath ? { folderPath } : {}),
+        documentId: docData.id,
+        enableLiveSync: liveSync,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['document', id] });
     },
-    [docData, editor]
+    [docData, editor, queryClient, id]
   );
+
+  useDocsLiveWolkeSync({ editor, docData, canEdit });
 
   const togglePanel = useCallback((panel: SidebarPanel) => {
     setActiveSidebar((prev) => (prev === panel ? null : panel));
@@ -498,6 +509,27 @@ function EditorContent() {
           onTitleChange={handleTitleChange}
           rightActions={
             <>
+              {!isGuest && docData.wolke_live_sync && docData.wolke_share_link_id && (
+                <button
+                  type="button"
+                  onClick={() => setShowWolkeModal(true)}
+                  className="group relative flex items-center gap-1.5 py-1 px-2 text-[0.75rem] rounded-full text-secondary-700 dark:text-secondary-300 transition-all duration-200 ease-out hover:bg-secondary-100/80 dark:hover:bg-secondary-900/50 hover:scale-105 hover:shadow-[0_0_0_3px_rgba(34,197,94,0.15)] dark:hover:shadow-[0_0_0_3px_rgba(34,197,94,0.25)]"
+                  title={
+                    docData.wolke_file_path
+                      ? `Live mit Wolke synchronisiert: ${docData.wolke_file_path}`
+                      : 'Live mit Wolke synchronisiert'
+                  }
+                  aria-label="Wolke-Live-Sync aktiv"
+                >
+                  <span className="relative flex items-center justify-center">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-secondary-400/40 opacity-0 group-hover:opacity-100 group-hover:animate-ping" />
+                    <FiCloud className="relative h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-110" />
+                  </span>
+                  <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover:max-w-[3rem] group-hover:opacity-100">
+                    Live
+                  </span>
+                </button>
+              )}
               {isGuest && guestIdentity && (
                 <GuestBadge
                   guestName={guestIdentity.guestName}
@@ -528,21 +560,8 @@ function EditorContent() {
                       <AvatarGroupCount>+{collaborators.length - 5}</AvatarGroupCount>
                     )}
                   </AvatarGroup>
-                  <span className="glass-divider" />
                 </>
               )}
-
-              {!isGuest && canEdit && (
-                <button
-                  className="glass-btn"
-                  onClick={() => setShowShareModal(true)}
-                  aria-label="Teilen"
-                >
-                  <FiShare2 />
-                </button>
-              )}
-
-              <span className="glass-divider" />
 
               <button
                 className={`glass-btn ${effectivePanel === 'chat' || effectivePanel === 'legacy-chat' ? 'active' : ''}`}
@@ -563,17 +582,6 @@ function EditorContent() {
                   <FiMessageCircle />
                 </button>
               )}
-
-              <span className="glass-divider" />
-
-              <button
-                className="glass-btn"
-                onClick={toggleDarkMode}
-                aria-label={darkMode ? 'Zum hellen Modus wechseln' : 'Zum dunklen Modus wechseln'}
-                title={darkMode ? 'Heller Modus' : 'Dunkler Modus'}
-              >
-                {darkMode ? <PiMoon /> : <PiSun />}
-              </button>
 
               <button
                 ref={actionsButtonRef}
@@ -607,6 +615,18 @@ function EditorContent() {
                   >
                     {!isGuest && (
                       <>
+                        {canEdit && (
+                          <button
+                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            onClick={() => {
+                              setShowActionsMenu(false);
+                              setShowShareModal(true);
+                            }}
+                          >
+                            <FiShare2 />
+                            Teilen
+                          </button>
+                        )}
                         <button
                           className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                           onClick={() => {
@@ -624,9 +644,15 @@ function EditorContent() {
                               setShowActionsMenu(false);
                               setShowWolkeModal(true);
                             }}
+                            title={docData.wolke_file_path ?? undefined}
                           >
                             <FiCloud />
-                            In Wolke speichern
+                            <span className="flex-1">In Wolke speichern</span>
+                            {docData.wolke_live_sync && (
+                              <span className="text-[0.6875rem] text-secondary-600 dark:text-secondary-400 font-medium">
+                                Live
+                              </span>
+                            )}
                           </button>
                         )}
                         <div className="my-1 h-px bg-black/5 dark:bg-white/10" />
@@ -634,25 +660,47 @@ function EditorContent() {
                     )}
                     <button
                       className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                      onClick={handleExport}
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        toggleDarkMode();
+                      }}
                     >
-                      <FiDownload />
-                      Als Word (.docx)
+                      {darkMode ? <PiSun /> : <PiMoon />}
+                      {darkMode ? 'Heller Modus' : 'Dunkler Modus'}
                     </button>
                     <button
                       className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                      onClick={handleExportPDF}
+                      onClick={() => setShowExportSubmenu((v) => !v)}
+                      aria-expanded={showExportSubmenu}
                     >
                       <FiDownload />
-                      Als PDF (.pdf)
+                      <span className="flex-1">Exportieren</span>
+                      <FiChevronDown
+                        className={`!h-3.5 !w-3.5 transition-transform ${showExportSubmenu ? 'rotate-180' : ''}`}
+                      />
                     </button>
-                    <button
-                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                      onClick={handleExportODT}
-                    >
-                      <FiDownload />
-                      Als ODT (.odt)
-                    </button>
+                    {showExportSubmenu && (
+                      <div className="flex flex-col pl-4">
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          onClick={handleExport}
+                        >
+                          Als Word (.docx)
+                        </button>
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          onClick={handleExportPDF}
+                        >
+                          Als PDF (.pdf)
+                        </button>
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          onClick={handleExportODT}
+                        >
+                          Als ODT (.odt)
+                        </button>
+                      </div>
+                    )}
                   </div>,
                   document.body
                 )}
@@ -771,6 +819,7 @@ function EditorContent() {
           open={showWolkeModal}
           onOpenChange={setShowWolkeModal}
           onSave={handleSaveToWolke}
+          initialLiveSync={!!docData.wolke_live_sync}
         />
       )}
     </div>

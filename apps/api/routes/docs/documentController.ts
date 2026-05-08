@@ -22,6 +22,7 @@ const updateDocSchema = z.object({
   title: z.string().optional(),
   folder_id: z.unknown().optional(),
   content: z.string().optional(),
+  wolke_live_sync: z.boolean().optional(),
 });
 
 const router = Router();
@@ -36,12 +37,15 @@ router.put(
   '/:id',
   validateBody(updateDocSchema),
   async (
-    req: TypedRequest<{ title?: string; folder_id?: unknown; content?: string }, { id: string }>,
+    req: TypedRequest<
+      { title?: string; folder_id?: unknown; content?: string; wolke_live_sync?: boolean },
+      { id: string }
+    >,
     res: Response
   ) => {
     try {
       const { id } = req.params;
-      const { title, folder_id, content } = req.body;
+      const { title, folder_id, content, wolke_live_sync } = req.body;
       const userId = req.user?.id;
 
       console.log('[docs-rename] PUT /api/docs/%s — userId=%s, body=%o', id, userId, {
@@ -127,6 +131,15 @@ router.put(
         values.push(userId);
         updates.push(`last_edited_at = CURRENT_TIMESTAMP`);
         updates.push(`updated_at = CURRENT_TIMESTAMP`);
+      }
+
+      if (wolke_live_sync !== undefined) {
+        updates.push(`wolke_live_sync = $${paramIndex++}`);
+        values.push(wolke_live_sync);
+      }
+
+      if (updates.length === 0) {
+        return res.json(document);
       }
 
       values.push(id);
