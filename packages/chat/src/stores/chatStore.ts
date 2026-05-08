@@ -38,7 +38,7 @@ interface TriggerCompactionResponse {
   compactionState: CompactionState;
 }
 
-export type ToolKey = 'search' | 'web' | 'examples' | 'research';
+export type ToolKey = 'search' | 'web' | 'examples' | 'pressemitteilung_examples' | 'research';
 
 export type ThreadMode = 'chat' | 'notebook' | 'search' | 'eigener';
 export type SearchMode = 'web' | 'deep';
@@ -120,6 +120,7 @@ const DEFAULT_ENABLED_TOOLS: Record<ToolKey, boolean> = {
   search: true,
   web: true,
   examples: true,
+  pressemitteilung_examples: true,
   research: true,
 };
 
@@ -191,6 +192,7 @@ export const useAgentStore = create<AgentState>()(
             search: enabled,
             web: enabled,
             examples: enabled,
+            pressemitteilung_examples: enabled,
             research: enabled,
           },
         }),
@@ -318,7 +320,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 9,
+      version: 11,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -389,6 +391,15 @@ export const useAgentStore = create<AgentState>()(
             state.selectedProvider = 'litellm';
           }
         }
+        if (version < 10) {
+          const tools = (state.enabledTools as Record<string, boolean> | undefined) ?? {};
+          if (tools.pressemitteilung_examples === undefined) {
+            state.enabledTools = { ...tools, pressemitteilung_examples: true };
+          }
+        }
+        if (version < 11) {
+          state.enabledTools = { ...DEFAULT_ENABLED_TOOLS };
+        }
         return state;
       },
       partialize: (state) => ({
@@ -396,7 +407,6 @@ export const useAgentStore = create<AgentState>()(
         selectedProvider: state.selectedProvider,
         selectedModel: state.selectedModel,
         currentThreadId: state.currentThreadId,
-        enabledTools: state.enabledTools,
         selectedNotebookId: state.selectedNotebookId,
         threadMode: state.threadMode,
         searchMode: state.searchMode,

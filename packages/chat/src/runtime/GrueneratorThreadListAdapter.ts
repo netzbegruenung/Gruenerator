@@ -90,21 +90,29 @@ export function createGrueneratorThreadListAdapter(
           }
         }
 
-        const apiEntries = cachedThreads.map((t) => ({
-          remoteId: t.id,
-          status: (t.status === 'archived' ? 'archived' : 'regular') as 'regular' | 'archived',
-          title: t.title ?? undefined,
-          externalId: undefined as string | undefined,
-          _updatedAt: new Date(t.updatedAt).getTime(),
-        }));
+        const apiEntries = cachedThreads.map((t) => {
+          const updatedAt = new Date(t.updatedAt).getTime();
+          return {
+            remoteId: t.id,
+            status: (t.status === 'archived' ? 'archived' : 'regular') as 'regular' | 'archived',
+            title: t.title ?? undefined,
+            externalId: undefined as string | undefined,
+            custom: { updatedAt } as Record<string, unknown>,
+            _updatedAt: updatedAt,
+          };
+        });
 
-        const externalEntries = external.map((e) => ({
-          remoteId: e.remoteId,
-          status: 'regular' as const,
-          title: e.title,
-          externalId: e.externalId,
-          _updatedAt: new Date(e.updatedAt).getTime(),
-        }));
+        const externalEntries = external.map((e) => {
+          const updatedAt = new Date(e.updatedAt).getTime();
+          return {
+            remoteId: e.remoteId,
+            status: 'regular' as const,
+            title: e.title,
+            externalId: e.externalId,
+            custom: { updatedAt } as Record<string, unknown>,
+            _updatedAt: updatedAt,
+          };
+        });
 
         const all = [...apiEntries, ...externalEntries].sort((a, b) => b._updatedAt - a._updatedAt);
 

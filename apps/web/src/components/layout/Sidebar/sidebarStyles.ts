@@ -2,10 +2,10 @@ import { cn } from '@/utils/cn';
 
 export const menuLinkClass = (active: boolean, disabled?: boolean) =>
   cn(
-    'flex items-center gap-md py-sm px-xs pl-2 mx-2 rounded-sm min-h-[40px] no-underline whitespace-nowrap transition-colors text-foreground hover:bg-hover-alt active:bg-[var(--hover-color)]',
-    active && 'bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-200',
+    'group/link flex items-center gap-3 py-2 px-3 mx-2 rounded-md min-h-[40px] no-underline whitespace-nowrap transition-colors duration-150 text-foreground hover:bg-grey-100 dark:hover:bg-grey-800/60',
+    active && 'bg-grey-100 dark:bg-grey-800/80 font-medium',
     disabled && 'opacity-55 cursor-default pointer-events-none'
   );
 
 export const iconClass =
-  'text-[1.4rem] text-foreground shrink-0 w-6 flex items-center justify-center transition-colors xl:text-[1.5rem] 2xl:text-[1.6rem] 2xl:w-7';
+  'text-[1.25rem] text-foreground shrink-0 w-5 flex items-center justify-center transition-colors duration-150';

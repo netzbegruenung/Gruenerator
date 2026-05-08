@@ -120,6 +120,12 @@
       "import": "./dist/groups/index.js",
       "default": "./dist/groups/index.js"
     },
+    "./agents": {
+      "development": "./src/agents/index.ts",
+      "types": "./src/agents/index.ts",
+      "import": "./dist/agents/index.js",
+      "default": "./dist/agents/index.js"
+    },
     "./models": {
       "development": "./src/models/index.ts",
       "types": "./src/models/index.ts",

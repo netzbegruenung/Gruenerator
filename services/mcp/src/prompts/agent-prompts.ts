@@ -14,7 +14,7 @@ const TOOL_NAME_MAP: Record<string, string> = {
   search_examples: 'gruenerator_examples_search',
 };
 
-function getMcpToolHints(enabledTools?: string[]): string {
+function getMcpToolHints(enabledTools?: readonly string[]): string {
   if (!enabledTools || enabledTools.length === 0) return '';
 
   const mappedTools = enabledTools
