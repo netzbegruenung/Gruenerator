@@ -83,6 +83,6 @@ export function getPlatformShareUrl(
  */
 export function generateQrCodeUrl(url: string): string | null {
   // This is a placeholder - actual QR code generation is platform-specific
-  // Web uses react-qr-code, Mobile uses react-native-qrcode-svg
+  // Web uses qrcode.react, Mobile uses react-native-qrcode-svg
   return null;
 }

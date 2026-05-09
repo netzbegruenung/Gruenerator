@@ -7,11 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@gruenerator/ui';
+import { QRCodeSVG } from 'qrcode.react';
 import { useState, useEffect } from 'react';
-import QRCodeDefault from 'react-qr-code';
-
-const QRCode =
-  (QRCodeDefault as unknown as { QRCode?: typeof QRCodeDefault }).QRCode ?? QRCodeDefault;
 
 import { cn } from '../../../utils/cn';
 import { canShare, shareContent } from '../../../utils/shareUtils';
@@ -232,7 +229,7 @@ const ShareMediaModal = ({
             <div className="flex items-center gap-lg max-[600px]:flex-col max-[600px]:items-center">
               <div className="flex flex-1 flex-col items-center justify-center max-[600px]:w-full">
                 <div className="flex items-center justify-center rounded-sm bg-white p-md">
-                  <QRCode value={getShareUrl(currentShare.shareToken)} size={160} level="M" />
+                  <QRCodeSVG value={getShareUrl(currentShare.shareToken)} size={160} level="M" />
                 </div>
               </div>
 

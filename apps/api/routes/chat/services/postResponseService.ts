@@ -37,14 +37,18 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   web: 'web_search',
   research: 'research',
   examples: 'gruenerator_examples_search',
+  pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
 };
 
 /**
  * Result payload shape for non-research tool calls (search, web, examples).
- * The chat UI's generic result renderers read `result.results`.
+ * The chat UI's generic result renderers read `result.results`. The examples
+ * cards (`PressemitteilungExamplesCard`, generic `ToolCallUI`) additionally
+ * read `result.examples`, so we attach a kind-specific list when present.
  */
 interface SearchToolCallResult {
   results: SearchResult[];
+  examples?: unknown[];
 }
 
 type ToolCallResult = SearchToolCallResult | ResearchToolResult;
@@ -66,7 +70,21 @@ function buildToolCallResult(toolName: string, finalState: ChatGraphState): Tool
   if (toolName === 'research' && finalState.researchMeta) {
     return finalState.researchMeta;
   }
-  return { results: finalState.searchResults?.slice(0, 10) || [] };
+  const base: SearchToolCallResult = {
+    results: finalState.searchResults?.slice(0, 10) || [],
+  };
+  // Per-kind rich list for the examples cards (PressemitteilungExamplesCard
+  // reads result.examples with {title, body, lv, url}; generic ToolCallUI
+  // reads result.examples for social posts too).
+  const ex = finalState.examplesResult;
+  if (ex) {
+    if (toolName === 'gruenerator_pressemitteilung_examples' && ex.press) {
+      base.examples = ex.press;
+    } else if (toolName === 'gruenerator_examples_search' && ex.social) {
+      base.examples = ex.social;
+    }
+  }
+  return base;
 }
 
 function buildToolCalls(

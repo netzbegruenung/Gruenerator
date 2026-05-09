@@ -115,6 +115,13 @@ export interface SSEEventPayloads {
      * without waiting for persistence reload.
      */
     researchMeta?: unknown;
+    /**
+     * For examples / pressemitteilung_examples: kind-segmented rich items
+     * matching the shapes the per-kind UI cards (PressemitteilungExamplesCard,
+     * generic ToolCallUI) read. Frontend stamps the appropriate kind list
+     * onto the tool-call's `result.examples` so the card renders mid-stream.
+     */
+    examplesResult?: { press?: unknown[]; social?: unknown[]; message?: string };
   };
   summary_start: { message: string; documentCount: number };
   summary_complete: { message: string; summaryLength: number; timeMs: number };
@@ -207,6 +214,7 @@ export const INTENT_MESSAGES: Record<SearchIntent, string> = {
   // person: 'Suche Informationen zur Person...', // DISABLED: Person search not production ready
   web: 'Suche aktuelle Informationen im Web...',
   examples: 'Suche Social-Media-Beispiele...',
+  pressemitteilung_examples: 'Suche Pressemitteilungs-Vorlagen aus Landesverbänden...',
   image: 'Generiere Bild...',
   image_edit: 'Bearbeite Bild...',
   sharepic: 'Erstelle Sharepic...',

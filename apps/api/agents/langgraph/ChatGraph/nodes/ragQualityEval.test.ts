@@ -262,6 +262,7 @@ async function evaluateBudgetAllocation() {
     maxSearches: 3,
     researchBrief: null,
     researchMeta: null,
+    examplesResult: null,
     searchErrors: [],
     briefGenerationFailed: false,
     rerankFailed: false,

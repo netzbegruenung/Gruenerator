@@ -3,7 +3,7 @@
  * Handles personal template management
  */
 
-import express, { type Router, type Response, type NextFunction } from 'express';
+import express, { type Router, type Response } from 'express';
 import { z } from 'zod';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
@@ -72,12 +72,6 @@ const metadataUpdateSchema = z.object({
 
 const bulkDeleteTemplatesSchema = z.object({
   ids: z.array(z.string()).min(1).max(100),
-});
-
-// Add debugging middleware to all user templates routes
-router.use((req: AuthRequest, _res: Response, next: NextFunction) => {
-  log.debug(`[User Templates] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
-  next();
 });
 
 // === URL PREVIEW / CRAWL ENDPOINT ===
