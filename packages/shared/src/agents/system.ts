@@ -85,6 +85,32 @@ export const SYSTEM_AGENTS = [
     ],
   },
   {
+    identifier: 'gruenerator-suche',
+    title: 'Suche',
+    description:
+      'Recherche mit Quellenangaben über Web und grüne Dokumente — perplexity-artige Antworten mit Zitaten.',
+    // systemRole unused — SearchGraph builds its own prompt in searchRespondNode.ts.
+    systemRole: '',
+    avatar: '🔎',
+    backgroundColor: '#316049',
+    tags: ['Recherche', 'Suche', 'Quellen', 'Grüne'],
+    model: 'mistral-large-latest',
+    defaultModel: 'mistral-large-latest',
+    provider: 'mistral',
+    params: { max_tokens: 12000, temperature: 0.3 },
+    openingMessage:
+      'Hallo! Ich bin deine Recherche-Assistenz. Stell mir eine Frage und ich durchsuche das Web sowie grüne Dokumente und antworte mit Quellenangaben.',
+    openingQuestions: [
+      'Was sagt die Bundespartei zu Tempo 30?',
+      'Aktuelle Position der Grünen zur Schuldenbremse',
+      'Beschlüsse zur Wärmewende auf Bundesebene',
+      'Was steht im Wahlprogramm zur Kindergrundsicherung?',
+    ],
+    locale: 'de-DE',
+    author: 'Grünerator',
+    routeTo: 'search',
+  },
+  {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
     title: 'Öffentlichkeitsarbeit',
     description: 'Erstellt Pressemitteilungen und Social-Media-Inhalte für alle Plattformen.',

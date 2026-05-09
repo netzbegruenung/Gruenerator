@@ -7,6 +7,8 @@ import { ArrowUp, Mic, Square, X } from 'lucide-react';
 import { cn } from '@gruenerator/ui';
 import { useAgentStore } from '../../stores/chatStore';
 import { ToolToggles } from '../ToolToggles';
+import { SearchDepthToggle } from '../SearchDepthToggle';
+import { getSystemAgent } from '@gruenerator/shared/agents';
 import { ComposerAttachments } from '../assistant-ui/attachment';
 import { MentionPopover } from './MentionPopover';
 import { SkillPopover } from './SkillPopover';
@@ -23,7 +25,6 @@ import { useMentionablesQuery } from '../../hooks/useMentionablesQuery';
 import { useChatDensity } from './chatDensityContext';
 import type { Mentionable } from '../../lib/mentionables';
 import type { DocumentMention } from '../../lib/documentMentionables';
-import { useUserProfileStore } from '../../stores/userProfileStore';
 
 interface GrueneratorComposerProps {
   isRunning?: boolean;
@@ -36,37 +37,21 @@ interface GrueneratorComposerProps {
   showMentions?: boolean;
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
-  /**
-   * If true, the send button shows a spinner and is disabled until
-   * `useUserProfileStore.isHydrated === true`. Use in apps where roles
-   * must be loaded before the first message is sent. Default: false
-   * (mobile/desktop consumers without a hydration bridge are unaffected).
-   */
-  requireProfileHydration?: boolean;
   insideAgent?: boolean;
 }
 
 const ROUND_BTN_BASE = 'flex items-center justify-center rounded-full transition-opacity';
 const roundBtnSize = (isCompact: boolean) => (isCompact ? 'm-1.5 h-7 w-7' : 'm-2 h-8 w-8');
 
-function SendButton({ requireProfileHydration }: { requireProfileHydration?: boolean }) {
+function SearchDepthToggleSlot() {
+  const selectedAgentId = useAgentStore((s) => s.selectedAgentId);
+  const agent = selectedAgentId ? getSystemAgent(selectedAgentId) : null;
+  if (agent?.routeTo !== 'search') return null;
+  return <SearchDepthToggle />;
+}
+
+function SendButton() {
   const isCompact = useChatDensity() === 'compact';
-  const isHydrated = useUserProfileStore((s) => s.isHydrated);
-
-  if (requireProfileHydration && !isHydrated) {
-    return (
-      <button
-        type="button"
-        disabled
-        aria-label="Profil wird geladen"
-        title="Profil wird geladen…"
-        className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white opacity-30`}
-      >
-        <span className="block h-3 w-3 animate-spin rounded-full border-2 border-white border-t-transparent" />
-      </button>
-    );
-  }
-
   return (
     <ComposerPrimitive.Send
       className={`${roundBtnSize(isCompact)} ${ROUND_BTN_BASE} bg-primary text-white disabled:opacity-30`}
@@ -113,13 +98,7 @@ function StopDictationButton() {
   );
 }
 
-function ComposerButtons({
-  isRunning,
-  requireProfileHydration,
-}: {
-  isRunning?: boolean;
-  requireProfileHydration?: boolean;
-}) {
+function ComposerButtons({ isRunning }: { isRunning?: boolean }) {
   const isDictating = useAuiState((s) => s.composer.dictation != null);
   const hasDictation = useAuiState((s) => s.thread.capabilities.dictation);
   const isEmpty = useAuiState((s) => s.composer.isEmpty);
@@ -127,7 +106,7 @@ function ComposerButtons({
   if (isRunning) return <CancelButton />;
   if (isDictating) return <StopDictationButton />;
   if (hasDictation && isEmpty) return <DictateButton />;
-  return <SendButton requireProfileHydration={requireProfileHydration} />;
+  return <SendButton />;
 }
 
 interface MentionState {
@@ -159,7 +138,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showMentions = true,
   showPlusMenu = true,
   showToolToggles = true,
-  requireProfileHydration = false,
   insideAgent = false,
 }: GrueneratorComposerProps) {
   const composerRuntime = useComposerRuntime();
@@ -459,14 +437,12 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
                 insideAgent={insideAgent}
               />
             )}
+            {showToolToggles && <SearchDepthToggleSlot />}
             {toolbarExtra}
           </div>
           <div className="flex items-center gap-0.5">
             <ModelPicker />
-            <ComposerButtons
-              isRunning={isRunning}
-              requireProfileHydration={requireProfileHydration}
-            />
+            <ComposerButtons isRunning={isRunning} />
           </div>
         </div>
       </ComposerPrimitive.Root>

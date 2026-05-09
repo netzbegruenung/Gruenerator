@@ -17,6 +17,7 @@ import type {
   ProgressStep,
 } from '../hooks/useChatGraphStream';
 import { useAgentStore, type ToolKey, type ThreadMode, type SearchMode } from '../stores/chatStore';
+import { getSystemAgent } from '@gruenerator/shared/agents';
 import { parseAllMentions } from '../lib/mentionParser';
 import { parseSSELine } from '../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
@@ -866,9 +867,21 @@ export function createGrueneratorModelAdapter(
         return { id: m.id, role: m.role, parts };
       });
 
+      // Resolve effective mode: an agent with routeTo='search' forces 'search' mode
+      // regardless of the store's threadMode (the agent IS the mode). Legacy
+      // threadMode='search' without a search-agent collapses to 'chat' — the old
+      // Suche toggle was removed, so the only path to SearchGraph is the agent.
+      const activeAgentForRouting = config.agentId ? getSystemAgent(config.agentId) : null;
+      const storedMode = config.threadMode || 'chat';
+      const effectiveMode: ThreadMode =
+        activeAgentForRouting?.routeTo === 'search'
+          ? 'search'
+          : storedMode === 'search'
+            ? 'chat'
+            : storedMode;
+
       // Skip attachment extraction and mention parsing for non-chat modes
-      const isChatMode =
-        !config.threadMode || config.threadMode === 'chat' || config.threadMode === 'eigener';
+      const isChatMode = effectiveMode === 'chat' || effectiveMode === 'eigener';
 
       // Extract attachments from AUI's CompleteAttachment objects on the last user message.
       // AUI stores file/image content in message.attachments[].content, NOT in message.content.
@@ -938,8 +951,14 @@ export function createGrueneratorModelAdapter(
           );
           if (textPart) {
             const parsed = parseAllMentions(textPart.text);
-            effectiveAgentId = parsed.agentId;
-            effectiveAgentMention = parsed.agentMention;
+            // Only override the URL/store-derived agent when the user actually
+            // typed an @agent or /skill mention. parseAllMentions falls back to
+            // getDefaultAgent() (universal) when no mention exists, which would
+            // otherwise silently wipe ?agent=… deep links.
+            if (parsed.agentMention !== undefined) {
+              effectiveAgentId = parsed.agentId;
+              effectiveAgentMention = parsed.agentMention;
+            }
             notebookIds = parsed.notebookIds;
             forcedTools = parsed.forcedTools;
             documentIds = parsed.documentIds;
@@ -1065,8 +1084,6 @@ export function createGrueneratorModelAdapter(
         ? Array.from(new Set([...documentChatIds, ...injectedDocIds]))
         : documentChatIds;
 
-      const threadMode = config.threadMode || 'chat';
-
       // Workplace flow seeds an Antrag/PM/Social text in agent store; pass it
       // along on the FIRST request (no threadId yet) so the backend persists
       // it as the seed assistant message of the brand-new thread.
@@ -1074,18 +1091,19 @@ export function createGrueneratorModelAdapter(
         ? useAgentStore.getState().pendingInitialAssistantMessage || undefined
         : undefined;
 
-      // Mode-aware endpoint selection
+      // Mode-aware endpoint selection (uses effectiveMode so search-routed agents
+      // dispatch to SearchGraph regardless of the store's threadMode).
       const endpoint =
-        threadMode === 'search'
+        effectiveMode === 'search'
           ? endpoints.searchStream
-          : threadMode === 'notebook'
+          : effectiveMode === 'notebook'
             ? endpoints.notebookStream
             : endpoints.chatStream;
 
       // Mode-aware request body
       let requestBody: Record<string, unknown>;
 
-      if (threadMode === 'search') {
+      if (effectiveMode === 'search') {
         // Search mode: simple query + searchMode, no mentions/attachments
         const lastUserText = formattedMessages
           .filter((m) => m.role === 'user')
@@ -1096,8 +1114,9 @@ export function createGrueneratorModelAdapter(
           messages: formattedMessages,
           threadId: config.threadId,
           searchMode: config.searchMode || 'web',
+          agentId: config.agentId,
         };
-      } else if (threadMode === 'notebook') {
+      } else if (effectiveMode === 'notebook') {
         // Notebook mode: query + collection scoping from selectedNotebookId
         const lastUserText = formattedMessages
           .filter((m) => m.role === 'user')
@@ -1108,7 +1127,7 @@ export function createGrueneratorModelAdapter(
           notebookId: config.selectedNotebookId || 'gruenerator-notebook',
           threadId: config.threadId,
         };
-      } else if (threadMode === 'eigener') {
+      } else if (effectiveMode === 'eigener') {
         // Eigener Chat mode: like chat but with custom prompt, no stale agentId
         requestBody = {
           messages: formattedMessages,

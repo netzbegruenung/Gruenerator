@@ -271,7 +271,25 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>7. GlitchTip</strong> (Burke Software and Consulting LLC, New York, USA)
+        <strong>7. Linkup Technologies</strong> (Linkup Technologies SAS, 28 avenue des
+        Pépinières, 94260 Fresnes, Frankreich; Handelsregister Créteil 930 910 740)
+      </p>
+      <ul>
+        <li>Zweck: Agentische Web-Recherche mit Quellenangaben (Suche-Modus, Tiefenrecherche)</li>
+        <li>Server: EU (Frankreich)</li>
+        <li>Verarbeitete Daten: Suchanfrage</li>
+        <li>
+          Besonderheit: Französischer Anbieter mit ausschließlicher EU-Datenverarbeitung — keine
+          Drittlandübermittlung; ausdrückliche DSGVO-Compliance laut Anbieter
+        </li>
+        <li>
+          Details: <a href="https://www.linkup.so/privacy-policy">Datenschutzerklärung</a> und{' '}
+          <a href="https://www.linkup.so/terms-of-use">Nutzungsbedingungen</a>
+        </li>
+      </ul>
+
+      <p>
+        <strong>8. GlitchTip</strong> (Burke Software and Consulting LLC, New York, USA)
       </p>
       <ul>
         <li>Zweck: Fehlerüberwachung und Anwendungsmonitoring (Error Tracking)</li>

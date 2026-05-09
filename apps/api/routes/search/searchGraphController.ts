@@ -68,6 +68,7 @@ interface SearchStreamBody {
   threadId?: string;
   searchMode?: string;
   locale?: string;
+  agentId?: string | null;
 }
 
 const log = createLogger('SearchGraphController');
@@ -110,7 +111,17 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
   req.on('close', () => abortController.abort());
 
   try {
-    const { query, messages, threadId, searchMode = 'web', locale } = req.body as SearchStreamBody;
+    const {
+      query,
+      messages,
+      threadId,
+      searchMode = 'web',
+      locale,
+      agentId,
+    } = req.body as SearchStreamBody;
+    // Stamp the thread with the Suche agent so thread listings + ?agent= URL sync
+    // show consistent metadata. Falls back to the canonical Suche agent id.
+    const persistedAgentId = agentId || 'gruenerator-suche';
 
     if (!query && (!messages || messages.length === 0)) {
       sse.sendRaw('error', { error: 'Query or messages required' });
@@ -158,7 +169,7 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
     if (!activeThreadId) {
       const thread = await createThread(
         userId,
-        'search',
+        persistedAgentId,
         query?.substring(0, 100) || 'Suche',
         'search'
       );
@@ -292,7 +303,7 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
     const fullText = await streamAndAccumulate({
       model: aiModel,
       messages: messagesForAI,
-      maxTokens: state.searchMode === 'deep' ? 4000 : 3000,
+      maxTokens: state.searchMode === 'deep' ? 12000 : 6000,
       temperature: 0.3,
       sse,
       logPrefix: '[SearchGraph]',
