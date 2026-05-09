@@ -711,7 +711,15 @@ router.post(
           defaultModel: finalState.agentConfig.defaultModel,
         }),
       };
-      const resolution = await resolveModel(agentConfigForResolve, modelId, requestId, {
+      // Press composition is force-routed to Gemma 4 regardless of the user
+      // model picker. Gemma 4 is empirically the best model for German PM
+      // craft in this codebase; press intent treats it as the contract.
+      const isPressComposition = finalState.intent === 'pressemitteilung_examples';
+      const effectiveModelId = isPressComposition ? 'gemma-4' : modelId;
+      if (isPressComposition) {
+        log.info('[Composer] Using gemma-4 override for press composition');
+      }
+      const resolution = await resolveModel(agentConfigForResolve, effectiveModelId, requestId, {
         hasImages: imageAttachments.length > 0,
         intent: finalState.intent,
       });
@@ -1035,10 +1043,20 @@ router.post(
         }),
       };
       const resumeRequestId = `resume_${threadId}_${Date.now()}`;
-      const resolution2 = await resolveModel(agentConfigForResolve2, modelId, resumeRequestId, {
-        hasImages: resumeImageAttachments.length > 0,
-        intent: finalState.intent,
-      });
+      const isPressCompositionResume = finalState.intent === 'pressemitteilung_examples';
+      const effectiveResumeModelId = isPressCompositionResume ? 'gemma-4' : modelId;
+      if (isPressCompositionResume) {
+        log.info('[Composer] Using gemma-4 override for press composition (resume)');
+      }
+      const resolution2 = await resolveModel(
+        agentConfigForResolve2,
+        effectiveResumeModelId,
+        resumeRequestId,
+        {
+          hasImages: resumeImageAttachments.length > 0,
+          intent: finalState.intent,
+        }
+      );
       const {
         model: aiModel,
         provider: resolvedProvider2,

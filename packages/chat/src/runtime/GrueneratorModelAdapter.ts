@@ -336,11 +336,12 @@ async function* parseSSEStream(
         }
 
         case 'search_complete': {
-          const { message, resultCount, results, researchMeta } = data as {
+          const { message, resultCount, results, researchMeta, examplesResult } = data as {
             message: string;
             resultCount: number;
             results?: SearchResult[];
             researchMeta?: unknown;
+            examplesResult?: { press?: unknown[]; social?: unknown[]; message?: string };
           };
           if (results) receivedSearchResults = results;
           // Update searching step label with result count
@@ -358,14 +359,23 @@ async function* parseSSEStream(
             resultCount,
           };
 
-          // Pick the right result shape per tool. Research toolcalls expect
-          // { answer, citations, confidence, searchSteps, followUpQuestions }
-          // (the orchestrator's researchMeta), not the generic { results }
-          // shape — otherwise ResearchArtifactCard renders empty.
-          const resultForTool = (toolName: string) =>
-            toolName === 'research' && researchMeta != null
-              ? (researchMeta as Record<string, unknown>)
-              : { results: results || [] };
+          // Pick the right result shape per tool:
+          // - research → researchMeta (rich orchestrator result)
+          // - gruenerator_pressemitteilung_examples → { examples: press[], results }
+          // - gruenerator_examples_search → { examples: social[], results }
+          // - everything else → { results }
+          const resultForTool = (toolName: string) => {
+            if (toolName === 'research' && researchMeta != null) {
+              return researchMeta as Record<string, unknown>;
+            }
+            if (toolName === 'gruenerator_pressemitteilung_examples' && examplesResult?.press) {
+              return { results: results || [], examples: examplesResult.press };
+            }
+            if (toolName === 'gruenerator_examples_search' && examplesResult?.social) {
+              return { results: results || [], examples: examplesResult.social };
+            }
+            return { results: results || [] };
+          };
 
           for (let i = 0; i < allToolCalls.length; i++) {
             if (!allToolCalls[i].result) {

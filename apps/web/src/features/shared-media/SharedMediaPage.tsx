@@ -1,11 +1,8 @@
 import { Button } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
+import { QRCodeSVG } from 'qrcode.react';
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { FaInstagram } from 'react-icons/fa';
-import QRCodeDefault from 'react-qr-code';
-
-const QRCode =
-  (QRCodeDefault as unknown as { QRCode?: typeof QRCodeDefault }).QRCode ?? QRCodeDefault;
 import { useParams } from 'react-router-dom';
 
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
@@ -301,7 +298,7 @@ const SharedMediaPage = () => {
           onClick={handleShare}
           title={copied ? 'Link kopiert!' : 'Klicken zum Teilen'}
         >
-          <QRCode value={window.location.href} size={64} level="M" />
+          <QRCodeSVG value={window.location.href} size={64} level="M" />
           {copied && (
             <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary-600 text-white px-sm py-xxs rounded-sm text-xs whitespace-nowrap">
               Kopiert!

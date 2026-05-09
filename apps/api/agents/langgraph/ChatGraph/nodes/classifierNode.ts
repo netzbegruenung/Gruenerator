@@ -410,6 +410,50 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       };
     }
 
+    // Content-creation agents (e.g. öffentlichkeitsarbeit) instruct the model
+    // to ground every PM / social post on real LV examples. The default
+    // classifier rule routes "Schreib eine Pressemitteilung..." to `direct`,
+    // which skips the search node entirely and contradicts the agent's
+    // systemRole ("Nutze IMMER ..."). Force `examples` intent here so the
+    // search node fires before respondNode.
+    const agentWantsExamples =
+      Array.isArray(state.agentConfig.enabledTools) &&
+      (state.agentConfig.enabledTools.includes('examples') ||
+        state.agentConfig.enabledTools.includes('pressemitteilung_examples')) &&
+      /Nutze IMMER/i.test(state.agentConfig.systemRole);
+    // For content-creation agents, the noun alone is enough — typical prompts
+    // are bare noun-phrases like "PM zu X" or "Tweet zur Verkehrswende"
+    // without an explicit creation verb. PMs and social-media posts live in
+    // different Qdrant collections, so split them into two intents and use
+    // secondaryIntent for mixed prompts ("Tweet UND PM zu X") so the search
+    // node can fan out.
+    const pmNounPattern =
+      /\b(pressemitteilung|pressemeldung|pm|presseaussendung|presse[-\s]?statement)\b/i;
+    const socialNounPattern =
+      /\b(post|tweet|posting|reel|tiktok|instagram|facebook|linkedin|twitter|social[-\s]?media)\b/i;
+    if (agentWantsExamples && userContent.length > 0) {
+      const wantsPm = pmNounPattern.test(userContent);
+      const wantsSocial = socialNounPattern.test(userContent);
+      if (wantsPm || wantsSocial) {
+        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : 'examples';
+        const secondary: SearchIntent | null = wantsPm && wantsSocial ? 'examples' : null;
+        log.info(
+          `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → primary=${primary}${secondary ? `, secondary=${secondary}` : ''}`
+        );
+        return {
+          intent: primary,
+          secondaryIntent: secondary,
+          searchSources: [],
+          searchQuery: extractSearchTopic(userContent) || userContent,
+          detectedFilters: null,
+          reasoning: `Agent ${state.agentConfig.identifier} requires ${primary}${secondary ? ` + ${secondary}` : ''} grounding for content creation`,
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
+    }
+
     // ── TIER 3: Heuristic pre-check ──
     // Short messages: always use heuristics (likely greetings)
     if (userContent.length < 10) {

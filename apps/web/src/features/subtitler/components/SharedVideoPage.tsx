@@ -1,8 +1,8 @@
 import { Button } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
+import { QRCodeSVG } from 'qrcode.react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { FaInstagram } from 'react-icons/fa';
-import QRCode from 'react-qr-code';
 import { useParams } from 'react-router-dom';
 
 import LoginRequired from '../../../components/common/LoginRequired/LoginRequired';
@@ -273,7 +273,7 @@ const SharedVideoPage = () => {
           onClick={handleShare}
           title={copied ? 'Link kopiert!' : 'Klicken zum Teilen'}
         >
-          <QRCode value={window.location.href} size={64} level="M" />
+          <QRCodeSVG value={window.location.href} size={64} level="M" />
           {copied && (
             <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-primary-500/90 text-xs font-medium text-white">
               Kopiert!

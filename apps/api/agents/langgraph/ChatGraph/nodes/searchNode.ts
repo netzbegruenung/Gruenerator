@@ -14,6 +14,10 @@ import {
   executeResearch,
 } from '../../../../routes/chat/agents/directSearch.js';
 import {
+  searchExamples,
+  type ExampleKind,
+} from '../../../../services/examples/exampleSearchService.js';
+import {
   selectAndCrawlTopUrls,
   type CrawlableResult,
 } from '../../../../services/search/CrawlingService.js';
@@ -28,6 +32,7 @@ import {
   type SearchResult,
   type Citation,
   type ResearchToolResult,
+  type ExamplesToolResult,
 } from '../types.js';
 
 import {
@@ -441,6 +446,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     let citations: Citation[] = [];
     let searchedCollections: string[] = [];
     let researchMeta: ResearchToolResult | null = null;
+    let examplesResult: ExamplesToolResult | null = null;
 
     const searchSources = state.searchSources || [];
     const documentSources = state.documentSources || [];
@@ -1004,29 +1010,62 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         break;
       }
 
+      case 'pressemitteilung_examples':
       case 'examples': {
-        // Social media examples search — derive country from locale when agent doesn't set it
+        // Build kinds from intent + secondaryIntent. The dual SearchIntent
+        // surface stays so postResponseService picks the right tool name (and
+        // therefore the right UI card); the *data fetch* is unified.
+        const kinds: ExampleKind[] = [];
+        if (intent === 'pressemitteilung_examples') kinds.push('press');
+        if (intent === 'examples' || state.secondaryIntent === 'examples') kinds.push('social');
+
         const country =
           agentConfig.toolRestrictions?.examplesCountry ||
           (state.userLocale === 'de-AT' ? 'AT' : undefined);
-        const examplesParams: Parameters<typeof executeDirectExamplesSearch>[0] = {
+
+        const unified = await searchExamples({
           query: searchQuery || '',
+          kinds,
+          ...(country && { country }),
+        });
+
+        results = unified.all.map((e) => ({
+          source: 'examples',
+          title:
+            e.kind === 'press'
+              ? `Pressemitteilung${e.lv ? ` (${e.lv})` : ''}: ${e.title}`
+              : e.title,
+          content: e.body,
+          relevance: e.relevance,
+          ...(e.url && { url: e.url }),
+        }));
+        // Press items have URLs → citations; social posts don't.
+        citations = (unified.byKind.press ?? []).length > 0 ? buildCitations(results) : [];
+
+        // Stash the rich kind-segmented shape on state so postResponseService
+        // can persist it under `result.examples` for the per-kind UI cards.
+        examplesResult = {
+          ...(unified.byKind.press && {
+            press: unified.byKind.press.map((e) => ({
+              id: e.id,
+              title: e.title,
+              body: e.body,
+              lv: e.lv ?? '',
+              ...(e.sourceId && { sourceId: e.sourceId }),
+              ...(e.publishedAt && { publishedAt: e.publishedAt }),
+              ...(e.url && { url: e.url }),
+            })),
+          }),
+          ...(unified.byKind.social && {
+            social: unified.byKind.social.map((e) => ({
+              id: e.id,
+              platform: e.platform ?? 'unknown',
+              content: e.body,
+              ...(e.author && { author: e.author }),
+              ...(e.publishedAt && { date: e.publishedAt }),
+            })),
+          }),
         };
-        if (country != null) {
-          examplesParams.country = country;
-        }
-        const examplesResult = await executeDirectExamplesSearch(examplesParams);
-
-        results =
-          examplesResult.examples?.map((e) => ({
-            source: 'examples',
-            title: `${e.platform} Beispiel${e.author ? ` von ${e.author}` : ''}`,
-            content: e.content || '',
-            relevance: 0.8,
-          })) || [];
-
-        // Examples typically don't have URLs for citations
-        citations = [];
         break;
       }
 
@@ -1059,6 +1098,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       searchCount: 1,
       searchTimeMs,
       researchMeta,
+      examplesResult,
       ...(searchedCollections.length > 0 && { searchedCollections }),
     };
   } catch (error: unknown) {
