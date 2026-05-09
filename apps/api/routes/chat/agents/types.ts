@@ -52,6 +52,8 @@ export interface AgentConfig {
   fewShotExamples?: FewShotExample[] | undefined;
   /** Runtime-only: set by controller, not by agent YAML files */
   userId?: string | undefined;
+  /** Backend dispatch target. 'search' routes turns to /api/search-graph/stream. */
+  routeTo?: 'chat' | 'search' | undefined;
 }
 
 export interface Thread {

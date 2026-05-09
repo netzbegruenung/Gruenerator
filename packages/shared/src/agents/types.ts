@@ -38,6 +38,7 @@ export interface Agent {
   toolRestrictions?: ToolRestrictions;
   enabledTools?: readonly string[];
   fewShotExamples?: readonly FewShotExample[];
+  routeTo?: 'chat' | 'search';
 }
 
 export type SkillCategory = 'presse' | 'social' | 'dokumente' | 'recherche' | 'sonstiges';

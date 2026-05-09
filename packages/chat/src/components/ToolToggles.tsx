@@ -1,7 +1,7 @@
 'use client';
 
 import { memo } from 'react';
-import { Wrench, MessageSquare, BookOpen, Search, Settings } from 'lucide-react';
+import { Wrench, MessageSquare, BookOpen, Settings } from 'lucide-react';
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -25,7 +25,6 @@ const MODE_CONFIG: Array<{
   Icon: typeof MessageSquare;
 }> = [
   { mode: 'chat', label: 'Chat', Icon: MessageSquare },
-  { mode: 'search', label: 'Suche', Icon: Search },
 ];
 
 interface ToolTogglesProps {

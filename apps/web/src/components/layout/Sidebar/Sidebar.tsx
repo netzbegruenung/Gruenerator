@@ -70,6 +70,12 @@ const DEFAULT_AGENT_ENTRIES: readonly DefaultAgentEntry[] = [
     identifier: 'gruenerator-antrag',
     Icon: PiNotePencil,
   },
+  {
+    key: 'default-suche',
+    label: 'Suche',
+    identifier: 'gruenerator-suche',
+    Icon: PiMagnifyingGlass,
+  },
 ];
 import { useEffect, useMemo, useCallback, useRef, useState, memo } from 'react';
 import {
@@ -81,6 +87,7 @@ import {
   PiSparkle,
   PiMegaphone,
   PiNotePencil,
+  PiMagnifyingGlass,
 } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
