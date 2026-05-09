@@ -35,6 +35,7 @@ Single workspace: `pnpm --filter @gruenerator/api test:auth`, `pnpm --filter @gr
 
 - **`apps/web`** — React 19 + Vite 7. Feature-sliced design, 26 modules in `src/features/`. Routes: `src/config/routes.ts`.
 - **`apps/api`** — Express 5, Node.js cluster mode. AI via worker pool (`workers/aiWorkerPool.ts`). Routes in `routes/`, logic in `services/`. See `CLAUDE-routing.md`.
+  - **Chat: dual handlers, contract router is live.** `routes/chat/chatGraphContractRouter.ts` (+ `agents/langgraph/ChatGraph/` nodes: classifier → search → respond) handles `/api/chat-service/*`. `routes/chat/chatStreamController.ts` is legacy — still mounted but not the default path. **When debugging chat behavior (intent, tool calls, prompts), check the contract router & ChatGraph nodes first** — confirm via backend logs `[ChatGraph:Classifier]` / `[chatGraphContractRouter]`.
 - **`apps/docs`** — **Deprecated** collaborative editor. New docs features → `apps/web/src/features/docs/` + `packages/docs/`.
 - **`apps/mobile`** — Expo 55 / React Native 0.83 with Expo Router.
 - **`apps/desktop`** — Tauri 2 wrapper around web frontend.
