@@ -13,8 +13,8 @@ import {
   applyDefaultFilter,
   type SubcategoryFilters,
 } from '../../../config/systemCollectionsConfig.js';
-import { contentExamplesService } from '../../../services/contentExamplesService.js';
 import { DocumentSearchService } from '../../../services/document-services/index.js';
+import { searchExamples } from '../../../services/examples/exampleSearchService.js';
 import { withRetry } from '../../../services/search/index.js';
 import { getLinkupService } from '../../../services/search/LinkupService.js';
 import { searxngService } from '../../../services/search/SearxngService.js';
@@ -274,101 +274,45 @@ export async function executeDirectExamplesSearch(params: {
 }): Promise<DirectExamplesResult> {
   const { query, platform, country } = params;
 
-  const countryInfo = country ? ` country="${country}"` : '';
-  log.info(
-    `[Direct Examples Search] query="${query}" platform="${platform || 'all'}"${countryInfo}`
-  );
+  const result = await searchExamples({
+    query,
+    kinds: ['social'],
+    ...(platform && { platform }),
+    ...(country && { country }),
+  });
 
-  try {
-    const results = await contentExamplesService.searchSocialMediaExamples(query, {
-      platform: platform as 'facebook' | 'instagram' | null,
-      limit: 10,
-      threshold: 0.15,
-      country: country || null,
-    });
-
-    if (!results || results.length === 0) {
-      log.info(`[Direct Examples Search] No examples found, trying random examples`);
-
-      const randomResults = await contentExamplesService.getRandomSocialMediaExamples({
-        platform: platform as 'facebook' | 'instagram' | null,
-        limit: 5,
-        country: country || null,
-      });
-
-      if (!randomResults || randomResults.length === 0) {
-        return {
-          resultsCount: 0,
-          examples: [],
-          message: 'Keine Beispiele gefunden.',
-        };
-      }
-
-      const examples = randomResults.map((result) => ({
-        id: String(result.id),
-        platform: result.platform || platform || 'unknown',
-        content: truncateText(result.content || '', 500),
-        ...(result.source_account && { author: result.source_account }),
-        ...(result.created_at && { date: result.created_at }),
-      }));
-
-      log.info(`[Direct Examples Search] Found ${examples.length} random examples`);
-      return {
-        resultsCount: examples.length,
-        examples,
-      };
-    }
-
-    const examples = results.map((result) => ({
-      id: String(result.id),
-      platform: result.platform || platform || 'unknown',
-      content: truncateText(result.content || '', 500),
-      ...(result.source_account && { author: result.source_account }),
-      ...(result.created_at && { date: result.created_at }),
-    }));
-
-    log.info(`[Direct Examples Search] Found ${examples.length} examples`);
-
-    return {
-      resultsCount: examples.length,
-      examples,
-    };
-  } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    log.error(`[Direct Examples Search] Error:`, errMsg);
+  if (result.errors.social) {
     return {
       resultsCount: 0,
       examples: [],
       error: true,
-      message: `Beispielsuche fehlgeschlagen: ${errMsg}`,
+      message: `Beispielsuche fehlgeschlagen: ${result.errors.social}`,
     };
   }
-}
 
-// Maps a Landesverband source_id (e.g. "berlin-lv-presse") to its short code.
-// The short code is the same one used in landesverbaendeConfig.shortName.
-function lvShortNameFromSourceId(sourceId: string | undefined): string {
-  if (!sourceId) return '';
-  const prefix = sourceId.split('-')[0];
-  const map: Record<string, string> = {
-    berlin: 'BE',
-    hamburg: 'HH',
-    thueringen: 'TH',
-    'mecklenburg-vorpommern': 'MV',
-    brandenburg: 'BB',
-    bayern: 'BY',
-    'schleswig-holstein': 'SH',
-  };
-  // mecklenburg-vorpommern source_ids start with "mecklenburg-vorpommern-..." so
-  // try the two-segment prefix first
-  const twoSeg = sourceId.split('-').slice(0, 2).join('-');
-  return map[twoSeg] ?? map[prefix] ?? '';
+  const items = result.byKind.social ?? [];
+  if (items.length === 0) {
+    return {
+      resultsCount: 0,
+      examples: [],
+      message: 'Keine Beispiele gefunden.',
+    };
+  }
+
+  const examples = items.map((e) => ({
+    id: e.id,
+    platform: e.platform ?? platform ?? 'unknown',
+    content: e.body,
+    ...(e.author && { author: e.author }),
+    ...(e.publishedAt && { date: e.publishedAt }),
+  }));
+
+  return { resultsCount: examples.length, examples };
 }
 
 /**
  * Execute a Pressemitteilung-examples search across all Landesverbände.
- * Queries the `landesverbaende_documents` Qdrant collection filtered to
- * `content_type='presse'`, ranked by semantic relevance to the query.
+ * Thin wrapper over the unified `searchExamples` service (kinds=['press']).
  */
 export async function executeDirectPressemitteilungExamples(params: {
   query: string;
@@ -376,69 +320,37 @@ export async function executeDirectPressemitteilungExamples(params: {
 }): Promise<DirectPressemitteilungExamplesResult> {
   const { query, limit = 6 } = params;
 
-  log.info(`[Direct PM Examples] query="${query}" limit=${limit}`);
+  const result = await searchExamples({ query, kinds: ['press'], limit });
 
-  const additionalFilter: QdrantFilter = {
-    must: [{ key: 'content_type', match: { value: 'presse' } }],
-  };
-
-  try {
-    const response = await documentSearchService.search({
-      query,
-      userId: undefined,
-      options: {
-        limit,
-        mode: 'hybrid',
-        searchCollection: 'landesverbaende_documents',
-        threshold: 0.2,
-        additionalFilter,
-      },
-    });
-
-    if (!response.success || !response.results || response.results.length === 0) {
-      return {
-        resultsCount: 0,
-        examples: [],
-        message: 'Keine passenden Pressemitteilungen gefunden.',
-      };
-    }
-
-    const seenTitles = new Set<string>();
-    const examples: PressemitteilungExample[] = [];
-    for (const r of response.results as DocumentResult[]) {
-      const title = r.title ?? 'Pressemitteilung';
-      if (seenTitles.has(title)) continue;
-      seenTitles.add(title);
-
-      const sourceId = r.source_id ?? undefined;
-      const lv = lvShortNameFromSourceId(sourceId);
-      const publishedAt = r.published_at ?? undefined;
-      const url = r.source_url ?? undefined;
-      const body = truncateText(r.relevant_content ?? '', 1500);
-
-      examples.push({
-        id: String(r.document_id ?? title),
-        title,
-        body,
-        lv,
-        ...(sourceId && { sourceId }),
-        ...(publishedAt && { publishedAt }),
-        ...(url && { url }),
-      });
-    }
-
-    log.info(`[Direct PM Examples] returning ${examples.length} examples`);
-    return { resultsCount: examples.length, examples };
-  } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    log.error(`[Direct PM Examples] Error:`, errMsg);
+  if (result.errors.press) {
     return {
       resultsCount: 0,
       examples: [],
       error: true,
-      message: `Pressemitteilung-Suche fehlgeschlagen: ${errMsg}`,
+      message: `Pressemitteilung-Suche fehlgeschlagen: ${result.errors.press}`,
     };
   }
+
+  const items = result.byKind.press ?? [];
+  if (items.length === 0) {
+    return {
+      resultsCount: 0,
+      examples: [],
+      message: 'Keine passenden Pressemitteilungen gefunden.',
+    };
+  }
+
+  const examples: PressemitteilungExample[] = items.map((e) => ({
+    id: e.id,
+    title: e.title,
+    body: e.body,
+    lv: e.lv ?? '',
+    ...(e.sourceId && { sourceId: e.sourceId }),
+    ...(e.publishedAt && { publishedAt: e.publishedAt }),
+    ...(e.url && { url: e.url }),
+  }));
+
+  return { resultsCount: examples.length, examples };
 }
 
 /**
