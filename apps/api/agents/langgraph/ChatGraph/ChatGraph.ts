@@ -20,6 +20,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { briefGeneratorNode } from './nodes/briefGeneratorNode.js';
 import { classifierNode } from './nodes/classifierNode.js';
 import { imageNode } from './nodes/imageNode.js';
+import { pressemitteilungComposerNode } from './nodes/pressemitteilungComposerNode.js';
 import { qualityGateNode } from './nodes/qualityGateNode.js';
 import { rerankNode } from './nodes/rerankNode.js';
 import { respondNode } from './nodes/respondNode.js';
@@ -42,6 +43,7 @@ import type {
   UserLocale,
   ChartData,
   ResearchToolResult,
+  ExamplesToolResult,
   DocumentSource,
   SynthesisMode,
 } from './types.js';
@@ -230,6 +232,10 @@ const ChatStateAnnotation = Annotation.Root({
   }),
 
   researchMeta: Annotation<ResearchToolResult | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
+  examplesResult: Annotation<ExamplesToolResult | null>({
     reducer: (x, y) => y ?? x,
   }),
 
@@ -432,6 +438,7 @@ function routeAfterClassification(
     // person: 'person', // DISABLED: Person search not production ready
     web: 'web',
     examples: 'examples',
+    pressemitteilung_examples: 'pressemitteilung_examples',
     image: 'image',
     image_edit: 'image_edit',
     sharepic: 'sharepic',
@@ -473,7 +480,9 @@ function routeAfterClassification(
  *
  * Routes to 'respond' otherwise.
  */
-function routeAfterQualityGate(state: ChatState): 'search' | 'respond' {
+function routeAfterQualityGate(
+  state: ChatState
+): 'search' | 'respond' | 'pressemitteilungComposer' {
   const { qualityScore, searchCount, maxSearches } = state;
 
   // Loop back to search if quality is insufficient and we have retries left
@@ -482,6 +491,15 @@ function routeAfterQualityGate(state: ChatState): 'search' | 'respond' {
       `[ChatGraph] Route: qualityGate → search (score: ${qualityScore}/5, search ${searchCount}/${maxSearches})`
     );
     return 'search';
+  }
+
+  // Press-intent gets its own composer node — same downstream streaming path,
+  // different prompt and (controller-level) different model.
+  if (state.intent === 'pressemitteilung_examples') {
+    log.info(
+      `[ChatGraph] Route: qualityGate → pressemitteilungComposer (score: ${qualityScore}/5)`
+    );
+    return 'pressemitteilungComposer';
   }
 
   log.info(`[ChatGraph] Route: qualityGate → respond (score: ${qualityScore}/5)`);
@@ -493,8 +511,9 @@ function routeAfterQualityGate(state: ChatState): 'search' | 'respond' {
  *
  * Graph structure:
  *   START → classifier → [conditional: search|image|respond]
- *   search → rerank → qualityGate → [conditional: search|respond]
+ *   search → rerank → qualityGate → [conditional: search|respond|pressemitteilungComposer]
  *   image → respond
+ *   pressemitteilungComposer → END   (PM-specific prompt; controller streams via Gemma 4)
  *   respond → END
  */
 function createChatGraph() {
@@ -513,6 +532,10 @@ function createChatGraph() {
     .addNode('qualityGate', qualityGateNode as (state: ChatState) => Promise<Partial<ChatState>>)
     .addNode('image', imageNode as (state: ChatState) => Promise<Partial<ChatState>>)
     .addNode('respond', respondNode as (state: ChatState) => Promise<Partial<ChatState>>)
+    .addNode(
+      'pressemitteilungComposer',
+      pressemitteilungComposerNode as (state: ChatState) => Promise<Partial<ChatState>>
+    )
 
     // START → classifier
     .addEdge('__start__', 'classifier')
@@ -534,13 +557,17 @@ function createChatGraph() {
     .addConditionalEdges('qualityGate', routeAfterQualityGate, {
       search: 'search',
       respond: 'respond',
+      pressemitteilungComposer: 'pressemitteilungComposer',
     })
 
     // image → respond
     .addEdge('image', 'respond')
 
     // respond → END
-    .addEdge('respond', '__end__');
+    .addEdge('respond', '__end__')
+
+    // pressemitteilungComposer → END (controller streams from state.responseText)
+    .addEdge('pressemitteilungComposer', '__end__');
 
   return graph.compile();
 }
@@ -648,6 +675,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Research brief (will be set by briefGenerator node for complex research)
     researchBrief: null,
     researchMeta: null,
+    examplesResult: null,
 
     // Search results (will be set by search node)
     searchResults: [],

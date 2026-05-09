@@ -39,6 +39,7 @@ export type SearchIntent =
   // | 'person' // DISABLED: Person search not production ready (only searches 80 cached MPs)
   | 'web' // Web search (current events, external facts)
   | 'examples' // Social media examples/templates
+  | 'pressemitteilung_examples' // Real LV press releases as templates (landesverbaende_documents, content_type=presse)
   | 'image' // Image generation ("erstelle bild", "generiere", "visualisiere")
   | 'image_edit' // Image editing ("stadt begrünen", green urban transformation)
   | 'sharepic' // Sharepic creation ("erstelle sharepic", "@sharepic")
@@ -201,6 +202,40 @@ export interface ResearchToolResult {
   confidence: 'high' | 'medium' | 'low';
   searchSteps: Array<{ tool: string; query: string; resultsCount: number }>;
   followUpQuestions: string[];
+}
+
+/**
+ * Rich examples result shape — preserves kind-specific metadata
+ * (PressemitteilungExample fields for press, social-post fields for social) so
+ * the chat UI's per-kind tool renderers can read the data they were designed
+ * for. Persisted by `postResponseService` as the tool-call `result.examples`.
+ *
+ * Mirrors `DirectExamplesResult.examples` and `PressemitteilungExample` shapes
+ * the existing UI cards (`PressemitteilungExamplesCard`, `ToolCallUI`) read.
+ */
+export interface PressExampleItem {
+  id: string;
+  title: string;
+  body: string;
+  lv: string;
+  sourceId?: string;
+  publishedAt?: string;
+  url?: string;
+}
+
+export interface SocialExampleItem {
+  id: string;
+  platform: string;
+  content: string;
+  imageUrl?: string;
+  author?: string;
+  date?: string;
+}
+
+export interface ExamplesToolResult {
+  press?: PressExampleItem[];
+  social?: SocialExampleItem[];
+  message?: string;
 }
 
 /**
@@ -374,6 +409,12 @@ export interface ChatGraphState {
   // Persisted into the `research` tool-call result so the UI can render
   // confidence, search steps, and follow-up questions.
   researchMeta: ResearchToolResult | null;
+
+  // Rich examples result, kind-segmented (set by search node for examples /
+  // pressemitteilung_examples intents). Persisted into the matching tool-call
+  // `result.examples` so PressemitteilungExamplesCard can render title/body/lv
+  // /url; the generic ToolCallUI also reads `examples`.
+  examplesResult: ExamplesToolResult | null;
 
   // Quality gate (iterative search)
   qualityScore: number;
