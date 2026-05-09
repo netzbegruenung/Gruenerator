@@ -578,6 +578,7 @@ function getModeGuidance(state: ChatGraphState): string {
     case 'search':
     case 'web':
     case 'examples':
+    case 'pressemitteilung_examples':
     case 'sharepic':
     case 'modify_doc':
     case 'modify_board':
@@ -614,6 +615,14 @@ function getAnchorAdjuncts(state: ChatGraphState): string {
  * Build the complete system message with agent role and search context.
  */
 export async function buildSystemMessage(state: ChatGraphState): Promise<string> {
+  // Press-composition path: the pressemitteilungComposer node has already
+  // produced a PM-specific system prompt and stored it on state.responseText.
+  // Use it verbatim — bypassing the generic search-context / anchor / citation
+  // machinery that doesn't apply to a fresh content-creation turn.
+  if (state.intent === 'pressemitteilung_examples' && state.responseText) {
+    return state.responseText;
+  }
+
   const {
     agentConfig,
     intent,

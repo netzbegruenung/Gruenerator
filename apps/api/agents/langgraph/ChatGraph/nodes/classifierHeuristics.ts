@@ -31,6 +31,7 @@ export const INTENT_KEYWORDS: Record<
     | 'edit_current_doc'
     | 'modify_board'
     | 'share_doc'
+    | 'pressemitteilung_examples'
   >,
   string[]
 > = {

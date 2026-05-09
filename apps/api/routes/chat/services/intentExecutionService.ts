@@ -603,6 +603,10 @@ export async function executeIntentPipeline(opts: {
           ...(currentIntent === 'research' && finalState.researchMeta
             ? { researchMeta: finalState.researchMeta }
             : {}),
+          ...((currentIntent === 'examples' || currentIntent === 'pressemitteilung_examples') &&
+          finalState.examplesResult
+            ? { examplesResult: finalState.examplesResult }
+            : {}),
         });
       }
     }
