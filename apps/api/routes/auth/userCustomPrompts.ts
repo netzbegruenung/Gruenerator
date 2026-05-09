@@ -7,7 +7,7 @@ import { randomBytes } from 'crypto';
 
 import { generateText } from 'ai';
 import { and, eq, type InferSelectModel } from 'drizzle-orm';
-import express, { type Router, type Response, type NextFunction } from 'express';
+import express, { type Router, type Response } from 'express';
 
 import { customPrompts, savedPrompts } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
@@ -27,11 +27,6 @@ const postgres = getPostgresInstance();
 const promptVectorService = getPromptVectorService();
 
 const router: Router = express.Router();
-
-router.use((req: AuthRequest, _res: Response, next: NextFunction): void => {
-  log.debug(`[User Custom Prompts] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
-  next();
-});
 
 interface CustomPromptCreateBody {
   prompt: string;
