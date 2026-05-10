@@ -1023,10 +1023,15 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           agentConfig.toolRestrictions?.examplesCountry ||
           (state.userLocale === 'de-AT' ? 'AT' : undefined);
 
+        // Composer paths want full bodies: PM bodies are reconstructed from
+        // chunks inside searchExamples, social bodies skip the 500-char cut.
+        // Pass platform hint when set so social fetches filter to Insta/FB.
         const unified = await searchExamples({
           query: searchQuery || '',
           kinds,
           ...(country && { country }),
+          ...(state.platform && { platform: state.platform }),
+          fullBody: true,
         });
 
         results = unified.all.map((e) => ({

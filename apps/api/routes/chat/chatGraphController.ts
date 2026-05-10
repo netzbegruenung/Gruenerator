@@ -711,13 +711,15 @@ router.post(
           defaultModel: finalState.agentConfig.defaultModel,
         }),
       };
-      // Press composition is force-routed to Gemma 4 regardless of the user
-      // model picker. Gemma 4 is empirically the best model for German PM
-      // craft in this codebase; press intent treats it as the contract.
-      const isPressComposition = finalState.intent === 'pressemitteilung_examples';
-      const effectiveModelId = isPressComposition ? 'gemma-4' : modelId;
-      if (isPressComposition) {
-        log.info('[Composer] Using gemma-4 override for press composition');
+      // Composer intents (press, social-media) are force-routed to Gemma 4
+      // regardless of the user model picker. Gemma 4 is empirically the best
+      // model for German PM and social-media craft in this codebase; both
+      // intents treat it as the contract.
+      const isComposerIntent =
+        finalState.intent === 'pressemitteilung_examples' || finalState.intent === 'examples';
+      const effectiveModelId = isComposerIntent ? 'gemma-4' : modelId;
+      if (isComposerIntent) {
+        log.info(`[Composer] Using gemma-4 override for ${finalState.intent}`);
       }
       const resolution = await resolveModel(agentConfigForResolve, effectiveModelId, requestId, {
         hasImages: imageAttachments.length > 0,
@@ -1043,10 +1045,11 @@ router.post(
         }),
       };
       const resumeRequestId = `resume_${threadId}_${Date.now()}`;
-      const isPressCompositionResume = finalState.intent === 'pressemitteilung_examples';
-      const effectiveResumeModelId = isPressCompositionResume ? 'gemma-4' : modelId;
-      if (isPressCompositionResume) {
-        log.info('[Composer] Using gemma-4 override for press composition (resume)');
+      const isComposerIntentResume =
+        finalState.intent === 'pressemitteilung_examples' || finalState.intent === 'examples';
+      const effectiveResumeModelId = isComposerIntentResume ? 'gemma-4' : modelId;
+      if (isComposerIntentResume) {
+        log.info(`[Composer] Using gemma-4 override for ${finalState.intent} (resume)`);
       }
       const resolution2 = await resolveModel(
         agentConfigForResolve2,
