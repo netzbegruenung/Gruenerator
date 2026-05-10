@@ -15,6 +15,7 @@ export interface ToolRestrictions {
   allowedCollections?: readonly string[];
   defaultCollection?: string;
   examplesCountry?: 'DE' | 'AT';
+  examplesLvScope?: string | readonly string[];
   personSearchEnabled?: boolean;
 }
 
@@ -39,6 +40,7 @@ export interface Agent {
   enabledTools?: readonly string[];
   fewShotExamples?: readonly FewShotExample[];
   routeTo?: 'chat' | 'search';
+  defaultNotebookId?: string;
 }
 
 export type SkillCategory = 'presse' | 'social' | 'dokumente' | 'recherche' | 'sonstiges';

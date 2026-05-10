@@ -5,6 +5,7 @@ import {
   useAgentStore,
   type UserRole,
 } from '@gruenerator/chat';
+import { getSystemAgent } from '@gruenerator/shared/agents';
 import { useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -45,6 +46,19 @@ function ChatPage() {
       if (store.selectedAgentId !== agentParam) {
         store.setSelectedAgent(agentParam);
         store.setChatViewMode('thread');
+      }
+      // Per-LV PR agents (and any future agent that declares a
+      // defaultNotebookId) auto-pair their notebook so RAG and @notebook
+      // lookups align with the agent's regional identity. We always re-apply
+      // on agent change — the agent IS the source of truth here, and picking
+      // a different notebook manually after the agent is selected is an
+      // unusual flow we'd revisit only if users complain.
+      const agentMeta = getSystemAgent(agentParam);
+      if (
+        agentMeta?.defaultNotebookId &&
+        store.selectedNotebookId !== agentMeta.defaultNotebookId
+      ) {
+        store.setSelectedNotebook(agentMeta.defaultNotebookId);
       }
     } else if (store.selectedAgentId !== null) {
       store.setSelectedAgent(null);
