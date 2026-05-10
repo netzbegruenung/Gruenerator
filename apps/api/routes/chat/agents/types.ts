@@ -14,6 +14,14 @@ export interface ToolRestrictions {
   defaultCollection?: string | undefined;
   /** Filter social media examples by country (DE = Germany, AT = Austria) */
   examplesCountry?: 'DE' | 'AT' | undefined;
+  /**
+   * Per-Landesverband scope for press/social examples. Accepts a single short
+   * code (e.g. 'BE') or an array (e.g. ['BE', 'BE-F']) when the LV publishes
+   * under multiple codes (Berlin & Thüringen carry both Landesverband and
+   * Fraktion). Press filters via Qdrant `landesverband` field; social
+   * currently logs only (Apify follow-up will add the field to social_media_examples).
+   */
+  examplesLvScope?: string | readonly string[] | undefined;
   /** Disable person search tool (e.g., no Austrian politician DB exists) */
   personSearchEnabled?: boolean | undefined;
 }
