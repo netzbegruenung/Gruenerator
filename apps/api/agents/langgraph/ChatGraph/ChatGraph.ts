@@ -25,6 +25,7 @@ import { qualityGateNode } from './nodes/qualityGateNode.js';
 import { rerankNode } from './nodes/rerankNode.js';
 import { respondNode } from './nodes/respondNode.js';
 import { searchNode } from './nodes/searchNode.js';
+import { socialMediaComposerNode } from './nodes/socialMediaComposerNode.js';
 
 import type {
   ChatGraphInput,
@@ -208,6 +209,9 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   targetGroupName: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
+  }),
+  platform: Annotation<'instagram' | 'facebook' | null>({
+    reducer: (x, y) => y ?? x ?? null,
   }),
 
   // Clarification (HITL interrupt)
@@ -482,7 +486,7 @@ function routeAfterClassification(
  */
 function routeAfterQualityGate(
   state: ChatState
-): 'search' | 'respond' | 'pressemitteilungComposer' {
+): 'search' | 'respond' | 'pressemitteilungComposer' | 'socialMediaComposer' {
   const { qualityScore, searchCount, maxSearches } = state;
 
   // Loop back to search if quality is insufficient and we have retries left
@@ -500,6 +504,13 @@ function routeAfterQualityGate(
       `[ChatGraph] Route: qualityGate → pressemitteilungComposer (score: ${qualityScore}/5)`
     );
     return 'pressemitteilungComposer';
+  }
+
+  // Social-creation intent gets its sibling composer node. Same shape as
+  // press: prompt-builder writes responseText, controller streams via Gemma 4.
+  if (state.intent === 'examples') {
+    log.info(`[ChatGraph] Route: qualityGate → socialMediaComposer (score: ${qualityScore}/5)`);
+    return 'socialMediaComposer';
   }
 
   log.info(`[ChatGraph] Route: qualityGate → respond (score: ${qualityScore}/5)`);
@@ -536,6 +547,10 @@ function createChatGraph() {
       'pressemitteilungComposer',
       pressemitteilungComposerNode as (state: ChatState) => Promise<Partial<ChatState>>
     )
+    .addNode(
+      'socialMediaComposer',
+      socialMediaComposerNode as (state: ChatState) => Promise<Partial<ChatState>>
+    )
 
     // START → classifier
     .addEdge('__start__', 'classifier')
@@ -558,6 +573,7 @@ function createChatGraph() {
       search: 'search',
       respond: 'respond',
       pressemitteilungComposer: 'pressemitteilungComposer',
+      socialMediaComposer: 'socialMediaComposer',
     })
 
     // image → respond
@@ -567,7 +583,10 @@ function createChatGraph() {
     .addEdge('respond', '__end__')
 
     // pressemitteilungComposer → END (controller streams from state.responseText)
-    .addEdge('pressemitteilungComposer', '__end__');
+    .addEdge('pressemitteilungComposer', '__end__')
+
+    // socialMediaComposer → END (controller streams from state.responseText)
+    .addEdge('socialMediaComposer', '__end__');
 
   return graph.compile();
 }
@@ -671,6 +690,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     clarificationQuestion: null,
     clarificationOptions: null,
     detectedFilters: null,
+    platform: null,
 
     // Research brief (will be set by briefGenerator node for complex research)
     researchBrief: null,

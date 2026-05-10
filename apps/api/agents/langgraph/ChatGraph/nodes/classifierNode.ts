@@ -44,6 +44,16 @@ import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
 const log = createLogger('ChatGraph:Classifier');
 
+// Content-creation agent (öffentlichkeitsarbeit) routing heuristics.
+// Module-scope so V8 doesn't recompile per classification call. Hoisted out
+// of the override block where they were originally inlined.
+const PM_NOUN_PATTERN =
+  /\b(pressemitteilung|pressemeldung|pm|presseaussendung|presse[-\s]?statement)\b/i;
+const SOCIAL_NOUN_PATTERN =
+  /\b(post|tweet|posting|reel|tiktok|instagram|facebook|linkedin|twitter|social[-\s]?media)\b/i;
+const INSTAGRAM_PATTERN = /\b(instagram|insta|reel|story)\b/i;
+const FACEBOOK_PATTERN = /\b(facebook|\bfb\b|fb-?post|fb-?beitrag)\b/i;
+
 /**
  * Public classifier node — wraps the inner implementation with multi-document
  * normalization. Builds documentSources and picks synthesisMode based on the
@@ -427,22 +437,28 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // different Qdrant collections, so split them into two intents and use
     // secondaryIntent for mixed prompts ("Tweet UND PM zu X") so the search
     // node can fan out.
-    const pmNounPattern =
-      /\b(pressemitteilung|pressemeldung|pm|presseaussendung|presse[-\s]?statement)\b/i;
-    const socialNounPattern =
-      /\b(post|tweet|posting|reel|tiktok|instagram|facebook|linkedin|twitter|social[-\s]?media)\b/i;
     if (agentWantsExamples && userContent.length > 0) {
-      const wantsPm = pmNounPattern.test(userContent);
-      const wantsSocial = socialNounPattern.test(userContent);
+      const wantsPm = PM_NOUN_PATTERN.test(userContent);
+      const wantsSocial = SOCIAL_NOUN_PATTERN.test(userContent);
       if (wantsPm || wantsSocial) {
         const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : 'examples';
         const secondary: SearchIntent | null = wantsPm && wantsSocial ? 'examples' : null;
+        // Platform hint for the social composer: Insta vs FB. Heuristic-only;
+        // the social_media_examples Qdrant collection contains exactly these
+        // two platforms, so detecting more would be misleading. Null when
+        // unspecified → composer falls back to the combined rubric.
+        const platform: 'instagram' | 'facebook' | null = INSTAGRAM_PATTERN.test(userContent)
+          ? 'instagram'
+          : FACEBOOK_PATTERN.test(userContent)
+            ? 'facebook'
+            : null;
         log.info(
-          `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → primary=${primary}${secondary ? `, secondary=${secondary}` : ''}`
+          `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → primary=${primary}${secondary ? `, secondary=${secondary}` : ''}${platform ? `, platform=${platform}` : ''}`
         );
         return {
           intent: primary,
           secondaryIntent: secondary,
+          platform,
           searchSources: [],
           searchQuery: extractSearchTopic(userContent) || userContent,
           detectedFilters: null,

@@ -252,6 +252,7 @@ async function evaluateBudgetAllocation() {
     synthesisMode: null,
     hasTemporal: false,
     complexity: 'moderate',
+    platform: null,
     needsClarification: false,
     clarificationQuestion: null,
     clarificationOptions: null,
