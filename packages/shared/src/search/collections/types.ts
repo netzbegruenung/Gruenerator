@@ -10,15 +10,20 @@
 export type FilterFieldType = 'keyword' | 'text' | 'numeric' | 'boolean' | 'date_range';
 
 /**
- * Configuration for a filterable field within a collection
+ * Configuration for a filterable field within a collection.
+ *
+ * The optional `K` generic narrows the keys of `valueLabels` to a known string union
+ * (e.g. `LandesverbandSourceId` for `source_id` filters). Default `K = string` keeps
+ * the loose shape for every existing call site — opt in via
+ * `satisfies FilterFieldConfig<MyKeyUnion>` at the declaration.
  */
-export interface FilterFieldConfig {
+export interface FilterFieldConfig<K extends string = string> {
   /** Human-readable label (in German) */
   label: string;
   /** How this field should be filtered */
   type: FilterFieldType;
   /** Optional mapping of field values to human-readable display names */
-  valueLabels?: Record<string, string>;
+  valueLabels?: Partial<Record<K, string>>;
   /** Optional description for documentation */
   description?: string;
 }

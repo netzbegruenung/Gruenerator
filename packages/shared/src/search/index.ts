@@ -14,5 +14,21 @@ export * as vector from './vector/index.js';
 // Collection configurations
 export * as collections from './collections/index.js';
 
+// Landesverband typed registries — flat re-export so consumers can
+// `import { LandesverbandSourceId } from '@gruenerator/shared/search'`
+// without the `collections.` namespace prefix.
+export {
+  LANDESVERBAND_SOURCE_IDS,
+  CURATED_LIST_IDS,
+  LANDESVERBAND_CONTENT_TYPES,
+  LANDESVERBAND_SOURCE_TYPES,
+  LV_CONTENT_TYPE_LABELS,
+  LV_SOURCE_TYPE_LABELS,
+  type LandesverbandSourceId,
+  type CuratedListId,
+  type LandesverbandContentType,
+  type LandesverbandSourceType,
+} from './collections/landesverbandSources.js';
+
 // Filter builder utilities
 export * as filters from './filters/index.js';

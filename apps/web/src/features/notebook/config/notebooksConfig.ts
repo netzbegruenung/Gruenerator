@@ -28,6 +28,13 @@ export interface NotebookConfigEntry {
   icon: IconType;
   order: number;
   category: NotebookCategory;
+  /**
+   * When false, the notebook is hidden from gallery listings and category helpers.
+   * Direct lookups by id/path still return the entry so routes don't 404 mid-session,
+   * but the backend `notebookCollectionMap.DISABLED_NOTEBOOK_IDS` should match and
+   * reject queries against the notebook. Defaults to true when omitted.
+   */
+  enabled?: boolean;
 }
 
 const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
@@ -87,6 +94,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     icon: PiMapPin,
     order: 5,
     category: 'landesebene',
+    enabled: false,
   },
   {
     id: 'thueringen-notebook',
@@ -203,8 +211,10 @@ export const SYSTEM_NOTEBOOKS: NotebookConfigEntry[] = [
   ...(import.meta.env.DEV ? DEV_ONLY_NOTEBOOKS : []),
 ];
 
+const isNotebookEnabled = (nb: NotebookConfigEntry): boolean => nb.enabled !== false;
+
 export const getOrderedNotebooks = (): NotebookConfigEntry[] =>
-  [...SYSTEM_NOTEBOOKS].sort((a, b) => a.order - b.order);
+  SYSTEM_NOTEBOOKS.filter(isNotebookEnabled).sort((a, b) => a.order - b.order);
 
 export const getNotebookById = (id: string): NotebookConfigEntry | undefined =>
   SYSTEM_NOTEBOOKS.find((nb) => nb.id === id);
@@ -213,11 +223,13 @@ export const getNotebookByPath = (path: string): NotebookConfigEntry | undefined
   SYSTEM_NOTEBOOKS.find((nb) => nb.path === path);
 
 export const getNotebooksByCategory = (category: NotebookCategory): NotebookConfigEntry[] =>
-  SYSTEM_NOTEBOOKS.filter((nb) => nb.category === category).sort((a, b) => a.order - b.order);
+  SYSTEM_NOTEBOOKS.filter((nb) => isNotebookEnabled(nb) && nb.category === category).sort(
+    (a, b) => a.order - b.order
+  );
 
 export const getGermanNotebooks = (): NotebookConfigEntry[] =>
   SYSTEM_NOTEBOOKS.filter(
-    (nb) => nb.category === 'bundesebene' || nb.category === 'landesebene'
+    (nb) => isNotebookEnabled(nb) && (nb.category === 'bundesebene' || nb.category === 'landesebene')
   ).sort((a, b) => a.order - b.order);
 
 export const getAustrianNotebooks = (): NotebookConfigEntry[] =>

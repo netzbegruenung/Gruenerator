@@ -13,6 +13,20 @@ export type {
   CollectionKey,
 } from './types.js';
 
+// Landesverband typed registries — source IDs, curated lists, content types, source types
+export {
+  LANDESVERBAND_SOURCE_IDS,
+  CURATED_LIST_IDS,
+  LANDESVERBAND_CONTENT_TYPES,
+  LANDESVERBAND_SOURCE_TYPES,
+  LV_CONTENT_TYPE_LABELS,
+  LV_SOURCE_TYPE_LABELS,
+  type LandesverbandSourceId,
+  type CuratedListId,
+  type LandesverbandContentType,
+  type LandesverbandSourceType,
+} from './landesverbandSources.js';
+
 // Config and utilities
 export {
   COLLECTIONS,

@@ -1,4 +1,17 @@
 /**
+ * Notebook IDs that are configured but currently disabled.
+ *
+ * Treated as unknown by `isKnownNotebook`, so chat/notebook routes reject queries
+ * against them. Keeping the entry in `NOTEBOOK_COLLECTION_MAP` means existing
+ * scrape data and admin tooling still resolve collections — only end-user routing
+ * is gated. Mirror in `apps/web/src/features/notebook/config/notebooksConfig.ts`
+ * (`enabled: false`) to also hide from the gallery.
+ */
+export const DISABLED_NOTEBOOK_IDS: ReadonlySet<string> = new Set<string>([
+  'schleswig-holstein-notebook',
+]);
+
+/**
  * Maps notebook IDs to their corresponding search collection keys.
  * Collection keys match the keys in directSearch.ts COLLECTION_MAP.
  */
@@ -37,7 +50,11 @@ export function resolveNotebookCollections(notebookIds: string[]): string[] {
 }
 
 export function isKnownNotebook(id: string): boolean {
-  return id in NOTEBOOK_COLLECTION_MAP;
+  return id in NOTEBOOK_COLLECTION_MAP && !DISABLED_NOTEBOOK_IDS.has(id);
+}
+
+export function isDisabledNotebook(id: string): boolean {
+  return DISABLED_NOTEBOOK_IDS.has(id);
 }
 
 /**
