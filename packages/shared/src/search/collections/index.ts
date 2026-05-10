@@ -21,10 +21,13 @@ export {
   LANDESVERBAND_SOURCE_TYPES,
   LV_CONTENT_TYPE_LABELS,
   LV_SOURCE_TYPE_LABELS,
+  FILTERABLE_FIELD_NAMES,
   type LandesverbandSourceId,
   type CuratedListId,
   type LandesverbandContentType,
   type LandesverbandSourceType,
+  type FilterableFieldName,
+  type ValueLabelsFor,
 } from './landesverbandSources.js';
 
 // Config and utilities
