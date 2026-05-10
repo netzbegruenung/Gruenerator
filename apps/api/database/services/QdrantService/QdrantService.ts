@@ -420,6 +420,13 @@ export class QdrantService {
     if (options.country) {
       filter.must!.push({ key: 'country', match: { value: options.country } });
     }
+    if (options.landesverband !== undefined) {
+      const lv = options.landesverband;
+      filter.must!.push({
+        key: 'landesverband',
+        match: Array.isArray(lv) ? { any: [...lv] } : { value: lv as string },
+      });
+    }
 
     return filter.must!.length > 0 ? filter : {};
   }

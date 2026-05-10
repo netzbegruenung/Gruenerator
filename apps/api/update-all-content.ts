@@ -34,6 +34,7 @@ import { fileURLToPath } from 'node:url';
 import { Mistral } from '@mistralai/mistralai';
 
 import { env } from './config/env.js';
+import { getSourcesByLandesverband } from './config/landesverbaendeConfig.js';
 import { sendContentSyncEmail } from './services/email/emailService.js';
 import { boellStiftungScraperService } from './services/scrapers/implementations/BoellStiftungScraper.js';
 import { bundestagScraperService } from './services/scrapers/implementations/BundestagScraper/index.js';
@@ -41,7 +42,6 @@ import { gruenblogScraperService } from './services/scrapers/implementations/Gru
 import { grueneAtScraperService } from './services/scrapers/implementations/GrueneAtScraper.js';
 import { kommunalwikiScraper } from './services/scrapers/implementations/KommunalwikiScraper.js';
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
-import { getSourcesByLandesverband } from './config/landesverbaendeConfig.js';
 import { scrapeAndIndexSocialMedia } from './services/scrapers/implementations/SocialMediaExamplesScraper.js';
 import { type SourceGroupResult, type SyncSummary } from './types/syncTypes.js';
 
@@ -222,6 +222,7 @@ const SOURCE_GROUPS: SourceGroup[] = [
     async run(args) {
       const result = await scrapeAndIndexSocialMedia({
         forceUpdate: args.force,
+        ...(args.landesverband && { landesverband: args.landesverband }),
       });
       return {
         stored: result.stored,
