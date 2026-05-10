@@ -72,6 +72,7 @@ export default defineConfig(({ command }) => ({
       '~': path.resolve(__dirname, './'),
       '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
       '@gruenerator/chat': path.resolve(__dirname, '../../packages/chat/src'),
+      '@gruenerator/voice': path.resolve(__dirname, '../../packages/voice/src'),
       '@gruenerator/sites': path.resolve(__dirname, '../../packages/sites/src'),
       '@gruenerator/sites-design': path.resolve(__dirname, '../../packages/sites-design/src'),
       // @gruenerator/contracts is imported transitively from within the
