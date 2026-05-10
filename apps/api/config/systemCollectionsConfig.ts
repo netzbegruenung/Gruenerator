@@ -6,12 +6,29 @@
  * that are available to all users without requiring ownership.
  */
 
+import {
+  LV_CONTENT_TYPE_LABELS,
+  LV_SOURCE_TYPE_LABELS,
+  type CuratedListId,
+  type LandesverbandSourceId,
+  type LandesverbandSourceType,
+} from '@gruenerator/shared/search';
+
 import type { QdrantFilter } from '../database/services/QdrantService/types.js';
 
 // =============================================================================
 // Type Definitions
 // =============================================================================
 
+/**
+ * Filterable field declaration for a system collection.
+ *
+ * Type-safe narrowing of `valueLabels` keys is opt-in at each declaration site
+ * via the typed `Record` constants exported from `@gruenerator/shared/search`
+ * (e.g. `valueLabels: LV_CONTENT_TYPE_LABELS`). Declarations that need a hand-
+ * authored `valueLabels` object should use `satisfies Partial<Record<MyKeyUnion, string>>`
+ * to lock the keys.
+ */
 export interface FilterableField {
   field: string;
   label: string;
@@ -53,11 +70,29 @@ export interface SubcategoryFilters {
   region?: string | string[];
   landesverband?: string | string[];
   gremium?: string | string[];
-  source_id?: string | string[];
+  source_id?: LandesverbandSourceId | LandesverbandSourceId[];
+  source_type?: LandesverbandSourceType | LandesverbandSourceType[];
+  curated_lists?: CuratedListId | CuratedListId[];
   date_from?: string;
   date_to?: string;
-  [key: string]: string | string[] | undefined;
 }
+
+/**
+ * Keys of `SubcategoryFilters` that hold multi-value (string | string[]) match filters.
+ * Excludes the date range keys. Used by `buildSubcategoryFilter` for typed iteration.
+ */
+const MULTI_VALUE_FILTER_KEYS = [
+  'primary_category',
+  'content_type',
+  'subcategories',
+  'country',
+  'region',
+  'landesverband',
+  'gremium',
+  'source_id',
+  'source_type',
+  'curated_lists',
+] as const satisfies ReadonlyArray<keyof SubcategoryFilters>;
 
 export interface SystemCollectionObject {
   id: string;
@@ -207,7 +242,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -222,7 +257,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
       { field: 'primary_category', label: 'Programm', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -237,7 +272,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
+      { field: 'source_type', label: 'Organ', type: 'keyword', valueLabels: LV_SOURCE_TYPE_LABELS },
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -252,7 +288,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
       { field: 'primary_category', label: 'Programm', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -267,24 +303,15 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      {
-        field: 'source_id',
-        label: 'Quelle',
-        type: 'keyword',
-        valueLabels: {
-          'berlin-lv-presse': 'LV Presse',
-          'berlin-lv-beschluesse': 'LV Beschlüsse',
-          'berlin-fraktion-presse': 'Fraktion Presse',
-          'berlin-fraktion-beschluesse': 'Fraktion Beschlüsse',
-        },
-      },
+      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
+      { field: 'source_type', label: 'Organ', type: 'keyword', valueLabels: LV_SOURCE_TYPE_LABELS },
       {
         field: 'curated_lists',
         label: 'Liste',
         type: 'keyword',
         valueLabels: {
           'wahlprogramm-be': 'Wahlprogramm',
-        },
+        } satisfies Partial<Record<CuratedListId, string>>,
       },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
@@ -298,7 +325,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
+      { field: 'source_type', label: 'Organ', type: 'keyword', valueLabels: LV_SOURCE_TYPE_LABELS },
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -314,7 +342,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -435,31 +463,19 @@ export function buildSubcategoryFilter(
     match?: { value?: string; any?: string[] };
     range?: { gte?: string; lte?: string };
   }> = [];
-  const filterKeys: string[] = [
-    'primary_category',
-    'content_type',
-    'subcategories',
-    'country',
-    'region',
-    'landesverband',
-    'gremium',
-    'source_id',
-    'curated_lists',
-  ];
 
-  for (const filterKey of filterKeys) {
-    const key = filterKey;
-    const filterValue = subcategoryFilters[filterKey];
+  for (const filterKey of MULTI_VALUE_FILTER_KEYS) {
+    const filterValue: string | string[] | undefined = subcategoryFilters[filterKey];
     if (!filterValue) continue;
 
     if (Array.isArray(filterValue) && filterValue.length > 0) {
       if (filterValue.length === 1) {
-        must.push({ key, match: { value: filterValue[0] } });
+        must.push({ key: filterKey, match: { value: filterValue[0] } });
       } else {
-        must.push({ key, match: { any: filterValue } });
+        must.push({ key: filterKey, match: { any: filterValue } });
       }
     } else if (typeof filterValue === 'string') {
-      must.push({ key, match: { value: filterValue } });
+      must.push({ key: filterKey, match: { value: filterValue } });
     }
   }
 

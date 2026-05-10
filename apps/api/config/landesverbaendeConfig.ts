@@ -13,6 +13,11 @@
  * - excludePatterns: URL patterns to skip
  */
 
+import {
+  type CuratedListId,
+  type LandesverbandSourceId,
+} from '@gruenerator/shared/search';
+
 export type ContentType = 'presse' | 'beschluss' | 'antrag' | 'blog' | 'wahlprogramm';
 export type CMSType = 'wordpress' | 'neos' | 'typo3' | 'custom' | 'drupal';
 export type SourceType = 'landesverband' | 'fraktion';
@@ -43,7 +48,7 @@ export interface ContentSelectors {
 }
 
 export interface LandesverbandSource {
-  id: string;
+  id: LandesverbandSourceId;
   name: string;
   shortName: string;
   type: SourceType;
@@ -66,7 +71,7 @@ export interface LandesverbandSource {
  * sitemap), without re-fetching the same URLs under aliases.
  */
 export interface CuratedList {
-  id: string;
+  id: CuratedListId;
   label: string;
   shortName?: string;
   urls: string[];

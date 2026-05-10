@@ -5,8 +5,17 @@
  * Used by MCP server, API, and other services.
  */
 
-import type { CollectionConfig, CollectionConfigMap, CollectionKey } from './types.js';
+import type { CollectionConfig, CollectionConfigMap, CollectionKey, FilterFieldConfig } from './types.js';
 import type { QdrantFilter } from '../filters/types.js';
+import type {
+  CuratedListId,
+  LandesverbandContentType,
+  LandesverbandSourceType,
+} from './landesverbandSources.js';
+import {
+  LV_CONTENT_TYPE_LABELS,
+  LV_SOURCE_TYPE_LABELS,
+} from './landesverbandSources.js';
 
 /**
  * All available Qdrant collections for Green Party content
@@ -126,7 +135,11 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Hamburg',
     description: 'Beschlüsse und Pressemitteilungen der Grünen Hamburg',
     filterableFields: {
-      content_type: { label: 'Typ', type: 'keyword' },
+      content_type: {
+        label: 'Typ',
+        type: 'keyword',
+        valueLabels: LV_CONTENT_TYPE_LABELS,
+      } satisfies FilterFieldConfig<LandesverbandContentType>,
       primary_category: { label: 'Kategorie', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
       published_at: { label: 'Datum', type: 'date_range' },
@@ -142,7 +155,11 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Schleswig-Holstein',
     description: 'Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl',
     filterableFields: {
-      content_type: { label: 'Typ', type: 'keyword' },
+      content_type: {
+        label: 'Typ',
+        type: 'keyword',
+        valueLabels: LV_CONTENT_TYPE_LABELS,
+      } satisfies FilterFieldConfig<LandesverbandContentType>,
       primary_category: { label: 'Programm', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
       published_at: { label: 'Datum', type: 'date_range' },
@@ -158,7 +175,16 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Thüringen',
     description: 'Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen',
     filterableFields: {
-      content_type: { label: 'Typ', type: 'keyword' },
+      content_type: {
+        label: 'Typ',
+        type: 'keyword',
+        valueLabels: LV_CONTENT_TYPE_LABELS,
+      } satisfies FilterFieldConfig<LandesverbandContentType>,
+      source_type: {
+        label: 'Organ',
+        type: 'keyword',
+        valueLabels: LV_SOURCE_TYPE_LABELS,
+      } satisfies FilterFieldConfig<LandesverbandSourceType>,
       primary_category: { label: 'Kategorie', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
       published_at: { label: 'Datum', type: 'date_range' },
@@ -174,7 +200,11 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Bayern',
     description: 'Regierungsprogramm der Grünen Bayern zur Landtagswahl',
     filterableFields: {
-      content_type: { label: 'Typ', type: 'keyword' },
+      content_type: {
+        label: 'Typ',
+        type: 'keyword',
+        valueLabels: LV_CONTENT_TYPE_LABELS,
+      } satisfies FilterFieldConfig<LandesverbandContentType>,
       primary_category: { label: 'Programm', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
       published_at: { label: 'Datum', type: 'date_range' },
@@ -190,23 +220,23 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Berlin',
     description: 'Pressemitteilungen und Beschlüsse der Grünen Berlin (Landesverband & Fraktion)',
     filterableFields: {
-      source_id: {
-        label: 'Quelle',
+      content_type: {
+        label: 'Typ',
         type: 'keyword',
-        valueLabels: {
-          'berlin-lv-presse': 'LV Presse',
-          'berlin-lv-beschluesse': 'LV Beschlüsse',
-          'berlin-fraktion-presse': 'Fraktion Presse',
-          'berlin-fraktion-beschluesse': 'Fraktion Beschlüsse',
-        },
-      },
+        valueLabels: LV_CONTENT_TYPE_LABELS,
+      } satisfies FilterFieldConfig<LandesverbandContentType>,
+      source_type: {
+        label: 'Organ',
+        type: 'keyword',
+        valueLabels: LV_SOURCE_TYPE_LABELS,
+      } satisfies FilterFieldConfig<LandesverbandSourceType>,
       curated_lists: {
         label: 'Liste',
         type: 'keyword',
         valueLabels: {
           'wahlprogramm-be': 'Wahlprogramm',
         },
-      },
+      } satisfies FilterFieldConfig<CuratedListId>,
       published_at: { label: 'Datum', type: 'date_range' },
     },
     defaultSearchMode: 'hybrid',
@@ -220,7 +250,16 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Mecklenburg-Vorpommern',
     description: 'Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern',
     filterableFields: {
-      content_type: { label: 'Typ', type: 'keyword' },
+      content_type: {
+        label: 'Typ',
+        type: 'keyword',
+        valueLabels: LV_CONTENT_TYPE_LABELS,
+      } satisfies FilterFieldConfig<LandesverbandContentType>,
+      source_type: {
+        label: 'Organ',
+        type: 'keyword',
+        valueLabels: LV_SOURCE_TYPE_LABELS,
+      } satisfies FilterFieldConfig<LandesverbandSourceType>,
       primary_category: { label: 'Kategorie', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
       published_at: { label: 'Datum', type: 'date_range' },
@@ -237,7 +276,11 @@ export const COLLECTIONS: CollectionConfigMap = {
     description:
       'Pressemitteilungen, Beschlüsse und Landtagswahlprogramm 2024 der Grünen Brandenburg',
     filterableFields: {
-      content_type: { label: 'Typ', type: 'keyword' },
+      content_type: {
+        label: 'Typ',
+        type: 'keyword',
+        valueLabels: LV_CONTENT_TYPE_LABELS,
+      } satisfies FilterFieldConfig<LandesverbandContentType>,
       primary_category: { label: 'Kategorie', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
       published_at: { label: 'Datum', type: 'date_range' },
