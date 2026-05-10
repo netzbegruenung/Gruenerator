@@ -41,6 +41,12 @@ export interface SearchExamplesParams {
   query: string;
   kinds: ExampleKind[];
   country?: 'DE' | 'AT';
+  // Landesverband short-code(s) used by per-LV PR agents to scope examples
+  // to one regional substrate (e.g. 'BE' for Berlin, ['BE', 'BE-F'] when the
+  // LV has both Landesverband and Fraktion content). Press applies it as a
+  // Qdrant filter; social currently logs but does not filter (Apify ingestion
+  // needs to populate `landesverband` on social_media_examples first).
+  lvScope?: string | readonly string[];
   platform?: string;
   limit?: number;
   // When true, social examples are returned with full body text instead of the
@@ -72,8 +78,15 @@ const PRESS_SOURCES: Record<'DE' | 'AT', PressSource> = {
   AT: { collection: 'gruene_at_documents', contentType: 'news', lvLabelOverride: 'AT' },
 };
 
-function pressFilter(contentType: string): QdrantFilter {
-  return { must: [{ key: 'content_type', match: { value: contentType } }] };
+function pressFilter(contentType: string, lvScope?: string | readonly string[]): QdrantFilter {
+  const must: NonNullable<QdrantFilter['must']> = [
+    { key: 'content_type', match: { value: contentType } },
+  ];
+  if (lvScope !== undefined) {
+    const match = Array.isArray(lvScope) ? { any: [...lvScope] } : { value: lvScope as string };
+    must.push({ key: 'landesverband', match });
+  }
+  return { must };
 }
 
 const lvShortNameMap: Record<string, string> = {
@@ -99,7 +112,16 @@ function truncate(text: string, max: number): string {
 }
 
 async function fetchSocial(params: SearchExamplesParams): Promise<UnifiedExample[]> {
-  const { query, platform, country, limit = 10, fullBody = false } = params;
+  const { query, platform, country, limit = 10, fullBody = false, lvScope } = params;
+
+  if (lvScope !== undefined) {
+    // TODO(per-lv-social): wire lvScope into the underlying call once Apify
+    // ingestion populates `landesverband` on social_media_examples payloads.
+    // Today it's a logged no-op; results fall back to country/platform scope.
+    log.info(
+      `[ExampleSearch] social lvScope=${JSON.stringify(lvScope)} requested (no-op until Apify lands landesverband field)`
+    );
+  }
 
   let results = await contentExamplesService.searchSocialMediaExamples(query, {
     platform: platform as 'facebook' | 'instagram' | null,
@@ -188,11 +210,15 @@ async function fetchFullPmBodies(
 }
 
 async function fetchPress(params: SearchExamplesParams): Promise<UnifiedExample[]> {
-  const { query, limit = 6, country } = params;
+  const { query, limit = 6, country, lvScope } = params;
   const source = country === 'AT' ? PRESS_SOURCES.AT : PRESS_SOURCES.DE;
+  // AT collection has no landesverband field — ignore lvScope there.
+  const effectiveLvScope = country === 'AT' ? undefined : lvScope;
 
   log.info(
-    `[ExampleSearch] press source: country=${country ?? 'DE'} → ${source.collection} (content_type=${source.contentType})`
+    `[ExampleSearch] press source: country=${country ?? 'DE'} → ${source.collection} (content_type=${source.contentType})${
+      effectiveLvScope !== undefined ? ` lvScope=${JSON.stringify(effectiveLvScope)}` : ''
+    }`
   );
 
   const response = await documentSearchService.search({
@@ -203,7 +229,7 @@ async function fetchPress(params: SearchExamplesParams): Promise<UnifiedExample[
       mode: 'hybrid',
       searchCollection: source.collection,
       threshold: 0.2,
-      additionalFilter: pressFilter(source.contentType),
+      additionalFilter: pressFilter(source.contentType, effectiveLvScope),
     },
   });
 
@@ -271,7 +297,9 @@ export async function searchExamples(params: SearchExamplesParams): Promise<Sear
   log.info(
     `[ExampleSearch] kinds=[${uniqueKinds.join(',')}] query="${params.query.slice(0, 80)}"${
       params.country ? ` country=${params.country}` : ''
-    }${params.platform ? ` platform=${params.platform}` : ''}`
+    }${params.platform ? ` platform=${params.platform}` : ''}${
+      params.lvScope !== undefined ? ` lvScope=${JSON.stringify(params.lvScope)}` : ''
+    }`
   );
 
   const settled = await Promise.allSettled(
