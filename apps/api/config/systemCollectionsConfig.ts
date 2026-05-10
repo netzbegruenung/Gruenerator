@@ -10,8 +10,10 @@ import {
   LV_CONTENT_TYPE_LABELS,
   LV_SOURCE_TYPE_LABELS,
   type CuratedListId,
+  type FilterableFieldName,
   type LandesverbandSourceId,
   type LandesverbandSourceType,
+  type ValueLabelsFor,
 } from '@gruenerator/shared/search';
 
 import type { QdrantFilter } from '../database/services/QdrantService/types.js';
@@ -23,17 +25,19 @@ import type { QdrantFilter } from '../database/services/QdrantService/types.js';
 /**
  * Filterable field declaration for a system collection.
  *
- * Type-safe narrowing of `valueLabels` keys is opt-in at each declaration site
- * via the typed `Record` constants exported from `@gruenerator/shared/search`
- * (e.g. `valueLabels: LV_CONTENT_TYPE_LABELS`). Declarations that need a hand-
- * authored `valueLabels` object should use `satisfies Partial<Record<MyKeyUnion, string>>`
- * to lock the keys.
+ * Field name is constrained to the `FilterableFieldName` registry (typos at
+ * declaration sites fail compile). `valueLabels` keys are narrowed per-field
+ * via `ValueLabelsFor<F>` — `source_id` only accepts `LandesverbandSourceId`,
+ * `curated_lists` only accepts `CuratedListId`, etc. Default `F = FilterableFieldName`
+ * keeps consumer iteration (`for (const field of filterableFields)`) simple:
+ * the union of all branches has `valueLabels?: Record<string, string> | undefined`,
+ * which property-access sites can use without manual narrowing.
  */
-export interface FilterableField {
-  field: string;
+export interface FilterableField<F extends FilterableFieldName = FilterableFieldName> {
+  field: F;
   label: string;
   type: 'keyword' | 'date_range';
-  valueLabels?: Record<string, string>;
+  valueLabels?: ValueLabelsFor<F>;
 }
 
 export interface DefaultFilter {
@@ -122,6 +126,23 @@ export const DEFAULT_SEARCH_PARAMS: SearchParams = {
 // =============================================================================
 // System Collections
 // =============================================================================
+
+/** Shared "Typ" filter declaration reused across every Landesverband system collection. */
+const LV_CONTENT_TYPE_FIELD: FilterableField<'content_type'> = {
+  field: 'content_type',
+  label: 'Typ',
+  type: 'keyword',
+  valueLabels: LV_CONTENT_TYPE_LABELS,
+};
+
+/** Shared "Organ" filter declaration — only used by LVs that have both Landesverband and Fraktion. */
+const LV_SOURCE_TYPE_FIELD: FilterableField<'source_type'> = {
+  field: 'source_type',
+  label: 'Organ',
+  type: 'keyword',
+  valueLabels: LV_SOURCE_TYPE_LABELS,
+};
+
 
 export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   'grundsatz-system': {
@@ -242,7 +263,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
+      LV_CONTENT_TYPE_FIELD,
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -257,7 +278,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
+      LV_CONTENT_TYPE_FIELD,
       { field: 'primary_category', label: 'Programm', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -272,8 +293,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
-      { field: 'source_type', label: 'Organ', type: 'keyword', valueLabels: LV_SOURCE_TYPE_LABELS },
+      LV_CONTENT_TYPE_FIELD,
+      LV_SOURCE_TYPE_FIELD,
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -288,7 +309,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
+      LV_CONTENT_TYPE_FIELD,
       { field: 'primary_category', label: 'Programm', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -303,16 +324,16 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
-      { field: 'source_type', label: 'Organ', type: 'keyword', valueLabels: LV_SOURCE_TYPE_LABELS },
+      LV_CONTENT_TYPE_FIELD,
+      LV_SOURCE_TYPE_FIELD,
       {
         field: 'curated_lists',
         label: 'Liste',
         type: 'keyword',
         valueLabels: {
           'wahlprogramm-be': 'Wahlprogramm',
-        } satisfies Partial<Record<CuratedListId, string>>,
-      },
+        },
+      } satisfies FilterableField<'curated_lists'>,
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: ['BE', 'BE-F'] },
@@ -325,8 +346,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
-      { field: 'source_type', label: 'Organ', type: 'keyword', valueLabels: LV_SOURCE_TYPE_LABELS },
+      LV_CONTENT_TYPE_FIELD,
+      LV_SOURCE_TYPE_FIELD,
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -342,7 +363,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword', valueLabels: LV_CONTENT_TYPE_LABELS },
+      LV_CONTENT_TYPE_FIELD,
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },

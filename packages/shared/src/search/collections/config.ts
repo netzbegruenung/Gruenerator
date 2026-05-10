@@ -7,15 +7,24 @@
 
 import type { CollectionConfig, CollectionConfigMap, CollectionKey, FilterFieldConfig } from './types.js';
 import type { QdrantFilter } from '../filters/types.js';
-import type {
-  CuratedListId,
-  LandesverbandContentType,
-  LandesverbandSourceType,
-} from './landesverbandSources.js';
 import {
   LV_CONTENT_TYPE_LABELS,
   LV_SOURCE_TYPE_LABELS,
 } from './landesverbandSources.js';
+
+/** Shared "Typ" filter declaration reused across every Landesverband collection. */
+const lvContentTypeField: FilterFieldConfig<'content_type'> = {
+  label: 'Typ',
+  type: 'keyword',
+  valueLabels: LV_CONTENT_TYPE_LABELS,
+};
+
+/** Shared "Organ" filter declaration — only used by LVs that have both Landesverband and Fraktion. */
+const lvSourceTypeField: FilterFieldConfig<'source_type'> = {
+  label: 'Organ',
+  type: 'keyword',
+  valueLabels: LV_SOURCE_TYPE_LABELS,
+};
 
 /**
  * All available Qdrant collections for Green Party content
@@ -135,11 +144,7 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Hamburg',
     description: 'Beschlüsse und Pressemitteilungen der Grünen Hamburg',
     filterableFields: {
-      content_type: {
-        label: 'Typ',
-        type: 'keyword',
-        valueLabels: LV_CONTENT_TYPE_LABELS,
-      } satisfies FilterFieldConfig<LandesverbandContentType>,
+      content_type: lvContentTypeField,
       primary_category: { label: 'Kategorie', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
       published_at: { label: 'Datum', type: 'date_range' },
@@ -155,11 +160,7 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Schleswig-Holstein',
     description: 'Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl',
     filterableFields: {
-      content_type: {
-        label: 'Typ',
-        type: 'keyword',
-        valueLabels: LV_CONTENT_TYPE_LABELS,
-      } satisfies FilterFieldConfig<LandesverbandContentType>,
+      content_type: lvContentTypeField,
       primary_category: { label: 'Programm', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
       published_at: { label: 'Datum', type: 'date_range' },
@@ -175,16 +176,8 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Thüringen',
     description: 'Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen',
     filterableFields: {
-      content_type: {
-        label: 'Typ',
-        type: 'keyword',
-        valueLabels: LV_CONTENT_TYPE_LABELS,
-      } satisfies FilterFieldConfig<LandesverbandContentType>,
-      source_type: {
-        label: 'Organ',
-        type: 'keyword',
-        valueLabels: LV_SOURCE_TYPE_LABELS,
-      } satisfies FilterFieldConfig<LandesverbandSourceType>,
+      content_type: lvContentTypeField,
+      source_type: lvSourceTypeField,
       primary_category: { label: 'Kategorie', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
       published_at: { label: 'Datum', type: 'date_range' },
@@ -200,11 +193,7 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Bayern',
     description: 'Regierungsprogramm der Grünen Bayern zur Landtagswahl',
     filterableFields: {
-      content_type: {
-        label: 'Typ',
-        type: 'keyword',
-        valueLabels: LV_CONTENT_TYPE_LABELS,
-      } satisfies FilterFieldConfig<LandesverbandContentType>,
+      content_type: lvContentTypeField,
       primary_category: { label: 'Programm', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
       published_at: { label: 'Datum', type: 'date_range' },
@@ -220,23 +209,15 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Berlin',
     description: 'Pressemitteilungen und Beschlüsse der Grünen Berlin (Landesverband & Fraktion)',
     filterableFields: {
-      content_type: {
-        label: 'Typ',
-        type: 'keyword',
-        valueLabels: LV_CONTENT_TYPE_LABELS,
-      } satisfies FilterFieldConfig<LandesverbandContentType>,
-      source_type: {
-        label: 'Organ',
-        type: 'keyword',
-        valueLabels: LV_SOURCE_TYPE_LABELS,
-      } satisfies FilterFieldConfig<LandesverbandSourceType>,
+      content_type: lvContentTypeField,
+      source_type: lvSourceTypeField,
       curated_lists: {
         label: 'Liste',
         type: 'keyword',
         valueLabels: {
           'wahlprogramm-be': 'Wahlprogramm',
         },
-      } satisfies FilterFieldConfig<CuratedListId>,
+      } satisfies FilterFieldConfig<'curated_lists'>,
       published_at: { label: 'Datum', type: 'date_range' },
     },
     defaultSearchMode: 'hybrid',
@@ -250,16 +231,8 @@ export const COLLECTIONS: CollectionConfigMap = {
     displayName: 'Grüne Mecklenburg-Vorpommern',
     description: 'Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern',
     filterableFields: {
-      content_type: {
-        label: 'Typ',
-        type: 'keyword',
-        valueLabels: LV_CONTENT_TYPE_LABELS,
-      } satisfies FilterFieldConfig<LandesverbandContentType>,
-      source_type: {
-        label: 'Organ',
-        type: 'keyword',
-        valueLabels: LV_SOURCE_TYPE_LABELS,
-      } satisfies FilterFieldConfig<LandesverbandSourceType>,
+      content_type: lvContentTypeField,
+      source_type: lvSourceTypeField,
       primary_category: { label: 'Kategorie', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
       published_at: { label: 'Datum', type: 'date_range' },
@@ -276,11 +249,7 @@ export const COLLECTIONS: CollectionConfigMap = {
     description:
       'Pressemitteilungen, Beschlüsse und Landtagswahlprogramm 2024 der Grünen Brandenburg',
     filterableFields: {
-      content_type: {
-        label: 'Typ',
-        type: 'keyword',
-        valueLabels: LV_CONTENT_TYPE_LABELS,
-      } satisfies FilterFieldConfig<LandesverbandContentType>,
+      content_type: lvContentTypeField,
       primary_category: { label: 'Kategorie', type: 'keyword' },
       subcategories: { label: 'Unterkategorien', type: 'keyword' },
       published_at: { label: 'Datum', type: 'date_range' },
