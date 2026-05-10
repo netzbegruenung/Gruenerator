@@ -53,6 +53,7 @@ import { useIsTouchDevice, useMobileKeyboardOffset } from '@gruenerator/shared/h
 import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Mention } from './Mention';
+import { EditorDictationButton } from './EditorDictationButton';
 import './BlockNoteEditor.css';
 
 export interface BlockNoteEditorProps {
@@ -393,9 +394,10 @@ const BlockNoteEditorInner = ({
   return (
     <div
       ref={wrapperRef}
-      className={`blocknote-wrapper${staticToolbar ? ' blocknote-static-toolbar' : ''}`}
+      className={`blocknote-wrapper relative${staticToolbar ? ' blocknote-static-toolbar' : ''}`}
     >
       <ErrorBoundary>
+        {editable && <EditorDictationButton editor={editor} />}
         <BlockNoteView
           editor={editor}
           theme={theme}
