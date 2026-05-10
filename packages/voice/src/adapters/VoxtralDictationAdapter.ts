@@ -81,7 +81,17 @@ export class VoxtralDictationAdapter implements DictationAdapter {
 
   constructor(config: VoxtralDictationConfig = {}) {
     const base = config.apiBaseUrl ?? '';
-    const protocol = base.startsWith('https') ? 'wss' : 'ws';
+    // When apiBaseUrl is provided, derive the scheme from it. When it's empty
+    // (same-origin), the WS scheme MUST follow the page's scheme — otherwise
+    // an HTTPS page hits Mixed Content blocking and `new WebSocket()` throws
+    // synchronously, tearing down the dictation UI within a frame.
+    const protocol = base
+      ? base.startsWith('https')
+        ? 'wss'
+        : 'ws'
+      : typeof window !== 'undefined' && window.location.protocol === 'https:'
+        ? 'wss'
+        : 'ws';
     const host = base.replace(/^https?:\/\//, '') || window.location.host;
     this._wsUrl = `${protocol}://${host}/api/voice/realtime`;
     this._onError = config.onError;
