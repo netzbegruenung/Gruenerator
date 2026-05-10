@@ -205,6 +205,7 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     indexes: [
       { field: 'platform', type: 'keywordTenant' },
       { field: 'country', type: 'keyword' },
+      { field: 'landesverband', type: 'keyword' },
     ],
     handleRaceCondition: true,
   },
