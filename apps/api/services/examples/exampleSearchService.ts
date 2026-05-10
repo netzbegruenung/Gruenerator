@@ -43,6 +43,11 @@ export interface SearchExamplesParams {
   country?: 'DE' | 'AT';
   platform?: string;
   limit?: number;
+  // When true, social examples are returned with full body text instead of the
+  // 500-char preview. Used by the social-media composer node so the prompt
+  // sees full Insta captions / FB posts; the legacy direct-executor wrapper
+  // and any UI-summary callers keep the truncated default.
+  fullBody?: boolean;
 }
 
 export interface SearchExamplesResult {
@@ -53,9 +58,23 @@ export interface SearchExamplesResult {
 
 const documentSearchService = new DocumentSearchService();
 
-const PRESS_FILTER: QdrantFilter = {
-  must: [{ key: 'content_type', match: { value: 'presse' } }],
+// Locale-aware press source map. AT users get gruene.at /news/ content
+// (Austrian Greens publish press releases under /news/, not a separate /presse/
+// hierarchy — gruene.at's /presse/ page is just a media-contact landing).
+// DE users get the Landesverband press collection.
+interface PressSource {
+  collection: string;
+  contentType: string;
+  lvLabelOverride?: string;
+}
+const PRESS_SOURCES: Record<'DE' | 'AT', PressSource> = {
+  DE: { collection: 'landesverbaende_documents', contentType: 'presse' },
+  AT: { collection: 'gruene_at_documents', contentType: 'news', lvLabelOverride: 'AT' },
 };
+
+function pressFilter(contentType: string): QdrantFilter {
+  return { must: [{ key: 'content_type', match: { value: contentType } }] };
+}
 
 const lvShortNameMap: Record<string, string> = {
   berlin: 'BE',
@@ -80,7 +99,7 @@ function truncate(text: string, max: number): string {
 }
 
 async function fetchSocial(params: SearchExamplesParams): Promise<UnifiedExample[]> {
-  const { query, platform, country, limit = 10 } = params;
+  const { query, platform, country, limit = 10, fullBody = false } = params;
 
   let results = await contentExamplesService.searchSocialMediaExamples(query, {
     platform: platform as 'facebook' | 'instagram' | null,
@@ -106,7 +125,7 @@ async function fetchSocial(params: SearchExamplesParams): Promise<UnifiedExample
       kind: 'social' as const,
       id: String(r.id),
       title: `${platformName} Beispiel${author ? ` von ${author}` : ''}`,
-      body: truncate(r.content || '', 500),
+      body: fullBody ? r.content || '' : truncate(r.content || '', 500),
       platform: platformName,
       ...(author && { author }),
       ...(r.created_at && { publishedAt: r.created_at }),
@@ -115,7 +134,10 @@ async function fetchSocial(params: SearchExamplesParams): Promise<UnifiedExample
   });
 }
 
-async function fetchFullPmBodies(documentIds: string[]): Promise<Map<string, string>> {
+async function fetchFullPmBodies(
+  documentIds: string[],
+  source: PressSource
+): Promise<Map<string, string>> {
   const result = new Map<string, string>();
   if (documentIds.length === 0) return result;
 
@@ -126,12 +148,12 @@ async function fetchFullPmBodies(documentIds: string[]): Promise<Map<string, str
 
     const filter: QdrantFilter = {
       must: [
-        { key: 'content_type', match: { value: 'presse' } },
+        { key: 'content_type', match: { value: source.contentType } },
         { key: 'document_id', match: { any: documentIds } },
       ],
     };
     // ~50 chunks per PM is generous; most LV PMs are 1-5 chunks.
-    const chunks = await ops.scrollDocuments('landesverbaende_documents', filter, {
+    const chunks = await ops.scrollDocuments(source.collection, filter, {
       limit: documentIds.length * 50,
       withPayload: true,
       withVector: false,
@@ -166,7 +188,12 @@ async function fetchFullPmBodies(documentIds: string[]): Promise<Map<string, str
 }
 
 async function fetchPress(params: SearchExamplesParams): Promise<UnifiedExample[]> {
-  const { query, limit = 6 } = params;
+  const { query, limit = 6, country } = params;
+  const source = country === 'AT' ? PRESS_SOURCES.AT : PRESS_SOURCES.DE;
+
+  log.info(
+    `[ExampleSearch] press source: country=${country ?? 'DE'} → ${source.collection} (content_type=${source.contentType})`
+  );
 
   const response = await documentSearchService.search({
     query,
@@ -174,9 +201,9 @@ async function fetchPress(params: SearchExamplesParams): Promise<UnifiedExample[
     options: {
       limit,
       mode: 'hybrid',
-      searchCollection: 'landesverbaende_documents',
+      searchCollection: source.collection,
       threshold: 0.2,
-      additionalFilter: PRESS_FILTER,
+      additionalFilter: pressFilter(source.contentType),
     },
   });
 
@@ -196,14 +223,18 @@ async function fetchPress(params: SearchExamplesParams): Promise<UnifiedExample[
   }
 
   const fullBodies = await fetchFullPmBodies(
-    dedupedHits.map((h) => h.docId).filter((id): id is string => id !== null)
+    dedupedHits.map((h) => h.docId).filter((id): id is string => id !== null),
+    source
   );
 
   const out: UnifiedExample[] = [];
   for (const { r, docId } of dedupedHits) {
     const title = r.title ?? 'Pressemitteilung';
     const sourceId = r.source_id ?? undefined;
-    const lv = lvShortNameFromSourceId(sourceId);
+    // For AT, all content is from gruene.at — there's no Landesverband
+    // breakdown, so use the source's static label. For DE, derive the LV
+    // short-name (BE/HH/...) from source_id as before.
+    const lv = source.lvLabelOverride ?? lvShortNameFromSourceId(sourceId);
     const publishedAt = r.published_at ?? undefined;
     const url = r.source_url ?? undefined;
     const fullBody = docId ? fullBodies.get(docId) : undefined;

@@ -104,6 +104,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     reasoning: 'test',
     hasTemporal: false,
     complexity: 'simple',
+    platform: null,
     needsClarification: false,
     clarificationQuestion: null,
     clarificationOptions: null,

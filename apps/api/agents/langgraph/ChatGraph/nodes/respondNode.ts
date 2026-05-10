@@ -10,6 +10,7 @@
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
@@ -615,11 +616,16 @@ function getAnchorAdjuncts(state: ChatGraphState): string {
  * Build the complete system message with agent role and search context.
  */
 export async function buildSystemMessage(state: ChatGraphState): Promise<string> {
-  // Press-composition path: the pressemitteilungComposer node has already
-  // produced a PM-specific system prompt and stored it on state.responseText.
+  // Composer paths (press, social-media): a sibling composer node has already
+  // produced an intent-specific system prompt and stored it on state.responseText.
   // Use it verbatim — bypassing the generic search-context / anchor / citation
   // machinery that doesn't apply to a fresh content-creation turn.
-  if (state.intent === 'pressemitteilung_examples' && state.responseText) {
+  // Defensive: routing in ChatGraph already forks composer intents away from
+  // respondNode, so this branch only fires if routing changes upstream.
+  if (
+    (state.intent === 'pressemitteilung_examples' || state.intent === 'examples') &&
+    state.responseText
+  ) {
     return state.responseText;
   }
 
@@ -668,12 +674,7 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
 8. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`;
   }
 
-  const today = new Date().toLocaleDateString('de-DE', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  const today = formatGermanDate();
 
   // User profile instructions (additive — included in all modes)
   const userInstructionsFormatted = state.userInstructions
