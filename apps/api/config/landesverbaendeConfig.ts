@@ -15,12 +15,14 @@
 
 import {
   type CuratedListId,
+  type LandesverbandContentType,
   type LandesverbandSourceId,
+  type LandesverbandSourceType,
 } from '@gruenerator/shared/search';
 
-export type ContentType = 'presse' | 'beschluss' | 'antrag' | 'blog' | 'wahlprogramm';
+export type ContentType = LandesverbandContentType;
 export type CMSType = 'wordpress' | 'neos' | 'typo3' | 'custom' | 'drupal';
-export type SourceType = 'landesverband' | 'fraktion';
+export type SourceType = LandesverbandSourceType;
 
 export interface ContentPath {
   type: ContentType;
