@@ -388,6 +388,12 @@ export interface ChatGraphState {
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
 
+  // Platform hint for `examples` intent (Instagram vs Facebook). Set by the
+  // classifier's content-creation override branch when the user prompt names a
+  // platform; null otherwise. Consumed by searchNode to filter social examples
+  // and by socialMediaComposerNode to pick the platform-specific rubric.
+  platform: 'instagram' | 'facebook' | null;
+
   // Clarification (HITL interrupt)
   needsClarification: boolean;
   clarificationQuestion: string | null;

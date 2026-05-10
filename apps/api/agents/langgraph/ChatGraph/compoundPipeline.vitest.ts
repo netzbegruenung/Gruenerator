@@ -121,6 +121,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     documentSubtype: null,
     hasTemporal: false,
     complexity: 'moderate' as const,
+    platform: null,
     needsClarification: false,
     clarificationQuestion: null,
     clarificationOptions: null,

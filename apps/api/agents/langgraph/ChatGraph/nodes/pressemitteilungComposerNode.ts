@@ -13,6 +13,7 @@
  */
 
 import { createLogger } from '../../../../utils/logger.js';
+import { formatGermanDate } from '../../../../utils/stringUtils.js';
 
 import type { ChatGraphState, PressExampleItem } from '../types.js';
 
@@ -49,12 +50,7 @@ export function buildPressemitteilungSystemPrompt(state: ChatGraphState): string
   const { agentConfig, examplesResult } = state;
   const examples = (examplesResult?.press ?? []).slice(0, 4);
 
-  const today = new Date().toLocaleDateString('de-DE', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  const today = formatGermanDate();
 
   const examplesBlock =
     examples.length === 0

@@ -211,6 +211,7 @@ async function testExpandedContextWindow() {
     synthesisMode: null,
     hasTemporal: false,
     complexity: 'moderate',
+    platform: null,
     needsClarification: false,
     clarificationQuestion: null,
     clarificationOptions: null,
