@@ -1022,14 +1022,18 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         const country =
           agentConfig.toolRestrictions?.examplesCountry ||
           (state.userLocale === 'de-AT' ? 'AT' : undefined);
+        const lvScope = agentConfig.toolRestrictions?.examplesLvScope;
 
         // Composer paths want full bodies: PM bodies are reconstructed from
         // chunks inside searchExamples, social bodies skip the 500-char cut.
         // Pass platform hint when set so social fetches filter to Insta/FB.
+        // lvScope (per-LV PR agents) constrains press to one LV substrate;
+        // social currently logs but does not filter (Apify follow-up).
         const unified = await searchExamples({
           query: searchQuery || '',
           kinds,
           ...(country && { country }),
+          ...(lvScope !== undefined && { lvScope }),
           ...(state.platform && { platform: state.platform }),
           fullBody: true,
         });
