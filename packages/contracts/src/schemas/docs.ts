@@ -178,3 +178,24 @@ export const docImportResponseSchema = z.object({
 });
 
 export type DocImportResponse = z.infer<typeof docImportResponseSchema>;
+
+// ── exportToDocsController schemas ───────────────────────────────────────────
+
+/**
+ * Request/response for POST /api/docs/from-export.
+ * `content` may be markdown, HTML, or plain prose.
+ */
+export const exportToDocsBodySchema = z.object({
+  content: z.string().min(1),
+  title: z.string().nullish(),
+  documentType: z.string().nullish(),
+});
+
+export const exportToDocsResponseSchema = z.object({
+  documentId: z.string().uuid(),
+  url: z.string(),
+  success: z.literal(true),
+});
+
+export type ExportToDocsBody = z.infer<typeof exportToDocsBodySchema>;
+export type ExportToDocsResponse = z.infer<typeof exportToDocsResponseSchema>;

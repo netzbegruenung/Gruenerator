@@ -131,6 +131,12 @@
       "types": "./src/models/index.ts",
       "import": "./dist/models/index.js",
       "default": "./dist/models/index.js"
+    },
+    "./yjs": {
+      "development": "./src/yjs/index.ts",
+      "types": "./src/yjs/index.ts",
+      "import": "./dist/yjs/index.js",
+      "default": "./dist/yjs/index.js"
     }
   },
   "scripts": {
@@ -145,6 +151,7 @@
     "axios": "^1.16.0",
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.5.0",
+    "yjs": "^13.6.30",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
