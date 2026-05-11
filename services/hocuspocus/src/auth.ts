@@ -193,7 +193,7 @@ export class AuthService {
     log.debug(`[Auth-Chat] Checking thread access: ${threadId} for user: ${userId}`);
 
     const directAccess = await this.db(
-      `SELECT user_id, permissions, is_public FROM chat_threads
+      `SELECT user_id, permissions, is_public, doc_id FROM chat_threads
        WHERE id = $1 LIMIT 1`,
       [threadId]
     );
@@ -207,7 +207,15 @@ export class AuthService {
       user_id: string;
       permissions: Record<string, unknown> | null;
       is_public: boolean;
+      doc_id: string | null;
     };
+
+    if (thread.doc_id) {
+      log.debug(
+        `[Auth-Chat] Thread ${threadId} is doc-bound (doc=${thread.doc_id}); delegating to doc permissions`
+      );
+      return this.checkDocumentPermissions(thread.doc_id, userId);
+    }
 
     const isOwner = thread.user_id === userId;
     const hasDirectPermission = thread.permissions && userId in thread.permissions;

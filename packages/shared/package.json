@@ -126,6 +126,12 @@
       "import": "./dist/agents/index.js",
       "default": "./dist/agents/index.js"
     },
+    "./chat": {
+      "development": "./src/chat/index.ts",
+      "types": "./src/chat/index.ts",
+      "import": "./dist/chat/index.js",
+      "default": "./dist/chat/index.js"
+    },
     "./models": {
       "development": "./src/models/index.ts",
       "types": "./src/models/index.ts",
