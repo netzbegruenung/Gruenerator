@@ -351,6 +351,7 @@ function useGrueneratorThreadRuntime() {
     () =>
       new GrueneratorRealtimeVoiceAdapter({
         getThreadId: () => useAgentStore.getState().currentThreadId,
+        getAgentId: () => useAgentStore.getState().selectedAgentId,
         onError: (reason, err) => console.error(`[RealtimeVoice] ${reason}:`, err),
       }),
     []

@@ -30,6 +30,7 @@ export interface GrueneratorRealtimeVoiceConfig {
   ttsVoiceId?: string;
   onError?: (reason: RealtimeVoiceErrorReason, error: unknown) => void;
   getThreadId?: () => string | null;
+  getAgentId?: () => string | null;
   onAssistantTurnDone?: (text: string, threadId: string | null) => void;
   /**
    * Client-side VAD parameters. The Voxtral WebSocket has no server endpointing —
@@ -54,6 +55,7 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
   private ttsVoiceId?: string;
   private onError?: (reason: RealtimeVoiceErrorReason, error: unknown) => void;
   private getThreadId?: () => string | null;
+  private getAgentId?: () => string | null;
   private onAssistantTurnDone?: (text: string, threadId: string | null) => void;
   private vadSpeechRms: number;
   private vadSpeechMinMs: number;
@@ -78,6 +80,7 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
     this.ttsVoiceId = config.ttsVoiceId;
     this.onError = config.onError;
     this.getThreadId = config.getThreadId;
+    this.getAgentId = config.getAgentId;
     this.onAssistantTurnDone = config.onAssistantTurnDone;
     this.vadSpeechRms = config.vadSpeechRms ?? 0.025;
     this.vadSpeechMinMs = config.vadSpeechMinMs ?? 250;
@@ -382,11 +385,25 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
       let assistantText = '';
       let sentenceBuffer = '';
 
+      // The contract router calls AI-SDK v6's `convertToModelMessages`, which
+      // expects the UIMessage shape (`parts: [{type:'text', text}]`) — not the
+      // older ModelMessage `{role, content: string}` shape. Mapping here keeps
+      // the internal history representation simple.
+      const uiMessages = this.history.map((m, idx) => ({
+        id: `voice_${idx}`,
+        role: m.role,
+        parts: [{ type: 'text' as const, text: m.content }],
+      }));
+
       try {
         const response = await this.fetchFn(`${this.apiBaseUrl}/api/chat-graph/stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: this.history, threadId }),
+          body: JSON.stringify({
+            messages: uiMessages,
+            threadId,
+            agentId: this.getAgentId?.() ?? null,
+          }),
           signal: controller.signal,
           credentials: 'include',
         });
@@ -399,6 +416,7 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buf = '';
+        let currentEvent = '';
 
         while (true) {
           const { done, value } = await reader.read();
@@ -407,7 +425,15 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
           const lines = buf.split('\n');
           buf = lines.pop() ?? '';
           for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              currentEvent = line.slice(7).trim();
+              continue;
+            }
             if (!line.startsWith('data: ')) continue;
+            // Only consume text_delta events for TTS. Reasoning, memory,
+            // citations, etc. share the same SSE stream — speaking them
+            // would be incoherent.
+            if (currentEvent !== 'text_delta') continue;
             let data: Record<string, unknown>;
             try {
               data = JSON.parse(line.slice(6));
