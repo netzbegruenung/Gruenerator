@@ -10,4 +10,11 @@ export { TypingIndicator } from './components/TypingIndicator';
 export { generateUserColor } from './utils';
 export { removeDocCache, clearAllDocCaches } from './lib/cacheRegistry';
 export { getAuthErrorMessage } from './lib/authErrors';
+export {
+  classifyRoom,
+  isAwarenessOnlyRoom,
+  isBroadcastOnlyRoom,
+  isPersistedRoom,
+  type RoomKind,
+} from './lib/roomTypes';
 export type { CollaborationUser } from './types';

@@ -29,6 +29,15 @@ interface GrueneratorThreadProps {
    */
   toolbarExtra?: ReactNode;
   requireProfileHydration?: boolean;
+  showMentions?: boolean;
+  showPlusMenu?: boolean;
+  showToolToggles?: boolean;
+  showModelPicker?: boolean;
+  composerSlots?: {
+    aboveInput?: ReactNode;
+    belowInput?: ReactNode;
+    sendAdornment?: ReactNode;
+  };
 }
 
 export function GrueneratorThread({
@@ -37,6 +46,11 @@ export function GrueneratorThread({
   density = 'comfortable',
   toolbarExtra,
   requireProfileHydration,
+  showMentions,
+  showPlusMenu,
+  showToolToggles,
+  showModelPicker,
+  composerSlots,
 }: GrueneratorThreadProps = {}) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
@@ -95,6 +109,11 @@ export function GrueneratorThread({
           toolbarExtra={toolbarExtra}
           requireProfileHydration={requireProfileHydration}
           insideAgent={!!activeAgent}
+          {...(showMentions !== undefined && { showMentions })}
+          {...(showPlusMenu !== undefined && { showPlusMenu })}
+          {...(showToolToggles !== undefined && { showToolToggles })}
+          {...(showModelPicker !== undefined && { showModelPicker })}
+          {...(composerSlots ? { slots: composerSlots } : {})}
         />
       </ThreadPrimitive.Root>
     </ChatDensityContext.Provider>

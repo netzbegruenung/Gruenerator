@@ -73,8 +73,12 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
     async onLoadDocument(data) {
       const { documentName, document } = data;
 
+      // chat-* (broadcast-only) and group-presence-* (awareness-only) rooms
+      // are not persisted server-side. chat-* still broadcasts Y updates
+      // between connected peers (used for live multi-user chat); Postgres
+      // remains the source of truth for chat messages via /api/chat-service.
       if (documentName.startsWith('chat-') || documentName.startsWith('group-presence-')) {
-        log.debug(`[Load] Skipping persistence for awareness-only room: ${documentName}`);
+        log.debug(`[Load] Skipping persistence for ephemeral room: ${documentName}`);
         return;
       }
 

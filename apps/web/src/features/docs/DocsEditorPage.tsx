@@ -69,8 +69,8 @@ const ShareModal = lazyWithRetry(() =>
 const ChatSidebar = lazyWithRetry(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ChatSidebar }))
 );
-const DocsAssistantChat = lazyWithRetry(() =>
-  import('./DocsAssistantChat').then((m) => ({ default: m.DocsAssistantChat }))
+const DocsChatPanel = lazyWithRetry(() =>
+  import('./DocsChatPanel').then((m) => ({ default: m.DocsChatPanel }))
 );
 
 const GUEST_COLORS = [
@@ -220,6 +220,13 @@ function EditorContent() {
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const [showExportSubmenu, setShowExportSubmenu] = useState(false);
   const [activeSidebar, setActiveSidebar] = useState<SidebarPanel | null>(null);
+  // Sticky: once the chat panel is opened, DocsChatPanel stays mounted to
+  // preserve its runtime + Hocuspocus connection across close/reopen. Avoids
+  // paying the chat infra cost for users who never open the panel.
+  const [hasOpenedChat, setHasOpenedChat] = useState(false);
+  useEffect(() => {
+    if (activeSidebar === 'chat' && !hasOpenedChat) setHasOpenedChat(true);
+  }, [activeSidebar, hasOpenedChat]);
   const [editor, setEditor] = useState<BlockNoteEditor | null>(null);
 
   const { data: shareLinks } = useShareLinks('personal', null, { enabled: !isGuest });
@@ -724,40 +731,51 @@ function EditorContent() {
           />
         </main>
 
-        {effectivePanel && (
-          <aside className="w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200]">
-            {effectivePanel !== 'chat' && (
-              <div className="py-2 px-3 border-b border-grey-200 dark:border-grey-700 shrink-0 flex items-center gap-2">
-                <span className="text-sm font-medium text-foreground flex-1">
-                  {SIDEBAR_TITLES[effectivePanel]}
-                </span>
-                {effectivePanel === 'legacy-chat' && (
-                  <button
-                    onClick={() => setActiveSidebar('chat')}
-                    className="text-xs text-grey-500 hover:text-foreground underline"
-                  >
-                    KI-Chat
-                  </button>
-                )}
-                <button
-                  onClick={() => setActiveSidebar(null)}
-                  className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-grey-500 hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-700"
-                  aria-label="Seitenleiste schließen"
-                >
-                  <FiX size={18} />
-                </button>
-              </div>
-            )}
+        {hasOpenedChat && id && (
+          // Mount the chat infra (runtime, Hocuspocus, thread query) outside
+          // the conditional so closing/reopening the panel preserves messages
+          // and in-flight streams. The aside is hidden via CSS when the chat
+          // panel isn't the active sidebar.
+          <aside
+            className={
+              effectivePanel === 'chat'
+                ? 'w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200]'
+                : 'hidden'
+            }
+          >
+            <Suspense fallback={null}>
+              <DocsChatPanel
+                documentId={id}
+                userId={user ? String(user.id) : null}
+                userName={user?.display_name ?? null}
+                isOpen={effectivePanel === 'chat'}
+              />
+            </Suspense>
+          </aside>
+        )}
 
-            {effectivePanel === 'chat' && id && (
-              <Suspense fallback={null}>
-                <DocsAssistantChat
-                  documentId={id}
-                  userId={user ? String(user.id) : null}
-                  userName={user?.display_name ?? null}
-                />
-              </Suspense>
-            )}
+        {effectivePanel && effectivePanel !== 'chat' && (
+          <aside className="w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200]">
+            <div className="py-2 px-3 border-b border-grey-200 dark:border-grey-700 shrink-0 flex items-center gap-2">
+              <span className="text-sm font-medium text-foreground flex-1">
+                {SIDEBAR_TITLES[effectivePanel]}
+              </span>
+              {effectivePanel === 'legacy-chat' && (
+                <button
+                  onClick={() => setActiveSidebar('chat')}
+                  className="text-xs text-grey-500 hover:text-foreground underline"
+                >
+                  KI-Chat
+                </button>
+              )}
+              <button
+                onClick={() => setActiveSidebar(null)}
+                className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-grey-500 hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-700"
+                aria-label="Seitenleiste schließen"
+              >
+                <FiX size={18} />
+              </button>
+            </div>
 
             {effectivePanel === 'legacy-chat' && hasLegacyMessages && (
               <div className="flex flex-1 flex-col overflow-hidden">

@@ -38,7 +38,17 @@ interface GrueneratorComposerProps {
   showMentions?: boolean;
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
+  showModelPicker?: boolean;
   insideAgent?: boolean;
+  /** Render-prop slots for surface-specific UI. */
+  slots?: {
+    /** Above the input — selection chips, contextual hints. */
+    aboveInput?: React.ReactNode;
+    /** Below the input/toolbar — quick actions, status rows. */
+    belowInput?: React.ReactNode;
+    /** Right side, adjacent to the Send button. */
+    sendAdornment?: React.ReactNode;
+  };
   /**
    * Gate the send button on `useUserProfileStore.isHydrated`. Shows a spinner
    * until profile data (roles, etc.) is loaded. Use in web where roles must
@@ -168,7 +178,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showMentions = true,
   showPlusMenu = true,
   showToolToggles = true,
+  showModelPicker = true,
   insideAgent = false,
+  slots,
   requireProfileHydration = false,
 }: GrueneratorComposerProps) {
   const composerRuntime = useComposerRuntime();
@@ -403,6 +415,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 
         <ComposerAttachments />
 
+        {slots?.aboveInput}
+
         {showMentions &&
           (mention.mode === 'datei' ? (
             <FileMentionPopover
@@ -472,13 +486,15 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             {toolbarExtra}
           </div>
           <div className="flex items-center gap-0.5">
-            <ModelPicker />
+            {showModelPicker && <ModelPicker />}
+            {slots?.sendAdornment}
             <ComposerButtons
               isRunning={isRunning}
               requireProfileHydration={requireProfileHydration}
             />
           </div>
         </div>
+        {slots?.belowInput}
       </ComposerPrimitive.Root>
       <p
         className={cn(
