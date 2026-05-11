@@ -5,11 +5,15 @@ import {
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
 import { AGENT_CATEGORY_LABELS, SYSTEM_AGENTS, type Agent } from '@gruenerator/shared/agents';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { HiShare, HiUserGroup } from 'react-icons/hi';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { useGroups, type GroupSummary } from '../groups/hooks/useGroups';
+import {
+  getOrderedNotebooks,
+  type NotebookConfigEntry,
+} from '../notebook/config/notebooksConfig';
 
 import {
   useDeleteUserAgent,
@@ -77,7 +81,36 @@ function ShareWithGroupButton({
   );
 }
 
-function SystemAgentRow({ agent, groups }: { agent: Agent; groups: GroupSummary[] }) {
+function NotebookBadges({ notebooks }: { notebooks: NotebookConfigEntry[] }) {
+  if (notebooks.length === 0) return null;
+  return (
+    <div className="mt-xs flex flex-wrap gap-xs">
+      {notebooks.map((nb) => {
+        const NbIcon = nb.icon;
+        return (
+          <Link
+            key={nb.id}
+            to={nb.path}
+            className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2 py-0.5 text-xs text-primary-700 hover:bg-primary-100 dark:bg-primary-950 dark:text-primary-300 dark:hover:bg-primary-900"
+            title={`Vorausgewählt aus Notizbuch „${nb.title}"`}
+          >
+            <NbIcon /> {nb.title}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+function SystemAgentRow({
+  agent,
+  groups,
+  notebooks,
+}: {
+  agent: Agent;
+  groups: GroupSummary[];
+  notebooks: NotebookConfigEntry[];
+}) {
   const navigate = useNavigate();
   return (
     <li className="flex items-center gap-md rounded border border-grey-200 p-md hover:bg-hover-alt dark:border-grey-700">
@@ -85,6 +118,7 @@ function SystemAgentRow({ agent, groups }: { agent: Agent; groups: GroupSummary[
       <div className="min-w-0 flex-1">
         <div className="font-semibold">{agent.title}</div>
         <div className="truncate text-sm text-foreground-muted">{agent.description}</div>
+        <NotebookBadges notebooks={notebooks} />
       </div>
       <button
         type="button"
@@ -98,7 +132,13 @@ function SystemAgentRow({ agent, groups }: { agent: Agent; groups: GroupSummary[
   );
 }
 
-function SharedAgentRow({ entry }: { entry: SharedAgentEntry }) {
+function SharedAgentRow({
+  entry,
+  notebooks,
+}: {
+  entry: SharedAgentEntry;
+  notebooks: NotebookConfigEntry[];
+}) {
   const navigate = useNavigate();
   return (
     <li className="flex items-center gap-md rounded border border-grey-200 p-md hover:bg-hover-alt dark:border-grey-700">
@@ -116,6 +156,7 @@ function SharedAgentRow({ entry }: { entry: SharedAgentEntry }) {
             </span>
           ))}
         </div>
+        <NotebookBadges notebooks={notebooks} />
       </div>
       <button
         type="button"
@@ -141,6 +182,21 @@ export default function AgentListPage() {
     (a) => !a.hiddenFromInventory
   );
 
+  // Reverse-map agent identifier → notebooks whose `defaultAgent` points at it.
+  // Used to surface "this agent is auto-selected from notebook X" badges so
+  // users browsing /agents see the agent ↔ notebook binding without having to
+  // open the notebook first. Built once from the static notebooks config.
+  const notebooksByAgent = useMemo(() => {
+    const map = new Map<string, NotebookConfigEntry[]>();
+    for (const nb of getOrderedNotebooks()) {
+      if (!nb.defaultAgent) continue;
+      const list = map.get(nb.defaultAgent) ?? [];
+      list.push(nb);
+      map.set(nb.defaultAgent, list);
+    }
+    return map;
+  }, []);
+
   const handleDelete = (identifier: string, title: string) => {
     if (!confirm(`Möchtest du "${title}" wirklich löschen?`)) return;
     deleteMutation.mutate(identifier);
@@ -165,7 +221,11 @@ export default function AgentListPage() {
           </h2>
           <ul className="flex flex-col gap-sm">
             {sharedAgents.map((entry) => (
-              <SharedAgentRow key={entry.agent.identifier} entry={entry} />
+              <SharedAgentRow
+                key={entry.agent.identifier}
+                entry={entry}
+                notebooks={notebooksByAgent.get(entry.agent.identifier) ?? []}
+              />
             ))}
           </ul>
         </section>
@@ -177,7 +237,12 @@ export default function AgentListPage() {
         </h2>
         <ul className="flex flex-col gap-sm">
           {visibleSystemAgents.map((agent) => (
-            <SystemAgentRow key={agent.identifier} agent={agent} groups={userGroups} />
+            <SystemAgentRow
+              key={agent.identifier}
+              agent={agent}
+              groups={userGroups}
+              notebooks={notebooksByAgent.get(agent.identifier) ?? []}
+            />
           ))}
         </ul>
       </section>
