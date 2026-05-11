@@ -29,7 +29,9 @@ const HIDDEN_INVENTORY_AGENT_IDS = new Set<SystemAgentId>([
 ]);
 
 const VISIBLE_SYSTEM_AGENTS: readonly Agent[] = SYSTEM_AGENTS.filter(
-  (a) => !HIDDEN_INVENTORY_AGENT_IDS.has(a.identifier as SystemAgentId)
+  (a) =>
+    !HIDDEN_INVENTORY_AGENT_IDS.has(a.identifier as SystemAgentId) &&
+    !(a as Agent).hiddenFromInventory
 );
 
 const AGENT_ICONS: Partial<Record<SystemAgentId, IconType>> = {
@@ -80,12 +82,6 @@ const DEFAULT_AGENT_ENTRIES: readonly DefaultAgentEntry[] = [
     key: 'default-suche',
     label: 'Suche',
     identifier: 'gruenerator-suche',
-  },
-  {
-    key: 'default-suche',
-    label: 'Suche',
-    identifier: 'gruenerator-suche',
-    Icon: PiMagnifyingGlass,
   },
   // Per-LV Öffentlichkeitsarbeit agents are intentionally NOT pinned here.
   // They are discoverable via the "Alle Agents" modal and the per-LV notebook
@@ -569,6 +565,16 @@ const SidebarAgents = memo(function SidebarAgents({
     return out;
   }, [favoriteIdentifiers]);
 
+  // User-created agents (user_agents + custom_generators virtualisation) follow
+  // the same favorites-only rule as system skills. Identifiers double as keys
+  // in the shared `useAgentFavoritesStore.mentions` set — user-agent identifiers
+  // never collide with skill mentions (different namespaces, different shapes).
+  const favoriteUserAgents = useMemo(() => {
+    if (!userAgents.length || !favoriteIdentifiers.length) return [];
+    const favSet = new Set(favoriteIdentifiers);
+    return userAgents.filter((a) => favSet.has(a.identifier));
+  }, [userAgents, favoriteIdentifiers]);
+
   const [isExpanded, setIsExpanded] = useState<boolean>(() => {
     try {
       const stored = localStorage.getItem(AGENTS_EXPANDED_KEY);
@@ -647,7 +653,7 @@ const SidebarAgents = memo(function SidebarAgents({
             );
           })}
 
-          {userAgents.map((agent) => (
+          {favoriteUserAgents.map((agent) => (
             <li key={agent.identifier}>
               <button
                 type="button"
@@ -700,6 +706,7 @@ function AllAgentsDialog({
 }) {
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggle = useAgentFavoritesStore((s) => s.toggle);
+  const { data: userAgents = [] } = useUserAgents();
 
   return (
     <Dialog>
@@ -789,6 +796,59 @@ function AllAgentsDialog({
               </li>
             );
           })}
+          {userAgents.length > 0 && (
+            <>
+              <li
+                className="my-2 border-t border-grey-200 dark:border-grey-800"
+                aria-hidden="true"
+              />
+              <li className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-grey-500">
+                Meine Agent*innen
+              </li>
+              {userAgents.map((agent) => {
+                const isFav = favoriteIdentifiers.includes(agent.identifier);
+                return (
+                  <li
+                    key={`ua-${agent.identifier}`}
+                    className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800/60"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
+                      className="flex flex-1 items-center gap-3 text-left"
+                    >
+                      <span
+                        className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-sm"
+                        style={{ backgroundColor: agent.backgroundColor }}
+                      >
+                        {agent.avatar}
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-medium truncate">{agent.title}</span>
+                        {agent.description && (
+                          <span className="block text-xs text-grey-500 truncate">
+                            {agent.description}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggle(agent.identifier)}
+                      className="shrink-0 p-1.5 rounded hover:bg-grey-200 dark:hover:bg-grey-700"
+                      aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                      title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                    >
+                      <PiStarFill
+                        size={16}
+                        className={cn(isFav ? 'text-primary-600' : 'text-grey-300')}
+                      />
+                    </button>
+                  </li>
+                );
+              })}
+            </>
+          )}
         </ul>
       </DialogContent>
     </Dialog>

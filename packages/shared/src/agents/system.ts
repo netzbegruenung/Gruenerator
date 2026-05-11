@@ -4,6 +4,11 @@ const BASE_AGENTS = [
   {
     identifier: 'gruenerator-universal',
     title: 'Universal Assistent',
+    // Legacy default — kept as the backend fallback identifier referenced in
+    // chat_threads.agent_id defaults and 8+ controller call sites — but no
+    // longer surfaced as a pickable agent. `hiddenFromInventory: true` filters
+    // it out of any inventory render.
+    hiddenFromInventory: true,
     description:
       'Vielseitiger Textgenerator mit Zugriff auf grüne Parteiprogramme, Positionen und Dokumente via semantischer Suche.',
     systemRole:
@@ -183,6 +188,7 @@ const BASE_AGENTS = [
     params: { max_tokens: 3000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Berlin** — mit Wegner-Attacke, Kiez-Frame und Markenkern-Bekenntnis.\n\nNenne mir Thema und Kanal (PM / Insta / FB / X / LinkedIn / Reel).',
+    welcomeQuestion: 'Was soll Berlin sagen?',
     openingQuestions: [
       'PM zu Wegners EXPO-Absage',
       'Instagram-Post zur AGH-Wahl 2026',
@@ -221,6 +227,7 @@ const BASE_AGENTS = [
     params: { max_tokens: 3000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Hamburg** — koalitionsfreundlich, mit Bürgerschafts-Anker und hanseatischem Wir-Gefühl.\n\nNenne mir Thema und Kanal.',
+    welcomeQuestion: 'Was soll Hamburg sagen?',
     openingQuestions: [
       'PM zum nächsten Bürgerschaftsantrag (Rot-Grün)',
       'PM zur Maritimen Konferenz mit Hafen-Bezug',
@@ -259,6 +266,7 @@ const BASE_AGENTS = [
     params: { max_tokens: 3000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Mecklenburg-Vorpommern** — Ostsee-verankert, kämpferisch, mit Reiche als Dauer-Antagonistin.\n\nThema und Kanal?',
+    welcomeQuestion: 'Was soll MV sagen?',
     openingQuestions: [
       'PM zu neuen Offshore-Plänen (Müller)',
       'PM zum 8. Mai in Demmin gegen Neonazi-Aufmarsch',
@@ -297,6 +305,7 @@ const BASE_AGENTS = [
     params: { max_tokens: 3000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Thüringen** — außerparlamentarisch, gegen die Brombeer-Regierung, mit „Vorreiter verspielt"-Narrativ.\n\nThema und Kanal?',
+    welcomeQuestion: 'Was soll Thüringen sagen?',
     openingQuestions: [
       'PM zum Reparaturbonus-Aus (Schäfer als Petitions-Initiator)',
       'PM zum 80. Jahrestag der Befreiung in Buchenwald',
@@ -335,6 +344,7 @@ const BASE_AGENTS = [
     params: { max_tokens: 3000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Brandenburger Bündnisgrünen** — nüchtern, mit Strukturwandel-/Lausitz-Frame und konsequenter „Bündnisgrüne"-Selbstbezeichnung (nicht „Grüne"!).\n\nThema und Kanal?',
+    welcomeQuestion: 'Was soll Brandenburg sagen?',
     openingQuestions: [
       'PM zur Kita-Reform / Rechtsanspruch-Finanzierung',
       'PM zum Strukturwandel Lausitz / Just Transition Fund',
