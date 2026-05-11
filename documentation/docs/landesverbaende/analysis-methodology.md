@@ -6,8 +6,8 @@
 ## Korpus-Bezugsquelle
 
 - **Qdrant-Collection**: `landesverbaende_documents`
-- **Pflicht-Filter pro Analyse**: `content_type='presse'` + `landesverband=<code>` + `source_type=<landesverband|fraktion>`
-- **Extraktion**: `apps/api/scripts/extract-lv-pms.ts` — scrollt alle Chunks, **dedupliziert per `document_id`** (pro PM gewinnt der Chunk mit `full_text` ODER der längste `chunk_text`), sortiert per `published_at` DESC in-memory, behält Top-20. Ablage: `documentation/docs/landesverbaende/_raw/<lv>-<source>.json`.
+- **Pflicht-Filter pro Analyse**: `content_type='presse'` + `landesverband=[code]` + `source_type=[landesverband|fraktion]`
+- **Extraktion**: `apps/api/scripts/extract-lv-pms.ts` — scrollt alle Chunks, **dedupliziert per `document_id`** (pro PM gewinnt der Chunk mit `full_text` ODER der längste `chunk_text`), sortiert per `published_at` DESC in-memory, behält Top-20. Ablage: `documentation/docs/landesverbaende/_raw/[lv]-[source].json`.
 - **Bekannte Daten-Anomalien aus der ersten Welle**:
   - Berlin LV: 7 exakte Repost-Duplikate (gleicher Inhalt, andere URL) — die 20 enthalten effektiv 13 unique PMs. Künftige Extraktionen könnten zusätzlich auf `content_hash` deduplizieren.
   - Berlin LV `content`: enthält Site-Chrome (Navigation, Termine, Related PMs). Analyse berücksichtigt das, nicht in Zeichen-Statistik einbeziehen. Mittelfristig: Scraper-Cleanup.
@@ -21,7 +21,7 @@ Diese Checkliste ist **die "What did we need to know"-Liste** aus dem Plan. Sie 
 
 - [ ] **Headline-Muster**: durchschnittliche Länge in Zeichen; claim-style vs. neutral-deskriptiv; typische Trennzeichen (`:`, `–`, `//`, `,`); Position der Partei-/Sprecher\*innennennung im Titel; gibt es das Speaker-Doppelpunkt-Format (`Müller: Wir fordern …`)?
 - [ ] **Dachzeile/Subhead**: vorhanden oder nicht? Wenn ja: Format/Konvention.
-- [ ] **Lead-Absatz**: Welche W-Fragen werden im Lead beantwortet? Typische Lead-Formel (z.B. `Zu/Zur/Anlässlich <Anlass> erklärt <Name>, <Rolle>:`)? Länge in Sätzen/Zeichen?
+- [ ] **Lead-Absatz**: Welche W-Fragen werden im Lead beantwortet? Typische Lead-Formel (z.B. `Zu/Zur/Anlässlich [Anlass] erklärt [Name], [Rolle]:`)? Länge in Sätzen/Zeichen?
 - [ ] **Body-Reihenfolge**: Lead → wie viele Zitatblöcke → Übergangstext → Hintergrund → Aufruf?
 - [ ] **Zitat-Architektur**: min/avg/max Anzahl Zitate pro PM. Platzierung (top/middle/bottom). Single-Block-Zitat vs. mehrere kürzere Zitate?
 - [ ] **Hintergrund-Block**: explizit als eigener Abschnitt (`Hintergrund:`) oder in Lead/Zitat gefolded? Fußnoten/URLs?
@@ -76,7 +76,7 @@ Eine 4–6-Satz-Anweisung an die LLM, geschrieben im Imperativ (`Schreibe …`, 
 
 - **Server-Side LV-Pin**: Per-LV-Agents haben `defaultFilter.landesverband` in `system.ts`. `executeDirectSearch` (`apps/api/routes/chat/agents/directSearchExecutors.ts:111-185`) und der `pressemitteilung_examples`-Pfad in `searchNode.ts:1013-1046` ziehen diesen Filter automatisch in den Qdrant-`must`-Clause. **Die LLM muss niemals `landesverband=BE` als Tool-Argument setzen.**
 - **Notebook→Agent**: Beim Öffnen eines LV-Notebooks setzt ein `useEffect` in `NotebookPage.tsx` den globalen `selectedAgentId` auf den LV-Agent (warm-up für nachfolgenden /chat-Besuch). Quelle: `defaultAgent`-Feld auf `NotebookConfigEntry` (`apps/web/src/features/notebook/config/notebooksConfig.ts`).
-- **Slash-Skills**: `/presse-<lv>` und `/social-<lv>` sind dünne UX-Wrapper, die den LV-Agent vorwählen und einen Topic-Opener in den Composer einfügen.
+- **Slash-Skills**: `/presse-[lv]` und `/social-[lv]` sind dünne UX-Wrapper, die den LV-Agent vorwählen und einen Topic-Opener in den Composer einfügen.
 
 ## Was diese Methodik NICHT abdeckt
 
@@ -89,7 +89,7 @@ Eine 4–6-Satz-Anweisung an die LLM, geschrieben im Imperativ (`Schreibe …`, 
 
 Wenn sich die PR-Voice eines LV ändert (Wechsel im Vorstand, neue Spitzenkandidatur, neue Regierungsrolle):
 
-1. `npx tsx apps/api/scripts/extract-lv-pms.ts` neu ausführen — überschreibt `_raw/<lv>-*.json`.
+1. `npx tsx apps/api/scripts/extract-lv-pms.ts` neu ausführen — überschreibt `_raw/[lv]-*.json`.
 2. Für den betroffenen LV: einen General-Purpose-Subagent mit dem Template aus dieser Methodik gegen das neue JSON laufen lassen.
 3. Das Section-6-Directive-Paragraph in den `systemRole` des LV-Agents in `packages/shared/src/agents/system.ts` einsetzen.
 4. Bei strukturellen Stilwechseln (z.B. neuer LV im Landtag): auch `defaultFilter` (LV vs. LV+Fraktion) und `openingQuestions` anpassen.
