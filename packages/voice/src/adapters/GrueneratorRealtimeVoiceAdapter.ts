@@ -363,11 +363,19 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
     // --- ChatGraph SSE → split sentences → sequential TTS ---
     let ttsQueueActive = false;
     const pendingSentences: string[] = [];
+
+    // Mistral TTS rejects input whose sanitized form is empty (e.g. emoji-only
+    // fragments like "😊"). The sentence splitter occasionally leaves these as
+    // trailing fragments. Skip anything without a speakable character — letters
+    // (incl. German umlauts) or digits.
+    const SPEAKABLE_RE = /[\p{L}\p{N}]/u;
+
     const drainTTSQueue = async () => {
       if (ttsQueueActive) return;
       ttsQueueActive = true;
       while (pendingSentences.length > 0) {
         const next = pendingSentences.shift()!;
+        if (!SPEAKABLE_RE.test(next)) continue;
         await ttsSentence(next);
       }
       ttsQueueActive = false;
