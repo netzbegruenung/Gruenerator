@@ -417,7 +417,13 @@ VoiceOrb.displayName = 'VoiceOrb';
 
 export const VoiceControl: FC<{ className?: string }> = ({ className }) => {
   return (
-    <div className={cn('aui-voice-control flex items-center gap-2 border-b px-4 py-2', className)}>
+    <div
+      className={cn(
+        'aui-voice-control flex items-center gap-3 rounded-full border border-border bg-background/95 px-4 py-2 shadow-xl backdrop-blur',
+        className
+      )}
+    >
+      <VoiceOrb className="size-12" />
       <VoiceStatusDot />
 
       <AuiIf condition={(s) => s.thread.voice == null || s.thread.voice.status.type === 'ended'}>
@@ -425,7 +431,7 @@ export const VoiceControl: FC<{ className?: string }> = ({ className }) => {
       </AuiIf>
 
       <AuiIf condition={(s) => s.thread.voice?.status.type === 'starting'}>
-        <span className="aui-voice-status text-muted-foreground text-sm">Connecting...</span>
+        <span className="aui-voice-status text-foreground-muted text-sm">Verbinde…</span>
       </AuiIf>
 
       <AuiIf condition={(s) => s.thread.voice?.status.type === 'running'}>
