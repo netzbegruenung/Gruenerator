@@ -10,7 +10,8 @@ import {
 } from '@gruenerator/ui';
 import { composerToolbarButtonClass } from '../lib/utils';
 import { useChatDensity } from './thread/chatDensityContext';
-import { useAgentStore, type SearchMode } from '../stores/chatStore';
+import { type SearchMode } from '../stores/chatStore';
+import { useScopedSearchMode, useScopedSetSearchMode } from '../lib/useScopedAgentState';
 
 const DEPTH_CONFIG: Array<{
   mode: SearchMode;
@@ -34,13 +35,12 @@ const DEPTH_CONFIG: Array<{
 
 export const SearchDepthToggle = memo(function SearchDepthToggle() {
   const isCompact = useChatDensity() === 'compact';
-  const searchMode = useAgentStore((s) => s.searchMode);
-  const setSearchMode = useAgentStore((s) => s.setSearchMode);
+  const searchMode = useScopedSearchMode();
+  const setSearchMode = useScopedSetSearchMode();
 
   const active = DEPTH_CONFIG.find((d) => d.mode === searchMode) ?? DEPTH_CONFIG[0];
   const ActiveIcon = active.Icon;
-  const activeClass =
-    'bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300';
+  const activeClass = 'bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300';
 
   const desktopContent = (
     <>

@@ -8,22 +8,18 @@ import {
   ResponsiveMenuSection,
   ResponsiveMenuItem,
 } from '@gruenerator/ui';
-import { useShallow } from 'zustand/shallow';
 import { isModelEnabledByDefault } from '@gruenerator/shared/models';
 
 import { composerToolbarButtonClass } from '../../lib/utils';
 import { useChatDensity } from './chatDensityContext';
-import { MODEL_OPTIONS, useAgentStore, type ModelId } from '../../stores/chatStore';
+import { MODEL_OPTIONS, type ModelId } from '../../stores/chatStore';
+import { useScopedSelectedModel, useScopedSetSelectedModel } from '../../lib/useScopedAgentState';
 import { useModelPreferencesContext } from '../../context/ModelPreferencesContext';
 
 export const ModelPicker = memo(function ModelPicker() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { selectedModel, setSelectedModel } = useAgentStore(
-    useShallow((s) => ({
-      selectedModel: s.selectedModel,
-      setSelectedModel: s.setSelectedModel,
-    }))
-  );
+  const selectedModel = useScopedSelectedModel();
+  const setSelectedModel = useScopedSetSelectedModel();
   const { enabledModelIds } = useModelPreferencesContext();
   const isCompact = useChatDensity() === 'compact';
 

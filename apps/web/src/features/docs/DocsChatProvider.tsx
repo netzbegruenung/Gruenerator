@@ -9,28 +9,23 @@ import {
 } from '@assistant-ui/react';
 import {
   ChatCollaborationProvider,
+  ChatSurfaceProvider,
   GrueneratorAttachmentAdapter,
   convertToThreadMessageLike,
+  createChatSurfaceStore,
   createGrueneratorModelAdapter,
-  useAgentStore,
   useChatCollaboration,
   useChatConfigStore,
   type ChatRequestContext,
+  type ChatSurfaceStore,
   type GrueneratorAdapterConfig,
 } from '@gruenerator/chat';
 import { chatThreadResponseSchema, type ChatThreadResponse } from '@gruenerator/contracts';
 import { invokeDocumentAI, useEditorStore } from '@gruenerator/docs';
-import { loadedThreadMessagesSchema } from '@gruenerator/shared/chat';
 import { getContractsClient } from '@gruenerator/shared/api';
+import { loadedThreadMessagesSchema } from '@gruenerator/shared/chat';
 import { useQuery } from '@tanstack/react-query';
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  type ReactNode,
-} from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 
 import { useDocAiEditEnabled } from './DocAiEditToggle';
 import { usePeerMessageSync } from './usePeerMessageSync';
@@ -162,13 +157,7 @@ interface ReadyHostProps {
   children: ReactNode;
 }
 
-function DocsChatReadyHost({
-  threadId,
-  documentId,
-  userId,
-  userName,
-  children,
-}: ReadyHostProps) {
+function DocsChatReadyHost({ threadId, documentId, userId, userName, children }: ReadyHostProps) {
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const endpoints = useChatConfigStore((s) => s.endpoints);
   const registerContextProvider = useChatConfigStore((s) => s.registerContextProvider);
@@ -184,9 +173,7 @@ function DocsChatReadyHost({
       const res = await fetchFn(`${endpoints.messages}?threadId=${threadId}`);
       if (!res.ok) return [];
       const parsed = loadedThreadMessagesSchema.parse(await res.json());
-      return convertToThreadMessageLike(
-        parsed as Parameters<typeof convertToThreadMessageLike>[0]
-      );
+      return convertToThreadMessageLike(parsed as Parameters<typeof convertToThreadMessageLike>[0]);
     },
     staleTime: 30_000,
   });
@@ -212,14 +199,19 @@ function DocsChatReadyHost({
     return registerContextProvider(threadId, provider);
   }, [threadId, documentId, registerContextProvider]);
 
-  // Claim selectedAgentId for the doc's lifetime; restore on unmount.
-  useEffect(() => {
-    const previous = useAgentStore.getState().selectedAgentId;
-    useAgentStore.setState({ selectedAgentId: 'gruenerator-docs-editor' });
-    return () => {
-      useAgentStore.setState({ selectedAgentId: previous });
-    };
-  }, []);
+  // Per-surface store: docs panel keeps its own selectedAgentId / threadMode /
+  // searchMode / model / notebook / custom prompt. The main /chat surface has
+  // no ChatSurfaceProvider above it, so the scoped hooks there fall through to
+  // the global useAgentStore — selections in either surface do not bleed across.
+  const surfaceStore = useMemo<ChatSurfaceStore>(
+    () =>
+      createChatSurfaceStore({
+        selectedAgentId: 'gruenerator-docs-editor',
+        threadMode: 'chat',
+        searchMode: 'web',
+      }),
+    []
+  );
 
   useEffect(() => {
     return registerDocumentEditHandler(documentId, async (payload) => {
@@ -238,27 +230,34 @@ function DocsChatReadyHost({
   threadIdRef.current = threadId;
 
   const getConfig = useMemo<() => GrueneratorAdapterConfig>(
-    () => () => ({
-      agentId: 'gruenerator-docs-editor',
-      modelId: '',
-      enabledTools: {
-        search: true,
-        web: true,
-        examples: true,
-        pressemitteilung_examples: false,
-        research: true,
-      },
-      customEnabledTools: {
-        summary: true,
-        edit_current_doc: aiEditEnabledRef.current,
-        save_as_doc: true,
-        image: true,
-        chart: true,
-      },
-      threadId: threadIdRef.current,
-      threadMode: 'chat',
-    }),
-    []
+    () => () => {
+      const surface = surfaceStore.getState();
+      return {
+        agentId: surface.selectedAgentId ?? 'gruenerator-docs-editor',
+        modelId: surface.selectedModel ?? '',
+        enabledTools: {
+          search: true,
+          web: true,
+          examples: true,
+          pressemitteilung_examples: false,
+          research: true,
+        },
+        customEnabledTools: {
+          summary: true,
+          edit_current_doc: aiEditEnabledRef.current,
+          save_as_doc: true,
+          image: true,
+          chart: true,
+        },
+        threadId: threadIdRef.current,
+        threadMode: surface.threadMode,
+        searchMode: surface.searchMode,
+        selectedNotebookId: surface.selectedNotebookId,
+        customSystemPrompt: surface.customSystemPrompt,
+        customRoleName: surface.customRoleName,
+      };
+    },
+    [surfaceStore]
   );
 
   const adapter = useMemo(() => createGrueneratorModelAdapter(getConfig, {}), [getConfig]);
@@ -269,10 +268,7 @@ function DocsChatReadyHost({
     adapters: { attachments: attachmentAdapter },
   });
 
-  const collabUser = useMemo(
-    () => ({ id: userId, name: userName ?? userId }),
-    [userId, userName]
-  );
+  const collabUser = useMemo(() => ({ id: userId, name: userName ?? userId }), [userId, userName]);
   const collab = useChatCollaboration(threadId, collabUser);
 
   // Multi-user message sync via Hocuspocus awareness (append-on-complete).
@@ -294,9 +290,11 @@ function DocsChatReadyHost({
 
   return (
     <DocsChatContext.Provider value={value}>
-      <AssistantRuntimeProvider runtime={runtime}>
-        <ChatCollaborationProvider value={collab}>{children}</ChatCollaborationProvider>
-      </AssistantRuntimeProvider>
+      <ChatSurfaceProvider store={surfaceStore}>
+        <AssistantRuntimeProvider runtime={runtime}>
+          <ChatCollaborationProvider value={collab}>{children}</ChatCollaborationProvider>
+        </AssistantRuntimeProvider>
+      </ChatSurfaceProvider>
     </DocsChatContext.Provider>
   );
 }

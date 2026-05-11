@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { SKILLS, getSystemAgent } from '@gruenerator/shared/agents';
-import { useAgentStore } from '../stores/chatStore';
+import { useScopedAgentId } from './useScopedAgentState';
 
 export interface ActiveAgentMeta {
   identifier: string;
@@ -13,7 +13,7 @@ export interface ActiveAgentMeta {
 }
 
 export function useActiveAgentMeta(): ActiveAgentMeta | null {
-  const selectedAgentId = useAgentStore((s) => s.selectedAgentId);
+  const selectedAgentId = useScopedAgentId();
 
   return useMemo(() => {
     if (!selectedAgentId) return null;

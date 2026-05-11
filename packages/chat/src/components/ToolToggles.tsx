@@ -14,18 +14,24 @@ import {
 } from '@gruenerator/ui';
 import { composerToolbarButtonClass } from '../lib/utils';
 import { useChatDensity } from './thread/chatDensityContext';
-import { useShallow } from 'zustand/shallow';
-import { useAgentStore, type ThreadMode } from '../stores/chatStore';
+import { type ThreadMode } from '../stores/chatStore';
 import { useUserProfileStore } from '../stores/userProfileStore';
 import { notebookMentionables } from '../lib/mentionables';
+import {
+  useScopedThreadMode,
+  useScopedSelectedNotebookId,
+  useScopedCustomSystemPrompt,
+  useScopedSetThreadMode,
+  useScopedSetSelectedNotebook,
+  useScopedSetCustomSystemPrompt,
+  useScopedSetCustomRoleName,
+} from '../lib/useScopedAgentState';
 
 const MODE_CONFIG: Array<{
   mode: ThreadMode;
   label: string;
   Icon: typeof MessageSquare;
-}> = [
-  { mode: 'chat', label: 'Chat', Icon: MessageSquare },
-];
+}> = [{ mode: 'chat', label: 'Chat', Icon: MessageSquare }];
 
 interface ToolTogglesProps {
   onNavigate?: (path: string) => void;
@@ -39,17 +45,13 @@ export const ToolToggles = memo(function ToolToggles({
   insideAgent = false,
 }: ToolTogglesProps) {
   const isCompact = useChatDensity() === 'compact';
-  const { threadMode, selectedNotebookId, customSystemPrompt } = useAgentStore(
-    useShallow((s) => ({
-      threadMode: s.threadMode,
-      selectedNotebookId: s.selectedNotebookId,
-      customSystemPrompt: s.customSystemPrompt,
-    }))
-  );
-  const setThreadMode = useAgentStore((s) => s.setThreadMode);
-  const setSelectedNotebook = useAgentStore((s) => s.setSelectedNotebook);
-  const setCustomSystemPrompt = useAgentStore((s) => s.setCustomSystemPrompt);
-  const setCustomRoleName = useAgentStore((s) => s.setCustomRoleName);
+  const threadMode = useScopedThreadMode();
+  const selectedNotebookId = useScopedSelectedNotebookId();
+  const customSystemPrompt = useScopedCustomSystemPrompt();
+  const setThreadMode = useScopedSetThreadMode();
+  const setSelectedNotebook = useScopedSetSelectedNotebook();
+  const setCustomSystemPrompt = useScopedSetCustomSystemPrompt();
+  const setCustomRoleName = useScopedSetCustomRoleName();
 
   const roles = useUserProfileStore((s) => s.roles);
   const hasCustomPrompt = !!customSystemPrompt;
