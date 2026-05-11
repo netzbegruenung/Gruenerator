@@ -2,6 +2,9 @@ import { getPostgresInstance } from '../../database/services/PostgresService/Pos
 import { COLLAB_SUBTYPES } from '../../routes/docs/constants.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { ensureHtml } from './contentNormalization.js';
+import { seedYjsStateSafe } from './seedYjsState.js';
+
 const log = createLogger('DocGeneration');
 
 const DOC_SUBTYPES = COLLAB_SUBTYPES.filter((s) => s !== 'boards');
@@ -62,7 +65,10 @@ export function parseDocumentResponse(aiContent: string): GeneratedDocument {
     }
     return {
       title: typeof parsed.title === 'string' ? parsed.title : 'Neues Dokument',
-      subtype: typeof parsed.subtype === 'string' && DOC_SUBTYPES.includes(parsed.subtype) ? parsed.subtype : 'blank',
+      subtype:
+        typeof parsed.subtype === 'string' && DOC_SUBTYPES.includes(parsed.subtype)
+          ? parsed.subtype
+          : 'blank',
       content: typeof parsed.content === 'string' ? parsed.content : '',
     };
   } catch {
@@ -82,6 +88,7 @@ export async function createDocumentWithContent(
   userId: string
 ): Promise<CreatedDocument> {
   const db = getPostgresInstance();
+  const htmlContent = ensureHtml(content);
   const result = await db.query(
     `INSERT INTO collaborative_documents
       (title, content, created_by, last_edited_by, document_subtype, permissions, is_public)
@@ -89,11 +96,13 @@ export async function createDocumentWithContent(
      RETURNING *`,
     [
       title,
-      content,
+      htmlContent,
       userId,
       subtype,
       JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
     ]
   );
-  return (result as CreatedDocument[])[0];
+  const doc = (result as CreatedDocument[])[0];
+  await seedYjsStateSafe(doc.id, htmlContent, 'DocGeneration');
+  return doc;
 }

@@ -2,35 +2,7 @@ import { randomUUID } from 'crypto';
 
 import * as Y from 'yjs';
 
-import { createLogger } from './logger.js';
-
-/** Strip HTML tags and decode common entities. Inlined to avoid @gruenerator/shared runtime dep in Docker. */
-function stripHtmlTags(html: string | null | undefined): string {
-  if (!html) return '';
-  let result = html.replace(/<br\s*\/?>/gi, '\n');
-  let prev: string;
-  do {
-    prev = result;
-    result = result.replace(/<[^>]+>/g, '');
-  } while (result !== prev);
-  result = result
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#34;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/&ldquo;/gi, '\u201C')
-    .replace(/&rdquo;/gi, '\u201D')
-    .replace(/&amp;/gi, '&');
-  do {
-    prev = result;
-    result = result.replace(/<[^>]+>/g, '');
-  } while (result !== prev);
-  return result.replace(/\s+/g, ' ').trim();
-}
-
-const log = createLogger('HtmlToYjs');
+import { stripHtmlTags } from '../utils/stripHtmlTags.js';
 
 /**
  * Injects simple HTML into a Yjs XmlFragment using BlockNote's XML structure.
@@ -43,11 +15,8 @@ const log = createLogger('HtmlToYjs');
  */
 export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): void {
   const group = new Y.XmlElement('blockGroup');
-
-  // Normalize whitespace between tags
   const normalized = html.replace(/>\s+</g, '><').trim();
 
-  // Extract block-level elements
   const blockPattern =
     /<(h[1-3]|p|blockquote|hr|table)(?:\s[^>]*)?>[\s\S]*?<\/\1>|<(h[1-3]|p|hr)(?:\s[^>]*)?\s*\/?>|<ul>([\s\S]*?)<\/ul>|<ol>([\s\S]*?)<\/ol>/gi;
 
@@ -55,7 +24,6 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
   while ((match = blockPattern.exec(normalized)) !== null) {
     const fullMatch = match[0];
 
-    // Unordered list (with checkbox detection)
     if (match[3] !== undefined) {
       const items = extractListItems(match[3]);
       for (const item of items) {
@@ -68,7 +36,6 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
       continue;
     }
 
-    // Ordered list
     if (match[4] !== undefined) {
       const items = extractListItems(match[4]);
       for (const item of items) {
@@ -99,7 +66,6 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
     }
 
     if (tag === 'table') {
-      // Convert table rows to simple paragraphs
       const rows = fullMatch.match(/<tr>([\s\S]*?)<\/tr>/gi) || [];
       for (const row of rows) {
         const cells = (row.match(/<t[dh]>([\s\S]*?)<\/t[dh]>/gi) || [])
@@ -123,7 +89,6 @@ export function injectHtmlIntoFragment(fragment: Y.XmlFragment, html: string): v
 
   if (group.length > 0) {
     fragment.insert(0, [group]);
-    log.debug(`[HtmlToYjs] Injected ${group.length} blocks`);
   }
 }
 
