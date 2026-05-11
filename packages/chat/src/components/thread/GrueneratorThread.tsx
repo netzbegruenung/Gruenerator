@@ -20,7 +20,6 @@ interface GrueneratorThreadProps {
   firstName?: string | null;
   density?: ChatDensity;
   toolbarExtra?: ReactNode;
-  requireProfileHydration?: boolean;
   showMentions?: boolean;
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
@@ -37,7 +36,6 @@ export function GrueneratorThread({
   firstName,
   density = 'comfortable',
   toolbarExtra,
-  requireProfileHydration,
   showMentions,
   showPlusMenu,
   showToolToggles,
@@ -76,6 +74,9 @@ export function GrueneratorThread({
                 description={activeAgent?.description}
                 questions={activeAgent?.openingQuestions?.map((text) => ({ text }))}
                 avatar={activeAgent?.avatar}
+                {...(activeAgent?.welcomeQuestion
+                  ? { welcomeQuestion: activeAgent.welcomeQuestion }
+                  : {})}
               />
             </ThreadPrimitive.Empty>
 
@@ -107,7 +108,6 @@ export function GrueneratorThread({
           onNavigate={onNavigate}
           firstName={firstName}
           toolbarExtra={toolbarExtra}
-          requireProfileHydration={requireProfileHydration}
           insideAgent={!!activeAgent}
           {...(showMentions !== undefined && { showMentions })}
           {...(showPlusMenu !== undefined && { showPlusMenu })}
