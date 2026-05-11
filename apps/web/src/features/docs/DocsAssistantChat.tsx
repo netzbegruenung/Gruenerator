@@ -12,6 +12,7 @@ import {
   GrueneratorThread,
   convertToThreadMessageLike,
   createGrueneratorModelAdapter,
+  useAgentStore,
   useChatCollaboration,
   useChatConfigStore,
   type ChatRequestContext,
@@ -183,6 +184,18 @@ function DocsAssistantThreadShell({
     };
     return registerContextProvider(threadId, provider);
   }, [threadId, documentId, registerContextProvider]);
+
+  // Claim the global `selectedAgentId` for this surface's lifetime so the
+  // chat header (which reads from useAgentStore, not the runtime adapter
+  // config) shows the docs-editor agent — not whichever agent the user last
+  // picked in the workplace. Restore the prior value on unmount.
+  useEffect(() => {
+    const previous = useAgentStore.getState().selectedAgentId;
+    useAgentStore.setState({ selectedAgentId: 'gruenerator-docs-editor' });
+    return () => {
+      useAgentStore.setState({ selectedAgentId: previous });
+    };
+  }, []);
 
   // Live document edit dispatcher: when ChatGraph classifies intent as
   // edit_current_doc, the chat backend emits a `trigger_doc_edit` SSE event.
