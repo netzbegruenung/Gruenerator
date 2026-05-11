@@ -4,7 +4,7 @@ const Nutzungsbedingungen = () => {
   return (
     <div className="page-container">
       <h1>Nutzungsbedingungen</h1>
-      <p>Stand: 29. März 2026</p>
+      <p>Stand: 12. Mai 2026</p>
 
       <h2>§ 1 Geltungsbereich</h2>
       <p>
@@ -50,7 +50,13 @@ const Nutzungsbedingungen = () => {
           von Texten in Echtzeit
         </li>
         <li>
-          <strong>Sprachverarbeitung:</strong> Spracheingabe und -verarbeitung über Mistral Voxtral
+          <strong>Sprachverarbeitung:</strong> Diktat und einmalige Spracheingabe über Mistral
+          Voxtral
+        </li>
+        <li>
+          <strong>Echtzeit-Sprachdialog (Voice Agent):</strong> Bidirektionales, freihändiges
+          Gespräch mit der KI mit kontinuierlich aktivem Mikrofon für die Dauer der Sitzung sowie
+          Sprachausgabe der Antworten (Voxtral und Mistral Speech, EU)
         </li>
       </ul>
       <p>
@@ -99,6 +105,21 @@ const Nutzungsbedingungen = () => {
         <li>
           Jeder Versuch, die technische Infrastruktur der Plattform zu stören, zu überlasten oder
           unbefugt auf Daten zuzugreifen
+        </li>
+        <li>
+          Die Aktivierung der Sprachfunktionen (insbesondere des Echtzeit-Sprachdialogs) in
+          Umgebungen, in denen Stimmen oder Äußerungen Dritter ohne deren Einwilligung erfasst
+          werden könnten – etwa in öffentlichen Räumen, Großraumbüros oder im familiären Umfeld mit
+          Anwesenden, die nicht zugestimmt haben
+        </li>
+        <li>
+          Das Aussprechen von Daten Dritter, besonderen Datenkategorien gemäß{' '}
+          <a href="https://dejure.org/gesetze/DSGVO/9.html">Art. 9 DSGVO</a> oder vertraulichen
+          Informationen, für deren Verarbeitung Du keine Rechtsgrundlage hast
+        </li>
+        <li>
+          Die Nutzung der Sprachfunktionen durch Minderjährige unter 16 Jahren ohne Einwilligung der
+          Erziehungsberechtigten
         </li>
       </ul>
       <p>
