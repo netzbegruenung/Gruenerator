@@ -1,4 +1,8 @@
+import type { ComponentType } from 'react';
+
 export type AgentProvider = 'mistral' | 'anthropic' | 'litellm' | 'regolo';
+
+export type SkillIcon = ComponentType<{ className?: string }>;
 
 export interface AgentParams {
   max_tokens: number;
@@ -95,6 +99,7 @@ export interface Skill {
   identifier: string;
   title: string;
   description: string;
+  icon: SkillIcon;
   avatar: string;
   backgroundColor: string;
   mention: string;

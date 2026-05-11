@@ -11,6 +11,19 @@ import {
   PiLightbulb,
   PiNewspaper,
   PiFlowerLight,
+  PiGlobeHemisphereWest,
+  PiFlask,
+  PiFiles,
+  PiChatCircleDots,
+  PiNote,
+  PiPaintBrush,
+  PiTreeEvergreen,
+  PiImage,
+  PiImagesSquare,
+  PiClipboardText,
+  PiFileText,
+  PiPaperclip,
+  PiSparkle,
 } from 'react-icons/pi';
 import { MdDiversity1 } from 'react-icons/md';
 import { agentsList, type AgentListItem } from './agents';
@@ -56,7 +69,10 @@ const AGENT_ICON_OVERRIDES: Record<string, React.ComponentType<{ className?: str
 };
 
 export function agentToMentionable(agent: AgentListItem): Mentionable {
-  const icon = AGENT_ICON_OVERRIDES[agent.identifier];
+  // Per-skill `agent.icon` wins over the legacy identifier-keyed override map
+  // so PM-<LV> and Social-<LV> variants can carry distinct icons even though
+  // they share an agent identifier.
+  const icon = agent.icon ?? AGENT_ICON_OVERRIDES[agent.identifier];
   return {
     type: 'agent',
     category: 'skill',
@@ -282,6 +298,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Websuche',
     description: 'Aktuelle Infos aus dem Web',
     avatar: '🌐',
+    icon: PiGlobeHemisphereWest,
     backgroundColor: '#2563EB',
     mention: 'websearch',
   },
@@ -293,6 +310,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Recherche',
     description: 'Tiefgehende Multi-Quellen-Recherche',
     avatar: '🔬',
+    icon: PiFlask,
     backgroundColor: '#7C3AED',
     mention: 'recherche',
   },
@@ -304,6 +322,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Dokumente',
     description: 'Parteiprogramme & Beschlüsse durchsuchen',
     avatar: '📄',
+    icon: PiFiles,
     backgroundColor: '#316049',
     mention: 'dokumente',
   },
@@ -315,6 +334,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Dokument-Chat',
     description: 'Mit ausgewählten Dokumenten chatten',
     avatar: '💬',
+    icon: PiChatCircleDots,
     backgroundColor: '#6366F1',
     mention: 'dokumentchat',
   },
@@ -326,6 +346,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Zusammenfassung',
     description: 'Dokument(e) zusammenfassen',
     avatar: '📝',
+    icon: PiNote,
     backgroundColor: '#0891B2',
     mention: 'zusammenfassung',
   },
@@ -337,6 +358,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Bildgenerierung',
     description: 'Bild mit KI generieren (Flux)',
     avatar: '🎨',
+    icon: PiPaintBrush,
     backgroundColor: '#D97706',
     mention: 'bildgenerieren',
   },
@@ -348,6 +370,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Stadt begrünen',
     description: 'Stadtbild mit Grün transformieren',
     avatar: '🌳',
+    icon: PiTreeEvergreen,
     backgroundColor: '#059669',
     mention: 'stadtbegruenen',
   },
@@ -359,6 +382,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Bild bearbeiten',
     description: 'Angehängtes Bild frei bearbeiten (z.B. "jünger machen", "mehr Grün")',
     avatar: '🖼️',
+    icon: PiImage,
     backgroundColor: '#059669',
     mention: 'bildbearbeiten',
   },
@@ -372,6 +396,7 @@ export const toolMentionables: Mentionable[] = [
           title: 'Sharepic',
           description: 'Drei Sharepic-Varianten erstellen (Dreizeiler, Zitat, Info)',
           avatar: '🖼️',
+          icon: PiImagesSquare,
           backgroundColor: '#46962b',
           mention: 'sharepic',
         },
@@ -394,6 +419,7 @@ export const boardToolMentionables: Mentionable[] = [
     title: 'Board erstellen',
     description: 'Erstellt ein Board aus dem Chatverlauf',
     avatar: '✨',
+    icon: PiSparkle,
     backgroundColor: '#7C3AED',
     mention: 'board-erstellen',
   },
@@ -410,6 +436,7 @@ export function setBoardMentionables(boards: BoardMentionable[]): void {
     title: b.title,
     description: `Board: ${b.title}`,
     avatar: '📋',
+    icon: PiClipboardText,
     backgroundColor: '#316049',
     mention: b.slug,
   }));
@@ -429,6 +456,7 @@ export const docToolMentionables: Mentionable[] = [
     title: 'Dokument erstellen',
     description: 'Erstellt ein Dokument aus dem Chatverlauf',
     avatar: '📝',
+    icon: PiNote,
     backgroundColor: '#0891B2',
     mention: 'dokument-erstellen',
   },
@@ -440,6 +468,7 @@ export const docToolMentionables: Mentionable[] = [
     title: 'Dokument einfuegen',
     description: 'Kollaboratives Dokument als Kontext hinzufuegen',
     avatar: '📄',
+    icon: PiFileText,
     backgroundColor: '#0891B2',
     mention: 'docs',
   },
@@ -462,6 +491,7 @@ export function setDocMentionables(docs: DocMentionable[]): void {
     title: d.title,
     description: d.title,
     avatar: '📝',
+    icon: PiFileText,
     backgroundColor: '#0891B2',
     mention: d.slug,
   }));
@@ -481,6 +511,7 @@ export const documentMentionables: Mentionable[] = [
     title: 'Datei auswählen',
     description: 'Dokument aus einem Notizbuch referenzieren',
     avatar: '📎',
+    icon: PiPaperclip,
     backgroundColor: '#6366F1',
     mention: 'datei',
   },

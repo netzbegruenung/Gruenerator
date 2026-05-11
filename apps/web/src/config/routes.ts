@@ -178,6 +178,7 @@ const SitesDemoPage = lazy(() => import('../features/sites/SitesDemoPage'));
 const SitesEditPage = lazy(() => import('../features/sites/SitesEditPage'));
 const AgentListPage = lazy(() => import('../features/agents/AgentListPage'));
 const AgentBuilderPage = lazy(() => import('../features/agents/AgentBuilderPage'));
+const SkillsPage = lazy(() => import('../features/skills/SkillsPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -228,6 +229,7 @@ const standardRoutes: RouteConfig[] = [
     component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
   },
   { path: '/recherche', component: RecherchePage },
+  { path: '/skills', component: SkillsPage, auth: 'required' },
   { path: '/gruppen', component: GruppenPage },
   { path: '/gruppen/:groupId', component: GruppenPage },
   { path: '/gruen-o-mat', component: GruenOMatDemoPage },

@@ -108,11 +108,8 @@ function MentionItem({
         onSelect(mentionable);
       }}
     >
-      <span
-        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm text-white"
-        style={{ backgroundColor: mentionable.backgroundColor }}
-      >
-        {mentionable.icon ? <mentionable.icon className="h-4 w-4" /> : mentionable.avatar}
+      <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-secondary-600">
+        {mentionable.icon ? <mentionable.icon className="h-4 w-4" /> : null}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{mentionable.title}</p>
