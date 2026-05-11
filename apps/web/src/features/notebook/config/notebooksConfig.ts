@@ -141,7 +141,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     icon: PiFlag,
     order: 8,
     category: 'landesebene',
-    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-mv',
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
   },
   {
     id: 'brandenburg-notebook',

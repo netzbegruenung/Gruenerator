@@ -50,7 +50,7 @@ export interface CustomAgentMentionable {
 const AGENT_ICON_OVERRIDES: Record<string, React.ComponentType<{ className?: string }>> = {
   'gruenerator-oeffentlichkeitsarbeit-berlin': MdDiversity1,
   'gruenerator-oeffentlichkeitsarbeit-hamburg': PiCompass,
-  'gruenerator-oeffentlichkeitsarbeit-mv': PiFlag,
+  'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern': PiFlag,
   'gruenerator-oeffentlichkeitsarbeit-thueringen': PiTree,
   'gruenerator-oeffentlichkeitsarbeit-brandenburg': PiFlowerLight,
 };
