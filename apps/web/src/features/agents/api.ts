@@ -1,7 +1,8 @@
-import { type Agent } from '@gruenerator/shared/agents';
+import { SYSTEM_AGENTS, type Agent } from '@gruenerator/shared/agents';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import apiClient from '../../components/utils/apiClient';
+import { useGroups, type GroupSummary } from '../groups/hooks/useGroups';
 
 export interface UserAgentInput {
   identifier: string;
@@ -105,6 +106,69 @@ export function useConvertCustomGenerator() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });
+    },
+  });
+}
+
+export function useShareSystemAgentWithGroup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ groupId, identifier }: { groupId: string; identifier: string }) => {
+      await apiClient.post(`/auth/groups/${groupId}/share`, {
+        contentType: 'system_agents',
+        contentId: identifier,
+        permissions: { read: true, write: false, collaborative: false },
+      });
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['shared-system-agents'] });
+    },
+  });
+}
+
+export interface SharedAgentEntry {
+  agent: Agent;
+  groups: GroupSummary[];
+}
+
+/**
+ * Aggregates system agents shared into any group the current user belongs to.
+ * One round-trip per group; groups list is cached by useGroups.
+ */
+export function useSharedSystemAgents() {
+  const { userGroups } = useGroups({ isActive: true });
+  const groupIds = userGroups.map((g) => g.id).sort();
+
+  return useQuery({
+    queryKey: ['shared-system-agents', groupIds],
+    enabled: groupIds.length > 0,
+    queryFn: async (): Promise<SharedAgentEntry[]> => {
+      const results = await Promise.all(
+        userGroups.map(async (group) => {
+          const { data } = await apiClient.get<{
+            success: boolean;
+            content?: { system_agents?: Array<{ id: string }> };
+          }>(`/auth/groups/${group.id}/content`);
+          const ids = data.content?.system_agents?.map((s) => s.id) ?? [];
+          return { group, ids };
+        })
+      );
+
+      // Deduplicate by identifier; collect which groups each comes from.
+      const byIdentifier = new Map<string, SharedAgentEntry>();
+      for (const { group, ids } of results) {
+        for (const id of ids) {
+          const agent = SYSTEM_AGENTS.find((a) => a.identifier === id);
+          if (!agent) continue;
+          const existing = byIdentifier.get(id);
+          if (existing) {
+            existing.groups.push(group);
+          } else {
+            byIdentifier.set(id, { agent, groups: [group] });
+          }
+        }
+      }
+      return [...byIdentifier.values()];
     },
   });
 }

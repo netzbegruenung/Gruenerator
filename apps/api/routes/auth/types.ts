@@ -149,6 +149,7 @@ const VALID_CONTENT_TYPES = [
   'database',
   'collaborative_documents',
   'system_notebooks',
+  'system_agents',
   'canvas_template',
 ] as const;
 

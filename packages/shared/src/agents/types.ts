@@ -67,7 +67,19 @@ export interface Agent {
    * legacy or technical-fallback agents we don't want users to discover.
    */
   hiddenFromInventory?: boolean;
+  /**
+   * UI grouping bucket on AgentListPage. Currently only `'gruppen'` is defined
+   * (the synthetic "shared with my groups" bucket, never assigned in config).
+   * Additional categories will be added as the agent taxonomy stabilizes.
+   */
+  category?: AgentCategory;
 }
+
+export type AgentCategory = 'gruppen';
+
+export const AGENT_CATEGORY_LABELS: Record<AgentCategory, string> = {
+  gruppen: 'Geteilt mit Gruppen',
+};
 
 export type SkillCategory = 'presse' | 'social' | 'dokumente' | 'recherche' | 'sonstiges';
 
