@@ -4,7 +4,6 @@ import { GrueneratorThread } from '@gruenerator/chat';
 import type { ReactNode } from 'react';
 
 import { DocAiEditToggle } from './DocAiEditToggle';
-import { DocsQuickActions } from './DocsQuickActions';
 import { useDocsChat } from './DocsChatProvider';
 import { SelectionChip } from './SelectionChip';
 
@@ -43,7 +42,6 @@ export function DocsAssistantChat() {
       showModelPicker={false}
       composerSlots={{
         aboveInput: <SelectionChip documentId={state.documentId} />,
-        belowInput: <DocsQuickActions documentId={state.documentId} />,
         sendAdornment: (
           <DocAiEditToggle enabled={state.aiEditEnabled} onToggle={state.toggleAiEdit} />
         ),
