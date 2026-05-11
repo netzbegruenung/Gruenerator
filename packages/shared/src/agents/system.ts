@@ -4,6 +4,11 @@ export const SYSTEM_AGENTS = [
   {
     identifier: 'gruenerator-universal',
     title: 'Universal Assistent',
+    // Legacy default — kept as the backend fallback identifier referenced in
+    // chat_threads.agent_id defaults and 8+ controller call sites — but no
+    // longer surfaced as a pickable agent. `hiddenFromInventory: true` filters
+    // it out of any inventory render.
+    hiddenFromInventory: true,
     description:
       'Vielseitiger Textgenerator mit Zugriff auf grüne Parteiprogramme, Positionen und Dokumente via semantischer Suche.',
     systemRole:
@@ -18,6 +23,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 4000, temperature: 0.7 },
     openingMessage:
       'Hallo! Ich bin dein vielseitiger Textassistent für {{partyName}}.\n\nIch kann verschiedene Textformen für dich erstellen:\n- Blogbeiträge, Newsletter, Flyer\n- Einladungen, Grußworte, Stellungnahmen\n- Website-Texte und mehr\n\nWas möchtest du schreiben? Beschreibe mir:\n- Die Textform\n- Das Thema/den Inhalt\n- Den Anlass (optional)',
+    welcomeQuestion: 'Hallo {firstName}, womit kann ich helfen?',
     openingQuestions: [
       'Schreibe einen Newsletter-Text zu unserer Klimaschutz-Initiative',
       'Erstelle eine Einladung zu unserer Mitgliederversammlung',
@@ -50,6 +56,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 3000, temperature: 0.5 },
     openingMessage:
       'Hallo! Ich bin dein*e Antragsschreiber*in für {{partyName}}.\n\nWas möchtest du erstellen?\n- Einen **Antrag** (Beschlussvorlage)\n- Eine **Kleine Anfrage** (Faktenabfrage)\n- Eine **Große Anfrage** (Debatte anstoßen)\n\nBeschreibe dein Anliegen und für welche Gliederung (z.B. Stadtrat Musterstadt).',
+    welcomeQuestion: 'Welchen Antrag wollen wir schreiben?',
     openingQuestions: [
       'Antrag: Die Stadt soll ein Konzept für mehr Stadtbäume erstellen',
       'Kleine Anfrage zur Umsetzung des Radverkehrskonzepts',
@@ -100,6 +107,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 12000, temperature: 0.3 },
     openingMessage:
       'Hallo! Ich bin deine Recherche-Assistenz. Stell mir eine Frage und ich durchsuche das Web sowie grüne Dokumente und antworte mit Quellenangaben.',
+    welcomeQuestion: 'Wonach willst du suchen?',
     openingQuestions: [
       'Was sagt die Bundespartei zu Tempo 30?',
       'Aktuelle Position der Grünen zur Schuldenbremse',
@@ -125,6 +133,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 3000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich bin dein*e Kommunikationsmanager*in für {{partyName}}.\n\nIch erstelle:\n- **Pressemitteilungen** (journalistisch, sachlich)\n- **Social-Media-Posts** (Facebook, Instagram, Twitter, LinkedIn)\n- **Reels/TikTok-Skripte**\n\nWas brauchst du? Beschreibe das Thema und für welche Kanäle.',
+    welcomeQuestion: 'Was soll heute rausgehen?',
     openingQuestions: [
       'Pressemitteilung zur Verabschiedung unseres Klimaschutzkonzepts',
       'Instagram- und Facebook-Posts zum Thema Verkehrswende',
@@ -179,6 +188,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 3000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Berlin** — mit Wegner-Attacke, Kiez-Frame und Markenkern-Bekenntnis.\n\nNenne mir Thema und Kanal (PM / Insta / FB / X / LinkedIn / Reel).',
+    welcomeQuestion: 'Was soll Berlin sagen?',
     openingQuestions: [
       'PM zu Wegners EXPO-Absage',
       'Instagram-Post zur AGH-Wahl 2026',
@@ -217,6 +227,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 3000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Hamburg** — koalitionsfreundlich, mit Bürgerschafts-Anker und hanseatischem Wir-Gefühl.\n\nNenne mir Thema und Kanal.',
+    welcomeQuestion: 'Was soll Hamburg sagen?',
     openingQuestions: [
       'PM zum nächsten Bürgerschaftsantrag (Rot-Grün)',
       'PM zur Maritimen Konferenz mit Hafen-Bezug',
@@ -255,6 +266,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 3000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Mecklenburg-Vorpommern** — Ostsee-verankert, kämpferisch, mit Reiche als Dauer-Antagonistin.\n\nThema und Kanal?',
+    welcomeQuestion: 'Was soll MV sagen?',
     openingQuestions: [
       'PM zu neuen Offshore-Plänen (Müller)',
       'PM zum 8. Mai in Demmin gegen Neonazi-Aufmarsch',
@@ -293,6 +305,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 3000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Grünen Thüringen** — außerparlamentarisch, gegen die Brombeer-Regierung, mit „Vorreiter verspielt"-Narrativ.\n\nThema und Kanal?',
+    welcomeQuestion: 'Was soll Thüringen sagen?',
     openingQuestions: [
       'PM zum Reparaturbonus-Aus (Schäfer als Petitions-Initiator)',
       'PM zum 80. Jahrestag der Befreiung in Buchenwald',
@@ -331,6 +344,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 3000, temperature: 0.6 },
     openingMessage:
       'Hallo! Ich schreibe Pressemitteilungen und Social-Media-Posts im Stil der **Brandenburger Bündnisgrünen** — nüchtern, mit Strukturwandel-/Lausitz-Frame und konsequenter „Bündnisgrüne"-Selbstbezeichnung (nicht „Grüne"!).\n\nThema und Kanal?',
+    welcomeQuestion: 'Was soll Brandenburg sagen?',
     openingQuestions: [
       'PM zur Kita-Reform / Rechtsanspruch-Finanzierung',
       'PM zum Strukturwandel Lausitz / Just Transition Fund',
@@ -369,6 +383,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 4000, temperature: 0.5 },
     openingMessage:
       'Hallo! Ich helfe dir, Bürger*innenanfragen für {{partyName}} zu beantworten.\n\nSag mir:\n- Was ist die Frage oder das Anliegen der*des Bürger*in?\n- In welcher Funktion antwortest du? (optional)\n- Welche Art von Antwort wird gewünscht? (ausführlich, kurz, formell...)',
+    welcomeQuestion: 'Welche Bürger*innenanfrage steht an?',
     openingQuestions: [
       'Ein*e Bürger*in fragt, warum wir gegen den Ausbau der B-Straße gestimmt haben',
       'Anfrage zur grünen Position beim Thema Windkraftausbau',
@@ -405,6 +420,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 4000, temperature: 0.3 },
     openingMessage:
       'Hallo! Ich bin dein*e Rede-Schreiber*in für {{partyName}}. Ich helfe dir, überzeugende politische Reden zu verfassen.\n\nSag mir:\n- Wer hält die Rede? (Rolle/Position)\n- Was ist das Thema oder der Anlass?\n- Wie lang soll die Rede sein? (optional)',
+    welcomeQuestion: 'Worüber möchtest du sprechen?',
     openingQuestions: [
       'Ich brauche eine Rede für eine Stadtratssitzung zum Thema Klimaschutz',
       'Schreibe eine Eröffnungsrede für ein Sommerfest des Ortsverbands',
@@ -449,6 +465,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 4000, temperature: 0.3 },
     openingMessage:
       'Hallo! Ich bin dein*e Wahlprogramm-Autor*in für {{partyName}}.\n\nSag mir:\n- Welches Thema/Kapitel soll ich schreiben?\n- Gewünschter Umfang? (optional, z.B. 3000 Zeichen)',
+    welcomeQuestion: 'Was kommt ins Wahlprogramm?',
     openingQuestions: [
       'Schreibe ein Kapitel zum Thema Klimaschutz und Energie',
       'Erstelle ein Wahlprogramm-Kapitel zu bezahlbarem Wohnen',
@@ -492,6 +509,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 4000, temperature: 0.2 },
     openingMessage:
       'Hallo!\n\nIch übersetze Texte in Leichte Sprache.\nLeichte Sprache ist gut für viele Menschen.\nZum Beispiel für Menschen, die nicht gut lesen können.\n\nSchicke mir einen Text.\nIch schreibe den Text in Leichter Sprache neu.',
+    welcomeQuestion: 'Welcher Text soll leichter werden?',
     openingQuestions: [
       'Übersetze diesen Pressemitteilungs-Text in Leichte Sprache',
       'Erkläre unser Wahlprogramm zum Thema Klimaschutz in Leichter Sprache',
@@ -529,6 +547,7 @@ export const SYSTEM_AGENTS = [
     params: { max_tokens: 4000, temperature: 0.5 },
     openingMessage:
       'Ich helfe dir beim aktuellen Dokument — Fragen, Umschreiben, Kürzen, Recherche. Was brauchst du?',
+    welcomeQuestion: 'Womit kann ich beim Dokument helfen?',
     openingQuestions: [
       'Fass das Dokument kurz zusammen',
       'Was haben wir hier konkret beschlossen?',
