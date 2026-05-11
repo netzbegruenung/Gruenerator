@@ -212,18 +212,16 @@ const standardRoutes: RouteConfig[] = [
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   { path: '/workplace', component: WorkplacePage },
-  // Dev-only: user-created agents (Agent Creator + Overview).
-  ...(import.meta.env.DEV
-    ? [
-        { path: '/agents', component: AgentListPage, auth: 'required' as const },
-        { path: '/agents/new', component: AgentBuilderPage, auth: 'required' as const },
-        {
-          path: '/agents/:identifier/edit',
-          component: AgentBuilderPage,
-          auth: 'required' as const,
-        },
-      ]
-    : []),
+  // Agents overview, builder, editor. Auth-required. Page surfaces system
+  // agents (read-only with group-sharing), agents shared into your groups,
+  // and your own user-created agents (full CRUD).
+  { path: '/agents', component: AgentListPage, auth: 'required' as const },
+  { path: '/agents/new', component: AgentBuilderPage, auth: 'required' as const },
+  {
+    path: '/agents/:identifier/edit',
+    component: AgentBuilderPage,
+    auth: 'required' as const,
+  },
   {
     path: '/desk',
     component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
