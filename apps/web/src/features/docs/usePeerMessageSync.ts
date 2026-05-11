@@ -2,18 +2,10 @@
 
 import { type AssistantRuntime, ExportedMessageRepository } from '@assistant-ui/react';
 import { convertToThreadMessageLike, useChatConfigStore } from '@gruenerator/chat';
+import { loadedThreadMessagesSchema } from '@gruenerator/shared/chat';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { z } from 'zod';
-
-const loadedMessageSchema = z.object({
-  id: z.string(),
-  role: z.enum(['user', 'assistant']),
-  content: z.string(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-});
-const loadedMessagesSchema = z.array(loadedMessageSchema);
 
 interface PeerSyncCollab {
   provider: HocuspocusProvider | null;
@@ -48,6 +40,10 @@ export function usePeerMessageSync({ threadId, runtime, collab }: UsePeerMessage
   const queryClient = useQueryClient();
 
   const lastSeenPeerTickRef = useRef(0);
+  // Refresh-in-flight guard. Lives outside the awareness effect so it
+  // survives effect re-runs (provider/runtime dep changes) — a closure
+  // variable would silently reset and allow concurrent refreshes.
+  const pendingRefreshRef = useRef(false);
 
   useEffect(() => {
     const provider = collab.provider;
@@ -56,16 +52,15 @@ export function usePeerMessageSync({ threadId, runtime, collab }: UsePeerMessage
     if (!awareness) return;
 
     const localClientId = awareness.clientID;
-    let pendingRefresh = false;
 
     const tryRefresh = async () => {
-      if (pendingRefresh) return;
+      if (pendingRefreshRef.current) return;
       if (runtime.thread.getState().isRunning) return;
-      pendingRefresh = true;
+      pendingRefreshRef.current = true;
       try {
         const res = await fetchFn(`${endpoints.messages}?threadId=${threadId}`);
         if (!res.ok) return;
-        const parsed = loadedMessagesSchema.parse(await res.json());
+        const parsed = loadedThreadMessagesSchema.parse(await res.json());
         const converted = convertToThreadMessageLike(
           parsed as Parameters<typeof convertToThreadMessageLike>[0]
         );
@@ -74,7 +69,7 @@ export function usePeerMessageSync({ threadId, runtime, collab }: UsePeerMessage
       } catch {
         // best-effort — peer pings can be lossy
       } finally {
-        pendingRefresh = false;
+        pendingRefreshRef.current = false;
       }
     };
 

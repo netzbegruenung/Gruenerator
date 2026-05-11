@@ -1,36 +1,35 @@
 'use client';
 
 import { GrueneratorThread } from '@gruenerator/chat';
+import type { ReactNode } from 'react';
 
 import { DocAiEditToggle } from './DocAiEditToggle';
 import { DocsQuickActions } from './DocsQuickActions';
 import { useDocsChat } from './DocsChatProvider';
 import { SelectionChip } from './SelectionChip';
 
+function DocsChatStatus({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex h-full items-center justify-center p-6 text-sm text-foreground-muted">
+      {children}
+    </div>
+  );
+}
+
 export function DocsAssistantChat() {
   const state = useDocsChat();
 
   if (state.status === 'guest') {
-    return (
-      <div className="flex h-full items-center justify-center p-6 text-sm text-foreground-muted">
-        Bitte melde dich an, um den KI-Assistenten zu nutzen.
-      </div>
-    );
+    return <DocsChatStatus>Bitte melde dich an, um den KI-Assistenten zu nutzen.</DocsChatStatus>;
   }
 
   if (state.status === 'loading') {
-    return (
-      <div className="flex h-full items-center justify-center p-6 text-sm text-foreground-muted">
-        Lade Chat...
-      </div>
-    );
+    return <DocsChatStatus>Lade Chat...</DocsChatStatus>;
   }
 
   if (state.status === 'error') {
     return (
-      <div className="flex h-full items-center justify-center p-6 text-sm text-foreground-muted">
-        Chat konnte nicht geladen werden: {state.error.message}
-      </div>
+      <DocsChatStatus>Chat konnte nicht geladen werden: {state.error.message}</DocsChatStatus>
     );
   }
 

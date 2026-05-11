@@ -6,6 +6,8 @@ export {
   chatCitationSchema,
   chatMessageMetadataSchema,
   messagesEndpointResponseSchema,
+  loadedThreadMessageSchema,
+  loadedThreadMessagesSchema,
   rowToChatMessage,
   endpointMessageToChatMessage,
 } from './chatMessage';
@@ -17,4 +19,5 @@ export type {
   ChatCitation,
   ChatMessageMetadata,
   MessagesEndpointResponse,
+  LoadedThreadMessage,
 } from './chatMessage';
