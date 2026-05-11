@@ -87,40 +87,11 @@ const DEFAULT_AGENT_ENTRIES: readonly DefaultAgentEntry[] = [
     identifier: 'gruenerator-suche',
     Icon: PiMagnifyingGlass,
   },
-  // Per-LV Öffentlichkeitsarbeit agents. Each carries LV-tuned style in its
-  // systemRole and an LV-pinned defaultFilter for tool calls (see
-  // packages/shared/src/agents/system.ts). Notebook context auto-selects these
-  // via the useEffect in NotebookPage.
-  {
-    key: 'default-oeffentlichkeitsarbeit-berlin',
-    label: 'Öffentlichkeit Berlin',
-    identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
-    Icon: PiMegaphone,
-  },
-  {
-    key: 'default-oeffentlichkeitsarbeit-hamburg',
-    label: 'Öffentlichkeit Hamburg',
-    identifier: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
-    Icon: PiMegaphone,
-  },
-  {
-    key: 'default-oeffentlichkeitsarbeit-mv',
-    label: 'Öffentlichkeit MV',
-    identifier: 'gruenerator-oeffentlichkeitsarbeit-mv',
-    Icon: PiMegaphone,
-  },
-  {
-    key: 'default-oeffentlichkeitsarbeit-thueringen',
-    label: 'Öffentlichkeit Thüringen',
-    identifier: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
-    Icon: PiMegaphone,
-  },
-  {
-    key: 'default-oeffentlichkeitsarbeit-brandenburg',
-    label: 'Öffentlichkeit Brandenburg',
-    identifier: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
-    Icon: PiMegaphone,
-  },
+  // Per-LV Öffentlichkeitsarbeit agents are intentionally NOT pinned here.
+  // They are discoverable via the "Alle Agents" modal and the per-LV notebook
+  // auto-select; users can favorite them to surface them in the sidebar.
+  // Pinning them globally caused duplication with the favorites-driven
+  // inventory rendering (same agent shown twice).
 ];
 import { useEffect, useMemo, useCallback, useRef, useState, memo } from 'react';
 import {
