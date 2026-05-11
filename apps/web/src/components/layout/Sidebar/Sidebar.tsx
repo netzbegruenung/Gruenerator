@@ -1,4 +1,5 @@
-import { agentsList, type AgentListItem, useAgentStore } from '@gruenerator/chat';
+import { useAgentStore } from '@gruenerator/chat';
+import { SYSTEM_AGENTS, getSystemAgent, type Agent } from '@gruenerator/shared/agents';
 import {
   Dialog,
   DialogContent,
@@ -15,30 +16,21 @@ import {
 } from '@gruenerator/ui';
 
 /**
- * Platform-specific social-media variants that should NOT appear as standalone
- * agents in the inventory — they're represented by the merged "Social Media"
- * default entry in the sidebar. They remain as `/instagram`, `@linkedin`, etc.
- * skills in chat (the mention system uses agentsList directly).
+ * Agents already represented by `DEFAULT_AGENT_ENTRIES` (the pinned strip at
+ * the top of the sidebar). Hiding them from the "Alle Agenten" modal avoids
+ * duplicate rows — pinned + listed below would render twice.
+ *
+ * Note: the previous `HIDDEN_INVENTORY_MENTIONS` set also listed social-
+ * platform mentions (`instagram`, `facebook`, `twitter`, `linkedin`, `reel`,
+ * `aktion`). Those don't exist as agents in `SYSTEM_AGENTS` — they live only
+ * as @mention skills in `SKILLS`. The modal now iterates agents directly, so
+ * skill-only mentions are never candidates and don't need explicit hiding.
+ * They still resolve as `@instagram`, `@aktion` etc. in the chat composer.
  */
-/**
- * Mentions that the user wants only as `/mention` skills, NOT as standalone
- * agents in the sidebar inventory or "Show all" modal. Either represented by
- * a default entry (presse / social media / antrag) or skill-only by request
- * (aktion). The mention system in chat continues to resolve all of these.
- */
-const HIDDEN_INVENTORY_MENTIONS = new Set([
-  // Already represented by the "Presse" default
-  'presse',
-  // Social media platform variants — covered by the "Social Media" default
-  'instagram',
-  'facebook',
-  'twitter',
-  'linkedin',
-  'reel',
-  // Already represented by the "Anträge" default
-  'antrag',
-  // Aktionsideen — keep as /aktion skill, not in inventory
-  'aktion',
+const HIDDEN_INVENTORY_AGENT_IDS = new Set<string>([
+  'gruenerator-oeffentlichkeitsarbeit',
+  'gruenerator-antrag',
+  'gruenerator-suche',
 ]);
 
 interface DefaultAgentEntry {
@@ -536,20 +528,20 @@ const SidebarAgents = memo(function SidebarAgents({
   // safe in prod: users only see their own data.
   const showCreateAgentCta = import.meta.env.DEV;
 
-  const favoriteMentions = useAgentFavoritesStore((s) => s.mentions);
-  const favoriteSkills = useMemo(() => {
-    const out: AgentListItem[] = [];
+  const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
+  const favoriteAgents = useMemo(() => {
+    const out: Agent[] = [];
     const seen = new Set<string>();
-    for (const mention of favoriteMentions) {
-      if (HIDDEN_INVENTORY_MENTIONS.has(mention)) continue;
-      const skill = agentsList.find((a) => a.mention === mention);
-      if (!skill) continue;
-      if (seen.has(skill.mention)) continue;
-      seen.add(skill.mention);
-      out.push(skill);
+    for (const identifier of favoriteIdentifiers) {
+      if (HIDDEN_INVENTORY_AGENT_IDS.has(identifier)) continue;
+      if (seen.has(identifier)) continue;
+      const agent = getSystemAgent(identifier);
+      if (!agent) continue; // covers deleted agents + migration unknowns
+      seen.add(identifier);
+      out.push(agent);
     }
     return out;
-  }, [favoriteMentions]);
+  }, [favoriteIdentifiers]);
 
   const [isExpanded, setIsExpanded] = useState<boolean>(() => {
     try {
@@ -608,20 +600,20 @@ const SidebarAgents = memo(function SidebarAgents({
             </li>
           ))}
 
-          {favoriteSkills.map((skill) => (
-            <li key={`fav-${skill.mention}`}>
+          {favoriteAgents.map((agent) => (
+            <li key={`fav-${agent.identifier}`}>
               <button
                 type="button"
-                onClick={() => onLinkClick(`/chat?agent=${skill.identifier}`, skill.title)}
+                onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
                 className={menuLinkClass(false)}
               >
                 <span
                   className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-sm"
-                  style={{ backgroundColor: skill.backgroundColor }}
+                  style={{ backgroundColor: agent.backgroundColor }}
                 >
-                  {skill.avatar}
+                  {agent.avatar}
                 </span>
-                <span className={titleClass}>{skill.title}</span>
+                <span className={titleClass}>{agent.title}</span>
               </button>
             </li>
           ))}
@@ -677,9 +669,9 @@ function AllAgentsDialog({
   onLinkClick: (path: string, title: string) => void;
   titleClass: string;
 }) {
-  const favoriteMentions = useAgentFavoritesStore((s) => s.mentions);
+  const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggle = useAgentFavoritesStore((s) => s.toggle);
-  const favoritesSet = useMemo(() => new Set(favoriteMentions), [favoriteMentions]);
+  const favoritesSet = useMemo(() => new Set(favoriteIdentifiers), [favoriteIdentifiers]);
 
   return (
     <Dialog>
@@ -726,38 +718,37 @@ function AllAgentsDialog({
             </li>
           ))}
           <li className="my-2 border-t border-grey-200 dark:border-grey-800" aria-hidden="true" />
-          {agentsList
-            .filter((skill) => !HIDDEN_INVENTORY_MENTIONS.has(skill.mention ?? ''))
-            .map((skill) => {
-              const isFav = favoritesSet.has(skill.mention);
+          {SYSTEM_AGENTS.filter((agent) => !HIDDEN_INVENTORY_AGENT_IDS.has(agent.identifier)).map(
+            (agent) => {
+              const isFav = favoritesSet.has(agent.identifier);
               return (
                 <li
-                  key={skill.mention}
+                  key={agent.identifier}
                   className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800/60"
                 >
                   <button
                     type="button"
-                    onClick={() => onLinkClick(`/chat?agent=${skill.identifier}`, skill.title)}
+                    onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
                     className="flex flex-1 items-center gap-3 text-left"
                   >
                     <span
                       className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-sm"
-                      style={{ backgroundColor: skill.backgroundColor }}
+                      style={{ backgroundColor: agent.backgroundColor }}
                     >
-                      {skill.avatar}
+                      {agent.avatar}
                     </span>
                     <span className="flex-1 min-w-0">
-                      <span className="block text-sm font-medium truncate">{skill.title}</span>
-                      {skill.description && (
+                      <span className="block text-sm font-medium truncate">{agent.title}</span>
+                      {agent.description && (
                         <span className="block text-xs text-grey-500 truncate">
-                          {skill.description}
+                          {agent.description}
                         </span>
                       )}
                     </span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => toggle(skill.mention)}
+                    onClick={() => toggle(agent.identifier)}
                     className="shrink-0 p-1.5 rounded hover:bg-grey-200 dark:hover:bg-grey-700"
                     aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
                     title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
@@ -769,7 +760,8 @@ function AllAgentsDialog({
                   </button>
                 </li>
               );
-            })}
+            }
+          )}
         </ul>
       </DialogContent>
     </Dialog>
