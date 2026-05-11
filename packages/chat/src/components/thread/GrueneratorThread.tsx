@@ -1,8 +1,13 @@
 'use client';
 
 import { useMemo, type ReactNode } from 'react';
-import { AuiIf, ThreadPrimitive, SelectionToolbarPrimitive } from '@assistant-ui/react';
-import { VoiceControl } from '../assistant-ui/voice';
+import {
+  AuiIf,
+  ThreadPrimitive,
+  SelectionToolbarPrimitive,
+  useVoiceControls,
+} from '@assistant-ui/react';
+import { VoiceOrb } from '../assistant-ui/voice';
 import { useAuiState } from '@assistant-ui/store';
 import { QuoteIcon } from 'lucide-react';
 import { useCollaborators, PresenceAvatars, TypingIndicator } from '@gruenerator/collab';
@@ -29,6 +34,20 @@ interface GrueneratorThreadProps {
     belowInput?: ReactNode;
     sendAdornment?: ReactNode;
   };
+}
+
+function VoiceOrbOverlay() {
+  const { disconnect } = useVoiceControls();
+  return (
+    <button
+      type="button"
+      onClick={() => disconnect()}
+      aria-label="Sprachsitzung beenden"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-md transition-opacity duration-300 animate-in fade-in"
+    >
+      <VoiceOrb className="size-[min(70vw,70vh,560px)] drop-shadow-2xl" />
+    </button>
+  );
 }
 
 export function GrueneratorThread({
@@ -70,10 +89,13 @@ export function GrueneratorThread({
           >
             <ThreadPrimitive.Empty>
               <WelcomeScreen
-                title={activeAgent?.title}
+                firstName={firstName ?? null}
                 description={activeAgent?.description}
                 questions={activeAgent?.openingQuestions?.map((text) => ({ text }))}
                 avatar={activeAgent?.avatar}
+                {...(activeAgent?.welcomeQuestion
+                  ? { welcomeQuestion: activeAgent.welcomeQuestion }
+                  : {})}
               />
             </ThreadPrimitive.Empty>
 
@@ -86,11 +108,7 @@ export function GrueneratorThread({
         </ThreadPrimitive.Viewport>
 
         <AuiIf condition={(s) => s.thread.capabilities.voice && s.thread.voice != null}>
-          <div className="pointer-events-none absolute inset-x-0 top-4 z-30 flex justify-center">
-            <div className="pointer-events-auto">
-              <VoiceControl />
-            </div>
-          </div>
+          <VoiceOrbOverlay />
         </AuiIf>
 
         <SelectionToolbarPrimitive.Root className="flex items-center gap-1 rounded-lg border border-border bg-background px-1 py-1 shadow-md">
