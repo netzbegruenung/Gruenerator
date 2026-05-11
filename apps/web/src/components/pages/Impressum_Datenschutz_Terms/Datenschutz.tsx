@@ -4,7 +4,7 @@ const Datenschutz = () => {
   return (
     <div className="page-container">
       <h1>Datenschutzerklärung</h1>
-      <p>Stand: 29. März 2026</p>
+      <p>Stand: 12. Mai 2026</p>
 
       <h2>Kurzzusammenfassung</h2>
       <p>
@@ -22,8 +22,13 @@ const Datenschutz = () => {
           Bilder werden ausschließlich zur Bearbeitung verwendet und nicht zum Training der KI
           genutzt. Wenn Du die Suchfunktion des GRUENERATORs nutzt, werden Deine Suchanfragen
           ebenfalls über Mistral AI verarbeitet. Bei Nutzung der Sprachverarbeitung werden deine
-          Audiodaten an Mistral AI in der EU verarbeitet (Voxtral). Bitte achte also darauf, dass Du
-          keine personenbezogenen oder vertraulichen Daten eingibst oder sprichst.
+          Audiodaten an Mistral AI in der EU verarbeitet (Voxtral für Spracherkennung, Mistral TTS
+          für die Sprachausgabe des KI-Agenten). Bei Aktivierung des{' '}
+          <strong>Echtzeit-Sprachdialogs</strong> bleibt Dein Mikrofon für die Dauer der Sitzung
+          aktiv und wird automatisch freigegeben, sobald Du die Sitzung beendest, den Browser-Tab
+          wechselst, die Seite verlässt oder das Fenster schließt. Bitte achte also darauf, dass Du
+          keine personenbezogenen oder vertraulichen Daten eingibst oder sprichst und dass sich
+          keine weiteren Personen ohne deren Einwilligung in Hörweite Deines Mikrofons befinden.
         </strong>
       </p>
       <p>
@@ -134,6 +139,71 @@ const Datenschutz = () => {
         <li>Details zu externen Dienstleistern: siehe Auftragsverarbeiter-Sektion oben</li>
       </ul>
 
+      <h3 id="echtzeit-sprachdialog">Echtzeit-Sprachdialog (Voice Agent)</h3>
+      <p>
+        Der GRUENERATOR bietet einen bidirektionalen Sprachdialog mit der KI an. Du startest die
+        Sitzung über einen sichtbaren Klick auf das Mikrofon-/Voice-Symbol in der Eingabezeile. Eine
+        Sitzung beginnt nur nach Deinem ausdrücklichen, aktiven Einverständnis.
+      </p>
+      <p>
+        <strong>Datenfluss:</strong>
+      </p>
+      <ul>
+        <li>
+          Dein Mikrofon-Audio wird im Browser auf 16&nbsp;kHz (PCM) heruntergerechnet und über eine
+          verschlüsselte WebSocket-Verbindung an unseren Server der netzbegrünung e.V. (EU)
+          gesendet.
+        </li>
+        <li>
+          Unser Server leitet den Audiostream zur Spracherkennung an{' '}
+          <strong>Mistral AI Voxtral</strong> (EU, Frankreich) weiter.
+        </li>
+        <li>
+          Das erkannte Transkript wird in unserer Chat-Pipeline (ChatGraph) mit dem von Dir
+          gewählten KI-Modell verarbeitet (Mistral, Magistral, netzbegrünung-GPT oder anderes
+          eingestelltes Modell — siehe „Hinweis zu den KI-Modi" oben).
+        </li>
+        <li>
+          Die Textantwort des Agenten wird satzweise an <strong>Mistral AI Speech (TTS)</strong>{' '}
+          (EU, Frankreich) gesendet und als Audio-Stream zurück in Deinen Browser geliefert, wo sie
+          lokal über Deine Lautsprecher abgespielt wird.
+        </li>
+      </ul>
+      <p>
+        <strong>Mikrofon-Freigabe:</strong> Das Mikrofon bleibt nur so lange aktiv, wie die
+        Sprachsitzung läuft. Es wird automatisch und unverzüglich freigegeben (
+        <code>MediaStreamTrack.stop</code>), sobald einer dieser Auslöser eintritt:
+      </p>
+      <ul>
+        <li>Du klickst auf das Voice-Symbol oder den Hintergrund des Sprachdialog-Fensters</li>
+        <li>Du wechselst den Browser-Tab oder minimierst das Fenster (Visibility Change)</li>
+        <li>Du verlässt die Seite, lädst neu oder schließt den Tab (pagehide / beforeunload)</li>
+        <li>Du wechselst innerhalb der Anwendung in einen anderen Bereich (Route-Navigation)</li>
+        <li>Der Browser-Tab gerät in den Hintergrund (z. B. iOS-bfcache)</li>
+      </ul>
+      <p>
+        <strong>Speicherung &amp; Training:</strong> Audio-Frames werden ausschließlich im
+        Arbeitsspeicher unseres Servers durchgereicht (Live-Stream, keine Persistenz). Weder wir
+        noch Mistral AI verwenden Deinen Audiostream zum Training von KI-Modellen. Es werden keine
+        Sprachprofile (Voice Prints) erstellt.
+      </p>
+      <p>
+        <strong>Rechtsgrundlage:</strong>{' '}
+        <a href="https://dejure.org/gesetze/DSGVO/6.html">Art. 6 Abs. 1 lit. a DSGVO</a>{' '}
+        (Einwilligung durch aktive Aktivierung der Sprachsitzung). Du kannst Deine Einwilligung
+        jederzeit durch das Beenden der Sitzung widerrufen.
+      </p>
+      <p>
+        <strong>Deine Verantwortung:</strong> Sprache kann unbeabsichtigt sensible Informationen
+        enthalten — politische Meinungen, Gesundheitsangaben, religiöse Überzeugungen,
+        Identifikationsmerkmale Dritter (
+        <a href="https://dejure.org/gesetze/DSGVO/9.html">Art. 9 DSGVO</a>). Bitte nutze den
+        Echtzeit-Sprachdialog nur in einer Umgebung, in der sich keine weiteren Personen ohne deren
+        Einwilligung in Hörweite Deines Mikrofons befinden, und sprich keine Daten Dritter aus, für
+        deren Verarbeitung Du keine Rechtsgrundlage hast. Die Funktion ist nicht für die Nutzung
+        durch Minderjährige unter 16 Jahren ohne Einwilligung der Erziehungsberechtigten bestimmt.
+      </p>
+
       <h4>b. Auf welcher Rechtsgrundlage werden diese Daten verarbeitet?</h4>
       <p>
         Die Daten werden auf der Grundlage{' '}
@@ -183,11 +253,18 @@ const Datenschutz = () => {
         <strong>1. Mistral AI</strong> (15 rue des Halles, 75001 Paris, Frankreich)
       </p>
       <ul>
-        <li>Zweck: Text-/Sprachverarbeitung (Kreativ-Modus, Reasoning-Modus + Voxtral)</li>
+        <li>
+          Zweck: Text- und Sprachverarbeitung (Kreativ-Modus, Reasoning-Modus, Voxtral für
+          Spracherkennung, Mistral Speech/TTS für die Sprachausgabe im Echtzeit-Sprachdialog)
+        </li>
         <li>Server: EU (Frankreich)</li>
         <li>
           Modelle: Mistral Medium (Kreativ-Modus), Magistral Medium (Reasoning-Modus mit
-          Nachdenk-Fähigkeiten)
+          Nachdenk-Fähigkeiten), Voxtral Mini Realtime (Spracherkennung), Mistral Speech (TTS)
+        </li>
+        <li>
+          Im Echtzeit-Sprachdialog: Live-Stream-Verarbeitung ohne Persistierung bei netzbegrünung;
+          keine Nutzung zu Trainingszwecken; keine Erstellung von Stimmprofilen
         </li>
         <li>Besonderheit: Subunternehmer möglich (mit EU-Standardvertragsklauseln)</li>
         <li>
@@ -271,7 +348,25 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>7. GlitchTip</strong> (Burke Software and Consulting LLC, New York, USA)
+        <strong>7. Linkup Technologies</strong> (Linkup Technologies SAS, 28 avenue des Pépinières,
+        94260 Fresnes, Frankreich; Handelsregister Créteil 930 910 740)
+      </p>
+      <ul>
+        <li>Zweck: Agentische Web-Recherche mit Quellenangaben (Suche-Modus, Tiefenrecherche)</li>
+        <li>Server: EU (Frankreich)</li>
+        <li>Verarbeitete Daten: Suchanfrage</li>
+        <li>
+          Besonderheit: Französischer Anbieter mit ausschließlicher EU-Datenverarbeitung — keine
+          Drittlandübermittlung; ausdrückliche DSGVO-Compliance laut Anbieter
+        </li>
+        <li>
+          Details: <a href="https://www.linkup.so/privacy-policy">Datenschutzerklärung</a> und{' '}
+          <a href="https://www.linkup.so/terms-of-use">Nutzungsbedingungen</a>
+        </li>
+      </ul>
+
+      <p>
+        <strong>8. GlitchTip</strong> (Burke Software and Consulting LLC, New York, USA)
       </p>
       <ul>
         <li>Zweck: Fehlerüberwachung und Anwendungsmonitoring (Error Tracking)</li>
@@ -442,6 +537,10 @@ const Datenschutz = () => {
           <tr>
             <td>Audio-/Video-Transkription (Regolo)</td>
             <td>Zero Retention – Löschung am Ende der Session</td>
+          </tr>
+          <tr>
+            <td>Echtzeit-Sprachdialog (Mikrofon-Stream, TTS-Audio)</td>
+            <td>Live-Stream ohne Persistierung; Mikrofon-Freigabe bei Sitzungsende</td>
           </tr>
           <tr>
             <td>Umami-Analysen</td>
