@@ -114,10 +114,10 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                       onClick={() => onSelect(skill)}
                     >
                       <span
-                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-base"
+                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-base text-white"
                         style={{ backgroundColor: skill.backgroundColor }}
                       >
-                        {skill.avatar}
+                        {skill.icon ? <skill.icon className="h-4 w-4" /> : skill.avatar}
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground">{skill.title}</p>
@@ -154,10 +154,10 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                       onClick={() => onSelect(skill)}
                     >
                       <span
-                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-base"
+                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-base text-white"
                         style={{ backgroundColor: skill.backgroundColor }}
                       >
-                        {skill.avatar}
+                        {skill.icon ? <skill.icon className="h-4 w-4" /> : skill.avatar}
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground">{skill.title}</p>
