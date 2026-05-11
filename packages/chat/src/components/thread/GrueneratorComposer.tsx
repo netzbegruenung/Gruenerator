@@ -9,7 +9,8 @@ import {
   useVoiceState,
 } from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
-import { ArrowUp, Mic, Phone, PhoneOff, Square, X } from 'lucide-react';
+import { ArrowUp, Mic, Square, X } from 'lucide-react';
+import { RiVoiceAiFill } from 'react-icons/ri';
 import { cn } from '@gruenerator/ui';
 import { useAgentStore } from '../../stores/chatStore';
 import { ToolToggles } from '../ToolToggles';
@@ -162,11 +163,7 @@ function ComposerVoiceToggle() {
           isStarting && 'animate-pulse'
         )}
       >
-        {isActive ? (
-          <PhoneOff className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
-        ) : (
-          <Phone className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
-        )}
+        <RiVoiceAiFill className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
       </button>
     </AuiIf>
   );
