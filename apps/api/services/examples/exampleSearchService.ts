@@ -48,6 +48,13 @@ export interface SearchExamplesParams {
   // sees full Insta captions / FB posts; the legacy direct-executor wrapper
   // and any UI-summary callers keep the truncated default.
   fullBody?: boolean;
+  /**
+   * Restrict press examples to a specific Landesverband (shortName: BE/HH/MV/TH/BB)
+   * or an array of shortNames (e.g. ['BE','BE-F'] to include the Fraktion).
+   * Applied to the Qdrant filter when fetching from `landesverbaende_documents`.
+   * No effect on social examples or AT press.
+   */
+  landesverband?: readonly string[] | string;
 }
 
 export interface SearchExamplesResult {
@@ -72,8 +79,23 @@ const PRESS_SOURCES: Record<'DE' | 'AT', PressSource> = {
   AT: { collection: 'gruene_at_documents', contentType: 'news', lvLabelOverride: 'AT' },
 };
 
-function pressFilter(contentType: string): QdrantFilter {
-  return { must: [{ key: 'content_type', match: { value: contentType } }] };
+function pressFilter(
+  contentType: string,
+  landesverband?: readonly string[] | string
+): QdrantFilter {
+  const must: NonNullable<QdrantFilter['must']> = [
+    { key: 'content_type', match: { value: contentType } },
+  ];
+  if (landesverband) {
+    const lvList: string[] = Array.isArray(landesverband)
+      ? [...landesverband]
+      : [landesverband as string];
+    must.push({
+      key: 'landesverband',
+      match: lvList.length === 1 ? { value: lvList[0] as string } : { any: lvList },
+    });
+  }
+  return { must };
 }
 
 const lvShortNameMap: Record<string, string> = {
@@ -188,11 +210,14 @@ async function fetchFullPmBodies(
 }
 
 async function fetchPress(params: SearchExamplesParams): Promise<UnifiedExample[]> {
-  const { query, limit = 6, country } = params;
+  const { query, limit = 6, country, landesverband } = params;
   const source = country === 'AT' ? PRESS_SOURCES.AT : PRESS_SOURCES.DE;
+  // LV pin only applies to the DE landesverbaende_documents collection; AT has
+  // no LV breakdown.
+  const effectiveLv = country === 'AT' ? undefined : landesverband;
 
   log.info(
-    `[ExampleSearch] press source: country=${country ?? 'DE'} → ${source.collection} (content_type=${source.contentType})`
+    `[ExampleSearch] press source: country=${country ?? 'DE'} → ${source.collection} (content_type=${source.contentType})${effectiveLv ? ` lv=${JSON.stringify(effectiveLv)}` : ''}`
   );
 
   const response = await documentSearchService.search({
@@ -203,7 +228,7 @@ async function fetchPress(params: SearchExamplesParams): Promise<UnifiedExample[
       mode: 'hybrid',
       searchCollection: source.collection,
       threshold: 0.2,
-      additionalFilter: pressFilter(source.contentType),
+      additionalFilter: pressFilter(source.contentType, effectiveLv),
     },
   });
 

@@ -1022,15 +1022,18 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         const country =
           agentConfig.toolRestrictions?.examplesCountry ||
           (state.userLocale === 'de-AT' ? 'AT' : undefined);
+        const agentLv = agentConfig.defaultFilter?.landesverband;
 
         // Composer paths want full bodies: PM bodies are reconstructed from
         // chunks inside searchExamples, social bodies skip the 500-char cut.
         // Pass platform hint when set so social fetches filter to Insta/FB.
+        // Pass agent LV pin so e.g. the Berlin agent only sees Berlin PMs as templates.
         const unified = await searchExamples({
           query: searchQuery || '',
           kinds,
           ...(country && { country }),
           ...(state.platform && { platform: state.platform }),
+          ...(agentLv != null ? { landesverband: agentLv } : {}),
           fullBody: true,
         });
 
