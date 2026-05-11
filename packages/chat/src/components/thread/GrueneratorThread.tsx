@@ -72,7 +72,7 @@ export function GrueneratorThread({
           >
             <ThreadPrimitive.Empty>
               <WelcomeScreen
-                title={activeAgent?.title}
+                firstName={firstName ?? null}
                 description={activeAgent?.description}
                 questions={activeAgent?.openingQuestions?.map((text) => ({ text }))}
                 avatar={activeAgent?.avatar}
