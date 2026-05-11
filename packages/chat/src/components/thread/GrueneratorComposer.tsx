@@ -1,12 +1,20 @@
 'use client';
 
 import { memo, useRef, useState, useCallback } from 'react';
-import { ComposerPrimitive, useComposerRuntime } from '@assistant-ui/react';
+import {
+  AuiIf,
+  ComposerPrimitive,
+  useComposerRuntime,
+  useVoiceControls,
+  useVoiceState,
+} from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
-import { ArrowUp, Mic, Square, X } from 'lucide-react';
+import { ArrowUp, Mic, Phone, PhoneOff, Square, X } from 'lucide-react';
 import { cn } from '@gruenerator/ui';
 import { useAgentStore } from '../../stores/chatStore';
 import { ToolToggles } from '../ToolToggles';
+import { SearchDepthToggle } from '../SearchDepthToggle';
+import { getSystemAgent } from '@gruenerator/shared/agents';
 import { ComposerAttachments } from '../assistant-ui/attachment';
 import { MentionPopover } from './MentionPopover';
 import { SkillPopover } from './SkillPopover';
@@ -35,11 +43,28 @@ interface GrueneratorComposerProps {
   showMentions?: boolean;
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
+  showModelPicker?: boolean;
   insideAgent?: boolean;
+  /** Render-prop slots for surface-specific UI. */
+  slots?: {
+    /** Above the input — selection chips, contextual hints. */
+    aboveInput?: React.ReactNode;
+    /** Below the input/toolbar — quick actions, status rows. */
+    belowInput?: React.ReactNode;
+    /** Right side, adjacent to the Send button. */
+    sendAdornment?: React.ReactNode;
+  };
 }
 
 const ROUND_BTN_BASE = 'flex items-center justify-center rounded-full transition-opacity';
 const roundBtnSize = (isCompact: boolean) => (isCompact ? 'm-1.5 h-7 w-7' : 'm-2 h-8 w-8');
+
+function SearchDepthToggleSlot() {
+  const selectedAgentId = useAgentStore((s) => s.selectedAgentId);
+  const agent = selectedAgentId ? getSystemAgent(selectedAgentId) : null;
+  if (agent?.routeTo !== 'search') return null;
+  return <SearchDepthToggle />;
+}
 
 function SendButton() {
   const isCompact = useChatDensity() === 'compact';
@@ -89,6 +114,40 @@ function StopDictationButton() {
   );
 }
 
+function ComposerVoiceToggle() {
+  const isCompact = useChatDensity() === 'compact';
+  const voiceState = useVoiceState();
+  const { connect, disconnect } = useVoiceControls();
+  const status = voiceState?.status.type;
+  const isActive = status === 'running' || status === 'starting';
+  const isStarting = status === 'starting';
+
+  return (
+    <AuiIf condition={(s) => s.thread.capabilities.voice}>
+      <button
+        type="button"
+        onClick={() => (isActive ? disconnect() : connect())}
+        aria-label={isActive ? 'Sprachsitzung beenden' : 'Sprachsitzung starten'}
+        aria-pressed={isActive}
+        className={cn(
+          'flex items-center justify-center rounded-full transition-colors',
+          isCompact ? 'm-1.5 h-7 w-7' : 'm-2 h-8 w-8',
+          isActive
+            ? 'bg-primary text-white'
+            : 'text-foreground-muted hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-800',
+          isStarting && 'animate-pulse'
+        )}
+      >
+        {isActive ? (
+          <PhoneOff className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
+        ) : (
+          <Phone className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
+        )}
+      </button>
+    </AuiIf>
+  );
+}
+
 function ComposerButtons({ isRunning }: { isRunning?: boolean }) {
   const isDictating = useAuiState((s) => s.composer.dictation != null);
   const hasDictation = useAuiState((s) => s.thread.capabilities.dictation);
@@ -129,7 +188,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showMentions = true,
   showPlusMenu = true,
   showToolToggles = true,
+  showModelPicker = true,
   insideAgent = false,
+  slots,
 }: GrueneratorComposerProps) {
   const composerRuntime = useComposerRuntime();
   const isCompact = useChatDensity() === 'compact';
@@ -363,6 +424,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
 
         <ComposerAttachments />
 
+        {slots?.aboveInput}
+
         {showMentions &&
           (mention.mode === 'datei' ? (
             <FileMentionPopover
@@ -428,13 +491,17 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
                 insideAgent={insideAgent}
               />
             )}
+            {showToolToggles && <SearchDepthToggleSlot />}
             {toolbarExtra}
           </div>
           <div className="flex items-center gap-0.5">
-            <ModelPicker />
+            {showModelPicker && <ModelPicker />}
+            <ComposerVoiceToggle />
+            {slots?.sendAdornment}
             <ComposerButtons isRunning={isRunning} />
           </div>
         </div>
+        {slots?.belowInput}
       </ComposerPrimitive.Root>
       <p
         className={cn(
