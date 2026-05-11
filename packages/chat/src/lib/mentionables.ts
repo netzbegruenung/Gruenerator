@@ -42,7 +42,21 @@ export interface CustomAgentMentionable {
   description?: string;
 }
 
+// Per-LV icon overrides for the Öffentlichkeitsarbeit-<lv> agents and their
+// /presse-<lv>, /social-<lv> skills. Mirrors the icons used on the matching
+// notebook entries in `apps/web/src/features/notebook/config/notebooksConfig.ts`
+// so the visual identity stays consistent between notebook gallery, sidebar,
+// "Alle Agents" modal, and the /-mention picker.
+const AGENT_ICON_OVERRIDES: Record<string, React.ComponentType<{ className?: string }>> = {
+  'gruenerator-oeffentlichkeitsarbeit-berlin': MdDiversity1,
+  'gruenerator-oeffentlichkeitsarbeit-hamburg': PiCompass,
+  'gruenerator-oeffentlichkeitsarbeit-mv': PiFlag,
+  'gruenerator-oeffentlichkeitsarbeit-thueringen': PiTree,
+  'gruenerator-oeffentlichkeitsarbeit-brandenburg': PiFlowerLight,
+};
+
 export function agentToMentionable(agent: AgentListItem): Mentionable {
+  const icon = AGENT_ICON_OVERRIDES[agent.identifier];
   return {
     type: 'agent',
     category: 'skill',
@@ -57,6 +71,7 @@ export function agentToMentionable(agent: AgentListItem): Mentionable {
     skillCategory: agent.skillCategory,
     promptTemplate: agent.promptTemplate,
     isSystemDefault: agent.isSystemDefault,
+    ...(icon ? { icon } : {}),
   };
 }
 

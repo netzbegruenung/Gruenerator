@@ -73,7 +73,11 @@ export const PlusMenu = memo(function PlusMenu({
         <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
           {allQuickSkills.map((skill) => (
             <DropdownMenuItem key={skill.mention} onClick={() => onInsertMention(skill)}>
-              <span className="text-base leading-none">{skill.avatar}</span>
+              {skill.icon ? (
+                <skill.icon className="h-4 w-4" />
+              ) : (
+                <span className="text-base leading-none">{skill.avatar}</span>
+              )}
               {skill.title}
             </DropdownMenuItem>
           ))}
@@ -161,7 +165,13 @@ export const PlusMenu = memo(function PlusMenu({
         {allQuickSkills.map((skill) => (
           <ResponsiveMenuItem
             key={skill.mention}
-            icon={<span className="text-base leading-none">{skill.avatar}</span>}
+            icon={
+              skill.icon ? (
+                <skill.icon className="h-4 w-4" />
+              ) : (
+                <span className="text-base leading-none">{skill.avatar}</span>
+              )
+            }
             onClick={() => handleMobileAction(() => onInsertMention(skill))}
           >
             {skill.title}
