@@ -71,30 +71,40 @@ async function rerankResults(results: ScoredResult[], query: string): Promise<Sc
 }
 
 export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStructuredTool {
-    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
+  // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'search_documents',
     description:
       'Durchsuche Grüne Parteidokumente, Positionen, Programme und Beschlüsse. ' +
       'Nutze dieses Tool bei Fragen zu Partei-Positionen, Wahlprogrammen, Grundsatzprogramm, ' +
       'oder internen Dokumenten der Grünen.',
-    schema: z.object({
-      query: z
-        .string()
-        .describe('Die Suchanfrage — nur das faktische Thema, ohne Aufgabenanweisungen'),
-      collections: z
-        .array(z.string())
-        .optional()
-        .describe(
-          'Optionale Qdrant-Collections (z.B. "deutschland", "bundestagsfraktion", "gruene-de", "kommunalwiki"). Standard: alle'
-        ),
-      document_ids: z
-        .array(z.string())
-        .optional()
-        .describe('Optionale Dokument-IDs zur Einschränkung der Suche auf bestimmte Dokumente'),
-      topK: z.number().optional().describe('Maximale Ergebnisanzahl pro Collection (Standard: 3)'),
-    }).describe('Dokumentensuche'),
-    func: async (input: { query: string; collections?: string[]; document_ids?: string[]; topK?: number }) => {
+    schema: z
+      .object({
+        query: z
+          .string()
+          .describe('Die Suchanfrage — nur das faktische Thema, ohne Aufgabenanweisungen'),
+        collections: z
+          .array(z.string())
+          .optional()
+          .describe(
+            'Optionale Qdrant-Collections (z.B. "deutschland", "bundestagsfraktion", "gruene-de", "kommunalwiki"). Standard: alle'
+          ),
+        document_ids: z
+          .array(z.string())
+          .optional()
+          .describe('Optionale Dokument-IDs zur Einschränkung der Suche auf bestimmte Dokumente'),
+        topK: z
+          .number()
+          .optional()
+          .describe('Maximale Ergebnisanzahl pro Collection (Standard: 3)'),
+      })
+      .describe('Dokumentensuche'),
+    func: async (input: {
+      query: string;
+      collections?: string[];
+      document_ids?: string[];
+      topK?: number;
+    }) => {
       const { query, collections, document_ids, topK } = input;
       // Document-scoped search: filter by specific document IDs
       if (document_ids?.length) {
@@ -167,8 +177,14 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
         `[SearchDocuments] query="${query.slice(0, 60)}" collections=${uniqueCollections.join(',')}`
       );
 
+      const agentLv = deps.agentConfig.defaultFilter?.landesverband;
       const searchPromises = uniqueCollections.map((collection) =>
-        executeDirectSearch({ query, collection, limit }).catch((err: unknown) => {
+        executeDirectSearch({
+          query,
+          collection,
+          limit,
+          ...(agentLv != null ? { agentLandesverband: agentLv } : {}),
+        }).catch((err: unknown) => {
           log.warn(
             `[SearchDocuments] Collection ${collection} failed: ${err instanceof Error ? err.message : String(err)}`
           );
