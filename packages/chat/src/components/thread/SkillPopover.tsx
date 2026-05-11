@@ -145,10 +145,10 @@ function SkillItem({
       }}
     >
       <span
-        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm"
+        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm text-white"
         style={{ backgroundColor: mentionable.backgroundColor }}
       >
-        {mentionable.avatar}
+        {mentionable.icon ? <mentionable.icon className="h-4 w-4" /> : mentionable.avatar}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{mentionable.title}</p>
