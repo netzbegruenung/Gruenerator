@@ -890,6 +890,16 @@ export function createGrueneratorModelAdapter(
             ? 'chat'
             : storedMode;
 
+      // Surface tools (edit_current_doc) belong to the surface, not the agent —
+      // but if the user picks a search-route agent, SearchGraph can't run them.
+      // Strip the edit hook; keep save_as_doc, which is harmless.
+      const safeCustomEnabledTools =
+        activeAgentForRouting?.routeTo === 'search' && config.customEnabledTools
+          ? Object.fromEntries(
+              Object.entries(config.customEnabledTools).filter(([k]) => k !== 'edit_current_doc')
+            )
+          : config.customEnabledTools;
+
       // Skip attachment extraction and mention parsing for non-chat modes
       const isChatMode = effectiveMode === 'chat' || effectiveMode === 'eigener';
 
@@ -1143,8 +1153,8 @@ export function createGrueneratorModelAdapter(
           messages: formattedMessages,
           agentId: null,
           threadId: config.threadId,
-          enabledTools: config.customEnabledTools
-            ? { ...config.enabledTools, ...config.customEnabledTools }
+          enabledTools: safeCustomEnabledTools
+            ? { ...config.enabledTools, ...safeCustomEnabledTools }
             : config.enabledTools,
           modelId: config.modelId,
           attachments: extractedAttachments.length > 0 ? extractedAttachments : undefined,
@@ -1169,8 +1179,8 @@ export function createGrueneratorModelAdapter(
           messages: formattedMessages,
           agentId: effectiveAgentId,
           threadId: config.threadId,
-          enabledTools: config.customEnabledTools
-            ? { ...config.enabledTools, ...config.customEnabledTools }
+          enabledTools: safeCustomEnabledTools
+            ? { ...config.enabledTools, ...safeCustomEnabledTools }
             : config.enabledTools,
           modelId: config.modelId,
           attachments: extractedAttachments.length > 0 ? extractedAttachments : undefined,
