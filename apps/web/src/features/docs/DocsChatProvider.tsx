@@ -20,6 +20,7 @@ import {
 } from '@gruenerator/chat';
 import { chatThreadResponseSchema, type ChatThreadResponse } from '@gruenerator/contracts';
 import { invokeDocumentAI, useEditorStore } from '@gruenerator/docs';
+import { loadedThreadMessagesSchema } from '@gruenerator/shared/chat';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -30,18 +31,9 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
-import { z } from 'zod';
 
 import { useDocAiEditEnabled } from './DocAiEditToggle';
 import { usePeerMessageSync } from './usePeerMessageSync';
-
-const loadedMessageSchema = z.object({
-  id: z.string(),
-  role: z.enum(['user', 'assistant']),
-  content: z.string(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-});
-const loadedMessagesSchema = z.array(loadedMessageSchema);
 
 type ChatCollabValue = ReturnType<typeof useChatCollaboration>;
 
@@ -191,7 +183,7 @@ function DocsChatReadyHost({
     queryFn: async () => {
       const res = await fetchFn(`${endpoints.messages}?threadId=${threadId}`);
       if (!res.ok) return [];
-      const parsed = loadedMessagesSchema.parse(await res.json());
+      const parsed = loadedThreadMessagesSchema.parse(await res.json());
       return convertToThreadMessageLike(
         parsed as Parameters<typeof convertToThreadMessageLike>[0]
       );

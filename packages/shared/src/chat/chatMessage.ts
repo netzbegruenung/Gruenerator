@@ -115,3 +115,17 @@ export function endpointMessageToChatMessage(
     metadata: raw.metadata,
   });
 }
+
+// Minimal wire-format validator for /api/chat-service/messages that
+// `convertToThreadMessageLike` consumes downstream. Looser than the
+// canonical ChatMessage above — accepts only the fields the converter reads.
+export const loadedThreadMessageSchema = z.object({
+  id: z.string(),
+  // assistant-ui's converter only handles user/assistant; system messages
+  // are filtered server-side, so a narrower role enum is intentional here.
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+export const loadedThreadMessagesSchema = z.array(loadedThreadMessageSchema);
+export type LoadedThreadMessage = z.infer<typeof loadedThreadMessageSchema>;
