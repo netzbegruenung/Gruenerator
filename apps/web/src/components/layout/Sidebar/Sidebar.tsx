@@ -33,6 +33,39 @@ const HIDDEN_INVENTORY_AGENT_IDS = new Set<string>([
   'gruenerator-suche',
 ]);
 
+/**
+ * Per-agent React-icon map. Replaces the emoji-on-green-circle look (e.g.
+ * 📢 in #316049) with the same "ghost" icon style used by DEFAULT_AGENT_ENTRIES
+ * — secondary-tinted line icon, no background fill. Unmapped identifiers fall
+ * back to `PiSparkle` (matches the custom-user-agents row).
+ *
+ * The 7 per-LV PR agents all share `PiMegaphone` with the universal PR agent
+ * — the agent title disambiguates ("Öffentlichkeitsarbeit (Berlin)" etc.),
+ * and consistent icon reinforces "this is a PR agent" visual signal.
+ */
+const AGENT_ICONS: Record<string, IconType> = {
+  'gruenerator-universal': PiSparkle,
+  'gruenerator-antrag': PiNotePencil,
+  'gruenerator-suche': PiMagnifyingGlass,
+  'gruenerator-oeffentlichkeitsarbeit': PiMegaphone,
+  'gruenerator-oeffentlichkeitsarbeit-hamburg': PiMegaphone,
+  'gruenerator-oeffentlichkeitsarbeit-schleswig-holstein': PiMegaphone,
+  'gruenerator-oeffentlichkeitsarbeit-thueringen': PiMegaphone,
+  'gruenerator-oeffentlichkeitsarbeit-bayern': PiMegaphone,
+  'gruenerator-oeffentlichkeitsarbeit-berlin': PiMegaphone,
+  'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern': PiMegaphone,
+  'gruenerator-oeffentlichkeitsarbeit-brandenburg': PiMegaphone,
+  'gruenerator-buergerservice': PiChatsCircle,
+  'gruenerator-rede-schreiber': PiMicrophone,
+  'gruenerator-wahlprogramm': PiBookOpenText,
+  'gruenerator-leichte-sprache': PiHandHeart,
+  'gruenerator-docs-editor': PiFileText,
+};
+
+function getAgentIcon(identifier: string): IconType {
+  return AGENT_ICONS[identifier] ?? PiSparkle;
+}
+
 interface DefaultAgentEntry {
   key: string;
   label: string;
@@ -80,6 +113,11 @@ import {
   PiMegaphone,
   PiNotePencil,
   PiMagnifyingGlass,
+  PiChatsCircle,
+  PiMicrophone,
+  PiBookOpenText,
+  PiHandHeart,
+  PiFileText,
 } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -600,23 +638,23 @@ const SidebarAgents = memo(function SidebarAgents({
             </li>
           ))}
 
-          {favoriteAgents.map((agent) => (
-            <li key={`fav-${agent.identifier}`}>
-              <button
-                type="button"
-                onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
-                className={menuLinkClass(false)}
-              >
-                <span
-                  className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-sm"
-                  style={{ backgroundColor: agent.backgroundColor }}
+          {favoriteAgents.map((agent) => {
+            const Icon = getAgentIcon(agent.identifier);
+            return (
+              <li key={`fav-${agent.identifier}`}>
+                <button
+                  type="button"
+                  onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
+                  className={menuLinkClass(false)}
                 >
-                  {agent.avatar}
-                </span>
-                <span className={titleClass}>{agent.title}</span>
-              </button>
-            </li>
-          ))}
+                  <span className="shrink-0 w-6 h-6 flex items-center justify-center text-secondary-600">
+                    <Icon aria-hidden="true" className="h-5 w-5" />
+                  </span>
+                  <span className={titleClass}>{agent.title}</span>
+                </button>
+              </li>
+            );
+          })}
 
           {userAgents.map((agent) => (
             <li key={agent.identifier}>
@@ -721,6 +759,7 @@ function AllAgentsDialog({
           {SYSTEM_AGENTS.filter((agent) => !HIDDEN_INVENTORY_AGENT_IDS.has(agent.identifier)).map(
             (agent) => {
               const isFav = favoritesSet.has(agent.identifier);
+              const Icon = getAgentIcon(agent.identifier);
               return (
                 <li
                   key={agent.identifier}
@@ -731,11 +770,8 @@ function AllAgentsDialog({
                     onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
                     className="flex flex-1 items-center gap-3 text-left"
                   >
-                    <span
-                      className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-sm"
-                      style={{ backgroundColor: agent.backgroundColor }}
-                    >
-                      {agent.avatar}
+                    <span className="shrink-0 w-7 h-7 flex items-center justify-center text-secondary-600">
+                      <Icon aria-hidden="true" className="h-5 w-5" />
                     </span>
                     <span className="flex-1 min-w-0">
                       <span className="block text-sm font-medium truncate">{agent.title}</span>
