@@ -16,6 +16,8 @@
 
 import express from 'express';
 
+import { ensureHtml } from '../../services/docs/contentNormalization.js';
+import { seedYjsStateSafe } from '../../services/docs/seedYjsState.js';
 import { createAuthenticatedRouter } from '../../utils/keycloak/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -93,10 +95,28 @@ async function executeAction(action: PendingAction): Promise<{ message: string; 
 
       const { getPostgresInstance } = await import('../../database/services/PostgresService.js');
       const pg = getPostgresInstance();
+
+      // Side-channel writes to `content` while Yjs has live state would diverge
+      // from the editor's CRDT. Refuse so the user edits via the collaborative
+      // editor instead.
+      const liveState = await pg.query(
+        `SELECT 1 FROM yjs_document_snapshots WHERE document_id = $1
+         UNION ALL
+         SELECT 1 FROM yjs_document_updates WHERE document_id = $1
+         LIMIT 1`,
+        [docId]
+      );
+      if (liveState.length > 0) {
+        throw new Error('Dokument wird gerade bearbeitet — Änderungen über den Editor vornehmen.');
+      }
+
+      const htmlContent = ensureHtml(newContent);
       await pg.query(
         'UPDATE collaborative_documents SET content = $1, last_edited_by = $2, updated_at = NOW() WHERE id = $3',
-        [newContent, action.userId, docId]
+        [htmlContent, action.userId, docId]
       );
+      await seedYjsStateSafe(docId, htmlContent, 'modify_doc');
+
       return {
         message: `Dokument wurde aktualisiert.`,
         url: `/document/${docId}`,

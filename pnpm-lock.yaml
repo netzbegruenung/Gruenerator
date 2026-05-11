@@ -1142,6 +1142,9 @@ importers:
       '@gruenerator/collab':
         specifier: workspace:*
         version: link:../collab
+      '@gruenerator/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@gruenerator/shared':
         specifier: workspace:*
         version: link:../shared
@@ -1377,6 +1380,9 @@ importers:
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.5.0
+      yjs:
+        specifier: ^13.6.30
+        version: 13.6.30
       zustand:
         specifier: ^5.0.13
         version: 5.0.13(@types/react@19.2.14)(immer@11.1.7)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6))
@@ -1632,6 +1638,9 @@ importers:
 
   services/hocuspocus:
     dependencies:
+      '@gruenerator/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@hocuspocus/extension-logger':
         specifier: ^3.4.4
         version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
@@ -31156,9 +31165,7 @@ snapshots:
       metro-runtime: 0.83.7
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
     optional: true
 
   '@react-native/normalize-colors@0.74.89':

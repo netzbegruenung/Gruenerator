@@ -6,6 +6,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService/Pos
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
+import { seedYjsStateSafe } from '../../services/docs/seedYjsState.js';
 import { markdownToHtml } from '../../services/markdown/index.js';
 import { ocrService } from '../../services/OcrService/index.js';
 import { getWolkeSyncService } from '../../services/sync/index.js';
@@ -105,6 +106,8 @@ async function ocrBufferToDocument(
   );
 
   const document = result[0];
+
+  await seedYjsStateSafe(document.id as string, html, 'DocsImport');
 
   console.log(`[DocsImport] Created document ${document.id} from ${filename} (${source})`);
 
