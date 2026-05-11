@@ -42,6 +42,13 @@ export interface Agent {
   provider: AgentProvider;
   params: AgentParams;
   openingMessage: string;
+  /**
+   * Friendly question rendered as the WelcomeScreen heading before the user
+   * sends their first message. May contain the `{firstName}` token to
+   * personalize. When omitted, the screen falls back to a generic
+   * "Hallo {firstName}, wie kann ich helfen?" greeting.
+   */
+  welcomeQuestion?: string;
   openingQuestions: readonly string[];
   locale: string;
   author: string;
@@ -51,6 +58,13 @@ export interface Agent {
   fewShotExamples?: readonly FewShotExample[];
   routeTo?: 'chat' | 'search';
   defaultFilter?: AgentDefaultFilter;
+  /**
+   * Hide this agent from agent-picker / inventory UIs. The identifier stays
+   * live in the registry (so backend fallbacks and existing chat threads
+   * keep resolving), but no UI surface offers it to the user. Used for
+   * legacy or technical-fallback agents we don't want users to discover.
+   */
+  hiddenFromInventory?: boolean;
 }
 
 export type SkillCategory = 'presse' | 'social' | 'dokumente' | 'recherche' | 'sonstiges';
