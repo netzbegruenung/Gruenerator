@@ -35,6 +35,13 @@ export interface NotebookConfigEntry {
    * reject queries against the notebook. Defaults to true when omitted.
    */
   enabled?: boolean;
+  /**
+   * When set, entering this notebook pre-selects the given agent in the global
+   * chat store, so that navigating to /chat afterwards opens the LV-tuned agent
+   * (e.g. Berlin notebook → 'gruenerator-oeffentlichkeitsarbeit-berlin').
+   * No effect on the notebook's own Q&A chat — that runs on NotebookChatProvider.
+   */
+  defaultAgent?: string;
 }
 
 const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
@@ -82,6 +89,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     icon: PiCompass,
     order: 4,
     category: 'landesebene',
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
   },
   {
     id: 'schleswig-holstein-notebook',
@@ -107,6 +115,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     icon: PiTree,
     order: 6,
     category: 'landesebene',
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
   },
   {
     id: 'berlin-notebook',
@@ -119,6 +128,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     icon: MdDiversity1,
     order: 7,
     category: 'landesebene',
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-berlin',
   },
   {
     id: 'mecklenburg-vorpommern-notebook',
@@ -131,18 +141,20 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     icon: PiFlag,
     order: 8,
     category: 'landesebene',
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-mv',
   },
   {
     id: 'brandenburg-notebook',
     path: '/notebooks/brandenburg',
     title: 'Brandenburg',
     description:
-      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Landtagswahlprogramm 2024 der Grünen Brandenburg.',
+      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Landtagswahlprogramm 2024 der Brandenburger Bündnisgrünen.',
     meta: 'Archiv',
     tags: ['Brandenburg', 'Beschlüsse', 'Presse', 'Wahlprogramm'],
     icon: PiFlowerLight,
     order: 9,
     category: 'landesebene',
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
   },
   {
     id: 'oesterreich-notebook',
@@ -229,7 +241,8 @@ export const getNotebooksByCategory = (category: NotebookCategory): NotebookConf
 
 export const getGermanNotebooks = (): NotebookConfigEntry[] =>
   SYSTEM_NOTEBOOKS.filter(
-    (nb) => isNotebookEnabled(nb) && (nb.category === 'bundesebene' || nb.category === 'landesebene')
+    (nb) =>
+      isNotebookEnabled(nb) && (nb.category === 'bundesebene' || nb.category === 'landesebene')
   ).sort((a, b) => a.order - b.order);
 
 export const getAustrianNotebooks = (): NotebookConfigEntry[] =>

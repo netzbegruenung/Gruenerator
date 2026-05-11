@@ -113,11 +113,18 @@ export async function executeDirectSearch(params: {
   collection?: string;
   limit?: number;
   filters?: SubcategoryFilters;
+  /**
+   * Hard-pinned LV filter from agent metadata (e.g. Berlin agent → 'BE' / ['BE','BE-F']).
+   * Merged into the Qdrant `must` clause regardless of what the LLM passes; ensures
+   * an LV-scoped agent always grounds answers in its own Landesverband sources.
+   * Only applied to collections targeting `landesverbaende_documents`.
+   */
+  agentLandesverband?: readonly string[] | string;
 }): Promise<DirectSearchResult> {
-  const { query, collection = 'deutschland', limit = 5, filters } = params;
+  const { query, collection = 'deutschland', limit = 5, filters, agentLandesverband } = params;
 
   log.info(
-    `[Direct Search] query="${query}" collection="${collection}" limit=${limit}${filters ? ` filters=${JSON.stringify(filters)}` : ''}`
+    `[Direct Search] query="${query}" collection="${collection}" limit=${limit}${filters ? ` filters=${JSON.stringify(filters)}` : ''}${agentLandesverband ? ` lv=${JSON.stringify(agentLandesverband)}` : ''}`
   );
 
   const mapping = COLLECTION_MAP[collection];
@@ -128,19 +135,35 @@ export async function executeDirectSearch(params: {
   const { qdrantCollection, systemId } = mapping || COLLECTION_MAP.deutschland;
   const searchParams = getSearchParams(systemId);
 
-  // Build filter: merge collection default filter with user-detected filters
+  // Build filter: merge (a) collection default, (b) user-detected, (c) agent LV pin
   const collectionDefault = applyDefaultFilter(systemId);
   const userFilter = buildSubcategoryFilter(filters);
-  let additionalFilter: QdrantFilter | undefined;
-
-  if (collectionDefault && userFilter) {
-    // Merge both must arrays
-    const mergedMust = [...(collectionDefault.must || []), ...(userFilter.must || [])];
-    additionalFilter = {
-      must: mergedMust as QdrantFilter['must'],
+  let agentLvFilter: QdrantFilter | undefined;
+  if (agentLandesverband && qdrantCollection === 'landesverbaende_documents') {
+    const lvList: string[] = Array.isArray(agentLandesverband)
+      ? [...agentLandesverband]
+      : [agentLandesverband as string];
+    agentLvFilter = {
+      must: [
+        {
+          key: 'landesverband',
+          match: lvList.length === 1 ? { value: lvList[0] as string } : { any: lvList },
+        },
+      ],
     };
+  }
+
+  const filterParts = [collectionDefault, userFilter, agentLvFilter].filter(
+    (f): f is QdrantFilter => f !== undefined
+  );
+  let additionalFilter: QdrantFilter | undefined;
+  if (filterParts.length === 0) {
+    additionalFilter = undefined;
+  } else if (filterParts.length === 1) {
+    additionalFilter = filterParts[0];
   } else {
-    additionalFilter = userFilter || collectionDefault;
+    const mergedMust = filterParts.flatMap((f) => f.must || []);
+    additionalFilter = { must: mergedMust as QdrantFilter['must'] };
   }
 
   try {

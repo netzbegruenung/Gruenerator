@@ -26,6 +26,15 @@ export interface ToolRestrictions {
   personSearchEnabled?: boolean | undefined;
 }
 
+/**
+ * Hard-pinned filters merged into tool calls (Qdrant / examples service).
+ * Invisible to the LLM — applied server-side in directSearchExecutors.
+ */
+export interface AgentDefaultFilter {
+  /** Landesverband shortName(s), e.g. 'BE' or ['BE', 'BE-F']. */
+  landesverband?: readonly string[] | string | undefined;
+}
+
 export interface FewShotExample {
   input: string;
   output: string;
@@ -62,6 +71,8 @@ export interface AgentConfig {
   userId?: string | undefined;
   /** Backend dispatch target. 'search' routes turns to /api/search-graph/stream. */
   routeTo?: 'chat' | 'search' | undefined;
+  /** Server-side default filter merged into tool calls (e.g. LV scoping). */
+  defaultFilter?: AgentDefaultFilter | undefined;
 }
 
 export interface Thread {

@@ -1022,7 +1022,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         const country =
           agentConfig.toolRestrictions?.examplesCountry ||
           (state.userLocale === 'de-AT' ? 'AT' : undefined);
-        const lvScope = agentConfig.toolRestrictions?.examplesLvScope;
+        // LV scope feeds press-examples filtering. Prefer the explicit
+        // `toolRestrictions.examplesLvScope`; fall back to the per-agent
+        // `defaultFilter.landesverband` (used by per-LV PR agents).
+        const lvScope =
+          agentConfig.toolRestrictions?.examplesLvScope ??
+          agentConfig.defaultFilter?.landesverband;
 
         // Composer paths want full bodies: PM bodies are reconstructed from
         // chunks inside searchExamples, social bodies skip the 500-char cut.
