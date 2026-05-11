@@ -60,6 +60,13 @@ export interface Agent {
   routeTo?: 'chat' | 'search';
   defaultNotebookId?: string;
   defaultFilter?: AgentDefaultFilter;
+  /**
+   * Hide this agent from agent-picker / inventory UIs. The identifier stays
+   * live in the registry (so backend fallbacks and existing chat threads
+   * keep resolving), but no UI surface offers it to the user. Used for
+   * legacy or technical-fallback agents we don't want users to discover.
+   */
+  hiddenFromInventory?: boolean;
 }
 
 export type SkillCategory = 'presse' | 'social' | 'dokumente' | 'recherche' | 'sonstiges';
