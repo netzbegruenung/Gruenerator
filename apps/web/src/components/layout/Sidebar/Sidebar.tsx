@@ -1,5 +1,10 @@
 import { useAgentStore } from '@gruenerator/chat';
-import { SYSTEM_AGENTS, getSystemAgent, type Agent } from '@gruenerator/shared/agents';
+import {
+  SYSTEM_AGENTS,
+  getSystemAgent,
+  type Agent,
+  type SystemAgentId,
+} from '@gruenerator/shared/agents';
 import {
   Dialog,
   DialogContent,
@@ -15,46 +20,23 @@ import {
   useIsMobile,
 } from '@gruenerator/ui';
 
-/**
- * Agents already represented by `DEFAULT_AGENT_ENTRIES` (the pinned strip at
- * the top of the sidebar). Hiding them from the "Alle Agenten" modal avoids
- * duplicate rows — pinned + listed below would render twice.
- *
- * Note: the previous `HIDDEN_INVENTORY_MENTIONS` set also listed social-
- * platform mentions (`instagram`, `facebook`, `twitter`, `linkedin`, `reel`,
- * `aktion`). Those don't exist as agents in `SYSTEM_AGENTS` — they live only
- * as @mention skills in `SKILLS`. The modal now iterates agents directly, so
- * skill-only mentions are never candidates and don't need explicit hiding.
- * They still resolve as `@instagram`, `@aktion` etc. in the chat composer.
- */
-const HIDDEN_INVENTORY_AGENT_IDS = new Set<string>([
+// Hide from the modal's main list — already rendered at the top via
+// DEFAULT_AGENT_ENTRIES; listing twice would just duplicate rows.
+const HIDDEN_INVENTORY_AGENT_IDS = new Set<SystemAgentId>([
   'gruenerator-oeffentlichkeitsarbeit',
   'gruenerator-antrag',
   'gruenerator-suche',
 ]);
 
-/**
- * Per-agent React-icon map. Replaces the emoji-on-green-circle look (e.g.
- * 📢 in #316049) with the same "ghost" icon style used by DEFAULT_AGENT_ENTRIES
- * — secondary-tinted line icon, no background fill. Unmapped identifiers fall
- * back to `PiSparkle` (matches the custom-user-agents row).
- *
- * The 7 per-LV PR agents all share `PiMegaphone` with the universal PR agent
- * — the agent title disambiguates ("Öffentlichkeitsarbeit (Berlin)" etc.),
- * and consistent icon reinforces "this is a PR agent" visual signal.
- */
-const AGENT_ICONS: Record<string, IconType> = {
+const VISIBLE_SYSTEM_AGENTS: readonly Agent[] = SYSTEM_AGENTS.filter(
+  (a) => !HIDDEN_INVENTORY_AGENT_IDS.has(a.identifier as SystemAgentId)
+);
+
+const AGENT_ICONS: Partial<Record<SystemAgentId, IconType>> = {
   'gruenerator-universal': PiSparkle,
   'gruenerator-antrag': PiNotePencil,
   'gruenerator-suche': PiMagnifyingGlass,
   'gruenerator-oeffentlichkeitsarbeit': PiMegaphone,
-  'gruenerator-oeffentlichkeitsarbeit-hamburg': PiMegaphone,
-  'gruenerator-oeffentlichkeitsarbeit-schleswig-holstein': PiMegaphone,
-  'gruenerator-oeffentlichkeitsarbeit-thueringen': PiMegaphone,
-  'gruenerator-oeffentlichkeitsarbeit-bayern': PiMegaphone,
-  'gruenerator-oeffentlichkeitsarbeit-berlin': PiMegaphone,
-  'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern': PiMegaphone,
-  'gruenerator-oeffentlichkeitsarbeit-brandenburg': PiMegaphone,
   'gruenerator-buergerservice': PiChatsCircle,
   'gruenerator-rede-schreiber': PiMicrophone,
   'gruenerator-wahlprogramm': PiBookOpenText,
@@ -62,44 +44,42 @@ const AGENT_ICONS: Record<string, IconType> = {
   'gruenerator-docs-editor': PiFileText,
 };
 
+// All PR agents (universal + 7 per-LV variants) share PiMegaphone — the
+// prefix check means new LV-PR agents need zero changes here.
 function getAgentIcon(identifier: string): IconType {
-  return AGENT_ICONS[identifier] ?? PiSparkle;
+  if (identifier.startsWith('gruenerator-oeffentlichkeitsarbeit')) return PiMegaphone;
+  return AGENT_ICONS[identifier as SystemAgentId] ?? PiSparkle;
 }
 
 interface DefaultAgentEntry {
   key: string;
   label: string;
   identifier: string;
-  Icon: IconType;
 }
 
 /**
  * Pinned defaults always shown in the sidebar regardless of favorites.
- * "Öffentlichkeitsarbeit" is the combined Presse + Social Media agent — one
- * model handling both formats with platform routing inside its system prompt
- * (see `system.ts` Schritt 3a/3b). Splitting it into separate entries caused
- * an `Array.find`-first-match display ambiguity (clicking Social Media showed
- * "Pressemitteilung" because both pointed at the same identifier). Single
- * entry resolves the ambiguity without splitting the agent.
+ * "Öffentlichkeitsarbeit" is the combined Presse + Social Media agent.
+ * Splitting it into separate entries caused an Array.find first-match display
+ * ambiguity (clicking Social Media showed "Pressemitteilung" because both
+ * pointed at the same identifier) — single entry resolves that.
+ * Icon comes from `getAgentIcon(identifier)` — single source of truth.
  */
 const DEFAULT_AGENT_ENTRIES: readonly DefaultAgentEntry[] = [
   {
     key: 'default-oeffentlichkeitsarbeit',
     label: 'Öffentlichkeitsarbeit',
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
-    Icon: PiMegaphone,
   },
   {
     key: 'default-antrag',
     label: 'Anträge',
     identifier: 'gruenerator-antrag',
-    Icon: PiNotePencil,
   },
   {
     key: 'default-suche',
     label: 'Suche',
     identifier: 'gruenerator-suche',
-    Icon: PiMagnifyingGlass,
   },
 ];
 import { useEffect, useMemo, useCallback, useRef, useState, memo } from 'react';
@@ -569,13 +549,10 @@ const SidebarAgents = memo(function SidebarAgents({
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const favoriteAgents = useMemo(() => {
     const out: Agent[] = [];
-    const seen = new Set<string>();
     for (const identifier of favoriteIdentifiers) {
-      if (HIDDEN_INVENTORY_AGENT_IDS.has(identifier)) continue;
-      if (seen.has(identifier)) continue;
+      if (HIDDEN_INVENTORY_AGENT_IDS.has(identifier as SystemAgentId)) continue;
       const agent = getSystemAgent(identifier);
       if (!agent) continue; // covers deleted agents + migration unknowns
-      seen.add(identifier);
       out.push(agent);
     }
     return out;
@@ -623,20 +600,23 @@ const SidebarAgents = memo(function SidebarAgents({
       </button>
       {isExpanded && (
         <ul className="list-none m-0 p-0">
-          {DEFAULT_AGENT_ENTRIES.map((entry) => (
-            <li key={entry.key}>
-              <button
-                type="button"
-                onClick={() => onLinkClick(`/chat?agent=${entry.identifier}`, entry.label)}
-                className={menuLinkClass(false)}
-              >
-                <span className="shrink-0 w-6 h-6 flex items-center justify-center text-secondary-600">
-                  <entry.Icon aria-hidden="true" className="h-5 w-5" />
-                </span>
-                <span className={titleClass}>{entry.label}</span>
-              </button>
-            </li>
-          ))}
+          {DEFAULT_AGENT_ENTRIES.map((entry) => {
+            const Icon = getAgentIcon(entry.identifier);
+            return (
+              <li key={entry.key}>
+                <button
+                  type="button"
+                  onClick={() => onLinkClick(`/chat?agent=${entry.identifier}`, entry.label)}
+                  className={menuLinkClass(false)}
+                >
+                  <span className="shrink-0 w-6 h-6 flex items-center justify-center text-secondary-600">
+                    <Icon aria-hidden="true" className="h-5 w-5" />
+                  </span>
+                  <span className={titleClass}>{entry.label}</span>
+                </button>
+              </li>
+            );
+          })}
 
           {favoriteAgents.map((agent) => {
             const Icon = getAgentIcon(agent.identifier);
@@ -709,7 +689,6 @@ function AllAgentsDialog({
 }) {
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggle = useAgentFavoritesStore((s) => s.toggle);
-  const favoritesSet = useMemo(() => new Set(favoriteIdentifiers), [favoriteIdentifiers]);
 
   return (
     <Dialog>
@@ -727,77 +706,78 @@ function AllAgentsDialog({
           <DialogTitle>Alle Agents</DialogTitle>
         </DialogHeader>
         <ul className="list-none m-0 p-0 max-h-[60vh] overflow-y-auto scrollbar-thin">
-          {DEFAULT_AGENT_ENTRIES.map((entry) => (
-            <li
-              key={entry.key}
-              className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800/60"
-            >
-              <button
-                type="button"
-                onClick={() => onLinkClick(`/chat?agent=${entry.identifier}`, entry.label)}
-                className="flex flex-1 items-center gap-3 text-left"
+          {DEFAULT_AGENT_ENTRIES.map((entry) => {
+            const Icon = getAgentIcon(entry.identifier);
+            return (
+              <li
+                key={entry.key}
+                className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800/60"
               >
-                <span className="shrink-0 w-7 h-7 flex items-center justify-center text-secondary-600">
-                  <entry.Icon aria-hidden="true" className="h-5 w-5" />
-                </span>
-                <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-medium truncate">{entry.label}</span>
-                </span>
-              </button>
-              <button
-                type="button"
-                disabled
-                className="shrink-0 p-1.5 rounded opacity-100 cursor-default"
-                aria-label="Standard-Favorit"
-                title="Standard-Favorit (immer angeheftet)"
-              >
-                <PiStarFill size={16} className="text-primary-600" />
-              </button>
-            </li>
-          ))}
-          <li className="my-2 border-t border-grey-200 dark:border-grey-800" aria-hidden="true" />
-          {SYSTEM_AGENTS.filter((agent) => !HIDDEN_INVENTORY_AGENT_IDS.has(agent.identifier)).map(
-            (agent) => {
-              const isFav = favoritesSet.has(agent.identifier);
-              const Icon = getAgentIcon(agent.identifier);
-              return (
-                <li
-                  key={agent.identifier}
-                  className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800/60"
+                <button
+                  type="button"
+                  onClick={() => onLinkClick(`/chat?agent=${entry.identifier}`, entry.label)}
+                  className="flex flex-1 items-center gap-3 text-left"
                 >
-                  <button
-                    type="button"
-                    onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
-                    className="flex flex-1 items-center gap-3 text-left"
-                  >
-                    <span className="shrink-0 w-7 h-7 flex items-center justify-center text-secondary-600">
-                      <Icon aria-hidden="true" className="h-5 w-5" />
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-sm font-medium truncate">{agent.title}</span>
-                      {agent.description && (
-                        <span className="block text-xs text-grey-500 truncate">
-                          {agent.description}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggle(agent.identifier)}
-                    className="shrink-0 p-1.5 rounded hover:bg-grey-200 dark:hover:bg-grey-700"
-                    aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                    title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                  >
-                    <PiStarFill
-                      size={16}
-                      className={cn(isFav ? 'text-primary-600' : 'text-grey-300')}
-                    />
-                  </button>
-                </li>
-              );
-            }
-          )}
+                  <span className="shrink-0 w-7 h-7 flex items-center justify-center text-secondary-600">
+                    <Icon aria-hidden="true" className="h-5 w-5" />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-medium truncate">{entry.label}</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  className="shrink-0 p-1.5 rounded opacity-100 cursor-default"
+                  aria-label="Standard-Favorit"
+                  title="Standard-Favorit (immer angeheftet)"
+                >
+                  <PiStarFill size={16} className="text-primary-600" />
+                </button>
+              </li>
+            );
+          })}
+          <li className="my-2 border-t border-grey-200 dark:border-grey-800" aria-hidden="true" />
+          {VISIBLE_SYSTEM_AGENTS.map((agent) => {
+            const isFav = favoriteIdentifiers.includes(agent.identifier);
+            const Icon = getAgentIcon(agent.identifier);
+            return (
+              <li
+                key={agent.identifier}
+                className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800/60"
+              >
+                <button
+                  type="button"
+                  onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
+                  className="flex flex-1 items-center gap-3 text-left"
+                >
+                  <span className="shrink-0 w-7 h-7 flex items-center justify-center text-secondary-600">
+                    <Icon aria-hidden="true" className="h-5 w-5" />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-medium truncate">{agent.title}</span>
+                    {agent.description && (
+                      <span className="block text-xs text-grey-500 truncate">
+                        {agent.description}
+                      </span>
+                    )}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => toggle(agent.identifier)}
+                  className="shrink-0 p-1.5 rounded hover:bg-grey-200 dark:hover:bg-grey-700"
+                  aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                  title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                >
+                  <PiStarFill
+                    size={16}
+                    className={cn(isFav ? 'text-primary-600' : 'text-grey-300')}
+                  />
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </DialogContent>
     </Dialog>
