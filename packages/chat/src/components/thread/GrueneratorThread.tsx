@@ -86,7 +86,7 @@ export function GrueneratorThread({
         </ThreadPrimitive.Viewport>
 
         <AuiIf condition={(s) => s.thread.capabilities.voice && s.thread.voice != null}>
-          <div className="pointer-events-none absolute inset-x-0 bottom-32 z-20 flex justify-center">
+          <div className="pointer-events-none absolute inset-x-0 top-4 z-30 flex justify-center">
             <div className="pointer-events-auto">
               <VoiceControl />
             </div>

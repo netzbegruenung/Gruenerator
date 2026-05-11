@@ -31,6 +31,15 @@ export interface GrueneratorRealtimeVoiceConfig {
   onError?: (reason: RealtimeVoiceErrorReason, error: unknown) => void;
   getThreadId?: () => string | null;
   onAssistantTurnDone?: (text: string, threadId: string | null) => void;
+  /**
+   * Client-side VAD parameters. The Voxtral WebSocket has no server endpointing —
+   * it streams text.delta forever until we send `{type:"stop"}`. We end-point
+   * locally by tracking mic RMS: once speech has been observed for at least
+   * `speechMinMs`, a continuous silence window of `silenceEndMs` triggers stop.
+   */
+  vadSpeechRms?: number;
+  vadSpeechMinMs?: number;
+  vadSilenceEndMs?: number;
 }
 
 interface ChatMessage {
@@ -46,6 +55,9 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
   private onError?: (reason: RealtimeVoiceErrorReason, error: unknown) => void;
   private getThreadId?: () => string | null;
   private onAssistantTurnDone?: (text: string, threadId: string | null) => void;
+  private vadSpeechRms: number;
+  private vadSpeechMinMs: number;
+  private vadSilenceEndMs: number;
   private history: ChatMessage[] = [];
 
   constructor(config: GrueneratorRealtimeVoiceConfig = {}) {
@@ -67,6 +79,9 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
     this.onError = config.onError;
     this.getThreadId = config.getThreadId;
     this.onAssistantTurnDone = config.onAssistantTurnDone;
+    this.vadSpeechRms = config.vadSpeechRms ?? 0.025;
+    this.vadSpeechMinMs = config.vadSpeechMinMs ?? 250;
+    this.vadSilenceEndMs = config.vadSilenceEndMs ?? 1100;
   }
 
   connect(options: { abortSignal?: AbortSignal }): RealtimeVoiceAdapter.Session {
@@ -176,6 +191,10 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
       );
 
       workletNode.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
+        // Drop audio frames while the agent is responding — otherwise the
+        // assistant's TTS audio plays through the speaker, leaks into the
+        // mic, and gets re-transcribed as the next user turn.
+        if (inAgentTurn) return;
         if (ws.readyState === WebSocket.OPEN) ws.send(e.data);
       };
 
@@ -194,9 +213,10 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
       return { disconnect: () => {}, mute: () => {}, unmute: () => {} };
     }
 
-    // --- playback queue (driven by TTS) ---
+    // --- mode + agent-turn tracking ---
     let currentMode: RealtimeVoiceAdapter.Mode = 'listening';
     let chatAbort: AbortController | null = null;
+    let inAgentTurn = false;
 
     const setMode = (m: RealtimeVoiceAdapter.Mode) => {
       if (currentMode === m) return;
@@ -204,19 +224,50 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
       helpers.emitMode(m);
     };
 
+    // --- VAD state (reset between turns) ---
+    let hasSpeech = false;
+    let speechAccMs = 0;
+    let silenceAccMs = 0;
+    let endingTurn = false;
+    let lastTickMs = performance.now();
+
+    const resetVad = () => {
+      hasSpeech = false;
+      speechAccMs = 0;
+      silenceAccMs = 0;
+      endingTurn = false;
+    };
+
+    const enterAgentTurn = () => {
+      inAgentTurn = true;
+      resetVad();
+      setMode('speaking');
+    };
+
+    const exitAgentTurn = () => {
+      inAgentTurn = false;
+      resetVad();
+      lastTickMs = performance.now();
+      setMode('listening');
+    };
+
     const ttsQueue = new AudioBufferQueue({
       onVolume: (v) => {
         if (currentMode === 'speaking') helpers.emitVolume(v);
       },
       onDrained: () => {
-        setMode('listening');
+        exitAgentTurn();
       },
     });
 
-    // --- mic level loop for "listening" mode ---
+    // --- mic loop: emits volume + runs the VAD state machine ---
     let micRafId: number | null = null;
     const tickMic = () => {
       if (helpers.isDisposed()) return;
+      const now = performance.now();
+      const dt = now - lastTickMs;
+      lastTickMs = now;
+
       micAnalyser.getFloatTimeDomainData(micAnalyserBuf);
       let s = 0;
       for (let i = 0; i < micAnalyserBuf.length; i++) {
@@ -225,6 +276,35 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
       }
       const rms = Math.sqrt(s / micAnalyserBuf.length);
       if (currentMode === 'listening') helpers.emitVolume(Math.min(1, rms * 2));
+
+      // VAD endpointing — only while user is actively listening (not during
+      // the agent's turn) and only after we have observed real speech.
+      if (
+        !inAgentTurn &&
+        !endingTurn &&
+        currentMode === 'listening' &&
+        ws.readyState === WebSocket.OPEN
+      ) {
+        if (rms >= this.vadSpeechRms) {
+          speechAccMs += dt;
+          silenceAccMs = 0;
+          if (!hasSpeech && speechAccMs >= this.vadSpeechMinMs) {
+            hasSpeech = true;
+          }
+        } else {
+          silenceAccMs += dt;
+          speechAccMs = 0;
+          if (hasSpeech && silenceAccMs >= this.vadSilenceEndMs) {
+            endingTurn = true;
+            try {
+              ws.send(JSON.stringify({ type: 'stop' }));
+            } catch {
+              /* swallow */
+            }
+          }
+        }
+      }
+
       micRafId = requestAnimationFrame(tickMic);
     };
     micRafId = requestAnimationFrame(tickMic);
@@ -264,7 +344,6 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
                 return;
               }
               if (data.audio && data.sampleRate) {
-                setMode('speaking');
                 ttsQueue.enqueueBase64Float32(data.audio, data.sampleRate);
               }
             } catch {
@@ -312,7 +391,8 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
           credentials: 'include',
         });
         if (!response.ok || !response.body) {
-          fail('chat-stream-failed', new Error(`ChatGraph ${response.status}`));
+          this.onError?.('chat-stream-failed', new Error(`ChatGraph ${response.status}`));
+          ttsQueue.signalDone();
           return;
         }
 
@@ -359,7 +439,8 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
         this.onAssistantTurnDone?.(assistantText, threadId);
       } catch (err) {
         if ((err as Error).name === 'AbortError') return;
-        fail('chat-stream-failed', err);
+        this.onError?.('chat-stream-failed', err);
+        ttsQueue.signalDone();
       }
     };
 
@@ -377,11 +458,19 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
           helpers.emitTranscript({ role: 'user', text: lastUserText, isFinal: false });
         } else if (msg.type === 'done') {
           const finalText = lastUserText.trim();
+          lastUserText = '';
           if (finalText.length > 0) {
             helpers.emitTranscript({ role: 'user', text: finalText, isFinal: true });
-            void streamChat(finalText);
+            enterAgentTurn();
+            void streamChat(finalText).catch((err) => {
+              console.error('[RealtimeVoice] streamChat unexpected:', err);
+              exitAgentTurn();
+            });
+          } else {
+            // No speech was transcribed despite VAD trigger — reset state and
+            // stay in listening so the user can try again.
+            resetVad();
           }
-          lastUserText = '';
         } else if (msg.type === 'error') {
           this.onError?.('server-error', msg.message ?? 'Server error');
         }
