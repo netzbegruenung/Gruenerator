@@ -12,6 +12,7 @@ import { useAuiState } from '@assistant-ui/store';
 import { ArrowUp, Mic, Square, X } from 'lucide-react';
 import { RiVoiceAiFill } from 'react-icons/ri';
 import { cn } from '@gruenerator/ui';
+import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { useAgentStore } from '../../stores/chatStore';
 import { ToolToggles } from '../ToolToggles';
 import { SearchDepthToggle } from '../SearchDepthToggle';
@@ -46,6 +47,12 @@ interface GrueneratorComposerProps {
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
   showModelPicker?: boolean;
+  /**
+   * Toolbar layout. `compact-overflow` is tuned for narrow side panels
+   * (e.g. the docs editor 320px aside): hides ModelPicker to save horizontal
+   * room. All other toggles stay visible because they still fit.
+   */
+  layout?: 'default' | 'compact-overflow';
   insideAgent?: boolean;
   /** Render-prop slots for surface-specific UI. */
   slots?: {
@@ -69,7 +76,7 @@ const ROUND_BTN_BASE = 'flex items-center justify-center rounded-full transition
 const roundBtnSize = (isCompact: boolean) => (isCompact ? 'm-1.5 h-7 w-7' : 'm-2 h-8 w-8');
 
 function SearchDepthToggleSlot() {
-  const selectedAgentId = useAgentStore((s) => s.selectedAgentId);
+  const selectedAgentId = useScopedAgentId();
   const agent = selectedAgentId ? getSystemAgent(selectedAgentId) : null;
   if (agent?.routeTo !== 'search') return null;
   return <SearchDepthToggle />;
@@ -216,6 +223,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showPlusMenu = true,
   showToolToggles = true,
   showModelPicker = true,
+  layout = 'default',
   insideAgent = false,
   slots,
   requireProfileHydration = false,
@@ -510,6 +518,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
                 onInsertMention={handleSelect}
                 onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
                 onUploadFile={handlePlusMenuUpload}
+                {...(onNavigate ? { onOpenSkillsPage: () => onNavigate('/skills') } : {})}
               />
             )}
             {showToolToggles && (
@@ -523,7 +532,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             {toolbarExtra}
           </div>
           <div className="flex items-center gap-0.5">
-            {showModelPicker && <ModelPicker />}
+            {showModelPicker && layout !== 'compact-overflow' && <ModelPicker />}
             <ComposerVoiceToggle />
             {slots?.sendAdornment}
             <ComposerButtons

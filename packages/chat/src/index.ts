@@ -9,6 +9,33 @@ export {
   type ExtraActionFactory,
 } from './context/ExtraActionsContext';
 
+// Chat Surface Context (per-surface agent/mode/model state)
+export {
+  ChatSurfaceProvider,
+  createChatSurfaceStore,
+  useChatSurfaceContext,
+  type ChatSurfaceDefaults,
+  type ChatSurfaceState,
+  type ChatSurfaceStore,
+} from './context/ChatSurfaceContext';
+export {
+  useScopedAgentId,
+  useScopedThreadMode,
+  useScopedSearchMode,
+  useScopedSelectedModel,
+  useScopedSelectedNotebookId,
+  useScopedCustomSystemPrompt,
+  useScopedCustomRoleName,
+  useScopedSetSelectedAgent,
+  useScopedSetThreadMode,
+  useScopedSetSearchMode,
+  useScopedSetSelectedModel,
+  useScopedSetSelectedNotebook,
+  useScopedSetCustomSystemPrompt,
+  useScopedSetCustomRoleName,
+  getScopedSnapshot,
+} from './lib/useScopedAgentState';
+
 // Context & API Client
 export {
   chatFetch,

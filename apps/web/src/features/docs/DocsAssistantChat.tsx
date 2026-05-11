@@ -36,10 +36,7 @@ export function DocsAssistantChat() {
     <GrueneratorThread
       firstName={state.userName ?? null}
       density="compact"
-      showMentions={false}
-      showPlusMenu={false}
-      showToolToggles={false}
-      showModelPicker={false}
+      composerLayout="compact-overflow"
       composerSlots={{
         aboveInput: <SelectionChip documentId={state.documentId} />,
         sendAdornment: (

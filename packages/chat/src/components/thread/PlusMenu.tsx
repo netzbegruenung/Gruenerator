@@ -4,6 +4,7 @@ import { memo, useState } from 'react';
 import {
   BookOpen,
   Check,
+  ExternalLink,
   FileSearch,
   Library,
   Paperclip,
@@ -24,7 +25,10 @@ import {
 } from '@gruenerator/ui';
 import { composerToolbarButtonClass } from '../../lib/utils';
 import { useChatDensity } from './chatDensityContext';
-import { useAgentStore } from '../../stores/chatStore';
+import {
+  useScopedSelectedNotebookId,
+  useScopedSetSelectedNotebook,
+} from '../../lib/useScopedAgentState';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
 import {
   agentMentionables,
@@ -39,12 +43,14 @@ interface PlusMenuProps {
   onInsertMention: (mentionable: Mentionable) => void;
   onOpenFileBrowser: () => void;
   onUploadFile: () => void;
+  onOpenSkillsPage?: () => void;
 }
 
 export const PlusMenu = memo(function PlusMenu({
   onInsertMention,
   onOpenFileBrowser,
   onUploadFile,
+  onOpenSkillsPage,
 }: PlusMenuProps) {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -55,8 +61,8 @@ export const PlusMenu = memo(function PlusMenu({
     (a) => a.isSystemDefault || favorites.includes(a.mention.toLowerCase())
   );
   const allQuickSkills = [...quickSkills, ...customAgents];
-  const selectedNotebookId = useAgentStore((s) => s.selectedNotebookId);
-  const setSelectedNotebook = useAgentStore((s) => s.setSelectedNotebook);
+  const selectedNotebookId = useScopedSelectedNotebookId();
+  const setSelectedNotebook = useScopedSetSelectedNotebook();
 
   const handleMobileAction = (action: () => void) => {
     setMenuOpen(false);
@@ -71,21 +77,26 @@ export const PlusMenu = memo(function PlusMenu({
           Skills
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="max-h-[24rem] overflow-y-auto">
-          {allQuickSkills.map((skill) => (
-            <DropdownMenuItem key={skill.mention} onClick={() => onInsertMention(skill)}>
-              {skill.icon ? (
-                <skill.icon className="h-4 w-4" />
-              ) : (
-                <span className="text-base leading-none">{skill.avatar}</span>
-              )}
-              {skill.title}
-            </DropdownMenuItem>
-          ))}
+          {allQuickSkills.map((skill) => {
+            const Icon = skill.icon;
+            return (
+              <DropdownMenuItem key={skill.mention} onClick={() => onInsertMention(skill)}>
+                {Icon ? <Icon className="h-4 w-4 text-secondary-600" /> : null}
+                {skill.title}
+              </DropdownMenuItem>
+            );
+          })}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setLibraryOpen(true)}>
             <Library className="h-3.5 w-3.5" />
             Alle Skills durchsuchen...
           </DropdownMenuItem>
+          {onOpenSkillsPage && (
+            <DropdownMenuItem onClick={onOpenSkillsPage}>
+              <ExternalLink className="h-3.5 w-3.5" />
+              Zur Skill-Bibliothek
+            </DropdownMenuItem>
+          )}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
 
@@ -119,12 +130,15 @@ export const PlusMenu = memo(function PlusMenu({
           Funktionen
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent>
-          {toolMentionables.map((tool) => (
-            <DropdownMenuItem key={tool.identifier} onClick={() => onInsertMention(tool)}>
-              <span className="text-base leading-none">{tool.avatar}</span>
-              {tool.title}
-            </DropdownMenuItem>
-          ))}
+          {toolMentionables.map((tool) => {
+            const Icon = tool.icon;
+            return (
+              <DropdownMenuItem key={tool.identifier} onClick={() => onInsertMention(tool)}>
+                {Icon ? <Icon className="h-4 w-4 text-secondary-600" /> : null}
+                {tool.title}
+              </DropdownMenuItem>
+            );
+          })}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
 
@@ -162,21 +176,18 @@ export const PlusMenu = memo(function PlusMenu({
       </ResponsiveMenuSection>
 
       <ResponsiveMenuSection title="Skills">
-        {allQuickSkills.map((skill) => (
-          <ResponsiveMenuItem
-            key={skill.mention}
-            icon={
-              skill.icon ? (
-                <skill.icon className="h-4 w-4" />
-              ) : (
-                <span className="text-base leading-none">{skill.avatar}</span>
-              )
-            }
-            onClick={() => handleMobileAction(() => onInsertMention(skill))}
-          >
-            {skill.title}
-          </ResponsiveMenuItem>
-        ))}
+        {allQuickSkills.map((skill) => {
+          const Icon = skill.icon;
+          return (
+            <ResponsiveMenuItem
+              key={skill.mention}
+              icon={Icon ? <Icon className="h-4 w-4 text-secondary-600" /> : null}
+              onClick={() => handleMobileAction(() => onInsertMention(skill))}
+            >
+              {skill.title}
+            </ResponsiveMenuItem>
+          );
+        })}
         <ResponsiveMenuItem
           icon={<Library />}
           onClick={() => {
@@ -186,6 +197,17 @@ export const PlusMenu = memo(function PlusMenu({
         >
           Alle Skills durchsuchen...
         </ResponsiveMenuItem>
+        {onOpenSkillsPage && (
+          <ResponsiveMenuItem
+            icon={<ExternalLink />}
+            onClick={() => {
+              setMenuOpen(false);
+              onOpenSkillsPage();
+            }}
+          >
+            Zur Skill-Bibliothek
+          </ResponsiveMenuItem>
+        )}
       </ResponsiveMenuSection>
 
       <ResponsiveMenuSection title="Quellen">
@@ -205,15 +227,18 @@ export const PlusMenu = memo(function PlusMenu({
       </ResponsiveMenuSection>
 
       <ResponsiveMenuSection title="Funktionen">
-        {toolMentionables.map((tool) => (
-          <ResponsiveMenuItem
-            key={tool.identifier}
-            icon={<span className="text-base leading-none">{tool.avatar}</span>}
-            onClick={() => handleMobileAction(() => onInsertMention(tool))}
-          >
-            {tool.title}
-          </ResponsiveMenuItem>
-        ))}
+        {toolMentionables.map((tool) => {
+          const Icon = tool.icon;
+          return (
+            <ResponsiveMenuItem
+              key={tool.identifier}
+              icon={Icon ? <Icon className="h-4 w-4 text-secondary-600" /> : null}
+              onClick={() => handleMobileAction(() => onInsertMention(tool))}
+            >
+              {tool.title}
+            </ResponsiveMenuItem>
+          );
+        })}
       </ResponsiveMenuSection>
     </>
   );
