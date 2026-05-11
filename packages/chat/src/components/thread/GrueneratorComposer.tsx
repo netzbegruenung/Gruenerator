@@ -1,9 +1,15 @@
 'use client';
 
 import { memo, useRef, useState, useCallback } from 'react';
-import { ComposerPrimitive, useComposerRuntime } from '@assistant-ui/react';
+import {
+  AuiIf,
+  ComposerPrimitive,
+  useComposerRuntime,
+  useVoiceControls,
+  useVoiceState,
+} from '@assistant-ui/react';
 import { useAuiState } from '@assistant-ui/store';
-import { ArrowUp, Mic, Square, X } from 'lucide-react';
+import { ArrowUp, Mic, Phone, PhoneOff, Square, X } from 'lucide-react';
 import { cn } from '@gruenerator/ui';
 import { useAgentStore } from '../../stores/chatStore';
 import { ToolToggles } from '../ToolToggles';
@@ -129,6 +135,40 @@ function StopDictationButton() {
     >
       <Square className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} />
     </ComposerPrimitive.StopDictation>
+  );
+}
+
+function ComposerVoiceToggle() {
+  const isCompact = useChatDensity() === 'compact';
+  const voiceState = useVoiceState();
+  const { connect, disconnect } = useVoiceControls();
+  const status = voiceState?.status.type;
+  const isActive = status === 'running' || status === 'starting';
+  const isStarting = status === 'starting';
+
+  return (
+    <AuiIf condition={(s) => s.thread.capabilities.voice}>
+      <button
+        type="button"
+        onClick={() => (isActive ? disconnect() : connect())}
+        aria-label={isActive ? 'Sprachsitzung beenden' : 'Sprachsitzung starten'}
+        aria-pressed={isActive}
+        className={cn(
+          'flex items-center justify-center rounded-full transition-colors',
+          isCompact ? 'm-1.5 h-7 w-7' : 'm-2 h-8 w-8',
+          isActive
+            ? 'bg-primary text-white'
+            : 'text-foreground-muted hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-800',
+          isStarting && 'animate-pulse'
+        )}
+      >
+        {isActive ? (
+          <PhoneOff className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
+        ) : (
+          <Phone className={isCompact ? 'h-4 w-4' : 'h-5 w-5'} />
+        )}
+      </button>
+    </AuiIf>
   );
 }
 
@@ -487,6 +527,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           </div>
           <div className="flex items-center gap-0.5">
             {showModelPicker && <ModelPicker />}
+            <ComposerVoiceToggle />
             {slots?.sendAdornment}
             <ComposerButtons
               isRunning={isRunning}
