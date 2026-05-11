@@ -5,10 +5,17 @@ import { cn } from '../../lib/utils';
 import { useChatDensity } from './chatDensityContext';
 
 interface WelcomeScreenProps {
+  /** Deprecated — kept for back-compat; rendered as fallback only when no
+   *  description is provided. The headline is now always a friendly question. */
   title?: string;
   description?: string;
   questions?: Array<{ text: string }>;
   avatar?: string;
+  firstName?: string | null;
+}
+
+function welcomeQuestion(firstName?: string | null): string {
+  return firstName ? `Hallo ${firstName}, wie kann ich helfen?` : 'Wie kann ich dir helfen?';
 }
 
 function AutoSuggestionItem() {
@@ -29,9 +36,16 @@ function AutoSuggestionItem() {
   );
 }
 
-export function WelcomeScreen({ title, description, questions, avatar }: WelcomeScreenProps = {}) {
-  const resolvedTitle = title ?? 'Grünerator Chat';
+export function WelcomeScreen({
+  title,
+  description,
+  questions,
+  avatar,
+  firstName,
+}: WelcomeScreenProps = {}) {
   const isCompact = useChatDensity() === 'compact';
+  const heading = welcomeQuestion(firstName);
+  const fallbackDescription = !description && title ? title : description;
 
   return (
     <div
@@ -55,17 +69,17 @@ export function WelcomeScreen({ title, description, questions, avatar }: Welcome
             isCompact ? 'text-lg' : 'text-2xl'
           )}
         >
-          {resolvedTitle}
+          {heading}
         </h1>
 
-        {description && (
+        {fallbackDescription && (
           <p
             className={cn(
               'm-0 mt-1 text-foreground-muted',
               isCompact ? 'text-[12px]' : 'text-sm'
             )}
           >
-            {description}
+            {fallbackDescription}
           </p>
         )}
 
