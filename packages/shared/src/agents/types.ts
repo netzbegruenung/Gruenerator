@@ -15,7 +15,6 @@ export interface ToolRestrictions {
   allowedCollections?: readonly string[];
   defaultCollection?: string;
   examplesCountry?: 'DE' | 'AT';
-  examplesLvScope?: string | readonly string[];
   personSearchEnabled?: boolean;
 }
 
@@ -43,6 +42,13 @@ export interface Agent {
   provider: AgentProvider;
   params: AgentParams;
   openingMessage: string;
+  /**
+   * Friendly question rendered as the WelcomeScreen heading before the user
+   * sends their first message. May contain the `{firstName}` token to
+   * personalize. When omitted, the screen falls back to a generic
+   * "Hallo {firstName}, wie kann ich helfen?" greeting.
+   */
+  welcomeQuestion?: string;
   openingQuestions: readonly string[];
   locale: string;
   author: string;
@@ -51,7 +57,6 @@ export interface Agent {
   enabledTools?: readonly string[];
   fewShotExamples?: readonly FewShotExample[];
   routeTo?: 'chat' | 'search';
-  defaultNotebookId?: string;
   defaultFilter?: AgentDefaultFilter;
 }
 

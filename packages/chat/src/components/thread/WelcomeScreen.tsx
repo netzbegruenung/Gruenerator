@@ -12,9 +12,24 @@ interface WelcomeScreenProps {
   questions?: Array<{ text: string }>;
   avatar?: string;
   firstName?: string | null;
+  /**
+   * Agent-specific welcome question. May contain the `{firstName}` token,
+   * which is substituted with the user's name when available. When omitted,
+   * falls back to the generic "Hallo {firstName}, wie kann ich helfen?"
+   * greeting.
+   */
+  welcomeQuestion?: string;
 }
 
-function welcomeQuestion(firstName?: string | null): string {
+function welcomeQuestion(
+  agentQuestion: string | undefined,
+  firstName: string | null | undefined
+): string {
+  if (agentQuestion) {
+    return firstName
+      ? agentQuestion.replace(/\{firstName\}/g, firstName)
+      : agentQuestion.replace(/\{firstName\}/g, '').replace(/\s+,/g, ',').trim();
+  }
   return firstName ? `Hallo ${firstName}, wie kann ich helfen?` : 'Wie kann ich dir helfen?';
 }
 
@@ -42,9 +57,10 @@ export function WelcomeScreen({
   questions,
   avatar,
   firstName,
+  welcomeQuestion: agentWelcomeQuestion,
 }: WelcomeScreenProps = {}) {
   const isCompact = useChatDensity() === 'compact';
-  const heading = welcomeQuestion(firstName);
+  const heading = welcomeQuestion(agentWelcomeQuestion, firstName);
   const fallbackDescription = !description && title ? title : description;
 
   return (

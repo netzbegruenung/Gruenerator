@@ -9,6 +9,7 @@ export interface ActiveAgentMeta {
   description: string;
   openingMessage?: string;
   openingQuestions?: readonly string[];
+  welcomeQuestion?: string;
 }
 
 export function useActiveAgentMeta(): ActiveAgentMeta | null {
@@ -29,6 +30,7 @@ export function useActiveAgentMeta(): ActiveAgentMeta | null {
         description: agent.description,
         openingMessage: agent.openingMessage,
         openingQuestions: agent.openingQuestions,
+        ...(agent.welcomeQuestion ? { welcomeQuestion: agent.welcomeQuestion } : {}),
       };
     }
     const skill = SKILLS.find((s) => s.identifier === selectedAgentId);
