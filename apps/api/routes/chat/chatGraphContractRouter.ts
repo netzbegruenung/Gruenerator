@@ -28,6 +28,7 @@ import {
   buildCitations,
 } from '../../agents/langgraph/ChatGraph/index.js';
 import { isKnownNotebook } from '../../config/notebookCollectionMap.js';
+import { isRegoloReasoningModel } from '../../services/ai/regoloReasoningStream.js';
 import {
   getMem0Instance,
   normalizeCategory,
@@ -65,7 +66,8 @@ import {
 import {
   resolveModel,
   buildMessagesForAI,
-  streamAndAccumulate,
+  streamForResolution,
+  streamWithFallback,
 } from './services/responseStreamingService.js';
 import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
 import { canAccessThread } from './services/threadAccessService.js';
@@ -663,7 +665,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           intent: finalState.intent,
         }
       );
-      const { model: aiModel } = resolution;
 
       const prunedValidMessages = pruneMessages(
         validMessages as Parameters<typeof pruneMessages>[0]
@@ -693,14 +694,25 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         );
       }
 
+      const baseMaxTokens = finalState.agentConfig.params.max_tokens;
+
       let fullText: string | null;
       try {
-        fullText = await streamAndAccumulate({
-          model: aiModel,
-          messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
-          maxTokens: finalState.agentConfig.params.max_tokens,
-          temperature: finalState.agentConfig.params.temperature,
+        fullText = await streamWithFallback({
+          primary: resolution,
           sse,
+          logPrefix: '[ChatGraph]',
+          buildStream: async (r) => {
+            const isReasoning = isRegoloReasoningModel(r.provider, r.modelName);
+            return streamForResolution({
+              resolution: r,
+              messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
+              maxTokens: isReasoning ? Math.max(baseMaxTokens, 9000) : baseMaxTokens,
+              temperature: finalState.agentConfig.params.temperature,
+              sse,
+              logPrefix: '[ChatGraph]',
+            });
+          },
         });
       } finally {
         if (resolution.releaseSlot) await resolution.releaseSlot();
@@ -987,21 +999,29 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         hasImages: resumeImageAttachments.length > 0,
         intent: finalState.intent,
       });
-      const { model: aiModel } = resolution2;
-
       const validMessages = requestContext.validMessages;
       const prunedValidMessages = pruneMessages(validMessages);
       const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
 
+      const baseMaxTokens = finalState.agentConfig.params.max_tokens;
+
       let fullText: string | null;
       try {
-        fullText = await streamAndAccumulate({
-          model: aiModel,
-          messages: messagesForAI,
-          maxTokens: finalState.agentConfig.params.max_tokens,
-          temperature: finalState.agentConfig.params.temperature,
+        fullText = await streamWithFallback({
+          primary: resolution2,
           sse,
           logPrefix: '[ChatGraph:Resume]',
+          buildStream: async (r) => {
+            const isReasoning = isRegoloReasoningModel(r.provider, r.modelName);
+            return streamForResolution({
+              resolution: r,
+              messages: messagesForAI,
+              maxTokens: isReasoning ? Math.max(baseMaxTokens, 9000) : baseMaxTokens,
+              temperature: finalState.agentConfig.params.temperature,
+              sse,
+              logPrefix: '[ChatGraph:Resume]',
+            });
+          },
         });
       } finally {
         if (resolution2.releaseSlot) await resolution2.releaseSlot();
