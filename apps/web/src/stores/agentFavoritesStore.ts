@@ -1,12 +1,10 @@
+import { SKILLS } from '@gruenerator/shared/agents';
 import { useCallback } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface AgentFavoritesState {
-  // Agent identifiers (e.g. 'gruenerator-oeffentlichkeitsarbeit',
-  // 'gruenerator-oeffentlichkeitsarbeit-berlin'). Each entry corresponds
-  // to one SYSTEM_AGENTS entry — the modal/pinned sidebar iterates agents
-  // directly, no longer skill-mentions.
+  // Keys are SYSTEM_AGENTS identifiers.
   favoriteIdentifiers: string[];
 }
 
@@ -19,31 +17,11 @@ interface AgentFavoritesActions {
 
 type AgentFavoritesStore = AgentFavoritesState & AgentFavoritesActions;
 
-/**
- * v0 → v1 mapping: existing favorites were keyed by `skill.mention`
- * (e.g. 'presse', 'instagram'). We now key by `agent.identifier`. This
- * table mirrors `packages/shared/src/agents/skills.ts` exactly — every
- * skill mention there maps to its target agent identifier.
- *
- * Hardcoded (not imported from SKILLS) to keep this persistence-layer
- * file free of agent-package coupling and to avoid circular-import risk.
- * If SKILLS gains a new mention, add the corresponding row here.
- */
-const SKILL_MENTION_TO_AGENT_ID: Record<string, string> = {
-  antrag: 'gruenerator-antrag',
-  bürgerservice: 'gruenerator-buergerservice',
-  buergerservice: 'gruenerator-buergerservice',
-  presse: 'gruenerator-oeffentlichkeitsarbeit',
-  instagram: 'gruenerator-oeffentlichkeitsarbeit',
-  facebook: 'gruenerator-oeffentlichkeitsarbeit',
-  twitter: 'gruenerator-oeffentlichkeitsarbeit',
-  linkedin: 'gruenerator-oeffentlichkeitsarbeit',
-  reel: 'gruenerator-oeffentlichkeitsarbeit',
-  aktion: 'gruenerator-oeffentlichkeitsarbeit',
-  rede: 'gruenerator-rede-schreiber',
-  wahlprogramm: 'gruenerator-wahlprogramm',
-  'leichte-sprache': 'gruenerator-leichte-sprache',
-};
+// Derived from SKILLS so adding a new mention there keeps the migration map
+// in sync automatically. Used only at v0→v1 store rehydration.
+const SKILL_MENTION_TO_AGENT_ID: Record<string, string> = Object.fromEntries(
+  SKILLS.map((skill) => [skill.mention, skill.identifier])
+);
 
 interface LegacyV0State {
   mentions?: unknown;
@@ -52,11 +30,10 @@ interface LegacyV0State {
 function migrateV0ToV1(persistedState: unknown): AgentFavoritesState {
   const legacy = persistedState as LegacyV0State | null | undefined;
   const oldMentions = Array.isArray(legacy?.mentions) ? legacy.mentions : [];
-  // Set dedupes when multiple legacy mentions collapse to the same agent
-  // identifier (e.g. presse + instagram + facebook → one PR agent entry).
-  // Unknown mentions are dropped silently — mention slugs and identifier
-  // strings are different namespaces, so preserving them as-is would leave
-  // dead favorites that match no agent.
+  // Dedupes when legacy mentions collapse to one agent (presse + instagram
+  // + facebook → one PR-agent entry). Unknown mentions are dropped — slug
+  // and identifier namespaces don't overlap, so passing through unknowns
+  // would leave dead favorites that match no agent.
   const identifiers = new Set<string>();
   for (const m of oldMentions) {
     if (typeof m !== 'string') continue;
@@ -92,12 +69,8 @@ const useAgentFavoritesStore = create<AgentFavoritesStore>()(
       storage: createJSONStorage(() => localStorage),
       version: 1,
       migrate: (persistedState, version) => {
-        if (version === 0 || version === undefined) {
-          return {
-            ...(migrateV0ToV1(persistedState) satisfies AgentFavoritesState),
-          } as AgentFavoritesStore;
-        }
-        return persistedState as AgentFavoritesStore;
+        if (version >= 1) return persistedState as AgentFavoritesStore;
+        return migrateV0ToV1(persistedState) as unknown as AgentFavoritesStore;
       },
     }
   )
