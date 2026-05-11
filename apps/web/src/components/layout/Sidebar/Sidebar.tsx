@@ -547,11 +547,12 @@ const SidebarAgents = memo(function SidebarAgents({
   onLinkClick: (path: string, title: string) => void;
 }) {
   const { data: userAgents = [] } = useUserAgents();
-  // The "+ Neue*r Agent*in" CTA links to the unfinished agent-builder route at
-  // /agents/new — dev-only. The user-agents list itself (which includes
-  // virtualized custom_generators from the conversion work) is data-driven and
-  // safe in prod: users only see their own data.
-  const showCreateAgentCta = import.meta.env.DEV;
+  // "+ Neue*r Agent*in" CTA links to /agents/new (the agent builder). The page
+  // and the route are now available in prod (routes.ts), so the CTA can be
+  // surfaced too. The user-agents list itself (which includes virtualized
+  // custom_generators) is data-driven and safe in prod: users only see their
+  // own data.
+  const showCreateAgentCta = true;
 
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const favoriteAgents = useMemo(() => {
