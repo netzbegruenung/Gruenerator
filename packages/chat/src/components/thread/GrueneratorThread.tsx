@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   AuiIf,
   ThreadPrimitive,
@@ -29,6 +29,7 @@ interface GrueneratorThreadProps {
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
   showModelPicker?: boolean;
+  composerLayout?: 'default' | 'compact-overflow';
   composerSlots?: {
     aboveInput?: ReactNode;
     belowInput?: ReactNode;
@@ -38,6 +39,17 @@ interface GrueneratorThreadProps {
 
 function VoiceOrbOverlay() {
   const { disconnect } = useVoiceControls();
+  const disconnectRef = useRef(disconnect);
+  disconnectRef.current = disconnect;
+
+  // Privacy: when the overlay unmounts (route change, parent unmount, voice
+  // capability removed), end the session. The adapter's tearDown is
+  // idempotent, so this is safe even when the unmount was *caused* by the
+  // session ending normally.
+  useEffect(() => {
+    return () => disconnectRef.current();
+  }, []);
+
   return (
     <button
       type="button"
@@ -59,6 +71,7 @@ export function GrueneratorThread({
   showPlusMenu,
   showToolToggles,
   showModelPicker,
+  composerLayout,
   composerSlots,
 }: GrueneratorThreadProps = {}) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -128,6 +141,7 @@ export function GrueneratorThread({
           {...(showPlusMenu !== undefined && { showPlusMenu })}
           {...(showToolToggles !== undefined && { showToolToggles })}
           {...(showModelPicker !== undefined && { showModelPicker })}
+          {...(composerLayout !== undefined && { layout: composerLayout })}
           {...(composerSlots ? { slots: composerSlots } : {})}
         />
       </ThreadPrimitive.Root>

@@ -2,7 +2,7 @@
 
 import { memo, useMemo } from 'react';
 import { MessagePrimitive, useMessage } from '@assistant-ui/react';
-import { useAgentStore } from '../../stores/chatStore';
+import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
 import { ChatIcon } from '../icons';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
@@ -44,7 +44,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const message = useMessage();
   const density = useChatDensity();
   const isCompact = density === 'compact';
-  const selectedAgentId = useAgentStore((s) => s.selectedAgentId);
+  const selectedAgentId = useScopedAgentId();
   const custom = message.metadata?.custom as ChatMessageMetadata | undefined;
 
   const messageAgent = useMemo(() => {
