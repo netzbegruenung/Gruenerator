@@ -1,16 +1,11 @@
+import { escapeHtml } from '@gruenerator/shared/utils';
+
 import { BRAND, PRIMARY_URL } from '../../config/domains.js';
 
 export const PRIMARY_COLOR = '#316049';
 export const LOGO_URL = `${PRIMARY_URL}/images/gruenerator_logo_gruen.svg`;
 
-export function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+export { escapeHtml };
 
 export function baseLayout(content: string): string {
   return `<!DOCTYPE html>

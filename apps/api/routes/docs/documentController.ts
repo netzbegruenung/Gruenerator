@@ -13,6 +13,8 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { ensureHtml } from '../../services/docs/contentNormalization.js';
+import { seedYjsStateSafe } from '../../services/docs/seedYjsState.js';
 import {
   snapshotCollaborativeDoc,
   subtypeToTemplateType,
@@ -264,6 +266,7 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
     }
 
     const newTitle = `${original.title} (Copy)`;
+    const duplicatedContent = ensureHtml(original.content || '');
     const newDoc = (await db.query(
       `INSERT INTO collaborative_documents
         (title, created_by, last_edited_by, document_subtype, permissions, is_public, content)
@@ -274,9 +277,11 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
         userId,
         original.document_subtype,
         JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
-        original.content || '',
+        duplicatedContent,
       ]
     )) as CollaborativeDocument[];
+
+    await seedYjsStateSafe(newDoc[0].id, duplicatedContent, 'Docs/duplicate');
 
     return res.status(201).json(newDoc[0]);
   } catch (error: unknown) {

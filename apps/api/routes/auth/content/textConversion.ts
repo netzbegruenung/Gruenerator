@@ -2,6 +2,7 @@ import express, { type Router, type Response } from 'express';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
+import { seedYjsStateSafe } from '../../../services/docs/seedYjsState.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { AuthRequest } from '../types.js';
@@ -79,6 +80,8 @@ router.post(
 
       const docId = (docResult[0] as { id: string }).id;
 
+      await seedYjsStateSafe(docId, htmlContent, 'Convert');
+
       await db.query(
         `UPDATE user_documents SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{converted_doc_id}', $1) WHERE id = $2`,
         [JSON.stringify(docId), textId]
@@ -134,6 +137,8 @@ router.post(
           );
 
           const docId = (docResult[0] as { id: string }).id;
+
+          await seedYjsStateSafe(docId, htmlContent, 'Migrate');
 
           await db.query(
             `UPDATE user_documents SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{converted_doc_id}', $1) WHERE id = $2`,
