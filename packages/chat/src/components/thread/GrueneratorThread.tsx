@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, type ReactNode } from 'react';
-import { ThreadPrimitive, SelectionToolbarPrimitive } from '@assistant-ui/react';
+import { AuiIf, ThreadPrimitive, SelectionToolbarPrimitive } from '@assistant-ui/react';
+import { VoiceControl } from '../assistant-ui/voice';
 import { useAuiState } from '@assistant-ui/store';
 import { QuoteIcon } from 'lucide-react';
 import { useCollaborators, PresenceAvatars, TypingIndicator } from '@gruenerator/collab';
@@ -17,17 +18,17 @@ import { useActiveAgentMeta } from '../../lib/useActiveAgentMeta';
 interface GrueneratorThreadProps {
   onNavigate?: (path: string) => void;
   firstName?: string | null;
-  /**
-   * Visual density. `compact` shrinks font + spacing for narrow embedded
-   * surfaces (e.g. docs editor sidebar). Defaults to `comfortable`.
-   */
   density?: ChatDensity;
-  /**
-   * Extra elements rendered in the composer toolbar after the standard tool
-   * toggles. Used by embedded surfaces (e.g. docs sidebar) to inject
-   * context-specific controls without coupling them to the shared composer.
-   */
   toolbarExtra?: ReactNode;
+  showMentions?: boolean;
+  showPlusMenu?: boolean;
+  showToolToggles?: boolean;
+  showModelPicker?: boolean;
+  composerSlots?: {
+    aboveInput?: ReactNode;
+    belowInput?: ReactNode;
+    sendAdornment?: ReactNode;
+  };
 }
 
 export function GrueneratorThread({
@@ -35,6 +36,11 @@ export function GrueneratorThread({
   firstName,
   density = 'comfortable',
   toolbarExtra,
+  showMentions,
+  showPlusMenu,
+  showToolToggles,
+  showModelPicker,
+  composerSlots,
 }: GrueneratorThreadProps = {}) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
@@ -79,6 +85,14 @@ export function GrueneratorThread({
           </div>
         </ThreadPrimitive.Viewport>
 
+        <AuiIf condition={(s) => s.thread.capabilities.voice && s.thread.voice != null}>
+          <div className="pointer-events-none absolute inset-x-0 bottom-32 z-20 flex justify-center">
+            <div className="pointer-events-auto">
+              <VoiceControl />
+            </div>
+          </div>
+        </AuiIf>
+
         <SelectionToolbarPrimitive.Root className="flex items-center gap-1 rounded-lg border border-border bg-background px-1 py-1 shadow-md">
           <SelectionToolbarPrimitive.Quote className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground">
             <QuoteIcon className="size-3.5" />
@@ -92,6 +106,11 @@ export function GrueneratorThread({
           firstName={firstName}
           toolbarExtra={toolbarExtra}
           insideAgent={!!activeAgent}
+          {...(showMentions !== undefined && { showMentions })}
+          {...(showPlusMenu !== undefined && { showPlusMenu })}
+          {...(showToolToggles !== undefined && { showToolToggles })}
+          {...(showModelPicker !== undefined && { showModelPicker })}
+          {...(composerSlots ? { slots: composerSlots } : {})}
         />
       </ThreadPrimitive.Root>
     </ChatDensityContext.Provider>
