@@ -251,7 +251,7 @@ const BASE_AGENTS = [
     defaultFilter: { landesverband: 'HH' },
   },
   {
-    identifier: 'gruenerator-oeffentlichkeitsarbeit-mv',
+    identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
     title: 'Öffentlichkeitsarbeit MV',
     description:
       'Pressemitteilungen und Social-Media-Inhalte im Stil der Grünen Mecklenburg-Vorpommern (Ostsee-Frame, Erneuerbare als Wirtschaftsthema, Reiche-Personalisierung).',
@@ -612,15 +612,16 @@ const BASE_AGENTS = [
 //
 // Schleswig-Holstein's notebook is currently disabled in the frontend; its
 // agent stays defined here so the wiring is ready when SH is re-enabled.
+// LV_PR_SPECS now only carries LVs that we DON'T yet have a hand-tuned,
+// corpus-derived agent for. Berlin / Hamburg / Thüringen / Brandenburg /
+// Mecklenburg-Vorpommern have richer hand-written agents above (lines ~170-340)
+// with style rules derived from a 20-PM corpus analysis per LV; the factory
+// would just shadow them with templated boilerplate (literal title collision).
+//
+// Schleswig-Holstein and Bayern have no corpus analysis yet, so the factory
+// produces a reasonable templated default until a hand-tuned version replaces
+// them.
 const LV_PR_SPECS = [
-  {
-    lv: 'hamburg',
-    title: 'Hamburg',
-    codes: 'HH',
-    notebook: 'hamburg-notebook',
-    themes:
-      'Hafen & maritime Wirtschaft, Wohnungsbau im Stadtstaat, Klimaanpassung an der Küste, Mobilitätswende, Bildung',
-  },
   {
     lv: 'schleswig-holstein',
     title: 'Schleswig-Holstein',
@@ -630,44 +631,12 @@ const LV_PR_SPECS = [
       'Energiewende (Windkraft Nord, Wasserstoff), Küstenschutz, Tourismus, Landwirtschaft, dänische Minderheit',
   },
   {
-    lv: 'thueringen',
-    title: 'Thüringen',
-    codes: ['TH', 'TH-F'],
-    notebook: 'thueringen-notebook',
-    themes:
-      'Demokratie­verteidigung gegen rechts, Strukturwandel, Bildung & Schulen, ländlicher Raum, Erinnerungs­kultur',
-  },
-  {
     lv: 'bayern',
     title: 'Bayern',
     codes: 'BY',
     notebook: 'bayern-notebook',
     themes:
       'Oppositionsrolle gegen CSU/Freie Wähler, Verkehrswende Süd, Alpen- & Naturschutz, ÖPNV im ländlichen Raum, Wohnungsnot in Ballungs­räumen',
-  },
-  {
-    lv: 'berlin',
-    title: 'Berlin',
-    codes: ['BE', 'BE-F'],
-    notebook: 'berlin-notebook',
-    themes:
-      'Mietendeckel & bezahlbares Wohnen, ÖPNV-Ausbau (BVG, Radschnellwege), Klimanotstand, Vielfalt & Antidiskriminierung, Verwaltung digitalisieren',
-  },
-  {
-    lv: 'mecklenburg-vorpommern',
-    title: 'Mecklenburg-Vorpommern',
-    codes: 'MV',
-    notebook: 'mecklenburg-vorpommern-notebook',
-    themes:
-      'Tourismus & Ostsee­küste, Strukturschwache Regionen, ländliche Mobilität, Werften & maritime Industrie, Demokratie gegen Rechts­extremismus',
-  },
-  {
-    lv: 'brandenburg',
-    title: 'Brandenburg',
-    codes: 'BB',
-    notebook: 'brandenburg-notebook',
-    themes:
-      'Lausitz-Strukturwandel & Kohleausstieg, Berlin-Umland (Pendler*innen, Wohnen), Tesla & Industrie­ansiedlung, Wasser­knappheit, ländlicher Raum',
   },
 ] as const satisfies ReadonlyArray<{
   lv: string;

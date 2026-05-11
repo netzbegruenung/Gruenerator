@@ -184,7 +184,7 @@ export const SKILLS = [
     promptTemplate: 'Erstelle Social-Media-Posts im Stil Grüne Hamburg zum Thema: ',
   },
   {
-    identifier: 'gruenerator-oeffentlichkeitsarbeit-mv',
+    identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
     title: 'PM MV',
     description: 'Pressemitteilung im Stil Grüne Mecklenburg-Vorpommern',
     avatar: '🌊',
@@ -195,7 +195,7 @@ export const SKILLS = [
     promptTemplate: 'Schreibe eine Pressemitteilung im Stil Grüne MV zum Thema: ',
   },
   {
-    identifier: 'gruenerator-oeffentlichkeitsarbeit-mv',
+    identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
     title: 'Social MV',
     description: 'Social-Media-Post im Stil Grüne Mecklenburg-Vorpommern',
     avatar: '🌊',
