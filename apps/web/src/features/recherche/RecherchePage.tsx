@@ -692,7 +692,7 @@ const RecherchePage = () => {
 
         <Dialog open={showEditor} onOpenChange={(open) => !open && handleCancel()}>
           <DialogContent
-            className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
+            className="sm:max-w-[700px] w-[calc(100%-1rem)] max-h-[90dvh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
             aria-describedby={undefined}
           >
             <DialogTitle className="sr-only">

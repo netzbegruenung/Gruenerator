@@ -138,7 +138,9 @@ const NotebookEditor = ({
           setUploadedDocuments((prev) => [...prev, ...newDocs]);
           if (wasEmpty) {
             const firstTitle = newDocs[0].title.replace(/\.[^/.]+$/, '');
-            setValue('name', firstTitle, { shouldValidate: true });
+            const suggestedName =
+              firstTitle.length > 60 ? `${firstTitle.slice(0, 60).trimEnd()}…` : firstTitle;
+            setValue('name', suggestedName, { shouldValidate: true });
             setStep(2);
           }
         }
@@ -256,15 +258,15 @@ const NotebookEditor = ({
 
   return (
     <motion.div
-      className="p-lg"
+      className="p-md sm:p-lg"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
       <div>
         {/* Header: title - dots - close */}
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-sm pb-md">
-          <span className="text-base font-semibold text-foreground whitespace-nowrap">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-sm pb-md">
+          <span className="text-base font-semibold text-foreground truncate">
             {editingCollection
               ? 'Notebook bearbeiten'
               : step === 1
@@ -340,12 +342,12 @@ const NotebookEditor = ({
                         <span>Wird hochgeladen…</span>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-center gap-xs p-lg text-center">
+                      <div className="flex flex-col items-center gap-xs p-md sm:p-lg text-center">
                         <HiUpload size={28} className="text-grey-400" />
                         <p className="m-0 text-[0.9rem] font-medium text-foreground">
                           Dateien hier ablegen oder klicken
                         </p>
-                        <p className="m-0 text-xs text-grey-500">
+                        <p className="m-0 text-xs text-grey-500 break-words">
                           PDF, DOCX, TXT, MD, ODT, RTF — bis zu {MAX_DOCUMENTS} Dateien (max. 50 MB
                           pro Datei)
                         </p>
@@ -376,11 +378,14 @@ const NotebookEditor = ({
                         {uploadedDocuments.map((doc) => (
                           <div
                             key={doc.id}
-                            className="flex items-center justify-between p-md bg-background-alt border border-green-300 rounded-lg"
+                            className="flex items-center justify-between gap-sm px-sm py-xs bg-background-alt border border-green-300 rounded-lg min-w-0"
                           >
-                            <div className="flex items-center gap-sm min-w-0">
-                              <HiCheckCircle size={20} className="text-green-600 shrink-0" />
-                              <span className="font-medium text-foreground truncate">
+                            <div className="flex items-center gap-sm min-w-0 flex-1">
+                              <HiCheckCircle size={18} className="text-green-600 shrink-0" />
+                              <span
+                                className="font-medium text-sm text-foreground truncate"
+                                title={doc.filename || doc.title}
+                              >
                                 {doc.filename || doc.title}
                               </span>
                             </div>
@@ -502,7 +507,7 @@ const NotebookEditor = ({
                   </div>
                 </div>
 
-                <div className="flex justify-end gap-md pt-lg border-t border-grey-200 dark:border-grey-700">
+                <div className="flex flex-wrap justify-end gap-sm pt-md border-t border-grey-200 dark:border-grey-700">
                   {!editingCollection && (
                     <Button
                       type="button"
