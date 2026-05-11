@@ -120,7 +120,10 @@ const NotebooksSection: React.FC = memo(() => {
       )}
 
       <Dialog open={showEditor} onOpenChange={(open) => !open && handleCancel()}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="sm:max-w-[700px] w-[calc(100%-1rem)] max-h-[90dvh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
+          aria-describedby={undefined}
+        >
           <DialogTitle className="sr-only">Notebook erstellen</DialogTitle>
           <NotebookEditor
             onSave={handleSave}
