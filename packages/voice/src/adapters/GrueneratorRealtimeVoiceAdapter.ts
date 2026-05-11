@@ -88,10 +88,10 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
   }
 
   connect(options: { abortSignal?: AbortSignal }): RealtimeVoiceAdapter.Session {
-    return createVoiceSession(options, async (helpers) => this.setup(helpers));
+    return createVoiceSession(options, async (helpers) => this.setup(helpers, options.abortSignal));
   }
 
-  private async setup(helpers: VoiceSessionHelpers) {
+  private async setup(helpers: VoiceSessionHelpers, abortSignal?: AbortSignal) {
     const fail = (reason: RealtimeVoiceErrorReason, err: unknown) => {
       console.error(`[GrueneratorRealtimeVoice] ${reason}:`, err);
       this.onError?.(reason, err);
@@ -533,7 +533,15 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
       });
     };
 
+    // tearDown is idempotent — multiple triggers (user click, tab hide,
+    // page unload, abort signal) are all safe and only release resources once.
+    let tornDown = false;
     const tearDown = () => {
+      if (tornDown) return;
+      tornDown = true;
+      // Release the microphone FIRST — this is the privacy-critical step.
+      // Browsers keep the recording indicator on until tracks are .stop()'d.
+      mediaStream?.getTracks().forEach((t) => t.stop());
       try {
         if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'stop' }));
       } catch {
@@ -558,10 +566,62 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
       } catch {
         /* noop */
       }
-      mediaStream?.getTracks().forEach((t) => t.stop());
       audioContext.close().catch(() => {});
       void ttsQueue.close();
+      // Detach privacy guards so they don't fire again on stale state.
+      removePrivacyGuards();
     };
+
+    // === Privacy guards ===
+    // Anything that can plausibly mean "the user is no longer actively
+    // engaged with this page" MUST release the microphone. GDPR / Art. 6 (1)
+    // (a) requires affirmative consent; an unattended live mic violates that.
+    const handleVisibilityChange = () => {
+      if (typeof document === 'undefined') return;
+      if (document.visibilityState === 'hidden' && !tornDown) {
+        // Belt-and-suspenders: release mic immediately (tearDown) AND notify
+        // the runtime so the UI flips to ended without showing an error.
+        tearDown();
+        try {
+          helpers.end('cancelled');
+        } catch {
+          /* helpers may already be disposed */
+        }
+      }
+    };
+    const handlePageHide = () => {
+      // pagehide fires on iOS Safari where beforeunload doesn't; covers
+      // navigation, bfcache eviction, and tab close in one event.
+      if (!tornDown) tearDown();
+    };
+    const handleAbort = () => {
+      if (!tornDown) {
+        tearDown();
+        try {
+          helpers.end('cancelled');
+        } catch {
+          /* already disposed */
+        }
+      }
+    };
+    const removePrivacyGuards = () => {
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('pagehide', handlePageHide);
+        window.removeEventListener('beforeunload', handlePageHide);
+      }
+      abortSignal?.removeEventListener('abort', handleAbort);
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pagehide', handlePageHide);
+      window.addEventListener('beforeunload', handlePageHide);
+    }
+    abortSignal?.addEventListener('abort', handleAbort, { once: true });
 
     return {
       disconnect: () => {
