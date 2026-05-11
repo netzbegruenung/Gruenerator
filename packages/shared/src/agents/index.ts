@@ -1,5 +1,6 @@
 export type {
   Agent,
+  AgentCategory,
   AgentParams,
   AgentProvider,
   FewShotExample,
@@ -7,7 +8,7 @@ export type {
   SkillCategory,
   ToolRestrictions,
 } from './types.js';
-export { SKILL_CATEGORY_LABELS } from './types.js';
+export { AGENT_CATEGORY_LABELS, SKILL_CATEGORY_LABELS } from './types.js';
 
 export {
   SYSTEM_AGENTS,

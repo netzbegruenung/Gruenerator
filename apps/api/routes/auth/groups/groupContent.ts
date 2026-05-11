@@ -226,8 +226,8 @@ router.post(
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
-      // System notebooks are globally available — skip ownership check
-      if (contentType !== 'system_notebooks') {
+      // System content (notebooks/agents) is globally available — skip ownership check
+      if (contentType !== 'system_notebooks' && contentType !== 'system_agents') {
         const tableName = tableNameMap[contentType] || contentType;
         const ownerColumn =
           contentType === 'collaborative_documents' || contentType === 'canvas_template'
@@ -330,6 +330,7 @@ router.post(
         collaborative_documents: 'ein Dokument',
         database: 'einen Datenbank-Eintrag',
         system_notebooks: 'ein Notizbuch',
+        system_agents: 'einen Agenten',
         canvas_template: 'eine Sharepic-Vorlage',
       };
       import('../../../services/notifications/index.js')
@@ -482,6 +483,7 @@ router.get(
         database: [],
         collaborative_documents: [],
         system_notebooks: [],
+        system_agents: [],
         canvas_template: [],
       };
 
@@ -566,6 +568,21 @@ router.get(
             type: 'system_notebooks',
             result: { data: systemNotebooksData },
             shares: contentByType.system_notebooks,
+          })
+        );
+      }
+
+      // System Agents (no DB lookup needed — frontend resolves display from SYSTEM_AGENTS)
+      if (contentByType.system_agents.length > 0) {
+        const systemAgentsData = contentByType.system_agents.map((s: ShareRecord) => ({
+          id: s.content_id,
+          system: true,
+        }));
+        fetchPromises.push(
+          Promise.resolve({
+            type: 'system_agents',
+            result: { data: systemAgentsData },
+            shares: contentByType.system_agents,
           })
         );
       }
@@ -673,6 +690,7 @@ router.get(
         templates: [],
         collaborative_documents: [],
         system_notebooks: [],
+        system_agents: [],
         canvas_templates: [],
       };
 
@@ -716,6 +734,7 @@ router.get(
           database: 'templates',
           collaborative_documents: 'collaborative_documents',
           system_notebooks: 'system_notebooks',
+          system_agents: 'system_agents',
           canvas_template: 'canvas_templates',
         };
 
