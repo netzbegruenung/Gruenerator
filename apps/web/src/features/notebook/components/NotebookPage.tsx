@@ -8,6 +8,7 @@ import {
   NotebookComposer,
   UserMessage,
   notebookMentionables,
+  useAgentStore,
   type CategoryFilterConfig,
   type CategoryFilterField,
   type ChatMessageMetadata,
@@ -25,6 +26,7 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { useExportStore } from '../../../stores/core/exportStore';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
+import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import useNotebookStore from '../stores/notebookStore';
 
@@ -161,9 +163,10 @@ export const NotebookPageContent = ({
   }, []);
 
   const location = useLocation();
-  const navState = location.state as
-    | { freshConversation?: boolean; resumeNotebookChat?: boolean }
-    | null;
+  const navState = location.state as {
+    freshConversation?: boolean;
+    resumeNotebookChat?: boolean;
+  } | null;
   const freshConversation = navState?.freshConversation;
   const resumeFromCache = navState?.resumeNotebookChat ?? false;
 
@@ -386,6 +389,18 @@ export const NotebookPageContent = ({
 
 const NotebookPage = ({ configId }: NotebookPageProps): React.ReactElement => {
   const config = getNotebookConfig(configId) as NotebookConfig;
+  // Pre-select the LV-tuned agent in the global chat store when entering an LV
+  // notebook. Effect runs only when `configId` changes — does NOT override
+  // manual agent picks made later inside the chat. Notebook chat itself runs
+  // on NotebookChatProvider and is unaffected; this is a warm-up for users who
+  // navigate from the notebook into /chat afterwards.
+  const setSelectedAgent = useAgentStore((s) => s.setSelectedAgent);
+  useEffect(() => {
+    const entry = getNotebookById(configId);
+    if (entry?.defaultAgent) {
+      setSelectedAgent(entry.defaultAgent);
+    }
+  }, [configId, setSelectedAgent]);
   return <NotebookPageContent config={config} />;
 };
 

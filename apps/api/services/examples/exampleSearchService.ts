@@ -83,8 +83,11 @@ function pressFilter(contentType: string, lvScope?: string | readonly string[]):
     { key: 'content_type', match: { value: contentType } },
   ];
   if (lvScope !== undefined) {
-    const match = Array.isArray(lvScope) ? { any: [...lvScope] } : { value: lvScope as string };
-    must.push({ key: 'landesverband', match });
+    const lvList: string[] = Array.isArray(lvScope) ? [...lvScope] : [lvScope as string];
+    must.push({
+      key: 'landesverband',
+      match: lvList.length === 1 ? { value: lvList[0] as string } : { any: lvList },
+    });
   }
   return { must };
 }
