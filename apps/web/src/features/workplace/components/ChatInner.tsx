@@ -1,4 +1,4 @@
-import { ThreadPrimitive, useThreadRuntime } from '@assistant-ui/react';
+import { ThreadPrimitive, useThreadRuntime, useVoiceState } from '@assistant-ui/react';
 import { GrueneratorComposer, useAgentStore } from '@gruenerator/chat';
 import React, { memo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,7 +12,21 @@ import { cn } from '@/utils/cn';
 function NavigateToChatOnSend() {
   const navigate = useNavigate();
   const threadRuntime = useThreadRuntime({ optional: true });
+  const voiceState = useVoiceState();
   const hasNavigated = useRef(false);
+
+  // Voice sessions don't flip `threadRuntime.isRunning` because transcripts
+  // bypass the model adapter. Without this hop, voice messages would be
+  // appended to the runtime but never displayed (workplace has no Thread).
+  const voiceActive =
+    voiceState?.status.type === 'starting' || voiceState?.status.type === 'running';
+  useEffect(() => {
+    if (voiceActive && !hasNavigated.current) {
+      hasNavigated.current = true;
+      useAgentStore.getState().setChatViewMode('thread');
+      void navigate('/chat');
+    }
+  }, [voiceActive, navigate]);
 
   useEffect(() => {
     if (!threadRuntime) return;
@@ -22,11 +36,11 @@ function NavigateToChatOnSend() {
         useAgentStore.getState().setChatViewMode('thread');
         void navigate('/chat');
       }
-      if (!threadRuntime.getState().isRunning) {
+      if (!threadRuntime.getState().isRunning && !voiceActive) {
         hasNavigated.current = false;
       }
     });
-  }, [threadRuntime, navigate]);
+  }, [threadRuntime, navigate, voiceActive]);
 
   return null;
 }
