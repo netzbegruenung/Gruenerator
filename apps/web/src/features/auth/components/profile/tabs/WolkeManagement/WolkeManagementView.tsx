@@ -1,4 +1,4 @@
-import { useShareLinks } from '@gruenerator/wolke';
+import { useShareLinks, useSharedWithMeLinks } from '@gruenerator/wolke';
 import { motion } from 'motion/react';
 import { lazy, memo, useCallback, useState } from 'react';
 import { FaWordpress } from 'react-icons/fa6';
@@ -7,6 +7,7 @@ import { FiCloud } from 'react-icons/fi';
 import AutoBackupSection from '../../../../../wolke/components/AutoBackupSection';
 import CloudButton from '../../../../../wolke/components/CloudButton';
 import CloudCard from '../../../../../wolke/components/CloudCard';
+import SharedWolkeConnectionCard from '../../../../../wolke/components/SharedWolkeConnectionCard';
 import WolkeAddForm from '../../../../../wolke/components/WolkeAddForm';
 import WolkeConnectionCard from '../../../../../wolke/components/WolkeConnectionCard';
 import WolkeSetupWizard from '../../../../../wolke/components/WolkeSetupWizard';
@@ -121,10 +122,12 @@ BottomClouds.displayName = 'BottomClouds';
 const WolkeManagementView = memo(
   ({ onSuccessMessage, onErrorMessage }: WolkeManagementViewProps) => {
     const { data: shareLinks = [], isLoading } = useShareLinks();
+    const { data: sharedWithMe = [] } = useSharedWithMeLinks();
     const [showWizard, setShowWizard] = useState(false);
     const [showManualForm, setShowManualForm] = useState(false);
 
     const hasLinks = !isLoading && shareLinks.length > 0;
+    const hasSharedWithMe = sharedWithMe.length > 0;
 
     const handleWizardSuccess = useCallback(
       (message: string) => {
@@ -201,6 +204,25 @@ const WolkeManagementView = memo(
               />
             )}
 
+            {hasSharedWithMe && (
+              <>
+                <hr className="border-grey-200 dark:border-grey-700" />
+                <div className="flex flex-col gap-sm">
+                  <h3 className="text-sm font-medium text-grey-600 dark:text-grey-300 uppercase tracking-wide">
+                    Mit mir geteilte Wolke-Links ({sharedWithMe.length})
+                  </h3>
+                  {sharedWithMe.map((entry) => (
+                    <SharedWolkeConnectionCard
+                      key={`${entry.groupId}:${entry.link.id}`}
+                      entry={entry}
+                      onSuccess={onSuccessMessage}
+                      onError={onErrorMessage}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
             {hasLinks && (
               <>
                 <hr className="border-grey-200 dark:border-grey-700" />
@@ -211,10 +233,7 @@ const WolkeManagementView = memo(
         </CloudCard>
         {import.meta.env.DEV && <WordPressSection />}
         {import.meta.env.DEV && (
-          <ConnectedAccountsSection
-            onSuccess={onSuccessMessage}
-            onError={onErrorMessage}
-          />
+          <ConnectedAccountsSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
         )}
       </motion.div>
     );
