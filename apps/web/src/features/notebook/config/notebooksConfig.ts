@@ -1,3 +1,4 @@
+import type { SystemAgentId } from '@gruenerator/shared/agents';
 import { MdDiversity1 } from 'react-icons/md';
 import {
   PiMagnifyingGlass,
@@ -37,11 +38,11 @@ export interface NotebookConfigEntry {
   enabled?: boolean;
   /**
    * When set, entering this notebook pre-selects the given agent in the global
-   * chat store, so that navigating to /chat afterwards opens the LV-tuned agent
-   * (e.g. Berlin notebook → 'gruenerator-oeffentlichkeitsarbeit-berlin').
-   * No effect on the notebook's own Q&A chat — that runs on NotebookChatProvider.
+   * chat store, so that navigating to /chat afterwards opens the LV-tuned agent.
+   * Typed as `SystemAgentId` so renames in `system.ts` fail at compile time
+   * across every notebook reference.
    */
-  defaultAgent?: string;
+  defaultAgent?: SystemAgentId;
 }
 
 const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
@@ -249,3 +250,24 @@ export const getGermanNotebooks = (): NotebookConfigEntry[] =>
 
 export const getAustrianNotebooks = (): NotebookConfigEntry[] =>
   getNotebooksByCategory('oesterreich');
+
+/**
+ * Reverse-map: agent identifier → notebooks whose `defaultAgent` points at it.
+ * Iterates SYSTEM_NOTEBOOKS (not getOrderedNotebooks) so disabled-but-routable
+ * notebooks like Schleswig-Holstein still produce an entry. Map key is `string`
+ * (not `SystemAgentId`) so callers can look up by arbitrary agent identifiers —
+ * population side is already typed via `NotebookConfigEntry.defaultAgent`.
+ */
+export const getNotebooksByDefaultAgent = (): ReadonlyMap<
+  string,
+  NotebookConfigEntry[]
+> => {
+  const map = new Map<string, NotebookConfigEntry[]>();
+  for (const nb of SYSTEM_NOTEBOOKS) {
+    if (!nb.defaultAgent) continue;
+    const list = map.get(nb.defaultAgent) ?? [];
+    list.push(nb);
+    map.set(nb.defaultAgent, list);
+  }
+  return map;
+};
