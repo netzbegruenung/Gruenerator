@@ -137,12 +137,21 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const hasDocuments = state.documentIds && state.documentIds.length > 0;
     const hasDocumentChat = state.documentChatIds && state.documentChatIds.length > 0;
     const hasBoards = state.boardIds && state.boardIds.length > 0;
-    const hasDocMentions = state.docMentionIds && state.docMentionIds.length > 0;
-    const hasAttachmentContext = !!state.attachmentContext;
-    const hasImageAttachments = state.imageAttachments && state.imageAttachments.length > 0;
     // Open document in the docs-editor is primary context, not retrieval scope.
     // Distinct from documentChatIds — we do NOT force-route to search for it.
     const hasCurrentDocument = !!state.currentDocument;
+    // Strip the open document from docMentionIds — when both are set for the
+    // same doc, they convey the same fact. Counting the doc twice causes the
+    // "Collaborative document mention → direct intent" branch below to win
+    // over the "currentDocument → edit_current_doc" branch, which silently
+    // drops the user's edit request. The docs-editor surface is authoritative
+    // for the open doc; @-mentions of OTHER docs still flow through normally.
+    const dedupedDocMentionIds = state.currentDocument?.id
+      ? (state.docMentionIds ?? []).filter((id) => id !== state.currentDocument!.id)
+      : (state.docMentionIds ?? []);
+    const hasDocMentions = dedupedDocMentionIds.length > 0;
+    const hasAttachmentContext = !!state.attachmentContext;
+    const hasImageAttachments = state.imageAttachments && state.imageAttachments.length > 0;
     const hasAnyDocuments =
       hasDocumentChat || hasDocuments || hasAttachmentContext || hasCurrentDocument;
 
