@@ -100,6 +100,7 @@ router.get('/', async (req, res) => {
             citations?: unknown[];
             searchResults?: unknown[];
             roleName?: string;
+            generatedImage?: Record<string, unknown>;
           }
         | undefined;
       let resultsMap = new Map<string, unknown>();
@@ -127,6 +128,9 @@ router.get('/', async (req, res) => {
             ...(Array.isArray(meta.citations) && { citations: meta.citations }),
             ...(Array.isArray(meta.searchResults) && { searchResults: meta.searchResults }),
             ...(typeof meta.roleName === 'string' && { roleName: meta.roleName }),
+            ...(meta.generatedImage && typeof meta.generatedImage === 'object'
+              ? { generatedImage: meta.generatedImage as Record<string, unknown> }
+              : {}),
           };
           if (Array.isArray(meta.toolCalls)) {
             embeddedToolCalls = meta.toolCalls as EmbeddedToolCall[];
@@ -198,6 +202,7 @@ router.get('/', async (req, res) => {
         toolInvocations,
         metadata: {
           ...metadata,
+          ...(embeddedToolCalls ? { toolCalls: embeddedToolCalls } : {}),
           ...(msg.user_id ? { senderId: msg.user_id, senderName: msg.sender_name || null } : {}),
         },
       };
