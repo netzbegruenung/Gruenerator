@@ -19,10 +19,13 @@ import {
   snapshotCollaborativeDoc,
   subtypeToTemplateType,
 } from '../../services/templates/collaborativeTemplateService.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
 import { checkDocumentAccess } from './documentAccess.js';
 import { type CollaborativeDocument } from './types.js';
+
+const log = createLogger('documentController');
 
 const updateDocSchema = z.object({
   title: z.string().optional(),
@@ -64,14 +67,14 @@ router.put(
       const { title, folder_id, content, wolke_live_sync } = req.body;
       const userId = req.user?.id;
 
-      console.log('[docs-rename] PUT /api/docs/%s — userId=%s, body=%o', id, userId, {
+      log.debug('[docs-rename] PUT /api/docs/%s — userId=%s, body=%o', id, userId, {
         title,
         folder_id,
         content: content !== undefined ? `(${String(content).length} chars)` : undefined,
       });
 
       if (!userId) {
-        console.warn('[docs-rename] PUT /api/docs/%s — 401: no userId', id);
+        log.warn('[docs-rename] PUT /api/docs/%s — 401: no userId', id);
         return res.status(401).json({ error: 'User not authenticated' });
       }
 
@@ -81,7 +84,7 @@ router.put(
       )) as CollaborativeDocument[];
 
       if (checkResult.length === 0) {
-        console.warn(
+        log.warn(
           '[docs-rename] PUT /api/docs/%s — 404: document not found (userId=%s)',
           id,
           userId
@@ -115,7 +118,7 @@ router.put(
       }
 
       if (!canEdit) {
-        console.warn(
+        log.warn(
           '[docs-rename] PUT /api/docs/%s — 403: userId=%s, accessMethod=%s, createdBy=%s, permissions=%o',
           id,
           userId,
@@ -168,7 +171,7 @@ router.put(
         values
       )) as CollaborativeDocument[];
 
-      console.log(
+      log.debug(
         '[docs-rename] PUT /api/docs/%s — success: title="%s", accessMethod=%s',
         id,
         result[0]?.title,
@@ -177,7 +180,7 @@ router.put(
       return res.json(result[0]);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error('[Docs] Error updating document:', error);
+      log.error('[Docs] Error updating document:', { error });
       return res.status(500).json({ error: 'Failed to update document', details: message });
     }
   }
@@ -223,7 +226,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     return res.json({ message: 'Document deleted successfully' });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error deleting document:', error);
+    log.error('[Docs] Error deleting document:', { error });
     return res.status(500).json({ error: 'Failed to delete document', details: message });
   }
 });
@@ -256,7 +259,7 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
     const { hasAccess: hasAccessToDuplicate } = await checkDocumentAccess(original, userId);
 
     if (!hasAccessToDuplicate) {
-      console.warn(
+      log.warn(
         '[Docs] POST /api/docs/%s/duplicate — 403: userId=%s, share_mode=%s',
         id,
         userId,
@@ -286,7 +289,7 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
     return res.status(201).json(newDoc[0]);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error duplicating document:', error);
+    log.error('[Docs] Error duplicating document:', { error });
     return res.status(500).json({ error: 'Failed to duplicate document', details: message });
   }
 });
@@ -385,7 +388,7 @@ router.post(
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error('[Docs] Error saving as template:', error);
+      log.error('[Docs] Error saving as template:', { error });
       return res.status(500).json({ error: 'Failed to save as template', details: message });
     }
   }

@@ -210,7 +210,7 @@ Halte die Zusammenfassung kompakt aber informativ (max. 400 Wörter). Schreibe i
 
     return summary;
   } catch (error) {
-    log.error(`[Compaction] Failed to generate summary for thread ${threadId}:`, error);
+    log.error(`[Compaction] Failed to generate summary for thread ${threadId}:`, { error });
     throw error;
   }
 }

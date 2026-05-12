@@ -46,7 +46,7 @@ void (async () => {
     await notebookHelper.ensureSystemGrundsatzCollection();
     log.debug('[QA Interaction] System collections initialized');
   } catch (error) {
-    log.error('[QA Interaction] Failed to initialize system collections:', error);
+    log.error('[QA Interaction] Failed to initialize system collections:', { error });
   }
 })();
 
@@ -161,7 +161,7 @@ router.get('/collections/:id/filters', async (req: Request<{ id: string }>, res:
       filters,
     });
   } catch (error) {
-    log.error('[QA Filters] Error getting collection filters:', error);
+    log.error('[QA Filters] Error getting collection filters:', { error });
     return res.status(500).json({ error: 'Failed to get collection filters' });
   }
 });
@@ -196,7 +196,7 @@ router.post(
 
       return res.json(result);
     } catch (error) {
-      log.error('[QA Multi] Error:', error);
+      log.error('[QA Multi] Error:', { error });
       const err = error as Error;
       return res.status(500).json({ error: err.message || 'Internal server error' });
     }
@@ -259,7 +259,7 @@ router.post(
 
       return res.json(result);
     } catch (error) {
-      log.error('[QA Interaction] Error in POST /:id/ask:', error);
+      log.error('[QA Interaction] Error in POST /:id/ask:', { error });
       const err = error as Error;
       return res.status(500).json({ error: err.message || 'Internal server error' });
     }
@@ -307,7 +307,7 @@ router.get('/public/:token', async (req: Request<{ token: string }>, res: Respon
       message: 'Public Notebook collection found',
     });
   } catch (error) {
-    log.error('[QA Public] Error in GET /public/:token:', error);
+    log.error('[QA Public] Error in GET /public/:token:', { error });
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -388,7 +388,7 @@ router.post(
         },
       });
     } catch (error) {
-      log.error('[QA Public] Error in POST /public/:token/ask:', error);
+      log.error('[QA Public] Error in POST /public/:token/ask:', { error });
       const err = error as Error;
       return res.status(500).json({ error: err.message || 'Internal server error' });
     }

@@ -378,7 +378,7 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
       `[SearchGraph] Stream complete: mode=${state.searchMode}, results=${state.searchResults.length}, suggestions=${state.followUpSuggestions.length}, time=${totalTimeMs}ms`
     );
   } catch (error: unknown) {
-    log.error('[SearchGraph] Stream error:', error);
+    log.error('[SearchGraph] Stream error:', { error });
     if (!sse.isEnded()) {
       const message = error instanceof Error ? error.message : 'Internal server error';
       sse.sendRaw('error', { error: message });

@@ -50,7 +50,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
     const projects = await service.getUserProjects(userId);
     res.json({ success: true, projects });
   } catch (error: unknown) {
-    log.error('Failed to get projects:', error);
+    log.error('Failed to get projects:', { error });
     res.status(500).json({ success: false, error: 'Projekte konnten nicht geladen werden' });
   }
 });
@@ -67,7 +67,7 @@ router.get(
       const project = await service.getProject(userId, projectId);
       res.json({ success: true, project });
     } catch (error: unknown) {
-      log.error('Failed to get project:', error);
+      log.error('Failed to get project:', { error });
       const errMsg = error instanceof Error ? error.message : String(error);
       if (errMsg.includes('not found')) {
         res.status(404).json({ success: false, error: 'Projekt nicht gefunden' });
@@ -96,7 +96,7 @@ router.post(
 
       res.status(isNew ? 201 : 200).json({ success: true, project, isNew });
     } catch (error: unknown) {
-      log.error('Failed to create project:', error);
+      log.error('Failed to create project:', { error });
       res.status(500).json({
         success: false,
         error:
@@ -125,7 +125,7 @@ router.put(
       log.info(`Updated project ${projectId}`);
       res.json({ success: true, project });
     } catch (error: unknown) {
-      log.error('Failed to update project:', error);
+      log.error('Failed to update project:', { error });
       const errMsg = error instanceof Error ? error.message : String(error);
       if (errMsg.includes('not found') || errMsg.includes('access denied')) {
         res.status(404).json({ success: false, error: 'Projekt nicht gefunden' });
@@ -150,7 +150,7 @@ router.delete(
       log.info(`Deleted project ${projectId}`);
       res.json({ success: true });
     } catch (error: unknown) {
-      log.error('Failed to delete project:', error);
+      log.error('Failed to delete project:', { error });
       if ((error instanceof Error ? error.message : String(error)).includes('not found')) {
         res.status(404).json({ success: false, error: 'Projekt nicht gefunden' });
       } else {
@@ -209,7 +209,7 @@ router.get(
         fs.createReadStream(videoPath).pipe(res);
       }
     } catch (error: unknown) {
-      log.error('Failed to stream video:', error);
+      log.error('Failed to stream video:', { error });
       if (!res.headersSent) {
         res.status(500).json({ success: false, error: 'Video konnte nicht gestreamt werden' });
       }
@@ -247,7 +247,7 @@ router.get(
       res.setHeader('Cache-Control', 'public, max-age=86400');
       fs.createReadStream(thumbnailPath).pipe(res);
     } catch (error: unknown) {
-      log.error('Failed to get thumbnail:', error);
+      log.error('Failed to get thumbnail:', { error });
       if (!res.headersSent) {
         res.status(500).json({ success: false, error: 'Thumbnail konnte nicht geladen werden' });
       }
@@ -268,7 +268,7 @@ router.post(
       await service.incrementExportCount(userId, projectId);
       res.json({ success: true });
     } catch (error: unknown) {
-      log.error('Failed to track export:', error);
+      log.error('Failed to track export:', { error });
       res.status(500).json({ success: false, error: 'Export konnte nicht getrackt werden' });
     }
   }

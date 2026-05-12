@@ -16,6 +16,7 @@ import { isSystemQdrantCollection } from '../../../config/systemCollectionsConfi
 import { vectorConfig } from '../../../config/vectorConfig.js';
 import { QdrantOperations } from '../../../database/services/QdrantOperations.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService.js';
+import { createLogger } from '../../../utils/logger.js';
 import { InputValidator } from '../../../utils/validation/index.js';
 import { BaseSearchService } from '../../BaseSearchService/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
@@ -59,6 +60,8 @@ import type {
   HybridMetadata,
   DocumentData,
 } from '../../BaseSearchService/types.js';
+
+const log = createLogger('DocumentSearchService');
 
 /**
  * Main DocumentSearchService class
@@ -119,9 +122,7 @@ export class DocumentSearchService extends BaseSearchService {
       if (this.qdrantAvailable && this.qdrant.client) {
         this.qdrantOps = new QdrantOperations(this.qdrant.client);
       } else {
-        console.warn(
-          '[DocumentSearchService] Qdrant not available; vector searches will be skipped'
-        );
+        log.warn('[DocumentSearchService] Qdrant not available; vector searches will be skipped');
         this.qdrantOps = null;
       }
       this.initialized = true;
@@ -321,14 +322,14 @@ export class DocumentSearchService extends BaseSearchService {
       const mode = validated.options?.mode || 'vector';
 
       if (mode === 'hybrid') {
-        console.log('[DocumentSearchService] Executing hybrid search mode');
+        log.debug('[DocumentSearchService] Executing hybrid search mode');
         return await this.performHybridSearch(validated as SearchParams);
       }
 
       return await this.performSimilaritySearch(validated as SearchParams);
     } catch (error) {
       const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[DocumentSearchService] Search error:', error);
+      log.error('[DocumentSearchService] Search error:', { error });
       return this.createErrorResponse(error as Error, searchParams.query);
     }
   }
@@ -363,7 +364,7 @@ export class DocumentSearchService extends BaseSearchService {
       );
     } catch (error) {
       const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[DocumentSearchService] Text search error:', error);
+      log.error('[DocumentSearchService] Text search error:', { error });
       return this.createErrorResponse(error as Error, query);
     }
   }
@@ -385,7 +386,7 @@ export class DocumentSearchService extends BaseSearchService {
       await this.ensureInitialized();
 
       if (vectorConfig.isVerboseMode()) {
-        console.log(
+        log.debug(
           `[DocumentSearchService] Hybrid search config - Dynamic thresholds: ${this.hybridConfig.enableDynamicThresholds}, Quality gate: ${this.hybridConfig.enableQualityGate}, Confidence weighting: ${this.hybridConfig.enableConfidenceWeighting}`
         );
       }
@@ -411,7 +412,7 @@ export class DocumentSearchService extends BaseSearchService {
       });
     } catch (error) {
       const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[DocumentSearchService] Hybrid search error:', error);
+      log.error('[DocumentSearchService] Hybrid search error:', { error });
       return this.createErrorResponse(error as Error, query);
     }
   }
@@ -600,7 +601,7 @@ export class DocumentSearchService extends BaseSearchService {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[DocumentSearchService] getSystemDocumentFullTextByUrl error: ${message}`);
+      log.error(`[DocumentSearchService] getSystemDocumentFullTextByUrl error: ${message}`);
       return { success: false, fullText: '', chunkCount: 0, error: message };
     }
   }
@@ -683,7 +684,7 @@ export class DocumentSearchService extends BaseSearchService {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[DocumentSearchService] getChunkWithContext error: ${message}`);
+      log.error(`[DocumentSearchService] getChunkWithContext error: ${message}`);
       return { success: false, error: message };
     }
   }
@@ -780,7 +781,7 @@ export class DocumentSearchService extends BaseSearchService {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error(`[DocumentSearchService] getSystemChunkWithContext error: ${message}`);
+      log.error(`[DocumentSearchService] getSystemChunkWithContext error: ${message}`);
       return { success: false, error: message };
     }
   }
@@ -820,7 +821,7 @@ export class DocumentSearchService extends BaseSearchService {
         });
 
         if (result && result.length > 0) {
-          console.log(
+          log.debug(
             `[DocumentSearchService] Found document '${documentId}' in collection '${collection}'`
           );
           return type;
@@ -926,7 +927,7 @@ export class DocumentSearchService extends BaseSearchService {
       }
       return await this.qdrantOps.healthCheck();
     } catch (error) {
-      console.error('[DocumentSearchService] Service not ready:', error);
+      log.error('[DocumentSearchService] Service not ready:', { error });
       return false;
     }
   }

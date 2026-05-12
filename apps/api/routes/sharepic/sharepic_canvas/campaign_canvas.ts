@@ -172,7 +172,7 @@ function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig 
       log.warn(`[CampaignCanvas] Config not found: ${campaignPath}`);
       return null;
     }
-    log.error(`[CampaignCanvas] Failed to read config:`, error);
+    log.error(`[CampaignCanvas] Failed to read config:`, { error });
     return null;
   }
 
@@ -234,7 +234,7 @@ function loadCampaignConfig(campaignId: string, typeId: string): CampaignConfig 
       ...(typeConfig.basedOn ? { basedOn: typeConfig.basedOn } : {}),
     };
   } catch (error) {
-    log.error(`[CampaignCanvas] Failed to load config:`, error);
+    log.error(`[CampaignCanvas] Failed to load config:`, { error });
     return null;
   }
 }
@@ -558,7 +558,7 @@ router.post(
         creditText: creditText,
       });
     } catch (error) {
-      log.error('[CampaignCanvas] Error:', error);
+      log.error('[CampaignCanvas] Error:', { error });
       res.status(500).json({
         success: false,
         error: (error as Error).message,

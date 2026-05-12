@@ -6,11 +6,14 @@
 import { generateText } from 'ai';
 
 import { getIntermediateModel } from '../../../../services/ai/providers.js';
+import { createLogger } from '../../../../utils/logger.js';
 
 import { createExtractionPrompt } from './prompts.js';
 
 import type { ChatContext } from '../../types.js';
 import type { MistralExtractionResponse } from '../types.js';
+
+const log = createLogger('MistralExtractor');
 
 /**
  * Extract parameters using Mistral AI for better semantic understanding
@@ -22,7 +25,7 @@ export async function extractParametersWithMistral(
 ): Promise<Record<string, unknown>> {
   const prompt = createExtractionPrompt(message, agent, context);
 
-  console.log('[MistralExtractor] Using Mistral for parameter extraction:', agent);
+  log.debug('[MistralExtractor] Using Mistral for parameter extraction:', agent);
 
   const result = await generateText({
     model: getIntermediateModel(),
@@ -42,7 +45,7 @@ export async function extractParametersWithMistral(
 
   try {
     const extracted = JSON.parse(responseText) as MistralExtractionResponse;
-    console.log('[MistralExtractor] Mistral extraction successful:', extracted);
+    log.debug('[MistralExtractor] Mistral extraction successful:', extracted);
 
     // Add confidence metadata in the expected format
     const result: Record<string, unknown> = {
@@ -69,8 +72,8 @@ export async function extractParametersWithMistral(
 
     return result;
   } catch (parseError) {
-    console.error('[MistralExtractor] Failed to parse Mistral response:', parseError);
-    console.error('[MistralExtractor] Raw response:', responseText);
+    log.error('[MistralExtractor] Failed to parse Mistral response:', parseError);
+    log.error('[MistralExtractor] Raw response:', responseText);
     throw new Error('Invalid JSON response from Mistral');
   }
 }

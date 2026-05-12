@@ -342,7 +342,7 @@ router.post(
           }
         }
       } catch (error) {
-        log.error('[Chat] Processing error:', error);
+        log.error('[Chat] Processing error:', { error });
         res.status(500).json({
           success: false,
           error: 'Bei der Verarbeitung ist ein Fehler aufgetreten. Bitte versuche es erneut.',
@@ -410,7 +410,7 @@ async function processAttachments(
         documentIds = await documentQnAService.storeAttachments(userId, mappedAttachments);
         log.debug(`[Chat] Stored ${textAttachments.length} text documents`);
       } catch (error) {
-        log.error('[Chat] Error storing text attachments:', error);
+        log.error('[Chat] Error storing text attachments:', { error });
       }
     }
 
@@ -423,7 +423,7 @@ async function processAttachments(
         sharepicImages = imageAttachments;
         log.debug(`[Chat] Stored ${imageAttachments.length} images`);
       } catch (error) {
-        log.error('[Chat] Error storing images:', error);
+        log.error('[Chat] Error storing images:', { error });
       }
     }
   }
@@ -449,7 +449,7 @@ async function processAttachments(
       }
     }
   } catch (error) {
-    log.error('[Chat] Error retrieving recent documents:', error);
+    log.error('[Chat] Error retrieving recent documents:', { error });
   }
 
   return { documentIds, sharepicImages, recentDocuments };
@@ -531,7 +531,7 @@ async function handleWebSearchConfirmation(
         },
       });
     } catch (error) {
-      log.error('[Chat] Web search failed:', error);
+      log.error('[Chat] Web search failed:', { error });
       const errorText = 'Entschuldigung, bei der Websuche ist ein Fehler aufgetreten.';
       await chatMemory.addMessage(userId, 'assistant', errorText, 'websearch_error');
       return res.json({
@@ -628,7 +628,7 @@ async function handlePendingInformationRequest(
         );
         return res.json(sharepicResponse);
       } catch (error) {
-        log.error('[Chat] Completion error:', error);
+        log.error('[Chat] Completion error:', { error });
         return res.status(500).json({
           success: false,
           error: 'Fehler beim Erstellen des Sharepics.',
@@ -691,7 +691,7 @@ router.delete(
         details: results,
       });
     } catch (error) {
-      log.error('[Chat] Clear error:', error);
+      log.error('[Chat] Clear error:', { error });
       res.status(500).json({
         success: false,
         error: 'Benutzerdaten konnten nicht gelöscht werden.',

@@ -206,12 +206,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
   if (!threadId || (!fullText && !generatedImage && sharepicVariants.length === 0)) return;
 
   try {
-    const toolCalls = buildToolCalls(
-      classifiedState,
-      finalState,
-      generatedImage,
-      sharepicVariants
-    );
+    const toolCalls = buildToolCalls(classifiedState, finalState, generatedImage, sharepicVariants);
     await createMessage(threadId, 'assistant', fullText || null, {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
@@ -319,7 +314,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
         });
     }
   } catch (error) {
-    log.error('[ChatGraph] Error persisting message:', error);
+    log.error('[ChatGraph] Error persisting message:', { error });
   }
 }
 
@@ -349,6 +344,6 @@ export async function persistResumedResponse(params: {
     await touchThread(threadId);
     log.info(`[ChatGraph:Resume] Message persisted for thread ${threadId}`);
   } catch (error) {
-    log.error('[ChatGraph:Resume] Error persisting message:', error);
+    log.error('[ChatGraph:Resume] Error persisting message:', { error });
   }
 }

@@ -4,8 +4,11 @@
  */
 
 import { env } from '../../config/env.js';
+import { createLogger } from '../logger.js';
 
 import type { CacheEntry, CacheOptions, CacheStats } from './types.js';
+
+const log = createLogger('cache');
 
 class LRUCache<T = unknown> {
   private maxSize: number;
@@ -150,7 +153,7 @@ class LRUCache<T = unknown> {
     if (removedCount > 0) {
       this.stats.cleanups++;
       this.stats.deletes += removedCount;
-      console.log(`[${this.name}] Cleanup: removed ${removedCount} expired entries`);
+      log.debug(`[${this.name}] Cleanup: removed ${removedCount} expired entries`);
     }
   }
 

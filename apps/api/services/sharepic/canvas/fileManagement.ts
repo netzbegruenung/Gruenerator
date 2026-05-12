@@ -33,7 +33,7 @@ export async function checkFiles(): Promise<void> {
     try {
       await fs.access(file.path);
     } catch (err) {
-      log.error(`Fehler beim Zugriff auf ${file.name}:`, err);
+      log.error(`Fehler beim Zugriff auf ${file.name}:`, { error: err });
       throw new Error(`${file.name} nicht gefunden: ${file.path}`);
     }
   }
@@ -54,7 +54,7 @@ export function registerFonts(): void {
     try {
       GlobalFonts.registerFromPath(font.path, font.family);
     } catch (err) {
-      log.error(`Fehler beim Registrieren der ${font.name} Schriftart:`, err);
+      log.error(`Fehler beim Registrieren der ${font.name} Schriftart:`, { error: err });
       throw err;
     }
   }

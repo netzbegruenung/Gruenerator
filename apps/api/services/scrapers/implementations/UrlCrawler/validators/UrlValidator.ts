@@ -8,7 +8,10 @@ import { createRequire } from 'module';
 import { URL } from 'url';
 
 import { env } from '../../../../../config/env.js';
+import { createLogger } from '../../../../../utils/logger.js';
 import { safeFetch } from '../../../../../utils/validation/urlSecurity.js';
+
+const log = createLogger('UrlValidator');
 
 const require = createRequire(import.meta.url);
 const robotsParser = require('robots-parser') as (
@@ -167,7 +170,7 @@ export class UrlValidator {
     }
 
     if (sanitized !== originalUrl) {
-      console.log(`[UrlValidator] Sanitized URL: "${originalUrl}" -> "${sanitized}"`);
+      log.debug(`[UrlValidator] Sanitized URL: "${originalUrl}" -> "${sanitized}"`);
     }
 
     return sanitized;

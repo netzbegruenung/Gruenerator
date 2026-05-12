@@ -1,6 +1,9 @@
 import express, { type Request, type Response, type Router } from 'express';
 
 import { PRIMARY_URL } from '../../config/domains.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('releasesController');
 
 // GitHub configuration for release downloads
 const GITHUB_REPO = 'netzbegruenung/Gruenerator';
@@ -10,11 +13,11 @@ const getGitHubDownloadUrl = (version: string, filename: string) =>
 
 const router: Router = express.Router();
 
-console.log('[Releases] Router initialized');
+log.debug('[Releases] Router initialized');
 
 // Debug middleware to log all requests to this router - MUST be first
 router.use((req: Request, _res: Response, next) => {
-  console.log(
+  log.debug(
     `[Releases] Incoming request: ${req.method} ${req.path} (originalUrl: ${req.originalUrl})`
   );
   next();
@@ -171,7 +174,7 @@ router.get('/download/file/:filename', (req: Request<{ filename: string }>, res:
   }
 
   const githubUrl = getGitHubDownloadUrl(version, filename);
-  console.log(`[Releases] Redirecting file download to GitHub: ${githubUrl}`);
+  log.debug(`[Releases] Redirecting file download to GitHub: ${githubUrl}`);
   res.redirect(302, githubUrl);
 });
 
@@ -181,7 +184,7 @@ router.get('/download/:platform', (req: Request<{ platform: string }>, res: Resp
   const version = UPDATER_CONFIG.version;
 
   if (!Object.hasOwn(PLATFORM_FILES, platform)) {
-    console.log(`[Releases] Platform not found: ${platform}`);
+    log.debug(`[Releases] Platform not found: ${platform}`);
     res.status(404).json({ error: 'Platform not found' });
     return;
   }
@@ -189,7 +192,7 @@ router.get('/download/:platform', (req: Request<{ platform: string }>, res: Resp
 
   const fileName = fileNameFn(version);
   const githubUrl = getGitHubDownloadUrl(version, fileName);
-  console.log(`[Releases] Redirecting ${platform} to GitHub: ${githubUrl}`);
+  log.debug(`[Releases] Redirecting ${platform} to GitHub: ${githubUrl}`);
   res.redirect(302, githubUrl);
 });
 
@@ -234,11 +237,11 @@ router.get('/info', (_req: Request, res: Response) => {
 });
 
 // Debug: List all registered routes
-console.log('[Releases] Registered routes:');
+log.debug('[Releases] Registered routes:');
 router.stack.forEach((r) => {
   if (r.route) {
     const methods = (r.route as unknown as { methods: Record<string, boolean> }).methods;
-    console.log(`[Releases]   ${Object.keys(methods).join(',')} ${r.route.path}`);
+    log.debug(`[Releases]   ${Object.keys(methods).join(',')} ${r.route.path}`);
   }
 });
 

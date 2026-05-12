@@ -81,7 +81,7 @@ export const emailContractRouter = s.router(emailContract, {
         body: { success: true, configured: true, recipientEmail },
       };
     } catch (error) {
-      log.error('[emailContract.test] Error:', error);
+      log.error('[emailContract.test] Error:', { error });
       const message = error instanceof Error ? error.message : String(error);
       return {
         status: 500 as const,

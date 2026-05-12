@@ -252,7 +252,7 @@ async function createInfoImage(
     const rawBuffer = canvas.toBuffer('image/png');
     return optimizeCanvasBuffer(rawBuffer);
   } catch (error) {
-    log.error('Error in createInfoImage:', error);
+    log.error('Error in createInfoImage:', { error });
     throw error;
   }
 }
@@ -308,7 +308,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
     res.json({ image: base64Image });
   } catch (err) {
     const error = err as Error;
-    log.error('Error in info_canvas request:', error);
+    log.error('Error in info_canvas request:', { error });
     res.status(500).json({
       error: 'Fehler beim Erstellen des Info-Bildes: ' + error.message,
     });

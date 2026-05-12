@@ -11,6 +11,9 @@ import {
   validateAndSanitizeHtml,
   extractTitleFromHtml,
 } from '../../services/tiptap/contentConverter.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('exportToDocsController');
 
 const router = Router();
 const db = getPostgresInstance();
@@ -74,7 +77,7 @@ router.post(
 
       await seedYjsStateSafe(document.id as string, sanitizedContent, 'Docs Export');
 
-      console.log(
+      log.debug(
         `[Docs Export] User ${userId} created document ${document.id} from export (type: ${documentType || 'unknown'})`
       );
 
@@ -86,7 +89,7 @@ router.post(
 
       return res.status(201).json(response);
     } catch (error: unknown) {
-      console.error('[Docs Export] Error creating document:', error);
+      log.error('[Docs Export] Error creating document:', { error });
 
       // Determine appropriate error response
       if (error instanceof Error && error.message?.includes('too large')) {

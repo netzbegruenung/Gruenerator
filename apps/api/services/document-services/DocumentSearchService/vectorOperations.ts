@@ -9,6 +9,7 @@
  */
 
 import { chunkToNumericId } from '../../../database/services/QdrantService/utils.js';
+import { createLogger } from '../../../utils/logger.js';
 
 import type {
   ChunkWithMetadata,
@@ -22,6 +23,8 @@ import type {
   QdrantFilter,
 } from './types.js';
 import type { QdrantOperations } from '../../../database/services/QdrantOperations.js';
+
+const log = createLogger('vectorOperations');
 
 /**
  * Store document vectors in Qdrant
@@ -76,12 +79,12 @@ export async function storeDocumentVectors(
     const batch = points.slice(i, i + BATCH_SIZE);
     await qdrantOps.batchUpsert('documents', batch, { wait: true });
     totalUpserted += batch.length;
-    console.log(
+    log.debug(
       `[VectorOperations] Upserted batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(points.length / BATCH_SIZE)} (${batch.length} vectors)`
     );
   }
 
-  console.log(`[VectorOperations] Stored ${totalUpserted} vectors for document ${documentId}`);
+  log.debug(`[VectorOperations] Stored ${totalUpserted} vectors for document ${documentId}`);
   return {
     success: true,
     vectorsStored: totalUpserted,
@@ -131,7 +134,7 @@ export async function searchUserDocuments(
     };
 
     if (hybridMode && query) {
-      console.log(`[VectorOperations] Performing hybrid search for user ${userId}`);
+      log.debug(`[VectorOperations] Performing hybrid search for user ${userId}`);
 
       const hybridResult = await qdrantOps.hybridSearch('documents', queryVector, query, filter, {
         limit,
@@ -148,7 +151,7 @@ export async function searchUserDocuments(
         metadata: hybridResult.metadata as unknown as Record<string, unknown>,
       };
     } else {
-      console.log(`[VectorOperations] Performing vector search for user ${userId}`);
+      log.debug(`[VectorOperations] Performing vector search for user ${userId}`);
 
       const results = await qdrantOps.vectorSearch('documents', queryVector, filter, {
         limit,
@@ -186,7 +189,7 @@ export async function searchUserDocuments(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[VectorOperations] User document search failed:', error);
+    log.error('[VectorOperations] User document search failed:', { error });
     return {
       success: false,
       results: [],
@@ -227,11 +230,11 @@ export async function deleteDocumentVectors(
 
     await qdrantOps.batchDelete('documents', filter);
 
-    console.log(`[VectorOperations] Deleted vectors for document ${documentId}`);
+    log.debug(`[VectorOperations] Deleted vectors for document ${documentId}`);
     return { success: true, documentId };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[VectorOperations] Failed to delete document vectors:', error);
+    log.error('[VectorOperations] Failed to delete document vectors:', { error });
     throw new Error(`Failed to delete document vectors: ${errorMessage}`);
   }
 }
@@ -254,11 +257,11 @@ export async function deleteUserDocuments(
     const filter: QdrantFilter = { must: [{ key: 'user_id', match: { value: userId } }] };
     await qdrantOps.batchDelete('documents', filter);
 
-    console.log(`[VectorOperations] Deleted all vectors for user ${userId}`);
+    log.debug(`[VectorOperations] Deleted all vectors for user ${userId}`);
     return { success: true, userId };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[VectorOperations] Failed to delete user documents:', error);
+    log.error('[VectorOperations] Failed to delete user documents:', { error });
     throw new Error(`Failed to delete user documents: ${errorMessage}`);
   }
 }
@@ -312,7 +315,7 @@ export async function getUserVectorStats(
       wolkeVectors,
     };
   } catch (error) {
-    console.error('[VectorOperations] Failed to get user stats:', error);
+    log.error('[VectorOperations] Failed to get user stats:', { error });
     return {
       uniqueDocuments: 0,
       totalVectors: 0,

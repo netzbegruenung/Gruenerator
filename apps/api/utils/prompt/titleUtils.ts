@@ -1,4 +1,8 @@
+import { createLogger } from '../logger.js';
+
 import type { FormData, ContentType } from './types.js';
+
+const log = createLogger('titleUtils');
 
 export function generateSmartTitle(
   contentType: ContentType,
@@ -50,8 +54,8 @@ export function extractTitleFromResponse(
     return generateSmartTitle(contentType, formData);
   }
 
-  console.log('[extractTitleFromResponse] Processing content length:', content.length);
-  console.log(
+  log.debug('[extractTitleFromResponse] Processing content length:', content.length);
+  log.debug(
     '[extractTitleFromResponse] Content preview (last 200 chars):',
     content.substring(content.length - 200)
   );
@@ -69,15 +73,15 @@ export function extractTitleFromResponse(
     const pattern = titlePatterns[i];
     const titleMatch = content.match(pattern);
 
-    console.log(`[extractTitleFromResponse] Trying pattern ${i + 1}:`, pattern.toString());
+    log.debug(`[extractTitleFromResponse] Trying pattern ${i + 1}:`, pattern.toString());
 
     if (titleMatch && titleMatch[1]) {
       let extractedTitle = titleMatch[1].trim();
 
-      console.log(`[extractTitleFromResponse] Pattern ${i + 1} matched:`, extractedTitle);
+      log.debug(`[extractTitleFromResponse] Pattern ${i + 1} matched:`, extractedTitle);
 
       if (i > 0 && (extractedTitle.includes('<') || extractedTitle.includes('>'))) {
-        console.log(`[extractTitleFromResponse] Skipping pattern ${i + 1} - contains HTML tags`);
+        log.debug(`[extractTitleFromResponse] Skipping pattern ${i + 1} - contains HTML tags`);
         continue;
       }
 
@@ -88,18 +92,18 @@ export function extractTitleFromResponse(
       }
 
       if (extractedTitle.length > 0) {
-        console.log(
+        log.debug(
           `[extractTitleFromResponse] Successfully extracted title using pattern ${i + 1}:`,
           extractedTitle
         );
         return extractedTitle;
       }
     } else {
-      console.log(`[extractTitleFromResponse] Pattern ${i + 1} did not match`);
+      log.debug(`[extractTitleFromResponse] Pattern ${i + 1} did not match`);
     }
   }
 
-  console.log(
+  log.debug(
     '[extractTitleFromResponse] No title pattern matched, falling back to smart title generation'
   );
 

@@ -4,8 +4,11 @@ import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getSharedMediaService } from '../../services/sharedMediaService.js';
+import { createLogger } from '../../utils/logger.js';
 
 import type { AllowedMimeType, SharedMediaRow } from '../../types/media.js';
+
+const log = createLogger('mediaController');
 
 interface MediaListQuery {
   type?: 'image' | 'video' | 'all';
@@ -124,7 +127,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error) {
-    console.error('[MediaController] GET /media error:', error);
+    log.error('[MediaController] GET /media error:', { error });
     res.status(500).json({ error: 'Failed to fetch media library' });
   }
 });
@@ -173,7 +176,7 @@ router.get('/search', async (req: Request, res: Response): Promise<void> => {
       total: result.total,
     });
   } catch (error) {
-    console.error('[MediaController] GET /media/search error:', error);
+    log.error('[MediaController] GET /media/search error:', { error });
     res.status(500).json({ error: 'Failed to search media' });
   }
 });
@@ -207,7 +210,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response): Promise<
       },
     });
   } catch (error) {
-    console.error('[MediaController] GET /media/:id error:', error);
+    log.error('[MediaController] GET /media/:id error:', { error });
     res.status(500).json({ error: 'Failed to fetch media item' });
   }
 });
@@ -256,7 +259,7 @@ router.post(
         },
       });
     } catch (error) {
-      console.error('[MediaController] POST /media/upload error:', error);
+      log.error('[MediaController] POST /media/upload error:', { error });
       res.status(500).json({ error: (error as Error).message || 'Failed to upload media' });
     }
   }
@@ -301,7 +304,7 @@ router.put(
         },
       });
     } catch (error) {
-      console.error('[MediaController] PUT /media/:id error:', error);
+      log.error('[MediaController] PUT /media/:id error:', { error });
       if ((error as Error).message.includes('not found')) {
         res.status(404).json({ error: 'Media not found' });
         return;
@@ -340,7 +343,7 @@ router.delete('/:id', async (req: Request<{ id: string }>, res: Response): Promi
       message: 'Media deleted successfully',
     });
   } catch (error) {
-    console.error('[MediaController] DELETE /media/:id error:', error);
+    log.error('[MediaController] DELETE /media/:id error:', { error });
     res.status(500).json({ error: 'Failed to delete media' });
   }
 });

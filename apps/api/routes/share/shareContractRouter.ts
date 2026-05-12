@@ -237,7 +237,7 @@ async function triggerBackgroundRender(
 
     log.info(`Background render complete for share ${shareToken}`);
   } catch (error) {
-    log.error(`Background render failed for ${shareToken}:`, error);
+    log.error(`Background render failed for ${shareToken}:`, { error });
     const service = await getSharedMediaService();
     await service.markShareFailed!(shareToken);
   }
@@ -282,7 +282,7 @@ export const shareContractRouter = s.router(sharesContract, {
         },
       };
     } catch (error) {
-      log.error('Failed to create image share:', error);
+      log.error('Failed to create image share:', { error });
       return {
         status: 500 as const,
         body: { success: false as const, error: 'Bild konnte nicht geteilt werden' },
@@ -349,7 +349,7 @@ export const shareContractRouter = s.router(sharesContract, {
         },
       };
     } catch (error) {
-      log.error('Failed to create video share:', error);
+      log.error('Failed to create video share:', { error });
       return {
         status: 500 as const,
         body: { success: false as const, error: 'Video konnte nicht geteilt werden' },
@@ -508,7 +508,7 @@ export const shareContractRouter = s.router(sharesContract, {
         },
       };
     } catch (error) {
-      log.error('Failed to create video share from project:', error);
+      log.error('Failed to create video share from project:', { error });
       return {
         status: 500 as const,
         body: { success: false as const, error: 'Video konnte nicht geteilt werden' },
@@ -579,7 +579,7 @@ export const shareContractRouter = s.router(sharesContract, {
         },
       };
     } catch (error) {
-      log.error('Failed to update image share:', error);
+      log.error('Failed to update image share:', { error });
       return {
         status: 500 as const,
         body: { success: false as const, error: 'Bild konnte nicht aktualisiert werden' },
@@ -614,7 +614,7 @@ export const shareContractRouter = s.router(sharesContract, {
         },
       };
     } catch (error) {
-      log.error('Failed to save as template:', error);
+      log.error('Failed to save as template:', { error });
       const errorMessage = (error as Error).message;
       if (errorMessage.includes('not found')) {
         return {
@@ -679,7 +679,7 @@ export const shareContractRouter = s.router(sharesContract, {
         body: { success: true as const, pushedToDevices },
       };
     } catch (error) {
-      log.error('Failed to push to phone:', error);
+      log.error('Failed to push to phone:', { error });
       return {
         status: 500 as const,
         body: { success: false as const, error: 'Failed to send to phone' },

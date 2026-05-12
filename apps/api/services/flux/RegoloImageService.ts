@@ -8,6 +8,8 @@
 import fs from 'fs';
 import path from 'path';
 
+import { createLogger } from '../../utils/logger.js';
+
 import type {
   GenerateFromPromptOptions,
   GenerateResult,
@@ -16,6 +18,8 @@ import type {
   DownloadResult,
   GenerateFromImageOptions,
 } from './FluxImageService.js';
+
+const log = createLogger('RegoloImageService');
 
 const REGOLO_BASE_URL = 'https://api.regolo.ai/v1';
 const DEFAULT_MODEL = 'Qwen-Image';
@@ -32,7 +36,7 @@ class RegoloImageService {
   constructor() {
     // API key is read at call time to support runtime env changes (and tests).
     if (!this.getApiKey()) {
-      console.warn('[RegoloImageService] Missing REGOLO_API_KEY');
+      log.warn('[RegoloImageService] Missing REGOLO_API_KEY');
     }
   }
 
@@ -56,7 +60,7 @@ class RegoloImageService {
     const height = options.height || 1024;
     const size = `${width}x${height}`;
 
-    console.log(`[RegoloImageService] Generating image: ${prompt.substring(0, 80)}...`);
+    log.debug(`[RegoloImageService] Generating image: ${prompt.substring(0, 80)}...`);
 
     const response = await fetch(`${REGOLO_BASE_URL}/images/generations`, {
       method: 'POST',

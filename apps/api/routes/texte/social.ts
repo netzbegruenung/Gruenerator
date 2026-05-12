@@ -58,7 +58,7 @@ router.post('/agent', async (req: Request, res: Response): Promise<void> => {
     }
     await processAgentModeRequest(req, res);
   } catch (error) {
-    log.error('[claude_social/agent] Error:', error);
+    log.error('[claude_social/agent] Error:', { error });
     res.status(500).json({
       success: false,
       error: 'Interner Serverfehler',
@@ -78,7 +78,7 @@ router.post(
       log.debug('[claude_social/strategy] Strategy generation requested');
       await processStrategyGeneration(req.body, req, res);
     } catch (error) {
-      log.error('[claude_social/strategy] Error:', error);
+      log.error('[claude_social/strategy] Error:', { error });
       res.status(500).json({
         success: false,
         error: 'Interner Serverfehler',
@@ -115,7 +115,7 @@ router.post(
         res
       );
     } catch (error) {
-      log.error('[claude_social/production] Error:', error);
+      log.error('[claude_social/production] Error:', { error });
       res.status(500).json({
         success: false,
         error: 'Interner Serverfehler',
@@ -148,7 +148,7 @@ router.get('/workflow/:id', async (req: Request<{ id: string }>, res: Response):
       workflow,
     });
   } catch (error) {
-    log.error('[claude_social/workflow] Error:', error);
+    log.error('[claude_social/workflow] Error:', { error });
     res.status(500).json({
       success: false,
       error: 'Interner Serverfehler',

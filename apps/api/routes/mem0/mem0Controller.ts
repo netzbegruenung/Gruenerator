@@ -59,7 +59,7 @@ router.get(
       res.json({ success: true, memories: memories.map(toFrontendMemory) });
     } catch (error) {
       const err = error as Error;
-      log.error('[mem0 GET /user/:userId] Error:', err);
+      log.error('[mem0 GET /user/:userId] Error:', { error: err });
       res
         .status(500)
         .json({ success: false, message: err.message || 'Fehler beim Laden der Erinnerungen.' });
@@ -98,7 +98,7 @@ router.post('/add-text', async (req: AuthRequest, res: Response): Promise<void> 
     res.json({ success: true, memories: added.map(toFrontendMemory) });
   } catch (error) {
     const err = error as Error;
-    log.error('[mem0 POST /add-text] Error:', err);
+    log.error('[mem0 POST /add-text] Error:', { error: err });
     res
       .status(500)
       .json({ success: false, message: err.message || 'Fehler beim Speichern der Erinnerung.' });
@@ -139,7 +139,7 @@ router.put(
       res.json({ success: true, memory: toFrontendMemory(updated) });
     } catch (error) {
       const err = error as Error;
-      log.error('[mem0 PUT /:memoryId] Error:', err);
+      log.error('[mem0 PUT /:memoryId] Error:', { error: err });
       res
         .status(500)
         .json({ success: false, message: err.message || 'Fehler beim Aktualisieren.' });
@@ -184,7 +184,7 @@ router.post('/search', async (req: AuthRequest, res: Response): Promise<void> =>
     });
   } catch (error) {
     const err = error as Error;
-    log.error('[mem0 POST /search] Error:', err);
+    log.error('[mem0 POST /search] Error:', { error: err });
     res.status(500).json({ success: false, message: err.message || 'Fehler bei der Suche.' });
   }
 });
@@ -215,7 +215,7 @@ router.delete(
       res.json({ success: true });
     } catch (error) {
       const err = error as Error;
-      log.error('[mem0 DELETE /:memoryId] Error:', err);
+      log.error('[mem0 DELETE /:memoryId] Error:', { error: err });
       res
         .status(500)
         .json({ success: false, message: err.message || 'Fehler beim Löschen der Erinnerung.' });
@@ -265,7 +265,7 @@ router.get(
       res.json(exportData);
     } catch (error) {
       const err = error as Error;
-      log.error('[mem0 GET /user/:userId/export] Error:', err);
+      log.error('[mem0 GET /user/:userId/export] Error:', { error: err });
       res.status(500).json({ success: false, message: err.message || 'Fehler beim Export.' });
     }
   }
@@ -303,7 +303,7 @@ router.delete(
       res.json({ success: true });
     } catch (error) {
       const err = error as Error;
-      log.error('[mem0 DELETE /user/:userId/all] Error:', err);
+      log.error('[mem0 DELETE /user/:userId/all] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Löschen aller Erinnerungen.',

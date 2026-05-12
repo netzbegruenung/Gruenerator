@@ -90,7 +90,7 @@ function parseSimpleResponse(content: string): SimpleAlternative[] {
       },
     ];
   } catch (e) {
-    log.error('Error parsing simple response:', e);
+    log.error('Error parsing simple response:', { error: e });
     return [
       {
         headline: content.trim().substring(0, 50),
@@ -119,7 +119,7 @@ export async function handleSimpleRequest(req: SharepicRequest, res: Response): 
   const systemRole = config.systemRole;
   const requestOptions = singleItem
     ? config.options
-    : config.alternativesOptions ?? config.options;
+    : (config.alternativesOptions ?? config.options);
 
   const requestTemplate = replaceTemplate(
     singleItem ? config.singleItemTemplate : config.requestTemplate,
@@ -183,7 +183,7 @@ export async function handleSimpleRequest(req: SharepicRequest, res: Response): 
       alternatives: alternatives,
     } as SimpleResponse);
   } catch (error) {
-    log.error('[sharepic_simple] Error:', error);
+    log.error('[sharepic_simple] Error:', { error });
     res.status(500).json({ success: false, error: (error as Error).message } as SimpleResponse);
   }
 }

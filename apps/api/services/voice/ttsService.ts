@@ -120,7 +120,7 @@ class TTSService {
         callbacks.onDone?.({ chunks: chunkIndex, durationMs });
       }
     } catch (error) {
-      log.error('[TTS] Stream error:', error);
+      log.error('[TTS] Stream error:', { error });
       callbacks.onError?.(error instanceof Error ? error : new Error(String(error)));
     }
   }

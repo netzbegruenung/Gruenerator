@@ -50,7 +50,7 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
         },
       };
     } catch (error) {
-      log.error('[RecentValues Contract] Error retrieving field types:', error);
+      log.error('[RecentValues Contract] Error retrieving field types:', { error });
       return {
         status: 500 as const,
         body: { error: (error as Error).message || 'Failed to retrieve field types' },
@@ -83,7 +83,7 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
         },
       };
     } catch (error) {
-      log.error('[RecentValues Contract] Error retrieving values:', error);
+      log.error('[RecentValues Contract] Error retrieving values:', { error });
       return {
         status: 500 as const,
         body: { error: (error as Error).message || 'Failed to retrieve recent values' },
@@ -107,7 +107,7 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
         },
       };
     } catch (error) {
-      log.error('[RecentValues Contract] Error saving value:', error);
+      log.error('[RecentValues Contract] Error saving value:', { error });
       return {
         status: 500 as const,
         body: { error: (error as Error).message || 'Failed to save recent value' },
@@ -131,7 +131,7 @@ export const recentValuesContractRouter = s.router(recentValuesContract, {
         },
       };
     } catch (error) {
-      log.error('[RecentValues Contract] Error clearing values:', error);
+      log.error('[RecentValues Contract] Error clearing values:', { error });
       return {
         status: 500 as const,
         body: { error: (error as Error).message || 'Failed to clear recent values' },

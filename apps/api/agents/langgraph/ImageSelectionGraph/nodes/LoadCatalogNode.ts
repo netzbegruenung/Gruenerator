@@ -5,7 +5,11 @@
 import fs from 'fs/promises';
 import path from 'path';
 
+import { createLogger } from '../../../../utils/logger.js';
+
 import type { ImageSelectionState, ImageCatalog } from '../types.js';
+
+const log = createLogger('LoadCatalogNode');
 
 /**
  * Load image catalog from file system
@@ -18,7 +22,7 @@ export async function loadCatalogNode(
     const catalogData = await fs.readFile(catalogPath, 'utf8');
     const imageCatalog = JSON.parse(catalogData) as ImageCatalog;
 
-    console.log(`[ImageSelection] Loaded ${imageCatalog.images.length} images from catalog`);
+    log.debug(`[ImageSelection] Loaded ${imageCatalog.images.length} images from catalog`);
 
     return {
       imageCatalog,
@@ -30,7 +34,7 @@ export async function loadCatalogNode(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[ImageSelection] Failed to load image catalog:', errorMessage);
+    log.error('[ImageSelection] Failed to load image catalog:', errorMessage);
 
     return {
       error: 'Failed to load image catalog',

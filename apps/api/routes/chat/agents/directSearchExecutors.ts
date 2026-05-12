@@ -189,7 +189,7 @@ export async function executeDirectSearch(params: {
         const hasExplicitFilters = filters && Object.keys(filters).length > 0;
         if (hasExplicitFilters) {
           // Explicit user-selected filters (e.g. notebook source filter) — respect them
-          console.warn(
+          log.warn(
             `[Direct Search] No results with explicit user filters for "${query}" in ${collection}. ` +
               `NOT falling back to unfiltered search. Filters: ${JSON.stringify(filters)}`
           );

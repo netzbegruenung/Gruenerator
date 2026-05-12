@@ -1,7 +1,11 @@
+import { createLogger } from '../logger.js';
+
 import { detectContentType } from './contentType.js';
 import { extractTitleFromResponse } from './titleUtils.js';
 
 import type { AIWorkerResult, EnhancedAIWorkerResult, FormData } from './types.js';
+
+const log = createLogger('responseProcessor');
 
 const SOCIAL_LIKE_TYPES = new Set([
   'instagram',
@@ -78,13 +82,13 @@ export function processResponseWithTitle(
   if (gruentitleMatch) {
     cleanContent = result.content.replace(/<GRUEN_TITLE>.*?<\/GRUEN_TITLE>/s, '').trim();
     titleSource = 'extracted';
-    console.log('[processResponseWithTitle] Removed GRUEN_TITLE markers from content');
+    log.debug('[processResponseWithTitle] Removed GRUEN_TITLE markers from content');
   } else {
     const titleMatch = result.content.match(/Titel:\s*(.+)$/im);
     if (titleMatch) {
       cleanContent = result.content.replace(/\n*Titel:\s*(.+)$/im, '').trim();
       titleSource = 'extracted';
-      console.log('[processResponseWithTitle] Removed legacy title line from content');
+      log.debug('[processResponseWithTitle] Removed legacy title line from content');
     }
   }
 

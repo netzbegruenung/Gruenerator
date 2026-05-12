@@ -3,6 +3,7 @@ import { eq, sql } from 'drizzle-orm';
 import { profiles } from '../../database/schema/core.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { type DeleteResult, getPostgresInstance } from '../../database/services/PostgresService.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { toUserProfile } from './profileMapper.js';
 
@@ -14,6 +15,8 @@ import type {
   ProfileStats,
   HealthCheckResult,
 } from './types.js';
+
+const log = createLogger('ProfileService');
 
 /**
  * ProfileService - Centralized service for user profile operations
@@ -33,15 +36,11 @@ class ProfileService {
   async getProfileById(userId: string): Promise<UserProfile | null> {
     try {
       const db = getDrizzleInstance();
-      const rows = await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.id, userId))
-        .limit(1);
+      const rows = await db.select().from(profiles).where(eq(profiles.id, userId)).limit(1);
       const row = rows[0];
       return row ? toUserProfile(row) : null;
     } catch (error: unknown) {
-      console.error('[ProfileService] Error getting profile by ID:', error);
+      log.error('[ProfileService] Error getting profile by ID:', { error });
       throw error;
     }
   }
@@ -60,7 +59,7 @@ class ProfileService {
       const row = rows[0];
       return row ? toUserProfile(row) : null;
     } catch (error: unknown) {
-      console.error('[ProfileService] Error getting profile by Keycloak ID:', error);
+      log.error('[ProfileService] Error getting profile by Keycloak ID:', { error });
       throw error;
     }
   }
@@ -71,15 +70,11 @@ class ProfileService {
   async getProfileByEmail(email: string): Promise<UserProfile | null> {
     try {
       const db = getDrizzleInstance();
-      const rows = await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.email, email))
-        .limit(1);
+      const rows = await db.select().from(profiles).where(eq(profiles.email, email)).limit(1);
       const row = rows[0];
       return row ? toUserProfile(row) : null;
     } catch (error: unknown) {
-      console.error('[ProfileService] Error getting profile by email:', error);
+      log.error('[ProfileService] Error getting profile by email:', { error });
       throw error;
     }
   }
@@ -116,7 +111,7 @@ class ProfileService {
       const rows = await db.insert(profiles).values(insertValues).returning();
       return toUserProfile(rows[0]);
     } catch (error: unknown) {
-      console.error('[ProfileService] Error creating profile:', error);
+      log.error('[ProfileService] Error creating profile:', { error });
       throw error;
     }
   }
@@ -135,20 +130,44 @@ class ProfileService {
       if (updateData.email !== undefined) setValues.email = updateData.email;
       if (updateData.username !== undefined) setValues.username = updateData.username;
       if (updateData.display_name !== undefined) setValues.display_name = updateData.display_name;
-      if (updateData.avatar_robot_id !== undefined) setValues.avatar_robot_id = updateData.avatar_robot_id;
+      if (updateData.avatar_robot_id !== undefined)
+        setValues.avatar_robot_id = updateData.avatar_robot_id;
       if (updateData.chat_color !== undefined) setValues.chat_color = updateData.chat_color;
-      if (updateData.beta_features !== undefined) setValues.beta_features = updateData.beta_features;
-      if (updateData.user_defaults !== undefined) setValues.user_defaults = updateData.user_defaults;
+      if (updateData.beta_features !== undefined)
+        setValues.beta_features = updateData.beta_features;
+      if (updateData.user_defaults !== undefined)
+        setValues.user_defaults = updateData.user_defaults;
 
       // Handle the dynamic keys from ProfileUpdateData's index signature
       // These correspond to feature flag columns (boolean) and other columns
       const knownBooleanColumns = [
-        'groups_enabled', 'custom_generators', 'database_access', 'collab', 'notebook',
-        'sharepic', 'anweisungen', 'labor_enabled', 'sites_enabled', 'chat',
-        'interactive_antrag_enabled', 'vorlagen', 'video_editor', 'scanner', 'prompts',
-        'docs', 'boards', 'bundestag_api_enabled', 'memory_enabled', 'wordpress_enabled',
-        'deutschlandmodus', 'is_admin', 'content_management', 'sites', 'website',
-        'ai_sharepic', 'groups',
+        'groups_enabled',
+        'custom_generators',
+        'database_access',
+        'collab',
+        'notebook',
+        'sharepic',
+        'anweisungen',
+        'labor_enabled',
+        'sites_enabled',
+        'chat',
+        'interactive_antrag_enabled',
+        'vorlagen',
+        'video_editor',
+        'scanner',
+        'prompts',
+        'docs',
+        'boards',
+        'bundestag_api_enabled',
+        'memory_enabled',
+        'wordpress_enabled',
+        'deutschlandmodus',
+        'is_admin',
+        'content_management',
+        'sites',
+        'website',
+        'ai_sharepic',
+        'groups',
       ] as const;
 
       for (const col of knownBooleanColumns) {
@@ -158,8 +177,12 @@ class ProfileService {
       }
 
       const knownTextColumns = [
-        'locale', 'custom_prompt', 'presseabbinder', 'custom_antrag_gliederung',
-        'auth_source', 'document_mode',
+        'locale',
+        'custom_prompt',
+        'presseabbinder',
+        'custom_antrag_gliederung',
+        'auth_source',
+        'document_mode',
       ] as const;
 
       for (const col of knownTextColumns) {
@@ -180,7 +203,7 @@ class ProfileService {
 
       return toUserProfile(rows[0]);
     } catch (error: unknown) {
-      console.error('[ProfileService] Error updating profile:', error);
+      log.error('[ProfileService] Error updating profile:', { error });
       throw error;
     }
   }
@@ -246,7 +269,7 @@ class ProfileService {
 
       return toUserProfile(rows[0]);
     } catch (error: unknown) {
-      console.error('[ProfileService] Error upserting profile:', error);
+      log.error('[ProfileService] Error upserting profile:', { error });
       throw error;
     }
   }
@@ -297,12 +320,12 @@ class ProfileService {
       }
 
       const result = await this.updateProfile(userId, updateData);
-      console.log(
+      log.debug(
         `[ProfileService] Beta feature updated: ${feature} = ${enabled} for user ${userId}`
       );
       return result;
     } catch (error: unknown) {
-      console.error('[ProfileService] Error updating beta features:', error);
+      log.error('[ProfileService] Error updating beta features:', { error });
       throw error;
     }
   }
@@ -329,7 +352,7 @@ class ProfileService {
 
       const verifiedProfile = await this.getProfileById(userId);
       if (!verifiedProfile || verifiedProfile.avatar_robot_id !== avatarRobotId) {
-        console.error(`[ProfileService] 🚨 Avatar update verification FAILED for user ${userId}:`, {
+        log.error(`[ProfileService] 🚨 Avatar update verification FAILED for user ${userId}:`, {
           requested: avatarRobotId,
           actual: verifiedProfile?.avatar_robot_id,
           updateResult: result,
@@ -339,12 +362,12 @@ class ProfileService {
         );
       }
 
-      console.log(
+      log.debug(
         `[ProfileService] 🎨 Avatar updated for user ${userId}: avatar_robot_id=${avatarRobotId} (verified in PostgreSQL)`
       );
       return verifiedProfile;
     } catch (error: unknown) {
-      console.error('[ProfileService] Error updating avatar:', error);
+      log.error('[ProfileService] Error updating avatar:', { error });
       throw error;
     }
   }
@@ -359,10 +382,10 @@ class ProfileService {
       }
 
       const result = await this.updateProfile(userId, { chat_color: color });
-      console.log(`[ProfileService] Chat color updated for user ${userId}: ${color}`);
+      log.debug(`[ProfileService] Chat color updated for user ${userId}: ${color}`);
       return result;
     } catch (error: unknown) {
-      console.error('[ProfileService] Error updating chat color:', error);
+      log.error('[ProfileService] Error updating chat color:', { error });
       throw error;
     }
   }
@@ -398,7 +421,7 @@ class ProfileService {
 
       return await this.updateProfile(userId, { user_defaults: defaults });
     } catch (error: unknown) {
-      console.error('[ProfileService] Error updating user default:', error);
+      log.error('[ProfileService] Error updating user default:', { error });
       throw error;
     }
   }
@@ -427,7 +450,7 @@ class ProfileService {
    */
   async deleteProfile(userId: string): Promise<DeleteResult> {
     try {
-      console.log(`[ProfileService] Starting profile deletion for user ${userId}`);
+      log.debug(`[ProfileService] Starting profile deletion for user ${userId}`);
 
       // Look up basic info before deletion for logging purposes
       const db = getDrizzleInstance();
@@ -439,14 +462,14 @@ class ProfileService {
 
       const userInfo = userInfoRows[0];
       if (userInfo) {
-        console.log(
+        log.debug(
           `[ProfileService] Deleting user profile: ${userInfo.email ?? 'N/A'} (${userInfo.username ?? 'N/A'})`
         );
       } else {
-        console.warn(`[ProfileService] User ${userId} not found in profiles table`);
+        log.warn(`[ProfileService] User ${userId} not found in profiles table`);
       }
 
-      console.log(`[ProfileService] Executing DELETE from profiles WHERE id = ${userId}`);
+      log.debug(`[ProfileService] Executing DELETE from profiles WHERE id = ${userId}`);
 
       // Use the legacy PostgresService delete for DeleteResult compatibility
       const postgres = getPostgresInstance();
@@ -454,24 +477,24 @@ class ProfileService {
       const result = await postgres.delete('profiles', { id: userId });
 
       if (result && result.changes > 0) {
-        console.log(
+        log.debug(
           `[ProfileService] ✅ Successfully deleted user profile ${userId}. Deleted rows:`,
           result.changes
         );
-        console.log(
+        log.debug(
           `[ProfileService] CASCADE deletion will now automatically remove related data from tables with ON DELETE CASCADE constraints`
         );
       } else {
-        console.warn(
+        log.warn(
           `[ProfileService] ⚠️ Delete operation returned no rows for user ${userId} - user may not exist`
         );
       }
 
       return result;
     } catch (error: unknown) {
-      console.error(`[ProfileService] ❌ Error deleting profile for user ${userId}:`, error);
+      log.error(`[ProfileService] ❌ Error deleting profile for user ${userId}:`, { error });
       if (error instanceof Error) {
-        console.error(`[ProfileService] Error details:`, {
+        log.error(`[ProfileService] Error details:`, {
           message: error.message,
           code: 'code' in error ? (error as { code: string }).code : undefined,
           stack: error.stack,
@@ -495,7 +518,7 @@ class ProfileService {
         .offset(offset);
       return rows.map(toUserProfile);
     } catch (error: unknown) {
-      console.error('[ProfileService] Error getting all profiles:', error);
+      log.error('[ProfileService] Error getting all profiles:', { error });
       throw error;
     }
   }
@@ -523,7 +546,7 @@ class ProfileService {
           'code' in innerError &&
           (innerError as { code: string }).code === '42703'
         ) {
-          console.warn('[ProfileService] Column missing in getProfileStats, using fallback query');
+          log.warn('[ProfileService] Column missing in getProfileStats, using fallback query');
           const result = await db
             .select({
               total_profiles: sql<number>`COUNT(*)`,
@@ -537,7 +560,7 @@ class ProfileService {
         throw innerError;
       }
     } catch (error: unknown) {
-      console.error('[ProfileService] Error getting profile stats:', error);
+      log.error('[ProfileService] Error getting profile stats:', { error });
       throw error;
     }
   }
@@ -626,7 +649,10 @@ class ProfileService {
   async healthCheck(): Promise<HealthCheckResult> {
     try {
       const db = getDrizzleInstance();
-      const result = await db.select({ count: sql<number>`COUNT(*)` }).from(profiles).limit(1);
+      const result = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(profiles)
+        .limit(1);
       return {
         status: 'healthy',
         database: 'postgresql',

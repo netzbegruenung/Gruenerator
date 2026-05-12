@@ -210,7 +210,7 @@ router.get('/', async (req, res) => {
 
     res.json(formattedMessages);
   } catch (error) {
-    log.error('Error fetching messages:', error);
+    log.error('Error fetching messages:', { error });
     res.status(500).json({ error: 'Failed to fetch messages' });
   }
 });
@@ -244,7 +244,7 @@ router.delete('/', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    log.error('Error deleting messages:', error);
+    log.error('Error deleting messages:', { error });
     res.status(500).json({ error: 'Failed to delete messages' });
   }
 });

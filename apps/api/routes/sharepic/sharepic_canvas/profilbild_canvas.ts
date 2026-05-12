@@ -75,7 +75,7 @@ router.post('/', upload.single('image'), (async (req: MulterRequest, res: Respon
 
     return res.json({ image: base64Image });
   } catch (error) {
-    log.error('Profilbild error:', error);
+    log.error('Profilbild error:', { error });
     return res.status(500).json({ error: 'Fehler beim Erstellen des Profilbilds' });
   }
 }) as RequestHandler);

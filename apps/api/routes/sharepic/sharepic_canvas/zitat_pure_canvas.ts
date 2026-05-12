@@ -224,7 +224,7 @@ async function createZitatPureImage(
     const rawBuffer = canvas.toBuffer('image/png');
     return optimizeCanvasBuffer(rawBuffer);
   } catch (error) {
-    log.error('Error in createZitatPureImage:', error);
+    log.error('Error in createZitatPureImage:', { error });
     throw error;
   }
 }
@@ -272,7 +272,7 @@ router.post('/', upload.single('image'), async (req: Request, res: Response): Pr
     res.json({ image: base64Image });
   } catch (err) {
     const error = err as Error;
-    log.error('Error in zitat_pure_canvas request:', error);
+    log.error('Error in zitat_pure_canvas request:', { error });
     res.status(500).json({
       error: 'Fehler beim Erstellen des Zitat-Pure-Bildes: ' + error.message,
     });

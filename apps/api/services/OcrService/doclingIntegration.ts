@@ -14,8 +14,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { env } from '../../config/env.js';
+import { createLogger } from '../../utils/logger.js';
 
 import type { ExtractionResult } from './types.js';
+
+const log = createLogger('doclingIntegration');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,7 +47,7 @@ async function sendBufferToDocling(
     });
     formData.append('parameters', new Blob([optionsPayload], { type: 'application/json' }));
 
-    console.log(
+    log.debug(
       `${logPrefix} Sending to ${DOCLING_BASE_URL}/v1/convert/file (${fileBuffer.length} bytes)`
     );
 
@@ -100,7 +103,7 @@ async function sendBufferToDocling(
     }
 
     const processingTimeMs = Date.now() - startTime;
-    console.log(
+    log.debug(
       `${logPrefix} Completed in ${processingTimeMs}ms: ${totalPages} pages, ${allText.length} characters`
     );
 
@@ -119,7 +122,7 @@ async function sendBufferToDocling(
   } catch (error: unknown) {
     const elapsed = Date.now() - startTime;
     const errMsg = error instanceof Error ? error.message : String(error);
-    console.error(`${logPrefix} FAILED after ${elapsed}ms:`, {
+    log.error(`${logPrefix} FAILED after ${elapsed}ms:`, {
       errorMessage: errMsg,
       errorType: error instanceof Error ? error.constructor.name : typeof error,
       fileName,
@@ -149,7 +152,7 @@ export async function extractTextWithDocling(filePath: string): Promise<Extracti
     throw new Error('File path outside allowed directories');
   }
 
-  console.log(`[DoclingOCR] Starting extraction:`, { filePath: safePath });
+  log.debug(`[DoclingOCR] Starting extraction:`, { filePath: safePath });
   const fileBuffer = await fs.readFile(safePath);
   const fileName = path.basename(safePath);
   return sendBufferToDocling(fileBuffer, fileName, '[DoclingOCR]');
@@ -164,7 +167,7 @@ export async function extractBase64WithDocling(
   filename: string
 ): Promise<ExtractionResult> {
   const sizeKB = (Math.ceil((base64Data.length * 3) / 4) / 1024).toFixed(1);
-  console.log(`[DoclingOCR:base64] Starting extraction for: ${filename} (~${sizeKB}KB)`);
+  log.debug(`[DoclingOCR:base64] Starting extraction for: ${filename} (~${sizeKB}KB)`);
   const fileBuffer = Buffer.from(base64Data, 'base64');
   return sendBufferToDocling(fileBuffer, filename, '[DoclingOCR:base64]');
 }

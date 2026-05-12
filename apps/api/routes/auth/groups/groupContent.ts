@@ -188,7 +188,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[Group Vorlagen] Error:', err);
+      log.error('[Group Vorlagen] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der Vorlagen.',
@@ -358,7 +358,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups/:groupId/share POST] Error:', err);
+      log.error('[User Groups /groups/:groupId/share POST] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Teilen des Inhalts.',
@@ -423,7 +423,7 @@ router.delete(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups/:groupId/share DELETE] Error:', err);
+      log.error('[User Groups /groups/:groupId/share DELETE] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Entfernen des Inhalts aus der Gruppe.',
@@ -753,7 +753,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups/:groupId/content GET] Error:', err);
+      log.error('[User Groups /groups/:groupId/content GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der Gruppeninhalte.',
@@ -830,7 +830,9 @@ router.put(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups/:groupId/content/:contentId/permissions PUT] Error:', err);
+      log.error('[User Groups /groups/:groupId/content/:contentId/permissions PUT] Error:', {
+        error: err,
+      });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Aktualisieren der Berechtigungen.',
@@ -901,7 +903,7 @@ router.delete(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups/:groupId/content/:contentId DELETE] Error:', err);
+      log.error('[User Groups /groups/:groupId/content/:contentId DELETE] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Entfernen des geteilten Inhalts.',

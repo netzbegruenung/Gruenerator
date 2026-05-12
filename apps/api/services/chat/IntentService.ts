@@ -284,7 +284,7 @@ async function processSharepicRequest(
       res.json(sharepicResponse);
       return;
     } catch (error) {
-      log.error('[IntentService] Sharepic generation failed:', error);
+      log.error('[IntentService] Sharepic generation failed:', { error });
       res.status(500).json({
         success: false,
         error: 'Fehler bei der Sharepic-Erstellung. Bitte versuche es erneut.',
@@ -356,7 +356,7 @@ async function processImagineRequest(
     );
     return res.json(imagineResponse);
   } catch (error) {
-    log.error('[IntentService] Imagine generation failed:', error);
+    log.error('[IntentService] Imagine generation failed:', { error });
     return res.status(500).json({
       success: false,
       error: 'Fehler bei der Bilderzeugung. Bitte versuche es erneut.',
@@ -438,7 +438,7 @@ export async function processMultiIntentRequest(
       },
     });
   } catch (error) {
-    log.error('[IntentService] Multi-intent processing error:', error);
+    log.error('[IntentService] Multi-intent processing error:', { error });
     res.status(500).json({
       success: false,
       error: 'Mehrfachverarbeitung fehlgeschlagen. Bitte versuche es erneut.',
@@ -553,7 +553,7 @@ export async function processSingleIntentRequest(
           documentKnowledge ? `${documentKnowledge.length} chars` : 'none'
         );
       } catch (error) {
-        log.error('[IntentService] Error extracting document knowledge:', error);
+        log.error('[IntentService] Error extracting document knowledge:', { error });
       }
     }
   }
@@ -616,7 +616,7 @@ async function processIntentAsync(
         req.user?.id || `anon_${req.ip}`
       );
     } catch (error) {
-      log.error('[IntentService] Error extracting async document knowledge:', error);
+      log.error('[IntentService] Error extracting async document knowledge:', { error });
     }
   }
 
@@ -678,7 +678,9 @@ async function processIntentAsync(
           processGraphRequest(routeType, intentReq as any, responseCollector as any);
 
     processPromise.catch((error) => {
-      log.error(`[IntentService] Async processing error for ${intent.agent}:`, error);
+      log.error(`[IntentService] Async processing error for ${intent.agent}:`, {
+        error: error as Error,
+      });
       reject(error);
     });
   });

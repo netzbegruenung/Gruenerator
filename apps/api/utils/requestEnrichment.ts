@@ -10,6 +10,7 @@ import { extractLocaleFromRequest } from '../services/localization/index.js';
 import { type SearxngAIWorkerPool } from '../services/search/index.js';
 
 import { getErrorMessage } from './errors/index.js';
+import { createLogger } from './logger.js';
 
 import type {
   EnrichmentOptions,
@@ -28,6 +29,8 @@ import type {
   WebSearchSource,
 } from './types/requestEnrichment.js';
 import type { RequestWithLocale } from '../services/localization/types.js';
+
+const log = createLogger('requestEnrichment');
 
 // Lazy import to avoid circular dependency issues
 const getQdrantDocumentService = async () => {
@@ -198,7 +201,7 @@ class RequestEnricher {
     fullTextResults.forEach((result) => {
       const meta = docsMetadata.find((d) => d.id === result.id);
       if (!meta) {
-        console.warn(`[RequestEnricher] Metadata not found for document ${result.id}`);
+        log.warn(`[RequestEnricher] Metadata not found for document ${result.id}`);
         return;
       }
 
@@ -254,7 +257,7 @@ class RequestEnricher {
     const requestType = (requestData.requestType || options.type || '') as string;
 
     if (!theme.trim()) {
-      console.log('🎯 [NotebookEnrich] Skipped: no theme/content found in request');
+      log.debug('[NotebookEnrich] Skipped: no theme/content found in request');
       return null;
     }
 
@@ -265,8 +268,8 @@ class RequestEnricher {
       `Thema: ${theme}\n${platforms ? `Plattformen: ${platforms}\n` : ''}${requestType ? `Texttyp: ${requestType}\n` : ''}Erstelle einen kurzen Entwurf (max 200 Wörter) als Grundlage für eine ausführlichere Ausarbeitung.`;
 
     try {
-      console.log(
-        `🎯 [NotebookEnrich] Generating preliminary draft for: "${theme.substring(0, 50)}..."`
+      log.debug(
+        `[NotebookEnrich] Generating preliminary draft for: "${theme.substring(0, 50)}..."`
       );
 
       const result = await options.aiWorkerPool.processRequest({
@@ -278,12 +281,12 @@ class RequestEnricher {
 
       const content = result.content || '';
       if (!content || content.length < 20) {
-        console.log('🎯 [NotebookEnrich] Result too short or empty, skipping');
+        log.debug('[NotebookEnrich] Result too short or empty, skipping');
         return null;
       }
 
       const timeMs = Date.now() - startTime;
-      console.log(`🎯 [NotebookEnrich] Generated (${timeMs}ms, ${content.length} chars)`);
+      log.debug(`[NotebookEnrich] Generated (${timeMs}ms, ${content.length} chars)`);
 
       return {
         preAnswer: content,
@@ -291,7 +294,7 @@ class RequestEnricher {
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[NotebookEnrich] Failed:', errorMessage);
+      log.error('[NotebookEnrich] Failed:', errorMessage);
       return null;
     }
   }
@@ -334,8 +337,8 @@ class RequestEnricher {
 
     // Extract user locale for localization
     const userLocale = req ? extractLocaleFromRequest(req as RequestWithLocale) : 'de-DE';
-    console.log(
-      `🎯 [RequestEnricher] Starting enrichment (type=${type}, urls=${enableUrls}, search=${enableWebSearch}, privacy=${usePrivacyMode}, vectorSearch=${selectedDocumentIds.length > 0}, locale=${userLocale})`
+    log.debug(
+      `[RequestEnricher] Starting enrichment (type=${type}, urls=${enableUrls}, search=${enableWebSearch}, privacy=${usePrivacyMode}, vectorSearch=${selectedDocumentIds.length > 0}, locale=${userLocale})`
     );
 
     // Initialize state with content selection and locale
@@ -366,7 +369,7 @@ class RequestEnricher {
 
     // Check if document knowledge was already processed (from chat route)
     if (requestBody.documentKnowledge) {
-      console.log('🎯 [RequestEnricher] Using pre-processed document knowledge from chat');
+      log.debug('[RequestEnricher] Using pre-processed document knowledge from chat');
       state.knowledge.push(requestBody.documentKnowledge as string);
       // Mark that documents were pre-processed - full metadata will be set at the end
       (state as { _documentsPreProcessed?: boolean })._documentsPreProcessed = true;
@@ -398,7 +401,7 @@ class RequestEnricher {
         this.detectAndCrawlUrls(requestBody, state.documents)
           .then((docs) => ({ type: 'urls' as const, documents: docs }))
           .catch((error: unknown) => {
-            console.log('🎯 [RequestEnricher] URL enrichment failed:', getErrorMessage(error));
+            log.debug('[RequestEnricher] URL enrichment failed:', getErrorMessage(error));
             return { type: 'urls' as const, documents: [] as Document[] };
           })
       );
@@ -414,7 +417,7 @@ class RequestEnricher {
             sources: result.sources,
           }))
           .catch((error: unknown) => {
-            console.log('🎯 [RequestEnricher] Web search failed:', getErrorMessage(error));
+            log.debug('[RequestEnricher] Web search failed:', getErrorMessage(error));
             return { type: 'websearch' as const, knowledge: [] as string[], sources: null };
           })
       );
@@ -437,7 +440,7 @@ class RequestEnricher {
             documentReferences: result.documentReferences || [],
           }))
           .catch((error: unknown) => {
-            console.log('🎯 [RequestEnricher] Vector search failed:', getErrorMessage(error));
+            log.debug('[RequestEnricher] Vector search failed:', getErrorMessage(error));
             return {
               type: 'vectorsearch' as const,
               knowledge: [] as string[],
@@ -457,7 +460,7 @@ class RequestEnricher {
             textReferences: result.textReferences || [],
           }))
           .catch((error: unknown) => {
-            console.log('🎯 [RequestEnricher] Texts fetch failed:', getErrorMessage(error));
+            log.debug('[RequestEnricher] Texts fetch failed:', getErrorMessage(error));
             return {
               type: 'texts' as const,
               knowledge: [] as string[],
@@ -478,7 +481,7 @@ class RequestEnricher {
             timeMs: result?.timeMs ?? 0,
           }))
           .catch((error: unknown) => {
-            console.log('🎯 [RequestEnricher] Fast pre-answer failed:', getErrorMessage(error));
+            log.debug('[RequestEnricher] Fast pre-answer failed:', getErrorMessage(error));
             return { type: 'notebook_enrich' as const, preAnswer: null, timeMs: 0 };
           })
       );
@@ -487,9 +490,7 @@ class RequestEnricher {
     // Execute all enrichment tasks in parallel
     let enrichmentResults: EnrichmentTaskResult[] = [];
     if (enrichmentTasks.length > 0) {
-      console.log(
-        `🎯 [RequestEnricher] Running ${enrichmentTasks.length} enrichment tasks in parallel`
-      );
+      log.debug(`[RequestEnricher] Running ${enrichmentTasks.length} enrichment tasks in parallel`);
       const results = await Promise.allSettled(enrichmentTasks);
       enrichmentResults = results
         .filter(
@@ -508,11 +509,11 @@ class RequestEnricher {
     for (const result of enrichmentResults) {
       if (result.type === 'urls' && result.documents.length > 0) {
         state.documents.push(...result.documents);
-        console.log(`🎯 [RequestEnricher] Added ${result.documents.length} URL documents`);
+        log.debug(`[RequestEnricher] Added ${result.documents.length} URL documents`);
       } else if (result.type === 'websearch') {
         if (result.knowledge.length > 0) {
           state.knowledge.push(...result.knowledge);
-          console.log(`🎯 [RequestEnricher] Added web search knowledge`);
+          log.debug(`[RequestEnricher] Added web search knowledge`);
         }
         webSearchSources = result.sources;
         if (result.knowledge.length > 0) {
@@ -523,8 +524,8 @@ class RequestEnricher {
       } else if (result.type === 'vectorsearch') {
         if (result.knowledge.length > 0) {
           state.knowledge.push(...result.knowledge);
-          console.log(
-            `🎯 [RequestEnricher] Added vector search knowledge from ${selectedDocumentIds.length} documents`
+          log.debug(
+            `[RequestEnricher] Added vector search knowledge from ${selectedDocumentIds.length} documents`
           );
         }
         if (result.documentReferences && result.documentReferences.length > 0) {
@@ -533,12 +534,12 @@ class RequestEnricher {
       } else if (result.type === 'knowledge') {
         if (result.knowledge.length > 0) {
           state.knowledge.push(...result.knowledge);
-          console.log(`🎯 [RequestEnricher] Added ${result.knowledge.length} knowledge entries`);
+          log.debug(`[RequestEnricher] Added ${result.knowledge.length} knowledge entries`);
         }
       } else if (result.type === 'texts') {
         if (result.knowledge.length > 0) {
           state.knowledge.push(...result.knowledge);
-          console.log(`🎯 [RequestEnricher] Added ${result.knowledge.length} saved texts`);
+          log.debug(`[RequestEnricher] Added ${result.knowledge.length} saved texts`);
         }
         if (result.textReferences && result.textReferences.length > 0) {
           allTextReferences.push(...result.textReferences);
@@ -552,8 +553,8 @@ class RequestEnricher {
             preAnswer: result.preAnswer,
             timeMs: result.timeMs,
           };
-          console.log(
-            `🎯 [RequestEnricher] Added fast pre-answer (${result.timeMs}ms, ${result.preAnswer.length} chars)`
+          log.debug(
+            `[RequestEnricher] Added fast pre-answer (${result.timeMs}ms, ${result.preAnswer.length} chars)`
           );
           state.toolInstructions.push(
             'Hinweis: Ein schneller Vorentwurf wurde als Ausgangspunkt bereitgestellt. Du kannst diesen verfeinern, erweitern oder komplett neu formulieren.'
@@ -577,8 +578,8 @@ class RequestEnricher {
       notebookEnrichTimeMs: notebookEnrichMetadata?.timeMs || 0,
     };
 
-    console.log(
-      `🎯 [RequestEnricher] Enrichment complete (documents=${state.documents.length}, knowledge=${state.knowledge.length})`
+    log.debug(
+      `[RequestEnricher] Enrichment complete (documents=${state.documents.length}, knowledge=${state.knowledge.length})`
     );
 
     return state;
@@ -632,7 +633,7 @@ class RequestEnricher {
   ): Promise<Document[]> {
     const urlCrawler = await getUrlCrawlerService();
     if (!urlCrawler) {
-      console.log('🎯 [RequestEnricher] URL crawling skipped: service not available');
+      log.debug('[RequestEnricher] URL crawling skipped: service not available');
       return [];
     }
 
@@ -648,14 +649,12 @@ class RequestEnricher {
       const newUrls = filterNewUrls(detectedUrls, existingDocuments);
 
       if (newUrls.length === 0) {
-        console.log(
-          `🎯 [RequestEnricher] Found ${detectedUrls.length} URLs but all already processed`
-        );
+        log.debug(`[RequestEnricher] Found ${detectedUrls.length} URLs but all already processed`);
         return [];
       }
 
-      console.log(
-        `🎯 [RequestEnricher] Processing ${newUrls.length} new URLs: ${newUrls.map((url) => getUrlDomain(url)).join(', ')}`
+      log.debug(
+        `[RequestEnricher] Processing ${newUrls.length} new URLs: ${newUrls.map((url) => getUrlDomain(url)).join(', ')}`
       );
 
       // Crawl URLs with concurrency limit
@@ -663,7 +662,7 @@ class RequestEnricher {
 
       const crawlPromises = urlsToProcess.map(async (url) => {
         try {
-          console.log(`🎯 [RequestEnricher] Crawling: ${url}`);
+          log.debug(`[RequestEnricher] Crawling: ${url}`);
           const result = await urlCrawler.crawlUrl(url, {
             enhancedMetadata: true,
             timeout: this.urlCrawlTimeout,
@@ -686,16 +685,16 @@ class RequestEnricher {
               },
             };
 
-            console.log(
-              `🎯 [RequestEnricher] Successfully crawled: ${url} (${data.wordCount || 0} words)`
+            log.debug(
+              `[RequestEnricher] Successfully crawled: ${url} (${data.wordCount || 0} words)`
             );
             return crawledDocument;
           } else {
-            console.log(`🎯 [RequestEnricher] Failed to crawl: ${url} - ${result.error}`);
+            log.debug(`[RequestEnricher] Failed to crawl: ${url} - ${result.error}`);
             return null;
           }
         } catch (error) {
-          console.log(`🎯 [RequestEnricher] Error crawling ${url}:`, getErrorMessage(error));
+          log.debug(`[RequestEnricher] Error crawling ${url}:`, getErrorMessage(error));
           return null;
         }
       });
@@ -710,14 +709,14 @@ class RequestEnricher {
         .filter((doc): doc is Document => doc !== null);
 
       if (crawledDocuments.length > 0) {
-        console.log(
-          `🎯 [RequestEnricher] Successfully crawled ${crawledDocuments.length}/${urlsToProcess.length} URLs`
+        log.debug(
+          `[RequestEnricher] Successfully crawled ${crawledDocuments.length}/${urlsToProcess.length} URLs`
         );
       }
 
       return crawledDocuments;
     } catch (error) {
-      console.log('🎯 [RequestEnricher] URL detection failed:', getErrorMessage(error));
+      log.debug('[RequestEnricher] URL detection failed:', getErrorMessage(error));
       return [];
     }
   }
@@ -732,17 +731,17 @@ class RequestEnricher {
   ): Promise<WebSearchResult> {
     const searxngService = await getSearxngWebSearchService();
     if (!searxngService) {
-      console.log('🎯 [RequestEnricher] Web search skipped: service not available');
+      log.debug('[RequestEnricher] Web search skipped: service not available');
       return { knowledge: [], sources: null };
     }
 
     try {
-      console.log(`🎯 [RequestEnricher] Performing web search: "${searchQuery}"`);
+      log.debug(`[RequestEnricher] Performing web search: "${searchQuery}"`);
 
       const searchResults = await searxngService.performWebSearch(searchQuery);
 
       if (!searchResults?.success) {
-        console.log('🎯 [RequestEnricher] Web search failed');
+        log.debug('[RequestEnricher] Web search failed');
         return { knowledge: [], sources: null };
       }
 
@@ -765,7 +764,7 @@ class RequestEnricher {
           }
         }
       } catch (summaryError) {
-        console.log('🎯 [RequestEnricher] AI summary failed:', getErrorMessage(summaryError));
+        log.debug('[RequestEnricher] AI summary failed:', getErrorMessage(summaryError));
       }
 
       // Extract source list for frontend
@@ -777,13 +776,13 @@ class RequestEnricher {
         }));
       }
 
-      console.log(
-        `🎯 [RequestEnricher] Web search complete (knowledge=${knowledge.length > 0 ? 'yes' : 'no'}, sources=${sources?.length || 0})`
+      log.debug(
+        `[RequestEnricher] Web search complete (knowledge=${knowledge.length > 0 ? 'yes' : 'no'}, sources=${sources?.length || 0})`
       );
 
       return { knowledge, sources };
     } catch (error) {
-      console.log('🎯 [RequestEnricher] Web search error:', getErrorMessage(error));
+      log.debug('[RequestEnricher] Web search error:', getErrorMessage(error));
       return { knowledge: [], sources: null };
     }
   }
@@ -798,7 +797,7 @@ class RequestEnricher {
     req: { user?: { id: string }; headers?: Record<string, string | string[] | undefined> }
   ): Promise<DocumentSearchResult> {
     if (!selectedDocumentIds || selectedDocumentIds.length === 0 || !searchQuery) {
-      console.log('🎯 [RequestEnricher] Document search skipped: no documents or query');
+      log.debug('[RequestEnricher] Document search skipped: no documents or query');
       return { knowledge: [] };
     }
 
@@ -806,13 +805,13 @@ class RequestEnricher {
     const userId = req?.user?.id;
 
     if (!userId) {
-      console.log('🎯 [RequestEnricher] Document search skipped: no user ID');
+      log.debug('[RequestEnricher] Document search skipped: no user ID');
       return { knowledge: [] };
     }
 
     try {
-      console.log(
-        `🎯 [RequestEnricher] Smart document retrieval for ${selectedDocumentIds.length} documents: "${searchQuery}"`
+      log.debug(
+        `[RequestEnricher] Smart document retrieval for ${selectedDocumentIds.length} documents: "${searchQuery}"`
       );
 
       // Step 1: Fetch metadata from PostgreSQL to determine document sizes
@@ -830,8 +829,8 @@ class RequestEnricher {
             );
             return doc;
           } catch (error) {
-            console.warn(
-              '🎯 [RequestEnricher] Failed to fetch metadata for document %s:',
+            log.warn(
+              '[RequestEnricher] Failed to fetch metadata for document %s:',
               docId,
               getErrorMessage(error)
             );
@@ -845,7 +844,7 @@ class RequestEnricher {
       );
 
       if (validDocs.length === 0) {
-        console.log('🎯 [RequestEnricher] No accessible documents found');
+        log.debug('[RequestEnricher] No accessible documents found');
         return { knowledge: [] };
       }
 
@@ -858,8 +857,8 @@ class RequestEnricher {
         (doc: { vector_count?: number }) => (doc.vector_count || 0) > CHUNK_THRESHOLD
       );
 
-      console.log(
-        `🎯 [RequestEnricher] Document classification: ${smallDocs.length} small (full text), ${largeDocs.length} large (vector search)`
+      log.debug(
+        `[RequestEnricher] Document classification: ${smallDocs.length} small (full text), ${largeDocs.length} large (vector search)`
       );
 
       // Step 3: Process in parallel
@@ -874,10 +873,7 @@ class RequestEnricher {
                 smallDocs.map((d) => d.id as string)
               )
               .catch((error: unknown) => {
-                console.warn(
-                  '🎯 [RequestEnricher] Full text retrieval failed:',
-                  getErrorMessage(error)
-                );
+                log.warn('[RequestEnricher] Full text retrieval failed:', getErrorMessage(error));
                 return { documents: [], errors: [] };
               })
           : Promise.resolve({ documents: [], errors: [] }),
@@ -909,7 +905,7 @@ class RequestEnricher {
               )
               .then((result) => (result.success ? result.results : []))
               .catch((error: unknown) => {
-                console.warn('🎯 [RequestEnricher] Vector search failed:', getErrorMessage(error));
+                log.warn('[RequestEnricher] Vector search failed:', getErrorMessage(error));
                 return [];
               })
           : Promise.resolve([]),
@@ -929,19 +925,19 @@ class RequestEnricher {
       const elapsedTime = Date.now() - startTime;
 
       // Enhanced logging with performance metrics
-      console.log(`🎯 [RequestEnricher] Smart retrieval complete (${elapsedTime}ms):`);
-      console.log(
+      log.debug(`[RequestEnricher] Smart retrieval complete (${elapsedTime}ms):`);
+      log.debug(
         `   - Full text: ${fullTextResults.documents.length} docs, ${fullTextResults.errors.length} errors`
       );
-      console.log(`   - Vector search: ${vectorSearchResults.length} excerpts`);
-      console.log(`   - Total knowledge entries: ${allKnowledge.length}`);
-      console.log(
+      log.debug(`   - Vector search: ${vectorSearchResults.length} excerpts`);
+      log.debug(`   - Total knowledge entries: ${allKnowledge.length}`);
+      log.debug(
         `   - Estimated tokens saved: ~${smallDocs.length * 200} (no vector search overhead)`
       );
 
       return { knowledge: allKnowledge, documentReferences: allReferences };
     } catch (error) {
-      console.error('🎯 [RequestEnricher] Smart document retrieval error:', error);
+      log.error('[RequestEnricher] Smart document retrieval error:', { error });
       return { knowledge: [], documentReferences: [] };
     }
   }
@@ -954,12 +950,12 @@ class RequestEnricher {
     _req: { user?: { id: string } }
   ): Promise<DocumentSearchResult> {
     if (!knowledgeIds || knowledgeIds.length === 0) {
-      console.log('🎯 [RequestEnricher] Knowledge fetch skipped: no IDs provided');
+      log.debug('[RequestEnricher] Knowledge fetch skipped: no IDs provided');
       return { knowledge: [] };
     }
 
     try {
-      console.log(`🎯 [RequestEnricher] Fetching ${knowledgeIds.length} knowledge entries by IDs`);
+      log.debug(`[RequestEnricher] Fetching ${knowledgeIds.length} knowledge entries by IDs`);
 
       // Get database instance
       const { getPostgresInstance } = await import('../database/services/PostgresService.js');
@@ -974,7 +970,7 @@ class RequestEnricher {
       );
 
       if (!knowledgeData || knowledgeData.length === 0) {
-        console.log('🎯 [RequestEnricher] No knowledge entries found for provided IDs');
+        log.debug('[RequestEnricher] No knowledge entries found for provided IDs');
         return { knowledge: [] };
       }
 
@@ -983,13 +979,13 @@ class RequestEnricher {
         knowledgeData as unknown as KnowledgeEntry[]
       );
 
-      console.log(
-        `🎯 [RequestEnricher] Successfully fetched ${knowledgeEntries.length} knowledge entries`
+      log.debug(
+        `[RequestEnricher] Successfully fetched ${knowledgeEntries.length} knowledge entries`
       );
 
       return { knowledge: knowledgeEntries };
     } catch (error) {
-      console.log('🎯 [RequestEnricher] Knowledge fetch error:', getErrorMessage(error));
+      log.debug('[RequestEnricher] Knowledge fetch error:', getErrorMessage(error));
       return { knowledge: [] };
     }
   }
@@ -1002,12 +998,12 @@ class RequestEnricher {
     _req: { user?: { id: string } }
   ): Promise<DocumentSearchResult> {
     if (!textIds || textIds.length === 0) {
-      console.log('🎯 [RequestEnricher] Texts fetch skipped: no IDs provided');
+      log.debug('[RequestEnricher] Texts fetch skipped: no IDs provided');
       return { knowledge: [] };
     }
 
     try {
-      console.log(`🎯 [RequestEnricher] Fetching ${textIds.length} saved texts by IDs`);
+      log.debug(`[RequestEnricher] Fetching ${textIds.length} saved texts by IDs`);
 
       // Get database instance
       const { getPostgresInstance } = await import('../database/services/PostgresService.js');
@@ -1022,20 +1018,20 @@ class RequestEnricher {
       );
 
       if (!textData || textData.length === 0) {
-        console.log('🎯 [RequestEnricher] No texts found for provided IDs');
+        log.debug('[RequestEnricher] No texts found for provided IDs');
         return { knowledge: [], textReferences: [] };
       }
 
       // Format as knowledge content using new formatter
       const textsResult = this.formatSavedTexts(textData as unknown as SavedText[]);
 
-      console.log(
-        `🎯 [RequestEnricher] Successfully fetched ${textsResult.formatted.length} saved texts`
+      log.debug(
+        `[RequestEnricher] Successfully fetched ${textsResult.formatted.length} saved texts`
       );
 
       return { knowledge: textsResult.formatted, textReferences: textsResult.references };
     } catch (error) {
-      console.log('🎯 [RequestEnricher] Texts fetch error:', getErrorMessage(error));
+      log.debug('[RequestEnricher] Texts fetch error:', getErrorMessage(error));
       return { knowledge: [], textReferences: [] };
     }
   }

@@ -6,8 +6,11 @@
  */
 
 import { vectorConfig } from '../../config/vectorConfig.js';
+import { createLogger } from '../../utils/logger.js';
 
 import type { ChunkData, EnhancedScore, HybridMetadata, DocumentResult } from './types.js';
+
+const log = createLogger('scoring');
 
 interface VectorScoringConfig {
   maxSimilarityWeight?: number;
@@ -162,7 +165,7 @@ export function calculateDynamicThreshold(
   );
 
   if (vectorConfig.isVerboseMode()) {
-    console.log(
+    log.debug(
       `[${serviceName}] Dynamic threshold: base=${actualBaseThreshold}, length_adj=${lengthAdjustment}, final=${clampedThreshold}`
     );
   }

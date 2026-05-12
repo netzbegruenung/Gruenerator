@@ -159,7 +159,7 @@ export async function searchChatHistory(
     log.info(`[ChatSearch] Found ${results.length} threads for "${query}" (user: ${userId})`);
     return results;
   } catch (err) {
-    log.error(`[ChatSearch] Search failed for "${query}":`, err);
+    log.error(`[ChatSearch] Search failed for "${query}":`, { error: err });
     return [];
   }
 }

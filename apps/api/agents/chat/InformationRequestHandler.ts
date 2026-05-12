@@ -4,8 +4,11 @@
  */
 
 import * as chatMemory from '../../services/chat/ChatMemoryService.js';
+import { createLogger } from '../../utils/logger.js';
 
 import type { RequestType } from '../../config/antragQuestions.js';
+
+const log = createLogger('InformationRequestHandler');
 
 /**
  * Type definitions
@@ -216,7 +219,7 @@ export function checkForMissingInformation(
   extractedParams: Record<string, unknown>,
   _originalMessage: string
 ): MissingFieldInfo | null {
-  console.log('[InformationRequestHandler] Checking for missing info:', { agent, extractedParams });
+  log.debug('[InformationRequestHandler] Checking for missing info:', { agent, extractedParams });
 
   const requiredFields = REQUIRED_FIELDS[agent];
   if (!requiredFields) {
@@ -234,7 +237,7 @@ export function checkForMissingInformation(
       (typeof fieldValue === 'string' && !fieldValue.trim()) ||
       fieldValue === 'Unbekannt'
     ) {
-      console.log(`[InformationRequestHandler] Missing required field: ${fieldKey}`);
+      log.debug(`[InformationRequestHandler] Missing required field: ${fieldKey}`);
 
       const result: MissingFieldInfo = {
         field: fieldConfig.field,
@@ -270,7 +273,7 @@ export function generateInformationQuestion(
     questions[Math.floor(Math.random() * questions.length)] ??
     `Bitte gib mir den Wert für ${missingFieldInfo.displayName}.`;
 
-  console.log('[InformationRequestHandler] Generated question:', selectedQuestion);
+  log.debug('[InformationRequestHandler] Generated question:', selectedQuestion);
   return selectedQuestion;
 }
 
@@ -325,7 +328,7 @@ export function extractRequestedInformation(
   message: string,
   pendingRequest: PendingRequest
 ): Record<string, string> | null {
-  console.log('[InformationRequestHandler] Attempting to extract info from:', message);
+  log.debug('[InformationRequestHandler] Attempting to extract info from:', message);
 
   const { missingField, extractionPattern } = pendingRequest;
 
@@ -334,7 +337,7 @@ export function extractRequestedInformation(
     const match = message.match(extractionPattern);
     if (match && match[1]) {
       const extractedValue = match[1].trim();
-      console.log(
+      log.debug(
         `[InformationRequestHandler] Extracted ${missingField} via pattern:`,
         extractedValue
       );
@@ -363,7 +366,7 @@ export function extractRequestedInformation(
       'thema',
     ];
     if (commandKeywords.some((keyword) => cleanedMessage.toLowerCase().includes(keyword))) {
-      console.log(
+      log.debug(
         `[InformationRequestHandler] Message contains commands, not a name:`,
         cleanedMessage
       );
@@ -373,7 +376,7 @@ export function extractRequestedInformation(
     // Only accept 1-4 word responses (reasonable for names)
     const wordCount = cleanedMessage.split(/\s+/).filter((word) => word.length > 0).length;
     if (wordCount > 4) {
-      console.log(
+      log.debug(
         `[InformationRequestHandler] Too many words for a name (${wordCount}):`,
         cleanedMessage
       );
@@ -382,7 +385,7 @@ export function extractRequestedInformation(
 
     // Check if it looks like a name (contains letters, reasonable length)
     if (cleanedMessage && /^[a-züäöß\s.-]{2,50}$/i.test(cleanedMessage)) {
-      console.log(
+      log.debug(
         `[InformationRequestHandler] Extracted ${missingField} via heuristics:`,
         cleanedMessage
       );
@@ -399,7 +402,7 @@ export function extractRequestedInformation(
     // Only accept 1-10 word responses (reasonable for a theme)
     const wordCount = trimmedMessage.split(/\s+/).filter((word) => word.length > 0).length;
     if (wordCount > 10) {
-      console.log(
+      log.debug(
         `[InformationRequestHandler] Too many words for a theme (${wordCount}):`,
         trimmedMessage
       );
@@ -407,10 +410,7 @@ export function extractRequestedInformation(
     }
 
     if (trimmedMessage && trimmedMessage.length >= 3) {
-      console.log(
-        `[InformationRequestHandler] Extracted ${missingField} as theme:`,
-        trimmedMessage
-      );
+      log.debug(`[InformationRequestHandler] Extracted ${missingField} as theme:`, trimmedMessage);
       return {
         [missingField]: trimmedMessage,
       };
@@ -441,7 +441,7 @@ export function extractRequestedInformation(
 
     for (const [keyword, variantValue] of Object.entries(variantMappings)) {
       if (lowerMessage.includes(keyword)) {
-        console.log(
+        log.debug(
           `[InformationRequestHandler] Extracted variant via keyword "${keyword}":`,
           variantValue
         );
@@ -464,7 +464,7 @@ export function extractRequestedInformation(
       if (!variantValue) {
         return null;
       }
-      console.log(
+      log.debug(
         `[InformationRequestHandler] Extracted variant via number selection:`,
         variantValue
       );
@@ -474,7 +474,7 @@ export function extractRequestedInformation(
     }
   }
 
-  console.log(`[InformationRequestHandler] Could not extract ${missingField} from message`);
+  log.debug(`[InformationRequestHandler] Could not extract ${missingField} from message`);
   return null;
 }
 
@@ -486,7 +486,7 @@ export function completePendingRequest(
   extractedInfo: Record<string, string>,
   _req: RequestContext
 ): RequestContext {
-  console.log('[InformationRequestHandler] Completing pending request with:', extractedInfo);
+  log.debug('[InformationRequestHandler] Completing pending request with:', extractedInfo);
 
   const { originalContext, classifiedIntent } = pendingRequest;
 
@@ -515,7 +515,7 @@ export function completePendingRequest(
     documentIds: originalContext?.documentIds || [],
   };
 
-  console.log('[InformationRequestHandler] Updated request context with complete intent:', {
+  log.debug('[InformationRequestHandler] Updated request context with complete intent:', {
     agent: updatedRequest.agent,
     route: updatedRequest.route,
     hasParams: !!updatedRequest.params,
@@ -543,7 +543,7 @@ export async function handleInformationRequest(
     )) as PendingRequest | null;
 
     if (existingPendingRequest && existingPendingRequest.type === 'missing_information') {
-      console.log(
+      log.debug(
         '[InformationRequestHandler] Found existing pending request, attempting to resolve'
       );
 
@@ -565,7 +565,7 @@ export async function handleInformationRequest(
         };
       } else {
         // Information still not provided, ask again (but don't create duplicate pending request)
-        console.log('[InformationRequestHandler] Information still missing, will ask again');
+        log.debug('[InformationRequestHandler] Information still missing, will ask again');
         return null; // Let normal processing handle this as a new request
       }
     }
@@ -574,7 +574,7 @@ export async function handleInformationRequest(
     const missingFieldInfo = checkForMissingInformation(agent, extractedParams, message);
 
     if (missingFieldInfo) {
-      console.log('[InformationRequestHandler] Missing information detected, creating request');
+      log.debug('[InformationRequestHandler] Missing information detected, creating request');
 
       // Create information request with complete classified intent
       const informationRequest = createInformationRequest(
@@ -595,7 +595,7 @@ export async function handleInformationRequest(
     return null;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[InformationRequestHandler] Error handling information request:', errorMessage);
+    log.error('[InformationRequestHandler] Error handling information request:', errorMessage);
     return null;
   }
 }
@@ -610,7 +610,7 @@ export async function generateAntragQuestions(
   context: Record<string, unknown>,
   _aiWorkerPool: unknown
 ): Promise<QuestionConfig[]> {
-  console.warn(
+  log.warn(
     '[InformationRequestHandler] generateAntragQuestions is deprecated. Use getQuestionsForType from config/antragQuestions.js'
   );
 
@@ -656,7 +656,7 @@ function _generateFallbackAntragQuestions(context: Record<string, unknown>): Que
     });
   }
 
-  console.log('[InformationRequestHandler] Using fallback questions');
+  log.debug('[InformationRequestHandler] Using fallback questions');
   return baseQuestions.slice(0, 4);
 }
 
@@ -671,7 +671,7 @@ export async function analyzeAnswersForFollowup(
   context: Record<string, unknown>,
   _aiWorkerPool: unknown
 ): Promise<boolean> {
-  console.warn(
+  log.warn(
     '[InformationRequestHandler] analyzeAnswersForFollowup is deprecated. Use hasFollowUpQuestions from config/antragQuestions.js'
   );
 
@@ -690,7 +690,7 @@ export async function generateFollowUpQuestions(
   context: Record<string, unknown>,
   _aiWorkerPool: unknown
 ): Promise<QuestionConfig[]> {
-  console.warn(
+  log.warn(
     '[InformationRequestHandler] generateFollowUpQuestions is deprecated. Use getQuestionsForType from config/antragQuestions.js'
   );
 
@@ -758,7 +758,7 @@ export function extractStructuredAnswers(
   structured.facts = structured.facts.filter(Boolean);
   structured.clarifications = structured.clarifications.filter(Boolean);
 
-  console.log('[InformationRequestHandler] Extracted structured answers:', {
+  log.debug('[InformationRequestHandler] Extracted structured answers:', {
     hasScope: structured.scope.length > 0,
     hasAudience: !!structured.audience,
     hasFacts: structured.facts.length > 0,

@@ -3,7 +3,11 @@
  * Deduplicates and ranks results from all sources
  */
 
+import { createLogger } from '../../../../utils/logger.js';
+
 import type { WebSearchState, SearchResult, CategorizedSources } from '../types.js';
+
+const log = createLogger('AggregatorNode');
 
 interface SourceEntry extends SearchResult {
   categories: string[];
@@ -16,7 +20,7 @@ interface SourceEntry extends SearchResult {
  * Aggregator Node: Deduplicate and rank results from all sources
  */
 export async function aggregatorNode(state: WebSearchState): Promise<Partial<WebSearchState>> {
-  console.log('[WebSearchGraph] Aggregating results from all sources');
+  log.debug('[WebSearchGraph] Aggregating results from all sources');
 
   try {
     const allSources: SourceEntry[] = [];
@@ -82,7 +86,7 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
       });
     });
 
-    console.log(
+    log.debug(
       `[WebSearchGraph] Aggregated ${allSources.length} unique sources into ${Object.keys(categorizedSources).length} categories`
     );
 
@@ -99,7 +103,7 @@ export async function aggregatorNode(state: WebSearchState): Promise<Partial<Web
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[WebSearchGraph] Aggregation error:', errorMessage);
+    log.error('[WebSearchGraph] Aggregation error:', errorMessage);
     return {
       aggregatedResults: [],
       categorizedSources: {},

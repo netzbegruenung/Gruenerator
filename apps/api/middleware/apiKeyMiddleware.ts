@@ -2,8 +2,8 @@ import { createHash } from 'crypto';
 
 import { eq } from 'drizzle-orm';
 
-import { getDrizzleInstance } from '../database/services/DrizzleService.js';
 import { api_keys, type ApiKeyScopes } from '../database/schema/apiKeys.js';
+import { getDrizzleInstance } from '../database/services/DrizzleService.js';
 import { createLogger } from '../utils/logger.js';
 
 import type { Request, Response, NextFunction } from 'express';
@@ -56,7 +56,7 @@ export async function requireApiKey(
     const rows = await db.select().from(api_keys).where(eq(api_keys.key_hash, hash)).limit(1);
     row = rows[0];
   } catch (err) {
-    log.error('[apiKey] DB lookup failed:', err);
+    log.error('[apiKey] DB lookup failed:', { error: err });
     res.status(500).json({ error: 'Internal server error' });
     return;
   }

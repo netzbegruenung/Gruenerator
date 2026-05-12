@@ -28,7 +28,7 @@ async function getVideoMetadata(videoPath: string): Promise<VideoMetadata> {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(videoPath, (err: Error | null, metadata?: FFprobeMetadata) => {
       if (err) {
-        log.error('Fehler beim Lesen der Video-Metadaten:', err);
+        log.error('Fehler beim Lesen der Video-Metadaten:', { error: err });
         reject(err);
         return;
       }
@@ -175,7 +175,7 @@ async function extractAudio(
         resolve(outputPath);
       })
       .on('error', (err: Error) => {
-        log.error('FFmpeg Fehler:', err);
+        log.error('FFmpeg Fehler:', { error: err });
         reject(err);
       });
   });

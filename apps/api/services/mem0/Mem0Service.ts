@@ -96,7 +96,7 @@ export class Mem0Service {
       this.initialized = true;
       log.info('[Mem0] Service initialized successfully');
     } catch (error) {
-      log.error('[Mem0] Failed to initialize:', error);
+      log.error('[Mem0] Failed to initialize:', { error });
       throw error;
     }
   }
@@ -288,7 +288,7 @@ export class Mem0Service {
       log.info(`[Mem0] Updated memory ${memoryId} → ${updated.id}`);
       return mem;
     } catch (error) {
-      log.error('[Mem0] Error updating memory:', error);
+      log.error('[Mem0] Error updating memory:', { error });
       return null;
     }
   }
@@ -322,7 +322,7 @@ export class Mem0Service {
       log.info(`[Mem0] Deleted memory ${memoryId}`);
       return true;
     } catch (error) {
-      log.error('[Mem0] Error deleting memory:', error);
+      log.error('[Mem0] Error deleting memory:', { error });
       return false;
     }
   }
@@ -356,7 +356,7 @@ export class Mem0Service {
       log.info(`[Mem0] Deleted all memories for user ${userId}`);
       return true;
     } catch (error) {
-      log.error('[Mem0] Error deleting all memories:', error);
+      log.error('[Mem0] Error deleting all memories:', { error });
       return false;
     }
   }
@@ -402,7 +402,7 @@ export class Mem0Service {
         ...(row.message_id != null && { messageId: row.message_id }),
       }));
     } catch (error) {
-      log.error('[Mem0] Error getting memory history:', error);
+      log.error('[Mem0] Error getting memory history:', { error });
       return [];
     }
   }
@@ -429,7 +429,7 @@ export class Mem0Service {
       );
     } catch (error) {
       // Don't throw - history logging should not break main functionality
-      log.error('[Mem0] Error logging to history:', error);
+      log.error('[Mem0] Error logging to history:', { error });
     }
   }
 }

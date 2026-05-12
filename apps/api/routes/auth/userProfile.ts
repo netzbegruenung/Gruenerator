@@ -115,7 +115,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Profile /profile GET] Error:', err);
+      log.error('[User Profile /profile GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden des Profils.',
@@ -176,7 +176,7 @@ router.put(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Profile /profile PUT] Error:', err);
+      log.error('[User Profile /profile PUT] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Aktualisieren des Profils.',
@@ -207,7 +207,7 @@ router.patch(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Profile /profile/avatar PATCH] Error:', err);
+      log.error('[User Profile /profile/avatar PATCH] Error:', { error: err });
       const statusCode = err.message.includes('must be between') ? 400 : 500;
       res.status(statusCode).json({
         success: false,
@@ -242,7 +242,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Profile /profile/beta-features GET] Error:', err);
+      log.error('[User Profile /profile/beta-features GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der Beta Features.',
@@ -321,7 +321,7 @@ router.patch(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Profile /profile/beta-features PATCH] Error:', err);
+      log.error('[User Profile /profile/beta-features PATCH] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Aktualisieren der Beta Features.',
@@ -355,7 +355,7 @@ router.patch(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Profile /profile/message-color PATCH] Error:', err);
+      log.error('[User Profile /profile/message-color PATCH] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Aktualisieren der Nachrichtenfarbe.',
@@ -391,7 +391,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Profile /profile/user-defaults GET] Error:', err);
+      log.error('[User Profile /profile/user-defaults GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der User Defaults.',
@@ -427,7 +427,7 @@ router.patch(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Profile /profile/user-defaults PATCH] Error:', err);
+      log.error('[User Profile /profile/user-defaults PATCH] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Speichern der Einstellung.',
@@ -453,7 +453,7 @@ router.get(
       res.json({ success: true, preferences, defaults });
     } catch (error) {
       const err = error as Error;
-      log.error('[Notification Preferences GET] Error:', err);
+      log.error('[Notification Preferences GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der Benachrichtigungseinstellungen.',
@@ -536,7 +536,7 @@ router.patch(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[Notification Preferences PATCH] Error:', err);
+      log.error('[Notification Preferences PATCH] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Speichern der Benachrichtigungseinstellung.',
@@ -611,7 +611,9 @@ router.delete(
             code?: string;
             response?: { status?: number; statusText?: string; data?: unknown };
           };
-          log.error(`[User Delete] ❌ Error deleting user from Keycloak ${keycloakId}:`, err);
+          log.error(`[User Delete] ❌ Error deleting user from Keycloak ${keycloakId}:`, {
+            error: err,
+          });
           log.error(`[User Delete] Keycloak error details:`, {
             message: err.message,
             code: err.code,
@@ -653,7 +655,9 @@ router.delete(
       });
     } catch (error) {
       const err = error as Error;
-      log.error(`[User Delete] ❌ Error during account deletion for user ${req.user?.id}:`, err);
+      log.error(`[User Delete] ❌ Error during account deletion for user ${req.user?.id}:`, {
+        error: err,
+      });
       res.status(500).json({
         success: false,
         error: 'deletion_failed',

@@ -7,8 +7,11 @@ import { eq, and, desc, sql } from 'drizzle-orm';
 
 import { userRecentValues } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { createLogger } from '../../utils/logger.js';
 
 import type { RecentValue, FieldTypeWithCount } from './types.js';
+
+const log = createLogger('RecentValuesService');
 
 type DrizzleRecentValueRow = typeof userRecentValues.$inferSelect;
 
@@ -75,7 +78,7 @@ export async function saveRecentValue(
 
     return toRecentValue(result[0]);
   } catch (error: unknown) {
-    console.error('[RecentValuesService] Error saving recent value:', error);
+    log.error('[RecentValuesService] Error saving recent value:', { error });
     const errMsg = error instanceof Error ? error.message : String(error);
     const errCode =
       error instanceof Error && 'code' in error ? (error as { code: string }).code : '';
@@ -131,7 +134,7 @@ export async function getRecentValues(
       created_at: row.createdAt,
     })) as Partial<RecentValue>[];
   } catch (error: unknown) {
-    console.error(`[RecentValuesService] Error retrieving recent values for ${fieldType}:`, error);
+    log.error(`[RecentValuesService] Error retrieving recent values for ${fieldType}:`, { error });
     throw new Error(
       (error instanceof Error ? error.message : String(error)) || 'Failed to retrieve recent values'
     );
@@ -162,7 +165,7 @@ export async function clearRecentValues(userId: string, fieldType: string): Prom
 
     return result.rowCount || 0;
   } catch (error: unknown) {
-    console.error(`[RecentValuesService] Error clearing recent values for ${fieldType}:`, error);
+    log.error(`[RecentValuesService] Error clearing recent values for ${fieldType}:`, { error });
     throw new Error(
       (error instanceof Error ? error.message : String(error)) || 'Failed to clear recent values'
     );
@@ -200,7 +203,7 @@ export async function getFieldTypesWithCounts(userId: string): Promise<FieldType
       last_used: row.lastUsed,
     })) as FieldTypeWithCount[];
   } catch (error: unknown) {
-    console.error('[RecentValuesService] Error retrieving field types:', error);
+    log.error('[RecentValuesService] Error retrieving field types:', { error });
     throw new Error(
       (error instanceof Error ? error.message : String(error)) || 'Failed to retrieve field types'
     );

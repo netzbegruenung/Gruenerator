@@ -84,7 +84,7 @@ export async function processAttachments(
           log.info(`[${requestId}] Extracted ${result.text.length} chars from: ${attachment.name}`);
         }
       } catch (error) {
-        log.error(`[${requestId}] Failed to extract text from ${attachment.name}:`, error);
+        log.error(`[${requestId}] Failed to extract text from ${attachment.name}:`, { error });
         documentTexts.push(`### ${attachment.name}\n\n[Fehler beim Extrahieren des Textes]`);
         processedMeta.push({
           name: attachment.name,

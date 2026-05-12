@@ -33,7 +33,7 @@ export const modelPreferencesContractRouter = s.router(modelPreferencesContract,
       const defaults = getDefaultModelPreferences();
       return { status: 200 as const, body: { success: true, preferences, defaults } };
     } catch (error) {
-      log.error('[modelPreferencesContract.getPreferences] Error:', error);
+      log.error('[modelPreferencesContract.getPreferences] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to load model preferences' } };
     }
   },
@@ -46,7 +46,7 @@ export const modelPreferencesContractRouter = s.router(modelPreferencesContract,
       const defaults = getDefaultModelPreferences();
       return { status: 200 as const, body: { success: true, preferences, defaults } };
     } catch (error) {
-      log.error('[modelPreferencesContract.updatePreference] Error:', error);
+      log.error('[modelPreferencesContract.updatePreference] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to update model preferences' } };
     }
   },

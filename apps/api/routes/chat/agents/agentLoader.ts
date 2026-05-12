@@ -68,7 +68,7 @@ export async function getAgentForUser(
       const cgAgent = await getCustomGeneratorAsAgent(userId, slug);
       if (cgAgent) return cgAgent as AgentConfig;
     } catch (error) {
-      log.error('[AgentLoader] Error looking up custom generator agent:', error);
+      log.error('[AgentLoader] Error looking up custom generator agent:', { error });
     }
     return undefined;
   }
@@ -77,7 +77,7 @@ export async function getAgentForUser(
     const userAgent = await getUserAgentRow(userId, identifier);
     if (userAgent) return userAgent as AgentConfig;
   } catch (error) {
-    log.error('[AgentLoader] Error looking up user agent:', error);
+    log.error('[AgentLoader] Error looking up user agent:', { error });
   }
   return undefined;
 }
@@ -124,7 +124,7 @@ export async function getAgentOrCustomPrompt(
       systemRole: customPrompt.prompt,
     };
   } catch (error) {
-    log.error('[AgentLoader] Error looking up custom prompt:', error);
+    log.error('[AgentLoader] Error looking up custom prompt:', { error });
     return undefined;
   }
 }

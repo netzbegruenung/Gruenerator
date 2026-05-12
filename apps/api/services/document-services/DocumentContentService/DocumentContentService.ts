@@ -3,6 +3,7 @@
  * Handles intelligent document content search and extraction
  */
 
+import { createLogger } from '../../../utils/logger.js';
 import { getQdrantDocumentService } from '../DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../PostgresDocumentService/index.js';
 
@@ -20,6 +21,8 @@ import {
 } from './searchOperations.js';
 
 import type { ContentSearchOptions, ContentSearchResponse } from './types.js';
+
+const log = createLogger('DocumentContentService');
 
 /**
  * Main DocumentContentService class
@@ -48,7 +51,7 @@ export class DocumentContentService {
     try {
       const trimmedQuery = query.trim();
 
-      console.log(
+      log.debug(
         `[DocumentContentService] Content search request: query="${trimmedQuery}", documentIds=[${documentIds.length} docs], user=${userId}`
       );
 
@@ -93,7 +96,7 @@ export class DocumentContentService {
         startTime
       );
     } catch (error) {
-      console.error('[DocumentContentService] Error in searchDocumentContent:', error);
+      log.error('[DocumentContentService] Error in searchDocumentContent:', { error });
       throw error;
     }
   }

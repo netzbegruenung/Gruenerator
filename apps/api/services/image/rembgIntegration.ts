@@ -7,6 +7,9 @@
  */
 
 import { env } from '../../config/env.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('rembgIntegration');
 
 const REMBG_BASE_URL = env.REMBG_URL ?? 'http://rembg:7000';
 
@@ -26,7 +29,7 @@ export async function removeBackgroundWithRembg(
     const formData = new FormData();
     formData.append('file', new Blob([new Uint8Array(imageBuffer)]), fileName);
 
-    console.log(
+    log.debug(
       `[Rembg] POST ${REMBG_BASE_URL}/api/remove (${imageBuffer.length} bytes, file=${fileName})`
     );
 
@@ -43,12 +46,12 @@ export async function removeBackgroundWithRembg(
 
     const arrayBuffer = await response.arrayBuffer();
     const elapsed = Date.now() - startTime;
-    console.log(`[Rembg] OK after ${elapsed}ms, ${arrayBuffer.byteLength} bytes returned`);
+    log.debug(`[Rembg] OK after ${elapsed}ms, ${arrayBuffer.byteLength} bytes returned`);
     return Buffer.from(arrayBuffer);
   } catch (error) {
     const elapsed = Date.now() - startTime;
     const errMsg = error instanceof Error ? error.message : String(error);
-    console.error(`[Rembg] FAILED after ${elapsed}ms: ${errMsg}`);
+    log.error(`[Rembg] FAILED after ${elapsed}ms: ${errMsg}`);
     throw new Error(`Background removal failed: ${errMsg}`);
   }
 }

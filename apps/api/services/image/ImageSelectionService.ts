@@ -2,6 +2,8 @@ import fs from 'fs/promises';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import { createLogger } from '../../utils/logger.js';
+
 import type {
   ImageCatalog,
   ImageCatalogEntry,
@@ -9,6 +11,8 @@ import type {
   ImageSelectionResult,
   ImageSelectionServiceStats,
 } from './types.js';
+
+const log = createLogger('ImageSelectionService');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -40,14 +44,14 @@ class ImageSelectionService {
       const { imageSelectionGraph } =
         await import('../../agents/langgraph/ImageSelectionGraph/index.js');
       this.imageGraph = imageSelectionGraph as unknown as typeof this.imageGraph;
-      console.log('[ImageSelectionService] LangGraph service initialized');
+      log.debug('[ImageSelectionService] LangGraph service initialized');
     }
 
     if (!this.imageCatalog) {
       const catalogPath = path.join(this.basePath, 'image_alt_texts.json');
       const catalogData = await fs.readFile(catalogPath, 'utf8');
       this.imageCatalog = JSON.parse(catalogData) as ImageCatalog;
-      console.log(
+      log.debug(
         `[ImageSelectionService] Loaded ${this.imageCatalog.images.length} images from catalog`
       );
     }
@@ -64,7 +68,7 @@ class ImageSelectionService {
     const sharepicType = options.sharepicType || 'general';
 
     try {
-      console.log(
+      log.debug(
         `[ImageSelectionService] Using LangGraph for image selection: "${text.substring(0, 50)}..."`
       );
 
@@ -94,7 +98,7 @@ class ImageSelectionService {
         },
       };
     } catch (error: unknown) {
-      console.error('[ImageSelectionService] LangGraph selection failed:', error);
+      log.error('[ImageSelectionService] LangGraph selection failed:', { error });
       throw new Error(
         `Image selection failed: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -128,7 +132,7 @@ class ImageSelectionService {
   }
 
   clearCache(): void {
-    console.log('[ImageSelectionService] Cache clear requested (no cache in LangGraph version)');
+    log.debug('[ImageSelectionService] Cache clear requested (no cache in LangGraph version)');
   }
 }
 

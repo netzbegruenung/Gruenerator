@@ -6,6 +6,7 @@
 import { StateGraph, Annotation } from '@langchain/langgraph';
 import { type Request } from 'express';
 
+import { createLogger } from '../../../utils/logger.js';
 import { type AIWorkerPool } from '../../../workers/types.js';
 
 import { aggregatorNode } from './nodes/AggregatorNode.js';
@@ -35,6 +36,8 @@ import {
   type Citation,
   type Source,
 } from './types.js';
+
+const log = createLogger('WebSearchGraph');
 
 // State schema for the search graph
 const SearchState = Annotation.Root({
@@ -187,7 +190,7 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
     req,
   } = input;
 
-  console.log(`[WebSearchGraph] Starting ${mode} search for: "${query}"`);
+  log.debug(`[WebSearchGraph] Starting ${mode} search for: "${query}"`);
 
   try {
     const initialState: typeof SearchState.State = {
@@ -266,7 +269,7 @@ export async function runWebSearch(input: WebSearchInput): Promise<WebSearchOutp
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[WebSearchGraph] Execution error:', errorMessage);
+    log.error('[WebSearchGraph] Execution error:', errorMessage);
     return {
       status: 'error' as const,
       query: input.query,

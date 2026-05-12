@@ -60,7 +60,7 @@ export const transferContractRouter = s.router(transferContract, {
         },
       };
     } catch (error) {
-      log.error('[transferContract.listTransfers] Error:', error);
+      log.error('[transferContract.listTransfers] Error:', { error });
       return { status: 500 as const, body: { error: 'Fehler beim Laden der Transfers' } };
     }
   },
@@ -80,7 +80,7 @@ export const transferContractRouter = s.router(transferContract, {
 
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
-      log.error('[transferContract.deleteTransfer] Error:', error);
+      log.error('[transferContract.deleteTransfer] Error:', { error });
       return { status: 500 as const, body: { error: 'Fehler beim Löschen des Transfers' } };
     }
   },

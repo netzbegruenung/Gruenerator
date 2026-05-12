@@ -3,8 +3,12 @@
  * Handles aggregated statistics and user text retrieval
  */
 
+import { createLogger } from '../../../utils/logger.js';
+
 import type { DocumentStats, UserTextDocument } from './types.js';
 import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
+
+const log = createLogger('statistics');
 
 /**
  * Get user's document statistics
@@ -50,7 +54,7 @@ export async function getDocumentStats(
       totalVectorCount: parseInt(stats?.total_vectors ?? '0') || 0,
     };
   } catch (error) {
-    console.error('[PostgresDocumentService] Error getting document stats:', error);
+    log.error('[PostgresDocumentService] Error getting document stats:', { error });
     throw new Error('Failed to get document statistics');
   }
 }
@@ -102,7 +106,7 @@ export async function getUserTexts(
 
     return transformedTexts;
   } catch (error) {
-    console.error('[PostgresDocumentService] Error getting user texts:', error);
+    log.error('[PostgresDocumentService] Error getting user texts:', { error });
     throw new Error('Failed to get user texts');
   }
 }

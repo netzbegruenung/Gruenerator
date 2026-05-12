@@ -1,3 +1,6 @@
+import { createLogger } from '../logger.js';
+
+const log = createLogger('responseParser');
 /**
  * Campaign Response Parser
  *
@@ -126,7 +129,7 @@ export const lineExtractor = (rawResponse: string, config: LineExtractorConfig):
 
     // Log warning if some lines were filtered out
     if (validLines.length < lines.length) {
-      console.warn(
+      log.warn(
         `[lineExtractor] Filtered ${lines.length - validLines.length} lines due to length constraints`
       );
     }
@@ -191,7 +194,7 @@ export const multiLineExtractor = (
   }
 
   if (poems.length < expectedPoems) {
-    console.warn(`[multiLineExtractor] Expected ${expectedPoems} poems but got ${poems.length}`);
+    log.warn(`[multiLineExtractor] Expected ${expectedPoems} poems but got ${poems.length}`);
   }
 
   return poems;
@@ -272,7 +275,7 @@ export const regexExtractor = (
       result[field] = match[1] !== undefined ? match[1] : match[0];
     } else {
       result[field] = defaultValue;
-      console.warn(`[regexExtractor] Pattern for field "${field}" did not match`);
+      log.warn(`[regexExtractor] Pattern for field "${field}" did not match`);
     }
   });
 

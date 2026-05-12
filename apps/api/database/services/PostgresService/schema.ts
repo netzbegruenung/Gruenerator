@@ -7,8 +7,11 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import { env } from '../../../config/env.js';
+import { createLogger } from '../../../utils/logger.js';
 
 import type { SchemaCache, ColumnDefinition, AlterStatement } from './types.js';
+
+const log = createLogger('schema');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -157,19 +160,19 @@ export function loadSchemaCache(): SchemaCache | null {
     const schemaPath = getSchemaPath();
 
     if (!fs.existsSync(schemaPath)) {
-      console.warn('[PostgresService] Schema file not found, schema validation disabled');
+      log.warn('[PostgresService] Schema file not found, schema validation disabled');
       return null;
     }
 
     const schemaContent = fs.readFileSync(schemaPath, 'utf8');
     const cache = parseSchemaFile(schemaContent);
 
-    console.log(
+    log.debug(
       `[PostgresService] Schema validation initialized with ${Object.keys(cache).length} tables`
     );
     return cache;
   } catch (error) {
-    console.error(
+    log.error(
       '[PostgresService] Failed to initialize schema validation:',
       (error as Error).message
     );

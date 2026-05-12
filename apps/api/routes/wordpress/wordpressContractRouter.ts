@@ -89,7 +89,7 @@ export const wordpressContractRouter = s.router(wordpressContract, {
           body: { error: 'Site already exists', message: err.message },
         };
       }
-      log.error('[wordpressContract.connectSite] Error:', error);
+      log.error('[wordpressContract.connectSite] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to connect site' } };
     }
   },
@@ -117,7 +117,7 @@ export const wordpressContractRouter = s.router(wordpressContract, {
       const updatedSite = await WordPressSiteManager.updateSite(userId, siteId, updates);
       return { status: 200 as const, body: { success: true, site: updatedSite } };
     } catch (error) {
-      log.error('[wordpressContract.updateSite] Error:', error);
+      log.error('[wordpressContract.updateSite] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to update site' } };
     }
   },
@@ -134,7 +134,7 @@ export const wordpressContractRouter = s.router(wordpressContract, {
       const result = await client.testConnection();
       return { status: 200 as const, body: result };
     } catch (error) {
-      log.error('[wordpressContract.testConnection] Error:', error);
+      log.error('[wordpressContract.testConnection] Error:', { error });
       return { status: 500 as const, body: { error: 'Connection test failed' } };
     }
   },
@@ -172,7 +172,7 @@ export const wordpressContractRouter = s.router(wordpressContract, {
     } catch (error) {
       const err = error as Error & { statusCode?: number };
       const status = err.statusCode || (err.message?.includes('not found') ? 404 : 500);
-      log.error('[wordpressContract.publishPost] Error:', error);
+      log.error('[wordpressContract.publishPost] Error:', { error });
       if (status === 404) {
         return { status: 404 as const, body: { error: 'Failed to publish post' } };
       }
@@ -213,7 +213,7 @@ export const wordpressContractRouter = s.router(wordpressContract, {
         },
       };
     } catch (error) {
-      log.error('[wordpressContract.updatePost] Error:', error);
+      log.error('[wordpressContract.updatePost] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to update post' } };
     }
   },

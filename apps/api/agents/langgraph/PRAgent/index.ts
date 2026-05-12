@@ -6,6 +6,7 @@ import {
 } from '../../../services/chat/sharepicGenerationService.js';
 import { extractLocaleFromRequest } from '../../../services/localization/index.js';
 import { prAgentWorkflow } from '../../../services/WorkflowService/index.js';
+import { createLogger } from '../../../utils/logger.js';
 import { sendSuccessResponse } from '../../../utils/request/index.js';
 import { enrichRequest } from '../../../utils/requestEnrichment.js';
 
@@ -24,6 +25,8 @@ import type { PRAgentRequest } from './types.js';
 import type { RequestWithLocale } from '../../../services/localization/index.js';
 import type { Request, Response } from 'express';
 
+const log = createLogger('index');
+
 /**
  * PR Agent Main Orchestrator
  * Generates complete PR package: Framing, Press, Social, Sharepics, Risk, Visual
@@ -35,7 +38,7 @@ export async function processAutomatischPR(
   res: Response
 ): Promise<void> {
   const startTime = Date.now();
-  console.log('[PR Agent] Starting automatic PR package generation');
+  log.debug('[PR Agent] Starting automatic PR package generation');
 
   try {
     const request = requestData as PRAgentRequest;
@@ -71,7 +74,7 @@ export async function processAutomatischPR(
         text: request.inhalt,
         subject: `Sharepic ${i + 1}`,
       }).catch((err) => {
-        console.error(`[PR Agent] Sharepic ${i + 1} generation failed:`, err);
+        log.error(`[PR Agent] Sharepic ${i + 1} generation failed:`, { error: err });
         return null;
       })
     );
@@ -129,7 +132,7 @@ export async function processAutomatischPR(
         success: true,
       });
     } catch (err) {
-      console.warn('[PR Agent] Stats logging failed (non-critical):', err);
+      log.warn('[PR Agent] Stats logging failed (non-critical):', err);
     }
 
     sendSuccessResponse(
@@ -140,7 +143,7 @@ export async function processAutomatischPR(
       enrichedState.enrichmentMetadata || {}
     );
   } catch (error) {
-    console.error('[PR Agent] Fatal error:', error);
+    log.error('[PR Agent] Fatal error:', { error });
     res.status(500).json({
       success: false,
       error: 'PR-Paket konnte nicht generiert werden. Bitte versuchen Sie es erneut.',
@@ -158,7 +161,7 @@ export async function processStrategyGeneration(
   res: Response
 ): Promise<void> {
   const startTime = Date.now();
-  console.log('[PR Agent] Phase 1: Strategy generation');
+  log.debug('[PR Agent] Phase 1: Strategy generation');
 
   try {
     // 1. Create workflow record
@@ -257,7 +260,7 @@ export async function processStrategyGeneration(
       },
     });
   } catch (error) {
-    console.error('[PR Agent] Phase 1 failed:', error);
+    log.error('[PR Agent] Phase 1 failed:', { error });
     res.status(500).json({
       success: false,
       error: 'Strategie konnte nicht generiert werden. Bitte versuchen Sie es erneut.',
@@ -277,7 +280,7 @@ export async function processProductionGeneration(
   res: Response
 ): Promise<void> {
   const startTime = Date.now();
-  console.log('[PR Agent] Phase 2: Production generation');
+  log.debug('[PR Agent] Phase 2: Production generation');
 
   try {
     // 1. Fetch workflow from Redis
@@ -400,7 +403,7 @@ export async function processProductionGeneration(
 
     res.json(formattedResult);
   } catch (error) {
-    console.error('[PR Agent] Phase 2 failed:', error);
+    log.error('[PR Agent] Phase 2 failed:', { error });
     res.status(500).json({
       success: false,
       error: 'Produktion konnte nicht generiert werden. Bitte versuchen Sie es erneut.',

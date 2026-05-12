@@ -7,8 +7,11 @@
  */
 
 import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer.js';
+import { createLogger } from '../../../../utils/logger.js';
 
 import type { SearchOptions } from '../types.js';
+
+const log = createLogger('searchOptions');
 
 /**
  * Get intelligent search options based on query content and mode
@@ -43,7 +46,7 @@ export function getIntelligentSearchOptions(
 
   if (isGermanRegional) {
     options.categories = 'general,news';
-    console.log(`[WebSearchGraph] Using German regional search settings for: "${query}"`);
+    log.debug(`[WebSearchGraph] Using German regional search settings for: "${query}"`);
   }
 
   // Temporal detection using TemporalAnalyzer
@@ -53,7 +56,7 @@ export function getIntelligentSearchOptions(
     if (temporal.suggestedTimeRange) {
       options.time_range = temporal.suggestedTimeRange;
     }
-    console.log(
+    log.debug(
       `[WebSearchGraph] Temporal detected (${temporal.urgency}): time_range=${temporal.suggestedTimeRange} for: "${query}"`
     );
   }

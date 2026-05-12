@@ -77,7 +77,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response): P
 
     res.json({ items: items.slice(0, limit) });
   } catch (error: unknown) {
-    log.error('Failed to fetch recent activity:', error);
+    log.error('Failed to fetch recent activity:', { error });
     res.status(500).json({ error: 'Failed to fetch recent activity' });
   }
 });

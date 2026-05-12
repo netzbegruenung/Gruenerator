@@ -229,7 +229,7 @@ router.post(
       return res.status(200).send(buffer);
     } catch (err) {
       const error = err as Error;
-      log.error('[exportDocx] DOCX export error:', error);
+      log.error('[exportDocx] DOCX export error:', { error });
       return res.status(500).json({
         success: false,
         message: 'DOCX export failed',

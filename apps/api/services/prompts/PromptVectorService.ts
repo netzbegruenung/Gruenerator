@@ -112,7 +112,7 @@ class PromptVectorService {
       log.info('PromptVectorService initialized successfully');
     } catch (error: unknown) {
       const err = error as Error;
-      log.error('PromptVectorService initialization failed:', err);
+      log.error('PromptVectorService initialization failed:', { error: err });
       throw error;
     }
   }
@@ -197,7 +197,7 @@ class PromptVectorService {
       return embeddingId;
     } catch (error: unknown) {
       const err = error as Error;
-      log.error('Failed to index prompt:', err);
+      log.error('Failed to index prompt:', { error: err });
       return null;
     }
   }
@@ -371,7 +371,7 @@ class PromptVectorService {
       return { success: true, results, total: results.length, search_type: 'text' };
     } catch (error: unknown) {
       const err = error as Error;
-      log.error('Failed to get public prompts:', err);
+      log.error('Failed to get public prompts:', { error: err });
       throw new Error(`Failed to get public prompts: ${err.message}`);
     }
   }
@@ -441,7 +441,7 @@ class PromptVectorService {
       return { success: true, results, total: results.length, search_type: 'text' };
     } catch (error: unknown) {
       const err = error as Error;
-      log.error('Text search failed:', err);
+      log.error('Text search failed:', { error: err });
       throw new Error(`Search failed: ${err.message}`);
     }
   }

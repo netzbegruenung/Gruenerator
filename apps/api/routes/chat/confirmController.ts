@@ -256,7 +256,7 @@ router.post('/', async (req, res) => {
       url: result.url,
     });
   } catch (err) {
-    log.error('Confirm action failed:', err);
+    log.error('Confirm action failed:', { error: err });
     return res.status(500).json({
       error: 'Aktion konnte nicht ausgeführt werden.',
     });

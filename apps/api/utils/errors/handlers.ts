@@ -4,6 +4,7 @@
  */
 
 import { env } from '../../config/env.js';
+import { createLogger } from '../logger.js';
 
 import {
   type VectorBackendError,
@@ -20,6 +21,8 @@ import {
 import { SENSITIVE_FIELDS, MAX_LOG_STRING_LENGTH } from './constants.js';
 
 import type { ErrorHandlerOptions, ErrorContext, APIErrorResponse } from './types.js';
+
+const log = createLogger('handlers');
 
 /**
  * Error handler with logging and monitoring hooks
@@ -122,11 +125,11 @@ export class ErrorHandler {
 
     // Choose log level based on error type
     if (error instanceof ValidationError) {
-      console.warn(`[${this.serviceName}] Validation error:`, logEntry);
+      log.warn(`[${this.serviceName}] Validation error:`, logEntry);
     } else if (error instanceof TimeoutError || error instanceof ResourceError) {
-      console.error(`[${this.serviceName}] System error:`, logEntry);
+      log.error(`[${this.serviceName}] System error:`, logEntry);
     } else {
-      console.error(`[${this.serviceName}] Error:`, logEntry);
+      log.error(`[${this.serviceName}] Error:`, logEntry);
     }
   }
 
@@ -141,7 +144,7 @@ export class ErrorHandler {
     // - Custom telemetry endpoints
 
     if (env.NODE_ENV !== 'production') {
-      console.debug(`[${this.serviceName}] Would send to monitoring:`, {
+      log.debug(`[${this.serviceName}] Would send to monitoring:`, {
         error: error.toLogEntry(),
         context: this.sanitizeContext(context),
       });

@@ -184,7 +184,7 @@ const loadCampaignConfig = (campaignId: string, typeId: string): CampaignConfig 
     log.debug(`[Campaign] Loaded config for ${campaignId}/${typeId}`);
     return typeConfig;
   } catch (error) {
-    log.error(`[Campaign] Failed to load config:`, error);
+    log.error(`[Campaign] Failed to load config:`, { error });
     return null;
   }
 };
@@ -206,7 +206,7 @@ const createImageAttachmentFromFile = async (filename: string): Promise<ImageAtt
       source: 'ai-selected',
     };
   } catch (error) {
-    log.error(`[SharepicGeneration] Failed to load image ${filename}:`, error);
+    log.error(`[SharepicGeneration] Failed to load image ${filename}:`, { error });
     throw new Error(`Failed to load selected image: ${filename}`);
   }
 };
@@ -239,7 +239,7 @@ const selectAndPrepareImage = async (
       selection: selection,
     };
   } catch (error) {
-    log.error('[SharepicGeneration] Failed to select image:', error);
+    log.error('[SharepicGeneration] Failed to select image:', { error });
 
     try {
       log.debug('[SharepicGeneration] Using fallback image');
@@ -698,7 +698,7 @@ const generateDreizeilenWithImageSharepic = async (
       },
     };
   } catch (error) {
-    log.error('[SharepicGeneration] Error in dreizeilen with image:', error);
+    log.error('[SharepicGeneration] Error in dreizeilen with image:', { error });
     throw error;
   }
 };
@@ -781,7 +781,7 @@ const generateDreizeilenWithAIImageSharepic = async (
       },
     };
   } catch (error) {
-    log.error('[SharepicGeneration] Error in dreizeilen with AI image:', error);
+    log.error('[SharepicGeneration] Error in dreizeilen with AI image:', { error });
     throw error;
   } finally {
     if (sharepicImageManager && sharepicRequestId) {

@@ -121,7 +121,7 @@ router.post('/', async (req: DocumentRequest, res: Response): Promise<void> => {
       query: searchResult.query,
     });
   } catch (error) {
-    log.error('[POST /] Error:', error);
+    log.error('[POST /] Error:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message || 'Failed to search documents',
@@ -163,7 +163,7 @@ router.post('/content', async (req: DocumentRequest, res: Response): Promise<voi
 
     res.json(result);
   } catch (error) {
-    log.error('[POST /content] Error:', error);
+    log.error('[POST /content] Error:', { error });
     res.status(500).json({
       success: false,
       error: 'Internal server error',
@@ -205,7 +205,7 @@ router.get('/stats', async (req: DocumentRequest, res: Response): Promise<void> 
       },
     });
   } catch (error) {
-    log.error('[GET /stats] Error:', error);
+    log.error('[GET /stats] Error:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message || 'Failed to get search stats',
@@ -264,7 +264,7 @@ router.post('/hybrid-test', async (req: DocumentRequest, res: Response): Promise
       data: result,
     });
   } catch (error) {
-    log.error('[POST /hybrid-test] Error:', error);
+    log.error('[POST /hybrid-test] Error:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message || 'Failed to test hybrid search',

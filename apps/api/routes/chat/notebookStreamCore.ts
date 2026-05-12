@@ -162,7 +162,7 @@ export async function handleNotebookStream(
         },
       });
     } catch (error: unknown) {
-      log.error('Search context error:', error);
+      log.error('Search context error:', { error });
       log.debug(`⏱ Search context failed: ${Date.now() - t0}ms`);
       sse.send('error', {
         error: error instanceof Error ? error.message : 'Failed to get search context',
@@ -401,7 +401,7 @@ export async function handleNotebookStream(
 
     return { answer: cleanDraft, citations, sources, question };
   } catch (error: unknown) {
-    log.error('Notebook stream error:', error);
+    log.error('Notebook stream error:', { error });
     sse.send('error', { error: 'Internal server error' });
     if (options.closeStream !== false) sse.end();
     return null;

@@ -100,7 +100,7 @@ router.post(
 
       res.json(result);
     } catch (error) {
-      log.error('[claude_gruenerator_ask] Error:', error);
+      log.error('[claude_gruenerator_ask] Error:', { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to process question',
@@ -353,7 +353,7 @@ async function executeSearchTool(
       message: `Found ${formattedResults.length} relevant documents`,
     };
   } catch (error) {
-    log.error('[claude_gruenerator_ask] Search tool error:', error);
+    log.error('[claude_gruenerator_ask] Search tool error:', { error });
     return {
       success: false,
       results: [],

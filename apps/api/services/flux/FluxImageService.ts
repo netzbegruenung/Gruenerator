@@ -5,8 +5,11 @@ import { promisify } from 'util';
 import axios, { type AxiosResponse, type AxiosRequestConfig } from 'axios';
 
 import { env } from '../../config/env.js';
+import { createLogger } from '../../utils/logger.js';
 
 import type { Readable } from 'stream';
+
+const log = createLogger('FluxImageService');
 
 const sleep = promisify(setTimeout);
 
@@ -126,18 +129,18 @@ class FluxImageService {
     const useBackend = backend || (env.FLUX_BACKEND as FluxBackend) || 'hosted';
 
     if (useBackend === 'regolo') {
-      console.log('[FluxImageService] Using Regolo Qwen-Image backend');
+      log.debug('[FluxImageService] Using Regolo Qwen-Image backend');
       const mod = await import('./RegoloImageService.js');
       return new mod.RegoloImageService() as unknown as FluxImageService;
     }
 
     if (useBackend === 'ionos') {
-      console.log('[FluxImageService] Using IONOS FLUX.1-schnell backend');
+      log.debug('[FluxImageService] Using IONOS FLUX.1-schnell backend');
       const mod = await import('./IonosImageService.js');
       return new mod.IonosImageService() as unknown as FluxImageService;
     }
 
-    console.log('[FluxImageService] Using hosted BFL API backend');
+    log.debug('[FluxImageService] Using hosted BFL API backend');
     return new FluxImageService();
   }
 
@@ -175,7 +178,7 @@ class FluxImageService {
     };
 
     if (!this.apiKey) {
-      console.warn('[FluxImageService] Missing BFL_API_KEY');
+      log.warn('[FluxImageService] Missing BFL_API_KEY');
     }
   }
 
@@ -197,7 +200,7 @@ class FluxImageService {
       prompt_upsampling: options.prompt_upsampling ?? false,
     };
 
-    console.log(`[FluxImageService] Submitting text-to-image request to ${url}`);
+    log.debug(`[FluxImageService] Submitting text-to-image request to ${url}`);
 
     return await this.executeWithRetry(async (family?: number) => {
       const axiosConfig: AxiosConfigWithFamily = {
@@ -207,7 +210,7 @@ class FluxImageService {
       if (family) axiosConfig.family = family as 4 | 6;
 
       const res = await axios.post<SubmitResponse>(url, body, axiosConfig);
-      console.log(
+      log.debug(
         `[FluxImageService] Text-to-image request submitted successfully, ID: ${res.data?.id}`
       );
       return res.data;
@@ -236,7 +239,7 @@ class FluxImageService {
           const result = await operation(family);
           this.resetCircuitBreaker();
           if (family && lastError?.code) {
-            console.log(
+            log.debug(
               `[FluxImageService] ${operationType} succeeded using IPv${family} after network error`
             );
           }
@@ -249,7 +252,7 @@ class FluxImageService {
             errorInfo.type === 'network' &&
             family !== networkOptions[networkOptions.length - 1]
           ) {
-            console.log(
+            log.debug(
               `[FluxImageService] ${operationType} failed with IPv${family || 'default'}, trying next network option`
             );
             continue;
@@ -257,11 +260,11 @@ class FluxImageService {
 
           const errMsg = error instanceof Error ? error.message : String(error);
           const axiosErr = error as { response?: { data?: unknown } };
-          console.log(
+          log.debug(
             `[FluxImageService] ${operationType} failed (attempt ${attempt + 1}/${this.retryConfig.maxRetries + 1}), error: ${errorInfo.type} - ${errMsg}`
           );
           if (axiosErr.response?.data) {
-            console.log(
+            log.debug(
               `[FluxImageService] API response body:`,
               JSON.stringify(axiosErr.response.data)
             );
@@ -278,7 +281,7 @@ class FluxImageService {
       }
 
       const delay = this.calculateDelay(attempt);
-      console.log(`[FluxImageService] Waiting ${delay}ms before retry...`);
+      log.debug(`[FluxImageService] Waiting ${delay}ms before retry...`);
       await sleep(delay);
     }
 
@@ -478,7 +481,7 @@ class FluxImageService {
       ...(options.seed && { seed: options.seed }),
     };
 
-    console.log(
+    log.debug(
       `[FluxImageService] Submitting image-to-image request to ${url}, image size: ${Math.round(imageBuffer.length / 1024)}KB`
     );
 
@@ -494,15 +497,15 @@ class FluxImageService {
     }, 'generateFromImage');
 
     const { id, polling_url } = request;
-    console.log(`[FluxImageService] Image-to-image request submitted successfully, ID: ${id}`);
+    log.debug(`[FluxImageService] Image-to-image request submitted successfully, ID: ${id}`);
 
     const result = await this.poll(polling_url, id, options);
     if (result?.status !== 'Ready' || !result?.result?.sample) {
-      console.log(`[FluxImageService] Image-to-image generation failed, status: ${result?.status}`);
+      log.debug(`[FluxImageService] Image-to-image generation failed, status: ${result?.status}`);
       throw new Error('No sample URL in result');
     }
 
-    console.log(`[FluxImageService] Image-to-image generation completed successfully`);
+    log.debug(`[FluxImageService] Image-to-image generation completed successfully`);
     const stored = await this.download(result.result.sample, {
       extension: options.output_format === 'png' ? 'png' : 'jpg',
     });

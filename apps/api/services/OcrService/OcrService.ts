@@ -11,9 +11,12 @@ import { env } from '../../config/env.js';
 import { vectorConfig } from '../../config/vectorConfig.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
+import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename } from '../../utils/validation/security.js';
 import { smartChunkDocument } from '../document-services/index.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
+
+const log = createLogger('OcrService');
 
 // Import module functions
 import {
@@ -97,7 +100,6 @@ export class OCRService {
   async getPdfJs(): Promise<PdfjsLib> {
     if (this._pdfjsLib) return this._pdfjsLib;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await loadPdfJs();
 
     // Configure worker path — use createRequire to resolve from the actual
@@ -107,7 +109,6 @@ export class OCRService {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     pdfjsLib.GlobalWorkerOptions.workerSrc = `file://${workerPath}`;
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this._pdfjsLib = pdfjsLib;
     return pdfjsLib;
   }
@@ -116,7 +117,6 @@ export class OCRService {
    * Open PDF document with PDF.js
    */
   async openPdfDocument(pdfPath: string): Promise<PdfjsLib> {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const pdfjsLib = await this.getPdfJs();
     return await openPdf(pdfPath, pdfjsLib);
   }
@@ -131,12 +131,12 @@ export class OCRService {
     metadata: ProcessingMetadata = {}
   ): Promise<void> {
     if (this.isProcessing.get(documentId)) {
-      console.log(`[OCRService] Document ${documentId} is already being processed`);
+      log.debug(`[OCRService] Document ${documentId} is already being processed`);
       return;
     }
 
     this.isProcessing.set(documentId, true);
-    console.log(`[OCRService] Starting text processing for document ${documentId}`);
+    log.debug(`[OCRService] Starting text processing for document ${documentId}`);
 
     try {
       // Update status to processing
@@ -148,10 +148,7 @@ export class OCRService {
         processingTime: 0,
       };
 
-      console.log(
-        `[OCRService] Successfully processed text document ${documentId}:`,
-        extractionInfo
-      );
+      log.debug(`[OCRService] Successfully processed text document ${documentId}:`, extractionInfo);
 
       // Update document with results and generate vectors
       await this.updateDocumentWithResults(documentId, text, 1, extractionInfo);
@@ -160,7 +157,7 @@ export class OCRService {
       // Mark as completed
       await this.updateDocumentStatus(documentId, 'completed');
     } catch (error) {
-      console.error(`[OCRService] Error processing document ${documentId}:`, error);
+      log.error(`[OCRService] Error processing document ${documentId}:`, { error });
       await this.updateDocumentStatus(documentId, 'failed');
       throw error;
     } finally {
@@ -192,7 +189,7 @@ export class OCRService {
     const startTime = Date.now();
     const fileExtension = path.extname(filePath).toLowerCase();
     const configuredProvider = (preferredProvider || env.OCR_PROVIDER || 'mistral').toLowerCase();
-    console.log(
+    log.debug(
       `[OCRService] Starting document text extraction (provider=${configuredProvider}): ${filePath} (${fileExtension})`
     );
 
@@ -202,7 +199,7 @@ export class OCRService {
         await this.validateDocumentLimits(filePath, fileExtension);
       } catch (validationError) {
         if (fileExtension === '.pdf') {
-          console.warn(
+          log.warn(
             `[OCRService] PDF validation failed, proceeding with OCR anyway:`,
             (validationError as Error).message
           );
@@ -226,7 +223,7 @@ export class OCRService {
 
       // Fast path: skip OCR for text-native PDFs (saves API costs)
       if (parseCheck?.isParseable && parseCheck.confidence >= 0.8) {
-        console.log(
+        log.debug(
           `[OCRService] PDF is text-native (confidence=${(parseCheck.confidence * 100).toFixed(0)}%), using direct extraction`
         );
         try {
@@ -235,14 +232,14 @@ export class OCRService {
           if (result.text && result.text.length >= 50) {
             usedProvider = 'pdfjs-direct';
           } else {
-            console.log(
+            log.debug(
               `[OCRService] Direct extraction yielded insufficient text (${result.text?.length ?? 0} chars), falling back to OCR`
             );
             result = await this.extractTextWithMistralOCR(filePath);
             usedProvider = 'mistral-ocr';
           }
         } catch (directError) {
-          console.warn(
+          log.warn(
             `[OCRService] Direct PDF extraction failed, falling back to OCR:`,
             (directError as Error).message
           );
@@ -254,29 +251,29 @@ export class OCRService {
         const doclingReady = await checkDocling();
         if (doclingReady) {
           try {
-            console.log(`[OCRService] Using Docling for ${fileExtension} document`);
+            log.debug(`[OCRService] Using Docling for ${fileExtension} document`);
             result = await this.extractTextWithDocling(filePath);
             usedProvider = 'docling';
           } catch (doclingError) {
-            console.warn(`[OCRService] Docling failed, falling back to Mistral OCR:`, doclingError);
+            log.warn(`[OCRService] Docling failed, falling back to Mistral OCR:`, doclingError);
             result = await this.extractTextWithMistralOCR(filePath);
             usedProvider = 'mistral-ocr';
           }
         } else {
-          console.log(
+          log.debug(
             `[OCRService] Docling unavailable, falling back to Mistral OCR for ${fileExtension} document`
           );
           result = await this.extractTextWithMistralOCR(filePath);
           usedProvider = 'mistral-ocr';
         }
       } else {
-        console.log(`[OCRService] Using Mistral OCR for ${fileExtension} document`);
+        log.debug(`[OCRService] Using Mistral OCR for ${fileExtension} document`);
         result = await this.extractTextWithMistralOCR(filePath);
         usedProvider = 'mistral-ocr';
       }
 
       const totalTime = Date.now() - startTime;
-      console.log(`[OCRService] ${usedProvider} completed successfully in ${totalTime}ms`);
+      log.debug(`[OCRService] ${usedProvider} completed successfully in ${totalTime}ms`);
 
       return {
         ...result,
@@ -287,7 +284,7 @@ export class OCRService {
       };
     } catch (error) {
       const totalTime = Date.now() - startTime;
-      console.error(`[OCRService] OCR extraction failed after ${totalTime}ms:`, error);
+      log.error(`[OCRService] OCR extraction failed after ${totalTime}ms:`, { error });
       throw error;
     }
   }
@@ -443,21 +440,21 @@ export class OCRService {
     const doclingReady = await checkDocling();
     if (doclingReady) {
       try {
-        console.log(
+        log.debug(
           '[OCRService] Using Docling for base64 attachment: %s (%s)',
           safeFilename,
           mimeType
         );
         return await extractBase64Docling(base64Data, filename);
       } catch (doclingError) {
-        console.warn(
+        log.warn(
           '[OCRService] Docling base64 failed for %s, falling back to Mistral OCR: %s',
           safeFilename,
           (doclingError as Error).message
         );
       }
     } else {
-      console.log(
+      log.debug(
         '[OCRService] Docling unavailable, using Mistral OCR for: %s (%s)',
         safeFilename,
         mimeType
@@ -470,7 +467,7 @@ export class OCRService {
     } catch (mistralError) {
       // Last resort for PDFs: PDF.js (basic text extraction, no OCR)
       if (mimeType === 'application/pdf') {
-        console.warn(
+        log.warn(
           '[OCRService] Mistral OCR failed for %s, trying PDF.js as last resort: %s',
           safeFilename,
           (mistralError as Error).message

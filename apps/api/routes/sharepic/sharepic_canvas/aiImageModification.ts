@@ -223,7 +223,7 @@ async function generateImageModification(
     }
     return parsed;
   } catch (error) {
-    log.error('[AI Image Modification API] Error generating image modification:', error);
+    log.error('[AI Image Modification API] Error generating image modification:', { error });
     throw error;
   }
 }
@@ -245,7 +245,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     log.debug('[AI Image Modification API] Sending flattened params:', flattenedParams);
     res.json(flattenedParams);
   } catch (error) {
-    log.error('[AI Image Modification API] Error processing request:', error);
+    log.error('[AI Image Modification API] Error processing request:', { error });
     res.status(500).json({ error: 'Internal server error', details: (error as Error).message });
   }
 });

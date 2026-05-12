@@ -11,6 +11,9 @@ import { markdownToHtml } from '../../services/markdown/index.js';
 import { ocrService } from '../../services/OcrService/index.js';
 import { getWolkeSyncService } from '../../services/sync/index.js';
 import { extractTitleFromHtml } from '../../services/tiptap/contentConverter.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('importController');
 
 const router = Router();
 const db = getPostgresInstance();
@@ -64,7 +67,7 @@ async function ocrBufferToDocument(
     );
   }
 
-  console.log(
+  log.debug(
     `[DocsImport] OCR complete (${source}): ${extractionResult.text.length} chars, method=${extractionResult.method}`
   );
 
@@ -109,7 +112,7 @@ async function ocrBufferToDocument(
 
   await seedYjsStateSafe(document.id as string, html, 'DocsImport');
 
-  console.log(`[DocsImport] Created document ${document.id} from ${filename} (${source})`);
+  log.debug(`[DocsImport] Created document ${document.id} from ${filename} (${source})`);
 
   return { documentId: document.id as string, url: `/docs/${document.id}` };
 }
@@ -149,7 +152,7 @@ router.post(
         });
       }
 
-      console.log(
+      log.debug(
         '[DocsImport] User %s importing file: %s (%s, %dKB)',
         userId,
         file.originalname,
@@ -167,7 +170,7 @@ router.post(
 
       return res.status(201).json({ ...result, success: true });
     } catch (error: unknown) {
-      console.error('[DocsImport] Error importing file:', error);
+      log.error('[DocsImport] Error importing file:', { error });
 
       if (error instanceof OcrImportError) {
         return res.status(error.status).json({ error: error.message });
@@ -212,7 +215,7 @@ router.post(
         });
       }
 
-      console.log(
+      log.debug(
         '[DocsImport:Wolke] User %s importing from Wolke: %s (share=%s)',
         userId,
         fileName,
@@ -237,7 +240,7 @@ router.post(
           .json({ error: 'Datei konnte nicht von der Wolke heruntergeladen werden' });
       }
 
-      console.log(
+      log.debug(
         '[DocsImport:Wolke] Downloaded %s: %dKB',
         fileName,
         Number((downloaded.size / 1024).toFixed(0))
@@ -253,7 +256,7 @@ router.post(
 
       return res.status(201).json({ ...result, success: true });
     } catch (error: unknown) {
-      console.error('[DocsImport:Wolke] Error:', error);
+      log.error('[DocsImport:Wolke] Error:', { error });
 
       if (error instanceof OcrImportError) {
         return res.status(error.status).json({ error: error.message });

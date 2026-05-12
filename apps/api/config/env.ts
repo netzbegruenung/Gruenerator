@@ -6,6 +6,10 @@
 
 import { z } from 'zod';
 
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('env');
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -314,7 +318,7 @@ const envSchema = z.object({
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error('Invalid environment variables:', parsed.error.flatten().fieldErrors);
+  log.error('Invalid environment variables:', parsed.error.flatten().fieldErrors);
   throw new Error('Invalid environment variables — check server logs for details');
 }
 

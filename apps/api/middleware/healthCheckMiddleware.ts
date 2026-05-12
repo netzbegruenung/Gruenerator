@@ -6,8 +6,11 @@
 import { type Request, type Response, type NextFunction } from 'express';
 
 import { getPostgresInstance } from '../database/services/PostgresService.js';
+import { createLogger } from '../utils/logger.js';
 
 import { type DatabaseHealth } from './types.js';
+
+const log = createLogger('healthCheckMiddleware');
 
 /**
  * Middleware to check database health before processing requests
@@ -45,7 +48,7 @@ export function databaseHealthCheck(req: Request, res: Response, next: NextFunct
     return;
   }
 
-  console.warn('[HealthCheck] Database health unknown, continuing with request:', health);
+  log.warn('[HealthCheck] Database health unknown, continuing with request:', health);
   next();
 }
 

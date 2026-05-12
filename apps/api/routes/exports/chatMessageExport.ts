@@ -74,7 +74,10 @@ function getRoleLabel(role: 'user' | 'assistant'): string {
 router.post(
   '/',
   validateBody(chatMessageExportSchema),
-  async (req: TypedRequest<z.infer<typeof chatMessageExportSchema>>, res: Response<Buffer | { success: boolean; error?: string }>) => {
+  async (
+    req: TypedRequest<z.infer<typeof chatMessageExportSchema>>,
+    res: Response<Buffer | { success: boolean; error?: string }>
+  ) => {
     try {
       const { content, role, timestamp, metadata } = req.body;
 
@@ -302,7 +305,7 @@ router.post(
       return res.status(200).send(buffer);
     } catch (err) {
       const error = err as Error;
-      log.error('[chatMessageExport] DOCX export error:', error);
+      log.error('[chatMessageExport] DOCX export error:', { error });
       return res.status(500).json({
         success: false,
         error: error.message,

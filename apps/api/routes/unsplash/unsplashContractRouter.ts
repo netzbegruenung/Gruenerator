@@ -71,7 +71,7 @@ export const unsplashContractRouter = s.router(unsplashContract, {
       const result = await service.searchPhotos(queryStr.trim(), pageNum, perPage);
       return { status: 200 as const, body: result };
     } catch (error) {
-      log.error('[unsplashContract.searchPhotos] Error:', error);
+      log.error('[unsplashContract.searchPhotos] Error:', { error });
 
       if (error instanceof UnsplashRateLimitError) {
         return {
@@ -113,7 +113,7 @@ export const unsplashContractRouter = s.router(unsplashContract, {
       await service.trackDownload(downloadLocation);
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
-      log.error('[unsplashContract.trackDownload] Error:', error);
+      log.error('[unsplashContract.trackDownload] Error:', { error });
       // Intentionally non-blocking — return 200 even on failure
       return {
         status: 200 as const,

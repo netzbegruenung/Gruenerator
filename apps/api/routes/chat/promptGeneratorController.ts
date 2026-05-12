@@ -102,7 +102,7 @@ router.post('/', async (req, res) => {
     log.info(`[PromptGenerator] Generated ${systemPrompt.length} char prompt for user ${user.id}`);
     res.json({ systemPrompt });
   } catch (error) {
-    log.error('Error generating system prompt:', error);
+    log.error('Error generating system prompt:', { error });
     res.status(500).json({ error: 'Failed to generate system prompt' });
   }
 });

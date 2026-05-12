@@ -3,7 +3,11 @@
  * Handles single, batch, and mock embedding generation with validation
  */
 
+import { createLogger } from '../../../utils/logger.js';
+
 import type MistralEmbeddingClient from './MistralEmbeddingClient.js';
+
+const log = createLogger('embeddingOperations');
 
 // ============================================================================
 // Validation utilities
@@ -60,19 +64,19 @@ export async function generateBatchEmbeddings(
 ): Promise<number[][]> {
   validateTexts(texts);
 
-  console.log(`[MistralEmbeddingService] Generating embeddings for ${texts.length} texts`);
+  log.debug(`[MistralEmbeddingService] Generating embeddings for ${texts.length} texts`);
   const startTime = Date.now();
 
   try {
     const embeddings = await client.generateBatchEmbeddings(texts);
     const duration = Date.now() - startTime;
-    console.log(
+    log.debug(
       `[MistralEmbeddingService] Successfully generated ${embeddings.length} embeddings in ${duration}ms`
     );
     return embeddings;
   } catch (error) {
     const duration = Date.now() - startTime;
-    console.error(
+    log.error(
       `[MistralEmbeddingService] Failed to generate embeddings after ${duration}ms:`,
       (error as Error).message
     );

@@ -167,7 +167,8 @@ ${referenceContent.trim()}
 
     const result = streamText({
       model,
-      system: docsAiFormat.systemPrompt + '\n\n' + BLOCKNOTE_TOOL_STRICT_PROMPT + referenceContentSection,
+      system:
+        docsAiFormat.systemPrompt + '\n\n' + BLOCKNOTE_TOOL_STRICT_PROMPT + referenceContentSection,
       messages: await convertToModelMessages(messagesWithDocState),
       tools,
       toolChoice: 'auto',
@@ -201,13 +202,13 @@ ${referenceContent.trim()}
         }
       },
       onError: ({ error }) => {
-        log.error('[DocsAI] Stream error:', error);
+        log.error('[DocsAI] Stream error:', { error });
       },
     });
 
     pipeUiStreamToExpress(result, res);
   } catch (error) {
-    log.error('[DocsAI] Error processing AI request:', error);
+    log.error('[DocsAI] Error processing AI request:', { error });
     return res.status(500).json({
       error: 'AI processing failed',
       details: error instanceof Error ? error.message : 'Unknown error',

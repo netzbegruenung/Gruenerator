@@ -7,9 +7,12 @@ import { and, eq } from 'drizzle-orm';
 
 import { documents, type Document } from '../../../database/schema/documents.js';
 import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
+import { createLogger } from '../../../utils/logger.js';
 
 import type { DocumentRecord } from './types.js';
 import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
+
+const log = createLogger('wolkeOperations');
 
 function drizzleRowToDocumentRecord(row: Document): DocumentRecord {
   return {
@@ -70,7 +73,7 @@ export async function getDocumentByWolkeFile(
 
     return rows[0] ? drizzleRowToDocumentRecord(rows[0]) : null;
   } catch (error) {
-    console.error('[PostgresDocumentService] Error getting document by Wolke file:', error);
+    log.error('[PostgresDocumentService] Error getting document by Wolke file:', { error });
     throw error;
   }
 }

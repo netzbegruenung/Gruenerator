@@ -3,6 +3,8 @@
  * Handles validation, message building, and processing for Claude API
  */
 
+import { createLogger } from '../../utils/logger.js';
+
 import { MAX_TOTAL_SIZE } from './constants.js';
 import { validateAttachmentStructure, isCrawledUrlAttachment } from './validation.js';
 
@@ -14,6 +16,8 @@ import type {
   AttachmentSummary,
   AttachmentProcessingResult,
 } from './types.js';
+
+const log = createLogger('AttachmentProcessor');
 
 /**
  * AttachmentProcessor class
@@ -77,16 +81,16 @@ export class AttachmentProcessor {
 
     // Add attachment blocks first (Claude processes documents before text)
     if (attachments && attachments.length > 0) {
-      console.log(`[buildMessagesWithAttachments] Processing ${attachments.length} attachments`);
+      log.debug(`[buildMessagesWithAttachments] Processing ${attachments.length} attachments`);
 
       attachments.forEach((file, index) => {
-        console.log(
+        log.debug(
           `[buildMessagesWithAttachments] Adding attachment ${index + 1}: ${file.name} (${file.type})`
         );
 
         if (isCrawledUrlAttachment(file)) {
           // Handle crawled URL content as text block
-          console.log(
+          log.debug(
             `[buildMessagesWithAttachments] Processing crawled URL: ${file.url} (${file.content?.length || 0} chars)`
           );
           contentBlocks.push({
@@ -112,9 +116,7 @@ export class AttachmentProcessor {
             },
           });
         } else {
-          console.warn(
-            `[buildMessagesWithAttachments] Skipping unsupported file type: ${file.type}`
-          );
+          log.warn(`[buildMessagesWithAttachments] Skipping unsupported file type: ${file.type}`);
         }
       });
     }
@@ -260,7 +262,7 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
       this.logAttachmentProcessing(result.summary, routeName, userId, usePrivacyMode);
     } catch (error) {
       result.error = (error as Error).message;
-      console.error(
+      log.error(
         '[%s] Attachment validation failed for user %s:',
         routeName,
         userId,
@@ -331,14 +333,14 @@ Du hast Zugang zu beigefügten Dokumenten und Bildern. Nutze diese als Kontext u
     if (!summary || summary.count === 0) return;
 
     const privacyNote = usePrivacyMode ? ' (privacy mode)' : '';
-    console.log(
+    log.debug(
       `[${routeName}] User ${userId}: Processing ${summary.count} attachments` +
         ` (${summary.totalSizeMB}MB total)${privacyNote}`
     );
 
     // Log individual files for debugging
     summary.files.forEach((file, index) => {
-      console.log(`  ${index + 1}. ${file.name} (${file.type}, ${file.sizeMB}MB)`);
+      log.debug(`  ${index + 1}. ${file.name} (${file.type}, ${file.sizeMB}MB)`);
     });
   }
 

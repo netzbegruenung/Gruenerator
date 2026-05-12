@@ -187,7 +187,7 @@ router.post(
       res.json(response);
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      log.error(`[web-search] Error processing request (${processingTime}ms):`, error);
+      log.error(`[web-search] Error processing request (${processingTime}ms):`, { error });
 
       let userError = 'Websuche fehlgeschlagen';
       const errorMessage = (error as Error).message;
@@ -227,7 +227,7 @@ router.get('/status', async (_req: Request, res: Response): Promise<void> => {
       data: status,
     });
   } catch (error) {
-    log.error('[web-search] Status check failed:', error);
+    log.error('[web-search] Status check failed:', { error });
 
     res.status(503).json({
       success: false,
@@ -260,7 +260,7 @@ router.post('/clear-cache', async (req: Request, res: Response): Promise<void> =
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    log.error('[web-search] Cache clear failed:', error);
+    log.error('[web-search] Cache clear failed:', { error });
 
     res.status(500).json({
       success: false,

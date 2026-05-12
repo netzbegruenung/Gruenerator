@@ -5,7 +5,11 @@
 
 import crypto from 'crypto';
 
+import { createLogger } from '../../../utils/logger.js';
+
 import type { AgentType } from './types.js';
+
+const log = createLogger('contextManagement');
 
 /**
  * Generate cache key for document extraction
@@ -33,7 +37,7 @@ export async function getCachedKnowledge(
     }
     return null;
   } catch (error) {
-    console.error('[DocumentQnAService] Error getting cached knowledge:', error);
+    log.error('[DocumentQnAService] Error getting cached knowledge:', { error });
     return null;
   }
 }
@@ -50,6 +54,6 @@ export async function cacheKnowledge(
   try {
     await redis.setEx(cacheKey, ttlSeconds, JSON.stringify(knowledge));
   } catch (error) {
-    console.error('[DocumentQnAService] Error caching knowledge:', error);
+    log.error('[DocumentQnAService] Error caching knowledge:', { error });
   }
 }

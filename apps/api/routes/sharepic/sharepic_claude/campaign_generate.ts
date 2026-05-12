@@ -195,7 +195,7 @@ function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignC
       log.warn(`[Campaign] Config not found: ${campaignPath}`);
       return null;
     }
-    log.error(`[Campaign] Failed to read config:`, error);
+    log.error(`[Campaign] Failed to read config:`, { error });
     return null;
   }
 
@@ -267,7 +267,7 @@ function loadCampaignConfig(campaignId: string, typeId: string): LoadedCampaignC
       campaign: campaign,
     };
   } catch (error) {
-    log.error(`[Campaign] Failed to load config:`, error);
+    log.error(`[Campaign] Failed to load config:`, { error });
     return null;
   }
 }
@@ -601,7 +601,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       searchTerms: [],
     } as CampaignGenerateResponse);
   } catch (error) {
-    log.error('[Campaign Generate] Error:', error);
+    log.error('[Campaign Generate] Error:', { error });
     res.status(500).json({
       success: false,
       error: (error as Error).message || 'Failed to generate campaign text',

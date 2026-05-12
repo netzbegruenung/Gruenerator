@@ -21,6 +21,7 @@ import {
   getCollectionStats,
 } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
+import { createLogger } from '../../../utils/logger.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
@@ -30,6 +31,8 @@ import { extractMainContent } from '../utils/contentExtractor.js';
 import { extractTitle, removeUnwantedElements } from '../utils/htmlCleaner.js';
 
 import type { ScraperResult } from '../types.js';
+
+const log = createLogger('SatzungenScraper');
 
 /**
  * Satzung source definition
@@ -824,7 +827,7 @@ export class SatzungenScraper extends BaseScraper {
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[Satzungen] ✗ Error ${source.city}: ${errorMessage}`);
+        log.error(`[Satzungen] ✗ Error ${source.city}: ${errorMessage}`);
         result.errors++;
         result.skipReasons.fetch_error.count++;
         if (result.skipReasons.fetch_error.examples.length < 5) {
@@ -953,7 +956,7 @@ export class SatzungenScraper extends BaseScraper {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[Satzungen] Clear failed:', errorMessage);
+      log.error('[Satzungen] Clear failed:', errorMessage);
     }
     this.log('Collection cleared');
   }

@@ -110,9 +110,7 @@ router.get('/test', async (req: Request, res: Response) => {
       ORDER BY table_name
     `;
 
-    const existingTablesResult = await postgresService.query<TableInfo>(
-      existingTablesQuery
-    );
+    const existingTablesResult = await postgresService.query<TableInfo>(existingTablesQuery);
     const existingTables = existingTablesResult.map((row) => row.table_name);
     log.debug('[DatabaseTest] Existing tables:', existingTables);
 
@@ -138,9 +136,7 @@ router.get('/test', async (req: Request, res: Response) => {
       }
     }
 
-    const finalTablesResult = await postgresService.query<TableInfo>(
-      existingTablesQuery
-    );
+    const finalTablesResult = await postgresService.query<TableInfo>(existingTablesQuery);
     const finalTables = finalTablesResult.map((row) => row.table_name);
 
     const response: DatabaseTestResponse = {
@@ -172,7 +168,7 @@ router.get('/test', async (req: Request, res: Response) => {
     log.debug('[DatabaseTest] Test completed successfully');
     return res.json(response);
   } catch (error) {
-    log.error('[DatabaseTest] Error during database test:', error);
+    log.error('[DatabaseTest] Error during database test:', { error });
     return res.status(500).json({
       success: false,
       error: (error as Error).message,
@@ -191,7 +187,7 @@ router.post('/sync-schema', async (req: Request, res: Response) => {
     log.info('[DatabaseSync] Schema sync complete');
     res.json({ success: true, message: 'Schema sync complete' });
   } catch (error) {
-    log.error('[DatabaseSync] Schema sync failed:', error);
+    log.error('[DatabaseSync] Schema sync failed:', { error });
     res.status(500).json({ success: false, error: (error as Error).message });
   }
 });

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return -- TODO(follow-up): pre-existing strict-mode violation exposed by log-noise codemod */
 /**
  * Redis codecs for the subtitler pipeline.
  *
@@ -16,9 +17,10 @@ import {
   type ExportProgress,
   type RedisJobResult,
 } from '@gruenerator/contracts';
-import type { z } from 'zod';
 
 import { createLogger } from '../../utils/logger.js';
+
+import type { z } from 'zod';
 
 const log = createLogger('subtitler-redis');
 

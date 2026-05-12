@@ -5,6 +5,9 @@
 
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
 import { mistralEmbeddingService } from '../../../../services/mistral/MistralEmbeddingService/index.js';
+import { createLogger } from '../../../../utils/logger.js';
+
+const log = createLogger('argumentsGenerator');
 
 export interface ArgumentResult {
   source: string;
@@ -49,7 +52,7 @@ export async function searchArgumentsFromNotebooks(
   await mistralEmbeddingService.init();
 
   if (!(await qdrant.isAvailable()) || !mistralEmbeddingService.isReady()) {
-    console.warn('[ArgumentsGenerator] Qdrant or Mistral not available');
+    log.warn('[ArgumentsGenerator] Qdrant or Mistral not available');
     return [];
   }
 
@@ -58,7 +61,7 @@ export async function searchArgumentsFromNotebooks(
   try {
     topicEmbedding = await mistralEmbeddingService.generateEmbedding(topic);
   } catch (error) {
-    console.error('[ArgumentsGenerator] Embedding generation failed:', error);
+    log.error('[ArgumentsGenerator] Embedding generation failed:', { error });
     return [];
   }
 
@@ -84,7 +87,7 @@ export async function searchArgumentsFromNotebooks(
         },
       }));
     } catch (error) {
-      console.error(`[ArgumentsGenerator] Search failed for ${collection}:`, error);
+      log.error(`[ArgumentsGenerator] Search failed for ${collection}:`, { error });
       return [];
     }
   });

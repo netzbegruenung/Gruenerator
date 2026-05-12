@@ -122,7 +122,7 @@ router.post(
         },
       });
     } catch (error) {
-      log.error('[POST /upload-only] Error:', error);
+      log.error('[POST /upload-only] Error:', { error });
       // Clean up uploaded file on error
       if (req.file?.path) {
         try {
@@ -169,7 +169,7 @@ router.get(
         },
       });
     } catch (error) {
-      log.error('[GET /:id/status] Error:', error);
+      log.error('[GET /:id/status] Error:', { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to get document status',
@@ -226,7 +226,7 @@ router.post(
         data: result,
       });
     } catch (error) {
-      log.error('[POST /upload-manual] Error:', error);
+      log.error('[POST /upload-manual] Error:', { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to process manual upload',
@@ -279,7 +279,7 @@ router.post('/add-text', async (req: DocumentRequest, res: Response): Promise<vo
       data: result,
     });
   } catch (error) {
-    log.error('[POST /add-text] Error:', error);
+    log.error('[POST /add-text] Error:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message || 'Failed to process text',
@@ -344,7 +344,7 @@ router.post('/crawl-url-manual', async (req: DocumentRequest, res: Response): Pr
       data: result,
     });
   } catch (error) {
-    log.error('[POST /crawl-url-manual] Error:', error);
+    log.error('[POST /crawl-url-manual] Error:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message,
@@ -404,7 +404,7 @@ router.post(
         data: result,
       });
     } catch (error) {
-      log.error('[POST /upload-default] Error:', error);
+      log.error('[POST /upload-default] Error:', { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to process upload',
@@ -473,7 +473,7 @@ router.post('/crawl-url-default', async (req: DocumentRequest, res: Response): P
       data: result,
     });
   } catch (error) {
-    log.error('[POST /crawl-url-default] Error:', error);
+    log.error('[POST /crawl-url-default] Error:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message,

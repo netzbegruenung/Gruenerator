@@ -3,6 +3,7 @@ import {
   getPostgresInstance,
 } from '../../database/services/PostgresService.js';
 import { type QdrantService, getQdrantInstance } from '../../database/services/QdrantService.js';
+import { createLogger } from '../../utils/logger.js';
 import { generateContentHash, generatePointId } from '../../utils/validation/index.js';
 import { smartChunkDocument } from '../document-services/index.js';
 import { mistralEmbeddingService } from '../mistral/index.js';
@@ -17,6 +18,8 @@ import type {
   ChunkingOptions,
   DocumentChunk,
 } from './types.js';
+
+const log = createLogger('KnowledgeService');
 
 /**
  * KnowledgeService - User knowledge operations with Postgres storage and Qdrant vectorization
@@ -46,9 +49,9 @@ class KnowledgeService {
 
       await mistralEmbeddingService.init();
 
-      console.log('[KnowledgeService] Initialized successfully');
+      log.debug('[KnowledgeService] Initialized successfully');
     } catch (error: unknown) {
-      console.error('[KnowledgeService] Initialization failed:', error);
+      log.error('[KnowledgeService] Initialization failed:', { error });
       throw error;
     }
   }
@@ -95,7 +98,7 @@ class KnowledgeService {
         vector_indexed_at: row.vector_indexed_at,
       }));
     } catch (error: unknown) {
-      console.error('[KnowledgeService] Failed to get user knowledge:', error);
+      log.error('[KnowledgeService] Failed to get user knowledge:', { error });
       throw new Error(
         `Failed to retrieve knowledge: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -181,13 +184,13 @@ class KnowledgeService {
 
       await this.vectorizeKnowledge(savedEntry);
 
-      console.log(
+      log.debug(
         `[KnowledgeService] ${isNew ? 'Created' : 'Updated'} knowledge entry ${savedEntry.id} for user ${userId}`
       );
 
       return savedEntry;
     } catch (error: unknown) {
-      console.error('[KnowledgeService] Failed to save knowledge:', error);
+      log.error('[KnowledgeService] Failed to save knowledge:', { error });
       throw new Error(
         `Failed to save knowledge: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -217,9 +220,9 @@ class KnowledgeService {
               must: [{ key: 'knowledge_id', match: { value: knowledgeId } }],
             },
           });
-          console.log(`[KnowledgeService] Deleted vectors for knowledge ${knowledgeId}`);
+          log.debug(`[KnowledgeService] Deleted vectors for knowledge ${knowledgeId}`);
         } catch (qdrantError: unknown) {
-          console.warn(
+          log.warn(
             '[KnowledgeService] Failed to delete vectors:',
             qdrantError instanceof Error ? qdrantError.message : String(qdrantError)
           );
@@ -232,11 +235,11 @@ class KnowledgeService {
         { id: knowledgeId, user_id: userId }
       );
 
-      console.log(`[KnowledgeService] Deleted knowledge entry ${knowledgeId} for user ${userId}`);
+      log.debug(`[KnowledgeService] Deleted knowledge entry ${knowledgeId} for user ${userId}`);
 
       return { success: true };
     } catch (error: unknown) {
-      console.error('[KnowledgeService] Failed to delete knowledge:', error);
+      log.error('[KnowledgeService] Failed to delete knowledge:', { error });
       throw new Error(
         `Failed to delete knowledge: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -248,7 +251,7 @@ class KnowledgeService {
    */
   private async vectorizeKnowledge(knowledgeEntry: UserKnowledgeEntry): Promise<string | null> {
     if (!this.qdrant!.isAvailableSync()) {
-      console.warn('[KnowledgeService] Qdrant not available, skipping vectorization');
+      log.warn('[KnowledgeService] Qdrant not available, skipping vectorization');
       return null;
     }
 
@@ -261,7 +264,7 @@ class KnowledgeService {
       }>('SELECT embedding_id, embedding_hash FROM user_knowledge WHERE id = $1', [knowledgeId]);
 
       if (existing?.embedding_id && existing.embedding_hash === embedding_hash) {
-        console.log(
+        log.debug(
           `[KnowledgeService] Knowledge ${knowledgeId} already vectorized with current content`
         );
         return existing.embedding_id;
@@ -319,13 +322,13 @@ class KnowledgeService {
         { id: knowledgeId }
       );
 
-      console.log(
+      log.debug(
         `[KnowledgeService] Vectorized knowledge ${knowledgeId} with ${embeddings.length} chunks`
       );
 
       return embeddingId;
     } catch (error: unknown) {
-      console.error('[KnowledgeService] Failed to vectorize knowledge:', error);
+      log.error('[KnowledgeService] Failed to vectorize knowledge:', { error });
       return null;
     }
   }
@@ -375,7 +378,7 @@ class KnowledgeService {
 
         return { success: true, results, total: results.length, search_type: 'vector' };
       } catch (error: unknown) {
-        console.warn(
+        log.warn(
           '[KnowledgeService] Vector search failed, falling back to text search:',
           error instanceof Error ? error.message : String(error)
         );
@@ -414,7 +417,7 @@ class KnowledgeService {
         search_type: 'text',
       };
     } catch (error: unknown) {
-      console.error('[KnowledgeService] Text search failed:', error);
+      log.error('[KnowledgeService] Text search failed:', { error });
       throw new Error(`Search failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }

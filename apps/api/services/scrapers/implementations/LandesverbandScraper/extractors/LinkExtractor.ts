@@ -6,6 +6,8 @@
 
 import * as cheerio from 'cheerio';
 
+import { createLogger } from '../../../../../utils/logger.js';
+
 import type {
   LandesverbandSource,
   ContentPath,
@@ -13,6 +15,8 @@ import type {
 import type { PdfLink } from '../types.js';
 import type { CheerioAPI } from 'cheerio';
 import type { AnyNode } from 'domhandler';
+
+const apiLog = createLogger('LinkExtractor');
 
 /**
  * Link extraction with pagination support
@@ -135,7 +139,7 @@ export class LinkExtractor {
         await this.delay(500); // Small delay between pages
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.warn(`[LinkExtractor] Failed to fetch page ${currentPage}: ${errorMessage}`);
+        apiLog.warn(`[LinkExtractor] Failed to fetch page ${currentPage}: ${errorMessage}`);
         break;
       }
     }
@@ -176,7 +180,9 @@ export class LinkExtractor {
               `Sitemap ${sitemapUrl}: reached MAX_DEPTH=${MAX_DEPTH}, not recursing into ${childSitemaps.length} children`
             );
           } else {
-            log?.(`Sitemap index ${sitemapUrl}: recursing into ${childSitemaps.length} child sitemaps`);
+            log?.(
+              `Sitemap index ${sitemapUrl}: recursing into ${childSitemaps.length} child sitemaps`
+            );
             const childLinks = await this.extractLinksFromSitemaps(
               childSitemaps,
               filter,
@@ -205,7 +211,7 @@ export class LinkExtractor {
         await this.delay(300);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.warn(`[LinkExtractor] Failed to fetch sitemap ${sitemapUrl}: ${errorMessage}`);
+        apiLog.warn(`[LinkExtractor] Failed to fetch sitemap ${sitemapUrl}: ${errorMessage}`);
       }
     }
 

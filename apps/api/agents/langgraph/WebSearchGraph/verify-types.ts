@@ -3,6 +3,8 @@
  * This file exists solely to verify that all types compile correctly
  */
 
+import { createLogger } from '../../../utils/logger.js';
+
 import type {
   CrawlMetadata,
   Citation,
@@ -17,6 +19,8 @@ import type {
 } from './types.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
 import type { Request } from 'express';
+
+const log = createLogger('verify-types');
 
 // Type verification tests - these should all compile without errors
 
@@ -139,17 +143,17 @@ const _testReferencesMap: ReferencesMap = {
   },
 };
 
-console.log('✅ All type definitions compile successfully!');
-console.log('\n📋 Type Verification Summary:');
-console.log('- WebSearchInput: ✅');
-console.log('- NormalSearchOutput: ✅');
-console.log('- DeepSearchOutput: ✅');
-console.log('- CrawlMetadata (extended): ✅');
-console.log('- SearchOptions (categories: string): ✅');
-console.log('- Citation (from search services): ✅');
-console.log('- Source (from search services): ✅');
-console.log('- ValidationResult (with sources): ✅');
-console.log('- ReferencesMap: ✅');
-console.log('\n🎉 All TypeScript fixes verified!');
+log.debug('All type definitions compile successfully!');
+log.debug('\n📋 Type Verification Summary:');
+log.debug('- WebSearchInput: ✅');
+log.debug('- NormalSearchOutput: ✅');
+log.debug('- DeepSearchOutput: ✅');
+log.debug('- CrawlMetadata (extended): ✅');
+log.debug('- SearchOptions (categories: string): ✅');
+log.debug('- Citation (from search services): ✅');
+log.debug('- Source (from search services): ✅');
+log.debug('- ValidationResult (with sources): ✅');
+log.debug('- ReferencesMap: ✅');
+log.debug('\n🎉 All TypeScript fixes verified!');
 
 export {};

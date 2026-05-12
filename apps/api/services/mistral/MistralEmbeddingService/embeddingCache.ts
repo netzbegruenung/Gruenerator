@@ -7,9 +7,12 @@
 
 import crypto from 'crypto';
 
+import { createLogger } from '../../../utils/logger.js';
 import { parseJSON } from '../../../utils/parseJSON.js';
 
 import type { CacheStats, RedisClient } from './types.js';
+
+const log = createLogger('embeddingCache');
 
 class EmbeddingCache {
   private ttl: number;
@@ -39,12 +42,12 @@ class EmbeddingCache {
         redisClient = mod.redisClient as unknown as RedisClient | null;
       } catch (e) {
         const error = e as Error;
-        console.warn('[EmbeddingCache] Failed to import Redis client:', error.message);
+        log.warn('[EmbeddingCache] Failed to import Redis client:', error.message);
       }
 
       if (redisClient && redisClient.isReady) {
         this.redis = redisClient;
-        console.log('[EmbeddingCache] Using existing Redis connection');
+        log.debug('[EmbeddingCache] Using existing Redis connection');
       } else if (redisClient) {
         // Wait for connection if not ready
         await new Promise<void>((resolve, reject) => {
@@ -66,13 +69,13 @@ class EmbeddingCache {
         });
 
         this.redis = redisClient;
-        console.log('[EmbeddingCache] Connected to existing Redis client');
+        log.debug('[EmbeddingCache] Connected to existing Redis client');
       } else {
-        console.warn('[EmbeddingCache] Redis client not available, caching disabled');
+        log.warn('[EmbeddingCache] Redis client not available, caching disabled');
       }
     } catch (error) {
       const err = error as Error;
-      console.warn('[EmbeddingCache] Redis not available, caching disabled:', err.message);
+      log.warn('[EmbeddingCache] Redis not available, caching disabled:', err.message);
     }
 
     this.initialized = true;
@@ -102,14 +105,14 @@ class EmbeddingCache {
 
       if (cached) {
         const embedding = parseJSON<number[]>(cached);
-        console.log(`[EmbeddingCache] Cache HIT for "${query.substring(0, 50)}..."`);
+        log.debug(`[EmbeddingCache] Cache HIT for "${query.substring(0, 50)}..."`);
         return embedding;
       }
 
-      console.log(`[EmbeddingCache] Cache MISS for "${query.substring(0, 50)}..."`);
+      log.debug(`[EmbeddingCache] Cache MISS for "${query.substring(0, 50)}..."`);
       return null;
     } catch (error) {
-      console.error('[EmbeddingCache] Error retrieving from cache:', error);
+      log.error('[EmbeddingCache] Error retrieving from cache:', { error });
       return null;
     }
   }
@@ -127,10 +130,10 @@ class EmbeddingCache {
     try {
       const key = this.generateCacheKey(query);
       await this.redis.setEx(key, this.ttl, JSON.stringify(embedding));
-      console.log(`[EmbeddingCache] Cached embedding for "${query.substring(0, 50)}..."`);
+      log.debug(`[EmbeddingCache] Cached embedding for "${query.substring(0, 50)}..."`);
       return true;
     } catch (error) {
-      console.error('[EmbeddingCache] Error caching embedding:', error);
+      log.error('[EmbeddingCache] Error caching embedding:', { error });
       return false;
     }
   }
@@ -156,7 +159,7 @@ class EmbeddingCache {
       };
     } catch (error) {
       const err = error as Error;
-      console.error('[EmbeddingCache] Error getting stats:', error);
+      log.error('[EmbeddingCache] Error getting stats:', { error });
       return { enabled: false, keys: 0, error: err.message };
     }
   }
@@ -175,11 +178,11 @@ class EmbeddingCache {
       const keys = await this.redis.keys(`${this.keyPrefix}*`);
       if (keys.length > 0) {
         await this.redis.del(keys);
-        console.log(`[EmbeddingCache] Cleared ${keys.length} cached embeddings`);
+        log.debug(`[EmbeddingCache] Cleared ${keys.length} cached embeddings`);
       }
       return true;
     } catch (error) {
-      console.error('[EmbeddingCache] Error clearing cache:', error);
+      log.error('[EmbeddingCache] Error clearing cache:', { error });
       return false;
     }
   }
@@ -191,7 +194,7 @@ class EmbeddingCache {
     // Don't close the shared Redis client, just release reference
     this.redis = null;
     this.initialized = false;
-    console.log('[EmbeddingCache] Disconnected from shared Redis client');
+    log.debug('[EmbeddingCache] Disconnected from shared Redis client');
   }
 }
 

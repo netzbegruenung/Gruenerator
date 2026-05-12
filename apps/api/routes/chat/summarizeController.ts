@@ -87,7 +87,7 @@ router.get('/', async (req, res) => {
       needsCompaction: needsCompaction(messageCount, compactionState.summary),
     });
   } catch (error) {
-    log.error('Error fetching compaction state:', error);
+    log.error('Error fetching compaction state:', { error });
     res.status(500).json({ error: 'Failed to fetch compaction state' });
   }
 });
@@ -173,7 +173,7 @@ router.post(
         },
       });
     } catch (error) {
-      log.error('Error during compaction:', error);
+      log.error('Error during compaction:', { error });
       res.status(500).json({ error: 'Failed to compact conversation' });
     }
   }

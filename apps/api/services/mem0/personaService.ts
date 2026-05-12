@@ -128,7 +128,7 @@ export async function compilePersona(
     );
     return persona;
   } catch (error) {
-    log.error('[Persona] Compilation failed:', error);
+    log.error('[Persona] Compilation failed:', { error });
     return null;
   }
 }

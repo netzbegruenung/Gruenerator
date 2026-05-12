@@ -4,9 +4,12 @@
  */
 
 import { parseAIJsonResponse } from '../../../../services/search/index.js';
+import { createLogger } from '../../../../utils/logger.js';
 
 import type { RequestWithUser } from '../../../../utils/redis/types.js';
 import type { WebSearchState, CrawlDecision } from '../types.js';
+
+const log = createLogger('IntelligentCrawlerNode');
 
 /**
  * Intelligent Crawler Agent Node: AI decides which URLs to crawl
@@ -14,12 +17,12 @@ import type { WebSearchState, CrawlDecision } from '../types.js';
 export async function intelligentCrawlerNode(
   state: WebSearchState
 ): Promise<Partial<WebSearchState>> {
-  console.log('[WebSearchGraph] Running intelligent crawler agent');
+  log.debug('[WebSearchGraph] Running intelligent crawler agent');
 
   try {
     // Check if we have web results to analyze
     if (!state.webResults || state.webResults.length === 0 || !state.webResults[0].success) {
-      console.log('[IntelligentCrawler] No web results available for analysis');
+      log.debug('[IntelligentCrawler] No web results available for analysis');
       return {
         crawlDecisions: [],
         crawlMetadata: { noResultsToAnalyze: true },
@@ -30,7 +33,7 @@ export async function intelligentCrawlerNode(
     const results = firstWebSearch.results || [];
 
     if (results.length === 0) {
-      console.log('[IntelligentCrawler] No individual results to analyze');
+      log.debug('[IntelligentCrawler] No individual results to analyze');
       return {
         crawlDecisions: [],
         crawlMetadata: { emptyResults: true },
@@ -53,7 +56,7 @@ Snippet: ${r.snippet || r.content || 'No preview available'}
       )
       .join('\n');
 
-    console.log(
+    log.debug(
       `[IntelligentCrawler] Analyzing ${results.length} results to select max ${maxCrawls} for crawling`
     );
 
@@ -148,13 +151,13 @@ Respond with JSON:
       priority: sel.index,
     }));
 
-    console.log(
+    log.debug(
       `[IntelligentCrawler] Selected ${crawlDecisions.length} URLs to crawl: ${decision.reasoning}`
     );
 
     // Log selected URLs for debugging
     decision.selections.forEach((sel) => {
-      console.log(`[IntelligentCrawler] Will crawl [${sel.index}]: ${sel.url} - ${sel.reason}`);
+      log.debug(`[IntelligentCrawler] Will crawl [${sel.index}]: ${sel.url} - ${sel.reason}`);
     });
 
     return {
@@ -169,7 +172,7 @@ Respond with JSON:
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[WebSearchGraph] Intelligent crawler agent error:', errorMessage);
+    log.error('[WebSearchGraph] Intelligent crawler agent error:', errorMessage);
     return {
       crawlDecisions: [],
       error: `Crawler agent failed: ${errorMessage}`,

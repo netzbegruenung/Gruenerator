@@ -524,7 +524,7 @@ export async function executeIntentPipeline(opts: {
           sharepicVariants = variants;
         }
       } catch (error) {
-        log.error('[ChatGraph] Sharepic variant generation failed:', error);
+        log.error('[ChatGraph] Sharepic variant generation failed:', { error });
         sse.send('sharepic_complete', {
           message: 'Sharepic-Erstellung fehlgeschlagen',
           variants: [],

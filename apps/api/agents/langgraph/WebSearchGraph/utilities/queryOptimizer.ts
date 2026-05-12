@@ -4,9 +4,12 @@
  */
 
 import { parseAIJsonResponse } from '../../../../services/search/index.js';
+import { createLogger } from '../../../../utils/logger.js';
 
 import type { AIWorkerPool } from '../../../../workers/types.js';
 import type { Request } from 'express';
+
+const log = createLogger('queryOptimizer');
 
 /**
  * Optimize search query with German synonym expansion
@@ -83,7 +86,7 @@ Fokussiere dich auf externe Quellen und verschiedene Perspektiven.`;
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[WebSearchGraph] Research question generation error:', errorMessage);
+    log.error('[WebSearchGraph] Research question generation error:', errorMessage);
   }
 
   // Fallback: generate basic questions

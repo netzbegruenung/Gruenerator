@@ -167,7 +167,7 @@ router.post(
         metadata: result.metadata,
       });
     } catch (error) {
-      log.error(`[interactive][${reqId}] Unexpected error in initiate:`, error);
+      log.error(`[interactive][${reqId}] Unexpected error in initiate:`, { error });
       return res.status(500).json({
         status: 'error',
         message: 'Interner Serverfehler beim Starten der interaktiven Antragserstellung',
@@ -257,7 +257,7 @@ router.post(
 
       return res.json(result);
     } catch (error) {
-      log.error(`[interactive][${reqId}] Unexpected error in continue:`, error);
+      log.error(`[interactive][${reqId}] Unexpected error in continue:`, { error });
       return res.status(500).json({
         status: 'error',
         message: 'Interner Serverfehler beim Fortsetzen der interaktiven Antragserstellung',
@@ -340,7 +340,7 @@ router.get(
         session: sessionData,
       });
     } catch (error) {
-      log.error(`[interactive][${reqId}] Unexpected error in status:`, error);
+      log.error(`[interactive][${reqId}] Unexpected error in status:`, { error });
       return res.status(500).json({
         status: 'error',
         message: 'Interner Serverfehler beim Abrufen des Sitzungsstatus',

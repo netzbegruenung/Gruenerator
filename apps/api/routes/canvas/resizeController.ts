@@ -20,7 +20,10 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { createLogger } from '../../utils/logger.js';
 import { getServerFormat } from '../exports/pageConstants.js';
+
+const log = createLogger('resizeController');
 
 const CANVAS_SUBTYPE = 'canvas';
 
@@ -120,7 +123,7 @@ router.post(
 
       return res.status(201).json({ newCanvasId: newDocumentId });
     } catch (error: unknown) {
-      console.error('[Canvas/Resize] Error:', error);
+      log.error('[Canvas/Resize] Error:', { error });
       return res.status(500).json({
         error: 'Failed to resize canvas',
         details: error instanceof Error ? error.message : String(error),

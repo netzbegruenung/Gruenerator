@@ -3,8 +3,12 @@
  * Extracted from server.mjs for better modularity
  */
 
+import { createLogger } from '../utils/logger.js';
+
 import type { CorsOptions } from 'cors';
 import type { IncomingHttpHeaders } from 'http';
+
+const log = createLogger('cors');
 
 export interface CorsValidatorResult {
   allowed: boolean;
@@ -79,7 +83,7 @@ export function createCorsOptions(allowedOrigins: string[]): CorsOptions {
       if (result.allowed) {
         callback(null, true);
       } else {
-        console.error(`[CORS] Origin BLOCKED: ${result.effectiveOrigin}`);
+        log.error(`[CORS] Origin BLOCKED: ${result.effectiveOrigin}`);
         callback(new Error('Not allowed by CORS'));
       }
     },

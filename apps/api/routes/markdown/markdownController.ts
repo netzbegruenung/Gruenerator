@@ -61,7 +61,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[markdown] to-html error:', error);
+      log.error('[markdown] to-html error:', { error });
       return res.status(500).json({
         success: false,
         message: 'Failed to convert markdown to HTML',
@@ -98,7 +98,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[markdown] to-plain-text error:', error);
+      log.error('[markdown] to-plain-text error:', { error });
       return res.status(500).json({
         success: false,
         message: 'Failed to convert markdown to plain text',
@@ -135,7 +135,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[markdown] for-export error:', error);
+      log.error('[markdown] for-export error:', { error });
       return res.status(500).json({
         success: false,
         message: 'Failed to format markdown for export',
@@ -171,7 +171,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[markdown] check error:', error);
+      log.error('[markdown] check error:', { error });
       return res.status(500).json({
         success: false,
         message: 'Failed to check markdown content',

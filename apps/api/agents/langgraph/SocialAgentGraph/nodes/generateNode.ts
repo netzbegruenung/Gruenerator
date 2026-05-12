@@ -35,7 +35,7 @@ export async function generateNode(state: SocialAgentState): Promise<Partial<Soc
         log.debug(`[generateNode] ${platform} content generated`);
         return { platform, content };
       } catch (error) {
-        log.error(`[generateNode] ${platform} generation failed:`, error);
+        log.error(`[generateNode] ${platform} generation failed:`, { error });
         return {
           platform,
           content: `[Fehler bei der Generierung des ${platform} Inhalts]`,

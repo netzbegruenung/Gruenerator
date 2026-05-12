@@ -1,3 +1,6 @@
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('antragQuestions');
 /**
  * Predefined Question Bank for Interactive Antrag Generator
  *
@@ -548,16 +551,14 @@ export function getQuestionsForType(
   const questionSet = version === 2 ? ANTRAG_QUESTIONS_V2 : ANTRAG_QUESTIONS;
 
   if (!questionSet[requestType]) {
-    console.warn(
-      `[AntragQuestions] Unknown request type: ${requestType}, using 'antrag' as fallback`
-    );
+    log.warn(`[AntragQuestions] Unknown request type: ${requestType}, using 'antrag' as fallback`);
     return questionSet.antrag[roundKey] || [];
   }
 
   const questions = questionSet[requestType][roundKey];
 
   if (!questions) {
-    console.warn(
+    log.warn(
       `[AntragQuestions] No questions defined for ${requestType} round ${round} version ${version}`
     );
     const fallbackSet = version === 2 ? ANTRAG_QUESTIONS : ANTRAG_QUESTIONS_V2;

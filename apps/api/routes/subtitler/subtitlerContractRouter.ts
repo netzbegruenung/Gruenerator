@@ -99,7 +99,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
       const projects = await service.getUserProjects(userId);
       return { status: 200 as const, body: { success: true, projects } };
     } catch (error: unknown) {
-      log.error('[subtitlerContract.listProjects] Error:', error);
+      log.error('[subtitlerContract.listProjects] Error:', { error });
       return {
         status: 500 as const,
         body: { success: false, error: 'Projekte konnten nicht geladen werden' },
@@ -118,7 +118,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
       const project = await service.getProject(userId, projectId);
       return { status: 200 as const, body: { success: true, project } };
     } catch (error: unknown) {
-      log.error('[subtitlerContract.getProject] Error:', error);
+      log.error('[subtitlerContract.getProject] Error:', { error });
       const errMsg = error instanceof Error ? error.message : String(error);
       if (errMsg.includes('not found')) {
         return {
@@ -149,7 +149,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
       const status = isNew ? (201 as const) : (200 as const);
       return { status, body: { success: true, project, isNew } };
     } catch (error: unknown) {
-      log.error('[subtitlerContract.createProject] Error:', error);
+      log.error('[subtitlerContract.createProject] Error:', { error });
       return {
         status: 500 as const,
         body: {
@@ -173,7 +173,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
       const project = await service.updateProject(userId, projectId, args.body);
       return { status: 200 as const, body: { success: true, project } };
     } catch (error: unknown) {
-      log.error('[subtitlerContract.updateProject] Error:', error);
+      log.error('[subtitlerContract.updateProject] Error:', { error });
       const errMsg = error instanceof Error ? error.message : String(error);
       if (errMsg.includes('not found') || errMsg.includes('access denied')) {
         return {
@@ -199,7 +199,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
       await service.deleteProject(userId, projectId);
       return { status: 200 as const, body: { success: true } };
     } catch (error: unknown) {
-      log.error('[subtitlerContract.deleteProject] Error:', error);
+      log.error('[subtitlerContract.deleteProject] Error:', { error });
       const errMsg = error instanceof Error ? error.message : String(error);
       if (errMsg.includes('not found')) {
         return {
@@ -225,7 +225,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
       await service.incrementExportCount(userId, projectId);
       return { status: 200 as const, body: { success: true } };
     } catch (error: unknown) {
-      log.error('[subtitlerContract.trackExport] Error:', error);
+      log.error('[subtitlerContract.trackExport] Error:', { error });
       return {
         status: 500 as const,
         body: { success: false, error: 'Export konnte nicht getrackt werden' },

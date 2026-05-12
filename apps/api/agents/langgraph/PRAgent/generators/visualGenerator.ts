@@ -1,10 +1,13 @@
 import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
+import { createLogger } from '../../../../utils/logger.js';
 import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../../../utils/prompt/index.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
 import type { AIWorkerResult } from '../../../../workers/types.js';
 import type { Request } from 'express';
+
+const log = createLogger('visualGenerator');
 
 /**
  * Generates visual briefing: image ideas and timing recommendations
@@ -15,7 +18,7 @@ export async function generateVisualBriefing(
   socialContent: Record<string, string>,
   req: Request
 ): Promise<string> {
-  console.log('[PR Agent] Generating visual briefing');
+  log.debug('[PR Agent] Generating visual briefing');
 
   const request = enrichedState.request as { usePrivacyMode?: boolean };
 

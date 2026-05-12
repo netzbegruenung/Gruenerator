@@ -3,6 +3,8 @@
  * Handles direct text content processing (no file upload)
  */
 
+import { createLogger } from '../../../utils/logger.js';
+
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 import { generateContentPreview } from './textExtraction.js';
 
@@ -11,6 +13,8 @@ import type {
   PostgresDocumentServiceLike,
   QdrantDocumentServiceLike,
 } from './types.js';
+
+const log = createLogger('textProcessing');
 
 /**
  * Process text content directly (no file upload)
@@ -23,7 +27,7 @@ export async function processTextContent(
   content: string,
   sourceType: string = 'manual'
 ): Promise<TextProcessingResult> {
-  console.log(`[DocumentProcessingService] Processing text: ${title} (${content.length} chars)`);
+  log.debug(`[DocumentProcessingService] Processing text: ${title} (${content.length} chars)`);
 
   if (!content || content.trim().length === 0) {
     throw new Error('Text content is required');
@@ -59,7 +63,7 @@ export async function processTextContent(
     }
   );
 
-  console.log(
+  log.debug(
     `[DocumentProcessingService] Successfully processed: ${title} (${chunks.length} vectors)`
   );
 

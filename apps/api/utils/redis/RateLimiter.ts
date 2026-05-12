@@ -20,6 +20,7 @@
  */
 
 import { env } from '../../config/env.js';
+import { createLogger } from '../logger.js';
 
 import type {
   RedisClient,
@@ -29,6 +30,8 @@ import type {
   RequestWithUser,
   ResourceLimitConfig,
 } from './types.js';
+
+const log = createLogger('RateLimiter');
 
 class RateLimiter {
   private redis: RedisClient;
@@ -66,7 +69,7 @@ class RateLimiter {
     }
 
     // Fallback: use 'unknown' (will share quota across all unknown users - not ideal)
-    console.warn('[RateLimiter] Could not determine identifier for anonymous user');
+    log.warn('[RateLimiter] Could not determine identifier for anonymous user');
     return 'unknown';
   }
 
@@ -112,7 +115,7 @@ class RateLimiter {
 
       // If no config exists for this resource, allow unlimited
       if (!limitConfig) {
-        console.warn(
+        log.warn(
           `[RateLimiter] No limit config found for ${resourceType}:${userType}, allowing unlimited`
         );
         return { canGenerate: true, unlimited: true, resourceType, userType };
@@ -155,11 +158,11 @@ class RateLimiter {
         identifier,
       };
     } catch (error) {
-      console.error('[RateLimiter] Error checking limit:', error);
+      log.error('[RateLimiter] Error checking limit:', { error });
 
       // Fail-open strategy: if Redis is down, allow the request (configurable)
       if (this.config.allowOnRedisError) {
-        console.warn('[RateLimiter] Redis error, allowing request (fail-open mode)');
+        log.warn('[RateLimiter] Redis error, allowing request (fail-open mode)');
         return { canGenerate: true, unlimited: true, error: true };
       }
 
@@ -187,7 +190,7 @@ class RateLimiter {
 
       // Don't increment if limit reached
       if (!status.canGenerate) {
-        console.log(
+        log.debug(
           `[RateLimiter] Increment blocked: ${resourceType} limit reached for ${userType} ${identifier}`
         );
         return { success: false, limitReached: true, ...status };
@@ -201,13 +204,13 @@ class RateLimiter {
       if (newCount === 1) {
         const ttl = this.getTTLForWindow(status.window!);
         await this.redis.expire(redisKey, ttl);
-        console.log(`[RateLimiter] Set TTL for ${redisKey}: ${ttl}s (window: ${status.window})`);
+        log.debug(`[RateLimiter] Set TTL for ${redisKey}: ${ttl}s (window: ${status.window})`);
       }
 
       const remaining = Math.max(0, status.limit! - newCount);
       const canGenerate = newCount < status.limit!;
 
-      console.log(
+      log.debug(
         `[RateLimiter] ${resourceType} generation #${newCount}/${status.limit} for ${userType} ${identifier}, remaining: ${remaining}`
       );
 
@@ -227,7 +230,7 @@ class RateLimiter {
         window: status.window,
       };
     } catch (error) {
-      console.error('[RateLimiter] Error incrementing count:', error);
+      log.error('[RateLimiter] Error incrementing count:', { error });
       return { success: false, error: true };
     }
   }
@@ -320,7 +323,7 @@ class RateLimiter {
       await this.redis.incr(analyticsKey);
       await this.redis.expire(analyticsKey, 30 * 24 * 60 * 60); // Keep for 30 days
     } catch (error) {
-      console.error('[RateLimiter] Error tracking analytics:', error);
+      log.error('[RateLimiter] Error tracking analytics:', { error });
       // Don't fail the request if analytics fail
     }
   }
@@ -336,10 +339,10 @@ class RateLimiter {
     try {
       const redisKey = this.buildRedisKey(resourceType, identifier, window);
       await this.redis.del(redisKey);
-      console.log(`[RateLimiter] Reset counter for ${resourceType}:${identifier}`);
+      log.debug(`[RateLimiter] Reset counter for ${resourceType}:${identifier}`);
       return true;
     } catch (error) {
-      console.error('[RateLimiter] Error resetting counter:', error);
+      log.error('[RateLimiter] Error resetting counter:', { error });
       return false;
     }
   }

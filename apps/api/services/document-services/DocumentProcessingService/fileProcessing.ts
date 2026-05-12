@@ -5,6 +5,8 @@
 
 import fs from 'fs';
 
+import { createLogger } from '../../../utils/logger.js';
+
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 import { extractTextFromFile, generateContentPreview } from './textExtraction.js';
 
@@ -14,6 +16,8 @@ import type {
   PostgresDocumentServiceLike,
   QdrantDocumentServiceLike,
 } from './types.js';
+
+const log = createLogger('fileProcessing');
 
 /**
  * Process a file upload (handles extraction and processing)
@@ -26,7 +30,7 @@ export async function processFileUpload(
   title: string,
   sourceType: string = 'manual'
 ): Promise<FileUploadResult> {
-  console.log(`[DocumentProcessingService] Processing file upload: ${title}`);
+  log.debug(`[DocumentProcessingService] Processing file upload: ${title}`);
 
   const extractedText = await extractTextFromFile(file);
 
@@ -60,7 +64,7 @@ export async function processFileUpload(
     }
   );
 
-  console.log(
+  log.debug(
     `[DocumentProcessingService] Successfully processed: ${title} (${chunks.length} vectors)`
   );
 
@@ -83,7 +87,7 @@ export async function processUploadedDocument(
   documentId: string,
   userId: string
 ): Promise<FileUploadResult> {
-  console.log(`[DocumentProcessingService] Deferred processing for document: ${documentId}`);
+  log.debug(`[DocumentProcessingService] Deferred processing for document: ${documentId}`);
 
   let filePath: string | null = null;
 
@@ -148,7 +152,7 @@ export async function processUploadedDocument(
       // Non-critical cleanup error
     }
 
-    console.log(
+    log.debug(
       `[DocumentProcessingService] Deferred processing complete: ${document.title} (${chunks.length} vectors)`
     );
 
@@ -159,10 +163,9 @@ export async function processUploadedDocument(
       sourceType: document.source_type || 'manual',
     };
   } catch (error) {
-    console.error(
-      `[DocumentProcessingService] Deferred processing failed for ${documentId}:`,
-      error
-    );
+    log.error(`[DocumentProcessingService] Deferred processing failed for ${documentId}:`, {
+      error,
+    });
 
     try {
       await postgresDocumentService.updateDocumentMetadata(documentId, userId, {

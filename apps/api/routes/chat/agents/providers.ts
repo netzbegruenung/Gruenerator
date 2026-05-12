@@ -14,9 +14,12 @@ import {
   tryAcquireVerdigadoSlot,
   releaseVerdigadoSlot,
 } from '../../../services/providers/verdigadoSlot.js';
+import { createLogger } from '../../../utils/logger.js';
 
 import type { AgentConfig } from './types.js';
 import type { LanguageModel } from 'ai';
+
+const log = createLogger('providers');
 
 const LITELLM_DEFAULT_MODEL = 'gpt-oss:120b';
 
@@ -292,22 +295,20 @@ export function isProviderConfigured(provider: string): boolean {
   switch (provider) {
     case 'mistral':
       configured = !!env.MISTRAL_API_KEY;
-      console.log(
-        `[providers] Checking mistral: MISTRAL_API_KEY=${configured ? 'set' : 'NOT SET'}`
-      );
+      log.debug(`[providers] Checking mistral: MISTRAL_API_KEY=${configured ? 'set' : 'NOT SET'}`);
       return configured;
     case 'litellm': {
       const hasBaseUrl = !!env.LITELLM_BASE_URL;
       const hasApiKey = !!env.LITELLM_API_KEY;
       configured = hasBaseUrl && hasApiKey;
-      console.log(
+      log.debug(
         `[providers] Checking litellm: BASE_URL=${hasBaseUrl ? 'set' : 'NOT SET'}, API_KEY=${hasApiKey ? 'set' : 'NOT SET'}`
       );
       return configured;
     }
     case 'regolo':
       configured = !!env.REGOLO_API_KEY;
-      console.log(`[providers] Checking regolo: REGOLO_API_KEY=${configured ? 'set' : 'NOT SET'}`);
+      log.debug(`[providers] Checking regolo: REGOLO_API_KEY=${configured ? 'set' : 'NOT SET'}`);
       return configured;
     case 'anthropic':
       return false;
@@ -317,34 +318,34 @@ export function isProviderConfigured(provider: string): boolean {
 }
 
 export function getModel(provider: string, modelId: string): LanguageModel {
-  console.log(`[providers] getModel called: provider=${provider}, modelId=${modelId}`);
+  log.debug(`[providers] getModel called: provider=${provider}, modelId=${modelId}`);
   switch (provider) {
     case 'mistral': {
-      console.log(`[providers] Creating Mistral model: ${modelId}`);
+      log.debug(`[providers] Creating Mistral model: ${modelId}`);
       const mistral = getMistralProvider();
       const model = mistral(modelId);
-      console.log(`[providers] Mistral model created successfully`);
+      log.debug(`[providers] Mistral model created successfully`);
       return model;
     }
     case 'litellm': {
       const resolvedModel = modelId || LITELLM_DEFAULT_MODEL;
-      console.log(`[providers] Creating LiteLLM model: ${resolvedModel}`);
+      log.debug(`[providers] Creating LiteLLM model: ${resolvedModel}`);
       const litellm = getLiteLLMProvider();
       const model = litellm.chat(resolvedModel);
-      console.log(`[providers] LiteLLM model created successfully`);
+      log.debug(`[providers] LiteLLM model created successfully`);
       return model;
     }
     case 'regolo': {
       if (!env.REGOLO_API_KEY) {
-        console.log(`[providers] REGOLO_API_KEY not set, falling back to Mistral: ${modelId}`);
+        log.debug(`[providers] REGOLO_API_KEY not set, falling back to Mistral: ${modelId}`);
         const mistral = getMistralProvider();
         return mistral(modelId);
       }
       const regoloDefault = env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
-      console.log(`[providers] Creating Regolo model: ${modelId || regoloDefault}`);
+      log.debug(`[providers] Creating Regolo model: ${modelId || regoloDefault}`);
       const regolo = getRegoloProvider();
       const model = regolo.chat(modelId || regoloDefault);
-      console.log(`[providers] Regolo model created successfully`);
+      log.debug(`[providers] Regolo model created successfully`);
       return model;
     }
     case 'anthropic':

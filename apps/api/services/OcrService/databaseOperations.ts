@@ -3,10 +3,13 @@
  * Handles document status updates and embedding generation/storage
  */
 
+import { createLogger } from '../../utils/logger.js';
 import { type Chunk, type ChunkingOptions } from '../document-services/TextChunker/types.js';
 import { type MistralEmbeddingService } from '../mistral/MistralEmbeddingService/MistralEmbeddingService.js';
 
 import type { EmbeddingGenerationResult, ProcessingMetadata } from './types.js';
+
+const log = createLogger('databaseOperations');
 
 /**
  * Update document status in PostgreSQL
@@ -21,9 +24,9 @@ export async function updateDocumentStatus(
       'UPDATE documents SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
       [status, documentId]
     );
-    console.log(`[OcrService] Document ${documentId} status updated to: ${status}`);
+    log.debug(`[OcrService] Document ${documentId} status updated to: ${status}`);
   } catch (error) {
-    console.error(`[OcrService] Failed to update document status:`, (error as Error).message);
+    log.error(`[OcrService] Failed to update document status:`, (error as Error).message);
     throw error;
   }
 }
@@ -57,9 +60,9 @@ export async function updateDocumentWithResults(
       [JSON.stringify(metadata), documentId]
     );
 
-    console.log(`[OcrService] Document ${documentId} updated with extraction results`);
+    log.debug(`[OcrService] Document ${documentId} updated with extraction results`);
   } catch (error) {
-    console.error(`[OcrService] Failed to update document with results:`, (error as Error).message);
+    log.error(`[OcrService] Failed to update document with results:`, (error as Error).message);
     throw error;
   }
 }
@@ -87,7 +90,7 @@ export async function generateAndStoreEmbeddings(
   _vectorConfig: unknown
 ): Promise<EmbeddingGenerationResult> {
   try {
-    console.log(`[OcrService] Generating embeddings for document ${documentId}...`);
+    log.debug(`[OcrService] Generating embeddings for document ${documentId}...`);
 
     // Step 1: Chunk the document using smart chunking
     const chunks = await smartChunkDocument(text, {
@@ -97,11 +100,11 @@ export async function generateAndStoreEmbeddings(
     });
 
     if (!chunks || chunks.length === 0) {
-      console.warn('[OcrService] No chunks generated from document');
+      log.warn('[OcrService] No chunks generated from document');
       return { chunksProcessed: 0, embeddings: 0 };
     }
 
-    console.log(`[OcrService] Generated ${chunks.length} chunks from document`);
+    log.debug(`[OcrService] Generated ${chunks.length} chunks from document`);
 
     // Step 2: Filter out low-quality chunks
     const qualityChunks = chunks.filter((chunk: Chunk) => {
@@ -109,10 +112,10 @@ export async function generateAndStoreEmbeddings(
       return chunkText.length >= 50 && /[a-zA-Z]/.test(chunkText);
     });
 
-    console.log(`[OcrService] ${qualityChunks.length} high-quality chunks after filtering`);
+    log.debug(`[OcrService] ${qualityChunks.length} high-quality chunks after filtering`);
 
     if (qualityChunks.length === 0) {
-      console.warn('[OcrService] No high-quality chunks after filtering');
+      log.warn('[OcrService] No high-quality chunks after filtering');
       return { chunksProcessed: 0, embeddings: 0 };
     }
 
@@ -123,7 +126,7 @@ export async function generateAndStoreEmbeddings(
       'search_document'
     );
 
-    console.log(`[OcrService] Generated ${embeddings.length} embeddings`);
+    log.debug(`[OcrService] Generated ${embeddings.length} embeddings`);
 
     // Step 4: Prepare points for Qdrant
     const points = embeddings.map((embedding: number[], index: number) => {
@@ -152,7 +155,7 @@ export async function generateAndStoreEmbeddings(
     const collectionName = 'user_documents';
     await qdrant.upsert(collectionName, points);
 
-    console.log(
+    log.debug(
       `[OcrService] Stored ${points.length} vectors in Qdrant collection: ${collectionName}`
     );
 
@@ -166,7 +169,7 @@ export async function generateAndStoreEmbeddings(
       [points.length, documentId]
     );
 
-    console.log(
+    log.debug(
       `[OcrService] Document ${documentId} marked as completed with ${points.length} vectors`
     );
 
@@ -175,13 +178,13 @@ export async function generateAndStoreEmbeddings(
       embeddings: embeddings.length,
     };
   } catch (error) {
-    console.error(`[OcrService] Failed to generate/store embeddings:`, (error as Error).message);
+    log.error(`[OcrService] Failed to generate/store embeddings:`, (error as Error).message);
 
     // Update document status to failed
     try {
       await updateDocumentStatus(documentId, 'failed', postgres);
     } catch (statusError) {
-      console.error(
+      log.error(
         '[OcrService] Failed to update document status to failed:',
         (statusError as Error).message
       );

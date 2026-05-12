@@ -73,7 +73,7 @@ async function resolveWolkeLinksToDocuments(
     );
     return documents;
   } catch (error) {
-    log.error('[Notebook Collections] Error resolving Wolke links:', error);
+    log.error('[Notebook Collections] Error resolving Wolke links:', { error });
     throw new Error('Failed to resolve Wolke links to documents');
   }
 }
@@ -95,7 +95,7 @@ async function validateWolkeShareLinks(
     );
     return true;
   } catch (error) {
-    log.error('[Notebook Collections] Error validating Wolke share links:', error);
+    log.error('[Notebook Collections] Error validating Wolke share links:', { error });
     return false;
   }
 }
@@ -136,7 +136,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
           try {
             wolke_share_links = collection.wolke_share_link_ids.map((id) => ({ id }));
           } catch (error) {
-            log.error('[Notebook Collections] Error fetching Wolke share links:', error);
+            log.error('[Notebook Collections] Error fetching Wolke share links:', { error });
           }
         }
 
@@ -165,7 +165,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
       collections: transformedData,
     });
   } catch (error) {
-    log.error('[Notebook Collections] Error in GET /:', error);
+    log.error('[Notebook Collections] Error in GET /:', { error });
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -277,10 +277,9 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
         const qdrantDocService = getQdrantDocumentService();
         for (const doc of pendingDocs) {
           processUploadedDocument(pgDocService, qdrantDocService, doc.id, userId).catch((err) => {
-            log.error(
-              `[Notebook Collections] Background processing failed for doc ${doc.id}:`,
-              err
-            );
+            log.error(`[Notebook Collections] Background processing failed for doc ${doc.id}:`, {
+              error: err as Error,
+            });
           });
         }
         log.debug(
@@ -302,7 +301,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       message: `Notebook collection created successfully with ${allDocumentIds.length} document(s)`,
     });
   } catch (error) {
-    log.error('[Notebook Collections] Error in POST /:', error);
+    log.error('[Notebook Collections] Error in POST /:', { error });
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -430,7 +429,7 @@ router.put(
         wolke_share_links: selection_mode === 'wolke' ? wolke_share_link_ids : [],
       });
     } catch (error) {
-      log.error('[Notebook Collections] Error in PUT /:id:', error);
+      log.error('[Notebook Collections] Error in PUT /:id:', { error });
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -509,7 +508,7 @@ router.post(
         wolke_share_links: wolkeLinkIds,
       });
     } catch (error) {
-      log.error('[Notebook Collections] Error in POST /:id/sync:', error);
+      log.error('[Notebook Collections] Error in POST /:id/sync:', { error });
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -567,7 +566,7 @@ router.get(
 
       return res.json(results);
     } catch (error) {
-      log.error('[Notebook Collections] Error in GET /:id/search:', error);
+      log.error('[Notebook Collections] Error in GET /:id/search:', { error });
       return res.status(500).json({ error: 'Search failed' });
     }
   }
@@ -597,7 +596,7 @@ router.delete(
         message: 'Notebook collection deleted successfully',
       });
     } catch (error) {
-      log.error('[Notebook Collections] Error in DELETE /:id:', error);
+      log.error('[Notebook Collections] Error in DELETE /:id:', { error });
       return res.status(500).json({ error: 'Failed to delete Notebook collection' });
     }
   }
@@ -630,7 +629,7 @@ router.post(
         message: 'Public link generated successfully',
       });
     } catch (error) {
-      log.error('[Notebook Collections] Error in POST /:id/share:', error);
+      log.error('[Notebook Collections] Error in POST /:id/share:', { error });
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -660,7 +659,7 @@ router.delete(
         message: 'Public access revoked successfully',
       });
     } catch (error) {
-      log.error('[Notebook Collections] Error in DELETE /:id/share:', error);
+      log.error('[Notebook Collections] Error in DELETE /:id/share:', { error });
       return res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -695,7 +694,7 @@ router.delete(
         message: 'Document removed from collection',
       });
     } catch (error) {
-      log.error('[Notebook Collections] Error removing document:', error);
+      log.error('[Notebook Collections] Error removing document:', { error });
       return res.status(500).json({ success: false, message: 'Internal server error' });
     }
   }
@@ -746,7 +745,7 @@ router.delete('/bulk', requireAuth, async (req: AuthenticatedRequest, res: Respo
       deleted_ids: deletedIds,
     });
   } catch (error) {
-    log.error('[Notebook Collections] Error in bulk delete:', error);
+    log.error('[Notebook Collections] Error in bulk delete:', { error });
     const err = error as Error;
     return res.status(500).json({
       success: false,

@@ -74,7 +74,7 @@ router.post(
 
       // Handle archive errors
       archive.on('error', (err) => {
-        log.error('[exportZip] Archive error:', err);
+        log.error('[exportZip] Archive error:', { error: err });
         throw err;
       });
 
@@ -103,7 +103,7 @@ router.post(
       log.info(`[exportZip] ZIP created successfully with ${images.length} images`);
     } catch (err) {
       const error = err as Error;
-      log.error('[exportZip] ZIP export error:', error);
+      log.error('[exportZip] ZIP export error:', { error });
 
       // Only send error response if headers haven't been sent yet
       if (!res.headersSent) {

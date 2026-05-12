@@ -186,7 +186,7 @@ export async function processConversationRequest(params: {
       },
     };
   } catch (error) {
-    log.error('[ConversationService] Error:', error);
+    log.error('[ConversationService] Error:', { error });
     throw error;
   }
 }

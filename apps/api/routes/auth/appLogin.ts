@@ -167,7 +167,7 @@ router.get('/login', loginLimiter, async (req: AuthRequest, res: Response): Prom
     );
     res.redirect(url);
   } catch (error) {
-    log.error('[AppLogin] Error initiating OAuth:', error);
+    log.error('[AppLogin] Error initiating OAuth:', { error });
     res.status(500).json({ error: 'Failed to initiate login' });
   }
 });
@@ -228,7 +228,7 @@ router.get('/app-callback', async (req: AuthRequest, res: Response): Promise<voi
     const redirectWithCode = appendQueryParam(redirectTo, 'code', code);
     res.redirect(redirectWithCode);
   } catch (error) {
-    log.error('[AppCallback] Error processing callback:', error);
+    log.error('[AppCallback] Error processing callback:', { error });
     res.status(500).json({ error: 'Failed to process callback' });
   }
 });

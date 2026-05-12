@@ -3,6 +3,7 @@ import { parentPort } from 'worker_threads';
 
 import * as providerFallback from '../services/providers/providerFallback.js';
 import * as providerSelector from '../services/providers/providerSelector.js';
+import { createLogger } from '../utils/logger.js';
 
 import * as providers from './providers/index.js';
 
@@ -13,6 +14,8 @@ import type {
   AIRequestOptions,
 } from './types.js';
 import type { ProviderName, PrivacyProviderData } from '../services/providers/types.js';
+
+const log = createLogger('aiWorker');
 
 const SHAREPIC_TYPES = [
   'sharepic_dreizeilen',
@@ -31,7 +34,7 @@ parentPort.on('message', async (message: WorkerRequestMessage) => {
   const { type, requestId, data } = message;
 
   if (type !== 'request') {
-    console.warn(`[AI Worker] Received unknown message type: ${type}`);
+    log.warn(`[AI Worker] Received unknown message type: ${type}`);
     return;
   }
 
@@ -58,7 +61,7 @@ parentPort.on('message', async (message: WorkerRequestMessage) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`[AI Worker] Error processing request ${requestId}:`, error);
+    log.error(`[AI Worker] Error processing request ${requestId}:`, { error });
 
     parentPort!.postMessage({
       type: 'error',
@@ -90,7 +93,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
     useUltraMode: !!options.useUltraMode,
   };
 
-  console.log(`[AI Worker ${requestId}] Provider selection:`, {
+  log.debug(`[AI Worker ${requestId}] Provider selection:`, {
     selectedProvider: selection.provider,
     selectedModel: selection.model,
     useProMode: !!effectiveOptions.useProMode,
@@ -100,7 +103,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
   });
 
   if (data.instructions) {
-    console.log(`[AI Worker ${requestId}] Instructions:`, data.instructions);
+    log.debug(`[AI Worker ${requestId}] Instructions:`, data.instructions);
   }
 
   try {
@@ -108,7 +111,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
 
     const explicitProvider = data.provider || null;
     if (explicitProvider) {
-      console.log(
+      log.debug(
         `[AI Worker ${requestId}] Using explicit provider: ${explicitProvider} with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
@@ -120,7 +123,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
 
     if (!result && effectiveOptions.useUltraMode === true && !explicitProvider) {
       // Ultra Mode now uses IONOS with high-quality model
-      console.log(
+      log.debug(
         `[AI Worker ${requestId}] Using Ultra Mode (IONOS) with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
@@ -130,7 +133,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
         options: effectiveOptions,
       });
     } else if (!result && effectiveOptions.useProMode === true && !explicitProvider) {
-      console.log(
+      log.debug(
         `[AI Worker ${requestId}] Using Pro Mode (Magistral) provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
@@ -139,7 +142,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
         options: effectiveOptions,
       });
     } else if (!result && selection.provider === 'ionos' && !explicitProvider) {
-      console.log(
+      log.debug(
         `[AI Worker ${requestId}] Using IONOS provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
@@ -148,7 +151,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
         options: effectiveOptions,
       });
     } else if (!result && selection.provider === 'litellm' && !explicitProvider) {
-      console.log(
+      log.debug(
         `[AI Worker ${requestId}] Using LiteLLM provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
@@ -157,7 +160,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
         options: effectiveOptions,
       });
     } else if (!result && selection.provider === 'regolo' && !explicitProvider) {
-      console.log(
+      log.debug(
         `[AI Worker ${requestId}] Using Regolo provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
@@ -166,7 +169,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
         options: effectiveOptions,
       });
     } else if (!result && !explicitProvider) {
-      console.log(
+      log.debug(
         `[AI Worker ${requestId}] Using default Mistral provider with temperature: ${effectiveOptions.temperature ?? 'default'}`
       );
       sendProgress(requestId, 15);
@@ -178,7 +181,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
 
     const hasValidContent = result?.content || result?.stop_reason === 'tool_use';
     if (!hasValidContent) {
-      console.warn(`[AI Worker ${requestId}] Empty response, trying fallback providers`);
+      log.warn(`[AI Worker ${requestId}] Empty response, trying fallback providers`);
 
       // Use sharepic-specific fallback for sharepic types
       const isSharepicType = SHAREPIC_TYPES.includes(type);
@@ -203,7 +206,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
     sendProgress(requestId, 100);
     return result!;
   } catch (error) {
-    console.error(`[AI Worker] Error in processAIRequest for ${requestId}:`, error);
+    log.error(`[AI Worker] Error in processAIRequest for ${requestId}:`, { error });
     try {
       // Use sharepic-specific fallback for sharepic types
       const isSharepicType = SHAREPIC_TYPES.includes(type);
@@ -211,7 +214,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
         ? providerFallback.trySharepicFallbackProviders
         : providerFallback.tryPrivacyModeProviders;
 
-      console.log(
+      log.debug(
         `[AI Worker ${requestId}] Falling back to ${isSharepicType ? 'sharepic' : 'privacy mode'} providers`
       );
       const errorFallbackData: PrivacyProviderData = {
@@ -221,7 +224,7 @@ async function processAIRequest(requestId: string, data: AIRequestData): Promise
       const fallbackResult = await fallbackFn(
         async (providerName: ProviderName, privacyData) => {
           const temp = (privacyData.options as AIRequestOptions | undefined)?.temperature;
-          console.log(
+          log.debug(
             `[AI Worker ${requestId}] Trying fallback provider: ${providerName} with temperature: ${temp ?? 'default'}`
           );
           return providers.executeProvider(providerName, requestId, privacyData as AIRequestData);

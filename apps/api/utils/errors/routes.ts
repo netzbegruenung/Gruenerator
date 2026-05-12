@@ -3,6 +3,7 @@
  * HTTP-specific error handling for Express routes
  */
 
+import { createLogger } from '../logger.js';
 import { sendErrorResponse } from '../request/index.js';
 
 import {
@@ -22,6 +23,8 @@ import { ERROR_TYPES } from './constants.js';
 import type { ErrorClassification, RequestWithCorrelation, AIWorkerErrorResult } from './types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { Request, Response, NextFunction } from 'express';
+
+const log = createLogger('routes');
 
 /** Request that may carry a session ID (set by session middleware) */
 interface RequestWithSession extends Request {
@@ -108,11 +111,7 @@ export function classifyError(error: Error | VectorBackendError): ErrorClassific
   }
 
   // Authorization errors
-  if (
-    message.includes('forbidden') ||
-    message.includes('authorization') ||
-    errorStatus === 403
-  ) {
+  if (message.includes('forbidden') || message.includes('authorization') || errorStatus === 403) {
     return { type: 'AUTHORIZATION_ERROR', statusCode: 403 };
   }
 
@@ -127,11 +126,7 @@ export function classifyError(error: Error | VectorBackendError): ErrorClassific
   }
 
   // Rate limiting
-  if (
-    message.includes('rate limit') ||
-    message.includes('too many') ||
-    errorStatus === 429
-  ) {
+  if (message.includes('rate limit') || message.includes('too many') || errorStatus === 429) {
     return { type: 'RATE_LIMIT_ERROR', statusCode: 429 };
   }
 
@@ -161,7 +156,7 @@ export function handleRouteError(
     'unknown';
 
   // Enhanced logging with context
-  console.error(`[${routeName}] Error Details:`, {
+  log.error(`[${routeName}] Error Details:`, {
     errorType: type,
     userId,
     requestId,

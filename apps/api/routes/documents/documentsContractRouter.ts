@@ -109,7 +109,7 @@ export const documentsContractRouter = s.router(documentsContract, {
         },
       };
     } catch (error) {
-      log.error('[documentsContract.systemFullText] Error:', error);
+      log.error('[documentsContract.systemFullText] Error:', { error });
       return {
         status: 500 as const,
         body: {
@@ -129,7 +129,7 @@ export const documentsContractRouter = s.router(documentsContract, {
 
       return { status: 200 as const, body: { success: true, stats } };
     } catch (error) {
-      log.error('[documentsContract.getStats] Error:', error);
+      log.error('[documentsContract.getStats] Error:', { error });
       return {
         status: 500 as const,
         body: {
@@ -149,7 +149,7 @@ export const documentsContractRouter = s.router(documentsContract, {
 
       return { status: 200 as const, body: { success: true, syncStatuses } };
     } catch (error) {
-      log.error('[documentsContract.getSyncStatus] Error:', error);
+      log.error('[documentsContract.getSyncStatus] Error:', { error });
       return {
         status: 500 as const,
         body: {

@@ -5,8 +5,12 @@
 
 import crypto from 'crypto';
 
+import { createLogger } from '../../../utils/logger.js';
+
 import type { DocumentQnARedisClient as RedisClient } from './DocumentQnAService.js';
 import type { Attachment, StoredDocument, ClearUserDataResult } from './types.js';
+
+const log = createLogger('redisOperations');
 
 /**
  * Retrieve documents from Redis by IDs
@@ -22,7 +26,7 @@ export async function getDocumentsFromRedis(
     try {
       // Security check: ensure document belongs to user
       if (!docId.includes(userId)) {
-        console.warn(`[DocumentQnAService] Access denied to document ${docId} for user ${userId}`);
+        log.warn(`[DocumentQnAService] Access denied to document ${docId} for user ${userId}`);
         continue;
       }
 
@@ -31,10 +35,10 @@ export async function getDocumentsFromRedis(
         const document = JSON.parse(docData) as StoredDocument;
         documents.push(document);
       } else {
-        console.warn(`[DocumentQnAService] Document ${docId} not found in Redis`);
+        log.warn(`[DocumentQnAService] Document ${docId} not found in Redis`);
       }
     } catch (error) {
-      console.error(`[DocumentQnAService] Error retrieving document ${docId}:`, error);
+      log.error(`[DocumentQnAService] Error retrieving document ${docId}:`, { error });
     }
   }
 
@@ -65,7 +69,7 @@ export async function storeAttachment(
   // Store for 24 hours
   await redis.setEx(docId, 86400, JSON.stringify(documentData));
 
-  console.log(`[DocumentQnAService] Stored attachment ${attachment.name} as ${docId}`);
+  log.debug(`[DocumentQnAService] Stored attachment ${attachment.name} as ${docId}`);
   return docId;
 }
 
@@ -88,7 +92,7 @@ export async function storeAttachments(
       const docId = await storeAttachment(redis, userId, attachment);
       documentIds.push(docId);
     } catch (error: unknown) {
-      console.error(`[DocumentQnAService] Error storing attachment ${attachment.name}:`, error);
+      log.error(`[DocumentQnAService] Error storing attachment ${attachment.name}:`, { error });
     }
   }
 
@@ -98,7 +102,7 @@ export async function storeAttachments(
     await redis.lTrim(`user:${userId}:recent_docs`, 0, 9);
   }
 
-  console.log(`[DocumentQnAService] Stored ${documentIds.length} attachments for user ${userId}`);
+  log.debug(`[DocumentQnAService] Stored ${documentIds.length} attachments for user ${userId}`);
   return documentIds;
 }
 
@@ -114,7 +118,7 @@ export async function getRecentDocuments(
     const recentDocIds = await redis.lRange(`user:${userId}:recent_docs`, 0, limit - 1);
     return recentDocIds;
   } catch (error) {
-    console.error(`[DocumentQnAService] Error getting recent documents:`, error);
+    log.error(`[DocumentQnAService] Error getting recent documents:`, { error });
     return [];
   }
 }
@@ -146,7 +150,7 @@ export async function clearUserDocuments(
         const result = await redis.del(docId);
         if (result > 0) deletedCount++;
       } catch (error) {
-        console.warn(`[DocumentQnAService] Error deleting document ${docId}:`, error);
+        log.warn(`[DocumentQnAService] Error deleting document ${docId}:`, error);
       }
     }
 
@@ -165,11 +169,11 @@ export async function clearUserDocuments(
         // In production, you might want a more sophisticated approach
         await redis.del(cacheKey);
       } catch (error) {
-        console.warn(`[DocumentQnAService] Error deleting cache ${cacheKey}:`, error);
+        log.warn(`[DocumentQnAService] Error deleting cache ${cacheKey}:`, error);
       }
     }
 
-    console.log(
+    log.debug(
       `[DocumentQnAService] Cleared user data for ${userId}: ${deletedCount} documents, ${cacheKeys.length} cache entries`
     );
     return {
@@ -178,7 +182,7 @@ export async function clearUserDocuments(
       deletedCacheEntries: cacheKeys.length,
     };
   } catch (error) {
-    console.error(`[DocumentQnAService] Error clearing user documents:`, error);
+    log.error(`[DocumentQnAService] Error clearing user documents:`, { error });
     return {
       success: false,
       deletedDocuments: 0,

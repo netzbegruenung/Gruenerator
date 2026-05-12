@@ -120,7 +120,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[custom_prompt] Error fetching prompt:', err);
+      log.error('[custom_prompt] Error fetching prompt:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden des Prompts.',
@@ -170,7 +170,7 @@ router.post('/search', async (req: Request, res: Response): Promise<void> => {
     });
   } catch (error) {
     const err = error as Error;
-    log.error('[custom_prompt] Search error:', err);
+    log.error('[custom_prompt] Search error:', { error: err });
     res.status(500).json({
       success: false,
       message: err.message || 'Fehler bei der Suche.',

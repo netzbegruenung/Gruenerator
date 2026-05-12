@@ -3,6 +3,8 @@
  * Maps user messages to appropriate text generation agents
  */
 
+import { createLogger } from '../../utils/logger.js';
+
 import type {
   AgentMappings,
   ClassificationResult,
@@ -13,6 +15,8 @@ import type {
   AIClassificationResponse,
   EditContext,
 } from './types.js';
+
+const log = createLogger('IntentClassifier');
 
 // Agent mappings with routing information
 export const AGENT_MAPPINGS: AgentMappings = {
@@ -205,7 +209,7 @@ export async function classifyIntent(
   context: ChatContext = {},
   aiWorkerPool: AIWorkerPool | null = null
 ): Promise<ClassificationResult> {
-  console.log(
+  log.debug(
     '[IntentClassifier] Using AI-powered multi-intent classification:',
     message.substring(0, 100)
   );
@@ -216,7 +220,7 @@ export async function classifyIntent(
       const aiResult = await classifyWithAI(message, context, aiWorkerPool);
       if (aiResult && aiResult.intents && aiResult.intents.length > 0) {
         const { requestType, subIntent, intents } = aiResult;
-        console.log(
+        log.debug(
           '[IntentClassifier] AI detected',
           intents.length,
           'intents, requestType:',
@@ -227,7 +231,7 @@ export async function classifyIntent(
 
         // Force single universal intent for conversation requests
         if (requestType === 'conversation') {
-          console.log(
+          log.debug(
             '[IntentClassifier] Conversation detected - routing to conversation handler, subIntent:',
             subIntent
           );
@@ -245,7 +249,7 @@ export async function classifyIntent(
 
         // Handle text_edit requests with editContext
         if (requestType === 'text_edit') {
-          console.log('[IntentClassifier] Text edit detected - routing to text_edit handler');
+          log.debug('[IntentClassifier] Text edit detected - routing to text_edit handler');
           return {
             isMultiIntent: false,
             intents: [{ agent: 'text_edit', route: 'text_edit', params: {}, confidence: 0.9 }],
@@ -266,7 +270,7 @@ export async function classifyIntent(
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn('[IntentClassifier] AI classification failed, falling back:', errorMessage);
+      log.warn('[IntentClassifier] AI classification failed, falling back:', errorMessage);
     }
   }
 
@@ -274,14 +278,14 @@ export async function classifyIntent(
   const normalizedMessage = message.toLowerCase().trim();
   const keywordMatch = findKeywordMatch(normalizedMessage);
   if (keywordMatch) {
-    console.log('[IntentClassifier] Keyword fallback match:', keywordMatch.agent);
+    log.debug('[IntentClassifier] Keyword fallback match:', keywordMatch.agent);
 
     // Upgrade zitat to zitat_with_image if image is present
     let agent = keywordMatch.agent;
     let params = keywordMatch.mapping.params;
 
     if (agent === 'zitat' && context.hasImageAttachment) {
-      console.log(
+      log.debug(
         '[IntentClassifier] Keyword fallback: Upgrading zitat to zitat_with_image due to image attachment'
       );
       agent = 'zitat_with_image';
@@ -305,7 +309,7 @@ export async function classifyIntent(
   // Step 3: Context-based classification fallback
   const contextMatch = classifyFromContext(normalizedMessage, context);
   if (contextMatch) {
-    console.log('[IntentClassifier] Context fallback match:', contextMatch.agent);
+    log.debug('[IntentClassifier] Context fallback match:', contextMatch.agent);
     return {
       isMultiIntent: false,
       intents: [
@@ -321,7 +325,7 @@ export async function classifyIntent(
   }
 
   // Step 4: Default fallback to universal agent
-  console.log('[IntentClassifier] Using universal agent fallback');
+  log.debug('[IntentClassifier] Using universal agent fallback');
   return {
     isMultiIntent: false,
     intents: [
@@ -373,7 +377,7 @@ export async function classifyWithAI(
   aiWorkerPool: AIWorkerPool
 ): Promise<AIClassificationResponse | null> {
   if (!aiWorkerPool) {
-    console.log('[IntentClassifier] No AI worker pool available');
+    log.debug('[IntentClassifier] No AI worker pool available');
     return null;
   }
 
@@ -502,7 +506,7 @@ Antworte als JSON:
 WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.singleIntentOnly ? '\n\nWICHTIG: Gib NUR EINEN Intent zurück - den besten Match! Keine mehreren Intents.' : ''}`;
 
   try {
-    console.log('[IntentClassifier] Calling AI for multi-intent classification');
+    log.debug('[IntentClassifier] Calling AI for multi-intent classification');
 
     const result = await aiWorkerPool.processRequest({
       type: 'intent_classification',
@@ -544,14 +548,14 @@ WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.
         // Extract editContext if present (for text_edit requests)
         if (requestType === 'text_edit' && parsedResponse.editContext) {
           editContext = parsedResponse.editContext;
-          console.log('[IntentClassifier] Extracted editContext:', {
+          log.debug('[IntentClassifier] Extracted editContext:', {
             instructionLength: editContext.instruction?.length,
             sourceTextLength: editContext.sourceText?.length,
             editType: editContext.editType,
           });
         }
 
-        console.log('[IntentClassifier] Parsed requestType:', requestType, 'subIntent:', subIntent);
+        log.debug('[IntentClassifier] Parsed requestType:', requestType, 'subIntent:', subIntent);
       } else {
         // Fallback: Try to extract JSON array (old format)
         const jsonArrayMatch = result.content.match(/\[[\s\S]*\]/);
@@ -562,7 +566,7 @@ WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.
         }
       }
     } catch (_parseError) {
-      console.warn('[IntentClassifier] Failed to parse AI response:', result.content);
+      log.warn('[IntentClassifier] Failed to parse AI response:', result.content);
       return null;
     }
 
@@ -606,7 +610,7 @@ WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.
       sharepicIntents.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
       const bestSharepic = sharepicIntents[0];
       if (bestSharepic) {
-        console.log(
+        log.debug(
           '[IntentClassifier] Multiple sharepic intents detected, keeping best:',
           bestSharepic.agent
         );
@@ -617,7 +621,7 @@ WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.
     }
 
     if (validIntents.length === 0) {
-      console.warn('[IntentClassifier] No valid intents found in AI response');
+      log.warn('[IntentClassifier] No valid intents found in AI response');
       return null;
     }
 
@@ -625,9 +629,7 @@ WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.
     const hasImageAttachmentInContext = context.hasImageAttachment || false;
     const processedIntents = validIntents.map((intent) => {
       if (intent.agent === 'zitat' && hasImageAttachmentInContext) {
-        console.log(
-          '[IntentClassifier] Upgrading zitat to zitat_with_image due to image attachment'
-        );
+        log.debug('[IntentClassifier] Upgrading zitat to zitat_with_image due to image attachment');
         return {
           ...intent,
           agent: 'zitat_with_image',
@@ -640,7 +642,7 @@ WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.
       return intent;
     });
 
-    console.log(
+    log.debug(
       '[IntentClassifier] AI successfully classified',
       processedIntents.length,
       'intents:',
@@ -666,7 +668,7 @@ WICHTIG: editContext ist NUR bei requestType="text_edit" erforderlich!${context.
     return result_obj;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn('[IntentClassifier] AI classification error:', errorMessage);
+    log.warn('[IntentClassifier] AI classification error:', errorMessage);
     return null;
   }
 }
@@ -698,7 +700,7 @@ export function classifyFromContext(
     if (normalizedMessage.includes('zitat') || normalizedMessage.includes('quote')) {
       // Upgrade to zitat_with_image if image is present
       if (context.hasImageAttachment) {
-        console.log(
+        log.debug(
           '[IntentClassifier] Context classification: Upgrading zitat to zitat_with_image due to image attachment'
         );
         return {

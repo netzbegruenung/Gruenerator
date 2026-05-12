@@ -2,8 +2,12 @@
  * SelectImageNode - AI-powered image selection from catalog
  */
 
+import { createLogger } from '../../../../utils/logger.js';
+
 import type { RequestWithUser } from '../../../../utils/redis/types.js';
 import type { ImageSelectionState, CatalogImage, AISelectionResponse } from '../types.js';
+
+const log = createLogger('SelectImageNode');
 
 /**
  * AI selects best image from catalog based on text and sharepic type
@@ -55,7 +59,7 @@ ${imageDescriptions}
 
 Wähle den besten Hintergrund aus (gib die Nummer an).`;
 
-    console.log(
+    log.debug(
       `[ImageSelection] AI selecting from ${imageCatalog.images.length} images for: "${text.substring(0, 50)}..."`
     );
 
@@ -73,8 +77,8 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
     );
 
     // Debug logging to see exact AI response
-    console.log(`[ImageSelection] Raw AI response:`, result.content);
-    console.log(`[ImageSelection] Response type:`, typeof result.content);
+    log.debug(`[ImageSelection] Raw AI response:`, result.content);
+    log.debug(`[ImageSelection] Response type:`, typeof result.content);
 
     // Extract JSON from markdown code blocks if present
     let contentToParse = result.content || '';
@@ -85,14 +89,14 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
       const jsonMatch = contentToParse.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
       if (jsonMatch && jsonMatch[1]) {
         contentToParse = jsonMatch[1].trim();
-        console.log(`[ImageSelection] Extracted JSON from markdown:`, contentToParse);
+        log.debug(`[ImageSelection] Extracted JSON from markdown:`, contentToParse);
       }
     }
 
     // Parse AI response
     try {
       const selection = JSON.parse(contentToParse) as AISelectionResponse;
-      console.log(`[ImageSelection] Parsed successfully:`, selection);
+      log.debug(`[ImageSelection] Parsed successfully:`, selection);
 
       // Validate index
       const selectedIndex = selection.selectedIndex - 1; // Convert to 0-based
@@ -110,7 +114,7 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
         .filter((img, index) => index !== selectedIndex)
         .slice(0, 3);
 
-      console.log(
+      log.debug(
         `[ImageSelection] Selected: ${selectedImage.filename} (confidence: ${selection.confidence})`
       );
 
@@ -127,14 +131,14 @@ Wähle den besten Hintergrund aus (gib die Nummer an).`;
         },
       };
     } catch (_parseError) {
-      console.warn('[ImageSelection] Failed to parse AI selection, using smart fallback');
+      log.warn('[ImageSelection] Failed to parse AI selection, using smart fallback');
 
       // Smart fallback: pick a thematically relevant image
       return performSmartFallback(text, imageCatalog.images, state);
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[ImageSelection] Error in image selection:', errorMessage);
+    log.error('[ImageSelection] Error in image selection:', errorMessage);
 
     // Final fallback to first image
     return performErrorFallback(imageCatalog?.images || [], state, errorMessage);

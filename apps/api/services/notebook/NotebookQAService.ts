@@ -723,7 +723,7 @@ export class NotebookQAService {
       // Post-filter: validate results match requested source_id filter (defense-in-depth)
       return this._applySourceIdPostFilter(expanded, filters);
     } catch (error: unknown) {
-      log.error(`[QA] Search error for ${collectionId}:`, error);
+      log.error(`[QA] Search error for ${collectionId}:`, { error });
       return [];
     }
   }
@@ -746,7 +746,7 @@ export class NotebookQAService {
     const before = results.length;
     const filtered = results.filter((r) => !r.source_id || allowedSourceIds.includes(r.source_id));
     if (filtered.length < before) {
-      console.warn(
+      log.warn(
         `[NotebookQA] Post-filter removed ${before - filtered.length} results ` +
           `not matching source_id: ${JSON.stringify(allowedSourceIds)}`
       );
@@ -1017,7 +1017,7 @@ export class NotebookQAService {
         metadata: personMetadata,
       };
     } catch (error: unknown) {
-      log.error('[QA] Enriched person search failed:', error);
+      log.error('[QA] Enriched person search failed:', { error });
       return null;
     }
   }

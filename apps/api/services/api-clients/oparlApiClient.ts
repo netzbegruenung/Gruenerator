@@ -4,6 +4,8 @@ import { fileURLToPath } from 'url';
 
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 
+import { createLogger } from '../../utils/logger.js';
+
 import {
   oparlBodyListResponseSchema,
   oparlOrganizationListResponseSchema,
@@ -14,6 +16,8 @@ import {
   type OparlPaper,
   type OparlSystem,
 } from './schemas/oparl.js';
+
+const log = createLogger('oparlApiClient');
 
 export type { OparlBody, OparlOrganization, OparlPaper, OparlSystem } from './schemas/oparl.js';
 
@@ -96,7 +100,7 @@ class OparlApiClient {
       return JSON.parse(data) as OparlEndpoint[];
     } catch (error) {
       const err = error as Error;
-      console.error('[OParlAPI] Failed to load endpoints:', err.message);
+      log.error('[OParlAPI] Failed to load endpoints:', err.message);
       return [];
     }
   }
@@ -113,12 +117,12 @@ class OparlApiClient {
 
   async getSystem(systemUrl: string): Promise<OparlSystem> {
     try {
-      console.log(`[OParlAPI] Fetching system: ${systemUrl}`);
+      log.debug(`[OParlAPI] Fetching system: ${systemUrl}`);
       const response = await this.client.get(systemUrl);
       return oparlSystemSchema.parse(response.data);
     } catch (error) {
       const err = error as AxiosError;
-      console.error(`[OParlAPI] Error fetching system:`, err.message);
+      log.error(`[OParlAPI] Error fetching system:`, err.message);
       throw new Error(`Fehler beim Abrufen des OParl-Systems: ${err.message}`);
     }
   }
@@ -132,7 +136,7 @@ class OparlApiClient {
         throw new Error('Keine Bodies im System gefunden');
       }
 
-      console.log(`[OParlAPI] Fetching bodies from: ${bodyUrl}`);
+      log.debug(`[OParlAPI] Fetching bodies from: ${bodyUrl}`);
       const response = await this.client.get(bodyUrl);
       const parsed = oparlBodyListResponseSchema.parse(response.data);
 
@@ -145,7 +149,7 @@ class OparlApiClient {
       return [parsed];
     } catch (error) {
       const err = error as AxiosError;
-      console.error(`[OParlAPI] Error fetching bodies:`, err.message);
+      log.error(`[OParlAPI] Error fetching bodies:`, err.message);
       throw new Error(`Fehler beim Abrufen der Bodies: ${err.message}`);
     }
   }
@@ -162,7 +166,7 @@ class OparlApiClient {
         throw new Error('Keine Organizations-URL gefunden');
       }
 
-      console.log(`[OParlAPI] Fetching organizations from: ${organizationUrl}`);
+      log.debug(`[OParlAPI] Fetching organizations from: ${organizationUrl}`);
 
       let response;
       try {
@@ -173,7 +177,7 @@ class OparlApiClient {
       } catch (err) {
         const axiosErr = err as AxiosError;
         if (axiosErr.response?.status === 400) {
-          console.log(`[OParlAPI] Retrying organizations without limit param`);
+          log.debug(`[OParlAPI] Retrying organizations without limit param`);
           const cleanUrl = organizationUrl.split('?')[0];
           response = await this.client.get(cleanUrl);
         } else {
@@ -188,7 +192,7 @@ class OparlApiClient {
       return parsed.data;
     } catch (error) {
       const err = error as AxiosError;
-      console.error(`[OParlAPI] Error fetching organizations:`, err.message);
+      log.error(`[OParlAPI] Error fetching organizations:`, err.message);
       throw new Error(`Fehler beim Abrufen der Organisationen: ${err.message}`);
     }
   }
@@ -250,7 +254,7 @@ class OparlApiClient {
         throw new Error('Keine Paper-URL gefunden');
       }
 
-      console.log(`[OParlAPI] Fetching papers from: ${paperUrl}`);
+      log.debug(`[OParlAPI] Fetching papers from: ${paperUrl}`);
 
       // Try with limit parameter first, fallback to without
       let response;
@@ -262,7 +266,7 @@ class OparlApiClient {
         const axiosErr = err as AxiosError;
         if (axiosErr.response?.status === 400) {
           // API doesn't support limit param, try without
-          console.log(`[OParlAPI] Retrying papers without limit param`);
+          log.debug(`[OParlAPI] Retrying papers without limit param`);
           response = await this.client.get(paperUrl);
         } else {
           throw err;
@@ -280,7 +284,7 @@ class OparlApiClient {
       return papers;
     } catch (error) {
       const err = error as AxiosError;
-      console.error(`[OParlAPI] Error fetching papers:`, err.message);
+      log.error(`[OParlAPI] Error fetching papers:`, err.message);
       throw new Error(`Fehler beim Abrufen der Papers: ${err.message}`);
     }
   }
@@ -294,12 +298,12 @@ class OparlApiClient {
       }
 
       const body = bodies[0];
-      console.log(`[OParlAPI] Using body: ${body.name || body.id}`);
+      log.debug(`[OParlAPI] Using body: ${body.name || body.id}`);
 
       const organizations = await this.getOrganizations(body);
       const greenFactions = this.findGreenFaction(organizations);
 
-      console.log(`[OParlAPI] Found ${greenFactions.length} green faction(s)`);
+      log.debug(`[OParlAPI] Found ${greenFactions.length} green faction(s)`);
 
       const greenFactionIds = new Set(greenFactions.map((org) => org.id));
 
@@ -350,7 +354,7 @@ class OparlApiClient {
         return false;
       });
 
-      console.log(
+      log.debug(
         `[OParlAPI] Found ${greenPapers.length} papers from green factions out of ${allPapers.length} total`
       );
 
@@ -370,7 +374,7 @@ class OparlApiClient {
       };
     } catch (error) {
       const err = error as Error;
-      console.error(`[OParlAPI] Error getting green papers:`, err.message);
+      log.error(`[OParlAPI] Error getting green papers:`, err.message);
       throw error;
     }
   }
@@ -397,14 +401,14 @@ class OparlApiClient {
       }
 
       const body = bodies[0];
-      console.log(`[OParlAPI] getAllGreenPapers: Using body "${body.name || body.id}"`);
+      log.debug(`[OParlAPI] getAllGreenPapers: Using body "${body.name || body.id}"`);
 
       // Get organizations for faction detection
       const organizations = await this.getOrganizations(body);
       const greenFactions = this.findGreenFaction(organizations);
       const greenFactionIds = new Set(greenFactions.map((org) => org.id));
 
-      console.log(`[OParlAPI] Found ${greenFactions.length} green faction(s)`);
+      log.debug(`[OParlAPI] Found ${greenFactions.length} green faction(s)`);
 
       // Fetch papers with pagination
       const paperUrl = body.paper;
@@ -418,7 +422,7 @@ class OparlApiClient {
       let emptyPages = 0;
 
       while (pageNum <= maxPages && emptyPages < 3) {
-        console.log(`[OParlAPI] Fetching papers page ${pageNum}...`);
+        log.debug(`[OParlAPI] Fetching papers page ${pageNum}...`);
 
         let response;
         try {
@@ -436,11 +440,11 @@ class OparlApiClient {
               // If no page support, we can only get one page
               pageNum = maxPages + 1;
             } catch (_retryErr) {
-              console.log(`[OParlAPI] Page ${pageNum} failed, stopping pagination`);
+              log.debug(`[OParlAPI] Page ${pageNum} failed, stopping pagination`);
               break;
             }
           } else if (axiosErr.response && axiosErr.response.status >= 500) {
-            console.log(`[OParlAPI] Server error on page ${pageNum}, trying next page...`);
+            log.debug(`[OParlAPI] Server error on page ${pageNum}, trying next page...`);
             pageNum++;
             emptyPages++;
             continue;
@@ -476,7 +480,7 @@ class OparlApiClient {
           }
         }
 
-        console.log(
+        log.debug(
           `[OParlAPI] Page ${pageNum}: ${papers.length} papers, ${greenFoundThisPage} green`
         );
 
@@ -488,7 +492,7 @@ class OparlApiClient {
         pageNum++;
       }
 
-      console.log(
+      log.debug(
         `[OParlAPI] getAllGreenPapers: Found ${allGreenPapers.length} green papers (scanned ${totalPapersScanned} total across ${pageNum - 1} pages)`
       );
 
@@ -504,7 +508,7 @@ class OparlApiClient {
       };
     } catch (error) {
       const err = error as Error;
-      console.error(`[OParlAPI] Error in getAllGreenPapers:`, err.message);
+      log.error(`[OParlAPI] Error in getAllGreenPapers:`, err.message);
       throw error;
     }
   }

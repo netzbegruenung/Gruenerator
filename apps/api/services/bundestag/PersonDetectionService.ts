@@ -4,9 +4,13 @@
  * Uses pattern matching, cached MP list, and DIP API validation
  */
 
+import { createLogger } from '../../utils/logger.js';
+
 import { getBundestagMCPClient } from './BundestagMCPClient.js';
 
 import type { Person, PersonDetectionResult, PersonPattern, CacheStats } from './types.js';
+
+const log = createLogger('PersonDetectionService');
 
 // MP cache: normalizedName -> person object
 const mpCache = new Map<string, Person>();
@@ -92,7 +96,7 @@ export class PersonDetectionService {
       return { detected: false, confidence: 0 };
     }
 
-    console.log(
+    log.debug(
       `[PersonDetection] Extracted name: "${extractedName}" from query: "${trimmed.substring(0, 50)}..."`
     );
 
@@ -101,7 +105,7 @@ export class PersonDetectionService {
     const cachedMatch = this.findMatchingMP(extractedName);
 
     if (cachedMatch && cachedMatch.confidence >= 0.85) {
-      console.log(
+      log.debug(
         `[PersonDetection] Cache hit: ${cachedMatch.person.titel || ''} ${cachedMatch.person.vorname} ${cachedMatch.person.nachname} (${cachedMatch.confidence.toFixed(2)})`
       );
       return {
@@ -132,7 +136,7 @@ export class PersonDetectionService {
           const cacheKey = this.normalizeForCache(fullName);
           mpCache.set(cacheKey, bestMatch);
 
-          console.log(`[PersonDetection] API match: ${fullName} (${confidence.toFixed(2)})`);
+          log.debug(`[PersonDetection] API match: ${fullName} (${confidence.toFixed(2)})`);
           return {
             detected: true,
             person: bestMatch,
@@ -143,7 +147,7 @@ export class PersonDetectionService {
         }
       }
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[PersonDetection] API search failed:',
         error instanceof Error ? error.message : String(error)
       );
@@ -151,7 +155,7 @@ export class PersonDetectionService {
 
     // Weak cache match (0.7-0.85) as last resort
     if (cachedMatch && cachedMatch.confidence >= 0.7) {
-      console.log(
+      log.debug(
         `[PersonDetection] Weak cache match: ${cachedMatch.person.vorname} ${cachedMatch.person.nachname} (${cachedMatch.confidence.toFixed(2)})`
       );
       return {
@@ -354,7 +358,7 @@ export class PersonDetectionService {
    */
   async refreshMPCache(): Promise<void> {
     try {
-      console.log('[PersonDetection] Refreshing MP cache...');
+      log.debug('[PersonDetection] Refreshing MP cache...');
 
       const result = await this.mcpClient.searchPersonen({
         fraktion: 'GRÜNE',
@@ -389,10 +393,10 @@ export class PersonDetectionService {
           }
         }
         cacheLastUpdated = Date.now();
-        console.log(`[PersonDetection] Cached ${mpCache.size} entries for Green MPs`);
+        log.debug(`[PersonDetection] Cached ${mpCache.size} entries for Green MPs`);
       }
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[PersonDetection] Failed to refresh MP cache:',
         error instanceof Error ? error.message : String(error)
       );

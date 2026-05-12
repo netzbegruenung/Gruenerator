@@ -82,7 +82,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Prompts /custom_prompts GET] Error:', err);
+      log.error('[User Custom Prompts /custom_prompts GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der Prompts.',
@@ -146,7 +146,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Prompts /custom_prompts POST] Error:', err);
+      log.error('[User Custom Prompts /custom_prompts POST] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Erstellen des Prompts.',
@@ -224,7 +224,7 @@ router.put(
       res.json({ success: true, prompt: updatedPrompt, message: 'Prompt aktualisiert!' });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Prompts /custom_prompts/:id PUT] Error:', err);
+      log.error('[User Custom Prompts /custom_prompts/:id PUT] Error:', { error: err });
       res
         .status(500)
         .json({ success: false, message: err.message || 'Fehler beim Aktualisieren.' });
@@ -291,7 +291,7 @@ router.delete(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Prompts /custom_prompts/:id DELETE] Error:', err);
+      log.error('[User Custom Prompts /custom_prompts/:id DELETE] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Löschen des Prompts.',
@@ -329,7 +329,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Prompts /saved_prompts GET] Error:', err);
+      log.error('[User Custom Prompts /saved_prompts GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der gespeicherten Prompts.',
@@ -411,7 +411,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Prompts /saved_prompts/:promptId POST] Error:', err);
+      log.error('[User Custom Prompts /saved_prompts/:promptId POST] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Speichern des Prompts.',
@@ -451,7 +451,7 @@ router.delete(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Prompts /saved_prompts/:promptId DELETE] Error:', err);
+      log.error('[User Custom Prompts /saved_prompts/:promptId DELETE] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Entfernen des Prompts.',
@@ -492,7 +492,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Prompts /custom_prompts/search POST] Error:', err);
+      log.error('[User Custom Prompts /custom_prompts/search POST] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler bei der Suche.',
@@ -564,7 +564,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Prompts /public_prompts GET] Error:', err);
+      log.error('[User Custom Prompts /public_prompts GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der öffentlichen Prompts.',
@@ -606,7 +606,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Prompts /public_prompts/search POST] Error:', err);
+      log.error('[User Custom Prompts /public_prompts/search POST] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler bei der Suche.',

@@ -1,6 +1,9 @@
 import { env } from '../../../config/env.js';
+import { createLogger } from '../../../utils/logger.js';
 import { parallelLimit } from '../../../utils/parallelLimit.js';
 import mistralClient from '../../../workers/mistralClient.js';
+
+const log = createLogger('MistralEmbeddingClient');
 
 export interface MistralEmbeddingOptions {
   model?: string;
@@ -58,7 +61,7 @@ export class MistralEmbeddingClient {
 
     // Split into smaller batches
     const batches = this.createOptimalBatches(texts, MAX_BATCH_SIZE, MAX_TOKENS_PER_BATCH);
-    console.log(
+    log.debug(
       `[MistralEmbeddingClient] Splitting ${texts.length} texts into ${batches.length} batches`
     );
 
@@ -71,7 +74,7 @@ export class MistralEmbeddingClient {
         await new Promise((r) => setTimeout(r, STAGGER_MS * i));
       }
 
-      console.log(
+      log.debug(
         `[MistralEmbeddingClient] Processing batch ${i + 1}/${batches.length} (${batch.length} texts)`
       );
 
@@ -106,10 +109,10 @@ export class MistralEmbeddingClient {
     batchIndex: number,
     error: Error
   ): Promise<number[][]> {
-    console.error(`[MistralEmbeddingClient] Batch ${batchIndex + 1} failed:`, error.message);
+    log.error(`[MistralEmbeddingClient] Batch ${batchIndex + 1} failed:`, error.message);
 
     if (batch.length > 1) {
-      console.log(
+      log.debug(
         `[MistralEmbeddingClient] Falling back to individual processing for batch ${batchIndex + 1}`
       );
       const results: number[][] = [];
@@ -122,12 +125,12 @@ export class MistralEmbeddingClient {
             indErr.message.includes('exceeding max') ||
             indErr.message.includes('too many tokens')
           ) {
-            console.warn(
+            log.warn(
               `[MistralEmbeddingClient] Skipping oversized text (${text.length} chars) — using zero vector`
             );
             results.push(new Array<number>(1024).fill(0));
           } else {
-            console.error(`[MistralEmbeddingClient] Individual text failed:`, indErr.message);
+            log.error(`[MistralEmbeddingClient] Individual text failed:`, indErr.message);
             throw new Error(`Failed to generate embedding for text: ${indErr.message}`);
           }
         }
@@ -137,7 +140,7 @@ export class MistralEmbeddingClient {
 
     const errMsg = error.message || '';
     if (errMsg.includes('exceeding max') || errMsg.includes('too many tokens')) {
-      console.warn(
+      log.warn(
         `[MistralEmbeddingClient] Skipping oversized text (${batch[0].length} chars) — using zero vector`
       );
       return [new Array(1024).fill(0)];
@@ -163,7 +166,7 @@ export class MistralEmbeddingClient {
     const lastSpace = truncated.lastIndexOf(' ');
     const safeText = lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated;
 
-    console.warn(
+    log.warn(
       `[MistralEmbeddingClient] Truncated text from ${text.length} to ${safeText.length} chars (exceeds ${MistralEmbeddingClient.MAX_TOKENS_PER_TEXT} token limit)`
     );
     return safeText;
@@ -224,7 +227,7 @@ export class MistralEmbeddingClient {
         const isRetryable = this.isRetryableError(error as RetryableError);
 
         if (!isRetryable || attempt === maxRetries) {
-          console.error(
+          log.error(
             `[MistralEmbeddingClient] ${operationName} failed after ${attempt + 1} attempts:`,
             lastError.message
           );
@@ -233,7 +236,7 @@ export class MistralEmbeddingClient {
 
         // Calculate backoff delay: 1s, 2s, 4s
         const delay = Math.pow(2, attempt) * 1000;
-        console.warn(
+        log.warn(
           `[MistralEmbeddingClient] ${operationName} attempt ${attempt + 1} failed, retrying in ${delay}ms:`,
           lastError.message
         );

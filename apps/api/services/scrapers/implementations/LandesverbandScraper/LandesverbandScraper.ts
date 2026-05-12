@@ -25,6 +25,7 @@ import {
   batchDelete,
 } from '../../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../../utils/domainUtils.js';
+import { createLogger } from '../../../../utils/logger.js';
 import { parallelLimit } from '../../../../utils/parallelLimit.js';
 import { sendLvSyncNotificationEmail } from '../../../email/emailService.js';
 import { mistralEmbeddingService } from '../../../mistral/index.js';
@@ -47,6 +48,8 @@ import type {
   ProcessResult,
 } from './types.js';
 import type { ScraperResult } from '../../types.js';
+
+const log = createLogger('LandesverbandScraper');
 
 /**
  * Main scraper class - orchestrates all modules
@@ -289,9 +292,7 @@ export class LandesverbandScraper extends BaseScraper {
           await this.delay(this.crawlDelay);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(
-            `[Landesverband] ✗ PDF error in ${source.id} (${pdf.url}): ${errorMessage}`
-          );
+          log.error(`[Landesverband] ✗ PDF error in ${source.id} (${pdf.url}): ${errorMessage}`);
           result.errors++;
         }
       }
@@ -431,7 +432,7 @@ export class LandesverbandScraper extends BaseScraper {
           await this.delay(this.crawlDelay);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[Landesverband] ✗ Error in ${source.id} (${url}): ${errorMessage}`);
+          log.error(`[Landesverband] ✗ Error in ${source.id} (${url}): ${errorMessage}`);
           result.errors++;
         }
       }
@@ -511,9 +512,9 @@ export class LandesverbandScraper extends BaseScraper {
     const dormantSources = sources.filter((s) => s.dormant);
     sources = sources.filter((s) => !s.dormant);
 
-    console.log('\n╔═══════════════════════════════════════════════════════════╗');
-    console.log('║       Landesverbaende Scraper - Full Crawl                ║');
-    console.log('╚═══════════════════════════════════════════════════════════╝\n');
+    log.debug('\n╔═══════════════════════════════════════════════════════════╗');
+    log.debug('║       Landesverbaende Scraper - Full Crawl                ║');
+    log.debug('╚═══════════════════════════════════════════════════════════╝\n');
     this.log(`Sources to process: ${sources.length}`);
     if (dormantSources.length > 0) {
       this.log(`Dormant sources skipped: ${dormantSources.map((s) => s.id).join(', ')}`);
@@ -549,7 +550,7 @@ export class LandesverbandScraper extends BaseScraper {
           return { sourceId: source.id, result: sourceResult, error: null };
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[Landesverband] Failed to scrape ${source.id}: ${errorMessage}`);
+          log.error(`[Landesverband] Failed to scrape ${source.id}: ${errorMessage}`);
           return { sourceId: source.id, result: null, error: errorMessage };
         }
       }
@@ -587,15 +588,15 @@ export class LandesverbandScraper extends BaseScraper {
         this.log(`Email sent to ${source.notificationEmail} for ${source.name}`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[Landesverband] Email notification failed for ${source.name}: ${msg}`);
+        log.error(`[Landesverband] Email notification failed for ${source.name}: ${msg}`);
       }
     }
 
     totalResult.duration = Math.round((Date.now() - startTime) / 1000);
 
-    console.log('\n╔═══════════════════════════════════════════════════════════╗');
-    console.log('║                    CRAWL COMPLETE                         ║');
-    console.log('╚═══════════════════════════════════════════════════════════╝');
+    log.debug('\n╔═══════════════════════════════════════════════════════════╗');
+    log.debug('║                    CRAWL COMPLETE                         ║');
+    log.debug('╚═══════════════════════════════════════════════════════════╝');
     this.log(`Sources processed: ${totalResult.sourcesProcessed}`);
     this.log(`New documents: ${totalResult.stored}`);
     this.log(`Updated: ${totalResult.updated}`);

@@ -116,7 +116,7 @@ router.get('/system-full-text', async (req: DocumentRequest, res: Response): Pro
       },
     });
   } catch (error) {
-    log.error('[GET /system-full-text] Error:', error);
+    log.error('[GET /system-full-text] Error:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message || 'Failed to retrieve system document text',
@@ -174,7 +174,7 @@ router.get(
         },
       });
     } catch (error) {
-      log.error(`[GET /:documentId/full-text] Error:`, error);
+      log.error(`[GET /:documentId/full-text] Error:`, { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to retrieve document text',
@@ -251,7 +251,7 @@ router.post(
         },
       });
     } catch (error) {
-      log.error('[POST /bulk/full-text] Error:', error);
+      log.error('[POST /bulk/full-text] Error:', { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to retrieve documents text',
@@ -295,7 +295,7 @@ router.get('/list', async (req: DocumentRequest, res: Response): Promise<void> =
       },
     });
   } catch (error) {
-    log.error('[GET /list] Error:', error);
+    log.error('[GET /list] Error:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message || 'Failed to retrieve documents from Qdrant',
@@ -413,7 +413,7 @@ router.get(
         },
       });
     } catch (error) {
-      log.error(`[GET /:documentId/chunk-context] Error:`, error);
+      log.error(`[GET /:documentId/chunk-context] Error:`, { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to retrieve chunk context',
@@ -446,7 +446,7 @@ router.get('/stats', async (req: DocumentRequest, res: Response): Promise<void> 
       data: stats,
     });
   } catch (error) {
-    log.error('[GET /stats] Error:', error);
+    log.error('[GET /stats] Error:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message || 'Failed to get vector statistics',

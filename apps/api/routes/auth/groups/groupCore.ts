@@ -162,7 +162,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups GET] Error:', err);
+      log.error('[User Groups /groups GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der Gruppen.',
@@ -222,7 +222,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups POST] Error:', err);
+      log.error('[User Groups /groups POST] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Erstellen der Gruppe.',
@@ -331,7 +331,7 @@ router.delete(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups DELETE] Error:', err);
+      log.error('[User Groups /groups DELETE] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Löschen der Gruppe.',
@@ -388,7 +388,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups/verify-token GET] Error:', err);
+      log.error('[User Groups /groups/verify-token GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Überprüfen des Einladungslinks.',
@@ -468,7 +468,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups/join POST] Error:', err);
+      log.error('[User Groups /groups/join POST] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Beitritt zur Gruppe.',
@@ -542,7 +542,7 @@ router.delete(
       res.json({ success: true, message: 'Gruppe erfolgreich verlassen.' });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups/:groupId/members/self DELETE] Error:', err);
+      log.error('[User Groups /groups/:groupId/members/self DELETE] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Verlassen der Gruppe.',
@@ -605,7 +605,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups/:groupId/details GET] Error:', err);
+      log.error('[User Groups /groups/:groupId/details GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der Gruppendetails.',
@@ -709,7 +709,7 @@ router.put(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups/:groupId/info PUT] Error:', err);
+      log.error('[User Groups /groups/:groupId/info PUT] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Aktualisieren der Gruppendetails.',
@@ -754,7 +754,7 @@ router.put(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups/:groupId/name PUT] Error:', err);
+      log.error('[User Groups /groups/:groupId/name PUT] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Aktualisieren des Gruppennamens.',
@@ -816,7 +816,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups/:groupId/members GET] Error:', err);
+      log.error('[User Groups /groups/:groupId/members GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der Gruppenmitglieder.',
@@ -898,7 +898,7 @@ router.put(
       res.json({ success: true, message: 'Rolle erfolgreich aktualisiert.' });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Groups /groups/:groupId/members/:memberId/role PUT] Error:', err);
+      log.error('[User Groups /groups/:groupId/members/:memberId/role PUT] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Aktualisieren der Rolle.',
@@ -961,7 +961,7 @@ router.post(
 
       res.json({ success: true, link: newLink });
     } catch (err: unknown) {
-      log.error('[Group Links POST] Error:', err);
+      log.error('[Group Links POST] Error:', { error: err });
       const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg.includes('Mitglied') || errMsg.includes('Admin')) {
         res.status(403).json({ success: false, message: errMsg });
@@ -1016,7 +1016,7 @@ router.put(
 
       res.json({ success: true, link: links[idx] });
     } catch (err: unknown) {
-      log.error('[Group Links PUT] Error:', err);
+      log.error('[Group Links PUT] Error:', { error: err });
       const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg.includes('Mitglied') || errMsg.includes('Admin')) {
         res.status(403).json({ success: false, message: errMsg });
@@ -1051,7 +1051,7 @@ router.delete(
 
       res.json({ success: true });
     } catch (err: unknown) {
-      log.error('[Group Links DELETE] Error:', err);
+      log.error('[Group Links DELETE] Error:', { error: err });
       const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg.includes('Mitglied') || errMsg.includes('Admin')) {
         res.status(403).json({ success: false, message: errMsg });

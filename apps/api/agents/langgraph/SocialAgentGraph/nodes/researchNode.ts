@@ -93,7 +93,7 @@ export async function researchNode(state: SocialAgentState): Promise<Partial<Soc
       researchTimeMs,
     };
   } catch (error) {
-    log.error('[researchNode] Research failed:', error);
+    log.error('[researchNode] Research failed:', { error });
     return {
       enrichedState: null,
       arguments: [],

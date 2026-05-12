@@ -54,7 +54,7 @@ export const exportsContractRouter = s.router(exportsContract, {
       };
     } catch (err) {
       const error = err as Error;
-      log.error('[Exports Contract] DOCX export error:', error);
+      log.error('[Exports Contract] DOCX export error:', { error });
       return {
         status: 500 as const,
         body: {
@@ -81,7 +81,7 @@ export const exportsContractRouter = s.router(exportsContract, {
       };
     } catch (err) {
       const error = err as Error;
-      log.error('[Exports Contract] PDF export error:', error);
+      log.error('[Exports Contract] PDF export error:', { error });
       return {
         status: 500 as const,
         body: {

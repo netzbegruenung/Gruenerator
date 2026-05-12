@@ -7,8 +7,11 @@ import * as Y from 'yjs';
 import { type CollaborativeDocument } from '../../database/schema/collaborative.js';
 import { type YjsDocumentSnapshotRow } from '../../database/schema/yjs.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
+
+const log = createLogger('publicDocController');
 
 const router = Router();
 const db = getPostgresInstance();
@@ -39,18 +42,18 @@ router.get('/:id', async (req: Request, res: Response) => {
     );
 
     if (result.length === 0) {
-      console.warn('[Docs] Public check 404: docId=%s — not found, deleted, or private', id);
+      log.warn('[Docs] Public check 404: docId=%s — not found, deleted, or private', id);
       return res.status(404).json({ error: 'Document not found or not publicly accessible' });
     }
 
     const doc = result[0];
 
     if (doc.share_mode === 'authenticated') {
-      console.log('[Docs] Public check: docId=%s — authenticated mode, returning title only', id);
+      log.debug('[Docs] Public check: docId=%s — authenticated mode, returning title only', id);
       return res.json({ share_mode: 'authenticated', title: doc.title });
     }
 
-    console.log(
+    log.debug(
       '[Docs] Public check: docId=%s — share_mode=%s, subtype=%s',
       id,
       doc.share_mode,
@@ -58,7 +61,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     );
     return res.json(doc);
   } catch (error: unknown) {
-    console.error('[Docs] Error checking public document:', error);
+    log.error('[Docs] Error checking public document:', { error });
     return res.status(500).json({ error: 'Failed to check document' });
   }
 });
@@ -136,7 +139,7 @@ router.get('/:id/og', async (req: Request, res: Response) => {
     ogCache.set(id as string, { data, expires: Date.now() + OG_CACHE_TTL });
     return res.json(data);
   } catch (error: unknown) {
-    console.error('[Docs] Error fetching OG metadata:', error);
+    log.error('[Docs] Error fetching OG metadata:', { error });
     return res.status(500).json({ error: 'Failed to fetch metadata' });
   }
 });

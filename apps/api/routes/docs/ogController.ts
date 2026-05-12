@@ -8,8 +8,11 @@ import { env } from '../../config/env.js';
 import { type CollaborativeDocument } from '../../database/schema/collaborative.js';
 import { type YjsDocumentSnapshotRow } from '../../database/schema/yjs.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
+
+const log = createLogger('ogController');
 
 const router = Router();
 const db = getPostgresInstance();
@@ -137,7 +140,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     res.setHeader('Cache-Control', 'public, max-age=300');
     return res.send(html);
   } catch (error) {
-    console.error('[OG] Error generating OG page for docs:', error);
+    log.error('[OG] Error generating OG page for docs:', { error });
     const fallbackHtml = buildOgHtml(
       'Grünerator',
       'KI-Assistent für grüne Politik',

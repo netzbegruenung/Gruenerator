@@ -129,7 +129,7 @@ router.post(
 
       return res.json(response);
     } catch (error) {
-      log.error('[ImagePicker API] Error:', error);
+      log.error('[ImagePicker API] Error:', { error });
       const err = error as Error;
 
       return res.status(500).json({
@@ -161,7 +161,7 @@ router.get(
         },
       });
     } catch (error) {
-      log.error('[ImagePicker API] Stats error:', error);
+      log.error('[ImagePicker API] Stats error:', { error });
 
       return res.status(500).json({
         success: false,
@@ -188,7 +188,7 @@ router.get('/catalog', async (_req: AuthenticatedRequest, res: Response<ImageCat
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    log.error('[ImagePicker API] Catalog error:', error);
+    log.error('[ImagePicker API] Catalog error:', { error });
 
     return res.status(500).json({
       success: false,
@@ -214,7 +214,7 @@ router.post(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      log.error('[ImagePicker API] Clear cache error:', error);
+      log.error('[ImagePicker API] Clear cache error:', { error });
 
       return res.status(500).json({
         success: false,
@@ -248,7 +248,7 @@ router.post(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      log.error('[ImagePicker API] Validate error:', error);
+      log.error('[ImagePicker API] Validate error:', { error });
 
       return res.status(500).json({
         success: false,
@@ -297,7 +297,7 @@ router.get(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      log.error('[ImagePicker API] Stock catalog error:', error);
+      log.error('[ImagePicker API] Stock catalog error:', { error });
       const err = error as Error;
 
       return res.status(500).json({
@@ -339,7 +339,7 @@ router.post(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      log.error('[ImagePicker API] Download track error:', error);
+      log.error('[ImagePicker API] Download track error:', { error });
 
       return res.status(500).json({
         success: false,
@@ -373,7 +373,7 @@ router.get(
     res.set('Cache-Control', 'public, max-age=86400');
     res.sendFile(imagePath, (err) => {
       if (err) {
-        log.error('[ImagePicker API] Stock image serve error:', err);
+        log.error('[ImagePicker API] Stock image serve error:', { error: err });
         res.status(404).json({ error: 'Image not found' });
       }
     });

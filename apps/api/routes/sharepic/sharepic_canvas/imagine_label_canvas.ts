@@ -88,7 +88,7 @@ router.post('/', upload.single('image'), (async (
 
     res.json({ image: base64Image });
   } catch (error) {
-    log.error('[imagine_label_canvas] Fehler beim Beschriften des Bildes:', error);
+    log.error('[imagine_label_canvas] Fehler beim Beschriften des Bildes:', { error });
     res.status(500).json({ error: 'Fehler beim Beschriften des Bildes.' });
   }
 }) as RequestHandler);

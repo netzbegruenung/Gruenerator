@@ -12,10 +12,13 @@ import { createMistral } from '@ai-sdk/mistral';
 import { createOpenAI } from '@ai-sdk/openai';
 
 import { env } from '../../config/env.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { regoloFetchWithThinkingDisabled } from './regoloThinkingFetch.js';
 
 import type { LanguageModel } from 'ai';
+
+const log = createLogger('providers');
 
 // Provider name types
 export type ProviderName = 'mistral' | 'litellm' | 'ionos' | 'regolo';
@@ -141,7 +144,7 @@ function getRegoloProvider(): ReturnType<typeof createOpenAI> {
 function validateIONOSModel(modelId: string, defaultModel: string): string {
   for (const pattern of IONOS_INCOMPATIBLE_PATTERNS) {
     if (pattern.test(modelId)) {
-      console.warn(
+      log.warn(
         `[providers] Model "${modelId}" is incompatible with IONOS provider. ` +
           `Using default model "${defaultModel}" instead.`
       );

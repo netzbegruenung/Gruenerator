@@ -3,6 +3,7 @@
  * Uses DocumentStructureDetector to respect semantic boundaries
  */
 
+import { createLogger } from '../../../utils/logger.js';
 import { documentStructureDetector } from '../../DocumentStructureDetector/index.js';
 
 import { estimateTokens } from './validation.js';
@@ -13,6 +14,8 @@ import type {
   SemanticBoundary as DetectorSemanticBoundary,
 } from '../../DocumentStructureDetector/types.js';
 
+const log = createLogger('structureAwareChunking');
+
 /**
  * Chunk document hierarchically based on structure
  */
@@ -22,21 +25,21 @@ export function hierarchicalChunkDocument(
 ): Chunk[] {
   const { maxTokens = 600, overlapTokens = 150 } = options;
 
-  console.log('[hierarchicalChunkDocument] Starting hierarchical chunking');
+  log.debug('[hierarchicalChunkDocument] Starting hierarchical chunking');
 
   // Analyze document structure
   const structure = documentStructureDetector.analyzeStructure(text);
-  console.log(
+  log.debug(
     `[hierarchicalChunkDocument] Structure analysis: ${structure.chapters.length} chapters, ${structure.sections.length} sections`
   );
 
   // Find semantic boundaries
   const boundaries = documentStructureDetector.findSemanticBoundaries(text, structure);
-  console.log(`[hierarchicalChunkDocument] Found ${boundaries.length} semantic boundaries`);
+  log.debug(`[hierarchicalChunkDocument] Found ${boundaries.length} semantic boundaries`);
 
   // Create chunks respecting semantic boundaries
   const chunks = createSemanticChunks(text, boundaries, structure, { maxTokens, overlapTokens });
-  console.log(`[hierarchicalChunkDocument] Created ${chunks.length} semantic chunks`);
+  log.debug(`[hierarchicalChunkDocument] Created ${chunks.length} semantic chunks`);
 
   return chunks;
 }
@@ -55,7 +58,7 @@ function createSemanticChunks(
 
   if (boundaries.length === 0) {
     // No structure detected, create a single chunk
-    console.log('[createSemanticChunks] No boundaries found, creating single chunk');
+    log.debug('[createSemanticChunks] No boundaries found, creating single chunk');
     return [
       {
         text: text.trim(),

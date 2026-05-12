@@ -14,6 +14,7 @@ import {
   getCollectionStats,
 } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
+import { createLogger } from '../../../utils/logger.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
@@ -24,6 +25,8 @@ import { removeUnwantedElements } from '../utils/htmlCleaner.js';
 
 import type { QdrantService } from '../../../database/services/QdrantService/index.js';
 import type { ScraperResult } from '../types.js';
+
+const log = createLogger('GruenblogScraper');
 
 /**
  * Extracted content from a Grünblog article
@@ -196,7 +199,7 @@ export class GruenblogScraper extends BaseScraper {
       return urls;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[Gruenblog] Failed to fetch sitemap: ${errorMessage}`);
+      log.error(`[Gruenblog] Failed to fetch sitemap: ${errorMessage}`);
       return [];
     }
   }
@@ -536,13 +539,13 @@ export class GruenblogScraper extends BaseScraper {
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[Gruenblog] Error processing ${url}: ${errorMessage}`);
+          log.error(`[Gruenblog] Error processing ${url}: ${errorMessage}`);
           result.errors++;
         }
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[Gruenblog] Crawl failed:', errorMessage);
+      log.error('[Gruenblog] Crawl failed:', errorMessage);
       throw error;
     }
 

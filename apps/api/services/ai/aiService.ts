@@ -1,3 +1,4 @@
+import { createLogger } from '../../utils/logger.js';
 import * as providers from '../../workers/providers/index.js';
 import config from '../../workers/worker.config.js';
 import { PrivacyCounter } from '../counters/index.js';
@@ -12,6 +13,8 @@ import type {
   AIWorkerPool,
 } from '../../workers/types.js';
 import type { ProviderName, PrivacyProviderData } from '../providers/types.js';
+
+const log = createLogger('aiService');
 
 const SHAREPIC_TYPES = [
   'sharepic_dreizeilen',
@@ -44,12 +47,10 @@ class AIService implements AIWorkerPool {
           const privacyProvider = await this.privacyCounter.getProviderForUser(userId);
           processedData.provider = privacyProvider;
         } else {
-          console.warn(
-            '[AIService] Privacy mode enabled but no user ID found, using default provider'
-          );
+          log.warn('[AIService] Privacy mode enabled but no user ID found, using default provider');
         }
       } catch (error) {
-        console.error('[AIService] Privacy mode error:', error);
+        log.error('[AIService] Privacy mode error:', { error });
       }
     }
 
@@ -97,7 +98,7 @@ class AIService implements AIWorkerPool {
       useUltraMode: !!options.useUltraMode,
     };
 
-    console.log(`[AIService ${requestId}] Provider selection:`, {
+    log.debug(`[AIService ${requestId}] Provider selection:`, {
       selectedProvider: selection.provider,
       selectedModel: selection.model,
       useProMode: !!effectiveOptions.useProMode,
@@ -155,7 +156,7 @@ class AIService implements AIWorkerPool {
 
       const hasValidContent = result?.content || result?.stop_reason === 'tool_use';
       if (!hasValidContent) {
-        console.warn(`[AIService ${requestId}] Empty response, trying fallback providers`);
+        log.warn(`[AIService ${requestId}] Empty response, trying fallback providers`);
         result = await this.executeFallback(requestId, type, data);
       }
 
@@ -172,7 +173,7 @@ class AIService implements AIWorkerPool {
 
       return this.enrichResult(result, requestId);
     } catch (error) {
-      console.error(`[AIService] Error in processAIRequest for ${requestId}:`, error);
+      log.error(`[AIService] Error in processAIRequest for ${requestId}:`, { error });
       try {
         const fallbackResult = await this.executeFallback(requestId, type, data);
         return this.enrichResult({ ...fallbackResult, success: true } as AIWorkerResult, requestId);
@@ -206,7 +207,7 @@ class AIService implements AIWorkerPool {
       ? providerFallback.trySharepicFallbackProviders
       : providerFallback.tryPrivacyModeProviders;
 
-    console.log(
+    log.debug(
       `[AIService ${requestId}] Falling back to ${isSharepicType ? 'sharepic' : 'privacy mode'} providers`
     );
 

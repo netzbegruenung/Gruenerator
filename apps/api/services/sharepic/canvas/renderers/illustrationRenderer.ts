@@ -14,7 +14,11 @@ import {
   type Image,
 } from '@napi-rs/canvas';
 
+import { createLogger } from '../../../../utils/logger.js';
+
 import type { IllustrationLayer } from '../types/freeCanvasTypes.js';
+
+const log = createLogger('illustrationRenderer');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,7 +33,7 @@ export async function renderIllustration(
   illustration: IllustrationLayer
 ): Promise<void> {
   if (illustration.source === 'kawaii') {
-    console.warn('Kawaii illustrations not yet supported (requires React SSR). Skipping.');
+    log.warn('Kawaii illustrations not yet supported (requires React SSR). Skipping.');
     return;
   }
 
@@ -60,7 +64,7 @@ export async function renderIllustration(
 
     ctx.restore();
   } catch (error) {
-    console.warn(
+    log.warn(
       `Failed to load illustration: ${illustration.source}/${illustration.illustrationId}.svg`,
       (error as Error).message
     );

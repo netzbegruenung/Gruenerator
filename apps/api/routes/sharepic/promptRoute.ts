@@ -100,7 +100,10 @@ router.post(
   '/generate-from-prompt',
   requireAuth,
   validateBody(generateFromPromptSchema),
-  async (req: TypedRequest<z.infer<typeof generateFromPromptSchema>>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<z.infer<typeof generateFromPromptSchema>>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { prompt } = req.body;
       const trimmedPrompt = prompt.trim();
@@ -232,7 +235,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[PromptRoute] Error generating sharepic:', err);
+      log.error('[PromptRoute] Error generating sharepic:', { error: err });
       res.status(500).json({
         success: false,
         error: err.message || 'Fehler bei der Sharepic-Generierung',

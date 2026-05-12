@@ -3,7 +3,11 @@
  * Handles Mistral API calls for document Q&A
  */
 
+import { createLogger } from '../../../utils/logger.js';
+
 import type { StoredDocument, MistralContentItem } from './types.js';
+
+const log = createLogger('mistralIntegration');
 
 /**
  * Ask Mistral to extract knowledge from documents using context-specific questions
@@ -49,7 +53,7 @@ export async function askMistralAboutDocuments(
     }
   }
 
-  console.log(`[DocumentQnAService] Asking Mistral about ${documents.length} documents`);
+  log.debug(`[DocumentQnAService] Asking Mistral about ${documents.length} documents`);
 
   // Convert content array to string for Mistral API
   const messageContent = content

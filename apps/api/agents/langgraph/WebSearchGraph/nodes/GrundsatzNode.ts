@@ -4,9 +4,12 @@
  */
 
 import { DocumentSearchService } from '../../../../services/document-services/DocumentSearchService/index.js';
+import { createLogger } from '../../../../utils/logger.js';
 
 import type { DocumentResult } from '../../../../services/BaseSearchService/types.js';
 import type { WebSearchState } from '../types.js';
+
+const log = createLogger('GrundsatzNode');
 
 const documentSearchService = new DocumentSearchService();
 
@@ -18,7 +21,7 @@ export async function grundsatzNode(state: WebSearchState): Promise<Partial<WebS
     return { grundsatzResults: null };
   }
 
-  console.log('[WebSearchGraph] Searching Grundsatz documents');
+  log.debug('[WebSearchGraph] Searching Grundsatz documents');
 
   try {
     // Use original query for Grundsatz search (more focused)
@@ -47,7 +50,7 @@ export async function grundsatzNode(state: WebSearchState): Promise<Partial<WebS
       source_type: 'official_document',
     }));
 
-    console.log(`[WebSearchGraph] Grundsatz search found ${formattedResults.length} results`);
+    log.debug(`[WebSearchGraph] Grundsatz search found ${formattedResults.length} results`);
 
     return {
       grundsatzResults: {
@@ -62,7 +65,7 @@ export async function grundsatzNode(state: WebSearchState): Promise<Partial<WebS
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[WebSearchGraph] Grundsatz search error:', errorMessage);
+    log.error('[WebSearchGraph] Grundsatz search error:', errorMessage);
     return {
       grundsatzResults: {
         success: false,

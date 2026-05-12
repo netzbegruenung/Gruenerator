@@ -7,6 +7,10 @@ import fs from 'fs';
 
 import pkg from 'pg';
 
+import { createLogger } from '../../../utils/logger.js';
+
+const log = createLogger('PostgresService');
+
 const { Pool } = pkg;
 
 import { loadConfig, getSafeConfigForLog } from './config.js';
@@ -87,7 +91,7 @@ export class PostgresService {
         await runMigrations(this.pool);
       } catch (error) {
         migrationsOk = false;
-        console.warn(
+        log.warn(
           '[PostgresService] ⚠️ Migration run failed (non-critical):',
           (error as Error).message
         );
@@ -99,7 +103,7 @@ export class PostgresService {
         await this.syncSchemaColumns();
       } catch (error) {
         schemaOk = false;
-        console.warn(
+        log.warn(
           '[PostgresService] ⚠️ Schema column sync failed (non-critical):',
           (error as Error).message
         );
@@ -109,7 +113,7 @@ export class PostgresService {
       // The migrations.ts module emits its own one-line "Migrations: X/Y/Z"
       // status, so it's omitted here to avoid duplication.
       const cfg = this.getSafeConfigForLog() as { host?: string; port?: number; database?: string };
-      console.log(
+      log.debug(
         `[PostgresService] ready host=${cfg.host}:${cfg.port} db=${cfg.database} migrations=${migrationsOk ? 'ok' : 'failed'} schema=${schemaOk ? 'ok' : 'failed'} (${Date.now() - t0}ms)`
       );
     } catch (error) {
@@ -118,23 +122,23 @@ export class PostgresService {
       this.healthStatus = 'error';
       this.lastError = (error as Error).message;
 
-      console.error('[PostgresService] Failed to initialize PostgreSQL connection:', error);
+      log.error('[PostgresService] Failed to initialize PostgreSQL connection:', { error });
 
-      console.log('[PostgresService] Scheduling retry in 5 seconds...');
+      log.debug('[PostgresService] Scheduling retry in 5 seconds...');
       setTimeout(() => {
-        console.log('[PostgresService] Retry timer fired, calling retryInit()');
+        log.debug('[PostgresService] Retry timer fired, calling retryInit()');
         void this.retryInit();
       }, 5000);
-      console.log('[PostgresService] Retry scheduled, continuing...');
+      log.debug('[PostgresService] Retry scheduled, continuing...');
 
-      console.warn(
+      log.warn(
         '[PostgresService] Database connection failed, but application will continue. Some features may be unavailable.'
       );
     }
   }
 
   async retryInit(): Promise<void> {
-    console.log('[PostgresService] Retrying database initialization...');
+    log.debug('[PostgresService] Retrying database initialization...');
     await this.init();
   }
 
@@ -242,7 +246,7 @@ export class PostgresService {
       const schemaPath = getSchemaPath();
 
       if (!fs.existsSync(schemaPath)) {
-        console.log('[PostgresService] Schema file not found, skipping column sync');
+        log.debug('[PostgresService] Schema file not found, skipping column sync');
         return;
       }
 
@@ -253,7 +257,7 @@ export class PostgresService {
       // Create missing tables before syncing columns
       const missingTableNames = Object.keys(expectedTables).filter((t) => !existingTables[t]);
       if (missingTableNames.length > 0) {
-        console.log(
+        log.debug(
           `[PostgresService] Found ${missingTableNames.length} missing tables to create: ${missingTableNames.join(', ')}`
         );
         const createStatements = extractCreateTableStatements(schemaContent);
@@ -263,9 +267,9 @@ export class PostgresService {
             if (!createStatements[tableName]) continue;
             try {
               await client.query(createStatements[tableName]);
-              console.log(`[PostgresService] ✅ Created table ${tableName}`);
+              log.debug(`[PostgresService] ✅ Created table ${tableName}`);
             } catch (error) {
-              console.warn(
+              log.warn(
                 `[PostgresService] ⚠️ Failed to create table ${tableName}:`,
                 (error as Error).message
               );
@@ -281,7 +285,7 @@ export class PostgresService {
       const alterStatements = generateAlterStatements(expectedTables, existingTables);
 
       if (alterStatements.length > 0) {
-        console.log(`[PostgresService] Found ${alterStatements.length} missing columns to add`);
+        log.debug(`[PostgresService] Found ${alterStatements.length} missing columns to add`);
 
         let successCount = 0;
         let failCount = 0;
@@ -291,10 +295,10 @@ export class PostgresService {
           for (const alter of alterStatements) {
             try {
               await client.query(alter.statement);
-              console.log(`[PostgresService] ✅ Added column ${alter.table}.${alter.column}`);
+              log.debug(`[PostgresService] ✅ Added column ${alter.table}.${alter.column}`);
               successCount++;
             } catch (error) {
-              console.warn(
+              log.warn(
                 `[PostgresService] ⚠️ Failed to add column ${alter.table}.${alter.column}:`,
                 (error as Error).message
               );
@@ -305,26 +309,26 @@ export class PostgresService {
           client.release();
         }
 
-        console.log(
+        log.debug(
           `[PostgresService] Schema sync complete: ${successCount} added, ${failCount} failed`
         );
       }
       // No-op success case (no missing columns) is silent — the per-init
       // summary line in `init()` reports overall schema status.
     } catch (error) {
-      console.error('[PostgresService] Error during schema column sync:', error);
+      log.error('[PostgresService] Error during schema column sync:', { error });
       throw error;
     }
   }
 
   async initSchema(): Promise<void> {
-    console.log('[PostgresService] initSchema() called - FOR MANUAL USE ONLY');
+    log.debug('[PostgresService] initSchema() called - FOR MANUAL USE ONLY');
     try {
       const schemaPath = getSchemaPath();
-      console.log('[PostgresService] Looking for schema at:', schemaPath);
+      log.debug('[PostgresService] Looking for schema at:', schemaPath);
 
       if (!fs.existsSync(schemaPath)) {
-        console.warn('[PostgresService] Schema file not found, skipping schema initialization');
+        log.warn('[PostgresService] Schema file not found, skipping schema initialization');
         return;
       }
 
@@ -333,18 +337,15 @@ export class PostgresService {
       const client = await this.pool!.connect();
       try {
         await client.query(schema);
-        console.log('[PostgresService] Database schema initialized');
+        log.debug('[PostgresService] Database schema initialized');
       } catch (error) {
         if (
           !(error as Error).message.includes('already exists') &&
           !(error as Error).message.includes('permission denied')
         ) {
-          console.warn(
-            '[PostgresService] Schema initialization warning:',
-            (error as Error).message
-          );
+          log.warn('[PostgresService] Schema initialization warning:', (error as Error).message);
         } else if ((error as Error).message.includes('permission denied')) {
-          console.warn(
+          log.warn(
             '[PostgresService] Schema initialization - permission issue (continuing):',
             (error as Error).message
           );
@@ -353,16 +354,16 @@ export class PostgresService {
         client.release();
       }
 
-      console.log('[PostgresService] Running migrations...');
+      log.debug('[PostgresService] Running migrations...');
       await runMigrations(this.pool!);
-      console.log('[PostgresService] Migrations complete');
+      log.debug('[PostgresService] Migrations complete');
 
-      console.log('[PostgresService] Syncing schema columns...');
+      log.debug('[PostgresService] Syncing schema columns...');
       await this.syncSchemaColumns();
-      console.log('[PostgresService] Schema column sync complete');
+      log.debug('[PostgresService] Schema column sync complete');
     } catch (error) {
-      console.error('[PostgresService] Failed to initialize schema:', error);
-      console.warn('[PostgresService] Schema initialization failed, but application will continue');
+      log.error('[PostgresService] Failed to initialize schema:', { error });
+      log.warn('[PostgresService] Schema initialization failed, but application will continue');
     }
   }
 
@@ -380,7 +381,7 @@ export class PostgresService {
     }
 
     if (!this.isInitialized && !this.initPromise) {
-      console.log('[PostgresService] ensureInitialized: Starting initialization...');
+      log.debug('[PostgresService] ensureInitialized: Starting initialization...');
       this.initPromise = this.init();
       await this.initPromise;
     }
@@ -400,7 +401,7 @@ export class PostgresService {
     try {
       await this.ensureInitialized();
     } catch (initError) {
-      console.error('[PostgresService] Database not initialized:', (initError as Error).message);
+      log.error('[PostgresService] Database not initialized:', (initError as Error).message);
       throw new Error('Database service unavailable. Please try again later.');
     }
 
@@ -409,7 +410,7 @@ export class PostgresService {
       const result = await client.query(sql, params);
       return result.rows as T[];
     } catch (error) {
-      console.error('[PostgresService] Query error:', error, { sql, params });
+      log.error('[PostgresService] Query error:', error, { sql, params });
 
       const err = error as { code?: string; message: string };
       if (err.code === 'ECONNREFUSED') {
@@ -444,7 +445,7 @@ export class PostgresService {
       const result = await client.query<{ id: string }>(sql, params);
       return { changes: result.rowCount || 0, lastID: result.rows[0]?.id };
     } catch (error) {
-      console.error('[PostgresService] Exec error:', error, { sql, params });
+      log.error('[PostgresService] Exec error:', error, { sql, params });
       throw new Error(`SQL execution failed: ${(error as Error).message}`);
     } finally {
       client.release();
@@ -462,7 +463,7 @@ export class PostgresService {
       const result = await this.query(sql, values);
       return result[0];
     } catch (error) {
-      console.error('[PostgresService] Insert error:', error, { table, data });
+      log.error('[PostgresService] Insert error:', error, { table, data });
       throw new Error(`Insert failed: ${(error as Error).message}`);
     }
   }
@@ -483,7 +484,7 @@ export class PostgresService {
       const result = await this.query(sql, values);
       return { changes: result.length, data: result };
     } catch (error) {
-      console.error('[PostgresService] Update error:', error, { table, data, whereConditions });
+      log.error('[PostgresService] Update error:', error, { table, data, whereConditions });
       throw new Error(`Update failed: ${(error as Error).message}`);
     }
   }
@@ -499,7 +500,7 @@ export class PostgresService {
       const result = await this.query(sql, values);
       return { changes: result.length, data: result };
     } catch (error) {
-      console.error('[PostgresService] Delete error:', error, { table, whereConditions });
+      log.error('[PostgresService] Delete error:', error, { table, whereConditions });
       throw new Error(`Delete failed: ${(error as Error).message}`);
     }
   }
@@ -519,7 +520,7 @@ export class PostgresService {
       const result = await this.query(sql, values);
       return result[0];
     } catch (error) {
-      console.error('[PostgresService] Upsert error:', error, { table, data });
+      log.error('[PostgresService] Upsert error:', error, { table, data });
       throw new Error(`Upsert failed: ${(error as Error).message}`);
     }
   }
@@ -539,7 +540,7 @@ export class PostgresService {
     try {
       return await this.query(sql, values);
     } catch (error) {
-      console.error('[PostgresService] Bulk insert error:', error, {
+      log.error('[PostgresService] Bulk insert error:', error, {
         table,
         count: records.length,
       });
@@ -558,7 +559,7 @@ export class PostgresService {
       return result;
     } catch (error) {
       await client.query('ROLLBACK');
-      console.error('[PostgresService] Transaction rolled back:', error);
+      log.error('[PostgresService] Transaction rolled back:', { error });
       throw error;
     } finally {
       client.release();
@@ -617,7 +618,7 @@ export class PostgresService {
 
       pg_dump.on('close', (code) => {
         if (code === 0) {
-          console.log(`[PostgresService] Backup created successfully: ${sanitizedPath}`);
+          log.debug(`[PostgresService] Backup created successfully: ${sanitizedPath}`);
           resolve(sanitizedPath);
         } else {
           reject(new Error(`pg_dump failed with code ${code}`));
@@ -659,7 +660,7 @@ export class PostgresService {
         },
       };
     } catch (error) {
-      console.error('[PostgresService] Failed to get stats:', error);
+      log.error('[PostgresService] Failed to get stats:', { error });
       return {
         tables: [],
         database_size: 'unknown',
@@ -734,7 +735,7 @@ export class PostgresService {
 
       return await this.query<RouteUsageStat>(sql, [limit]);
     } catch (error) {
-      console.error('[PostgresService] Failed to get route stats:', error);
+      log.error('[PostgresService] Failed to get route stats:', { error });
       return [];
     }
   }
@@ -743,7 +744,7 @@ export class PostgresService {
     if (this.pool) {
       await this.pool.end();
       this.isInitialized = false;
-      console.log('[PostgresService] Connection pool closed');
+      log.debug('[PostgresService] Connection pool closed');
     }
   }
 }

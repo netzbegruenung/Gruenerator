@@ -40,7 +40,7 @@ router.get('/', async (req: DocumentRequest, res: Response): Promise<void> => {
       mode,
     });
   } catch (error) {
-    log.error('[GET /] Error getting document mode:', error);
+    log.error('[GET /] Error getting document mode:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message || 'Failed to get document mode',
@@ -77,7 +77,7 @@ router.post('/', async (req: DocumentRequest, res: Response): Promise<void> => {
       mode: result.mode,
     });
   } catch (error) {
-    log.error('[POST /] Error setting document mode:', error);
+    log.error('[POST /] Error setting document mode:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message || 'Failed to set document mode',

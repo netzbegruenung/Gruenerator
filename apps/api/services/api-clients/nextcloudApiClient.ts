@@ -3,8 +3,11 @@ import * as path from 'path';
 
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 
+import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename } from '../../utils/validation/index.js';
 import { validateUrlSync, validateUrlForFetch } from '../../utils/validation/urlSecurity.js';
+
+const log = createLogger('nextcloudApiClient');
 
 // Type Definitions
 export interface ParsedShareLink {
@@ -104,7 +107,7 @@ class NextcloudApiClient {
     this.axiosInstance.interceptors.response.use(
       (response) => response,
       (error: AxiosError) => {
-        console.error('[NextcloudApiClient] Nextcloud API error:', error.message, {
+        log.error('[NextcloudApiClient] Nextcloud API error:', error.message, {
           status: error.response?.status,
           statusText: error.response?.statusText,
           data: error.response?.data,
@@ -114,7 +117,7 @@ class NextcloudApiClient {
       }
     );
 
-    console.log('[NextcloudApiClient] NextcloudApiClient initialized', {
+    log.debug('[NextcloudApiClient] NextcloudApiClient initialized', {
       baseUrl: this.baseURL,
       shareToken: this.shareToken.substring(0, 8) + '...',
     });
@@ -154,7 +157,7 @@ class NextcloudApiClient {
       };
     } catch (error) {
       const err = error as Error;
-      console.error('[NextcloudApiClient] Error parsing share link', {
+      log.error('[NextcloudApiClient] Error parsing share link', {
         shareLink,
         error: err.message,
       });
@@ -167,7 +170,7 @@ class NextcloudApiClient {
    */
   async testConnection(): Promise<ConnectionTestResult> {
     try {
-      console.log('[NextcloudApiClient] Testing Nextcloud connection');
+      log.debug('[NextcloudApiClient] Testing Nextcloud connection');
 
       // Phase 1: PROPFIND to verify the link is valid and accessible
       const response = await this.axiosInstance.request({
@@ -214,7 +217,7 @@ class NextcloudApiClient {
             // Cleanup failure is non-critical
           }
 
-          console.log('[NextcloudApiClient] Connection test successful (read + write)');
+          log.debug('[NextcloudApiClient] Connection test successful (read + write)');
           return {
             success: true,
             message: 'Connection successful',
@@ -225,7 +228,7 @@ class NextcloudApiClient {
         const putErr = putError as AxiosError;
 
         if (putErr.response?.status === 403) {
-          console.log('[NextcloudApiClient] Share is read-only (PROPFIND ok, PUT 403)');
+          log.debug('[NextcloudApiClient] Share is read-only (PROPFIND ok, PUT 403)');
           return {
             success: false,
             message: 'Share is read-only - change permission to "Kann bearbeiten"',
@@ -253,7 +256,7 @@ class NextcloudApiClient {
       };
     } catch (error) {
       const err = error as AxiosError;
-      console.error('[NextcloudApiClient] Connection test failed', { error: err.message });
+      log.error('[NextcloudApiClient] Connection test failed', { error: err.message });
 
       if (err.response?.status === 401) {
         return {
@@ -332,14 +335,14 @@ class NextcloudApiClient {
       }
 
       const errorText = await response.text();
-      console.error('[NextcloudApiClient] Stream upload failed', {
+      log.error('[NextcloudApiClient] Stream upload failed', {
         status: response.status,
         errorText: errorText.substring(0, 200),
       });
       return { success: false, message: `Upload failed: ${response.status}` };
     } catch (error) {
       const err = error as Error;
-      console.error('[NextcloudApiClient] Stream upload error', { error: err.message });
+      log.error('[NextcloudApiClient] Stream upload error', { error: err.message });
       return { success: false, message: err.message };
     }
   }
@@ -350,7 +353,7 @@ class NextcloudApiClient {
     folderPath?: string
   ): Promise<UploadFileResult> {
     try {
-      console.log('[NextcloudApiClient] Uploading file to Nextcloud', {
+      log.debug('[NextcloudApiClient] Uploading file to Nextcloud', {
         filename,
         folderPath,
         contentLength: content.length,
@@ -401,14 +404,14 @@ class NextcloudApiClient {
             contentType = 'application/octet-stream';
           }
 
-          console.log('[NextcloudApiClient] Detected base64 content, decoded for upload', {
+          log.debug('[NextcloudApiClient] Detected base64 content, decoded for upload', {
             originalLength: content.length,
             decodedLength: uploadContent.length,
             contentType,
           });
         } catch (decodeError) {
           const err = decodeError as Error;
-          console.warn('[NextcloudApiClient] Base64 decode failed, uploading as text', {
+          log.warn('[NextcloudApiClient] Base64 decode failed, uploading as text', {
             error: err.message,
           });
           // Fall back to original content if base64 decoding fails
@@ -426,7 +429,7 @@ class NextcloudApiClient {
         const rawEtag = response.headers?.etag ?? response.headers?.ETag;
         const etag = typeof rawEtag === 'string' ? rawEtag.replace(/^"|"$/g, '') : undefined;
 
-        console.log('[NextcloudApiClient] File uploaded successfully', {
+        log.debug('[NextcloudApiClient] File uploaded successfully', {
           filename: safeFilename,
           status: response.status,
           etag,
@@ -447,7 +450,7 @@ class NextcloudApiClient {
       };
     } catch (error) {
       const err = error as AxiosError;
-      console.error('[NextcloudApiClient] File upload failed', {
+      log.error('[NextcloudApiClient] File upload failed', {
         filename,
         error: err.message,
         status: err.response?.status,
@@ -496,13 +499,13 @@ class NextcloudApiClient {
         method: 'MKCOL',
         url: folderUrl,
       });
-      console.log('[NextcloudApiClient] Created folder', { folderPath });
+      log.debug('[NextcloudApiClient] Created folder', { folderPath });
       return true;
     } catch (error) {
       const err = error as AxiosError;
       // 405 = already exists (race condition), treat as success
       if (err.response?.status === 405) return true;
-      console.error('[NextcloudApiClient] Failed to create folder', {
+      log.error('[NextcloudApiClient] Failed to create folder', {
         folderPath,
         status: err.response?.status,
       });
@@ -525,7 +528,7 @@ class NextcloudApiClient {
         propfindUrl = `${this.webdavUrl}/${encodedPath}`;
       }
 
-      console.log('[NextcloudApiClient] Listing folder', { folderPath, propfindUrl });
+      log.debug('[NextcloudApiClient] Listing folder', { folderPath, propfindUrl });
 
       const response = await this.axiosInstance.request<string>({
         method: 'PROPFIND',
@@ -553,7 +556,7 @@ class NextcloudApiClient {
       return [];
     } catch (error) {
       const err = error as Error;
-      console.error('[NextcloudApiClient] Failed to list folder', {
+      log.error('[NextcloudApiClient] Failed to list folder', {
         folderPath,
         error: err.message,
       });
@@ -566,7 +569,7 @@ class NextcloudApiClient {
    */
   async getShareInfo(): Promise<ShareInfo> {
     try {
-      console.log('[NextcloudApiClient] Getting share information');
+      log.debug('[NextcloudApiClient] Getting share information');
 
       const response = await this.axiosInstance.request<string>({
         method: 'PROPFIND',
@@ -604,7 +607,7 @@ class NextcloudApiClient {
       };
     } catch (error) {
       const err = error as Error;
-      console.error('[NextcloudApiClient] Failed to get share info', { error: err.message });
+      log.error('[NextcloudApiClient] Failed to get share info', { error: err.message });
       throw new Error(err.message || 'Failed to get share information');
     }
   }
@@ -683,7 +686,7 @@ class NextcloudApiClient {
       }
     } catch (error) {
       const err = error as Error;
-      console.error('[NextcloudApiClient] Error parsing WebDAV response', { error: err.message });
+      log.error('[NextcloudApiClient] Error parsing WebDAV response', { error: err.message });
     }
 
     return files;
@@ -696,7 +699,7 @@ class NextcloudApiClient {
    */
   async downloadFile(filePath: string): Promise<DownloadFileResult> {
     try {
-      console.log(`[NextcloudApiClient] Downloading file: ${filePath}`);
+      log.debug(`[NextcloudApiClient] Downloading file: ${filePath}`);
 
       // Construct the full WebDAV URL for the file
       // filePath already contains the WebDAV path structure from the share info
@@ -718,7 +721,7 @@ class NextcloudApiClient {
         throw new Error('Download URL origin mismatch — possible SSRF attempt');
       }
 
-      console.log(`[NextcloudApiClient] Downloading from URL: ${fileUrl}`);
+      log.debug(`[NextcloudApiClient] Downloading from URL: ${fileUrl}`);
 
       const response = await this.axiosInstance.get<ArrayBuffer>(fileUrl, {
         responseType: 'arraybuffer',
@@ -729,7 +732,7 @@ class NextcloudApiClient {
 
       if (response.status === 200) {
         const buffer = Buffer.from(response.data);
-        console.log(
+        log.debug(
           `[NextcloudApiClient] Successfully downloaded file: ${filePath} (${buffer.length} bytes)`
         );
 
@@ -745,7 +748,7 @@ class NextcloudApiClient {
       }
     } catch (error) {
       const err = error as AxiosError;
-      console.error(`[NextcloudApiClient] File download failed:`, {
+      log.error(`[NextcloudApiClient] File download failed:`, {
         filePath,
         error: err.message,
         status: err.response?.status,

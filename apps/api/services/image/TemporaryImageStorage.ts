@@ -6,10 +6,13 @@
  * unwanted reuse across different sharepic requests.
  */
 
+import { createLogger } from '../../utils/logger.js';
 import { parseJSON } from '../../utils/parseJSON.js';
 
 import type { ImageAttachment, ImageStorageSession, ImageStorageStats } from './types.js';
 import type { RedisClient } from '../../utils/redis/types.js';
+
+const log = createLogger('TemporaryImageStorage');
 
 class TemporaryImageStorage {
   private redis: RedisClient;
@@ -35,7 +38,7 @@ class TemporaryImageStorage {
   ): Promise<string> {
     const key = `sharepic:${requestId}:img`;
 
-    console.log(`[TemporaryImageStorage] Storing image for request ${requestId}`);
+    log.debug(`[TemporaryImageStorage] Storing image for request ${requestId}`);
 
     await this.redis.setEx(key, this.defaultTTL, JSON.stringify(imageAttachment));
 
@@ -46,7 +49,7 @@ class TemporaryImageStorage {
       imageName: imageAttachment.name || 'unknown',
     });
 
-    console.log(`[TemporaryImageStorage] Image stored with key: ${key}, TTL: ${this.defaultTTL}s`);
+    log.debug(`[TemporaryImageStorage] Image stored with key: ${key}, TTL: ${this.defaultTTL}s`);
     return key;
   }
 
@@ -58,7 +61,7 @@ class TemporaryImageStorage {
   async retrieveAndConsume(requestId: string): Promise<ImageAttachment | null> {
     const key = `sharepic:${requestId}:img`;
 
-    console.log(`[TemporaryImageStorage] Retrieving and consuming image for request ${requestId}`);
+    log.debug(`[TemporaryImageStorage] Retrieving and consuming image for request ${requestId}`);
 
     const data = await this.redis.get(key);
 
@@ -67,11 +70,11 @@ class TemporaryImageStorage {
       this.activeSessions.delete(requestId);
 
       const imageAttachment = parseJSON<ImageAttachment>(data);
-      console.log(`[TemporaryImageStorage] Image consumed: ${imageAttachment.name || 'unknown'}`);
+      log.debug(`[TemporaryImageStorage] Image consumed: ${imageAttachment.name || 'unknown'}`);
 
       return imageAttachment;
     } else {
-      console.log(`[TemporaryImageStorage] No image found for request ${requestId}`);
+      log.debug(`[TemporaryImageStorage] No image found for request ${requestId}`);
       this.activeSessions.delete(requestId);
       return null;
     }
@@ -96,7 +99,7 @@ class TemporaryImageStorage {
   async deleteImageForRequest(requestId: string): Promise<boolean> {
     const key = `sharepic:${requestId}:img`;
 
-    console.log(`[TemporaryImageStorage] Manually deleting image for request ${requestId}`);
+    log.debug(`[TemporaryImageStorage] Manually deleting image for request ${requestId}`);
 
     const deleted = await this.redis.del(key);
     this.activeSessions.delete(requestId);
@@ -128,7 +131,7 @@ class TemporaryImageStorage {
     const now = Date.now();
     let cleanedCount = 0;
 
-    console.log('[TemporaryImageStorage] Starting cleanup of expired sessions...');
+    log.debug('[TemporaryImageStorage] Starting cleanup of expired sessions...');
 
     for (const [requestId, session] of this.activeSessions) {
       const age = now - session.timestamp;
@@ -138,7 +141,7 @@ class TemporaryImageStorage {
 
         if (exists) {
           await this.redis.del(session.key);
-          console.log(
+          log.debug(
             `[TemporaryImageStorage] Cleaned up orphaned session: ${requestId} (age: ${Math.round(age / 1000)}s)`
           );
         }
@@ -149,7 +152,7 @@ class TemporaryImageStorage {
     }
 
     if (cleanedCount > 0) {
-      console.log(
+      log.debug(
         `[TemporaryImageStorage] Cleanup completed: ${cleanedCount} expired sessions removed`
       );
     }
@@ -161,7 +164,7 @@ class TemporaryImageStorage {
    * Clear all active sessions (for testing or emergency cleanup)
    */
   async clearAllSessions(): Promise<number> {
-    console.log('[TemporaryImageStorage] Clearing all active sessions...');
+    log.debug('[TemporaryImageStorage] Clearing all active sessions...');
 
     let deletedCount = 0;
     for (const [_requestId, session] of this.activeSessions) {
@@ -171,7 +174,7 @@ class TemporaryImageStorage {
 
     this.activeSessions.clear();
 
-    console.log(`[TemporaryImageStorage] All sessions cleared: ${deletedCount} images deleted`);
+    log.debug(`[TemporaryImageStorage] All sessions cleared: ${deletedCount} images deleted`);
     return deletedCount;
   }
 }

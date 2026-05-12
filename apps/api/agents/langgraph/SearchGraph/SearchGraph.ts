@@ -405,7 +405,7 @@ export async function runSearchGraph(input: SearchGraphInput): Promise<SearchGra
       error: result.error || undefined,
     };
   } catch (error: unknown) {
-    log.error('[SearchGraph] Execution error:', error);
+    log.error('[SearchGraph] Execution error:', { error });
     return {
       success: false,
       threadId: input.threadId || null,

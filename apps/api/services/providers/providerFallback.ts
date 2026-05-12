@@ -4,6 +4,7 @@
  */
 
 import { env } from '../../config/env.js';
+import { createLogger } from '../../utils/logger.js';
 
 import type {
   ProviderName,
@@ -12,6 +13,8 @@ import type {
   PrivacyProviderData,
   ExecutionResponse,
 } from './types.js';
+
+const log = createLogger('providerFallback');
 
 /**
  * Check if a provider is available based on environment configuration
@@ -95,14 +98,14 @@ export async function tryPrivacyModeProviders(
   for (const provider of chain) {
     // Skip providers that are not configured
     if (!isProviderAvailable(provider)) {
-      console.log(`[ProviderFallback ${requestId}] Skipping ${provider} - not configured`);
+      log.debug(`[ProviderFallback ${requestId}] Skipping ${provider} - not configured`);
       continue;
     }
 
     attemptedProviders.push(provider);
 
     try {
-      console.log(`[ProviderFallback ${requestId}] Trying fallback provider: ${provider}`);
+      log.debug(`[ProviderFallback ${requestId}] Trying fallback provider: ${provider}`);
       const privacyData: PrivacyProviderData = {
         ...data,
         options: {
@@ -115,16 +118,16 @@ export async function tryPrivacyModeProviders(
 
       // Validate the response has content
       if (result?.content || result?.stop_reason === 'tool_use') {
-        console.log(`[ProviderFallback ${requestId}] Success with provider: ${provider}`);
+        log.debug(`[ProviderFallback ${requestId}] Success with provider: ${provider}`);
         return result;
       }
 
       // Empty response, try next provider
-      console.warn(`[ProviderFallback ${requestId}] Empty response from ${provider}, trying next`);
+      log.warn(`[ProviderFallback ${requestId}] Empty response from ${provider}, trying next`);
       lastError = new Error(`Empty response from ${provider}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      console.warn(`[ProviderFallback ${requestId}] Error from ${provider}: ${errorMessage}`);
+      log.warn(`[ProviderFallback ${requestId}] Error from ${provider}: ${errorMessage}`);
       lastError = err instanceof Error ? err : new Error(errorMessage);
       continue;
     }
@@ -156,14 +159,14 @@ export async function trySharepicFallbackProviders(
 
   for (const provider of SHAREPIC_FALLBACK_CHAIN) {
     if (!isProviderAvailable(provider)) {
-      console.log(`[SharepicFallback ${requestId}] Skipping ${provider} - not configured`);
+      log.debug(`[SharepicFallback ${requestId}] Skipping ${provider} - not configured`);
       continue;
     }
 
     attemptedProviders.push(provider);
 
     try {
-      console.log(`[SharepicFallback ${requestId}] Trying fallback provider: ${provider}`);
+      log.debug(`[SharepicFallback ${requestId}] Trying fallback provider: ${provider}`);
       const fallbackData: PrivacyProviderData = {
         ...data,
         options: {
@@ -175,15 +178,15 @@ export async function trySharepicFallbackProviders(
       const result = await execForProvider(provider, fallbackData);
 
       if (result?.content || result?.stop_reason === 'tool_use') {
-        console.log(`[SharepicFallback ${requestId}] Success with provider: ${provider}`);
+        log.debug(`[SharepicFallback ${requestId}] Success with provider: ${provider}`);
         return result;
       }
 
-      console.warn(`[SharepicFallback ${requestId}] Empty response from ${provider}, trying next`);
+      log.warn(`[SharepicFallback ${requestId}] Empty response from ${provider}, trying next`);
       lastError = new Error(`Empty response from ${provider}`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      console.warn(`[SharepicFallback ${requestId}] Error from ${provider}: ${errorMessage}`);
+      log.warn(`[SharepicFallback ${requestId}] Error from ${provider}: ${errorMessage}`);
       lastError = err instanceof Error ? err : new Error(errorMessage);
       continue;
     }

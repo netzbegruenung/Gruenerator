@@ -3,6 +3,9 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('userController');
 
 const router = Router();
 const db = getPostgresInstance();
@@ -38,7 +41,7 @@ router.get('/search', async (req: Request, res: Response) => {
 
     return res.json(users);
   } catch (error: unknown) {
-    console.error('[Users] Error searching users:', error);
+    log.error('[Users] Error searching users:', { error });
     return res.status(500).json({
       error: 'Failed to search users',
       details: error instanceof Error ? error.message : String(error),
@@ -79,7 +82,7 @@ router.post(
 
       return res.json(users);
     } catch (error: unknown) {
-      console.error('[Users] Error fetching batch users:', error);
+      log.error('[Users] Error fetching batch users:', { error });
       return res.status(500).json({
         error: 'Failed to fetch users',
         details: error instanceof Error ? error.message : String(error),

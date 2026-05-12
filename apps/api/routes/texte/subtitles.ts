@@ -41,7 +41,7 @@ router.post(
         content: subtitles,
       });
     } catch (error) {
-      log.error('Fehler im /generate-short-subtitles Handler nach Aufruf des Service:', error);
+      log.error('Fehler im /generate-short-subtitles Handler nach Aufruf des Service:', { error });
       res.status(500).json({
         error: 'Fehler bei der Erstellung der kurzen Untertitel',
         details: (error as Error).message,

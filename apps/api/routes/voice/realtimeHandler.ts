@@ -49,7 +49,7 @@ async function handleRealtimeSession(clientWs: WsWebSocket): Promise<void> {
         try {
           await activeConnection.sendAudio(chunk);
         } catch (err) {
-          log.error('[Realtime] Error sending audio to Mistral:', err);
+          log.error('[Realtime] Error sending audio to Mistral:', { error: err });
         }
       } else {
         audioBuffer.push(chunk);

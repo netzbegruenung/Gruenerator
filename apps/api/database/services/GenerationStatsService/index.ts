@@ -1,3 +1,4 @@
+import { createLogger } from '../../../utils/logger.js';
 import { getPostgresInstance, type PostgresService } from '../PostgresService.js';
 
 import type {
@@ -9,6 +10,8 @@ import type {
   StatsQueryOptions,
   TimelineQueryOptions,
 } from './types.js';
+
+const log = createLogger('index');
 
 export class GenerationStatsService {
   private postgresService: PostgresService | null = null;
@@ -45,7 +48,7 @@ export class GenerationStatsService {
         success,
       ]);
     } catch (error) {
-      console.error('[GenerationStats] Failed to log generation:', (error as Error).message);
+      log.error('[GenerationStats] Failed to log generation:', (error as Error).message);
     }
   }
 
@@ -75,7 +78,7 @@ export class GenerationStatsService {
       const result = await postgres.pool.query(sql, [days, limit]);
       return result.rows as GenerationStatsRow[];
     } catch (error) {
-      console.error('[GenerationStats] Failed to get stats:', (error as Error).message);
+      log.error('[GenerationStats] Failed to get stats:', (error as Error).message);
       return [];
     }
   }
@@ -102,7 +105,7 @@ export class GenerationStatsService {
       const result = await postgres.pool.query(sql, [days]);
       return result.rows as GenerationStatsByTypeRow[];
     } catch (error) {
-      console.error('[GenerationStats] Failed to get stats by type:', (error as Error).message);
+      log.error('[GenerationStats] Failed to get stats by type:', (error as Error).message);
       return [];
     }
   }
@@ -140,7 +143,7 @@ export class GenerationStatsService {
       const result = await postgres.pool.query(sql, params);
       return result.rows as TimelineRow[];
     } catch (error) {
-      console.error('[GenerationStats] Failed to get timeline:', (error as Error).message);
+      log.error('[GenerationStats] Failed to get timeline:', (error as Error).message);
       return [];
     }
   }
@@ -163,7 +166,7 @@ export class GenerationStatsService {
       const result = await postgres.pool.query(sql);
       return result.rows[0] as TotalStatsRow;
     } catch (error) {
-      console.error('[GenerationStats] Failed to get total stats:', (error as Error).message);
+      log.error('[GenerationStats] Failed to get total stats:', (error as Error).message);
       return null;
     }
   }

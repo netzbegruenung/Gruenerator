@@ -4,12 +4,15 @@
  */
 
 import { getQdrantInstance, type QdrantService } from '../../../database/services/QdrantService.js';
+import { createLogger } from '../../../utils/logger.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
 import { BaseScraper } from '../base/BaseScraper.js';
 
 import type { ScraperConfig, ScraperResult, MediaWikiPage } from '../types.js';
+
+const log = createLogger('KommunalwikiScraper');
 
 interface ArticleTitle {
   title: string;
@@ -381,10 +384,10 @@ export class KommunalwikiScraper extends BaseScraper {
     const { forceUpdate = false } = options;
     this.initializeSession();
 
-    console.log('\n[KommunalWiki] ═══════════════════════════════════════');
-    console.log('[KommunalWiki] Starting full crawl');
-    console.log(`[KommunalWiki] Force update: ${forceUpdate}`);
-    console.log('[KommunalWiki] ═══════════════════════════════════════\n');
+    log.debug('\n[KommunalWiki] ═══════════════════════════════════════');
+    log.debug('[KommunalWiki] Starting full crawl');
+    log.debug(`[KommunalWiki] Force update: ${forceUpdate}`);
+    log.debug('[KommunalWiki] ═══════════════════════════════════════\n');
 
     const result: CrawlResult = {
       documentsProcessed: 0,
@@ -416,7 +419,7 @@ export class KommunalwikiScraper extends BaseScraper {
         const batchNum = Math.floor(i / this.batchSize) + 1;
         const totalBatches = Math.ceil(articles.length / this.batchSize);
 
-        console.log(
+        log.debug(
           `\n[KommunalWiki] ─── Batch ${batchNum}/${totalBatches} (articles ${i + 1}-${Math.min(i + this.batchSize, articles.length)}) ───`
         );
 
@@ -497,7 +500,7 @@ export class KommunalwikiScraper extends BaseScraper {
               if (processResult.stored) {
                 result.stored++;
                 result.totalVectors += processResult.vectors!;
-                console.log(
+                log.debug(
                   `[KommunalWiki] ✓ "${article.title.substring(0, 50)}" (${processResult.chunks} chunks)`
                 );
               } else {
@@ -517,17 +520,17 @@ export class KommunalwikiScraper extends BaseScraper {
               }
             } catch (err) {
               const errorMsg = err instanceof Error ? err.message : String(err);
-              console.error(`[KommunalWiki] ✗ Error: ${article.title}: ${errorMsg}`);
+              log.error(`[KommunalWiki] ✗ Error: ${article.title}: ${errorMsg}`);
               result.errors++;
             }
           }
 
-          console.log(
+          log.debug(
             `[KommunalWiki] Progress: ${result.stored} stored, ${result.skipped} skipped, ${result.errors} errors`
           );
         } catch (err) {
           const errorMsg = err instanceof Error ? err.message : String(err);
-          console.error(`[KommunalWiki] Batch error: ${errorMsg}`);
+          log.error(`[KommunalWiki] Batch error: ${errorMsg}`);
           result.errors++;
         }
 
@@ -535,7 +538,7 @@ export class KommunalwikiScraper extends BaseScraper {
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error('[KommunalWiki] Crawl failed:', errorMsg);
+      log.error('[KommunalWiki] Crawl failed:', errorMsg);
       throw error;
     }
 
@@ -553,47 +556,47 @@ export class KommunalwikiScraper extends BaseScraper {
    * Print crawl summary
    */
   private printCrawlSummary(result: CrawlResult): void {
-    console.log('\n[KommunalWiki] ═══════════════════════════════════════');
-    console.log(
+    log.debug('\n[KommunalWiki] ═══════════════════════════════════════');
+    log.debug(
       `[KommunalWiki] COMPLETED: ${result.stored} articles (${result.totalVectors} vectors)`
     );
-    console.log(
+    log.debug(
       `[KommunalWiki] Updated: ${result.updated}, Skipped: ${result.skipped}, Errors: ${result.errors}`
     );
-    console.log(`[KommunalWiki] Duration: ${Math.round(result.duration / 1000)}s`);
+    log.debug(`[KommunalWiki] Duration: ${Math.round(result.duration / 1000)}s`);
 
     if (result.skipped > 0) {
-      console.log('\n[KommunalWiki] Skip Breakdown:');
+      log.debug('\n[KommunalWiki] Skip Breakdown:');
       const sr = result.skipReasons;
       if (sr.redirect.count > 0) {
-        console.log(`  • Redirects: ${sr.redirect.count}`);
+        log.debug(`  • Redirects: ${sr.redirect.count}`);
         if (sr.redirect.examples.length > 0)
-          console.log(`    Examples: ${sr.redirect.examples.slice(0, 5).join(', ')}`);
+          log.debug(`    Examples: ${sr.redirect.examples.slice(0, 5).join(', ')}`);
       }
       if (sr.too_short.count > 0) {
-        console.log(`  • Too short (<100 chars): ${sr.too_short.count}`);
+        log.debug(`  • Too short (<100 chars): ${sr.too_short.count}`);
         if (sr.too_short.examples.length > 0)
-          console.log(`    Examples: ${sr.too_short.examples.slice(0, 5).join(', ')}`);
+          log.debug(`    Examples: ${sr.too_short.examples.slice(0, 5).join(', ')}`);
       }
       if (sr.already_exists.count > 0) {
-        console.log(`  • Already indexed: ${sr.already_exists.count}`);
+        log.debug(`  • Already indexed: ${sr.already_exists.count}`);
       }
       if (sr.no_content.count > 0) {
-        console.log(`  • No content: ${sr.no_content.count}`);
+        log.debug(`  • No content: ${sr.no_content.count}`);
         if (sr.no_content.examples.length > 0)
-          console.log(`    Examples: ${sr.no_content.examples.slice(0, 5).join(', ')}`);
+          log.debug(`    Examples: ${sr.no_content.examples.slice(0, 5).join(', ')}`);
       }
       if (sr.no_revision.count > 0) {
-        console.log(`  • No revision data: ${sr.no_revision.count}`);
+        log.debug(`  • No revision data: ${sr.no_revision.count}`);
       }
       if (sr.no_chunks.count > 0) {
-        console.log(`  • No chunks generated: ${sr.no_chunks.count}`);
+        log.debug(`  • No chunks generated: ${sr.no_chunks.count}`);
         if (sr.no_chunks.examples.length > 0)
-          console.log(`    Examples: ${sr.no_chunks.examples.slice(0, 5).join(', ')}`);
+          log.debug(`    Examples: ${sr.no_chunks.examples.slice(0, 5).join(', ')}`);
       }
     }
 
-    console.log('[KommunalWiki] ═══════════════════════════════════════');
+    log.debug('[KommunalWiki] ═══════════════════════════════════════');
   }
 
   /**
@@ -712,7 +715,7 @@ export class KommunalwikiScraper extends BaseScraper {
    * Clear all documents from collection
    */
   async clearCollection(): Promise<void> {
-    console.log('[KommunalWiki] Clearing all documents...');
+    log.debug('[KommunalWiki] Clearing all documents...');
     try {
       await this.qdrant!.client!.delete(this.config.collectionName, {
         filter: {
@@ -748,7 +751,7 @@ export class KommunalwikiScraper extends BaseScraper {
         }
       }
     }
-    console.log('[KommunalWiki] Collection cleared');
+    log.debug('[KommunalWiki] Collection cleared');
   }
 }
 

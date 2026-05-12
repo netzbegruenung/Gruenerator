@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 
 import { type PostgresService, getPostgresInstance } from '../database/services/PostgresService.js';
+import { createLogger } from '../utils/logger.js';
 
 import type {
   SharedMediaRow,
@@ -23,6 +24,8 @@ import type {
   EnrichedImageMetadata,
   MimeToExtensionMap,
 } from '../types/media.js';
+
+const log = createLogger('sharedMediaService');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,9 +62,9 @@ class SharedMediaService {
       await postgres.ensureInitialized();
       await fs.mkdir(SHARED_MEDIA_PATH, { recursive: true });
       this.postgres = postgres; // Only set AFTER successful init
-      console.log('[SharedMediaService] Initialized successfully');
+      log.debug('[SharedMediaService] Initialized successfully');
     } catch (error) {
-      console.error('[SharedMediaService] Initialization failed:', error);
+      log.error('[SharedMediaService] Initialization failed:', { error });
       this.initPromise = null; // Reset so subsequent calls can retry
       throw error;
     }
@@ -110,7 +113,7 @@ class SharedMediaService {
           await this.cleanupShareFiles(item.share_token);
         }
 
-        console.log(
+        log.debug(
           `[SharedMediaService] Deleted ${deleted.length} oldest items for user ${userId} (limit enforcement)`
         );
         return deleted.length;
@@ -118,7 +121,7 @@ class SharedMediaService {
 
       return 0;
     } catch (error) {
-      console.error('[SharedMediaService] Failed to enforce user limit:', error);
+      log.error('[SharedMediaService] Failed to enforce user limit:', { error });
       return 0;
     }
   }
@@ -128,7 +131,7 @@ class SharedMediaService {
       const shareDir = getSafeShareDir(shareToken);
       await fs.rm(shareDir, { recursive: true, force: true });
     } catch (error) {
-      console.warn(
+      log.warn(
         '[SharedMediaService] Could not cleanup files for %s:',
         shareToken,
         (error as Error).message
@@ -169,7 +172,7 @@ class SharedMediaService {
           await fs.copyFile(thumbnailPath, targetThumbnailPath);
           relativeThumbnailPath = `${shareToken}/thumbnail.jpg`;
         } catch {
-          console.log('[SharedMediaService] No thumbnail to copy');
+          log.debug('[SharedMediaService] No thumbnail to copy');
         }
       }
 
@@ -197,7 +200,7 @@ class SharedMediaService {
         projectId || null,
       ]);
 
-      console.log(`[SharedMediaService] Created video share ${shareToken} for user ${userId}`);
+      log.debug(`[SharedMediaService] Created video share ${shareToken} for user ${userId}`);
 
       return {
         id: result!.id,
@@ -212,7 +215,7 @@ class SharedMediaService {
       } catch {
         /* ignore cleanup errors */
       }
-      console.error('[SharedMediaService] Failed to create video share:', error);
+      log.error('[SharedMediaService] Failed to create video share:', { error });
       throw new Error(`Failed to create video share: ${(error as Error).message}`);
     }
   }
@@ -303,7 +306,7 @@ class SharedMediaService {
         await fs.writeFile(targetThumbnailPath, thumbnailBuffer);
         relativeThumbnailPath = `${shareToken}/thumbnail.jpg`;
       } catch (thumbnailError) {
-        console.warn(
+        log.warn(
           '[SharedMediaService] Thumbnail generation failed, saving without thumbnail:',
           thumbnailError
         );
@@ -346,7 +349,7 @@ class SharedMediaService {
         status,
       ]);
 
-      console.log(
+      log.debug(
         `[SharedMediaService] Created image share ${shareToken} for user ${userId}${originalImage ? ' (with original)' : ''}`
       );
 
@@ -364,7 +367,7 @@ class SharedMediaService {
       } catch {
         /* ignore cleanup errors */
       }
-      console.error('[SharedMediaService] Failed to create image share:', error);
+      log.error('[SharedMediaService] Failed to create image share:', { error });
       throw new Error(`Failed to create image share: ${(error as Error).message}`);
     }
   }
@@ -391,7 +394,7 @@ class SharedMediaService {
           await fs.copyFile(thumbnailPath, targetThumbnailPath);
           relativeThumbnailPath = `${shareToken}/thumbnail.jpg`;
         } catch {
-          console.log('[SharedMediaService] No thumbnail to copy for pending share');
+          log.debug('[SharedMediaService] No thumbnail to copy for pending share');
         }
       }
 
@@ -416,7 +419,7 @@ class SharedMediaService {
         projectId || null,
       ]);
 
-      console.log(
+      log.debug(
         `[SharedMediaService] Created pending video share ${shareToken} for user ${userId}`
       );
 
@@ -434,7 +437,7 @@ class SharedMediaService {
       } catch {
         /* ignore cleanup errors */
       }
-      console.error('[SharedMediaService] Failed to create pending video share:', error);
+      log.error('[SharedMediaService] Failed to create pending video share:', { error });
       throw new Error(`Failed to create pending video share: ${(error as Error).message}`);
     }
   }
@@ -456,9 +459,9 @@ class SharedMediaService {
             `;
       await this.postgres!.query(query, [`${shareToken}/media.mp4`, stats.size, shareToken]);
 
-      console.log(`[SharedMediaService] Finalized video share ${shareToken}`);
+      log.debug(`[SharedMediaService] Finalized video share ${shareToken}`);
     } catch (error) {
-      console.error('[SharedMediaService] Failed to finalize video share:', error);
+      log.error('[SharedMediaService] Failed to finalize video share:', { error });
       throw new Error(`Failed to finalize video share: ${(error as Error).message}`);
     }
   }
@@ -469,9 +472,9 @@ class SharedMediaService {
     try {
       const query = `UPDATE shared_media SET status = 'failed' WHERE share_token = $1`;
       await this.postgres!.query(query, [shareToken]);
-      console.log(`[SharedMediaService] Marked share ${shareToken} as failed`);
+      log.debug(`[SharedMediaService] Marked share ${shareToken} as failed`);
     } catch (error) {
-      console.error('[SharedMediaService] Failed to mark share as failed:', error);
+      log.error('[SharedMediaService] Failed to mark share as failed:', { error });
     }
   }
 
@@ -500,7 +503,7 @@ class SharedMediaService {
 
       return result;
     } catch (error) {
-      console.error('[SharedMediaService] Failed to get share:', error);
+      log.error('[SharedMediaService] Failed to get share:', { error });
       throw new Error(`Failed to get share: ${(error as Error).message}`);
     }
   }
@@ -539,7 +542,7 @@ class SharedMediaService {
       const results = await this.postgres!.query<SharedMediaRow>(query, params);
       return results;
     } catch (error) {
-      console.error('[SharedMediaService] Failed to get user shares:', error);
+      log.error('[SharedMediaService] Failed to get user shares:', { error });
       throw new Error(`Failed to get user shares: ${(error as Error).message}`);
     }
   }
@@ -575,11 +578,11 @@ class SharedMediaService {
             `;
       await this.postgres!.query(updateQuery, [id]);
 
-      console.log(`[SharedMediaService] Recorded download for ${shareToken} by ${email}`);
+      log.debug(`[SharedMediaService] Recorded download for ${shareToken} by ${email}`);
 
       return true;
     } catch (error) {
-      console.error('[SharedMediaService] Failed to record download:', error);
+      log.error('[SharedMediaService] Failed to record download:', { error });
       throw new Error(`Failed to record download: ${(error as Error).message}`);
     }
   }
@@ -595,7 +598,7 @@ class SharedMediaService {
             `;
       await this.postgres!.query(query, [shareToken]);
     } catch (error) {
-      console.warn('[SharedMediaService] Failed to record view:', (error as Error).message);
+      log.warn('[SharedMediaService] Failed to record view:', (error as Error).message);
     }
   }
 
@@ -623,11 +626,11 @@ class SharedMediaService {
 
       await this.cleanupShareFiles(shareToken);
 
-      console.log(`[SharedMediaService] Deleted share ${shareToken}`);
+      log.debug(`[SharedMediaService] Deleted share ${shareToken}`);
 
       return true;
     } catch (error) {
-      console.error('[SharedMediaService] Failed to delete share:', error);
+      log.error('[SharedMediaService] Failed to delete share:', { error });
       throw new Error(`Failed to delete share: ${(error as Error).message}`);
     }
   }
@@ -741,7 +744,7 @@ class SharedMediaService {
         offset,
       };
     } catch (error) {
-      console.error('[SharedMediaService] Failed to get media library:', error);
+      log.error('[SharedMediaService] Failed to get media library:', { error });
       throw new Error(`Failed to get media library: ${(error as Error).message}`);
     }
   }
@@ -761,7 +764,7 @@ class SharedMediaService {
       const result = await this.postgres!.queryOne<SharedMediaRow>(query, [mediaId, userId]);
       return result;
     } catch (error) {
-      console.error('[SharedMediaService] Failed to get media by id:', error);
+      log.error('[SharedMediaService] Failed to get media by id:', { error });
       throw new Error(`Failed to get media: ${(error as Error).message}`);
     }
   }
@@ -811,10 +814,10 @@ class SharedMediaService {
         throw new Error('Media not found or not owned by user');
       }
 
-      console.log(`[SharedMediaService] Updated media metadata for ${result.share_token}`);
+      log.debug(`[SharedMediaService] Updated media metadata for ${result.share_token}`);
       return result;
     } catch (error) {
-      console.error('[SharedMediaService] Failed to update media metadata:', error);
+      log.error('[SharedMediaService] Failed to update media metadata:', { error });
       throw new Error(`Failed to update media: ${(error as Error).message}`);
     }
   }
@@ -873,7 +876,7 @@ class SharedMediaService {
           await fs.writeFile(targetThumbnailPath, thumbnailBuffer);
           relativeThumbnailPath = `${shareToken}/thumbnail.jpg`;
         } catch (thumbnailError) {
-          console.warn(
+          log.warn(
             '[SharedMediaService] Thumbnail generation failed in uploadMediaFile:',
             thumbnailError
           );
@@ -909,7 +912,7 @@ class SharedMediaService {
         imageInfo ? JSON.stringify(imageInfo) : null,
       ]);
 
-      console.log(`[SharedMediaService] Uploaded media ${shareToken} for user ${userId}`);
+      log.debug(`[SharedMediaService] Uploaded media ${shareToken} for user ${userId}`);
 
       return {
         id: result!.id,
@@ -924,7 +927,7 @@ class SharedMediaService {
       } catch {
         /* ignore cleanup errors */
       }
-      console.error('[SharedMediaService] Failed to upload media:', error);
+      log.error('[SharedMediaService] Failed to upload media:', { error });
       throw new Error(`Failed to upload media: ${(error as Error).message}`);
     }
   }
@@ -1017,7 +1020,7 @@ class SharedMediaService {
         const targetThumbnailPath = path.join(shareDir, 'thumbnail.jpg');
         await fs.writeFile(targetThumbnailPath, thumbnailBuffer);
       } catch (thumbnailError) {
-        console.warn(
+        log.warn(
           '[SharedMediaService] Thumbnail generation failed in updateImageShare:',
           thumbnailError
         );
@@ -1052,7 +1055,7 @@ class SharedMediaService {
         existingShare.id,
       ]);
 
-      console.log(`[SharedMediaService] Updated image share ${shareToken}`);
+      log.debug(`[SharedMediaService] Updated image share ${shareToken}`);
 
       return {
         id: existingShare.id,
@@ -1063,7 +1066,7 @@ class SharedMediaService {
         hasOriginalImage: !!originalImageFilename,
       };
     } catch (error) {
-      console.error('[SharedMediaService] Failed to update image share:', error);
+      log.error('[SharedMediaService] Failed to update image share:', { error });
       throw new Error(`Failed to update image share: ${(error as Error).message}`);
     }
   }
@@ -1105,11 +1108,11 @@ class SharedMediaService {
 
       await this.postgres!.query(updateQuery, [visibility, creatorName, title, shareToken]);
 
-      console.log(
+      log.debug(
         `[SharedMediaService] Marked ${shareToken} as template with visibility: ${visibility}`
       );
     } catch (error) {
-      console.error('[SharedMediaService] Failed to mark as template:', error);
+      log.error('[SharedMediaService] Failed to mark as template:', { error });
       throw error;
     }
   }
@@ -1186,7 +1189,7 @@ class SharedMediaService {
             `;
       await this.postgres!.query(incrementQuery, [shareToken]);
 
-      console.log(
+      log.debug(
         `[SharedMediaService] Cloned template ${shareToken} to ${newShareToken} for user ${userId}`
       );
 
@@ -1198,7 +1201,7 @@ class SharedMediaService {
         mediaType: template.media_type as 'image' | 'video',
       };
     } catch (error) {
-      console.error('[SharedMediaService] Failed to clone template:', error);
+      log.error('[SharedMediaService] Failed to clone template:', { error });
       throw error;
     }
   }
@@ -1242,12 +1245,10 @@ class SharedMediaService {
 
       const templates = await this.postgres!.query<SharedMediaRow>(query, params);
 
-      console.log(
-        `[SharedMediaService] Retrieved ${templates.length} templates for user ${userId}`
-      );
+      log.debug(`[SharedMediaService] Retrieved ${templates.length} templates for user ${userId}`);
       return templates;
     } catch (error) {
-      console.error('[SharedMediaService] Failed to get templates:', error);
+      log.error('[SharedMediaService] Failed to get templates:', { error });
       throw new Error('Failed to retrieve templates');
     }
   }
@@ -1282,7 +1283,7 @@ class SharedMediaService {
 
       return template;
     } catch (error) {
-      console.error('[SharedMediaService] Failed to get template by token:', error);
+      log.error('[SharedMediaService] Failed to get template by token:', { error });
       throw error;
     }
   }

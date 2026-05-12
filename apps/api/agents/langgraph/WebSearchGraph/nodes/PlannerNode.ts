@@ -3,15 +3,18 @@
  * Generates search queries based on mode (normal vs deep research)
  */
 
+import { createLogger } from '../../../../utils/logger.js';
 import { optimizeSearchQuery, generateResearchQuestions } from '../utilities/queryOptimizer.js';
 
 import type { WebSearchState } from '../types.js';
+
+const log = createLogger('PlannerNode');
 
 /**
  * Planner Node: Generate search queries based on mode
  */
 export async function plannerNode(state: WebSearchState): Promise<Partial<WebSearchState>> {
-  console.log(`[WebSearchGraph] Planning ${state.mode} search for: "${state.query}"`);
+  log.debug(`[WebSearchGraph] Planning ${state.mode} search for: "${state.query}"`);
 
   try {
     if (state.mode === 'normal') {
@@ -45,7 +48,7 @@ export async function plannerNode(state: WebSearchState): Promise<Partial<WebSea
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[WebSearchGraph] Planner error:', errorMessage);
+    log.error('[WebSearchGraph] Planner error:', errorMessage);
     return {
       subqueries: [state.query], // Fallback to original query
       error: `Planning failed: ${errorMessage}`,

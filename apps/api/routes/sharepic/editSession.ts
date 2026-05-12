@@ -45,7 +45,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       expiresIn: 3600,
     } as EditSessionResponse);
   } catch (error) {
-    log.error('[EditSession] Error storing session data:', error);
+    log.error('[EditSession] Error storing session data:', { error });
     res.status(500).json({
       error: 'Failed to store edit session data',
     });
@@ -87,7 +87,7 @@ router.get(
         createdAt: sessionData.createdAt,
       } as EditSessionResponse);
     } catch (error) {
-      log.error('[EditSession] Error retrieving session data:', error);
+      log.error('[EditSession] Error retrieving session data:', { error });
       res.status(500).json({
         error: 'Failed to retrieve edit session data',
       });
@@ -117,7 +117,7 @@ router.delete(
         sessionId,
       } as EditSessionResponse);
     } catch (error) {
-      log.error('[EditSession] Error deleting session data:', error);
+      log.error('[EditSession] Error deleting session data:', { error });
       res.status(500).json({
         error: 'Failed to delete edit session data',
       });

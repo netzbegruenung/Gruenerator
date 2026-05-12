@@ -9,6 +9,7 @@
  */
 
 import { localizePlaceholders } from '../../services/localization/index.js';
+import { createLogger } from '../../utils/logger.js';
 
 import type {
   PromptAssemblyState,
@@ -27,6 +28,8 @@ import type {
 } from './types/promptAssembly.js';
 import type { ClaudeMessage } from '../../services/attachments/types.js';
 import type { contentExamplesService as ContentExamplesServiceInstance } from '../../services/contentExamplesService.js';
+
+const log = createLogger('promptAssemblyGraph');
 
 // ============================================================================
 // Optional Service Dependencies
@@ -76,9 +79,7 @@ function buildSystemText({
   const localizedSystemRole = localizePlaceholders(systemRole, locale);
   const systemWithDate = `${localizedSystemRole}\n\nAktuelles Datum: ${currentDate}`;
 
-  console.log(
-    `📋 [PromptAssembly] System text built with date (locale=${locale}, date=${currentDate})`
-  );
+  log.debug(`[PromptAssembly] System text built with date (locale=${locale}, date=${currentDate})`);
   return systemWithDate;
 }
 
@@ -116,7 +117,7 @@ function buildDocumentBlocks(documents: DocumentBlock[] = []): MessageContent[] 
     },
     {} as Record<string, number>
   );
-  console.log('📋 [PromptAssembly] Document blocks summary:', blockCounts);
+  log.debug('[PromptAssembly] Document blocks summary:', blockCounts);
   return blocks;
 }
 
@@ -133,7 +134,7 @@ function formatExamples(examples: ContentExample[] = []): string {
   }
   out += '</examples>';
 
-  console.log(`📋 [PromptAssembly] Examples formatted (count=${examples.length})`);
+  log.debug(`[PromptAssembly] Examples formatted (count=${examples.length})`);
   return out;
 }
 
@@ -176,9 +177,7 @@ function formatRequestObject(request: RequestObject, locale: Locale = 'de-DE'): 
   }
 
   const result = parts.join('\n');
-  console.log(
-    `📋 [PromptAssembly] Request object formatted (lines=${parts.length}, locale=${locale})`
-  );
+  log.debug(`[PromptAssembly] Request object formatted (lines=${parts.length}, locale=${locale})`);
   return result;
 }
 
@@ -258,7 +257,7 @@ function buildMainUserContent({
   }
 
   const combined = parts.length > 0 ? parts.join('\n\n---\n\n') : null;
-  console.log(
+  log.debug(
     `📋 [PromptAssembly] Main user content built (sections=${parts.length}, task=${
       taskInstructions ? 'y' : 'n'
     }, custom=${instructions ? 'y' : 'n'}, constraints=${constraints ? 'y' : 'n'}, formatting=${
@@ -273,18 +272,18 @@ function buildMainUserContent({
 // ============================================================================
 
 function assemblePromptGraph(state: PromptAssemblyState): PromptAssemblyResult {
-  console.log('📋 [PromptAssembly] Building system text...');
+  log.debug('[PromptAssembly] Building system text...');
   const system = buildSystemText({
     systemRole: state.systemRole,
     locale: state.locale || 'de-DE',
   });
 
-  console.log('📋 [PromptAssembly] Processing documents and content...');
+  log.debug('[PromptAssembly] Processing documents and content...');
   const messages: ClaudeMessage[] = [];
   const docBlocks = buildDocumentBlocks(state.documents as DocumentBlock[]);
   if (docBlocks && docBlocks.length > 0) {
-    console.log(`📋 [PromptAssembly] Added ${docBlocks.length} document blocks`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    log.debug(`[PromptAssembly] Added ${docBlocks.length} document blocks`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messages.push({ role: 'user', content: docBlocks as any });
   }
 
@@ -297,8 +296,8 @@ function assemblePromptGraph(state: PromptAssemblyState): PromptAssemblyResult {
       ? (state.request as RequestObject).platforms!.map((p) => String(p || '').toLowerCase())
       : [];
   const useExamples = reqPlatforms.some((p) => EXAMPLES_ALLOWED_PLATFORMS.has(p));
-  console.log(
-    `📋 [PromptAssembly] Examples ${useExamples ? 'included' : 'skipped'} for platforms=[${reqPlatforms.join(',')}]`
+  log.debug(
+    `[PromptAssembly] Examples ${useExamples ? 'included' : 'skipped'} for platforms=[${reqPlatforms.join(',')}]`
   );
 
   const mainUser = buildMainUserContent({
@@ -314,14 +313,12 @@ function assemblePromptGraph(state: PromptAssemblyState): PromptAssemblyResult {
     locale: state.locale || 'de-DE',
   });
   if (mainUser) {
-    console.log('📋 [PromptAssembly] Added main user content');
+    log.debug('[PromptAssembly] Added main user content');
     messages.push({ role: 'user', content: [{ type: 'text', text: mainUser }] });
   }
 
   const tools = Array.isArray(state.tools) ? [...state.tools] : [];
-  console.log(
-    `📋 [PromptAssembly] Completed with ${messages.length} messages, ${tools.length} tools`
-  );
+  log.debug(`[PromptAssembly] Completed with ${messages.length} messages, ${tools.length} tools`);
   return { system, messages, tools };
 }
 
@@ -331,7 +328,7 @@ function assemblePromptGraph(state: PromptAssemblyState): PromptAssemblyResult {
 
 async function uploadDocAndGetUrl(doc: DocumentBlock): Promise<string | null> {
   if (!mistralClient) return null;
-  console.log('📋 [Upload] Starting document upload...');
+  log.debug('[Upload] Starting document upload...');
 
   try {
     // Prefer binary upload to Files API, fallback to data URL
@@ -340,13 +337,13 @@ async function uploadDocAndGetUrl(doc: DocumentBlock): Promise<string | null> {
     if (src.data) {
       const fileName = src.name || 'document.pdf';
       const mediaType = src.media_type || 'application/pdf';
-      console.log(`📋 [Upload] Processing ${fileName} (${mediaType})`);
+      log.debug(`[Upload] Processing ${fileName} (${mediaType})`);
 
       // Build payload using Node Buffer and OCR purpose
       const buffer = Buffer.from(src.data, 'base64');
       const uploadPayload = { file: { fileName, content: buffer }, purpose: 'ocr' };
 
-      console.log('📋 [Upload] Uploading to Mistral Files API...');
+      log.debug('[Upload] Uploading to Mistral Files API...');
       let res;
       if (mistralClient.files?.upload) res = await mistralClient.files.upload(uploadPayload);
       else if (mistralClient.files?.create) res = await mistralClient.files.create(uploadPayload);
@@ -354,26 +351,26 @@ async function uploadDocAndGetUrl(doc: DocumentBlock): Promise<string | null> {
 
       const fileId = res?.id || res?.file?.id || res?.data?.id;
       if (fileId && mistralClient.files?.getSignedUrl) {
-        console.log(`📋 [Upload] Getting signed URL for file ID: ${fileId}`);
+        log.debug(`[Upload] Getting signed URL for file ID: ${fileId}`);
         const signed = await mistralClient.files.getSignedUrl({ fileId });
         if (signed?.url) {
-          console.log('📋 [Upload] Successfully got signed URL');
+          log.debug('[Upload] Successfully got signed URL');
           return signed.url;
         }
       }
       // Fallback to data URL
-      console.log('📋 [Upload] Falling back to data URL');
+      log.debug('[Upload] Falling back to data URL');
       return `data:${mediaType};base64,${src.data}`;
     }
     if (src.url) {
-      console.log('📋 [Upload] Using existing URL');
+      log.debug('[Upload] Using existing URL');
       return src.url;
     }
-    console.log('📋 [Upload] No valid source found');
+    log.debug('[Upload] No valid source found');
     return null;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.log(`📋 [Upload] Failed: ${errorMessage}`);
+    log.debug(`[Upload] Failed: ${errorMessage}`);
     return null;
   }
 }
@@ -415,7 +412,7 @@ async function runDocumentQnA(
   docRefs: string[]
 ): Promise<string | null> {
   if (!mistralClient || !docRefs || docRefs.length === 0) return null;
-  console.log(`📋 [DocQnA] Starting extraction for ${docRefs.length} documents...`);
+  log.debug(`[DocQnA] Starting extraction for ${docRefs.length} documents...`);
 
   const questions = deriveDocQnAQuestions(state);
   const content: Array<{ type: string; text?: string; documentUrl?: string }> = [];
@@ -425,7 +422,7 @@ async function runDocumentQnA(
   const first = docRefs[0];
   const usingUrls = typeof first === 'string';
   if (!usingUrls) {
-    console.log('📋 [DocQnA] Unsupported direct document blocks for provider – skipping DocQnA');
+    log.debug('[DocQnA] Unsupported direct document blocks for provider – skipping DocQnA');
     return null;
   }
   for (const url of docRefs) {
@@ -440,7 +437,7 @@ async function runDocumentQnA(
           ? 'http'
           : 'other'
     );
-    console.log(`📋 [DocQnA] Calling Mistral API (kinds=${kinds.join(',')})...`);
+    log.debug(`[DocQnA] Calling Mistral API (kinds=${kinds.join(',')})...`);
     const resp = await mistralClient!.chat!.complete({
       model: 'mistral-small-latest',
       messages: [{ role: 'user', content }],
@@ -456,25 +453,22 @@ async function runDocumentQnA(
           .join('\n')
       : messageContent || '';
     if (!text || text.trim().length === 0) {
-      console.log('📋 [DocQnA] No content extracted');
+      log.debug('[DocQnA] No content extracted');
       return null;
     }
     // Compact the output
     let capsule = text.trim();
     if (capsule.length > 1800) capsule = capsule.substring(0, 1800) + '...';
-    console.log(`📋 [DocQnA] Extracted ${capsule.length} chars of knowledge`);
+    log.debug(`[DocQnA] Extracted ${capsule.length} chars of knowledge`);
     return capsule;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.log(`📋 [DocQnA] Failed: ${errorMessage}`);
+    log.debug(`[DocQnA] Failed: ${errorMessage}`);
     try {
       if (error && typeof error === 'object' && 'response' in error) {
         const errorResponse = error as { response?: { data?: unknown } };
         if (errorResponse.response?.data) {
-          console.log(
-            '📋 [DocQnA] Provider error body:',
-            JSON.stringify(errorResponse.response.data)
-          );
+          log.debug('[DocQnA] Provider error body:', JSON.stringify(errorResponse.response.data));
         }
       }
     } catch (_) {
@@ -492,7 +486,7 @@ async function assemblePromptGraphAsync(
   enrichedState: PromptAssemblyState,
   _flags: PromptAssemblyFlags = {}
 ): Promise<PromptAssemblyResult> {
-  console.log('📋 [PromptAssemblyAsync] Starting assembly with pre-enriched state...');
+  log.debug('[PromptAssemblyAsync] Starting assembly with pre-enriched state...');
 
   // State comes pre-enriched from requestEnrichment.js
   let effectiveDocuments: DocumentBlock[] = Array.isArray(enrichedState.documents)
@@ -512,9 +506,7 @@ async function assemblePromptGraphAsync(
     docQnAEnabled && effectiveDocuments.length > 0 && !hasKnowledgeSelectorDocuments;
 
   if (shouldUseDocQnA) {
-    console.log(
-      `📋 [PromptAssemblyAsync] DocQnA enabled with ${effectiveDocuments.length} documents`
-    );
+    log.debug(`[PromptAssemblyAsync] DocQnA enabled with ${effectiveDocuments.length} documents`);
 
     // Separate crawled URLs from file attachments
     // Crawled URLs should NOT go through DocQnA (already processed text)
@@ -525,11 +517,11 @@ async function assemblePromptGraphAsync(
       (d) => d && d.type === 'document' && d.source
     );
 
-    console.log(
-      `📋 [PromptAssemblyAsync] Document split: ${fileAttachmentDocs.length} file attachments, ${crawledUrlDocs.length} crawled URLs`
+    log.debug(
+      `[PromptAssemblyAsync] Document split: ${fileAttachmentDocs.length} file attachments, ${crawledUrlDocs.length} crawled URLs`
     );
-    console.log(
-      `📋 [PromptAssemblyAsync] Processing ${fileAttachmentDocs.length} file attachment uploads for DocQnA (parallel)...`
+    log.debug(
+      `[PromptAssemblyAsync] Processing ${fileAttachmentDocs.length} file attachment uploads for DocQnA (parallel)...`
     );
 
     // Upload documents in parallel for better performance
@@ -544,12 +536,12 @@ async function assemblePromptGraphAsync(
             ? 'http'
             : 'other'
       );
-      console.log(
-        `📋 [PromptAssemblyAsync] Prepared Doc URLs (count=${urlList.length}, kinds=${kinds.join(',')})`
+      log.debug(
+        `[PromptAssemblyAsync] Prepared Doc URLs (count=${urlList.length}, kinds=${kinds.join(',')})`
       );
       if (kinds.every((k) => k === 'data')) {
-        console.log(
-          '⚠️ [PromptAssemblyAsync] Doc URLs are data: URIs. Provider may reject them. Skipping DocQnA.'
+        log.debug(
+          '️ [PromptAssemblyAsync] Doc URLs are data: URIs. Provider may reject them. Skipping DocQnA.'
         );
         knowledgeCapsule = null;
       } else {
@@ -557,51 +549,51 @@ async function assemblePromptGraphAsync(
       }
       // Suppress file attachments in final prompt if capsule succeeded, but keep crawled URLs
       if (knowledgeCapsule) {
-        console.log(`🧭 [LangGraph] DocQnA used: docs=${urlList.length}`);
+        log.debug(`[LangGraph] DocQnA used: docs=${urlList.length}`);
         effectiveDocuments = crawledUrlDocs; // keep crawled URLs, remove file attachments
       } else {
-        console.log('📋 [PromptAssemblyAsync] DocQnA returned no capsule; retaining all documents');
+        log.debug('[PromptAssemblyAsync] DocQnA returned no capsule; retaining all documents');
       }
     } else if (fileAttachmentDocs.length > 0) {
       // Fallback when no URLs could be prepared (e.g., upload error): send direct document blocks
-      console.log(
-        '📋 [PromptAssemblyAsync] No Doc URLs prepared; falling back to direct documents for DocQnA'
+      log.debug(
+        '[PromptAssemblyAsync] No Doc URLs prepared; falling back to direct documents for DocQnA'
       );
       // runDocumentQnA only supports URL strings; direct document blocks are not compatible.
       // This path is a no-op fallback — the function returns null for non-string content.
       knowledgeCapsule = await runDocumentQnA(enrichedState, []);
       if (knowledgeCapsule) {
-        console.log(
-          `🧭 [LangGraph] DocQnA used with direct documents: docs=${fileAttachmentDocs.length}`
+        log.debug(
+          `[LangGraph] DocQnA used with direct documents: docs=${fileAttachmentDocs.length}`
         );
         effectiveDocuments = crawledUrlDocs; // keep crawled URLs, remove file attachments
       } else {
-        console.log(
-          '📋 [PromptAssemblyAsync] DocQnA fallback produced no capsule; retaining all documents'
+        log.debug(
+          '[PromptAssemblyAsync] DocQnA fallback produced no capsule; retaining all documents'
         );
       }
     }
   } else if (hasKnowledgeSelectorDocuments) {
-    console.log(
-      '📋 [PromptAssemblyAsync] DocQnA skipped: documents processed via KnowledgeSelector vector search'
+    log.debug(
+      '[PromptAssemblyAsync] DocQnA skipped: documents processed via KnowledgeSelector vector search'
     );
   } else if (docQnAEnabled) {
-    console.log('📋 [PromptAssemblyAsync] DocQnA enabled but no documents found');
+    log.debug('[PromptAssemblyAsync] DocQnA enabled but no documents found');
   }
 
   // Assemble as usual but with optional knowledge capsule and possibly without docs
-  console.log('📋 [PromptAssemblyAsync] Building system text...');
+  log.debug('[PromptAssemblyAsync] Building system text...');
   const system = buildSystemText({
     systemRole: enrichedState.systemRole,
     locale: enrichedState.locale || 'de-DE',
   });
 
-  console.log('📋 [PromptAssemblyAsync] Processing final content blocks...');
+  log.debug('[PromptAssemblyAsync] Processing final content blocks...');
   const messages: ClaudeMessage[] = [];
 
   const baseKnowledge = Array.isArray(enrichedState.knowledge) ? [...enrichedState.knowledge] : [];
   if (knowledgeCapsule) {
-    console.log('📋 [PromptAssemblyAsync] Adding knowledge capsule to content');
+    log.debug('[PromptAssemblyAsync] Adding knowledge capsule to content');
     baseKnowledge.push(`DOKUMENT-FAKTEN (kompakt):\n${knowledgeCapsule}`);
   }
 
@@ -616,8 +608,8 @@ async function assemblePromptGraphAsync(
         )
       : [];
   const useExamples = reqPlatforms.some((p) => EXAMPLES_ALLOWED_PLATFORMS.has(p));
-  console.log(
-    `📋 [PromptAssemblyAsync] Examples ${useExamples ? 'included' : 'skipped'} for platforms=[${reqPlatforms.join(',')}]`
+  log.debug(
+    `[PromptAssemblyAsync] Examples ${useExamples ? 'included' : 'skipped'} for platforms=[${reqPlatforms.join(',')}]`
   );
 
   // Fetch examples from contentExamplesService if needed
@@ -639,7 +631,7 @@ async function assemblePromptGraphAsync(
     // Fetch examples for each platform
     for (const platform of reqPlatforms) {
       if (EXAMPLES_ALLOWED_PLATFORMS.has(platform)) {
-        console.log(`📋 [PromptAssemblyAsync] Fetching ${platform} examples...`);
+        log.debug(`[PromptAssemblyAsync] Fetching ${platform} examples...`);
         examplePromises.push(
           contentExamplesService
             .getExamples(platform, searchQuery, {
@@ -665,13 +657,13 @@ async function assemblePromptGraphAsync(
 
         if (allExamples.length > 0) {
           enrichedState.examples = allExamples;
-          console.log(
-            `📋 [PromptAssemblyAsync] Fetched ${allExamples.length} examples from contentExamplesService`
+          log.debug(
+            `[PromptAssemblyAsync] Fetched ${allExamples.length} examples from contentExamplesService`
           );
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error('📋 [PromptAssemblyAsync] Failed to fetch examples:', errorMessage);
+        log.error('[PromptAssemblyAsync] Failed to fetch examples:', errorMessage);
         // Continue without examples on error
       }
     }
@@ -690,19 +682,19 @@ async function assemblePromptGraphAsync(
     locale: enrichedState.locale || 'de-DE',
   });
   if (mainUser) {
-    console.log('📋 [PromptAssemblyAsync] Added main user content');
+    log.debug('[PromptAssemblyAsync] Added main user content');
     messages.push({ role: 'user', content: [{ type: 'text', text: mainUser }] });
   }
 
   if (effectiveDocuments.length > 0) {
-    console.log(`📋 [PromptAssemblyAsync] Adding ${effectiveDocuments.length} effective documents`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+    log.debug(`[PromptAssemblyAsync] Adding ${effectiveDocuments.length} effective documents`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     messages.push({ role: 'user', content: buildDocumentBlocks(effectiveDocuments) as any });
   }
 
   const tools = Array.isArray(enrichedState.tools) ? [...enrichedState.tools] : [];
-  console.log(
-    `📋 [PromptAssemblyAsync] Completed with ${messages.length} messages, ${tools.length} tools`
+  log.debug(
+    `[PromptAssemblyAsync] Completed with ${messages.length} messages, ${tools.length} tools`
   );
 
   // Add enrichment metadata to the result for route usage
@@ -721,16 +713,16 @@ async function assemblePromptGraphAsync(
 async function precomputeDocumentQnA(state: PromptAssemblyState): Promise<DocQnAResult> {
   try {
     if (!mistralClient) {
-      console.log('📋 [DocQnA] Skipped: no provider client');
+      log.debug('[DocQnA] Skipped: no provider client');
       return { knowledgeCapsule: null, suppressDocs: false };
     }
     const effectiveDocuments = Array.isArray(state.documents) ? state.documents : [];
     if (effectiveDocuments.length === 0) {
-      console.log('📋 [DocQnA] Skipped: no documents');
+      log.debug('[DocQnA] Skipped: no documents');
       return { knowledgeCapsule: null, suppressDocs: false };
     }
 
-    console.log(`📋 [DocQnA] Precompute start (docs=${effectiveDocuments.length})`);
+    log.debug(`[DocQnA] Precompute start (docs=${effectiveDocuments.length})`);
     const rawDocs = effectiveDocuments.filter(
       (d) => d != null && d.type === 'document' && d.source != null
     ) as DocumentBlock[];
@@ -741,7 +733,7 @@ async function precomputeDocumentQnA(state: PromptAssemblyState): Promise<DocQnA
     }
 
     if (urlList.length === 0) {
-      console.log('📋 [DocQnA] No usable URLs (upload failed or unsupported)');
+      log.debug('[DocQnA] No usable URLs (upload failed or unsupported)');
       return { knowledgeCapsule: null, suppressDocs: false };
     }
 
@@ -752,23 +744,21 @@ async function precomputeDocumentQnA(state: PromptAssemblyState): Promise<DocQnA
           ? 'http'
           : 'other'
     );
-    console.log(`📋 [DocQnA] URLs prepared (count=${urlList.length}, kinds=${kinds.join(',')})`);
+    log.debug(`[DocQnA] URLs prepared (count=${urlList.length}, kinds=${kinds.join(',')})`);
     if (kinds.every((k) => k === 'data')) {
-      console.log(
-        '⚠️ [DocQnA] All URLs are data: URIs; provider may reject them. Skipping DocQnA.'
-      );
+      log.debug('️ [DocQnA] All URLs are data: URIs; provider may reject them. Skipping DocQnA.');
       return { knowledgeCapsule: null, suppressDocs: false };
     }
 
     const capsule = await runDocumentQnA(state, urlList);
     if (capsule) {
-      console.log('🧭 [DocQnA] Capsule ready');
+      log.debug('[DocQnA] Capsule ready');
       return { knowledgeCapsule: capsule, suppressDocs: true };
     }
     return { knowledgeCapsule: null, suppressDocs: false };
   } catch (e) {
     const errorMessage = e instanceof Error ? e.message : String(e);
-    console.log('📋 [DocQnA] Precompute failed:', errorMessage);
+    log.debug('[DocQnA] Precompute failed:', errorMessage);
     return { knowledgeCapsule: null, suppressDocs: false };
   }
 }

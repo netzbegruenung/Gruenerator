@@ -5,8 +5,11 @@ import { Router, type Request, type Response } from 'express';
 import * as Y from 'yjs';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
+
+const log = createLogger('exportController');
 
 /**
  * Permission entry for a user on a document
@@ -239,7 +242,7 @@ router.get('/:id/export/html', async (req: Request, res: Response) => {
     return res.send(html);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Export] Error exporting HTML:', error);
+    log.error('[Export] Error exporting HTML:', { error });
     return res.status(500).json({ error: 'Failed to export document', details: message });
   }
 });
@@ -309,7 +312,7 @@ router.get('/:id/export/markdown', async (req: Request, res: Response) => {
     return res.send(markdown);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Export] Error exporting Markdown:', error);
+    log.error('[Export] Error exporting Markdown:', { error });
     return res.status(500).json({ error: 'Failed to export document', details: message });
   }
 });
@@ -385,7 +388,7 @@ router.get('/:id/export/text', async (req: Request, res: Response) => {
     return res.send(text);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Export] Error exporting text:', error);
+    log.error('[Export] Error exporting text:', { error });
     return res.status(500).json({ error: 'Failed to export document', details: message });
   }
 });

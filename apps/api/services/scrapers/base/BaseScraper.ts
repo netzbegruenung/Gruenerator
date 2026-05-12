@@ -3,9 +3,12 @@
  * Provides common functionality: Qdrant storage, embedding generation, chunking, deduplication
  */
 
+import { createLogger } from '../../../utils/logger.js';
 import { generateContentHash } from '../../../utils/validation/index.js';
 
 import type { ScraperConfig, ScraperResult } from '../types.js';
+
+const log = createLogger('BaseScraper');
 
 /**
  * Abstract base class for all scrapers
@@ -78,7 +81,7 @@ export abstract class BaseScraper {
    */
   protected log(message: string, ...args: unknown[]): void {
     if (this.config.verbose) {
-      console.log(`[${this.constructor.name}]`, message, ...args);
+      log.debug(`[${this.constructor.name}]`, message, ...args);
     }
   }
 
@@ -88,7 +91,7 @@ export abstract class BaseScraper {
   protected logError(message: string, error?: unknown): void {
     const errorMsg = error instanceof Error ? error.message : String(error);
     const fullMessage = `${message}: ${errorMsg}`;
-    console.error(`[${this.constructor.name}] ERROR:`, fullMessage);
+    log.error(`[${this.constructor.name}] ERROR:`, fullMessage);
     this.stats.errors.push(fullMessage);
   }
 

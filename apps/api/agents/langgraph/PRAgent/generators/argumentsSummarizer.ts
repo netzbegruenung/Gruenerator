@@ -1,6 +1,9 @@
+import { createLogger } from '../../../../utils/logger.js';
 import mistralClient from '../../../../workers/mistralClient.js';
 
 import type { ArgumentResult } from './argumentsGenerator.js';
+
+const log = createLogger('argumentsSummarizer');
 
 /**
  * Generate a concise summary of research arguments using Mistral Small
@@ -56,7 +59,7 @@ Halte die Zusammenfassung kurz (max. 200 Wörter), präzise und sofort nutzbar.`
     const summary = typeof content === 'string' ? content : '';
     return summary || 'Zusammenfassung konnte nicht erstellt werden.';
   } catch (error) {
-    console.error('[ArgumentsSummarizer] Failed to generate summary:', error);
+    log.error('[ArgumentsSummarizer] Failed to generate summary:', { error });
     return `**Recherchierte Argumente (${argumentsList.length})**\n\nDie Recherche hat ${argumentsList.length} relevante Argumente aus grünen Wissensdatenbanken gefunden. Bitte siehe Details unten.`;
   }
 }

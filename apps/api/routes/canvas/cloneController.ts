@@ -2,7 +2,10 @@ import { Router, type Response } from 'express';
 import { type PoolClient } from 'pg';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { createLogger } from '../../utils/logger.js';
 import { checkDocumentAccess } from '../docs/documentAccess.js';
+
+const log = createLogger('cloneController');
 
 const CANVAS_SUBTYPE = 'canvas';
 
@@ -86,7 +89,7 @@ router.post('/:id/clone', async (req, res: Response) => {
 
     return res.status(201).json({ newCanvasId, accessMethod: access.accessMethod });
   } catch (error: unknown) {
-    console.error('[Canvas/Clone] Error:', error);
+    log.error('[Canvas/Clone] Error:', { error });
     return res.status(500).json({
       error: 'Failed to clone canvas',
       details: error instanceof Error ? error.message : String(error),

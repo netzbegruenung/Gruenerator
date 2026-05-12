@@ -3,12 +3,14 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { createLogger } from '../../utils/logger.js';
 import { checkDocumentAccess } from '../docs/documentAccess.js';
 import { type DocumentPermissions } from '../docs/types.js';
 
 import cloneRouter from './cloneController.js';
 import resizeRouter from './resizeController.js';
 
+const log = createLogger('canvasController');
 
 const CANVAS_SUBTYPE = 'canvas';
 
@@ -92,7 +94,7 @@ router.get('/', async (req: Request, res: Response) => {
 
     return res.json(result);
   } catch (error: unknown) {
-    console.error('[Canvas] Error listing canvases:', error);
+    log.error('[Canvas] Error listing canvases:', { error });
     return res.status(500).json({
       error: 'Failed to list canvases',
       details: error instanceof Error ? error.message : String(error),
@@ -162,7 +164,7 @@ router.post(
 
       return res.status(201).json({ ...docResult[0], ...sidecar[0] });
     } catch (error: unknown) {
-      console.error('[Canvas] Error creating canvas:', error);
+      log.error('[Canvas] Error creating canvas:', { error });
       return res.status(500).json({
         error: 'Failed to create canvas',
         details: error instanceof Error ? error.message : String(error),
@@ -197,7 +199,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
 
     return res.json(canvas);
   } catch (error: unknown) {
-    console.error('[Canvas] Error fetching canvas:', error);
+    log.error('[Canvas] Error fetching canvas:', { error });
     return res.status(500).json({
       error: 'Failed to fetch canvas',
       details: error instanceof Error ? error.message : String(error),
@@ -270,7 +272,7 @@ router.patch(
 
       return res.json({ message: 'Canvas updated successfully' });
     } catch (error: unknown) {
-      console.error('[Canvas] Error updating canvas:', error);
+      log.error('[Canvas] Error updating canvas:', { error });
       return res.status(500).json({
         error: 'Failed to update canvas',
         details: error instanceof Error ? error.message : String(error),
@@ -305,7 +307,7 @@ router.delete('/:id', async (req: Request<{ id: string }>, res: Response) => {
 
     return res.json({ message: 'Canvas deleted successfully' });
   } catch (error: unknown) {
-    console.error('[Canvas] Error deleting canvas:', error);
+    log.error('[Canvas] Error deleting canvas:', { error });
     return res.status(500).json({
       error: 'Failed to delete canvas',
       details: error instanceof Error ? error.message : String(error),

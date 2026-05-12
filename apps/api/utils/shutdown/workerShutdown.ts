@@ -3,6 +3,8 @@
  * Handles graceful shutdown of worker processes with resource cleanup
  */
 
+import { createLogger } from '../logger.js';
+
 import type {
   WorkerShutdownOptions,
   WorkerShutdownHandler,
@@ -10,11 +12,14 @@ import type {
   Logger,
   ClusterMessage,
 } from './types.js';
+
+const log = createLogger('workerShutdown');
+
 const defaultLogger: Logger = {
-  info: (msg: string) => console.log(`[Worker] ${msg}`),
-  warn: (msg: string) => console.warn(`[Worker] ${msg}`),
-  error: (msg: string) => console.error(`[Worker] ${msg}`),
-  debug: (msg: string) => console.debug(`[Worker] ${msg}`),
+  info: (msg: string) => log.debug(`[Worker] ${msg}`),
+  warn: (msg: string) => log.warn(`[Worker] ${msg}`),
+  error: (msg: string) => log.error(`[Worker] ${msg}`),
+  debug: (msg: string) => log.debug(`[Worker] ${msg}`),
 };
 
 /**
@@ -38,7 +43,7 @@ async function shutdownResource(resource: ShutdownableResource): Promise<void> {
     }
   } catch (error) {
     // Log but don't throw - we want to continue shutting down other resources
-    console.error('[Worker] Resource shutdown error:', error);
+    log.error('[Worker] Resource shutdown error:', { error });
   }
 }
 

@@ -1,4 +1,5 @@
 import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
+import { createLogger } from '../../../../utils/logger.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 import {
   loadPromptConfig,
@@ -12,6 +13,8 @@ import type { AIWorkerResult } from '../../../../workers/types.js';
 import type { PRAgentRequest, SocialPlatformConfig } from '../types.js';
 import type { Request } from 'express';
 
+const log = createLogger('platformGenerator');
+
 /**
  * Generates content for a specific platform using existing config
  * @param platform - Platform ID (instagram, facebook, pressemitteilung)
@@ -23,7 +26,7 @@ export async function generatePlatformContent(
   enrichedState: EnrichedState,
   req: Request
 ): Promise<string> {
-  console.log(`[PR Agent] Generating ${platform} content`);
+  log.debug(`[PR Agent] Generating ${platform} content`);
 
   try {
     const request = enrichedState.request as PRAgentRequest;
@@ -75,12 +78,12 @@ export async function generatePlatformContent(
     );
 
     const content = aiResult.content || '';
-    console.log(
+    log.debug(
       `[PR Agent] ${platform} content generated: length=${content.length}, preview="${content.substring(0, 200)}"`
     );
     return content;
   } catch (error) {
-    console.error(`[PR Agent] Error generating ${platform} content:`, error);
+    log.error(`[PR Agent] Error generating ${platform} content:`, { error });
     return `[Fehler bei der Generierung des ${platform} Inhalts]`;
   }
 }

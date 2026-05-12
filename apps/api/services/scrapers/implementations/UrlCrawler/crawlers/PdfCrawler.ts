@@ -5,9 +5,12 @@
 
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
+import { createLogger } from '../../../../../utils/logger.js';
 import { safeFetch } from '../../../../../utils/validation/urlSecurity.js';
 
 import type { CrawlerConfig, PdfExtractionResult } from '../types.js';
+
+const log = createLogger('PdfCrawler');
 
 export class PdfCrawler {
   constructor(private config: CrawlerConfig) {}
@@ -16,7 +19,7 @@ export class PdfCrawler {
    * Crawls PDF documents and extracts text content
    */
   async crawlPdf(url: string): Promise<PdfExtractionResult> {
-    console.log(`[PdfCrawler] Fetching PDF: ${url}`);
+    log.debug(`[PdfCrawler] Fetching PDF: ${url}`);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
@@ -75,7 +78,7 @@ export class PdfCrawler {
    */
   private async extractPdfText(pdfBuffer: ArrayBuffer): Promise<string> {
     try {
-      console.log('[PdfCrawler] Extracting text from PDF...');
+      log.debug('[PdfCrawler] Extracting text from PDF...');
 
       // Load the PDF document
       const loadingTask = pdfjsLib.getDocument({
@@ -87,7 +90,7 @@ export class PdfCrawler {
       const pdfDocument = await loadingTask.promise;
       const numPages = pdfDocument.numPages;
 
-      console.log(`[PdfCrawler] PDF has ${numPages} pages`);
+      log.debug(`[PdfCrawler] PDF has ${numPages} pages`);
 
       // Extract text from all pages
       const textPromises: Promise<string>[] = [];
@@ -105,11 +108,11 @@ export class PdfCrawler {
       const pagesText = await Promise.all(textPromises);
       const fullText = pagesText.join('\n\n');
 
-      console.log(`[PdfCrawler] Extracted ${fullText.length} characters from PDF`);
+      log.debug(`[PdfCrawler] Extracted ${fullText.length} characters from PDF`);
 
       return fullText;
     } catch (error) {
-      console.error('[PdfCrawler] Error extracting PDF text:', error);
+      log.error('[PdfCrawler] Error extracting PDF text:', { error });
       throw new Error(
         `PDF text extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
