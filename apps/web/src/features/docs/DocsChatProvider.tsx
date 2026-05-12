@@ -3,6 +3,7 @@
 import {
   AssistantRuntimeProvider,
   AuiProvider,
+  ExportedMessageRepository,
   useAui,
   useLocalRuntime,
   type AssistantRuntime,
@@ -267,6 +268,19 @@ function DocsChatReadyHost({ threadId, documentId, userId, userName, children }:
     initialMessages: initialMessages ?? [],
     adapters: { attachments: attachmentAdapter },
   });
+
+  // useLocalRuntime snapshots initialMessages on first render only — the
+  // messages query is async, so the snapshot is almost always `[]`. Import
+  // them via runtime.thread.import once they arrive, gated on the runtime
+  // being idle and empty so we never clobber an in-flight conversation.
+  const importedRef = useRef(false);
+  useEffect(() => {
+    if (importedRef.current) return;
+    if (!initialMessages || initialMessages.length === 0) return;
+    if (runtime.thread.getState().isRunning) return;
+    runtime.thread.import(ExportedMessageRepository.fromArray(initialMessages));
+    importedRef.current = true;
+  }, [initialMessages, runtime]);
 
   const collabUser = useMemo(() => ({ id: userId, name: userName ?? userId }), [userId, userName]);
   const collab = useChatCollaboration(threadId, collabUser);
