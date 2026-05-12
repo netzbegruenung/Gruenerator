@@ -39,6 +39,7 @@ import {
   detectSearchSources,
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
+import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
 
 import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
@@ -191,26 +192,49 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // patching the open document.
     const editCurrentDocAllowed = state.enabledTools?.edit_current_doc !== false;
 
-    if (
-      hasCurrentDocument &&
-      editCurrentDocAllowed &&
-      userContent.length > 0 &&
-      docModifyPattern.test(userContent)
-    ) {
-      const classificationTimeMs = Date.now() - startTime;
-      log.info(
-        `[Classifier] Live document edit detected (currentDocument set), forcing edit_current_doc intent`
-      );
-      return {
-        intent: 'edit_current_doc',
-        searchSources: [],
-        searchQuery: null,
-        detectedFilters: null,
-        reasoning: 'currentDocument + modification keywords → edit_current_doc',
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs,
-      };
+    if (hasCurrentDocument && editCurrentDocAllowed && userContent.length > 0) {
+      // Layer 1: fast-path regex. Covers the common explicit-edit verbs
+      // (bearbeit, verbesser, kürz, erweiter, …) with zero latency.
+      if (docModifyPattern.test(userContent)) {
+        const classificationTimeMs = Date.now() - startTime;
+        log.info(`[Classifier] Live document edit (regex fast-path) → edit_current_doc`);
+        return {
+          intent: 'edit_current_doc',
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'currentDocument + modification keywords → edit_current_doc',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs,
+        };
+      }
+
+      // Layer 2: LLM tiebreak. Catches indirect/colloquial/multilingual
+      // phrasings the regex can't ("mach das knackiger", "polish this",
+      // "kannst du das anders?", "ja, mach das" as a follow-up). Hard 800ms
+      // timeout, fail-safe to chat path. See docsIntentTiebreak.ts.
+      const tiebreak = await classifyDocsIntentTiebreak({
+        userContent,
+        conversationContext,
+        aiWorkerPool,
+      });
+      if (tiebreak === 'edit') {
+        const classificationTimeMs = Date.now() - startTime;
+        log.info(`[Classifier] Live document edit (LLM tiebreak) → edit_current_doc`);
+        return {
+          intent: 'edit_current_doc',
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'currentDocument + LLM tiebreak ruled edit → edit_current_doc',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs,
+        };
+      }
+      // tiebreak === 'question' or null → fall through to chat-path
+      // classification (existing behavior).
     }
 
     if (hasDocMentions && userContent.length > 0 && docModifyPattern.test(userContent)) {
