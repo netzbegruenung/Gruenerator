@@ -109,7 +109,7 @@ function SearchPage() {
 
   if (isThreadView) {
     return (
-      <GrueneratorThread onNavigate={navigate} firstName={firstName} requireProfileHydration />
+      <GrueneratorThread onNavigate={navigate} firstName={firstName} />
     );
   }
 

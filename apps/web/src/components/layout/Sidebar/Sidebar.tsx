@@ -1,5 +1,9 @@
 import { useAgentStore } from '@gruenerator/chat';
-import { getSystemAgent } from '@gruenerator/shared/agents';
+import {
+  getSystemAgent,
+  type Agent,
+  type SystemAgentId,
+} from '@gruenerator/shared/agents';
 import {
   Sheet,
   SheetContent,
@@ -30,7 +34,7 @@ import {
 
 import { AllAgentsDialog } from './AllAgentsDialog';
 import NewItemDropdown from './NewItemDropdown';
-import { DEFAULT_AGENT_ENTRIES, getAgentIcon } from './sidebarAgentConfig';
+import { DEFAULT_AGENT_ENTRIES, HIDDEN_INVENTORY_AGENT_IDS, getAgentIcon } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
 
 import { cn } from '@/utils/cn';
