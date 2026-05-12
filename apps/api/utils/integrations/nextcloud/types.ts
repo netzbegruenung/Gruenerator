@@ -63,6 +63,19 @@ export interface DatabaseStateCheck {
 }
 
 /**
+ * A share link surfaced to a user because it was shared into one of their groups.
+ * The link itself belongs to a different user (sharedByUserId).
+ */
+export interface SharedWithUserLink {
+  link: NextcloudShareLink;
+  sharedByUserId: string | null;
+  sharedByName: string | null;
+  groupId: string;
+  groupName: string;
+  sharedAt: string;
+}
+
+/**
  * Share link updates
  */
 export interface ShareLinkUpdates {
