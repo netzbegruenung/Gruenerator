@@ -691,7 +691,7 @@ router.post(
       }
 
       // === Stage 2: Search or Image Generation ===
-      const { finalState, generatedImage } = await executeIntentPipeline({
+      const { finalState, generatedImage, sharepicVariants } = await executeIntentPipeline({
         classifiedState,
         sse,
         forcedTool,
@@ -825,6 +825,7 @@ router.post(
         finalState,
         classifiedState,
         generatedImage,
+        sharepicVariants,
         isNewThread,
         lastUserMessage: lastUserMessage as ModelMessage,
         processedMeta,

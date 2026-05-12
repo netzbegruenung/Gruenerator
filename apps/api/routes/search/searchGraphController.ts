@@ -315,14 +315,39 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     // ── Step 7: Follow-Up Suggestions (parallel with persistence) ──
+    // Persist a toolCalls entry so the Deep Research / web_search card rehydrates
+    // on reload with the same shape the live SSE stream produced. Field names
+    // mirror ResearchToolResult in ChatGraph/types.ts so the same ResearchArtifactCard
+    // renders both flows.
+    const isDeep = state.searchMode === 'deep';
+    const confidence: 'high' | 'medium' | 'low' =
+      state.qualityScore >= 0.7 ? 'high' : state.qualityScore >= 0.4 ? 'medium' : 'low';
+    const toolCalls = [
+      {
+        toolCallId: `tc_${Date.now()}`,
+        toolName: isDeep ? 'research' : 'web_search',
+        args: { query: state.searchQuery ?? '' },
+        result: isDeep
+          ? {
+              answer: fullText,
+              citations: state.citations,
+              confidence,
+              searchSteps: [],
+            }
+          : { results: state.searchResults },
+      },
+    ];
+
     const [suggestResult] = await Promise.all([
       suggestFollowUpsNode(state).catch(() => ({ followUpSuggestions: [] })),
       // Persist assistant response
       createMessage(activeThreadId, 'assistant', fullText || '', {
+        intent: isDeep ? 'research' : 'web',
         searchMode: state.searchMode,
         searchResults: state.searchResults,
         citations: state.citations,
         searchedCollections: state.searchedCollections,
+        toolCalls,
       }),
     ]);
 
