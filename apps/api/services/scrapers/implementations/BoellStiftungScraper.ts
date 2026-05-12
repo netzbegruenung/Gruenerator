@@ -14,6 +14,7 @@ import {
   getCollectionStats,
 } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
+import { createLogger } from '../../../utils/logger.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
@@ -29,6 +30,8 @@ import {
 
 import type { QdrantService } from '../../../database/services/QdrantService/index.js';
 import type { ScraperResult } from '../types.js';
+
+const log = createLogger('BoellStiftungScraper');
 
 /**
  * Content type classification
@@ -681,7 +684,7 @@ export class BoellStiftungScraper extends BaseScraper {
         await this.delay(this.crawlDelay);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[BoellStiftung] Failed to crawl topic "${slug}": ${errorMessage}`);
+        log.error(`[BoellStiftung] Failed to crawl topic "${slug}": ${errorMessage}`);
       }
     }
 
@@ -802,7 +805,7 @@ export class BoellStiftungScraper extends BaseScraper {
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[BoellStiftung] Error processing ${url}: ${errorMessage}`);
+          log.error(`[BoellStiftung] Error processing ${url}: ${errorMessage}`);
           result.errors++;
         }
 
@@ -814,7 +817,7 @@ export class BoellStiftungScraper extends BaseScraper {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[BoellStiftung] Crawl failed:', errorMessage);
+      log.error('[BoellStiftung] Crawl failed:', errorMessage);
       throw error;
     }
 
@@ -981,7 +984,7 @@ export class BoellStiftungScraper extends BaseScraper {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[BoellStiftung] Clear failed:', errorMessage);
+      log.error('[BoellStiftung] Clear failed:', errorMessage);
     }
     this.log('Collection cleared');
   }

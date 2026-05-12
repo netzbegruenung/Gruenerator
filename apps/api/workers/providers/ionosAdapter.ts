@@ -7,10 +7,13 @@ import { generateText, type ModelMessage, type Tool } from 'ai';
 
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { mergeMetadata } from './adapterUtils.js';
 
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
+
+const log = createLogger('ionosAdapter');
 
 /**
  * Convert internal message format to Vercel AI SDK CoreMessage format
@@ -108,7 +111,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   const modelStr = String(model).toLowerCase();
   const looksIncompatible = /mistral|mixtral|gpt-4|claude|anthropic|bedrock/.test(modelStr);
   if (looksIncompatible) {
-    console.warn(
+    log.warn(
       `[ionosAdapter ${requestId}] Model "${model}" is incompatible with IONOS. Using default.`
     );
     model = 'openai/gpt-oss-120b';
@@ -215,7 +218,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     };
   } catch (error: unknown) {
     const err = error as { message?: string };
-    console.error(`[ionosAdapter ${requestId}] Error:`, err.message);
+    log.error(`[ionosAdapter ${requestId}] Error:`, err.message);
     throw error;
   }
 }

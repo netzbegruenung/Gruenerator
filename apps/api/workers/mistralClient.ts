@@ -3,11 +3,14 @@ import 'dotenv/config';
 import { Mistral } from '@mistralai/mistralai';
 
 import { env } from '../config/env.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('mistralClient');
 
 const apiKey = env.MISTRAL_API_KEY;
 
 if (!apiKey) {
-  console.warn(
+  log.warn(
     '[Mistral Client] MISTRAL_API_KEY environment variable not set. Mistral client will not work correctly.'
   );
 }
@@ -34,15 +37,15 @@ const mistralClient = new Mistral({
   apiKey: apiKey,
 });
 
-console.log(`[Mistral Client] Initialized${apiKey ? '' : ' (API key not provided)'}`);
+log.debug(`[Mistral Client] Initialized${apiKey ? '' : ' (API key not provided)'}`);
 
 process.on('exit', () => {
   if (connectionMetrics.attempts > 0) {
-    console.log(
+    log.debug(
       `[Mistral Client] Connection metrics: ${connectionMetrics.attempts} attempts, ${connectionMetrics.successes} successes, ${connectionMetrics.failures} failures, ${connectionMetrics.retries} retries`
     );
     if (connectionMetrics.lastFailureTime) {
-      console.log(
+      log.debug(
         `[Mistral Client] Last failure: ${connectionMetrics.lastFailureReason} at ${new Date(connectionMetrics.lastFailureTime).toISOString()}`
       );
     }

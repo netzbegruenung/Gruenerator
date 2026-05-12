@@ -192,7 +192,7 @@ router.get(
       res.json({ success: true, data: responseData });
     } catch (err) {
       const error = err as Error;
-      log.error('[Gallery] /database GET error:', error);
+      log.error('[Gallery] /database GET error:', { error });
       res.status(500).json({
         success: false,
         message: 'Fehler beim Laden der Datenbank-Inhalte',
@@ -233,7 +233,7 @@ router.get(
       res.json({ success: true, categories });
     } catch (err) {
       const error = err as Error;
-      log.error('[Gallery] /antraege-categories error:', error);
+      log.error('[Gallery] /antraege-categories error:', { error });
       res.status(500).json({
         success: false,
         message: 'Fehler beim Laden der Kategorien',
@@ -285,7 +285,7 @@ router.get(
       res.json({ success: true, antraege: data || [] });
     } catch (err) {
       const error = err as Error;
-      log.error('[Gallery] /antraege GET error:', error);
+      log.error('[Gallery] /antraege GET error:', { error });
       res.status(500).json({
         success: false,
         message: 'Fehler beim Laden der Anträge',
@@ -346,7 +346,7 @@ router.get(
       res.json({ success: true, generators });
     } catch (err) {
       const error = err as Error;
-      log.error('[Gallery] /custom-generators GET error:', error);
+      log.error('[Gallery] /custom-generators GET error:', { error });
       res.status(500).json({
         success: false,
         message: 'Fehler beim Laden der Grüneratoren',
@@ -435,7 +435,7 @@ router.get(
       res.json(results);
     } catch (err) {
       const error = err as Error;
-      log.error('[Gallery] /pr-texts GET error:', error);
+      log.error('[Gallery] /pr-texts GET error:', { error });
       res.status(500).json({
         success: false,
         message: 'Fehler beim Laden der PR-Texte',
@@ -486,7 +486,7 @@ router.get(
       res.json({ success: true, categories });
     } catch (err) {
       const error = err as Error;
-      log.error('[Gallery] /pr-texts/categories GET error:', error);
+      log.error('[Gallery] /pr-texts/categories GET error:', { error });
       res.status(500).json({
         success: false,
         message: 'Fehler beim Laden der PR-Kategorien',

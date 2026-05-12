@@ -120,7 +120,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[custom_generator] Error fetching generator:', err);
+      log.error('[custom_generator] Error fetching generator:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden des Generators.',

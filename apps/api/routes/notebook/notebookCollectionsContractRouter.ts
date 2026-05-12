@@ -80,7 +80,7 @@ async function resolveWolkeLinksToDocuments(
     );
     return documents;
   } catch (error) {
-    log.error('[notebookCollectionsContract] Error resolving Wolke links:', error);
+    log.error('[notebookCollectionsContract] Error resolving Wolke links:', { error });
     throw new Error('Failed to resolve Wolke links to documents');
   }
 }
@@ -145,7 +145,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
             try {
               wolke_share_links = collection.wolke_share_link_ids.map((id) => ({ id }));
             } catch (error) {
-              log.error('[notebookCollectionsContract] Error fetching Wolke share links:', error);
+              log.error('[notebookCollectionsContract] Error fetching Wolke share links:', {
+                error,
+              });
             }
           }
 
@@ -172,7 +174,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         body: { success: true, collections: transformedData },
       };
     } catch (error) {
-      log.error('[notebookCollectionsContract.listCollections] Error:', error);
+      log.error('[notebookCollectionsContract.listCollections] Error:', { error });
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
@@ -307,7 +309,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
             processUploadedDocument(pgDocService, qdrantDocService, doc.id, userId).catch((err) => {
               log.error(
                 `[notebookCollectionsContract.createCollection] Background processing failed for doc ${doc.id}:`,
-                err
+                { error: err as Error }
               );
             });
           }
@@ -330,7 +332,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         },
       };
     } catch (error) {
-      log.error('[notebookCollectionsContract.createCollection] Error:', error);
+      log.error('[notebookCollectionsContract.createCollection] Error:', { error });
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
@@ -474,7 +476,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         },
       };
     } catch (error) {
-      log.error('[notebookCollectionsContract.updateCollection] Error:', error);
+      log.error('[notebookCollectionsContract.updateCollection] Error:', { error });
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
@@ -551,7 +553,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         },
       };
     } catch (error) {
-      log.error('[notebookCollectionsContract.syncCollection] Error:', error);
+      log.error('[notebookCollectionsContract.syncCollection] Error:', { error });
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
@@ -598,7 +600,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
 
       return { status: 200 as const, body: results };
     } catch (error) {
-      log.error('[notebookCollectionsContract.searchCollection] Error:', error);
+      log.error('[notebookCollectionsContract.searchCollection] Error:', { error });
       return { status: 500 as const, body: { error: 'Search failed' } };
     }
   },
@@ -620,7 +622,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         body: { success: true, message: 'Notebook collection deleted successfully' },
       };
     } catch (error) {
-      log.error('[notebookCollectionsContract.deleteCollection] Error:', error);
+      log.error('[notebookCollectionsContract.deleteCollection] Error:', { error });
       return {
         status: 500 as const,
         body: { error: 'Failed to delete Notebook collection' },
@@ -651,7 +653,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         },
       };
     } catch (error) {
-      log.error('[notebookCollectionsContract.shareCollection] Error:', error);
+      log.error('[notebookCollectionsContract.shareCollection] Error:', { error });
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
@@ -673,7 +675,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         body: { success: true, message: 'Public access revoked successfully' },
       };
     } catch (error) {
-      log.error('[notebookCollectionsContract.revokeShare] Error:', error);
+      log.error('[notebookCollectionsContract.revokeShare] Error:', { error });
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
@@ -700,7 +702,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         body: { success: true, message: 'Document removed from collection' },
       };
     } catch (error) {
-      log.error('[notebookCollectionsContract.removeDocument] Error:', error);
+      log.error('[notebookCollectionsContract.removeDocument] Error:', { error });
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
@@ -741,7 +743,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         },
       };
     } catch (error) {
-      log.error('[notebookCollectionsContract.bulkDelete] Error:', error);
+      log.error('[notebookCollectionsContract.bulkDelete] Error:', { error });
       const err = error as Error;
       return {
         status: 500 as const,

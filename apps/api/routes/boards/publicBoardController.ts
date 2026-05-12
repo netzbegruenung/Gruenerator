@@ -1,6 +1,9 @@
 import { Router, type Request, type Response } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('publicBoardController');
 
 const router = Router();
 const db = getPostgresInstance();
@@ -45,7 +48,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     return res.json(board);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Boards] Error checking public board:', message);
+    log.error('[Boards] Error checking public board:', message);
     return res.status(500).json({ error: 'Failed to check board' });
   }
 });

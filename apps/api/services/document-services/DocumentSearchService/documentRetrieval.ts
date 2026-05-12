@@ -7,6 +7,8 @@
  * - First chunk extraction for previews
  */
 
+import { createLogger } from '../../../utils/logger.js';
+
 import type {
   DocumentFullTextResult,
   DocumentChunksResult,
@@ -19,6 +21,8 @@ import type {
   QdrantDocument,
 } from './types.js';
 import type { QdrantOperations } from '../../../database/services/QdrantOperations.js';
+
+const log = createLogger('documentRetrieval');
 
 /**
  * Get full document text from Qdrant vectors
@@ -75,7 +79,7 @@ export async function getDocumentFullText(
 
     const fullText = sortedChunks.join('\n\n');
 
-    console.log(
+    log.debug(
       `[DocumentRetrieval] Reconstructed ${fullText.length} chars from ${sortedChunks.length} chunks for document ${documentId}`
     );
 
@@ -87,7 +91,7 @@ export async function getDocumentFullText(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[DocumentRetrieval] Error getting full document text:', error);
+    log.error('[DocumentRetrieval] Error getting full document text:', { error });
     return {
       success: false,
       fullText: '',
@@ -142,7 +146,7 @@ export async function getDocumentChunks(
     return { success: true, chunks, chunkCount: chunks.length };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[DocumentRetrieval] Error getting document chunks:', error);
+    log.error('[DocumentRetrieval] Error getting document chunks:', { error });
     return { success: false, chunks: [], chunkCount: 0, error: errorMessage };
   }
 }
@@ -170,9 +174,7 @@ export async function getMultipleDocumentsFullText(
       return { documents: [], errors: [] };
     }
 
-    console.log(
-      `[DocumentRetrieval] Bulk retrieving full text for ${documentIds.length} documents`
-    );
+    log.debug(`[DocumentRetrieval] Bulk retrieving full text for ${documentIds.length} documents`);
 
     const filter: QdrantFilter = {
       must: [
@@ -238,7 +240,7 @@ export async function getMultipleDocumentsFullText(
       });
     });
 
-    console.log(
+    log.debug(
       `[DocumentRetrieval] Bulk reconstruction complete: ${documents.length} documents, ${errors.length} errors`
     );
 
@@ -248,7 +250,7 @@ export async function getMultipleDocumentsFullText(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[DocumentRetrieval] Error in bulk document retrieval:', error);
+    log.error('[DocumentRetrieval] Error in bulk document retrieval:', { error });
     return {
       documents: [],
       errors: documentIds.map((id) => ({ documentId: id, error: errorMessage })),
@@ -311,7 +313,7 @@ export async function getDocumentFirstChunks(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[DocumentRetrieval] Error getting first chunks:', error);
+    log.error('[DocumentRetrieval] Error getting first chunks:', { error });
     return {
       success: false,
       chunks: {},

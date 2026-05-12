@@ -157,7 +157,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[Template Gallery /examples GET] Error:', err);
+      log.error('[Template Gallery /examples GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der Beispiele.',
@@ -171,7 +171,10 @@ router.post(
   '/examples/similar',
   ensureAuthenticated,
   validateBody(similarBodySchema),
-  async (req: TypedRequest<{ query: string; type?: string; limit?: number }>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<{ query: string; type?: string; limit?: number }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { query, type, limit = 5 } = req.body;
@@ -283,7 +286,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[Template Gallery /examples/similar POST] Error:', err);
+      log.error('[Template Gallery /examples/similar POST] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler bei der Ähnlichkeitssuche.',
@@ -325,7 +328,7 @@ router.get(
       res.json({ success: true, categories });
     } catch (error) {
       const err = error as Error;
-      log.error('[Vorlagen Gallery] /vorlagen-categories error:', err);
+      log.error('[Vorlagen Gallery] /vorlagen-categories error:', { error: err });
       res.status(500).json({
         success: false,
         message: 'Fehler beim Laden der Kategorien',
@@ -499,7 +502,7 @@ router.get(
       res.json({ success: true, vorlagen });
     } catch (error) {
       const err = error as Error;
-      log.error('[Vorlagen Gallery] /vorlagen GET error:', err);
+      log.error('[Vorlagen Gallery] /vorlagen GET error:', { error: err });
       res.status(500).json({
         success: false,
         message: 'Fehler beim Laden der Vorlagen',
@@ -546,7 +549,7 @@ router.get(
       fileStream.pipe(res);
     } catch (error) {
       const err = error as Error;
-      log.error('[Template Previews] Error:', err);
+      log.error('[Template Previews] Error:', { error: err });
       res.status(500).json({ success: false, message: 'Fehler beim Laden des Vorschaubilds' });
     }
   }
@@ -590,7 +593,7 @@ router.get(
       fileStream.pipe(res);
     } catch (error) {
       const err = error as Error;
-      log.error('[System Files] Thumbnail error:', err);
+      log.error('[System Files] Thumbnail error:', { error: err });
       res.status(500).json({ success: false, message: 'Fehler beim Laden des Thumbnails' });
     }
   }
@@ -648,7 +651,7 @@ router.get(
       fileStream.pipe(res);
     } catch (error) {
       const err = error as Error;
-      log.error('[System Files] Download error:', err);
+      log.error('[System Files] Download error:', { error: err });
       res.status(500).json({ success: false, message: 'Fehler beim Herunterladen' });
     }
   }
@@ -682,7 +685,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[Template Likes] GET error:', err);
+      log.error('[Template Likes] GET error:', { error: err });
       res.status(500).json({ success: false, message: 'Fehler beim Laden der Favoriten' });
     }
   }
@@ -693,7 +696,10 @@ router.post(
   '/vorlagen/:templateId/like',
   ensureAuthenticated,
   validateBody(likeBodySchema),
-  async (req: TypedRequest<{ templateType?: string }, { templateId: string }>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<{ templateType?: string }, { templateId: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { templateId } = req.params;
@@ -719,7 +725,7 @@ router.post(
       res.json({ success: true, liked: true });
     } catch (error) {
       const err = error as Error;
-      log.error('[Template Likes] POST error:', err);
+      log.error('[Template Likes] POST error:', { error: err });
       res.status(500).json({ success: false, message: 'Fehler beim Speichern des Favoriten' });
     }
   }
@@ -752,7 +758,7 @@ router.delete(
       res.json({ success: true, liked: false });
     } catch (error) {
       const err = error as Error;
-      log.error('[Template Likes] DELETE error:', err);
+      log.error('[Template Likes] DELETE error:', { error: err });
       res.status(500).json({ success: false, message: 'Fehler beim Entfernen des Favoriten' });
     }
   }

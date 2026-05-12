@@ -3,6 +3,9 @@ import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('groupShareController');
 
 const router = Router();
 const db = getPostgresInstance();
@@ -61,7 +64,7 @@ router.get('/groups/me', async (req: Request, res: Response) => {
     return res.json(groups);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error fetching user groups:', error);
+    log.error('[Docs] Error fetching user groups:', { error });
     return res.status(500).json({ error: 'Failed to fetch user groups', details: message });
   }
 });
@@ -90,7 +93,7 @@ router.get('/:id/groups', async (req: Request, res: Response) => {
     }
 
     if (doc[0].created_by !== userId) {
-      console.error(
+      log.error(
         '[Docs] Group share 403: created_by=%s, userId=%s, docId=%s',
         doc[0].created_by,
         userId,
@@ -124,7 +127,7 @@ router.get('/:id/groups', async (req: Request, res: Response) => {
     return res.json(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error fetching group shares:', error);
+    log.error('[Docs] Error fetching group shares:', { error });
     return res.status(500).json({ error: 'Failed to fetch group shares', details: message });
   }
 });
@@ -213,7 +216,7 @@ router.post(
       return res.status(201).json({ message: 'Document shared with group successfully' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error('[Docs] Error sharing document with group:', error);
+      log.error('[Docs] Error sharing document with group:', { error });
       return res
         .status(500)
         .json({ error: 'Failed to share document with group', details: message });
@@ -275,7 +278,7 @@ router.put(
       return res.json({ message: 'Group permission updated successfully' });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error('[Docs] Error updating group share:', error);
+      log.error('[Docs] Error updating group share:', { error });
       return res.status(500).json({ error: 'Failed to update group permission', details: message });
     }
   }
@@ -322,7 +325,7 @@ router.delete('/:id/groups/:groupId', async (req: Request, res: Response) => {
     return res.json({ message: 'Document unshared from group successfully' });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error unsharing document from group:', error);
+    log.error('[Docs] Error unsharing document from group:', { error });
     return res
       .status(500)
       .json({ error: 'Failed to unshare document from group', details: message });

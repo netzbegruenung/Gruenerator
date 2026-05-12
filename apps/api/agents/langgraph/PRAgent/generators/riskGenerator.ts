@@ -1,10 +1,13 @@
 import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
+import { createLogger } from '../../../../utils/logger.js';
 import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../../../utils/prompt/index.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 
 import type { EnrichedState } from '../../../../utils/types/requestEnrichment.js';
 import type { AIWorkerResult } from '../../../../workers/types.js';
 import type { Request } from 'express';
+
+const log = createLogger('riskGenerator');
 
 /**
  * Generates risk analysis: counter-arguments from political opponents
@@ -17,7 +20,7 @@ export async function generateRiskAnalysis(
   pressRelease: string,
   req: Request
 ): Promise<string> {
-  console.log('[PR Agent] Generating risk analysis');
+  log.debug('[PR Agent] Generating risk analysis');
 
   const request = enrichedState.request as { usePrivacyMode?: boolean };
 

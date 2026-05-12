@@ -33,7 +33,7 @@ const quotationMarkPath = path.resolve(__dirname, '../../../public/quote-white.s
 try {
   registerFonts();
 } catch (err) {
-  log.error('Fehler beim Registrieren der Schriftarten:', err);
+  log.error('Fehler beim Registrieren der Schriftarten:', { error: err });
   process.exit(1);
 }
 
@@ -137,7 +137,7 @@ async function addTextToImage(
     fs.writeFileSync(outputImagePath, optimizedBuffer);
     log.debug('Bild erfolgreich gespeichert:', outputImagePath);
   } catch (err) {
-    log.error('Fehler beim Erstellen des Bildes:', err);
+    log.error('Fehler beim Erstellen des Bildes:', { error: err });
     throw err;
   }
 }
@@ -173,14 +173,14 @@ router.post('/', upload.single('image'), (async (
     res.json({ image: base64Image });
   } catch (err) {
     const error = err as Error;
-    log.error('Fehler bei der Anfrage:', error);
+    log.error('Fehler bei der Anfrage:', { error });
     res.status(500).json({ error: 'Fehler beim Erstellen des Bildes' });
   } finally {
     if (req.file) {
       const uploadPath = path.resolve(UPLOADS_BASE, path.basename(req.file.path));
       if (uploadPath.startsWith(UPLOADS_BASE + path.sep)) {
         fs.unlink(uploadPath, (err) => {
-          if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', err);
+          if (err) log.error('Fehler beim Löschen der temporären Upload-Datei:', { error: err });
         });
       }
     }
@@ -188,7 +188,7 @@ router.post('/', upload.single('image'), (async (
       const outPath = path.resolve(UPLOADS_BASE, path.basename(outputImagePath));
       if (outPath.startsWith(UPLOADS_BASE + path.sep)) {
         fs.unlink(outPath, (err) => {
-          if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', err);
+          if (err) log.error('Fehler beim Löschen der temporären Output-Datei:', { error: err });
         });
       }
     }

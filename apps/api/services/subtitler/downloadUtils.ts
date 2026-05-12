@@ -233,7 +233,7 @@ async function processVideoExport(exportParams: ExportParams, res: Response): Pr
 
     await streamVideoFile(outputPath, originalFilename, uploadId, res);
   } catch (error: unknown) {
-    log.error('Export-Fehler in downloadUtils:', error);
+    log.error('Export-Fehler in downloadUtils:', { error });
     if (outputPath) {
       await cleanupFiles(null, outputPath);
     }
@@ -378,7 +378,7 @@ async function processVideoWithSubtitles(
         }
       })
       .on('error', (err: Error) => {
-        log.error('FFmpeg Fehler:', err);
+        log.error('FFmpeg Fehler:', { error: err });
         redisClient
           .del(`export:${exportToken}`)
           .catch((delErr: unknown) =>

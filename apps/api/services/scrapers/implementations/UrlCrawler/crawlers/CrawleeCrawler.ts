@@ -12,7 +12,10 @@ import {
   type Log,
 } from 'crawlee';
 
+import { createLogger } from '../../../../../utils/logger.js';
 import { type CrawlerConfig, type RawCrawlResult, type CrawlOptions } from '../types.js';
+
+const log = createLogger('CrawleeCrawler');
 
 interface CrawleeModule {
   CheerioCrawler: typeof CheerioCrawlerClass;
@@ -51,10 +54,10 @@ export class CrawleeCrawler {
       );
     }
 
-    const { CheerioCrawler, PlaywrightCrawler, Configuration, log } = crawlee;
+    const { CheerioCrawler, PlaywrightCrawler, Configuration, log: crawleeLog } = crawlee;
 
     // Reduce Crawlee log verbosity - only show warnings and errors
-    log.setLevel(log.LEVELS.WARNING);
+    crawleeLog.setLevel(crawleeLog.LEVELS.WARNING);
 
     // Per-crawl in-memory configuration to avoid shared disk storage races
     const crawlerConfig = new Configuration({
@@ -73,7 +76,7 @@ export class CrawleeCrawler {
     try {
       return await this.runCheerioCrawler(url, crawlOptions, CheerioCrawler, crawlerConfig);
     } catch (cheerioError) {
-      console.log(
+      log.debug(
         `[CrawleeCrawler] CheerioCrawler failed, trying PlaywrightCrawler:`,
         cheerioError instanceof Error ? cheerioError.message : 'Unknown error'
       );
@@ -88,7 +91,7 @@ export class CrawleeCrawler {
             crawlerConfig
           );
         } catch (playwrightError) {
-          console.error(
+          log.error(
             '[CrawleeCrawler] Both crawlers failed for %s:',
             url,
             playwrightError instanceof Error ? playwrightError.message : 'Unknown error'
@@ -155,7 +158,7 @@ export class CrawleeCrawler {
               statusCode: response.statusCode || 200,
             });
           } catch (error) {
-            console.error(
+            log.error(
               `[CrawleeCrawler] CheerioCrawler request handler error for ${request.url}:`,
               error instanceof Error ? error.message : 'Unknown error'
             );
@@ -164,10 +167,7 @@ export class CrawleeCrawler {
         },
 
         errorHandler: (ctx: CheerioCrawlingContext, error: Error) => {
-          console.error(
-            `[CrawleeCrawler] CheerioCrawler error for ${ctx.request.url}:`,
-            error.message
-          );
+          log.error(`[CrawleeCrawler] CheerioCrawler error for ${ctx.request.url}:`, error.message);
         },
 
         // Custom headers
@@ -201,7 +201,7 @@ export class CrawleeCrawler {
       try {
         await crawler.teardown();
       } catch (cleanupError) {
-        console.warn(
+        log.warn(
           '[CrawleeCrawler] Failed to cleanup CheerioCrawler:',
           cleanupError instanceof Error ? cleanupError.message : 'Unknown error'
         );
@@ -258,7 +258,7 @@ export class CrawleeCrawler {
               statusCode: 200, // Playwright doesn't provide direct access to status code
             });
           } catch (error) {
-            console.error(
+            log.error(
               `[CrawleeCrawler] PlaywrightCrawler request handler error for ${request.url}:`,
               error instanceof Error ? error.message : 'Unknown error'
             );
@@ -267,7 +267,7 @@ export class CrawleeCrawler {
         },
 
         errorHandler: (ctx: PlaywrightCrawlingContext, error: Error) => {
-          console.error(
+          log.error(
             `[CrawleeCrawler] PlaywrightCrawler error for ${ctx.request.url}:`,
             error.message
           );
@@ -288,7 +288,7 @@ export class CrawleeCrawler {
       try {
         await crawler.teardown();
       } catch (cleanupError) {
-        console.warn(
+        log.warn(
           '[CrawleeCrawler] Failed to cleanup PlaywrightCrawler:',
           cleanupError instanceof Error ? cleanupError.message : 'Unknown error'
         );

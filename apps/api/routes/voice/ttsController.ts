@@ -48,7 +48,7 @@ router.post('/generate', async (req: GenerateRequest, res: Response) => {
     });
     return res.send(wavBuffer);
   } catch (error) {
-    log.error('[TTS] Generate error:', error);
+    log.error('[TTS] Generate error:', { error });
     return res.status(500).json({
       success: false,
       error: 'Fehler bei der Sprachsynthese: ' + (error as Error).message,
@@ -102,7 +102,7 @@ router.post('/stream', async (req: GenerateRequest, res: Response) => {
       }
     );
   } catch (error) {
-    log.error('[TTS] Stream error:', error);
+    log.error('[TTS] Stream error:', { error });
     if (!res.writableEnded) {
       res.write(`event: error\ndata: ${JSON.stringify({ error: (error as Error).message })}\n\n`);
       res.end();
@@ -121,7 +121,7 @@ router.get('/voices', async (req: Request, res: Response) => {
     const voices = await ttsService.listVoices(language);
     return res.json({ success: true, voices });
   } catch (error) {
-    log.error('[TTS] List voices error:', error);
+    log.error('[TTS] List voices error:', { error });
     return res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen der Stimmen: ' + (error as Error).message,
@@ -134,7 +134,7 @@ router.get('/models', async (_req: Request, res: Response) => {
     const models = await ttsService.listModels();
     return res.json({ success: true, models });
   } catch (error) {
-    log.error('[TTS] List models error:', error);
+    log.error('[TTS] List models error:', { error });
     return res.status(500).json({
       success: false,
       error: 'Fehler beim Abrufen der Modelle: ' + (error as Error).message,

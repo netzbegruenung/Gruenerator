@@ -101,7 +101,7 @@ router.get('/', async (req: AuthenticatedRequest, res: Response): Promise<void> 
     res.json({ success: true, agents });
   } catch (error) {
     const err = error as Error;
-    log.error('[userAgents GET /] Error:', err);
+    log.error('[userAgents GET /] Error:', { error: err });
     res.status(500).json({ success: false, message: err.message });
   }
 });
@@ -123,7 +123,7 @@ router.get(
       res.json({ success: true, agent });
     } catch (error) {
       const err = error as Error;
-      log.error('[userAgents GET /:identifier] Error:', err);
+      log.error('[userAgents GET /:identifier] Error:', { error: err });
       res.status(500).json({ success: false, message: err.message });
     }
   }
@@ -171,7 +171,7 @@ router.post(
       res.status(201).json({ success: true, agent });
     } catch (error) {
       const err = error as Error;
-      log.error('[userAgents POST /convert-cg/:slug] Error:', err);
+      log.error('[userAgents POST /convert-cg/:slug] Error:', { error: err });
       const status = err.message.includes('unique') ? 409 : 500;
       res.status(status).json({ success: false, message: err.message });
     }
@@ -200,7 +200,7 @@ router.post(
       res.status(201).json({ success: true, agent });
     } catch (error) {
       const err = error as Error;
-      log.error('[userAgents POST /] Error:', err);
+      log.error('[userAgents POST /] Error:', { error: err });
       const status = err.message.includes('unique') ? 409 : 500;
       res.status(status).json({ success: false, message: err.message });
     }
@@ -229,7 +229,7 @@ router.patch(
       res.json({ success: true, agent });
     } catch (error) {
       const err = error as Error;
-      log.error('[userAgents PATCH /:identifier] Error:', err);
+      log.error('[userAgents PATCH /:identifier] Error:', { error: err });
       res.status(500).json({ success: false, message: err.message });
     }
   }
@@ -252,7 +252,7 @@ router.delete(
       res.json({ success: true });
     } catch (error) {
       const err = error as Error;
-      log.error('[userAgents DELETE /:identifier] Error:', err);
+      log.error('[userAgents DELETE /:identifier] Error:', { error: err });
       res.status(500).json({ success: false, message: err.message });
     }
   }

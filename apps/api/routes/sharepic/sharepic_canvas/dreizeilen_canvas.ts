@@ -282,7 +282,7 @@ async function addTextToImage(
     const rawBuffer = canvas.toBuffer('image/png');
     return optimizeCanvasBuffer(rawBuffer);
   } catch (error) {
-    log.error('Error in addTextToImage:', error);
+    log.error('Error in addTextToImage:', { error });
     if ((error as Error).message.includes('Unsupported image type') && uploadedImageBuffer) {
       log.error('Image buffer details:', uploadedImageBuffer.slice(0, 20));
     }
@@ -409,14 +409,14 @@ router.post('/', upload.single('image'), (async (
 
       res.json({ image: base64Image });
     } catch (error) {
-      log.error('Fehler bei der Bildverarbeitung:', error);
+      log.error('Fehler bei der Bildverarbeitung:', { error });
       res.status(400).json({
         error: 'Bildverarbeitungsfehler',
         details: (error as Error).message,
       });
     }
   } catch (err) {
-    log.error('Fehler bei der Anfrage:', err);
+    log.error('Fehler bei der Anfrage:', { error: err });
     res.status(500).json({ error: 'Fehler beim Erstellen des Bildes: ' + (err as Error).message });
   }
 }) as RequestHandler);

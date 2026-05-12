@@ -115,7 +115,7 @@ router.get('/', async (req, res) => {
 
     res.json(threadsWithLastMessage);
   } catch (error) {
-    log.error('Error fetching threads:', error);
+    log.error('Error fetching threads:', { error });
     res.status(500).json({ error: 'Failed to fetch threads' });
   }
 });
@@ -150,7 +150,7 @@ router.post(
         updatedAt: thread.updated_at,
       });
     } catch (error) {
-      log.error('Error creating thread:', error);
+      log.error('Error creating thread:', { error });
       res.status(500).json({ error: 'Failed to create thread' });
     }
   }
@@ -227,7 +227,7 @@ router.patch(
         updatedAt: thread.updated_at,
       });
     } catch (error) {
-      log.error('Error updating thread:', error);
+      log.error('Error updating thread:', { error });
       res.status(500).json({ error: 'Failed to update thread' });
     }
   }
@@ -265,7 +265,7 @@ router.delete('/', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    log.error('Error deleting thread:', error);
+    log.error('Error deleting thread:', { error });
     res.status(500).json({ error: 'Failed to delete thread' });
   }
 });
@@ -292,7 +292,7 @@ router.get('/:threadId/settings', async (req, res) => {
       customEnabledTools: settings?.custom_enabled_tools || null,
     });
   } catch (error) {
-    log.error('Error fetching thread settings:', error);
+    log.error('Error fetching thread settings:', { error });
     res.status(500).json({ error: 'Failed to fetch thread settings' });
   }
 });
@@ -327,7 +327,7 @@ router.patch(
 
       res.json({ success: true });
     } catch (error) {
-      log.error('Error updating thread settings:', error);
+      log.error('Error updating thread settings:', { error });
       res.status(500).json({ error: 'Failed to update thread settings' });
     }
   }
@@ -411,7 +411,7 @@ router.post('/:threadId/generate-title', async (req, res) => {
 
     res.status(202).json({ status: 'accepted' });
   } catch (error) {
-    log.error('Error generating thread title:', error);
+    log.error('Error generating thread title:', { error });
     res.status(500).json({ error: 'Failed to generate title' });
   }
 });

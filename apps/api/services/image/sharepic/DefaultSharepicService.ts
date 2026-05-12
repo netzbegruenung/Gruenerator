@@ -4,10 +4,13 @@
  * Generates 3 default sharepic types: dreizeilen (with AI image), quote_pure, and info
  */
 
+import { createLogger } from '../../../utils/logger.js';
 import { generateSharepicForChat } from '../../chat/sharepicGenerationService.js';
 
 import type { SharepicRequestBody, DefaultSharepicResult, DefaultSharepic } from './types.js';
 import type { Request } from 'express';
+
+const log = createLogger('DefaultSharepicService');
 
 // Cast type for compatibility with sharepicGenerationService
 type ExpressRequest = Parameters<typeof generateSharepicForChat>[0];
@@ -22,7 +25,7 @@ export async function generateDefaultSharepics(
   expressReq: Request,
   requestBody: SharepicRequestBody
 ): Promise<DefaultSharepicResult> {
-  console.log('[DefaultSharepicService] Starting generation of 3 default sharepics');
+  log.debug('[DefaultSharepicService] Starting generation of 3 default sharepics');
 
   try {
     // Generate all 3 types in parallel using existing chat service
@@ -38,7 +41,7 @@ export async function generateDefaultSharepics(
       generateSharepicForChat(req, 'info', requestBody),
     ]);
 
-    console.log('[DefaultSharepicService] All 3 default sharepics generated successfully');
+    log.debug('[DefaultSharepicService] All 3 default sharepics generated successfully');
 
     // Extract sharepic data from chat service responses
     const sharepics: DefaultSharepic[] = [
@@ -70,7 +73,7 @@ export async function generateDefaultSharepics(
       },
     };
   } catch (error: unknown) {
-    console.error('[DefaultSharepicService] Error generating default sharepics:', error);
+    log.error('[DefaultSharepicService] Error generating default sharepics:', { error });
     throw new Error(
       `Failed to generate default sharepics: ${error instanceof Error ? error.message : String(error)}`
     );

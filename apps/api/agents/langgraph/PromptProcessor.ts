@@ -6,6 +6,11 @@
 import fs from 'fs';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
+
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('PromptProcessor');
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -282,7 +287,7 @@ export function loadPromptConfig(type: string): PromptConfig {
     configCache.set(type, config);
     return config;
   } catch (error) {
-    console.error(`[promptProcessor] Failed to load config for type: ${type}`, error);
+    log.error(`[promptProcessor] Failed to load config for type: ${type}`, { error });
     throw new Error(`Configuration not found for type: ${type}`);
   }
 }
@@ -371,7 +376,7 @@ export async function applyProfileDefaults(
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.warn('[promptProcessor] Could not fetch profile defaults:', msg);
+    log.warn('[promptProcessor] Could not fetch profile defaults:', msg);
   }
   return requestData;
 }
@@ -728,15 +733,15 @@ export async function processGraphRequest(
       extractedInstructions = customPrompt.instructions || null;
       extractedKnowledgeContent = customPrompt.knowledgeContent || knowledgeContent || null;
 
-      console.log('[promptProcessor] Detected structured customPrompt:', {
+      log.debug('[promptProcessor] Detected structured customPrompt:', {
         hasInstructions: !!extractedInstructions,
         hasKnowledge: !!extractedKnowledgeContent,
         knowledgeLength: extractedKnowledgeContent ? extractedKnowledgeContent.length : 0,
       });
     }
 
-    console.log(`[promptProcessor] Processing ${routeType} request`);
-    console.log(`[promptProcessor] Request data:`, {
+    log.debug(`[promptProcessor] Processing ${routeType} request`);
+    log.debug(`[promptProcessor] Request data:`, {
       useBedrock: requestData.useBedrock,
       usePrivacyMode: requestData.usePrivacyMode,
       provider: requestData.provider,
@@ -750,7 +755,7 @@ export async function processGraphRequest(
 
     // Route to PR Agent if "automatisch" platform detected
     if (routeType === 'social' && requestData.platforms?.includes('automatisch')) {
-      console.log('[promptProcessor] Routing to PR Agent');
+      log.debug('[promptProcessor] Routing to PR Agent');
       return processAutomatischPR(
         requestData as unknown as Parameters<typeof processAutomatischPR>[0],
         ppReq,
@@ -764,7 +769,7 @@ export async function processGraphRequest(
       ppReq as Parameters<typeof extractLocaleFromRequest>[0]
     );
     const config = localizePromptObject(baseConfig, userLocale);
-    console.log(`[promptProcessor] Using locale: ${userLocale}`);
+    log.debug(`[promptProcessor] Using locale: ${userLocale}`);
 
     // Validate request
     const validationError = validateRequest(requestData, config);
@@ -786,7 +791,7 @@ export async function processGraphRequest(
     if (config.features?.customPromptFromDb) {
       const rawGenerator = await loadCustomGeneratorPrompt(requestData.slug as string);
       generatorData = rawGenerator as GeneratorRecord | null;
-      console.log(`[promptProcessor] Loaded generator: ${generatorData?.name ?? 'unknown'}`);
+      log.debug(`[promptProcessor] Loaded generator: ${generatorData?.name ?? 'unknown'}`);
     }
 
     // Build system role
@@ -855,16 +860,16 @@ export async function processGraphRequest(
     const promptResult = await assemblePromptGraphAsync(
       enrichedState as unknown as PromptAssemblyState
     );
-    console.log(`[promptProcessor] LangGraph assembly complete for ${routeType}`);
+    log.debug(`[promptProcessor] LangGraph assembly complete for ${routeType}`);
 
     // Prepare AI Worker payload
     const aiOptions = getAIOptions(config, requestData);
-    console.log(`[promptProcessor] AI Options:`, aiOptions);
-    console.log(`[promptProcessor] About to send useBedrock:`, requestData.useBedrock);
+    log.debug(`[promptProcessor] AI Options:`, aiOptions);
+    log.debug(`[promptProcessor] About to send useBedrock:`, requestData.useBedrock);
 
     // Log instructions if present
     if (enrichedState.instructions) {
-      console.log(`[promptProcessor] Instructions (customPrompt):`, enrichedState.instructions);
+      log.debug(`[promptProcessor] Instructions (customPrompt):`, enrichedState.instructions);
     }
 
     const payload = {
@@ -896,7 +901,7 @@ export async function processGraphRequest(
     );
 
     if (!result.success) {
-      console.error(`[promptProcessor] AI Worker error for ${routeType}:`, result.error);
+      log.error(`[promptProcessor] AI Worker error for ${routeType}:`, result.error);
       // Log failed generation
       void logGeneration({
         userId: ppReq.user?.id || null,
@@ -952,11 +957,11 @@ export async function processGraphRequest(
 
         // Cache for 1 hour
         await redisClient.setEx(contextCacheKey, 3600, JSON.stringify(contextData));
-        console.log(`[promptProcessor] Cached edit context: ${contextCacheKey}`);
+        log.debug(`[promptProcessor] Cached edit context: ${contextCacheKey}`);
       } catch (cacheError) {
         // Don't fail the request if caching fails
         const errorMessage = cacheError instanceof Error ? cacheError.message : String(cacheError);
-        console.error('[promptProcessor] Failed to cache edit context:', errorMessage);
+        log.error('[promptProcessor] Failed to cache edit context:', errorMessage);
       }
     }
 

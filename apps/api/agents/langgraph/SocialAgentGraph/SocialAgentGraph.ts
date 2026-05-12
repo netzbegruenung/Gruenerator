@@ -180,7 +180,7 @@ export async function runSocialAgentGraph(input: SocialAgentInput): Promise<Soci
       },
     };
   } catch (error: unknown) {
-    log.error('[runSocialAgentGraph] Fatal error:', error);
+    log.error('[runSocialAgentGraph] Fatal error:', { error });
     return {
       success: false,
       content: '',

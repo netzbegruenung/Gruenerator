@@ -76,7 +76,7 @@ router.get('/user', async (req: DocumentRequest, res: Response): Promise<void> =
       message: `Found ${enrichedDocs.length} documents`,
     });
   } catch (error) {
-    log.error('[GET /user] Error:', error);
+    log.error('[GET /user] Error:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message || 'Failed to fetch documents',
@@ -140,7 +140,7 @@ router.get('/combined-content', async (req: DocumentRequest, res: Response): Pro
       message: `Found ${enrichedDocs.length} documents and ${texts.length} texts`,
     });
   } catch (error) {
-    log.error('[GET /combined-content] Error:', error);
+    log.error('[GET /combined-content] Error:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message || 'Failed to fetch combined content',
@@ -184,7 +184,7 @@ router.get(
         count: enriched.length,
       });
     } catch (error) {
-      log.error('[GET /by-source/:sourceType] Error:', error);
+      log.error('[GET /by-source/:sourceType] Error:', { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to get documents by source type',
@@ -211,7 +211,7 @@ router.get('/stats', async (req: DocumentRequest, res: Response): Promise<void> 
       stats,
     });
   } catch (error) {
-    log.error('[GET /stats] Error:', error);
+    log.error('[GET /stats] Error:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message || 'Failed to get document statistics',
@@ -279,7 +279,7 @@ router.get(
         },
       });
     } catch (error) {
-      log.error('[GET /:id/content] Error:', error);
+      log.error('[GET /:id/content] Error:', { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to get document content',
@@ -334,7 +334,7 @@ router.get(
         chunks: result.chunks,
       });
     } catch (error) {
-      log.error('[GET /:id/chunks] Error:', error);
+      log.error('[GET /:id/chunks] Error:', { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to get document chunks',
@@ -374,7 +374,7 @@ router.delete(
         message: 'Document deleted successfully',
       });
     } catch (error) {
-      log.error('[DELETE /:id] Error:', error);
+      log.error('[DELETE /:id] Error:', { error });
 
       if (
         (error as Error).message.includes('not found') ||
@@ -463,7 +463,7 @@ router.delete(
         },
       });
     } catch (error) {
-      log.error('[DELETE /bulk] Error in bulk delete:', error);
+      log.error('[DELETE /bulk] Error in bulk delete:', { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to perform bulk delete',

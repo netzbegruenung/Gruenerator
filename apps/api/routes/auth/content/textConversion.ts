@@ -91,7 +91,7 @@ router.post(
 
       res.json({ success: true, documentId: docId, url: `/docs/${docId}` });
     } catch (err: unknown) {
-      log.error('[Convert Text to Doc] Error:', err);
+      log.error('[Convert Text to Doc] Error:', { error: err });
       res.status(500).json({ success: false, message: 'Konvertierung fehlgeschlagen' });
     }
   }
@@ -156,7 +156,7 @@ router.post(
       log.info(`[Migrate] User ${userId}: ${converted}/${texts.length} texts converted to docs`);
       res.json({ success: true, converted, total: texts.length });
     } catch (err: unknown) {
-      log.error('[Migrate All Texts] Error:', err);
+      log.error('[Migrate All Texts] Error:', { error: err });
       res.status(500).json({ success: false, message: 'Migration fehlgeschlagen' });
     }
   }

@@ -917,7 +917,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[Search Saved Texts] Error:', err);
+      log.error('[Search Saved Texts] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: 'Search failed',

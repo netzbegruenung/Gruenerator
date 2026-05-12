@@ -4,11 +4,14 @@
  */
 
 import { validateAndInjectCitations } from '../../../../services/search/index.js';
+import { createLogger } from '../../../../utils/logger.js';
 import { extractKeyParagraphs } from '../utilities/contentExtractor.js';
 
 import type { ReferencesMap } from '../../../../services/search/types.js';
 import type { RequestWithUser } from '../../../../utils/redis/types.js';
 import type { WebSearchState } from '../types.js';
+
+const log = createLogger('SummaryNode');
 
 /**
  * Intelligent Summary Node: Generate AI summary with citations
@@ -18,7 +21,7 @@ export async function summaryNode(state: WebSearchState): Promise<Partial<WebSea
     return {};
   }
 
-  console.log('[WebSearchGraph] Generating intelligent summary with enriched results');
+  log.debug('[WebSearchGraph] Generating intelligent summary with enriched results');
 
   try {
     // Use enriched results if available, otherwise fall back to original web results
@@ -34,7 +37,7 @@ export async function summaryNode(state: WebSearchState): Promise<Partial<WebSea
       };
     }
 
-    console.log(`[IntelligentSummary] Processing ${resultsToUse.length} results`);
+    log.debug(`[IntelligentSummary] Processing ${resultsToUse.length} results`);
 
     // Separate full content from snippets
     const fullContentResults = resultsToUse.filter((r) => r.crawled && r.fullContent);
@@ -162,7 +165,7 @@ Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
 
     // Log citation validation errors if any
     if (errors && errors.length > 0) {
-      console.warn('[WebSearchGraph] Intelligent summary citation validation errors:', errors);
+      log.warn('[WebSearchGraph] Intelligent summary citation validation errors:', errors);
     }
 
     return {
@@ -180,7 +183,7 @@ Crawl-Statistik: ${state.crawlMetadata?.crawledUrls || 0} erfolgreich gecrawlt`;
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[WebSearchGraph] Intelligent summary generation error:', errorMessage);
+    log.error('[WebSearchGraph] Intelligent summary generation error:', errorMessage);
     return {
       summary: 'Fehler beim Generieren der intelligenten Zusammenfassung.',
     };

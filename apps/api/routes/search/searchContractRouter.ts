@@ -234,7 +234,7 @@ export const searchContractRouter = s.router(searchContract, {
       return { status: 200 as const, body: responseBody };
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      log.error(`[Search Contract] Normal search error (${processingTime}ms):`, error);
+      log.error(`[Search Contract] Normal search error (${processingTime}ms):`, { error });
 
       const userError = mapErrorToUserMessage(error as Error);
       const errorBody: {
@@ -274,7 +274,7 @@ export const searchContractRouter = s.router(searchContract, {
         },
       };
     } catch (error) {
-      log.error('[Search Contract] Status check failed:', error);
+      log.error('[Search Contract] Status check failed:', { error });
       const body: {
         success: boolean;
         status: string;

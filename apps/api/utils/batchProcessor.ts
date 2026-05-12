@@ -6,6 +6,9 @@
 import { vectorConfig } from '../config/vectorConfig.js';
 
 import { TimeoutError, createErrorHandler } from './errors/index.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('batchProcessor');
 
 interface BatchProcessorOptions {
   batchSize?: number;
@@ -22,7 +25,6 @@ interface ProcessingStats {
   retries: number;
   avgBatchTime: number;
 }
-
 
 /**
  * Generic batch processor for async operations
@@ -72,7 +74,7 @@ export class BatchProcessor<T = unknown, R = unknown> {
     const batches = this.createBatches(items, options.batchSize || this.batchSize);
     const results: R[] = [];
 
-    console.log(
+    log.debug(
       `[BatchProcessor] Processing ${items.length} items in ${batches.length} batches (batch size: ${this.batchSize}, max concurrent: ${this.maxConcurrent})`
     );
 
@@ -90,15 +92,21 @@ export class BatchProcessor<T = unknown, R = unknown> {
         if (result.status === 'fulfilled') {
           results.push(...result.value);
         } else {
-          console.error(`[BatchProcessor] Batch ${i + index} failed:`, result.reason);
+          log.error(`[BatchProcessor] Batch ${i + index} failed:`, result.reason);
           this.stats.errors++;
 
           const failedBatch = batchSlice[index];
-          const errorResults: R[] = failedBatch.map((item) => ({
-            item,
-            error: (result.reason instanceof Error ? result.reason.message : String(result.reason)) || 'Batch processing failed',
-            batchIndex: i + index,
-          } as R));
+          const errorResults: R[] = failedBatch.map(
+            (item) =>
+              ({
+                item,
+                error:
+                  (result.reason instanceof Error
+                    ? result.reason.message
+                    : String(result.reason)) || 'Batch processing failed',
+                batchIndex: i + index,
+              }) as R
+          );
           results.push(...errorResults);
         }
       });
@@ -109,7 +117,7 @@ export class BatchProcessor<T = unknown, R = unknown> {
     this.stats.itemsProcessed += items.length;
     this.stats.avgBatchTime = (this.stats.avgBatchTime + processingTime) / 2;
 
-    console.log(
+    log.debug(
       `[BatchProcessor] Completed processing ${items.length} items in ${processingTime}ms (${batches.length} batches)`
     );
 
@@ -143,7 +151,7 @@ export class BatchProcessor<T = unknown, R = unknown> {
         const batchTime = Date.now() - batchStartTime;
 
         if (vectorConfig.isVerboseMode()) {
-          console.log(
+          log.debug(
             `[BatchProcessor] Batch ${batchIndex} completed in ${batchTime}ms (${batch.length} items)`
           );
         }
@@ -153,7 +161,7 @@ export class BatchProcessor<T = unknown, R = unknown> {
         lastError = error as Error;
 
         if (attempt < this.maxRetries) {
-          console.warn(
+          log.warn(
             `[BatchProcessor] Batch ${batchIndex} attempt ${attempt + 1} failed, retrying in ${this.retryDelay}ms:`,
             lastError.message
           );

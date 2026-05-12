@@ -19,6 +19,9 @@ import {
   UnsplashApiError,
   UnsplashRateLimitError,
 } from '../../services/unsplash/UnsplashApiService.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('unsplashRoutes');
 
 const router = express.Router();
 
@@ -79,7 +82,7 @@ router.get('/search', async (req: Request, res: Response) => {
 
     return res.status(200).json(result);
   } catch (error) {
-    console.error('[UnsplashRoutes] Search error:', error);
+    log.error('[UnsplashRoutes] Search error:', { error });
 
     if (error instanceof UnsplashRateLimitError) {
       return res.status(429).json({
@@ -135,7 +138,7 @@ router.post(
 
       return res.status(200).json({ success: true });
     } catch (error) {
-      console.error('[UnsplashRoutes] Track download error:', error);
+      log.error('[UnsplashRoutes] Track download error:', { error });
 
       // Don't fail the request even if tracking fails
       // This is intentionally non-blocking
@@ -168,7 +171,7 @@ router.get('/stats', async (req: Request, res: Response) => {
       status: 'operational',
     });
   } catch (error) {
-    console.error('[UnsplashRoutes] Stats error:', error);
+    log.error('[UnsplashRoutes] Stats error:', { error });
 
     return res.status(500).json({
       error: 'Internal server error',
@@ -198,7 +201,7 @@ router.post('/clear-cache', async (req: Request, res: Response) => {
       message: 'Cache cleared successfully',
     });
   } catch (error) {
-    console.error('[UnsplashRoutes] Clear cache error:', error);
+    log.error('[UnsplashRoutes] Clear cache error:', { error });
 
     return res.status(500).json({
       error: 'Internal server error',

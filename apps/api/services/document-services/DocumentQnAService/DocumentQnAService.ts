@@ -6,6 +6,8 @@
 
 // Import module functions
 
+import { createLogger } from '../../../utils/logger.js';
+
 import { generateQuestionsForIntent } from './contextExtraction.js';
 import { generateCacheKey, getCachedKnowledge, cacheKnowledge } from './contextManagement.js';
 import { askMistralAboutDocuments } from './mistralIntegration.js';
@@ -18,6 +20,8 @@ import {
 } from './redisOperations.js';
 
 import type { Intent, AgentType, Attachment, StoredDocument } from './types.js';
+
+const log = createLogger('DocumentQnAService');
 
 /**
  * Main DocumentQnAService class
@@ -65,7 +69,7 @@ export class DocumentQnAService {
       return null;
     }
 
-    console.log(
+    log.debug(
       `[DocumentQnAService] Extracting knowledge for intent: ${intent.agent}, documents: ${documentIds.length}`
     );
 
@@ -73,14 +77,14 @@ export class DocumentQnAService {
     const cacheKey = generateCacheKey(documentIds, intent.agent, message);
     const cached = await getCachedKnowledge(this.redis, cacheKey);
     if (cached) {
-      console.log(`[DocumentQnAService] Using cached knowledge for ${intent.agent}`);
+      log.debug(`[DocumentQnAService] Using cached knowledge for ${intent.agent}`);
       return cached;
     }
 
     // Get documents from Redis
     const documents = await getDocumentsFromRedis(this.redis, documentIds, userId);
     if (documents.length === 0) {
-      console.log(`[DocumentQnAService] No accessible documents found`);
+      log.debug(`[DocumentQnAService] No accessible documents found`);
       return null;
     }
 
@@ -94,12 +98,12 @@ export class DocumentQnAService {
       // Cache the result for 1 hour
       await cacheKnowledge(this.redis, cacheKey, knowledge, 3600);
 
-      console.log(
+      log.debug(
         `[DocumentQnAService] Extracted knowledge for ${intent.agent}: ${knowledge.length} chars`
       );
       return knowledge;
     } catch (error) {
-      console.error(`[DocumentQnAService] Error extracting knowledge:`, error);
+      log.error(`[DocumentQnAService] Error extracting knowledge:`, { error });
       return null;
     }
   }

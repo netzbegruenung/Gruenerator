@@ -65,7 +65,9 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
 
   if (extractedText && extractedText.length > 100 && !isImage) {
     generateAttachmentSummary(attachmentId, extractedText).catch((err) => {
-      log.error(`[AttachmentPersistence] Failed to generate summary for ${attachmentId}:`, err);
+      log.error(`[AttachmentPersistence] Failed to generate summary for ${attachmentId}:`, {
+        error: err,
+      });
     });
   }
 
@@ -155,7 +157,7 @@ Halte die Zusammenfassung sehr kompakt (max. 150 Wörter). Beginne direkt mit de
     );
     return summary;
   } catch (error) {
-    log.error(`[AttachmentPersistence] Failed to generate summary for ${attachmentId}:`, error);
+    log.error(`[AttachmentPersistence] Failed to generate summary for ${attachmentId}:`, { error });
     throw error;
   }
 }

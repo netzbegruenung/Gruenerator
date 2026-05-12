@@ -5,6 +5,7 @@
  * Handles success responses, error responses, and metadata standardization
  */
 
+import { createLogger } from '../logger.js';
 import { processResponseWithTitle } from '../prompt/index.js';
 
 import type {
@@ -15,6 +16,8 @@ import type {
   ErrorResponseWithStatus,
 } from './types.js';
 import type { Response } from 'express';
+
+const log = createLogger('formatter');
 
 /**
  * Creates a standardized success response
@@ -125,7 +128,7 @@ export function sendSuccessResponse(
 
   // Extract route name for logging
   const routeName = routePath.replace('/api/', '').replace('/', '_');
-  console.log(`[${routeName}] Success: ${response.content?.length || 0} chars generated`);
+  log.debug(`[${routeName}] Success: ${response.content?.length || 0} chars generated`);
 
   res.json(response);
 }
@@ -158,7 +161,7 @@ export function sendSuccessResponseWithAttachments(
   const sourcesInfo = response.metadata?.webSearchUsed
     ? ` with ${response.metadata.webSearchSourcesCount} web search sources`
     : '';
-  console.log(
+  log.debug(
     `[${routeName}] Success: ${response.content?.length || 0} chars generated${sourcesInfo}`
   );
 
@@ -177,9 +180,9 @@ export function sendErrorResponse(
 ): void {
   const routeName = routePath.replace('/api/', '').replace('/', '_').replace(/%/g, '%%');
   const errorMessage = error instanceof Error ? error.message : String(error);
-  console.error('[%s] Error: %s', routeName, errorMessage);
+  log.error('[%s] Error: %s', routeName, errorMessage);
   if (error instanceof Error && error.stack) {
-    console.error('[%s] Stack trace: %s', routeName, error.stack);
+    log.error('[%s] Stack trace: %s', routeName, error.stack);
   }
 
   // Create secure response (no internal details)

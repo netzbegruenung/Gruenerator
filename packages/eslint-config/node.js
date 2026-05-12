@@ -10,7 +10,7 @@ export default [
       },
     },
     rules: {
-      'no-console': 'off',
+      'no-console': ['error', { allow: ['warn', 'error'] }],
 
       '@typescript-eslint/no-require-imports': 'off',
 

@@ -85,7 +85,7 @@ export const boardsContractRouter = s.router(boardsContract, {
 
       return { status: 200 as const, body: result };
     } catch (error) {
-      log.error('[Boards Contract] Error listing boards:', error);
+      log.error('[Boards Contract] Error listing boards:', { error });
       return {
         status: 500 as const,
         body: {
@@ -125,7 +125,7 @@ export const boardsContractRouter = s.router(boardsContract, {
 
       return { status: 200 as const, body: { message: 'Board deleted successfully' } };
     } catch (error) {
-      log.error('[Boards Contract] Error deleting board:', error);
+      log.error('[Boards Contract] Error deleting board:', { error });
       return {
         status: 500 as const,
         body: {
@@ -180,7 +180,7 @@ export const boardsContractRouter = s.router(boardsContract, {
 
       return { status: 201 as const, body: { board: board as BoardDocument, generatedStructure } };
     } catch (error) {
-      log.error('[Boards Contract] Error generating board:', error);
+      log.error('[Boards Contract] Error generating board:', { error });
       return {
         status: 500 as const,
         body: {
@@ -199,7 +199,7 @@ export const boardsContractRouter = s.router(boardsContract, {
       const board = await createBoardDocument(title, userId, boardType);
       return { status: 201 as const, body: board as BoardDocument };
     } catch (error) {
-      log.error('[Boards Contract] Error creating board:', error);
+      log.error('[Boards Contract] Error creating board:', { error });
       return {
         status: 500 as const,
         body: {
@@ -265,7 +265,7 @@ export const boardsContractRouter = s.router(boardsContract, {
 
       return { status: 200 as const, body: result[0] };
     } catch (error) {
-      log.error('[Boards Contract] Error updating board:', error);
+      log.error('[Boards Contract] Error updating board:', { error });
       return {
         status: 500 as const,
         body: {

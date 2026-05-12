@@ -8,9 +8,12 @@
  */
 
 import { env } from '../../config/env.js';
+import { createLogger } from '../../utils/logger.js';
 import { addUnsplashUTM } from '../../utils/unsplashUtils.js';
 
 import type { UnsplashAttribution } from '../image/types.js';
+
+const log = createLogger('UnsplashApiService');
 
 // ============================================================================
 // Types - Unsplash API Response Structures
@@ -290,7 +293,7 @@ export class UnsplashApiService {
     const cacheKey = `search:${query}:${page}:${perPage}`;
     const cached = searchCache.get(cacheKey);
     if (cached) {
-      console.log(`[UnsplashAPI] Cache hit for: ${cacheKey}`);
+      log.debug(`[UnsplashAPI] Cache hit for: ${cacheKey}`);
       return cached;
     }
 
@@ -301,7 +304,7 @@ export class UnsplashApiService {
     url.searchParams.set('per_page', Math.min(perPage, 30).toString());
     url.searchParams.set('orientation', 'landscape'); // Prefer landscape for backgrounds
 
-    console.log(`[UnsplashAPI] Searching: ${query} (page ${page})`);
+    log.debug(`[UnsplashAPI] Searching: ${query} (page ${page})`);
 
     try {
       const response = await fetchWithTimeout(url.toString(), {
@@ -321,16 +324,16 @@ export class UnsplashApiService {
       // Cache the results
       searchCache.set(cacheKey, result);
 
-      console.log(`[UnsplashAPI] Found ${result.results.length} results (${data.total} total)`);
+      log.debug(`[UnsplashAPI] Found ${result.results.length} results (${data.total} total)`);
 
       return result;
     } catch (error) {
       if (error instanceof UnsplashApiError) {
-        console.error(`[UnsplashAPI] API Error:`, error.message);
+        log.error(`[UnsplashAPI] API Error:`, error.message);
         throw error;
       }
 
-      console.error(`[UnsplashAPI] Unexpected error:`, error);
+      log.error(`[UnsplashAPI] Unexpected error:`, { error });
       throw new UnsplashApiError('Failed to search Unsplash photos');
     }
   }
@@ -344,7 +347,7 @@ export class UnsplashApiService {
   async getPhoto(photoId: string): Promise<StockImage> {
     const url = `${UNSPLASH_API_BASE}/photos/${photoId}`;
 
-    console.log(`[UnsplashAPI] Fetching photo: ${photoId}`);
+    log.debug(`[UnsplashAPI] Fetching photo: ${photoId}`);
 
     try {
       const response = await fetchWithTimeout(url, {
@@ -356,11 +359,11 @@ export class UnsplashApiService {
       return transformPhotoToStockImage(photo);
     } catch (error) {
       if (error instanceof UnsplashApiError) {
-        console.error(`[UnsplashAPI] API Error:`, error.message);
+        log.error(`[UnsplashAPI] API Error:`, error.message);
         throw error;
       }
 
-      console.error(`[UnsplashAPI] Unexpected error:`, error);
+      log.error(`[UnsplashAPI] Unexpected error:`, { error });
       throw new UnsplashApiError('Failed to fetch photo details');
     }
   }
@@ -375,11 +378,11 @@ export class UnsplashApiService {
    */
   async trackDownload(downloadLocation: string): Promise<void> {
     if (!downloadLocation) {
-      console.warn('[UnsplashAPI] No download location provided for tracking');
+      log.warn('[UnsplashAPI] No download location provided for tracking');
       return;
     }
 
-    console.log(`[UnsplashAPI] Tracking download`);
+    log.debug(`[UnsplashAPI] Tracking download`);
 
     try {
       const response = await fetchWithTimeout(downloadLocation, {
@@ -388,13 +391,13 @@ export class UnsplashApiService {
       });
 
       if (!response.ok) {
-        console.warn(`[UnsplashAPI] Download tracking failed: ${response.status}`);
+        log.warn(`[UnsplashAPI] Download tracking failed: ${response.status}`);
       } else {
-        console.log(`[UnsplashAPI] Download tracked successfully`);
+        log.debug(`[UnsplashAPI] Download tracked successfully`);
       }
     } catch (error) {
       // Don't throw - download tracking should be non-blocking
-      console.warn(`[UnsplashAPI] Download tracking error:`, error);
+      log.warn(`[UnsplashAPI] Download tracking error:`, error);
     }
   }
 
@@ -403,7 +406,7 @@ export class UnsplashApiService {
    */
   clearCache(): void {
     searchCache.clear();
-    console.log('[UnsplashAPI] Cache cleared');
+    log.debug('[UnsplashAPI] Cache cleared');
   }
 
   /**

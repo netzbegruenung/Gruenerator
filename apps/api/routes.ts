@@ -206,7 +206,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Debug: Log ALL API requests at the start
   app.use('/api/*splat', (req: Request, res: Response, next: NextFunction) => {
     if (req.originalUrl.includes('releases')) {
-      console.log(`[Routes DEBUG] API request: ${req.method} ${req.originalUrl}`);
+      log.debug(`[Routes DEBUG] API request: ${req.method} ${req.originalUrl}`);
     }
     next();
   });
@@ -494,7 +494,7 @@ export async function setupRoutes(app: Application): Promise<void> {
         res.json({ success: true, ...result.content.sharepic, metadata: result.content.metadata });
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
-        console.error('[UnifiedSharepic] Error:', err);
+        log.error('[UnifiedSharepic] Error:', { error: err });
         res
           .status(500)
           .json({ success: false, error: err.message || 'Failed to generate sharepic' });
@@ -603,7 +603,7 @@ export async function setupRoutes(app: Application): Promise<void> {
 
   // Debug: log all requests to /api/releases/*
   app.use('/api/releases', (req, res, next) => {
-    console.log(
+    log.debug(
       `[Routes] Request to /api/releases: ${req.method} ${req.path} (originalUrl: ${req.originalUrl})`
     );
     next();

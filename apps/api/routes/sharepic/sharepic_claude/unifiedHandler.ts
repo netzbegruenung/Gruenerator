@@ -256,7 +256,7 @@ export async function handleUnifiedRequest(
       return;
     } catch (error) {
       lastError = (error as Error).message;
-      log.error(`[${type}] Attempt ${attempts} exception:`, error);
+      log.error(`[${type}] Attempt ${attempts} exception:`, { error });
     }
   }
 

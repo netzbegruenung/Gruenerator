@@ -100,7 +100,7 @@ Schreibe überwiegend als Fließtext. Nutze Markdown sparsam — nur einzelne **
       strategyTimeMs,
     };
   } catch (error) {
-    log.error('[strategizeNode] Strategy generation failed:', error);
+    log.error('[strategizeNode] Strategy generation failed:', { error });
     return {
       strategy: null,
       strategyTimeMs: Date.now() - startTime,

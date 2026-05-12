@@ -7,9 +7,12 @@ import { and, eq } from 'drizzle-orm';
 
 import { documents } from '../../../database/schema/documents.js';
 import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
+import { createLogger } from '../../../utils/logger.js';
 
 import type { DocumentMetadata, DocumentRecord } from './types.js';
 import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
+
+const log = createLogger('textOperations');
 
 /**
  * Store document full text in metadata JSON
@@ -54,12 +57,12 @@ export async function storeDocumentText(
       user_id: userId,
     });
 
-    console.log(
+    log.debug(
       `[PostgresDocumentService] Stored full text for document ${documentId} (${text.length} chars)`
     );
     return { success: true, textLength: text.length };
   } catch (error) {
-    console.error('[PostgresDocumentService] Error storing document text:', error);
+    log.error('[PostgresDocumentService] Error storing document text:', { error });
     throw error;
   }
 }
@@ -103,7 +106,7 @@ export async function getDocumentText(
             : new Date().toISOString(),
     };
   } catch (error) {
-    console.error('[PostgresDocumentService] Error retrieving document text:', error);
+    log.error('[PostgresDocumentService] Error retrieving document text:', { error });
     throw error;
   }
 }
@@ -139,11 +142,11 @@ export async function createDocumentWithText(
     };
 
     const document = await postgres.insert('documents', documentData);
-    console.log(`[PostgresDocumentService] Created document with text: ${document.id}`);
+    log.debug(`[PostgresDocumentService] Created document with text: ${document.id}`);
 
     return document as DocumentRecord;
   } catch (error) {
-    console.error('[PostgresDocumentService] Error creating document with text:', error);
+    log.error('[PostgresDocumentService] Error creating document with text:', { error });
     throw new Error('Failed to create document with text');
   }
 }

@@ -95,7 +95,7 @@ async function triggerBackgroundRender(
     }
     log.info(`Background render complete for share ${shareToken}`);
   } catch (error: unknown) {
-    log.error(`Background render failed for ${shareToken}:`, error);
+    log.error(`Background render failed for ${shareToken}:`, { error });
     const service = await getShareService();
     await service.markShareFailed(shareToken);
   }
@@ -159,7 +159,7 @@ router.post(
         },
       });
     } catch (error: unknown) {
-      log.error('Failed to create share:', error);
+      log.error('Failed to create share:', { error });
       res.status(500).json({ success: false, error: 'Share konnte nicht erstellt werden' });
     }
   }
@@ -293,7 +293,7 @@ router.post(
         },
       });
     } catch (error: unknown) {
-      log.error('Failed to create share from project:', error);
+      log.error('Failed to create share from project:', { error });
       res.status(500).json({ success: false, error: 'Share konnte nicht erstellt werden' });
     }
   }
@@ -307,7 +307,7 @@ router.get('/my', requireAuth, async (req: AuthenticatedRequest, res: Response):
     const shares = await service.getUserShares(userId);
     res.json({ success: true, shares });
   } catch (error: unknown) {
-    log.error('Failed to get user shares:', error);
+    log.error('Failed to get user shares:', { error });
     res.status(500).json({ success: false, error: 'Geteilte Videos konnten nicht geladen werden' });
   }
 });
@@ -345,7 +345,7 @@ router.get(
         },
       });
     } catch (error: unknown) {
-      log.error('Failed to get share info:', error);
+      log.error('Failed to get share info:', { error });
       res.status(500).json({ success: false, error: 'Fehler beim Laden des geteilten Videos' });
     }
   }
@@ -377,7 +377,7 @@ router.get(
         res.status(404).json({ error: 'Thumbnail-Datei nicht gefunden' });
       }
     } catch (error: unknown) {
-      log.error('Failed to get thumbnail:', error);
+      log.error('Failed to get thumbnail:', { error });
       res.status(500).json({ error: 'Fehler beim Laden des Thumbnails' });
     }
   }
@@ -438,7 +438,7 @@ router.get(
         res.status(404).json({ error: 'Video-Datei nicht gefunden' });
       }
     } catch (error: unknown) {
-      log.error('Failed to stream preview:', error);
+      log.error('Failed to stream preview:', { error });
       res.status(500).json({ error: 'Fehler beim Laden der Vorschau' });
     }
   }
@@ -499,7 +499,7 @@ router.get(
         res.status(404).json({ success: false, error: 'Video-Datei nicht gefunden' });
       }
     } catch (error: unknown) {
-      log.error('Failed to download share:', error);
+      log.error('Failed to download share:', { error });
       if (!res.headersSent) res.status(500).json({ success: false, error: 'Fehler beim Download' });
     }
   }
@@ -519,7 +519,7 @@ router.delete(
       log.info(`Share deleted: ${shareToken} by user ${userId}`);
       res.json({ success: true, message: 'Geteiltes Video gelöscht' });
     } catch (error: unknown) {
-      log.error('Failed to delete share:', error);
+      log.error('Failed to delete share:', { error });
       const errMsg = error instanceof Error ? error.message : String(error);
       if (errMsg.includes('not found') || errMsg.includes('not owned')) {
         res.status(404).json({

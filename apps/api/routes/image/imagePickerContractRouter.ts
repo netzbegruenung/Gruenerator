@@ -99,7 +99,7 @@ export const imagePickerContractRouter = s.router(imagePickerContract, {
         },
       };
     } catch (error) {
-      log.error('[imagePickerContract.select] Error:', error);
+      log.error('[imagePickerContract.select] Error:', { error });
       const err = error as Error;
       return {
         status: 500 as const,
@@ -128,7 +128,7 @@ export const imagePickerContractRouter = s.router(imagePickerContract, {
         },
       };
     } catch (error) {
-      log.error('[imagePickerContract.getStats] Error:', error);
+      log.error('[imagePickerContract.getStats] Error:', { error });
       return {
         status: 500 as const,
         body: { success: false, error: 'Failed to get service statistics', code: 'STATS_ERROR' },
@@ -151,7 +151,7 @@ export const imagePickerContractRouter = s.router(imagePickerContract, {
         },
       };
     } catch (error) {
-      log.error('[imagePickerContract.getCatalog] Error:', error);
+      log.error('[imagePickerContract.getCatalog] Error:', { error });
       return {
         status: 500 as const,
         body: { success: false, error: 'Failed to get image catalog', code: 'CATALOG_ERROR' },
@@ -171,7 +171,7 @@ export const imagePickerContractRouter = s.router(imagePickerContract, {
         },
       };
     } catch (error) {
-      log.error('[imagePickerContract.clearCache] Error:', error);
+      log.error('[imagePickerContract.clearCache] Error:', { error });
       return {
         status: 500 as const,
         body: { success: false, error: 'Failed to clear cache', code: 'CACHE_CLEAR_ERROR' },
@@ -197,7 +197,7 @@ export const imagePickerContractRouter = s.router(imagePickerContract, {
         },
       };
     } catch (error) {
-      log.error('[imagePickerContract.validate] Error:', error);
+      log.error('[imagePickerContract.validate] Error:', { error });
       return {
         status: 500 as const,
         body: { success: false, error: 'Failed to validate image', code: 'VALIDATION_ERROR' },
@@ -243,7 +243,7 @@ export const imagePickerContractRouter = s.router(imagePickerContract, {
         },
       };
     } catch (error) {
-      log.error('[imagePickerContract.getStockCatalog] Error:', error);
+      log.error('[imagePickerContract.getStockCatalog] Error:', { error });
       const err = error as Error;
       return {
         status: 500 as const,
@@ -279,7 +279,7 @@ export const imagePickerContractRouter = s.router(imagePickerContract, {
         },
       };
     } catch (error) {
-      log.error('[imagePickerContract.downloadTrack] Error:', error);
+      log.error('[imagePickerContract.downloadTrack] Error:', { error });
       return {
         status: 500 as const,
         body: {

@@ -4,7 +4,11 @@
  * Uses simple character-based estimation (1 token ≈ 4 characters) for fast computation
  */
 
+import { createLogger } from '../../utils/logger.js';
+
 import type { Message, TokenStats } from './types.js';
+
+const log = createLogger('TokenCounter');
 
 export class TokenCounter {
   /**
@@ -56,7 +60,7 @@ export class TokenCounter {
     const availableTokens = maxTokens - responseReserve;
 
     if (tokenCount >= availableTokens) {
-      console.warn('[TokenCounter] System messages exceed available tokens');
+      log.warn('[TokenCounter] System messages exceed available tokens');
       return systemMessages;
     }
 
@@ -76,7 +80,7 @@ export class TokenCounter {
 
     const result = [...systemMessages, ...keptConversation];
 
-    console.log(
+    log.debug(
       `[TokenCounter] Trimmed ${messages.length} messages to ${result.length} (${tokenCount}/${maxTokens} tokens)`
     );
 

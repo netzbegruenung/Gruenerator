@@ -7,10 +7,13 @@ import { generateText, type ModelMessage, type Tool } from 'ai';
 
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { mergeMetadata } from './adapterUtils.js';
 
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
+
+const log = createLogger('litellmAdapter');
 
 /**
  * Convert internal message format to Vercel AI SDK ModelMessage format
@@ -165,7 +168,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       result.finishReason === 'tool-calls' || (toolCalls && toolCalls.length > 0);
     if (!textContent && !isToolUseResponse) {
       const errorMsg = `Empty response from LiteLLM model=${model}`;
-      console.error(`[litellmAdapter ${requestId}] ${errorMsg}`);
+      log.error(`[litellmAdapter ${requestId}] ${errorMsg}`);
       throw new Error(errorMsg);
     }
 
@@ -214,7 +217,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     };
   } catch (error: unknown) {
     const err = error as { message?: string };
-    console.error(`[litellmAdapter ${requestId}] Error:`, err.message);
+    log.error(`[litellmAdapter ${requestId}] Error:`, err.message);
     throw error;
   }
 }

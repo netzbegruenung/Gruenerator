@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import { Worker } from 'worker_threads';
 
 import { PrivacyCounter } from '../services/counters/index.js';
+import { createLogger } from '../utils/logger.js';
 
 import config from './worker.config.js';
 
@@ -16,6 +17,8 @@ import type {
   WorkerErrorMessage,
 } from './types.js';
 import type { Redis } from 'ioredis';
+
+const log = createLogger('aiWorkerPool');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,14 +58,14 @@ class AIWorkerPool {
     });
 
     worker.on('error', (error: Error) => {
-      console.error(`Worker ${index} Fehler:`, error);
+      log.error(`Worker ${index} Fehler:`, { error });
       this.handleWorkerFailure(index, error);
       this.replaceWorker(index);
     });
 
     worker.on('exit', (code: number) => {
       if (code !== 0) {
-        console.error(`Worker ${index} exited with code ${code}`);
+        log.error(`Worker ${index} exited with code ${code}`);
         this.handleWorkerFailure(index, new Error(`Worker exited with code ${code}`));
         this.replaceWorker(index);
       }
@@ -82,7 +85,7 @@ class AIWorkerPool {
 
     const pendingRequest = this.pendingRequests.get(requestId);
     if (!pendingRequest) {
-      console.warn(`[AIWorkerPool] Received response for unknown request ${requestId}`);
+      log.warn(`[AIWorkerPool] Received response for unknown request ${requestId}`);
       return;
     }
 
@@ -113,10 +116,10 @@ class AIWorkerPool {
       this.workers[workerIndex].pendingRequests.delete(requestId);
       clearTimeout(timeout);
 
-      console.error(`[AIWorkerPool] Error for request ${requestId}:`, error);
+      log.error(`[AIWorkerPool] Error for request ${requestId}:`, { error });
       reject(new Error(error));
     } else {
-      console.warn(`[AIWorkerPool] Unknown message type: ${type}`);
+      log.warn(`[AIWorkerPool] Unknown message type: ${type}`);
       this.pendingRequests.delete(requestId);
       this.workers[workerIndex].pendingRequests.delete(requestId);
       clearTimeout(timeout);
@@ -147,7 +150,7 @@ class AIWorkerPool {
       try {
         void oldWorker.terminate();
       } catch (e) {
-        console.warn(`Could not terminate worker ${index}:`, e);
+        log.warn(`Could not terminate worker ${index}:`, e);
       }
     }
 
@@ -176,12 +179,12 @@ class AIWorkerPool {
           const privacyProvider = await this.privacyCounter.getProviderForUser(userId);
           processedData.provider = privacyProvider;
         } else {
-          console.warn(
+          log.warn(
             '[AIWorkerPool] Privacy mode enabled but no user ID found, using default provider'
           );
         }
       } catch (error) {
-        console.error('[AIWorkerPool] Privacy mode error:', error);
+        log.error('[AIWorkerPool] Privacy mode error:', { error });
       }
     }
 
@@ -189,7 +192,7 @@ class AIWorkerPool {
       const { workerIndex, worker } = this.selectWorker();
 
       const timeout = setTimeout(() => {
-        console.error(
+        log.error(
           `[AIWorkerPool] Timeout for request ${requestId} after ${config.worker.requestTimeout}ms`
         );
         this.pendingRequests.delete(requestId);

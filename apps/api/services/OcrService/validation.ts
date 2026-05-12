@@ -5,7 +5,11 @@
 
 import { promises as fs } from 'fs';
 
+import { createLogger } from '../../utils/logger.js';
+
 import type { DocumentLimits } from './types.js';
+
+const log = createLogger('validation');
 
 /**
  * Validate document limits before processing
@@ -45,16 +49,16 @@ export async function validateDocumentLimits(
         );
       }
 
-      console.log(
+      log.debug(
         `[OCRService] Document validation passed: ${pageCount} pages, ${fileSizeMB.toFixed(1)}MB`
       );
       return { pageCount, fileSizeMB };
     }
 
-    console.log(`[OCRService] Document validation passed: ${fileSizeMB.toFixed(1)}MB`);
+    log.debug(`[OCRService] Document validation passed: ${fileSizeMB.toFixed(1)}MB`);
     return { fileSizeMB };
   } catch (error) {
-    console.error(`[OCRService] Document validation failed:`, (error as Error).message);
+    log.error(`[OCRService] Document validation failed:`, (error as Error).message);
     throw error;
   }
 }

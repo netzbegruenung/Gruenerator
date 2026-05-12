@@ -36,7 +36,7 @@ const router: Router = Router();
 try {
   registerFonts();
 } catch (err) {
-  log.error('Failed to register fonts:', err);
+  log.error('Failed to register fonts:', { error: err });
   process.exit(1);
 }
 
@@ -133,7 +133,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
     res.json(response);
   } catch (error) {
-    log.error('Free canvas render error:', error);
+    log.error('Free canvas render error:', { error });
     res.status(500).json({
       success: false,
       error: (error as Error).message,

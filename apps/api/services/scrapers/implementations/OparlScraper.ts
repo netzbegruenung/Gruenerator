@@ -11,6 +11,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
+import { createLogger } from '../../../utils/logger.js';
 import oparlApiClient from '../../api-clients/oparlApiClient.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
@@ -22,6 +23,8 @@ import type { QdrantService } from '../../../database/services/QdrantService/ind
 import type { OparlPaper } from '../../api-clients/oparlApiClient.js';
 import type { Chunk } from '../../document-services/TextChunker/types.js';
 import type { ScraperResult, OparlEndpoint } from '../types.js';
+
+const log = createLogger('OparlScraper');
 
 /**
  * City scraping result
@@ -261,7 +264,7 @@ export class OparlScraper extends BaseScraper {
             this.log(`✓ Stored "${paper.name?.substring(0, 40)}..." (${chunks.length} chunks)`);
           } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-            console.error(`[OparlScraper] ✗ Error processing ${paper.id}: ${errorMessage}`);
+            log.error(`[OparlScraper] ✗ Error processing ${paper.id}: ${errorMessage}`);
             result.errors++;
           }
         }
@@ -273,7 +276,7 @@ export class OparlScraper extends BaseScraper {
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[OparlScraper] City scrape failed:`, errorMessage);
+      log.error(`[OparlScraper] City scrape failed:`, errorMessage);
       throw error;
     }
 

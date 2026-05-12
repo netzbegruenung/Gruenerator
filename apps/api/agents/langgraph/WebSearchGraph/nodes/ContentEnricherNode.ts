@@ -4,18 +4,21 @@
  */
 
 import { urlCrawlerService } from '../../../../services/scrapers/implementations/UrlCrawler/index.js';
+import { createLogger } from '../../../../utils/logger.js';
 
 import type { WebSearchState, EnrichedResult } from '../types.js';
+
+const log = createLogger('ContentEnricherNode');
 
 /**
  * Content Enricher Node: Performs actual crawling of selected URLs
  */
 export async function contentEnricherNode(state: WebSearchState): Promise<Partial<WebSearchState>> {
-  console.log('[WebSearchGraph] Running content enricher');
+  log.debug('[WebSearchGraph] Running content enricher');
 
   try {
     if (!state.crawlDecisions || state.crawlDecisions.length === 0) {
-      console.log('[ContentEnricher] No URLs selected for crawling');
+      log.debug('[ContentEnricher] No URLs selected for crawling');
       return {
         enrichedResults: state.webResults?.[0]?.results || [],
         crawlMetadata: {
@@ -30,17 +33,17 @@ export async function contentEnricherNode(state: WebSearchState): Promise<Partia
     const timeout = state.crawlMetadata?.timeout || 3000;
 
     // Perform parallel crawling of selected URLs
-    console.log(`[ContentEnricher] Starting parallel crawl of ${state.crawlDecisions.length} URLs`);
+    log.debug(`[ContentEnricher] Starting parallel crawl of ${state.crawlDecisions.length} URLs`);
 
     const crawlPromises = state.crawlDecisions.map(async (decision) => {
       try {
         const originalResult = webResults.find((r) => r.url === decision.url);
         if (!originalResult) {
-          console.warn(`[ContentEnricher] URL not found in results: ${decision.url}`);
+          log.warn(`[ContentEnricher] URL not found in results: ${decision.url}`);
           return null;
         }
 
-        console.log(`[ContentEnricher] Crawling: ${originalResult.url}`);
+        log.debug(`[ContentEnricher] Crawling: ${originalResult.url}`);
 
         const crawlResult = await urlCrawlerService.crawlUrl(originalResult.url, {
           timeout,
@@ -56,7 +59,7 @@ export async function contentEnricherNode(state: WebSearchState): Promise<Partia
           } as EnrichedResult;
         } else {
           const errorMsg = crawlResult.error || 'Unknown error';
-          console.warn(`[ContentEnricher] Crawl failed for ${originalResult.url}: ${errorMsg}`);
+          log.warn(`[ContentEnricher] Crawl failed for ${originalResult.url}: ${errorMsg}`);
           return {
             ...originalResult,
             crawled: false,
@@ -65,7 +68,7 @@ export async function contentEnricherNode(state: WebSearchState): Promise<Partia
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn(`[ContentEnricher] Crawl error for ${decision.url}:`, errorMessage);
+        log.warn(`[ContentEnricher] Crawl error for ${decision.url}:`, errorMessage);
         const originalResult = webResults.find((r) => r.url === decision.url);
         return originalResult
           ? ({
@@ -94,7 +97,7 @@ export async function contentEnricherNode(state: WebSearchState): Promise<Partia
       };
     });
 
-    console.log(
+    log.debug(
       `[ContentEnricher] Crawl completed: ${successfulCrawls}/${state.crawlDecisions.length} successful`
     );
 
@@ -109,7 +112,7 @@ export async function contentEnricherNode(state: WebSearchState): Promise<Partia
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[WebSearchGraph] Content enricher error:', errorMessage);
+    log.error('[WebSearchGraph] Content enricher error:', errorMessage);
     return {
       enrichedResults: state.webResults?.[0]?.results || [],
       error: `Content enrichment failed: ${errorMessage}`,

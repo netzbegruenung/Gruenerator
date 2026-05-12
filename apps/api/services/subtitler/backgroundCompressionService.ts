@@ -174,7 +174,7 @@ async function shouldCompressVideo(videoPath: string): Promise<boolean> {
 
     return true;
   } catch (error: unknown) {
-    log.error('[BackgroundCompression] Error analyzing video for compression:', error);
+    log.error('[BackgroundCompression] Error analyzing video for compression:', { error });
     return false;
   }
 }
@@ -383,7 +383,7 @@ async function compressVideoInBackground(
             resolve();
           })
           .on('error', (err: Error) => {
-            log.error(`[BackgroundCompression] FFmpeg error for ${uploadId}:`, err);
+            log.error(`[BackgroundCompression] FFmpeg error for ${uploadId}:`, { error: err });
             reject(err);
           })
           .save(compressedPath);
@@ -473,7 +473,7 @@ async function compressVideoInBackground(
       spaceSaved: originalSizeMB - compressedSizeMB,
     };
   } catch (error: unknown) {
-    log.error(`[BackgroundCompression] Error compressing ${uploadId}:`, error);
+    log.error(`[BackgroundCompression] Error compressing ${uploadId}:`, { error });
 
     try {
       await redisClient.set(
@@ -505,7 +505,7 @@ async function getCompressionStatus(uploadId: string): Promise<CompressionStatus
     const status: CompressionStatus = JSON.parse(statusData) as CompressionStatus;
     return status;
   } catch (error: unknown) {
-    log.error(`[BackgroundCompression] Error getting status for ${uploadId}:`, error);
+    log.error(`[BackgroundCompression] Error getting status for ${uploadId}:`, { error });
     return { status: 'error', error: error instanceof Error ? error.message : String(error) };
   }
 }

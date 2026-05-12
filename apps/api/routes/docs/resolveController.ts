@@ -1,11 +1,14 @@
 import { Router, type Request, type Response } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { createLogger } from '../../utils/logger.js';
 import { getParam } from '../../utils/params.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
 import { checkDocumentAccess, autoGrantSharePermission } from './documentAccess.js';
 import { type CollaborativeDocument } from './types.js';
+
+const log = createLogger('resolveController');
 
 const router = Router();
 const db = getPostgresInstance();
@@ -63,7 +66,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     return res.json(document);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error resolving document:', error);
+    log.error('[Docs] Error resolving document:', { error });
     return res.status(500).json({ error: 'Failed to resolve document', details: message });
   }
 });

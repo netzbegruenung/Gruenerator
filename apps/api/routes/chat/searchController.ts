@@ -44,7 +44,7 @@ router.get('/', async (req, res) => {
 
     return res.json({ results, total: results.length });
   } catch (err) {
-    log.error('Chat search failed:', err);
+    log.error('Chat search failed:', { error: err });
     return res.status(500).json({ error: 'Search failed' });
   }
 });

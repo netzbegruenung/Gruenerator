@@ -99,7 +99,7 @@ router.post(
         threadId = thread.id;
         sse.send('thread_created', { threadId });
       } catch (err) {
-        log.error('Failed to create notebook thread:', err);
+        log.error('Failed to create notebook thread:', { error: err });
       }
     }
 
@@ -107,7 +107,7 @@ router.post(
     const userMessagePromise =
       threadId && userText
         ? createMessage(threadId, 'user', userText, undefined, user.id).catch((err) =>
-            log.error('Failed to persist user message:', err)
+            log.error('Failed to persist user message:', { error: err })
           )
         : null;
 
@@ -147,7 +147,7 @@ router.post(
           touchThread(threadId),
         ]);
       } catch (err) {
-        log.error('Failed to persist assistant message:', err);
+        log.error('Failed to persist assistant message:', { error: err });
       }
     }
   }

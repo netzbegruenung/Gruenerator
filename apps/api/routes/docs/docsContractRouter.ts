@@ -21,15 +21,14 @@ import { docsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { logContractValidationError } from '../../utils/contractValidationLogger.js';
-import { createLogger } from '../../utils/logger.js';
-
 import {
   DOCUMENT_GENERATION_PROMPT,
   parseDocumentResponse,
   createDocumentWithContent,
 } from '../../services/docs/DocGenerationService.js';
+import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { createLogger } from '../../utils/logger.js';
 import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
 
 import { DOCS_ONLY_SUBTYPES, DOCS_SUBTYPES, GRANTED_BY_SHARE_LINK } from './constants.js';
@@ -100,7 +99,7 @@ export const docsContractRouter = s.router(docsContract, {
       return { status: 200 as const, body: document };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.error('[docsContract.getDocumentById] Error:', error);
+      log.error('[docsContract.getDocumentById] Error:', { error });
       return {
         status: 500 as const,
         body: { error: 'Failed to fetch document', details: message },
@@ -201,7 +200,7 @@ export const docsContractRouter = s.router(docsContract, {
       return { status: 200 as const, body: [...permissionsList, ...groupEntries] };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.error('[docsContract.listPermissions] Error:', error);
+      log.error('[docsContract.listPermissions] Error:', { error });
       return {
         status: 500 as const,
         body: { error: 'Failed to list permissions', details: message },
@@ -265,7 +264,7 @@ export const docsContractRouter = s.router(docsContract, {
         },
       };
     } catch (error) {
-      log.error('[docsContract.disableSharing] Error:', error);
+      log.error('[docsContract.disableSharing] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to disable sharing' } };
     }
   },
@@ -344,7 +343,7 @@ export const docsContractRouter = s.router(docsContract, {
       return { status: 201 as const, body: { message: 'Document shared with group successfully' } };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.error('[docsContract.addGroupShare] Error:', error);
+      log.error('[docsContract.addGroupShare] Error:', { error });
       return {
         status: 500 as const,
         body: { error: 'Failed to share document with group', details: message },
@@ -391,7 +390,7 @@ export const docsContractRouter = s.router(docsContract, {
       return { status: 200 as const, body: { message: 'Group permission updated successfully' } };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.error('[docsContract.updateGroupShare] Error:', error);
+      log.error('[docsContract.updateGroupShare] Error:', { error });
       return {
         status: 500 as const,
         body: { error: 'Failed to update group permission', details: message },
@@ -425,7 +424,7 @@ export const docsContractRouter = s.router(docsContract, {
       const thread = await ensureDocChatThread(id, doc.created_by);
       return { status: 200 as const, body: { threadId: thread.id } };
     } catch (error) {
-      log.error('[docsContract.getChatThread] Error:', error);
+      log.error('[docsContract.getChatThread] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to resolve chat thread' } };
     }
   },
@@ -460,7 +459,7 @@ export const docsContractRouter = s.router(docsContract, {
       return { status: 201 as const, body: result[0] };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.error('[docsContract.createDocument] Error:', error);
+      log.error('[docsContract.createDocument] Error:', { error });
       return {
         status: 500 as const,
         body: { error: 'Failed to create document', details: message },
@@ -505,7 +504,7 @@ export const docsContractRouter = s.router(docsContract, {
       return { status: 201 as const, body: document as unknown as CollaborativeDocument };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.error('[docsContract.generateDocument] Error:', error);
+      log.error('[docsContract.generateDocument] Error:', { error });
       return {
         status: 500 as const,
         body: { error: 'Failed to generate document', details: message },
@@ -573,7 +572,7 @@ export const docsContractRouter = s.router(docsContract, {
       return { status: 200 as const, body: result };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      log.error('[docsContract.listDocuments] Error:', error);
+      log.error('[docsContract.listDocuments] Error:', { error });
       return {
         status: 500 as const,
         body: { error: 'Failed to list documents', details: message },
@@ -596,7 +595,7 @@ export const docsContractRouter = s.router(docsContract, {
         },
       };
     } catch (error) {
-      log.error('[docsContract.getShareSettings] Error:', error);
+      log.error('[docsContract.getShareSettings] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to fetch share settings' } };
     }
   },
@@ -623,7 +622,7 @@ export const docsContractRouter = s.router(docsContract, {
         },
       };
     } catch (error) {
-      log.error('[docsContract.enableSharing] Error:', error);
+      log.error('[docsContract.enableSharing] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to enable sharing' } };
     }
   },
@@ -651,7 +650,7 @@ export const docsContractRouter = s.router(docsContract, {
         },
       };
     } catch (error) {
-      log.error('[docsContract.setSharePermission] Error:', error);
+      log.error('[docsContract.setSharePermission] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to update share permission' } };
     }
   },
@@ -698,7 +697,7 @@ export const docsContractRouter = s.router(docsContract, {
         },
       };
     } catch (error) {
-      log.error('[docsContract.setShareMode] Error:', error);
+      log.error('[docsContract.setShareMode] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to update share mode' } };
     }
   },
@@ -719,9 +718,7 @@ type ShareLookupResult =
   | { kind: 'ok'; row: OwnedShareRow }
   | {
       kind: 'fail';
-      response:
-        | { status: 403; body: { error: string } }
-        | { status: 404; body: { error: string } };
+      response: { status: 403; body: { error: string } } | { status: 404; body: { error: string } };
     };
 
 /**

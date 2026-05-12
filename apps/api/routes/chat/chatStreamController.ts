@@ -224,7 +224,7 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
         const results = await executeDirectSearch({ query, collection, limit });
         return results;
       } catch (error) {
-        log.error('Direct search error:', error);
+        log.error('Direct search error:', { error });
         return { error: 'Suche fehlgeschlagen', results: [], collection, query };
       }
     },
@@ -249,7 +249,7 @@ NICHT FÜR: Aktuelle Nachrichten, Personen-Infos, allgemeine Web-Suche`,
   //         const results = await executeDirectPersonSearch({ query });
   //         return results;
   //       } catch (error) {
-  //         log.error('Direct person search error:', error);
+  //         log.error('Direct person search error:', { error });
   //         return { error: 'Personensuche fehlgeschlagen', results: [], isPersonQuery: false };
   //       }
   //     },
@@ -278,7 +278,7 @@ NICHT FÜR: Allgemeine Informationssuche, Fakten, Nachrichten`,
         });
         return results;
       } catch (error) {
-        log.error('Direct examples search error:', error);
+        log.error('Direct examples search error:', { error });
         return { error: 'Beispielsuche fehlgeschlagen', examples: [], resultsCount: 0 };
       }
     },
@@ -301,7 +301,7 @@ NICHT FÜR: Social-Media-Posts (nutze gruenerator_examples_search), allgemeine R
         const results = await executeDirectPressemitteilungExamples({ query });
         return results;
       } catch (error) {
-        log.error('Direct pressemitteilung examples error:', error);
+        log.error('Direct pressemitteilung examples error:', { error });
         return {
           error: 'Pressemitteilung-Suche fehlgeschlagen',
           examples: [],
@@ -335,7 +335,7 @@ NICHT FÜR: Grüne Parteiprogramme (nutze gruenerator_search)`,
         const results = await executeDirectWebSearch({ query, searchType, maxResults });
         return results;
       } catch (error) {
-        log.error('Direct web search error:', error);
+        log.error('Direct web search error:', { error });
         return { error: 'Websuche fehlgeschlagen', results: [], resultsCount: 0, query };
       }
     },
@@ -380,7 +380,7 @@ NICHT FÜR: Einfache Begrüßungen, Dankeschöns, kreative Aufgaben ohne Faktenb
         );
         return result;
       } catch (error) {
-        log.error('Research tool error:', error);
+        log.error('Research tool error:', { error });
         return {
           answer: 'Die Recherche konnte leider nicht durchgeführt werden.',
           citations: [],
@@ -710,7 +710,7 @@ router.post(
                   }
                 }
               } catch (error) {
-                log.error('Failed to save assistant message:', error);
+                log.error('Failed to save assistant message:', { error });
               }
             }
           },
@@ -758,7 +758,7 @@ router.post(
         }
       }
     } catch (error) {
-      log.error('[Chat Debug] Chat API error:', error);
+      log.error('[Chat Debug] Chat API error:', { error });
       log.error('[Chat Debug] Error stack:', error instanceof Error ? error.stack : 'No stack');
       return res.status(500).json({ error: 'Internal server error' });
     }

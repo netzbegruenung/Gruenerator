@@ -54,7 +54,7 @@ Bitte schlage eine verbesserte Version des Abschnitts vor, die die gewünschten 
       throw new Error(result.error);
     }
   } catch (error) {
-    log.error('Fehler bei der KI-Anfrage:', error);
+    log.error('Fehler bei der KI-Anfrage:', { error });
     res.status(500).json({
       error: 'Fehler bei der Verarbeitung der KI-Anfrage',
       details: (error as Error).message,

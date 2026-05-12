@@ -84,7 +84,7 @@ router.get('/models', async (req: Request, res: Response): Promise<void> => {
     const models = await getAvailableModels(forceRefresh);
     res.json({ models });
   } catch (error) {
-    log.error('[playground] Failed to fetch models:', error);
+    log.error('[playground] Failed to fetch models:', { error });
     res.status(500).json({ error: 'Failed to fetch models' });
   }
 });

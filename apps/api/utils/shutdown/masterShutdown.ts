@@ -5,15 +5,19 @@
 
 import cluster from 'cluster';
 
+import { createLogger } from '../logger.js';
+
 import type { MasterShutdownOptions, MasterShutdownHandler, Logger } from './types.js';
+
+const log = createLogger('masterShutdown');
 
 const DEFAULT_WORKER_TIMEOUT = 10000; // 10 seconds
 
 const defaultLogger: Logger = {
-  info: (msg: string) => console.log(`[Master] ${msg}`),
-  warn: (msg: string) => console.warn(`[Master] ${msg}`),
-  error: (msg: string) => console.error(`[Master] ${msg}`),
-  debug: (msg: string) => console.debug(`[Master] ${msg}`),
+  info: (msg: string) => log.debug(`[Master] ${msg}`),
+  warn: (msg: string) => log.warn(`[Master] ${msg}`),
+  error: (msg: string) => log.error(`[Master] ${msg}`),
+  debug: (msg: string) => log.debug(`[Master] ${msg}`),
 };
 
 /**

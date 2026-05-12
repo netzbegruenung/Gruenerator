@@ -25,7 +25,7 @@ router.get('/status', async (req: AuthRequest, res: Response) => {
     const providers = await ConnectionService.listConnections(userId);
     res.json({ providers });
   } catch (error: unknown) {
-    log.error('Failed to get connection status', error);
+    log.error('Failed to get connection status', { error });
     res.status(500).json({ error: 'Status konnte nicht abgerufen werden' });
   }
 });
@@ -38,7 +38,7 @@ router.post('/session-token', async (req: AuthRequest, res: Response) => {
     const token = await ConnectionService.createSessionToken(userId);
     res.json({ token });
   } catch (error: unknown) {
-    log.error('Failed to create session token', error);
+    log.error('Failed to create session token', { error });
     res.status(500).json({ error: 'Session-Token konnte nicht erstellt werden' });
   }
 });
@@ -57,7 +57,7 @@ router.delete('/:providerKey', async (req: AuthRequest<{ providerKey: string }>,
     log.info(`User ${userId} disconnected ${providerKey}`);
     res.json({ success: true, message: `${NANGO_PROVIDERS[providerKey].label} getrennt` });
   } catch (error: unknown) {
-    log.error('Failed to delete connection', error);
+    log.error('Failed to delete connection', { error });
     res.status(500).json({ error: 'Verbindung konnte nicht getrennt werden' });
   }
 });
@@ -113,7 +113,7 @@ router.get(
             .json({ error: `Dateizugriff für ${providerKey} nicht unterstützt` });
       }
     } catch (error: unknown) {
-      log.error('Failed to list files', error);
+      log.error('Failed to list files', { error });
       if (
         error instanceof Error &&
         'response' in error &&
@@ -159,7 +159,7 @@ router.get(
             .json({ error: `Dateizugriff für ${providerKey} nicht unterstützt` });
       }
     } catch (error: unknown) {
-      log.error('Failed to get file', error);
+      log.error('Failed to get file', { error });
       res.status(500).json({ error: 'Datei konnte nicht geladen werden' });
     }
   }

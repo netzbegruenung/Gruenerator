@@ -18,6 +18,7 @@ import {
   getExperimentalSession,
   updateExperimentalSession,
 } from '../../services/chat/ChatMemoryService.js';
+import { createLogger } from '../../utils/logger.js';
 import { enrichRequest } from '../../utils/requestEnrichment.js';
 
 import { assemblePromptGraphAsync } from './promptAssemblyGraph.js';
@@ -50,6 +51,8 @@ import type {
 } from './types/index.js';
 import type { PromptConfig } from './types/promptProcessor.js';
 import type { ExperimentalSession } from '../../services/chat/types.js';
+
+const log = createLogger('simpleInteractiveGenerator');
 
 // Lazy-loaded optional services
 let _searxngService: SearxngService | null = null;
@@ -99,7 +102,7 @@ async function generateClarifyingQuestions(
 
   const tools = [config.toolSchema];
 
-  console.log(`[SimpleInteractiveGenerator] Generating questions for ${generatorType}...`);
+  log.debug(`[SimpleInteractiveGenerator] Generating questions for ${generatorType}...`);
 
   const result = await state.aiWorkerPool.processRequest(
     {
@@ -126,7 +129,7 @@ async function generateClarifyingQuestions(
       typeof functionArgs !== 'object' ||
       !('needsClarification' in functionArgs)
     ) {
-      console.warn('[SimpleInteractiveGenerator] Invalid tool call response format');
+      log.warn('[SimpleInteractiveGenerator] Invalid tool call response format');
       return {
         needsClarification: false,
         questions: [],
@@ -141,9 +144,7 @@ async function generateClarifyingQuestions(
     const confidenceReason = typedArgs.confidenceReason || '';
 
     if (!needsClarification || !typedArgs.questions || typedArgs.questions.length === 0) {
-      console.log(
-        `[SimpleInteractiveGenerator] AI decided no questions needed: ${confidenceReason}`
-      );
+      log.debug(`[SimpleInteractiveGenerator] AI decided no questions needed: ${confidenceReason}`);
       return { needsClarification: false, questions: [], confidenceReason };
     }
 
@@ -160,11 +161,11 @@ async function generateClarifyingQuestions(
       skipOption: config.questionDefaults?.skipOption,
     }));
 
-    console.log(`[SimpleInteractiveGenerator] Generated ${questions.length} AI questions`);
+    log.debug(`[SimpleInteractiveGenerator] Generated ${questions.length} AI questions`);
     return { needsClarification: true, questions, confidenceReason };
   }
 
-  console.warn(
+  log.warn(
     '[SimpleInteractiveGenerator] AI question generation failed, proceeding without questions'
   );
   return { needsClarification: false, questions: [], confidenceReason: 'AI response failed' };
@@ -195,11 +196,11 @@ async function performWebSearch(state: {
 }): Promise<WebSearchResult | null> {
   const searxngService = await getSearxngService();
   if (!searxngService) {
-    console.log('[SimpleInteractiveAntrag] Web search service not available');
+    log.debug('[SimpleInteractiveAntrag] Web search service not available');
     return null;
   }
 
-  console.log('[SimpleInteractiveAntrag] Performing web search...');
+  log.debug('[SimpleInteractiveAntrag] Performing web search...');
 
   try {
     const partySearchTerm =
@@ -211,7 +212,7 @@ async function performWebSearch(state: {
     });
 
     if (result.success && result.results) {
-      console.log(`[SimpleInteractiveAntrag] Web search found ${result.results.length} results`);
+      log.debug(`[SimpleInteractiveAntrag] Web search found ${result.results.length} results`);
       return {
         results: result.results,
         sources: result.results.map((r) => ({
@@ -223,7 +224,7 @@ async function performWebSearch(state: {
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.warn('[SimpleInteractiveAntrag] Web search failed:', errorMessage);
+    log.warn('[SimpleInteractiveAntrag] Web search failed:', errorMessage);
   }
 
   return null;
@@ -307,7 +308,7 @@ export async function initiateInteractiveGenerator({
   aiWorkerPool,
   req,
 }: InitiateGeneratorParams): Promise<InitiateGeneratorResult> {
-  console.log(`[SimpleInteractiveGenerator] Initiating ${generatorType} session`);
+  log.debug(`[SimpleInteractiveGenerator] Initiating ${generatorType} session`);
 
   const sessionId = `exp_${Date.now()}_${crypto.randomUUID().slice(0, 9)}`;
 
@@ -332,7 +333,7 @@ export async function initiateInteractiveGenerator({
 
     // If AI is confident, generate result directly without questions
     if (!result.needsClarification) {
-      console.log(`[SimpleInteractiveGenerator] AI confident, generating directly`);
+      log.debug(`[SimpleInteractiveGenerator] AI confident, generating directly`);
 
       // Generate result directly
       const finalResult = await generateFinalResult({
@@ -381,7 +382,7 @@ export async function initiateInteractiveGenerator({
 
     await setExperimentalSession(userId, sessionData);
 
-    console.log(
+    log.debug(
       `[SimpleInteractiveGenerator] Session created: ${sessionId}, ${result.questions.length} questions`
     );
 
@@ -397,7 +398,7 @@ export async function initiateInteractiveGenerator({
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[SimpleInteractiveGenerator] Initiate error:', error);
+    log.error('[SimpleInteractiveGenerator] Initiate error:', { error });
     return {
       status: 'error',
       sessionId,
@@ -481,7 +482,7 @@ async function generateFinalResult({
     );
   }
 
-  console.log(`[SimpleInteractiveGenerator] Knowledge items: ${knowledgeItems.length}`);
+  log.debug(`[SimpleInteractiveGenerator] Knowledge items: ${knowledgeItems.length}`);
 
   // Prepare prompt context
   const promptContext: PromptContext = {
@@ -529,7 +530,7 @@ async function generateFinalResult({
     throw new Error('Generation failed: ' + generationResult.error);
   }
 
-  console.log(
+  log.debug(
     `[SimpleInteractiveGenerator] Generation completed: ${generationResult.content?.length || 0} chars`
   );
 
@@ -552,7 +553,7 @@ export async function continueInteractiveGenerator({
   aiWorkerPool,
   req,
 }: ContinueGeneratorParams): Promise<ContinueGeneratorResult> {
-  console.log(`[SimpleInteractiveGenerator] Continuing session: ${sessionId}`);
+  log.debug(`[SimpleInteractiveGenerator] Continuing session: ${sessionId}`);
 
   try {
     // Retrieve session
@@ -628,7 +629,7 @@ export async function continueInteractiveGenerator({
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[SimpleInteractiveGenerator] Continue error:', error);
+    log.error('[SimpleInteractiveGenerator] Continue error:', { error });
     return {
       status: 'error',
       sessionId,

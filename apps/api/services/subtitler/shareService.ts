@@ -85,7 +85,7 @@ class SubtitlerShareService {
       await fs.mkdir(SHARED_VIDEOS_PATH, { recursive: true });
       log.info('[SubtitlerShareService] Initialized successfully');
     } catch (error: unknown) {
-      log.error('[SubtitlerShareService] Initialization failed:', error);
+      log.error('[SubtitlerShareService] Initialization failed:', { error });
       throw error;
     }
   }
@@ -178,7 +178,7 @@ class SubtitlerShareService {
       } catch {
         /* ignore cleanup error */
       }
-      log.error('[SubtitlerShareService] Failed to create share:', error);
+      log.error('[SubtitlerShareService] Failed to create share:', { error });
       throw new Error(
         `Failed to create share: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -235,7 +235,7 @@ class SubtitlerShareService {
 
       return { ...typedResult, expired };
     } catch (error: unknown) {
-      log.error('[SubtitlerShareService] Failed to get share:', error);
+      log.error('[SubtitlerShareService] Failed to get share:', { error });
       throw new Error(
         `Failed to get share: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -276,7 +276,7 @@ class SubtitlerShareService {
         } as ShareData;
       });
     } catch (error: unknown) {
-      log.error('[SubtitlerShareService] Failed to get user shares:', error);
+      log.error('[SubtitlerShareService] Failed to get user shares:', { error });
       throw new Error(
         `Failed to get user shares: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -309,7 +309,7 @@ class SubtitlerShareService {
 
       return true;
     } catch (error: unknown) {
-      log.error('[SubtitlerShareService] Failed to record download:', error);
+      log.error('[SubtitlerShareService] Failed to record download:', { error });
       throw new Error(
         `Failed to record download: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -354,7 +354,7 @@ class SubtitlerShareService {
 
       return true;
     } catch (error: unknown) {
-      log.error('[SubtitlerShareService] Failed to delete share:', error);
+      log.error('[SubtitlerShareService] Failed to delete share:', { error });
       throw new Error(
         `Failed to delete share: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -431,7 +431,7 @@ class SubtitlerShareService {
       } catch {
         /* ignore cleanup error */
       }
-      log.error('[SubtitlerShareService] Failed to create pending share:', error);
+      log.error('[SubtitlerShareService] Failed to create pending share:', { error });
       throw new Error(
         `Failed to create pending share: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -455,7 +455,7 @@ class SubtitlerShareService {
 
       log.info(`[SubtitlerShareService] Finalized share ${shareToken}`);
     } catch (error: unknown) {
-      log.error('[SubtitlerShareService] Failed to finalize share:', error);
+      log.error('[SubtitlerShareService] Failed to finalize share:', { error });
       throw new Error(
         `Failed to finalize share: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -470,7 +470,7 @@ class SubtitlerShareService {
       await this.postgres!.query(query, [shareToken]);
       log.info(`[SubtitlerShareService] Marked share ${shareToken} as failed`);
     } catch (error: unknown) {
-      log.error('[SubtitlerShareService] Failed to mark share as failed:', error);
+      log.error('[SubtitlerShareService] Failed to mark share as failed:', { error });
     }
   }
 

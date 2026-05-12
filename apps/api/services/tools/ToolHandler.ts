@@ -3,6 +3,7 @@
  * Manages tool validation, processing, and provider-specific formatting
  */
 
+import { createLogger } from '../../utils/logger.js';
 import { MistralWebSearchService } from '../mistral/index.js';
 
 import type {
@@ -19,6 +20,8 @@ import type {
 } from './types.js';
 import type { SearchResults } from '../mistral/MistralWebSearchService/types.js';
 
+const log = createLogger('ToolHandler');
+
 export class ToolHandler {
   /**
    * Validate tools array
@@ -28,7 +31,7 @@ export class ToolHandler {
    */
   static validateTools(tools: Tool[]): boolean {
     if (!Array.isArray(tools)) {
-      console.warn('[ToolHandler] Tools must be an array');
+      log.warn('[ToolHandler] Tools must be an array');
       return false;
     }
 
@@ -37,33 +40,33 @@ export class ToolHandler {
         const func = (tool as OpenAITool).function;
 
         if (!func.name || typeof func.name !== 'string') {
-          console.warn('[ToolHandler] Tool missing valid name (OpenAI format):', tool);
+          log.warn('[ToolHandler] Tool missing valid name (OpenAI format):', tool);
           return false;
         }
 
         if (!func.description || typeof func.description !== 'string') {
-          console.warn('[ToolHandler] Tool missing valid description (OpenAI format):', tool);
+          log.warn('[ToolHandler] Tool missing valid description (OpenAI format):', tool);
           return false;
         }
 
         if (!func.parameters || typeof func.parameters !== 'object') {
-          console.warn('[ToolHandler] Tool missing valid parameters (OpenAI format):', tool);
+          log.warn('[ToolHandler] Tool missing valid parameters (OpenAI format):', tool);
           return false;
         }
       } else {
         const claudeTool = tool as ClaudeTool;
         if (!claudeTool.name || typeof claudeTool.name !== 'string') {
-          console.warn('[ToolHandler] Tool missing valid name (Claude format):', tool);
+          log.warn('[ToolHandler] Tool missing valid name (Claude format):', tool);
           return false;
         }
 
         if (!claudeTool.description || typeof claudeTool.description !== 'string') {
-          console.warn('[ToolHandler] Tool missing valid description (Claude format):', tool);
+          log.warn('[ToolHandler] Tool missing valid description (Claude format):', tool);
           return false;
         }
 
         if (!claudeTool.input_schema || typeof claudeTool.input_schema !== 'object') {
-          console.warn('[ToolHandler] Tool missing valid input_schema (Claude format):', tool);
+          log.warn('[ToolHandler] Tool missing valid input_schema (Claude format):', tool);
           return false;
         }
       }
@@ -108,7 +111,7 @@ export class ToolHandler {
           } as OpenAITool;
         }
       } else {
-        console.warn(`[ToolHandler] Unknown provider: ${provider}, returning tools as-is`);
+        log.warn(`[ToolHandler] Unknown provider: ${provider}, returning tools as-is`);
         return tool;
       }
     });
@@ -134,17 +137,17 @@ export class ToolHandler {
 
     for (const toolCall of toolCalls) {
       if (!toolCall.name || !availableToolNames.includes(toolCall.name)) {
-        console.warn('[ToolHandler] Invalid tool call - unknown tool:', toolCall.name);
+        log.warn('[ToolHandler] Invalid tool call - unknown tool:', toolCall.name);
         return false;
       }
 
       if (!toolCall.id) {
-        console.warn('[ToolHandler] Invalid tool call - missing id:', toolCall);
+        log.warn('[ToolHandler] Invalid tool call - missing id:', toolCall);
         return false;
       }
 
       if (!toolCall.input || typeof toolCall.input !== 'object') {
-        console.warn('[ToolHandler] Invalid tool call - missing or invalid input:', toolCall);
+        log.warn('[ToolHandler] Invalid tool call - missing or invalid input:', toolCall);
         return false;
       }
     }
@@ -171,16 +174,16 @@ export class ToolHandler {
     }
 
     if (!Array.isArray(tools) || tools.length === 0) {
-      console.warn(`[ToolHandler] Invalid tools provided for ${requestId} (type: ${type}):`, tools);
+      log.warn(`[ToolHandler] Invalid tools provided for ${requestId} (type: ${type}):`, tools);
       return null;
     }
 
     if (!this.validateTools(tools)) {
-      console.error(`[ToolHandler] Tool validation failed for ${requestId} (type: ${type})`);
+      log.error(`[ToolHandler] Tool validation failed for ${requestId} (type: ${type})`);
       return null;
     }
 
-    console.log(`[ToolHandler] Validated ${tools.length} tools for ${requestId} (type: ${type})`);
+    log.debug(`[ToolHandler] Validated ${tools.length} tools for ${requestId} (type: ${type})`);
     return tools;
   }
 
@@ -214,7 +217,7 @@ export class ToolHandler {
     // Add tool_choice if specified
     if (options.tool_choice) {
       payload.tool_choice = options.tool_choice as ToolChoice;
-      console.log(`[ToolHandler] Tool choice added for ${requestId}:`, options.tool_choice);
+      log.debug(`[ToolHandler] Tool choice added for ${requestId}:`, options.tool_choice);
     }
 
     return payload;
@@ -235,7 +238,7 @@ export class ToolHandler {
     tools: Tool[] = [],
     toolCalls: ToolCall[] = []
   ): void {
-    console.log(`[ToolHandler] Tool usage summary for ${requestId}:`, {
+    log.debug(`[ToolHandler] Tool usage summary for ${requestId}:`, {
       type,
       provider,
       toolsProvided: tools.length,
@@ -284,7 +287,7 @@ export class ToolHandler {
     options: Record<string, unknown>,
     req: unknown
   ): Promise<AIResponseWithTools> {
-    console.log(`[ToolHandler] Continuing conversation with tool_use response`);
+    log.debug(`[ToolHandler] Continuing conversation with tool_use response`);
 
     if (!initialResult.tool_calls || initialResult.tool_calls.length === 0) {
       throw new Error('No tool calls found in initial result');
@@ -309,26 +312,26 @@ export class ToolHandler {
 
     // Process each tool call and add tool results
     for (const toolCall of initialResult.tool_calls) {
-      console.log(`[ToolHandler] Processing tool call: ${toolCall.name}`, toolCall.input);
+      log.debug(`[ToolHandler] Processing tool call: ${toolCall.name}`, toolCall.input);
 
       let toolResult: SearchResults | WebSearchResult;
 
       if (toolCall.name === 'web_search') {
         // Use Mistral Web Search Service for real search results
-        console.log(`[ToolHandler] Starting real web search for query: "${toolCall.input.query}"`);
+        log.debug(`[ToolHandler] Starting real web search for query: "${toolCall.input.query}"`);
 
         const searchService = new MistralWebSearchService();
         toolResult = await searchService.performWebSearch(toolCall.input.query as string);
 
-        console.log(`[ToolHandler] Web search completed: ${toolResult.resultCount} results found`);
-        console.log(`[ToolHandler] Search results:`, JSON.stringify(toolResult, null, 2));
+        log.debug(`[ToolHandler] Web search completed: ${toolResult.resultCount} results found`);
+        log.debug(`[ToolHandler] Search results:`, JSON.stringify(toolResult, null, 2));
       } else {
         // Handle other tools here in the future
         toolResult = {
           success: false,
           error: `Tool ${toolCall.name} is not yet implemented`,
         };
-        console.log(`[ToolHandler] Unknown tool: ${toolCall.name}`);
+        log.debug(`[ToolHandler] Unknown tool: ${toolCall.name}`);
       }
 
       // Add tool result message
@@ -345,9 +348,7 @@ export class ToolHandler {
     }
 
     // Continue conversation with updated messages
-    console.log(
-      `[ToolHandler] Continuing conversation with ${conversationMessages.length} messages`
-    );
+    log.debug(`[ToolHandler] Continuing conversation with ${conversationMessages.length} messages`);
 
     const continuationPayload = {
       systemPrompt,
@@ -371,7 +372,7 @@ export class ToolHandler {
       req
     );
 
-    console.log(`[ToolHandler] Tool continuation completed`);
+    log.debug(`[ToolHandler] Tool continuation completed`);
 
     if (!finalResult.success) {
       throw new Error(finalResult.error || 'Failed to continue conversation after tool use');

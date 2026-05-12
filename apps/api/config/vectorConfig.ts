@@ -3,7 +3,11 @@
  * Replaces hardcoded magic numbers and provides environment-based configuration
  */
 
+import { createLogger } from '../utils/logger.js';
+
 import { env } from './env.js';
+
+const log = createLogger('vectorConfig');
 
 interface LengthAdjustments {
   singleWord: number;
@@ -357,7 +361,7 @@ class VectorConfig {
     const scoringWeightSum =
       config.scoring.maxSimilarityWeight + config.scoring.avgSimilarityWeight;
     if (Math.abs(scoringWeightSum - 1.0) > 0.01) {
-      console.warn(`[VectorConfig] Scoring weights sum to ${scoringWeightSum}, should be 1.0`);
+      log.warn(`[VectorConfig] Scoring weights sum to ${scoringWeightSum}, should be 1.0`);
     }
 
     if (config.hybrid.minVectorOnlyThreshold < 0 || config.hybrid.minVectorOnlyThreshold > 1) {
@@ -372,7 +376,7 @@ class VectorConfig {
     }
 
     if (config.hybrid.minVectorOnlyThreshold < config.hybrid.minVectorWithTextThreshold) {
-      console.warn(
+      log.warn(
         '[VectorConfig] minVectorOnlyThreshold should be >= minVectorWithTextThreshold for logical consistency'
       );
     }
@@ -383,7 +387,7 @@ class VectorConfig {
         0
       );
       if (Math.abs(qualityWeightSum - 1.0) > 0.01) {
-        console.warn(`[VectorConfig] Quality weights sum to ${qualityWeightSum}, should be 1.0`);
+        log.warn(`[VectorConfig] Quality weights sum to ${qualityWeightSum}, should be 1.0`);
       }
 
       if (config.quality.minChunkQuality < 0 || config.quality.minChunkQuality > 1) {
@@ -403,7 +407,7 @@ class VectorConfig {
     }
 
     if (config.rerank.mergeOverfetch < config.rerank.outputLimit) {
-      console.warn('[VectorConfig] RERANK_MERGE_OVERFETCH should be >= RERANK_OUTPUT_LIMIT');
+      log.warn('[VectorConfig] RERANK_MERGE_OVERFETCH should be >= RERANK_OUTPUT_LIMIT');
     }
 
     if (config.rerank.webScoreCeiling < 0 || config.rerank.webScoreCeiling > 1) {
@@ -464,9 +468,7 @@ class VectorConfig {
   getCacheConfig(cacheType: keyof CacheConfig): CacheEntry {
     const cacheConfig = this.config.cache[cacheType];
     if (!cacheConfig) {
-      console.warn(
-        `[VectorConfig] Unknown cache type '${cacheType}', using searchResults as default`
-      );
+      log.warn(`[VectorConfig] Unknown cache type '${cacheType}', using searchResults as default`);
       return this.config.cache.searchResults;
     }
     return cacheConfig;

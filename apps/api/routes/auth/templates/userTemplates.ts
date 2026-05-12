@@ -161,7 +161,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Templates /from-url] Error:', err);
+      log.error('[User Templates /from-url] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: 'Fehler beim Verarbeiten der URL.',
@@ -247,7 +247,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Templates /user-templates GET] Error:', err);
+      log.error('[User Templates /user-templates GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der Vorlagen.',
@@ -349,7 +349,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Templates /user-templates POST] Error:', err);
+      log.error('[User Templates /user-templates POST] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Erstellen der Vorlage.',
@@ -472,7 +472,7 @@ router.put(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Templates /user-templates PUT] Error:', err);
+      log.error('[User Templates /user-templates PUT] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Aktualisieren der Vorlage.',
@@ -514,7 +514,7 @@ router.delete(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Templates /user-templates DELETE] Error:', err);
+      log.error('[User Templates /user-templates DELETE] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Löschen der Vorlage.',
@@ -592,7 +592,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Templates /user-templates/:id/metadata POST] Error:', err);
+      log.error('[User Templates /user-templates/:id/metadata POST] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Aktualisieren der Vorlagen-Metadaten.',
@@ -671,7 +671,7 @@ router.delete(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Templates /user-templates/bulk DELETE] Error:', err);
+      log.error('[User Templates /user-templates/bulk DELETE] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Failed to perform bulk delete of templates',
@@ -707,7 +707,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Templates /user-templates/:id/instantiate POST] Error:', err);
+      log.error('[User Templates /user-templates/:id/instantiate POST] Error:', { error: err });
       const message = err.message || '';
       if (message.includes('not found')) {
         res.status(404).json({ success: false, message: 'Vorlage nicht gefunden.' });

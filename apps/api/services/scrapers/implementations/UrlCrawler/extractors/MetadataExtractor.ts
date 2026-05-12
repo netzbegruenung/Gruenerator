@@ -3,8 +3,12 @@
  * Extracts enhanced metadata from HTML for rich content
  */
 
+import { createLogger } from '../../../../../utils/logger.js';
+
 import type { EnhancedMetadata } from '../types.js';
 import type { CheerioAPI } from 'cheerio';
+
+const log = createLogger('MetadataExtractor');
 
 export class MetadataExtractor {
   /**
@@ -70,7 +74,7 @@ export class MetadataExtractor {
         const imageUrl = new URL(ogImage, url).href;
         enhancedData.previewImage = imageUrl;
       } catch {
-        console.warn('[MetadataExtractor] Invalid image URL:', ogImage);
+        log.warn('[MetadataExtractor] Invalid image URL:', ogImage);
       }
     }
 
@@ -154,7 +158,7 @@ export class MetadataExtractor {
       enhancedData.structuredData = structuredData;
     }
 
-    console.log('[MetadataExtractor] Extracted enhanced metadata:', {
+    log.debug('[MetadataExtractor] Extracted enhanced metadata:', {
       hasPreviewImage: !!enhancedData.previewImage,
       hasDimensions: !!enhancedData.dimensions,
       categoriesCount: enhancedData.categories?.length || 0,
@@ -177,7 +181,7 @@ export class MetadataExtractor {
         }
       }
     } catch (error) {
-      console.warn(
+      log.warn(
         '[MetadataExtractor] Error parsing structured data:',
         error instanceof Error ? error.message : 'Unknown error'
       );

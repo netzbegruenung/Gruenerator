@@ -3,7 +3,11 @@
  * Verifies user document ownership
  */
 
+import { createLogger } from '../../../utils/logger.js';
+
 import type { DocumentRecord } from '../PostgresDocumentService/types.js';
+
+const log = createLogger('accessControl');
 
 /**
  * Verify user owns requested documents and return accessible ones
@@ -24,7 +28,7 @@ export async function getAccessibleDocuments(
         accessibleDocuments.push(doc);
       }
     } catch (error: unknown) {
-      console.warn(
+      log.warn(
         '[DocumentContentService] Document %s not accessible: %s',
         docId.replace(/%/g, '%%'),
         error instanceof Error ? error.message : String(error)
@@ -36,7 +40,7 @@ export async function getAccessibleDocuments(
     throw new Error('No accessible documents found');
   }
 
-  console.log(
+  log.debug(
     `[DocumentContentService] User has access to ${accessibleDocuments.length}/${documentIds.length} documents`
   );
 

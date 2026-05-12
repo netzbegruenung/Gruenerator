@@ -4,8 +4,12 @@
  * Uses canvas path drawing for SVG-like rendering
  */
 
+import { createLogger } from '../../../../utils/logger.js';
+
 import type { ShapeLayer } from '../types/freeCanvasTypes.js';
 import type { SKRSContext2D as CanvasRenderingContext2D } from '@napi-rs/canvas';
+
+const log = createLogger('shapeRenderer');
 
 function renderRect(ctx: CanvasRenderingContext2D, shape: ShapeLayer): void {
   ctx.fillRect(-shape.width / 2, -shape.height / 2, shape.width, shape.height);
@@ -130,7 +134,7 @@ export function renderShape(ctx: CanvasRenderingContext2D, shape: ShapeLayer): v
       renderCloud(ctx, shape);
       break;
     default:
-      console.warn(`Unknown shape type: ${shape.type as string}`);
+      log.warn(`Unknown shape type: ${shape.type as string}`);
   }
 
   ctx.restore();

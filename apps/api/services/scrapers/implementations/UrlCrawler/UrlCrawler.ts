@@ -5,6 +5,7 @@
  */
 
 import { env } from '../../../../config/env.js';
+import { createLogger } from '../../../../utils/logger.js';
 
 import { CrawleeCrawler } from './crawlers/CrawleeCrawler.js';
 import { FetchCrawler } from './crawlers/FetchCrawler.js';
@@ -12,6 +13,8 @@ import { ContentExtractor } from './extractors/ContentExtractor.js';
 import { UrlValidator } from './validators/UrlValidator.js';
 
 import type { CrawlerConfig, CrawlOptions, CrawlResult, PreviewResult } from './types.js';
+
+const log = createLogger('UrlCrawler');
 
 export class UrlCrawler {
   private config: CrawlerConfig;
@@ -40,7 +43,7 @@ export class UrlCrawler {
    * Strategy: Crawlee (Cheerio → Playwright) → Fetch
    */
   async crawlUrl(url: string, options: CrawlOptions = {}): Promise<CrawlResult> {
-    console.log(`[UrlCrawler] Starting crawl for URL: ${url}`);
+    log.debug(`[UrlCrawler] Starting crawl for URL: ${url}`);
     const startTime = Date.now();
 
     try {
@@ -56,7 +59,7 @@ export class UrlCrawler {
       // Use the sanitized URL for the rest of the crawl
       url = sanitizedUrl;
 
-      console.log(`[UrlCrawler] URL validation passed, starting crawl...`);
+      log.debug(`[UrlCrawler] URL validation passed, starting crawl...`);
 
       let html: string;
       let finalUrl: string;
@@ -72,9 +75,9 @@ export class UrlCrawler {
           html = result.html;
           finalUrl = result.finalUrl;
           statusCode = result.statusCode;
-          console.log(`[UrlCrawler] Successfully crawled with Crawlee: ${url}`);
+          log.debug(`[UrlCrawler] Successfully crawled with Crawlee: ${url}`);
         } catch (crawleeError) {
-          console.log(
+          log.debug(
             '[UrlCrawler] Crawlee failed for %s, falling back to fetch:',
             url,
             crawleeError instanceof Error ? crawleeError.message : 'Unknown error'
@@ -90,7 +93,7 @@ export class UrlCrawler {
           html = result.html;
           finalUrl = result.finalUrl;
           statusCode = result.statusCode;
-          console.log(`[UrlCrawler] Successfully crawled with fetch fallback: ${url}`);
+          log.debug(`[UrlCrawler] Successfully crawled with fetch fallback: ${url}`);
         }
       } else {
         // Use fetch directly
@@ -98,7 +101,7 @@ export class UrlCrawler {
         html = result.html;
         finalUrl = result.finalUrl;
         statusCode = result.statusCode;
-        console.log(`[UrlCrawler] Successfully crawled with fetch: ${url}`);
+        log.debug(`[UrlCrawler] Successfully crawled with fetch: ${url}`);
       }
 
       // Extract content using Cheerio
@@ -117,7 +120,7 @@ export class UrlCrawler {
         }
 
         if (contentData.content.trim().length < 50) {
-          console.warn(
+          log.warn(
             `[UrlCrawler] Low content extraction for ${url}: ${contentData.wordCount} words, source: ${contentData.contentSource}`
           );
 
@@ -129,7 +132,7 @@ export class UrlCrawler {
         }
       }
 
-      console.log(`[UrlCrawler] Crawl completed successfully for ${url}`);
+      log.debug(`[UrlCrawler] Crawl completed successfully for ${url}`);
 
       return {
         success: true,
@@ -141,7 +144,7 @@ export class UrlCrawler {
         },
       };
     } catch (error) {
-      console.error(`[UrlCrawler] Crawl failed for ${url}:`, error);
+      log.error(`[UrlCrawler] Crawl failed for ${url}:`, { error });
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to crawl URL',

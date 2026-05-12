@@ -40,7 +40,7 @@ export const pipelineStateStore = {
       await redisClient.setEx(REDIS_PREFIX + threadId, TTL_SECONDS, JSON.stringify(entry));
       log.info(`Stored pipeline state for thread ${threadId}`);
     } catch (err) {
-      log.error(`Failed to store pipeline state for thread ${threadId}:`, err);
+      log.error(`Failed to store pipeline state for thread ${threadId}:`, { error: err });
     }
   },
 
@@ -50,7 +50,7 @@ export const pipelineStateStore = {
       if (!raw) return undefined;
       return parseJSON<StoredPipelineState>(raw);
     } catch (err) {
-      log.error(`Failed to get pipeline state for thread ${threadId}:`, err);
+      log.error(`Failed to get pipeline state for thread ${threadId}:`, { error: err });
       return undefined;
     }
   },
@@ -59,7 +59,7 @@ export const pipelineStateStore = {
     try {
       await redisClient.del(REDIS_PREFIX + threadId);
     } catch (err) {
-      log.error(`Failed to delete pipeline state for thread ${threadId}:`, err);
+      log.error(`Failed to delete pipeline state for thread ${threadId}:`, { error: err });
     }
   },
 };

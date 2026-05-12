@@ -3,6 +3,8 @@
  * Handles PDF text extraction, parseability checking, and page-by-page processing
  */
 
+import { createLogger } from '../../utils/logger.js';
+
 import { applyMarkdownFormatting } from './textFormatting.js';
 
 import type {
@@ -11,6 +13,8 @@ import type {
   ExtractionResult,
   PageExtractionResult,
 } from './types.js';
+
+const log = createLogger('pdfOperations');
 
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 
@@ -23,7 +27,7 @@ export async function getPdfJs(): Promise<any> {
     const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
     return pdfjsLib;
   } catch (error) {
-    console.error('[OcrService] Failed to load PDF.js:', (error as Error).message);
+    log.error('[OcrService] Failed to load PDF.js:', (error as Error).message);
     throw new Error('PDF.js library could not be loaded');
   }
 }
@@ -39,7 +43,7 @@ export async function openPdfDocument(pdfPath: string, pdfjsLib: any): Promise<a
     const pdfDoc = await loadingTask.promise;
     return pdfDoc;
   } catch (error) {
-    console.error(`[OcrService] Failed to open PDF document:`, (error as Error).message);
+    log.error(`[OcrService] Failed to open PDF document:`, (error as Error).message);
     throw error;
   }
 }
@@ -97,7 +101,7 @@ export async function canExtractTextDirectly(
           totalText += pageText + ' ';
         }
       } catch (error) {
-        console.warn(
+        log.warn(
           `[OcrService] Failed to extract text from page ${pageNum}:`,
           (error as Error).message
         );
@@ -111,7 +115,7 @@ export async function canExtractTextDirectly(
 
     const processingTimeMs = Date.now() - startTime;
 
-    console.log(
+    log.debug(
       `[OcrService] Parseability check: ${isParseable ? 'PARSEABLE' : 'NOT PARSEABLE'} ` +
         `(${pagesWithText}/${pagesToSample} pages, ${textDensity.toFixed(0)} chars/page, ${(confidence * 100).toFixed(0)}% confidence)`
     );
@@ -130,7 +134,7 @@ export async function canExtractTextDirectly(
       },
     };
   } catch (error) {
-    console.error('[OcrService] Parseability check failed:', (error as Error).message);
+    log.error('[OcrService] Parseability check failed:', (error as Error).message);
     return {
       isParseable: false,
       confidence: 0,
@@ -159,7 +163,7 @@ export async function extractTextDirectlyFromPDF(
     const pdfDoc = await openPdfDocumentFn(pdfPath);
     const totalPages = Math.min(pdfDoc.numPages as number, maxPages);
 
-    console.log(`[OcrService] Extracting text from ${totalPages} pages using PDF.js...`);
+    log.debug(`[OcrService] Extracting text from ${totalPages} pages using PDF.js...`);
 
     // Process pages in batches of 10
     const batchSize = 10;
@@ -182,11 +186,11 @@ export async function extractTextDirectlyFromPDF(
           allPageTexts.push(result.value.text);
           successfulPages++;
         } else if (result.status === 'rejected') {
-          console.warn(`[OcrService] Page extraction failed:`, result.reason);
+          log.warn(`[OcrService] Page extraction failed:`, result.reason);
         }
       }
 
-      console.log(
+      log.debug(
         `[OcrService] Processed pages ${batchStart}-${batchEnd} (${successfulPages}/${batchEnd} successful)`
       );
     }
@@ -194,7 +198,7 @@ export async function extractTextDirectlyFromPDF(
     const fullText = allPageTexts.join('\n\n');
     const processingTimeMs = Date.now() - startTime;
 
-    console.log(
+    log.debug(
       `[OcrService] PDF.js extraction completed: ${successfulPages}/${totalPages} pages, ${fullText.length} characters in ${processingTimeMs}ms`
     );
 
@@ -210,7 +214,7 @@ export async function extractTextDirectlyFromPDF(
       },
     };
   } catch (error) {
-    console.error('[OcrService] PDF.js extraction failed:', (error as Error).message);
+    log.error('[OcrService] PDF.js extraction failed:', (error as Error).message);
     throw error;
   }
 }
@@ -264,7 +268,7 @@ export async function extractTextFromBase64PDF(
   const startTime = Date.now();
 
   try {
-    console.log(`[OcrService] Extracting text from base64 PDF: ${filename}`);
+    log.debug(`[OcrService] Extracting text from base64 PDF: ${filename}`);
 
     const pdfjsLib = await getPdfJsFn();
 
@@ -302,7 +306,7 @@ export async function extractTextFromBase64PDF(
           successfulPages++;
         }
       } catch (error) {
-        console.warn(
+        log.warn(
           `[OcrService] Failed to extract text from page ${pageNum}:`,
           (error as Error).message
         );
@@ -312,7 +316,7 @@ export async function extractTextFromBase64PDF(
     const fullText = allPageTexts.join('\n\n');
     const processingTimeMs = Date.now() - startTime;
 
-    console.log(
+    log.debug(
       `[OcrService] Base64 PDF extraction completed: ${successfulPages}/${totalPages} pages, ${fullText.length} characters`
     );
 
@@ -328,7 +332,7 @@ export async function extractTextFromBase64PDF(
       },
     };
   } catch (error) {
-    console.error('[OcrService] Base64 PDF extraction failed:', (error as Error).message);
+    log.error('[OcrService] Base64 PDF extraction failed:', (error as Error).message);
     throw error;
   }
 }

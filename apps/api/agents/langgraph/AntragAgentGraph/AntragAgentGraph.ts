@@ -191,7 +191,7 @@ export async function runAntragAgentGraph(input: AntragAgentInput): Promise<Antr
       },
     };
   } catch (error: unknown) {
-    log.error('[runAntragAgentGraph] Fatal error:', error);
+    log.error('[runAntragAgentGraph] Fatal error:', { error });
     return {
       success: false,
       content: '',

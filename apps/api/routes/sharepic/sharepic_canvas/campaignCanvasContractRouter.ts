@@ -106,7 +106,7 @@ export const campaignCanvasContractRouter = s.router(sharepicContract, {
         body: { success: true, image, creditText },
       };
     } catch (error) {
-      log.error('[campaignCanvasContract.generateCampaignCanvas] Error:', error);
+      log.error('[campaignCanvasContract.generateCampaignCanvas] Error:', { error });
       return {
         status: 500 as const,
         body: { success: false, error: (error as Error).message },

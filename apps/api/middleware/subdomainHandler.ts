@@ -6,8 +6,11 @@
 import { type Response, type NextFunction } from 'express';
 
 import { getPostgresInstance } from '../database/services/PostgresService.js';
+import { createLogger } from '../utils/logger.js';
 
 import { type SubdomainRequest, type UserSiteData } from './types.js';
+
+const log = createLogger('subdomainHandler');
 
 const db = getPostgresInstance();
 
@@ -17,27 +20,25 @@ const db = getPostgresInstance();
  */
 export const getSubdomain = (host: string | undefined): string | null => {
   if (!host) {
-    console.log('[SubdomainHandler] No host provided');
+    log.debug('[SubdomainHandler] No host provided');
     return null;
   }
 
-  console.log(`[SubdomainHandler] Processing host: ${host}`);
+  log.debug(`[SubdomainHandler] Processing host: ${host}`);
   const parts = host.split('.');
 
   if (parts.length >= 3) {
     const subdomain = parts[0];
-    console.log(`[SubdomainHandler] Extracted subdomain: ${subdomain}`);
+    log.debug(`[SubdomainHandler] Extracted subdomain: ${subdomain}`);
 
     if (subdomain !== 'www' && subdomain !== 'api' && subdomain !== 'app' && subdomain !== 'beta') {
-      console.log(`[SubdomainHandler] ✓ Subdomain "${subdomain}" will be treated as user site`);
+      log.debug(`[SubdomainHandler] ✓ Subdomain "${subdomain}" will be treated as user site`);
       return subdomain;
     } else {
-      console.log(
-        `[SubdomainHandler] ✗ Subdomain "${subdomain}" is reserved, treating as main app`
-      );
+      log.debug(`[SubdomainHandler] ✗ Subdomain "${subdomain}" is reserved, treating as main app`);
     }
   } else {
-    console.log(`[SubdomainHandler] Host has ${parts.length} parts, not a subdomain`);
+    log.debug(`[SubdomainHandler] Host has ${parts.length} parts, not a subdomain`);
   }
 
   return null;
@@ -57,7 +58,7 @@ export const subdomainHandler = async (
     const subdomain = getSubdomain(host);
 
     if (subdomain) {
-      console.log(`[SubdomainHandler] Looking up user site for subdomain: ${subdomain}`);
+      log.debug(`[SubdomainHandler] Looking up user site for subdomain: ${subdomain}`);
       req.subdomain = subdomain;
 
       const result = await db.query<UserSiteData>(
@@ -67,7 +68,7 @@ export const subdomainHandler = async (
       );
 
       if (result && result.length > 0) {
-        console.log(`[SubdomainHandler] ✓ Found published site for subdomain: ${subdomain}`);
+        log.debug(`[SubdomainHandler] ✓ Found published site for subdomain: ${subdomain}`);
         req.siteData = result[0];
 
         await db.query(
@@ -76,13 +77,13 @@ export const subdomainHandler = async (
           { table: 'user_sites' }
         );
       } else {
-        console.log(`[SubdomainHandler] ✗ No published site found for subdomain: ${subdomain}`);
+        log.debug(`[SubdomainHandler] ✗ No published site found for subdomain: ${subdomain}`);
       }
     }
 
     next();
   } catch (error) {
-    console.error('[SubdomainHandler] Error:', error);
+    log.error('[SubdomainHandler] Error:', { error });
     next();
   }
 };

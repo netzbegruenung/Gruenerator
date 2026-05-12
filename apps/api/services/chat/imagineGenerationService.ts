@@ -140,7 +140,7 @@ async function generateImagineForChat(
     }
   } catch (error) {
     const err = error as Error;
-    log.error('[ImagineGeneration] Generation error:', err);
+    log.error('[ImagineGeneration] Generation error:', { error: err });
     return {
       success: false,
       agent: 'imagine',

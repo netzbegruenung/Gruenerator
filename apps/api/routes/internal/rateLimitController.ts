@@ -86,7 +86,7 @@ router.get('/:resourceType', async (req: ReqWithUser, res: Response) => {
       },
     });
   } catch (error) {
-    log.error('[RateLimitAPI] Error getting status:', error);
+    log.error('[RateLimitAPI] Error getting status:', { error });
     return res.status(500).json({
       success: false,
       error: 'Failed to get rate limit status',
@@ -130,7 +130,7 @@ router.post(
         data: results,
       });
     } catch (error) {
-      log.error('[RateLimitAPI] Error in bulk status:', error);
+      log.error('[RateLimitAPI] Error in bulk status:', { error });
       return res.status(500).json({
         success: false,
         error: 'Failed to get bulk rate limit status',
@@ -171,7 +171,7 @@ router.post('/reset/:resourceType', async (req: ReqWithUser, res: Response) => {
       });
     }
   } catch (error) {
-    log.error('[RateLimitAPI] Error resetting counter:', error);
+    log.error('[RateLimitAPI] Error resetting counter:', { error });
     return res.status(500).json({
       success: false,
       error: 'Failed to reset counter',

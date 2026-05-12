@@ -138,7 +138,7 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       return { status: 200 as const, body: serialised };
     } catch (error) {
-      log.error('Error fetching threads:', error);
+      log.error('Error fetching threads:', { error });
       return { status: 500 as const, body: { error: 'Failed to fetch threads' } };
     }
   },
@@ -169,7 +169,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         },
       };
     } catch (error) {
-      log.error('Error creating thread:', error);
+      log.error('Error creating thread:', { error });
       return { status: 500 as const, body: { error: 'Failed to create thread' } };
     }
   },
@@ -238,7 +238,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         },
       };
     } catch (error) {
-      log.error('Error updating thread:', error);
+      log.error('Error updating thread:', { error });
       return { status: 500 as const, body: { error: 'Failed to update thread' } };
     }
   },
@@ -267,7 +267,7 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {
-      log.error('Error deleting thread:', error);
+      log.error('Error deleting thread:', { error });
       return { status: 500 as const, body: { error: 'Failed to delete thread' } };
     }
   },
@@ -298,7 +298,7 @@ export const threadsContractRouter = s.router(threadsContract, {
         },
       };
     } catch (error) {
-      log.error('Error fetching thread settings:', error);
+      log.error('Error fetching thread settings:', { error });
       return { status: 500 as const, body: { error: 'Failed to fetch thread settings' } };
     }
   },
@@ -320,7 +320,7 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {
-      log.error('Error updating thread settings:', error);
+      log.error('Error updating thread settings:', { error });
       return { status: 500 as const, body: { error: 'Failed to update thread settings' } };
     }
   },
@@ -398,7 +398,7 @@ export const threadsContractRouter = s.router(threadsContract, {
 
       return { status: 202 as const, body: { status: 'accepted' as const } };
     } catch (error) {
-      log.error('Error generating thread title:', error);
+      log.error('Error generating thread title:', { error });
       return { status: 500 as const, body: { error: 'Failed to generate title' } };
     }
   },

@@ -90,13 +90,18 @@ export const auth = betterAuth({
       const args: unknown[] = rawArgs;
       if (level === 'error' && message === 'Failed to parse state') {
         const err = args[0] as { code?: string; message?: string } | undefined;
-        console.warn(
+        log.warn(
           `[BA:warn] oauth state replay code=${err?.code ?? 'unknown'} (benign: expired or already-consumed callback)`
         );
         return;
       }
       const sink =
-        level === 'error' ? console.error : level === 'warn' ? console.warn : console.log;
+        level === 'error'
+          ? console.error
+          : level === 'warn'
+            ? console.warn
+            : // eslint-disable-next-line no-console -- Winston variadic spread is awkward here; see comment above
+              console.log;
       sink(`[BA:${level}]`, message, ...args);
     },
   },

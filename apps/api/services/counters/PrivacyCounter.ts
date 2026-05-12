@@ -3,7 +3,11 @@
  * Manages Redis-based request counting for privacy mode provider selection
  */
 
+import { createLogger } from '../../utils/logger.js';
+
 import type { RedisClient } from './types.js';
+
+const log = createLogger('PrivacyCounter');
 
 export class PrivacyCounter {
   private redis: RedisClient;
@@ -19,7 +23,7 @@ export class PrivacyCounter {
    */
   async getProviderForUser(userId: string): Promise<string> {
     if (!userId) {
-      console.warn('[PrivacyCounter] No userId provided, defaulting to litellm');
+      log.warn('[PrivacyCounter] No userId provided, defaulting to litellm');
       return 'litellm';
     }
 
@@ -37,13 +41,11 @@ export class PrivacyCounter {
       // Always use litellm for privacy mode - ionos is fallback on error only
       const provider = 'litellm';
 
-      console.log(
-        `[PrivacyCounter] User ${userId}: Request #${count}, using provider: ${provider}`
-      );
+      log.debug(`[PrivacyCounter] User ${userId}: Request #${count}, using provider: ${provider}`);
 
       return provider;
     } catch (error) {
-      console.error('[PrivacyCounter] Redis error:', error);
+      log.error('[PrivacyCounter] Redis error:', { error });
       // Fallback to litellm on any error - ionos fallback happens in aiWorker on failure
       return 'litellm';
     }
@@ -61,7 +63,7 @@ export class PrivacyCounter {
       const count = typeof countResult === 'string' ? countResult : null;
       return parseInt(count || '0') || 0;
     } catch (error) {
-      console.error('[PrivacyCounter] Error getting count:', error);
+      log.error('[PrivacyCounter] Error getting count:', { error });
       return 0;
     }
   }
@@ -75,10 +77,10 @@ export class PrivacyCounter {
     try {
       const redisKey = `privacy_mode:${userId}:counter`;
       await this.redis.del(redisKey);
-      console.log(`[PrivacyCounter] Reset counter for user ${userId}`);
+      log.debug(`[PrivacyCounter] Reset counter for user ${userId}`);
       return true;
     } catch (error) {
-      console.error('[PrivacyCounter] Error resetting counter:', error);
+      log.error('[PrivacyCounter] Error resetting counter:', { error });
       return false;
     }
   }

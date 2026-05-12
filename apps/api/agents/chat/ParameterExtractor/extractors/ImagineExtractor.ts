@@ -3,6 +3,7 @@
  * Handles AI image generation with FLUX
  */
 
+import { createLogger } from '../../../../utils/logger.js';
 import {
   detectImagineMode,
   extractImagineSubject,
@@ -13,6 +14,8 @@ import {
 
 import type { ChatContext } from '../../types.js';
 import type { ImagineParameters, BaseParameters } from '../types.js';
+
+const log = createLogger('ImagineExtractor');
 
 /**
  * Extract parameters for imagine agent (FLUX image generation)
@@ -40,7 +43,7 @@ export function extractImagineParams(
   // Extract action (for edit mode)
   const action = mode === 'edit' ? extractEditAction(message) : null;
 
-  console.log('[ImagineExtractor] Imagine params:', {
+  log.debug('[ImagineExtractor] Imagine params:', {
     mode,
     subject: subject?.substring(0, 50),
     variant: variantResult.variant,

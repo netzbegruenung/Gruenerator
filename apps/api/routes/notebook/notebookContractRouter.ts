@@ -155,7 +155,7 @@ export const notebookContractRouter = s.router(notebookContract, {
         body: { collectionId, collectionName: systemConfig.name, filters },
       };
     } catch (error) {
-      log.error('[notebookContract.getFilters] Error:', error);
+      log.error('[notebookContract.getFilters] Error:', { error });
       return {
         status: 500 as const,
         body: { error: 'Failed to get collection filters' },
@@ -187,7 +187,7 @@ export const notebookContractRouter = s.router(notebookContract, {
 
       return { status: 200 as const, body: result };
     } catch (error) {
-      log.error('[notebookContract.askMulti] Error:', error);
+      log.error('[notebookContract.askMulti] Error:', { error });
       const err = error as Error;
       return {
         status: 500 as const,
@@ -244,7 +244,7 @@ export const notebookContractRouter = s.router(notebookContract, {
 
       return { status: 200 as const, body: result };
     } catch (error) {
-      log.error('[notebookContract.askSingle] Error:', error);
+      log.error('[notebookContract.askSingle] Error:', { error });
       const err = error as Error;
       return {
         status: 500 as const,
@@ -293,7 +293,7 @@ export const notebookContractRouter = s.router(notebookContract, {
         },
       };
     } catch (error) {
-      log.error('[notebookContract.getPublic] Error:', error);
+      log.error('[notebookContract.getPublic] Error:', { error });
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
@@ -368,7 +368,7 @@ export const notebookContractRouter = s.router(notebookContract, {
         },
       };
     } catch (error) {
-      log.error('[notebookContract.askPublic] Error:', error);
+      log.error('[notebookContract.askPublic] Error:', { error });
       const err = error as Error;
       return {
         status: 500 as const,

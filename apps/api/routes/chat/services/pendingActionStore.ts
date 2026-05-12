@@ -25,7 +25,7 @@ export const pendingActionStore = {
         `Stored pending action ${action.actionId} (${action.type}) for thread ${action.threadId}`
       );
     } catch (err) {
-      log.error(`Failed to store pending action ${action.actionId}:`, err);
+      log.error(`Failed to store pending action ${action.actionId}:`, { error: err });
     }
   },
 
@@ -35,7 +35,7 @@ export const pendingActionStore = {
       if (!raw) return null;
       return parseJSON<PendingAction>(raw);
     } catch (err) {
-      log.error(`Failed to get pending action ${actionId}:`, err);
+      log.error(`Failed to get pending action ${actionId}:`, { error: err });
       return null;
     }
   },
@@ -44,7 +44,7 @@ export const pendingActionStore = {
     try {
       await redisClient.del(key(threadId, actionId));
     } catch (err) {
-      log.error(`Failed to delete pending action ${actionId}:`, err);
+      log.error(`Failed to delete pending action ${actionId}:`, { error: err });
     }
   },
 };

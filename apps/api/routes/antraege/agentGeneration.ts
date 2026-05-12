@@ -18,7 +18,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     }
     await processAntragAgentRequest(req, res);
   } catch (error) {
-    log.error('[antraege/agent] Error:', error);
+    log.error('[antraege/agent] Error:', { error });
     res.status(500).json({
       success: false,
       error: 'Interner Serverfehler',

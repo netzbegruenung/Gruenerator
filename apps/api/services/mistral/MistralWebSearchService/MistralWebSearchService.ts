@@ -3,12 +3,15 @@
  * Provides real web search capabilities using Mistral's web search agent
  */
 
+import { createLogger } from '../../../utils/logger.js';
 import mistralClient from '../../../workers/mistralClient.js';
 
 import { getAgentConfig } from './agentConfig.js';
 import { extractSearchResults } from './resultExtraction.js';
 
 import type { SearchResults, AgentType } from './types.js';
+
+const log = createLogger('MistralWebSearchService');
 
 export class MistralWebSearchService {
   private client: typeof mistralClient | null;
@@ -28,7 +31,7 @@ export class MistralWebSearchService {
       throw new Error('Mistral client not available. Check MISTRAL_API_KEY environment variable.');
     }
 
-    console.log('[MistralWebSearchService] Using centralized Mistral client');
+    log.debug('[MistralWebSearchService] Using centralized Mistral client');
   }
 
   /**
@@ -47,7 +50,7 @@ export class MistralWebSearchService {
     }
 
     if (!this.agents.has(cacheKey)) {
-      console.log(`[MistralWebSearchService] Creating ${config.name}`);
+      log.debug(`[MistralWebSearchService] Creating ${config.name}`);
 
       const agent = await this.client!.beta.agents.create({
         model: 'mistral-medium-2604',
@@ -58,7 +61,7 @@ export class MistralWebSearchService {
       });
 
       this.agents.set(cacheKey, agent.id);
-      console.log(`[MistralWebSearchService] Agent created with ID: ${agent.id}`);
+      log.debug(`[MistralWebSearchService] Agent created with ID: ${agent.id}`);
     }
 
     return this.agents.get(cacheKey)!;
@@ -79,7 +82,7 @@ export class MistralWebSearchService {
       throw new Error('Valid search query is required');
     }
 
-    console.log(`[MistralWebSearchService] Searching with ${agentType} agent for: "${query}"`);
+    log.debug(`[MistralWebSearchService] Searching with ${agentType} agent for: "${query}"`);
 
     try {
       const agentConfig = getAgentConfig(agentType);
@@ -100,25 +103,25 @@ export class MistralWebSearchService {
         const contentLength = searchResults.textContent.length;
         const sourcesCount = searchResults.sourcesCount || 0;
         const preview = searchResults.textContent.substring(0, 300);
-        console.log(
+        log.debug(
           `[MistralWebSearchService] Search complete: ${contentLength} chars of content extracted, ${sourcesCount} sources found`
         );
-        console.log(
+        log.debug(
           `[MistralWebSearchService] Content preview: ${preview}${contentLength > 300 ? '...' : ''}`
         );
 
         if (sourcesCount > 0) {
           const domains = searchResults.sources.map((s) => s.domain).join(', ');
-          console.log(`[MistralWebSearchService] Sources from: ${domains}`);
+          log.debug(`[MistralWebSearchService] Sources from: ${domains}`);
         }
       } else {
-        console.log(`[MistralWebSearchService] No content found for query: "${query}"`);
+        log.debug(`[MistralWebSearchService] No content found for query: "${query}"`);
       }
 
       return searchResults;
     } catch (error) {
       const err = error as Error;
-      console.error(`[MistralWebSearchService] Search failed for query "${query}":`, err.message);
+      log.error(`[MistralWebSearchService] Search failed for query "${query}":`, err.message);
       throw new Error(`Web search failed: ${err.message}`);
     }
   }
@@ -132,7 +135,7 @@ export class MistralWebSearchService {
       this.agents.clear();
     }
     this.agents = null;
-    console.log('[MistralWebSearchService] Service cleaned up');
+    log.debug('[MistralWebSearchService] Service cleaned up');
   }
 }
 

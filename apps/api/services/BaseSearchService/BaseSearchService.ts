@@ -7,6 +7,7 @@
 
 import { vectorConfig } from '../../config/vectorConfig.js';
 import { SearchError, DatabaseError, createErrorHandler } from '../../utils/errors/index.js';
+import { createLogger } from '../../utils/logger.js';
 import { createCache } from '../../utils/redis/index.js';
 import {
   InputValidator,
@@ -52,6 +53,8 @@ import type {
   BaseSearchServiceOptions,
   MMROptions,
 } from './types.js';
+
+const log = createLogger('BaseSearchService');
 
 // Re-export SearchError for backward compatibility
 export { SearchError };
@@ -111,21 +114,21 @@ export class BaseSearchService {
       const validatedParams = this.validateSearchParams(params);
       const { query, userId, filters, options } = validatedParams;
 
-      console.log(`[${this.serviceName}] Performing similarity search for: "${query}"`);
+      log.debug(`[${this.serviceName}] Performing similarity search for: "${query}"`);
 
       // Check cache first
       if (options.useCache) {
         const cacheKey = this.generateCacheKey(validatedParams);
         const cached = this.cache.get(cacheKey) as SearchResponse | undefined;
         if (cached) {
-          console.log(`[${this.serviceName}] Cache hit for query: "${query}"`);
+          log.debug(`[${this.serviceName}] Cache hit for query: "${query}"`);
           return cached;
         }
       }
 
       // Generate query embedding
       const queryEmbedding = await this.generateQueryEmbedding(query, options);
-      console.log(
+      log.debug(
         `[${this.serviceName}] Query embedding generated (dims=${queryEmbedding?.length || 'n/a'})`
       );
 
@@ -141,7 +144,7 @@ export class BaseSearchService {
         threshold,
         query,
       });
-      console.log(`[${this.serviceName}] Retrieved ${chunks.length} chunks from vector search`);
+      log.debug(`[${this.serviceName}] Retrieved ${chunks.length} chunks from vector search`);
 
       // Handle empty results
       if (chunks.length === 0) {
@@ -172,7 +175,7 @@ export class BaseSearchService {
         this.cache.set(cacheKey, response);
       }
 
-      console.log(`[${this.serviceName}] Found ${results.length} results for: "${query}"`);
+      log.debug(`[${this.serviceName}] Found ${results.length} results for: "${query}"`);
       return response;
     } catch (error) {
       const errorResponse: SearchResponse = this.errorHandler.handle(error as Error, {
@@ -194,7 +197,7 @@ export class BaseSearchService {
       const validatedParams = this.validateSearchParams(params);
       const { query, userId, filters, options } = validatedParams;
 
-      console.log(`[${this.serviceName}] Performing hybrid search for: "${query}"`);
+      log.debug(`[${this.serviceName}] Performing hybrid search for: "${query}"`);
 
       // Check cache first
       if (options.useCache) {
@@ -204,7 +207,7 @@ export class BaseSearchService {
         } as ValidatedSearchParams & { searchType: string });
         const cached = this.cache.get(cacheKey) as SearchResponse | undefined;
         if (cached) {
-          console.log(`[${this.serviceName}] Cache hit for hybrid query: "${query}"`);
+          log.debug(`[${this.serviceName}] Cache hit for hybrid query: "${query}"`);
           return cached;
         }
       }
@@ -274,7 +277,7 @@ export class BaseSearchService {
         this.cache.set(cacheKey, response);
       }
 
-      console.log(`[${this.serviceName}] Found ${results.length} hybrid results for: "${query}"`);
+      log.debug(`[${this.serviceName}] Found ${results.length} hybrid results for: "${query}"`);
       return response;
     } catch (error) {
       const errorResponse: SearchResponse = this.errorHandler.handle(error as Error, {
@@ -315,7 +318,7 @@ export class BaseSearchService {
       threshold,
     });
 
-    console.log(`[${this.serviceName}] Calling ${rpcFunction} with threshold: ${threshold}`);
+    log.debug(`[${this.serviceName}] Calling ${rpcFunction} with threshold: ${threshold}`);
 
     // This base implementation throws an error
     throw new DatabaseError(
@@ -1201,7 +1204,7 @@ export class BaseSearchService {
       const results = await this.doSearch(validated);
       return this.format(results, validated);
     } catch (error) {
-      console.error(`[${this.serviceName}] Search error:`, error);
+      log.error(`[${this.serviceName}] Search error:`, { error });
       return this.createErrorResponse(error as Error, params.query);
     }
   }

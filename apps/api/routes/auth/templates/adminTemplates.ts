@@ -67,7 +67,7 @@ router.get(
       res.json({ success: true, data: vorlagen });
     } catch (error) {
       const err = error as Error;
-      log.error('[Admin Vorlagen] GET /admin/vorlagen error:', err);
+      log.error('[Admin Vorlagen] GET /admin/vorlagen error:', { error: err });
       res.status(500).json({ success: false, message: 'Fehler beim Laden der Vorlagen.' });
     }
   }
@@ -101,7 +101,7 @@ router.get(
       res.json({ success: true, data: stats });
     } catch (error) {
       const err = error as Error;
-      log.error('[Admin Vorlagen] GET /admin/vorlagen/stats error:', err);
+      log.error('[Admin Vorlagen] GET /admin/vorlagen/stats error:', { error: err });
       res.status(500).json({ success: false, message: 'Fehler beim Laden der Statistiken.' });
     }
   }
@@ -147,7 +147,7 @@ router.post(
       res.json({ success: true, message: 'Vorlage wurde freigegeben.' });
     } catch (error) {
       const err = error as Error;
-      log.error('[Admin Vorlagen] POST approve error:', err);
+      log.error('[Admin Vorlagen] POST approve error:', { error: err });
       res.status(500).json({ success: false, message: 'Fehler beim Freigeben der Vorlage.' });
     }
   }
@@ -199,7 +199,7 @@ router.post(
       res.json({ success: true, message: 'Vorlage wurde abgelehnt.' });
     } catch (error) {
       const err = error as Error;
-      log.error('[Admin Vorlagen] POST reject error:', err);
+      log.error('[Admin Vorlagen] POST reject error:', { error: err });
       res.status(500).json({ success: false, message: 'Fehler beim Ablehnen der Vorlage.' });
     }
   }

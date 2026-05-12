@@ -506,7 +506,7 @@ async function executeSearches(
         }
       }
     } catch (error) {
-      log.error(`[Research] Search failed for ${query.tool}:`, error);
+      log.error(`[Research] Search failed for ${query.tool}:`, { error });
       searchSteps.push({
         tool: query.tool,
         query: query.query,

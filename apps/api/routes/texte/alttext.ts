@@ -34,7 +34,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
     res.json({ altText });
   } catch (error) {
-    log.error('[claude_alttext] Error creating alt text:', error);
+    log.error('[claude_alttext] Error creating alt text:', { error });
     res.status(500).json({
       error: 'Fehler bei der Erstellung des Alt-Texts',
       details: (error as Error).message,

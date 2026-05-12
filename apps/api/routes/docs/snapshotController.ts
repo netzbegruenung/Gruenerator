@@ -5,8 +5,11 @@ import { Router, type Request, type Response } from 'express';
 import * as Y from 'yjs';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
+
+const log = createLogger('snapshotController');
 
 interface DocumentRow {
   id: string;
@@ -153,7 +156,7 @@ router.get('/:id/snapshots', async (req: Request<{ id: string }>, res: Response)
       })),
     });
   } catch (error: unknown) {
-    console.error('[Docs] Error listing snapshots:', error);
+    log.error('[Docs] Error listing snapshots:', { error });
     return res.status(500).json({ error: 'Failed to list snapshots' });
   }
 });
@@ -221,7 +224,7 @@ router.post('/:id/snapshots', async (req: Request<{ id: string }>, res: Response
       created_at: new Date().toISOString(),
     });
   } catch (error: unknown) {
-    console.error('[Docs] Error creating snapshot:', error);
+    log.error('[Docs] Error creating snapshot:', { error });
     return res.status(500).json({ error: 'Failed to create snapshot' });
   }
 });
@@ -266,7 +269,7 @@ router.get(
         created_at: result[0].created_at,
       });
     } catch (error: unknown) {
-      console.error('[Docs] Error getting snapshot preview:', error);
+      log.error('[Docs] Error getting snapshot preview:', { error });
       return res.status(500).json({ error: 'Failed to get snapshot preview' });
     }
   }
@@ -347,7 +350,7 @@ router.post(
         message: 'Dokument wurde wiederhergestellt. Bitte Seite neu laden.',
       });
     } catch (error: unknown) {
-      console.error('[Docs] Error restoring snapshot:', error);
+      log.error('[Docs] Error restoring snapshot:', { error });
       return res.status(500).json({ error: 'Failed to restore snapshot' });
     }
   }

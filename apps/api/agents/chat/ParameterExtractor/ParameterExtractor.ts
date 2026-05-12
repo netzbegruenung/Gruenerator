@@ -3,6 +3,8 @@
  * Main orchestrator that routes parameter extraction to specialized extractors
  */
 
+import { createLogger } from '../../../utils/logger.js';
+
 import { extractAntragParams } from './extractors/AntragExtractor.js';
 import { extractImagineParams } from './extractors/ImagineExtractor.js';
 import { extractSharepicParams } from './extractors/SharepicExtractor.js';
@@ -16,6 +18,8 @@ import { extractParametersWithMistral } from './mistral/MistralExtractor.js';
 import type { ChatContext } from '../types.js';
 import type { ExtractedParameters, BaseParameters } from './types.js';
 
+const log = createLogger('ParameterExtractor');
+
 /**
  * Extract parameters from user message based on target agent
  * Routes to appropriate extractor based on agent type
@@ -25,7 +29,7 @@ export async function extractParameters(
   agent: string,
   context: ChatContext = {}
 ): Promise<ExtractedParameters> {
-  console.log('[ParameterExtractor] Extracting parameters for agent:', agent);
+  log.debug('[ParameterExtractor] Extracting parameters for agent:', agent);
 
   const baseParams: BaseParameters = {
     originalMessage: message,
@@ -41,7 +45,7 @@ export async function extractParameters(
       return { ...baseParams, ...mistralParams } as ExtractedParameters;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(
+      log.error(
         '[ParameterExtractor] Mistral extraction failed, falling back to regex:',
         errorMessage
       );

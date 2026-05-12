@@ -12,7 +12,11 @@ import {
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import { createLogger } from '../../../../utils/logger.js';
+
 import type { IconLayer } from '../types/freeCanvasTypes.js';
+
+const log = createLogger('iconRenderer');
 
 const iconCache = new Map<string, string>();
 
@@ -26,7 +30,7 @@ async function getIconComponent(iconId: string): Promise<((...args: any[]) => an
   const [library, iconName] = iconId.split('-');
 
   if (!iconName) {
-    console.warn(`Invalid icon ID format: ${iconId}`);
+    log.warn(`Invalid icon ID format: ${iconId}`);
     return null;
   }
 
@@ -59,11 +63,11 @@ async function getIconComponent(iconId: string): Promise<((...args: any[]) => an
         return getFromModule(ioIcons as Record<string, unknown>, `Io${pascalCaseName}`);
       }
       default:
-        console.warn(`Unsupported icon library: ${library}`);
+        log.warn(`Unsupported icon library: ${library}`);
         return null;
     }
   } catch (error) {
-    console.warn(`Failed to load icon ${iconId}:`, (error as Error).message);
+    log.warn(`Failed to load icon ${iconId}:`, (error as Error).message);
     return null;
   }
 }
@@ -82,7 +86,7 @@ export async function renderIcon(ctx: CanvasRenderingContext2D, icon: IconLayer)
     const IconComponent = await getIconComponent(icon.iconId);
 
     if (!IconComponent) {
-      console.warn(`Icon not found: ${icon.iconId}. Skipping.`);
+      log.warn(`Icon not found: ${icon.iconId}. Skipping.`);
       return;
     }
 

@@ -1,7 +1,10 @@
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { GRANTED_BY_SHARE_LINK } from './constants.js';
 import { type CollaborativeDocument } from './types.js';
+
+const log = createLogger('documentAccess');
 
 const db = getPostgresInstance();
 
@@ -44,7 +47,8 @@ export async function checkGroupAccess(userId: string, documentId: string): Prom
   )) as { content_type: string; permissions: { read: boolean; write: boolean } | null }[];
 
   if (groupAccess.length > 0 && groupAccess[0].permissions?.read !== false) {
-    const method = groupAccess[0].content_type === 'canvas_template' ? 'group:template' : 'group:read';
+    const method =
+      groupAccess[0].content_type === 'canvas_template' ? 'group:template' : 'group:read';
     return { hasAccess: true, accessMethod: method };
   }
 
@@ -88,6 +92,6 @@ export function autoGrantSharePermission(document: CollaborativeDocument, userId
     [permissionEntry, document.id, userId]
   ).catch((err: unknown) => {
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.error('[Docs] Error auto-adding user to permissions:', errMsg);
+    log.error('[Docs] Error auto-adding user to permissions:', errMsg);
   });
 }

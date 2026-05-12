@@ -808,7 +808,7 @@ export async function runChatGraph(input: ChatGraphInput): Promise<ChatGraphOutp
       error: result.error || undefined,
     };
   } catch (error: unknown) {
-    log.error('[ChatGraph] Execution error:', error);
+    log.error('[ChatGraph] Execution error:', { error });
     return {
       success: false,
       threadId: input.threadId || null,

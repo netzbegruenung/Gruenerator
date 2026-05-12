@@ -104,7 +104,7 @@ smartRouter.post(
       }
       await processGraphRequest(detection.route, baseReq, res);
     } catch (error) {
-      log.error('[smart_texte] Processing error:', error);
+      log.error('[smart_texte] Processing error:', { error });
       res.status(500).json({
         success: false,
         error: 'Bei der Textgenerierung ist ein Fehler aufgetreten.',

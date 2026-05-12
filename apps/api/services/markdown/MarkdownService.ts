@@ -6,6 +6,10 @@
 import { stripHtmlTags } from '@gruenerator/shared/utils';
 import { marked } from 'marked';
 
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('MarkdownService');
+
 // Configure marked with consistent settings
 marked.setOptions({
   breaks: true, // Convert line breaks to <br>
@@ -24,7 +28,7 @@ export class MarkdownService {
     try {
       return marked.parse(markdown) as string;
     } catch (error) {
-      console.error('Error converting markdown to HTML:', error);
+      log.error('Error converting markdown to HTML:', { error });
       // Return original content on error
       return markdown;
     }
@@ -42,7 +46,7 @@ export class MarkdownService {
       const html = marked.parse(markdown) as string;
       return stripHtmlTags(html);
     } catch (error) {
-      console.error('Error converting markdown to plain text:', error);
+      log.error('Error converting markdown to plain text:', { error });
       // Return original content on error
       return markdown;
     }
@@ -65,7 +69,7 @@ export class MarkdownService {
         .replace(/<p>\s*<\/p>/gi, '') // Remove empty paragraphs
         .trim();
     } catch (error) {
-      console.error('Error converting markdown for export:', error);
+      log.error('Error converting markdown for export:', { error });
       // Return original content on error
       return markdown;
     }

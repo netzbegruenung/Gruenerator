@@ -174,7 +174,7 @@ export async function processAgentModeStreaming(req: Request, res: Response): Pr
       });
     }
   } catch (error: unknown) {
-    log.error('[agentMode] Streaming error:', error);
+    log.error('[agentMode] Streaming error:', { error });
     if (!abortController.signal.aborted) {
       sse.sendRaw('error', {
         error: (error instanceof Error ? error.message : String(error)) || 'Interner Fehler',
@@ -219,7 +219,7 @@ export async function processAgentModeRequest(req: Request, res: Response): Prom
       });
     }
   } catch (error: unknown) {
-    log.error('[agentMode] Request error:', error);
+    log.error('[agentMode] Request error:', { error });
     res.status(500).json({
       success: false,
       error: 'Interner Serverfehler',

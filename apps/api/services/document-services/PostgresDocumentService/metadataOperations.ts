@@ -8,6 +8,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { documents, type Document } from '../../../database/schema/documents.js';
 import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
 import { parseMetadata } from '../../../routes/documents/helpers.js';
+import { createLogger } from '../../../utils/logger.js';
 
 import type {
   DocumentMetadata,
@@ -17,6 +18,8 @@ import type {
   BulkDeleteResult,
 } from './types.js';
 import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
+
+const log = createLogger('metadataOperations');
 
 function drizzleRowToDocumentRecord(row: Document): DocumentRecord {
   return {
@@ -111,11 +114,11 @@ export async function saveDocumentMetadata(
       last_synced_at: lastSyncedAt,
       group_wolke_share_id: row.group_wolke_share_id as string | null,
     };
-    console.log(`[PostgresDocumentService] Document metadata saved: ${document.id}`);
+    log.debug(`[PostgresDocumentService] Document metadata saved: ${document.id}`);
 
     return document;
   } catch (error) {
-    console.error('[PostgresDocumentService] Error saving document metadata:', error);
+    log.error('[PostgresDocumentService] Error saving document metadata:', { error });
     throw new Error('Failed to save document metadata');
   }
 }
@@ -173,7 +176,7 @@ export async function updateDocumentMetadata(
       user_id: userId,
     });
 
-    console.log(`[PostgresDocumentService] Document ${documentId} updated`);
+    log.debug(`[PostgresDocumentService] Document ${documentId} updated`);
     const row = result.data[0] as Record<string, unknown>;
     const createdAt =
       row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at as string);
@@ -210,7 +213,7 @@ export async function updateDocumentMetadata(
       group_wolke_share_id: row.group_wolke_share_id as string | null,
     } as DocumentRecord;
   } catch (error) {
-    console.error('[PostgresDocumentService] Error updating document metadata:', error);
+    log.error('[PostgresDocumentService] Error updating document metadata:', { error });
     throw error;
   }
 }
@@ -239,7 +242,7 @@ export async function getDocumentsBySourceType(
 
     return rows.map(drizzleRowToDocumentRecord);
   } catch (error) {
-    console.error('[PostgresDocumentService] Error getting documents by source type:', error);
+    log.error('[PostgresDocumentService] Error getting documents by source type:', { error });
     throw new Error('Failed to get documents');
   }
 }
@@ -264,7 +267,7 @@ export async function getDocumentById(
 
     return rows[0] ? drizzleRowToDocumentRecord(rows[0]) : null;
   } catch (error) {
-    console.error('[PostgresDocumentService] Error getting document by ID:', error);
+    log.error('[PostgresDocumentService] Error getting document by ID:', { error });
     throw new Error('Failed to get document');
   }
 }
@@ -289,10 +292,10 @@ export async function deleteDocument(
       throw new Error('Document not found or access denied');
     }
 
-    console.log(`[PostgresDocumentService] Document ${documentId} deleted`);
+    log.debug(`[PostgresDocumentService] Document ${documentId} deleted`);
     return { success: true, deletedId: documentId };
   } catch (error) {
-    console.error('[PostgresDocumentService] Error deleting document:', error);
+    log.error('[PostgresDocumentService] Error deleting document:', { error });
     throw error;
   }
 }
@@ -314,7 +317,7 @@ export async function bulkDeleteDocuments(
 
     const result = await postgres.query(query, [userId, ...documentIds]);
 
-    console.log(
+    log.debug(
       `[PostgresDocumentService] Bulk deleted ${result.length} documents for user ${userId}`
     );
     return {
@@ -323,7 +326,7 @@ export async function bulkDeleteDocuments(
       deletedIds: (result as Array<{ id: string }>).map((row) => row.id),
     };
   } catch (error) {
-    console.error('[PostgresDocumentService] Error bulk deleting documents:', error);
+    log.error('[PostgresDocumentService] Error bulk deleting documents:', { error });
     throw new Error('Failed to bulk delete documents');
   }
 }

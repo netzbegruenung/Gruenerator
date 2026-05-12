@@ -21,7 +21,7 @@ import {
 } from '@gruenerator/contracts';
 import express, { type Response, type Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { z } from 'zod';
+import { type z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { getSharedMediaService } from '../../services/sharedMediaService.js';

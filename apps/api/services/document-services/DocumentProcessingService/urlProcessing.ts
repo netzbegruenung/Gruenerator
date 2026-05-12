@@ -3,6 +3,8 @@
  * Handles crawled URL content processing
  */
 
+import { createLogger } from '../../../utils/logger.js';
+
 import { chunkAndEmbedText } from './chunkingPipeline.js';
 
 import type {
@@ -10,6 +12,8 @@ import type {
   PostgresDocumentServiceLike,
   QdrantDocumentServiceLike,
 } from './types.js';
+
+const log = createLogger('urlProcessing');
 
 /**
  * Process crawled URL content
@@ -23,7 +27,7 @@ export async function processUrlContent(
   content: string,
   sourceType: string = 'manual'
 ): Promise<UrlProcessingResult> {
-  console.log(`[DocumentProcessingService] Processing URL content: ${title}`);
+  log.debug(`[DocumentProcessingService] Processing URL content: ${title}`);
 
   const { chunks, embeddings } = await chunkAndEmbedText(content);
 
@@ -58,7 +62,7 @@ export async function processUrlContent(
     }
   );
 
-  console.log(
+  log.debug(
     `[DocumentProcessingService] Successfully processed: ${title} (${chunks.length} vectors)`
   );
 

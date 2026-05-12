@@ -3,7 +3,11 @@
  * Manages Redis-based daily limits for image generation per user
  */
 
+import { createLogger } from '../../utils/logger.js';
+
 import type { RedisClient, ImageGenerationStatus, ImageGenerationResult } from './types.js';
+
+const log = createLogger('ImageGenerationCounter');
 
 export class ImageGenerationCounter {
   private redis: RedisClient;
@@ -56,7 +60,7 @@ export class ImageGenerationCounter {
         canGenerate,
       };
     } catch (error) {
-      console.error('[ImageGenerationCounter] Error checking limit:', error);
+      log.error('[ImageGenerationCounter] Error checking limit:', { error });
       // On error, deny generation to be safe
       return { count: this.DAILY_LIMIT, remaining: 0, limit: this.DAILY_LIMIT, canGenerate: false };
     }
@@ -83,7 +87,7 @@ export class ImageGenerationCounter {
       // Check current limit before incrementing
       const currentStatus = await this.checkLimit(userId);
       if (!currentStatus.canGenerate) {
-        console.log(
+        log.debug(
           `[ImageGenerationCounter] User ${userId} has reached daily limit (${currentStatus.count}/${this.DAILY_LIMIT})`
         );
         return { success: false, ...currentStatus };
@@ -96,7 +100,7 @@ export class ImageGenerationCounter {
       if (newCount === 1) {
         const ttlSeconds = this.getSecondsUntilMidnight();
         await this.redis.expire(redisKey, ttlSeconds);
-        console.log(
+        log.debug(
           `[ImageGenerationCounter] Set TTL for user ${userId}: ${ttlSeconds} seconds until midnight`
         );
       }
@@ -104,7 +108,7 @@ export class ImageGenerationCounter {
       const remaining = Math.max(0, this.DAILY_LIMIT - newCount);
       const canGenerate = remaining > 0;
 
-      console.log(
+      log.debug(
         `[ImageGenerationCounter] User ${userId}: Image #${newCount}/${this.DAILY_LIMIT}, remaining: ${remaining}`
       );
 
@@ -116,7 +120,7 @@ export class ImageGenerationCounter {
         canGenerate,
       };
     } catch (error) {
-      console.error('[ImageGenerationCounter] Error incrementing count:', error);
+      log.error('[ImageGenerationCounter] Error incrementing count:', { error });
       return {
         success: false,
         count: 0,
@@ -145,10 +149,10 @@ export class ImageGenerationCounter {
       const today = this.getTodayDateString();
       const redisKey = `image_generation:${userId}:${today}`;
       await this.redis.del(redisKey);
-      console.log(`[ImageGenerationCounter] Reset counter for user ${userId}`);
+      log.debug(`[ImageGenerationCounter] Reset counter for user ${userId}`);
       return true;
     } catch (error) {
-      console.error('[ImageGenerationCounter] Error resetting counter:', error);
+      log.error('[ImageGenerationCounter] Error resetting counter:', { error });
       return false;
     }
   }

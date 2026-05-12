@@ -5,10 +5,14 @@
 
 import * as cheerio from 'cheerio';
 
+import { createLogger } from '../../../../../utils/logger.js';
+
 import { MarkdownConverter } from './MarkdownConverter.js';
 import { MetadataExtractor } from './MetadataExtractor.js';
 
 import type { ContentData } from '../types.js';
+
+const log = createLogger('ContentExtractor');
 
 export class ContentExtractor {
   private markdownConverter: MarkdownConverter;
@@ -21,7 +25,7 @@ export class ContentExtractor {
    * Extracts clean text content from HTML using Cheerio
    */
   extractContent(html: string, url: string, enhancedMetadata: boolean = false): ContentData {
-    console.log(
+    log.debug(
       `[ContentExtractor] Extracting content from HTML (${html.length} characters), enhanced: ${enhancedMetadata}`
     );
 
@@ -134,7 +138,7 @@ export class ContentExtractor {
       ...enhancedData,
     };
 
-    console.log(
+    log.debug(
       `[ContentExtractor] Successfully extracted ${result.wordCount} words from ${url} (source: ${contentSource}, chars: ${result.characterCount})`
     );
 

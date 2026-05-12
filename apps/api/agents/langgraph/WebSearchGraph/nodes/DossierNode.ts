@@ -14,6 +14,7 @@ import {
   summarizeReferencesForPrompt,
   validateAndInjectCitations,
 } from '../../../../services/search/index.js';
+import { createLogger } from '../../../../utils/logger.js';
 import { filterDataForAI } from '../utilities/dataFilter.js';
 import {
   buildDossierSystemPrompt,
@@ -25,6 +26,8 @@ import type { RequestWithLocale } from '../../../../services/localization/index.
 import type { ExpandedChunkResult, ReferencesMap } from '../../../../services/search/types.js';
 import type { WebSearchState, ResearchDossier, SearchResult } from '../types.js';
 
+const log = createLogger('DossierNode');
+
 /**
  * Dossier Node: Generate comprehensive research dossier with citations
  */
@@ -33,7 +36,7 @@ export async function dossierNode(state: WebSearchState): Promise<Partial<WebSea
     return { dossier: null };
   }
 
-  console.log('[WebSearchGraph] Generating comprehensive research dossier with citations');
+  log.debug('[WebSearchGraph] Generating comprehensive research dossier with citations');
 
   try {
     // Combine all sources for citation reference building
@@ -139,7 +142,7 @@ ${refsSummary}`;
 
     // Log citation validation errors if any
     if (errors && errors.length > 0) {
-      console.warn('[WebSearchGraph] Dossier citation validation errors:', errors);
+      log.warn('[WebSearchGraph] Dossier citation validation errors:', errors);
     }
 
     // Add methodology section (without citations)
@@ -155,7 +158,7 @@ ${refsSummary}`;
 
     const completeDossier = cleanDraft + methodologySection;
 
-    console.log('[WebSearchGraph] Dossier generation with citations completed');
+    log.debug('[WebSearchGraph] Dossier generation with citations completed');
 
     return {
       dossier: {
@@ -179,7 +182,7 @@ ${refsSummary}`;
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[WebSearchGraph] Dossier generation error:', errorMessage);
+    log.error('[WebSearchGraph] Dossier generation error:', errorMessage);
     return {
       dossier: {
         query: state.query,

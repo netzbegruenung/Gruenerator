@@ -92,7 +92,7 @@ export async function researchNode(state: AntragAgentState): Promise<Partial<Ant
       researchTimeMs,
     };
   } catch (error) {
-    log.error('[researchNode] Research failed:', error);
+    log.error('[researchNode] Research failed:', { error });
     return {
       enrichedState: null,
       arguments: [],
@@ -165,7 +165,7 @@ Halte die Zusammenfassung sachlich und faktenorientiert (max. 400 Wörter). Kein
 
     return summary || buildExcerptFallback(argumentsList);
   } catch (error) {
-    log.error('[summarizeForAntrag] Failed to generate summary:', error);
+    log.error('[summarizeForAntrag] Failed to generate summary:', { error });
     return buildExcerptFallback(argumentsList);
   }
 }

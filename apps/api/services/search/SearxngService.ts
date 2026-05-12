@@ -6,6 +6,7 @@
 import crypto from 'crypto';
 
 import { env } from '../../config/env.js';
+import { createLogger } from '../../utils/logger.js';
 
 import type {
   SearxngSearchOptions,
@@ -17,6 +18,8 @@ import type {
   ServiceStatus,
 } from './types.js';
 import type { AIWorkerPool } from '../../workers/types.js';
+
+const log = createLogger('SearxngService');
 
 const LOG_LEVEL = env.LOG_LEVEL;
 const isDebug = LOG_LEVEL === 'debug';
@@ -88,12 +91,12 @@ class SearxngService {
 
       await redisClient.ping();
       this.redisClient = redisClient as unknown as RedisClientLike;
-      if (isVerbose) console.log('[SearXNG] Redis caching enabled');
+      if (isVerbose) log.debug('[SearXNG] Redis caching enabled');
 
       this.cache.clear();
     } catch (error: unknown) {
       if (isVerbose)
-        console.warn(
+        log.warn(
           '[SearXNG] Redis unavailable, using in-memory cache:',
           error instanceof Error ? error.message : String(error)
         );
@@ -123,14 +126,14 @@ class SearxngService {
     if (cachedResult) {
       if (isVerbose) {
         const age = Math.round((Date.now() - new Date(cachedResult.timestamp).getTime()) / 1000);
-        console.log(`💾 [SearXNG] Cache hit (${age}s old)`);
+        log.debug(`[SearXNG] Cache hit (${age}s old)`);
       }
       return cachedResult;
     }
 
     if (isVerbose) {
       const displayQuery = query.length > 50 ? query.substring(0, 50) + '...' : query;
-      console.log(`🔍 [SearXNG] Searching: "${displayQuery}"`);
+      log.debug(`[SearXNG] Searching: "${displayQuery}"`);
     }
 
     try {
@@ -140,14 +143,14 @@ class SearxngService {
 
       await this.setCachedResult(cacheKey, formattedResults, searchOptions);
 
-      console.log(
-        `🔍 [SearXNG] ${formattedResults.resultCount} results (${formattedResults.contentStats.resultsWithContent} with content)`
+      log.debug(
+        `[SearXNG] ${formattedResults.resultCount} results (${formattedResults.contentStats.resultsWithContent} with content)`
       );
 
       return formattedResults;
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      console.error(`[SearXNG] Search failed:`, errMsg);
+      log.error(`[SearXNG] Search failed:`, errMsg);
       throw new Error(`Web search failed: ${errMsg}`);
     }
   }
@@ -174,7 +177,7 @@ class SearxngService {
 
     const searchUrl = `${this.baseUrl}/search?${searchParams.toString()}`;
 
-    if (isDebug) console.log(`[SearXNG] Querying: ${this.baseUrl}/search`);
+    if (isDebug) log.debug(`[SearXNG] Querying: ${this.baseUrl}/search`);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(
@@ -298,7 +301,7 @@ class SearxngService {
     }
 
     if (!aiWorkerPool) {
-      if (isVerbose) console.warn('[SearXNG] No AI worker pool for summary');
+      if (isVerbose) log.warn('[SearXNG] No AI worker pool for summary');
       return {
         ...searchResults,
         summary: {
@@ -333,7 +336,7 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
         },
       };
 
-      if (isVerbose) console.log(`[SearXNG] Generating AI summary`);
+      if (isVerbose) log.debug(`[SearXNG] Generating AI summary`);
 
       const aiResponse = await aiWorkerPool.processRequest(summaryRequest, req);
 
@@ -350,7 +353,7 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
           },
         };
       } else {
-        if (isVerbose) console.warn('[SearXNG] Summary generation failed:', aiResponse.error);
+        if (isVerbose) log.warn('[SearXNG] Summary generation failed:', aiResponse.error);
         return {
           ...searchResults,
           summary: {
@@ -362,7 +365,7 @@ Gib eine direkte, hilfreiche Antwort auf die Frage des Nutzers. Nutze die Inform
       }
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      console.error('[SearXNG] Error generating summary:', errMsg);
+      log.error('[SearXNG] Error generating summary:', errMsg);
       return {
         ...searchResults,
         summary: {
@@ -467,7 +470,7 @@ URL: ${result.url}
       if (this.redisClient) {
         const cachedData = await this.redisClient.get(cacheKey);
         if (cachedData) {
-          if (isDebug) console.log(`[SearXNG] Redis cache hit: ${cacheKey.substring(0, 20)}...`);
+          if (isDebug) log.debug(`[SearXNG] Redis cache hit: ${cacheKey.substring(0, 20)}...`);
           const cachedResult: FormattedSearchResults = JSON.parse(
             cachedData
           ) as FormattedSearchResults;
@@ -479,7 +482,7 @@ URL: ${result.url}
           searchOptions.categories === 'news' ? this.newsCache * 1000 : this.cacheTimeout * 1000;
 
         if (cached && Date.now() - cached.timestamp < timeout) {
-          if (isDebug) console.log(`[SearXNG] Memory cache hit: ${cacheKey.substring(0, 20)}...`);
+          if (isDebug) log.debug(`[SearXNG] Memory cache hit: ${cacheKey.substring(0, 20)}...`);
           return cached.data;
         }
 
@@ -489,7 +492,7 @@ URL: ${result.url}
       }
     } catch (error: unknown) {
       if (isVerbose)
-        console.warn(
+        log.warn(
           '[SearXNG] Cache read error:',
           error instanceof Error ? error.message : String(error)
         );
@@ -510,7 +513,7 @@ URL: ${result.url}
       if (this.redisClient) {
         const ttl = searchOptions.categories === 'news' ? this.newsCache : this.cacheTimeout;
         await this.redisClient.setEx(cacheKey, ttl, JSON.stringify(data));
-        if (isVerbose) console.log(`[SearXNG] Cached in Redis (${ttl}s)`);
+        if (isVerbose) log.debug(`[SearXNG] Cached in Redis (${ttl}s)`);
       } else {
         if (this.cache.size > 1000) {
           const firstKey = this.cache.keys().next().value;
@@ -521,11 +524,11 @@ URL: ${result.url}
           data,
           timestamp: Date.now(),
         });
-        if (isVerbose) console.log(`[SearXNG] Cached in memory`);
+        if (isVerbose) log.debug(`[SearXNG] Cached in memory`);
       }
     } catch (error: unknown) {
       if (isVerbose)
-        console.warn(
+        log.warn(
           '[SearXNG] Cache write error:',
           error instanceof Error ? error.message : String(error)
         );
@@ -541,17 +544,17 @@ URL: ${result.url}
         const keys = await this.redisClient.keys('searxng:*');
         if (keys.length > 0) {
           await this.redisClient.del(keys);
-          if (isVerbose) console.log(`[SearXNG] Cleared ${keys.length} Redis cache entries`);
+          if (isVerbose) log.debug(`[SearXNG] Cleared ${keys.length} Redis cache entries`);
         } else {
-          if (isVerbose) console.log('[SearXNG] No Redis cache entries to clear');
+          if (isVerbose) log.debug('[SearXNG] No Redis cache entries to clear');
         }
       } else {
         this.cache.clear();
-        if (isVerbose) console.log('[SearXNG] In-memory cache cleared');
+        if (isVerbose) log.debug('[SearXNG] In-memory cache cleared');
       }
     } catch (error: unknown) {
       if (isVerbose)
-        console.error(
+        log.error(
           '[SearXNG] Error clearing cache:',
           error instanceof Error ? error.message : String(error)
         );

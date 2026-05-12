@@ -262,7 +262,7 @@ export const voiceContractRouter = s.router(voiceContract, {
         },
       };
     } catch (error) {
-      log.error('[voiceContract.transcribeUpload] Error:', error);
+      log.error('[voiceContract.transcribeUpload] Error:', { error });
       void scheduleImmediateCleanup(uploadId, 'transcription error');
       return {
         status: 500 as const,
@@ -312,7 +312,7 @@ export const voiceContractRouter = s.router(voiceContract, {
         },
       };
     } catch (error) {
-      log.error('[voiceContract.transcribeUrl] Error:', error);
+      log.error('[voiceContract.transcribeUrl] Error:', { error });
       return {
         status: 500 as const,
         body: {
@@ -333,7 +333,7 @@ export const voiceContractRouter = s.router(voiceContract, {
       });
       return { status: 200 as const, body: { success: true, content } };
     } catch (error) {
-      log.error('[voiceContract.protokoll] Error:', error);
+      log.error('[voiceContract.protokoll] Error:', { error });
       return {
         status: 500 as const,
         body: {
@@ -351,7 +351,7 @@ export const voiceContractRouter = s.router(voiceContract, {
       const mapping = await identifySpeakers(text);
       return { status: 200 as const, body: { success: true, mapping } };
     } catch (error) {
-      log.error('[voiceContract.identifySpeakers] Error:', error);
+      log.error('[voiceContract.identifySpeakers] Error:', { error });
       return {
         status: 500 as const,
         body: {
@@ -369,7 +369,7 @@ export const voiceContractRouter = s.router(voiceContract, {
       const html = await extractTodoList(text, title ?? undefined);
       return { status: 200 as const, body: { success: true, content: html } };
     } catch (error) {
-      log.error('[voiceContract.todoList] Error:', error);
+      log.error('[voiceContract.todoList] Error:', { error });
       return {
         status: 500 as const,
         body: {
@@ -400,7 +400,7 @@ export const voiceContractRouter = s.router(voiceContract, {
         },
       };
     } catch (error) {
-      log.error('[voiceContract.getFormats] Error:', error);
+      log.error('[voiceContract.getFormats] Error:', { error });
       return {
         status: 500 as const,
         body: { success: false, error: 'Fehler beim Abrufen der unterstützten Formate' },

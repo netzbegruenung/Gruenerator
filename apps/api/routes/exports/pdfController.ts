@@ -239,7 +239,7 @@ router.post(
       return res.status(200).send(buffer);
     } catch (err) {
       const error = err as Error;
-      log.error('[exportPdf] PDF export error:', error);
+      log.error('[exportPdf] PDF export error:', { error });
       return res.status(500).json({
         success: false,
         message: 'PDF export failed',

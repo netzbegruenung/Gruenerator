@@ -39,7 +39,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       message: 'Recent value saved successfully',
     });
   } catch (error) {
-    log.error('[RecentValues API] Error saving recent value:', error);
+    log.error('[RecentValues API] Error saving recent value:', { error });
     return res.status(500).json({
       error: (error as Error).message || 'Failed to save recent value',
     });
@@ -74,7 +74,7 @@ router.get(
         count: values.length,
       });
     } catch (error) {
-      log.error('[RecentValues API] Error retrieving recent values:', error);
+      log.error('[RecentValues API] Error retrieving recent values:', { error });
       return res.status(500).json({
         error: (error as Error).message || 'Failed to retrieve recent values',
       });
@@ -104,7 +104,7 @@ router.delete(
         deletedCount,
       });
     } catch (error) {
-      log.error('[RecentValues API] Error clearing recent values:', error);
+      log.error('[RecentValues API] Error clearing recent values:', { error });
       return res.status(500).json({
         error: (error as Error).message || 'Failed to clear recent values',
       });
@@ -124,7 +124,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
       count: fieldTypes.length,
     });
   } catch (error) {
-    log.error('[RecentValues API] Error retrieving field types:', error);
+    log.error('[RecentValues API] Error retrieving field types:', { error });
     res.status(500).json({
       error: (error as Error).message || 'Failed to retrieve field types',
     });

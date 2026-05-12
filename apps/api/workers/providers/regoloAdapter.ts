@@ -8,10 +8,13 @@ import { generateText, type ModelMessage, type Tool } from 'ai';
 import { env } from '../../config/env.js';
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { mergeMetadata } from './adapterUtils.js';
 
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
+
+const log = createLogger('regoloAdapter');
 
 function convertMessages(
   messages: AIRequestData['messages'],
@@ -249,7 +252,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
     };
   } catch (error: unknown) {
     const err = error as { message?: string };
-    console.error(`[regoloAdapter ${requestId}] Error:`, err.message);
+    log.error(`[regoloAdapter ${requestId}] Error:`, err.message);
     throw error;
   }
 }

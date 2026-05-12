@@ -10,6 +10,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 
+import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename } from '../../utils/validation/security.js';
 
 import type { ExtractionResult } from './types.js';
@@ -18,6 +19,8 @@ import type {
   DocumentURLChunk,
   ImageURLChunk,
 } from '@mistralai/mistralai/models/components/index.js';
+
+const log = createLogger('mistralIntegration');
 
 const IMAGE_EXTENSIONS = new Set([
   '.png',
@@ -42,7 +45,7 @@ export async function extractTextWithMistralOCR(
   const startTime = Date.now();
 
   try {
-    console.log(`[OcrService] Starting Mistral OCR 3 extraction for: ${filePath}`);
+    log.debug(`[OcrService] Starting Mistral OCR 3 extraction for: ${filePath}`);
 
     const mod = await import('../../workers/mistralClient.js');
     const mistralClient: Mistral = mod.default || mod;
@@ -52,7 +55,7 @@ export async function extractTextWithMistralOCR(
     const fileExtension = path.extname(filePath).toLowerCase();
     const mediaType = getMediaTypeFn(fileExtension);
 
-    console.log(
+    log.debug(
       `[OcrService] Processing with Mistral OCR 3 (${(fileBuffer.length / 1024).toFixed(1)}KB, ${mediaType})`
     );
 
@@ -83,7 +86,7 @@ export async function extractTextWithMistralOCR(
     }
 
     const processingTimeMs = Date.now() - startTime;
-    console.log(
+    log.debug(
       `[OcrService] Mistral OCR 3 completed in ${processingTimeMs}ms: ${ocrResponse.pages.length} pages, ${allText.length} characters`
     );
 
@@ -100,7 +103,7 @@ export async function extractTextWithMistralOCR(
     };
   } catch (error) {
     const errorMessage = (error as Error).message;
-    console.error('[OcrService] Mistral OCR failed:', errorMessage);
+    log.error('[OcrService] Mistral OCR failed:', errorMessage);
     throw new Error(`Mistral OCR extraction failed: ${errorMessage}`);
   }
 }
@@ -132,7 +135,7 @@ export async function extractBase64WithMistralOCR(
 
   try {
     const sizeKB = (Math.ceil((base64Data.length * 3) / 4) / 1024).toFixed(1);
-    console.log(
+    log.debug(
       `[OcrService] Starting Mistral OCR 3 base64 extraction for: ${filename} (~${sizeKB}KB, ${mimeType})`
     );
 
@@ -166,7 +169,7 @@ export async function extractBase64WithMistralOCR(
     }
 
     const processingTimeMs = Date.now() - startTime;
-    console.log(
+    log.debug(
       `[OcrService] Mistral OCR 3 base64 completed in ${processingTimeMs}ms: ${ocrResponse.pages.length} pages, ${allText.length} characters`
     );
 
@@ -184,7 +187,7 @@ export async function extractBase64WithMistralOCR(
   } catch (error) {
     const errorMessage = (error as Error).message;
     const safeFilename = sanitizeFilename(filename, 'unknown');
-    console.error('[OcrService] Mistral OCR base64 failed for %s: %s', safeFilename, errorMessage);
+    log.error('[OcrService] Mistral OCR base64 failed for %s: %s', safeFilename, errorMessage);
     throw new Error(`Mistral OCR extraction failed: ${errorMessage}`);
   }
 }

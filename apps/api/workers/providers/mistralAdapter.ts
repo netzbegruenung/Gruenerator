@@ -12,10 +12,13 @@ import {
 } from '../../services/ai/config.js';
 import { getModel, isProviderConfigured } from '../../services/ai/providers.js';
 import ToolHandler from '../../services/tools/index.js';
+import { createLogger } from '../../utils/logger.js';
 
 import { mergeMetadata } from './adapterUtils.js';
 
 import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../types.js';
+
+const log = createLogger('mistralAdapter');
 
 // Connection metrics for monitoring
 export interface ConnectionMetrics {
@@ -322,7 +325,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       if (attempt > 1) {
         connectionMetrics.retries++;
         const delay = baseDelay * Math.pow(2, attempt - 1);
-        console.log(
+        log.debug(
           `[mistralAdapter ${requestId}] Retry attempt ${attempt}/${maxRetries} after ${delay}ms delay`
         );
         await new Promise((resolve) => setTimeout(resolve, delay));
@@ -344,7 +347,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
       connectionMetrics.successes++;
 
       if (attempt > 1) {
-        console.log(`[mistralAdapter ${requestId}] Retry successful on attempt ${attempt}`);
+        log.debug(`[mistralAdapter ${requestId}] Retry successful on attempt ${attempt}`);
       }
 
       // Extract text content
@@ -418,7 +421,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         err.message?.includes('timeout');
 
       if (!isRetryable || attempt === maxRetries) {
-        console.error(
+        log.error(
           `[mistralAdapter ${requestId}] ${isRetryable ? 'Max retries reached' : 'Non-retryable error'}:`,
           {
             message: err.message,
@@ -429,7 +432,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
         throw error;
       }
 
-      console.warn(
+      log.warn(
         `[mistralAdapter ${requestId}] Retryable connection error on attempt ${attempt}:`,
         err.message
       );

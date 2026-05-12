@@ -239,7 +239,7 @@ export async function getAvailableModels(forceRefresh = false): Promise<Playgrou
       return models;
     })
     .catch((error) => {
-      log.error('Model discovery failed:', error);
+      log.error('Model discovery failed:', { error: error as Error });
       return cachedModels ?? FALLBACK_MODELS;
     })
     .finally(() => {

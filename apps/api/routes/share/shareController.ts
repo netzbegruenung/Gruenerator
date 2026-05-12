@@ -297,7 +297,7 @@ async function triggerBackgroundRender(
 
     log.info(`Background render complete for share ${shareToken}`);
   } catch (error) {
-    log.error(`Background render failed for ${shareToken}:`, error);
+    log.error(`Background render failed for ${shareToken}:`, { error });
     const service = await getSharedMediaService();
     await service.markShareFailed(shareToken);
   }
@@ -399,7 +399,7 @@ router.post(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const isValidation = message.startsWith('createImageShare:');
-      log.error('Failed to create image share:', error);
+      log.error('Failed to create image share:', { error });
       return res.status(isValidation ? 400 : 500).json({
         success: false,
         error: isValidation ? message : 'Bild konnte nicht geteilt werden',
@@ -448,7 +448,7 @@ router.put(
         },
       });
     } catch (error) {
-      log.error('Failed to publish share:', error);
+      log.error('Failed to publish share:', { error });
       return res.status(500).json({
         success: false,
         error: 'Share konnte nicht veröffentlicht werden',
@@ -519,7 +519,7 @@ router.post(
         },
       });
     } catch (error) {
-      log.error('Failed to create video share:', error);
+      log.error('Failed to create video share:', { error });
       return res.status(500).json({
         success: false,
         error: 'Video konnte nicht geteilt werden',
@@ -662,7 +662,7 @@ router.post(
         },
       });
     } catch (error) {
-      log.error('Failed to create video share from project:', error);
+      log.error('Failed to create video share from project:', { error });
       return res.status(500).json({
         success: false,
         error: 'Video konnte nicht geteilt werden',
@@ -695,7 +695,7 @@ router.get(
         limit: 50,
       });
     } catch (error) {
-      log.error('Failed to get user shares:', error);
+      log.error('Failed to get user shares:', { error });
       res.status(500).json({
         success: false,
         error: 'Geteilte Medien konnten nicht geladen werden',
@@ -735,7 +735,7 @@ router.get(
         limit,
       });
     } catch (error) {
-      log.error('Failed to get recent shares:', error);
+      log.error('Failed to get recent shares:', { error });
       res.status(500).json({
         success: false,
         error: 'Letzte Bilder konnten nicht geladen werden',
@@ -758,7 +758,7 @@ router.get(
         shares: toCamelCase(shares) as CamelCaseObject[],
       });
     } catch (error) {
-      log.error('Failed to get user image shares:', error);
+      log.error('Failed to get user image shares:', { error });
       res.status(500).json({
         success: false,
         error: 'Bilder konnten nicht geladen werden',
@@ -781,7 +781,7 @@ router.get(
         shares: toCamelCase(shares) as CamelCaseObject[],
       });
     } catch (error) {
-      log.error('Failed to get user video shares:', error);
+      log.error('Failed to get user video shares:', { error });
       res.status(500).json({
         success: false,
         error: 'Videos konnten nicht geladen werden',
@@ -865,7 +865,7 @@ router.get(
 
       return res.json(response);
     } catch (error) {
-      log.error('Failed to get share info:', error);
+      log.error('Failed to get share info:', { error });
       return res.status(500).json({
         success: false,
         error: 'Fehler beim Laden des geteilten Mediums',
@@ -893,7 +893,7 @@ router.get('/:shareToken/thumbnail', async (req: Request<ShareTokenParams>, res:
       return res.status(404).json({ error: 'Thumbnail-Datei nicht gefunden' });
     }
   } catch (error) {
-    log.error('Failed to get thumbnail:', error);
+    log.error('Failed to get thumbnail:', { error });
     return res.status(500).json({ error: 'Fehler beim Laden des Thumbnails' });
   }
 });
@@ -953,7 +953,7 @@ router.get(
         return res.status(404).json({ error: 'Originalbild-Datei nicht gefunden' });
       }
     } catch (error) {
-      log.error('Failed to get original image:', error);
+      log.error('Failed to get original image:', { error });
       return res.status(500).json({ error: 'Fehler beim Laden des Originalbildes' });
     }
   }
@@ -1019,7 +1019,7 @@ router.put(
         share: shareResp,
       });
     } catch (error) {
-      log.error('Failed to update image share:', error);
+      log.error('Failed to update image share:', { error });
       return res.status(500).json({
         success: false,
         error: 'Bild konnte nicht aktualisiert werden',
@@ -1112,7 +1112,7 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
 
             // Cache to disk asynchronously (don't await)
             fsPromises.writeFile(thumbPath, thumbBuffer).catch((err) => {
-              log.error('Failed to cache thumbnail:', err);
+              log.error('Failed to cache thumbnail:', { error: err as Error });
             });
 
             res.setHeader('Content-Type', 'image/webp');
@@ -1134,7 +1134,7 @@ router.get('/:shareToken/preview', async (req: Request<ShareTokenParams>, res: R
       return res.status(404).json({ error: 'Datei nicht gefunden' });
     }
   } catch (error) {
-    log.error('Failed to serve preview:', error);
+    log.error('Failed to serve preview:', { error });
     return res.status(500).json({ error: 'Fehler beim Laden der Vorschau' });
   }
 });
@@ -1229,7 +1229,7 @@ router.get(
       (req as RequestWithShare)._share = share;
       next();
     } catch (error) {
-      log.error('Failed to process download:', error);
+      log.error('Failed to process download:', { error });
       if (!res.headersSent) {
         res.status(500).json({ success: false, error: 'Fehler beim Download' });
       }
@@ -1312,7 +1312,7 @@ router.get(
         return;
       }
     } catch (error) {
-      log.error('Failed to download share:', error);
+      log.error('Failed to download share:', { error });
       if (!res.headersSent) {
         res.status(500).json({ success: false, error: 'Fehler beim Download' });
       }
@@ -1339,7 +1339,7 @@ router.delete(
         message: 'Geteiltes Medium gelöscht',
       });
     } catch (error) {
-      log.error('Failed to delete share:', error);
+      log.error('Failed to delete share:', { error });
       if (
         (error as Error).message.includes('not found') ||
         (error as Error).message.includes('not owned')
@@ -1394,7 +1394,7 @@ router.post(
         visibility,
       });
     } catch (error) {
-      log.error('Failed to save as template:', error);
+      log.error('Failed to save as template:', { error });
       const errorMessage = (error as Error).message;
       if (errorMessage.includes('not found')) {
         return res.status(404).json({
@@ -1440,7 +1440,7 @@ router.post(
         message: 'Template successfully cloned',
       });
     } catch (error) {
-      log.error('Failed to clone template:', error);
+      log.error('Failed to clone template:', { error });
       const errorMessage = (error as Error).message;
       if (errorMessage.includes('not found')) {
         res.status(404).json({
@@ -1479,7 +1479,7 @@ router.get('/templates', requireAuth, async (req: AuthenticatedRequest, res: Res
       templates,
     });
   } catch (error) {
-    log.error('Failed to get templates:', error);
+    log.error('Failed to get templates:', { error });
     res.status(500).json({
       success: false,
       error: 'Failed to retrieve templates',
@@ -1507,7 +1507,7 @@ router.get('/templates/:shareToken', (async (
       template,
     });
   } catch (error) {
-    log.error('Failed to get template by token:', error);
+    log.error('Failed to get template by token:', { error });
     const errorMessage = (error as Error).message;
     if (errorMessage.includes('not found')) {
       res.status(404).json({
@@ -1544,7 +1544,7 @@ router.get('/devices', requireAuth, async (req: AuthenticatedRequest, res: Respo
 
     res.json({ success: true, devices });
   } catch (error) {
-    log.error('Failed to get devices:', error);
+    log.error('Failed to get devices:', { error });
     res.status(500).json({ success: false, error: 'Failed to get devices' });
   }
 });
@@ -1593,7 +1593,7 @@ router.post(
 
       return res.json({ success: true, pushedToDevices });
     } catch (error) {
-      log.error('Failed to push to phone:', error);
+      log.error('Failed to push to phone:', { error });
       return res.status(500).json({ success: false, error: 'Failed to send to phone' });
     }
   }

@@ -8,10 +8,13 @@
 import fs from 'fs';
 
 import { env } from '../../../config/env.js';
+import { createLogger } from '../../../utils/logger.js';
 
 import { getMigrationsPath } from './schema.js';
 
 import type { Pool } from 'pg';
+
+const log = createLogger('migrations');
 
 const MIGRATION_LOCK_ID = 42_000_001;
 
@@ -22,7 +25,7 @@ export async function runMigrations(pool: Pool): Promise<void> {
   const migrationsPath = getMigrationsPath();
 
   if (!fs.existsSync(migrationsPath)) {
-    console.log('[PostgresService] Migrations directory not found, skipping migrations');
+    log.debug('[PostgresService] Migrations directory not found, skipping migrations');
     return;
   }
 
@@ -34,7 +37,7 @@ export async function runMigrations(pool: Pool): Promise<void> {
       `SELECT pg_try_advisory_lock(${MIGRATION_LOCK_ID}) AS acquired`
     );
     if (!lockResult.rows[0].acquired) {
-      console.log('[PostgresService] Migrations already running in another worker, skipping');
+      log.debug('[PostgresService] Migrations already running in another worker, skipping');
       return;
     }
 
@@ -53,7 +56,7 @@ export async function runMigrations(pool: Pool): Promise<void> {
         .sort();
 
       if (migrationFiles.length === 0) {
-        console.log('[PostgresService] No migration files found');
+        log.debug('[PostgresService] No migration files found');
         return;
       }
 
@@ -63,7 +66,7 @@ export async function runMigrations(pool: Pool): Promise<void> {
       );
       const pendingFiles = migrationFiles.filter((f) => !appliedFilenames.has(f));
 
-      console.log(
+      log.debug(
         `[PostgresService] Migrations: ${migrationFiles.length} total, ${appliedFilenames.size} applied, ${pendingFiles.length} pending`
       );
 
@@ -76,7 +79,7 @@ export async function runMigrations(pool: Pool): Promise<void> {
       await client.query(`SELECT pg_advisory_unlock(${MIGRATION_LOCK_ID})`);
     }
   } catch (error) {
-    console.error('[PostgresService] Error running migrations:', error);
+    log.error('[PostgresService] Error running migrations:', { error });
   } finally {
     try {
       await client.query('SET statement_timeout = 0');
@@ -95,13 +98,13 @@ async function runSingleMigration(
   migrationsPath: string,
   filename: string
 ): Promise<void> {
-  console.log(`[PostgresService] Running migration ${filename}...`);
+  log.debug(`[PostgresService] Running migration ${filename}...`);
   const startTime = Date.now();
 
   const migrationPath = `${migrationsPath}/${filename}`;
   const migrationSql = fs.readFileSync(migrationPath, 'utf8');
 
-  console.log(`[PostgresService] Migration ${filename} size: ${migrationSql.length} characters`);
+  log.debug(`[PostgresService] Migration ${filename} size: ${migrationSql.length} characters`);
 
   const migrationClient = await pool.connect();
   try {
@@ -112,18 +115,18 @@ async function runSingleMigration(
     await migrationClient.query('COMMIT');
 
     const duration = Date.now() - startTime;
-    console.log(`[PostgresService] ✅ Migration ${filename} applied successfully in ${duration}ms`);
+    log.debug(`[PostgresService] ✅ Migration ${filename} applied successfully in ${duration}ms`);
   } catch (error) {
     try {
       await migrationClient.query('ROLLBACK');
     } catch (rollbackError) {
-      console.error(
+      log.error(
         `[PostgresService] Rollback failed for ${filename}:`,
         (rollbackError as Error).message
       );
     }
 
-    console.error(`[PostgresService] ❌ Migration ${filename} failed:`, (error as Error).message);
+    log.error(`[PostgresService] ❌ Migration ${filename} failed:`, (error as Error).message);
   } finally {
     try {
       await migrationClient.query('SET statement_timeout = 0');
@@ -164,12 +167,12 @@ export async function createDatabaseIfNotExists(config: {
 
     if (result.rows.length === 0) {
       await tempClient.query(`CREATE DATABASE "${dbName}"`);
-      console.log(`[PostgresService] Created database '${dbName}'`);
+      log.debug(`[PostgresService] Created database '${dbName}'`);
     } else {
-      console.log(`[PostgresService] Database '${dbName}' already exists`);
+      log.debug(`[PostgresService] Database '${dbName}' already exists`);
     }
   } catch (error) {
-    console.warn(`[PostgresService] Database creation check failed: ${(error as Error).message}`);
+    log.warn(`[PostgresService] Database creation check failed: ${(error as Error).message}`);
   } finally {
     await tempClient.end();
   }

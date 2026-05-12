@@ -99,7 +99,7 @@ router.get('/logout', async (req: AuthRequest, res: Response): Promise<void> => 
     try {
       await chatMemory.clearConversation(req.user.id);
     } catch (error) {
-      log.error('[Auth GET /logout] Error clearing chat memory:', error);
+      log.error('[Auth GET /logout] Error clearing chat memory:', { error });
     }
   }
 
@@ -119,7 +119,7 @@ router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> =>
     try {
       await chatMemory.clearConversation(req.user.id);
     } catch (error) {
-      log.error('[Auth POST /logout] Error clearing chat memory:', error);
+      log.error('[Auth POST /logout] Error clearing chat memory:', { error });
     }
   }
 
@@ -187,7 +187,7 @@ router.get('/locale', ensureAuthenticated, (req: AuthRequest, res: Response): vo
     const userLocale = req.user?.locale || 'de-DE';
     res.json({ success: true, locale: userLocale });
   } catch (error) {
-    log.error('[Auth /locale GET] Error:', error);
+    log.error('[Auth /locale GET] Error:', { error });
     res.status(500).json({ success: false, error: 'Failed to get locale' });
   }
 });
@@ -215,7 +215,7 @@ router.put(
 
       res.json({ success: true, message: 'Locale updated successfully', locale });
     } catch (error) {
-      log.error('[Auth /locale PUT] Error:', error);
+      log.error('[Auth /locale PUT] Error:', { error });
       res.status(500).json({ success: false, error: 'Failed to update locale' });
     }
   }

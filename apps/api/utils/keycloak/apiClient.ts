@@ -14,6 +14,9 @@ import {
   type KeycloakUser,
   type FederatedIdentity,
 } from '../../services/api-clients/schemas/keycloak.js';
+import { createLogger } from '../logger.js';
+
+const log = createLogger('apiClient');
 
 export type {
   KeycloakUser,
@@ -90,7 +93,7 @@ export class KeycloakApiClient {
     this.adminClientId = env.KEYCLOAK_ADMIN_CLIENT_ID ?? 'admin-cli';
 
     if (!this.clientId && !this.adminUsername) {
-      console.warn(
+      log.warn(
         '[KeycloakAPI] Neither client credentials nor admin credentials provided - some operations may fail'
       );
     }
@@ -115,13 +118,13 @@ export class KeycloakApiClient {
     }
 
     try {
-      console.log('[KeycloakAPI] Requesting new admin token...');
+      log.debug('[KeycloakAPI] Requesting new admin token...');
 
       let rawResponse: unknown;
 
       // Try client credentials flow first
       if (this.clientId && this.clientSecret) {
-        console.log('[KeycloakAPI] Attempting client credentials flow...');
+        log.debug('[KeycloakAPI] Attempting client credentials flow...');
         try {
           const r = await axios.post(
             `${this.baseUrl}/realms/${this.realm}/protocol/openid-connect/token`,
@@ -137,9 +140,9 @@ export class KeycloakApiClient {
             }
           );
           rawResponse = r.data;
-          console.log('[KeycloakAPI] ✅ Client credentials flow successful');
+          log.debug('[KeycloakAPI] ✅ Client credentials flow successful');
         } catch (clientError: unknown) {
-          console.warn(
+          log.warn(
             '[KeycloakAPI] Client credentials flow failed:',
             (clientError as { response?: { status?: number; data?: unknown } }).response?.data ||
               (clientError instanceof Error ? clientError.message : String(clientError))
@@ -147,7 +150,7 @@ export class KeycloakApiClient {
 
           // Fallback to username/password if available
           if (this.adminUsername && this.adminPassword) {
-            console.log('[KeycloakAPI] Falling back to username/password flow...');
+            log.debug('[KeycloakAPI] Falling back to username/password flow...');
             const r = await axios.post(
               `${this.baseUrl}/realms/master/protocol/openid-connect/token`,
               new URLSearchParams({
@@ -163,14 +166,14 @@ export class KeycloakApiClient {
               }
             );
             rawResponse = r.data;
-            console.log('[KeycloakAPI] ✅ Username/password flow successful');
+            log.debug('[KeycloakAPI] ✅ Username/password flow successful');
           } else {
             throw clientError;
           }
         }
       } else if (this.adminUsername && this.adminPassword) {
         // Only username/password available
-        console.log('[KeycloakAPI] Using username/password flow...');
+        log.debug('[KeycloakAPI] Using username/password flow...');
         const r = await axios.post(
           `${this.baseUrl}/realms/master/protocol/openid-connect/token`,
           new URLSearchParams({
@@ -186,7 +189,7 @@ export class KeycloakApiClient {
           }
         );
         rawResponse = r.data;
-        console.log('[KeycloakAPI] ✅ Username/password flow successful');
+        log.debug('[KeycloakAPI] ✅ Username/password flow successful');
       } else {
         throw new Error('No authentication credentials available');
       }
@@ -198,10 +201,10 @@ export class KeycloakApiClient {
       // Update axios client with new token
       this.axiosClient.defaults.headers['Authorization'] = `Bearer ${this.accessToken}`;
 
-      console.log('[KeycloakAPI] ✅ Admin token obtained successfully');
+      log.debug('[KeycloakAPI] ✅ Admin token obtained successfully');
       return this.accessToken;
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[KeycloakAPI] ❌ Failed to get admin token:',
         (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
           ?.data || (error instanceof Error ? error.message : String(error))
@@ -231,7 +234,7 @@ export class KeycloakApiClient {
     try {
       await this.ensureAuth();
 
-      console.log(`[KeycloakAPI] Searching for user by email: ${email}`);
+      log.debug(`[KeycloakAPI] Searching for user by email: ${email}`);
 
       const response = await this.axiosClient.get('/users', {
         params: {
@@ -243,14 +246,14 @@ export class KeycloakApiClient {
       const users = z.array(keycloakUserSchema).parse(response.data);
 
       if (users.length > 0) {
-        console.log('[KeycloakAPI] User found:', users[0].id);
+        log.debug('[KeycloakAPI] User found:', users[0].id);
         return users[0];
       }
 
-      console.log('[KeycloakAPI] User not found');
+      log.debug('[KeycloakAPI] User not found');
       return null;
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[KeycloakAPI] Error finding user by email:',
         (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
           ?.data || (error instanceof Error ? error.message : String(error))
@@ -274,7 +277,7 @@ export class KeycloakApiClient {
     try {
       await this.ensureAuth();
 
-      console.log(`[KeycloakAPI] Getting user by ID: ${userId}`);
+      log.debug(`[KeycloakAPI] Getting user by ID: ${userId}`);
 
       const response = await this.axiosClient.get(`/users/${userId}`);
       return keycloakUserSchema.parse(response.data);
@@ -285,7 +288,7 @@ export class KeycloakApiClient {
       if (axiosErr.response?.status === 404) {
         return null;
       }
-      console.error(
+      log.error(
         '[KeycloakAPI] Error getting user by ID:',
         (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
           ?.data || (error instanceof Error ? error.message : String(error))
@@ -304,7 +307,7 @@ export class KeycloakApiClient {
       await this.ensureAuth();
 
       const username = userData.username || userData.email;
-      console.log(`[KeycloakAPI] Creating user: ${username}`);
+      log.debug(`[KeycloakAPI] Creating user: ${username}`);
 
       const userRequest = {
         email: userData.email,
@@ -334,7 +337,7 @@ export class KeycloakApiClient {
       if (userId) {
         const createdUser = await this.getUserById(userId);
         if (createdUser) {
-          console.log('[KeycloakAPI] User created successfully:', createdUser.id);
+          log.debug('[KeycloakAPI] User created successfully:', createdUser.id);
           return createdUser;
         }
         throw new Error('User created but could not retrieve user data');
@@ -342,7 +345,7 @@ export class KeycloakApiClient {
         throw new Error('User created but could not retrieve user ID');
       }
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[KeycloakAPI] Error creating user:',
         (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
           ?.data || (error instanceof Error ? error.message : String(error))
@@ -361,7 +364,7 @@ export class KeycloakApiClient {
     try {
       await this.ensureAuth();
 
-      console.log(`[KeycloakAPI] Updating user ${userId}:`, updates);
+      log.debug(`[KeycloakAPI] Updating user ${userId}:`, updates);
 
       const updateRequest: Partial<KeycloakUser> = {};
 
@@ -376,7 +379,7 @@ export class KeycloakApiClient {
       // Return updated user
       return await this.getUserById(userId);
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[KeycloakAPI] Error updating user:',
         (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
           ?.data || (error instanceof Error ? error.message : String(error))
@@ -392,56 +395,52 @@ export class KeycloakApiClient {
    */
   async deleteUser(userId: string): Promise<boolean> {
     try {
-      console.log(`[KeycloakAPI] Starting user deletion process for Keycloak ID: ${userId}`);
+      log.debug(`[KeycloakAPI] Starting user deletion process for Keycloak ID: ${userId}`);
 
       await this.ensureAuth();
-      console.log(`[KeycloakAPI] Authentication successful, proceeding with deletion`);
+      log.debug(`[KeycloakAPI] Authentication successful, proceeding with deletion`);
 
       // First, check if user exists
       try {
         const existingUser = await this.getUserById(userId);
         if (existingUser) {
-          console.log(
+          log.debug(
             `[KeycloakAPI] User found in Keycloak: ${existingUser.username} (${existingUser.email})`
           );
         } else {
-          console.log(
-            `[KeycloakAPI] User ${userId} not found in Keycloak - may already be deleted`
-          );
+          log.debug(`[KeycloakAPI] User ${userId} not found in Keycloak - may already be deleted`);
           return true; // Consider it successful if user doesn't exist
         }
       } catch (checkError: unknown) {
         if ((checkError as { response?: { status?: number } }).response?.status === 404) {
-          console.log(
+          log.debug(
             `[KeycloakAPI] User ${userId} not found in Keycloak (404) - considering deletion successful`
           );
           return true;
         }
-        console.warn(
+        log.warn(
           `[KeycloakAPI] Error checking user existence before deletion:`,
           checkError instanceof Error ? checkError.message : String(checkError)
         );
         // Continue with deletion attempt anyway
       }
 
-      console.log(`[KeycloakAPI] Executing DELETE request to /users/${userId}`);
+      log.debug(`[KeycloakAPI] Executing DELETE request to /users/${userId}`);
       const response = await this.axiosClient.delete(`/users/${userId}`);
 
-      console.log(
-        `[KeycloakAPI] ✅ Delete request successful. Response status: ${response.status}`
-      );
-      console.log(`[KeycloakAPI] User ${userId} deleted successfully from Keycloak`);
+      log.debug(`[KeycloakAPI] ✅ Delete request successful. Response status: ${response.status}`);
+      log.debug(`[KeycloakAPI] User ${userId} deleted successfully from Keycloak`);
       return true;
     } catch (error: unknown) {
       const axiosErr = error as {
         response?: { status?: number; statusText?: string; data?: unknown };
         config?: { url?: string; method?: string };
       };
-      console.error(
+      log.error(
         `[KeycloakAPI] ❌ Error deleting user ${userId}:`,
         axiosErr.response?.data || (error instanceof Error ? error.message : String(error))
       );
-      console.error(`[KeycloakAPI] Error details:`, {
+      log.error(`[KeycloakAPI] Error details:`, {
         status: axiosErr.response?.status,
         statusText: axiosErr.response?.statusText,
         data: axiosErr.response?.data,
@@ -451,7 +450,7 @@ export class KeycloakApiClient {
 
       // If user was already deleted (404), consider it successful
       if (axiosErr.response?.status === 404) {
-        console.log(
+        log.debug(
           `[KeycloakAPI] User ${userId} was already deleted (404) - considering successful`
         );
         return true;
@@ -471,7 +470,7 @@ export class KeycloakApiClient {
     try {
       await this.ensureAuth();
 
-      console.log(`[KeycloakAPI] Setting password for user: ${userId}`);
+      log.debug(`[KeycloakAPI] Setting password for user: ${userId}`);
 
       await this.axiosClient.put(`/users/${userId}/reset-password`, {
         type: 'password',
@@ -479,10 +478,10 @@ export class KeycloakApiClient {
         temporary: false,
       });
 
-      console.log('[KeycloakAPI] Password set successfully');
+      log.debug('[KeycloakAPI] Password set successfully');
       return true;
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[KeycloakAPI] Error setting user password:',
         (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
           ?.data || (error instanceof Error ? error.message : String(error))
@@ -500,20 +499,20 @@ export class KeycloakApiClient {
     try {
       const user = await this.findUserByEmail(email);
       if (!user) {
-        console.log('[KeycloakAPI] User not found for password reset');
+        log.debug('[KeycloakAPI] User not found for password reset');
         return false;
       }
 
       await this.ensureAuth();
 
-      console.log(`[KeycloakAPI] Sending password reset email to: ${email}`);
+      log.debug(`[KeycloakAPI] Sending password reset email to: ${email}`);
 
       await this.axiosClient.put(`/users/${user.id}/execute-actions-email`, ['UPDATE_PASSWORD']);
 
-      console.log('[KeycloakAPI] Password reset email sent successfully');
+      log.debug('[KeycloakAPI] Password reset email sent successfully');
       return true;
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[KeycloakAPI] Error sending password reset email:',
         (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
           ?.data || (error instanceof Error ? error.message : String(error))
@@ -540,17 +539,17 @@ export class KeycloakApiClient {
    */
   async testConnection(): Promise<boolean> {
     try {
-      console.log('[KeycloakAPI] Testing connection...');
+      log.debug('[KeycloakAPI] Testing connection...');
 
       await this.ensureAuth();
 
       // Test with a simple realm info request
       await this.axiosClient.get('/');
 
-      console.log('[KeycloakAPI] ✅ Connection successful');
+      log.debug('[KeycloakAPI] ✅ Connection successful');
       return true;
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[KeycloakAPI] ❌ Connection test failed:',
         (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
           ?.data || (error instanceof Error ? error.message : String(error))
@@ -571,7 +570,7 @@ export class KeycloakApiClient {
       const response = await this.axiosClient.get(`/users/${userId}/federated-identity`);
       return z.array(federatedIdentitySchema).parse(response.data);
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[KeycloakAPI] Error getting federated identities:',
         (error as { response?: { status?: number; statusText?: string; data?: unknown } }).response
           ?.data || (error instanceof Error ? error.message : String(error))

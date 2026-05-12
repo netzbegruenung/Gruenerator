@@ -266,7 +266,7 @@ ${description}`;
 
       res.json(response);
     } catch (error) {
-      log.error('[claude_website] Error creating website content:', error);
+      log.error('[claude_website] Error creating website content:', { error });
       res.status(500).json({
         error: 'Fehler bei der Erstellung der Website-Inhalte',
         details: (error as Error).message,

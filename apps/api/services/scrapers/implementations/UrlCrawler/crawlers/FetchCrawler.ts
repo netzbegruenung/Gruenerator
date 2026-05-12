@@ -3,11 +3,14 @@
  * Fallback crawling using native fetch API
  */
 
+import { createLogger } from '../../../../../utils/logger.js';
 import { safeFetch } from '../../../../../utils/validation/urlSecurity.js';
 
 import { PdfCrawler } from './PdfCrawler.js';
 
 import type { CrawlerConfig, RawCrawlResult, CrawlOptions } from '../types.js';
+
+const log = createLogger('FetchCrawler');
 
 export class FetchCrawler {
   private pdfCrawler: PdfCrawler;
@@ -25,7 +28,7 @@ export class FetchCrawler {
       ...options,
     };
 
-    console.log(`[FetchCrawler] Fetching URL: ${url}`);
+    log.debug(`[FetchCrawler] Fetching URL: ${url}`);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(
@@ -60,7 +63,7 @@ export class FetchCrawler {
 
       // Handle PDFs with dedicated PDF crawler
       if (contentType.includes('application/pdf')) {
-        console.log(`[FetchCrawler] Detected PDF, routing to PDF handler`);
+        log.debug(`[FetchCrawler] Detected PDF, routing to PDF handler`);
         const pdfResult = await this.pdfCrawler.crawlPdf(url);
 
         // Format PDF result to match HTML structure

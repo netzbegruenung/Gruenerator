@@ -3,6 +3,8 @@
  * Handles vector search and content aggregation
  */
 
+import { createLogger } from '../../../utils/logger.js';
+
 import { createIntelligentExcerpt } from './contentExtraction.js';
 
 import type {
@@ -12,6 +14,8 @@ import type {
 } from './types.js';
 import type { SearchParams, SearchResponse } from '../../BaseSearchService/types.js';
 import type { DocumentRecord } from '../PostgresDocumentService/types.js';
+
+const log = createLogger('searchOperations');
 
 /**
  * Perform vector search within user's accessible documents
@@ -31,7 +35,12 @@ interface DocumentSearchServiceLike {
   getDocumentFullText: (
     userId: string,
     docId: string
-  ) => Promise<{ success: boolean; fullText: string; chunkCount: number; error?: string | undefined }>;
+  ) => Promise<{
+    success: boolean;
+    fullText: string;
+    chunkCount: number;
+    error?: string | undefined;
+  }>;
 }
 
 export async function performVectorSearch(
@@ -56,10 +65,10 @@ export async function performVectorSearch(
     });
 
     const results = searchResponse.results || [];
-    console.log(`[DocumentContentService] Vector search found ${results.length} results`);
+    log.debug(`[DocumentContentService] Vector search found ${results.length} results`);
     return results as SearchResult[];
   } catch (searchError) {
-    console.error('[DocumentContentService] Vector search error:', searchError);
+    log.error('[DocumentContentService] Vector search error:', searchError);
     return [];
   }
 }
@@ -147,7 +156,7 @@ export async function fillMissingDocuments(
               : 'Intelligent excerpt created from vectors',
         });
       } catch (qdrantError) {
-        console.error(
+        log.error(
           `[DocumentContentService] Failed to get full text for document ${doc.id}:`,
           qdrantError
         );
@@ -197,7 +206,7 @@ export function createSearchResponse(
     user_id: userId,
   };
 
-  console.log(
+  log.debug(
     `[DocumentContentService] Returning ${results.length} document contents (${responseTime}ms)`
   );
 

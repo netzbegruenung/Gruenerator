@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { env } from '../../config/env.js';
+import { createLogger } from '../../utils/logger.js';
 
 import type {
   GenerateFromPromptOptions,
@@ -18,6 +19,8 @@ import type {
   DownloadResult,
   GenerateFromImageOptions,
 } from './FluxImageService.js';
+
+const log = createLogger('IonosImageService');
 
 const IONOS_BASE_URL = 'https://openai.inference.de-txl.ionos.com/v1';
 const DEFAULT_MODEL = 'black-forest-labs/FLUX.1-schnell';
@@ -36,7 +39,7 @@ class IonosImageService {
   constructor() {
     this.apiKey = env.IONOS_API_TOKEN || '';
     if (!this.apiKey) {
-      console.warn('[IonosImageService] Missing IONOS_API_TOKEN');
+      log.warn('[IonosImageService] Missing IONOS_API_TOKEN');
     }
   }
 
@@ -52,7 +55,7 @@ class IonosImageService {
     const height = options.height || 1024;
     const size = `${width}x${height}`;
 
-    console.log(
+    log.debug(
       `[IonosImageService] Generating image with FLUX.1-schnell: ${prompt.substring(0, 80)}...`
     );
 

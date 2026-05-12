@@ -52,7 +52,7 @@ router.get(
         },
       });
     } catch (error) {
-      log.error('[ImageGeneration API] Error getting status:', error);
+      log.error('[ImageGeneration API] Error getting status:', { error });
       return res.status(500).json({
         success: false,
         error: 'Failed to get image generation status',
@@ -93,7 +93,7 @@ router.post(
         data: result,
       });
     } catch (error) {
-      log.error('[ImageGeneration API] Error incrementing counter:', error);
+      log.error('[ImageGeneration API] Error incrementing counter:', { error });
       return res.status(500).json({
         success: false,
         error: 'Failed to increment counter',
@@ -124,7 +124,7 @@ router.post('/reset', async (req: AuthenticatedRequest, res: Response<Generation
       message: success ? 'Counter reset successfully' : 'Failed to reset counter',
     });
   } catch (error) {
-    log.error('[ImageGeneration API] Error resetting counter:', error);
+    log.error('[ImageGeneration API] Error resetting counter:', { error });
     return res.status(500).json({
       success: false,
       error: 'Failed to reset counter',

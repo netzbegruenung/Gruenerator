@@ -14,6 +14,7 @@ import { and, eq, sql, asc, type InferSelectModel } from 'drizzle-orm';
 import { subtitlerProjects } from '../../database/schema/index.js';
 import { getDrizzleInstance, type DrizzleDB } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { createLogger } from '../../utils/logger.js';
 
 import type {
   SubtitlerProject,
@@ -22,6 +23,8 @@ import type {
   UpdateProjectData,
   DeleteProjectResult,
 } from './types.js';
+
+const log = createLogger('ProjectService');
 
 type SubtitlerProjectRow = InferSelectModel<typeof subtitlerProjects>;
 
@@ -72,9 +75,9 @@ export class SubtitlerProjectService {
 
       await fs.mkdir(PROJECT_STORAGE_PATH, { recursive: true });
 
-      console.log('[SubtitlerProjectService] Initialized successfully');
+      log.debug('[SubtitlerProjectService] Initialized successfully');
     } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Initialization failed:', error);
+      log.error('[SubtitlerProjectService] Initialization failed:', { error });
       throw error;
     }
   }
@@ -113,7 +116,7 @@ export class SubtitlerProjectService {
 
       return results;
     } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Failed to get user projects:', error);
+      log.error('[SubtitlerProjectService] Failed to get user projects:', { error });
       throw new Error(
         `Failed to retrieve projects: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -137,7 +140,7 @@ export class SubtitlerProjectService {
 
       return toSubtitlerProject(result);
     } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Failed to get project:', error);
+      log.error('[SubtitlerProjectService] Failed to get project:', { error });
       throw new Error(
         `Failed to retrieve project: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -160,7 +163,7 @@ export class SubtitlerProjectService {
       const result = rows[0];
       return result ? toSubtitlerProject(result) : null;
     } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Failed to get project by id:', error);
+      log.error('[SubtitlerProjectService] Failed to get project by id:', { error });
       throw new Error(
         `Failed to retrieve project: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -201,7 +204,7 @@ export class SubtitlerProjectService {
 
       return rows[0] ?? null;
     } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Failed to find project by filename:', error);
+      log.error('[SubtitlerProjectService] Failed to find project by filename:', { error });
       return null;
     }
   }
@@ -217,7 +220,7 @@ export class SubtitlerProjectService {
 
       return rows[0]?.video_path;
     } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Failed to get video path:', error);
+      log.error('[SubtitlerProjectService] Failed to get video path:', { error });
       throw new Error(
         `Failed to retrieve video path: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -288,14 +291,14 @@ export class SubtitlerProjectService {
       }
 
       await fs.copyFile(sourceVideoPath, targetVideoPath);
-      console.log(`[SubtitlerProjectService] Copied video to ${targetVideoPath}`);
+      log.debug(`[SubtitlerProjectService] Copied video to ${targetVideoPath}`);
 
       // Mark upload as promoted to prevent cleanup
       try {
         const { markUploadAsPromoted } = await import('./tusService.js');
         markUploadAsPromoted(uploadId);
       } catch (promoteError: unknown) {
-        console.warn(
+        log.warn(
           '[SubtitlerProjectService] Could not mark upload as promoted:',
           promoteError instanceof Error ? promoteError.message : String(promoteError)
         );
@@ -303,9 +306,9 @@ export class SubtitlerProjectService {
 
       try {
         await this.generateThumbnail(targetVideoPath, thumbnailPath);
-        console.log(`[SubtitlerProjectService] Generated thumbnail at ${thumbnailPath}`);
+        log.debug(`[SubtitlerProjectService] Generated thumbnail at ${thumbnailPath}`);
       } catch (thumbError: unknown) {
-        console.warn(
+        log.warn(
           '[SubtitlerProjectService] Thumbnail generation failed:',
           thumbError instanceof Error ? thumbError.message : String(thumbError)
         );
@@ -337,11 +340,11 @@ export class SubtitlerProjectService {
         })
         .returning();
 
-      console.log(`[SubtitlerProjectService] Created project ${projectId} for user ${userId}`);
+      log.debug(`[SubtitlerProjectService] Created project ${projectId} for user ${userId}`);
 
       return toSubtitlerProject(rows[0]);
     } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Failed to create project:', error);
+      log.error('[SubtitlerProjectService] Failed to create project:', { error });
       throw new Error(
         `Failed to create project: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -379,11 +382,11 @@ export class SubtitlerProjectService {
 
       updateData.last_edited_at = new Date();
 
-      console.log(
+      log.debug(
         '[SubtitlerProjectService] updateProject - updates received:',
         Object.keys(updates)
       );
-      console.log(
+      log.debug(
         '[SubtitlerProjectService] updateProject - updateData to save:',
         Object.keys(updateData)
       );
@@ -397,11 +400,11 @@ export class SubtitlerProjectService {
         throw new Error('Project not found or access denied');
       }
 
-      console.log(`[SubtitlerProjectService] Updated project ${projectId}`);
+      log.debug(`[SubtitlerProjectService] Updated project ${projectId}`);
 
       return toSubtitlerProject(rows[0]);
     } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Failed to update project:', error);
+      log.error('[SubtitlerProjectService] Failed to update project:', { error });
       throw new Error(
         `Failed to update project: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -427,7 +430,7 @@ export class SubtitlerProjectService {
       const row = rows[0];
       return row ? toSubtitlerProject(row) : undefined;
     } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Failed to increment export count:', error);
+      log.error('[SubtitlerProjectService] Failed to increment export count:', { error });
       return undefined;
     }
   }
@@ -452,12 +455,10 @@ export class SubtitlerProjectService {
         throw new Error('Project not found or access denied');
       }
 
-      console.log(
-        `[SubtitlerProjectService] Updated subtitled_video_path for project ${projectId}`
-      );
+      log.debug(`[SubtitlerProjectService] Updated subtitled_video_path for project ${projectId}`);
       return toSubtitlerProject(rows[0]);
     } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Failed to update subtitled video path:', error);
+      log.error('[SubtitlerProjectService] Failed to update subtitled video path:', { error });
       throw new Error(
         `Failed to update subtitled video path: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -486,19 +487,19 @@ export class SubtitlerProjectService {
       }
       try {
         await fs.rm(projectDir, { recursive: true, force: true });
-        console.log(`[SubtitlerProjectService] Deleted project files at ${projectDir}`);
+        log.debug(`[SubtitlerProjectService] Deleted project files at ${projectDir}`);
       } catch (fileError: unknown) {
-        console.warn(
+        log.warn(
           '[SubtitlerProjectService] Failed to delete project files:',
           fileError instanceof Error ? fileError.message : String(fileError)
         );
       }
 
-      console.log(`[SubtitlerProjectService] Deleted project ${projectId} for user ${userId}`);
+      log.debug(`[SubtitlerProjectService] Deleted project ${projectId} for user ${userId}`);
 
       return { success: true };
     } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Failed to delete project:', error);
+      log.error('[SubtitlerProjectService] Failed to delete project:', { error });
       throw new Error(
         `Failed to delete project: ${error instanceof Error ? error.message : String(error)}`
       );
@@ -524,14 +525,14 @@ export class SubtitlerProjectService {
           .limit(toDelete);
 
         for (const project of oldestProjects) {
-          console.log(
+          log.debug(
             `[SubtitlerProjectService] Auto-deleting oldest project ${project.id} to enforce limit`
           );
           await this.deleteProject(userId, project.id);
         }
       }
     } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Failed to enforce project limit:', error);
+      log.error('[SubtitlerProjectService] Failed to enforce project limit:', { error });
     }
   }
 
@@ -545,7 +546,7 @@ export class SubtitlerProjectService {
 
       return result[0]?.count ?? 0;
     } catch (error: unknown) {
-      console.error('[SubtitlerProjectService] Failed to get project count:', error);
+      log.error('[SubtitlerProjectService] Failed to get project count:', { error });
       return 0;
     }
   }

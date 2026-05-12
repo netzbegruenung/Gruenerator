@@ -167,7 +167,7 @@ class MistralVoiceService {
       return typeof message?.content === 'string' ? message.content : '';
     } catch (error) {
       const err = error as Error;
-      log.error('[Mistral Voice] Chat error:', err);
+      log.error('[Mistral Voice] Chat error:', { error: err });
       throw new Error(`Audio chat failed: ${err.message}`);
     }
   }
@@ -296,7 +296,7 @@ class MistralVoiceService {
       }
     } catch (error) {
       const err = error as Error;
-      log.error('[Mistral Voice] Streaming transcription error:', err);
+      log.error('[Mistral Voice] Streaming transcription error:', { error: err });
       throw new Error(`Streaming transcription failed: ${err.message}`);
     }
   }

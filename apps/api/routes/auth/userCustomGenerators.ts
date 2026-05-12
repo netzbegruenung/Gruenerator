@@ -87,7 +87,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Generators /custom_generator GET] Error:', err);
+      log.error('[User Custom Generators /custom_generator GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der Grüneratoren.',
@@ -139,7 +139,7 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Generators /custom_generator/create POST] Error:', err);
+      log.error('[User Custom Generators /custom_generator/create POST] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Erstellen des Grünerators.',
@@ -220,7 +220,7 @@ router.put(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Generators /custom_generator/:id PUT] Error:', err);
+      log.error('[User Custom Generators /custom_generator/:id PUT] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Aktualisieren des Grünerators.',
@@ -275,7 +275,7 @@ router.delete(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Generators /custom_generator/:id DELETE] Error:', err);
+      log.error('[User Custom Generators /custom_generator/:id DELETE] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Löschen des Grünerators.',
@@ -334,7 +334,9 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Generators /custom_generator/:id/documents GET] Error:', err);
+      log.error('[User Custom Generators /custom_generator/:id/documents GET] Error:', {
+        error: err,
+      });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der Dokumente.',
@@ -432,7 +434,9 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Generators /custom_generator/:id/documents POST] Error:', err);
+      log.error('[User Custom Generators /custom_generator/:id/documents POST] Error:', {
+        error: err,
+      });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Verknüpfen des Dokuments.',
@@ -495,7 +499,7 @@ router.delete(
       const err = error as Error;
       log.error(
         '[User Custom Generators /custom_generator/:id/documents/:documentId DELETE] Error:',
-        err
+        { error: err }
       );
       res.status(500).json({
         success: false,
@@ -538,7 +542,7 @@ router.get(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Generators /saved_generators GET] Error:', err);
+      log.error('[User Custom Generators /saved_generators GET] Error:', { error: err });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Laden der gespeicherten Grüneratoren.',
@@ -615,7 +619,9 @@ router.post(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Generators /saved_generators/:generatorId POST] Error:', err);
+      log.error('[User Custom Generators /saved_generators/:generatorId POST] Error:', {
+        error: err,
+      });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Speichern des Grünerators.',
@@ -656,7 +662,9 @@ router.delete(
       });
     } catch (error) {
       const err = error as Error;
-      log.error('[User Custom Generators /saved_generators/:generatorId DELETE] Error:', err);
+      log.error('[User Custom Generators /saved_generators/:generatorId DELETE] Error:', {
+        error: err,
+      });
       res.status(500).json({
         success: false,
         message: err.message || 'Fehler beim Entfernen des Grünerators.',

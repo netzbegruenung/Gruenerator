@@ -1,13 +1,17 @@
+import { createLogger } from '../logger.js';
+
 import type { Citation, DocumentContext, ProcessedResponse, SourceInfo } from './types.js';
+
+const log = createLogger('citations');
 
 export function extractCitationsFromText(
   text: string,
   documentContext: DocumentContext[],
   logPrefix: string = 'citation-extractor'
 ): Citation[] {
-  console.log(`[${logPrefix}] Extracting citations from text length: ${text.length}`);
-  console.log(`[${logPrefix}] Document context length: ${documentContext.length}`);
-  console.log(`[${logPrefix}] Text preview:`, text.substring(0, 200));
+  log.debug(`[${logPrefix}] Extracting citations from text length: ${text.length}`);
+  log.debug(`[${logPrefix}] Document context length: ${documentContext.length}`);
+  log.debug(`[${logPrefix}] Text preview:`, text.substring(0, 200));
 
   const extractedCitations: Citation[] = [];
 
@@ -25,7 +29,7 @@ export function extractCitationsFromText(
   while ((refMatch = citationRefPattern.exec(text)) !== null) {
     allCitationRefs.add(refMatch[1]);
   }
-  console.log(`[${logPrefix}] Found citation references:`, Array.from(allCitationRefs).sort());
+  log.debug(`[${logPrefix}] Found citation references:`, Array.from(allCitationRefs).sort());
 
   for (const pattern of citationPatterns) {
     let match: RegExpExecArray | null;
@@ -35,7 +39,7 @@ export function extractCitationsFromText(
       const citedText = match[2];
       const documentTitle = match[3];
 
-      console.log(
+      log.debug(
         `[${logPrefix}] Parsing citation: [${citationNumber}] "${citedText.substring(0, 30)}..."`
       );
 
@@ -52,7 +56,7 @@ export function extractCitationsFromText(
           filename: docContext.metadata.filename,
         });
       } else {
-        console.warn(
+        log.warn(
           `[${logPrefix}] Citation index ${citationIndex} out of range (0-${documentContext.length - 1})`
         );
 
@@ -68,7 +72,7 @@ export function extractCitationsFromText(
           }
 
           if (bestMatch) {
-            console.log(
+            log.debug(
               `[${logPrefix}] Creating fallback citation for [${citationNumber}] using best match`
             );
             extractedCitations.push({
@@ -94,7 +98,7 @@ export function extractCitationsFromText(
       const refIndex = parseInt(refNum) - 1;
       if (refIndex >= 0 && refIndex < documentContext.length) {
         const docContext = documentContext[refIndex];
-        console.log(`[${logPrefix}] Creating minimal citation for reference [${refNum}]`);
+        log.debug(`[${logPrefix}] Creating minimal citation for reference [${refNum}]`);
 
         extractedCitations.push({
           index: refNum,
@@ -109,7 +113,7 @@ export function extractCitationsFromText(
         const lastDocIndex = documentContext.length - 1;
         if (lastDocIndex >= 0) {
           const docContext = documentContext[lastDocIndex];
-          console.log(
+          log.debug(
             `[${logPrefix}] Creating fallback citation for out-of-range reference [${refNum}] using last document`
           );
 
@@ -137,7 +141,7 @@ export function extractCitationsFromText(
     }
   }
 
-  console.log(
+  log.debug(
     `[${logPrefix}] Final citations extracted:`,
     uniqueCitations.map((c) => `[${c.index}]`)
   );
@@ -150,7 +154,7 @@ export function processAIResponseWithCitations(
   documentContext: DocumentContext[],
   logPrefix: string = 'citation-processor'
 ): ProcessedResponse {
-  console.log(`[${logPrefix}] Processing AI response, length: ${responseContent.length}`);
+  log.debug(`[${logPrefix}] Processing AI response, length: ${responseContent.length}`);
 
   let citations: Citation[] = [];
   let answer = responseContent;
@@ -168,7 +172,7 @@ export function processAIResponseWithCitations(
       const citationText = citationMatch[1];
       answer = responseContent.substring(responseContent.indexOf('Antwort:') + 8).trim();
 
-      console.log(`[${logPrefix}] Found citation section using pattern, extracting citations...`);
+      log.debug(`[${logPrefix}] Found citation section using pattern, extracting citations...`);
       citations = extractCitationsFromText(citationText, documentContext, logPrefix);
       citationSectionFound = true;
       break;
@@ -176,9 +180,7 @@ export function processAIResponseWithCitations(
   }
 
   if (!citationSectionFound) {
-    console.log(
-      `[${logPrefix}] No structured citation section found, searching entire response...`
-    );
+    log.debug(`[${logPrefix}] No structured citation section found, searching entire response...`);
     citations = extractCitationsFromText(responseContent, documentContext, logPrefix);
 
     if (citations.length > 0) {
@@ -191,14 +193,14 @@ export function processAIResponseWithCitations(
     }
   }
 
-  console.log(`[${logPrefix}] Citation extraction complete. Found`, citations.length, 'citations');
+  log.debug(`[${logPrefix}] Citation extraction complete. Found`, citations.length, 'citations');
 
   let processedAnswer = answer;
   citations.forEach((citation) => {
     const citationPattern = new RegExp(`\\[${citation.index}\\]`, 'g');
     const marker = `[cite:${citation.index}]`;
     processedAnswer = processedAnswer.replace(citationPattern, marker);
-    console.log(`[${logPrefix}] Replaced [${citation.index}] with ${marker}`);
+    log.debug(`[${logPrefix}] Replaced [${citation.index}] with ${marker}`);
   });
 
   const sources: SourceInfo[] = documentContext.map((doc) => {

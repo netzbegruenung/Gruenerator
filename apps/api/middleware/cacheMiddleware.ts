@@ -4,8 +4,12 @@
  * Extracted from server.mjs for better modularity
  */
 
+import { createLogger } from '../utils/logger.js';
+
 import type { RedisClient } from '../utils/redis/types.js';
 import type { Request, Response, NextFunction } from 'express';
+
+const log = createLogger('cacheMiddleware');
 
 export interface CacheOptions {
   ttl?: number;
@@ -66,14 +70,14 @@ export function createCacheMiddleware(
         const bodyStr = typeof body === 'string' ? body : JSON.stringify(body);
         redisClient
           .set(key, bodyStr, { EX: ttl })
-          .catch((err: Error) => console.error('[Cache] Error setting cache:', err));
+          .catch((err: Error) => log.error('[Cache] Error setting cache:', { error: err }));
 
         return originalSend(body);
       };
 
       next();
     } catch (err) {
-      console.error('[Cache] Error:', err);
+      log.error('[Cache] Error:', { error: err });
       next();
     }
   };

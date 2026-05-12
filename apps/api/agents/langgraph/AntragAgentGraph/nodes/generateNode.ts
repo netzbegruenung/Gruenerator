@@ -134,7 +134,7 @@ WICHTIG: Gib nur den finalen deutschen Text aus, keine Erklärungen oder Komment
       generationTimeMs,
     };
   } catch (error) {
-    log.error('[generateNode] Generation failed:', error);
+    log.error('[generateNode] Generation failed:', { error });
     return {
       generatedContent: '',
       generationTimeMs: Date.now() - startTime,

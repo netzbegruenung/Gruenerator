@@ -77,7 +77,7 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
 
       return { status: 200 as const, body: { success: true, data: vorlagen as never[] } };
     } catch (error) {
-      log.error('[adminVorlagenContract.list] Error:', error);
+      log.error('[adminVorlagenContract.list] Error:', { error });
       return {
         status: 500 as const,
         body: { success: false, message: 'Fehler beim Laden der Vorlagen.' },
@@ -110,7 +110,7 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
 
       return { status: 200 as const, body: { success: true, data: statsData } };
     } catch (error) {
-      log.error('[adminVorlagenContract.getStats] Error:', error);
+      log.error('[adminVorlagenContract.getStats] Error:', { error });
       return {
         status: 500 as const,
         body: { success: false, message: 'Fehler beim Laden der Statistiken.' },
@@ -161,7 +161,7 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
         body: { success: true, message: 'Vorlage wurde freigegeben.' },
       };
     } catch (error) {
-      log.error('[adminVorlagenContract.approve] Error:', error);
+      log.error('[adminVorlagenContract.approve] Error:', { error });
       return {
         status: 500 as const,
         body: { success: false, message: 'Fehler beim Freigeben der Vorlage.' },
@@ -211,7 +211,7 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
       log.info(`[adminVorlagenContract] Vorlage ${id} rejected by ${userId}`);
       return { status: 200 as const, body: { success: true, message: 'Vorlage wurde abgelehnt.' } };
     } catch (error) {
-      log.error('[adminVorlagenContract.reject] Error:', error);
+      log.error('[adminVorlagenContract.reject] Error:', { error });
       return {
         status: 500 as const,
         body: { success: false, message: 'Fehler beim Ablehnen der Vorlage.' },

@@ -23,6 +23,7 @@ import {
   getCollectionStats,
 } from '../../../database/services/QdrantService/operations/batchOperations.js';
 import { BRAND } from '../../../utils/domainUtils.js';
+import { createLogger } from '../../../utils/logger.js';
 import { generatePointId } from '../../../utils/validation/index.js';
 import { chunkQualityService } from '../../ChunkQualityService/index.js';
 import { smartChunkDocument } from '../../document-services/index.js';
@@ -33,6 +34,8 @@ import { removeUnwantedElements } from '../utils/htmlCleaner.js';
 
 import type { QdrantService } from '../../../database/services/QdrantService/index.js';
 import type { ScraperResult } from '../types.js';
+
+const log = createLogger('GrueneAtScraper');
 
 interface ExtractedContent {
   title: string;
@@ -256,7 +259,7 @@ export class GrueneAtScraper extends BaseScraper {
         });
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Unknown error';
-        console.error(`[GrueneAt] Failed to fetch sitemap ${source.url}: ${msg}`);
+        log.error(`[GrueneAt] Failed to fetch sitemap ${source.url}: ${msg}`);
       }
 
       await this.delay(300);
@@ -576,13 +579,13 @@ export class GrueneAtScraper extends BaseScraper {
           }
         } catch (error) {
           const msg = error instanceof Error ? error.message : 'Unknown error';
-          console.error(`[GrueneAt] Error processing ${url}: ${msg}`);
+          log.error(`[GrueneAt] Error processing ${url}: ${msg}`);
           result.errors++;
         }
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
-      console.error('[GrueneAt] Crawl failed:', msg);
+      log.error('[GrueneAt] Crawl failed:', msg);
       throw error;
     }
 

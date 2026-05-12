@@ -10,10 +10,14 @@ import * as crypto from 'crypto';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+import { createLogger } from '../../utils/logger.js';
+
 import { MIME_TO_EXTENSION, MAX_IMAGE_SIZE } from './constants.js';
 import { extractBase64FromDataUrl } from './validation.js';
 
 import type { Attachment, ImageAttachment, MulterMemoryFile, MulterDiskFile } from './types.js';
+
+const log = createLogger('CanvasAdapter');
 
 /**
  * CanvasAdapter class
@@ -58,7 +62,7 @@ export class CanvasAdapter {
 
     // Extract base64 from data URL if needed
     const base64Data = extractBase64FromDataUrl(attachment.data);
-    console.log('[AttachmentAdapter] Extracted base64 from data URL');
+    log.debug('[AttachmentAdapter] Extracted base64 from data URL');
 
     // Convert base64 to buffer
     const buffer = Buffer.from(base64Data, 'base64');
@@ -105,13 +109,13 @@ export class CanvasAdapter {
 
     // Extract base64 from data URL if needed
     const base64Data = extractBase64FromDataUrl(attachment.data);
-    console.log('[AttachmentAdapter] Extracted base64 from data URL for temp file');
+    log.debug('[AttachmentAdapter] Extracted base64 from data URL for temp file');
 
     // Convert base64 to buffer and save to file
     const buffer = Buffer.from(base64Data, 'base64');
     await fs.writeFile(tempPath, buffer);
 
-    console.log(`[AttachmentAdapter] Created temp file: ${tempPath} (${buffer.length} bytes)`);
+    log.debug(`[AttachmentAdapter] Created temp file: ${tempPath} (${buffer.length} bytes)`);
 
     // Return mock multer file object with cleanup function
     return {
@@ -127,9 +131,9 @@ export class CanvasAdapter {
       cleanup: async () => {
         try {
           await fs.unlink(tempPath);
-          console.log(`[AttachmentAdapter] Cleaned up temp file: ${tempPath}`);
+          log.debug(`[AttachmentAdapter] Cleaned up temp file: ${tempPath}`);
         } catch (error) {
-          console.warn(
+          log.warn(
             `[AttachmentAdapter] Failed to cleanup temp file ${tempPath}:`,
             (error as Error).message
           );

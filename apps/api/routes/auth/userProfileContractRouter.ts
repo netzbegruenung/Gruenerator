@@ -65,7 +65,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       };
     } catch (error) {
       const err = error as Error;
-      log.error('[Profile Contract GET /profile] Error:', err);
+      log.error('[Profile Contract GET /profile] Error:', { error: err });
       return {
         status: 500 as const,
         body: { success: false as const, message: err.message || 'Fehler beim Laden des Profils.' },
@@ -121,7 +121,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       };
     } catch (error) {
       const err = error as Error;
-      log.error('[Profile Contract PUT /profile] Error:', err);
+      log.error('[Profile Contract PUT /profile] Error:', { error: err });
       return {
         status: 500 as const,
         body: {
@@ -155,7 +155,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       };
     } catch (error) {
       const err = error as Error;
-      log.error('[Profile Contract PATCH /profile/avatar] Error:', err);
+      log.error('[Profile Contract PATCH /profile/avatar] Error:', { error: err });
       const statusCode = err.message.includes('must be between') ? 400 : 500;
       return {
         status: statusCode as 400 | 500,
@@ -186,7 +186,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       };
     } catch (error) {
       const err = error as Error;
-      log.error('[Profile Contract GET /profile/beta-features] Error:', err);
+      log.error('[Profile Contract GET /profile/beta-features] Error:', { error: err });
       return {
         status: 500 as const,
         body: {
@@ -260,7 +260,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       };
     } catch (error) {
       const err = error as Error;
-      log.error('[Profile Contract PATCH /profile/beta-features] Error:', err);
+      log.error('[Profile Contract PATCH /profile/beta-features] Error:', { error: err });
       return {
         status: 500 as const,
         body: {
@@ -289,7 +289,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       };
     } catch (error) {
       const err = error as Error;
-      log.error('[Profile Contract PATCH /profile/message-color] Error:', err);
+      log.error('[Profile Contract PATCH /profile/message-color] Error:', { error: err });
       return {
         status: 500 as const,
         body: {
@@ -325,7 +325,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       };
     } catch (error) {
       const err = error as Error;
-      log.error('[Profile Contract GET /profile/user-defaults] Error:', err);
+      log.error('[Profile Contract GET /profile/user-defaults] Error:', { error: err });
       return {
         status: 500 as const,
         body: {
@@ -355,7 +355,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       };
     } catch (error) {
       const err = error as Error;
-      log.error('[Profile Contract PATCH /profile/user-defaults] Error:', err);
+      log.error('[Profile Contract PATCH /profile/user-defaults] Error:', { error: err });
       return {
         status: 500 as const,
         body: {
@@ -380,7 +380,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       };
     } catch (error) {
       const err = error as Error;
-      log.error('[Profile Contract GET /profile/notification-preferences] Error:', err);
+      log.error('[Profile Contract GET /profile/notification-preferences] Error:', { error: err });
       return {
         status: 500 as const,
         body: {
@@ -464,7 +464,9 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       };
     } catch (error) {
       const err = error as Error;
-      log.error('[Profile Contract PATCH /profile/notification-preferences] Error:', err);
+      log.error('[Profile Contract PATCH /profile/notification-preferences] Error:', {
+        error: err,
+      });
       return {
         status: 500 as const,
         body: {
@@ -531,7 +533,9 @@ export const userProfileContractRouter = s.router(userProfileContract, {
             code?: string;
             response?: { status?: number; statusText?: string; data?: unknown };
           };
-          log.error(`[User Delete] Error deleting user from Keycloak ${keycloakId}:`, err);
+          log.error(`[User Delete] Error deleting user from Keycloak ${keycloakId}:`, {
+            error: err,
+          });
           log.warn(`[User Delete] Continuing with database deletion despite Keycloak error`);
         }
       }
@@ -561,7 +565,7 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       };
     } catch (error) {
       const err = error as Error;
-      log.error(`[User Delete] Error during account deletion:`, err);
+      log.error(`[User Delete] Error during account deletion:`, { error: err });
       return {
         status: 500 as const,
         body: {

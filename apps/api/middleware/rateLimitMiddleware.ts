@@ -20,11 +20,14 @@
 import { type Response, type NextFunction } from 'express';
 
 import rateLimitConfig from '../config/rateLimits.js';
+import { createLogger } from '../utils/logger.js';
 import { RateLimiter, redisClient } from '../utils/redis/index.js';
 
 import { type RateLimitRequest, type RateLimitMiddlewareOptions } from './types.js';
 
 import type { RateLimitIncrementResult } from '../utils/redis/types.js';
+
+const log = createLogger('rateLimitMiddleware');
 
 // Create singleton instance
 const rateLimiter = new RateLimiter(redisClient, rateLimitConfig);
@@ -66,14 +69,14 @@ function rateLimitMiddleware(resourceType: string, options: RateLimitMiddlewareO
 
       // Log rate limit check
       if (!status.unlimited && !status.error) {
-        console.log(
+        log.debug(
           `[RateLimit] ${resourceType} check for ${userType} ${identifier}: ${status.count}/${status.limit} used, ${status.remaining} remaining`
         );
       }
 
       // Handle limit exceeded (hard limit)
       if (!status.canGenerate && !status.unlimited && !soft) {
-        console.warn(
+        log.warn(
           `[RateLimit] Blocked ${resourceType} request: ${userType} ${identifier} exceeded limit (${status.count}/${status.limit})`
         );
 
@@ -95,7 +98,7 @@ function rateLimitMiddleware(resourceType: string, options: RateLimitMiddlewareO
 
       // Handle soft limit (warn but allow)
       if (!status.canGenerate && !status.unlimited && soft) {
-        console.warn(
+        log.warn(
           `[RateLimit] Soft limit warning for ${resourceType}: ${userType} ${identifier} exceeded limit but allowed`
         );
         req.rateLimitWarning = {
@@ -120,7 +123,7 @@ function rateLimitMiddleware(resourceType: string, options: RateLimitMiddlewareO
           // Only increment if response is successful (2xx status)
           if (res.statusCode >= 200 && res.statusCode < 300) {
             incrementRateLimit(req).catch((err) => {
-              console.error('[RateLimit] Auto-increment failed:', err);
+              log.error('[RateLimit] Auto-increment failed:', { error: err });
             });
           }
           return originalJson(body);
@@ -129,7 +132,7 @@ function rateLimitMiddleware(resourceType: string, options: RateLimitMiddlewareO
 
       next();
     } catch (error) {
-      console.error(`[RateLimit] Middleware error for ${resourceType}:`, error);
+      log.error(`[RateLimit] Middleware error for ${resourceType}:`, { error });
 
       // On error, allow request but log (fail-open strategy)
       req.rateLimitError = error as Error;
@@ -157,7 +160,7 @@ function rateLimitMiddleware(resourceType: string, options: RateLimitMiddlewareO
  */
 async function incrementRateLimit(req: RateLimitRequest): Promise<RateLimitIncrementResult | null> {
   if (!req.rateLimitContext) {
-    console.warn('[RateLimit] incrementRateLimit called without rateLimitContext');
+    log.warn('[RateLimit] incrementRateLimit called without rateLimitContext');
     return null;
   }
 
@@ -167,7 +170,7 @@ async function incrementRateLimit(req: RateLimitRequest): Promise<RateLimitIncre
     const result = await rateLimiter.incrementCount(resourceType, identifier, userType);
 
     if (!result.success && !result.unlimited) {
-      console.error(
+      log.error(
         `[RateLimit] Failed to increment ${resourceType} for ${userType} ${identifier}:`,
         result
       );
@@ -175,7 +178,7 @@ async function incrementRateLimit(req: RateLimitRequest): Promise<RateLimitIncre
 
     return result;
   } catch (error) {
-    console.error('[RateLimit] Error in incrementRateLimit:', error);
+    log.error('[RateLimit] Error in incrementRateLimit:', { error });
     return null;
   }
 }
@@ -202,7 +205,7 @@ function rateLimitInfo(resourceType: string) {
 
       req.rateLimitInfo = status;
     } catch (error) {
-      console.error('[RateLimit] Info middleware error:', error);
+      log.error('[RateLimit] Info middleware error:', { error });
     }
 
     next();

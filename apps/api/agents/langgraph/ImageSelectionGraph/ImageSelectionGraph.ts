@@ -7,6 +7,7 @@
 
 import { StateGraph, Annotation } from '@langchain/langgraph';
 
+import { createLogger } from '../../../utils/logger.js';
 import { type AIWorkerPool } from '../../../workers/types.js';
 
 import { loadCatalogNode } from './nodes/LoadCatalogNode.js';
@@ -19,6 +20,8 @@ import type {
   ImageCatalog,
   SelectionMetadata,
 } from './types.js';
+
+const log = createLogger('ImageSelectionGraph');
 
 // State schema for the image selection graph
 const ImageSelectionStateAnnotation = Annotation.Root({
@@ -97,7 +100,7 @@ export const imageSelectionGraph = createImageSelectionGraph();
 export async function runImageSelection(input: ImageSelectionInput): Promise<ImageSelectionOutput> {
   const { text, sharepicType, aiWorkerPool, req } = input;
 
-  console.log(`[ImageSelectionGraph] Starting image selection for: "${text.substring(0, 50)}..."`);
+  log.debug(`[ImageSelectionGraph] Starting image selection for: "${text.substring(0, 50)}..."`);
 
   try {
     const initialState = {
@@ -131,7 +134,7 @@ export async function runImageSelection(input: ImageSelectionInput): Promise<Ima
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[ImageSelectionGraph] Execution error:', errorMessage);
+    log.error('[ImageSelectionGraph] Execution error:', errorMessage);
 
     return {
       status: 'error',

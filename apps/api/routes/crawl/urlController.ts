@@ -145,7 +145,7 @@ router.post(
       });
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      log.error(`[crawl-url] Error processing request (${processingTime}ms):`, error);
+      log.error(`[crawl-url] Error processing request (${processingTime}ms):`, { error });
 
       const err = error as Error;
       let userError = 'Failed to process URL';

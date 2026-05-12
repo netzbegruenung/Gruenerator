@@ -4,12 +4,15 @@
  */
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
+import { createLogger } from '../../../utils/logger.js';
 import { cleanTextForEmbedding } from '../../text/index.js';
 
 import { GERMAN_SEPARATORS } from './germanLanguageRules.js';
 import { estimateTokens } from './validation.js';
 
 import type { Chunk, LangChainChunkerOptions } from './types.js';
+
+const log = createLogger('langchainIntegration');
 
 /**
  * LangChain-based chunker implementation
@@ -37,7 +40,7 @@ export class LangChainChunker {
 
     try {
       // @ts-expect-error - LangChain is an optional dependency
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
       const { RecursiveCharacterTextSplitter } = await import('langchain/text_splitter');
       const splitter: { splitText(text: string): Promise<string[]> } =
         // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -46,7 +49,7 @@ export class LangChainChunker {
     } catch (_err1) {
       try {
         // @ts-expect-error - LangChain is an optional dependency
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
         const { RecursiveCharacterTextSplitter } = await import('@langchain/core/text_splitter');
         const splitter: { splitText(text: string): Promise<string[]> } =
           // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -57,7 +60,7 @@ export class LangChainChunker {
       } catch (_err2) {
         try {
           // @ts-expect-error - LangChain is an optional dependency
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
           const { RecursiveCharacterTextSplitter } = await import('@langchain/textsplitters');
           const splitter: { splitText(text: string): Promise<string[]> } =
             // eslint-disable-next-line @typescript-eslint/no-unsafe-call
@@ -67,7 +70,7 @@ export class LangChainChunker {
           return splitter;
         } catch (_err3) {
           if (vectorConfig.isVerboseMode()) {
-            console.warn('[LangChainChunker] LangChain not available; using fallback');
+            log.warn('[LangChainChunker] LangChain not available; using fallback');
           }
           return null;
         }

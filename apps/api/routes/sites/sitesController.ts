@@ -63,7 +63,7 @@ router.get('/public/:subdomain', (async (
 
     res.json({ site: result[0] });
   } catch (error) {
-    log.error('Error fetching public site:', error);
+    log.error('Error fetching public site:', { error });
     res.status(500).json({ error: 'Fehler beim Laden der Site' });
   }
 }) as SitesHandler);
@@ -93,7 +93,7 @@ router.get('/my-site', (async (req: SitesRequest, res: Response): Promise<void> 
 
     res.json({ site: result[0] });
   } catch (error) {
-    log.error('Error fetching user site:', error);
+    log.error('Error fetching user site:', { error });
     res.status(500).json({ error: 'Fehler beim Laden der Site' });
   }
 }) as SitesHandler);
@@ -152,7 +152,7 @@ router.post('/create', (async (req: SitesRequest, res: Response): Promise<void> 
       res.status(400).json({ error: 'Diese Subdomain ist bereits vergeben' });
       return;
     }
-    log.error('Error creating site:', error);
+    log.error('Error creating site:', { error });
     res.status(500).json({ error: 'Fehler beim Erstellen der Site' });
   }
 }) as SitesHandler);
@@ -205,7 +205,7 @@ router.put('/:id', (async (req: SitesRequest<{ id: string }>, res: Response): Pr
 
     res.json({ site: result[0] });
   } catch (error) {
-    log.error('Error updating site:', error);
+    log.error('Error updating site:', { error });
     res.status(500).json({ error: 'Fehler beim Aktualisieren der Site' });
   }
 }) as SitesHandler);
@@ -242,7 +242,7 @@ router.post('/:id/publish', (async (
 
     res.json({ site: result[0] });
   } catch (error) {
-    log.error('Error publishing site:', error);
+    log.error('Error publishing site:', { error });
     res.status(500).json({ error: 'Fehler beim Veröffentlichen der Site' });
   }
 }) as SitesHandler);
@@ -278,7 +278,7 @@ router.get('/check-subdomain', (async (req: SitesRequest, res: Response): Promis
 
     res.json({ available: !result || result.length === 0 });
   } catch (error) {
-    log.error('Error checking subdomain:', error);
+    log.error('Error checking subdomain:', { error });
     res.status(500).json({ available: false, error: 'Fehler beim Prüfen der Subdomain' });
   }
 }) as SitesHandler);
@@ -308,7 +308,7 @@ router.delete('/:id', (async (req: SitesRequest<{ id: string }>, res: Response):
 
     res.json({ success: true });
   } catch (error) {
-    log.error('Error deleting site:', error);
+    log.error('Error deleting site:', { error });
     res.status(500).json({ success: false, error: 'Fehler beim Löschen der Site' });
   }
 }) as SitesHandler);

@@ -56,7 +56,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
       }));
       return { status: 200 as const, body };
     } catch (error) {
-      log.error('[notificationsContract.list] Error:', error);
+      log.error('[notificationsContract.list] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to get notifications' } };
     }
   },
@@ -67,7 +67,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
       const count = await getUnreadCount(userId);
       return { status: 200 as const, body: { count } };
     } catch (error) {
-      log.error('[notificationsContract.getUnreadCount] Error:', error);
+      log.error('[notificationsContract.getUnreadCount] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to get unread count' } };
     }
   },
@@ -78,7 +78,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
       await markAsRead(args.params.id, userId);
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
-      log.error('[notificationsContract.markAsRead] Error:', error);
+      log.error('[notificationsContract.markAsRead] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to mark as read' } };
     }
   },
@@ -89,7 +89,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
       await markAllAsRead(userId);
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
-      log.error('[notificationsContract.markAllAsRead] Error:', error);
+      log.error('[notificationsContract.markAllAsRead] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to mark all as read' } };
     }
   },
@@ -100,7 +100,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
       await dismissNotification(args.params.id, userId);
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
-      log.error('[notificationsContract.dismiss] Error:', error);
+      log.error('[notificationsContract.dismiss] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to dismiss notification' } };
     }
   },
@@ -111,7 +111,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
       await dismissAllNotifications(userId);
       return { status: 200 as const, body: { success: true } };
     } catch (error) {
-      log.error('[notificationsContract.dismissAll] Error:', error);
+      log.error('[notificationsContract.dismissAll] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to dismiss all' } };
     }
   },
@@ -125,7 +125,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
       const defaults = getDefaultPreferences();
       return { status: 200 as const, body: { success: true, preferences, defaults } };
     } catch (error) {
-      log.error('[notificationsContract.getPreferences] Error:', error);
+      log.error('[notificationsContract.getPreferences] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to load notification preferences' } };
     }
   },
@@ -187,7 +187,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
       const preferences = await getPreferencesForUser(userId);
       return { status: 200 as const, body: { success: true, preferences, defaults } };
     } catch (error) {
-      log.error('[notificationsContract.updatePreferences] Error:', error);
+      log.error('[notificationsContract.updatePreferences] Error:', { error });
       return { status: 500 as const, body: { error: 'Failed to update notification preferences' } };
     }
   },

@@ -4,6 +4,8 @@
  * Provides caching and batch processing capabilities
  */
 
+import { createLogger } from '../../../utils/logger.js';
+
 import { embeddingCache } from './embeddingCache.js';
 import {
   validateText,
@@ -16,6 +18,8 @@ import {
 import MistralEmbeddingClient from './MistralEmbeddingClient.js';
 
 import type { ModelInfo } from './types.js';
+
+const log = createLogger('MistralEmbeddingService');
 
 /**
  * MistralEmbeddingService class
@@ -89,13 +93,11 @@ export class MistralEmbeddingService {
     }
 
     // Generate new embedding using client
-    console.log(
-      `[MistralEmbeddingService] Generating embedding for "${query.substring(0, 50)}..."`
-    );
+    log.debug(`[MistralEmbeddingService] Generating embedding for "${query.substring(0, 50)}..."`);
     const startTime = Date.now();
     const embedding = await this.client.generateEmbedding(query);
     const duration = Date.now() - startTime;
-    console.log(
+    log.debug(
       `[MistralEmbeddingService] Embedding generated in ${duration}ms (${embedding.length} dims)`
     );
 
@@ -140,6 +142,6 @@ export class MistralEmbeddingService {
    */
   async cleanup(): Promise<void> {
     this.isInitialized = false;
-    console.log('[MistralEmbeddingService] Client cleaned up');
+    log.debug('[MistralEmbeddingService] Client cleaned up');
   }
 }

@@ -67,7 +67,7 @@ Erstelle einen Instagram Reel Beitragstext, der:
 
       res.json({ content: result.content, metadata: result.metadata });
     } catch (error: unknown) {
-      log.error('Social media text generation failed:', error);
+      log.error('Social media text generation failed:', { error });
       res.status(500).json({
         error: 'Fehler bei der Erstellung des Social Media Texts',
         details: error instanceof Error ? error.message : String(error),

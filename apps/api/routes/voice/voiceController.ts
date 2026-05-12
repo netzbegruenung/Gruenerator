@@ -412,7 +412,7 @@ router.post(
         ...(options.language != null && { language: options.language }),
       });
     } catch (error) {
-      log.error('[Voice] Transcription error:', error);
+      log.error('[Voice] Transcription error:', { error });
 
       res.status(500).json({
         success: false,
@@ -513,7 +513,7 @@ router.post('/transcribe/stream', upload.single('audio'), (async (
       }
     }
   } catch (error) {
-    log.error('[Voice] Streaming transcription error:', error);
+    log.error('[Voice] Streaming transcription error:', { error });
     sse.sendRaw('error', { type: 'error', text: (error as Error).message });
   }
 
@@ -581,7 +581,7 @@ router.post(
         language,
       });
     } catch (error) {
-      log.error('[Voice] TUS transcription error:', error);
+      log.error('[Voice] TUS transcription error:', { error });
       void scheduleImmediateCleanup(uploadId, 'transcription error');
       return res.status(500).json({
         success: false,
@@ -668,7 +668,7 @@ router.post(
 
       void scheduleImmediateCleanup(uploadId, 'transcription complete');
     } catch (error) {
-      log.error('[Voice] TUS streaming transcription error:', error);
+      log.error('[Voice] TUS streaming transcription error:', { error });
       void scheduleImmediateCleanup(uploadId, 'transcription error');
       sse.sendRaw('error', { type: 'error', text: (error as Error).message });
     }
@@ -721,7 +721,7 @@ router.post(
         sourceUrl: url,
       });
     } catch (error) {
-      log.error('[Voice] URL transcription error:', error);
+      log.error('[Voice] URL transcription error:', { error });
 
       return res.status(500).json({
         success: false,
@@ -762,7 +762,7 @@ router.post('/chat', upload.single('audio'), (async (
       prompt,
     });
   } catch (error) {
-    log.error('[Voice] Audio chat error:', error);
+    log.error('[Voice] Audio chat error:', { error });
 
     res.status(500).json({
       success: false,
@@ -788,7 +788,7 @@ router.post(
       });
       return res.json({ success: true, content });
     } catch (error) {
-      log.error('[Voice] Protokoll error:', error);
+      log.error('[Voice] Protokoll error:', { error });
       return res.status(500).json({
         success: false,
         error: 'Fehler bei der Protokoll-Erstellung: ' + (error as Error).message,
@@ -811,7 +811,7 @@ router.post(
       const mapping = await identifySpeakers(text);
       return res.json({ success: true, mapping });
     } catch (error) {
-      log.error('[Voice] Speaker identification error:', error);
+      log.error('[Voice] Speaker identification error:', { error });
       return res.status(500).json({
         success: false,
         error: 'Fehler bei der Sprecher*innen-Erkennung: ' + (error as Error).message,
@@ -834,7 +834,7 @@ router.post(
       const html = await extractTodoList(text, title);
       return res.json({ success: true, content: html });
     } catch (error) {
-      log.error('[Voice] Todo list error:', error);
+      log.error('[Voice] Todo list error:', { error });
       return res.status(500).json({
         success: false,
         error: 'Fehler bei der Aufgaben-Extraktion: ' + (error as Error).message,
@@ -861,7 +861,7 @@ router.get('/formats', (_req: Request, res: Response<FormatsResponse>) => {
         : 'Mistral Voxtral (video converted via FFmpeg)',
     });
   } catch (error) {
-    log.error('[Voice] Formats error:', error);
+    log.error('[Voice] Formats error:', { error });
 
     return res.status(500).json({
       success: false,

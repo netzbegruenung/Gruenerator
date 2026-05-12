@@ -76,7 +76,7 @@ router.get('/sync-status', async (req: DocumentRequest, res: Response): Promise<
       syncStatuses,
     });
   } catch (error) {
-    log.error('[GET /sync-status] Error:', error);
+    log.error('[GET /sync-status] Error:', { error });
     res.status(500).json({
       success: false,
       message: (error as Error).message || 'Failed to get sync status',
@@ -106,7 +106,7 @@ router.post(
           log.debug(`[POST /sync] Sync completed:`, result);
         })
         .catch((error) => {
-          log.error(`[POST /sync] Sync failed:`, error);
+          log.error(`[POST /sync] Sync failed:`, { error });
         });
 
       res.json({
@@ -116,7 +116,7 @@ router.post(
         folderPath,
       });
     } catch (error) {
-      log.error('[POST /sync] Error:', error);
+      log.error('[POST /sync] Error:', { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to start folder sync',
@@ -147,7 +147,7 @@ router.post(
         success: true,
       });
     } catch (error) {
-      log.error('[POST /auto-sync] Error:', error);
+      log.error('[POST /auto-sync] Error:', { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to set auto-sync',
@@ -232,7 +232,7 @@ router.get(
         supportedFiles: enrichedFiles.filter((f) => f.isSupported).length,
       });
     } catch (error) {
-      log.error('[GET /browse/:shareLinkId] Error:', error);
+      log.error('[GET /browse/:shareLinkId] Error:', { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to browse Wolke files',
@@ -320,7 +320,7 @@ router.post(
           }
         } catch (error) {
           failedCount++;
-          log.error(`[POST /import] Failed to process file ${fileInfo.name}:`, error);
+          log.error(`[POST /import] Failed to process file ${fileInfo.name}:`, { error });
           results.push({
             filename: fileInfo.name,
             success: false,
@@ -345,7 +345,7 @@ router.post(
         },
       });
     } catch (error) {
-      log.error('[POST /import] Error:', error);
+      log.error('[POST /import] Error:', { error });
       res.status(500).json({
         success: false,
         message: (error as Error).message || 'Failed to import Wolke files',

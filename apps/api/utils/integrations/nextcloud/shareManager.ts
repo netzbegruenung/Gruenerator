@@ -4,6 +4,7 @@
  */
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { createLogger } from '../../logger.js';
 
 import type {
   NextcloudShareLink,
@@ -14,6 +15,8 @@ import type {
   DatabaseStateCheck,
   ShareLinkUpdates,
 } from './types.js';
+
+const log = createLogger('shareManager');
 
 export class NextcloudShareManager {
   /**
@@ -36,7 +39,7 @@ export class NextcloudShareManager {
     shareToken: string = ''
   ): Promise<NextcloudShareLink> {
     try {
-      console.log('[NextcloudShareManager] Saving Nextcloud share link', { userId, label });
+      log.debug('[NextcloudShareManager] Saving Nextcloud share link', { userId, label });
 
       // Validate inputs
       if (!userId) {
@@ -94,12 +97,12 @@ export class NextcloudShareManager {
         throw new Error('Failed to save share link - profile not found');
       }
 
-      console.log('[NextcloudShareManager] Share link saved successfully', {
+      log.debug('[NextcloudShareManager] Share link saved successfully', {
         shareLinkId: newLink.id,
       });
       return newLink;
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in saveShareLink', {
+      log.error('[NextcloudShareManager] Error in saveShareLink', {
         error: (error as Error).message,
       });
       throw error;
@@ -111,7 +114,7 @@ export class NextcloudShareManager {
    */
   static async getShareLinks(userId: string): Promise<NextcloudShareLink[]> {
     try {
-      console.log('[NextcloudShareManager] Getting share links for user', { userId });
+      log.debug('[NextcloudShareManager] Getting share links for user', { userId });
 
       if (!userId) {
         throw new Error('User ID is required');
@@ -135,13 +138,13 @@ export class NextcloudShareManager {
         (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      console.log('[NextcloudShareManager] Retrieved share links', {
+      log.debug('[NextcloudShareManager] Retrieved share links', {
         userId,
         count: sortedLinks.length,
       });
       return sortedLinks;
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in getShareLinks', {
+      log.error('[NextcloudShareManager] Error in getShareLinks', {
         error: (error as Error).message,
       });
       throw error;
@@ -153,7 +156,7 @@ export class NextcloudShareManager {
    */
   static async getShareLinkById(userId: string, shareLinkId: string): Promise<NextcloudShareLink> {
     try {
-      console.log('[NextcloudShareManager] Getting share link by ID', { userId, shareLinkId });
+      log.debug('[NextcloudShareManager] Getting share link by ID', { userId, shareLinkId });
 
       if (!userId || !shareLinkId) {
         throw new Error('User ID and share link ID are required');
@@ -179,7 +182,7 @@ export class NextcloudShareManager {
 
       return shareLink;
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in getShareLinkById', {
+      log.error('[NextcloudShareManager] Error in getShareLinkById', {
         error: (error as Error).message,
       });
       throw error;
@@ -195,7 +198,7 @@ export class NextcloudShareManager {
     updates: ShareLinkUpdates
   ): Promise<NextcloudShareLink> {
     try {
-      console.log('[NextcloudShareManager] Updating share link', { userId, shareLinkId, updates });
+      log.debug('[NextcloudShareManager] Updating share link', { userId, shareLinkId, updates });
 
       if (!userId || !shareLinkId) {
         throw new Error('User ID and share link ID are required');
@@ -249,12 +252,12 @@ export class NextcloudShareManager {
         throw new Error('Failed to update share link - profile not found');
       }
 
-      console.log('[NextcloudShareManager] Share link updated successfully', {
+      log.debug('[NextcloudShareManager] Share link updated successfully', {
         shareLinkId: updatedLink.id,
       });
       return updatedLink;
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in updateShareLink', {
+      log.error('[NextcloudShareManager] Error in updateShareLink', {
         error: (error as Error).message,
       });
       throw error;
@@ -269,7 +272,7 @@ export class NextcloudShareManager {
     shareLinkId: string
   ): Promise<ShareLinkDeletionResult> {
     try {
-      console.log('[NextcloudShareManager] Deleting share link', { userId, shareLinkId });
+      log.debug('[NextcloudShareManager] Deleting share link', { userId, shareLinkId });
 
       if (!userId || !shareLinkId) {
         throw new Error('User ID and share link ID are required');
@@ -310,10 +313,10 @@ export class NextcloudShareManager {
         throw new Error('Failed to delete share link - profile not found');
       }
 
-      console.log('[NextcloudShareManager] Share link deleted successfully', { shareLinkId });
+      log.debug('[NextcloudShareManager] Share link deleted successfully', { shareLinkId });
       return { success: true, deletedId: shareLinkId };
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in deleteShareLink', {
+      log.error('[NextcloudShareManager] Error in deleteShareLink', {
         error: (error as Error).message,
       });
       throw error;
@@ -368,7 +371,7 @@ export class NextcloudShareManager {
         error: null,
       };
     } catch (error) {
-      console.error('[NextcloudShareManager] Error validating share link', {
+      log.error('[NextcloudShareManager] Error validating share link', {
         error: (error as Error).message,
       });
       return {
@@ -383,7 +386,7 @@ export class NextcloudShareManager {
    */
   static async deactivateAllShareLinks(userId: string): Promise<DeactivationResult> {
     try {
-      console.log('[NextcloudShareManager] Deactivating all share links for user', { userId });
+      log.debug('[NextcloudShareManager] Deactivating all share links for user', { userId });
 
       if (!userId) {
         throw new Error('User ID is required');
@@ -423,7 +426,7 @@ export class NextcloudShareManager {
         }
       }
 
-      console.log('[NextcloudShareManager] Share links deactivated', {
+      log.debug('[NextcloudShareManager] Share links deactivated', {
         userId,
         count: currentLinks.length,
       });
@@ -433,7 +436,7 @@ export class NextcloudShareManager {
         deactivatedCount: currentLinks.length,
       };
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in deactivateAllShareLinks', {
+      log.error('[NextcloudShareManager] Error in deactivateAllShareLinks', {
         error: (error as Error).message,
       });
       throw error;
@@ -445,7 +448,7 @@ export class NextcloudShareManager {
    */
   static async getUsageStats(userId: string): Promise<UsageStats> {
     try {
-      console.log('[NextcloudShareManager] Getting usage stats for user', { userId });
+      log.debug('[NextcloudShareManager] Getting usage stats for user', { userId });
 
       if (!userId) {
         throw new Error('User ID is required');
@@ -492,7 +495,7 @@ export class NextcloudShareManager {
 
       return stats;
     } catch (error) {
-      console.error('[NextcloudShareManager] Error in getUsageStats', {
+      log.error('[NextcloudShareManager] Error in getUsageStats', {
         error: (error as Error).message,
       });
       throw error;
@@ -504,7 +507,7 @@ export class NextcloudShareManager {
    */
   static async checkDatabaseState(userId: string): Promise<DatabaseStateCheck> {
     try {
-      console.log('[NextcloudShareManager] Checking database state for user', { userId });
+      log.debug('[NextcloudShareManager] Checking database state for user', { userId });
 
       if (!userId) {
         throw new Error('User ID is required');
@@ -519,7 +522,7 @@ export class NextcloudShareManager {
       );
 
       if (!profile) {
-        console.log(`[NextcloudShareManager] No profile found for user ${userId}`);
+        log.debug(`[NextcloudShareManager] No profile found for user ${userId}`);
         return {
           profileExists: false,
           userId,
@@ -527,7 +530,7 @@ export class NextcloudShareManager {
         };
       }
 
-      console.log(`[NextcloudShareManager] Database state for user ${userId}:`, {
+      log.debug(`[NextcloudShareManager] Database state for user ${userId}:`, {
         profileExists: true,
         nextcloud_share_links: profile.nextcloud_share_links || [],
       });
@@ -538,7 +541,7 @@ export class NextcloudShareManager {
         nextcloud_share_links: (profile.nextcloud_share_links as NextcloudShareLink[]) || [],
       };
     } catch (error) {
-      console.error('[NextcloudShareManager] Error checking database state', {
+      log.error('[NextcloudShareManager] Error checking database state', {
         error: (error as Error).message,
       });
       throw error;

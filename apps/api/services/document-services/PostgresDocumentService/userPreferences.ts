@@ -3,8 +3,12 @@
  * Handles user document mode settings
  */
 
+import { createLogger } from '../../../utils/logger.js';
+
 import type { UserDocumentMode, UserDocumentModeResult } from './types.js';
 import type { PostgresService } from '../../../database/services/PostgresService/PostgresService.js';
+
+const log = createLogger('userPreferences');
 
 /**
  * Get user's document mode preference
@@ -24,7 +28,7 @@ export async function getUserDocumentMode(
 
     return (user?.document_mode as UserDocumentMode) || 'manual';
   } catch (error) {
-    console.error('[PostgresDocumentService] Error getting user document mode:', error);
+    log.error('[PostgresDocumentService] Error getting user document mode:', { error });
     throw new Error('Failed to get document mode');
   }
 }
@@ -50,10 +54,10 @@ export async function setUserDocumentMode(
       throw new Error('User not found or mode not updated');
     }
 
-    console.log(`[PostgresDocumentService] User ${userId} document mode set to: ${mode}`);
+    log.debug(`[PostgresDocumentService] User ${userId} document mode set to: ${mode}`);
     return { mode, success: true };
   } catch (error) {
-    console.error('[PostgresDocumentService] Error setting user document mode:', error);
+    log.error('[PostgresDocumentService] Error setting user document mode:', { error });
     throw error;
   }
 }

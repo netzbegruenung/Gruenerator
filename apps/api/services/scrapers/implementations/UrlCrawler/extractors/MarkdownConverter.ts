@@ -5,6 +5,10 @@
 
 import TurndownService from 'turndown';
 
+import { createLogger } from '../../../../../utils/logger.js';
+
+const log = createLogger('MarkdownConverter');
+
 export class MarkdownConverter {
   private turndownService: TurndownService;
 
@@ -40,7 +44,7 @@ export class MarkdownConverter {
 
       return markdown;
     } catch (error) {
-      console.warn(
+      log.warn(
         '[MarkdownConverter] Error converting HTML to Markdown:',
         error instanceof Error ? error.message : 'Unknown error'
       );

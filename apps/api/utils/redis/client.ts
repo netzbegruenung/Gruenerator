@@ -7,19 +7,22 @@ import * as dotenv from 'dotenv';
 import { createClient } from 'redis';
 
 import { env } from '../../config/env.js';
+import { createLogger } from '../logger.js';
 
 import type { RedisClient } from './types.js';
+
+const log = createLogger('client');
 
 dotenv.config({ quiet: true });
 
 const redisUrl = env.REDIS_URL;
 if (!redisUrl) {
-  console.error('REDIS_URL ist nicht in der Umgebung konfiguriert!');
+  log.error('REDIS_URL ist nicht in der Umgebung konfiguriert!');
 }
 
 // Log the URL being used (mask password for security)
 const maskedUrl = redisUrl?.replace(/:\/\/(.*:)?(.*)@/, '://<user>:<password>@') || 'no-url';
-console.log(`Versuche Verbindung mit Redis: ${maskedUrl}`);
+log.debug(`Versuche Verbindung mit Redis: ${maskedUrl}`);
 
 // createClient verwendet automatisch TLS, wenn die URL mit rediss:// beginnt
 // IMPORTANT: Never return an Error from reconnectStrategy - this permanently closes the client.
@@ -32,7 +35,7 @@ const createClientConfig: Parameters<typeof createClient>[0] = {
     reconnectStrategy: (retries: number) => {
       // Log reconnection attempts, but less frequently after initial failures
       if (retries <= 10 || retries % 10 === 0) {
-        console.log(`Redis reconnection attempt ${retries}...`);
+        log.debug(`Redis reconnection attempt ${retries}...`);
       }
       // Exponential backoff capped at 30 seconds to avoid overwhelming the server
       // while still allowing recovery from extended outages
@@ -49,12 +52,12 @@ if (redisUrl != null) {
 const client = createClient(createClientConfig) as RedisClient;
 
 client.on('error', (err: unknown) =>
-  console.error('Redis Client Fehler:', err instanceof Error ? err.message : String(err))
+  log.error('Redis Client Fehler:', err instanceof Error ? err.message : String(err))
 );
-client.on('connect', () => console.log('Erfolgreich mit Redis verbunden'));
-client.on('reconnecting', () => console.log('Verbinde neu mit Redis...'));
-client.on('end', () => console.warn('Redis connection closed'));
-client.on('ready', () => console.log('Redis client ready'));
+client.on('connect', () => log.debug('Erfolgreich mit Redis verbunden'));
+client.on('reconnecting', () => log.debug('Verbinde neu mit Redis...'));
+client.on('end', () => log.warn('Redis connection closed'));
+client.on('ready', () => log.debug('Redis client ready'));
 
 // Connection promise for awaitable connection
 let connectPromise: Promise<void> | null = null;
@@ -68,7 +71,7 @@ export function ensureConnected(): Promise<void> {
       .connect()
       .then(() => {})
       .catch((err: unknown) => {
-        console.error(
+        log.error(
           `Redis connection failed (${maskedUrl}):`,
           err instanceof Error ? err.message : String(err)
         );

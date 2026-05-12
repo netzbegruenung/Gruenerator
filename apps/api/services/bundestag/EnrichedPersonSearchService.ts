@@ -10,6 +10,7 @@
  */
 
 import { getQdrantInstance } from '../../database/services/QdrantService.js';
+import { createLogger } from '../../utils/logger.js';
 import MistralEmbeddingClient from '../mistral/MistralEmbeddingService/MistralEmbeddingClient.js';
 
 import { getBundestagMCPClient, type BundestagMCPClient } from './BundestagMCPClient.js';
@@ -25,6 +26,8 @@ import type {
   FormattedAktivitaet,
   EnrichedPersonSearchResult,
 } from './types.js';
+
+const log = createLogger('EnrichedPersonSearchService');
 
 interface QdrantSearchResult {
   id: string | number;
@@ -73,7 +76,7 @@ export class EnrichedPersonSearchService {
     const person = detection.person;
     const personName = `${person.vorname} ${person.nachname}`;
 
-    console.log(
+    log.debug(
       `[EnrichedPersonSearch] Detected MP: ${personName} (confidence: ${detection.confidence.toFixed(2)})`
     );
 
@@ -87,7 +90,7 @@ export class EnrichedPersonSearchService {
     ]);
 
     const elapsed = Date.now() - startTime;
-    console.log(`[EnrichedPersonSearch] Fetched all sources in ${elapsed}ms`);
+    log.debug(`[EnrichedPersonSearch] Fetched all sources in ${elapsed}ms`);
 
     // Step 3: Build enriched result
     return {
@@ -119,7 +122,7 @@ export class EnrichedPersonSearchService {
       const result = await this.mcpClient.getPerson(personId);
       return result;
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[EnrichedPersonSearch] Failed to fetch person details:',
         error instanceof Error ? error.message : String(error)
       );
@@ -137,7 +140,7 @@ export class EnrichedPersonSearchService {
     try {
       const embedding = await this.embeddingClient.generateEmbedding(personName);
       if (!embedding) {
-        console.warn('[EnrichedPersonSearch] Failed to create embedding for person name');
+        log.warn('[EnrichedPersonSearch] Failed to create embedding for person name');
         return [];
       }
 
@@ -195,7 +198,7 @@ export class EnrichedPersonSearchService {
       // Sort by score and limit
       return merged.sort((a, b) => (b.score || 0) - (a.score || 0)).slice(0, limit);
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[EnrichedPersonSearch] bundestag_content search failed:',
         error instanceof Error ? error.message : String(error)
       );
@@ -215,7 +218,7 @@ export class EnrichedPersonSearchService {
       });
       return result;
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[EnrichedPersonSearch] Drucksachen search failed:',
         error instanceof Error ? error.message : String(error)
       );
@@ -240,7 +243,7 @@ export class EnrichedPersonSearchService {
       });
       return result;
     } catch (error: unknown) {
-      console.error(
+      log.error(
         '[EnrichedPersonSearch] Aktivitäten search failed:',
         error instanceof Error ? error.message : String(error)
       );

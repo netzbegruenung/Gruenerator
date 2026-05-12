@@ -98,7 +98,7 @@ export async function applyCompaction(
       const threadMessages = await getThreadMessages(threadId);
       generateCompactionSummary(threadId, threadMessages, contextWindowTokens)
         .then(() => lastCompactionTime.set(threadId, Date.now()))
-        .catch((err) => log.error('[Compaction] Background compaction failed:', err))
+        .catch((err) => log.error('[Compaction] Background compaction failed:', { error: err }))
         .finally(() => compactionInProgress.delete(threadId));
     }
 

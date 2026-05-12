@@ -9,6 +9,7 @@
  */
 
 import { vectorConfig } from '../../../config/vectorConfig.js';
+import { createLogger } from '../../../utils/logger.js';
 
 import type {
   DocumentSearchOptions,
@@ -24,6 +25,8 @@ import type {
 import type { QdrantOperations } from '../../../database/services/QdrantOperations.js';
 import type { QdrantService } from '../../../database/services/QdrantService.js';
 import type { SearchResponse } from '../../BaseSearchService/types.js';
+
+const log = createLogger('searchOperations');
 
 /**
  * Perform full-text (keyword-only) search over document chunks
@@ -57,7 +60,10 @@ export async function performTextSearch(
       Array.isArray(options.documentIds) &&
       options.documentIds.length > 0
     ) {
-      filter.must!.push({ key: 'document_id', match: { any: options.documentIds as (string | number)[] } });
+      filter.must!.push({
+        key: 'document_id',
+        match: { any: options.documentIds as (string | number)[] },
+      });
     }
 
     if (options.sourceType) {
@@ -114,7 +120,7 @@ export async function performTextSearch(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[SearchOperations] Text search error:', error);
+    log.error('[SearchOperations] Text search error:', { error });
     return {
       success: false,
       results: [],
@@ -145,16 +151,16 @@ export async function findSimilarChunks(
   const { embedding, userId, filters, limit, threshold, query } = params;
 
   if (!qdrantAvailable || !qdrantOps) {
-    console.warn('[SearchOperations] Skipping vector search: Qdrant unavailable');
+    log.warn('[SearchOperations] Skipping vector search: Qdrant unavailable');
     return [];
   }
 
   const searchCollection = filters.searchCollection || 'documents';
-  console.log(`[SearchOperations] Vector searching collection: ${searchCollection}`);
-  console.log(
+  log.debug(`[SearchOperations] Vector searching collection: ${searchCollection}`);
+  log.debug(
     `[SearchOperations] DEBUG - embedding length: ${embedding?.length}, threshold: ${threshold}, limit: ${limit}`
   );
-  console.log(
+  log.debug(
     `[SearchOperations] DEBUG - userId: ${userId}, filters:`,
     JSON.stringify(filters, null, 2)
   );
@@ -195,7 +201,7 @@ export async function findSimilarChunks(
   // in searchWithQuality() which gracefully handles missing quality_score values.
   // If collections are re-indexed with quality_score, this can be re-enabled.
 
-  console.log(`[SearchOperations] DEBUG - Final filter:`, JSON.stringify(filter, null, 2));
+  log.debug(`[SearchOperations] DEBUG - Final filter:`, JSON.stringify(filter, null, 2));
 
   let results: QdrantSearchResult[];
   try {
@@ -217,7 +223,7 @@ export async function findSimilarChunks(
     }
   } catch (e) {
     const errorMsg = e instanceof Error ? e.message : 'Unknown error';
-    console.warn(
+    log.warn(
       '[SearchOperations] Intent-aware search failed, falling back to quality search:',
       errorMsg
     );
@@ -227,7 +233,7 @@ export async function findSimilarChunks(
       withPayload: true,
     });
   }
-  console.log(`[SearchOperations] Qdrant vectorSearch returned ${results.length} hits`);
+  log.debug(`[SearchOperations] Qdrant vectorSearch returned ${results.length} hits`);
 
   return results.map((result) => ({
     id: result.id,
@@ -279,12 +285,12 @@ export async function findHybridChunks(
 ): Promise<DocumentTransformedChunk[]> {
   const { embedding, query, userId, filters, limit, threshold, hybridOptions } = params;
   if (!qdrantAvailable || !qdrantOps) {
-    console.warn('[SearchOperations] Skipping hybrid search: Qdrant unavailable');
+    log.warn('[SearchOperations] Skipping hybrid search: Qdrant unavailable');
     return [];
   }
 
   const searchCollection = filters.searchCollection || 'documents';
-  console.log(`[SearchOperations] Searching collection: ${searchCollection}`);
+  log.debug(`[SearchOperations] Searching collection: ${searchCollection}`);
 
   const filter: QdrantFilter = { must: [] };
 
@@ -317,15 +323,13 @@ export async function findHybridChunks(
     filter.must!.push(...filters.additionalFilter.must);
   }
 
-  console.log('[SearchOperations] Calling Qdrant hybridSearch...');
+  log.debug('[SearchOperations] Calling Qdrant hybridSearch...');
   const hybridResult = await qdrantOps.hybridSearch(searchCollection, embedding, query, filter, {
     limit,
     threshold,
     ...hybridOptions,
   });
-  console.log(
-    `[SearchOperations] Qdrant hybridSearch returned ${hybridResult.results.length} hits`
-  );
+  log.debug(`[SearchOperations] Qdrant hybridSearch returned ${hybridResult.results.length} hits`);
 
   return hybridResult.results.map((result) => {
     const metadata = result.payload.metadata as Record<string, unknown> | undefined;
@@ -436,7 +440,7 @@ export async function searchBundestagContent(
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[SearchOperations] Bundestag search failed:', error);
+    log.error('[SearchOperations] Bundestag search failed:', { error });
     return {
       success: false,
       results: [],

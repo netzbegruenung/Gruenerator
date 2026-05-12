@@ -16,7 +16,14 @@ interface ExtractedParts {
 }
 
 const VALID_EDIT_TYPES: ReadonlyArray<EditOperationType> = [
-  'shorten', 'expand', 'rewrite', 'improve', 'simplify', 'formalize', 'translate', 'generic',
+  'shorten',
+  'expand',
+  'rewrite',
+  'improve',
+  'simplify',
+  'formalize',
+  'translate',
+  'generic',
 ];
 
 function toEditOperationType(value: string | undefined): EditOperationType {
@@ -124,7 +131,7 @@ Antworte NUR mit JSON:
       confidence: parsed.confidence || 0.8,
     };
   } catch (error) {
-    log.error('[EditIntentService] AI extraction error:', error);
+    log.error('[EditIntentService] AI extraction error:', { error });
     return null;
   }
 }
@@ -209,7 +216,7 @@ Gib den bearbeiteten Text zurück:`;
 
     return { success: true, editedText };
   } catch (error) {
-    log.error('[EditIntentService] Edit application error:', error);
+    log.error('[EditIntentService] Edit application error:', { error });
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

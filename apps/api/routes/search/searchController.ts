@@ -378,7 +378,7 @@ router.post(
       return res.json(response);
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      log.error(`[Search] Normal search error (${processingTime}ms):`, error);
+      log.error(`[Search] Normal search error (${processingTime}ms):`, { error });
 
       const userError = mapErrorToUserMessage(error as Error);
 
@@ -503,7 +503,7 @@ router.post(
       return res.json(response);
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      log.error(`[Search] Deep research error (${processingTime}ms):`, error);
+      log.error(`[Search] Deep research error (${processingTime}ms):`, { error });
 
       return res.status(500).json({
         status: 'error',
@@ -622,7 +622,7 @@ Format deiner Antwort:
         ...(result.metadata ? { metadata: result.metadata } : {}),
       });
     } catch (error) {
-      log.error('[Search] Analysis error:', error);
+      log.error('[Search] Analysis error:', { error });
       return res.status(500).json({
         status: 'error',
         error: 'Fehler bei der Analyse der Suchergebnisse',
@@ -649,7 +649,7 @@ router.get('/status', async (_req: AuthenticatedRequest, res: Response<StatusRes
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    log.error('[Search] Status check failed:', error);
+    log.error('[Search] Status check failed:', { error });
 
     res.status(503).json({
       success: false,
@@ -689,7 +689,7 @@ router.post(
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
-      log.error('[Search] Cache clear failed:', error);
+      log.error('[Search] Cache clear failed:', { error });
 
       return res.status(500).json({
         success: false,

@@ -1,4 +1,5 @@
 import { getAIWorkerPool } from '../../../../utils/getAIWorkerPool.js';
+import { createLogger } from '../../../../utils/logger.js';
 import { MARKDOWN_FORMATTING_INSTRUCTIONS } from '../../../../utils/prompt/index.js';
 import { assemblePromptGraphAsync } from '../../promptAssemblyGraph.js';
 
@@ -8,6 +9,8 @@ import type { ContentExample } from '../../types/promptAssembly.js';
 import type { PRAgentRequest } from '../types.js';
 import type { Request } from 'express';
 
+const log = createLogger('framingGenerator');
+
 /**
  * Generates strategic framing: narrative, values, audiences, wording
  */
@@ -15,7 +18,7 @@ export async function generateStrategicFraming(
   enrichedState: EnrichedState,
   req: Request
 ): Promise<string> {
-  console.log('[PR Agent] Generating strategic framing');
+  log.debug('[PR Agent] Generating strategic framing');
 
   const request = enrichedState.request as PRAgentRequest;
 

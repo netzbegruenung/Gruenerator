@@ -37,10 +37,10 @@
 //       audience: process.env.MOBILE_CLIENT_ID,
 //     });
 //
-//     console.log('[JWT Validator] Token validated successfully for user:', payload.sub);
+//     log.debug('[JWT Validator] Token validated successfully for user:', payload.sub);
 //     return payload as KeycloakTokenPayload;
 //   } catch (error) {
-//     console.error('[JWT Validator] Token validation failed:', (error as Error).message);
+//     log.error('[JWT Validator] Token validation failed:', (error as Error).message);
 //     throw error;
 //   }
 // }

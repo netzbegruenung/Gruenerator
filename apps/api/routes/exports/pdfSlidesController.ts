@@ -69,9 +69,7 @@ router.post(
         const imageBytes = Buffer.from(base64Data, 'base64');
 
         const image =
-          format === 'png'
-            ? await pdfDoc.embedPng(imageBytes)
-            : await pdfDoc.embedJpg(imageBytes);
+          format === 'png' ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
 
         const page = pdfDoc.addPage([pageWidth, pageHeight]);
 
@@ -112,7 +110,7 @@ router.post(
       log.info(`[exportPdfSlides] PDF created with ${images.length} pages`);
     } catch (err) {
       const error = err as Error;
-      log.error('[exportPdfSlides] PDF slides export error:', error);
+      log.error('[exportPdfSlides] PDF slides export error:', { error });
 
       if (!res.headersSent) {
         return res.status(500).json({

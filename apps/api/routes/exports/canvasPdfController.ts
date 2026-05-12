@@ -106,7 +106,7 @@ router.post('/', rateLimitMiddleware('pdf_export'), async (req: Request, res: Re
     );
   } catch (err) {
     const error = err as Error;
-    log.error('[canvasPdf] PDF export error:', error);
+    log.error('[canvasPdf] PDF export error:', { error });
 
     if (!res.headersSent) {
       return res.status(500).json({

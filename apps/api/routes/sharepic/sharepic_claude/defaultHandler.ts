@@ -23,7 +23,7 @@ export async function handleDefaultRequest(req: SharepicRequest, res: Response):
       metadata: result.metadata,
     });
   } catch (error) {
-    log.error('[sharepic_default] Error:', error);
+    log.error('[sharepic_default] Error:', { error });
     res.status(500).json({ success: false, error: (error as Error).message } as DefaultResponse);
   }
 }

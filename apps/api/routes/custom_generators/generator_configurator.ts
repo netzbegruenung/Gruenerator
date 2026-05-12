@@ -303,7 +303,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
     res.json(config);
   } catch (error) {
     const err = error as Error;
-    log.error('[generator_configurator] Fehler bei der Konfigurationserstellung:', err);
+    log.error('[generator_configurator] Fehler bei der Konfigurationserstellung:', { error: err });
     res.status(500).json({
       error: 'Fehler bei der Erstellung der Generator-Konfiguration.',
       details: err.message,

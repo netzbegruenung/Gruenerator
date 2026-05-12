@@ -145,7 +145,7 @@ function maybeLog401Once(method: string, originalUrl: string): void {
   if (now - last < LOG_401_DEBOUNCE_MS) return;
 
   last401LogAt.set(key, now);
-  console.warn('[Auth] 401 %s %s', method, path);
+  log.warn('[Auth] 401 %s %s', method, path);
 
   // Lazy prune: drop entries older than 2× the debounce window so the Map
   // can't grow unbounded if a long-running process sees a wide variety of
@@ -158,9 +158,7 @@ function maybeLog401Once(method: string, originalUrl: string): void {
 
 async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   if (env.NODE_ENV === 'production' && env.ALLOW_DEV_AUTH_BYPASS) {
-    console.error(
-      '[CRITICAL SECURITY ALERT] Dev auth bypass is enabled in PRODUCTION environment!'
-    );
+    log.error('[CRITICAL SECURITY ALERT] Dev auth bypass is enabled in PRODUCTION environment!');
     res.status(500).json({
       error: 'Critical security misconfiguration detected',
       message: 'Contact system administrator immediately',

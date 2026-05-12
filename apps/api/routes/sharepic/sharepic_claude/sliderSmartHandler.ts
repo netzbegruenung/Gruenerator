@@ -74,7 +74,7 @@ async function analyzeSlideCount(
     );
     return count;
   } catch (error) {
-    log.error('[analyzeSlideCount] Exception:', error);
+    log.error('[analyzeSlideCount] Exception:', { error });
     return DEFAULT_CONTENT_SLIDES;
   }
 }
