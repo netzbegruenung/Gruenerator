@@ -360,6 +360,27 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
+    // ── Completion (atomic text+citations swap, prevents citation flinch) ──
+    // Mirrors the NotebookModelAdapter protocol: the frontend `completion`
+    // handler swaps accumulatedText with this canonical text (rewriting
+    // [cite:N] → [N]) and replaces citations in the same render pass, so chips
+    // appear simultaneously with the final markers — no plain "[1]" frame.
+    // Citations are remapped to the notebook citation shape that
+    // GrueneratorModelAdapter's `completion` case already understands.
+    sse.send('completion', {
+      type: 'completion',
+      text: fullText ?? '',
+      citations: state.citations.map((c) => ({
+        index: String(c.id),
+        cited_text: c.snippet,
+        document_title: c.title,
+        document_id: c.documentId,
+        source_url: c.url,
+        similarity_score: c.similarityScore,
+        collection_name: c.collectionName ?? c.source,
+      })),
+    });
+
     // ── Done ──
     const totalTimeMs = Date.now() - state.startTime;
     sse.send('done', {

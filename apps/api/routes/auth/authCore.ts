@@ -1,7 +1,7 @@
 /**
  * Core authentication routes
  * Handles logout, profile, locale, health, and error pages
- * Status (/api/auth/status) is served by authStatusContractRouter
+ * Session reads are served by Better Auth's native /api/auth/v2/get-session
  * Login/callback handled by Better Auth at /api/auth/v2/*
  */
 

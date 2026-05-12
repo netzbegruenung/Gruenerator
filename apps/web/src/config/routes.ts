@@ -13,7 +13,11 @@ export interface RouteConfig {
   component: LazyExoticComponent<ComponentType<Record<string, unknown>>>;
   withForm?: boolean;
   layoutMode?: LayoutMode;
-  auth?: 'required' | 'guest';
+  // Auth model: every route requires login by default. Set `public: true` to
+  // opt out. The list of public routes is intentionally small — marketing
+  // startpage, legal pages, login UI, public shares. New routes are
+  // auth-required unless this flag is explicitly set.
+  public?: boolean;
   devOnly?: boolean;
 }
 
@@ -206,8 +210,13 @@ const standardRoutes: RouteConfig[] = [
   // Desktop app always shows DesktopHome dashboard; web redirects auth'd users to /workplace
   isDesktopApp()
     ? { path: '/', component: DesktopHome }
-    : { path: '/', component: Startseite, auth: 'guest' as const, layoutMode: 'noChrome' as const },
-  { path: '/startseite', component: Startseite, auth: 'guest', layoutMode: 'noChrome' as const },
+    : {
+        path: '/',
+        component: Startseite,
+        public: true,
+        layoutMode: 'noChrome' as const,
+      },
+  { path: '/startseite', component: Startseite, public: true, layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   { path: '/workplace', component: WorkplacePage },
@@ -218,13 +227,11 @@ const standardRoutes: RouteConfig[] = [
   {
     path: '/agents/new',
     component: AgentBuilderPage,
-    auth: 'required' as const,
     devOnly: true,
   },
   {
     path: '/agents/:identifier/edit',
     component: AgentBuilderPage,
-    auth: 'required' as const,
     devOnly: true,
   },
   {
@@ -232,7 +239,7 @@ const standardRoutes: RouteConfig[] = [
     component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
   },
   { path: '/recherche', component: RecherchePage },
-  { path: '/skills', component: SkillsPage, auth: 'required' },
+  { path: '/skills', component: SkillsPage },
   { path: '/gruppen', component: GruppenPage },
   { path: '/gruppen/:groupId', component: GruppenPage },
   { path: '/gruen-o-mat', component: GruenOMatDemoPage },
@@ -337,8 +344,13 @@ const standardRoutes: RouteConfig[] = [
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/transfer', component: GrueneratorenBundle.Transfer, devOnly: true },
   { path: '/transkription', component: GrueneratorenBundle.Transkription },
-  { path: '/subtitler/share/:shareToken', component: SharedVideoPage, layoutMode: 'noChrome' },
-  { path: '/share/:shareToken', component: SharedMediaPage, layoutMode: 'noChrome' },
+  {
+    path: '/subtitler/share/:shareToken',
+    component: SharedVideoPage,
+    layoutMode: 'noChrome',
+    public: true,
+  },
+  { path: '/share/:shareToken', component: SharedMediaPage, layoutMode: 'noChrome', public: true },
   { path: '/gruenerator/erstellen', component: CreateCustomGeneratorPage, withForm: true },
   { path: '/gruenerator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
   // Redirects for removed pages
@@ -354,13 +366,13 @@ const standardRoutes: RouteConfig[] = [
     path: '/ask',
     component: lazy(() => Promise.resolve({ default: createRedirect('/recherche') })),
   },
-  { path: '/datenschutz', component: Datenschutz },
-  { path: '/impressum', component: Impressum },
-  { path: '/support', component: Support },
-  { path: '/nutzungsbedingungen', component: Nutzungsbedingungen },
+  { path: '/datenschutz', component: Datenschutz, public: true },
+  { path: '/impressum', component: Impressum, public: true },
+  { path: '/support', component: Support, public: true },
+  { path: '/nutzungsbedingungen', component: Nutzungsbedingungen, public: true },
   // Auth-Routen (only components still used after Authentic integration)
-  { path: '/login', component: LoginPage, auth: 'guest' },
-  { path: '/register', component: RegistrationPage, auth: 'guest' },
+  { path: '/login', component: LoginPage, public: true },
+  { path: '/register', component: RegistrationPage, public: true },
   { path: '/profile', component: ProfilePage },
   { path: '/profile/:tab', component: ProfilePage },
   { path: '/profile/:tab/:subtab', component: ProfilePage },
@@ -417,14 +429,14 @@ const standardRoutes: RouteConfig[] = [
   { path: '/docs', component: DocsPage, layoutMode: 'sidebarOnly' },
   { path: '/docs/:id', component: DocsEditorPage, layoutMode: 'immersive' },
   { path: '/boards', component: BoardsListRedirect },
-  { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome' },
+  { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'noChrome' },
   // Sites Feature Routes — embedded candidate site builder
   { path: '/sites', component: SitesHomePage, layoutMode: 'immersive' },
-  { path: '/sites/login', component: SitesLoginPage, layoutMode: 'immersive', auth: 'guest' },
+  { path: '/sites/login', component: SitesLoginPage, layoutMode: 'immersive', public: true },
   { path: '/sites/demo', component: SitesDemoPage, layoutMode: 'immersive' },
-  { path: '/sites/edit', component: SitesEditPage, layoutMode: 'immersive', auth: 'required' },
-  { path: '*', component: NotFound },
+  { path: '/sites/edit', component: SitesEditPage, layoutMode: 'immersive' },
+  { path: '*', component: NotFound, public: true },
 ];
 
 // Mobile editor is noChrome — added as standard route
@@ -434,22 +446,11 @@ standardRoutes.push({
   layoutMode: 'noChrome',
 });
 
-const specialRoutes: RouteConfig[] = [];
-
-export interface Routes {
-  guest: RouteConfig[];
-  protected: RouteConfig[];
-  public: RouteConfig[];
-  special: RouteConfig[];
-}
-
-const enabledRoutes = standardRoutes.filter((r) => !r.devOnly || import.meta.env.DEV);
-
-export const routes: Routes = {
-  guest: enabledRoutes.filter((r) => r.auth === 'guest'),
-  protected: enabledRoutes.filter((r) => r.auth === 'required'),
-  public: enabledRoutes.filter((r) => !r.auth),
-  special: specialRoutes,
-};
+// Flat list of all enabled routes. Auth is enforced at mount time by
+// `RequireAuth`, not by bucketing routes here. A route opts out of the
+// auth gate by setting `public: true`.
+export const routes: RouteConfig[] = standardRoutes.filter(
+  (r) => !r.devOnly || import.meta.env.DEV
+);
 
 export default routes;

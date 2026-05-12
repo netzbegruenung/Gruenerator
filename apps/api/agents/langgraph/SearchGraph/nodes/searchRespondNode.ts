@@ -69,7 +69,7 @@ function formatSearchContext(state: SearchGraphState): string {
     })
     .join('\n\n');
 
-  return `\n\n<suchergebnisse hinweis="Zitiere diese Quellen mit [Nummer]-Notation">\n${resultsXml}\n</suchergebnisse>`;
+  return `\n\n<suchergebnisse hinweis="Zitiere diese Quellen mit [cite:Nummer]-Notation">\n${resultsXml}\n</suchergebnisse>`;
 }
 
 function escapeXml(s: string): string {
@@ -111,13 +111,13 @@ Schreibe wie einen hochwertigen Artikel mit ansprechendem Erzählfluss.
 - Verwende Markdown: **fett** für Hervorhebungen, ## für Überschriften.
 
 ## ZITATIONSREGELN
-- Dir stehen GENAU ${sourceCount} Quellen zur Verfügung ([1] bis [${sourceCount}]).
-- Zitiere JEDE Aussage mit [Nummer]-Notation: "Aussage hier [1]."
+- Dir stehen GENAU ${sourceCount} Quellen zur Verfügung ([cite:1] bis [cite:${sourceCount}]).
+- Zitiere JEDE Aussage mit [cite:Nummer]-Notation: "Aussage hier [cite:1]."
 - Jeder Satz muss mindestens eine Zitation enthalten.
-- Verwende mehrere Quellen wenn möglich: "Fakt hier [1][3]."
-- Erfinde KEINE Quellen über [${sourceCount}] hinaus.
-- Nummer DIREKT nach dem Satz, VOR dem Punkt: "Text [1]."
-- NIEMALS "laut Quelle" oder "nach Angaben" — NUR [1], [2] etc.
+- Verwende mehrere Quellen wenn möglich: "Fakt hier [cite:1][cite:3]."
+- Erfinde KEINE Quellen über [cite:${sourceCount}] hinaus.
+- Nummer DIREKT nach dem Satz, VOR dem Punkt: "Text [cite:1]."
+- NIEMALS "laut Quelle" oder "nach Angaben" — NUR [cite:1], [cite:2] etc.
 
 ## WICHTIG: KEINE HALLUZINATIONEN
 - Zitiere NUR Informationen, die TATSÄCHLICH in den Quellen stehen.
@@ -164,13 +164,13 @@ Verwende Markdown: ## Überschriften, **fett**, zusammenhängende Absätze.
 Beginne direkt — keine meta-Einleitung.
 
 ## ZITATIONSREGELN
-- Dir stehen GENAU ${sourceCount} Quellen zur Verfügung ([1] bis [${sourceCount}]).
-- Zitiere JEDE Aussage mit [Nummer]-Notation.
+- Dir stehen GENAU ${sourceCount} Quellen zur Verfügung ([cite:1] bis [cite:${sourceCount}]).
+- Zitiere JEDE Aussage mit [cite:Nummer]-Notation.
 - Jeder Satz muss mindestens eine Zitation enthalten.
-- Verwende mehrere Quellen wenn möglich: "Fakt [1][3]."
-- Erfinde KEINE Quellen über [${sourceCount}] hinaus.
-- Nummer direkt nach dem Satz, vor dem Punkt: "Aussage [1]."
-- NIEMALS "laut Quelle" oder "nach Angaben" — NUR [1], [2] etc.
+- Verwende mehrere Quellen wenn möglich: "Fakt [cite:1][cite:3]."
+- Erfinde KEINE Quellen über [cite:${sourceCount}] hinaus.
+- Nummer direkt nach dem Satz, vor dem Punkt: "Aussage [cite:1]."
+- NIEMALS "laut Quelle" oder "nach Angaben" — NUR [cite:1], [cite:2] etc.
 
 ## WICHTIG: KEINE HALLUZINATIONEN
 - Zitiere NUR Informationen, die TATSÄCHLICH in den Quellen stehen.

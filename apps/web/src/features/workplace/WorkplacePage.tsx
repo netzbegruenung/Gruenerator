@@ -1,7 +1,6 @@
 import { SectionHeader } from '@gruenerator/ui';
 import { memo } from 'react';
 
-import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useFirstName } from '../../hooks/useFirstName';
@@ -276,6 +275,4 @@ const WorkplacePage = () => {
   );
 };
 
-export default withAuthRequired(WorkplacePage, {
-  title: 'Desk',
-});
+export default WorkplacePage;
