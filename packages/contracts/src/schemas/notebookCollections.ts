@@ -47,6 +47,7 @@ export const documentRecordSchema = z.object({
   created_at: z.string(),
   source_type: z.string().nullish(),
   wolke_share_link_id: z.string().nullish(),
+  status: z.string().nullish(),
 });
 
 export const wolkeShareLinkSchema = z.object({

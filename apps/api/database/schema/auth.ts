@@ -67,14 +67,20 @@ export const ba_accounts = pgTable(
   })
 );
 
-export const ba_verification = pgTable('ba_verification', {
-  id: text('id').primaryKey(),
-  identifier: text('identifier').notNull(),
-  value: text('value').notNull(),
-  expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
-});
+export const ba_verification = pgTable(
+  'ba_verification',
+  {
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  },
+  (table) => ({
+    identifierIdx: index('idx_ba_verification_identifier').on(table.identifier),
+  })
+);
 
 /**
  * Drizzle relations for joins. Better Auth's `findOAuthUser` issues a query

@@ -9,7 +9,24 @@ import {
   LOGOUT_TIMESTAMP,
   SESSION_ACTIVE,
 } from '../features/auth/storageKeys';
-import { useAuthStore, type AuthStore, type User } from '../stores/authStore';
+import { authClient } from '../lib/authClient';
+import { sessionUserToProfile } from '../lib/sessionUserToProfile';
+import { useAuthStore, type User } from '../stores/authStore';
+
+/**
+ * Hit Better Auth's native session endpoint and adapt the response to the
+ * canonical `AuthData` shape. Replaces the previous wrapper at
+ * `GET /api/auth/status`.
+ */
+async function fetchAuthStatus(): Promise<AuthData> {
+  const { data, error } = await authClient.getSession();
+  if (error) throw error;
+  if (!data?.user) return { isAuthenticated: false };
+  return {
+    isAuthenticated: true,
+    user: sessionUserToProfile(data.user as unknown as Record<string, unknown>),
+  };
+}
 
 interface AuthOptions {
   skipAuth?: boolean;
@@ -147,12 +164,8 @@ const detectPartialLogoutState = async () => {
 
     // If frontend shows logged out, check if backend still has session
     if (frontendLoggedOut) {
-      const response = await apiClient.get('/auth/status', {
-        skipAuthRedirect: true,
-      });
-
-      const statusData = response.data as Record<string, unknown>;
-      const backendAuthenticated = statusData.isAuthenticated;
+      const status = await fetchAuthStatus();
+      const backendAuthenticated = status.isAuthenticated;
 
       if (backendAuthenticated) {
         console.warn(
@@ -246,23 +259,27 @@ const useServerAvailability = (skipCheck = false) => {
 };
 
 /**
- * Cache-first auth state loader
+ * Cache-first auth state loader. Returns the cached payload AND its timestamp
+ * so React Query can be seeded via `initialData` + `initialDataUpdatedAt`,
+ * keeping `staleTime` math correct (a 4-min-old cache stays fresh; a 6-min-old
+ * cache is treated as stale and triggers a background refetch).
  */
-const getCachedAuthState = () => {
+const getCachedAuthEntry = (): { data: AuthData; timestamp: number } | null => {
   try {
     const cached = localStorage.getItem(INSTANT_AUTH_CACHE);
     if (cached) {
       const parsed = JSON.parse(cached) as { timestamp?: number; data?: AuthData };
-      // Check if cache is still fresh (< 5 minutes)
-      if (parsed.timestamp && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
-        return parsed.data ?? null;
+      if (parsed.timestamp && parsed.data && Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+        return { data: parsed.data, timestamp: parsed.timestamp };
       }
     }
-  } catch (error) {
+  } catch {
     // Cache read failed, return null
   }
   return null;
 };
+
+const getCachedAuthState = (): AuthData | null => getCachedAuthEntry()?.data ?? null;
 
 /**
  * Save auth state to cache
@@ -312,6 +329,114 @@ const clearCachedAuthState = () => {
  * @param {boolean} options.instant - Use cached state immediately, refresh in background
  * @returns {Object} Authentication state and methods
  */
+/**
+ * Build the synthetic AuthData returned by `queryFn` when E2E auth bypass is on.
+ */
+const buildE2EBypassAuthData = (): AuthData => {
+  const now = new Date().toISOString();
+  return {
+    isAuthenticated: true,
+    user: {
+      id: '00000000-0000-4000-a000-000000000001',
+      email: 'dev@gruenerator.de',
+      display_name: 'Test User',
+      avatar_robot_id: 1,
+      beta_features: { workplace: true },
+      user_defaults: {},
+      locale: 'de-DE',
+      groups_enabled: true,
+      custom_generators: true,
+      database_access: true,
+      collab: true,
+      notebook: true,
+      sharepic: true,
+      anweisungen: true,
+      labor_enabled: true,
+      sites_enabled: true,
+      chat: true,
+      interactive_antrag_enabled: true,
+      vorlagen: true,
+      video_editor: true,
+      created_at: now,
+      updated_at: now,
+    },
+  };
+};
+
+/**
+ * All side effects of a resolved `/auth/status` answer in one place.
+ *
+ * Why this is a regular function called from `queryFn` (not a `useEffect`):
+ * the previous `useEffect`-mirror let an "already-guest, server-still-guest"
+ * answer flow through guard checks (`if (currentIsAuthenticated) clearAuth()`)
+ * that short-circuited the bootstrap signal. Running side effects exactly once
+ * per fetch in the queryFn body has no equivalent silent-skip path.
+ */
+const applyAuthAnswer = (data: AuthData, queryClient: ReturnType<typeof useQueryClient>) => {
+  const { isAuthenticated: currentIsAuthenticated, user: currentUser } = useAuthStore.getState();
+
+  if (data.isAuthenticated && data.user) {
+    // Cache ONLY positive answers. A guest answer in INSTANT_AUTH_CACHE acts
+    // as `initialData` for React Query on the next page load (e.g. the
+    // post-Keycloak-callback `/workplace` mount), which puts the query into
+    // `success` state with `{isAuthenticated: false}` before any network call
+    // — and with `refetchOnMount: false` the queryFn never fires to correct it.
+    // RequireAuth then bounces synchronously to `/login?redirectTo=/workplace`,
+    // trapping the user in a redirect loop after a successful OAuth callback.
+    // The cost of one-way caching is a stale-positive flash after cross-device
+    // logout; `refetchOnMount: 'always'` on the query handles that.
+    setCachedAuthState(data);
+
+    notifyAuthConfirmed();
+    try {
+      localStorage.removeItem(LOGIN_INTENT);
+    } catch {
+      // Ignore localStorage errors
+    }
+
+    const authUser = data.user as User | null | undefined;
+    if (authUser?.id !== currentUser?.id) {
+      useAuthStore.getState().setAuthState({
+        user: authUser ?? null,
+        isAuthenticated: data.isAuthenticated,
+      });
+
+      // Consolidated init: single request seeds all query caches
+      const userId = authUser?.id ?? '';
+      apiClient
+        .get('/auth/init', { skipAuthRedirect: true })
+        .then((response) => {
+          const { groups, savedTexts, notebookCollections, recentActivity, profile } =
+            response.data as Record<string, unknown[]>;
+          if (groups) queryClient.setQueryData(['userGroups', userId], groups);
+          if (savedTexts) queryClient.setQueryData(['userTexts', userId], savedTexts);
+          if (notebookCollections)
+            queryClient.setQueryData(['notebookCollections', userId], notebookCollections);
+          if (recentActivity) queryClient.setQueryData(['recent-activity'], recentActivity);
+          if (profile) queryClient.setQueryData(['profileData', userId], profile);
+        })
+        .catch((error: unknown) => {
+          console.warn('[useAuth] Init prefetch failed, falling back:', error);
+        });
+    }
+  } else {
+    // Server says guest. Wipe any positive entry from the instant-auth cache
+    // so the next page load does not seed React Query with a false positive
+    // (and, more importantly, leaves no false negative behind for the
+    // post-login `/workplace` mount to read).
+    clearCachedAuthState();
+
+    if (currentIsAuthenticated) {
+      // Full teardown: clears persisted state, profile store, etc.
+      useAuthStore.getState().clearAuth();
+    } else {
+      // Reflect the server answer into the store so `hasServerConfirmed` is
+      // freshly accurate.
+      useAuthStore.getState().setAuthState({ user: null, isAuthenticated: false });
+    }
+  }
+};
+
 export const useAuth = (options: AuthOptions = {}) => {
   const { skipAuth = false, lazy = false, instant = false } = options;
 
@@ -322,10 +447,6 @@ export const useAuth = (options: AuthOptions = {}) => {
     error,
     isLoggingOut,
     selectedMessageColor,
-    setAuthState,
-    setLoading,
-    setError,
-    clearAuth,
     updateMessageColor,
     login,
     logout,
@@ -339,83 +460,50 @@ export const useAuth = (options: AuthOptions = {}) => {
     setLoginIntent,
   } = useAuthStore();
 
-  const [hasInitializedFromCache, setHasInitializedFromCache] = useState(false);
   const queryClient = useQueryClient();
 
-  // Load cached state immediately for instant mode
-  const cachedAuth = !skipAuth && instant ? getCachedAuthState() : null;
-  const [hasCachedData] = useState(!!cachedAuth);
-
-  // Initialize with cached data if available
-  useEffect(() => {
-    if (cachedAuth && !hasInitializedFromCache) {
-      setAuthState({
-        user: (cachedAuth.user ?? null) as User | null,
-        isAuthenticated: cachedAuth.isAuthenticated,
-      });
-      setHasInitializedFromCache(true);
-    }
-  }, [cachedAuth, hasInitializedFromCache, setAuthState]);
+  // Read the instant-auth cache once at mount. Used both to seed React Query
+  // via `initialData` (so the splash never shows on the warm path) and to
+  // skip the dev-only server-health probe.
+  const [cachedEntry] = useState<{ data: AuthData; timestamp: number } | null>(() =>
+    !skipAuth && instant ? getCachedAuthEntry() : null
+  );
+  const hasCachedData = !!cachedEntry;
 
   const { isServerAvailable, isChecking } = useServerAvailability(
     lazy || (instant && hasCachedData)
   );
 
-  // Check if user recently logged out to prevent immediate re-auth
-  const hasRecentlyLoggedOut = isRecentlyLoggedOut();
-
-  // Always allow auth on login page (conscious user action)
-  const isOnLoginPage =
-    typeof window !== 'undefined' &&
-    (window.location.pathname === '/login' || window.location.pathname === '/auth/login');
-
-  // Query configuration for different loading strategies
   const {
     data: authData,
     isLoading: isQueryLoading,
-    isFetching,
-    isError,
     error: queryError,
     refetch: refetchAuth,
   } = useQuery<AuthData>({
     queryKey: ['authStatus'],
     queryFn: async (): Promise<AuthData> => {
       if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true') {
-        const now = new Date().toISOString();
-        return {
-          isAuthenticated: true,
-          user: {
-            id: '00000000-0000-4000-a000-000000000001',
-            email: 'dev@gruenerator.de',
-            display_name: 'Test User',
-            avatar_robot_id: 1,
-            beta_features: { workplace: true },
-            user_defaults: {},
-            locale: 'de-DE',
-            groups_enabled: true,
-            custom_generators: true,
-            database_access: true,
-            collab: true,
-            notebook: true,
-            sharepic: true,
-            anweisungen: true,
-            labor_enabled: true,
-            sites_enabled: true,
-            chat: true,
-            interactive_antrag_enabled: true,
-            vorlagen: true,
-            video_editor: true,
-            created_at: now,
-            updated_at: now,
-          },
-        };
+        const data = buildE2EBypassAuthData();
+        applyAuthAnswer(data, queryClient);
+        return data;
       }
-      const response = await apiClient.get('/auth/status', {
-        skipAuthRedirect: true,
-      });
-      return response.data as AuthData;
+
+      try {
+        const data = await fetchAuthStatus();
+        applyAuthAnswer(data, queryClient);
+        return data;
+      } catch (error) {
+        // Session probe failed. Tear down auth state and rethrow so React
+        // Query enters its error branch. `useAuthBootstrapped` treats `error`
+        // as "bootstrapped" (the splash unhangs into Startseite via the guard).
+        clearCachedAuthState();
+        useAuthStore.getState().clearAuth();
+        throw error;
+      }
     },
-    enabled: isServerAvailable && !skipAuth && (!hasRecentlyLoggedOut || isOnLoginPage), // Allow auth on login page
+    enabled: isServerAvailable && !skipAuth,
+    initialData: cachedEntry?.data,
+    initialDataUpdatedAt: cachedEntry?.timestamp,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
     retry: 1,
@@ -424,111 +512,15 @@ export const useAuth = (options: AuthOptions = {}) => {
     // we want the UI to learn about it immediately, rather than waiting for
     // the next user-triggered API call to 401 and trip the redirect path.
     refetchOnWindowFocus: true,
-    refetchOnMount: false,
+    // 'always' so a fresh page load (Cmd+R, Keycloak callback redirect,
+    // cross-device logout) revalidates against the backend even when the
+    // 5-minute persisted positive cache seeds React Query via `initialData`.
+    // The combination of cache-positive-only + refetchOnMount:'always' gives
+    // us instant /workplace render on the warm path AND prompt correction
+    // when the cached state has gone stale.
+    refetchOnMount: 'always',
     refetchOnReconnect: true,
   });
-
-  // Handle auth data when it changes
-  useEffect(() => {
-    // Don't process auth data if user recently logged out (unless on login page)
-    if (hasRecentlyLoggedOut && !isOnLoginPage) {
-      // Clear stale instant-auth cache to prevent useInstantAuth from
-      // restoring authenticated state after logout
-      clearCachedAuthState();
-      // Only clear auth if user is currently authenticated
-      // This prevents unnecessary clearAuth calls that would reset the logout timestamp
-      const { isAuthenticated: currentIsAuthenticated } = useAuthStore.getState();
-      if (currentIsAuthenticated) {
-        clearAuth();
-      }
-      // If we're on a protected page and recently logged out, clear the logout timestamp
-      // to allow the login screen to be shown properly
-      if (!isOnLoginPage && !skipAuth && !lazy) {
-        try {
-          localStorage.removeItem(LOGOUT_TIMESTAMP);
-        } catch {
-          // Ignore localStorage errors
-        }
-      }
-      return;
-    }
-
-    if (authData) {
-      // Always mirror the server's last word into the instant-auth cache —
-      // including isAuthenticated:false. Previously only true was cached,
-      // which let an old true outlive the response that contradicted it.
-      if (instant) {
-        setCachedAuthState(authData);
-      }
-
-      const { isAuthenticated: currentIsAuthenticated, user: currentUser } =
-        useAuthStore.getState();
-
-      if (authData.isAuthenticated && authData.user) {
-        // Reset the anti-loop circuit-breaker counter — a confirmed login
-        // means any previous loop is resolved; don't carry timestamps
-        // forward into a future session.
-        notifyAuthConfirmed();
-
-        // Clear login intent after successful authentication
-        try {
-          localStorage.removeItem(LOGIN_INTENT);
-        } catch (error) {
-          // Ignore localStorage errors
-        }
-
-        // Prevent infinite loop by only setting state if user is different
-        const authUser = authData.user as User | null | undefined;
-        if (authUser?.id !== currentUser?.id) {
-          setAuthState({
-            user: authUser ?? null,
-            isAuthenticated: authData.isAuthenticated,
-          });
-
-          // Consolidated init: single request seeds all query caches
-          const userId = authUser?.id ?? '';
-          apiClient
-            .get('/auth/init', { skipAuthRedirect: true })
-            .then((response) => {
-              const { groups, savedTexts, notebookCollections, recentActivity, profile } =
-                response.data as Record<string, unknown[]>;
-              if (groups) queryClient.setQueryData(['userGroups', userId], groups);
-              if (savedTexts) queryClient.setQueryData(['userTexts', userId], savedTexts);
-              if (notebookCollections)
-                queryClient.setQueryData(['notebookCollections', userId], notebookCollections);
-              if (recentActivity) queryClient.setQueryData(['recent-activity'], recentActivity);
-              if (profile) queryClient.setQueryData(['profileData', userId], profile);
-            })
-            .catch((error: unknown) => {
-              console.warn('[useAuth] Init prefetch failed, falling back:', error);
-            });
-        }
-      } else {
-        // Server says not authenticated. Even if the store already agrees,
-        // make sure the stale instant-auth cache and the React Query entry
-        // are wiped — otherwise the next reload re-seeds isAuthenticated:true
-        // from cache and triggers the /login ↔ /workplace loop.
-        clearCachedAuthState();
-        queryClient.removeQueries({ queryKey: ['authStatus'] });
-        if (currentIsAuthenticated) {
-          clearAuth();
-        }
-      }
-    } else if (queryError) {
-      setError(queryError.message);
-      clearCachedAuthState();
-      clearAuth();
-    }
-  }, [
-    authData,
-    queryError,
-    instant,
-    setAuthState,
-    clearAuth,
-    setError,
-    hasRecentlyLoggedOut,
-    isOnLoginPage,
-  ]);
 
   // Calculate loading states with optimizations
   const isCombinedLoading =
@@ -538,9 +530,7 @@ export const useAuth = (options: AuthOptions = {}) => {
 
   const isAuthResolved =
     hasCachedData ||
-    (!isChecking && !isQueryLoading && (authData !== undefined || queryError) && !isLoggingOut) ||
-    // Force resolve auth state if user recently logged out and not on login page
-    (hasRecentlyLoggedOut && !isOnLoginPage);
+    (!isChecking && !isQueryLoading && (authData !== undefined || queryError) && !isLoggingOut);
 
   // Helper function to update message color
   const updateUserMessageColor = async (newColor: string) => {

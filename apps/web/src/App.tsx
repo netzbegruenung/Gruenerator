@@ -6,9 +6,10 @@ import SuspenseWrapper from './components/common/SuspenseWrapper';
 import ErrorBoundary from './components/ErrorBoundary';
 import useAccessibility from './components/hooks/useAccessibility';
 import useDarkMode from './components/hooks/useDarkMode';
-import AuthRoute from './components/routing/AuthRoute';
-import GuestRoute from './components/routing/GuestRoute';
+import AuthBootstrap from './components/routing/AuthBootstrap';
+import HomeRedirect from './components/routing/HomeRedirect';
 import LegacyGeneratorRedirect from './components/routing/LegacyGeneratorRedirect';
+import RequireAuth from './components/routing/RequireAuth';
 import RouteComponent from './components/routing/RouteComponent';
 import { useScrollRestoration } from './components/utils/commonFunctions';
 import ScrollToTop from './components/utils/ScrollToTop';
@@ -181,6 +182,7 @@ function App() {
         <UserProfileHydrationBridge />
         <Toaster richColors position="top-right" />
         <Router>
+          <AuthBootstrap />
           <ScrollToTop />
           <RouteLogger />
           <SuspenseWrapper>
@@ -192,74 +194,44 @@ function App() {
               {/* Legacy redirect: /generator/:slug -> /gruenerator/:slug */}
               <Route path="/generator/:slug" element={<LegacyGeneratorRedirect />} />
 
-              {/* Guest-only: redirect authenticated users to /workplace */}
-              <Route element={<GuestRoute />}>
-                {routes.guest.map(({ path, layoutMode }) => (
-                  <Route
-                    key={path}
+              {/*
+                Single auth model: auth-required is the default. A route opts
+                out by setting `public: true` in routes.ts. The marketing
+                startpage at `/` additionally redirects authenticated users
+                to `/workplace` via <HomeRedirect>.
+              */}
+              {routes.map(({ path, layoutMode, public: isPublic }) => {
+                const routeElement = (
+                  <RouteComponent
                     path={path}
-                    element={
-                      <RouteComponent
-                        path={path}
-                        darkMode={darkMode}
-                        toggleDarkMode={toggleDarkMode}
-                        layoutMode={layoutMode}
-                      />
-                    }
+                    darkMode={darkMode}
+                    toggleDarkMode={toggleDarkMode}
+                    layoutMode={layoutMode}
                   />
-                ))}
-              </Route>
+                );
 
-              {/* Auth-required: redirect guests to /login */}
-              <Route element={<AuthRoute />}>
-                {routes.protected.map(({ path, layoutMode }) => (
-                  <Route
-                    key={path}
-                    path={path}
-                    element={
-                      <RouteComponent
-                        path={path}
-                        darkMode={darkMode}
-                        toggleDarkMode={toggleDarkMode}
-                        layoutMode={layoutMode}
-                      />
-                    }
-                  />
-                ))}
-              </Route>
+                let element: React.ReactNode;
+                if (path === '/' || path === '/startseite') {
+                  // Public but with a logged-in-redirect to /workplace.
+                  element = <HomeRedirect>{routeElement}</HomeRedirect>;
+                } else if (isPublic) {
+                  element = routeElement;
+                } else {
+                  // Wrap with RequireAuth via an index-route pattern so the
+                  // guard renders <Outlet /> on success.
+                  element = null;
+                }
 
-              {/* Public: accessible to everyone */}
-              {routes.public.map(({ path, layoutMode }) => (
-                <Route
-                  key={path}
-                  path={path}
-                  element={
-                    <RouteComponent
-                      path={path}
-                      darkMode={darkMode}
-                      toggleDarkMode={toggleDarkMode}
-                      layoutMode={layoutMode}
-                    />
-                  }
-                />
-              ))}
+                if (element === null) {
+                  return (
+                    <Route key={path} element={<RequireAuth />}>
+                      <Route path={path} element={routeElement} />
+                    </Route>
+                  );
+                }
 
-              {/* Special routes */}
-              {routes.special.map(({ path, layoutMode }) => (
-                <Route
-                  key={path}
-                  path={path}
-                  element={
-                    <RouteComponent
-                      path={path}
-                      darkMode={darkMode}
-                      toggleDarkMode={toggleDarkMode}
-                      layoutMode={layoutMode}
-                      isSpecial
-                    />
-                  }
-                />
-              ))}
+                return <Route key={path} path={path} element={element} />;
+              })}
             </Routes>
           </SuspenseWrapper>
         </Router>
