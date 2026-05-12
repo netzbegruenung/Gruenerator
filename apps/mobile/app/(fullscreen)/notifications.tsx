@@ -26,7 +26,6 @@ const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   group_role_changed: 'swap-horizontal-outline',
   group_content_shared: 'share-outline',
   group_deleted: 'trash-outline',
-  wolke_setup: 'cloud-outline',
   pushed_content: 'phone-portrait-outline',
 };
 
