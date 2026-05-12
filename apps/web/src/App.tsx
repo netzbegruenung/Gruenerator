@@ -24,8 +24,11 @@ const FirstRunWizard = lazy(() =>
   }))
 );
 
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { Toaster } from '@gruenerator/ui';
+
+import { toastApiError } from './components/utils/toastError';
 const PopupNutzungsbedingungen = lazy(
   () => import('./components/Popups/popup_nutzungsbedingungen')
 );
@@ -35,6 +38,22 @@ const PopupWartung = lazy(() => import('./components/Popups/popup_wartung'));
 
 // QueryClient Instanz erstellen
 const queryClient = new QueryClient({
+  // Global error surfacing: every failed query/mutation toasts via the shared
+  // German error-message dictionary, unless the caller sets `meta: { silent: true }`.
+  // Background prefetches with working fallbacks should opt out; user-initiated
+  // queries and all mutations should let the toast fire.
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      if (query.meta?.silent === true) return;
+      toastApiError(error);
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      if (mutation.meta?.silent === true) return;
+      toastApiError(error);
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5 Minuten Cache
@@ -163,6 +182,7 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
+        <Toaster richColors position="top-right" />
         <Router>
           <ScrollToTop />
           <RouteLogger />
