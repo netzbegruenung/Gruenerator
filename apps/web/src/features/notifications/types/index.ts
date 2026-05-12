@@ -1,6 +1,5 @@
 import {
   AtSign,
-  Download,
   FileText,
   LayoutDashboard,
   MessageSquare,
@@ -13,8 +12,6 @@ import {
 } from 'lucide-react';
 
 import { openLinkAction, type NotificationTypeConfig } from '../notificationConfig';
-
-import wolkeSetup from './wolkeSetup';
 
 export interface Notification {
   id: string;
@@ -132,12 +129,10 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     group: 'groups',
   },
 
-  transfer_downloaded: {
-    label: 'Transfer-Download',
-    description: 'Wenn jemand deine geteilte Datei herunterlädt',
-    icon: Download,
-    group: 'system',
-  },
-
-  wolke_setup: wolkeSetup,
+  // transfer_downloaded: {
+  //   label: 'Transfer-Download',
+  //   description: 'Wenn jemand deine geteilte Datei herunterlädt',
+  //   icon: Download,
+  //   group: 'system',
+  // },
 };
