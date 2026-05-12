@@ -176,7 +176,6 @@ const SitesHomePage = lazy(() => import('../features/sites/SitesHomePage'));
 const SitesLoginPage = lazy(() => import('../features/sites/SitesLoginPage'));
 const SitesDemoPage = lazy(() => import('../features/sites/SitesDemoPage'));
 const SitesEditPage = lazy(() => import('../features/sites/SitesEditPage'));
-const AgentListPage = lazy(() => import('../features/agents/AgentListPage'));
 const AgentBuilderPage = lazy(() => import('../features/agents/AgentBuilderPage'));
 const SkillsPage = lazy(() => import('../features/skills/SkillsPage'));
 
@@ -212,10 +211,8 @@ const standardRoutes: RouteConfig[] = [
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   { path: '/workplace', component: WorkplacePage },
-  // Agents overview, builder, editor. Auth-required. Page surfaces system
-  // agents (read-only with group-sharing), agents shared into your groups,
-  // and your own user-created agents (full CRUD).
-  { path: '/agents', component: AgentListPage, auth: 'required' as const },
+  // Agent builder/editor. Auth-required. The list/overview lives on the
+  // unified Library page at /skills.
   { path: '/agents/new', component: AgentBuilderPage, auth: 'required' as const },
   {
     path: '/agents/:identifier/edit',
