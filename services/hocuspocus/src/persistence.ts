@@ -25,6 +25,29 @@ const DEFAULT_TITLES = new Set([
   'Untitled Document',
 ]);
 
+// Subtypes whose `content` column stores a BlockNote HTML preview written by
+// this service. Boards (and any future polymorphic subtype) share the same
+// `collaborative_documents` table but store JSON metadata in `content` and
+// must never be overwritten by the preview pipeline. Kept as a readonly tuple
+// so adding/removing a subtype is a single-source change; the derived union
+// catches accidental string drift at compile time.
+//
+// Mirrors `DOCS_SUBTYPES` in apps/api/routes/workplace/recentActivityController.ts.
+// Per CLAUDE.md, the Hocuspocus service has zero cross-package deps, so the
+// constant is duplicated here intentionally rather than imported.
+const DOC_SUBTYPES = [
+  'blank',
+  'antrag',
+  'pressemitteilung',
+  'protokoll',
+  'notizen',
+  'redaktionsplan',
+  'checkliste',
+  'einladung',
+] as const;
+type DocSubtype = (typeof DOC_SUBTYPES)[number];
+const DOC_SUBTYPES_PARAM: readonly DocSubtype[] = DOC_SUBTYPES;
+
 /**
  * Extract a title from the first heading or paragraph in HTML output.
  * Returns null if no usable text is found.
@@ -351,8 +374,10 @@ export class PostgresPersistence {
 
       if (preview) {
         await this.db(
-          'UPDATE collaborative_documents SET content = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-          [documentId, preview]
+          `UPDATE collaborative_documents
+           SET content = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1 AND document_subtype = ANY($3::text[])`,
+          [documentId, preview, DOC_SUBTYPES_PARAM]
         );
         log.debug(`[Preview] Updated preview for ${documentId} (${preview.length} chars)`);
 
@@ -397,10 +422,12 @@ export class PostgresPersistence {
       }
 
       if (preview) {
-        await this.db('UPDATE collaborative_documents SET content = $2 WHERE id = $1', [
-          documentId,
-          preview,
-        ]);
+        await this.db(
+          `UPDATE collaborative_documents
+           SET content = $2
+           WHERE id = $1 AND document_subtype = ANY($3::text[])`,
+          [documentId, preview, DOC_SUBTYPES_PARAM]
+        );
         log.debug(`[Backfill] Extracted preview for ${documentId} (${preview.length} chars)`);
       }
 
