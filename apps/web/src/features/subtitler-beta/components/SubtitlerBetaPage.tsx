@@ -1,4 +1,5 @@
 import { Button, Skeleton, VideoCard } from '@gruenerator/ui';
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -19,21 +20,28 @@ import type { BetaVideoPlayerRef } from './BetaVideoPlayer';
 import type { SubtitleStyle } from './SubtitleSettings';
 import type { SubtitleChunk, SubtitleTranscript } from '../types/subtitle';
 
+/**
+ * Subset of the wire subtitler-project shape used by the beta editor.
+ * Field names match `subtitlerProjectSchema` in `@gruenerator/contracts`;
+ * only the columns the beta UI touches are narrowed here. The full
+ * passthrough shape on the wire is `styleSettingsSchema`.
+ */
+interface SubtitlerProjectStyleSettings {
+  fontSize?: number;
+  bottomOffset?: number;
+  backgroundColor?: string;
+  backgroundOpacity?: number;
+  borderWidth?: number;
+  shadowBlur?: number;
+}
+
 interface SubtitlerProject {
   id: string;
   subtitles: string | null;
   title: string;
   style_preference: string;
   height_preference: string;
-  style_settings: {
-    fontSize?: number;
-    bottomOffset?: number;
-    backgroundColor?: string;
-    backgroundOpacity?: number;
-    borderWidth?: number;
-    shadowBlur?: number;
-    [key: string]: unknown;
-  } | null;
+  style_settings: SubtitlerProjectStyleSettings | null;
   video_path: string | null;
   video_metadata: { width?: number; height?: number; duration?: number } | null;
   video_filename: string | null;
@@ -69,19 +77,13 @@ interface ProjectListItem {
 }
 
 function ProjectPicker({ onSelectProject }: { onSelectProject: (projectId: string) => void }) {
-  const [projectsWithSubtitles, setProjectsWithSubtitles] = useState<ProjectListItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    apiClient
-      .get<{ projects: ProjectListItem[] }>('/subtitler/projects')
-      .then((res) => {
-        const all: ProjectListItem[] = res.data?.projects ?? [];
-        setProjectsWithSubtitles(all);
-      })
-      .catch(() => {})
-      .finally(() => setIsLoading(false));
-  }, []);
+  const { data: projectsWithSubtitles = [], isLoading } = useQuery<ProjectListItem[]>({
+    queryKey: ['subtitler-beta', 'projects'],
+    queryFn: async () => {
+      const res = await apiClient.get<{ projects: ProjectListItem[] }>('/subtitler/projects');
+      return res.data?.projects ?? [];
+    },
+  });
 
   const baseURL = apiClient.defaults.baseURL || '';
 
