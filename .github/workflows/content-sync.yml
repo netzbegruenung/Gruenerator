@@ -108,8 +108,8 @@ jobs:
           ARGS="--landesverband ${{ matrix.lv }}"
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
-          echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
-          npx tsx apps/api/update-all-content.ts $ARGS
+          echo "Running: pnpm --filter @gruenerator/api run update:all -- $ARGS"
+          pnpm --filter @gruenerator/api run update:all -- $ARGS
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
@@ -167,8 +167,8 @@ jobs:
           ARGS="--source ${{ matrix.source }} --no-email"
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
-          echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
-          npx tsx apps/api/update-all-content.ts $ARGS
+          echo "Running: pnpm --filter @gruenerator/api run update:all -- $ARGS"
+          pnpm --filter @gruenerator/api run update:all -- $ARGS
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
@@ -220,7 +220,7 @@ jobs:
           merge-multiple: true
 
       - name: Aggregate summaries
-        run: npx tsx apps/api/aggregate-sync-summaries.ts --dir summaries/
+        run: pnpm --filter @gruenerator/api run sync:aggregate -- --dir summaries/
         env:
           BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
           BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
@@ -315,7 +315,7 @@ jobs:
 
       - name: Update content stats page
         if: always()
-        run: npx tsx apps/api/generate-content-stats.ts
+        run: pnpm --filter @gruenerator/api run stats:content
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
@@ -378,8 +378,8 @@ jobs:
           ARGS="$FLAG $VAL"
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
-          echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
-          npx tsx apps/api/update-all-content.ts $ARGS
+          echo "Running: pnpm --filter @gruenerator/api run update:all -- $ARGS"
+          pnpm --filter @gruenerator/api run update:all -- $ARGS
 
       - name: Generate job summary
         if: always()
@@ -412,7 +412,7 @@ jobs:
 
       - name: Update content stats page
         if: always()
-        run: npx tsx apps/api/generate-content-stats.ts
+        run: pnpm --filter @gruenerator/api run stats:content
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}

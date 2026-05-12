@@ -175,10 +175,15 @@ export interface SSEEventPayloads {
     chart: ChartData;
   };
   completion: {
-    answer: string;
+    type?: 'completion';
+    // Notebook flow emits `answer`; SearchGraph reuses this event with `text`.
+    // Both are read by the frontend GrueneratorModelAdapter / NotebookModelAdapter
+    // as the canonical, citation-renumbered final answer.
+    answer?: string;
+    text?: string;
     citations: unknown[];
-    sources: unknown[];
-    allSources: unknown[];
+    sources?: unknown[];
+    allSources?: unknown[];
     sourcesByCollection?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
   };

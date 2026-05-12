@@ -210,7 +210,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/startseite', component: Startseite, auth: 'guest', layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
-  { path: '/workplace', component: WorkplacePage },
+  { path: '/workplace', component: WorkplacePage, auth: 'required' as const },
   // Agent builder/editor. Dev-only until the feature ships — gated via the
   // existing `devOnly` filter at the bottom of this file (Vite tree-shakes the
   // routes in prod). The list/overview lives on the unified Library page at

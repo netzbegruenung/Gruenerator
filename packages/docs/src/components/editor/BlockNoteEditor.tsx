@@ -33,6 +33,7 @@ import {
   AIExtension,
   AIMenuController,
   AIToolbarButton,
+  aiDocumentFormats,
   getAISlashMenuItems,
 } from '@blocknote/xl-ai';
 import { de as aiDe } from '@blocknote/xl-ai/locales';
@@ -241,6 +242,14 @@ const BlockNoteEditorInner = ({
           api: aiApiUrl,
           credentials: 'include',
         }),
+        // Markdown format avoids xl-ai's HTML rebase-tool throw on docs that
+        // contain inline color/background spans — those don't round-trip
+        // through blocksToHTMLLossy/tryParseHTMLToBlocks but they DO round-trip
+        // through markdown (lossy by design, the offending spans drop out).
+        // See `_experimental_markdown` in @blocknote/xl-ai for the format
+        // definition; backend `aiController.ts` uses the matching system prompt.
+        streamToolsProvider: aiDocumentFormats._experimental_markdown.getStreamToolsProvider(),
+        documentStateBuilder: aiDocumentFormats._experimental_markdown.defaultDocumentStateBuilder,
       }),
     ];
 
