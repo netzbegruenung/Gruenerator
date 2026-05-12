@@ -22,7 +22,7 @@ import type { IconType } from 'react-icons';
  * DEFAULT_AGENT_ENTRIES — excluded from the main system-agent list below
  * to avoid duplicate rows.
  */
-const HIDDEN_INVENTORY_AGENT_IDS = new Set<SystemAgentId>([
+export const HIDDEN_INVENTORY_AGENT_IDS = new Set<SystemAgentId>([
   'gruenerator-oeffentlichkeitsarbeit',
   'gruenerator-antrag',
   'gruenerator-suche',

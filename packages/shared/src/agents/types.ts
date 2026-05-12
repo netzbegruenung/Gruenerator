@@ -63,6 +63,12 @@ export interface Agent {
   routeTo?: 'chat' | 'search';
   defaultFilter?: AgentDefaultFilter;
   /**
+   * Auto-pair this agent with a specific notebook on selection — used by
+   * per-LV PR agents so RAG and @notebook lookups align with the agent's
+   * regional identity. Consumed in ChatPage on agent change.
+   */
+  defaultNotebookId?: string;
+  /**
    * Hide this agent from agent-picker / inventory UIs. The identifier stays
    * live in the registry (so backend fallbacks and existing chat threads
    * keep resolving), but no UI surface offers it to the user. Used for
