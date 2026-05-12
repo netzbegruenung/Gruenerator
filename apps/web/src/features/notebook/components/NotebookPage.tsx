@@ -16,7 +16,7 @@ import {
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
 import { PanelLeft } from 'lucide-react';
-import React, { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { FaFileWord } from 'react-icons/fa';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
@@ -25,6 +25,7 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { useExportStore } from '../../../stores/core/exportStore';
+import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
@@ -32,8 +33,6 @@ import useNotebookStore from '../stores/notebookStore';
 
 import { DocumentBrowserPanel } from './DocumentBrowserPanel';
 import { NotebookStartpage } from './NotebookStartpage';
-
-import type { NotebookCollection as FullNotebookCollection } from '../../../types/notebook';
 
 interface NotebookCollection {
   id: string;
@@ -413,55 +412,41 @@ export const createNotebookPage = (configId: string) => {
 export const DynamicNotebookPage = () => {
   const { id } = useParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
-  const {
-    getQACollection,
-    fetchQACollections,
-    qaCollections,
-    loading: storeLoading,
-    initDocumentSelection,
-    getSelectedDocumentIds,
-  } = useNotebookStore();
-  const [collection, setCollection] = useState<FullNotebookCollection | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { initDocumentSelection, getSelectedDocumentIds } = useNotebookStore();
+  const { query, getQACollection } = useNotebookCollections({ isActive: true });
+  const collection = id ? getQACollection(id) : undefined;
+  const { isLoading, isError, data: qaCollections } = query;
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Seed the per-collection document selection exactly once per id. We accept
+  // documents whose status is 'completed' or absent — the wire schema only
+  // recently started shipping `status`, so missing-status is treated as ready
+  // rather than silently un-selected.
+  const seededRef = useRef<string | null>(null);
   useEffect(() => {
-    const loadCollection = async () => {
-      if (!id) return;
-      setLoading(true);
-      let found = getQACollection(id);
-      if (!found) {
-        await fetchQACollections();
-        found = getQACollection(id);
-      }
-      if (found) {
-        const docIds = (found.documents || [])
-          .filter((d) => d.status === 'completed')
-          .map((d) => d.id);
-        initDocumentSelection(found.id, docIds);
-      }
-      setCollection(found || null);
-      setLoading(false);
-    };
-    if (id && user) void loadCollection();
-  }, [id, getQACollection, fetchQACollections, user, qaCollections, initDocumentSelection]);
+    if (!collection || seededRef.current === collection.id) return;
+    const docIds = (collection.documents || [])
+      .filter((d) => d.status === 'completed' || d.status === undefined)
+      .map((d) => d.id);
+    initDocumentSelection(collection.id, docIds);
+    seededRef.current = collection.id;
+  }, [collection, initDocumentSelection]);
 
   const selectedDocumentIds = collection ? getSelectedDocumentIds(collection.id) : [];
 
-  if (loading)
+  if (isLoading)
     return (
       <div className="flex flex-1 items-center justify-center p-md text-foreground-muted">
         <p>Notebook wird geladen...</p>
       </div>
     );
 
-  if (!collection) {
+  if (isError || !collection) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-sm p-md text-foreground-muted">
         <p>Notebook nicht gefunden oder keine Berechtigung.</p>
         <p className="text-xs">
-          Collection ID: {id} · User ID: {user?.id} · Store Loading: {storeLoading ? 'Yes' : 'No'} ·
-          Collections: {qaCollections?.length || 0}
+          Collection ID: {id} · User ID: {user?.id} · Collections: {qaCollections?.length || 0}
         </p>
       </div>
     );
