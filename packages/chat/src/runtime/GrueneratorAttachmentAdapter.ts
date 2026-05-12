@@ -10,6 +10,7 @@ import {
   fileToBase64,
   getAcceptedFileTypes,
 } from '../lib/fileUtils';
+import { handleAttachmentError } from '../lib/attachmentErrorHandler';
 
 // Synthetic content types used by @docs / @datei mention chips. These never
 // correspond to real File uploads — they flow through AUI's CreateAttachment
@@ -26,7 +27,12 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
   accept = [getAcceptedFileTypes(), ...SYNTHETIC_MENTION_TYPES].join(',');
 
   async add({ file }: { file: File }): Promise<PendingAttachment> {
-    validateFile(file);
+    try {
+      validateFile(file);
+    } catch (error) {
+      handleAttachmentError(error);
+      throw error;
+    }
 
     return {
       id: crypto.randomUUID(),
