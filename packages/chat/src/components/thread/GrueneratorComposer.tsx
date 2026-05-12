@@ -533,7 +533,9 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           </div>
           <div className="flex items-center gap-0.5">
             {showModelPicker && layout !== 'compact-overflow' && <ModelPicker />}
+            {/* TODO: re-enable when realtime voice agent is ready for users
             <ComposerVoiceToggle />
+            */}
             {slots?.sendAdornment}
             <ComposerButtons
               isRunning={isRunning}
