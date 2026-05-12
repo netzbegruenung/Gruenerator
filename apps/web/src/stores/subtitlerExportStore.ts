@@ -1,3 +1,5 @@
+import { type ApiErrorBody } from '@gruenerator/contracts';
+import axios from 'axios';
 import { create } from 'zustand';
 
 import apiClient from '../components/utils/apiClient';
@@ -22,32 +24,28 @@ const POLLING_CONFIG = {
   RETRY_DELAY_BASE: 1000, // Base delay for exponential backoff
 };
 
-// Types for export parameters
+// Wire shape for a subtitle row sent to /subtitler/export. The backend
+// accepts either `{start,end,text}` or `{startTime,endTime,text}` and
+// normalizes; we keep this narrow on the frontend.
 interface Subtitle {
   start: number;
   end: number;
   text: string;
-  [key: string]: unknown;
 }
 
 interface ExportParams {
   subtitles?: Subtitle[];
   uploadId?: string;
-  [key: string]: unknown;
+  subtitlePreference?: string;
+  stylePreference?: string;
+  heightPreference?: string;
+  locale?: string;
+  maxResolution?: number | null;
+  projectId?: string | null;
+  userId?: string | null;
 }
 
-interface ExportPreferences {
-  [key: string]: unknown;
-}
-
-interface AxiosErrorLike {
-  response?: {
-    data?: {
-      error?: string;
-    };
-  };
-  message: string;
-}
+type ExportPreferences = Omit<ExportParams, 'subtitles'>;
 
 interface ExportStartResponse {
   exportToken?: string;
@@ -59,6 +57,13 @@ interface ExportProgressResponse {
   timeRemaining?: number | null;
   projectId?: string | null;
   error?: string;
+}
+
+function extractAxiosErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError<ApiErrorBody>(error)) {
+    return error.response?.data?.error ?? error.message ?? fallback;
+  }
+  return error instanceof Error ? error.message : fallback;
 }
 
 // Store state interface
@@ -204,10 +209,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
       // Start polling for progress
       get().startPolling();
     } catch (error: unknown) {
-      const axiosError = error as AxiosErrorLike;
-      const errorMessage =
-        axiosError.response?.data?.error ||
-        (error instanceof Error ? error.message : 'Failed to start export');
+      const errorMessage = extractAxiosErrorMessage(error, 'Failed to start export');
       console.error('[SubtitlerExportStore] Export start failed:', error);
       set({
         status: EXPORT_STATUS.ERROR,

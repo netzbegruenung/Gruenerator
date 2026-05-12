@@ -8,7 +8,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-import { type SubtitleSegment } from '@gruenerator/contracts';
+import { type AutoProgress, type SubtitleSegment } from '@gruenerator/contracts';
 import { v4 as uuidv4 } from 'uuid';
 
 import { createLogger } from '../../utils/logger.js';
@@ -654,22 +654,18 @@ function calculateFontSize(metadata: VideoMetadata): number {
   return Math.floor(referenceDimension * basePercentage);
 }
 
-interface AutoProgressData {
-  status: string;
-  stage?: number;
-  stageName?: string;
-  stageProgress?: number;
-  overallProgress?: number;
-  error?: string | null;
-  outputPath?: string | null;
-  duration?: number | null;
-}
+/**
+ * Local auto-progress alias of the contract type so existing callers and
+ * re-exports keep their import path. New code should import `AutoProgress`
+ * directly from `@gruenerator/contracts`.
+ */
+type AutoProgressData = AutoProgress;
 
 async function getAutoProgress(token: string): Promise<AutoProgressData | null> {
   const data = await redisClient.get(`auto:${token}`);
   if (!data || typeof data !== 'string') return null;
-  const progress: AutoProgressData = JSON.parse(data) as AutoProgressData;
-  return progress;
+  const { parseAutoProgress } = await import('./redisCodecs.js');
+  return parseAutoProgress(data, `auto:${token}`);
 }
 
 export { processVideoAutomatically, getAutoProgress, STAGES };

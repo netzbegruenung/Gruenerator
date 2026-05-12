@@ -5,9 +5,13 @@
 
 import fs from 'fs';
 
-import { subtitleSegmentSchema } from '@gruenerator/contracts';
+import {
+  projectDataBodySchema,
+  updateProjectBodySchema,
+  type ProjectDataBody,
+  type UpdateProjectBody,
+} from '@gruenerator/contracts';
 import express, { type Response, type Router } from 'express';
-import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
@@ -17,42 +21,11 @@ import { createLogger } from '../../utils/logger.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { SubtitlerProjectService } from '../../services/subtitler/ProjectService.js';
 
-// ============================================================================
-// Zod Schemas
-// ============================================================================
+const projectDataSchema = projectDataBodySchema;
+type ProjectData = ProjectDataBody;
 
-const projectDataSchema = z
-  .object({
-    uploadId: z.string().optional(),
-    videoFilename: z.string(),
-    // Uses canonical subtitleSegmentSchema from @gruenerator/contracts.
-    // Pre-2026-04-13: local `{ text, start, end }` shape drifted from the
-    // 8 service-layer SubtitleSegment interfaces that used
-    // `{ text, startTime, endTime }`. Unification landed the canonical
-    // shape in contracts and 8 service files now import from there.
-    subtitles: z.array(subtitleSegmentSchema),
-    title: z.string().optional(),
-    stylePreference: z.string().optional(),
-    heightPreference: z.string().optional(),
-    modePreference: z.string().optional(),
-    videoMetadata: z.record(z.string(), z.unknown()).optional(),
-    videoSize: z.number().optional(),
-  })
-  .passthrough();
-type ProjectData = z.infer<typeof projectDataSchema>;
-
-const updateProjectDataSchema = z.object({
-  title: z.string().optional(),
-  subtitles: z.string().optional(),
-  style_preference: z.string().optional(),
-  stylePreference: z.string().optional(),
-  height_preference: z.string().optional(),
-  heightPreference: z.string().optional(),
-  style_settings: z.record(z.string(), z.unknown()).optional(),
-  styleSettings: z.record(z.string(), z.unknown()).optional(),
-  status: z.string().optional(),
-});
-type UpdateProjectData = z.infer<typeof updateProjectDataSchema>;
+const updateProjectDataSchema = updateProjectBodySchema;
+type UpdateProjectData = UpdateProjectBody;
 
 const fsPromises = fs.promises;
 const log = createLogger('subtitler-projects');
@@ -119,10 +92,7 @@ router.post(
         return;
       }
 
-      const { project, isNew } = await saveOrUpdateProject(
-        userId,
-        req.body as Parameters<typeof saveOrUpdateProject>[1]
-      );
+      const { project, isNew } = await saveOrUpdateProject(userId, req.body);
 
       res.status(isNew ? 201 : 200).json({ success: true, project, isNew });
     } catch (error: unknown) {
@@ -151,11 +121,7 @@ router.put(
       const { projectId } = req.params;
 
       const service = await getProjectService();
-      const project = await service.updateProject(
-        userId,
-        projectId,
-        req.body as Parameters<typeof service.updateProject>[2]
-      );
+      const project = await service.updateProject(userId, projectId, req.body);
       log.info(`Updated project ${projectId}`);
       res.json({ success: true, project });
     } catch (error: unknown) {
