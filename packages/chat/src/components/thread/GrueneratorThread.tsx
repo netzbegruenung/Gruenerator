@@ -50,15 +50,20 @@ function VoiceOrbOverlay() {
     return () => disconnectRef.current();
   }, []);
 
+  // Float as a thread-anchored indicator instead of a full-screen modal so
+  // the live transcript (auto-rendered from emitTranscript) stays visible
+  // and the user reads the conversation in parallel with the audio.
   return (
-    <button
-      type="button"
-      onClick={() => disconnect()}
-      aria-label="Sprachsitzung beenden"
-      className="fixed inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-md transition-opacity duration-300 animate-in fade-in"
-    >
-      <VoiceOrb className="size-[min(70vw,70vh,560px)] drop-shadow-2xl" />
-    </button>
+    <div className="pointer-events-none absolute inset-x-0 top-6 z-30 flex justify-center animate-in fade-in zoom-in-90 duration-300">
+      <button
+        type="button"
+        onClick={() => disconnect()}
+        aria-label="Sprachsitzung beenden"
+        className="pointer-events-auto rounded-full p-2 transition-transform hover:scale-105"
+      >
+        <VoiceOrb className="size-44 drop-shadow-2xl md:size-56" />
+      </button>
+    </div>
   );
 }
 
