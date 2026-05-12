@@ -1,10 +1,5 @@
 import { agentsList, type AgentListItem, useAgentStore } from '@gruenerator/chat';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
   Sheet,
   SheetContent,
   SheetTitle,
@@ -13,87 +8,8 @@ import {
   TooltipTrigger,
   useIsMobile,
 } from '@gruenerator/ui';
-
-/**
- * Platform-specific social-media variants that should NOT appear as standalone
- * agents in the inventory — they're represented by the merged "Social Media"
- * default entry in the sidebar. They remain as `/instagram`, `@linkedin`, etc.
- * skills in chat (the mention system uses agentsList directly).
- */
-/**
- * Mentions that the user wants only as `/mention` skills, NOT as standalone
- * agents in the sidebar inventory or "Show all" modal. Either represented by
- * a default entry (presse / social media / antrag) or skill-only by request
- * (aktion). The mention system in chat continues to resolve all of these.
- */
-const HIDDEN_INVENTORY_MENTIONS = new Set([
-  // Already represented by the "Presse" default
-  'presse',
-  // Social media platform variants — covered by the "Social Media" default
-  'instagram',
-  'facebook',
-  'twitter',
-  'linkedin',
-  'reel',
-  // Already represented by the "Anträge" default
-  'antrag',
-  // Aktionsideen — keep as /aktion skill, not in inventory
-  'aktion',
-]);
-
-interface DefaultAgentEntry {
-  key: string;
-  label: string;
-  identifier: string;
-  Icon: IconType;
-}
-
-/**
- * Pinned defaults always shown in the sidebar regardless of favorites.
- * "Öffentlichkeitsarbeit" is the combined Presse + Social Media agent — one
- * model handling both formats with platform routing inside its system prompt
- * (see `system.ts` Schritt 3a/3b). Splitting it into separate entries caused
- * an `Array.find`-first-match display ambiguity (clicking Social Media showed
- * "Pressemitteilung" because both pointed at the same identifier). Single
- * entry resolves the ambiguity without splitting the agent.
- */
-const DEFAULT_AGENT_ENTRIES: readonly DefaultAgentEntry[] = [
-  {
-    key: 'default-oeffentlichkeitsarbeit',
-    label: 'Öffentlichkeitsarbeit',
-    identifier: 'gruenerator-oeffentlichkeitsarbeit',
-    Icon: PiMegaphone,
-  },
-  {
-    key: 'default-antrag',
-    label: 'Anträge',
-    identifier: 'gruenerator-antrag',
-    Icon: PiNotePencil,
-  },
-  {
-    key: 'default-suche',
-    label: 'Suche',
-    identifier: 'gruenerator-suche',
-    Icon: PiMagnifyingGlass,
-  },
-  // Per-LV Öffentlichkeitsarbeit agents are intentionally NOT pinned here.
-  // They are discoverable via the "Alle Agents" modal and the per-LV notebook
-  // auto-select; users can favorite them to surface them in the sidebar.
-  // Pinning them globally caused duplication with the favorites-driven
-  // inventory rendering (same agent shown twice).
-];
 import { useEffect, useMemo, useCallback, useRef, useState, memo } from 'react';
-import {
-  PiSun,
-  PiMoon,
-  PiStarFill,
-  PiSignIn,
-  PiCaretRight,
-  PiSparkle,
-  PiMegaphone,
-  PiNotePencil,
-  PiMagnifyingGlass,
-} from 'react-icons/pi';
+import { PiSun, PiMoon, PiStarFill, PiSignIn, PiCaretRight, PiSparkle } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
@@ -111,10 +27,10 @@ import {
   type MenuItemType,
 } from '../Header/menuData';
 
+import { AllAgentsDialog } from './AllAgentsDialog';
 import NewItemDropdown from './NewItemDropdown';
+import { DEFAULT_AGENT_ENTRIES, HIDDEN_INVENTORY_MENTIONS } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
-
-import type { IconType } from 'react-icons';
 
 import { cn } from '@/utils/cn';
 import '../../../assets/styles/components/layout/sidebar.css';
@@ -535,11 +451,6 @@ const SidebarAgents = memo(function SidebarAgents({
   onLinkClick: (path: string, title: string) => void;
 }) {
   const { data: userAgents = [] } = useUserAgents();
-  // The "+ Neue*r Agent*in" CTA links to the unfinished agent-builder route at
-  // /agents/new — dev-only. The user-agents list itself (which includes
-  // virtualized custom_generators from the conversion work) is data-driven and
-  // safe in prod: users only see their own data.
-  const showCreateAgentCta = import.meta.env.DEV;
 
   const favoriteMentions = useAgentFavoritesStore((s) => s.mentions);
   const favoriteSkills = useMemo(() => {
@@ -656,10 +567,16 @@ const SidebarAgents = memo(function SidebarAgents({
             </li>
           ))}
 
-          <li>
-            <AllAgentsDialog onLinkClick={onLinkClick} titleClass={titleClass} />
-          </li>
+          {import.meta.env.DEV && (
+            <li>
+              <AllAgentsDialog onLinkClick={onLinkClick} titleClass={titleClass} />
+            </li>
+          )}
 
+          {/*
+            "Neue*r Agent*in" sidebar CTA — disabled until the agent-builder
+            feature ships. Route + SkillsPage CTA remain behind
+            `import.meta.env.DEV` (Vite tree-shakes them in prod).
           {showCreateAgentCta && (
             <li>
               <button
@@ -674,175 +591,11 @@ const SidebarAgents = memo(function SidebarAgents({
               </button>
             </li>
           )}
+          */}
         </ul>
       )}
     </div>
   );
 });
-
-/**
- * Modal listing every non-social-media skill with star toggles.
- * Stars persist via `useAgentFavoritesStore`. Starred skills appear as
- * additional rows in the sidebar agents section.
- */
-function AllAgentsDialog({
-  onLinkClick,
-  titleClass,
-}: {
-  onLinkClick: (path: string, title: string) => void;
-  titleClass: string;
-}) {
-  const favoriteMentions = useAgentFavoritesStore((s) => s.mentions);
-  const toggle = useAgentFavoritesStore((s) => s.toggle);
-  const favoritesSet = useMemo(() => new Set(favoriteMentions), [favoriteMentions]);
-  const { data: userAgents = [] } = useUserAgents();
-
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          className={cn(menuLinkClass(false), 'text-grey-500 hover:text-foreground')}
-        >
-          <span className="shrink-0 w-6 h-6 flex items-center justify-center text-base">⋯</span>
-          <span className={titleClass}>Alle anzeigen</span>
-        </button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Alle Agents</DialogTitle>
-        </DialogHeader>
-        <ul className="list-none m-0 p-0 max-h-[60vh] overflow-y-auto scrollbar-thin">
-          {DEFAULT_AGENT_ENTRIES.map((entry) => (
-            <li
-              key={entry.key}
-              className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800/60"
-            >
-              <button
-                type="button"
-                onClick={() => onLinkClick(`/chat?agent=${entry.identifier}`, entry.label)}
-                className="flex flex-1 items-center gap-3 text-left"
-              >
-                <span className="shrink-0 w-7 h-7 flex items-center justify-center text-secondary-600">
-                  <entry.Icon aria-hidden="true" className="h-5 w-5" />
-                </span>
-                <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-medium truncate">{entry.label}</span>
-                </span>
-              </button>
-              <button
-                type="button"
-                disabled
-                className="shrink-0 p-1.5 rounded opacity-100 cursor-default"
-                aria-label="Standard-Favorit"
-                title="Standard-Favorit (immer angeheftet)"
-              >
-                <PiStarFill size={16} className="text-primary-600" />
-              </button>
-            </li>
-          ))}
-          <li className="my-2 border-t border-grey-200 dark:border-grey-800" aria-hidden="true" />
-          {agentsList
-            .filter((skill) => !HIDDEN_INVENTORY_MENTIONS.has(skill.mention ?? ''))
-            .map((skill) => {
-              const isFav = favoritesSet.has(skill.mention);
-              return (
-                <li
-                  key={skill.mention}
-                  className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800/60"
-                >
-                  <button
-                    type="button"
-                    onClick={() => onLinkClick(`/chat?agent=${skill.identifier}`, skill.title)}
-                    className="flex flex-1 items-center gap-3 text-left"
-                  >
-                    <span
-                      className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-sm"
-                      style={{ backgroundColor: skill.backgroundColor }}
-                    >
-                      {skill.avatar}
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-sm font-medium truncate">{skill.title}</span>
-                      {skill.description && (
-                        <span className="block text-xs text-grey-500 truncate">
-                          {skill.description}
-                        </span>
-                      )}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggle(skill.mention)}
-                    className="shrink-0 p-1.5 rounded hover:bg-grey-200 dark:hover:bg-grey-700"
-                    aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                    title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                  >
-                    <PiStarFill
-                      size={16}
-                      className={cn(isFav ? 'text-primary-600' : 'text-grey-300')}
-                    />
-                  </button>
-                </li>
-              );
-            })}
-          {userAgents.length > 0 && (
-            <>
-              <li
-                className="my-2 border-t border-grey-200 dark:border-grey-800"
-                aria-hidden="true"
-              />
-              <li className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-grey-500">
-                Meine Agent*innen
-              </li>
-              {userAgents.map((agent) => {
-                const isFav = favoritesSet.has(agent.identifier);
-                return (
-                  <li
-                    key={`ua-${agent.identifier}`}
-                    className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800/60"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
-                      className="flex flex-1 items-center gap-3 text-left"
-                    >
-                      <span
-                        className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-sm"
-                        style={{ backgroundColor: agent.backgroundColor }}
-                      >
-                        {agent.avatar}
-                      </span>
-                      <span className="flex-1 min-w-0">
-                        <span className="block text-sm font-medium truncate">{agent.title}</span>
-                        {agent.description && (
-                          <span className="block text-xs text-grey-500 truncate">
-                            {agent.description}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => toggle(agent.identifier)}
-                      className="shrink-0 p-1.5 rounded hover:bg-grey-200 dark:hover:bg-grey-700"
-                      aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                      title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                    >
-                      <PiStarFill
-                        size={16}
-                        className={cn(isFav ? 'text-primary-600' : 'text-grey-300')}
-                      />
-                    </button>
-                  </li>
-                );
-              })}
-            </>
-          )}
-        </ul>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 export default memo(Sidebar);
