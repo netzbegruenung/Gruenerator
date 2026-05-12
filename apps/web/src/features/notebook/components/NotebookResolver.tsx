@@ -24,7 +24,7 @@ function NotebookResolverPage() {
   }
 
   if (UUID_RE.test(idOrSlug)) {
-    return <DynamicNotebookPage />;
+    return <DynamicNotebookPage id={idOrSlug} />;
   }
 
   return (
