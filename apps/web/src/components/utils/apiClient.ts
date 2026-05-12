@@ -87,15 +87,16 @@ async function isSessionStillAlive(): Promise<boolean> {
 
   probeInFlight = (async (): Promise<boolean> => {
     try {
-      // Use raw axios — going through `apiClient` would re-enter the
-      // interceptor and infinite-loop. `skipAuthRedirect` wouldn't
-      // help here because the probe IS the redirect check.
-      const response = await axios.get(`${baseURL}/auth/status`, {
+      // Hit Better Auth's native session endpoint directly. Going through
+      // `apiClient` would re-enter the interceptor and infinite-loop;
+      // `authClient.getSession()` is a peer of `apiClient` so it doesn't
+      // share the interceptor chain.
+      const response = await axios.get(`${baseURL}/auth/v2/get-session`, {
         withCredentials: useCredentials,
         timeout: 10_000,
       });
-      const data = response.data as { isAuthenticated?: boolean } | undefined;
-      const alive = data?.isAuthenticated === true;
+      const data = response.data as { user?: unknown } | null | undefined;
+      const alive = data != null && data.user != null;
       lastProbe = { timestamp: Date.now(), isAuthenticated: alive };
       return alive;
     } catch {
