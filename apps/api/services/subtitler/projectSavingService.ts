@@ -8,10 +8,12 @@ import fsPromises from 'fs/promises';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-import { type SubtitleSegment } from '@gruenerator/contracts';
+import { type ProjectDataBody, type SubtitleSegment } from '@gruenerator/contracts';
 
 import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
+
+import type { SubtitlerProject } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -38,18 +40,13 @@ interface AutoSaveParams {
   exportToken?: string;
 }
 
-interface ProjectData {
-  uploadId?: string;
-  videoFilename: string;
-  subtitles: SubtitleSegment[];
-  title?: string;
-  stylePreference?: string;
-  heightPreference?: string;
-  modePreference?: string;
-  videoMetadata?: Record<string, unknown>;
-  videoSize?: number;
-  [key: string]: unknown;
-}
+/**
+ * Service-layer create/update payload. Aliased to the wire contract so the
+ * Zod-validated `req.body` flows in directly — no `Parameters<>` cast
+ * needed at the controller. The contract uses `.nullish()` semantics
+ * (`string | null | undefined`), which we accept here.
+ */
+type ProjectData = ProjectDataBody;
 
 interface SaveResult {
   projectId: string;
@@ -170,31 +167,37 @@ async function autoSaveProject(params: AutoSaveParams): Promise<SaveResult & { i
 async function saveOrUpdateProject(
   userId: string,
   projectData: ProjectData
-): Promise<{ project: unknown; isNew: boolean }> {
+): Promise<{ project: SubtitlerProject; isNew: boolean }> {
   const service = await getProjectService();
   const existing = await service.findProjectByVideoFilename(userId, projectData.videoFilename);
 
   if (existing?.id) {
-    await service.updateProject(userId, existing.id, {
+    const updated = await service.updateProject(userId, existing.id, {
       subtitles: JSON.stringify(projectData.subtitles),
-      title: projectData.title,
-      style_preference: projectData.stylePreference,
-      height_preference: projectData.heightPreference,
+      ...(projectData.title != null && { title: projectData.title }),
+      ...(projectData.stylePreference != null && {
+        style_preference: projectData.stylePreference,
+      }),
+      ...(projectData.heightPreference != null && {
+        height_preference: projectData.heightPreference,
+      }),
     });
     log.info(`Updated existing project ${existing.id} for video ${projectData.videoFilename}`);
-    return { project: { ...existing, ...projectData }, isNew: false };
+    return { project: updated, isNew: false };
   }
 
   const project = await service.createProject(userId, {
     uploadId: projectData.uploadId || '',
-    title: projectData.title,
+    ...(projectData.title != null && { title: projectData.title }),
     subtitles: JSON.stringify(projectData.subtitles),
-    stylePreference: projectData.stylePreference,
-    heightPreference: projectData.heightPreference,
-    modePreference: projectData.modePreference,
-    videoMetadata: projectData.videoMetadata,
+    ...(projectData.stylePreference != null && { stylePreference: projectData.stylePreference }),
+    ...(projectData.heightPreference != null && { heightPreference: projectData.heightPreference }),
+    ...(projectData.modePreference != null && { modePreference: projectData.modePreference }),
+    ...(projectData.videoMetadata != null && {
+      videoMetadata: projectData.videoMetadata as Record<string, unknown>,
+    }),
     videoFilename: projectData.videoFilename,
-    videoSize: projectData.videoSize,
+    ...(projectData.videoSize != null && { videoSize: projectData.videoSize }),
   });
   log.info(`Created new project ${project.id} for video ${projectData.videoFilename}`);
   return { project, isNew: true };
