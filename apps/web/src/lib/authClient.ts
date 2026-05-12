@@ -10,6 +10,12 @@ import { createAuthClient } from 'better-auth/react';
  * by mobile/desktop continues to work through the native handler — they
  * already point at `/api/auth/v2/*`.
  *
+ * **`baseURL` must be absolute.** `createAuthClient` runs `new URL(baseURL)`
+ * at construction time, which throws on a bare path like `/api/auth/v2`.
+ * We derive the origin from `window.location` (same-origin pattern, mirrors
+ * the WS scheme rule) so dev (`http://localhost:3000`), test, and prod
+ * (`https://gruenerator.eu`) all work without env wiring.
+ *
  * Shape note: the response shape from `authClient.getSession()` is
  * Better Auth's native `Session` (camelCase `name`/`image`/`emailVerified`
  * mapped from our `display_name`/`avatar_url`/`email_verified` columns,
@@ -20,5 +26,5 @@ import { createAuthClient } from 'better-auth/react';
  * `toBetterAuthUser()` null-strip + Zod-parse boundary.
  */
 export const authClient = createAuthClient({
-  baseURL: '/api/auth/v2',
+  baseURL: `${window.location.origin}/api/auth/v2`,
 });
