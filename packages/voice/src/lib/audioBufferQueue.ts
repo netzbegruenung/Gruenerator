@@ -125,6 +125,7 @@ export class AudioBufferQueue {
 
   private startVolumeLoop() {
     if (this.rafId != null) return;
+    let lastEmitted = -1;
     const tick = () => {
       if (!this.analyser || !this.analyserBuf || !this.opts.onVolume) {
         this.rafId = null;
@@ -137,7 +138,12 @@ export class AudioBufferQueue {
         sumSquares += v * v;
       }
       const rms = Math.sqrt(sumSquares / this.analyserBuf.length);
-      this.opts.onVolume(Math.min(1, rms * 2));
+      const out = Math.min(1, rms * 2);
+      // Deadband ~2% so WebGL uniforms don't update 60×/sec on flat audio.
+      if (Math.abs(out - lastEmitted) > 0.02) {
+        lastEmitted = out;
+        this.opts.onVolume(out);
+      }
       this.rafId = requestAnimationFrame(tick);
     };
     this.rafId = requestAnimationFrame(tick);
