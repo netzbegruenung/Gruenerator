@@ -4,14 +4,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
-import { AGENT_CATEGORY_LABELS, SYSTEM_AGENTS, type Agent } from '@gruenerator/shared/agents';
-import { useMemo, useState } from 'react';
+import { AGENT_CATEGORY_LABELS, VISIBLE_SYSTEM_AGENTS, type Agent } from '@gruenerator/shared/agents';
+import { useState } from 'react';
 import { HiShare, HiUserGroup } from 'react-icons/hi';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { useGroups, type GroupSummary } from '../groups/hooks/useGroups';
 import {
-  SYSTEM_NOTEBOOKS,
+  getNotebooksByDefaultAgent,
   type NotebookConfigEntry,
 } from '../notebook/config/notebooksConfig';
 
@@ -22,6 +22,8 @@ import {
   useUserAgents,
   type SharedAgentEntry,
 } from './api';
+
+const NOTEBOOKS_BY_AGENT = getNotebooksByDefaultAgent();
 
 function AgentAvatar({ agent }: { agent: Agent }) {
   return (
@@ -176,31 +178,6 @@ export default function AgentListPage() {
   const { userGroups } = useGroups({ isActive: true });
   const deleteMutation = useDeleteUserAgent();
 
-  // Cast through Agent because SYSTEM_AGENTS is `as const` — entries without
-  // hiddenFromInventory have a narrower literal type that doesn't expose it.
-  const visibleSystemAgents: Agent[] = (SYSTEM_AGENTS as readonly Agent[]).filter(
-    (a) => !a.hiddenFromInventory
-  );
-
-  // Reverse-map agent identifier → notebooks whose `defaultAgent` points at it.
-  // Used to surface "this agent is auto-selected from notebook X" badges so
-  // users browsing /agents see the agent ↔ notebook binding without having to
-  // open the notebook first. Iterates SYSTEM_NOTEBOOKS (not getOrderedNotebooks)
-  // so disabled-but-routable notebooks like Schleswig-Holstein still produce a
-  // badge — the route still resolves even when the gallery hides the card.
-  // Bayern (DEV-only) is naturally excluded in prod since it's not in
-  // SYSTEM_NOTEBOOKS there.
-  const notebooksByAgent = useMemo(() => {
-    const map = new Map<string, NotebookConfigEntry[]>();
-    for (const nb of SYSTEM_NOTEBOOKS) {
-      if (!nb.defaultAgent) continue;
-      const list = map.get(nb.defaultAgent) ?? [];
-      list.push(nb);
-      map.set(nb.defaultAgent, list);
-    }
-    return map;
-  }, []);
-
   const handleDelete = (identifier: string, title: string) => {
     if (!confirm(`Möchtest du "${title}" wirklich löschen?`)) return;
     deleteMutation.mutate(identifier);
@@ -228,7 +205,7 @@ export default function AgentListPage() {
               <SharedAgentRow
                 key={entry.agent.identifier}
                 entry={entry}
-                notebooks={notebooksByAgent.get(entry.agent.identifier) ?? []}
+                notebooks={NOTEBOOKS_BY_AGENT.get(entry.agent.identifier) ?? []}
               />
             ))}
           </ul>
@@ -240,12 +217,12 @@ export default function AgentListPage() {
           Verfügbare Agent*innen
         </h2>
         <ul className="flex flex-col gap-sm">
-          {visibleSystemAgents.map((agent) => (
+          {VISIBLE_SYSTEM_AGENTS.map((agent) => (
             <SystemAgentRow
               key={agent.identifier}
               agent={agent}
               groups={userGroups}
-              notebooks={notebooksByAgent.get(agent.identifier) ?? []}
+              notebooks={NOTEBOOKS_BY_AGENT.get(agent.identifier) ?? []}
             />
           ))}
         </ul>

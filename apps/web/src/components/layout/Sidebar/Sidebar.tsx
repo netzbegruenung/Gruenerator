@@ -1,6 +1,6 @@
 import { useAgentStore } from '@gruenerator/chat';
 import {
-  SYSTEM_AGENTS,
+  VISIBLE_SYSTEM_AGENTS as ALL_VISIBLE_SYSTEM_AGENTS,
   getSystemAgent,
   type Agent,
   type SystemAgentId,
@@ -20,18 +20,16 @@ import {
   useIsMobile,
 } from '@gruenerator/ui';
 
-// Hide from the modal's main list — already rendered at the top via
-// DEFAULT_AGENT_ENTRIES; listing twice would just duplicate rows.
+// Already rendered at the top of the modal via DEFAULT_AGENT_ENTRIES — exclude
+// from the main list below to avoid duplicate rows.
 const HIDDEN_INVENTORY_AGENT_IDS = new Set<SystemAgentId>([
   'gruenerator-oeffentlichkeitsarbeit',
   'gruenerator-antrag',
   'gruenerator-suche',
 ]);
 
-const VISIBLE_SYSTEM_AGENTS: readonly Agent[] = SYSTEM_AGENTS.filter(
-  (a) =>
-    !HIDDEN_INVENTORY_AGENT_IDS.has(a.identifier as SystemAgentId) &&
-    !(a as Agent).hiddenFromInventory
+const VISIBLE_SYSTEM_AGENTS: readonly Agent[] = ALL_VISIBLE_SYSTEM_AGENTS.filter(
+  (a) => !HIDDEN_INVENTORY_AGENT_IDS.has(a.identifier as SystemAgentId)
 );
 
 const AGENT_ICONS: Partial<Record<SystemAgentId, IconType>> = {
@@ -566,10 +564,8 @@ const SidebarAgents = memo(function SidebarAgents({
     return out;
   }, [favoriteIdentifiers]);
 
-  // User-created agents (user_agents + custom_generators virtualisation) follow
-  // the same favorites-only rule as system skills. Identifiers double as keys
-  // in the shared `useAgentFavoritesStore.mentions` set — user-agent identifiers
-  // never collide with skill mentions (different namespaces, different shapes).
+  // Favorites store uses identifier strings as keys; user-agent identifiers
+  // don't collide with skill mentions (different namespaces).
   const favoriteUserAgents = useMemo(() => {
     if (!userAgents.length || !favoriteIdentifiers.length) return [];
     const favSet = new Set(favoriteIdentifiers);

@@ -4,10 +4,8 @@ const BASE_AGENTS = [
   {
     identifier: 'gruenerator-universal',
     title: 'Universal Assistent',
-    // Legacy default — kept as the backend fallback identifier referenced in
-    // chat_threads.agent_id defaults and 8+ controller call sites — but no
-    // longer surfaced as a pickable agent. `hiddenFromInventory: true` filters
-    // it out of any inventory render.
+    // Kept as the backend fallback (chat_threads.agent_id default; 8+ controller
+    // call sites). Flag hides it from pickers without removing the identifier.
     hiddenFromInventory: true,
     description:
       'Vielseitiger Textgenerator mit Zugriff auf grüne Parteiprogramme, Positionen und Dokumente via semantischer Suche.',
@@ -612,15 +610,9 @@ const BASE_AGENTS = [
 //
 // Schleswig-Holstein's notebook is currently disabled in the frontend; its
 // agent stays defined here so the wiring is ready when SH is re-enabled.
-// LV_PR_SPECS now only carries LVs that we DON'T yet have a hand-tuned,
-// corpus-derived agent for. Berlin / Hamburg / Thüringen / Brandenburg /
-// Mecklenburg-Vorpommern have richer hand-written agents above (lines ~170-340)
-// with style rules derived from a 20-PM corpus analysis per LV; the factory
-// would just shadow them with templated boilerplate (literal title collision).
-//
-// Schleswig-Holstein and Bayern have no corpus analysis yet, so the factory
-// produces a reasonable templated default until a hand-tuned version replaces
-// them.
+// LVs WITHOUT a corpus-derived hand-tuned agent above. Adding Berlin / Hamburg /
+// MV / Thüringen / Brandenburg back here re-introduces an identifier collision
+// that silently shadows the hand-tuned version — don't.
 const LV_PR_SPECS = [
   {
     lv: 'schleswig-holstein',
@@ -733,6 +725,12 @@ const LV_PR_AGENTS: Agent[] = LV_PR_SPECS.map((spec) => ({
 }));
 
 export const SYSTEM_AGENTS: readonly Agent[] = [...BASE_AGENTS, ...LV_PR_AGENTS];
+
+/** SYSTEM_AGENTS minus those marked `hiddenFromInventory` — shared between
+ *  every agent-inventory render (sidebar modal, /agents page). */
+export const VISIBLE_SYSTEM_AGENTS: readonly Agent[] = SYSTEM_AGENTS.filter(
+  (a) => !a.hiddenFromInventory
+);
 
 type BaseSystemAgentId = (typeof BASE_AGENTS)[number]['identifier'];
 type LvPrAgentId = `gruenerator-oeffentlichkeitsarbeit-${(typeof LV_PR_SPECS)[number]['lv']}`;
