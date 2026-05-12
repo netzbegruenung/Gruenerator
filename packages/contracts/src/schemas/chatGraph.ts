@@ -59,13 +59,8 @@ export const chatResumeBodySchema = z.object({
 
 // ── Response schemas ────────────────────────────────────────────────────────
 
-/**
- * SSE endpoints don't return a structured JSON body on success —
- * they stream events. We model the accepted response as an opaque object
- * so ts-rest is satisfied. Actual SSE events are not validated here.
- */
-export const sseAcceptedResponseSchema = z.unknown();
-
+// SSE success responses are declared as c.noBody() in chatGraphContract.ts —
+// see that file for why. Only the error shape needs a schema.
 export const chatGraphErrorResponseSchema = z.object({
   error: z.string(),
 });

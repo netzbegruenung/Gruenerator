@@ -121,7 +121,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (!user?.id) {
         sse.send('error', { error: PROGRESS_MESSAGES.unauthorized });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       const userId = user.id;
@@ -130,13 +130,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (!aiWorkerPool) {
         sse.send('error', { error: PROGRESS_MESSAGES.aiUnavailable });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       if ((clientMessages as unknown[]).length === 0) {
         sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       const notebookIds = rawNotebookIds?.filter(isKnownNotebook) ?? [];
@@ -160,13 +160,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.error('[ChatGraph] Error converting messages:', convertError);
         sse.send('error', { error: 'Failed to process messages' });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       if (!modelMessages || !Array.isArray(modelMessages)) {
         sse.send('error', { error: 'Failed to process messages' });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       const validMessages = filterEmptyAssistantMessages(
@@ -200,8 +200,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         if (!isNewThread) {
           if (!(await canAccessThread(ThreadId(actualThreadId), UserId(userId)))) {
             sse.send('error', { error: 'Thread not found' });
-            res.end();
-            return { status: 200 as const, body: null };
+            sse.end();
+            return { status: 200 as const, body: undefined };
           }
         }
 
@@ -588,7 +588,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           },
         });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       // === Handle @board-erstellen tool ===
@@ -602,7 +602,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ...(actualThreadId != null && { actualThreadId }),
           userId,
         });
-        if (created) return { status: 200 as const, body: null };
+        if (created) return { status: 200 as const, body: undefined };
       }
 
       // === Handle @dokument-erstellen tool ===
@@ -618,7 +618,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           userContent: lastUserText as string,
           intent: 'direct',
         });
-        if (created) return { status: 200 as const, body: null };
+        if (created) return { status: 200 as const, body: undefined };
       }
 
       // === Handle share_doc intent ===
@@ -632,7 +632,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ...(rawDocMentionIds != null && { rawDocMentionIds }),
           ...(rawDocumentChatIds != null && { rawDocumentChatIds }),
         });
-        if (handled) return { status: 200 as const, body: null };
+        if (handled) return { status: 200 as const, body: undefined };
       }
 
       // === Stage 2: Search or Image Generation ===
@@ -718,7 +718,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         if (resolution.releaseSlot) await resolution.releaseSlot();
       }
 
-      if (fullText === null) return { status: 200 as const, body: null };
+      if (fullText === null) return { status: 200 as const, body: undefined };
 
       // === Stage 3b: Extract chart data from response (if chart intent) ===
       if (finalState.intent === 'chart') {
@@ -851,11 +851,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
 
       log.info(`[ChatGraph] Complete: ${fullText.length} chars in ${totalTimeMs}ms`);
       sse.end();
-      return { status: 200 as const, body: null };
+      return { status: 200 as const, body: undefined };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
-      log.error(`[ChatGraph] Controller error: ${errorMessage}`);
+      const { agentId, threadId, modelId } = args.body;
+      log.error(
+        `[ChatGraph] Controller error: ${errorMessage} ` +
+          `(agentId=${agentId ?? 'default'}, threadId=${threadId ?? 'new'}, modelId=${modelId ?? 'default'})`
+      );
       if (errorStack) log.error(`[ChatGraph] Stack: ${errorStack}`);
       if (!(error instanceof Error))
         log.error(`[ChatGraph] Raw error: ${JSON.stringify(error)?.slice(0, 500)}`);
@@ -863,7 +867,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         sse.send('error', { error: PROGRESS_MESSAGES.internalError });
         sse.end();
       }
-      return { status: 200 as const, body: null };
+      return { status: 200 as const, body: undefined };
     }
   },
 
@@ -880,7 +884,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (!user?.id) {
         sse.send('error', { error: PROGRESS_MESSAGES.unauthorized });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       const stored = await pipelineStateStore.get(threadId);
@@ -889,7 +893,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           error: 'Pipeline-Status abgelaufen. Bitte sende deine Nachricht erneut.',
         });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
       await pipelineStateStore.delete(threadId);
 
@@ -898,14 +902,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (requestContext.userId !== user.id) {
         sse.send('error', { error: PROGRESS_MESSAGES.unauthorized });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       const aiWorkerPool = getAIWorkerPool(req);
       if (!aiWorkerPool) {
         sse.send('error', { error: PROGRESS_MESSAGES.aiUnavailable });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       log.info(`[ChatGraph:Resume] Thread ${threadId}, answer: "${userAnswer.slice(0, 80)}"`);
@@ -1028,7 +1032,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         if (resolution2.releaseSlot) await resolution2.releaseSlot();
       }
 
-      if (fullText === null) return { status: 200 as const, body: null };
+      if (fullText === null) return { status: 200 as const, body: undefined };
 
       // === Persist & complete ===
       await persistResumedResponse({
@@ -1055,7 +1059,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
 
       log.info(`[ChatGraph:Resume] Complete: ${fullText.length} chars in ${totalTimeMs}ms`);
       sse.end();
-      return { status: 200 as const, body: null };
+      return { status: 200 as const, body: undefined };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
@@ -1065,7 +1069,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         sse.send('error', { error: PROGRESS_MESSAGES.internalError });
         sse.end();
       }
-      return { status: 200 as const, body: null };
+      return { status: 200 as const, body: undefined };
     }
   },
 });
