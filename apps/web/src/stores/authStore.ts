@@ -67,19 +67,10 @@ export interface AuthStore {
   isAuthenticated: boolean;
   // True only when /auth/status (or login flow) has confirmed authentication
   // in the CURRENT page load. Deliberately NOT persisted: every reload starts
-  // false and must be re-confirmed by the server before `GuestRoute` will
-  // redirect away from /login. Prevents the cache-driven redirect loop where
-  // stale `isAuthenticated: true` survives a backend session expiry.
+  // false and must be re-confirmed by the server before downstream code
+  // trusts the cached optimistic state. Prevents the cache-driven redirect
+  // loop where stale `isAuthenticated: true` survives a backend session expiry.
   hasServerConfirmed: boolean;
-  // True once the server (or the instant-auth cache, which mirrors the
-  // server's last word) has answered AT LEAST ONCE this page load — whether
-  // the answer was "authenticated" or "guest". Distinct from
-  // hasServerConfirmed, which is only true when the current answer is
-  // "authenticated". Route guards use this to suspend rendering during
-  // the bootstrap window, so guests don't flash Startseite at logged-in
-  // users (and vice versa) just because the cache expired but the cookie
-  // didn't.
-  hasBootstrapped: boolean;
   isLoading: boolean;
   error: string | null;
   isLoggingOut: boolean;
@@ -243,9 +234,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   isAuthenticated: persistedState?.isAuthenticated || false,
   // Intentionally always false on init — server must reconfirm every load.
   hasServerConfirmed: false,
-  // Always false on init — flips true the first time setAuthState (success
-  // or guest answer) or clearAuth fires. See type doc above.
-  hasBootstrapped: false,
   isLoading: persistedState ? false : true, // Don't start loading if we have persisted data
   error: null,
   isLoggingOut: false, // New state to track logout in progress
@@ -265,10 +253,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       isAuthenticated: data.isAuthenticated,
       // Any call to setAuthState carries a server-confirmed truth (either
       // from /auth/status or the login flow). Promotes the cached optimistic
-      // state to the "verified" tier that GuestRoute trusts for redirects.
+      // state to the "verified" tier that downstream consumers trust for
+      // sensitive decisions.
       hasServerConfirmed: data.isAuthenticated,
-      // Either branch (authenticated or guest) constitutes a server answer.
-      hasBootstrapped: true,
       isLoading: false,
       error: null,
       // Extract color from canonical UserProfile field. The legacy
@@ -330,9 +317,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       user: null,
       isAuthenticated: false,
       hasServerConfirmed: false,
-      // clearAuth fires after a server answer ("not authenticated", explicit
-      // logout, or 401). The bootstrap window is over.
-      hasBootstrapped: true,
       isLoading: false,
       error: null,
       isLoggingOut: false,
