@@ -20,21 +20,28 @@ import type { BetaVideoPlayerRef } from './BetaVideoPlayer';
 import type { SubtitleStyle } from './SubtitleSettings';
 import type { SubtitleChunk, SubtitleTranscript } from '../types/subtitle';
 
+/**
+ * Subset of the wire subtitler-project shape used by the beta editor.
+ * Field names match `subtitlerProjectSchema` in `@gruenerator/contracts`;
+ * only the columns the beta UI touches are narrowed here. The full
+ * passthrough shape on the wire is `styleSettingsSchema`.
+ */
+interface SubtitlerProjectStyleSettings {
+  fontSize?: number;
+  bottomOffset?: number;
+  backgroundColor?: string;
+  backgroundOpacity?: number;
+  borderWidth?: number;
+  shadowBlur?: number;
+}
+
 interface SubtitlerProject {
   id: string;
   subtitles: string | null;
   title: string;
   style_preference: string;
   height_preference: string;
-  style_settings: {
-    fontSize?: number;
-    bottomOffset?: number;
-    backgroundColor?: string;
-    backgroundOpacity?: number;
-    borderWidth?: number;
-    shadowBlur?: number;
-    [key: string]: unknown;
-  } | null;
+  style_settings: SubtitlerProjectStyleSettings | null;
   video_path: string | null;
   video_metadata: { width?: number; height?: number; duration?: number } | null;
   video_filename: string | null;

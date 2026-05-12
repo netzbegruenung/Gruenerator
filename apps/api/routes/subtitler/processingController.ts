@@ -7,6 +7,18 @@ import fs from 'fs';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 
+import {
+  autoProcessRequestSchema,
+  exportRequestSchema,
+  exportSegmentsRequestSchema,
+  exportTokenBodySchema,
+  processRequestSchema,
+  resultQuerySchema,
+  type AutoProcessRequest,
+  type ExportRequest,
+  type ExportSegmentsRequest,
+  type ResultQuery,
+} from '@gruenerator/contracts';
 import express, { type Response, type Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
@@ -29,6 +41,11 @@ import {
   processSubtitleSegments,
 } from '../../services/subtitler/downloadUtils.js';
 import { autoSaveProject } from '../../services/subtitler/projectSavingService.js';
+import {
+  parseAutoProgress,
+  parseExportProgress,
+  parseRedisJobResult,
+} from '../../services/subtitler/redisCodecs.js';
 import { calculateFontSizing } from '../../services/subtitler/subtitleSizingService.js';
 import { transcribeVideo } from '../../services/subtitler/transcriptionService.js';
 import {
@@ -42,89 +59,29 @@ import { getVideoMetadata } from '../../services/subtitler/videoUploadService.js
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
-import type { ResultQueryParams, ExportProgress } from './types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { ParamsDictionary } from 'express-serve-static-core';
 
-// ============================================================================
-// Zod Schemas
-// ============================================================================
-
-const processRequestSchema = z.object({
-  uploadId: z.string(),
-  subtitlePreference: z.enum(['manual', 'word']).optional(),
-  stylePreference: z.string().optional(),
-  heightPreference: z.enum(['standard', 'tief']).optional(),
-});
 type ProcessRequestBody = z.infer<typeof processRequestSchema>;
+type ExportBody = ExportRequest;
+type ExportSegmentsRequestBody = ExportSegmentsRequest;
+type AutoProcessRequestBody = AutoProcessRequest;
+type ExportTokenBody = z.infer<typeof exportTokenBodySchema>;
 
-const exportBodySchema = z.object({
-  uploadId: z.string().optional(),
-  subtitles: z.union([z.array(z.record(z.unknown())), z.string()]).optional(),
-  subtitlePreference: z.string().optional(),
-  stylePreference: z.string().optional(),
-  heightPreference: z.string().optional(),
-  locale: z.string().optional(),
-  maxResolution: z.number().nullable().optional(),
-  projectId: z.string().nullable().optional(),
-  userId: z.string().nullable().optional(),
-  textOverlays: z.array(z.unknown()).optional(),
-});
-type ExportBody = z.infer<typeof exportBodySchema>;
+const exportBodySchema = exportRequestSchema;
+const exportTokenSchema = exportTokenBodySchema;
 
-const videoSegmentSchema = z.object({
-  start: z.number(),
-  end: z.number(),
-  label: z.string().optional(),
-});
-
-const subtitleConfigSchema = z.object({
-  stylePreference: z.string().optional(),
-  heightPreference: z.string().optional(),
-  locale: z.string().optional(),
-  segments: z.array(
-    z.object({
-      text: z.string(),
-      startTime: z.number(),
-      endTime: z.number(),
-      words: z
-        .array(
-          z.object({
-            word: z.string(),
-            start: z.number(),
-            end: z.number(),
-          })
-        )
-        .optional(),
-    })
-  ),
-});
-
-const exportSegmentsRequestSchema = z.object({
-  uploadId: z.string().optional(),
-  projectId: z.string().optional(),
-  segments: z.array(videoSegmentSchema).min(1, 'Keine Segmente'),
-  includeSubtitles: z.boolean().optional(),
-  subtitleConfig: subtitleConfigSchema.optional(),
-});
-type ExportSegmentsRequestBody = z.infer<typeof exportSegmentsRequestSchema>;
-
-const autoProcessRequestSchema = z.object({
-  uploadId: z.string(),
-  locale: z.string().optional(),
-  maxResolution: z.number().nullable().optional(),
-  userId: z.string().nullable().optional(),
-});
-type AutoProcessRequestBody = z.infer<typeof autoProcessRequestSchema>;
-
-const exportTokenSchema = z.object({
-  uploadId: z.string(),
-  subtitles: z.string(),
-  subtitlePreference: z.string().optional(),
-  stylePreference: z.string().optional(),
-  heightPreference: z.string().optional(),
-});
-type ExportTokenBody = z.infer<typeof exportTokenSchema>;
+/**
+ * The ASS-renderer's internal TextOverlay shape requires xPosition /
+ * yPosition (no equivalent on the wire) and uses a narrower `type` enum.
+ * A correct adapter would have to invent positions; today the data is
+ * passed through and the ASS renderer's own runtime checks handle it.
+ * This boundary cast is the assertion — see TS-feedback rule 4.
+ */
+function toAssTextOverlays(overlays: unknown[] | null | undefined): AssTextOverlay[] {
+  if (!overlays) return [];
+  return overlays as AssTextOverlay[];
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -136,16 +93,6 @@ const assService = new AssSubtitleService();
 
 interface SubtitlerRequest<P = ParamsDictionary> extends AuthenticatedRequest<P> {
   app: AuthenticatedRequest['app'] & { locals: { aiWorkerPool?: unknown } };
-}
-
-interface RedisJobResult {
-  status: 'processing' | 'complete' | 'error';
-  data?: unknown;
-}
-
-interface RedisAutoProgress {
-  status: 'processing' | 'complete' | 'error';
-  outputPath?: string;
 }
 
 async function checkFont(): Promise<void> {
@@ -228,21 +175,28 @@ router.get(
   '/result/:uploadId',
   async (req: SubtitlerRequest<{ uploadId: string }>, res: Response): Promise<void> => {
     const { uploadId } = req.params;
-    const query = req.query as ResultQueryParams;
-    const {
-      subtitlePreference = 'manual',
-      stylePreference = 'standard',
-      heightPreference = 'tief',
-    } = query;
+    const queryResult = resultQuerySchema.safeParse(req.query);
+    if (!queryResult.success) {
+      res.status(400).json({ error: 'Ungültige Query-Parameter' });
+      return;
+    }
+    const query: ResultQuery = queryResult.data;
+    const subtitlePreference = query.subtitlePreference ?? 'manual';
+    const stylePreference = query.stylePreference ?? 'standard';
+    const heightPreference = query.heightPreference ?? 'tief';
     const jobKey = `job:${uploadId}:${subtitlePreference}:${stylePreference}:${heightPreference}`;
 
     try {
-      const data = (await redisClient.get(jobKey)) as string | null;
-      if (!data) {
+      const raw = (await redisClient.get(jobKey)) as string | null;
+      if (!raw) {
         res.status(404).json({ status: 'not_found' });
         return;
       }
-      const job: RedisJobResult = JSON.parse(data) as RedisJobResult;
+      const job = parseRedisJobResult(raw, `result:${uploadId}`);
+      if (!job) {
+        res.status(500).json({ error: 'Job-Status konnte nicht gelesen werden' });
+        return;
+      }
       const compression = await getCompressionStatus(uploadId);
       res.json({
         status: job.status,
@@ -262,12 +216,16 @@ router.get(
   async (req: SubtitlerRequest<{ exportToken: string }>, res: Response): Promise<void> => {
     const { exportToken } = req.params;
     try {
-      const data = (await redisClient.get(`export:${exportToken}`)) as string | null;
-      if (!data) {
+      const raw = (await redisClient.get(`export:${exportToken}`)) as string | null;
+      if (!raw) {
         res.status(404).json({ status: 'not_found' });
         return;
       }
-      const progress: ExportProgress = JSON.parse(data) as ExportProgress;
+      const progress = parseExportProgress(raw, `export-progress:${exportToken}`);
+      if (!progress) {
+        res.status(500).json({ error: 'Export-Status konnte nicht gelesen werden' });
+        return;
+      }
       res.json(progress);
     } catch (e: unknown) {
       res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -357,12 +315,16 @@ router.get(
   async (req: SubtitlerRequest<{ exportToken: string }>, res: Response): Promise<void> => {
     const { exportToken } = req.params;
     try {
-      const data = (await redisClient.get(`export:${exportToken}`)) as string | null;
-      if (!data) {
+      const raw = (await redisClient.get(`export:${exportToken}`)) as string | null;
+      if (!raw) {
         res.status(404).json({ error: 'Export not found' });
         return;
       }
-      const exportData: ExportProgress = JSON.parse(data) as ExportProgress;
+      const exportData = parseExportProgress(raw, `export-download:${exportToken}`);
+      if (!exportData) {
+        res.status(500).json({ error: 'Export-Daten konnten nicht gelesen werden' });
+        return;
+      }
       if (exportData.status !== 'complete') {
         res.status(400).json({ error: 'Export not complete', status: exportData.status });
         return;
@@ -559,7 +521,7 @@ router.post(
             stylePreference,
             locale,
             heightPreference,
-            textOverlays as AssTextOverlay[]
+            toAssTextOverlays(textOverlays)
           ).content;
           await assService.cacheAssContent(cacheKey, assContent);
         }
@@ -612,7 +574,7 @@ router.post(
         tempFontPath,
         projectId,
         userId,
-        textOverlays: textOverlays as AssTextOverlay[],
+        textOverlays: toAssTextOverlays(textOverlays),
       }).catch((e: Error) => log.error(`Background export failed: ${e.message}`));
     } catch (e: unknown) {
       if (!res.headersSent)
@@ -773,12 +735,16 @@ router.get(
   async (req: SubtitlerRequest<{ uploadId: string }>, res: Response): Promise<void> => {
     const { uploadId } = req.params;
     try {
-      const data = (await redisClient.get(`auto:${uploadId}`)) as string | null;
-      if (!data) {
+      const raw = (await redisClient.get(`auto:${uploadId}`)) as string | null;
+      if (!raw) {
         res.status(404).json({ status: 'not_found' });
         return;
       }
-      const progress: RedisAutoProgress = JSON.parse(data) as RedisAutoProgress;
+      const progress = parseAutoProgress(raw, `auto-progress:${uploadId}`);
+      if (!progress) {
+        res.status(500).json({ error: 'Auto-Status konnte nicht gelesen werden' });
+        return;
+      }
       res.json(progress);
     } catch (e: unknown) {
       res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -792,12 +758,16 @@ router.get(
   async (req: SubtitlerRequest<{ uploadId: string }>, res: Response): Promise<void> => {
     const { uploadId } = req.params;
     try {
-      const data = (await redisClient.get(`auto:${uploadId}`)) as string | null;
-      if (!data) {
+      const raw = (await redisClient.get(`auto:${uploadId}`)) as string | null;
+      if (!raw) {
         res.status(404).json({ error: 'Nicht gefunden' });
         return;
       }
-      const parsed: RedisAutoProgress = JSON.parse(data) as RedisAutoProgress;
+      const parsed = parseAutoProgress(raw, `auto-download:${uploadId}`);
+      if (!parsed) {
+        res.status(500).json({ error: 'Auto-Daten konnten nicht gelesen werden' });
+        return;
+      }
       if (parsed.status !== 'complete') {
         res.status(400).json({ error: 'Nicht abgeschlossen', status: parsed.status });
         return;

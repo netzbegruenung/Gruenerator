@@ -145,10 +145,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
           body: { success: false, error: 'Upload-ID ist erforderlich' },
         };
       }
-      const { project, isNew } = await saveOrUpdateProject(
-        userId,
-        args.body as Parameters<typeof saveOrUpdateProject>[1]
-      );
+      const { project, isNew } = await saveOrUpdateProject(userId, args.body);
       const status = isNew ? (201 as const) : (200 as const);
       return { status, body: { success: true, project, isNew } };
     } catch (error: unknown) {
@@ -173,11 +170,7 @@ export const subtitlerContractRouter = s.router(subtitlerContract, {
       }
       const { projectId } = args.params;
       const service = await getProjectService();
-      const project = await service.updateProject(
-        userId,
-        projectId,
-        args.body as Parameters<typeof service.updateProject>[2]
-      );
+      const project = await service.updateProject(userId, projectId, args.body);
       return { status: 200 as const, body: { success: true, project } };
     } catch (error: unknown) {
       log.error('[subtitlerContract.updateProject] Error:', error);

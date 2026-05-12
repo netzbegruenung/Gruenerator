@@ -6,11 +6,17 @@
 import fs from 'fs';
 import path from 'path';
 
+import {
+  createShareFromProjectRequestSchema,
+  createShareRequestSchema,
+  type CreateShareFromProjectRequest,
+  type CreateShareRequest,
+} from '@gruenerator/contracts';
 import express, { type Response, type Router } from 'express';
-import { z } from 'zod';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { parseExportProgress } from '../../services/subtitler/redisCodecs.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -19,30 +25,11 @@ import type { SubtitlerProjectService } from '../../services/subtitler/ProjectSe
 import type SubtitlerShareService from '../../services/subtitler/shareService.js';
 import type { SubtitlerProject } from '../../services/subtitler/types.js';
 
-// ============================================================================
-// Zod Schemas
-// ============================================================================
+const createShareSchema = createShareRequestSchema;
+type CreateShareBody = CreateShareRequest;
 
-const createShareSchema = z.object({
-  exportToken: z.string(),
-  title: z.string().optional(),
-  projectId: z.string().optional(),
-  expiresInDays: z.number().optional(),
-});
-type CreateShareBody = z.infer<typeof createShareSchema>;
-
-const createShareFromProjectSchema = z.object({
-  projectId: z.string(),
-  title: z.string().optional(),
-  expiresInDays: z.number().optional(),
-});
-type CreateShareFromProjectBody = z.infer<typeof createShareFromProjectSchema>;
-
-interface ExportData {
-  status: string;
-  outputPath: string;
-  duration?: number;
-}
+const createShareFromProjectSchema = createShareFromProjectRequestSchema;
+type CreateShareFromProjectBody = CreateShareFromProjectRequest;
 
 const fsPromises = fs.promises;
 const log = createLogger('subtitler-share');
@@ -124,16 +111,25 @@ router.post(
       const userId = req.user!.id;
       const { exportToken, title, projectId, expiresInDays = 7 } = req.body;
 
-      const exportDataString = (await redisClient.get(`export:${exportToken}`)) as string | null;
-      if (!exportDataString) {
+      const rawExportData = (await redisClient.get(`export:${exportToken}`)) as string | null;
+      if (!rawExportData) {
         res.status(404).json({ success: false, error: 'Export nicht gefunden oder abgelaufen' });
         return;
       }
 
-      const parsed: unknown = JSON.parse(exportDataString);
-      const exportData = parsed as ExportData;
+      const exportData = parseExportProgress(rawExportData, `share-from-export:${exportToken}`);
+      if (!exportData) {
+        res
+          .status(500)
+          .json({ success: false, error: 'Export-Daten konnten nicht gelesen werden' });
+        return;
+      }
       if (exportData.status !== 'complete') {
         res.status(400).json({ success: false, error: 'Export noch nicht abgeschlossen' });
+        return;
+      }
+      if (!exportData.outputPath) {
+        res.status(404).json({ success: false, error: 'Export-Datei nicht gefunden' });
         return;
       }
 
@@ -148,9 +144,9 @@ router.post(
       const share = await service.createShare(userId, {
         videoPath: exportData.outputPath,
         title: title || 'Untertiteltes Video',
-        ...(exportData.duration && { duration: exportData.duration }),
+        ...(exportData.duration != null && { duration: exportData.duration }),
         ...(projectId && { projectId }),
-        expiresInDays,
+        expiresInDays: expiresInDays ?? 7,
       });
 
       log.info(`Share created: ${share.shareToken} by user ${userId}`);
@@ -225,7 +221,7 @@ router.post(
           ...(thumbnailPath && { thumbnailPath }),
           ...(typeof videoDuration === 'number' && { duration: videoDuration }),
           projectId,
-          expiresInDays,
+          expiresInDays: expiresInDays ?? 7,
         });
 
         void triggerBackgroundRender(userId, projectId, share.shareToken, project);
@@ -261,7 +257,7 @@ router.post(
           ...(thumbnailPath && { thumbnailPath }),
           ...(typeof videoDuration2 === 'number' && { duration: videoDuration2 }),
           projectId,
-          expiresInDays,
+          expiresInDays: expiresInDays ?? 7,
         });
 
         void triggerBackgroundRender(userId, projectId, share.shareToken, project);
@@ -284,7 +280,7 @@ router.post(
         ...(thumbnailPath && { thumbnailPath }),
         ...(typeof videoDuration3 === 'number' && { duration: videoDuration3 }),
         projectId,
-        expiresInDays,
+        expiresInDays: expiresInDays ?? 7,
       });
 
       res.json({

@@ -71,7 +71,7 @@ const SharedVideoPage = () => {
     queryFn: async () => {
       const response = await apiClient.get<ShareApiResponse>(`/subtitler/share/${shareToken}`, {
         skipAuthRedirect: true,
-      } as Record<string, unknown>);
+      });
       return response.data.success ? (response.data.share ?? null) : null;
     },
     enabled: Boolean(shareToken),
@@ -105,7 +105,9 @@ const SharedVideoPage = () => {
         responseType: 'blob',
       });
 
-      const blob = new Blob([response.data as BlobPart], { type: 'video/mp4' });
+      // `responseType: 'blob'` makes axios return a Blob — pass it
+      // directly to `new Blob([...])` without re-casting.
+      const blob = new Blob([response.data], { type: 'video/mp4' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
