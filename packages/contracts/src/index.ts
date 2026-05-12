@@ -43,7 +43,6 @@ export {
   emailContract,
   modelPreferencesContract,
   adminVorlagenContract,
-  authStatusContract,
   canvasAiContract,
 } from './contracts/index.js';
 
@@ -73,5 +72,4 @@ export * from './schemas/notifications.js';
 export * from './schemas/email.js';
 export * from './schemas/modelPreferences.js';
 export * from './schemas/adminVorlagen.js';
-export * from './schemas/authStatus.js';
 export * from './schemas/canvasAi.js';
