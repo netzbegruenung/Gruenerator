@@ -23,6 +23,7 @@ export type SidebarTabId =
   | 'elements'
   | 'share'
   | 'uploads'
+  | 'tools'
   | 'ai'
   | 'chat'
   // Legacy/template-specific tab IDs (for backwards compatibility)
@@ -31,6 +32,7 @@ export type SidebarTabId =
   | 'image'
   | 'position'
   | 'settings'
+  | 'frame-settings'
   | 'image-background'
   | 'design';
 

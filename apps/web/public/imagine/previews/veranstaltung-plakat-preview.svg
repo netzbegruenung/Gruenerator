@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1528" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Veranstaltung Plakat Vorschau">
+  <!-- Photo section (top 40%) — gradient placeholder -->
+  <defs>
+    <linearGradient id="photoGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6e8a9c"/>
+      <stop offset="100%" stop-color="#3b4f5e"/>
+    </linearGradient>
+    <pattern id="photoTexture" width="40" height="40" patternUnits="userSpaceOnUse">
+      <rect width="40" height="40" fill="url(#photoGrad)"/>
+      <circle cx="20" cy="20" r="1.5" fill="#ffffff" opacity="0.06"/>
+    </pattern>
+  </defs>
+  <rect x="0" y="0" width="1080" height="611" fill="url(#photoTexture)"/>
+  <!-- Skyline silhouette to suggest event venue -->
+  <path d="M0 611 L0 480 L80 480 L120 460 L160 480 L200 470 L240 460 L260 440 L300 440 L320 420 L360 420 L380 440 L440 440 L460 460 L520 460 L560 430 L600 430 L640 460 L700 460 L740 440 L800 440 L820 460 L880 460 L920 440 L960 440 L1000 460 L1040 460 L1080 480 L1080 611 Z"
+        fill="#1f2d38" opacity="0.55"/>
+
+  <!-- Green section (Tanne) -->
+  <rect x="0" y="611" width="1080" height="917" fill="#005538"/>
+
+  <!-- Event title -->
+  <text x="55" y="745" font-family="Arial, sans-serif" font-size="94" font-weight="700" font-style="italic" fill="#ffffff">DISKUSSION</text>
+  <text x="55" y="845" font-family="Arial, sans-serif" font-size="94" font-weight="700" font-style="italic" fill="#ffffff">KLIMASCHUTZ</text>
+
+  <!-- Description -->
+  <text x="55" y="965" font-family="Arial, sans-serif" font-size="58" font-style="italic" fill="#ffffff" opacity="0.92">Gemeinsam für mehr</text>
+  <text x="55" y="1035" font-family="Arial, sans-serif" font-size="58" font-style="italic" fill="#ffffff" opacity="0.92">Klimaschutz in unserer</text>
+  <text x="55" y="1105" font-family="Arial, sans-serif" font-size="58" font-style="italic" fill="#ffffff" opacity="0.92">Stadt!</text>
+
+  <!-- Date circle (rotated -10°) -->
+  <g transform="rotate(-10 880 945)">
+    <circle cx="880" cy="945" r="200" fill="#0BA1DD"/>
+    <text x="880" y="900" text-anchor="middle" font-family="Arial, sans-serif" font-size="62" font-weight="700" fill="#ffffff">MI</text>
+    <text x="880" y="970" text-anchor="middle" font-family="Arial, sans-serif" font-size="58" fill="#ffffff">15.01.</text>
+    <text x="880" y="1045" text-anchor="middle" font-family="Arial, sans-serif" font-size="58" font-weight="700" fill="#ffffff">19 UHR</text>
+  </g>
+
+  <!-- Footer location -->
+  <text x="55" y="1410" font-family="Arial, sans-serif" font-size="44" fill="#ffffff">Rathaus Musterstadt</text>
+  <text x="55" y="1470" font-family="Arial, sans-serif" font-size="44" fill="#ffffff" opacity="0.85">Hauptstraße 1, 12345 Musterstadt</text>
+</svg>

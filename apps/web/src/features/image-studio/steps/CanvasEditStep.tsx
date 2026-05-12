@@ -1,7 +1,8 @@
-import { ProfilbildCanvas, ControllableCanvasWrapper } from '@gruenerator/canvas-editor';
+import { ControllableCanvasWrapper } from '@gruenerator/canvas-editor';
 import { motion } from 'motion/react';
 import React, { useEffect } from 'react';
 
+import useImageStudioStore from '../../../stores/imageStudioStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { slideVariants } from '../components/StepFlow';
 import { IMAGE_STUDIO_TYPES } from '../utils/typeConfig';
@@ -59,6 +60,10 @@ const CANVAS_BLOCK_CONFIGS: Record<string, CanvasBlockConfig> = {
     canvasType: 'slider',
     fields: ['label', 'headline', 'subtext'],
   },
+  [IMAGE_STUDIO_TYPES.PROFILBILD]: {
+    canvasType: 'profilbild',
+    fields: [],
+  },
 };
 
 function buildInitialState(
@@ -106,6 +111,13 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
   onHeadlineChange,
   onSubtextChange,
 }) => {
+  const editShareToken = useImageStudioStore((s) => s.editShareToken);
+  console.log('[AutoSave][CanvasEditStep] render', {
+    typeId: typeConfig?.id,
+    editShareToken,
+    galleryEditMode: useImageStudioStore.getState().galleryEditMode,
+  });
+
   useEffect(() => {
     useSidebarStore.getState().requestHideSidebar('canvas');
     useSidebarStore.getState().requestHideHeader('canvas');
@@ -116,29 +128,18 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
   }, []);
 
   const config = typeConfig?.id ? CANVAS_BLOCK_CONFIGS[typeConfig.id] : null;
+  const isProfilbild = config?.canvasType === 'profilbild';
+  const canvasImageSrc = isProfilbild
+    ? (transparentImage ?? undefined)
+    : config
+      ? getImageSrc(config, uploadedImageUrl)
+      : undefined;
+  const canRender =
+    config && (isProfilbild ? !!transparentImage : !(config.requiresImage && !uploadedImageUrl));
 
   return (
     <>
-      {transparentImage && !typeConfig?.hasTextCanvasEdit && (
-        <motion.div
-          key={currentStepId}
-          custom={direction}
-          variants={slideVariants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="typeform-field typeform-field--canvas-edit"
-        >
-          <ProfilbildCanvas
-            transparentImage={transparentImage}
-            onExport={handleCanvasExport}
-            onCancel={handleBack}
-          />
-        </motion.div>
-      )}
-
-      {config && !(config.requiresImage && !uploadedImageUrl) && (
+      {canRender && (
         <motion.div
           key={currentStepId}
           custom={direction}
@@ -153,9 +154,10 @@ const CanvasEditStep: React.FC<CanvasEditStepProps> = ({
             externalSidebar={false}
             type={config.canvasType}
             initialState={buildInitialState(config, getFieldValue)}
-            imageSrc={getImageSrc(config, uploadedImageUrl)}
+            imageSrc={canvasImageSrc}
             onExport={handleCanvasExport}
             onCancel={handleBack}
+            initialShareToken={editShareToken}
             onStateChange={
               config.hasStateChange
                 ? (state: CanvasState) => {

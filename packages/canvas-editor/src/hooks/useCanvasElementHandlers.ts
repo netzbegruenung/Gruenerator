@@ -27,6 +27,7 @@ export interface OptionalCanvasActions {
       opacity?: number;
     }>
   ) => void;
+  setBalkenText?: (id: string, index: number, text: string) => void;
   updateIcon?: (
     id: string,
     attrs: Partial<{
@@ -79,6 +80,18 @@ export interface OptionalCanvasActions {
   updateFrame?: (id: string, attrs: Partial<FrameInstance>) => void;
   setFrameImage?: (id: string, file: File, objectUrl: string) => void;
   updateUserImage?: (id: string, attrs: Partial<UserImageInstance>) => void;
+
+  // Removal / toggle actions (consumed by useCanvasKeyboardHandlers for
+  // delete-key shortcuts; same factory-provided implementations).
+  removeBalken?: (id: string) => void;
+  toggleIcon?: (id: string, enabled: boolean) => void;
+  removeShape?: (id: string) => void;
+  removeAdditionalText?: (id: string) => void;
+  removeIllustration?: (id: string) => void;
+  removeAsset?: (id: string) => void;
+  removePillBadge?: (id: string) => void;
+  removeFrame?: (id: string) => void;
+  removeUserImage?: (id: string) => void;
 }
 
 export interface UseCanvasElementHandlersOptions<
@@ -113,6 +126,7 @@ export interface UseCanvasElementHandlersResult {
     scale: number,
     rotation: number
   ) => void;
+  handleBalkenTextChange: (id: string, index: number, text: string) => void;
   handleIconDragEnd: (id: string, x: number, y: number) => void;
   handleIconTransformEnd: (
     id: string,
@@ -340,6 +354,15 @@ export function useCanvasElementHandlers<
     [actions]
   );
 
+  const handleBalkenTextChange = useCallback(
+    (id: string, index: number, text: string) => {
+      if (actions.setBalkenText) {
+        actions.setBalkenText(id, index, text);
+      }
+    },
+    [actions]
+  );
+
   const handleIconDragEnd = useCallback(
     (id: string, x: number, y: number) => {
       if (actions.updateIcon) {
@@ -544,6 +567,7 @@ export function useCanvasElementHandlers<
     handleBalkenSelect,
     handleBalkenDragEnd,
     handleBalkenTransformEnd,
+    handleBalkenTextChange,
     handleIconDragEnd,
     handleIconTransformEnd,
     handleShapeChange,
@@ -574,6 +598,7 @@ export function useCanvasElementHandlers<
     handleBalkenSelect,
     handleBalkenDragEnd,
     handleBalkenTransformEnd,
+    handleBalkenTextChange,
     handleIconDragEnd,
     handleIconTransformEnd,
     handleShapeChange,

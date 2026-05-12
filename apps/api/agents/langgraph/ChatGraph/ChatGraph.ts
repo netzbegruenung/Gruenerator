@@ -20,10 +20,12 @@ import { createLogger } from '../../../utils/logger.js';
 import { briefGeneratorNode } from './nodes/briefGeneratorNode.js';
 import { classifierNode } from './nodes/classifierNode.js';
 import { imageNode } from './nodes/imageNode.js';
+import { pressemitteilungComposerNode } from './nodes/pressemitteilungComposerNode.js';
 import { qualityGateNode } from './nodes/qualityGateNode.js';
 import { rerankNode } from './nodes/rerankNode.js';
 import { respondNode } from './nodes/respondNode.js';
 import { searchNode } from './nodes/searchNode.js';
+import { socialMediaComposerNode } from './nodes/socialMediaComposerNode.js';
 
 import type {
   ChatGraphInput,
@@ -32,13 +34,19 @@ import type {
   SearchSource,
   SearchResult,
   Citation,
+  CurrentDocument,
   ImageStyle,
+  ImageEditStyle,
   GatherSource,
   GeneratedImageResult,
   ImageAttachment,
   ThreadAttachment,
   UserLocale,
   ChartData,
+  ResearchToolResult,
+  ExamplesToolResult,
+  DocumentSource,
+  SynthesisMode,
 } from './types.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
@@ -114,6 +122,10 @@ const ChatStateAnnotation = Annotation.Root({
   docMentionIds: Annotation<string[]>({
     reducer: (x, y) => y ?? x ?? [],
   }),
+  // Current open document in the docs editor (primary context for docs surface)
+  currentDocument: Annotation<CurrentDocument | null>({
+    reducer: (x, y) => y ?? x ?? null,
+  }),
   documentMentionContext: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
   }),
@@ -147,6 +159,21 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   gatherSources: Annotation<GatherSource[]>({
     reducer: (x, y) => y ?? x ?? [],
+  }),
+
+  // Multi-document chat: normalized per-turn doc refs (built by classifier)
+  documentSources: Annotation<DocumentSource[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+  // Per-source retrieval results (replace when populated, mirrors searchResults)
+  perSourceResults: Annotation<Record<string, SearchResult[]>>({
+    reducer: (x, y) => {
+      if (y && Object.keys(y).length > 0) return y;
+      return x ?? {};
+    },
+  }),
+  synthesisMode: Annotation<SynthesisMode>({
+    reducer: (x, y) => y ?? x ?? null,
   }),
 
   // Classification output
@@ -183,6 +210,9 @@ const ChatStateAnnotation = Annotation.Root({
   targetGroupName: Annotation<string | null>({
     reducer: (x, y) => y ?? x,
   }),
+  platform: Annotation<'instagram' | 'facebook' | null>({
+    reducer: (x, y) => y ?? x ?? null,
+  }),
 
   // Clarification (HITL interrupt)
   needsClarification: Annotation<boolean>({
@@ -202,6 +232,14 @@ const ChatStateAnnotation = Annotation.Root({
 
   // Research brief (compressed research intent for complex queries)
   researchBrief: Annotation<string | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
+  researchMeta: Annotation<ResearchToolResult | null>({
+    reducer: (x, y) => y ?? x,
+  }),
+
+  examplesResult: Annotation<ExamplesToolResult | null>({
     reducer: (x, y) => y ?? x,
   }),
 
@@ -258,11 +296,17 @@ const ChatStateAnnotation = Annotation.Root({
   imageStyle: Annotation<ImageStyle | null>({
     reducer: (x, y) => y ?? x,
   }),
+  imageEditStyle: Annotation<ImageEditStyle | null>({
+    reducer: (x, y) => y ?? x,
+  }),
   generatedImage: Annotation<GeneratedImageResult | null>({
     reducer: (x, y) => y ?? x,
   }),
   imageTimeMs: Annotation<number>({
     reducer: (x, y) => y ?? x ?? 0,
+  }),
+  imageEditDescriptions: Annotation<{ original: string | null; edited: string | null } | null>({
+    reducer: (x, y) => y ?? x,
   }),
 
   // Document summarization
@@ -376,11 +420,15 @@ function routeAfterClassification(
   }
 
   // Action intents (save_as_doc, modify_doc, modify_board) = respond first, controller handles action
+  // edit_current_doc also falls here: respondNode generates a brief confirmation
+  // ("Wende Änderungen an...") while the controller emits a `trigger_doc_edit`
+  // SSE event the docs-editor frontend dispatches into BlockNote's AI extension.
   if (
     intent === 'save_as_doc' ||
     intent === 'modify_doc' ||
     intent === 'modify_board' ||
-    intent === 'share_doc'
+    intent === 'share_doc' ||
+    intent === 'edit_current_doc'
   ) {
     log.info(`[ChatGraph] Route: classifier → respond (${intent} handled by controller)`);
     return 'respond';
@@ -389,10 +437,12 @@ function routeAfterClassification(
   // Map intent to tool key for enabled check
   const intentToToolKey: Record<SearchIntent, string> = {
     research: 'research',
+    compare: 'search',
     search: 'search',
     // person: 'person', // DISABLED: Person search not production ready
     web: 'web',
     examples: 'examples',
+    pressemitteilung_examples: 'pressemitteilung_examples',
     image: 'image',
     image_edit: 'image_edit',
     sharepic: 'sharepic',
@@ -400,6 +450,7 @@ function routeAfterClassification(
     chart: 'chart',
     save_as_doc: 'save_as_doc',
     modify_doc: 'modify_doc',
+    edit_current_doc: 'edit_current_doc',
     modify_board: 'modify_board',
     share_doc: 'share_doc',
     direct: 'direct',
@@ -433,7 +484,9 @@ function routeAfterClassification(
  *
  * Routes to 'respond' otherwise.
  */
-function routeAfterQualityGate(state: ChatState): 'search' | 'respond' {
+function routeAfterQualityGate(
+  state: ChatState
+): 'search' | 'respond' | 'pressemitteilungComposer' | 'socialMediaComposer' {
   const { qualityScore, searchCount, maxSearches } = state;
 
   // Loop back to search if quality is insufficient and we have retries left
@@ -442,6 +495,22 @@ function routeAfterQualityGate(state: ChatState): 'search' | 'respond' {
       `[ChatGraph] Route: qualityGate → search (score: ${qualityScore}/5, search ${searchCount}/${maxSearches})`
     );
     return 'search';
+  }
+
+  // Press-intent gets its own composer node — same downstream streaming path,
+  // different prompt and (controller-level) different model.
+  if (state.intent === 'pressemitteilung_examples') {
+    log.info(
+      `[ChatGraph] Route: qualityGate → pressemitteilungComposer (score: ${qualityScore}/5)`
+    );
+    return 'pressemitteilungComposer';
+  }
+
+  // Social-creation intent gets its sibling composer node. Same shape as
+  // press: prompt-builder writes responseText, controller streams via Gemma 4.
+  if (state.intent === 'examples') {
+    log.info(`[ChatGraph] Route: qualityGate → socialMediaComposer (score: ${qualityScore}/5)`);
+    return 'socialMediaComposer';
   }
 
   log.info(`[ChatGraph] Route: qualityGate → respond (score: ${qualityScore}/5)`);
@@ -453,8 +522,9 @@ function routeAfterQualityGate(state: ChatState): 'search' | 'respond' {
  *
  * Graph structure:
  *   START → classifier → [conditional: search|image|respond]
- *   search → rerank → qualityGate → [conditional: search|respond]
+ *   search → rerank → qualityGate → [conditional: search|respond|pressemitteilungComposer]
  *   image → respond
+ *   pressemitteilungComposer → END   (PM-specific prompt; controller streams via Gemma 4)
  *   respond → END
  */
 function createChatGraph() {
@@ -473,6 +543,14 @@ function createChatGraph() {
     .addNode('qualityGate', qualityGateNode as (state: ChatState) => Promise<Partial<ChatState>>)
     .addNode('image', imageNode as (state: ChatState) => Promise<Partial<ChatState>>)
     .addNode('respond', respondNode as (state: ChatState) => Promise<Partial<ChatState>>)
+    .addNode(
+      'pressemitteilungComposer',
+      pressemitteilungComposerNode as (state: ChatState) => Promise<Partial<ChatState>>
+    )
+    .addNode(
+      'socialMediaComposer',
+      socialMediaComposerNode as (state: ChatState) => Promise<Partial<ChatState>>
+    )
 
     // START → classifier
     .addEdge('__start__', 'classifier')
@@ -494,13 +572,21 @@ function createChatGraph() {
     .addConditionalEdges('qualityGate', routeAfterQualityGate, {
       search: 'search',
       respond: 'respond',
+      pressemitteilungComposer: 'pressemitteilungComposer',
+      socialMediaComposer: 'socialMediaComposer',
     })
 
     // image → respond
     .addEdge('image', 'respond')
 
     // respond → END
-    .addEdge('respond', '__end__');
+    .addEdge('respond', '__end__')
+
+    // pressemitteilungComposer → END (controller streams from state.responseText)
+    .addEdge('pressemitteilungComposer', '__end__')
+
+    // socialMediaComposer → END (controller streams from state.responseText)
+    .addEdge('socialMediaComposer', '__end__');
 
   return graph.compile();
 }
@@ -563,6 +649,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     docMentionIds: input.docMentionIds || [],
     documentMentionContext: null,
 
+    // Current open document (docs editor surface)
+    currentDocument: input.currentDocument || null,
+
     // Custom system prompt (from thread or user settings)
     customSystemPrompt: input.customSystemPrompt || null,
 
@@ -580,6 +669,11 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     isCompound: false,
     gatherSources: [],
 
+    // Multi-document chat (will be set by classifier node)
+    documentSources: [],
+    perSourceResults: {},
+    synthesisMode: null,
+
     // Classification (will be set by classifier node)
     intent: 'direct' as SearchIntent,
     secondaryIntent: null,
@@ -596,9 +690,12 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     clarificationQuestion: null,
     clarificationOptions: null,
     detectedFilters: null,
+    platform: null,
 
     // Research brief (will be set by briefGenerator node for complex research)
     researchBrief: null,
+    researchMeta: null,
+    examplesResult: null,
 
     // Search results (will be set by search node)
     searchResults: [],
@@ -618,8 +715,10 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Image generation (will be set by image node)
     imagePrompt: null,
     imageStyle: null,
+    imageEditStyle: null,
     generatedImage: null,
     imageTimeMs: 0,
+    imageEditDescriptions: null,
 
     // Document summarization (will be set by summarizeNode)
     summaryContext: null,

@@ -1,6 +1,6 @@
 export { MasterCanvasEditor } from './MasterCanvasEditor';
 export { ControllableCanvasWrapper } from './CanvasEditorRouter';
-export type { ControllableCanvasWrapperProps } from './CanvasEditorRouter';
+export type { ControllableCanvasWrapperProps, CanvasInitialPropsMap } from './CanvasEditorRouter';
 export { CanvasEditorProvider, useCanvasEditorServices } from './CanvasEditorProvider';
 export type {
   CanvasEditorServices,
@@ -8,7 +8,6 @@ export type {
   CanvasAiEditBridge,
 } from './CanvasEditorProvider';
 
-export { ProfilbildCanvas } from './ProfilbildCanvas';
 export { StandaloneCanvas } from './components/StandaloneCanvas';
 export type { StandaloneCanvasProps } from './components/StandaloneCanvas';
 
@@ -44,7 +43,11 @@ export {
 } from './ai';
 export type { MobileBridgeProps, MobileBridgeCallbacks } from './hooks/useMobileBridge';
 export type { CanvasConfigId } from './configs/types';
-export type { DreizeilenAlternative } from './configs/dreizeilen.types';
+export type {
+  DreizeilenAlternative,
+  DreizeilenFullState,
+  DreizeilenFullActions,
+} from './configs/dreizeilen.types';
 export type {
   PresentationSlideState,
   PresentationSlideActions,
@@ -82,6 +85,10 @@ export {
 export type {
   CanvasEditorStoreApi,
   CanvasEditorStoreState,
+  CanvasEditorState,
+  CanvasEditorActions,
+  CanvasEditorGetters,
 } from './stores/createCanvasEditorStore';
+export type { CanvasHistoryEntry } from '@gruenerator/shared/canvas-editor';
 
 export * from './collab';

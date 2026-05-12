@@ -96,6 +96,7 @@ export function NotebookGlobalChatLauncher({ mention }: NotebookGlobalChatLaunch
           showMentions
           showPlusMenu={false}
           showToolToggles={false}
+          requireProfileHydration
         />
       </AssistantRuntimeProvider>
     </IsolatedAuiReset>

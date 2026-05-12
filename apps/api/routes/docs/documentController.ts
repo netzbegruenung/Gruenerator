@@ -1,277 +1,48 @@
+/**
+ * Legacy controller for routes that haven't been migrated to ts-rest yet:
+ *   - PUT /:id (update)
+ *   - DELETE /:id (soft delete)
+ *   - POST /:id/duplicate
+ *
+ * Migrated routes (createDocument, generateDocument, listDocuments,
+ * getDocumentById) live in docsContractRouter.ts and are mounted at the
+ * app level before this router, so they take precedence.
+ */
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
+import { ensureHtml } from '../../services/docs/contentNormalization.js';
+import { seedYjsStateSafe } from '../../services/docs/seedYjsState.js';
 import {
-  DOCUMENT_GENERATION_PROMPT,
-  parseDocumentResponse,
-  createDocumentWithContent,
-} from '../../services/docs/DocGenerationService.js';
-import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
-import { createLogger } from '../../utils/logger.js';
+  snapshotCollaborativeDoc,
+  subtypeToTemplateType,
+} from '../../services/templates/collaborativeTemplateService.js';
 
-import { DOCS_ONLY_SUBTYPES, DOCS_SUBTYPES } from './constants.js';
-import { checkDocumentAccess, autoGrantSharePermission } from './documentAccess.js';
+import { DOCS_SUBTYPES } from './constants.js';
+import { checkDocumentAccess } from './documentAccess.js';
 import { type CollaborativeDocument } from './types.js';
-
-const createDocSchema = z.object({
-  title: z.string().optional(),
-  folder_id: z.unknown().optional(),
-  document_subtype: z.string().optional(),
-});
-
-const generateDocSchema = z.object({
-  description: z.string(),
-});
 
 const updateDocSchema = z.object({
   title: z.string().optional(),
   folder_id: z.unknown().optional(),
   content: z.string().optional(),
+  wolke_live_sync: z.boolean().optional(),
 });
 
-const log = createLogger('DocsGenerate');
+const saveAsTemplateSchema = z.object({
+  title: z.string().min(1).max(200),
+  description: z.string().max(2000).optional(),
+  is_private: z.boolean().optional(),
+  preview: z.record(z.unknown()).optional(),
+  thumbnail_url: z.string().optional(),
+  categories: z.array(z.unknown()).optional(),
+  tags: z.array(z.unknown()).optional(),
+});
 
 const router = Router();
 const db = getPostgresInstance();
-
-/**
- * @route   POST /api/docs
- * @desc    Create a new collaborative document
- * @access  Private
- */
-router.post(
-  '/',
-  validateBody(createDocSchema),
-  async (
-    req: TypedRequest<{ title?: string; folder_id?: unknown; document_subtype?: string }>,
-    res: Response
-  ) => {
-    try {
-      const {
-        title = 'Untitled Document',
-        folder_id = null,
-        document_subtype = 'blank',
-      } = req.body;
-      const userId = req.user?.id;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User not authenticated' });
-      }
-
-      const subtype = DOCS_SUBTYPES.includes(document_subtype) ? document_subtype : 'blank';
-
-      const result = (await db.query(
-        `INSERT INTO collaborative_documents
-        (title, created_by, last_edited_by, document_subtype, folder_id, permissions, is_public)
-       VALUES ($1, $2, $2, $3, $4, $5, false)
-       RETURNING *`,
-        [
-          title,
-          userId,
-          subtype,
-          folder_id,
-          JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
-        ]
-      )) as CollaborativeDocument[];
-
-      return res.status(201).json(result[0]);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error('[Docs] Error creating document:', error);
-      return res.status(500).json({ error: 'Failed to create document', details: message });
-    }
-  }
-);
-
-/**
- * @route   POST /api/docs/generate
- * @desc    Generate a document using AI based on a description
- * @access  Private
- */
-router.post(
-  '/generate',
-  validateBody(generateDocSchema),
-  async (req: TypedRequest<{ description: string }>, res: Response) => {
-    try {
-      const { description } = req.body;
-      const userId = req.user?.id;
-
-      if (!userId) {
-        return res.status(401).json({ error: 'User not authenticated' });
-      }
-
-      if (description.trim().length < 3) {
-        return res.status(400).json({ error: 'Description is required (min 3 characters)' });
-      }
-
-      log.info(`Generating document for user ${userId}: "${description.trim().slice(0, 80)}"`);
-
-      const aiResult = await getAIWorkerPool(req).processRequest(
-        {
-          type: 'doc_generation',
-          systemPrompt: DOCUMENT_GENERATION_PROMPT,
-          messages: [{ role: 'user', content: description.trim() }],
-          options: { temperature: 0.7, max_tokens: 4000 },
-        },
-        req
-      );
-
-      const generated =
-        aiResult.success && aiResult.content
-          ? parseDocumentResponse(aiResult.content)
-          : { title: 'Neues Dokument', subtype: 'blank', content: '' };
-
-      const document = await createDocumentWithContent(
-        generated.title,
-        generated.content,
-        generated.subtype,
-        userId
-      );
-
-      log.info(`Document created: ${document.id}, subtype: ${generated.subtype}`);
-      return res.status(201).json(document);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error('[Docs] Error generating document:', error);
-      return res.status(500).json({ error: 'Failed to generate document', details: message });
-    }
-  }
-);
-
-/**
- * @route   GET /api/docs
- * @desc    List all documents user has access to
- * @access  Private
- */
-router.get('/', async (req: Request, res: Response) => {
-  try {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
-
-    const limitParam = Number(req.query.limit);
-    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 200) : null;
-
-    const params: unknown[] = [userId, userId, DOCS_ONLY_SUBTYPES];
-    const limitClause = limit ? `LIMIT $${params.push(limit)}` : '';
-
-    const result = (await db.query(
-      `SELECT
-        cd.*,
-        p.display_name as creator_name,
-        le.display_name as last_editor_name,
-        CASE
-          WHEN cd.created_by = $1 THEN 'owner'
-          WHEN cd.permissions ? $2::text THEN 'direct'
-          WHEN cd.id IN (
-            SELECT gcs.content_id::uuid
-            FROM group_content_shares gcs
-            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
-            WHERE gcs.content_type = 'collaborative_documents'
-              AND (gcs.permissions->>'read')::boolean IS NOT FALSE
-          ) THEN 'group'
-        END AS access_type,
-        COALESCE(
-          (SELECT json_agg(json_build_object('group_id', g.id, 'group_name', g.name))
-           FROM group_content_shares gcs2
-           INNER JOIN group_memberships gm2 ON gm2.group_id = gcs2.group_id AND gm2.user_id = $1
-           INNER JOIN groups g ON g.id = gcs2.group_id
-           WHERE gcs2.content_type = 'collaborative_documents'
-             AND gcs2.content_id = cd.id::text
-          ), '[]'::json
-        ) AS group_shares
-       FROM collaborative_documents cd
-       LEFT JOIN profiles p ON cd.created_by = p.id
-       LEFT JOIN profiles le ON cd.last_edited_by = le.id
-       WHERE
-        cd.document_subtype = ANY($3::text[])
-        AND cd.is_deleted = false
-        AND (
-          cd.created_by = $1
-          OR cd.permissions ? $1::text
-          OR cd.id IN (
-            SELECT gcs.content_id::uuid
-            FROM group_content_shares gcs
-            INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
-            WHERE gcs.content_type = 'collaborative_documents'
-              AND (gcs.permissions->>'read')::boolean IS NOT FALSE
-          )
-        )
-       ORDER BY cd.updated_at DESC
-       ${limitClause}`,
-      params
-    )) as CollaborativeDocument[];
-
-    return res.json(result);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error listing documents:', error);
-    return res.status(500).json({ error: 'Failed to list documents', details: message });
-  }
-});
-
-/**
- * @route   GET /api/docs/:id
- * @desc    Get a specific document's metadata
- * @access  Private
- */
-router.get('/:id', async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user?.id;
-
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
-
-    const result = (await db.query(
-      `SELECT
-        cd.*,
-        p.display_name as creator_name,
-        le.display_name as last_editor_name
-       FROM collaborative_documents cd
-       LEFT JOIN profiles p ON cd.created_by = p.id
-       LEFT JOIN profiles le ON cd.last_edited_by = le.id
-       WHERE
-        cd.id = $1
-        AND cd.document_subtype = ANY($2::text[])
-        AND cd.is_deleted = false`,
-      [id, DOCS_SUBTYPES]
-    )) as CollaborativeDocument[];
-
-    if (result.length === 0) {
-      return res.status(404).json({ error: 'Document not found' });
-    }
-
-    const document = result[0];
-
-    const { hasAccess, accessMethod } = await checkDocumentAccess(document, userId);
-
-    if (!hasAccess) {
-      console.warn(
-        '[Docs] GET /api/docs/%s — 403: userId=%s, accessMethod=%s, share_mode=%s, is_public=%s',
-        id,
-        userId,
-        accessMethod,
-        document.share_mode,
-        document.is_public
-      );
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    autoGrantSharePermission(document, userId);
-
-    return res.json(document);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('[Docs] Error fetching document:', error);
-    return res.status(500).json({ error: 'Failed to fetch document', details: message });
-  }
-});
 
 /**
  * @route   PUT /api/docs/:id
@@ -282,12 +53,15 @@ router.put(
   '/:id',
   validateBody(updateDocSchema),
   async (
-    req: TypedRequest<{ title?: string; folder_id?: unknown; content?: string }, { id: string }>,
+    req: TypedRequest<
+      { title?: string; folder_id?: unknown; content?: string; wolke_live_sync?: boolean },
+      { id: string }
+    >,
     res: Response
   ) => {
     try {
       const { id } = req.params;
-      const { title, folder_id, content } = req.body;
+      const { title, folder_id, content, wolke_live_sync } = req.body;
       const userId = req.user?.id;
 
       console.log('[docs-rename] PUT /api/docs/%s — userId=%s, body=%o', id, userId, {
@@ -373,6 +147,15 @@ router.put(
         values.push(userId);
         updates.push(`last_edited_at = CURRENT_TIMESTAMP`);
         updates.push(`updated_at = CURRENT_TIMESTAMP`);
+      }
+
+      if (wolke_live_sync !== undefined) {
+        updates.push(`wolke_live_sync = $${paramIndex++}`);
+        values.push(wolke_live_sync);
+      }
+
+      if (updates.length === 0) {
+        return res.json(document);
       }
 
       values.push(id);
@@ -483,6 +266,7 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
     }
 
     const newTitle = `${original.title} (Copy)`;
+    const duplicatedContent = ensureHtml(original.content || '');
     const newDoc = (await db.query(
       `INSERT INTO collaborative_documents
         (title, created_by, last_edited_by, document_subtype, permissions, is_public, content)
@@ -493,9 +277,11 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
         userId,
         original.document_subtype,
         JSON.stringify({ [userId]: { level: 'owner', granted_at: new Date().toISOString() } }),
-        original.content || '',
+        duplicatedContent,
       ]
     )) as CollaborativeDocument[];
+
+    await seedYjsStateSafe(newDoc[0].id, duplicatedContent, 'Docs/duplicate');
 
     return res.status(201).json(newDoc[0]);
   } catch (error: unknown) {
@@ -504,5 +290,105 @@ router.post('/:id/duplicate', async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Failed to duplicate document', details: message });
   }
 });
+
+/**
+ * @route   POST /api/docs/:id/save-as-template
+ * @desc    Snapshot the current Yjs state of a doc/board and store it as a
+ *          user_template. Returns the new template id.
+ * @access  Private (any user with read access to the document)
+ */
+router.post(
+  '/:id/save-as-template',
+  validateBody(saveAsTemplateSchema),
+  async (
+    req: TypedRequest<z.infer<typeof saveAsTemplateSchema>, { id: string }>,
+    res: Response
+  ) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'User not authenticated' });
+      }
+
+      const checkResult = (await db.query(
+        `SELECT id, created_by, permissions, is_public, share_mode, document_subtype, title
+         FROM collaborative_documents
+         WHERE id = $1 AND document_subtype = ANY($2::text[]) AND is_deleted = false`,
+        [id, DOCS_SUBTYPES]
+      )) as CollaborativeDocument[];
+
+      if (checkResult.length === 0) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
+
+      const document = checkResult[0];
+      const { hasAccess } = await checkDocumentAccess(document, userId);
+      if (!hasAccess) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const snapshot = await snapshotCollaborativeDoc(id);
+      const templateType = subtypeToTemplateType(snapshot.subtype);
+
+      const {
+        title,
+        description,
+        is_private = true,
+        preview,
+        thumbnail_url,
+        categories = [],
+        tags = [],
+      } = req.body;
+
+      const contentData = {
+        yjs: snapshot.yjs,
+        subtype: snapshot.subtype,
+        ...(preview ? { preview } : {}),
+      };
+
+      const inserted = (await db.query(
+        `INSERT INTO user_templates
+          (user_id, type, title, description, template_type, thumbnail_url,
+           images, categories, tags, content_data, metadata, is_private, is_example, status)
+         VALUES ($1, 'template', $2, $3, $4, $5,
+                 '[]'::jsonb, $6::jsonb, $7::jsonb, $8::jsonb, '{}'::jsonb, $9, false, $10)
+         RETURNING id, title, template_type, is_private, status, created_at`,
+        [
+          userId,
+          title.trim(),
+          description ? description.trim() : null,
+          templateType,
+          thumbnail_url || null,
+          JSON.stringify(Array.isArray(categories) ? categories : []),
+          JSON.stringify(Array.isArray(tags) ? tags : []),
+          JSON.stringify(contentData),
+          is_private,
+          is_private ? 'draft' : 'pending_review',
+        ]
+      )) as Array<{
+        id: string;
+        title: string;
+        template_type: string;
+        is_private: boolean;
+        status: string;
+        created_at: string;
+      }>;
+
+      return res.status(201).json({
+        success: true,
+        data: inserted[0],
+        message: is_private
+          ? 'Vorlage wurde erstellt.'
+          : 'Vorlage wurde eingereicht und wird geprüft.',
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[Docs] Error saving as template:', error);
+      return res.status(500).json({ error: 'Failed to save as template', details: message });
+    }
+  }
+);
 
 export default router;

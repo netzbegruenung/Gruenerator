@@ -9,17 +9,23 @@
  */
 
 import { HiPhotograph, HiSparkles } from 'react-icons/hi';
-import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
+import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
 import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, BackgroundSection } from '../sidebar';
+import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 
 import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 
-import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from './commonSections';
+import {
+  chatTab,
+  createCommonSectionEntries,
+  toolsTab,
+  uploadsTab,
+} from './commonSections';
 import { createBaseActions } from './factory/commonActions';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
@@ -173,6 +179,13 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       label: 'Elemente',
       ariaLabel: 'Elemente hinzufügen',
     },
+    {
+      id: 'frame-settings',
+      icon: PiFrameCornersFill,
+      label: 'Rahmen',
+      ariaLabel: 'Rahmen-Einstellungen',
+    },
+    toolsTab,
     uploadsTab,
     {
       id: 'ai',
@@ -184,10 +197,15 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
   ],
 
   // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  getVisibleTabs: () => ['background', 'text', 'elements', 'uploads', 'chat'],
+  // 'background' tab kept registered but hidden — opened via getAutoSwitchTab when
+  // the canvas background is clicked.
+  getVisibleTabs: () => ['text', 'elements', 'tools', 'uploads', 'chat'],
 
-  getAutoSwitchTab: (selectedElement) =>
-    selectedElement?.startsWith('frame-') ? 'elements' : null,
+  getAutoSwitchTab: (selectedElement) => {
+    if (selectedElement === 'background') return 'background';
+    if (selectedElement?.startsWith('frame-')) return 'frame-settings';
+    return null;
+  },
 
   sections: {
     background: {
@@ -237,8 +255,23 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       }),
     },
 
-    uploads: uploadsSectionEntry,
-    chat: createChatSection('freeform', freeformAiCapabilities),
+    'frame-settings': {
+      component: FrameSettingsSection,
+      propsFactory: (state, actions, context) => {
+        const selectedId = context?.selectedElement ?? null;
+        const selectedFrame = selectedId
+          ? (state.frameInstances?.find((f) => f.id === selectedId) ?? null)
+          : null;
+        return {
+          selectedFrame,
+          onSetFrameImage: actions.setFrameImage,
+          onUpdateFrame: actions.updateFrame,
+          onRemoveFrame: actions.removeFrame,
+        };
+      },
+    },
+
+    ...createCommonSectionEntries('freeform', freeformAiCapabilities),
 
     share: createShareSection<FreeformState>('freeform', () => ''),
 
@@ -272,6 +305,7 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
       scaleKey: 'imageScale',
       draggable: true,
       transformable: true,
+      coverFit: true,
       visible: (state: FreeformState) =>
         state.backgroundMode === 'image' && state.hasBackgroundImage,
       opacity: (state: FreeformState) => state.backgroundImageOpacity,

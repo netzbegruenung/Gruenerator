@@ -11,6 +11,7 @@ import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountAuthStatusContractRouter } from './routes/auth/authStatusContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
+import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
@@ -20,6 +21,7 @@ import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRou
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
+import { mountEmailContractRouter } from './routes/email/emailContractRouter.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
 import { mountExportsContractRouter } from './routes/exports/exportsContractRouter.js';
 import exportDocumentsRouter from './routes/exports/index.js';
@@ -54,6 +56,7 @@ import {
 import searchGraphRouter from './routes/search/searchGraphController.js';
 import { mountShareContractRouter } from './routes/share/shareContractRouter.js';
 import shareRouter from './routes/share/shareController.js';
+import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
 import aiImageModificationRouter from './routes/sharepic/sharepic_canvas/aiImageModification.js';
@@ -92,6 +95,7 @@ import { mountTransferContractRouter } from './routes/transfer/transferContractR
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
+import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
 import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
@@ -113,13 +117,18 @@ import type { Application, Request, Response, NextFunction, Router } from 'expre
  */
 const isRateLimitDisabled = process.env.DISABLE_RATE_LIMITS === 'true';
 
+// Bucket key: authenticated user when known, else client IP. Without this,
+// users sharing an egress IP (office NAT, CGNAT, VPN) compete for one bucket.
+const perUserOrIpKey = (req: Request): string => req.user?.id ?? req.ip ?? 'anonymous';
+
 const aiGenerationLimiter = isRateLimitDisabled
   ? (_req: Request, _res: Response, next: NextFunction) => next()
   : rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 200, // ~13 per minute average — protects against abuse, not normal use
+      max: 200, // AI cost control lives in rateLimitMiddleware.ts; this is a safety net only
       standardHeaders: true,
       legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
       message: { error: 'Too many AI generation requests, please try again later.' },
     });
 
@@ -127,9 +136,10 @@ const standardMutationLimiter = isRateLimitDisabled
   ? (_req: Request, _res: Response, next: NextFunction) => next()
   : rateLimit({
       windowMs: 15 * 60 * 1000,
-      max: 200,
+      max: 2000, // DDoS-only ceiling for writes — bulk ops can spike legitimately
       standardHeaders: true,
       legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
       // Skip GETs so polling endpoints (e.g. /api/subtitler/export-progress/:token,
       // fired every 2s during export) don't consume the mutation budget. The
       // limiter's purpose is abuse-prevention on writes; reads are covered by
@@ -142,9 +152,10 @@ const authenticatedReadLimiter = isRateLimitDisabled
   ? (_req: Request, _res: Response, next: NextFunction) => next()
   : rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 1000, // ~66/min — generous for authenticated page loads with many parallel fetches
+      max: 10000, // DDoS-only — heavy users with many tabs + polling can hit 2–3k legitimately
       standardHeaders: true,
       legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
       message: { error: 'Too many requests, please try again later.' },
     });
 
@@ -152,9 +163,10 @@ const publicReadLimiter = isRateLimitDisabled
   ? (_req: Request, _res: Response, next: NextFunction) => next()
   : rateLimit({
       windowMs: 60 * 60 * 1000, // 1 hour
-      max: 500, // soft — prevents scraping, allows normal use
+      max: 2000, // allow embeds & site visitors without tripping legitimate traffic
       standardHeaders: true,
       legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
       message: { error: 'Too many requests, please try again later.' },
     });
 
@@ -228,6 +240,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: generatorConfiguratorRoute } =
     await import('./routes/custom_generators/generator_configurator.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
+  const { userAgentsRouter } = await import('./routes/userAgents/index.js');
   const {
     collectionsRouter: notebookCollectionsRouter,
     interactionRouter: notebookInteractionRouter,
@@ -306,6 +319,10 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/auth/notebook', authenticatedReadLimiter, notebookInteractionRouter);
   app.use('/api/auth/notebook', authenticatedReadLimiter, notebookRecentDocumentsRouter);
   app.use('/api/auth/notebook', authenticatedReadLimiter, notebookStatisticsRouter);
+  // External API for partner integrations (MCP / programmatic access).
+  // Auth: per-route Bearer API key middleware (requireApiKey). Rate-limited
+  // per-key via apiKeyRateLimit. LV scope enforced inside each handler.
+  app.use('/api/v1/notebooks', v1NotebooksRouter);
   // ts-rest contract router for /api/documents — mounts BEFORE the legacy documentsRouter
   // so ts-rest matches its own routes first; unmatched paths fall through.
   // requireAuth is applied at the prefix because all 3 contract routes require auth.
@@ -396,6 +413,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/dreizeilen_claude', aiGenerationLimiter, sharepicClaudeRoute);
   app.use('/api/sharepic/edit-session', standardMutationLimiter, editSessionRouter);
   app.use('/api/sharepic', aiGenerationLimiter, promptRoute);
+  app.use('/api/background-removal', aiGenerationLimiter, requireAuth, backgroundRemovalRoute);
 
   app.post(
     '/api/zitat_claude',
@@ -499,6 +517,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/generate_generator_config', aiGenerationLimiter, generatorConfiguratorRoute);
   app.use('/api/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/auth/custom_prompt', aiGenerationLimiter, customPromptRoute);
+  app.use('/api/user-agents', userAgentsRouter);
   app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
   // requireAuth must run before the contract mount — createExpressEndpoints
   // registers handlers directly on the app, bypassing the legacy prefix
@@ -522,14 +541,20 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountTransferContractRouter(app);
   app.use('/api/transfer', standardMutationLimiter, transferRouter);
   app.use('/api/mem0', requireAuth, standardMutationLimiter, mem0Router);
-  app.use('/api/email', requireAuth, standardMutationLimiter, emailRouter);
+  // ts-rest contract router for /api/email — mounts BEFORE legacy emailRouter
+  // so the typed /test endpoint matches first; /send-content stays on legacy.
+  app.use('/api/email', requireAuth);
+  mountEmailContractRouter(app);
+  app.use('/api/email', standardMutationLimiter, emailRouter);
   app.use('/api/auth/init', publicReadLimiter, authInitRouter);
   app.use('/api/recent-activity', publicReadLimiter, recentActivityRouter);
   // ts-rest contract router for notifications — mounts BEFORE the legacy router
   // so contract-modeled routes match first; /stream SSE falls through to legacy.
   // requireAuth applied at prefix; notification-preferences also handled here.
   app.use('/api/notifications', requireAuth);
+  app.use('/api/auth/profile', requireAuth);
   mountNotificationsContractRouter(app);
+  mountModelPreferencesContractRouter(app);
   app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
   app.use('/api/media', requireAuth, authenticatedReadLimiter, mediaRouter);
   app.use('/api/og/docs', publicReadLimiter, ogDocsRouter);

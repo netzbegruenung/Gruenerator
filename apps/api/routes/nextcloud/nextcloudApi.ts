@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 
+import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import NextcloudApiClient from '../../services/api-clients/nextcloudApiClient.js';
@@ -27,6 +28,8 @@ const uploadSchema = z.object({
   content: z.string(),
   filename: z.string(),
   folderPath: z.string().nullish(),
+  documentId: z.string().uuid().optional(),
+  enableLiveSync: z.boolean().optional(),
 });
 
 const updateShareLinkSchema = z.object({
@@ -163,26 +166,6 @@ router.post(
           success: false,
           message: testErr.message,
         };
-      }
-
-      // Send Wolki unlock notification on first share link
-      try {
-        const allLinks = await NextcloudShareManager.getShareLinks(userId);
-        if (allLinks.length === 1) {
-          const { createNotification } = await import('../../services/notifications/index.js');
-          await createNotification({
-            userId,
-            type: 'wolke_setup',
-            title: 'Wolki freigeschaltet!',
-            body: 'Deine Wolke ist verbunden — du hast einen neuen Avatar freigeschaltet!',
-            actionUrl: '/profile',
-            metadata: { avatarId: 10 },
-          });
-        }
-      } catch (notifErr) {
-        log.warn('[NextcloudApi] Failed to send Wolki notification', {
-          error: (notifErr as Error).message,
-        });
       }
 
       res.status(201).json({
@@ -369,13 +352,15 @@ router.post(
         return;
       }
 
-      const { shareLinkId, content, filename, folderPath } = req.body;
+      const { shareLinkId, content, filename, folderPath, documentId, enableLiveSync } = req.body;
 
       log.debug('[NextcloudApi] Uploading file to Nextcloud', {
         userId,
         filename,
         shareLinkId,
         folderPath,
+        documentId,
+        enableLiveSync,
       });
 
       if (!shareLinkId) {
@@ -402,6 +387,50 @@ router.post(
 
       const client = await NextcloudApiClient.create(shareLink.share_link);
       const uploadResult = await client.uploadFile(content, filename, folderPath ?? undefined);
+
+      if (uploadResult.success && documentId) {
+        try {
+          const wolkeFilePath = folderPath ? `${folderPath}/${filename}` : filename;
+          const db = getPostgresInstance();
+          const updates: string[] = [
+            'wolke_share_link_id = $1',
+            'wolke_file_path = $2',
+            'last_synced_at = NOW()',
+          ];
+          const values: unknown[] = [shareLinkId, wolkeFilePath];
+          let paramIndex = 3;
+
+          if (uploadResult.etag) {
+            updates.push(`wolke_etag = $${paramIndex++}`);
+            values.push(uploadResult.etag);
+          }
+          if (enableLiveSync !== undefined) {
+            updates.push(`wolke_live_sync = $${paramIndex++}`);
+            values.push(enableLiveSync);
+          }
+
+          values.push(documentId);
+          values.push(userId);
+
+          const idParam = paramIndex++;
+          const userParam = paramIndex;
+
+          await db.query(
+            `UPDATE collaborative_documents
+             SET ${updates.join(', ')}
+             WHERE id = $${idParam}
+               AND created_by = $${userParam}
+               AND is_deleted = false`,
+            values
+          );
+        } catch (linkErr) {
+          const linkError = linkErr as Error;
+          log.warn('[NextcloudApi] Upload succeeded but document link write failed', {
+            documentId,
+            error: linkError.message,
+          });
+        }
+      }
 
       res.json(uploadResult);
     } catch (error) {

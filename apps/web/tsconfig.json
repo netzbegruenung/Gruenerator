@@ -21,6 +21,10 @@
       "@gruenerator/shared/*": ["../../packages/shared/src/*"],
       "@gruenerator/docs": ["../../packages/docs/src"],
       "@gruenerator/docs/*": ["../../packages/docs/src/*"],
+      "@gruenerator/sites": ["../../packages/sites/src"],
+      "@gruenerator/sites/*": ["../../packages/sites/src/*"],
+      "@gruenerator/sites-design": ["../../packages/sites-design/src"],
+      "@gruenerator/sites-design/*": ["../../packages/sites-design/src/*"],
       "@gruenerator/contracts": ["../../packages/contracts/src/index.ts"]
     }
   },

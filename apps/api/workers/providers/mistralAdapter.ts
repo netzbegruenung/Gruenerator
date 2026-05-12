@@ -42,19 +42,30 @@ export const connectionMetrics: ConnectionMetrics = {
 async function convertMessages(
   messages: AIRequestData['messages'],
   systemPrompt?: string
-): Promise<ModelMessage[]> {
+): Promise<{ system: string | undefined; messages: ModelMessage[] }> {
+  const systemParts: string[] = [];
+  if (systemPrompt) systemParts.push(systemPrompt);
+
   const modelMessages: ModelMessage[] = [];
 
-  // Add system message if provided
-  if (systemPrompt) {
-    modelMessages.push({ role: 'system', content: systemPrompt });
+  if (!messages) {
+    return {
+      system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
+      messages: modelMessages,
+    };
   }
 
-  if (!messages) return modelMessages;
-
   for (const msg of messages) {
-    // Skip system messages if we already added one
-    if (msg.role === 'system' && systemPrompt) {
+    if (msg.role === 'system') {
+      const sysContent =
+        typeof msg.content === 'string'
+          ? msg.content
+          : Array.isArray(msg.content)
+            ? (msg.content as Array<{ text?: string; content?: string }>)
+                .map((c) => c.text || c.content || '')
+                .join('\n')
+            : String(msg.content);
+      systemParts.push(sysContent);
       continue;
     }
 
@@ -190,12 +201,15 @@ async function convertMessages(
 
     // Simple text message
     modelMessages.push({
-      role: msg.role as 'user' | 'assistant' | 'system',
+      role: msg.role as 'user' | 'assistant',
       content: typeof msg.content === 'string' ? msg.content : String(msg.content || ''),
     });
   }
 
-  return modelMessages;
+  return {
+    system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
+    messages: modelMessages,
+  };
 }
 
 /**
@@ -263,7 +277,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   }
 
   // Convert messages to Vercel AI SDK format
-  const modelMessages = await convertMessages(messages, systemPrompt);
+  const { system, messages: modelMessages } = await convertMessages(messages, systemPrompt);
 
   // Prepare tools - only include options that are not null/undefined
   const toolsPayload = ToolHandler.prepareToolsPayload(
@@ -318,6 +332,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
       const result = await generateText({
         model: aiModel,
+        ...(system != null && { system }),
         messages: modelMessages,
         temperature: config.temperature,
         maxOutputTokens: config.maxTokens,
@@ -381,7 +396,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
               prompt_tokens: result.usage.inputTokens,
               completion_tokens: result.usage.outputTokens,
               total_tokens: result.usage.totalTokens,
-            }
+            },
           }),
         }),
       };

@@ -397,10 +397,12 @@ router.post(
         },
       });
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const isValidation = message.startsWith('createImageShare:');
       log.error('Failed to create image share:', error);
-      return res.status(500).json({
+      return res.status(isValidation ? 400 : 500).json({
         success: false,
-        error: 'Bild konnte nicht geteilt werden',
+        error: isValidation ? message : 'Bild konnte nicht geteilt werden',
       });
     }
   }

@@ -23,7 +23,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import { extractTextContent } from './messageHelpers.js';
 import { pendingActionStore } from './pendingActionStore.js';
-import { generateSharepicVariants } from './sharepicVariantHelpers.js';
+import { generateSharepicVariants, type SharepicVariant } from './sharepicVariantHelpers.js';
 import { PROGRESS_MESSAGES } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
@@ -418,11 +418,16 @@ export async function executeIntentPipeline(opts: {
   enabledTools?: Record<string, boolean>;
   imageAttachments: ImageAttachment[];
   req?: Request;
-}): Promise<{ finalState: ChatGraphState; generatedImage: GeneratedImageResult | null }> {
+}): Promise<{
+  finalState: ChatGraphState;
+  generatedImage: GeneratedImageResult | null;
+  sharepicVariants: SharepicVariant[];
+}> {
   const { classifiedState, sse, forcedTool, enabledTools, imageAttachments } = opts;
 
   let finalState = classifiedState;
   let generatedImage: GeneratedImageResult | null = null;
+  let sharepicVariants: SharepicVariant[] = [];
 
   // Build ordered list of intents to execute (primary first, then secondary)
   const intentsToExecute: SearchIntent[] = [classifiedState.intent];
@@ -516,6 +521,7 @@ export async function executeIntentPipeline(opts: {
             message: `${variants.length} Sharepic-Varianten erstellt`,
             variants,
           });
+          sharepicVariants = variants;
         }
       } catch (error) {
         log.error('[ChatGraph] Sharepic variant generation failed:', error);
@@ -557,10 +563,22 @@ export async function executeIntentPipeline(opts: {
           searchInputState = { ...finalState, ...briefResult } as ChatGraphState;
         }
 
+        const isDeepResearch = currentIntent === 'research';
         sse.send('search_start', {
-          message: PROGRESS_MESSAGES.searchStart,
+          message: isDeepResearch
+            ? 'Tiefgehende Recherche läuft (mehrere Quellen, dauert ca. 15–20s)…'
+            : PROGRESS_MESSAGES.searchStart,
           ...(finalState.subQueries?.length && { subQueries: finalState.subQueries }),
         });
+
+        if (isDeepResearch) {
+          searchInputState = {
+            ...searchInputState,
+            onResearchProgress: (message: string) => {
+              sse.send('search_start', { message });
+            },
+          } as ChatGraphState;
+        }
         const searchResult = await searchNode(searchInputState);
         finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
 
@@ -588,10 +606,17 @@ export async function executeIntentPipeline(opts: {
           message: PROGRESS_MESSAGES.searchComplete(resultCount),
           resultCount,
           results: payloadResults,
+          ...(currentIntent === 'research' && finalState.researchMeta
+            ? { researchMeta: finalState.researchMeta }
+            : {}),
+          ...((currentIntent === 'examples' || currentIntent === 'pressemitteilung_examples') &&
+          finalState.examplesResult
+            ? { examplesResult: finalState.examplesResult }
+            : {}),
         });
       }
     }
   }
 
-  return { finalState, generatedImage };
+  return { finalState, generatedImage, sharepicVariants };
 }

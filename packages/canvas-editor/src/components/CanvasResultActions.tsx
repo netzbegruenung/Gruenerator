@@ -1,8 +1,7 @@
+import { Skeleton } from '@gruenerator/ui';
 import React from 'react';
 import { FaDownload, FaShareAlt, FaImages } from 'react-icons/fa';
 import { IoCheckmarkOutline } from 'react-icons/io5';
-
-import Spinner from '../common/Spinner';
 // button.css is expected to be provided by the consuming app
 
 interface CanvasResultActionsProps {
@@ -53,7 +52,7 @@ export const CanvasResultActions: React.FC<CanvasResultActionsProps> = ({
 
       {autoSaveStatus === 'saving' && (
         <div className="action-status">
-          <Spinner size="small" />
+          <Skeleton className="size-3 rounded-full" />
           <span>Wird synchronisiert...</span>
         </div>
       )}

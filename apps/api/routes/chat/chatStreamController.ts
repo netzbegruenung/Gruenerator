@@ -17,6 +17,7 @@ import {
   executeDirectSearch,
   // executeDirectPersonSearch, // DISABLED: Person search not production ready
   executeDirectExamplesSearch,
+  executeDirectPressemitteilungExamples,
   executeDirectWebSearch,
   executeResearch,
 } from './agents/directSearch.js';
@@ -34,12 +35,13 @@ const log = createLogger('ChatStreamController');
 const router = createAuthenticatedRouter();
 
 // DISABLED: 'person' - not production ready
-type ToolKey = 'search' | 'web' | 'examples' | 'research' | 'direct';
+type ToolKey = 'search' | 'web' | 'examples' | 'pressemitteilung_examples' | 'research' | 'direct';
 
 type SearchToolName =
   | 'gruenerator_search'
   // | 'gruenerator_person_search' // DISABLED: Person search not production ready
   | 'gruenerator_examples_search'
+  | 'gruenerator_pressemitteilung_examples'
   | 'web_search'
   | 'research'
   | 'direct_response';
@@ -49,9 +51,93 @@ const TOOL_KEY_TO_NAME: Record<ToolKey, SearchToolName> = {
   web: 'web_search',
   // person: 'gruenerator_person_search', // DISABLED: Person search not production ready
   examples: 'gruenerator_examples_search',
+  pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
   research: 'research',
   direct: 'direct_response',
 };
+
+const SEARCH_TOOL_DESCRIPTIONS: Record<Exclude<SearchToolName, 'direct_response'>, string> = {
+  research:
+    '**research** - Komplexe Fragen, explizite Recherche-Anfragen ("recherchiere", "suche nach", "finde heraus")',
+  gruenerator_search: '**gruenerator_search** - Grüne Programme, Positionen, Beschlüsse',
+  web_search:
+    '**web_search** - Aktuelle Nachrichten, externe Fakten, Personen-Infos ("Wer ist...")',
+  gruenerator_examples_search:
+    '**gruenerator_examples_search** - Social-Media-Vorlagen und Beispiel-Posts (Facebook, Instagram, Twitter, LinkedIn, TikTok)',
+  gruenerator_pressemitteilung_examples:
+    '**gruenerator_pressemitteilung_examples** - Echte Pressemitteilungen aus Landesverbänden als Vorlage für Aufbau, Lead, Zitat-Setzung und Tonalität',
+};
+
+function buildToolUsageSection(availableTools: ToolSet, agentSystemRole: string): string {
+  const present = Object.keys(availableTools) as SearchToolName[];
+  const searchTools = present.filter(
+    (n): n is Exclude<SearchToolName, 'direct_response'> => n !== 'direct_response'
+  );
+  const hasDirect = present.includes('direct_response');
+  const hasExplicitSteps = /Nutze IMMER/i.test(agentSystemRole);
+
+  if (searchTools.length === 0 && !hasDirect) return '';
+
+  const lines: string[] = ['## TOOL-NUTZUNG', ''];
+
+  if (hasExplicitSteps) {
+    lines.push(
+      'Wenn dein systemRole oben einen Schritt mit „Nutze IMMER X" nennt, hat dieser Schritt Vorrang vor der ENTSCHEIDUNGSLOGIK unten — auch bei kreativen Aufgaben (Pressemitteilungen, Social-Media-Posts, Reden, Anträge).',
+      ''
+    );
+  }
+
+  lines.push(
+    'Du MUSST für jede Nachricht ein Tool wählen. Entscheide semantisch basierend auf dem Inhalt:',
+    ''
+  );
+
+  if (searchTools.length > 0) {
+    lines.push('### SUCH-TOOLS (für Informationsbedarf und Inhalts-Generierung)');
+    for (const t of searchTools) lines.push(`- ${SEARCH_TOOL_DESCRIPTIONS[t]}`);
+    lines.push('');
+  }
+
+  if (hasDirect) {
+    lines.push('### DIREKT-TOOL');
+    lines.push(
+      '- **direct_response** - NUR für reine Begrüßungen, Dankesnachrichten oder Rückfragen ohne neuen Inhaltsbedarf. NIEMALS für Pressemitteilungen, Social-Media-Posts, Reden, Anträge oder andere Inhalts-Generierung — diese benötigen IMMER zuerst ein Such-Tool.',
+      ''
+    );
+  }
+
+  lines.push('### ENTSCHEIDUNGSLOGIK');
+  let step = 1;
+  if (hasExplicitSteps) {
+    lines.push(
+      `${step++}. Nennt dein systemRole oben „Nutze IMMER X"? → Genau dieses Tool, ohne Ausnahme.`
+    );
+  }
+  if (searchTools.length > 0) {
+    lines.push(
+      `${step++}. Soll Inhalt erstellt werden (PM, Post, Rede, Antrag)? → Such-Tool zuerst, um Beispiele/Fakten zu finden.`
+    );
+    lines.push(`${step++}. Fragt der Benutzer nach Fakten/Informationen? → Such-Tool.`);
+    lines.push(`${step++}. Nennt der Benutzer ein spezifisches Tool? → Das genannte Tool.`);
+  }
+  if (hasDirect) {
+    lines.push(`${step++}. Reine Begrüßung/Dank/Rückfrage ohne neuen Inhalt? → direct_response.`);
+  }
+  lines.push('');
+
+  lines.push(
+    '## ANTWORT-VERHALTEN',
+    '',
+    '1. **Fokus**: Beantworte NUR was gefragt wurde. Keine ungebetene Spekulation.',
+    '2. **Kürze**: Kurze, präzise Antworten. Maximal 3-4 Absätze für einfache Fragen.',
+    '3. **Zitieren**: Bei research-Tool Inline-Zitate [1], [2] in Antwort übernehmen.',
+    '4. **Quellen**: Verwende NUR Inline-Verweise [1], [2] etc. Erstelle KEINE Quellenliste am Ende — die Quellen werden automatisch in der Oberfläche angezeigt.',
+    '',
+    'Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.'
+  );
+
+  return lines.join('\n');
+}
 
 const chatStreamRequestSchema = z.object({
   messages: z.array(z.unknown()),
@@ -60,7 +146,10 @@ const chatStreamRequestSchema = z.object({
   model: z.string().optional(),
   threadId: z.string().optional(),
   enabledTools: z
-    .record(z.enum(['search', 'web', 'examples', 'research', 'direct']), z.boolean())
+    .record(
+      z.enum(['search', 'web', 'examples', 'pressemitteilung_examples', 'research', 'direct']),
+      z.boolean()
+    )
     .optional(),
 });
 type ChatStreamRequestBody = z.infer<typeof chatStreamRequestSchema>;
@@ -191,6 +280,33 @@ NICHT FÜR: Allgemeine Informationssuche, Fakten, Nachrichten`,
       } catch (error) {
         log.error('Direct examples search error:', error);
         return { error: 'Beispielsuche fehlgeschlagen', examples: [], resultsCount: 0 };
+      }
+    },
+  });
+
+  tools.gruenerator_pressemitteilung_examples = tool({
+    description: `Suche nach echten Pressemitteilungen aus Landesverbänden als Inspiration und Vorlage.
+
+NUTZE WENN:
+- Eine Pressemitteilung verfasst werden soll
+- Beispiele für journalistische PM-Sprache und Aufbau gebraucht werden
+- Du sehen willst, wie andere Landesverbände PMs zu ähnlichen Themen formulieren
+
+NICHT FÜR: Social-Media-Posts (nutze gruenerator_examples_search), allgemeine Recherche (nutze gruenerator_search), Anträge oder Reden.`,
+    inputSchema: z.object({
+      query: z.string().describe('Thema der Pressemitteilung'),
+    }),
+    execute: async ({ query }) => {
+      try {
+        const results = await executeDirectPressemitteilungExamples({ query });
+        return results;
+      } catch (error) {
+        log.error('Direct pressemitteilung examples error:', error);
+        return {
+          error: 'Pressemitteilung-Suche fehlgeschlagen',
+          examples: [],
+          resultsCount: 0,
+        };
       }
     },
   });
@@ -425,35 +541,42 @@ router.post(
         await createMessage(actualThreadId, 'user', content);
       }
 
-      const baseSystemMessage = `${agent.systemRole}
+      const hasTools = agent.plugins?.includes('gruenerator-mcp');
+      const agentTools = createSearchTools(agent);
 
-## TOOL-NUTZUNG
+      const agentToolKeys: Set<ToolKey> | null = agent.enabledTools
+        ? new Set(
+            agent.enabledTools.filter((k): k is ToolKey =>
+              Object.prototype.hasOwnProperty.call(TOOL_KEY_TO_NAME, k)
+            )
+          )
+        : null;
 
-Du MUSST für jede Nachricht ein Tool wählen. Entscheide semantisch basierend auf dem Inhalt:
+      const filteredTools: ToolSet = {};
+      if (hasTools && enabledTools) {
+        for (const [key, toolName] of Object.entries(TOOL_KEY_TO_NAME)) {
+          const allowedByRequest = enabledTools[key as ToolKey];
+          const allowedByAgent = !agentToolKeys || agentToolKeys.has(key as ToolKey);
+          if (
+            toolName === 'direct_response' ||
+            (allowedByRequest && allowedByAgent && agentTools[toolName])
+          ) {
+            filteredTools[toolName] = agentTools[toolName];
+          }
+        }
+      } else if (hasTools) {
+        for (const [key, toolName] of Object.entries(TOOL_KEY_TO_NAME)) {
+          const allowedByAgent = !agentToolKeys || agentToolKeys.has(key as ToolKey);
+          if ((toolName === 'direct_response' || allowedByAgent) && agentTools[toolName]) {
+            filteredTools[toolName] = agentTools[toolName];
+          }
+        }
+      }
 
-### SUCH-TOOLS (für Informationsbedarf)
-- **research** - Komplexe Fragen, explizite Recherche-Anfragen ("recherchiere", "suche nach", "finde heraus")
-- **gruenerator_search** - Grüne Programme, Positionen, Beschlüsse
-- **web_search** - Aktuelle Nachrichten, externe Fakten, Personen-Infos ("Wer ist...")
-- **gruenerator_examples_search** - Social-Media-Vorlagen und -Beispiele
-
-### DIREKT-TOOL (keine Suche nötig)
-- **direct_response** - Begrüßungen, Dank, kreative Aufgaben ohne Faktenbedarf
-
-### ENTSCHEIDUNGSLOGIK
-1. Fragt der Benutzer nach Fakten/Informationen? → Such-Tool
-2. Sagt der Benutzer "suche", "recherchiere", "finde"? → research
-3. Nennt der Benutzer ein spezifisches Tool? → Das genannte Tool
-4. Ist es Begrüßung/Dank/Small-Talk? → direct_response
-
-## ANTWORT-VERHALTEN
-
-1. **Fokus**: Beantworte NUR was gefragt wurde. Keine ungebetene Spekulation.
-2. **Kürze**: Kurze, präzise Antworten. Maximal 3-4 Absätze für einfache Fragen.
-3. **Zitieren**: Bei research-Tool Inline-Zitate [1], [2] in Antwort übernehmen.
-4. **Quellen**: Verwende NUR Inline-Verweise [1], [2] etc. Erstelle KEINE Quellenliste am Ende — die Quellen werden automatisch in der Oberfläche angezeigt.
-
-Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`;
+      const toolUsageSection = buildToolUsageSection(filteredTools, agent.systemRole);
+      const baseSystemMessage = toolUsageSection
+        ? `${agent.systemRole}\n\n${toolUsageSection}`
+        : agent.systemRole;
 
       // Load compaction state if thread exists
       let compactionState: CompactionState = {
@@ -495,30 +618,9 @@ Im Zweifel lieber suchen als raten. Antworte auf Deutsch. Erfinde keine Fakten.`
       const aiModel = getModel(effectiveProvider, effectiveModel);
       log.info(`[Chat Debug] AI Model obtained: ${effectiveModel}`);
 
-      const hasTools = agent.plugins?.includes('gruenerator-mcp');
       log.info(
-        `[Chat Debug] hasTools: ${hasTools}, agent.plugins: ${JSON.stringify(agent.plugins)}`
+        `[Chat Debug] hasTools: ${hasTools}, agent.plugins: ${JSON.stringify(agent.plugins)}, agentEnabledTools: ${JSON.stringify(agent.enabledTools)}`
       );
-
-      // Create tools dynamically based on agent configuration (enables per-agent restrictions)
-      const agentTools = createSearchTools(agent);
-
-      // Filter tools based on user-enabled toggles
-      const filteredTools: ToolSet = {};
-      if (hasTools && enabledTools) {
-        for (const [key, toolName] of Object.entries(TOOL_KEY_TO_NAME)) {
-          // direct_response is always included as the escape hatch
-          if (
-            toolName === 'direct_response' ||
-            (enabledTools[key as ToolKey] && agentTools[toolName])
-          ) {
-            filteredTools[toolName] = agentTools[toolName];
-          }
-        }
-      } else if (hasTools) {
-        // Fallback: all tools enabled if no enabledTools provided
-        Object.assign(filteredTools, agentTools);
-      }
 
       const activeTools = Object.keys(filteredTools).length > 0 ? filteredTools : undefined;
 

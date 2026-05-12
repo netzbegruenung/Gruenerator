@@ -16,7 +16,8 @@ import {
   type KawaiiProps,
 } from 'react-kawaii';
 
-import Spinner from '../../common/Spinner';
+import { Skeleton } from '@gruenerator/ui';
+
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 import { usePaginatedIllustrations } from '../../hooks/usePaginatedIllustrations';
 import { getIllustrationPath, getIllustrationThumbPath } from '../../utils/illustrations/registry';
@@ -124,8 +125,7 @@ export function IllustrationenSection({
         className={cn(
           CARD_GRID,
           'grid-cols-[repeat(auto-fill,minmax(64px,1fr))]',
-          !isExpanded &&
-            'max-h-[400px] overflow-y-auto pr-1 scrollbar-thin scrollbar-color-[var(--grey-200)_transparent]'
+          !isExpanded && 'max-h-[400px] overflow-y-auto pr-1 scrollbar-thin'
         )}
       >
         {visibleIllustrations.map((illDef) => {
@@ -178,7 +178,13 @@ export function IllustrationenSection({
       {isExpanded && (
         <>
           <div ref={sentinelRef} className="h-px w-full" />
-          {hasMore && <Spinner size="small" />}
+          {hasMore && (
+            <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(64px,1fr))]', 'mt-2')}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="aspect-square rounded-lg" />
+              ))}
+            </div>
+          )}
         </>
       )}
 

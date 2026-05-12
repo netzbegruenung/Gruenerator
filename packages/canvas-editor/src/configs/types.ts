@@ -49,7 +49,7 @@ export interface AdditionalText {
   width: number;
   fontSize: number;
   fontFamily: string;
-  fontStyle?: string;
+  fontStyle?: 'normal' | 'italic' | 'bold' | 'bold italic';
   fill: string;
   rotation?: number;
   scale?: number;
@@ -135,6 +135,13 @@ export interface ImageElementConfig<
   fill?: FillValue<TState>;
   /** State key for custom fill color override */
   fillStateKey?: string;
+  /**
+   * When true, the source image is center-cropped to match the displayed
+   * width/height aspect ratio (CSS object-fit: cover). Use for background
+   * images that should preserve their natural aspect ratio inside a
+   * fixed-aspect canvas.
+   */
+  coverFit?: boolean;
 }
 
 /** Rectangle element configuration */
@@ -275,13 +282,15 @@ export type CanvasConfigId =
   | 'zitat-pure'
   | 'info'
   | 'veranstaltung'
+  | 'veranstaltung-plakat'
   | 'simple'
   | 'dreizeilen'
   | 'slider'
   | 'freeform'
   | 'pres-title'
   | 'pres-image'
-  | 'pres-content';
+  | 'pres-content'
+  | 'profilbild';
 
 /** A page in a heterogeneous multi-page document */
 export interface HeterogeneousPage {
@@ -343,8 +352,14 @@ export interface FullCanvasConfig<
   ) => TActions;
   /** Optional function to determine disabled tabs */
   getDisabledTabs?: (state: TState) => SidebarTabId[];
-  /** Optional function to determine visible tabs */
-  getVisibleTabs?: (state: TState, context?: { selectedElement?: string | null }) => SidebarTabId[];
+  /** Optional function to determine visible tabs.
+   *  `state` may be `null` during slide-switch transitions, before the new
+   *  page's PageWrapper has reported its state — implementations that read
+   *  state must null-guard. */
+  getVisibleTabs?: (
+    state: TState | null,
+    context?: { selectedElement?: string | null }
+  ) => SidebarTabId[];
   /** Optional function to auto-switch tabs when an element is selected/deselected.
    *  Return the tab to switch to, or null to restore the previous tab. */
   getAutoSwitchTab?: (selectedElement: string | null) => SidebarTabId | null;
@@ -425,6 +440,10 @@ export interface CanvasConfig<
   sections: Record<string, SectionConfig<TState, TActions, any>>;
   /** Optional function to determine disabled tabs based on state */
   getDisabledTabs?: (state: TState) => SidebarTabId[];
-  /** Optional function to determine visible tabs based on state/context */
-  getVisibleTabs?: (state: TState, context?: { selectedElement?: string | null }) => SidebarTabId[];
+  /** Optional function to determine visible tabs based on state/context.
+   *  `state` may be `null` during slide-switch transitions. */
+  getVisibleTabs?: (
+    state: TState | null,
+    context?: { selectedElement?: string | null }
+  ) => SidebarTabId[];
 }

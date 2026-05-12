@@ -32,9 +32,15 @@ import {
   HiX,
 } from 'react-icons/hi';
 import { PiSquaresFour } from 'react-icons/pi';
+import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
-import { useGroupMembers, getGroupInitials, type GroupLink } from '../hooks/useGroups';
+import {
+  useCloneCanvasTemplate,
+  useGroupMembers,
+  getGroupInitials,
+  type GroupLink,
+} from '../hooks/useGroups';
 
 import AddContentToGroupModal from './AddContentToGroupModal';
 import GroupLinksSection from './GroupLinksSection';
@@ -68,15 +74,18 @@ export interface SharedItem {
   shared_at?: string;
   shared_by_name?: string;
   contentType?: string;
+  thumbnail_url?: string | null;
 }
 
 export interface SharedContent {
   collabDocs: SharedItem[];
   boards: SharedItem[];
+  canvases: SharedItem[];
   documents: SharedItem[];
   generators: SharedItem[];
   notebooks: SharedItem[];
   texts: SharedItem[];
+  canvasTemplates: SharedItem[];
 }
 
 interface GroupInfoSectionProps {
@@ -153,9 +162,26 @@ const GroupInfoSection = memo(
     isAddingLink,
     isUpdatingLink,
   }: GroupInfoSectionProps) => {
+    const navigate = useNavigate();
     const { members, isLoadingMembers } = useGroupMembers(groupId, { isActive: true });
     const [membersPopoverOpen, setMembersPopoverOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const cloneTemplate = useCloneCanvasTemplate();
+
+    const handleCloneTemplate = useCallback(
+      (templateId: string) => {
+        if (cloneTemplate.isPending) return;
+        cloneTemplate.mutate(templateId, {
+          onSuccess: ({ newCanvasId }) => {
+            if (newCanvasId) void navigate(`/studio/canvas/${newCanvasId}`);
+          },
+          onError: (err) => {
+            console.error('[GroupInfoSection] Failed to clone Vorlage:', err);
+          },
+        });
+      },
+      [cloneTemplate, navigate]
+    );
     const [showAddContent, setShowAddContent] = useState(false);
     const popoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const memberActionOpenRef = useRef(false);
@@ -471,6 +497,8 @@ const GroupInfoSection = memo(
               contentType: string;
               icon: typeof HiOutlineDocumentText;
               getLink?: (item: SharedItem) => string;
+              variant?: 'thumbnail';
+              cloneOnOpen?: boolean;
             }[] = [
               {
                 label: 'Docs',
@@ -485,6 +513,22 @@ const GroupInfoSection = memo(
                 contentType: 'collaborative_documents',
                 icon: PiSquaresFour,
                 getLink: (item) => `/boards/${item.id}`,
+              },
+              {
+                label: 'Sharepics',
+                items: sharedContent.canvases,
+                contentType: 'collaborative_documents',
+                icon: HiOutlinePhotograph,
+                getLink: (item) => `/studio/canvas/${item.id}`,
+                variant: 'thumbnail',
+              },
+              {
+                label: 'Sharepic-Vorlagen',
+                items: sharedContent.canvasTemplates,
+                contentType: 'canvas_template',
+                icon: HiOutlinePhotograph,
+                variant: 'thumbnail',
+                cloneOnOpen: true,
               },
               {
                 label: 'Grüneratoren',
@@ -546,6 +590,7 @@ const GroupInfoSection = memo(
                 {sections.map((section) => {
                   if (section.items.length === 0) return null;
                   const ContentIcon = section.icon;
+                  const isThumbnailVariant = section.variant === 'thumbnail';
                   return (
                     <div key={section.label}>
                       <SectionHeader size="sm" title={section.label} />
@@ -553,6 +598,81 @@ const GroupInfoSection = memo(
                         {section.items.map((item) => {
                           const title = item.title || item.name || 'Ohne Titel';
                           const href = section.getLink?.(item);
+
+                          if (isThumbnailVariant) {
+                            const thumbnailUrl = item.thumbnail_url ?? null;
+                            const isCloningThis =
+                              cloneTemplate.isPending &&
+                              cloneTemplate.variables === String(item.id);
+                            const isCloning = isCloningThis;
+                            const cardInner = (
+                              <>
+                                <div className="aspect-[4/3] bg-grey-100 dark:bg-grey-800 flex items-center justify-center overflow-hidden">
+                                  {thumbnailUrl ? (
+                                    <img
+                                      src={thumbnailUrl}
+                                      alt={title}
+                                      loading="lazy"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <ContentIcon className="size-8 text-grey-400" />
+                                  )}
+                                </div>
+                                <div className="p-sm">
+                                  <p className="text-sm font-medium text-foreground truncate m-0">
+                                    {title}
+                                  </p>
+                                  {item.shared_by_name && (
+                                    <p className="text-xs text-grey-500 truncate mt-xxs m-0">
+                                      Geteilt von {item.shared_by_name}
+                                    </p>
+                                  )}
+                                  {section.cloneOnOpen && (
+                                    <p className="text-[10px] text-primary-600 mt-xxs m-0">
+                                      {isCloning ? 'Vorlage wird geöffnet...' : 'Klicken um Kopie zu erstellen'}
+                                    </p>
+                                  )}
+                                </div>
+                              </>
+                            );
+                            return (
+                              <div
+                                key={item.id}
+                                className="group relative flex flex-col rounded-md border border-grey-200 dark:border-grey-700 bg-background overflow-hidden transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600"
+                              >
+                                {section.cloneOnOpen ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCloneTemplate(String(item.id))}
+                                    disabled={cloneTemplate.isPending}
+                                    className="flex flex-col text-left bg-transparent border-none p-0 m-0 cursor-pointer text-foreground disabled:opacity-60 disabled:cursor-wait"
+                                  >
+                                    {cardInner}
+                                  </button>
+                                ) : href ? (
+                                  <a href={href} className="flex flex-col no-underline text-foreground">
+                                    {cardInner}
+                                  </a>
+                                ) : (
+                                  <div className="flex flex-col">{cardInner}</div>
+                                )}
+                                {data?.isAdmin && onUnshareContent && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onUnshareContent(String(item.id), section.contentType)
+                                    }
+                                    className="absolute top-1 right-1 p-1 text-grey-400 hover:text-red-500 bg-background/80 dark:bg-background/80 backdrop-blur-sm transition-colors border-none cursor-pointer rounded opacity-0 group-hover:opacity-100"
+                                    aria-label="Aus Gruppe entfernen"
+                                  >
+                                    <HiOutlineTrash size={16} />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          }
+
                           const content = (
                             <>
                               <ContentIcon className="size-5 text-primary-600 dark:text-primary-400 shrink-0" />

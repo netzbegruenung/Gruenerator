@@ -1,7 +1,7 @@
 'use client';
 
 import type { ChatApiClient } from '../context/ChatContext';
-import type { unstable_RemoteThreadListAdapter as RemoteThreadListAdapter } from '@assistant-ui/react';
+import type { RemoteThreadListAdapter } from '@assistant-ui/react';
 import { createAssistantStream } from 'assistant-stream';
 import { useAgentStore } from '../stores/chatStore';
 
@@ -90,21 +90,29 @@ export function createGrueneratorThreadListAdapter(
           }
         }
 
-        const apiEntries = cachedThreads.map((t) => ({
-          remoteId: t.id,
-          status: (t.status === 'archived' ? 'archived' : 'regular') as 'regular' | 'archived',
-          title: t.title ?? undefined,
-          externalId: undefined as string | undefined,
-          _updatedAt: new Date(t.updatedAt).getTime(),
-        }));
+        const apiEntries = cachedThreads.map((t) => {
+          const updatedAt = new Date(t.updatedAt).getTime();
+          return {
+            remoteId: t.id,
+            status: (t.status === 'archived' ? 'archived' : 'regular') as 'regular' | 'archived',
+            title: t.title ?? undefined,
+            externalId: undefined as string | undefined,
+            custom: { updatedAt } as Record<string, unknown>,
+            _updatedAt: updatedAt,
+          };
+        });
 
-        const externalEntries = external.map((e) => ({
-          remoteId: e.remoteId,
-          status: 'regular' as const,
-          title: e.title,
-          externalId: e.externalId,
-          _updatedAt: new Date(e.updatedAt).getTime(),
-        }));
+        const externalEntries = external.map((e) => {
+          const updatedAt = new Date(e.updatedAt).getTime();
+          return {
+            remoteId: e.remoteId,
+            status: 'regular' as const,
+            title: e.title,
+            externalId: e.externalId,
+            custom: { updatedAt } as Record<string, unknown>,
+            _updatedAt: updatedAt,
+          };
+        });
 
         const all = [...apiEntries, ...externalEntries].sort((a, b) => b._updatedAt - a._updatedAt);
 
@@ -155,6 +163,9 @@ export function createGrueneratorThreadListAdapter(
     async rename(remoteId: string, title: string) {
       if (isExternal(remoteId)) return;
       await apiClient.patch('/api/chat-service/threads', { threadId: remoteId, title });
+      if (useAgentStore.getState().currentThreadId === remoteId) {
+        useAgentStore.getState().setCurrentThreadTitle(title);
+      }
     },
 
     async archive(remoteId: string) {
@@ -200,6 +211,8 @@ export function createGrueneratorThreadListAdapter(
         useAgentStore.getState().setThreadMode(threadType);
       }
 
+      useAgentStore.getState().setCurrentThreadTitle(thread.title ?? null);
+
       return {
         remoteId: thread.id,
         status: (thread.status === 'archived' ? 'archived' : 'regular') as 'regular' | 'archived',
@@ -238,6 +251,10 @@ export function createGrueneratorThreadListAdapter(
           title = title.slice(0, 47) + '...';
         }
         controller.appendText(title);
+
+        if (useAgentStore.getState().currentThreadId === remoteId) {
+          useAgentStore.getState().setCurrentThreadTitle(title);
+        }
 
         apiClient
           .patch('/api/chat-service/threads', { threadId: remoteId, title })

@@ -56,11 +56,6 @@ const NOTIFICATION_TYPES: Record<
     description: 'Bei Aufgaben-Updates',
     icon: 'grid-outline',
   },
-  group_activity: {
-    label: 'Gruppenaktivität',
-    description: 'Aktivität in Gruppen',
-    icon: 'people-outline',
-  },
   group_member_joined: {
     label: 'Neue Mitglieder',
     description: 'Neue Gruppenmitglieder',
@@ -81,11 +76,6 @@ const NOTIFICATION_TYPES: Record<
     description: 'Wenn Gruppe aufgelöst wird',
     icon: 'trash-outline',
   },
-  wolke_setup: {
-    label: 'Wolke verbunden',
-    description: 'Bei Wolke-Einrichtung',
-    icon: 'cloud-outline',
-  },
 };
 
 const GROUPS = [
@@ -98,15 +88,8 @@ const GROUPS = [
   {
     key: 'groups',
     title: 'Gruppen',
-    types: [
-      'group_activity',
-      'group_member_joined',
-      'group_role_changed',
-      'group_content_shared',
-      'group_deleted',
-    ],
+    types: ['group_member_joined', 'group_role_changed', 'group_content_shared', 'group_deleted'],
   },
-  { key: 'system', title: 'System', types: ['wolke_setup'] },
 ];
 
 export default function NotificationSettingsScreen() {

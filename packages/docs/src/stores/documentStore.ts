@@ -22,6 +22,11 @@ export interface Document {
   creator_name?: string;
   last_editor_name?: string;
   group_shares?: Array<{ group_id: string; group_name: string }>;
+  wolke_share_link_id?: string | null;
+  wolke_file_path?: string | null;
+  wolke_etag?: string | null;
+  wolke_live_sync?: boolean | null;
+  last_synced_at?: string | null;
 }
 
 interface DocumentStore {

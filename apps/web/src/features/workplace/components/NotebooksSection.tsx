@@ -1,6 +1,5 @@
 import { Dialog, DialogContent, DialogTitle, SectionHeader } from '@gruenerator/ui';
 import React, { memo, useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import ToolGrid from '../../../components/common/ToolGrid';
 import { useAuthStore } from '../../../stores/authStore';
@@ -18,8 +17,8 @@ import type { NotebookCollection } from '../../../types/notebook';
 const INITIAL_COUNT = 5;
 
 const NotebooksSection: React.FC = memo(() => {
-  const navigate = useNavigate();
   const [showEditor, setShowEditor] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
 
@@ -38,7 +37,7 @@ const NotebooksSection: React.FC = memo(() => {
             ...getNotebooksByCategory('weitere'),
           ]
       )
-        .slice(0, INITIAL_COUNT)
+        .slice(0, showAll ? undefined : INITIAL_COUNT)
         .map((nb) => ({
           id: nb.id,
           title: nb.title.replace(/^Frag\s+/i, ''),
@@ -46,7 +45,7 @@ const NotebooksSection: React.FC = memo(() => {
           path: nb.path,
           icon: nb.icon,
         })),
-    [isAustrian]
+    [isAustrian, showAll]
   );
 
   const userTools: ToolEntry[] = useMemo(
@@ -113,15 +112,18 @@ const NotebooksSection: React.FC = memo(() => {
       {SYSTEM_NOTEBOOKS.length > INITIAL_COUNT && (
         <button
           type="button"
-          onClick={() => navigate('/recherche')}
+          onClick={() => setShowAll((v) => !v)}
           className="mt-sm text-sm text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300 cursor-pointer bg-transparent border-none transition-colors"
         >
-          Weitere Notebooks
+          {showAll ? 'Weniger anzeigen' : 'Weitere Notebooks'}
         </button>
       )}
 
       <Dialog open={showEditor} onOpenChange={(open) => !open && handleCancel()}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="sm:max-w-[700px] w-[calc(100%-1rem)] max-h-[90dvh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
+          aria-describedby={undefined}
+        >
           <DialogTitle className="sr-only">Notebook erstellen</DialogTitle>
           <NotebookEditor
             onSave={handleSave}

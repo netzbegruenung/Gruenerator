@@ -30,13 +30,11 @@ const DEFAULT_CHANNEL_PREFERENCES: Record<NotificationType, ChannelPreferences> 
   board_comment_added: { email: false, push: true, in_app: true },
   board_comment_reply: { email: false, push: true, in_app: true },
   board_user_mentioned: { email: true, push: true, in_app: true },
-  group_activity: { email: true, push: true, in_app: true },
   group_member_joined: { email: true, push: true, in_app: true },
   group_member_left: { email: false, push: true, in_app: true },
   group_role_changed: { email: false, push: true, in_app: true },
   group_content_shared: { email: true, push: true, in_app: true },
   group_deleted: { email: false, push: true, in_app: true },
-  wolke_setup: { email: false, push: false, in_app: true },
   transfer_downloaded: { email: false, push: true, in_app: true },
 };
 

@@ -20,7 +20,7 @@
  */
 
 import { HiPhotograph } from 'react-icons/hi';
-import { HiArrowUpTray } from 'react-icons/hi2';
+import { HiArrowUpTray, HiWrenchScrewdriver } from 'react-icons/hi2';
 import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import type { SidebarTab } from '../sidebar/types';
@@ -33,7 +33,7 @@ import type { SidebarTab } from '../sidebar/types';
  * Standard tab IDs used across all templates in unified mode.
  * These replace template-specific IDs like 'image-background', 'position', etc.
  */
-export type UnifiedTabId = 'background' | 'text' | 'elements' | 'uploads';
+export type UnifiedTabId = 'background' | 'text' | 'elements' | 'tools' | 'uploads';
 
 // ============================================================================
 // UNIFIED TAB DEFINITIONS
@@ -61,6 +61,12 @@ export const UNIFIED_TABS: SidebarTab[] = [
     icon: PiSquaresFourFill,
     label: 'Elemente',
     ariaLabel: 'Dekorative Elemente hinzufügen',
+  },
+  {
+    id: 'tools',
+    icon: HiWrenchScrewdriver,
+    label: 'Tools',
+    ariaLabel: 'KI-Bildwerkzeuge',
   },
   {
     id: 'uploads',
@@ -129,7 +135,13 @@ export const DREIZEILEN_EXTRA_TAB: SidebarTab = {
  * Standard visible tabs for most templates.
  * Excludes 'position' which is Dreizeilen-specific.
  */
-export const STANDARD_VISIBLE_TABS: UnifiedTabId[] = ['background', 'text', 'elements', 'uploads'];
+export const STANDARD_VISIBLE_TABS: UnifiedTabId[] = [
+  'background',
+  'text',
+  'elements',
+  'tools',
+  'uploads',
+];
 
 /**
  * Visible tabs for Dreizeilen (includes position tab).
@@ -140,6 +152,7 @@ export const DREIZEILEN_VISIBLE_TABS = [
   'position',
   'text',
   'elements',
+  'tools',
   'uploads',
 ] as const;
 
@@ -156,6 +169,7 @@ export const TAB_ORDER = {
   position: 1, // Dreizeilen-specific, inserted after background
   text: 2,
   elements: 3,
-  uploads: 4,
-  share: 5,
+  tools: 4,
+  uploads: 5,
+  share: 6,
 } as const;

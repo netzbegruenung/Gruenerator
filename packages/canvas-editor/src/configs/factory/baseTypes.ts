@@ -34,6 +34,8 @@ export interface BaseCanvasState {
   balkenInstances: BalkenInstance[];
   frameInstances: FrameInstance[];
   userImageInstances: UserImageInstance[];
+  layerOrder?: string[];
+  imageAttribution?: StockImageAttribution | null;
   [key: string]: unknown;
 }
 
@@ -122,6 +124,7 @@ export interface BaseCanvasActions {
   // Balken management
   addBalken: (mode: BalkenMode) => void;
   updateBalken: (id: string, partial: Partial<BalkenInstance>) => void;
+  setBalkenText: (id: string, index: number, text: string) => void;
   removeBalken: (id: string) => void;
 
   // Frame management

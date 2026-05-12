@@ -71,7 +71,12 @@ interface UploadInfo {
   videoUrl?: string;
 }
 
-// LoadedProject type from the shared useProjectsStore
+/**
+ * Wire shape for a loaded project. Field names match the contract's
+ * `subtitlerProjectSchema` (single source of truth in
+ * `@gruenerator/contracts/schemas/subtitler.ts`), kept here as a tight
+ * subtype so the callers don't have to widen for contract nullability.
+ */
 interface LoadedProject {
   id: string;
   user_id: string;
@@ -570,9 +575,7 @@ const SubtitlerPage = (): React.ReactElement => {
                   isExporting={
                     exportStatus === 'starting' || exportStatus === 'exporting' || isGenerating
                   }
-                  loadedProject={
-                    loadedProject as { id: string; [key: string]: unknown } | null | undefined
-                  }
+                  loadedProject={loadedProject}
                   videoMetadataFromUpload={uploadInfo.metadata ?? undefined}
                   videoFilename={uploadInfo.name ?? undefined}
                   videoSize={uploadInfo.size ?? undefined}

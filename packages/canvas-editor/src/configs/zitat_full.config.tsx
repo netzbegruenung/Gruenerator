@@ -2,35 +2,28 @@
  * Zitat Full Canvas Configuration
  * Quote sharepic with background image and gradient overlay
  *
- * Uses createImageTwoTextCanvas factory for shared infrastructure.
+ * Uses createImageTwoTextCanvas factory + Phase A/B helpers.
  */
 
-import { HiSparkles } from 'react-icons/hi';
-
-import { buildAssetCapability } from '../ai/assetCapability';
-import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
-import { createChatSection } from './commonSections';
-import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { ZITAT_CONFIG, calculateZitatLayout } from '../utils/zitatLayout';
 
-import { createImageTwoTextCanvas, type ImageTwoTextActions } from './factory';
+import {
+  createAiCapabilities,
+  createImageTwoTextCanvas,
+  createPrimaryText,
+  createSecondaryText,
+  fromLayout,
+  wrapWithAi,
+  type ImageTwoTextActions,
+  type ImageTwoTextState,
+} from './factory';
 
-import type { TemplateAiCapabilities } from '../ai/types';
-import type { ImageTwoTextState } from './factory';
-import type { CanvasAiSnapshot } from '@gruenerator/contracts';
-import type {
-  LayoutResult,
-  TextElementConfig,
-  RectElementConfig,
-  ImageElementConfig,
-} from './types';
+import type { ImageElementConfig, LayoutResult } from './types';
 
-// ============================================================================
-// LAYOUT CALCULATOR
-// ============================================================================
+type ZitatState = ImageTwoTextState<'quote' | 'name'>;
 
-const calculateLayout = (state: ImageTwoTextState): LayoutResult => {
-  const quote = (state.quote as string) || '';
+const calculateLayout = (state: ZitatState): LayoutResult => {
+  const quote = state.quote || '';
   const fontSize = state.customPrimaryFontSize ?? ZITAT_CONFIG.quote.fontSize;
   const layout = calculateZitatLayout(quote, fontSize);
 
@@ -57,30 +50,14 @@ const calculateLayout = (state: ImageTwoTextState): LayoutResult => {
   };
 };
 
-// ============================================================================
-// CUSTOM ELEMENTS
-// ============================================================================
-
-const gradientOverlay: RectElementConfig<ImageTwoTextState> = {
-  id: 'gradient-overlay',
-  type: 'rect',
-  x: 0,
-  y: 0,
-  order: 1,
-  width: ZITAT_CONFIG.canvas.width,
-  height: ZITAT_CONFIG.canvas.height,
-  fill: `rgba(0,0,0,${ZITAT_CONFIG.gradient.bottomOpacity})`,
-  listening: false,
-};
-
-const quoteMarkElement: ImageElementConfig<ImageTwoTextState> = {
+const quoteMarkElement: ImageElementConfig<ZitatState> = {
   id: 'quote-mark',
   type: 'image',
-  x: (_s, l) => (l['quote-mark'] as { x?: number })?.x ?? ZITAT_CONFIG.quotationMark.x,
-  y: (_s, l) => (l['quote-mark'] as { y?: number })?.y ?? ZITAT_CONFIG.quotationMark.y,
+  x: fromLayout('quote-mark', 'x', ZITAT_CONFIG.quotationMark.x),
+  y: fromLayout('quote-mark', 'y', ZITAT_CONFIG.quotationMark.y),
   order: 2,
-  width: (_s, l) => (l['quote-mark'] as { width?: number })?.width ?? 100,
-  height: (_s, l) => (l['quote-mark'] as { height?: number })?.height ?? 100,
+  width: fromLayout('quote-mark', 'width', 100),
+  height: fromLayout('quote-mark', 'height', 100),
   src: ZITAT_CONFIG.quotationMark.src,
   listening: true,
   draggable: true,
@@ -88,152 +65,68 @@ const quoteMarkElement: ImageElementConfig<ImageTwoTextState> = {
   opacityStateKey: 'quoteMarkOpacity',
 };
 
-const quoteTextElement: TextElementConfig<ImageTwoTextState> = {
+const quoteTextElement = createPrimaryText<ZitatState>({
   id: 'quote-text',
-  type: 'text',
-  x: (_s, l) => (l['quote-text'] as { x?: number })?.x ?? ZITAT_CONFIG.quote.x,
-  y: (_s, l) => (l['quote-text'] as { y?: number })?.y ?? 800,
-  order: 3,
   textKey: 'quote',
+  order: 3,
   width: ZITAT_CONFIG.quote.maxWidth,
-  fontSize: (_s, l) =>
-    (l['quote-text'] as { fontSize?: number })?.fontSize ?? ZITAT_CONFIG.quote.fontSize,
-  fontFamily: `${ZITAT_CONFIG.quote.fontFamily}, Arial, sans-serif`,
+  fontFamily: ZITAT_CONFIG.quote.fontFamily,
   fontStyle: ZITAT_CONFIG.quote.fontStyle,
-  align: 'left',
   lineHeight: ZITAT_CONFIG.quote.lineHeightRatio,
-  wrap: 'word',
-  padding: 0,
-  editable: true,
-  draggable: true,
-  fontSizeStateKey: 'customPrimaryFontSize',
-  opacityStateKey: 'primaryOpacity',
-  fill: (state) => (state.primaryColor as string) ?? ZITAT_CONFIG.quote.color,
-  fillStateKey: 'primaryColor',
-};
+  defaultColor: ZITAT_CONFIG.quote.color,
+  layoutFallback: { x: ZITAT_CONFIG.quote.x, y: 800, fontSize: ZITAT_CONFIG.quote.fontSize },
+});
 
-const nameTextElement: TextElementConfig<ImageTwoTextState> = {
+const nameTextElement = createSecondaryText<ZitatState>({
   id: 'name-text',
-  type: 'text',
-  x: (_s, l) => (l['name-text'] as { x?: number })?.x ?? ZITAT_CONFIG.author.x,
-  y: (_s, l) => (l['name-text'] as { y?: number })?.y ?? 1000,
-  order: 4,
   textKey: 'name',
+  order: 4,
   width: ZITAT_CONFIG.quote.maxWidth,
-  fontSize: (_s, l) => (l['name-text'] as { fontSize?: number })?.fontSize ?? 40,
-  fontFamily: `${ZITAT_CONFIG.author.fontFamily}, Arial, sans-serif`,
+  fontFamily: ZITAT_CONFIG.author.fontFamily,
   fontStyle: ZITAT_CONFIG.author.fontStyle,
-  align: 'left',
-  padding: 0,
-  editable: true,
-  draggable: true,
-  fontSizeStateKey: 'customSecondaryFontSize',
-  opacityStateKey: 'secondaryOpacity',
-  fill: (state) => (state.secondaryColor as string) ?? ZITAT_CONFIG.author.color,
-  fillStateKey: 'secondaryColor',
-};
-
-// ============================================================================
-// CONFIG EXPORT
-// ============================================================================
+  defaultColor: ZITAT_CONFIG.author.color,
+  layoutFallback: { x: ZITAT_CONFIG.author.x, y: 1000, fontSize: 40 },
+});
 
 const baseZitatConfig = createImageTwoTextCanvas({
   id: 'zitat',
-
   canvas: {
     width: ZITAT_CONFIG.canvas.width,
     height: ZITAT_CONFIG.canvas.height,
   },
-
-  primaryField: {
-    key: 'quote',
-    label: 'Zitat',
-  },
-
-  secondaryField: {
-    key: 'name',
-    label: 'Name',
-  },
-
+  primaryField: { key: 'quote', label: 'Zitat' },
+  secondaryField: { key: 'name', label: 'Name' },
   calculateLayout,
-
-  elements: [gradientOverlay, quoteMarkElement, quoteTextElement, nameTextElement],
-
-  features: {
-    icons: true,
-    shapes: true,
-    illustrations: true,
-  },
-
+  elements: [quoteMarkElement, quoteTextElement, nameTextElement],
+  features: { icons: true, shapes: true, illustrations: true },
+  gradientOpacity: ZITAT_CONFIG.gradient.bottomOpacity,
   getCanvasText: (state) => {
-    const quote = (state.quote as string) || '';
-    const name = (state.name as string) || '';
+    const quote = state.quote || '';
+    const name = state.name || '';
     return `„${quote}"\n— ${name}`.trim();
   },
 });
 
-// ============================================================================
-// AI CAPABILITY
-// ============================================================================
-
-const zitatAiCapabilities: TemplateAiCapabilities<ImageTwoTextState, ImageTwoTextActions> = {
-  supportedOperations: [
-    'set-text',
-    'add-illustration',
-    'add-asset',
-    'update-element',
-    'remove-element',
-  ],
-
-  illustrations: buildIllustrationCapability(),
-  assets: buildAssetCapability('zitat'),
-
-  describeForAi: (state): CanvasAiSnapshot => ({
-    template: 'zitat',
-    textFields: [
-      { field: 'quote', label: 'Zitat', value: (state.quote as string) || '' },
-      { field: 'name', label: 'Name', value: (state.name as string) || '' },
-    ],
-    elementsSummary: [],
-  }),
-
-  applyOverrides: {
-    'set-text': (op, actions) => {
-      if (op.field === 'quote') {
-        actions.setPrimary?.(op.value);
-        return;
-      }
-      if (op.field === 'name') {
-        actions.setSecondary?.(op.value);
-        return;
-      }
-      throw new Error(`Zitat-Vorlage hat kein Feld "${op.field}"`);
+const zitatAiCapabilities = createAiCapabilities<ZitatState, ImageTwoTextActions>({
+  id: 'zitat',
+  errorLabel: 'Zitat',
+  fields: [
+    {
+      field: 'quote',
+      label: 'Zitat',
+      read: (s) => s.quote || '',
+      setter: (a) => a.setPrimary,
     },
-  },
-};
-
-// ============================================================================
-// FINAL CONFIG (factory result + AI overlay)
-// ============================================================================
-
-export const zitatFullConfig = {
-  ...baseZitatConfig,
-  ai: zitatAiCapabilities,
-  tabs: [
-    ...baseZitatConfig.tabs,
-    { id: 'ai' as const, icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
+    {
+      field: 'name',
+      label: 'Name',
+      read: (s) => s.name || '',
+      setter: (a) => a.setSecondary,
+    },
   ],
-  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  getVisibleTabs: (state: ImageTwoTextState, context?: { selectedElement?: string | null }) => {
-    return baseZitatConfig.getVisibleTabs?.(state, context) ?? [];
-  },
-  sections: {
-    ...baseZitatConfig.sections,
-    ai: createAiSectionRegistration('zitat', zitatAiCapabilities),
-    chat: createChatSection('zitat', zitatAiCapabilities),
-  },
-};
+});
 
-// Re-export types for backward compatibility
-export type ZitatFullState = ImageTwoTextState;
+export const zitatFullConfig = wrapWithAi(baseZitatConfig, 'zitat', zitatAiCapabilities);
+
+export type ZitatFullState = ZitatState;
 export type { ImageTwoTextActions as ZitatFullActions } from './factory';

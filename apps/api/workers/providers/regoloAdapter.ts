@@ -16,23 +16,36 @@ import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../t
 function convertMessages(
   messages: AIRequestData['messages'],
   systemPrompt?: string
-): ModelMessage[] {
+): { system: string | undefined; messages: ModelMessage[] } {
+  const systemParts: string[] = [];
+  if (systemPrompt) systemParts.push(systemPrompt);
+
   const modelMessages: ModelMessage[] = [];
 
-  if (systemPrompt) {
-    modelMessages.push({ role: 'system', content: systemPrompt });
+  if (!messages) {
+    return {
+      system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
+      messages: modelMessages,
+    };
   }
 
-  if (!messages) return modelMessages;
-
   for (const msg of messages) {
-    if (msg.role === 'system' && systemPrompt) {
+    if (msg.role === 'system') {
+      const sysContent =
+        typeof msg.content === 'string'
+          ? msg.content
+          : Array.isArray(msg.content)
+            ? (msg.content as Array<{ text?: string; content?: string }>)
+                .map((c) => c.text || c.content || '')
+                .join('\n')
+            : String(msg.content);
+      systemParts.push(sysContent);
       continue;
     }
 
     if (typeof msg.content === 'string') {
       modelMessages.push({
-        role: msg.role as 'user' | 'assistant' | 'system',
+        role: msg.role as 'user' | 'assistant',
         content: msg.content,
       });
       continue;
@@ -92,19 +105,22 @@ function convertMessages(
       const textContent = contentParts.map((c) => c.text || c.content || '').join('\n');
 
       modelMessages.push({
-        role: msg.role as 'user' | 'assistant' | 'system',
+        role: msg.role as 'user' | 'assistant',
         content: textContent,
       });
       continue;
     }
 
     modelMessages.push({
-      role: msg.role as 'user' | 'assistant' | 'system',
+      role: msg.role as 'user' | 'assistant',
       content: String(msg.content),
     });
   }
 
-  return modelMessages;
+  return {
+    system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
+    messages: modelMessages,
+  };
 }
 
 function convertTools(
@@ -140,7 +156,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
 
   const model = options.model || env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b';
 
-  const modelMessages = convertMessages(messages, systemPrompt);
+  const { system, messages: modelMessages } = convertMessages(messages, systemPrompt);
 
   const toolsPayload = ToolHandler.prepareToolsPayload(
     {
@@ -170,6 +186,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   try {
     const result = await generateText({
       model: aiModel,
+      ...(system != null && { system }),
       messages: modelMessages,
       maxOutputTokens: options.max_tokens || 4096,
       temperature: options.temperature || 0,

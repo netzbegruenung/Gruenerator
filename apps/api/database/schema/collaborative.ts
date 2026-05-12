@@ -32,6 +32,11 @@ export const collaborative_documents = pgTable('collaborative_documents', {
   share_permission: text('share_permission').default('editor'),
   share_mode: text('share_mode').default('private'),
   last_edited_at: timestamp('last_edited_at', { withTimezone: true }).defaultNow(),
+  wolke_share_link_id: text('wolke_share_link_id'),
+  wolke_file_path: text('wolke_file_path'),
+  wolke_etag: text('wolke_etag'),
+  wolke_live_sync: boolean('wolke_live_sync').default(false),
+  last_synced_at: timestamp('last_synced_at', { withTimezone: true }),
 });
 
 export const collaborative_documents_init = pgTable(

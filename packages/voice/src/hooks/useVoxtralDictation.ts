@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const TARGET_SAMPLE_RATE = 16000;
 
@@ -58,12 +58,16 @@ registerProcessor('pcm-downsample-processor', PCMDownsampleProcessor);
 
 export interface UseVoxtralDictationOptions {
   apiBaseUrl?: string;
+  /** Cumulative transcript so far. Use for replace-style consumers (textareas). */
   onTranscript?: (text: string, isFinal: boolean) => void;
+  /** Just the new text since the last delta. Use for append-style consumers (editors). */
+  onDelta?: (delta: string, isFinal: boolean) => void;
 }
 
 export function useVoxtralDictation({
   apiBaseUrl = '',
   onTranscript,
+  onDelta,
 }: UseVoxtralDictationOptions = {}) {
   const [isDictating, setIsDictating] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
@@ -72,7 +76,9 @@ export function useVoxtralDictation({
   const workletNodeRef = useRef<AudioWorkletNode | null>(null);
   const fullTextRef = useRef('');
   const onTranscriptRef = useRef(onTranscript);
+  const onDeltaRef = useRef(onDelta);
   onTranscriptRef.current = onTranscript;
+  onDeltaRef.current = onDelta;
 
   const stopAudioCapture = useCallback(() => {
     if (workletNodeRef.current) {
@@ -125,10 +131,13 @@ export function useVoxtralDictation({
   }, [stopAudioCapture]);
 
   const start = useCallback(async () => {
-    if (isDictating) return;
-
     fullTextRef.current = '';
-    const protocol = apiBaseUrl.startsWith('https') ? 'wss' : 'ws';
+    // Same-origin must follow page scheme — `ws://` from an HTTPS page throws
+    // synchronously via Mixed Content blocking.
+    const isHttps = apiBaseUrl
+      ? apiBaseUrl.startsWith('https')
+      : typeof window !== 'undefined' && window.location.protocol === 'https:';
+    const protocol = isHttps ? 'wss' : 'ws';
     const host = apiBaseUrl.replace(/^https?:\/\//, '') || window.location.host;
     const wsUrl = `${protocol}://${host}/api/voice/realtime`;
 
@@ -167,8 +176,10 @@ export function useVoxtralDictation({
           const msg = JSON.parse(e.data as string) as { type: string; text?: string };
           if (msg.type === 'text.delta' && msg.text) {
             fullTextRef.current += msg.text;
+            onDeltaRef.current?.(msg.text, false);
             onTranscriptRef.current?.(fullTextRef.current, false);
           } else if (msg.type === 'done') {
+            onDeltaRef.current?.('', true);
             onTranscriptRef.current?.(fullTextRef.current, true);
           }
         } catch {
@@ -213,7 +224,19 @@ export function useVoxtralDictation({
       }
       setIsDictating(false);
     }
-  }, [isDictating, apiBaseUrl, stopAudioCapture]);
+  }, [apiBaseUrl, stopAudioCapture]);
+
+  // Cleanup on unmount: close socket + tear down audio graph so a routed-away
+  // mid-dictation page doesn't leak the mic or fire setState on an unmounted tree.
+  useEffect(() => {
+    return () => {
+      stopAudioCapture();
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
+      }
+      wsRef.current = null;
+    };
+  }, [stopAudioCapture]);
 
   const toggle = useCallback(async () => {
     if (isDictating) return stop();

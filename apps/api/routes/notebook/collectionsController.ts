@@ -193,8 +193,8 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       return res.status(400).json({ error: 'Name is required' });
     }
 
-    if (Array.isArray(document_ids) && document_ids.length > 1) {
-      return res.status(400).json({ error: 'Currently limited to 1 document per notebook' });
+    if (Array.isArray(document_ids) && document_ids.length > 20) {
+      return res.status(400).json({ error: 'A notebook can contain at most 20 documents' });
     }
 
     let allDocumentIds: string[] = [];
@@ -334,8 +334,8 @@ router.put(
         return res.status(400).json({ error: 'Name is required' });
       }
 
-      if (Array.isArray(document_ids) && document_ids.length > 1) {
-        return res.status(400).json({ error: 'Currently limited to 1 document per notebook' });
+      if (Array.isArray(document_ids) && document_ids.length > 20) {
+        return res.status(400).json({ error: 'A notebook can contain at most 20 documents' });
       }
 
       const existingCollection = await notebookHelper.getNotebookCollection(collectionId);

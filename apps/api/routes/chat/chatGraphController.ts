@@ -98,11 +98,21 @@ const chatStreamSchema = z.object({
   textIds: z.array(z.string()).nullish(),
   documentChatIds: z.array(z.string()).nullish(),
   documentChatMode: z.boolean().nullish(),
+  attachmentContext: z.string().nullish(),
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
   docMentionIds: z.array(z.string()).nullish(),
+  currentDocument: z
+    .object({
+      id: z.string(),
+      title: z.string().nullish(),
+      markdown: z.string(),
+      selectionText: z.string().nullish(),
+    })
+    .nullish(),
   customSystemPrompt: z.string().nullish(),
   roleName: z.string().nullish(),
+  initialAssistantMessage: z.string().max(50_000).nullish(),
 });
 
 type ChatStreamBody = {
@@ -118,11 +128,19 @@ type ChatStreamBody = {
   textIds?: string[];
   documentChatIds?: string[];
   documentChatMode?: boolean;
+  attachmentContext?: string;
   defaultNotebookId?: string;
   boardIds?: string[];
   docMentionIds?: string[];
+  currentDocument?: {
+    id: string;
+    title?: string | null;
+    markdown: string;
+    selectionText?: string | null;
+  } | null;
   customSystemPrompt?: string;
   roleName?: string;
+  initialAssistantMessage?: string;
 };
 
 const chatResumeSchema = z.object({
@@ -165,11 +183,14 @@ router.post(
         textIds: rawTextIds,
         documentChatIds: rawDocumentChatIds,
         documentChatMode,
+        attachmentContext: rawClientAttachmentContext,
         defaultNotebookId: rawDefaultNotebookId,
         boardIds: rawBoardIds,
         docMentionIds: rawDocMentionIds,
+        currentDocument: rawCurrentDocument,
         customSystemPrompt: rawCustomSystemPrompt,
         roleName: rawRoleName,
+        initialAssistantMessage: rawInitialAssistantMessage,
       } = req.body;
 
       // === Validate ===
@@ -258,6 +279,21 @@ router.post(
             return;
           }
         }
+
+        // Persist the seed (Antrag / PM / Social text the user came in with)
+        // BEFORE the user message so chat_messages is ordered seed → user →
+        // assistant-reply. Only on new threads — clients must not overwrite
+        // history of an existing thread by re-sending this field.
+        if (isNewThread && rawInitialAssistantMessage) {
+          await createMessage(
+            actualThreadId,
+            'assistant',
+            rawInitialAssistantMessage,
+            { seed: true },
+            userId
+          );
+        }
+
         const userText = extractTextContent(lastUserMessage.content);
         await createMessage(
           actualThreadId,
@@ -269,10 +305,20 @@ router.post(
       }
 
       // === Process attachments ===
-      const { attachmentContext, imageAttachments, processedMeta } = await processAttachments(
-        attachments,
-        requestId
-      );
+      const {
+        attachmentContext: derivedAttachmentContext,
+        imageAttachments,
+        processedMeta,
+      } = await processAttachments(attachments, requestId);
+
+      // Merge any client-injected context (e.g. docs editor markdown + selection)
+      // with what processAttachments derived from uploaded files. Both can be
+      // present; concatenate with a separator so neither is lost.
+      const clientAttachmentContext = rawClientAttachmentContext?.trim() || undefined;
+      const attachmentContext =
+        clientAttachmentContext && derivedAttachmentContext
+          ? `${clientAttachmentContext}\n\n---\n\n${derivedAttachmentContext}`
+          : clientAttachmentContext || derivedAttachmentContext;
 
       const docAttachments = attachments?.filter((a) => !a.isImage) ?? [];
 
@@ -356,7 +402,23 @@ router.post(
             ? []
             : undefined,
         boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
-        docMentionIds: rawDocMentionIds?.length ? rawDocMentionIds : undefined,
+        // When the docs editor sends a currentDocument, also surface its id as a
+        // doc-mention so the existing modify_doc / summary intent paths activate
+        // (they key off `hasDocMentions`). Explicit @doc mentions always take
+        // precedence — we only fall back to currentDocument.id otherwise.
+        docMentionIds: rawDocMentionIds?.length
+          ? rawDocMentionIds
+          : rawCurrentDocument?.id
+            ? [rawCurrentDocument.id]
+            : undefined,
+        currentDocument: rawCurrentDocument
+          ? {
+              id: rawCurrentDocument.id,
+              title: rawCurrentDocument.title ?? null,
+              markdown: rawCurrentDocument.markdown,
+              selectionText: rawCurrentDocument.selectionText ?? null,
+            }
+          : undefined,
         userLocale: user.locale || 'de-DE',
         customSystemPrompt: rawCustomSystemPrompt,
         userInstructions,
@@ -430,6 +492,16 @@ router.post(
         });
       }
 
+      // @bildbearbeiten is an alias for image_edit intent with explicit universal
+      // style — distinct identifier so @stadtbegruenen can keep its green-edit
+      // branding while @bildbearbeiten signals free-form editing.
+      const universalEditForced = !!forcedTools?.includes('image_edit_universal');
+      if (universalEditForced) {
+        classifiedState.intent = 'image_edit';
+        forcedTool = true;
+        log.info('[ChatGraph] Intent forced to "image_edit" via @bildbearbeiten mention');
+      }
+
       if (forcedTools && forcedTools.length > 0) {
         const searchClassTools = ['research', 'web', 'search'];
         const hasSearchTool = forcedTools.some((t) => searchClassTools.includes(t));
@@ -448,11 +520,24 @@ router.post(
               ] as const);
 
         const forced = TOOL_PRIORITY.find((t) => forcedTools.includes(t));
-        if (forced) {
+        if (forced && !universalEditForced) {
           classifiedState.intent = forced;
           forcedTool = true;
           log.info(`[ChatGraph] Intent forced to "${forced}" via @tool mention`);
         }
+      }
+
+      // Resolve which FLUX edit-prompt builder imageEditNode should use.
+      // @stadtbegruenen (forcedTools includes 'image_edit') → green-urban branded;
+      // @bildbearbeiten (forcedTools includes 'image_edit_universal') → universal;
+      // auto-detected image_edit from heuristics → universal.
+      if (classifiedState.intent === 'image_edit') {
+        const greenEditMentionForced =
+          !!forcedTools?.includes('image_edit') && !universalEditForced;
+        classifiedState.imageEditStyle = greenEditMentionForced ? 'green-edit' : 'universal';
+        log.info(
+          `[ChatGraph] image_edit style resolved to "${classifiedState.imageEditStyle}" (greenEditForced=${greenEditMentionForced}, universalForced=${universalEditForced})`
+        );
       }
 
       sse.send('intent', {
@@ -606,7 +691,7 @@ router.post(
       }
 
       // === Stage 2: Search or Image Generation ===
-      const { finalState, generatedImage } = await executeIntentPipeline({
+      const { finalState, generatedImage, sharepicVariants } = await executeIntentPipeline({
         classifiedState,
         sse,
         forcedTool,
@@ -626,13 +711,25 @@ router.post(
           defaultModel: finalState.agentConfig.defaultModel,
         }),
       };
+      // Composer intents (press, social-media) are force-routed to Gemma 4
+      // regardless of the user model picker. Gemma 4 is empirically the best
+      // model for German PM and social-media craft in this codebase; both
+      // intents treat it as the contract.
+      const isComposerIntent =
+        finalState.intent === 'pressemitteilung_examples' || finalState.intent === 'examples';
+      const effectiveModelId = isComposerIntent ? 'gemma-4' : modelId;
+      if (isComposerIntent) {
+        log.info(`[Composer] Using gemma-4 override for ${finalState.intent}`);
+      }
+      const resolution = await resolveModel(agentConfigForResolve, effectiveModelId, requestId, {
+        hasImages: imageAttachments.length > 0,
+        intent: finalState.intent,
+      });
       const {
         model: aiModel,
         provider: resolvedProvider,
         modelName: resolvedModelName,
-      } = resolveModel(agentConfigForResolve, modelId, {
-        hasImages: imageAttachments.length > 0,
-      });
+      } = resolution;
       const useReasoningStream = isRegoloReasoningModel(resolvedProvider, resolvedModelName);
 
       const prunedValidMessages = pruneMessages(
@@ -651,29 +748,42 @@ router.post(
         finalSystemMessage,
         prunedValidMessages as Parameters<typeof buildMessagesForAI>[1]
       );
-      messagesForAI = injectImageAttachments(
-        messagesForAI as Parameters<typeof injectImageAttachments>[0],
-        imageAttachments,
-        requestId
-      );
+      // See chatGraphContractRouter.ts for rationale: image_edit narrates from
+      // BILDVERGLEICH text descriptions, raw image is redundant and would break
+      // non-vision models since the vision-fallback switch above is now skipped
+      // for this intent.
+      if (finalState.intent !== 'image_edit') {
+        messagesForAI = injectImageAttachments(
+          messagesForAI as Parameters<typeof injectImageAttachments>[0],
+          imageAttachments,
+          requestId
+        );
+      }
 
-      const fullText = useReasoningStream
-        ? await streamAndAccumulateWithReasoning({
-            modelName: resolvedModelName,
-            messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
-            // Reasoning models burn most tokens on <think>; ensure headroom
-            // for the actual answer that follows.
-            maxTokens: Math.max(finalState.agentConfig.params.max_tokens, 9000),
-            temperature: finalState.agentConfig.params.temperature,
-            sse,
-          })
-        : await streamAndAccumulate({
-            model: aiModel,
-            messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
-            maxTokens: finalState.agentConfig.params.max_tokens,
-            temperature: finalState.agentConfig.params.temperature,
-            sse,
-          });
+      let fullText: string | null;
+      try {
+        fullText = useReasoningStream
+          ? await streamAndAccumulateWithReasoning({
+              modelName: resolvedModelName,
+              messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
+              // Reasoning models burn most tokens on <think>; ensure headroom
+              // for the actual answer that follows.
+              maxTokens: Math.max(finalState.agentConfig.params.max_tokens, 9000),
+              temperature: finalState.agentConfig.params.temperature,
+              sse,
+            })
+          : await streamAndAccumulate({
+              model: aiModel,
+              messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
+              maxTokens: finalState.agentConfig.params.max_tokens,
+              temperature: finalState.agentConfig.params.temperature,
+              sse,
+            });
+      } finally {
+        if (resolution.releaseSlot) {
+          await resolution.releaseSlot();
+        }
+      }
 
       if (fullText === null) return; // stream errored, SSE already closed
 
@@ -688,6 +798,25 @@ router.post(
         }
       }
 
+      // === Stage 3c: Live document edit trigger (docs editor surface only) ===
+      // For edit_current_doc intent, emit a `trigger_doc_edit` SSE event with
+      // the user's prompt + selection flag. The docs-editor frontend dispatches
+      // this into BlockNote's AIExtension.invokeAI(), which runs the existing
+      // /api/docs/ai pipeline (tool calls → applyDocumentOperations → Yjs sync).
+      // ChatGraph never edits the doc itself — it just classifies and forwards.
+      if (finalState.intent === 'edit_current_doc' && rawCurrentDocument?.id) {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const hasSelection = !!rawCurrentDocument.selectionText;
+        sse.send('trigger_doc_edit', {
+          targetDocumentId: rawCurrentDocument.id,
+          userPrompt: lastUserText,
+          useSelection: hasSelection,
+        });
+        log.info(
+          `[ChatGraph] Emitted trigger_doc_edit for doc ${rawCurrentDocument.id} (selection: ${hasSelection})`
+        );
+      }
+
       // === Stage 4: Persist & complete ===
       await persistAssistantResponse({
         threadId: actualThreadId!,
@@ -696,6 +825,7 @@ router.post(
         finalState,
         classifiedState,
         generatedImage,
+        sharepicVariants,
         isNewThread,
         lastUserMessage: lastUserMessage as ModelMessage,
         processedMeta,
@@ -915,36 +1045,57 @@ router.post(
           defaultModel: finalState.agentConfig.defaultModel,
         }),
       };
+      const resumeRequestId = `resume_${threadId}_${Date.now()}`;
+      const isComposerIntentResume =
+        finalState.intent === 'pressemitteilung_examples' || finalState.intent === 'examples';
+      const effectiveResumeModelId = isComposerIntentResume ? 'gemma-4' : modelId;
+      if (isComposerIntentResume) {
+        log.info(`[Composer] Using gemma-4 override for ${finalState.intent} (resume)`);
+      }
+      const resolution2 = await resolveModel(
+        agentConfigForResolve2,
+        effectiveResumeModelId,
+        resumeRequestId,
+        {
+          hasImages: resumeImageAttachments.length > 0,
+          intent: finalState.intent,
+        }
+      );
       const {
         model: aiModel,
         provider: resolvedProvider2,
         modelName: resolvedModelName2,
-      } = resolveModel(agentConfigForResolve2, modelId, {
-        hasImages: resumeImageAttachments.length > 0,
-      });
+      } = resolution2;
       const useReasoningStream2 = isRegoloReasoningModel(resolvedProvider2, resolvedModelName2);
 
       const validMessages = requestContext.validMessages;
       const prunedValidMessages = pruneMessages(validMessages);
       const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
 
-      const fullText = useReasoningStream2
-        ? await streamAndAccumulateWithReasoning({
-            modelName: resolvedModelName2,
-            messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
-            maxTokens: Math.max(finalState.agentConfig.params.max_tokens, 9000),
-            temperature: finalState.agentConfig.params.temperature,
-            sse,
-            logPrefix: '[ChatGraph:Resume]',
-          })
-        : await streamAndAccumulate({
-            model: aiModel,
-            messages: messagesForAI,
-            maxTokens: finalState.agentConfig.params.max_tokens,
-            temperature: finalState.agentConfig.params.temperature,
-            sse,
-            logPrefix: '[ChatGraph:Resume]',
-          });
+      let fullText: string | null;
+      try {
+        fullText = useReasoningStream2
+          ? await streamAndAccumulateWithReasoning({
+              modelName: resolvedModelName2,
+              messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
+              maxTokens: Math.max(finalState.agentConfig.params.max_tokens, 9000),
+              temperature: finalState.agentConfig.params.temperature,
+              sse,
+              logPrefix: '[ChatGraph:Resume]',
+            })
+          : await streamAndAccumulate({
+              model: aiModel,
+              messages: messagesForAI,
+              maxTokens: finalState.agentConfig.params.max_tokens,
+              temperature: finalState.agentConfig.params.temperature,
+              sse,
+              logPrefix: '[ChatGraph:Resume]',
+            });
+      } finally {
+        if (resolution2.releaseSlot) {
+          await resolution2.releaseSlot();
+        }
+      }
 
       if (fullText === null) return;
 

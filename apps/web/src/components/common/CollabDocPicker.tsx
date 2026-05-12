@@ -1,5 +1,6 @@
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
-import { useState, useEffect, useMemo, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo, type ReactNode } from 'react';
 import { FiFileText, FiSearch } from 'react-icons/fi';
 
 interface CollabDoc {
@@ -15,23 +16,19 @@ interface CollabDocPickerProps {
 
 export function CollabDocPicker({ onSelect, excludeIds = [], children }: CollabDocPickerProps) {
   const [open, setOpen] = useState(false);
-  const [docs, setDocs] = useState<CollabDoc[]>([]);
-  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    if (!open) return;
-    setLoading(true);
-    fetch('/api/docs', { credentials: 'include' })
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setDocs(data.map((d: { id: string; title: string }) => ({ id: d.id, title: d.title })));
-        }
-      })
-      .catch(() => setDocs([]))
-      .finally(() => setLoading(false));
-  }, [open]);
+  const { data: docs = [], isLoading: loading } = useQuery<CollabDoc[]>({
+    queryKey: ['collab-docs'],
+    queryFn: async () => {
+      const res = await fetch('/api/docs', { credentials: 'include' });
+      if (!res.ok) return [];
+      const data: unknown = await res.json();
+      if (!Array.isArray(data)) return [];
+      return data.map((d: { id: string; title: string }) => ({ id: d.id, title: d.title }));
+    },
+    enabled: open,
+  });
 
   const excludeSet = useMemo(() => new Set(excludeIds), [excludeIds]);
 

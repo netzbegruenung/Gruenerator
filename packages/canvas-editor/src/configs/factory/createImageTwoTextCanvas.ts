@@ -10,15 +10,21 @@
  */
 
 import { HiPhotograph } from 'react-icons/hi';
-import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
+import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
-import { ImageBackgroundSection, AssetsSection, CombinedTextSection } from '../../sidebar/sections';
-import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from '../commonSections';
+import {
+  AssetsSection,
+  CombinedTextSection,
+  FrameSettingsSection,
+  ImageBackgroundSection,
+} from '../../sidebar/sections';
+import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from '../commonSections';
 import { injectFeatureProps } from '../featureInjector';
 import { getPlaceholder } from '../placeholders';
 import { createShareSection } from '../shareSection';
 
 import { createBaseActions } from './commonActions';
+import { makeSectionDefiner } from './defineSection';
 
 import type { CanvasFeatures, CanvasDimensions, IconState } from './baseTypes';
 import type { StockImageAttribution } from '../../common/imageSourceTypes';
@@ -36,8 +42,19 @@ import type { FullCanvasConfig, LayoutResult, CanvasElementConfig, AdditionalTex
 // STATE TYPE
 // ============================================================================
 
-export interface ImageTwoTextState {
-  // Text fields (dynamic keys set at config time)
+/**
+ * Fixed-shape portion of the factory state. The dynamic per-template text
+ * fields (primary/secondary) live in the `Record<TFields, string>` half
+ * of the public `ImageTwoTextState<TFields>` type below.
+ *
+ * The `[key: string]: unknown` index signature is load-bearing: the
+ * runtime element renderer accesses `state[opacityStateKey]` etc. with
+ * dynamic string keys and requires the index signature. Specialized
+ * `ImageTwoTextState<'quote' | 'name'>` narrows access for the known
+ * fields (`state.quote: string`) while leaving the index signature
+ * untouched for everything else.
+ */
+export interface ImageTwoTextStateBase {
   [key: string]: unknown;
 
   // Image background
@@ -71,6 +88,19 @@ export interface ImageTwoTextState {
   frameInstances: FrameInstance[];
   userImageInstances: UserImageInstance[];
 }
+
+/**
+ * Factory state parameterized by the template's text-field key union.
+ * Specialize at the template site (e.g. `ImageTwoTextState<'quote' | 'name'>`)
+ * to type-check `state.quote` as `string` directly — no `as string` casts
+ * needed at read sites.
+ *
+ * Default `TFields = never` makes `Record<never, string> = {}`, so the
+ * non-specialized type stays equivalent to the legacy index-signature-only
+ * shape for backward compatibility.
+ */
+export type ImageTwoTextState<TFields extends string = never> = ImageTwoTextStateBase &
+  Record<TFields, string>;
 
 // ============================================================================
 // ACTIONS TYPE
@@ -124,7 +154,10 @@ export interface ImageTwoTextActions {
 // FACTORY OPTIONS
 // ============================================================================
 
-export interface ImageTwoTextOptions {
+export interface ImageTwoTextOptions<
+  TPrimary extends string = string,
+  TSecondary extends string = string,
+> {
   /** Unique config identifier */
   id: string;
 
@@ -133,21 +166,21 @@ export interface ImageTwoTextOptions {
 
   /** Primary text field configuration */
   primaryField: {
-    key: string;
+    key: TPrimary;
     label: string;
   };
 
   /** Secondary text field configuration */
   secondaryField: {
-    key: string;
+    key: TSecondary;
     label: string;
   };
 
   /** Layout calculator */
-  calculateLayout: (state: ImageTwoTextState) => LayoutResult;
+  calculateLayout: (state: ImageTwoTextState<TPrimary | TSecondary>) => LayoutResult;
 
   /** Optional: Custom elements to add to the canvas */
-  elements?: CanvasElementConfig<ImageTwoTextState>[];
+  elements?: CanvasElementConfig<ImageTwoTextState<TPrimary | TSecondary>>[];
 
   /** Optional: Features to enable */
   features?: CanvasFeatures;
@@ -156,22 +189,23 @@ export interface ImageTwoTextOptions {
   maxPages?: number;
 
   /** Optional: Function to get text for sharing */
-  getCanvasText?: (state: ImageTwoTextState) => string;
+  getCanvasText?: (state: ImageTwoTextState<TPrimary | TSecondary>) => string;
 
   /** Optional: Gradient overlay opacity (default: none) */
   gradientOpacity?: number;
-
-  /** Optional: Custom gradient opacity state key */
-  gradientOpacityStateKey?: string;
 }
 
 // ============================================================================
 // FACTORY FUNCTION
 // ============================================================================
 
-export function createImageTwoTextCanvas(
-  options: ImageTwoTextOptions
-): FullCanvasConfig<ImageTwoTextState, ImageTwoTextActions> {
+export function createImageTwoTextCanvas<
+  const TPrimary extends string,
+  const TSecondary extends string,
+>(
+  options: ImageTwoTextOptions<TPrimary, TSecondary>
+): FullCanvasConfig<ImageTwoTextState<TPrimary | TSecondary>, ImageTwoTextActions> {
+  type State = ImageTwoTextState<TPrimary | TSecondary>;
   const {
     id,
     canvas,
@@ -183,11 +217,10 @@ export function createImageTwoTextCanvas(
     maxPages = 10,
     getCanvasText,
     gradientOpacity,
-    gradientOpacityStateKey,
   } = options;
 
   // Build base elements
-  const baseElements: CanvasElementConfig<ImageTwoTextState>[] = [
+  const baseElements: CanvasElementConfig<State>[] = [
     // Background image
     {
       id: 'background-image',
@@ -202,29 +235,34 @@ export function createImageTwoTextCanvas(
       draggable: true,
       lockedKey: 'isBackgroundLocked',
       opacityStateKey: 'backgroundImageOpacity',
+      coverFit: true,
     },
   ];
 
-  // Add gradient overlay if specified
-  if (gradientOpacity !== undefined || gradientOpacityStateKey) {
+  // Add gradient overlay if specified. The fill bakes the opacity into rgba()
+  // because RectElementConfig doesn't carry an opacityStateKey field.
+  if (gradientOpacity !== undefined) {
     baseElements.push({
       id: 'gradient-overlay',
       type: 'rect',
+      order: 1,
       x: 0,
       y: 0,
       width: canvas.width,
       height: canvas.height,
-      fill: '#000000',
+      fill: `rgba(0, 0, 0, ${gradientOpacity})`,
       listening: false,
     });
   }
 
   // Default getCanvasText if not provided
-  const defaultGetCanvasText = (state: ImageTwoTextState) => {
-    const primary = (state[primaryField.key] as string) || '';
-    const secondary = (state[secondaryField.key] as string) || '';
+  const defaultGetCanvasText = (state: State) => {
+    const primary = state[primaryField.key] || '';
+    const secondary = state[secondaryField.key] || '';
     return [primary, secondary].filter(Boolean).join('\n');
   };
+
+  const section = makeSectionDefiner<State, ImageTwoTextActions>();
 
   return {
     id,
@@ -235,10 +273,13 @@ export function createImageTwoTextCanvas(
       enabled: true,
       maxPages,
       heterogeneous: true,
+      // Cast: computed property keys widen to `string` in object literals.
+      // We know `primaryField.key` is `TPrimary` (and similarly for secondary),
+      // so the runtime shape is exactly `Record<TPrimary | TSecondary, string>`.
       defaultNewPageState: {
         [primaryField.key]: getPlaceholder(primaryField.key),
         [secondaryField.key]: getPlaceholder(secondaryField.key),
-      },
+      } as Partial<State>,
     },
 
     tabs: [
@@ -255,17 +296,24 @@ export function createImageTwoTextCanvas(
         label: 'Elemente',
         ariaLabel: 'Dekorative Elemente',
       },
+      {
+        id: 'frame-settings',
+        icon: PiFrameCornersFill,
+        label: 'Rahmen',
+        ariaLabel: 'Rahmen-Einstellungen',
+      },
+      toolsTab,
       uploadsTab,
       chatTab,
     ],
 
-    getVisibleTabs: () => ['image', 'text', 'assets', 'uploads', 'chat', 'share'],
+    getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat', 'share'],
 
     getAutoSwitchTab: (selectedElement) =>
-      selectedElement?.startsWith('frame-') ? 'assets' : null,
+      selectedElement?.startsWith('frame-') ? 'frame-settings' : null,
 
     sections: {
-      image: {
+      image: section({
         component: ImageBackgroundSection,
         propsFactory: (state, actions) => ({
           currentImageSrc: state.currentImageSrc,
@@ -282,8 +330,8 @@ export function createImageTwoTextCanvas(
           isLocked: state.isBackgroundLocked,
           onToggleLock: actions.toggleBackgroundLock,
         }),
-      },
-      text: {
+      }),
+      text: section({
         component: CombinedTextSection,
         propsFactory: (state, actions) => ({
           additionalTexts: state.additionalTexts,
@@ -292,8 +340,8 @@ export function createImageTwoTextCanvas(
           onUpdateText: actions.updateAdditionalText,
           onRemoveText: actions.removeAdditionalText,
         }),
-      },
-      assets: {
+      }),
+      assets: section({
         component: AssetsSection,
         propsFactory: (state, actions, context) => ({
           assetInstances: state.assetInstances,
@@ -302,10 +350,24 @@ export function createImageTwoTextCanvas(
           onRemoveAsset: actions.removeAsset,
           ...injectFeatureProps(state, actions, context),
         }),
-      },
-      uploads: uploadsSectionEntry,
-      chat: createChatSection(id),
-      share: createShareSection<ImageTwoTextState, ImageTwoTextActions>(
+      }),
+      'frame-settings': section({
+        component: FrameSettingsSection,
+        propsFactory: (state, actions, context) => {
+          const selectedId = context?.selectedElement ?? null;
+          const selectedFrame = selectedId
+            ? (state.frameInstances?.find((f) => f.id === selectedId) ?? null)
+            : null;
+          return {
+            selectedFrame,
+            onSetFrameImage: actions.setFrameImage,
+            onUpdateFrame: actions.updateFrame,
+            onRemoveFrame: actions.removeFrame,
+          };
+        },
+      }),
+      ...createCommonSectionEntries(id),
+      share: createShareSection<State, ImageTwoTextActions>(
         id,
         getCanvasText || defaultGetCanvasText
       ),
@@ -315,33 +377,38 @@ export function createImageTwoTextCanvas(
 
     calculateLayout,
 
-    createInitialState: (props: Record<string, unknown>): ImageTwoTextState => ({
-      // Text fields
-      [primaryField.key]: (props[primaryField.key] as string) || '',
-      [secondaryField.key]: (props[secondaryField.key] as string) || '',
-      customPrimaryFontSize: null,
-      customSecondaryFontSize: null,
+    // Cast: computed property keys ([primaryField.key], [secondaryField.key])
+    // widen to `string` in literals. The runtime shape is correct — those keys
+    // ARE `TPrimary` and `TSecondary` — but TS's literal-type widening loses
+    // that proof.
+    createInitialState: (props: Record<string, unknown>): State =>
+      ({
+        // Text fields
+        [primaryField.key]: (props[primaryField.key] as string) || '',
+        [secondaryField.key]: (props[secondaryField.key] as string) || '',
+        customPrimaryFontSize: null,
+        customSecondaryFontSize: null,
 
-      // Image background
-      currentImageSrc: (props.currentImageSrc as string) || (props.imageSrc as string) || '',
-      imageOffset: { x: 0, y: 0 },
-      imageScale: 1,
-      isBackgroundLocked: false,
+        // Image background
+        currentImageSrc: (props.currentImageSrc as string) || (props.imageSrc as string) || '',
+        imageOffset: { x: 0, y: 0 },
+        imageScale: 1,
+        isBackgroundLocked: false,
 
-      // Base state
-      assetInstances: [],
-      isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
-      selectedIcons: [],
-      iconStates: {},
-      shapeInstances: [],
-      illustrationInstances: [],
-      additionalTexts: [],
-      pillBadgeInstances: [],
-      circleBadgeInstances: [],
-      balkenInstances: [],
-      frameInstances: [],
-      userImageInstances: [],
-    }),
+        // Base state
+        assetInstances: [],
+        isDesktop: typeof window !== 'undefined' && window.innerWidth >= 900,
+        selectedIcons: [],
+        iconStates: {},
+        shapeInstances: [],
+        illustrationInstances: [],
+        additionalTexts: [],
+        pillBadgeInstances: [],
+        circleBadgeInstances: [],
+        balkenInstances: [],
+        frameInstances: [],
+        userImageInstances: [],
+      }) as State,
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
       const baseActions = createBaseActions(
@@ -362,23 +429,23 @@ export function createImageTwoTextCanvas(
 
         // Primary text field
         setPrimary: (val: string) => {
-          setState({ [primaryField.key]: val } as Partial<ImageTwoTextState>);
+          setState({ [primaryField.key]: val } as Partial<State>);
           callbacks[primaryCallbackKey]?.(val);
           debouncedSaveToHistory(getState());
         },
         handlePrimaryFontSizeChange: (size: number) => {
-          setState({ customPrimaryFontSize: size } as Partial<ImageTwoTextState>);
+          setState({ customPrimaryFontSize: size } as Partial<State>);
           debouncedSaveToHistory(getState());
         },
 
         // Secondary text field
         setSecondary: (val: string) => {
-          setState({ [secondaryField.key]: val } as Partial<ImageTwoTextState>);
+          setState({ [secondaryField.key]: val } as Partial<State>);
           callbacks[secondaryCallbackKey]?.(val);
           debouncedSaveToHistory(getState());
         },
         handleSecondaryFontSizeChange: (size: number) => {
-          setState({ customSecondaryFontSize: size } as Partial<ImageTwoTextState>);
+          setState({ customSecondaryFontSize: size } as Partial<State>);
           debouncedSaveToHistory(getState());
         },
 
@@ -387,17 +454,17 @@ export function createImageTwoTextCanvas(
           setState({
             currentImageSrc: objectUrl || '',
             backgroundImageFile: file,
-          } as Partial<ImageTwoTextState>);
+          } as Partial<State>);
           saveToHistory(getState());
         },
         setImageScale: (scale: number) => {
-          setState({ imageScale: scale } as Partial<ImageTwoTextState>);
+          setState({ imageScale: scale } as Partial<State>);
         },
         toggleBackgroundLock: () => {
           setState((prev) => ({ ...prev, isBackgroundLocked: !prev.isBackgroundLocked }));
         },
         setImageAttribution: (attribution: StockImageAttribution | null) => {
-          setState({ imageAttribution: attribution } as Partial<ImageTwoTextState>);
+          setState({ imageAttribution: attribution } as Partial<State>);
         },
       };
     },

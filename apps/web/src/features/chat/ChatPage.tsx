@@ -5,13 +5,14 @@ import {
   useAgentStore,
   type UserRole,
 } from '@gruenerator/chat';
-import { useCallback } from 'react';
+import { getSystemAgent } from '@gruenerator/shared/agents';
+import { useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
+import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
 import { useFirstName } from '@/hooks/useFirstName';
-import { useHydrateUserProfile } from '@/hooks/useHydrateUserProfile';
 
 const notebookLinks: NotebookLink[] = SYSTEM_NOTEBOOKS.map((nb) => ({
   id: nb.id,
@@ -23,8 +24,54 @@ function ChatPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
+  const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
-  useHydrateUserProfile();
+  const agentParam = searchParams.get('agent');
+  const modeParam = searchParams.get('mode');
+
+  // When the URL carries an agent or mode param, jump straight into the thread —
+  // otherwise users land on the overview/role-picker first and have no idea
+  // their click on a sidebar agent entry "did anything".
+  const effectiveViewMode =
+    agentParam ||
+    (modeParam && (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener'))
+      ? 'thread'
+      : chatViewMode;
+
+  useDocumentTitle(effectiveViewMode === 'thread' ? currentThreadTitle : null);
+
+  useEffect(() => {
+    const store = useAgentStore.getState();
+    if (agentParam) {
+      if (store.selectedAgentId !== agentParam) {
+        store.setSelectedAgent(agentParam);
+        store.setChatViewMode('thread');
+      }
+      // Per-LV PR agents (and any future agent that declares a
+      // defaultNotebookId) auto-pair their notebook so RAG and @notebook
+      // lookups align with the agent's regional identity. We always re-apply
+      // on agent change — the agent IS the source of truth here, and picking
+      // a different notebook manually after the agent is selected is an
+      // unusual flow we'd revisit only if users complain.
+      const agentMeta = getSystemAgent(agentParam);
+      if (
+        agentMeta?.defaultNotebookId &&
+        store.selectedNotebookId !== agentMeta.defaultNotebookId
+      ) {
+        store.setSelectedNotebook(agentMeta.defaultNotebookId);
+      }
+    } else if (store.selectedAgentId !== null) {
+      store.setSelectedAgent(null);
+    }
+    if (
+      modeParam &&
+      (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener') &&
+      store.threadMode !== modeParam
+    ) {
+      store.setThreadMode(modeParam);
+      store.setChatViewMode('thread');
+    }
+  }, [agentParam, modeParam]);
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
@@ -45,35 +92,24 @@ function ChatPage() {
     store.setChatViewMode('thread');
   }, []);
 
-  const agentParam = searchParams.get('agent');
-  const modeParam = searchParams.get('mode');
-  const store = useAgentStore.getState();
-  if (agentParam && store.selectedAgentId !== agentParam) {
-    store.setSelectedAgent(agentParam);
-    store.setChatViewMode('thread');
-  }
-  if (
-    modeParam &&
-    (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener') &&
-    store.threadMode !== modeParam
-  ) {
-    store.setThreadMode(modeParam);
-    store.setChatViewMode('thread');
-  }
-
   return (
     <div className="flex min-h-0 h-full bg-background">
       <main className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
-        {chatViewMode === 'overview' ? (
+        {effectiveViewMode === 'overview' ? (
           <ChatOverview
             firstName={firstName}
             notebooks={notebookLinks}
             onNavigate={handleNavigate}
             onSelectNotebook={handleSelectNotebook}
             onSelectRole={handleSelectRole}
+            requireProfileHydration
           />
         ) : (
-          <GrueneratorThread onNavigate={handleNavigate} firstName={firstName} />
+          <GrueneratorThread
+            onNavigate={handleNavigate}
+            firstName={firstName}
+            requireProfileHydration
+          />
         )}
       </main>
     </div>

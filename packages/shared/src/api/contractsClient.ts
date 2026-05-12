@@ -26,8 +26,11 @@ import {
   wordpressContract,
   transferContract,
   notificationsContract,
+  emailContract,
+  modelPreferencesContract,
   adminVorlagenContract,
   authStatusContract,
+  docsContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 
@@ -131,8 +134,11 @@ const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
 const _wordpressClient = () => initClient(wordpressContract, CLIENT_OPTS);
 const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
+const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
+const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
 const _authStatusClient = () => initClient(authStatusContract, CLIENT_OPTS);
+const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -144,8 +150,11 @@ export interface ContractsClient {
   wordpress: ReturnType<typeof _wordpressClient>;
   transfer: ReturnType<typeof _transferClient>;
   notifications: ReturnType<typeof _notificationsClient>;
+  email: ReturnType<typeof _emailClient>;
+  modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
   authStatus: ReturnType<typeof _authStatusClient>;
+  docs: ReturnType<typeof _docsClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -174,8 +183,11 @@ export function getContractsClient(): ContractsClient {
     wordpress: _wordpressClient(),
     transfer: _transferClient(),
     notifications: _notificationsClient(),
+    email: _emailClient(),
+    modelPreferences: _modelPreferencesClient(),
     adminVorlagen: _adminVorlagenClient(),
     authStatus: _authStatusClient(),
+    docs: _docsClient(),
   };
 
   return _client;

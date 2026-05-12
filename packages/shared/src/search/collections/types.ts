@@ -4,21 +4,29 @@
  * Shared type definitions for vector search collections.
  */
 
+import type { FilterableFieldName, ValueLabelsFor } from './landesverbandSources.js';
+
 /**
  * Type of field filter (how the field should be queried)
  */
 export type FilterFieldType = 'keyword' | 'text' | 'numeric' | 'boolean' | 'date_range';
 
 /**
- * Configuration for a filterable field within a collection
+ * Configuration for a filterable field within a collection.
+ *
+ * The optional `F` generic ties the config to a specific filterable field name
+ * from the `FilterableFieldName` registry, which in turn locks `valueLabels`
+ * keys via `ValueLabelsFor<F>`. Default `F = FilterableFieldName` keeps the
+ * shape loose enough for existing call sites; opt in to per-field narrowing
+ * via `satisfies FilterFieldConfig<'source_id'>` at the declaration.
  */
-export interface FilterFieldConfig {
+export interface FilterFieldConfig<F extends FilterableFieldName = FilterableFieldName> {
   /** Human-readable label (in German) */
   label: string;
   /** How this field should be filtered */
   type: FilterFieldType;
   /** Optional mapping of field values to human-readable display names */
-  valueLabels?: Record<string, string>;
+  valueLabels?: ValueLabelsFor<F>;
   /** Optional description for documentation */
   description?: string;
 }
@@ -33,8 +41,14 @@ export interface CollectionConfig {
   displayName: string;
   /** Description of what this collection contains */
   description: string;
-  /** Map of field names to their filter configurations */
-  filterableFields: Record<string, FilterFieldConfig>;
+  /**
+   * Map of filterable field names to their filter configurations.
+   *
+   * Mapped type `{ [F in FilterableFieldName]?: FilterFieldConfig<F> }` ensures
+   * (a) only registry-known field names are accepted as keys, and (b) the value
+   * at each key narrows its own `valueLabels` keys via `ValueLabelsFor<F>`.
+   */
+  filterableFields: { [F in FilterableFieldName]?: FilterFieldConfig<F> };
   /** Default search mode for this collection */
   defaultSearchMode?: 'hybrid' | 'vector' | 'text';
   /** Whether this collection supports person detection */

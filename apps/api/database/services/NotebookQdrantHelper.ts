@@ -79,6 +79,8 @@ interface PublicAccessData {
 interface UsageLogMetadata {
   ip_address?: string | null;
   user_agent?: string | null;
+  apiKeyId?: string | null;
+  landesverband?: string | null;
 }
 
 interface BulkDeleteResult {
@@ -580,6 +582,8 @@ class NotebookQdrantHelper {
           created_at: new Date().toISOString(),
           ip_address: metadata.ip_address || null,
           user_agent: metadata.user_agent || null,
+          api_key_id: metadata.apiKeyId || null,
+          landesverband: metadata.landesverband || null,
         },
       };
 

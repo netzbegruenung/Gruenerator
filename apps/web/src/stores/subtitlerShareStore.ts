@@ -1,3 +1,5 @@
+import { type ApiErrorBody } from '@gruenerator/contracts';
+import axios from 'axios';
 import { create } from 'zustand';
 
 import apiClient from '../components/utils/apiClient';
@@ -7,6 +9,7 @@ import apiClient from '../components/utils/apiClient';
 interface CreateShareResponse {
   success: boolean;
   error?: string;
+  code?: string;
   share?: Share;
 }
 
@@ -21,11 +24,23 @@ interface DeleteShareResponse {
   error?: string;
 }
 
+/**
+ * Wire shape for a share record. The backend mixes camelCase
+ * (`shareToken`, `shareUrl`) for new payloads and snake_case
+ * (`share_token`) for legacy / list rows — both fields are tolerated until
+ * the legacy path is migrated.
+ */
 interface Share {
   share_token: string;
   shareToken?: string;
+  shareUrl?: string;
   title?: string;
-  [key: string]: unknown;
+  duration?: number | null;
+  expiresAt?: string;
+  expires_at?: string;
+  thumbnailUrl?: string | null;
+  thumbnail_path?: string | null;
+  status?: 'ready' | 'rendering' | 'failed';
 }
 
 interface SubtitlerShareState {
@@ -56,6 +71,24 @@ const initialState = {
   isCreatingShare: false,
 };
 
+interface ApiErrorParts {
+  message: string;
+  code: string | null;
+}
+
+function readAxiosError(error: unknown, fallback: string): ApiErrorParts {
+  if (axios.isAxiosError<ApiErrorBody>(error)) {
+    return {
+      message: error.response?.data?.error ?? error.message ?? fallback,
+      code: error.response?.data?.code ?? null,
+    };
+  }
+  return {
+    message: error instanceof Error ? error.message : fallback,
+    code: null,
+  };
+}
+
 export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => ({
   ...initialState,
 
@@ -73,8 +106,8 @@ export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => 
         expiresInDays,
       });
 
-      if (response.data.success) {
-        const newShare = response.data.share as Share;
+      if (response.data.success && response.data.share) {
+        const newShare = response.data.share;
         set((state) => ({
           isCreatingShare: false,
           currentShare: newShare,
@@ -85,14 +118,9 @@ export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => 
         throw new Error(response.data.error ?? 'Failed to create share');
       }
     } catch (error: unknown) {
-      const err = error as {
-        response?: { data?: { error?: string; code?: string } };
-        message?: string;
-      };
-      const errorMessage = err.response?.data?.error ?? err.message ?? 'Failed to create share';
-      const errorCode = err.response?.data?.code ?? null;
-      set({ isCreatingShare: false, error: errorMessage, errorCode });
-      throw new Error(errorMessage);
+      const { message, code } = readAxiosError(error, 'Failed to create share');
+      set({ isCreatingShare: false, error: message, errorCode: code });
+      throw new Error(message);
     }
   },
 
@@ -113,10 +141,9 @@ export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => 
         throw new Error(response.data.error ?? 'Failed to fetch shares');
       }
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string } }; message?: string };
-      const errorMessage = err.response?.data?.error ?? err.message ?? 'Failed to fetch shares';
-      set({ isLoading: false, error: errorMessage });
-      throw new Error(errorMessage);
+      const { message } = readAxiosError(error, 'Failed to fetch shares');
+      set({ isLoading: false, error: message });
+      throw new Error(message);
     }
   },
 
@@ -136,10 +163,9 @@ export const useSubtitlerShareStore = create<SubtitlerShareState>((set, get) => 
         throw new Error(response.data.error ?? 'Failed to delete share');
       }
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { error?: string } }; message?: string };
-      const errorMessage = err.response?.data?.error ?? err.message ?? 'Failed to delete share';
-      set({ error: errorMessage });
-      throw new Error(errorMessage);
+      const { message } = readAxiosError(error, 'Failed to delete share');
+      set({ error: message });
+      throw new Error(message);
     }
   },
 

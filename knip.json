@@ -10,10 +10,6 @@
       "project": ["**/*.{ts,js,mts,mjs}"],
       "ignore": ["test/**", "tests/**", "scripts/**"]
     },
-    "apps/sites": {
-      "entry": ["src/main.tsx", "vite.config.ts"],
-      "project": ["src/**/*.{ts,tsx}"]
-    },
     "apps/mobile": {
       "entry": ["app/_layout.tsx"],
       "project": ["**/*.{ts,tsx}"],

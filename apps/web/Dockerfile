@@ -25,6 +25,8 @@ COPY packages/canvas-editor/package.json ./packages/canvas-editor/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/collab/package.json ./packages/collab/
 COPY packages/wolke/package.json ./packages/wolke/
+COPY packages/sites/package.json ./packages/sites/
+COPY packages/sites-design/package.json ./packages/sites-design/
 
 COPY apps/web/package.json ./apps/web/
 
@@ -42,6 +44,8 @@ COPY packages/canvas-editor ./packages/canvas-editor
 COPY packages/ui ./packages/ui
 COPY packages/collab ./packages/collab
 COPY packages/wolke ./packages/wolke
+COPY packages/sites ./packages/sites
+COPY packages/sites-design ./packages/sites-design
 
 COPY apps/web ./apps/web
 COPY CHANGELOG.md ./

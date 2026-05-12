@@ -1,94 +1,67 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { memo } from 'react';
+import { Wrench, MessageSquare, BookOpen, Settings } from 'lucide-react';
 import {
-  Globe,
-  Wrench,
-  Share2,
-  MessageSquare,
-  BookOpen,
-  Search,
-  FileSearch,
-  BookMarked,
-  FlaskConical,
-  Settings,
-} from 'lucide-react';
-import {
+  DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
-  DropdownMenuItem,
-  DropdownMenuCheckboxItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   ResponsiveMenu,
   ResponsiveMenuSection,
   ResponsiveMenuItem,
-  ResponsiveMenuToggle,
 } from '@gruenerator/ui';
 import { composerToolbarButtonClass } from '../lib/utils';
-import { useShallow } from 'zustand/shallow';
-import { useAgentStore, type ThreadMode, type ToolKey } from '../stores/chatStore';
+import { useChatDensity } from './thread/chatDensityContext';
+import { type ThreadMode } from '../stores/chatStore';
 import { useUserProfileStore } from '../stores/userProfileStore';
 import { notebookMentionables } from '../lib/mentionables';
-import { ShareThreadDialog } from './thread/ShareThreadDialog';
+import {
+  useScopedThreadMode,
+  useScopedSelectedNotebookId,
+  useScopedCustomSystemPrompt,
+  useScopedSetThreadMode,
+  useScopedSetSelectedNotebook,
+  useScopedSetCustomSystemPrompt,
+  useScopedSetCustomRoleName,
+} from '../lib/useScopedAgentState';
 
 const MODE_CONFIG: Array<{
   mode: ThreadMode;
   label: string;
   Icon: typeof MessageSquare;
-}> = [
-  { mode: 'chat', label: 'Chat', Icon: MessageSquare },
-  { mode: 'notebook', label: 'Notebook', Icon: BookOpen },
-  { mode: 'search', label: 'Suche', Icon: Search },
-];
-
-const TOOL_CONFIG: Array<{ key: ToolKey; label: string; Icon: typeof Globe }> = [
-  { key: 'search', label: 'Dokumentensuche', Icon: FileSearch },
-  { key: 'web', label: 'Websuche', Icon: Globe },
-  { key: 'examples', label: 'Beispiele', Icon: BookMarked },
-  { key: 'research', label: 'Recherche', Icon: FlaskConical },
-];
+}> = [{ mode: 'chat', label: 'Chat', Icon: MessageSquare }];
 
 interface ToolTogglesProps {
   onNavigate?: (path: string) => void;
   firstName?: string | null;
+  insideAgent?: boolean;
 }
 
-export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: ToolTogglesProps) {
-  const {
-    enabledTools,
-    currentThreadId: threadId,
-    threadMode,
-    selectedNotebookId,
-    customSystemPrompt,
-  } = useAgentStore(
-    useShallow((s) => ({
-      enabledTools: s.enabledTools,
-      currentThreadId: s.currentThreadId,
-      threadMode: s.threadMode,
-      selectedNotebookId: s.selectedNotebookId,
-      customSystemPrompt: s.customSystemPrompt,
-    }))
-  );
-  const toggleTool = useAgentStore((s) => s.toggleTool);
-  const setThreadMode = useAgentStore((s) => s.setThreadMode);
-  const setSelectedNotebook = useAgentStore((s) => s.setSelectedNotebook);
-  const [shareOpen, setShareOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+export const ToolToggles = memo(function ToolToggles({
+  onNavigate,
+  firstName,
+  insideAgent = false,
+}: ToolTogglesProps) {
+  const isCompact = useChatDensity() === 'compact';
+  const threadMode = useScopedThreadMode();
+  const selectedNotebookId = useScopedSelectedNotebookId();
+  const customSystemPrompt = useScopedCustomSystemPrompt();
+  const setThreadMode = useScopedSetThreadMode();
+  const setSelectedNotebook = useScopedSetSelectedNotebook();
+  const setCustomSystemPrompt = useScopedSetCustomSystemPrompt();
+  const setCustomRoleName = useScopedSetCustomRoleName();
 
   const roles = useUserProfileStore((s) => s.roles);
   const hasCustomPrompt = !!customSystemPrompt;
   const hasRoles = roles.length > 0;
 
-  const ActiveModeIcon =
-    threadMode === 'eigener'
-      ? Settings
-      : (MODE_CONFIG.find((m) => m.mode === threadMode)?.Icon ?? MessageSquare);
-
-  const setCustomSystemPrompt = useAgentStore((s) => s.setCustomSystemPrompt);
-  const setCustomRoleName = useAgentStore((s) => s.setCustomRoleName);
+  const activeNotebookLabel =
+    threadMode === 'notebook'
+      ? (notebookMentionables.find((nb) => nb.identifier === selectedNotebookId)?.title ??
+        'Notebook')
+      : null;
 
   const activeRoleName =
     threadMode === 'eigener' && hasRoles
@@ -108,118 +81,119 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
       }
       return;
     }
+    if (value.startsWith('notebook:')) {
+      const id = value.slice('notebook:'.length);
+      setSelectedNotebook(id);
+      setCustomRoleName(null);
+      setThreadMode('notebook');
+      return;
+    }
     if (value !== 'eigener') {
       setCustomRoleName(null);
       setThreadMode(value as ThreadMode);
     }
   };
 
-  const desktopContent = (
+  const activeClass = 'bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300';
+
+  const rolesEntry = onNavigate ? (
+    <DropdownMenuItem onSelect={() => onNavigate('/dein-gruenerator')}>
+      <Settings className="h-3.5 w-3.5" />
+      <span className="flex-1">Rollen einrichten</span>
+    </DropdownMenuItem>
+  ) : null;
+
+  const rolesEntryMobile = onNavigate ? (
+    <ResponsiveMenuItem icon={<Settings />} onClick={() => onNavigate('/dein-gruenerator')}>
+      Rollen einrichten
+    </ResponsiveMenuItem>
+  ) : null;
+
+  const desktopContent = insideAgent ? (
+    <>{rolesEntry}</>
+  ) : (
     <>
+      {MODE_CONFIG.map(({ mode, label, Icon }) => (
+        <DropdownMenuItem
+          key={mode}
+          onSelect={() => handleModeChange(mode)}
+          className={threadMode === mode ? activeClass : ''}
+        >
+          <Icon className="h-3.5 w-3.5" />
+          {label}
+        </DropdownMenuItem>
+      ))}
+
       <DropdownMenuSub>
-        <DropdownMenuSubTrigger>
-          <ActiveModeIcon className="h-3.5 w-3.5" />
-          Modus
+        <DropdownMenuSubTrigger className={threadMode === 'notebook' ? activeClass : ''}>
+          <BookOpen className="h-3.5 w-3.5" />
+          <span className="flex-1 truncate">
+            {threadMode === 'notebook' ? activeNotebookLabel : 'Notebooks'}
+          </span>
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent>
-          <DropdownMenuRadioGroup
-            value={
-              threadMode === 'eigener' && hasRoles
-                ? `role:${roles.findIndex((r) => r.systemPrompt === customSystemPrompt)}`
-                : threadMode
-            }
-            onValueChange={handleModeChange}
-          >
-            {MODE_CONFIG.map(({ mode, label, Icon }) => (
-              <DropdownMenuRadioItem key={mode} value={mode}>
-                <Icon className="h-3.5 w-3.5" />
-                {label}
-              </DropdownMenuRadioItem>
-            ))}
-            {hasRoles ? (
-              roles.map((role, i) => (
-                <DropdownMenuRadioItem key={`role-${i}`} value={`role:${i}`} className="pr-1">
-                  <Settings className="h-3.5 w-3.5" />
-                  <span className="flex-1 truncate">{role.rolle}</span>
-                </DropdownMenuRadioItem>
-              ))
-            ) : (
-              <DropdownMenuRadioItem value="eigener" disabled={!hasCustomPrompt} className="pr-1">
-                <Settings className="h-3.5 w-3.5" />
-                <span className="flex-1">Eigener Chat</span>
-              </DropdownMenuRadioItem>
-            )}
-          </DropdownMenuRadioGroup>
-
-          {!hasRoles && !hasCustomPrompt && onNavigate && (
-            <>
-              <DropdownMenuSeparator />
-              <div className="px-2 py-1.5">
-                <button
-                  type="button"
-                  className="flex items-center gap-1 text-[11px] font-medium text-primary-600 hover:text-primary-500 transition-colors"
-                  onClick={() => onNavigate('/dein-gruenerator')}
-                >
-                  <Settings className="h-3 w-3" />
-                  Rollen einrichten
-                </button>
-              </div>
-            </>
-          )}
-
-          {threadMode === 'notebook' && (
-            <>
-              <DropdownMenuSeparator />
-              <div className="px-2 py-1">
-                <select
-                  value={selectedNotebookId}
-                  onChange={(e) => setSelectedNotebook(e.target.value)}
-                  className="w-full rounded border border-border bg-surface px-1.5 py-0.5 text-[11px] text-foreground"
-                >
-                  {notebookMentionables.map((nb) => (
-                    <option key={nb.identifier} value={nb.identifier}>
-                      {nb.avatar} {nb.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </>
-          )}
+          {notebookMentionables.map((nb) => {
+            const isActive = threadMode === 'notebook' && selectedNotebookId === nb.identifier;
+            return (
+              <DropdownMenuItem
+                key={`notebook-${nb.identifier}`}
+                onSelect={() => handleModeChange(`notebook:${nb.identifier}`)}
+                className={isActive ? activeClass : ''}
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                <span className="flex-1 truncate">{nb.title}</span>
+              </DropdownMenuItem>
+            );
+          })}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
 
-      <DropdownMenuSub>
-        <DropdownMenuSubTrigger>
-          <Wrench className="h-3.5 w-3.5" />
-          Werkzeuge
-        </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent>
-          {TOOL_CONFIG.map(({ key, label, Icon }) => (
-            <DropdownMenuCheckboxItem
-              key={key}
-              checked={enabledTools[key]}
-              onCheckedChange={() => toggleTool(key)}
+      {hasRoles ? (
+        roles.map((role, i) => {
+          const isActive = threadMode === 'eigener' && role.systemPrompt === customSystemPrompt;
+          return (
+            <DropdownMenuItem
+              key={`role-${i}`}
+              onSelect={() => handleModeChange(`role:${i}`)}
+              className={isActive ? activeClass : ''}
             >
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </DropdownMenuCheckboxItem>
-          ))}
-        </DropdownMenuSubContent>
-      </DropdownMenuSub>
+              <Settings className="h-3.5 w-3.5" />
+              <span className="flex-1 truncate">{role.rolle}</span>
+            </DropdownMenuItem>
+          );
+        })
+      ) : (
+        <DropdownMenuItem
+          disabled={!hasCustomPrompt}
+          onSelect={() => handleModeChange('eigener')}
+          className={threadMode === 'eigener' ? activeClass : ''}
+        >
+          <Settings className="h-3.5 w-3.5" />
+          <span className="flex-1">Eigener Chat</span>
+        </DropdownMenuItem>
+      )}
 
-      {threadId && (
+      {!hasRoles && !hasCustomPrompt && onNavigate && (
         <>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setShareOpen(true)}>
-            <Share2 className="h-3.5 w-3.5" />
-            Teilen
-          </DropdownMenuItem>
+          <div className="px-2 py-1.5">
+            <button
+              type="button"
+              className="flex items-center gap-1 text-[11px] font-medium text-primary-600 transition-colors hover:text-primary-500"
+              onClick={() => onNavigate('/dein-gruenerator')}
+            >
+              <Settings className="h-3 w-3" />
+              Rollen einrichten
+            </button>
+          </div>
         </>
       )}
     </>
   );
 
-  const mobileContent = (
+  const mobileContent = insideAgent ? (
+    <ResponsiveMenuSection title="Profil">{rolesEntryMobile}</ResponsiveMenuSection>
+  ) : (
     <>
       <ResponsiveMenuSection title="Modus">
         {MODE_CONFIG.map(({ mode, label, Icon }) => (
@@ -253,75 +227,51 @@ export const ToolToggles = memo(function ToolToggles({ onNavigate, firstName }: 
             {eigenerBadgeLabel}
           </ResponsiveMenuItem>
         )}
-
-        {threadMode === 'notebook' && (
-          <div className="mt-2 px-3">
-            <select
-              value={selectedNotebookId}
-              onChange={(e) => setSelectedNotebook(e.target.value)}
-              className="w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-background px-2.5 py-2 text-sm text-foreground"
-            >
-              {notebookMentionables.map((nb) => (
-                <option key={nb.identifier} value={nb.identifier}>
-                  {nb.avatar} {nb.title}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </ResponsiveMenuSection>
 
-      <ResponsiveMenuSection title="Werkzeuge">
-        {TOOL_CONFIG.map(({ key, label, Icon }) => (
-          <ResponsiveMenuToggle
-            key={key}
-            icon={<Icon />}
-            label={label}
-            checked={enabledTools[key]}
-            onCheckedChange={() => toggleTool(key)}
-          />
+      <ResponsiveMenuSection title="Notebooks">
+        {notebookMentionables.map((nb) => (
+          <ResponsiveMenuItem
+            key={`notebook-${nb.identifier}`}
+            icon={<BookOpen />}
+            active={threadMode === 'notebook' && selectedNotebookId === nb.identifier}
+            onClick={() => handleModeChange(`notebook:${nb.identifier}`)}
+          >
+            {nb.title}
+          </ResponsiveMenuItem>
         ))}
       </ResponsiveMenuSection>
-
-      {threadId && (
-        <ResponsiveMenuSection title="Teilen">
-          <ResponsiveMenuItem
-            icon={<Share2 />}
-            onClick={() => {
-              setMenuOpen(false);
-              setShareOpen(true);
-            }}
-          >
-            Unterhaltung teilen
-          </ResponsiveMenuItem>
-        </ResponsiveMenuSection>
-      )}
     </>
   );
 
-  return (
-    <>
-      <ResponsiveMenu
-        open={menuOpen}
-        onOpenChange={setMenuOpen}
-        sheetTitle="Einstellungen"
-        trigger={
-          <button type="button" className={composerToolbarButtonClass}>
-            <Wrench className="h-4 w-4" />
-            {threadMode !== 'chat' && (
-              <span className="rounded-full bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium leading-none text-primary-700 dark:bg-primary-900/30 dark:text-primary-400 max-w-24 truncate">
-                {threadMode === 'eigener'
-                  ? eigenerBadgeLabel
-                  : MODE_CONFIG.find((m) => m.mode === threadMode)?.label}
-              </span>
-            )}
-          </button>
-        }
-        desktopContent={desktopContent}
-        mobileContent={mobileContent}
-      />
+  const showModeBadge = !insideAgent && threadMode !== 'chat';
 
-      <ShareThreadDialog threadId={threadId} open={shareOpen} onOpenChange={setShareOpen} />
-    </>
+  return (
+    <ResponsiveMenu
+      sheetTitle={insideAgent ? 'Profil' : 'Modus'}
+      trigger={
+        <button
+          type="button"
+          className={`${composerToolbarButtonClass(isCompact)} ${
+            showModeBadge
+              ? 'rounded-full border border-primary-200 text-primary-700 dark:border-primary-400/30 dark:text-primary-300'
+              : ''
+          }`}
+        >
+          <Wrench className="h-4 w-4" />
+          {showModeBadge && (
+            <span className="max-w-32 truncate text-[12px] font-medium tracking-tight">
+              {threadMode === 'eigener'
+                ? eigenerBadgeLabel
+                : threadMode === 'notebook'
+                  ? activeNotebookLabel
+                  : MODE_CONFIG.find((m) => m.mode === threadMode)?.label}
+            </span>
+          )}
+        </button>
+      }
+      desktopContent={desktopContent}
+      mobileContent={mobileContent}
+    />
   );
 });

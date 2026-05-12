@@ -73,8 +73,12 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
     async onLoadDocument(data) {
       const { documentName, document } = data;
 
+      // chat-* (broadcast-only) and group-presence-* (awareness-only) rooms
+      // are not persisted server-side. chat-* still broadcasts Y updates
+      // between connected peers (used for live multi-user chat); Postgres
+      // remains the source of truth for chat messages via /api/chat-service.
       if (documentName.startsWith('chat-') || documentName.startsWith('group-presence-')) {
-        log.debug(`[Load] Skipping persistence for awareness-only room: ${documentName}`);
+        log.debug(`[Load] Skipping persistence for ephemeral room: ${documentName}`);
         return;
       }
 
@@ -118,14 +122,18 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
       }
 
       const state = Y.encodeStateAsUpdate(document);
-      log.debug(`[Store] Storing document: ${documentName}`);
+      log.info(
+        `[CanvasCollab][Store] onStoreDocument fired for ${documentName} (${state.length} bytes)`
+      );
 
       try {
         await persistence.storeDocument(documentName, state);
-        log.debug(`[Store] Document ${documentName} stored successfully`);
+        log.info(`[CanvasCollab][Store] persisted ${documentName} (${state.length} bytes)`);
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
-        log.error(`[Store] Error storing document ${documentName}: ${err.message}`);
+        log.error(
+          `[CanvasCollab][Store] FAILED to persist ${documentName}: ${err.message}`
+        );
       }
 
       void persistence.updateContentPreview(documentName, document);
@@ -146,8 +154,10 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
     async onUpgrade(_data) {},
 
     async onChange(data) {
-      const { documentName } = data;
-      log.debug(`[Change] Document ${documentName} changed`);
+      const { documentName, update, context } = data;
+      log.info(
+        `[CanvasCollab][Change] ${documentName} update arrived (${(update as Uint8Array)?.length ?? 0} bytes, readOnly: ${(context as { readOnly?: boolean })?.readOnly ?? 'unknown'})`
+      );
     },
 
     async onListen() {

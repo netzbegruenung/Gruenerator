@@ -7,12 +7,43 @@
  */
 import { z } from 'zod';
 
+// ── Enums (single source of truth for client + server) ───────────────────────
+
+/**
+ * All notification types the platform can emit. Kept in sync with the
+ * `notifications.type` text column in Postgres and the dispatcher in
+ * apps/api/services/notifications/NotificationService.ts.
+ *
+ * Adding a new type: add it here, then update
+ * apps/api/services/notifications/notificationPreferences.ts
+ * (DEFAULT_CHANNEL_PREFERENCES) and the frontend notificationConfig.
+ */
+export const notificationTypeSchema = z.enum([
+  'document_shared',
+  'document_permission_changed',
+  'document_access_revoked',
+  'board_updates',
+  'board_comment_added',
+  'board_comment_reply',
+  'board_user_mentioned',
+  'group_member_joined',
+  'group_member_left',
+  'group_role_changed',
+  'group_content_shared',
+  'group_deleted',
+  'transfer_downloaded',
+]);
+export type NotificationType = z.infer<typeof notificationTypeSchema>;
+
+export const notificationChannelSchema = z.enum(['email', 'push', 'in_app']);
+export type NotificationChannel = z.infer<typeof notificationChannelSchema>;
+
 // ── Sub-schemas ──────────────────────────────────────────────────────────────
 
 export const notificationSchema = z.object({
   id: z.string(),
   user_id: z.string(),
-  type: z.string(),
+  type: notificationTypeSchema,
   title: z.string(),
   body: z.string().nullable(),
   metadata: z.record(z.unknown()),
@@ -22,12 +53,14 @@ export const notificationSchema = z.object({
   read_at: z.string().nullable(),
   created_at: z.string(),
 });
+export type NotificationDto = z.infer<typeof notificationSchema>;
 
 export const notifChannelPreferencesSchema = z.object({
   email: z.boolean(),
   push: z.boolean(),
   in_app: z.boolean(),
 });
+export type NotifChannelPreferences = z.infer<typeof notifChannelPreferencesSchema>;
 
 export const notificationPreferencesResponseSchema = z.object({
   success: z.boolean(),

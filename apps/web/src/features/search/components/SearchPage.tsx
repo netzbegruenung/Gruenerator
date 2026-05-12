@@ -100,7 +100,7 @@ function SearchPage() {
 
   useEffect(() => {
     useAgentStore.getState().setThreadMode('search');
-    assistantRuntime.switchToNewThread();
+    void assistantRuntime.threads.switchToNewThread();
   }, [assistantRuntime]);
 
   const handleSwitchToThread = useCallback(() => {
@@ -108,7 +108,9 @@ function SearchPage() {
   }, []);
 
   if (isThreadView) {
-    return <GrueneratorThread onNavigate={navigate} firstName={firstName} />;
+    return (
+      <GrueneratorThread onNavigate={navigate} firstName={firstName} requireProfileHydration />
+    );
   }
 
   return (
@@ -128,6 +130,7 @@ function SearchPage() {
           toolbarExtra={<SearchExampleSuggestions />}
           onNavigate={navigate}
           firstName={firstName}
+          requireProfileHydration
         />
       </ThreadPrimitive.Root>
 

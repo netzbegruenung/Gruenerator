@@ -132,7 +132,9 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
   // --- Desktop: Canva-style browse/drill-down ---
   if (!isMobile) {
     return (
-      <div className={cn(SIDEBAR_SECTION, 'w-full')}>
+      <div
+        className={cn(SIDEBAR_SECTION, 'gap-md p-md max-canvas-mobile:p-sm min-w-[296px]')}
+      >
         <BrowseView search={search} {...props} />
       </div>
     );
@@ -195,6 +197,7 @@ function MobileView({
   onAddFrame,
   onRemoveFrame,
   onSetFrameImage,
+  onUpdateFrame,
 }: MobileViewProps) {
   const [formenExpanded, setFormenExpanded] = useState(false);
   const [iconsExpanded, setIconsExpanded] = useState(false);
@@ -226,7 +229,7 @@ function MobileView({
           className={cn(
             '[contain:layout_style]',
             search.hasQuery && 'min-h-[60px]',
-            'max-canvas-mobile:order-1 max-canvas-mobile:flex-1 max-canvas-mobile:max-h-[45vh] max-canvas-mobile:overflow-y-auto max-canvas-mobile:overscroll-contain',
+            'max-canvas-mobile:order-1 max-canvas-mobile:flex-1 max-canvas-mobile:max-h-[45vh] max-canvas-mobile:overflow-y-auto max-canvas-mobile:overscroll-contain scrollbar-thin',
             search.hasQuery && 'max-canvas-mobile:min-h-[80px]'
           )}
         >
@@ -381,6 +384,7 @@ function MobileView({
             onAddFrame={onAddFrame!}
             selectedFrame={selectedFrame}
             onSetFrameImage={onSetFrameImage}
+            onUpdateFrame={onUpdateFrame}
             onRemoveFrame={onRemoveFrame}
           />
         </>

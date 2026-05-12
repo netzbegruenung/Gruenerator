@@ -39,6 +39,7 @@ export type SSEEventType =
   | 'interrupt'
   | 'document_indexed'
   | 'document_created'
+  | 'trigger_doc_edit'
   | 'confirm_action'
   | 'chart_data'
   | 'memory_context'
@@ -107,6 +108,20 @@ export interface SSEEventPayloads {
     message: string;
     resultCount: number;
     results?: SearchResultPayload[];
+    /**
+     * For deep research: the rich orchestrator result (answer, citations,
+     * confidence, searchSteps, followUpQuestions). Frontend stamps this onto
+     * the research toolCall so ResearchArtifactCard renders during streaming
+     * without waiting for persistence reload.
+     */
+    researchMeta?: unknown;
+    /**
+     * For examples / pressemitteilung_examples: kind-segmented rich items
+     * matching the shapes the per-kind UI cards (PressemitteilungExamplesCard,
+     * generic ToolCallUI) read. Frontend stamps the appropriate kind list
+     * onto the tool-call's `result.examples` so the card renders mid-stream.
+     */
+    examplesResult?: { press?: unknown[]; social?: unknown[]; message?: string };
   };
   summary_start: { message: string; documentCount: number };
   summary_complete: { message: string; summaryLength: number; timeMs: number };
@@ -132,6 +147,7 @@ export interface SSEEventPayloads {
   };
   document_indexed: { documentId: string; title: string };
   document_created: { documentId: string; title: string; subtype: string; url: string };
+  trigger_doc_edit: { targetDocumentId: string; userPrompt: string; useSelection: boolean };
   interrupt: {
     interruptType: 'clarification';
     question: string;
@@ -193,10 +209,12 @@ export interface SSEEventPayloads {
  */
 export const INTENT_MESSAGES: Record<SearchIntent, string> = {
   research: 'Recherchiere im Web und in Dokumenten...',
+  compare: 'Vergleiche die referenzierten Dokumente...',
   search: 'Durchsuche Grüne Positionen und Programme...',
   // person: 'Suche Informationen zur Person...', // DISABLED: Person search not production ready
   web: 'Suche aktuelle Informationen im Web...',
   examples: 'Suche Social-Media-Beispiele...',
+  pressemitteilung_examples: 'Suche Pressemitteilungs-Vorlagen aus Landesverbänden...',
   image: 'Generiere Bild...',
   image_edit: 'Bearbeite Bild...',
   sharepic: 'Erstelle Sharepic...',
@@ -204,6 +222,7 @@ export const INTENT_MESSAGES: Record<SearchIntent, string> = {
   chart: 'Erstelle Diagramm...',
   save_as_doc: 'Erstelle Dokument aus Antwort...',
   modify_doc: 'Bearbeite Dokument...',
+  edit_current_doc: 'Bearbeite das aktuelle Dokument...',
   modify_board: 'Aktualisiere Board...',
   share_doc: 'Teile Dokument mit Gruppe...',
   direct: 'Beantworte direkt...',
@@ -287,6 +306,13 @@ export class SSEWriter {
     if (this.ended) return;
     this.ended = true;
     this.res.end();
+    // @ts-rest/express's mainReqHandler unconditionally calls
+    // res.status(...).json(...) after our handler resolves, which throws
+    // ERR_HTTP_HEADERS_SENT once SSE headers are already flushed. Neutralise
+    // the response writers so the wrapper's trailing call is a no-op.
+    const noop = (): Response => this.res;
+    this.res.json = noop;
+    this.res.send = noop;
   }
 
   /**

@@ -56,6 +56,8 @@ export async function removeBackground(
   });
 
   const config = {
+    publicPath: 'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/',
+    proxyToWorker: true,
     progress: (key: string, current: number, total: number) => {
       if (onProgress) {
         const isDownloading =

@@ -46,7 +46,12 @@ const NewItemDropdown = memo(function NewItemDropdown({
             <span className={titleClass}>Neu</span>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent side={isMobile ? 'bottom' : 'right'} align="start" sideOffset={8}>
+        <DropdownMenuContent
+          side={isMobile ? 'bottom' : 'right'}
+          align="start"
+          sideOffset={8}
+          className="bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl"
+        >
           <DropdownMenuItem
             onClick={() => {
               onChatClick();

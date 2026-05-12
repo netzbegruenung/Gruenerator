@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
+import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
 import useNotebookStore from '../features/notebook/stores/notebookStore';
 import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookChatResolver';
@@ -41,7 +42,7 @@ function ChatThreadPortal() {
 
   return createPortal(
     <div onClick={handleClick} className="contents">
-      <ChatThreadList />
+      <ChatThreadList noScroll />
     </div>,
     portalTarget
   );
@@ -57,6 +58,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const qaCollectionsLength = useNotebookStore((s) => s.qaCollections.length);
+  const { enabledModelIds } = useModelPreferences({ enabled: !!userId });
 
   // Notebook collections power @notebook mention metadata; fetch lazily when
   // an authenticated user actually needs them. React Query caches the result.
@@ -184,6 +186,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       getExternalThreads={getExternalThreads}
       onExternalThreadClick={handleExternalClick}
       activePath={location.pathname}
+      enabledModelIds={enabledModelIds}
     >
       <TooltipProvider>
         {children}

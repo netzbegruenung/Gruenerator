@@ -119,6 +119,30 @@
       "types": "./src/groups/index.ts",
       "import": "./dist/groups/index.js",
       "default": "./dist/groups/index.js"
+    },
+    "./agents": {
+      "development": "./src/agents/index.ts",
+      "types": "./src/agents/index.ts",
+      "import": "./dist/agents/index.js",
+      "default": "./dist/agents/index.js"
+    },
+    "./chat": {
+      "development": "./src/chat/index.ts",
+      "types": "./src/chat/index.ts",
+      "import": "./dist/chat/index.js",
+      "default": "./dist/chat/index.js"
+    },
+    "./models": {
+      "development": "./src/models/index.ts",
+      "types": "./src/models/index.ts",
+      "import": "./dist/models/index.js",
+      "default": "./dist/models/index.js"
+    },
+    "./yjs": {
+      "development": "./src/yjs/index.ts",
+      "types": "./src/yjs/index.ts",
+      "import": "./dist/yjs/index.js",
+      "default": "./dist/yjs/index.js"
     }
   },
   "scripts": {
@@ -130,17 +154,18 @@
   "dependencies": {
     "@gruenerator/contracts": "workspace:*",
     "@ts-rest/core": "^3.52.1",
-    "axios": "^1.15.2",
+    "axios": "^1.16.0",
     "clsx": "^2.1.1",
     "tailwind-merge": "^3.5.0",
-    "zustand": "^5.0.12"
+    "yjs": "^13.6.30",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
-    "@tanstack/react-query": "^5.100.5",
+    "@tanstack/react-query": "^5.100.9",
     "@types/react": "^19.2.14",
     "eslint": "^9.39.4",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",

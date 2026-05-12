@@ -28,6 +28,9 @@ export * from './search/index.js';
 // Share
 export * from './share/index.js';
 
+// User Templates (boards/docs/canvas templates)
+export * from './templates/index.js';
+
 // Projects
 export * from './projects/index.js';
 

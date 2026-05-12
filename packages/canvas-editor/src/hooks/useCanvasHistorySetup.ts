@@ -10,9 +10,9 @@ import { useRef, useEffect, type MutableRefObject } from 'react';
 import { useCanvasUndoRedo } from './useCanvasUndoRedo';
 
 export interface UseCanvasHistorySetupResult<T extends Record<string, unknown>> {
-  saveToHistory: (state?: Record<string, unknown>) => void;
-  debouncedSaveToHistory: (state?: Record<string, unknown>) => void;
-  saveToHistoryRef: MutableRefObject<(state?: Record<string, unknown>) => void>;
+  saveToHistory: (state?: T) => void;
+  debouncedSaveToHistory: (state?: T) => void;
+  saveToHistoryRef: MutableRefObject<(state?: T) => void>;
   collectStateRef: MutableRefObject<() => T>;
   undo: () => void;
   redo: () => void;
@@ -21,22 +21,26 @@ export interface UseCanvasHistorySetupResult<T extends Record<string, unknown>> 
 }
 
 /**
- * Sets up canvas history (undo/redo) with refs pattern for stable callbacks
+ * Sets up canvas history (undo/redo) with refs pattern for stable callbacks.
+ * The generic `T` flows through both directions: `collectState` produces it,
+ * `handleRestore` consumes it, and the returned `saveToHistory` /
+ * `debouncedSaveToHistory` accept exactly that shape — so a forgotten field
+ * surfaces as a TypeScript error at the call site rather than silently
+ * desyncing save/restore.
+ *
  * @param collectState - Function that collects current component state
  * @param handleRestore - Function that restores component state from history
  * @param debounceMs - Debounce delay for text input saves (default: 500)
  */
 export function useCanvasHistorySetup<T extends Record<string, unknown>>(
   collectState: () => T,
-  handleRestore: (state: Record<string, unknown>) => void,
+  handleRestore: (state: T) => void,
   debounceMs = 500
 ): UseCanvasHistorySetupResult<T> {
   const initialHistorySavedRef = useRef(false);
 
-  const { saveToHistory, debouncedSaveToHistory, undo, redo, canUndo, canRedo } = useCanvasUndoRedo(
-    debounceMs,
-    handleRestore
-  );
+  const { saveToHistory, debouncedSaveToHistory, undo, redo, canUndo, canRedo } =
+    useCanvasUndoRedo<T>(debounceMs, handleRestore);
 
   // Refs for stable access in callbacks without causing re-renders
   const saveToHistoryRef = useRef(saveToHistory);

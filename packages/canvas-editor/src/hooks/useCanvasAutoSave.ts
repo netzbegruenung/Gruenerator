@@ -1,7 +1,7 @@
 import { useShareStore } from '@gruenerator/shared/share';
 import { useEffect, useRef, useCallback } from 'react';
 
-import { useAutoSaveStore } from '../stores/useAutoSaveStore';
+import { useAutoSaveStore, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
 
 interface ShareMetadata {
   [key: string]: unknown;
@@ -41,11 +41,12 @@ interface CanvasAutoSaveReturn {
  */
 function buildCanvasShareMetadata(
   canvasType: string,
-  canvasState: Record<string, unknown>
+  canvasState: Record<string, unknown>,
+  hasOriginalImage: boolean
 ): ShareMetadata {
   const metadata: ShareMetadata = {
     sharepicType: canvasType,
-    hasOriginalImage: !!canvasState.currentImageSrc,
+    hasOriginalImage,
     content: {},
     styling: {},
     generatedAt: new Date().toISOString(),
@@ -70,6 +71,8 @@ function buildCanvasShareMetadata(
       sunflowerVisible: canvasState.sunflowerVisible as boolean | undefined,
       sunflowerOpacity: canvasState.sunflowerOpacity as number | undefined,
       balkenOpacity: canvasState.balkenOpacity as number | undefined,
+      currentImageSrc: canvasState.currentImageSrc as string | undefined,
+      backgroundImageOpacity: canvasState.backgroundImageOpacity as number | undefined,
       imageOffset: canvasState.imageOffset as { x: number; y: number } | undefined,
       imageScale: canvasState.imageScale as number | undefined,
       selectedIcons: canvasState.selectedIcons as string[] | undefined,
@@ -86,6 +89,8 @@ function buildCanvasShareMetadata(
     metadata.styling = {
       fontSize: canvasState.fontSize as number | undefined,
       colorScheme: canvasState.colorSchemeId as string | undefined,
+      currentImageSrc: canvasState.currentImageSrc as string | undefined,
+      backgroundImageOpacity: canvasState.backgroundImageOpacity as number | undefined,
       imageOffset: canvasState.imageOffset as { x: number; y: number } | undefined,
       imageScale: canvasState.imageScale as number | undefined,
       sunflowerPos: canvasState.sunflowerPos as { x: number; y: number } | null | undefined,
@@ -107,6 +112,8 @@ function buildCanvasShareMetadata(
     metadata.styling = {
       fontSize: canvasState.fontSize as number | undefined,
       colorScheme: canvasState.colorSchemeId as string | undefined,
+      currentImageSrc: canvasState.currentImageSrc as string | undefined,
+      backgroundImageOpacity: canvasState.backgroundImageOpacity as number | undefined,
       imageOffset: canvasState.imageOffset as { x: number; y: number } | undefined,
       imageScale: canvasState.imageScale as number | undefined,
       sunflowerPos: canvasState.sunflowerPos as { x: number; y: number } | null | undefined,
@@ -139,6 +146,14 @@ export const useCanvasAutoSave = (
   generatedImage: string | null,
   options: CanvasAutoSaveOptions
 ): CanvasAutoSaveReturn => {
+  const autoSaveStoreApi = useAutoSaveStoreApi();
+  console.log('[AutoSave][useCanvasAutoSave] render', {
+    canvasType: options.canvasType,
+    enabled: options.enabled,
+    hasGeneratedImage: !!generatedImage,
+    storeShareToken: autoSaveStoreApi.getState().autoSavedShareToken,
+    storeStatus: autoSaveStoreApi.getState().autoSaveStatus,
+  });
   // Only get action setters - no state subscriptions to avoid re-renders
   const setAutoSaveStatus = useAutoSaveStore((s) => s.setAutoSaveStatus);
   const setAutoSavedShareToken = useAutoSaveStore((s) => s.setAutoSavedShareToken);
@@ -174,34 +189,79 @@ export const useCanvasAutoSave = (
   const performAutoSave = useCallback(async (imageSrc: string) => {
     const refs = latestRefs.current;
     // Read current store state directly to avoid stale closures
-    const storeState = useAutoSaveStore.getState();
+    const storeState = autoSaveStoreApi.getState();
 
-    if (!imageSrc) return;
-    if (refs.enabled === false) return;
-    if (storeState.autoSaveStatus === 'saving') return;
-    if (storeState.lastAutoSavedImageSrc === imageSrc) return;
+    console.log('[AutoSave][performAutoSave] entry', {
+      canvasType: refs.canvasType,
+      enabled: refs.enabled,
+      hasImageSrc: !!imageSrc,
+      imageSrcLen: imageSrc?.length ?? 0,
+      currentStatus: storeState.autoSaveStatus,
+      currentToken: storeState.autoSavedShareToken,
+      lastSavedImageSame: storeState.lastAutoSavedImageSrc === imageSrc,
+    });
+
+    if (!imageSrc) {
+      console.log('[AutoSave][performAutoSave] skip: no imageSrc');
+      return;
+    }
+    if (refs.enabled === false) {
+      console.log('[AutoSave][performAutoSave] skip: enabled=false');
+      return;
+    }
+    if (storeState.autoSaveStatus === 'saving') {
+      console.log('[AutoSave][performAutoSave] skip: already saving');
+      return;
+    }
+    if (storeState.lastAutoSavedImageSrc === imageSrc) {
+      console.log('[AutoSave][performAutoSave] skip: imageSrc identical to last save (dedup)');
+      return;
+    }
 
     refs.setAutoSaveStatus('saving');
 
     try {
-      const metadata = buildCanvasShareMetadata(refs.canvasType, refs.canvasState);
       const title = `Canvas: ${refs.canvasType}`;
 
       let share;
 
-      // Convert backgroundImageFile to base64 if present
+      // Resolve the original background. Prefer the in-state Blob; if unavailable
+      // (image arrived via imageSrc URL prop), fetch the URL once. Without this
+      // fallback, sharepics created with a default background lose it on reload
+      // because hasOriginalImage flagged true but no file was ever uploaded.
       let originalImageBase64: string | undefined;
       const bgFile = refs.canvasState.backgroundImageFile as File | Blob | null | undefined;
+      const currentImageSrc = refs.canvasState.currentImageSrc as string | undefined;
       if (bgFile) {
         try {
           originalImageBase64 = await fileToBase64(bgFile);
         } catch (err) {
           console.warn('[AutoSave] Failed to convert background image to base64:', err);
         }
+      } else if (currentImageSrc) {
+        try {
+          const res = await fetch(currentImageSrc);
+          if (res.ok) {
+            const blob = await res.blob();
+            originalImageBase64 = await fileToBase64(blob);
+          }
+        } catch (err) {
+          console.warn('[AutoSave] Failed to fetch background image URL for upload:', err);
+        }
       }
+
+      const metadata = buildCanvasShareMetadata(
+        refs.canvasType,
+        refs.canvasState,
+        !!originalImageBase64
+      );
 
       // If we already have a shareToken, update the existing entry instead of creating new
       if (storeState.autoSavedShareToken) {
+        console.log('[AutoSave][performAutoSave] branch: UPDATE', {
+          shareToken: storeState.autoSavedShareToken,
+          hasOriginalImage: !!originalImageBase64,
+        });
         share = await refs.updateImageShare({
           shareToken: storeState.autoSavedShareToken,
           imageBase64: imageSrc,
@@ -210,6 +270,9 @@ export const useCanvasAutoSave = (
           originalImage: originalImageBase64,
         });
       } else {
+        console.log('[AutoSave][performAutoSave] branch: CREATE (no token in store)', {
+          hasOriginalImage: !!originalImageBase64,
+        });
         share = await refs.createImageShare({
           imageData: imageSrc,
           title,
@@ -220,22 +283,36 @@ export const useCanvasAutoSave = (
         });
       }
 
+      console.log('[AutoSave][performAutoSave] api response', {
+        gotShareToken: !!share?.shareToken,
+        shareToken: share?.shareToken ?? null,
+      });
+
       if (share?.shareToken) {
         refs.setAutoSavedShareToken(share.shareToken);
         refs.setLastAutoSavedImageSrc(imageSrc);
         refs.setAutoSaveStatus('saved');
+      } else {
+        console.warn(
+          '[AutoSave][performAutoSave] api returned no shareToken — status stays at "saving"'
+        );
       }
     } catch (error) {
-      console.error('[AutoSave] Error:', error);
+      console.error('[AutoSave][performAutoSave] error:', error);
       refs.setAutoSaveStatus('error');
     }
-  }, []);
+  }, [autoSaveStoreApi]);
 
   // Only trigger on generatedImage changes
   useEffect(() => {
+    console.log('[AutoSave][trigger-effect] generatedImage changed', {
+      hasImage: !!generatedImage,
+      imageLen: generatedImage?.length ?? 0,
+    });
     if (!generatedImage) return;
 
     const timer = setTimeout(() => {
+      console.log('[AutoSave][trigger-effect] debounce fired, calling performAutoSave');
       performAutoSave(generatedImage);
     }, 500);
 
@@ -244,8 +321,8 @@ export const useCanvasAutoSave = (
 
   // Return status by reading directly from store (no subscription = no re-renders)
   return {
-    status: useAutoSaveStore.getState().autoSaveStatus,
-    shareToken: useAutoSaveStore.getState().autoSavedShareToken,
+    status: autoSaveStoreApi.getState().autoSaveStatus,
+    shareToken: autoSaveStoreApi.getState().autoSavedShareToken,
     retry: () => performAutoSave(generatedImage || ''),
   };
 };
