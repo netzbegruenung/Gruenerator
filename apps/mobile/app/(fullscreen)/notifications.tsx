@@ -21,7 +21,6 @@ const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   document_permission_changed: 'shield-outline',
   document_access_revoked: 'lock-closed-outline',
   board_updates: 'grid-outline',
-  group_activity: 'people-outline',
   group_member_joined: 'person-add-outline',
   group_role_changed: 'swap-horizontal-outline',
   group_content_shared: 'share-outline',

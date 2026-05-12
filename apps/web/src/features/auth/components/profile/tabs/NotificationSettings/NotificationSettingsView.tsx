@@ -75,12 +75,14 @@ const NotificationSettingsView = React.memo(
 
     const handleToggle = async (
       category: string,
+      subtypes: string[] | undefined,
       channel: 'email' | 'push' | 'in_app',
       label: string,
       value: boolean
     ) => {
       try {
-        await toggleChannel(category, channel, value);
+        const keys = subtypes && subtypes.length > 0 ? subtypes : [category];
+        await Promise.all(keys.map((key) => toggleChannel(key, channel, value)));
         onSuccessMessage(
           `${label} ${CHANNEL_LABELS[channel]} ${value ? 'aktiviert' : 'deaktiviert'}.`
         );
@@ -203,7 +205,7 @@ const NotificationSettingsView = React.memo(
                               className="h-[20px] w-[40px] data-[state=checked]:bg-secondary-600 data-[state=unchecked]:bg-grey-200 dark:data-[state=unchecked]:bg-grey-700"
                               checked={channelState?.[ch] ?? true}
                               onCheckedChange={(checked: boolean) =>
-                                handleToggle(type.key, ch, type.label, checked)
+                                handleToggle(type.key, type.subtypes, ch, type.label, checked)
                               }
                               aria-label={`${type.label} ${CHANNEL_LABELS[ch]}`}
                             />
