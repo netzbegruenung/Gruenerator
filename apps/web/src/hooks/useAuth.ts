@@ -360,11 +360,20 @@ const buildE2EBypassAuthData = (): AuthData => {
  * per fetch in the queryFn body has no equivalent silent-skip path.
  */
 const applyAuthAnswer = (data: AuthData, queryClient: ReturnType<typeof useQueryClient>) => {
-  setCachedAuthState(data);
-
   const { isAuthenticated: currentIsAuthenticated, user: currentUser } = useAuthStore.getState();
 
   if (data.isAuthenticated && data.user) {
+    // Cache ONLY positive answers. A guest answer in INSTANT_AUTH_CACHE acts
+    // as `initialData` for React Query on the next page load (e.g. the
+    // post-Keycloak-callback `/workplace` mount), which puts the query into
+    // `success` state with `{isAuthenticated: false}` before any network call
+    // — and with `refetchOnMount: false` the queryFn never fires to correct it.
+    // RequireAuth then bounces synchronously to `/login?redirectTo=/workplace`,
+    // trapping the user in a redirect loop after a successful OAuth callback.
+    // The cost of one-way caching is a stale-positive flash after cross-device
+    // logout; `refetchOnMount: 'always'` on the query handles that.
+    setCachedAuthState(data);
+
     notifyAuthConfirmed();
     try {
       localStorage.removeItem(LOGIN_INTENT);
@@ -398,14 +407,18 @@ const applyAuthAnswer = (data: AuthData, queryClient: ReturnType<typeof useQuery
         });
     }
   } else {
-    // Server says guest. If we were authenticated, run the full clearAuth
-    // teardown (wipes persisted state, profile store, etc.). If we were
-    // already guest, skip — no cleanup needed.
+    // Server says guest. Wipe any positive entry from the instant-auth cache
+    // so the next page load does not seed React Query with a false positive
+    // (and, more importantly, leaves no false negative behind for the
+    // post-login `/workplace` mount to read).
+    clearCachedAuthState();
+
     if (currentIsAuthenticated) {
+      // Full teardown: clears persisted state, profile store, etc.
       useAuthStore.getState().clearAuth();
     } else {
-      // Still need to reflect the server answer into the store so
-      // `hasServerConfirmed` is freshly accurate.
+      // Reflect the server answer into the store so `hasServerConfirmed` is
+      // freshly accurate.
       useAuthStore.getState().setAuthState({ user: null, isAuthenticated: false });
     }
   }
@@ -487,7 +500,13 @@ export const useAuth = (options: AuthOptions = {}) => {
     // we want the UI to learn about it immediately, rather than waiting for
     // the next user-triggered API call to 401 and trip the redirect path.
     refetchOnWindowFocus: true,
-    refetchOnMount: false,
+    // 'always' so a fresh page load (Cmd+R, Keycloak callback redirect,
+    // cross-device logout) revalidates against the backend even when the
+    // 5-minute persisted positive cache seeds React Query via `initialData`.
+    // The combination of cache-positive-only + refetchOnMount:'always' gives
+    // us instant /workplace render on the warm path AND prompt correction
+    // when the cached state has gone stale.
+    refetchOnMount: 'always',
     refetchOnReconnect: true,
   });
 
