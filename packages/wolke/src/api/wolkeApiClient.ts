@@ -2,6 +2,8 @@ import { getGlobalApiClient } from '@gruenerator/shared/api';
 
 import {
   type ConnectionTestResult,
+  type LinkGroupShare,
+  type SharedWithMeLink,
   type ShareLink,
   type SyncStatus,
   type WolkeFileItem,
@@ -138,6 +140,80 @@ export async function syncFolder(
     return response.data;
   }
   throw new Error(response.data?.message || 'Failed to start sync');
+}
+
+// ── Group sharing ──────────────────────────────────────────────────────
+
+const CONTENT_TYPE_WOLKE = 'nextcloud_share_link' as const;
+
+interface SharedWithMeResponse {
+  success: boolean;
+  message?: string;
+  sharedWithMe?: SharedWithMeLink[];
+}
+
+interface LinkGroupSharesResponse {
+  success: boolean;
+  message?: string;
+  groups?: LinkGroupShare[];
+}
+
+interface GroupShareMutationResponse {
+  success: boolean;
+  message?: string;
+}
+
+export async function fetchSharedWithMe(): Promise<SharedWithMeLink[]> {
+  const apiClient = getGlobalApiClient();
+  const response = await apiClient.get<SharedWithMeResponse>(
+    '/nextcloud/share-links/shared-with-me'
+  );
+  if (response.data?.success) {
+    return response.data.sharedWithMe ?? [];
+  }
+  throw new Error(response.data?.message ?? 'Failed to fetch shared Wolke links');
+}
+
+export async function fetchLinkGroupShares(shareLinkId: string): Promise<LinkGroupShare[]> {
+  const apiClient = getGlobalApiClient();
+  const response = await apiClient.get<LinkGroupSharesResponse>(
+    `/nextcloud/share-links/${shareLinkId}/groups`
+  );
+  if (response.data?.success) {
+    return response.data.groups ?? [];
+  }
+  throw new Error(response.data?.message ?? 'Failed to fetch groups for share link');
+}
+
+export async function shareLinkWithGroup(shareLinkId: string, groupId: string): Promise<void> {
+  const apiClient = getGlobalApiClient();
+  const response = await apiClient.post<GroupShareMutationResponse>(
+    `/auth/groups/${groupId}/share`,
+    {
+      contentType: CONTENT_TYPE_WOLKE,
+      contentId: shareLinkId,
+      permissions: { read: true },
+    }
+  );
+  if (!response.data?.success) {
+    throw new Error(response.data?.message ?? 'Failed to share Wolke link');
+  }
+}
+
+export async function unshareLinkFromGroup(shareLinkId: string, groupId: string): Promise<void> {
+  const apiClient = getGlobalApiClient();
+  const response = await apiClient.delete<GroupShareMutationResponse>(
+    `/auth/groups/${groupId}/share`,
+    {
+      data: {
+        contentType: CONTENT_TYPE_WOLKE,
+        contentId: shareLinkId,
+      },
+    }
+  );
+  if (!response.data?.success) {
+    throw new Error(response.data?.message ?? 'Failed to unshare Wolke link');
+  }
 }
 
 export async function setAutoSync(
