@@ -13,6 +13,7 @@ export { AGENT_CATEGORY_LABELS, SKILL_CATEGORY_LABELS } from './types.js';
 
 export {
   SYSTEM_AGENTS,
+  VISIBLE_SYSTEM_AGENTS,
   DEFAULT_SYSTEM_AGENT_ID,
   getSystemAgent,
   type SystemAgentId,
