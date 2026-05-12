@@ -39,8 +39,8 @@ function ExternalThreadItem() {
     <div
       className={cn(
         'group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 transition-colors',
-        'hover:bg-primary/5',
-        isActive && 'bg-primary/10 text-primary'
+        'hover:bg-grey-100 dark:hover:bg-grey-800/60',
+        isActive && 'bg-grey-100 dark:bg-grey-800/80 font-medium'
       )}
     >
       <button
@@ -101,8 +101,8 @@ export function GrueneratorThreadListItem() {
       <ThreadListItemPrimitive.Root
         className={cn(
           'group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 transition-colors',
-          'hover:bg-primary/5',
-          'data-[active]:bg-primary/10 data-[active]:text-primary'
+          'hover:bg-grey-100 dark:hover:bg-grey-800/60',
+          'data-[active]:bg-grey-100 dark:data-[active]:bg-grey-800/80 data-[active]:font-medium'
         )}
       >
         <ThreadListItemPrimitive.Trigger
@@ -182,8 +182,8 @@ export function GrueneratorArchivedThreadListItem() {
     <ThreadListItemPrimitive.Root
       className={cn(
         'group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 transition-colors',
-        'hover:bg-primary/5 opacity-60',
-        'data-[active]:bg-primary/10 data-[active]:text-primary data-[active]:opacity-100'
+        'hover:bg-grey-100 dark:hover:bg-grey-800/60 opacity-60',
+        'data-[active]:bg-grey-100 dark:data-[active]:bg-grey-800/80 data-[active]:font-medium data-[active]:opacity-100'
       )}
     >
       <ThreadListItemPrimitive.Trigger
