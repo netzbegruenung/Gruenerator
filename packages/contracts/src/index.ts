@@ -40,6 +40,7 @@ export {
   transferContract,
   unsplashContract,
   notificationsContract,
+  emailContract,
   modelPreferencesContract,
   adminVorlagenContract,
   authStatusContract,
@@ -69,6 +70,7 @@ export * from './schemas/wordpress.js';
 export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
+export * from './schemas/email.js';
 export * from './schemas/modelPreferences.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/authStatus.js';

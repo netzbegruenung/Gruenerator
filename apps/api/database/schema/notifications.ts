@@ -1,9 +1,14 @@
+import { type NotificationType } from '@gruenerator/contracts';
 import { boolean, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const notifications = pgTable('notifications', {
   id: uuid('id').primaryKey().defaultRandom(),
   user_id: uuid('user_id').notNull(),
-  type: text('type').notNull(),
+  // The DB column is `text` for forward-compat (no DDL enum cast needed when
+  // we add new types), but the TS type is narrowed via `$type<>()` so callers
+  // get the discriminated union. The writer (NotificationService.createNotification)
+  // already constrains inputs to NotificationType.
+  type: text('type').$type<NotificationType>().notNull(),
   title: text('title').notNull(),
   body: text('body'),
   metadata: jsonb('metadata').$type<Record<string, unknown>>().notNull().default({}),
