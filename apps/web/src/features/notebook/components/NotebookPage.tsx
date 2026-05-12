@@ -409,8 +409,19 @@ export const createNotebookPage = (configId: string) => {
   return withAuthRequired(Page, { title: config.authTitle });
 };
 
-export const DynamicNotebookPage = () => {
-  const { id } = useParams<{ id: string }>();
+interface DynamicNotebookPageProps {
+  /**
+   * Optional explicit collection id. When omitted, falls back to the
+   * `:id` route param. The /notebooks/:idOrSlug route uses a different
+   * param name and routes through NotebookResolver, which must pass the
+   * resolved id in via this prop.
+   */
+  id?: string;
+}
+
+export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {}) => {
+  const { id: idFromParams } = useParams<{ id: string }>();
+  const id = idProp ?? idFromParams;
   const user = useAuthStore((s) => s.user);
   const { initDocumentSelection, getSelectedDocumentIds } = useNotebookStore();
   const { query, getQACollection } = useNotebookCollections({ isActive: true });
