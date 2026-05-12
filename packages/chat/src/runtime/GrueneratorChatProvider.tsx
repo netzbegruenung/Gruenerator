@@ -35,6 +35,7 @@ import {
   type GrueneratorAdapterConfig,
 } from './GrueneratorModelAdapter';
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
+import { AgentSwitchListener } from './AgentSwitchListener';
 import {
   createGrueneratorThreadListAdapter,
   type ExternalThreadEntry,
@@ -535,6 +536,7 @@ function GrueneratorChatRuntimeProvider({
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       <ExternalThreadProvider value={externalCtx}>
         <ThreadTitleEffect />
+        <AgentSwitchListener />
         <ChatCollaborationBridge userId={userId} userName={userName}>
           {children}
         </ChatCollaborationBridge>
