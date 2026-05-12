@@ -23,4 +23,6 @@ export const DEEP_TOOL_MAP: Record<string, string> = {
   recall_memory: 'recall_memory',
   save_memory: 'save_memory',
   search_user_content: 'search_user_content',
+  draft_structured: 'draft_structured',
+  self_review: 'self_review',
 };
