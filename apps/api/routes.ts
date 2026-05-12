@@ -9,7 +9,6 @@ import rateLimit from 'express-rate-limit';
 import authMiddleware from './middleware/authMiddleware.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
-import { mountAuthStatusContractRouter } from './routes/auth/authStatusContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
@@ -298,12 +297,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   // enforced per-handler via `checkIsAdmin` inside the contract).
   app.use('/api/auth/admin/vorlagen', requireAuth);
   mountAdminVorlagenContractRouter(app);
-  // ts-rest contract router for /api/auth/status — mounts BEFORE the legacy
-  // authRouter so the contract route matches first. NO requireAuth at the
-  // prefix: /status must respond to unauthed callers (returns
-  // { isAuthenticated: false, user: null }) so the frontend can decide
-  // whether to show the login screen.
-  mountAuthStatusContractRouter(app);
   app.use('/api/auth', authenticatedReadLimiter, authRouter);
   // ts-rest contract router for notebook collections — mounts BEFORE the
   // legacy router so contract-modeled routes match first. requireAuth is
