@@ -6,17 +6,38 @@
  * that are available to all users without requiring ownership.
  */
 
+import {
+  LV_CONTENT_TYPE_LABELS,
+  LV_SOURCE_TYPE_LABELS,
+  type CuratedListId,
+  type FilterableFieldName,
+  type LandesverbandSourceId,
+  type LandesverbandSourceType,
+  type ValueLabelsFor,
+} from '@gruenerator/shared/search';
+
 import type { QdrantFilter } from '../database/services/QdrantService/types.js';
 
 // =============================================================================
 // Type Definitions
 // =============================================================================
 
-export interface FilterableField {
-  field: string;
+/**
+ * Filterable field declaration for a system collection.
+ *
+ * Field name is constrained to the `FilterableFieldName` registry (typos at
+ * declaration sites fail compile). `valueLabels` keys are narrowed per-field
+ * via `ValueLabelsFor<F>` — `source_id` only accepts `LandesverbandSourceId`,
+ * `curated_lists` only accepts `CuratedListId`, etc. Default `F = FilterableFieldName`
+ * keeps consumer iteration (`for (const field of filterableFields)`) simple:
+ * the union of all branches has `valueLabels?: Record<string, string> | undefined`,
+ * which property-access sites can use without manual narrowing.
+ */
+export interface FilterableField<F extends FilterableFieldName = FilterableFieldName> {
+  field: F;
   label: string;
   type: 'keyword' | 'date_range';
-  valueLabels?: Record<string, string>;
+  valueLabels?: ValueLabelsFor<F>;
 }
 
 export interface DefaultFilter {
@@ -53,11 +74,29 @@ export interface SubcategoryFilters {
   region?: string | string[];
   landesverband?: string | string[];
   gremium?: string | string[];
-  source_id?: string | string[];
+  source_id?: LandesverbandSourceId | LandesverbandSourceId[];
+  source_type?: LandesverbandSourceType | LandesverbandSourceType[];
+  curated_lists?: CuratedListId | CuratedListId[];
   date_from?: string;
   date_to?: string;
-  [key: string]: string | string[] | undefined;
 }
+
+/**
+ * Keys of `SubcategoryFilters` that hold multi-value (string | string[]) match filters.
+ * Excludes the date range keys. Used by `buildSubcategoryFilter` for typed iteration.
+ */
+const MULTI_VALUE_FILTER_KEYS = [
+  'primary_category',
+  'content_type',
+  'subcategories',
+  'country',
+  'region',
+  'landesverband',
+  'gremium',
+  'source_id',
+  'source_type',
+  'curated_lists',
+] as const satisfies ReadonlyArray<keyof SubcategoryFilters>;
 
 export interface SystemCollectionObject {
   id: string;
@@ -87,6 +126,23 @@ export const DEFAULT_SEARCH_PARAMS: SearchParams = {
 // =============================================================================
 // System Collections
 // =============================================================================
+
+/** Shared "Typ" filter declaration reused across every Landesverband system collection. */
+const LV_CONTENT_TYPE_FIELD: FilterableField<'content_type'> = {
+  field: 'content_type',
+  label: 'Typ',
+  type: 'keyword',
+  valueLabels: LV_CONTENT_TYPE_LABELS,
+};
+
+/** Shared "Organ" filter declaration — only used by LVs that have both Landesverband and Fraktion. */
+const LV_SOURCE_TYPE_FIELD: FilterableField<'source_type'> = {
+  field: 'source_type',
+  label: 'Organ',
+  type: 'keyword',
+  valueLabels: LV_SOURCE_TYPE_LABELS,
+};
+
 
 export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   'grundsatz-system': {
@@ -207,7 +263,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      LV_CONTENT_TYPE_FIELD,
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -222,7 +278,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      LV_CONTENT_TYPE_FIELD,
       { field: 'primary_category', label: 'Programm', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -237,7 +293,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      LV_CONTENT_TYPE_FIELD,
+      LV_SOURCE_TYPE_FIELD,
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -252,7 +309,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      LV_CONTENT_TYPE_FIELD,
       { field: 'primary_category', label: 'Programm', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -267,17 +324,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      {
-        field: 'source_id',
-        label: 'Quelle',
-        type: 'keyword',
-        valueLabels: {
-          'berlin-lv-presse': 'LV Presse',
-          'berlin-lv-beschluesse': 'LV Beschlüsse',
-          'berlin-fraktion-presse': 'Fraktion Presse',
-          'berlin-fraktion-beschluesse': 'Fraktion Beschlüsse',
-        },
-      },
+      LV_CONTENT_TYPE_FIELD,
+      LV_SOURCE_TYPE_FIELD,
       {
         field: 'curated_lists',
         label: 'Liste',
@@ -285,7 +333,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
         valueLabels: {
           'wahlprogramm-be': 'Wahlprogramm',
         },
-      },
+      } satisfies FilterableField<'curated_lists'>,
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: ['BE', 'BE-F'] },
@@ -298,7 +346,8 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      LV_CONTENT_TYPE_FIELD,
+      LV_SOURCE_TYPE_FIELD,
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -314,7 +363,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
-      { field: 'content_type', label: 'Typ', type: 'keyword' },
+      LV_CONTENT_TYPE_FIELD,
       { field: 'primary_category', label: 'Kategorie', type: 'keyword' },
       { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
       { field: 'published_at', label: 'Datum', type: 'date_range' },
@@ -435,31 +484,19 @@ export function buildSubcategoryFilter(
     match?: { value?: string; any?: string[] };
     range?: { gte?: string; lte?: string };
   }> = [];
-  const filterKeys: string[] = [
-    'primary_category',
-    'content_type',
-    'subcategories',
-    'country',
-    'region',
-    'landesverband',
-    'gremium',
-    'source_id',
-    'curated_lists',
-  ];
 
-  for (const filterKey of filterKeys) {
-    const key = filterKey;
-    const filterValue = subcategoryFilters[filterKey];
+  for (const filterKey of MULTI_VALUE_FILTER_KEYS) {
+    const filterValue: string | string[] | undefined = subcategoryFilters[filterKey];
     if (!filterValue) continue;
 
     if (Array.isArray(filterValue) && filterValue.length > 0) {
       if (filterValue.length === 1) {
-        must.push({ key, match: { value: filterValue[0] } });
+        must.push({ key: filterKey, match: { value: filterValue[0] } });
       } else {
-        must.push({ key, match: { any: filterValue } });
+        must.push({ key: filterKey, match: { any: filterValue } });
       }
     } else if (typeof filterValue === 'string') {
-      must.push({ key, match: { value: filterValue } });
+      must.push({ key: filterKey, match: { value: filterValue } });
     }
   }
 

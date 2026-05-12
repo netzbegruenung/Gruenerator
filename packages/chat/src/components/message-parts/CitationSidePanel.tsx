@@ -1,8 +1,10 @@
 'use client';
 
-import { memo, useCallback, useEffect, useState } from 'react';
-import { X } from 'lucide-react';
 import { Skeleton } from '@gruenerator/ui';
+import { useQuery } from '@tanstack/react-query';
+import { X } from 'lucide-react';
+import { memo, useCallback, useEffect } from 'react';
+
 import { useCitationPanel } from '../../context/CitationPanelContext';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
@@ -23,54 +25,44 @@ interface ChunksResponse {
 
 export const CitationSidePanel = memo(function CitationSidePanel() {
   const { isOpen, target, close } = useCitationPanel();
-  const [chunks, setChunks] = useState<ChunkData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Scroll cited chunk into view when it mounts
   const citedRefCallback = useCallback((el: HTMLElement | null) => {
     if (el) {
       setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
     }
   }, []);
 
-  // Fetch chunks when target document changes (external data sync)
-  const targetKey = target ? `${target.documentId}:${target.collectionId}` : null;
-  useEffect(() => {
-    if (!target || !targetKey) return;
+  const documentId = target?.documentId;
+  const collectionId = target?.collectionId;
 
-    const abortController = new AbortController();
-    const { fetch: configFetch } = useChatConfigStore.getState();
-    const params = target.collectionId
-      ? `?collectionId=${encodeURIComponent(target.collectionId)}`
-      : '';
+  const chunksQuery = useQuery<ChunkData[], Error>({
+    queryKey: ['document-chunks', documentId, collectionId],
+    queryFn: async ({ signal }) => {
+      const { fetch: configFetch } = useChatConfigStore.getState();
+      const params = collectionId ? `?collectionId=${encodeURIComponent(collectionId)}` : '';
+      const response = await configFetch(`/api/documents/${documentId}/chunks${params}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal,
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data: ChunksResponse = await response.json();
+      if (!data.success || data.chunks.length === 0) {
+        throw new Error('Keine Inhalte gefunden');
+      }
+      return data.chunks;
+    },
+    enabled: Boolean(documentId),
+    staleTime: 5 * 60 * 1000,
+  });
 
-    setLoading(true);
-    setError(null);
-    setChunks([]);
-
-    configFetch(`/api/documents/${target.documentId}/chunks${params}`, {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-      signal: abortController.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data: ChunksResponse = await response.json();
-        if (data.success && data.chunks.length > 0) {
-          setChunks(data.chunks);
-        } else {
-          setError('Keine Inhalte gefunden');
-        }
-      })
-      .catch((err) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-        setError('Inhalte konnten nicht geladen werden');
-      })
-      .finally(() => setLoading(false));
-
-    return () => abortController.abort();
-  }, [targetKey, target]);
+  const chunks = chunksQuery.data ?? [];
+  const loading = chunksQuery.isLoading;
+  const error = chunksQuery.error
+    ? chunksQuery.error.message === 'Keine Inhalte gefunden'
+      ? 'Keine Inhalte gefunden'
+      : 'Inhalte konnten nicht geladen werden'
+    : null;
 
   // Escape key listener (external DOM sync — valid useEffect)
   useEffect(() => {

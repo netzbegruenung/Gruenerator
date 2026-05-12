@@ -3,6 +3,13 @@ import { type UserProfile } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
 import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
+import {
+  INSTANT_AUTH_CACHE,
+  LOGIN_INTENT,
+  LOGOUT_TIMESTAMP,
+  PERSISTED_AUTH_STATE,
+  PERSISTED_AUTH_VERSION,
+} from '../features/auth/storageKeys';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
 import { isDesktopApp } from '../utils/platform';
 
@@ -60,6 +67,12 @@ export interface AuthStore {
   // State
   user: User | null;
   isAuthenticated: boolean;
+  // True only when /auth/status (or login flow) has confirmed authentication
+  // in the CURRENT page load. Deliberately NOT persisted: every reload starts
+  // false and must be re-confirmed by the server before `GuestRoute` will
+  // redirect away from /login. Prevents the cache-driven redirect loop where
+  // stale `isAuthenticated: true` survives a backend session expiry.
+  hasServerConfirmed: boolean;
   isLoading: boolean;
   error: string | null;
   isLoggingOut: boolean;
@@ -97,14 +110,15 @@ function detectBrowserLocale(): SupportedLocale {
   return 'de-DE';
 }
 
-// localStorage keys for auth state persistence
-const AUTH_STORAGE_KEY = 'gruenerator_auth_state';
+// Cache version + TTL config. Storage key constants live in `features/auth/storageKeys.ts`
+// so every read/write site shares the same literal — see that file for the rationale.
+const AUTH_STORAGE_KEY = PERSISTED_AUTH_STATE;
+const AUTH_VERSION_KEY = PERSISTED_AUTH_VERSION;
+const LOGOUT_TIMESTAMP_KEY = LOGOUT_TIMESTAMP;
+const LOGIN_INTENT_KEY = LOGIN_INTENT;
 const AUTH_CACHE_VERSION = '1.2'; // Increment to invalidate old cache
 const AUTH_EXPIRY_TIME = 15 * 60 * 1000; // 15 minutes (increased from 10)
-const AUTH_VERSION_KEY = 'gruenerator_auth_cache_version';
-const LOGOUT_TIMESTAMP_KEY = 'gruenerator_logout_timestamp';
 const LOGOUT_COOLDOWN_TIME = 60 * 1000; // 1 minute cooldown after logout
-const LOGIN_INTENT_KEY = 'gruenerator_login_intent';
 
 // Helper functions for legacy compatibility (deprecated)
 const legacyHelpers = {
@@ -220,6 +234,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   // Auth state - use persisted state if available, otherwise defaults
   user: persistedState?.user || null,
   isAuthenticated: persistedState?.isAuthenticated || false,
+  // Intentionally always false on init — server must reconfirm every load.
+  hasServerConfirmed: false,
   isLoading: persistedState ? false : true, // Don't start loading if we have persisted data
   error: null,
   isLoggingOut: false, // New state to track logout in progress
@@ -237,6 +253,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({
       user: data.user,
       isAuthenticated: data.isAuthenticated,
+      // Any call to setAuthState carries a server-confirmed truth (either
+      // from /auth/status or the login flow). Promotes the cached optimistic
+      // state to the "verified" tier that GuestRoute trusts for redirects.
+      hasServerConfirmed: data.isAuthenticated,
       isLoading: false,
       error: null,
       // Extract color from canonical UserProfile field. The legacy
@@ -265,8 +285,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     localStorage.removeItem(AUTH_VERSION_KEY);
 
     // Clear the instant-auth cache used by useInstantAuth() / getCachedAuthState()
-    // Without this, LoginPage reads stale cached auth and causes redirect loops
-    localStorage.removeItem('authState');
+    // Without this, LoginPage reads stale cached auth and causes redirect loops.
+    localStorage.removeItem(INSTANT_AUTH_CACHE);
 
     // Clear React Query cache to prevent stale auth data
     if (
@@ -299,6 +319,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({
       user: null,
       isAuthenticated: false,
+      hasServerConfirmed: false,
       isLoading: false,
       error: null,
       isLoggingOut: false,

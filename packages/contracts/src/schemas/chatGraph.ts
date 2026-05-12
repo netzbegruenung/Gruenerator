@@ -31,11 +31,25 @@ export const chatStreamBodySchema = z.object({
   textIds: z.array(z.string()).nullish(),
   documentChatIds: z.array(z.string()).nullish(),
   documentChatMode: z.boolean().nullish(),
+  attachmentContext: z.string().nullish(),
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
   docMentionIds: z.array(z.string()).nullish(),
+  currentDocument: z
+    .object({
+      id: z.string(),
+      title: z.string().nullish(),
+      markdown: z.string(),
+      selectionText: z.string().nullish(),
+    })
+    .nullish(),
   customSystemPrompt: z.string().nullish(),
   roleName: z.string().nullish(),
+  // Seed for a brand-new thread: the generated text (Antrag, PM, Social) the
+  // user came to chat about. Backend persists it as the first assistant
+  // message of the newly created thread so it survives reloads. Ignored when
+  // threadId is set (i.e. not a new-thread request).
+  initialAssistantMessage: z.string().max(50_000).nullish(),
 });
 
 export const chatResumeBodySchema = z.object({

@@ -2,6 +2,7 @@ import { and, count, eq, lt, sql, type InferSelectModel } from 'drizzle-orm';
 
 import { notifications } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
+import { sendNotificationEmail } from '../../services/email/index.js';
 import { sendPushToUser } from '../../services/pushNotificationService.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -14,6 +15,14 @@ import type {
   NotificationListOptions,
   NotificationType,
 } from './types.js';
+import type { UserProfile } from '../user/types.js';
+
+// Types that have a dedicated, richer email template fired at the call site
+// (e.g. permissionsController → sendDocumentShareEmail). The central
+// dispatcher must skip these to avoid double-sending.
+const EMAIL_HANDLED_ELSEWHERE: ReadonlySet<NotificationType> = new Set<NotificationType>([
+  'document_shared',
+]);
 
 type NotificationRow = InferSelectModel<typeof notifications>;
 
@@ -45,7 +54,42 @@ function firePush(
       ...(notificationId ? { notification_id: notificationId } : {}),
     },
   }).catch((err: unknown) => {
-    log.warn('Failed to send push notification', { userId, error: err instanceof Error ? err.message : String(err) });
+    log.warn('Failed to send push notification', {
+      userId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
+}
+
+function fireEmail(
+  userId: string,
+  profile: UserProfile | null,
+  title: string,
+  body: string | null,
+  type: NotificationType,
+  actionUrl?: string | null
+) {
+  const recipientEmail = profile?.email;
+  if (!recipientEmail) {
+    log.warn('[NotificationService] Email channel enabled but profile has no email', {
+      userId,
+      type,
+    });
+    return;
+  }
+
+  sendNotificationEmail({
+    recipientEmail,
+    ...(profile?.display_name != null && { recipientName: profile.display_name }),
+    title,
+    body,
+    actionUrl: actionUrl ?? null,
+  }).catch((err: unknown) => {
+    log.warn('Failed to send notification email', {
+      userId,
+      type,
+      error: err instanceof Error ? err.message : String(err),
+    });
   });
 }
 
@@ -56,10 +100,13 @@ export async function createNotification(
 
   const profile = await getProfileForDelivery(userId);
   const showInApp = await shouldDeliver(userId, type, 'in_app', profile);
+  const sendEmailChannel =
+    !EMAIL_HANDLED_ELSEWHERE.has(type) && (await shouldDeliver(userId, type, 'email', profile));
 
   if (!showInApp) {
     const sendPush = await shouldDeliver(userId, type, 'push', profile);
     if (sendPush) firePush(userId, title, body ?? null, type, actionUrl);
+    if (sendEmailChannel) fireEmail(userId, profile, title, body ?? null, type, actionUrl);
     return null;
   }
 
@@ -85,6 +132,7 @@ export async function createNotification(
 
   const sendPush = await shouldDeliver(userId, type, 'push', profile);
   if (sendPush) firePush(userId, title, body ?? null, type, actionUrl, notification.id);
+  if (sendEmailChannel) fireEmail(userId, profile, title, body ?? null, type, actionUrl);
 
   return notification;
 }

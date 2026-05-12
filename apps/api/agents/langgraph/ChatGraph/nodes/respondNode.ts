@@ -10,9 +10,12 @@
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
-import type { ChatGraphState, ThreadAttachment } from '../types.js';
+import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
+
+import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
 
 const log = createLogger('ChatGraph:Respond');
 
@@ -201,9 +204,7 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
       }
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
-      log.error(
-        `[Respond] Findings cleaning failed, falling back to budget truncation: ${errMsg}`
-      );
+      log.error(`[Respond] Findings cleaning failed, falling back to budget truncation: ${errMsg}`);
     }
   }
 
@@ -251,6 +252,64 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
 }
 
 /**
+ * Format per-document context blocks for multi-doc chat.
+ * Each DocumentSource gets its own labeled section with its top-K reranked
+ * chunks, so the model sees evidence grouped by source instead of one merged
+ * pool. Per-doc budget = total / N to keep within context window.
+ *
+ * Returns empty string when there are <2 doc sources or no per-source
+ * results — the existing single-pool SUCHERGEBNISSE block handles those.
+ */
+function formatPerSourceContext(state: ChatGraphState): string {
+  const sources: DocumentSource[] = state.documentSources ?? [];
+  const perSource: Record<string, SearchResult[]> = state.perSourceResults ?? {};
+
+  if (sources.length < 2) return '';
+  const populatedSources = sources.filter((s) => (perSource[s.id]?.length ?? 0) > 0);
+  if (populatedSources.length === 0) return '';
+
+  const TOTAL_BUDGET = 8000;
+  const perDocBudget = Math.floor(TOTAL_BUDGET / populatedSources.length);
+
+  const blocks = populatedSources.map((src, idx) => {
+    const results = (perSource[src.id] ?? []).slice(0, 6);
+    const inner = results
+      .map((r, i) => {
+        const charBudget = Math.max(150, Math.floor(perDocBudget / Math.max(1, results.length)));
+        const content =
+          r.content.length > charBudget ? truncateDocument(r.content, charBudget) : r.content;
+        return `(${idx + 1}.${i + 1}) **${r.title}**\n${content}`.trim();
+      })
+      .join('\n\n');
+    return `### Dokument ${idx + 1}: ${src.label}\n\n${inner}`;
+  });
+
+  return `\n\n## QUELLEN PRO DOKUMENT\n\n${blocks.join('\n\n')}\n\n---\n[Ende der dokumentbezogenen Quellen. Halte die Aussagen je Dokument auseinander.]`;
+}
+
+/**
+ * Format the open document (docs-editor surface) as the primary conversation
+ * context. Distinct framing from `formatAttachmentContext` — this IS the
+ * document the user is talking about, not a side-loaded reference.
+ */
+function formatCurrentDocument(state: ChatGraphState): string {
+  if (!state.currentDocument) {
+    return '';
+  }
+  const { title, markdown, selectionText } = state.currentDocument;
+  const limitedMarkdown = limitAttachmentContext(markdown);
+  const titleLine = title ? `Titel: ${title}\n\n` : '';
+  const selection = selectionText
+    ? `\n\n### AUSGEWÄHLTER TEXT\n\n${selectionText.slice(0, 4000)}`
+    : '';
+  return `
+
+## AKTUELLES DOKUMENT
+
+${titleLine}${limitedMarkdown}${selection}`;
+}
+
+/**
  * Format attachment context for the response generation.
  * Applies truncation limits to prevent context explosion with large documents.
  */
@@ -266,12 +325,7 @@ function formatAttachmentContext(state: ChatGraphState): string {
 
 ## ANGEHÄNGTE DOKUMENTE
 
-Der Nutzer hat Dokumente angehängt. Hier ist der extrahierte Text:
-
-${limitedContext}
-
----
-Beantworte Fragen zu den Dokumenten basierend auf deren Inhalt.`;
+${limitedContext}`;
 }
 
 /**
@@ -279,18 +333,34 @@ Beantworte Fragen zu den Dokumenten basierend auf deren Inhalt.`;
  * Instructs the model to acknowledge and describe the attached images.
  */
 function formatImageContext(state: ChatGraphState): string {
-  if (!state.imageAttachments || state.imageAttachments.length === 0) {
-    return '';
-  }
+  const sections: string[] = [];
 
-  const count = state.imageAttachments.length;
-  const names = state.imageAttachments.map((img) => img.name).join(', ');
-
-  return `
+  if (state.imageAttachments && state.imageAttachments.length > 0) {
+    const count = state.imageAttachments.length;
+    const names = state.imageAttachments.map((img) => img.name).join(', ');
+    sections.push(`
 
 ## ANGEHÄNGTE BILDER
 
-Der Nutzer hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar. Beziehe dich auf den Bildinhalt in deiner Antwort.`;
+Der*die Nutzer*in hat ${count} Bild${count > 1 ? 'er' : ''} angehängt (${names}). Die Bilder sind in der Nachricht sichtbar.`);
+  }
+
+  // Vision-grounded before/after descriptions populated by imageEditNode after a
+  // successful FLUX edit. Lets respondNode narrate the actual change instead of
+  // hallucinating ("I can't edit images") when the model isn't itself vision-capable.
+  const editDescriptions = state.imageEditDescriptions;
+  if (editDescriptions && (editDescriptions.original || editDescriptions.edited)) {
+    const before = editDescriptions.original ?? '(keine Beschreibung verfügbar)';
+    const after = editDescriptions.edited ?? '(keine Beschreibung verfügbar)';
+    sections.push(`
+
+## BILDVERGLEICH (vom Vision-Modell beschrieben)
+
+- Originalbild: ${before}
+- Bearbeitetes Bild: ${after}`);
+  }
+
+  return sections.join('');
 }
 
 /**
@@ -349,12 +419,7 @@ function formatBoardContext(boardContext: string | null): string {
 
 ## BOARD-KONTEXT
 
-Der Nutzer hat ein Board referenziert. Hier ist der aktuelle Stand:
-
-${boardContext}
-
----
-Beantworte Fragen zum Board basierend auf dessen Inhalt (Spalten, Karten, Status).`;
+${boardContext}`;
 }
 
 /**
@@ -366,12 +431,9 @@ function formatDocumentMentionContext(documentMentionContext: string | null): st
 
   return `
 
-## REFERENZIERTE DOKUMENTE (vom Nutzer ausgewählt)
+## REFERENZIERTE DOKUMENTE
 
-${documentMentionContext}
-
----
-Beantworte Fragen basierend auf dem Inhalt dieser Dokumente.`;
+${documentMentionContext}`;
 }
 
 /**
@@ -416,37 +478,21 @@ Der Nutzer ist in Österreich. Beachte:
   return '';
 }
 
-/**
- * Build the complete system message with agent role and search context.
- */
-export async function buildSystemMessage(state: ChatGraphState): Promise<string> {
-  const {
-    agentConfig,
-    intent,
-    threadAttachments,
-    memoryContext,
-    summaryContext,
-    boardContext,
-    documentMentionContext,
-  } = state;
-  const searchContext = await formatSearchContext(state);
-  const attachmentContext = formatAttachmentContext(state);
-  const imageContext = formatImageContext(state);
-  const summaryContextFormatted = formatSummaryContext(summaryContext);
-  const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
-  const memoryContextFormatted = formatMemoryContext(memoryContext);
-  const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
-  const boardContextFormatted = formatBoardContext(boardContext);
-  const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
-  const localeContext = formatLocaleContext(state.userLocale);
+/** Strict-output modes — anchor adjuncts skipped to keep their format rules clean. */
+const MODES_WITHOUT_ANCHORS: ReadonlySet<ChatGraphState['intent']> = new Set([
+  'edit_current_doc',
+  'image_edit',
+  'image',
+  'chart',
+]);
 
-  const isDocumentChatMode = state.documentChatIds?.length > 0;
-  const intentGuidance = isDocumentChatMode
-    ? '\nDu chattest mit ausgewählten Dokumenten des Nutzers. Beantworte Fragen basierend auf den Dokumenten. Zitiere relevante Passagen.'
-    : intent === 'summary'
-      ? '\nDer Nutzer hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.'
-      : intent === 'chart'
-        ? `\nDer Nutzer möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
+const EDIT_CURRENT_DOC_GUIDANCE =
+  '\nDu hast eine Änderung am aktuellen Dokument angefordert. Antworte mit EINEM EINZIGEN kurzen Satz auf Deutsch, der bestätigt, was du gleich änderst (z.B. "Kürze den letzten Absatz."). Schreibe NICHT den geänderten Text aus — die Bearbeitung passiert direkt im Dokument. Keine Aufzählungen, keine Markdown-Formatierung, keine Quellenverweise.';
+
+const SUMMARY_GUIDANCE =
+  '\nDer*die Nutzer*in hat eine Zusammenfassung angefordert. Präsentiere die vorbereitete Zusammenfassung klar und strukturiert.';
+
+const CHART_GUIDANCE = `\nDer*die Nutzer*in möchte ein Diagramm. Erstelle die Daten und gib sie als JSON-Block zurück.
 Schreibe zuerst eine kurze Erklärung (1-2 Sätze), dann den JSON-Block in diesem Format:
 
 \`\`\`chart
@@ -459,18 +505,160 @@ Regeln:
 - xKey: Name des Feldes für die X-Achse (z.B. "name", "monat", "jahr")
 - yKeys: Array der Feldnamen für die Werte (z.B. ["wert", "wert2"])
 - Verwende realistische, plausible Daten wenn keine konkreten Zahlen gegeben sind
-- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`
-        : intent === 'image'
-          ? state.generatedImage
-            ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
-            : '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.'
-          : intent === 'direct' || intent === 'save_as_doc'
-            ? '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit.'
-            : '\nDu hast Recherche-Ergebnisse erhalten. Nutze sie um eine fundierte Antwort zu geben.';
+- Der JSON-Block MUSS in \`\`\`chart ... \`\`\` eingeschlossen sein`;
+
+const IMAGE_FAILED_GUIDANCE =
+  '\nDie Bildgenerierung ist fehlgeschlagen. Entschuldige dich und biete an, es erneut zu versuchen.';
+
+const IMAGE_EDIT_SUCCESS_GUIDANCE = `\nDu hast das angehängte Bild erfolgreich bearbeitet. Das Ergebnis wird dem*der Nutzer*in bereits angezeigt — du musst es NICHT erneut zeigen oder verlinken.
+
+ABSOLUTE AUSGABE-REGEL für diese Antwort:
+- NUR natürlicher deutscher Fließtext, 1-3 Sätze.
+- KEIN JSON, KEINE geschweiften Klammern { }, KEINE eckigen Klammern [ ] um Inhalte, KEINE Schlüssel-Wert-Paare wie "edit": ..., KEINE Markdown-Code-Blöcke, KEINE Aufzählungen.
+- Falls frühere Antworten in diesem Thread strukturierte Daten (JSON o.ä.) ausgegeben haben, ignoriere dieses Muster — es war ein Bug. Antworte ab jetzt ausschließlich in normaler Prosa.
+
+Beispiel einer guten Antwort: "Ich habe die Person sichtbar älter wirken lassen — graue Haare und feine Falten, während Kleidung und Pose erhalten bleiben. Sag mir, falls du eine andere Anpassung möchtest."
+
+Stütze dich für die Beschreibung auf den BILDVERGLEICH-Block oben (falls vorhanden); ansonsten halte dich an den Wunsch des*der Nutzer*in aus der letzten Nachricht. Verneine NICHT die Fähigkeit zur Bildbearbeitung — sie hat gerade stattgefunden.`;
+
+const IMAGE_EDIT_FAILED_GUIDANCE =
+  '\nDie Bildbearbeitung ist fehlgeschlagen. Entschuldige dich kurz in einem Satz und bitte um eine andere Formulierung oder ein anderes Bild. KEIN JSON, KEINE Code-Blöcke.';
+
+const DIRECT_GUIDANCE =
+  '\nDies ist eine direkte Anfrage ohne Recherche-Bedarf. Antworte natürlich und hilfsbereit aus dem verfügbaren Kontext.';
+
+const SEARCH_GUIDANCE =
+  '\nDu hast Recherche-Ergebnisse erhalten. Beantworte die Frage primär aus diesen Ergebnissen und zitiere sie inline.';
+
+/**
+ * Synthesis-mode guidance for multi-document chat.
+ * Selected at classification time based on intent + doc count.
+ *
+ * `table`             — compare-style: markdown table + short synthesis
+ * `per_doc_bullets`   — many-doc compare: bullets per doc + diff section
+ * `grounded_prose`    — multi-doc background: narrative with mandatory grounding
+ */
+function getSynthesisGuidance(state: ChatGraphState): string {
+  const mode = state.synthesisMode;
+  const sources = state.documentSources ?? [];
+  if (!mode || sources.length < 2) return '';
+
+  const docList = sources.map((s, i) => `${i + 1}. **${s.label}** (Quelle ${i + 1})`).join('\n');
+
+  if (mode === 'table') {
+    return `\n\n## VERGLEICHS-MODUS\n\nDer*die Nutzer*in vergleicht ${sources.length} Dokumente:\n${docList}\n\nFormat der Antwort:\n1. Eine Markdown-Tabelle: Spalten = Dokumente (in obiger Reihenfolge), Zeilen = die Vergleichsdimensionen, die du selbst aus den Quellen ableitest (3–6 Dimensionen).\n2. Danach 2–4 Sätze Synthese: Übereinstimmungen, klare Unterschiede, mögliche Konflikte.\n3. Jede Zelle der Tabelle muss durch mindestens eine Inline-Quellenreferenz [N] gestützt sein.\n4. Wenn ein Dokument zu einer Dimension nichts sagt, schreibe "—" in die Zelle (nicht erfinden).\n5. Genderstern verwenden (Bürger*innen, der*die Sprecher*in).`;
+  }
+
+  if (mode === 'per_doc_bullets') {
+    return `\n\n## MEHR-DOKUMENT-MODUS\n\nDer*die Nutzer*in arbeitet mit ${sources.length} Dokumenten:\n${docList}\n\nFormat der Antwort:\n1. Pro Dokument ein Abschnitt mit dem Dokumentnamen als Überschrift und 3–5 Bullets der Kernaussagen — jeweils inline zitiert [N].\n2. Anschließend ein Abschnitt **Gemeinsamkeiten**.\n3. Anschließend ein Abschnitt **Unterschiede**.\n4. Genderstern verwenden.`;
+  }
+
+  // grounded_prose
+  return `\n\n## MEHR-DOKUMENT-KONTEXT\n\nDer*die Nutzer*in hat ${sources.length} Dokumente referenziert:\n${docList}\n\nAntworte als zusammenhängende Prosa, aber:\n1. Stütze jede Kernaussage durch eine Inline-Quellenreferenz [N].\n2. Wenn ein Dokument zur Frage relevant ist, muss es mindestens einmal zitiert werden — sonst kennzeichne explizit, dass es im jeweiligen Punkt schweigt.\n3. Mische nicht stillschweigend Quellen — der*die Leser*in soll erkennen können, welches Dokument welche Aussage stützt.\n4. Genderstern verwenden.`;
+}
+
+function getModeGuidance(state: ChatGraphState): string {
+  switch (state.intent) {
+    case 'edit_current_doc':
+      return EDIT_CURRENT_DOC_GUIDANCE;
+    case 'summary':
+      return SUMMARY_GUIDANCE;
+    case 'chart':
+      return CHART_GUIDANCE;
+    case 'image':
+      return state.generatedImage
+        ? `\nDu hast erfolgreich ein Bild generiert. Das Bild wurde dem*der Nutzer*in bereits angezeigt.\nBeschreibe kurz was auf dem Bild zu sehen ist basierend auf dem Prompt: "${state.imagePrompt || ''}"\nBiete an, Änderungen vorzunehmen oder ein neues Bild zu erstellen.`
+        : IMAGE_FAILED_GUIDANCE;
+    case 'image_edit':
+      return state.generatedImage ? IMAGE_EDIT_SUCCESS_GUIDANCE : IMAGE_EDIT_FAILED_GUIDANCE;
+    case 'direct':
+    case 'save_as_doc':
+      return DIRECT_GUIDANCE;
+    case 'compare':
+    case 'research':
+    case 'search':
+    case 'web':
+    case 'examples':
+    case 'pressemitteilung_examples':
+    case 'sharepic':
+    case 'modify_doc':
+    case 'modify_board':
+    case 'share_doc':
+      return SEARCH_GUIDANCE;
+    default:
+      return SEARCH_GUIDANCE;
+  }
+}
+
+const ANCHOR_ADJUNCTS: { [K in AnchorDescriptor['kind']]: string } = {
+  currentDocument:
+    '- Im Editor ist ein Dokument geöffnet (siehe AKTUELLES DOKUMENT). Wenn die Frage es konkret berührt, beziehe dich darauf. Schreibe das Dokument NICHT um, außer der*die Nutzer*in fragt explizit danach.',
+  documentChat:
+    '- Das Gespräch ist auf ausgewählte Dokumente des*der Nutzer*in begrenzt. Nutze deren Inhalt als primäre Antwortgrundlage; zitiere relevante Passagen.',
+  documentMention:
+    '- Der*die Nutzer*in hat Dokumente referenziert (REFERENZIERTE DOKUMENTE). Berücksichtige sie als zusätzlichen Kontext.',
+  attachment:
+    '- Hochgeladene Dateien sind oben eingebettet (ANGEHÄNGTE DOKUMENTE). Berücksichtige ihren Inhalt, soweit relevant.',
+  board: '- Ein Board ist referenziert (BOARD-KONTEXT). Berücksichtige Spalten, Karten und Status.',
+  image: '- Bilder sind angehängt (siehe Nachricht). Beziehe dich auf den Bildinhalt.',
+};
+
+function getAnchorAdjuncts(state: ChatGraphState): string {
+  if (MODES_WITHOUT_ANCHORS.has(state.intent)) return '';
+
+  const fragments = getActiveAnchors(state).map((a) => ANCHOR_ADJUNCTS[a.kind]);
+  if (fragments.length === 0) return '';
+
+  return `\n\n## ZUSÄTZLICHER KONTEXT\n\n${fragments.join('\n')}\n\nNutze die jeweils relevanten Quellen — keine ist exklusiv. Bei Recherche-Fragen sind Suchergebnisse die primäre Antwortgrundlage; offene/referenzierte Dokumente dienen als thematischer Kontext.`;
+}
+
+/**
+ * Build the complete system message with agent role and search context.
+ */
+export async function buildSystemMessage(state: ChatGraphState): Promise<string> {
+  // Composer paths (press, social-media): a sibling composer node has already
+  // produced an intent-specific system prompt and stored it on state.responseText.
+  // Use it verbatim — bypassing the generic search-context / anchor / citation
+  // machinery that doesn't apply to a fresh content-creation turn.
+  // Defensive: routing in ChatGraph already forks composer intents away from
+  // respondNode, so this branch only fires if routing changes upstream.
+  if (
+    (state.intent === 'pressemitteilung_examples' || state.intent === 'examples') &&
+    state.responseText
+  ) {
+    return state.responseText;
+  }
+
+  const {
+    agentConfig,
+    intent,
+    threadAttachments,
+    memoryContext,
+    summaryContext,
+    boardContext,
+    documentMentionContext,
+  } = state;
+  const searchContext = await formatSearchContext(state);
+  const perSourceContext = formatPerSourceContext(state);
+  const currentDocumentContext = formatCurrentDocument(state);
+  const attachmentContext = formatAttachmentContext(state);
+  const imageContext = formatImageContext(state);
+  const summaryContextFormatted = formatSummaryContext(summaryContext);
+  const threadAttachmentsContext = formatThreadAttachmentsContext(threadAttachments);
+  const memoryContextFormatted = formatMemoryContext(memoryContext);
+  const chatHistoryFormatted = state.chatHistoryContext ? `\n\n${state.chatHistoryContext}` : '';
+  const boardContextFormatted = formatBoardContext(boardContext);
+  const docMentionContextFormatted = formatDocumentMentionContext(documentMentionContext);
+  const localeContext = formatLocaleContext(state.userLocale);
+
+  const intentGuidance =
+    getModeGuidance(state) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
 
   const hasSources = state.searchResults.length > 0 && intent !== 'direct';
   const sourceCount = state.searchResults.filter((r) => r.url).length;
-  const isPolishedContent = !!state.contentType;
+  // Polished-content suppresses inline citations only when generating output;
+  // research questions always cite inline regardless of contentType heuristics.
+  const isPolishedContent = !!state.contentType && intent !== 'search';
 
   let citationInstruction = '';
   if (hasSources && isPolishedContent) {
@@ -486,12 +674,7 @@ Regeln:
 8. Erfinde KEINE zusätzlichen Quellen oder Quellenverweise über [${sourceCount}] hinaus.`;
   }
 
-  const today = new Date().toLocaleDateString('de-DE', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  const today = formatGermanDate();
 
   // User profile instructions (additive — included in all modes)
   const userInstructionsFormatted = state.userInstructions
@@ -501,7 +684,7 @@ Regeln:
   // Custom system prompt: replaces the entire agent prompt when set
   if (state.customSystemPrompt) {
     return `${state.customSystemPrompt}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${hasSources ? `\n${citationInstruction}` : ''}`;
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${perSourceContext}${hasSources ? `\n${citationInstruction}` : ''}`;
   }
 
   // Use a neutral, non-partisan system role for document summaries
@@ -513,7 +696,7 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
   return `${systemRole}
-Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}
+Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN
 1. Beantworte NUR was gefragt wurde - keine ungebetene Zusatzinfo

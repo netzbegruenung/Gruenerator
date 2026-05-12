@@ -396,11 +396,7 @@ class ProfileService {
       }
       defaults[generator][key] = value;
 
-      const result = await this.updateProfile(userId, { user_defaults: defaults });
-      console.log(
-        `[ProfileService] User default updated: ${generator}.${key} = ${value} for user ${userId}`
-      );
-      return result;
+      return await this.updateProfile(userId, { user_defaults: defaults });
     } catch (error: unknown) {
       console.error('[ProfileService] Error updating user default:', error);
       throw error;

@@ -72,6 +72,9 @@ export default defineConfig(({ command }) => ({
       '~': path.resolve(__dirname, './'),
       '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
       '@gruenerator/chat': path.resolve(__dirname, '../../packages/chat/src'),
+      '@gruenerator/voice': path.resolve(__dirname, '../../packages/voice/src'),
+      '@gruenerator/sites': path.resolve(__dirname, '../../packages/sites/src'),
+      '@gruenerator/sites-design': path.resolve(__dirname, '../../packages/sites-design/src'),
       // @gruenerator/contracts is imported transitively from within the
       // @gruenerator/shared alias path (e.g. shared/api/contractsClient.ts
       // imports notebookContract from @gruenerator/contracts). Vite's alias
@@ -100,8 +103,16 @@ export default defineConfig(({ command }) => ({
       '@mdxeditor/editor',
       '@assistant-ui/react',
       'recharts',
+      'motion',
+      'motion/react',
+      'react-markdown',
+      'lucide-react',
     ],
-    exclude: ['motion', 'browser-image-compression', '@imgly/background-removal'],
+    // Keep heavy/native-binary deps out of prebundling — they handle their
+    // own ESM and break esbuild's transformer (onnxruntime ships .wasm,
+    // imgly ships ONNX models, browser-image-compression uses dynamic
+    // workers).
+    exclude: ['browser-image-compression', '@imgly/background-removal', 'onnxruntime-web'],
     rolldownOptions: {
       transform: {
         define: {},
@@ -118,7 +129,22 @@ export default defineConfig(({ command }) => ({
     chunkSizeWarningLimit: 300,
     outDir: 'build',
     reportCompressedSize: false,
-    modulePreload: { polyfill: true },
+    // Vite's default modulePreload eagerly emits <link rel="modulepreload">
+    // for every chunk reachable from the entry's static graph — including
+    // the heavy named chunks declared in `advancedChunks.groups` below.
+    // That defeats code-splitting: a 7 MB `vendor-blocknote-export` chunk
+    // only used by the docs editor's Export action would be preloaded on
+    // /login. Filter the preload list to drop those named lazy chunks; they
+    // still load on-demand when their consuming route or action triggers
+    // the dynamic import.
+    modulePreload: {
+      polyfill: true,
+      resolveDependencies: (_filename, deps) =>
+        deps.filter((d) => {
+          const base = d.split('/').pop() ?? '';
+          return !/^(vendor-|pkg-canvas-editor)/.test(base);
+        }),
+    },
     cssMinify: true,
     emptyOutDir: true,
     rolldownOptions: {
@@ -143,31 +169,71 @@ export default defineConfig(({ command }) => ({
           }
           return 'assets/[name].[hash][extname]';
         },
-        // Disable code-splitting entirely as an emergency safety measure.
+        // Code-splitting strategy — leaf libraries only.
         //
-        // The previous `codeSplitting.groups` config has been silently dead
-        // since the Vite 8 → Rolldown migration: Rolldown's `codeSplitting`
-        // accepts either a boolean or `AdvancedChunksSchema`, but
-        // AdvancedChunksSchema does not include a `groups` field, so the
-        // entire vendor-grouping block was being dropped at config parse.
-        // With no manual chunking active, Rolldown's auto-chunker had been
-        // producing a chunk topology with multiple circular cross-chunk
-        // imports — surfacing in production as both
-        //   "TypeError: s is not a function" (in the react-markdown chunk,
-        //    where bindings from the still-initializing entry chunk were
-        //    used at module-init time)
-        // and
-        //   "Cannot read properties of undefined (reading 'displayName')"
-        //    (at radix-ui's Primitive factory in another chunk, same root
-        //    cause: a sibling-chunk binding undefined at use time).
+        // History: commit 298ebe2f1 set `codeSplitting: false` after
+        // Rolldown's auto-chunker produced chunks with module-init order
+        // cycles, crashing prod with "TypeError: s is not a function"
+        // (react-markdown chunk) and "Cannot read properties of undefined
+        // (reading 'displayName')" (radix-ui Primitive chunk). The pre-298ebe2f1
+        // config nested `groups` directly under `codeSplitting`, which Rolldown
+        // silently dropped (the boolean|schema union accepted the object but
+        // the schema requires `groups` under `advancedChunks`, not under
+        // `codeSplitting`). Result: no manual chunking ever applied.
         //
-        // `codeSplitting: false` puts all modules into one chunk and
-        // inlines every dynamic `import()`, eliminating all cross-chunk
-        // imports and therefore any possibility of circular-init bugs.
-        // The cost is initial bundle size (no on-demand splits) — a real
-        // regression we'll claw back in a follow-up PR with a working
-        // chunking config plus a CI smoke test that catches cycles.
-        codeSplitting: false,
+        // This config uses `output.advancedChunks.groups` (the correct
+        // location) to name chunks for heavy LEAF libraries only — libs
+        // that export no Providers, hold no shared singletons, and are
+        // imported only inside lazy route components. Therefore none can participate in a
+        // cross-chunk init cycle: no other chunk reads from them at
+        // module-init time. React, Radix, react-markdown, and the workspace
+        // packages (`@gruenerator/ui`, `@gruenerator/chat`, etc.) are
+        // deliberately NOT split — they stay in the entry chunk where they
+        // are today, eliminating the original failure mode.
+        //
+        // Set `VITE_SINGLE_BUNDLE=1` in the environment for a one-redeploy
+        // revert to the pre-splitting single-bundle build with no code
+        // change. Each named chunk's size comment is the source-byte size
+        // measured from the analyzer; gzip is roughly ÷4.
+        ...(process.env.VITE_SINGLE_BUNDLE === '1'
+          ? { codeSplitting: false }
+          : {
+              advancedChunks: {
+                groups: [
+                  // Heavy leaf libs (sorted by source size, largest first)
+                  { name: 'vendor-excalidraw', test: /[\\/]node_modules[\\/]@excalidraw[\\/]/ }, // 4.7 MB
+                  { name: 'vendor-mermaid', test: /[\\/]node_modules[\\/]mermaid[\\/]/ }, // 3.3 MB
+                  {
+                    name: 'vendor-blocknote-export',
+                    test: /[\\/]node_modules[\\/]@blocknote[\\/]xl-/,
+                  }, // 3.3 MB combined
+                  { name: 'vendor-react-pdf', test: /[\\/]node_modules[\\/]@react-pdf[\\/]/ }, // 1.4 MB
+                  {
+                    name: 'vendor-cytoscape',
+                    test: /[\\/]node_modules[\\/]cytoscape(-[a-z-]+)?[\\/]/,
+                  }, // 1.5 MB combined
+                  { name: 'vendor-docx', test: /[\\/]node_modules[\\/]docx[\\/]/ }, // 785 KB
+                  { name: 'vendor-katex', test: /[\\/]node_modules[\\/]katex[\\/]/ }, // 584 KB
+                  { name: 'vendor-fontkit', test: /[\\/]node_modules[\\/]fontkit[\\/]/ }, // 539 KB
+                  {
+                    name: 'vendor-recharts',
+                    test: /[\\/]node_modules[\\/](recharts|d3-[a-z-]+|victory-vendor)[\\/]/,
+                  }, // 519 KB
+                  {
+                    name: 'vendor-onnxruntime',
+                    test: /[\\/]node_modules[\\/]onnxruntime-web[\\/]/,
+                  }, // 505 KB
+                  { name: 'vendor-pptxgenjs', test: /[\\/]node_modules[\\/]pptxgenjs[\\/]/ }, // 505 KB
+                  { name: 'vendor-konva', test: /[\\/]node_modules[\\/](konva|react-konva)[\\/]/ }, // 417 KB
+                  {
+                    name: 'vendor-collab',
+                    test: /[\\/]node_modules[\\/](@hocuspocus|yjs|y-protocols|y-indexeddb|lib0)[\\/]/,
+                  }, // ~450 KB
+                  { name: 'vendor-imgly', test: /[\\/]node_modules[\\/]@imgly[\\/]/ }, // 167 KB
+                  { name: 'pkg-canvas-editor', test: /[\\/]packages[\\/]canvas-editor[\\/]/ }, // 1.4 MB
+                ],
+              },
+            }),
       },
     },
   },

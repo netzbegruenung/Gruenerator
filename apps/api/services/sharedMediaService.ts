@@ -232,14 +232,37 @@ class SharedMediaService {
     const shareToken = this.generateShareToken();
     const shareDir = getSafeShareDir(shareToken);
 
+    if (!/^data:image\/\w+;base64,/.test(imageBase64)) {
+      throw new Error(
+        `createImageShare: imageBase64 must be a "data:image/...;base64,..." string (got ${imageBase64.slice(0, 32)}...)`
+      );
+    }
+
     try {
       await fs.mkdir(shareDir, { recursive: true });
 
       const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
       const imageBuffer = Buffer.from(base64Data, 'base64');
 
-      const mimeType = imageBase64.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png';
-      const extension = mimeType === 'image/jpeg' ? 'jpg' : 'png';
+      const isPng =
+        imageBuffer.length >= 8 &&
+        imageBuffer[0] === 0x89 &&
+        imageBuffer[1] === 0x50 &&
+        imageBuffer[2] === 0x4e &&
+        imageBuffer[3] === 0x47;
+      const isJpeg =
+        imageBuffer.length >= 3 &&
+        imageBuffer[0] === 0xff &&
+        imageBuffer[1] === 0xd8 &&
+        imageBuffer[2] === 0xff;
+      if (!isPng && !isJpeg) {
+        throw new Error(
+          `createImageShare: decoded payload is not a valid PNG or JPEG (decoded size: ${imageBuffer.length} bytes)`
+        );
+      }
+
+      const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
+      const extension = isJpeg ? 'jpg' : 'png';
 
       const targetImagePath = path.join(shareDir, `media.${extension}`);
       await fs.writeFile(targetImagePath, imageBuffer);

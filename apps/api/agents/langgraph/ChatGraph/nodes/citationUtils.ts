@@ -131,5 +131,8 @@ export function buildCitations(results: SearchResult[]): Citation[] {
       chunkIndex: r.chunkIndex,
       similarityScore: r.similarityScore,
       collectionId: r.collectionId,
+      // Multi-doc fan-out tags each result with its DocumentSource id; promote
+      // here so the UI can group source cards by referenced document.
+      documentSourceId: typeof r.documentSourceId === 'string' ? r.documentSourceId : undefined,
     }));
 }

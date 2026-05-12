@@ -16,11 +16,19 @@ import Timeline from './Timeline';
 import type {
   SubtitleSegment,
   VideoMetadata,
-  LoadedProject,
   StylePreference,
   HeightPreference,
   SubtitlePreference,
 } from '../types';
+
+/**
+ * Minimal project reference the editor needs to attribute saves /
+ * exports. The page-level `LoadedProject` shape is wider; we only read
+ * `id` here, so the prop type is correspondingly narrow.
+ */
+interface EditorProjectRef {
+  id: string;
+}
 
 import { cn } from '@/utils/cn';
 
@@ -56,11 +64,16 @@ interface QualityOption {
   subtitle: string;
 }
 
+/**
+ * Subset of the wire video-metadata shape that the editor actually reads.
+ * Wire shape is `videoMetadataSchema` in `@gruenerator/contracts`; we keep
+ * a narrow subtype here so the editor doesn't have to handle every loose
+ * field the JSONB column may contain.
+ */
 interface UploadVideoMetadata {
   duration?: number;
   width?: number;
   height?: number;
-  [key: string]: unknown;
 }
 
 interface SubtitleEditorProps {
@@ -77,7 +90,7 @@ interface SubtitleEditorProps {
   onExportSuccess?: (token: string) => void;
   isExporting?: boolean;
   onExportComplete?: () => void;
-  loadedProject?: LoadedProject | null;
+  loadedProject?: EditorProjectRef | null;
   videoMetadataFromUpload?: UploadVideoMetadata | null;
   videoFilename?: string | null;
   videoSize?: number | null;

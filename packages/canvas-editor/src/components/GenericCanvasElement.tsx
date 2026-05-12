@@ -295,6 +295,7 @@ const MemoizedImageElement = memo(
         height={height}
         opacity={opacity}
         color={typeof fill === 'string' ? fill : undefined}
+        coverFit={config.coverFit}
         draggable={config.draggable && !isLocked}
         selected={selected}
         onSelect={handleSelect}
@@ -589,13 +590,16 @@ export const GenericCanvasElement = memo(function GenericCanvasElement<
         </Group>
       );
 
-    default:
-      // Exhaustive check - this should never happen with proper typing
+    default: {
       const exhaustiveCheck: never = config;
-      console.warn(
-        `Unknown element type: ${(exhaustiveCheck as unknown as CanvasElementConfig).type}`
-      );
+      const unknownType = (exhaustiveCheck as { type?: string } | null)?.type ?? 'undefined';
+      const message = `GenericCanvasElement: unhandled element type "${unknownType}"`;
+      if (process.env.NODE_ENV !== 'production') {
+        throw new Error(message);
+      }
+      console.warn(message);
       return null;
+    }
   }
 });
 

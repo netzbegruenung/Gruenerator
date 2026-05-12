@@ -7,6 +7,42 @@ import { getDocsUrl } from '../../utils/docsUrl';
 import { cn } from '@/utils/cn';
 
 const MCP_URL = 'https://mcp.gruenerator.eu/mcp';
+const API_BASE_URL = 'https://api.gruenerator.eu/api/v1/notebooks';
+const API_CONTACT_EMAIL = 'kontakt@gruenerator.eu';
+
+const API_USAGE_EXAMPLES = [
+  {
+    id: 'curl-ask',
+    name: 'curl — Frage stellen',
+    note: 'POST /api/v1/notebooks/ask',
+    code: `curl -X POST ${API_BASE_URL}/ask \\
+  -H "Authorization: Bearer DEIN_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "question": "Wie steht ihr zum Mietendeckel?",
+    "landesverband": "HH"
+  }'`,
+  },
+  {
+    id: 'curl-list',
+    name: 'curl — Verfügbare Landesverbände',
+    note: 'GET /api/v1/notebooks',
+    code: `curl ${API_BASE_URL} \\
+  -H "Authorization: Bearer DEIN_API_KEY"`,
+  },
+  {
+    id: 'curl-search',
+    name: 'curl — Rohe Treffer ohne KI-Antwort',
+    note: 'POST /api/v1/notebooks/search',
+    code: `curl -X POST ${API_BASE_URL}/search \\
+  -H "Authorization: Bearer DEIN_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "query": "Klimaschutz",
+    "landesverband": "BY"
+  }'`,
+  },
+];
 
 const CONNECT_PLATFORMS = [
   {
@@ -148,6 +184,109 @@ const ConnectSection = () => {
   );
 };
 
+const ApiAccessSection = () => {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copy = async (id: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      // Fallback handled by user selecting the text manually.
+    }
+  };
+
+  return (
+    <section className="flex w-full max-w-[40rem] flex-col items-center gap-6">
+      <h2 className="text-xl font-bold text-foreground-heading">
+        Programmatischer Zugriff (API)
+      </h2>
+      <p className="text-center text-sm text-grey-600 dark:text-grey-400">
+        Du baust eine eigene Integration? Über unsere REST-API kannst du Notebook-Inhalte je
+        Landesverband direkt abfragen — mit Authentifizierung über einen API-Key.
+      </p>
+
+      <div className="flex w-full items-center gap-2 rounded-lg border border-grey-200 bg-background-alt px-4 py-3 dark:border-grey-700">
+        <code className="min-w-0 flex-1 truncate text-sm text-foreground">{API_BASE_URL}</code>
+        <button
+          onClick={() => copy('base', API_BASE_URL)}
+          className={cn(
+            'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+            copiedId === 'base'
+              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+              : 'bg-grey-100 text-grey-600 hover:bg-grey-200 dark:bg-grey-800 dark:text-grey-300 dark:hover:bg-grey-700'
+          )}
+        >
+          {copiedId === 'base' ? (
+            <>
+              <HiCheck className="text-sm" />
+              Kopiert
+            </>
+          ) : (
+            <>
+              <HiClipboardCopy className="text-sm" />
+              Kopieren
+            </>
+          )}
+        </button>
+      </div>
+
+      <div className="w-full rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-grey-700 dark:border-yellow-900/40 dark:bg-yellow-900/20 dark:text-grey-300">
+        API-Keys werden derzeit auf Anfrage vergeben. Schreib uns eine kurze Mail mit deinem
+        Anwendungsfall und den benötigten Landesverbänden —{' '}
+        <a
+          href={`mailto:${API_CONTACT_EMAIL}?subject=API-Key%20Anfrage`}
+          className="text-link underline underline-offset-2 hover:opacity-80"
+        >
+          {API_CONTACT_EMAIL}
+        </a>
+        .
+      </div>
+
+      <Accordion type="single" collapsible className="w-full">
+        {API_USAGE_EXAMPLES.map((ex) => (
+          <AccordionItem key={ex.id} value={ex.id}>
+            <AccordionTrigger className="text-sm font-semibold text-foreground-heading">
+              <div className="flex flex-col items-start gap-0.5">
+                <span>{ex.name}</span>
+                <span className="text-xs font-normal text-grey-400 dark:text-grey-500">
+                  {ex.note}
+                </span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="relative">
+                <pre className="overflow-x-auto rounded-md bg-grey-900 p-3 text-xs text-grey-100">
+                  <code>{ex.code}</code>
+                </pre>
+                <button
+                  onClick={() => copy(ex.id, ex.code)}
+                  className={cn(
+                    'absolute right-2 top-2 flex items-center gap-1 rounded px-2 py-1 text-xs',
+                    copiedId === ex.id
+                      ? 'bg-green-700 text-green-100'
+                      : 'bg-grey-700 text-grey-200 hover:bg-grey-600'
+                  )}
+                >
+                  {copiedId === ex.id ? <HiCheck /> : <HiClipboardCopy />}
+                </button>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        ))}
+      </Accordion>
+
+      <p className="text-center text-xs text-grey-500">
+        Auch direkt als MCP-Server nutzbar: dieselbe URL wie oben + <code>Authorization: Bearer</code>{' '}
+        Header — die Tools <code>notebooks_list</code>, <code>notebooks_ask</code>,{' '}
+        <code>notebooks_search</code> und <code>notebooks_get_filters</code> erscheinen dann
+        automatisch.
+      </p>
+    </section>
+  );
+};
+
 const AppsPage = () => {
   return (
     <div className="flex min-h-[60vh] flex-col items-center px-4 py-12">
@@ -159,6 +298,10 @@ const AppsPage = () => {
       </p>
 
       <ConnectSection />
+
+      <hr className="my-12 w-full max-w-[40rem] border-grey-200 dark:border-grey-700" />
+
+      <ApiAccessSection />
 
       <hr className="my-12 w-full max-w-[40rem] border-grey-200 dark:border-grey-700" />
 

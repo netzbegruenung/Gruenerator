@@ -4,15 +4,20 @@
  */
 
 import { HiPhotograph, HiSparkles } from 'react-icons/hi';
-import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
+import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
-import { ImageBackgroundSection, AssetsSection } from '../sidebar/sections';
+import { AssetsSection, FrameSettingsSection, ImageBackgroundSection } from '../sidebar/sections';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
-import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from './commonSections';
+import {
+  chatTab,
+  createCommonSectionEntries,
+  toolsTab,
+  uploadsTab,
+} from './commonSections';
 import {
   createAssetActions,
   createIconActions,
@@ -341,15 +346,23 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     { id: 'image', icon: HiPhotograph, label: 'Bild', ariaLabel: 'Bild anpassen' },
     { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Dekorative Elemente' },
+    {
+      id: 'frame-settings',
+      icon: PiFrameCornersFill,
+      label: 'Rahmen',
+      ariaLabel: 'Rahmen-Einstellungen',
+    },
+    toolsTab,
     uploadsTab,
     { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
     chatTab,
   ],
 
   // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  getVisibleTabs: () => ['image', 'text', 'assets', 'uploads', 'chat'],
+  getVisibleTabs: () => ['image', 'text', 'assets', 'tools', 'uploads', 'chat'],
 
-  getAutoSwitchTab: (selectedElement) => (selectedElement?.startsWith('frame-') ? 'assets' : null),
+  getAutoSwitchTab: (selectedElement) =>
+    selectedElement?.startsWith('frame-') ? 'frame-settings' : null,
 
   sections: {
     image: {
@@ -392,8 +405,22 @@ export const veranstaltungFullConfig: FullCanvasConfig<
         ...injectFeatureProps(state, actions, context),
       }),
     },
-    uploads: uploadsSectionEntry,
-    chat: createChatSection('veranstaltung', veranstaltungAiCapabilities),
+    'frame-settings': {
+      component: FrameSettingsSection,
+      propsFactory: (state, actions, context) => {
+        const selectedId = context?.selectedElement ?? null;
+        const selectedFrame = selectedId
+          ? (state.frameInstances?.find((f) => f.id === selectedId) ?? null)
+          : null;
+        return {
+          selectedFrame,
+          onSetFrameImage: actions.setFrameImage,
+          onUpdateFrame: actions.updateFrame,
+          onRemoveFrame: actions.removeFrame,
+        };
+      },
+    },
+    ...createCommonSectionEntries('veranstaltung', veranstaltungAiCapabilities),
     share: createShareSection<VeranstaltungFullState>('veranstaltung', (state) =>
       `${state.eventTitle}\n${state.beschreibung}\n${state.weekday} ${state.date} ${state.time}\n${state.locationName}`.trim()
     ),

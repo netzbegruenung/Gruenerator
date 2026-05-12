@@ -6,12 +6,17 @@
  */
 
 import { ImageGenerationCounter } from '../../../../services/counters/index.js';
-import { buildGreenEditPrompt } from '../../../../services/flux/greenEditPrompt.js';
-import { FluxImageService, type GenerateResult } from '../../../../services/flux/index.js';
+import {
+  FluxImageService,
+  buildGreenEditPrompt,
+  buildUniversalPrompt,
+  type GenerateResult,
+} from '../../../../services/flux/index.js';
+import { visionService } from '../../../../services/vision/VisionService.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { redisClient } from '../../../../utils/redis/index.js';
 
-import type { ChatGraphState, GeneratedImageResult } from '../types.js';
+import type { ChatGraphState, GeneratedImageResult, ImageEditStyle, ImageStyle } from '../types.js';
 
 const log = createLogger('ChatGraph:ImageEditNode');
 
@@ -82,8 +87,17 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
     const imageBuffer = Buffer.from(attachment.data, 'base64');
     const mimeType = attachment.type;
 
-    const prompt = buildGreenEditPrompt(userContent);
-    log.info(`[ImageEditNode] Built green-edit prompt (${prompt.length} chars)`);
+    // `imageEditStyle` is set by the controller from forcedTools (mention path)
+    // or defaulted by the classifier route. `null` falls back to universal so a
+    // raw `image_edit` intent without controller wiring still produces a sane
+    // edit driven by the user's instruction.
+    const editStyle: ImageEditStyle = state.imageEditStyle ?? 'universal';
+    const prompt =
+      editStyle === 'green-edit'
+        ? buildGreenEditPrompt(userContent)
+        : buildUniversalPrompt(userContent);
+    const resultStyle: ImageStyle = editStyle;
+    log.info(`[ImageEditNode] Built ${editStyle} prompt (${prompt.length} chars)`);
 
     const flux = await FluxImageService.create();
     const { stored }: GenerateResult = await flux.generateFromImage(prompt, imageBuffer, mimeType, {
@@ -106,15 +120,40 @@ export async function imageEditNode(state: ChatGraphState): Promise<Partial<Chat
       url: imageUrl,
       filename: stored.filename,
       prompt,
-      style: 'green-edit',
+      style: resultStyle,
       generationTimeMs: imageTimeMs,
     };
+
+    // Vision grounding: describe BOTH the original and the edited image so respondNode
+    // can narrate the actual change instead of falling back to the model's training prior
+    // ("I can't edit images"). Failure here MUST NOT break the edit — degrade gracefully.
+    const groundingInstruction = 'Beschreibe in 1-2 kurzen Sätzen sachlich, was zu sehen ist.';
+    const originalDataUri = `data:${mimeType};base64,${attachment.data}`;
+    const editedDataUri = result.base64;
+    const describe = (uri: string, label: string) =>
+      visionService
+        .analyzeImage(uri, groundingInstruction, { maxTokens: 200 })
+        .catch((err: unknown) => {
+          log.warn(
+            `[ImageEditNode] vision describe(${label}) failed:`,
+            err instanceof Error ? err.message : String(err)
+          );
+          return null;
+        });
+
+    const [originalDesc, editedDesc] = await Promise.all([
+      describe(originalDataUri, 'original'),
+      describe(editedDataUri, 'edited'),
+    ]);
+    const imageEditDescriptions =
+      originalDesc || editedDesc ? { original: originalDesc, edited: editedDesc } : null;
 
     return {
       generatedImage: result,
       imagePrompt: prompt,
-      imageStyle: 'green-edit',
+      imageStyle: resultStyle,
       imageTimeMs,
+      imageEditDescriptions,
     };
   } catch (error: unknown) {
     const imageTimeMs = Date.now() - startTime;

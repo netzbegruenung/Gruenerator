@@ -36,7 +36,7 @@ export interface SearchResult {
 export interface WebSearchBatch {
   query: string;
   results: SearchResult[];
-  provider: 'searxng' | 'mistral';
+  provider: 'searxng' | 'mistral' | 'linkup';
   success: boolean;
   error?: string | undefined;
 }

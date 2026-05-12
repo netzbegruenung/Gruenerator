@@ -7,9 +7,10 @@ import {
   useThreadListItem,
   useAui,
 } from '@assistant-ui/react';
-import { MoreVertical, Pencil, Archive, Trash2, Share2 } from 'lucide-react';
+import { MoreVertical, Pencil, Archive, Trash2, Share2, Pin, PinOff } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAgentStore } from '../../stores/chatStore';
+import useChatPinsStore, { useIsChatPinned } from '../../stores/useChatPinsStore';
 import { useExternalThread } from '../../context/ExternalThreadContext';
 import { getThreadType, getNotebookCollectionId } from '../../runtime/GrueneratorThreadListAdapter';
 import { ShareThreadDialog } from './ShareThreadDialog';
@@ -38,8 +39,8 @@ function ExternalThreadItem() {
     <div
       className={cn(
         'group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 transition-colors',
-        'hover:bg-primary/5',
-        isActive && 'bg-primary/10 text-primary'
+        'hover:bg-secondary-50 dark:hover:bg-secondary-800/40',
+        isActive && 'bg-secondary-100 dark:bg-secondary-800/60 font-medium'
       )}
     >
       <button
@@ -65,6 +66,10 @@ export function GrueneratorThreadListItem() {
   const handleDelete = useSafeThreadAction('delete');
   const [shareOpen, setShareOpen] = useState(false);
   const ctx = useExternalThread();
+  const isPinned = useIsChatPinned(remoteId);
+  const togglePin = useCallback(() => {
+    if (remoteId) useChatPinsStore.getState().togglePin(remoteId);
+  }, [remoteId]);
   const handleSwitch = useCallback(
     (e: MouseEvent) => {
       // Notebook threads navigate to the notebook page instead of opening in chat
@@ -96,8 +101,8 @@ export function GrueneratorThreadListItem() {
       <ThreadListItemPrimitive.Root
         className={cn(
           'group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 transition-colors',
-          'hover:bg-primary/5',
-          'data-[active]:bg-primary/10 data-[active]:text-primary'
+          'hover:bg-secondary-50 dark:hover:bg-secondary-800/40',
+          'data-[active]:bg-secondary-100 dark:data-[active]:bg-secondary-800/60 data-[active]:font-medium'
         )}
       >
         <ThreadListItemPrimitive.Trigger
@@ -118,7 +123,14 @@ export function GrueneratorThreadListItem() {
           >
             <MoreVertical className="h-3.5 w-3.5" />
           </ThreadListItemMorePrimitive.Trigger>
-          <ThreadListItemMorePrimitive.Content className="z-50 min-w-[10rem] rounded-xl border border-border bg-background p-1 shadow-lg">
+          <ThreadListItemMorePrimitive.Content className="z-50 min-w-[10rem] rounded-xl border border-border bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl p-1 shadow-lg">
+            <ThreadListItemMorePrimitive.Item
+              onClick={togglePin}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+            >
+              {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+              {isPinned ? 'Lösen' : 'Anheften'}
+            </ThreadListItemMorePrimitive.Item>
             <ThreadListItemMorePrimitive.Item className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-foreground-muted hover:bg-primary/10 hover:text-foreground">
               <Pencil className="h-3.5 w-3.5" />
               Umbenennen
@@ -170,8 +182,8 @@ export function GrueneratorArchivedThreadListItem() {
     <ThreadListItemPrimitive.Root
       className={cn(
         'group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 transition-colors',
-        'hover:bg-primary/5 opacity-60',
-        'data-[active]:bg-primary/10 data-[active]:text-primary data-[active]:opacity-100'
+        'hover:bg-secondary-50 dark:hover:bg-secondary-800/40 opacity-60',
+        'data-[active]:bg-secondary-100 dark:data-[active]:bg-secondary-800/60 data-[active]:font-medium data-[active]:opacity-100'
       )}
     >
       <ThreadListItemPrimitive.Trigger

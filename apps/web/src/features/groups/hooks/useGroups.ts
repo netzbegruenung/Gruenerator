@@ -283,40 +283,15 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
   };
 };
 
-interface VorlagenData {
-  vorlagen?: unknown[];
-  tags?: string[];
-}
-
-export const useGroupVorlagen = (groupId: string | null, { isActive }: UseGroupsOptions = {}) => {
-  const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
-
-  const fetchVorlagenFn = async (): Promise<VorlagenData> => {
-    if (!user?.id || !groupId) {
-      throw new Error('User not authenticated or group ID missing');
-    }
-    const response = await apiClient.get<VorlagenData>(`/auth/groups/${groupId}/vorlagen`);
-    return response.data;
-  };
-
-  const query = useQuery({
-    queryKey: ['groupVorlagen', groupId],
-    queryFn: fetchVorlagenFn,
-    enabled: !!user?.id && !!groupId && isAuthenticated && !authLoading && isActive,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: 'always' as const,
-    retry: (failureCount: number) => failureCount < 2,
+export const useCloneCanvasTemplate = () => {
+  return useMutation({
+    mutationFn: async (canvasId: string) => {
+      const response = await apiClient.post<{ newCanvasId: string }>(
+        `/canvas/${canvasId}/clone`
+      );
+      return response.data;
+    },
   });
-
-  return {
-    vorlagen: query.data?.vorlagen || [],
-    tags: query.data?.tags || [],
-    isLoadingVorlagen: query.isPending,
-    isFetchingVorlagen: query.isFetching,
-    refetchVorlagen: query.refetch,
-  };
 };
 
 export const useUpdateGroupSettings = (groupId: string | null) => {

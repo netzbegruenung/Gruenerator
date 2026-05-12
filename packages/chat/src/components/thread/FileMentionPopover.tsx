@@ -13,8 +13,10 @@ import {
   Skeleton,
 } from '@gruenerator/ui';
 import { useFileMentionData } from '../../hooks/useFileMentionData';
+import { useDocMentionables } from '../../hooks/useMentionablesQuery';
 import { documentToSlug } from '../../lib/documentMentionables';
 import type {
+  CollabDocSelection,
   DocumentMention,
   NotebookCollectionItem,
   DocumentSearchResult,
@@ -22,9 +24,13 @@ import type {
 
 type Level = 'root' | 'documents';
 
+export type FileMentionSelection =
+  | { kind: 'document'; doc: DocumentMention }
+  | { kind: 'collab'; doc: CollabDocSelection };
+
 interface FileMentionPopoverProps {
   visible: boolean;
-  onSelect: (doc: DocumentMention) => void;
+  onSelect: (selection: FileMentionSelection) => void;
   onDismiss: () => void;
 }
 
@@ -34,25 +40,19 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
   const [searchResults, setSearchResults] = useState<DocumentSearchResult[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const {
-    collections,
-    documents,
-    texts,
-    loadingCollections,
-    loadingContent,
-    fetchAll,
-    searchInCollection,
-  } = useFileMentionData();
+  const { collections, documents, texts, loadingCollections, loadingContent, searchInCollection } =
+    useFileMentionData(visible);
+
+  const collabDocs = useDocMentionables();
 
   useEffect(() => {
     if (visible) {
-      fetchAll();
       setLevel('root');
       setSelectedCollection(null);
       setSearchResults([]);
       setSearchQuery('');
     }
-  }, [visible, fetchAll]);
+  }, [visible]);
 
   const handleCollectionSelect = useCallback((collection: NotebookCollectionItem) => {
     setSelectedCollection(collection);
@@ -66,12 +66,15 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
       if (!selectedCollection) return;
       const slug = documentToSlug(docTitle);
       onSelect({
-        documentId: docId,
-        documentTitle: docTitle,
-        collectionId: selectedCollection.id,
-        collectionName: selectedCollection.name,
-        slug,
-        sourceType: 'notebook',
+        kind: 'document',
+        doc: {
+          documentId: docId,
+          documentTitle: docTitle,
+          collectionId: selectedCollection.id,
+          collectionName: selectedCollection.name,
+          slug,
+          sourceType: 'notebook',
+        },
       });
     },
     [selectedCollection, onSelect]
@@ -82,12 +85,15 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
       if (!selectedCollection) return;
       const slug = documentToSlug(result.title);
       onSelect({
-        documentId: result.documentId,
-        documentTitle: result.title,
-        collectionId: selectedCollection.id,
-        collectionName: selectedCollection.name,
-        slug,
-        sourceType: 'notebook',
+        kind: 'document',
+        doc: {
+          documentId: result.documentId,
+          documentTitle: result.title,
+          collectionId: selectedCollection.id,
+          collectionName: selectedCollection.name,
+          slug,
+          sourceType: 'notebook',
+        },
       });
     },
     [selectedCollection, onSelect]
@@ -97,12 +103,15 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
     (docId: string, docTitle: string) => {
       const slug = documentToSlug(docTitle);
       onSelect({
-        documentId: docId,
-        documentTitle: docTitle,
-        collectionId: 'user-documents',
-        collectionName: 'Dokumente',
-        slug,
-        sourceType: 'document',
+        kind: 'document',
+        doc: {
+          documentId: docId,
+          documentTitle: docTitle,
+          collectionId: 'user-documents',
+          collectionName: 'Dokumente',
+          slug,
+          sourceType: 'document',
+        },
       });
     },
     [onSelect]
@@ -112,13 +121,23 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
     (textId: string, textTitle: string) => {
       const slug = documentToSlug(textTitle);
       onSelect({
-        documentId: textId,
-        documentTitle: textTitle,
-        collectionId: 'user-texts',
-        collectionName: 'Texte',
-        slug,
-        sourceType: 'text',
+        kind: 'document',
+        doc: {
+          documentId: textId,
+          documentTitle: textTitle,
+          collectionId: 'user-texts',
+          collectionName: 'Texte',
+          slug,
+          sourceType: 'text',
+        },
       });
+    },
+    [onSelect]
+  );
+
+  const handleCollabDocSelect = useCallback(
+    (id: string, slug: string, title: string) => {
+      onSelect({ kind: 'collab', doc: { id, slug, title } });
     },
     [onSelect]
   );
@@ -244,6 +263,25 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
                             {text.documentType}
                           </Badge>
                         </div>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                ) : null}
+
+                {/* Section 4: Collaborative Documents */}
+                {collabDocs.length > 0 ? (
+                  <CommandGroup heading="Kollaborative Dokumente">
+                    {collabDocs.map((doc) => (
+                      <CommandItem
+                        key={doc.identifier}
+                        value={doc.title}
+                        onSelect={() =>
+                          handleCollabDocSelect(doc.identifier, doc.mention, doc.title)
+                        }
+                        className="flex items-center gap-2"
+                      >
+                        <span className="text-base flex-shrink-0">📝</span>
+                        <span className="truncate text-sm">{doc.title}</span>
                       </CommandItem>
                     ))}
                   </CommandGroup>

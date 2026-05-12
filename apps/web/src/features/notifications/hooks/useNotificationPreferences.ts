@@ -1,3 +1,4 @@
+import { type NotifChannelPreferences } from '@gruenerator/contracts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -5,11 +6,7 @@ import {
   updateNotificationPreferences,
 } from '../../../hooks/useNotificationsTyped';
 
-interface ChannelPreferences {
-  email: boolean;
-  push: boolean;
-  in_app: boolean;
-}
+type ChannelPreferences = NotifChannelPreferences;
 
 interface NotificationPreferencesResponse {
   success: boolean;

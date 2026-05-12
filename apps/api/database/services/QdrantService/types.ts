@@ -361,6 +361,13 @@ export interface SocialMediaSearchOptions {
   platform?: 'facebook' | 'instagram' | undefined;
   /** Filter by country */
   country?: 'DE' | 'AT' | undefined;
+  /**
+   * Filter by Landesverband short code(s). Scalar 'BE' for a single LV,
+   * array ['BE', 'BE-F'] for LVs that publish under multiple codes
+   * (Landesverband + Fraktion). Records without a `landesverband` payload
+   * (federal accounts) are filtered out when this option is set.
+   */
+  landesverband?: string | readonly string[] | undefined;
 }
 
 // =============================================================================

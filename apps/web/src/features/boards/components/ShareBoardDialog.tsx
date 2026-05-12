@@ -1,3 +1,4 @@
+import { saveCollaborativeDocAsTemplate } from '@gruenerator/shared';
 import {
   Badge,
   Button,
@@ -40,6 +41,32 @@ export function ShareBoardDialog({ boardId, open, onOpenChange }: ShareBoardDial
   const [copied, setCopied] = useState(false);
   const [selectedGroupId, setSelectedGroupId] = useState('');
   const [groupPermission, setGroupPermission] = useState<'viewer' | 'editor'>('viewer');
+  const [templateMode, setTemplateMode] = useState<'idle' | 'editing' | 'saving' | 'saved'>('idle');
+  const [templateTitle, setTemplateTitle] = useState('');
+  const [templateError, setTemplateError] = useState<string | null>(null);
+
+  const handleSaveAsTemplate = useCallback(async () => {
+    const trimmed = templateTitle.trim();
+    if (!trimmed) {
+      setTemplateError('Bitte gib der Vorlage einen Titel.');
+      return;
+    }
+    try {
+      setTemplateMode('saving');
+      setTemplateError(null);
+      await saveCollaborativeDocAsTemplate({
+        documentId: boardId,
+        title: trimmed,
+        isPrivate: true,
+      });
+      setTemplateMode('saved');
+      setTimeout(() => setTemplateMode('idle'), 2500);
+    } catch (err) {
+      console.error('Failed to save board as template:', err);
+      setTemplateError('Vorlage konnte nicht gespeichert werden.');
+      setTemplateMode('editing');
+    }
+  }, [boardId, templateTitle]);
 
   const {
     collaborators,
@@ -256,6 +283,53 @@ export function ShareBoardDialog({ boardId, open, onOpenChange }: ShareBoardDial
             </div>
           </div>
         )}
+
+        {/* Save as template */}
+        <div className="border-t border-grey-200 dark:border-grey-700 pt-3">
+          {templateMode === 'idle' && (
+            <button
+              type="button"
+              onClick={() => {
+                setTemplateMode('editing');
+                setTemplateError(null);
+              }}
+              className="cursor-pointer bg-transparent border-none p-0 text-sm font-medium text-secondary-600 hover:underline"
+            >
+              Als Vorlage speichern
+            </button>
+          )}
+          {templateMode === 'editing' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={templateTitle}
+                onChange={(e) => setTemplateTitle(e.target.value)}
+                placeholder="Titel der Vorlage"
+                className="flex-1 min-w-[180px] h-8 rounded-md border border-grey-300 dark:border-grey-600 bg-background px-2 text-sm outline-none focus:border-primary-500"
+              />
+              <Button size="sm" onClick={handleSaveAsTemplate}>
+                Speichern
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setTemplateMode('idle');
+                  setTemplateError(null);
+                }}
+              >
+                Abbrechen
+              </Button>
+            </div>
+          )}
+          {templateMode === 'saving' && (
+            <p className="text-sm text-grey-500">Vorlage wird gespeichert…</p>
+          )}
+          {templateMode === 'saved' && (
+            <p className="text-sm text-green-600">✓ Vorlage gespeichert</p>
+          )}
+          {templateError && <p className="mt-1 text-xs text-red-600">{templateError}</p>}
+        </div>
       </DialogContent>
     </Dialog>
   );

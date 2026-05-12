@@ -12,8 +12,6 @@ import { buildSystemMessage } from './respondNode.js';
 
 import type { ChatGraphState, SearchResult } from '../types.js';
 
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-
 // ============================================================================
 // Scoring Utilities
 // ============================================================================
@@ -216,8 +214,7 @@ async function evaluateBudgetAllocation() {
       model: 'test',
       name: 'test',
       description: 'test',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any,
+    } as unknown as ChatGraphState['agentConfig'],
     enabledTools: {},
     aiWorkerPool: null as never,
     userLocale: 'de-DE',
@@ -238,6 +235,7 @@ async function evaluateBudgetAllocation() {
     boardContext: null,
     docMentionIds: [],
     documentMentionContext: null,
+    currentDocument: null,
     searchSources: [],
     intent: 'search',
     secondaryIntent: null,
@@ -249,8 +247,12 @@ async function evaluateBudgetAllocation() {
     targetGroupName: null,
     isCompound: false,
     gatherSources: [],
+    documentSources: [],
+    perSourceResults: {},
+    synthesisMode: null,
     hasTemporal: false,
     complexity: 'moderate',
+    platform: null,
     needsClarification: false,
     clarificationQuestion: null,
     clarificationOptions: null,
@@ -260,12 +262,19 @@ async function evaluateBudgetAllocation() {
     searchCount: 1,
     maxSearches: 3,
     researchBrief: null,
+    researchMeta: null,
+    examplesResult: null,
+    searchErrors: [],
+    briefGenerationFailed: false,
+    rerankFailed: false,
     qualityScore: 0,
     qualityAssessmentTimeMs: 0,
     imagePrompt: null,
     imageStyle: null,
+    imageEditStyle: null,
     generatedImage: null,
     imageTimeMs: 0,
+    imageEditDescriptions: null,
     summaryContext: null,
     summaryTimeMs: 0,
     chartData: null,

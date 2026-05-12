@@ -48,7 +48,7 @@ import type { ToolbarBridgeState } from './ToolbarStateBridge';
 const EMPTY_CALLBACKS: Record<string, ((val: unknown) => void) | undefined> = {};
 
 import type { AlignmentDirection } from './Toolbar';
-import type { StockImageAttribution } from '../common/imageSourceTypes';
+import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
 import type { OptionalCanvasActions } from '../hooks/useCanvasElementHandlers';
 import type { FloatingModuleState } from '../hooks/useFloatingModuleState';
@@ -111,7 +111,12 @@ export interface GenericCanvasRef {
   captureCanvasForAi: () => Promise<string | null>;
   /** Get the current canvas state (for shared sidebar in multi-page mode) */
   getState: () => Record<string, unknown>;
-  /** Get the canvas actions (for shared sidebar in multi-page mode) */
+  /**
+   * Get the canvas actions (for shared sidebar in multi-page mode).
+   * Existentially typed: each page's GenericCanvas holds its own concrete
+   * TActions; the multi-page CanvasEditor consumes them polymorphically.
+   * Use OptionalCanvasActions for typed access to shared optional methods.
+   */
   getActions: () => Record<string, unknown>;
   /** Get the currently selected element ID (for shared sidebar tab visibility) */
   getSelectedElement?: () => string | null;
@@ -127,7 +132,7 @@ export interface GenericCanvasRef {
 
 // Generic component with forwardRef - uses type assertion pattern for TypeScript compatibility
 function GenericCanvasWithRef<
-  TState extends Record<string, unknown>,
+  TState extends Record<string, unknown> & Partial<BaseCanvasState>,
   TActions extends OptionalCanvasActions,
 >(props: GenericCanvasProps<TState, TActions> & { forwardedRef?: React.Ref<GenericCanvasRef> }) {
   const {
@@ -291,23 +296,47 @@ function GenericCanvasWithRef<
   const lastAutoSaveHistoryIndexRef = useRef(-1);
 
   useEffect(() => {
-    // Skip initial render, invalid states, and when already exporting
-    if (historyIndex < 0 || isExporting) return;
-    // Skip if element is selected (read non-reactively — no rerender on selection change)
-    if (store.getState().selectedElement) return;
-    // Skip if already saved for this history index
-    if (lastAutoSaveHistoryIndexRef.current === historyIndex) return;
+    console.log('[AutoSave][historyEffect] tick', {
+      historyIndex,
+      isExporting,
+      lastSavedAt: lastAutoSaveHistoryIndexRef.current,
+      selectedElement: store.getState().selectedElement,
+    });
+    if (historyIndex < 0 || isExporting) {
+      console.log('[AutoSave][historyEffect] skip: initial or exporting');
+      return;
+    }
+    if (store.getState().selectedElement) {
+      console.log('[AutoSave][historyEffect] skip: element selected');
+      return;
+    }
+    if (lastAutoSaveHistoryIndexRef.current === historyIndex) {
+      console.log('[AutoSave][historyEffect] skip: already captured for this historyIndex');
+      return;
+    }
 
     // Debounce screenshot capture — toDataURL at pixelRatio:2 is expensive (~100-200ms).
     // 1500ms ensures we only capture after the user stops editing.
     const timer = setTimeout(() => {
       // Re-check at capture time in case selection changed during debounce
-      if (store.getState().selectedElement) return;
+      if (store.getState().selectedElement) {
+        console.log('[AutoSave][historyEffect] capture aborted: element selected at capture time');
+        return;
+      }
+      console.log('[AutoSave][historyEffect] capturing stage at historyIndex', historyIndex);
       const dataUrl = stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 });
       if (dataUrl) {
+        console.log('[AutoSave][historyEffect] capture OK, setExportedImage', {
+          historyIndex,
+          dataUrlLen: dataUrl.length,
+        });
         setExportedImage(dataUrl);
         exportedImageRef.current = dataUrl;
         lastAutoSaveHistoryIndexRef.current = historyIndex;
+      } else {
+        console.warn('[AutoSave][historyEffect] capture FAILED: stageRef.current.toDataURL() returned null', {
+          stageRefSet: !!stageRef.current,
+        });
       }
     }, 1500);
 
@@ -330,8 +359,7 @@ function GenericCanvasWithRef<
   useCanvasKeyboardHandlers({
     store,
     state,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    actions: actions as any, // TActions may have different shape; keyboard handlers check with optional chaining
+    actions,
     setState: setStateWrapper,
     setSelectedElement,
   });
@@ -339,12 +367,8 @@ function GenericCanvasWithRef<
   const canvasItems = useMemo(() => buildCanvasItems(config, state), [config, state]);
 
   const sortedRenderList = useMemo(
-    () =>
-      buildSortedRenderList(
-        canvasItems,
-        ((state as unknown as Record<string, unknown>).layerOrder as string[]) || []
-      ),
-    [canvasItems, (state as unknown as Record<string, unknown>).layerOrder]
+    () => buildSortedRenderList(canvasItems, state.layerOrder ?? []),
+    [canvasItems, state.layerOrder]
   );
 
   // Bridge ref for ToolbarStateBridge → useImperativeHandle communication
@@ -354,11 +378,7 @@ function GenericCanvasWithRef<
   const attributionOverlayData = useMemo(() => {
     if (!isExporting) return null;
 
-    // Check if state has imageAttribution field
-    const imageAttribution = (state as unknown as Record<string, unknown>).imageAttribution as
-      | StockImageAttribution
-      | null
-      | undefined;
+    const imageAttribution = state.imageAttribution;
     if (!imageAttribution) return null;
 
     return calculateAttributionOverlay(
@@ -528,7 +548,7 @@ function CanvasYjsBindingMount({
 }
 
 function GenericCanvasWithProvider<
-  TState extends Record<string, unknown>,
+  TState extends Record<string, unknown> & Partial<BaseCanvasState>,
   TActions extends OptionalCanvasActions,
 >(props: GenericCanvasProps<TState, TActions> & { forwardedRef?: React.Ref<GenericCanvasRef> }) {
   return (

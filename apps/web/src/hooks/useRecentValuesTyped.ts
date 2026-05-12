@@ -1,22 +1,14 @@
 /**
- * useRecentValuesTyped — typed replacement for useRecentValues.
+ * useRecentValuesTyped — typed recent-form-values hook.
  *
- * Demonstrates the ts-rest migration pattern:
- *   BEFORE: apiClient.get(`/recent-values/${fieldType}?limit=${limit}`)
- *           → response typed as `any`, shape verified only at runtime
- *
- *   AFTER:  client.recentValues.getByFieldType({ params: { fieldType }, query: { limit } })
- *           → body fully typed as GetRecentValuesResponse, shape enforced at compile time
- *
- * The response `body` type is inferred directly from the Zod schema in
- * @gruenerator/contracts — no manual interface duplication.
- *
- * This hook intentionally mirrors useRecentValues.ts so both can coexist
- * during migration. Once this is verified stable, the old hook can be removed.
+ * Uses ts-rest contracts client for compile-time-checked request/response shapes.
+ * Server state lives in TanStack Query; localStorage seeds initialData so reloads
+ * don't flicker while the network roundtrip happens.
  */
 
 import { getContractsClient } from '@gruenerator/shared/api';
-import { useState, useCallback, useEffect } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useState } from 'react';
 
 interface UseRecentValuesOptions {
   limit?: number;
@@ -35,138 +27,148 @@ interface UseRecentValuesReturn {
   lastFetch: number | null;
 }
 
+interface CachedValues {
+  values: string[];
+  timestamp: number;
+}
+
+const recentValuesKey = (fieldType: string, limit: number) =>
+  ['recent-values', fieldType, limit] as const;
+
+const readCache = (cacheKey: string, cacheTimeout: number): CachedValues | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(cacheKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedValues;
+    if (Date.now() - parsed.timestamp < cacheTimeout) return parsed;
+  } catch {
+    // invalid cache
+  }
+  return null;
+};
+
+const writeCache = (cacheKey: string, values: string[]): number => {
+  const timestamp = Date.now();
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify({ values, timestamp }));
+  } catch {
+    // quota / disabled storage
+  }
+  return timestamp;
+};
+
 export function useRecentValuesTyped(
   fieldType: string,
   options: UseRecentValuesOptions = {}
 ): UseRecentValuesReturn {
   const { limit = 5, cacheTimeout = 5 * 60 * 1000 } = options;
   const cacheKey = `recentValues_${fieldType}`;
+  const queryClient = useQueryClient();
+  const queryKey = recentValuesKey(fieldType, limit);
 
-  const [initialCache] = useState(() => {
-    if (typeof window === 'undefined')
-      return { values: [] as string[], timestamp: null as number | null };
-    try {
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        const parsed = JSON.parse(cached) as { values: string[]; timestamp: number };
-        if (Date.now() - parsed.timestamp < cacheTimeout) {
-          return { values: parsed.values, timestamp: parsed.timestamp };
-        }
-      }
-    } catch {
-      // invalid cache
-    }
-    return { values: [] as string[], timestamp: null as number | null };
-  });
+  const [initialCache] = useState(() => readCache(cacheKey, cacheTimeout));
+  const [lastFetch, setLastFetch] = useState<number | null>(initialCache?.timestamp ?? null);
 
-  const [recentValues, setRecentValues] = useState<string[]>(initialCache.values);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [lastFetch, setLastFetch] = useState<number | null>(initialCache.timestamp);
-
-  // Fetch on mount only when cache is cold
-  useEffect(() => {
-    if (lastFetch === null) {
-      void fetchRecentValues();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fieldType]);
-
-  const fetchRecentValues = useCallback(async () => {
-    if (!fieldType) return;
-    setIsLoading(true);
-    setError(null);
-
-    try {
+  const query = useQuery<string[], Error>({
+    queryKey,
+    queryFn: async () => {
       const client = getContractsClient();
-
-      // ── Typed call ──────────────────────────────────────────────────────────
-      // `status` and `body` are discriminated by the contract's response map.
-      // TypeScript knows `body.data` is an array of `RecentValueItem` objects.
       const result = await client.recentValues.getByFieldType({
         params: { fieldType },
         query: { limit: String(limit) },
       });
+      if (result.status !== 200) return [];
+      const values = result.body.data.map((item) => item.field_value);
+      setLastFetch(writeCache(cacheKey, values));
+      return values;
+    },
+    enabled: Boolean(fieldType),
+    staleTime: cacheTimeout,
+    initialData: initialCache?.values,
+    initialDataUpdatedAt: initialCache?.timestamp,
+  });
 
-      if (result.status === 200) {
-        // result.body is typed as z.infer<typeof getRecentValuesResponseSchema>
-        const values = result.body.data.map((item) => item.field_value);
-        setRecentValues(values);
-        localStorage.setItem(cacheKey, JSON.stringify({ values, timestamp: Date.now() }));
-        setLastFetch(Date.now());
-      } else {
-        setRecentValues([]);
+  const recentValues = query.data ?? [];
+
+  const saveMutation = useMutation({
+    mutationFn: async ({ value, formName }: { value: string; formName: string | null }) => {
+      const client = getContractsClient();
+      const result = await client.recentValues.save({
+        body: {
+          fieldType,
+          fieldValue: value,
+          ...(formName !== null && { formName }),
+        },
+      });
+      return result.status === 201 ? value : null;
+    },
+    onSuccess: (savedValue) => {
+      if (!savedValue) return;
+      queryClient.setQueryData<string[]>(queryKey, (prev) => {
+        const next = [savedValue, ...(prev ?? []).filter((v) => v !== savedValue)].slice(0, limit);
+        writeCache(cacheKey, next);
+        return next;
+      });
+    },
+  });
+
+  const clearMutation = useMutation({
+    mutationFn: async () => {
+      const client = getContractsClient();
+      const result = await client.recentValues.clearByFieldType({ params: { fieldType } });
+      return result.status === 200;
+    },
+    onSuccess: (ok) => {
+      if (!ok) return;
+      queryClient.setQueryData<string[]>(queryKey, []);
+      try {
+        localStorage.removeItem(cacheKey);
+      } catch {
+        // ignore
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch recent values');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fieldType, limit, cacheKey]);
+    },
+  });
 
   const saveRecentValue = useCallback(
     async (value: string, formName: string | null = null) => {
       const trimmed = value.trim();
       if (!fieldType || !trimmed) return;
       if (recentValues[0] === trimmed) return;
-
-      try {
-        const client = getContractsClient();
-        const result = await client.recentValues.save({
-          body: {
-            fieldType,
-            fieldValue: trimmed,
-            ...(formName !== null && { formName }),
-          },
-        });
-
-        if (result.status === 201) {
-          setRecentValues((prev) =>
-            [trimmed, ...prev.filter((v) => v !== trimmed)].slice(0, limit)
-          );
-          const newValues = [trimmed, ...recentValues.filter((v) => v !== trimmed)].slice(0, limit);
-          localStorage.setItem(
-            cacheKey,
-            JSON.stringify({ values: newValues, timestamp: Date.now() })
-          );
-        }
-      } catch (err) {
-        console.error('[useRecentValuesTyped] Error saving recent value:', err);
-      }
+      await saveMutation.mutateAsync({ value: trimmed, formName });
     },
-    [fieldType, recentValues, limit, cacheKey]
+    [fieldType, recentValues, saveMutation]
   );
 
   const clearRecentValues = useCallback(async () => {
     if (!fieldType) return;
-    try {
-      const client = getContractsClient();
-      const result = await client.recentValues.clearByFieldType({
-        params: { fieldType },
-      });
-      if (result.status === 200) {
-        setRecentValues([]);
-        localStorage.removeItem(cacheKey);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to clear recent values');
-    }
-  }, [fieldType, cacheKey]);
+    await clearMutation.mutateAsync();
+  }, [fieldType, clearMutation]);
 
   const refresh = useCallback(() => {
-    localStorage.removeItem(cacheKey);
-    void fetchRecentValues();
-  }, [fetchRecentValues, cacheKey]);
+    try {
+      localStorage.removeItem(cacheKey);
+    } catch {
+      // ignore
+    }
+    void query.refetch();
+  }, [cacheKey, query]);
 
   const hasRecentValue = useCallback(
     (value: string) => recentValues.includes(value.trim()),
     [recentValues]
   );
 
+  const errorMessage = query.error
+    ? query.error.message
+    : clearMutation.error instanceof Error
+      ? clearMutation.error.message
+      : null;
+
   return {
     recentValues,
-    isLoading,
-    error,
+    isLoading: query.isLoading,
+    error: errorMessage,
     saveRecentValue,
     clearRecentValues,
     refresh,

@@ -17,7 +17,7 @@ export function AutoMessageSender() {
   useEffect(() => {
     if (!pendingInitialAssistantMessage || processingRef.current) return;
     processingRef.current = true;
-    assistantRuntime.switchToNewThread();
+    void assistantRuntime.threads.switchToNewThread();
   }, [pendingInitialAssistantMessage, assistantRuntime]);
 
   useEffect(() => {
@@ -29,7 +29,7 @@ export function AutoMessageSender() {
     if (!text) return;
 
     processingRef.current = true;
-    assistantRuntime.switchToNewThread();
+    void assistantRuntime.threads.switchToNewThread();
 
     const timer = setTimeout(() => {
       try {

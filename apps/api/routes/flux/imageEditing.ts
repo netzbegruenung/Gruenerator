@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { ImageGenerationCounter } from '../../services/counters/index.js';
-import { FluxImageService } from '../../services/flux/index.js';
+import { FluxImageService, buildUniversalPrompt } from '../../services/flux/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
@@ -208,22 +208,6 @@ function buildAllyMakerPrompt(placementText: string, _isPrecision = false): stri
       requirements: ['natural integration with skin tone', 'match lighting and shadows'],
     },
     quality: 'Realistic tattoo appearance, natural integration',
-  };
-
-  return JSON.stringify(promptStructure, null, 2);
-}
-
-function buildUniversalPrompt(userText: string): string {
-  const trimmed = (userText || '').toString().trim();
-
-  const promptStructure: PromptStructure = {
-    edit: trimmed,
-    style: 'Photorealistic, maintaining original image quality',
-    constraints: {
-      preserve: ['Aspects not mentioned in edit instruction'],
-      match: ['Original lighting, shadows, and textures'],
-    },
-    quality: 'Photorealistic edit',
   };
 
   return JSON.stringify(promptStructure, null, 2);

@@ -220,28 +220,6 @@ updates:
           - '@tus/*'
 
   # =============================================================================
-  # SITES - Site builder/management interface (apps/sites)
-  # =============================================================================
-  - package-ecosystem: 'npm'
-    directory: '/apps/sites'
-    schedule:
-      interval: 'weekly'
-      day: 'tuesday'
-      time: '07:00'
-      timezone: 'Europe/Berlin'
-    open-pull-requests-limit: 5
-    labels:
-      - 'dependencies'
-      - 'sites'
-    groups:
-      all-dependencies:
-        patterns:
-          - '*'
-    ignore:
-      - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
-
-  # =============================================================================
   # GRUEN-O-MAT (apps/gruen-o-mat)
   # =============================================================================
   - package-ecosystem: 'npm'

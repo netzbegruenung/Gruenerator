@@ -172,6 +172,12 @@ const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
 const MonitorPage = lazy(() => import('../features/monitor/MonitorPage'));
 const DocsPage = lazy(() => import('../features/docs/DocsPage'));
 const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
+const SitesHomePage = lazy(() => import('../features/sites/SitesHomePage'));
+const SitesLoginPage = lazy(() => import('../features/sites/SitesLoginPage'));
+const SitesDemoPage = lazy(() => import('../features/sites/SitesDemoPage'));
+const SitesEditPage = lazy(() => import('../features/sites/SitesEditPage'));
+const AgentBuilderPage = lazy(() => import('../features/agents/AgentBuilderPage'));
+const SkillsPage = lazy(() => import('../features/skills/SkillsPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -205,11 +211,28 @@ const standardRoutes: RouteConfig[] = [
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   { path: '/workplace', component: WorkplacePage },
+  // Agent builder/editor. Dev-only until the feature ships — gated via the
+  // existing `devOnly` filter at the bottom of this file (Vite tree-shakes the
+  // routes in prod). The list/overview lives on the unified Library page at
+  // /skills.
+  {
+    path: '/agents/new',
+    component: AgentBuilderPage,
+    auth: 'required' as const,
+    devOnly: true,
+  },
+  {
+    path: '/agents/:identifier/edit',
+    component: AgentBuilderPage,
+    auth: 'required' as const,
+    devOnly: true,
+  },
   {
     path: '/desk',
     component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
   },
   { path: '/recherche', component: RecherchePage },
+  { path: '/skills', component: SkillsPage, auth: 'required' },
   { path: '/gruppen', component: GruppenPage },
   { path: '/gruppen/:groupId', component: GruppenPage },
   { path: '/gruen-o-mat', component: GruenOMatDemoPage },
@@ -396,6 +419,11 @@ const standardRoutes: RouteConfig[] = [
   { path: '/boards', component: BoardsListRedirect },
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome' },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'noChrome' },
+  // Sites Feature Routes — embedded candidate site builder
+  { path: '/sites', component: SitesHomePage, layoutMode: 'immersive' },
+  { path: '/sites/login', component: SitesLoginPage, layoutMode: 'immersive', auth: 'guest' },
+  { path: '/sites/demo', component: SitesDemoPage, layoutMode: 'immersive' },
+  { path: '/sites/edit', component: SitesEditPage, layoutMode: 'immersive', auth: 'required' },
   { path: '*', component: NotFound },
 ];
 

@@ -87,6 +87,11 @@ const envSchema = z.object({
   REGOLO_DEFAULT_MODEL: z.string().optional(),
   BFL_API_KEY: z.string().optional(),
 
+  // ── Web Search Providers ───────────────────────────────────────────────
+  // Linkup (https://docs.linkup.so) — when set, replaces SearXNG for @web
+  // and replaces the deep-research orchestrator for @recherche.
+  LINKUP_API_KEY: z.string().optional(),
+
   // ── Image / Flux ───────────────────────────────────────────────────────
   FLUX_BACKEND: z.string().optional(),
   FLUX_MAX_RETRIES: numStr(3),
@@ -136,6 +141,7 @@ const envSchema = z.object({
   // ── OCR ────────────────────────────────────────────────────────────────
   OCR_PROVIDER: z.string().optional(),
   DOCLING_URL: z.string().optional(),
+  REMBG_URL: z.string().optional(),
 
   // ── Hocuspocus / Yjs ──────────────────────────────────────────────────
   HOCUSPOCUS_ENABLED: boolFlag(false),

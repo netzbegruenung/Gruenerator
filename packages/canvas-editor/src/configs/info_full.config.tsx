@@ -1,29 +1,25 @@
 /**
  * Info Full Canvas Configuration
- * Info sharepic with header, arrow, and body text
+ * Info sharepic with header, arrow, and body text.
  *
- * Uses createColorTwoTextCanvas factory for shared infrastructure.
+ * Uses createColorTwoTextCanvas factory + Phase A/B helpers.
  */
 
-import { HiSparkles } from 'react-icons/hi';
-
-import { buildAssetCapability } from '../ai/assetCapability';
-import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
-import { createChatSection } from './commonSections';
-import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { INFO_CONFIG, calculateInfoLayout } from '../utils/infoLayout';
 
-import { createColorTwoTextCanvas, type ColorTwoTextActions } from './factory';
+import {
+  createAiCapabilities,
+  createColorTwoTextCanvas,
+  createPrimaryText,
+  createSecondaryText,
+  fromLayout,
+  wrapWithAi,
+  type ColorTwoTextActions,
+  type ColorTwoTextState,
+} from './factory';
 
-import type { TemplateAiCapabilities } from '../ai/types';
-import type { ColorTwoTextState } from './factory';
-import type { LayoutResult, TextElementConfig, ImageElementConfig } from './types';
+import type { ImageElementConfig, LayoutResult } from './types';
 import type { BackgroundColorOption } from '../sidebar/types';
-import type { CanvasAiSnapshot } from '@gruenerator/contracts';
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
 
 const BACKGROUND_COLORS: BackgroundColorOption[] = [
   { id: 'tanne', label: 'Tanne', color: '#005538' },
@@ -40,19 +36,19 @@ const BACKGROUND_IMAGES: Record<string, string> = {
   '#F5F1E9': '/Info_bg_sand.png',
 };
 
-// ============================================================================
-// LAYOUT CALCULATOR
-// ============================================================================
+type InfoState = ColorTwoTextState<'header' | 'body'>;
 
-const calculateLayout = (state: ColorTwoTextState): LayoutResult => {
+const metaFontColor = (_state: InfoState, layout: LayoutResult) =>
+  (layout._meta as { fontColor?: string } | undefined)?.fontColor;
+
+const calculateLayout = (state: InfoState): LayoutResult => {
   const headerFontSize = state.customPrimaryFontSize ?? INFO_CONFIG.header.fontSize;
   const bodyFontSize = state.customSecondaryFontSize ?? INFO_CONFIG.body.fontSize;
   const layout = calculateInfoLayout(headerFontSize, bodyFontSize);
 
   const fontColor = TEXT_COLORS[state.backgroundColor] ?? '#ffffff';
 
-  // Estimate header height for arrow positioning
-  const header = (state.header as string) || '';
+  const header = state.header || '';
   const headerLineHeight = headerFontSize * INFO_CONFIG.header.lineHeightRatio;
   const estimatedHeaderLines = Math.ceil(header.length / 30);
   const headerHeight = estimatedHeaderLines * headerLineHeight;
@@ -83,11 +79,7 @@ const calculateLayout = (state: ColorTwoTextState): LayoutResult => {
   };
 };
 
-// ============================================================================
-// CUSTOM ELEMENTS
-// ============================================================================
-
-const sunflowerElement: ImageElementConfig<ColorTwoTextState> = {
+const sunflowerElement: ImageElementConfig<InfoState> = {
   id: 'sunflower',
   type: 'image',
   x: INFO_CONFIG.sunflower.x,
@@ -100,35 +92,28 @@ const sunflowerElement: ImageElementConfig<ColorTwoTextState> = {
   opacity: () => 0.04,
 };
 
-const headerTextElement: TextElementConfig<ColorTwoTextState> = {
+const headerTextElement = createPrimaryText<InfoState>({
   id: 'header-text',
-  type: 'text',
-  x: (_s, l) => (l['header-text'] as { x?: number })?.x ?? INFO_CONFIG.header.x,
-  y: (_s, l) => (l['header-text'] as { y?: number })?.y ?? INFO_CONFIG.margin.headerStartY,
-  order: 2,
   textKey: 'header',
+  order: 2,
   width: INFO_CONFIG.header.maxWidth,
-  fontSize: (_s, l) =>
-    (l['header-text'] as { fontSize?: number })?.fontSize ?? INFO_CONFIG.header.fontSize,
-  fontFamily: `${INFO_CONFIG.header.fontFamily}, Arial, sans-serif`,
+  fontFamily: INFO_CONFIG.header.fontFamily,
   fontStyle: INFO_CONFIG.header.fontStyle,
-  align: 'left',
   lineHeight: INFO_CONFIG.header.lineHeightRatio,
-  wrap: 'word',
-  editable: true,
-  draggable: true,
-  fontSizeStateKey: 'customPrimaryFontSize',
-  opacityStateKey: 'primaryOpacity',
-  fill: (s, l) =>
-    (s.primaryColor as string) ?? (l._meta as { fontColor?: string })?.fontColor ?? '#ffffff',
-  fillStateKey: 'primaryColor',
-};
+  defaultColor: '#ffffff',
+  fillFallback: metaFontColor,
+  layoutFallback: {
+    x: INFO_CONFIG.header.x,
+    y: INFO_CONFIG.margin.headerStartY,
+    fontSize: INFO_CONFIG.header.fontSize,
+  },
+});
 
-const arrowElement: ImageElementConfig<ColorTwoTextState> = {
+const arrowElement: ImageElementConfig<InfoState> = {
   id: 'arrow',
   type: 'image',
-  x: (_s, l) => (l['arrow'] as { x?: number })?.x ?? INFO_CONFIG.arrow.x,
-  y: (_s, l) => (l['arrow'] as { y?: number })?.y ?? 400,
+  x: fromLayout('arrow', 'x', INFO_CONFIG.arrow.x),
+  y: fromLayout('arrow', 'y', 400),
   order: 3,
   width: INFO_CONFIG.arrow.size,
   height: INFO_CONFIG.arrow.size,
@@ -137,137 +122,65 @@ const arrowElement: ImageElementConfig<ColorTwoTextState> = {
   opacityStateKey: 'arrowOpacity',
 };
 
-const bodyTextElement: TextElementConfig<ColorTwoTextState> = {
+const bodyTextElement = createSecondaryText<InfoState>({
   id: 'body-text',
-  type: 'text',
-  x: (_s, l) => (l['body-text'] as { x?: number })?.x ?? INFO_CONFIG.body.leftMargin,
-  y: (_s, l) => (l['body-text'] as { y?: number })?.y ?? 400,
-  order: 4,
   textKey: 'body',
+  order: 4,
   width: INFO_CONFIG.body.maxWidth,
-  fontSize: (_s, l) =>
-    (l['body-text'] as { fontSize?: number })?.fontSize ?? INFO_CONFIG.body.fontSize,
-  fontFamily: `${INFO_CONFIG.body.remainingFont}, Arial, sans-serif`,
-  align: 'left',
+  fontFamily: INFO_CONFIG.body.remainingFont,
   lineHeight: INFO_CONFIG.body.lineHeightRatio,
-  wrap: 'word',
-  editable: true,
-  draggable: true,
-  fontSizeStateKey: 'customSecondaryFontSize',
-  opacityStateKey: 'secondaryOpacity',
-  fill: (s, l) =>
-    (s.secondaryColor as string) ?? (l._meta as { fontColor?: string })?.fontColor ?? '#ffffff',
-  fillStateKey: 'secondaryColor',
-};
-
-// ============================================================================
-// CONFIG EXPORT
-// ============================================================================
+  defaultColor: '#ffffff',
+  fillFallback: metaFontColor,
+  layoutFallback: {
+    x: INFO_CONFIG.body.leftMargin,
+    y: 400,
+    fontSize: INFO_CONFIG.body.fontSize,
+  },
+});
 
 const baseInfoConfig = createColorTwoTextCanvas({
   id: 'info',
-
   canvas: {
     width: INFO_CONFIG.canvas.width,
     height: INFO_CONFIG.canvas.height,
   },
-
-  primaryField: {
-    key: 'header',
-    label: 'Überschrift',
-  },
-
-  secondaryField: {
-    key: 'body',
-    label: 'Text',
-  },
-
+  primaryField: { key: 'header', label: 'Überschrift' },
+  secondaryField: { key: 'body', label: 'Text' },
   backgroundColors: BACKGROUND_COLORS,
   defaultBackgroundColor: '#005538',
   textColorMap: TEXT_COLORS,
   backgroundImageMap: BACKGROUND_IMAGES,
-
   calculateLayout,
-
   elements: [sunflowerElement, headerTextElement, arrowElement, bodyTextElement],
-
-  features: {
-    icons: true,
-    shapes: true,
-    illustrations: true,
-  },
-
+  features: { icons: true, shapes: true, illustrations: true },
   getCanvasText: (state) => {
-    const header = (state.header as string) || '';
-    const body = (state.body as string) || '';
+    const header = state.header || '';
+    const body = state.body || '';
     return `${header}\n${body}`.trim();
   },
 });
 
-// ============================================================================
-// AI CAPABILITY
-// ============================================================================
-
-const infoAiCapabilities: TemplateAiCapabilities<ColorTwoTextState, ColorTwoTextActions> = {
-  supportedOperations: [
-    'set-text',
-    'set-background-color',
-    'add-illustration',
-    'add-asset',
-    'update-element',
-    'remove-element',
-  ],
-
-  illustrations: buildIllustrationCapability(),
-  assets: buildAssetCapability('info'),
-
-  describeForAi: (state): CanvasAiSnapshot => ({
-    template: 'info',
-    textFields: [
-      { field: 'header', label: 'Überschrift', value: (state.header as string) || '' },
-      { field: 'body', label: 'Text', value: (state.body as string) || '' },
-    ],
-    currentBackgroundColor: state.backgroundColor as `#${string}`,
-    elementsSummary: [],
-  }),
-
-  applyOverrides: {
-    'set-text': (op, actions) => {
-      if (op.field === 'header') {
-        actions.setPrimary?.(op.value);
-        return;
-      }
-      if (op.field === 'body') {
-        actions.setSecondary?.(op.value);
-        return;
-      }
-      throw new Error(`Info-Vorlage hat kein Feld "${op.field}"`);
+const infoAiCapabilities = createAiCapabilities<InfoState, ColorTwoTextActions>({
+  id: 'info',
+  errorLabel: 'Info',
+  fields: [
+    {
+      field: 'header',
+      label: 'Überschrift',
+      read: (s) => s.header || '',
+      setter: (a) => a.setPrimary,
     },
-  },
-};
-
-// ============================================================================
-// FINAL CONFIG (factory result + AI overlay)
-// ============================================================================
-
-export const infoFullConfig = {
-  ...baseInfoConfig,
-  ai: infoAiCapabilities,
-  tabs: [
-    ...baseInfoConfig.tabs,
-    { id: 'ai' as const, icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
+    {
+      field: 'body',
+      label: 'Text',
+      read: (s) => s.body || '',
+      setter: (a) => a.setSecondary,
+    },
   ],
-  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  getVisibleTabs: (state: ColorTwoTextState, context?: { selectedElement?: string | null }) => {
-    return baseInfoConfig.getVisibleTabs?.(state, context) ?? [];
-  },
-  sections: {
-    ...baseInfoConfig.sections,
-    ai: createAiSectionRegistration('info', infoAiCapabilities),
-    chat: createChatSection('info', infoAiCapabilities),
-  },
-};
+  background: { read: (s) => s.backgroundColor as `#${string}` },
+});
 
-// Re-export types for backward compatibility
-export type InfoFullState = ColorTwoTextState;
+export const infoFullConfig = wrapWithAi(baseInfoConfig, 'info', infoAiCapabilities);
+
+export type InfoFullState = InfoState;
 export type { ColorTwoTextActions as InfoFullActions } from './factory';

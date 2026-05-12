@@ -420,8 +420,6 @@ router.patch(
       );
       const userDefaults = profileService.getUserDefaults(updatedProfile);
 
-      log.debug(`[User Defaults Change] User ${req.user!.id}: ${generator}.${key} = ${value}`);
-
       res.json({
         success: true,
         userDefaults,

@@ -1,109 +1,138 @@
-import { useCallback, useMemo, useRef } from 'react';
-import { PiTrashFill } from 'react-icons/pi';
+import { useMemo } from 'react';
 
-import { FRAME_ICON_MAP, FRAME_PRESETS } from '../../utils/frameUtils';
-import { SIDEBAR_SECTION, CARD_GRID, SELECTABLE_CARD } from '../primitives';
-
-import type { FrameClipType, FrameInstance } from '../../utils/frameUtils';
-
+import {
+  FRAME_CATEGORY_LABELS,
+  FRAME_CATEGORY_ORDER,
+  FRAME_PRESET_PATHS,
+  FRAME_PRESETS,
+  getFramePreset,
+} from '../../utils/frameUtils';
 import { cn } from '../../utils/cn';
+import { SELECTABLE_CARD, SIDEBAR_SECTION } from '../primitives';
+
+import type {
+  FrameCategory,
+  FrameClipType,
+  FrameInstance,
+  FramePreset,
+} from '../../utils/frameUtils';
+
+const PREVIEW_GRADIENT_ID = 'rahmen-preset-preview-gradient';
 
 export interface RahmenSectionProps {
   onAddFrame: (clipType: FrameClipType) => void;
-  selectedFrame: FrameInstance | null;
-  onSetFrameImage?: (id: string, file: File, objectUrl: string) => void;
-  onRemoveFrame?: (id: string) => void;
   searchQuery?: string;
+  // Kept for prop-shape compatibility with featureInjector (selected-frame
+  // editing now lives in FrameSettingsSection, but configs still inject these).
+  selectedFrame?: FrameInstance | null;
+  onSetFrameImage?: (id: string, file: File, objectUrl: string) => void;
+  onUpdateFrame?: (id: string, partial: Partial<FrameInstance>) => void;
+  onRemoveFrame?: (id: string) => void;
 }
 
-export function RahmenSection({
-  onAddFrame,
-  selectedFrame,
-  onSetFrameImage,
-  onRemoveFrame,
-  searchQuery = '',
-}: RahmenSectionProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+/**
+ * Index of frame presets grouped by category. Computed once at module load via
+ * the typed getFramePreset accessor — adding a new FrameClipType automatically
+ * shows up under its category subheader without touching this file.
+ */
+const FRAMES_BY_CATEGORY: Record<FrameCategory, ReadonlyArray<FramePreset>> = (() => {
+  const acc = {} as Record<FrameCategory, FramePreset[]>;
+  for (const cat of FRAME_CATEGORY_ORDER) acc[cat] = [];
+  for (const preset of FRAME_PRESETS) {
+    const def = getFramePreset(preset.id);
+    acc[def.category].push(preset);
+  }
+  return acc;
+})();
 
-  const visiblePresets = useMemo(() => {
-    if (!searchQuery.trim()) return FRAME_PRESETS;
-    const q = searchQuery.toLowerCase();
-    return FRAME_PRESETS.filter(
-      (p) => p.name.toLowerCase().includes(q) || p.tags.some((tag) => tag.toLowerCase().includes(q))
-    );
-  }, [searchQuery]);
-
-  const handleImageClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFileChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file && selectedFrame && onSetFrameImage) {
-        const objectUrl = URL.createObjectURL(file);
-        onSetFrameImage(selectedFrame.id, file, objectUrl);
-      }
-      if (e.target) {
-        e.target.value = '';
-      }
-    },
-    [selectedFrame, onSetFrameImage]
+function presetMatchesQuery(preset: FramePreset, q: string): boolean {
+  return (
+    preset.name.toLowerCase().includes(q) ||
+    preset.tags.some((tag) => tag.toLowerCase().includes(q))
   );
+}
 
-  const hasImage = selectedFrame?.imageSrc != null;
+export function RahmenSection({ onAddFrame, searchQuery = '' }: RahmenSectionProps) {
+  const q = searchQuery.trim().toLowerCase();
+
+  const groupedFrames = useMemo(() => {
+    const groups: { category: FrameCategory; presets: ReadonlyArray<FramePreset> }[] = [];
+    for (const cat of FRAME_CATEGORY_ORDER) {
+      const all = FRAMES_BY_CATEGORY[cat];
+      const filtered = q ? all.filter((p) => presetMatchesQuery(p, q)) : all;
+      if (filtered.length > 0) groups.push({ category: cat, presets: filtered });
+    }
+    return groups;
+  }, [q]);
 
   return (
-    <div className={SIDEBAR_SECTION}>
-      <div className={CARD_GRID}>
-        {visiblePresets.map((preset) => (
-          <button
-            key={preset.id}
-            className={SELECTABLE_CARD}
-            onClick={() => onAddFrame(preset.id)}
-            title={`${preset.name} hinzufuegen`}
-            type="button"
-          >
-            <div className="relative size-11 flex items-center justify-center shrink-0">
-              {(() => {
-                const Icon = FRAME_ICON_MAP[preset.id];
-                return <Icon size={24} />;
-              })()}
-            </div>
-          </button>
-        ))}
-      </div>
+    <div className={cn(SIDEBAR_SECTION, 'gap-md')}>
+      <svg width="0" height="0" className="absolute" aria-hidden>
+        <defs>
+          <linearGradient id={PREVIEW_GRADIENT_ID} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#7dd3fc" />
+            <stop offset="55%" stopColor="#bbf7d0" />
+            <stop offset="100%" stopColor="#15803d" />
+          </linearGradient>
+        </defs>
+      </svg>
 
-      {selectedFrame && (
-        <div className={cn(SIDEBAR_SECTION, 'mt-3')}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          {onSetFrameImage && (
-            <button
-              type="button"
-              className="w-full mb-2 flex items-center justify-center gap-xs py-xs px-sm bg-[var(--card-background)] border border-[var(--card-border)] rounded-[var(--card-border-radius-small)] text-foreground-muted text-[length:var(--font-size-small)] cursor-pointer transition-[background-color,border-color,color] duration-150 hover:bg-background-alt hover:border-primary-600 hover:text-primary-600"
-              onClick={handleImageClick}
-            >
-              {hasImage ? 'Bild aendern' : 'Bild hinzufuegen'}
-            </button>
-          )}
-          {onRemoveFrame && (
-            <button
-              type="button"
-              className="w-full flex items-center justify-center gap-xs py-xs px-sm bg-[var(--card-background)] border border-[var(--card-border)] rounded-[var(--card-border-radius-small)] text-red-600 text-[length:var(--font-size-small)] cursor-pointer transition-[background-color,border-color,color] duration-150 hover:bg-red-50 hover:border-red-400"
-              onClick={() => onRemoveFrame(selectedFrame.id)}
-            >
-              <PiTrashFill size={14} />
-              <span className="ml-1">Rahmen entfernen</span>
-            </button>
-          )}
-        </div>
-      )}
+      {groupedFrames.map(({ category, presets }) => (
+        <section key={category} className="flex flex-col gap-2">
+          <h5 className="text-sm font-bold text-foreground m-0">
+            {FRAME_CATEGORY_LABELS[category]}
+          </h5>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-2 w-full text-secondary-600 dark:text-secondary-300">
+            {presets.map((preset) => (
+              <button
+                key={preset.id}
+                className={cn(SELECTABLE_CARD, 'flex-col gap-1')}
+                onClick={() => onAddFrame(preset.id)}
+                title={`${preset.name} hinzufügen`}
+                type="button"
+              >
+                <FramePresetPreview clipType={preset.id} />
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
+  );
+}
+
+function FramePresetPreview({ clipType }: { clipType: FrameClipType }) {
+  const path = FRAME_PRESET_PATHS[clipType];
+  const clipId = `frame-preset-clip-${clipType}`;
+  // Ring is the only annular preset; render its two subpaths with even-odd
+  // fill so the hole shows through the gradient miniature.
+  const isAnnular = clipType === 'ring';
+  const evenOddProps = isAnnular ? { clipRule: 'evenodd' as const } : {};
+  const fillRuleProps = isAnnular ? { fillRule: 'evenodd' as const } : {};
+  return (
+    <svg viewBox="0 0 44 44" className="size-11">
+      <defs>
+        <clipPath id={clipId} {...evenOddProps}>
+          <path d={path} />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`}>
+        <rect width="44" height="44" fill={`url(#${PREVIEW_GRADIENT_ID})`} />
+        <path
+          d="M0 36 L12 22 L20 30 L28 18 L36 28 L44 24 L44 44 L0 44 z"
+          fill="#15803d"
+          opacity={0.55}
+        />
+        <circle cx="33" cy="13" r="3" fill="#fde68a" />
+      </g>
+      <path
+        d={path}
+        fill="none"
+        stroke="currentColor"
+        strokeOpacity={0.3}
+        strokeWidth={1.25}
+        {...fillRuleProps}
+      />
+    </svg>
   );
 }

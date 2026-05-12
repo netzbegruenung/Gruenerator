@@ -16,11 +16,10 @@ import {
 import { createLogger } from '../../../utils/logger.js';
 import {
   getModel,
-  getModelConfig,
-  AVAILABLE_MODELS,
+  resolveModelTuple,
   VISION_MODEL,
   isVisionCapable,
-  type ModelConfig,
+  type ResolvedModelTuple,
 } from '../agents/providers.js';
 
 import { sanitizeContentPartsForModel, stripEmptyAssistantMessages } from './messageHelpers.js';
@@ -42,44 +41,91 @@ interface ModelResolution {
   modelName: string;
   /** User-facing model ID (key in AVAILABLE_MODELS), if set by the user. */
   modelId?: string;
-  /** Resolved config from AVAILABLE_MODELS, if applicable. */
-  config?: ModelConfig;
+  /** Single-step first-token-timeout fallback target. For overflow lanes,
+   *  this is the unchosen sibling (Verdigado↔Regolo). */
+  sibling?: { provider: string; model: string };
+  /** Set when this resolution acquired the Verdigado overflow slot. MUST be
+   *  invoked after the stream completes (success, failure, abort). */
+  releaseSlot?: () => Promise<void>;
 }
 
 /**
  * Resolve which AI model to use: user selection overrides agent default.
+ *
+ * Async because overflow lanes (gpt-oss, gemma-4) acquire a Redis slot before
+ * choosing Verdigado vs Regolo. requestId tags the slot for correct release.
  */
-export function resolveModel(
+export async function resolveModel(
   agentConfig: { provider: string; model: string; defaultModel?: string | undefined },
-  modelId?: string,
-  options?: { hasImages?: boolean }
-): ModelResolution {
+  modelId: string | undefined,
+  requestId: string,
+  options?: { hasImages?: boolean; intent?: string }
+): Promise<ModelResolution> {
   let modelProvider = agentConfig.provider;
   let modelName = agentConfig.model;
-  let resolvedConfig: ModelConfig | undefined;
+  let sibling: { provider: string; model: string } | undefined;
+  let releaseSlot: (() => Promise<void>) | undefined;
   let resolvedId: string | undefined;
 
   if (modelId && modelId !== 'mistral' && modelId !== 'auto') {
-    const userModelConfig = getModelConfig(modelId);
-    if (userModelConfig) {
-      modelProvider = userModelConfig.provider;
-      modelName = userModelConfig.model;
-      resolvedConfig = userModelConfig;
+    const tuple = await resolveModelTuple(modelId, requestId);
+    if (tuple) {
+      modelProvider = tuple.provider;
+      modelName = tuple.model;
       resolvedId = modelId;
+      if (tuple.sibling) sibling = tuple.sibling;
+      if (tuple.releaseSlot) releaseSlot = tuple.releaseSlot;
       log.info(`[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName}`);
     } else {
       log.warn(`[ChatGraph] Unknown model ID "${modelId}", using agent default`);
     }
   }
 
-  if (options?.hasImages && !isVisionCapable(modelName)) {
+  // For image_edit, the chat model narrates from pre-grounded BILDVERGLEICH
+  // text descriptions (set by imageEditNode via VisionService) — it does NOT
+  // need to see the raw image. Skipping the vision-fallback keeps the user's
+  // chosen (typically larger, more system-prompt-compliant) model in charge.
+  // The controller MUST also skip injectImageAttachments for image_edit so the
+  // non-vision model doesn't receive image bytes it can't decode.
+  if (options?.intent === 'image_edit' && options.hasImages && !isVisionCapable(modelName)) {
     log.info(
-      `[ChatGraph] Images present but "${modelName}" lacks vision — switching to ${VISION_MODEL.provider}/${VISION_MODEL.model}`
+      `[ChatGraph] image_edit intent — keeping user-selected model "${modelName}", BILDVERGLEICH descriptions provide grounding`
     );
-    modelProvider = VISION_MODEL.provider;
-    modelName = VISION_MODEL.model;
-    resolvedConfig = undefined;
-    resolvedId = undefined;
+  }
+
+  // Vision override: only fire when the chosen primary AND its sibling both
+  // lack vision support. Overflow lanes where both candidates are vision-
+  // capable (e.g. Gemma 4: Verdigado/gemma + Regolo/gemma4-31b) skip the
+  // override entirely so alternation isn't collapsed to a single provider.
+  if (options?.hasImages && !isVisionCapable(modelName) && options.intent !== 'image_edit') {
+    const siblingVisionOk = sibling ? isVisionCapable(sibling.model) : false;
+    if (!siblingVisionOk) {
+      log.info(
+        `[ChatGraph] Images present but "${modelName}" lacks vision — switching to ${VISION_MODEL.provider}/${VISION_MODEL.model}`
+      );
+      // Releasing here: we're overriding away from a slot we just acquired.
+      if (releaseSlot) {
+        await releaseSlot();
+        releaseSlot = undefined;
+      }
+      modelProvider = VISION_MODEL.provider;
+      modelName = VISION_MODEL.model;
+      sibling = undefined;
+      resolvedId = undefined;
+    } else if (sibling) {
+      log.info(
+        `[ChatGraph] Images present and "${modelName}" lacks vision but sibling "${sibling.model}" supports it — swapping within lane`
+      );
+      // Swap to the vision-capable sibling. Release the old slot if any.
+      if (releaseSlot) {
+        await releaseSlot();
+        releaseSlot = undefined;
+      }
+      const newPrimary = sibling;
+      sibling = { provider: modelProvider, model: modelName };
+      modelProvider = newPrimary.provider;
+      modelName = newPrimary.model;
+    }
   }
 
   const result: ModelResolution = {
@@ -88,9 +134,13 @@ export function resolveModel(
     modelName,
   };
   if (resolvedId) result.modelId = resolvedId;
-  if (resolvedConfig) result.config = resolvedConfig;
+  if (sibling) result.sibling = sibling;
+  if (releaseSlot) result.releaseSlot = releaseSlot;
   return result;
 }
+
+/** Convenience type: see ResolvedModelTuple in providers.ts. */
+export type { ResolvedModelTuple };
 
 /**
  * Build the final messages array for the AI model.
@@ -102,6 +152,32 @@ export function buildMessagesForAI(
 ): Array<{ role: string; content: string | unknown[] }> {
   const messages = [{ role: 'system', content: systemMessage }, ...contextMessages];
   return sanitizeContentPartsForModel(stripEmptyAssistantMessages(messages as ModelMessage[]));
+}
+
+/**
+ * Hoist any role:'system' entries out of `messages` into a single concatenated
+ * `system` string. The Vercel AI SDK warns (and may eventually error) when
+ * system messages are passed inside the `messages` array, since they're a
+ * potential prompt-injection vector if user content ever leaks into history.
+ */
+function extractSystemFromMessages(messages: ModelMessage[]): {
+  system: string | undefined;
+  messages: ModelMessage[];
+} {
+  const systemParts: string[] = [];
+  const rest: ModelMessage[] = [];
+  for (const msg of messages) {
+    if (msg.role === 'system') {
+      const c = msg.content;
+      systemParts.push(typeof c === 'string' ? c : String(c));
+      continue;
+    }
+    rest.push(msg);
+  }
+  return {
+    system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
+    messages: rest,
+  };
 }
 
 class FirstTokenTimeoutError extends Error {
@@ -182,9 +258,14 @@ async function streamAndAccumulateOrThrow(params: {
   const { deadline, signal: deadlineSignal, clear } = createFirstTokenDeadline();
   const composed = signal ? AbortSignal.any([signal, deadlineSignal]) : deadlineSignal;
 
+  const { system, messages: messagesWithoutSystem } = extractSystemFromMessages(
+    messages as ModelMessage[]
+  );
+
   const result = streamText({
     model,
-    messages: messages as ModelMessage[],
+    ...(system != null && { system }),
+    messages: messagesWithoutSystem,
     maxOutputTokens: maxTokens,
     temperature,
     abortSignal: composed,
@@ -349,15 +430,14 @@ export const streamAndAccumulateWithReasoning = wrapWithCompatCatch(
 );
 
 /**
- * Stream from a primary model with single-step fallback to its configured
- * sibling on first-token failure. Models without a `fallback` field (Qwen)
- * skip the fallback — the "Chinese-only-when-selected" firewall: never auto-
- * route INTO Qwen, never silently auto-route OUT of Qwen.
+ * Stream from a primary model with single-step fallback to its sibling on
+ * first-token failure. The sibling is set by resolveModel() — for overflow
+ * lanes it's the unchosen Verdigado/Regolo partner; for single configs
+ * without a sibling, no fallback fires (Qwen "Chinese-only-when-selected"
+ * firewall: never auto-route INTO Qwen, never silently auto-route OUT).
  *
- * Note: AVAILABLE_MODELS contains intentional bidirectional fallback pairs
- * (gemma-litellm ↔ gpt-oss-regolo). This is safe because dispatch is
- * single-step — the fallback's own buildStream is invoked directly, not via
- * a recursive streamWithFallback. Do not refactor to recurse.
+ * Single-step by design: the fallback's buildStream is invoked directly, not
+ * via a recursive streamWithFallback. Do not refactor to recurse.
  */
 export async function streamWithFallback(params: {
   primary: ModelResolution;
@@ -373,42 +453,36 @@ export async function streamWithFallback(params: {
   } catch (err) {
     if (!isStreamFailure(err)) throw err;
 
-    const fallbackId = primary.config?.fallback;
-    if (!fallbackId) {
-      log.warn(`${logPrefix} ${primaryLabel} failed (${err.kind}) — no fallback configured`);
+    const sibling = primary.sibling;
+    if (!sibling) {
+      log.warn(`${logPrefix} ${primaryLabel} failed (${err.kind}) — no sibling configured`);
       return failStream(sse);
     }
 
-    const fallbackConfig = AVAILABLE_MODELS[fallbackId];
-    if (!fallbackConfig) {
-      log.error(`${logPrefix} Fallback ID "${fallbackId}" missing from AVAILABLE_MODELS`);
-      return failStream(sse);
-    }
+    log.warn(
+      `${logPrefix} ${primaryLabel} failed (${err.kind}) → falling back to ${sibling.provider}/${sibling.model}`
+    );
 
-    log.warn(`${logPrefix} ${primaryLabel} failed (${err.kind}) → falling back to ${fallbackId}`);
-
-    // Client receives only IDs. Display names are resolved client-side from
-    // MODEL_OPTIONS (see packages/chat/src/stores/chatStore.ts) — keeps the
-    // server out of the i18n/branding business and avoids a duplicated map.
+    // Client receives only IDs. Display names are resolved client-side.
+    const fallbackLabel = `${sibling.provider}/${sibling.model}`;
     sse.send('fallback', {
       from: { id: primaryLabel, name: primaryLabel },
-      to: { id: fallbackId, name: fallbackId },
+      to: { id: fallbackLabel, name: fallbackLabel },
       reason: err.kind,
     });
 
     const fallbackResolution: ModelResolution = {
-      model: getModel(fallbackConfig.provider, fallbackConfig.model),
-      provider: fallbackConfig.provider,
-      modelName: fallbackConfig.model,
-      modelId: fallbackId,
-      config: fallbackConfig,
+      model: getModel(sibling.provider, sibling.model),
+      provider: sibling.provider,
+      modelName: sibling.model,
     };
+    if (primary.modelId) fallbackResolution.modelId = primary.modelId;
 
     try {
       return await buildStream(fallbackResolution);
     } catch (fallbackErr) {
       if (isStreamFailure(fallbackErr)) {
-        log.error(`${logPrefix} Fallback ${fallbackId} also failed (${fallbackErr.kind})`);
+        log.error(`${logPrefix} Fallback ${fallbackLabel} also failed (${fallbackErr.kind})`);
         return failStream(sse);
       }
       throw fallbackErr;

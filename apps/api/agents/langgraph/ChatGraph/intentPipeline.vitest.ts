@@ -51,6 +51,7 @@ const ALL_INTENTS: SearchIntent[] = [
   'chart',
   'save_as_doc',
   'modify_doc',
+  'edit_current_doc',
   'modify_board',
   'share_doc',
   'direct',
@@ -59,7 +60,13 @@ const ALL_INTENTS: SearchIntent[] = [
 /**
  * All ImageStyle values that must be supported.
  */
-const ALL_IMAGE_STYLES: ImageStyle[] = ['illustration', 'realistic', 'pixel', 'green-edit'];
+const ALL_IMAGE_STYLES: ImageStyle[] = [
+  'illustration',
+  'realistic',
+  'pixel',
+  'green-edit',
+  'universal',
+];
 
 // ============================================================================
 // 1. Type-Level Consistency
@@ -177,8 +184,14 @@ describe('ChatGraphState shape', () => {
 
 describe('imageEditNode', () => {
   it('exports imageEditNode function', async () => {
-    const { imageEditNode } = await import('./nodes/imageEditNode.js');
-    expect(typeof imageEditNode).toBe('function');
+    // fs-based check (see sibling test below): direct dynamic import pulls in
+    // the vision/flux pipelines and exceeds vitest's 5s import budget.
+    const fs = await import('fs');
+    const source = fs.readFileSync(
+      new URL('./nodes/imageEditNode.ts', import.meta.url).pathname,
+      'utf-8'
+    );
+    expect(source).toMatch(/export\s+async\s+function\s+imageEditNode\s*\(/);
   });
 
   it('is re-exported from nodes barrel', async () => {
@@ -272,6 +285,8 @@ describe('every SearchIntent has a handler path', () => {
     chart: 'routes to respond, chart data handled by controller post-response',
     save_as_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
     modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
+    edit_current_doc:
+      'routes to respond, controller emits trigger_doc_edit SSE for BlockNote AI live edit',
     modify_board: 'routes to respond, then confirm_action SSE + pendingActionStore',
     share_doc: 'short-circuits before LLM — resolves group, emits confirm_action SSE',
   };

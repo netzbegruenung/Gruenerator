@@ -7,15 +7,14 @@ import {
   Separator,
   IconButton,
   IconButtonRow,
+  Skeleton,
 } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
-import { FaCheck, FaDownload, FaSave, FaInstagram, FaCopy } from 'react-icons/fa';
+import { FaCheck, FaDownload, FaSave, FaCopy, FaUserPlus } from 'react-icons/fa';
 import { PiArrowLeft } from 'react-icons/pi';
 import { IoShareOutline } from 'react-icons/io5';
 
-import Spinner from '../../common/Spinner';
-import { useCanvasEditorServices } from '../../CanvasEditorProvider';
-import { useAutoSaveStore } from '../../stores/useAutoSaveStore';
+import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 
 import { DownloadSection } from './DownloadSection';
 
@@ -35,11 +34,13 @@ export interface ShareDropdownProps {
   onShareAllPages?: () => Promise<void>;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
-}
-
-interface GeneratedPosts {
-  instagram?: string;
-  [key: string]: string | undefined;
+  /**
+   * Optional host-supplied "invite people" action. When provided, the share
+   * popover shows a "Personen" icon button that opens the host's collaborator
+   * dialog. Kept opaque so the canvas-editor package stays unaware of who
+   * resolves people/permissions.
+   */
+  onInvitePeople?: () => void;
 }
 
 export function ShareDropdown({
@@ -58,6 +59,7 @@ export function ShareDropdown({
   onShareAllPages,
   isMultiExporting = false,
   exportProgress,
+  onInvitePeople,
 }: ShareDropdownProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<'main' | 'download'>('main');
@@ -66,31 +68,14 @@ export function ShareDropdown({
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [templateUrl, setTemplateUrl] = useState<string | null>(null);
   const [templateCopied, setTemplateCopied] = useState(false);
-  const [instagramCopied, setInstagramCopied] = useState(false);
 
+  const autoSaveStoreApi = useAutoSaveStoreApi();
   const currentShareToken = useAutoSaveStore((s) => s.autoSavedShareToken);
   const canUseNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
   const { saveAsTemplate } = useShareStore();
 
-  const services = useCanvasEditorServices();
-  const socialPostHook = services.useGenerateSocialPost?.() as unknown as
-    | {
-        generatedPosts: GeneratedPosts;
-        generatePost: (
-          thema: string,
-          details: string,
-          platforms: string[],
-          includeActionIdeas: boolean
-        ) => Promise<unknown>;
-        loading: boolean;
-      }
-    | undefined;
-  const generatedPosts = socialPostHook?.generatedPosts;
-  const generatePost = socialPostHook?.generatePost;
-  const socialLoading = socialPostHook?.loading ?? false;
-
   const publishDraftIfNeeded = useCallback(async () => {
-    const token = shareToken || useAutoSaveStore.getState().autoSavedShareToken;
+    const token = shareToken || autoSaveStoreApi.getState().autoSavedShareToken;
     if (token) {
       try {
         await shareApi.publishShare(token);
@@ -98,7 +83,7 @@ export function ShareDropdown({
         console.warn('[ShareDropdown] Failed to publish draft:', err);
       }
     }
-  }, [shareToken]);
+  }, [shareToken, autoSaveStoreApi]);
 
   const handleNativeShare = useCallback(async () => {
     setIsSharing(true);
@@ -131,14 +116,14 @@ export function ShareDropdown({
         await onCaptureCanvas();
         await new Promise<void>((resolve, reject) => {
           const check = () => {
-            const s = useAutoSaveStore.getState();
+            const s = autoSaveStoreApi.getState();
             if (s.autoSaveStatus === 'saved' && s.autoSavedShareToken) resolve();
             else if (s.autoSaveStatus === 'error') reject(new Error('Auto-save failed'));
             else setTimeout(check, 100);
           };
           setTimeout(check, 200);
         });
-        tokenToUse = useAutoSaveStore.getState().autoSavedShareToken;
+        tokenToUse = autoSaveStoreApi.getState().autoSavedShareToken;
       }
       if (!tokenToUse) throw new Error('Kein Share-Token verfügbar');
       const result = await saveAsTemplate(tokenToUse, `${canvasType} Vorlage`, 'public');
@@ -147,19 +132,6 @@ export function ShareDropdown({
       console.error('Failed to save template:', error);
     } finally {
       setIsSavingTemplate(false);
-    }
-  };
-
-  const handleGenerateInstagram = async () => {
-    if (!canvasText.trim() || socialLoading || !generatePost) return;
-    await generatePost(canvasText, `Sharepic: ${canvasType}`, ['instagram'], false);
-  };
-
-  const handleCopyInstagram = async () => {
-    if (generatedPosts?.instagram) {
-      await navigator.clipboard.writeText(generatedPosts.instagram);
-      setInstagramCopied(true);
-      setTimeout(() => setInstagramCopied(false), 2000);
     }
   };
 
@@ -231,7 +203,7 @@ export function ShareDropdown({
                   size="sm"
                   icon={
                     isSharing ? (
-                      <Spinner size="small" />
+                      <Skeleton className="size-4 rounded-full" />
                     ) : shareSuccess ? (
                       <FaCheck />
                     ) : (
@@ -248,7 +220,7 @@ export function ShareDropdown({
                 size="sm"
                 icon={
                   isSavingTemplate ? (
-                    <Spinner size="small" />
+                    <Skeleton className="size-4 rounded-full" />
                   ) : templateUrl ? (
                     <FaCheck />
                   ) : (
@@ -259,6 +231,18 @@ export function ShareDropdown({
                 onClick={templateUrl ? handleCopyTemplateLink : handleSaveAsTemplate}
                 disabled={isSavingTemplate}
               />
+
+              {onInvitePeople && (
+                <IconButton
+                  size="sm"
+                  icon={<FaUserPlus />}
+                  label="Personen"
+                  onClick={() => {
+                    setOpen(false);
+                    onInvitePeople();
+                  }}
+                />
+              )}
             </IconButtonRow>
 
             {/* Template link (shown after saving) */}
@@ -283,47 +267,6 @@ export function ShareDropdown({
                 </div>
               </>
             )}
-
-            {/* Instagram text section */}
-            <Separator />
-            <div className="px-4 py-3 flex flex-col gap-2">
-              <span className="text-xs font-medium text-foreground-muted">Instagram Text</span>
-              {!generatedPosts?.instagram ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  onClick={handleGenerateInstagram}
-                  disabled={socialLoading || !canvasText.trim()}
-                >
-                  {socialLoading ? <Spinner size="small" /> : <FaInstagram className="size-3.5" />}
-                  {socialLoading ? 'Generiere...' : 'Text generieren'}
-                </Button>
-              ) : (
-                <>
-                  <textarea
-                    readOnly
-                    value={generatedPosts.instagram}
-                    className="w-full py-2 px-2.5 text-xs text-foreground bg-grey-100 dark:bg-grey-800 border border-grey-200 dark:border-grey-700 rounded-md outline-none resize-none leading-relaxed"
-                    rows={4}
-                    onClick={(e) => e.currentTarget.select()}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={handleCopyInstagram}
-                  >
-                    {instagramCopied ? (
-                      <FaCheck className="size-3.5" />
-                    ) : (
-                      <FaCopy className="size-3.5" />
-                    )}
-                    {instagramCopied ? 'Kopiert!' : 'Kopieren'}
-                  </Button>
-                </>
-              )}
-            </div>
           </>
         )}
       </PopoverContent>

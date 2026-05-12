@@ -6,7 +6,7 @@
  */
 
 import { HiCog, HiPhotograph, HiSparkles } from 'react-icons/hi';
-import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
+import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { buildAssetCapability } from '../ai/assetCapability';
 import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
@@ -14,7 +14,13 @@ import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
-import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from './commonSections';
+import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
+import {
+  chatTab,
+  createCommonSectionEntries,
+  toolsTab,
+  uploadsTab,
+} from './commonSections';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
@@ -249,23 +255,30 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       ariaLabel: 'Hintergrundbild ändern',
     },
     { id: 'settings', icon: HiCog, label: 'Einstellungen', ariaLabel: 'Balken-Einstellungen' },
+    {
+      id: 'frame-settings',
+      icon: PiFrameCornersFill,
+      label: 'Rahmen',
+      ariaLabel: 'Rahmen-Einstellungen',
+    },
     { id: 'text', icon: PiTextAa, label: 'Text', ariaLabel: 'Texte hinzufügen' },
     { id: 'assets', icon: PiSquaresFourFill, label: 'Elemente', ariaLabel: 'Elemente hinzufügen' },
+    toolsTab,
     uploadsTab,
     { id: 'ai', icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
     chatTab,
   ],
 
   getVisibleTabs: () => {
-    // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
+      // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
     // 'settings' tab kept registered but hidden — opened via getAutoSwitchTab on balken
     // selection so the icon strip doesn't shift when a balken is clicked.
-    return ['image-background', 'text', 'assets', 'uploads', 'chat', 'share'];
+    return ['image-background', 'text', 'assets', 'tools', 'uploads', 'chat', 'share'];
   },
 
   getAutoSwitchTab: (selectedElement) => {
     if (selectedElement?.includes('balken')) return 'settings';
-    if (selectedElement?.startsWith('frame-')) return 'assets';
+    if (selectedElement?.startsWith('frame-')) return 'frame-settings';
     return null;
   },
 
@@ -284,6 +297,22 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           onDuplicateBalken: actions.duplicateBalken,
           colorSchemes: COLOR_SCHEMES,
           isPrimary: (selectedId ?? 'dreizeilen-balken') === 'dreizeilen-balken',
+        };
+      },
+    },
+
+    'frame-settings': {
+      component: FrameSettingsSection,
+      propsFactory: (state, actions, context) => {
+        const selectedId = context?.selectedElement ?? null;
+        const selectedFrame = selectedId
+          ? (state.frameInstances?.find((f) => f.id === selectedId) ?? null)
+          : null;
+        return {
+          selectedFrame,
+          onSetFrameImage: actions.setFrameImage,
+          onUpdateFrame: actions.updateFrame,
+          onRemoveFrame: actions.removeFrame,
         };
       },
     },
@@ -331,8 +360,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
 
     ai: createAiSectionRegistration('dreizeilen', dreizeilenAiCapabilities),
 
-    uploads: uploadsSectionEntry,
-    chat: createChatSection('dreizeilen', dreizeilenAiCapabilities),
+    ...createCommonSectionEntries('dreizeilen', dreizeilenAiCapabilities),
 
     share: createShareSection<DreizeilenFullState>('dreizeilen', (state) =>
       `${state.line1}\n${state.line2}\n${state.line3}`.trim()
@@ -354,6 +382,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       scaleKey: 'imageScale',
       draggable: true,
       transformable: true,
+      coverFit: true,
       visible: (state: DreizeilenFullState) => state.hasBackgroundImage,
       opacity: (state: DreizeilenFullState) => state.backgroundImageOpacity ?? 1,
       opacityStateKey: 'backgroundImageOpacity',
@@ -669,6 +698,30 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           return { ...newState, balkenInstances: updateBalkenInstances(newState) };
         });
         debouncedSaveToHistory(getState());
+      },
+
+      setBalkenText: (id: string, index: number, text: string) => {
+        if (id === 'dreizeilen-balken') {
+          const field = index === 0 ? 'line1' : index === 1 ? 'line2' : 'line3';
+          setState((prev) => {
+            const newState = { ...prev, [field]: text };
+            return { ...newState, balkenInstances: updateBalkenInstances(newState) };
+          });
+          if (index === 0) callbacks.onLine1Change?.(text);
+          else if (index === 1) callbacks.onLine2Change?.(text);
+          else if (index === 2) callbacks.onLine3Change?.(text);
+          debouncedSaveToHistory(getState());
+        } else {
+          setState((prev) => ({
+            ...prev,
+            balkenInstances: prev.balkenInstances.map((b) =>
+              b.id === id
+                ? { ...b, texts: b.texts.map((t, i) => (i === index ? text : t)) }
+                : b
+            ),
+          }));
+          debouncedSaveToHistory(getState());
+        }
       },
 
       updateBalken: (id: string, partial: Partial<BalkenInstance>) => {

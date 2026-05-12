@@ -19,6 +19,12 @@ export interface MenuItemType {
   items?: MenuItemType[];
   badge?: BadgeType;
   activePaths?: string[];
+  /**
+   * Query-param requirements for the item to be considered active. Useful when
+   * multiple sidebar entries share the same path (e.g. /chat?agent=X vs.
+   * /chat?agent=Y) — without this, both would highlight on any /chat URL.
+   */
+  activeQuery?: Record<string, string>;
 }
 
 // Menu section type definition
@@ -26,13 +32,6 @@ export interface MenuSection {
   title: string;
   icon?: IconType | ComponentType;
   items: MenuItemType[];
-}
-
-// Menu items result type
-export interface MenuItemsResult {
-  bildUndVideo: MenuSection;
-  tools: MenuSection;
-  labor?: MenuSection;
 }
 
 // Direct menu items result type
@@ -58,6 +57,17 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     icon: getIcon('navigation', 'docs'),
     activePaths: ['/docs'],
   };
+
+  if (import.meta.env.DEV) {
+    items.sites = {
+      id: 'sites',
+      path: '/sites',
+      title: 'Sites',
+      description: 'Kandidat*innen-Site-Builder',
+      icon: getIcon('navigation', 'sharepic'),
+      activePaths: ['/sites'],
+    };
+  }
 
   if (import.meta.env.DEV) {
     items.studio = {
@@ -93,17 +103,6 @@ export const getFooterLinks = (): MenuItemType[] => [
     description: '',
   },
 ];
-
-// Funktion zur Generierung der Hauptmenüstruktur - simplified, no more dropdowns
-export const getMenuItems = (_flags: MenuFlags = {}): MenuItemsResult => {
-  // All items moved to direct menu items - keeping this for backwards compatibility
-  const result: MenuItemsResult = {
-    bildUndVideo: { title: 'Bild und Video', items: [] },
-    tools: { title: 'Tools', items: [] },
-  };
-
-  return result;
-};
 
 // Gemeinsame Komponente für Menüeinträge
 export interface MenuItemProps {

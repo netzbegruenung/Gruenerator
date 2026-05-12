@@ -1,7 +1,7 @@
 import { MasterCanvasEditor } from '@gruenerator/canvas-editor';
 import { useState, useEffect, useCallback } from 'react';
 
-import { CanvasChatProvider } from '../features/image-studio/CanvasChatProvider';
+import { WebCanvasEditorProvider } from '../features/image-studio/WebCanvasEditorProvider';
 import { useAuthStore } from '../stores/authStore';
 
 interface MobileEditorData {
@@ -11,6 +11,13 @@ interface MobileEditorData {
   generatedImageBase64?: string; // The previously generated image (used for reconstruction or reference)
   sourceImageBase64?: string; // The raw source image for editing (e.g., uploaded background)
   authToken?: string;
+  /**
+   * Share token of an existing gallery record being re-edited. When the
+   * native app launches the editor for an item from the user's gallery,
+   * pass the token here so reloads update the existing record instead of
+   * creating a new draft. Omitted for fresh canvases.
+   */
+  shareToken?: string | null;
 }
 
 export default function MobileEditorPage() {
@@ -88,15 +95,16 @@ export default function MobileEditorPage() {
   };
 
   return (
-    <CanvasChatProvider>
+    <WebCanvasEditorProvider>
       <MasterCanvasEditor
         type={data.type}
         initialState={initialState}
         imageSrc={data.sourceImageBase64} // Pass the raw source image for editing
         onExport={handleExport}
         onCancel={handleCancel}
+        initialShareToken={data.shareToken}
       />
-    </CanvasChatProvider>
+    </WebCanvasEditorProvider>
   );
 }
 

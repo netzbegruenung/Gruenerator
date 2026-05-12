@@ -11,6 +11,11 @@
  * and frontend form validation.
  */
 
+// ── ts-rest core utilities re-exported for frontend client construction ─────
+// Frontends import `initClient` from here instead of taking a direct
+// `@ts-rest/core` dependency. The contracts package already has it.
+export { initClient, type ClientInferRequest, type ClientInferResponses } from '@ts-rest/core';
+
 // ── Contracts ───────────────────────────────────────────────────────────────
 export {
   threadsContract,
@@ -35,6 +40,8 @@ export {
   transferContract,
   unsplashContract,
   notificationsContract,
+  emailContract,
+  modelPreferencesContract,
   adminVorlagenContract,
   authStatusContract,
   canvasAiContract,
@@ -63,6 +70,8 @@ export * from './schemas/wordpress.js';
 export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
+export * from './schemas/email.js';
+export * from './schemas/modelPreferences.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/authStatus.js';
 export * from './schemas/canvasAi.js';

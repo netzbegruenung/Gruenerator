@@ -3,6 +3,8 @@
 import type { Toolkit } from '@assistant-ui/react';
 import { ToolCallUI } from '../ToolCallUI';
 import { AskHumanToolUI } from './AskHumanToolUI';
+import { PressemitteilungExamplesToolRender } from './PressemitteilungExamplesToolRender';
+import { ResearchToolRender } from './ResearchToolRender';
 
 function createToolRender(toolName: string) {
   return ({ args, result }: { args: Record<string, unknown>; result?: unknown }) => (
@@ -18,8 +20,15 @@ function createToolRender(toolName: string) {
 export const grueneratorToolkit: Toolkit = {
   gruenerator_search: { render: createToolRender('gruenerator_search') },
   web_search: { render: createToolRender('web_search') },
-  research: { render: createToolRender('research') },
+  research: {
+    render: ({ args, result }) => <ResearchToolRender args={args ?? {}} result={result} />,
+  },
   gruenerator_examples_search: { render: createToolRender('gruenerator_examples_search') },
+  gruenerator_pressemitteilung_examples: {
+    render: ({ args, result }) => (
+      <PressemitteilungExamplesToolRender args={args ?? {}} result={result} />
+    ),
+  },
   search_sources: { render: createToolRender('search_sources') },
   ask_human: {
     render: ({ args, result, addResult }) => (

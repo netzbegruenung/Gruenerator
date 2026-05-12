@@ -1,8 +1,8 @@
 import { Button, FileCard, RetroGrid } from '@gruenerator/ui';
 import { useShareLinks, useWolkePreferencesStore } from '@gruenerator/wolke';
+import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useState } from 'react';
 import { PiCheck, PiCopy, PiFile, PiPlus, PiShareNetwork, PiUploadSimple } from 'react-icons/pi';
-import QRCode from 'react-qr-code';
 import { Link } from 'react-router-dom';
 
 import Spinner from '../../components/common/Spinner';
@@ -207,7 +207,7 @@ const TransferPage = () => {
               </div>
 
               <div className="rounded-lg bg-white p-md">
-                <QRCode value={shareUrl} size={140} level="M" />
+                <QRCodeSVG value={shareUrl} size={140} level="M" />
               </div>
 
               <Button variant="outline" onClick={handleReset} className="w-full">

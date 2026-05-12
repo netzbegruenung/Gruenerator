@@ -16,6 +16,12 @@ export default defineConfig(({ command }) => ({
     alias: {
       '@': path.resolve(__dirname, 'src'),
       '@gruenerator/chat': path.resolve(__dirname, '../../packages/chat/src'),
+      // Aliases don't cascade through workspace deps — chatStore.ts in
+      // @gruenerator/chat imports @gruenerator/shared/models, and shared
+      // uses conditional exports (development → src, import → dist) where
+      // dist is only present in published builds. Aliasing the source
+      // directly bypasses the dist requirement, matching apps/web's setup.
+      '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
     },
   },
   build: {

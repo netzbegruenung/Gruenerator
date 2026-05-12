@@ -16,6 +16,7 @@ import {
   SelectValue,
   Textarea,
 } from '@gruenerator/ui';
+import { useQuery } from '@tanstack/react-query';
 import { BrainCircuit, ImagePlus, Play, Square, Trash2, Type } from 'lucide-react';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -301,8 +302,26 @@ function createEmptyPanel(): PanelState {
 }
 
 function PlaygroundPage() {
-  const [models, setModels] = useState<ModelConfig[]>([]);
-  const [prompts, setPrompts] = useState<PromptConfig[]>([]);
+  const { data: models = [] } = useQuery<ModelConfig[]>({
+    queryKey: ['playground', 'models'],
+    queryFn: async () => {
+      const res = await fetch('/api/texte/playground/models', { credentials: 'include' });
+      const json = (await res.json()) as { models?: ModelConfig[] };
+      return json.models ?? [];
+    },
+    staleTime: Infinity,
+  });
+
+  const { data: prompts = [] } = useQuery<PromptConfig[]>({
+    queryKey: ['playground', 'prompts'],
+    queryFn: async () => {
+      const res = await fetch('/api/texte/playground/prompts', { credentials: 'include' });
+      const json = (await res.json()) as { prompts?: PromptConfig[] };
+      return json.prompts ?? [];
+    },
+    staleTime: Infinity,
+  });
+
   const [selectedPrompt, setSelectedPrompt] = useState<PromptConfig | null>(null);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [panels, setPanels] = useState<[PanelState, PanelState]>([
@@ -323,31 +342,13 @@ function PlaygroundPage() {
   panelsRef.current = panels;
 
   useEffect(() => {
-    interface ModelsApiResponse {
-      models?: ModelConfig[];
+    if (selectedPrompt || prompts.length === 0) return;
+    const initial = prompts.find((p) => p.id === 'free') ?? prompts[0];
+    if (initial) {
+      setSelectedPrompt(initial);
+      setFields(Object.fromEntries(initial.fields.map((f) => [f, ''])));
     }
-    interface PromptsApiResponse {
-      prompts?: PromptConfig[];
-    }
-
-    fetch('/api/texte/playground/models', { credentials: 'include' })
-      .then((r) => r.json() as Promise<ModelsApiResponse>)
-      .then((d) => setModels(d.models ?? []))
-      .catch(() => {});
-
-    fetch('/api/texte/playground/prompts', { credentials: 'include' })
-      .then((r) => r.json() as Promise<PromptsApiResponse>)
-      .then((d) => {
-        const list = d.prompts ?? [];
-        setPrompts(list);
-        const initial = list.find((p) => p.id === 'free') ?? list[0];
-        if (initial) {
-          setSelectedPrompt(initial);
-          setFields(Object.fromEntries(initial.fields.map((f) => [f, ''])));
-        }
-      })
-      .catch(() => {});
-  }, []);
+  }, [prompts, selectedPrompt]);
 
   const handlePromptChange = useCallback(
     (id: string) => {

@@ -14,8 +14,25 @@ export interface ToolRestrictions {
   defaultCollection?: string | undefined;
   /** Filter social media examples by country (DE = Germany, AT = Austria) */
   examplesCountry?: 'DE' | 'AT' | undefined;
+  /**
+   * Per-Landesverband scope for press/social examples. Accepts a single short
+   * code (e.g. 'BE') or an array (e.g. ['BE', 'BE-F']) when the LV publishes
+   * under multiple codes (Berlin & Thüringen carry both Landesverband and
+   * Fraktion). Press filters via Qdrant `landesverband` field; social
+   * currently logs only (Apify follow-up will add the field to social_media_examples).
+   */
+  examplesLvScope?: string | readonly string[] | undefined;
   /** Disable person search tool (e.g., no Austrian politician DB exists) */
   personSearchEnabled?: boolean | undefined;
+}
+
+/**
+ * Hard-pinned filters merged into tool calls (Qdrant / examples service).
+ * Invisible to the LLM — applied server-side in directSearchExecutors.
+ */
+export interface AgentDefaultFilter {
+  /** Landesverband shortName(s), e.g. 'BE' or ['BE', 'BE-F']. */
+  landesverband?: readonly string[] | string | undefined;
 }
 
 export interface FewShotExample {
@@ -52,6 +69,10 @@ export interface AgentConfig {
   fewShotExamples?: FewShotExample[] | undefined;
   /** Runtime-only: set by controller, not by agent YAML files */
   userId?: string | undefined;
+  /** Backend dispatch target. 'search' routes turns to /api/search-graph/stream. */
+  routeTo?: 'chat' | 'search' | undefined;
+  /** Server-side default filter merged into tool calls (e.g. LV scoping). */
+  defaultFilter?: AgentDefaultFilter | undefined;
 }
 
 export interface Thread {

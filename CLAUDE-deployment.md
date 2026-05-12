@@ -34,13 +34,20 @@ Three files must be updated or Docker builds fail:
 ## Deploying to Test
 
 1. Merge into `test-branch` (via PR from `master`)
-2. Build images run on push, or manual: `gh workflow run "Build and Push Docker Images" --ref test-branch`
-3. Deploy runs on push, or manual: `gh workflow run "Deploy to Test Environment" --ref test-branch`
-4. Always force-recreates containers (`--force-recreate`)
+2. Build images run on push (filtered by changed paths) or manual: `gh workflow run "Build and Push Docker Images" --ref test-branch -f build_web=true` (or `-f force_all=true`)
+3. Image rollout to `gruenerator-test.netzbegruenung.verdigado.net` happens **out of band** — there is no `Deploy to Test Environment` workflow in this repo. The test server pulls fresh images via its own mechanism (Watchtower/poller). To force-redeploy: SSH in and `docker pull ghcr.io/netzbegruenung/gruenerator-web:test-branch && docker compose up -d --force-recreate <service>`.
+
+### Verifying a deploy landed
+
+Compare the asset hash in `https://beta.gruenerator.eu/index.html` against the local `pnpm --filter @gruenerator/web build` output (`apps/web/build/assets/js/`). If the served `<script src>` hash matches, the rollout is in.
+
+### Path filter gotcha
+
+A push that touches **only** `.github/**` or files outside the `web:` filter list in `build-images.yml` will be reported `success` with `build-web: skipped`. Silence ≠ deploy. To force a rebuild, dispatch the workflow with `-f build_web=true`.
 
 ## Production
 
-- **Workflow**: "Deploy to Production" (`deploy-prod.yml`), **Branch**: `master`
+Production deployment is owned outside this repo (no `deploy-prod.yml` here). Coordinate with infrastructure when promoting `master`.
 
 ## Docs Expo (Android APK)
 

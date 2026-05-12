@@ -1,81 +1,98 @@
 /**
  * Agent Configuration Loader
- * Loads and caches agent configurations from JSON files
+ *
+ * System agents come from the @gruenerator/shared/agents registry (typed TS, single
+ * source of truth shared with the web frontend). Custom user prompts fall back through
+ * `getAgentOrCustomPrompt`.
  */
 
-import { promises as fs } from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import {
+  SYSTEM_AGENTS,
+  DEFAULT_SYSTEM_AGENT_ID,
+  getSystemAgent,
+  type Agent,
+} from '@gruenerator/shared/agents';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import {
+  CUSTOM_GENERATOR_AGENT_PREFIX,
+  getCustomGeneratorAsAgent,
+  getUserAgent as getUserAgentRow,
+} from '../../../services/userAgents/userAgentsRepository.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { AgentConfig } from './types.js';
 
 const log = createLogger('AgentLoader');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-let agentsCache: AgentConfig[] | null = null;
-
-const DEFAULT_AGENT = 'gruenerator-universal';
-
-export async function loadAgents(): Promise<AgentConfig[]> {
-  if (agentsCache) {
-    return agentsCache;
-  }
-
-  const agentsDir = path.join(__dirname, '../../../static-data/chat-agents');
-  const files = await fs.readdir(agentsDir);
-  const jsonFiles = files.filter((file) => file.endsWith('.json'));
-
-  const agents = await Promise.all(
-    jsonFiles.map(async (file) => {
-      const content = await fs.readFile(path.join(agentsDir, file), 'utf-8');
-      try {
-        return JSON.parse(content) as AgentConfig;
-      } catch (error) {
-        log.error(`Failed to parse agent config: ${file}`, error);
-        throw error;
-      }
-    })
-  );
-
-  agents.sort((a, b) => {
-    if (a.identifier === DEFAULT_AGENT) return -1;
-    if (b.identifier === DEFAULT_AGENT) return 1;
+const sortedAgents: AgentConfig[] = [...SYSTEM_AGENTS]
+  .map((agent) => agent as Agent as AgentConfig)
+  .sort((a, b) => {
+    if (a.identifier === DEFAULT_SYSTEM_AGENT_ID) return -1;
+    if (b.identifier === DEFAULT_SYSTEM_AGENT_ID) return 1;
     return a.title.localeCompare(b.title, 'de');
   });
 
-  agentsCache = agents;
-  return agents;
+export async function loadAgents(): Promise<AgentConfig[]> {
+  return sortedAgents;
 }
 
 export async function getAgent(identifier: string): Promise<AgentConfig | undefined> {
-  const agents = await loadAgents();
-  return agents.find((agent) => agent.identifier === identifier);
+  const agent = getSystemAgent(identifier);
+  return agent ? (agent as AgentConfig) : undefined;
 }
 
 export function getDefaultAgentId(): string {
-  return DEFAULT_AGENT;
+  return DEFAULT_SYSTEM_AGENT_ID;
 }
 
 export function clearAgentsCache(): void {
-  agentsCache = null;
+  // No-op: registry is now a static import. Kept for backward-compatible call sites.
 }
 
 /**
- * Resolves an agent by identifier, falling back to user's custom prompts if not found
- * in the built-in agent JSON files. This allows custom prompts to be used as agents
- * in the chat via @mention.
+ * Resolves an agent for a user: system registry → user-created agents
+ * (`user_agents` table). Returns undefined if neither matches; legacy
+ * `custom_prompts` fallback lives in `getAgentOrCustomPrompt` below.
  */
-export async function getAgentOrCustomPrompt(
+export async function getAgentForUser(
   identifier: string,
   userId: string
 ): Promise<AgentConfig | undefined> {
   const builtIn = await getAgent(identifier);
   if (builtIn) return builtIn;
+
+  if (identifier.startsWith(CUSTOM_GENERATOR_AGENT_PREFIX)) {
+    try {
+      const slug = identifier.slice(CUSTOM_GENERATOR_AGENT_PREFIX.length);
+      const cgAgent = await getCustomGeneratorAsAgent(userId, slug);
+      if (cgAgent) return cgAgent as AgentConfig;
+    } catch (error) {
+      log.error('[AgentLoader] Error looking up custom generator agent:', error);
+    }
+    return undefined;
+  }
+
+  try {
+    const userAgent = await getUserAgentRow(userId, identifier);
+    if (userAgent) return userAgent as AgentConfig;
+  } catch (error) {
+    log.error('[AgentLoader] Error looking up user agent:', error);
+  }
+  return undefined;
+}
+
+/**
+ * Resolves an agent by identifier, falling back to user's custom prompts if not found
+ * in the built-in registry or user-agents table. This allows custom prompts to be
+ * used as agents in the chat via @mention.
+ */
+export async function getAgentOrCustomPrompt(
+  identifier: string,
+  userId: string
+): Promise<AgentConfig | undefined> {
+  const merged = await getAgentForUser(identifier, userId);
+  if (merged) return merged;
 
   try {
     const postgres = getPostgresInstance();
@@ -93,7 +110,7 @@ export async function getAgentOrCustomPrompt(
     if (!results || results.length === 0) return undefined;
 
     const customPrompt = results[0] as { id: string; name: string; prompt: string; slug: string };
-    const defaultAgent = await getAgent(DEFAULT_AGENT);
+    const defaultAgent = await getAgent(DEFAULT_SYSTEM_AGENT_ID);
     if (!defaultAgent) return undefined;
 
     log.info(

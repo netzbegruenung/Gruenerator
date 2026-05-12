@@ -1,10 +1,12 @@
+import { exportToDocsBodySchema, type ExportToDocsResponse } from '@gruenerator/contracts';
 import { Router, type Response } from 'express';
-import { z } from 'zod';
+import { type z } from 'zod';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
-import { MarkdownService } from '../../services/markdown/MarkdownService.js';
+import { ensureHtml } from '../../services/docs/contentNormalization.js';
+import { seedYjsStateSafe } from '../../services/docs/seedYjsState.js';
 import {
   validateAndSanitizeHtml,
   extractTitleFromHtml,
@@ -12,18 +14,6 @@ import {
 
 const router = Router();
 const db = getPostgresInstance();
-
-const exportToDocsSchema = z.object({
-  content: z.string().min(1),
-  title: z.string().optional(),
-  documentType: z.string().optional(),
-});
-
-interface ExportToDocsResponse {
-  documentId: string;
-  url: string;
-  success: boolean;
-}
 
 /**
  * @route   POST /api/docs/from-export
@@ -33,8 +23,8 @@ interface ExportToDocsResponse {
 router.post(
   '/from-export',
   requireAuth,
-  validateBody(exportToDocsSchema),
-  async (req: TypedRequest<z.infer<typeof exportToDocsSchema>>, res: Response) => {
+  validateBody(exportToDocsBodySchema),
+  async (req: TypedRequest<z.infer<typeof exportToDocsBodySchema>>, res: Response) => {
     try {
       const { content, title, documentType } = req.body;
       const userId = req.user?.id;
@@ -47,12 +37,7 @@ router.post(
         return res.status(400).json({ error: 'Content is required' });
       }
 
-      // Convert markdown to HTML if content looks like markdown (not HTML)
-      const isLikelyMarkdown =
-        !content.trim().startsWith('<') && /\*\*|^#{1,3}\s|^[-*+]\s/m.test(content);
-      const htmlContent = isLikelyMarkdown
-        ? new MarkdownService().markdownToHtml(content)
-        : content;
+      const htmlContent = ensureHtml(content);
 
       let sanitizedContent: string;
       try {
@@ -62,10 +47,8 @@ router.post(
         return res.status(400).json({ error: message });
       }
 
-      // Generate title
       const documentTitle = title || extractTitleFromHtml(sanitizedContent);
 
-      // Add timestamp if title doesn't already have one
       const finalTitle = title || `${documentTitle} - ${new Date().toLocaleDateString('de-DE')}`;
 
       // Create document in database
@@ -89,12 +72,12 @@ router.post(
 
       const document = result[0];
 
-      // Log the export for analytics
+      await seedYjsStateSafe(document.id as string, sanitizedContent, 'Docs Export');
+
       console.log(
         `[Docs Export] User ${userId} created document ${document.id} from export (type: ${documentType || 'unknown'})`
       );
 
-      // Return response
       const response: ExportToDocsResponse = {
         documentId: document.id as string,
         url: `/document/${document.id}`,

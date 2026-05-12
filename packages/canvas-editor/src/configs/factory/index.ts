@@ -24,6 +24,14 @@ export type {
 
 export { createBaseActions } from './commonActions';
 
+export { wrapWithAi } from './wrapWithAi';
+export { createAiCapabilities } from './createAiCapabilities';
+export type { AiTextField, CreateAiCapabilitiesOptions } from './createAiCapabilities';
+
+export { fromLayout } from './layoutAccessors';
+export { createPrimaryText, createSecondaryText } from './createTextElement';
+export { makeSectionDefiner } from './defineSection';
+
 export type {
   BaseCanvasState,
   BaseCanvasActions,
