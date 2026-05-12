@@ -79,6 +79,7 @@ export interface DocumentRecord {
   created_at: string;
   source_type?: string | undefined;
   wolke_share_link_id?: string | undefined;
+  status?: string | undefined;
 }
 
 /**
