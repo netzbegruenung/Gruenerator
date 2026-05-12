@@ -16,8 +16,9 @@ import {
 } from '@gruenerator/wolke';
 import { type JSX, useState, useEffect, type ReactNode } from 'react';
 import { CiMemoPad } from 'react-icons/ci';
+import { FaCloud } from 'react-icons/fa';
 import { FaFileWord, FaFilePdf, FaWordpress } from 'react-icons/fa6';
-import { HiRefresh, HiOutlineDocumentText } from 'react-icons/hi';
+import { HiRefresh, HiOutlineDocumentText, HiSave } from 'react-icons/hi';
 import {
   IoDownloadOutline,
   IoShareSocialSharp,

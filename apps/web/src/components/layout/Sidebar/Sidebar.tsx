@@ -10,7 +10,7 @@ import {
   useIsMobile,
 } from '@gruenerator/ui';
 import { useEffect, useMemo, useCallback, useRef, useState, memo } from 'react';
-import { PiSun, PiMoon, PiSignIn, PiCaretRight, PiSparkle } from 'react-icons/pi';
+import { PiSun, PiMoon, PiSignIn, PiCaretRight, PiSparkle, PiStarFill } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
