@@ -43,8 +43,8 @@ jobs:
           ARGS="--source social-media"
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
-          echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
-          npx tsx apps/api/update-all-content.ts $ARGS
+          echo "Running: pnpm --filter @gruenerator/api run update:all -- $ARGS"
+          pnpm --filter @gruenerator/api run update:all -- $ARGS
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
@@ -83,7 +83,7 @@ jobs:
 
       - name: Update content stats page
         if: always()
-        run: npx tsx apps/api/generate-content-stats.ts
+        run: pnpm --filter @gruenerator/api run stats:content
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
