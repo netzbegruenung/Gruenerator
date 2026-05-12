@@ -1,4 +1,3 @@
-export { default as AgentListPage } from './AgentListPage';
 export { default as AgentBuilderPage } from './AgentBuilderPage';
 export {
   useUserAgents,
