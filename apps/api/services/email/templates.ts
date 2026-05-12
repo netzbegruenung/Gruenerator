@@ -109,6 +109,63 @@ ${PRIMARY_URL}`;
   return { html: baseLayout(content), text };
 }
 
+export interface GenericNotificationTemplateParams {
+  recipientName?: string;
+  title: string;
+  body: string | null;
+  actionUrl?: string | null;
+  actionLabel?: string;
+}
+
+export function renderGenericNotificationTemplate(params: GenericNotificationTemplateParams): {
+  html: string;
+  text: string;
+} {
+  const { recipientName, title, body, actionUrl, actionLabel = 'In Grünerator öffnen' } = params;
+
+  const greeting = recipientName
+    ? `<p style="margin:0 0 16px 0;font-size:15px;color:#555555;line-height:1.6;">Hallo ${escapeHtml(recipientName)},</p>`
+    : '';
+
+  const bodyBlock = body
+    ? `<p style="margin:0 0 24px 0;font-size:15px;color:#555555;line-height:1.6;">${escapeHtml(body)}</p>`
+    : '';
+
+  const ctaBlock = actionUrl
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px auto;">
+      <tr>
+        <td style="background-color:${PRIMARY_COLOR};border-radius:6px;">
+          <a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 28px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">
+            ${escapeHtml(actionLabel)}
+          </a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:0;font-size:13px;color:#888888;line-height:1.5;">
+      Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br>
+      <a href="${escapeHtml(actionUrl)}" style="color:${PRIMARY_COLOR};word-break:break-all;">${escapeHtml(actionUrl)}</a>
+    </p>`
+    : '';
+
+  const content = `
+    <h1 style="margin:0 0 16px 0;font-size:20px;color:#333333;">${escapeHtml(title)}</h1>
+    ${greeting}
+    ${bodyBlock}
+    ${ctaBlock}`;
+
+  const greetingText = recipientName ? `Hallo ${recipientName},\n\n` : '';
+  const bodyText = body ? `${body}\n\n` : '';
+  const ctaText = actionUrl ? `${actionLabel}: ${actionUrl}\n\n` : '';
+
+  const text = `${title}
+
+${greetingText}${bodyText}${ctaText}--
+${BRAND.name} — KI-Werkzeuge für Grüne
+${PRIMARY_URL}`;
+
+  return { html: baseLayout(content), text };
+}
+
 export interface ContentSyncSourceResult {
   name: string;
   status: 'success' | 'failed';

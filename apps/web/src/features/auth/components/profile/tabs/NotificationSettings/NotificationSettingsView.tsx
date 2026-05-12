@@ -1,6 +1,7 @@
-import { Switch } from '@gruenerator/ui';
-import { Bell, Mail, Smartphone, Info } from 'lucide-react';
-import React from 'react';
+import { getContractsClient } from '@gruenerator/shared/api';
+import { Button, Switch } from '@gruenerator/ui';
+import { Bell, Mail, Smartphone, Info, Send } from 'lucide-react';
+import React, { useState } from 'react';
 
 import { useNotificationPreferences } from '../../../../../../features/notifications/hooks/useNotificationPreferences';
 import { getPreferenceTypesByGroup } from '../../../../../../features/notifications/notificationConfig';
@@ -32,6 +33,45 @@ const NotificationSettingsView = React.memo(
   ({ onSuccessMessage, onErrorMessage }: NotificationSettingsViewProps) => {
     const { preferences, isLoading, toggleChannel } = useNotificationPreferences();
     const groupedTypes = getPreferenceTypesByGroup();
+    const [isSendingTest, setIsSendingTest] = useState(false);
+
+    const handleSendTestEmail = async () => {
+      setIsSendingTest(true);
+      try {
+        const client = getContractsClient();
+        const result = await client.email.test({ body: {} });
+
+        if (result.status === 200) {
+          onSuccessMessage(
+            result.body.recipientEmail
+              ? `Test-E-Mail an ${result.body.recipientEmail} gesendet.`
+              : 'Test-E-Mail gesendet.'
+          );
+          return;
+        }
+
+        if (result.status === 503) {
+          onErrorMessage('SMTP ist auf dem Server nicht konfiguriert.');
+          return;
+        }
+
+        if (
+          result.status === 400 ||
+          result.status === 401 ||
+          result.status === 500 ||
+          result.status === 502
+        ) {
+          onErrorMessage(result.body.error ?? 'Test-E-Mail konnte nicht gesendet werden.');
+          return;
+        }
+
+        onErrorMessage('Test-E-Mail konnte nicht gesendet werden.');
+      } catch {
+        onErrorMessage('Netzwerkfehler.');
+      } finally {
+        setIsSendingTest(false);
+      }
+    };
 
     const handleToggle = async (
       category: string,
@@ -80,6 +120,26 @@ const NotificationSettingsView = React.memo(
             Push-Benachrichtigungen erfordern die mobile App. In-App-Benachrichtigungen erscheinen
             in der Benachrichtigungsglocke oben rechts.
           </p>
+        </div>
+
+        <div className="flex items-center justify-between gap-md p-md rounded-lg border border-grey-200 dark:border-grey-700">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">E-Mail-Zustellung testen</p>
+            <p className="text-xs text-grey-500 dark:text-grey-400">
+              Sendet dir sofort eine Test-E-Mail an deine Profil-Adresse, um die Zustellung zu
+              prüfen.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleSendTestEmail}
+            disabled={isSendingTest}
+            className="shrink-0"
+          >
+            <Send className="w-4 h-4 mr-xs" />
+            {isSendingTest ? 'Wird gesendet…' : 'Test-E-Mail senden'}
+          </Button>
         </div>
 
         {sortedGroups.map(([groupKey, types]) => {

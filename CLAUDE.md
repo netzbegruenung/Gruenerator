@@ -120,6 +120,14 @@ Two canonical sources of truth. **Always derive TS types from them; never hand-d
 - **Zod (HTTP boundaries):** define request/response schemas with `z.object({...})`. Use `validateBody(schema)` middleware on Express routes; handler receives `TypedRequest<z.infer<typeof schema>>`. Never `& AuthenticatedRequest` (collapses body to `any`); `TypedRequest<T>` already includes auth fields. For response types and cross-package contracts, prefer `z.infer<typeof schema>` over hand-written interfaces.
 - **Drizzle (database):** schemas in `apps/api/database/schema/*.ts` as `pgTable(...)`, re-exported from `database/schema/index.ts`. Derive row types via `type Row = InferSelectModel<typeof tableName>` next to the schema; never declare a row interface by hand. **Migrations are raw SQL in `apps/api/database/postgres/migrations/`, auto-run on startup via `PostgresService.init()` — NOT `drizzle-kit migrate`.** Schema files are the type source; SQL files are the runtime DDL. Keep them in sync.
 
+**Type-safety pass on bigger refactors:** Any non-trivial feature change (new endpoint, new dispatcher branch, new shared type) MUST audit the 4 layers before finishing:
+1. **Contract (`@gruenerator/contracts/contracts/*Contract.ts`)** — is the endpoint contracted via ts-rest? If yes, frontend uses `getContractsClient()` and gets typed `result.body` per status code. If no, audit whether it should be (especially user-facing endpoints triggered from typed UI).
+2. **Zod schema (`@gruenerator/contracts/schemas/*.ts`)** — is the request/response shape a Zod schema, with TS types derived via `z.infer`? Free-string fields (`z.string()`) representing a fixed set MUST be `z.enum([...])`. No hand-written response interfaces alongside a schema.
+3. **Drizzle (`apps/api/database/schema/*.ts`)** — does the table use `pgTable(...)` with `InferSelectModel`? Service layer uses the inferred row type; never re-declares a parallel interface.
+4. **ts-rest server (`*ContractRouter.ts`)** — every contract has a matching `initServer().router(contract, {...})` mounted via `createExpressEndpoints`. No silent legacy duplicate route on the same path.
+
+Symptom of a missed pass: a frontend interface that duplicates a backend schema's shape, a `z.string()` field whose values are actually a closed set, or a typed-UI button that POSTs through raw `apiClient` instead of the contracts client.
+
 ### Backend Routing & Typing
 
 See `CLAUDE-routing.md` for Express 5 route typing, `TypedRequest`/`AuthRequest`, AI worker pool access, locale-aware backend rules.
