@@ -2,7 +2,13 @@ import { type UserProfile } from '@gruenerator/contracts';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
-import apiClient from '../components/utils/apiClient';
+import apiClient, { notifyAuthConfirmed } from '../components/utils/apiClient';
+import {
+  INSTANT_AUTH_CACHE,
+  LOGIN_INTENT,
+  LOGOUT_TIMESTAMP,
+  SESSION_ACTIVE,
+} from '../features/auth/storageKeys';
 import { useAuthStore, type AuthStore, type User } from '../stores/authStore';
 
 interface AuthOptions {
@@ -27,26 +33,26 @@ interface PartialLogoutState {
 const cleanupInvalidAuthState = () => {
   try {
     // Check if this is likely a first visit or corrupted state
-    const hasVisitedBefore = sessionStorage.getItem('gruenerator_session_active');
+    const hasVisitedBefore = sessionStorage.getItem(SESSION_ACTIVE);
 
     if (!hasVisitedBefore) {
       // Mark this session as active
-      sessionStorage.setItem('gruenerator_session_active', 'true');
+      sessionStorage.setItem(SESSION_ACTIVE, 'true');
 
       // Check for potentially corrupted logout timestamp
-      const logoutTimestamp = localStorage.getItem('gruenerator_logout_timestamp');
+      const logoutTimestamp = localStorage.getItem(LOGOUT_TIMESTAMP);
       if (logoutTimestamp) {
         const timestamp = parseInt(logoutTimestamp);
         const now = Date.now();
 
         // If timestamp is invalid, in the future, or older than 1 hour, it's likely corrupted
         if (isNaN(timestamp) || timestamp > now || now - timestamp > 60 * 60 * 1000) {
-          localStorage.removeItem('gruenerator_logout_timestamp');
+          localStorage.removeItem(LOGOUT_TIMESTAMP);
         }
       }
 
       // Also clean up any stale login intent
-      const loginIntent = localStorage.getItem('gruenerator_login_intent');
+      const loginIntent = localStorage.getItem(LOGIN_INTENT);
       if (loginIntent) {
         const intentTime = parseInt(loginIntent);
         if (
@@ -54,7 +60,7 @@ const cleanupInvalidAuthState = () => {
           intentTime > Date.now() ||
           Date.now() - intentTime > 10 * 60 * 1000
         ) {
-          localStorage.removeItem('gruenerator_login_intent');
+          localStorage.removeItem(LOGIN_INTENT);
         }
       }
     }
@@ -72,7 +78,7 @@ if (typeof window !== 'undefined') {
 const isRecentlyLoggedOut = () => {
   try {
     // Check if there's a recent login intent - if so, allow auth
-    const loginIntent = localStorage.getItem('gruenerator_login_intent');
+    const loginIntent = localStorage.getItem(LOGIN_INTENT);
     if (loginIntent) {
       const intentTime = parseInt(loginIntent);
       // Validate the timestamp is a valid number and not in the future
@@ -84,30 +90,30 @@ const isRecentlyLoggedOut = () => {
         }
       }
       // Clean up invalid or old login intent
-      localStorage.removeItem('gruenerator_login_intent');
+      localStorage.removeItem(LOGIN_INTENT);
     }
 
     // Check logout timestamp only if no recent login intent
-    const logoutTimestamp = localStorage.getItem('gruenerator_logout_timestamp');
+    const logoutTimestamp = localStorage.getItem(LOGOUT_TIMESTAMP);
     if (logoutTimestamp) {
       const timestamp = parseInt(logoutTimestamp);
 
       // Validate timestamp is a valid number
       if (isNaN(timestamp) || timestamp <= 0) {
-        localStorage.removeItem('gruenerator_logout_timestamp');
+        localStorage.removeItem(LOGOUT_TIMESTAMP);
         return false;
       }
 
       // Check if timestamp is in the future (clock skew or invalid data)
       if (timestamp > Date.now()) {
-        localStorage.removeItem('gruenerator_logout_timestamp');
+        localStorage.removeItem(LOGOUT_TIMESTAMP);
         return false;
       }
 
       // Check if timestamp is unreasonably old (> 1 day)
       const timeSinceLogout = Date.now() - timestamp;
       if (timeSinceLogout > 24 * 60 * 60 * 1000) {
-        localStorage.removeItem('gruenerator_logout_timestamp');
+        localStorage.removeItem(LOGOUT_TIMESTAMP);
         return false;
       }
 
@@ -116,7 +122,7 @@ const isRecentlyLoggedOut = () => {
         return true; // Block automatic auth
       } else {
         // Clean up old logout timestamp
-        localStorage.removeItem('gruenerator_logout_timestamp');
+        localStorage.removeItem(LOGOUT_TIMESTAMP);
       }
     }
   } catch (error) {
@@ -124,8 +130,8 @@ const isRecentlyLoggedOut = () => {
     // If we can't read from localStorage, assume not recently logged out
     // Also try to clean up potentially corrupted localStorage
     try {
-      localStorage.removeItem('gruenerator_logout_timestamp');
-      localStorage.removeItem('gruenerator_login_intent');
+      localStorage.removeItem(LOGOUT_TIMESTAMP);
+      localStorage.removeItem(LOGIN_INTENT);
     } catch (cleanupError) {
       // Ignore cleanup errors
     }
@@ -244,7 +250,7 @@ const useServerAvailability = (skipCheck = false) => {
  */
 const getCachedAuthState = () => {
   try {
-    const cached = localStorage.getItem('authState');
+    const cached = localStorage.getItem(INSTANT_AUTH_CACHE);
     if (cached) {
       const parsed = JSON.parse(cached) as { timestamp?: number; data?: AuthData };
       // Check if cache is still fresh (< 5 minutes)
@@ -264,13 +270,21 @@ const getCachedAuthState = () => {
 const setCachedAuthState = (data: AuthData) => {
   try {
     localStorage.setItem(
-      'authState',
+      INSTANT_AUTH_CACHE,
       JSON.stringify({
         data,
         timestamp: Date.now(),
       })
     );
   } catch (error) {
+    // Cache write failed, ignore
+  }
+};
+
+const clearCachedAuthState = () => {
+  try {
+    localStorage.removeItem(INSTANT_AUTH_CACHE);
+  } catch {
     // Cache write failed, ignore
   }
 };
@@ -405,9 +419,13 @@ export const useAuth = (options: AuthOptions = {}) => {
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
     retry: 1,
-    refetchOnWindowFocus: false,
+    // Auth specifically must stay live: sessions can die while a tab sits
+    // idle (Better Auth cookie revalidation against a stale row). On focus
+    // we want the UI to learn about it immediately, rather than waiting for
+    // the next user-triggered API call to 401 and trip the redirect path.
+    refetchOnWindowFocus: true,
     refetchOnMount: false,
-    refetchOnReconnect: false,
+    refetchOnReconnect: true,
   });
 
   // Handle auth data when it changes
@@ -416,11 +434,7 @@ export const useAuth = (options: AuthOptions = {}) => {
     if (hasRecentlyLoggedOut && !isOnLoginPage) {
       // Clear stale instant-auth cache to prevent useInstantAuth from
       // restoring authenticated state after logout
-      try {
-        localStorage.removeItem('authState');
-      } catch {
-        // Ignore localStorage errors
-      }
+      clearCachedAuthState();
       // Only clear auth if user is currently authenticated
       // This prevents unnecessary clearAuth calls that would reset the logout timestamp
       const { isAuthenticated: currentIsAuthenticated } = useAuthStore.getState();
@@ -431,7 +445,7 @@ export const useAuth = (options: AuthOptions = {}) => {
       // to allow the login screen to be shown properly
       if (!isOnLoginPage && !skipAuth && !lazy) {
         try {
-          localStorage.removeItem('gruenerator_logout_timestamp');
+          localStorage.removeItem(LOGOUT_TIMESTAMP);
         } catch {
           // Ignore localStorage errors
         }
@@ -440,6 +454,9 @@ export const useAuth = (options: AuthOptions = {}) => {
     }
 
     if (authData) {
+      // Always mirror the server's last word into the instant-auth cache —
+      // including isAuthenticated:false. Previously only true was cached,
+      // which let an old true outlive the response that contradicted it.
       if (instant) {
         setCachedAuthState(authData);
       }
@@ -448,9 +465,14 @@ export const useAuth = (options: AuthOptions = {}) => {
         useAuthStore.getState();
 
       if (authData.isAuthenticated && authData.user) {
+        // Reset the anti-loop circuit-breaker counter — a confirmed login
+        // means any previous loop is resolved; don't carry timestamps
+        // forward into a future session.
+        notifyAuthConfirmed();
+
         // Clear login intent after successful authentication
         try {
-          localStorage.removeItem('gruenerator_login_intent');
+          localStorage.removeItem(LOGIN_INTENT);
         } catch (error) {
           // Ignore localStorage errors
         }
@@ -481,12 +503,20 @@ export const useAuth = (options: AuthOptions = {}) => {
               console.warn('[useAuth] Init prefetch failed, falling back:', error);
             });
         }
-      } else if (currentIsAuthenticated) {
-        // Only clear auth if user was previously authenticated
-        clearAuth();
+      } else {
+        // Server says not authenticated. Even if the store already agrees,
+        // make sure the stale instant-auth cache and the React Query entry
+        // are wiped — otherwise the next reload re-seeds isAuthenticated:true
+        // from cache and triggers the /login ↔ /workplace loop.
+        clearCachedAuthState();
+        queryClient.removeQueries({ queryKey: ['authStatus'] });
+        if (currentIsAuthenticated) {
+          clearAuth();
+        }
       }
     } else if (queryError) {
       setError(queryError.message);
+      clearCachedAuthState();
       clearAuth();
     }
   }, [
