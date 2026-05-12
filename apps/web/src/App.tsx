@@ -6,6 +6,7 @@ import SuspenseWrapper from './components/common/SuspenseWrapper';
 import ErrorBoundary from './components/ErrorBoundary';
 import useAccessibility from './components/hooks/useAccessibility';
 import useDarkMode from './components/hooks/useDarkMode';
+import AuthBootstrap from './components/routing/AuthBootstrap';
 import AuthRoute from './components/routing/AuthRoute';
 import GuestRoute from './components/routing/GuestRoute';
 import LegacyGeneratorRedirect from './components/routing/LegacyGeneratorRedirect';
@@ -181,6 +182,7 @@ function App() {
         <UserProfileHydrationBridge />
         <Toaster richColors position="top-right" />
         <Router>
+          <AuthBootstrap />
           <ScrollToTop />
           <RouteLogger />
           <SuspenseWrapper>
