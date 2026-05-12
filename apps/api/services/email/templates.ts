@@ -3,6 +3,7 @@ import { escapeHtml } from '@gruenerator/shared/utils';
 import { BRAND, PRIMARY_URL } from '../../config/domains.js';
 
 export const PRIMARY_COLOR = '#316049';
+export const HEADER_BG_COLOR = '#F5F1E9';
 export const LOGO_URL = `${PRIMARY_URL}/images/gruenerator_logo_gruen.svg`;
 
 export { escapeHtml };
@@ -22,7 +23,7 @@ export function baseLayout(content: string): string {
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;">
           <!-- Header -->
           <tr>
-            <td style="background-color:${PRIMARY_COLOR};padding:24px 32px;text-align:center;">
+            <td style="background-color:${HEADER_BG_COLOR};padding:24px 32px;text-align:center;border-bottom:1px solid #e8e2d0;">
               <img src="${LOGO_URL}" alt="${escapeHtml(BRAND.name)}" width="180" style="max-width:180px;height:auto;" />
             </td>
           </tr>
