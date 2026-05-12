@@ -23,7 +23,7 @@ import { createLogger } from '../../../utils/logger.js';
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import { extractTextContent } from './messageHelpers.js';
 import { pendingActionStore } from './pendingActionStore.js';
-import { generateSharepicVariants } from './sharepicVariantHelpers.js';
+import { generateSharepicVariants, type SharepicVariant } from './sharepicVariantHelpers.js';
 import { PROGRESS_MESSAGES } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
@@ -418,11 +418,16 @@ export async function executeIntentPipeline(opts: {
   enabledTools?: Record<string, boolean>;
   imageAttachments: ImageAttachment[];
   req?: Request;
-}): Promise<{ finalState: ChatGraphState; generatedImage: GeneratedImageResult | null }> {
+}): Promise<{
+  finalState: ChatGraphState;
+  generatedImage: GeneratedImageResult | null;
+  sharepicVariants: SharepicVariant[];
+}> {
   const { classifiedState, sse, forcedTool, enabledTools, imageAttachments } = opts;
 
   let finalState = classifiedState;
   let generatedImage: GeneratedImageResult | null = null;
+  let sharepicVariants: SharepicVariant[] = [];
 
   // Build ordered list of intents to execute (primary first, then secondary)
   const intentsToExecute: SearchIntent[] = [classifiedState.intent];
@@ -516,6 +521,7 @@ export async function executeIntentPipeline(opts: {
             message: `${variants.length} Sharepic-Varianten erstellt`,
             variants,
           });
+          sharepicVariants = variants;
         }
       } catch (error) {
         log.error('[ChatGraph] Sharepic variant generation failed:', error);
@@ -612,5 +618,5 @@ export async function executeIntentPipeline(opts: {
     }
   }
 
-  return { finalState, generatedImage };
+  return { finalState, generatedImage, sharepicVariants };
 }
