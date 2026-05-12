@@ -105,11 +105,7 @@ function ChatPage() {
             requireProfileHydration
           />
         ) : (
-          <GrueneratorThread
-            onNavigate={handleNavigate}
-            firstName={firstName}
-            requireProfileHydration
-          />
+          <GrueneratorThread onNavigate={handleNavigate} firstName={firstName} />
         )}
       </main>
     </div>
