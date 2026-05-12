@@ -14,12 +14,16 @@ import { initContract } from '@ts-rest/core';
 import {
   chatStreamBodySchema,
   chatResumeBodySchema,
-  sseAcceptedResponseSchema,
   chatGraphErrorResponseSchema,
 } from '../schemas/chatGraph.js';
 
 const c = initContract();
 
+// SSE endpoints: the response body is streamed manually via res.write(). We
+// declare 200 as c.noBody() so ts-rest calls res.status(200).end() instead of
+// res.json() after the handler returns — otherwise res.json sets headers on an
+// already-ended SSE response and Express logs "Cannot set headers after they
+// are sent to the client".
 export const chatGraphContract = c.router(
   {
     /**
@@ -31,7 +35,7 @@ export const chatGraphContract = c.router(
       path: '/api/chat-graph/stream',
       body: chatStreamBodySchema,
       responses: {
-        200: sseAcceptedResponseSchema,
+        200: c.noBody(),
         400: chatGraphErrorResponseSchema,
         401: chatGraphErrorResponseSchema,
         500: chatGraphErrorResponseSchema,
@@ -49,7 +53,7 @@ export const chatGraphContract = c.router(
       path: '/api/chat-graph/resume',
       body: chatResumeBodySchema,
       responses: {
-        200: sseAcceptedResponseSchema,
+        200: c.noBody(),
         400: chatGraphErrorResponseSchema,
         401: chatGraphErrorResponseSchema,
         500: chatGraphErrorResponseSchema,
