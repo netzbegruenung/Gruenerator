@@ -54,16 +54,14 @@ function VoiceOrbOverlay() {
   // the live transcript (auto-rendered from emitTranscript) stays visible
   // and the user reads the conversation in parallel with the audio.
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-6 z-30 flex justify-center animate-in fade-in zoom-in-90 duration-300">
-      <button
-        type="button"
-        onClick={() => disconnect()}
-        aria-label="Sprachsitzung beenden"
-        className="pointer-events-auto rounded-full p-2 transition-transform hover:scale-105"
-      >
-        <VoiceOrb className="size-44 drop-shadow-2xl md:size-56" />
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={() => disconnect()}
+      aria-label="Sprachsitzung beenden"
+      className="absolute left-1/2 top-6 z-30 -translate-x-1/2 rounded-full p-2 transition-transform animate-in fade-in zoom-in-90 duration-300 hover:scale-105"
+    >
+      <VoiceOrb className="size-44 drop-shadow-2xl md:size-56" />
+    </button>
   );
 }
 
