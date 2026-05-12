@@ -10,6 +10,7 @@ import {
   PERSISTED_AUTH_STATE,
   PERSISTED_AUTH_VERSION,
 } from '../features/auth/storageKeys';
+import { authClient } from '../lib/authClient';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
 import { isDesktopApp } from '../utils/platform';
 
@@ -495,10 +496,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       // Step 6: Verify logout completion (optional verification)
       try {
         console.log('[AuthStore] Verifying logout completion...');
-        const statusResponse = await apiClient.get('/auth/status', { skipAuthRedirect: true });
+        const { data: session } = await authClient.getSession();
 
-        const statusData = statusResponse.data as { isAuthenticated?: boolean } | undefined;
-        if (statusData?.isAuthenticated) {
+        if (session?.user) {
           console.warn(
             '[AuthStore] Warning: Still appears authenticated after logout. This may indicate a partial logout.'
           );

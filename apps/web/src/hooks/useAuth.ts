@@ -9,7 +9,24 @@ import {
   LOGOUT_TIMESTAMP,
   SESSION_ACTIVE,
 } from '../features/auth/storageKeys';
+import { authClient } from '../lib/authClient';
+import { sessionUserToProfile } from '../lib/sessionUserToProfile';
 import { useAuthStore, type User } from '../stores/authStore';
+
+/**
+ * Hit Better Auth's native session endpoint and adapt the response to the
+ * canonical `AuthData` shape. Replaces the previous wrapper at
+ * `GET /api/auth/status`.
+ */
+async function fetchAuthStatus(): Promise<AuthData> {
+  const { data, error } = await authClient.getSession();
+  if (error) throw error;
+  if (!data?.user) return { isAuthenticated: false };
+  return {
+    isAuthenticated: true,
+    user: sessionUserToProfile(data.user as unknown as Record<string, unknown>),
+  };
+}
 
 interface AuthOptions {
   skipAuth?: boolean;
@@ -147,12 +164,8 @@ const detectPartialLogoutState = async () => {
 
     // If frontend shows logged out, check if backend still has session
     if (frontendLoggedOut) {
-      const response = await apiClient.get('/auth/status', {
-        skipAuthRedirect: true,
-      });
-
-      const statusData = response.data as Record<string, unknown>;
-      const backendAuthenticated = statusData.isAuthenticated;
+      const status = await fetchAuthStatus();
+      const backendAuthenticated = status.isAuthenticated;
 
       if (backendAuthenticated) {
         console.warn(
@@ -476,12 +489,11 @@ export const useAuth = (options: AuthOptions = {}) => {
       }
 
       try {
-        const response = await apiClient.get('/auth/status', { skipAuthRedirect: true });
-        const data = response.data as AuthData;
+        const data = await fetchAuthStatus();
         applyAuthAnswer(data, queryClient);
         return data;
       } catch (error) {
-        // `/auth/status` failed. Tear down auth state and rethrow so React
+        // Session probe failed. Tear down auth state and rethrow so React
         // Query enters its error branch. `useAuthBootstrapped` treats `error`
         // as "bootstrapped" (the splash unhangs into Startseite via the guard).
         clearCachedAuthState();
