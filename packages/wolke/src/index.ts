@@ -8,6 +8,8 @@ export type {
   ConnectionErrorCode,
   ShareLinkValidationResult,
   ParsedShareLink,
+  SharedWithMeLink,
+  LinkGroupShare,
 } from './types';
 
 // API client
@@ -21,6 +23,10 @@ export {
   fetchSyncStatuses,
   syncFolder,
   setAutoSync,
+  fetchSharedWithMe,
+  fetchLinkGroupShares,
+  shareLinkWithGroup,
+  unshareLinkFromGroup,
 } from './api/wolkeApiClient';
 
 // Validation & utilities
@@ -45,6 +51,10 @@ export {
   useUploadToWolke,
   useSyncFolder,
   useSetAutoSync,
+  useSharedWithMeLinks,
+  useLinkGroupShares,
+  useShareLinkWithGroup,
+  useUnshareLinkFromGroup,
 } from './hooks/useWolke';
 
 // Zustand store
