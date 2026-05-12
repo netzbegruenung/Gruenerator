@@ -81,11 +81,6 @@ const NOTIFICATION_TYPES: Record<
     description: 'Wenn Gruppe aufgelöst wird',
     icon: 'trash-outline',
   },
-  wolke_setup: {
-    label: 'Wolke verbunden',
-    description: 'Bei Wolke-Einrichtung',
-    icon: 'cloud-outline',
-  },
 };
 
 const GROUPS = [
@@ -106,7 +101,6 @@ const GROUPS = [
       'group_deleted',
     ],
   },
-  { key: 'system', title: 'System', types: ['wolke_setup'] },
 ];
 
 export default function NotificationSettingsScreen() {
