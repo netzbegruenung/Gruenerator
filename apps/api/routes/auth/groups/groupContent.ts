@@ -13,6 +13,7 @@ import { notebook_collections } from '../../../database/schema/notebooks.js';
 import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
+import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { fromParam, type GroupId } from '../../../utils/types/branded.js';
 import {
@@ -226,8 +227,27 @@ router.post(
 
       const { postgres } = await getPostgresAndCheckMembership(groupId, userId, false);
 
+      // Nextcloud share links don't live in their own SQL table — they're entries
+      // in the owner's profiles.nextcloud_share_links JSONB. Verify ownership via
+      // the share manager, which throws if the link isn't in the user's array.
+      if (contentType === 'nextcloud_share_link') {
+        try {
+          await NextcloudShareManager.getShareLinkById(userId, contentId);
+        } catch {
+          res.status(404).json({
+            success: false,
+            message: 'Wolke-Verbindung nicht gefunden.',
+          });
+          return;
+        }
+      }
+
       // System content (notebooks/agents) is globally available — skip ownership check
-      if (contentType !== 'system_notebooks' && contentType !== 'system_agents') {
+      if (
+        contentType !== 'system_notebooks' &&
+        contentType !== 'system_agents' &&
+        contentType !== 'nextcloud_share_link'
+      ) {
         const tableName = tableNameMap[contentType] || contentType;
         const ownerColumn =
           contentType === 'collaborative_documents' || contentType === 'canvas_template'
@@ -332,6 +352,7 @@ router.post(
         system_notebooks: 'ein Notizbuch',
         system_agents: 'einen Agenten',
         canvas_template: 'eine Sharepic-Vorlage',
+        nextcloud_share_link: 'eine Wolke-Verbindung',
       };
       import('../../../services/notifications/index.js')
         .then(({ notifyGroupMembers }) => {

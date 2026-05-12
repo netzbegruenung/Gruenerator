@@ -109,6 +109,82 @@ router.get('/share-links', async (req: Request, res: Response): Promise<void> =>
 });
 
 /**
+ * List Wolke share links that other users shared into the caller's groups.
+ * GET /api/nextcloud/share-links/shared-with-me
+ *
+ * Sibling route rather than a new field on GET /share-links so existing
+ * consumers of that response keep their shape.
+ */
+router.get('/share-links/shared-with-me', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const sharedWithMe = await NextcloudShareManager.listLinksSharedWithUser(userId);
+
+    res.json({
+      success: true,
+      sharedWithMe,
+    });
+  } catch (error) {
+    const err = error as Error;
+    log.error('[NextcloudApi] Error listing shared-with-me links', { error: err.message });
+    res.status(500).json({
+      error: 'Failed to list shared share links',
+      message: err.message,
+    });
+  }
+});
+
+/**
+ * List the groups that one of the caller's own share links is currently shared with.
+ * GET /api/nextcloud/share-links/:id/groups
+ */
+router.get(
+  '/share-links/:id/groups',
+  async (req: Request<{ id: string }>, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const shareLinkId = req.params.id;
+      if (!shareLinkId) {
+        res.status(400).json({ error: 'Share link ID is required' });
+        return;
+      }
+
+      // Confirms the link belongs to this user before exposing share metadata.
+      try {
+        await NextcloudShareManager.getShareLinkById(userId, shareLinkId);
+      } catch {
+        res.status(404).json({ error: 'Share link not found' });
+        return;
+      }
+
+      const groups = await NextcloudShareManager.listGroupSharesForLink(userId, shareLinkId);
+
+      res.json({
+        success: true,
+        groups,
+      });
+    } catch (error) {
+      const err = error as Error;
+      log.error('[NextcloudApi] Error listing groups for share link', { error: err.message });
+      res.status(500).json({
+        error: 'Failed to list groups for share link',
+        message: err.message,
+      });
+    }
+  }
+);
+
+/**
  * Save a new Nextcloud share link
  * POST /api/nextcloud/share-links
  */
