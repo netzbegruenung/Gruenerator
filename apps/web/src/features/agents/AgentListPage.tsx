@@ -11,7 +11,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { useGroups, type GroupSummary } from '../groups/hooks/useGroups';
 import {
-  getOrderedNotebooks,
+  SYSTEM_NOTEBOOKS,
   type NotebookConfigEntry,
 } from '../notebook/config/notebooksConfig';
 
@@ -185,10 +185,14 @@ export default function AgentListPage() {
   // Reverse-map agent identifier → notebooks whose `defaultAgent` points at it.
   // Used to surface "this agent is auto-selected from notebook X" badges so
   // users browsing /agents see the agent ↔ notebook binding without having to
-  // open the notebook first. Built once from the static notebooks config.
+  // open the notebook first. Iterates SYSTEM_NOTEBOOKS (not getOrderedNotebooks)
+  // so disabled-but-routable notebooks like Schleswig-Holstein still produce a
+  // badge — the route still resolves even when the gallery hides the card.
+  // Bayern (DEV-only) is naturally excluded in prod since it's not in
+  // SYSTEM_NOTEBOOKS there.
   const notebooksByAgent = useMemo(() => {
     const map = new Map<string, NotebookConfigEntry[]>();
-    for (const nb of getOrderedNotebooks()) {
+    for (const nb of SYSTEM_NOTEBOOKS) {
       if (!nb.defaultAgent) continue;
       const list = map.get(nb.defaultAgent) ?? [];
       list.push(nb);
