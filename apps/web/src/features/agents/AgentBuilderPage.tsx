@@ -103,7 +103,7 @@ export default function AgentBuilderPage() {
       } else {
         await createMut.mutateAsync(payload);
       }
-      void navigate('/agents');
+      void navigate('/skills');
     } catch (err) {
       const e2 = err as { response?: { data?: { message?: string; error?: string } } };
       setError(
@@ -296,7 +296,7 @@ export default function AgentBuilderPage() {
           <button
             type="button"
             className="rounded border border-grey-300 px-md py-sm hover:bg-hover-alt dark:border-grey-700"
-            onClick={() => void navigate('/agents')}
+            onClick={() => void navigate('/skills')}
           >
             Abbrechen
           </button>
