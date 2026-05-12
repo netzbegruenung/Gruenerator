@@ -9,6 +9,7 @@ import {
   installPcmDownsampleWorklet,
 } from '../lib/pcmDownsampleWorklet';
 import { AudioBufferQueue } from '../lib/audioBufferQueue';
+import { resolveVoiceWsUrl } from '../lib/resolveVoiceWsUrl';
 import { splitSentences } from '../lib/sentenceSplitter';
 
 export type RealtimeVoiceErrorReason =
@@ -63,19 +64,8 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
   private history: ChatMessage[] = [];
 
   constructor(config: GrueneratorRealtimeVoiceConfig = {}) {
-    const base = config.apiBaseUrl ?? '';
-    const protocol = base
-      ? base.startsWith('https')
-        ? 'wss'
-        : 'ws'
-      : typeof window !== 'undefined' && window.location.protocol === 'https:'
-        ? 'wss'
-        : 'ws';
-    const host =
-      base.replace(/^https?:\/\//, '') ||
-      (typeof window !== 'undefined' ? window.location.host : '');
-    this.wsUrl = `${protocol}://${host}/api/voice/realtime`;
-    this.apiBaseUrl = base;
+    this.wsUrl = resolveVoiceWsUrl(config.apiBaseUrl, '/api/voice/realtime');
+    this.apiBaseUrl = config.apiBaseUrl ?? '';
     this.fetchFn = config.fetchFn ?? fetch;
     this.ttsVoiceId = config.ttsVoiceId;
     this.onError = config.onError;
@@ -92,6 +82,11 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
   }
 
   private async setup(helpers: VoiceSessionHelpers, abortSignal?: AbortSignal) {
+    // Each session starts fresh. The adapter is constructed once at provider
+    // mount, so without this reset, history would accumulate across every
+    // voice conversation the user ever has on this page load.
+    this.history = [];
+
     const fail = (reason: RealtimeVoiceErrorReason, err: unknown) => {
       console.error(`[GrueneratorRealtimeVoice] ${reason}:`, err);
       this.onError?.(reason, err);
@@ -231,14 +226,13 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
     let hasSpeech = false;
     let speechAccMs = 0;
     let silenceAccMs = 0;
-    let endingTurn = false;
     let lastTickMs = performance.now();
+    let lastEmittedVolume = -1;
 
     const resetVad = () => {
       hasSpeech = false;
       speechAccMs = 0;
       silenceAccMs = 0;
-      endingTurn = false;
     };
 
     const enterAgentTurn = () => {
@@ -278,16 +272,18 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
         s += v * v;
       }
       const rms = Math.sqrt(s / micAnalyserBuf.length);
-      if (currentMode === 'listening') helpers.emitVolume(Math.min(1, rms * 2));
+      if (currentMode === 'listening') {
+        const v = Math.min(1, rms * 2);
+        // Deadband ~2% — without this, emitVolume fires every frame (~60Hz)
+        // and forces a WebGL uniform update + React state churn even when the
+        // audio level is effectively unchanged.
+        if (Math.abs(v - lastEmittedVolume) > 0.02) {
+          lastEmittedVolume = v;
+          helpers.emitVolume(v);
+        }
+      }
 
-      // VAD endpointing — only while user is actively listening (not during
-      // the agent's turn) and only after we have observed real speech.
-      if (
-        !inAgentTurn &&
-        !endingTurn &&
-        currentMode === 'listening' &&
-        ws.readyState === WebSocket.OPEN
-      ) {
+      if (!inAgentTurn && currentMode === 'listening' && ws.readyState === WebSocket.OPEN) {
         if (rms >= this.vadSpeechRms) {
           speechAccMs += dt;
           silenceAccMs = 0;
@@ -298,12 +294,14 @@ export class GrueneratorRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
           silenceAccMs += dt;
           speechAccMs = 0;
           if (hasSpeech && silenceAccMs >= this.vadSilenceEndMs) {
-            endingTurn = true;
             try {
               ws.send(JSON.stringify({ type: 'stop' }));
             } catch {
               /* swallow */
             }
+            // Latch state into the "agent will respond" window by clearing
+            // hasSpeech — next iteration's silence won't re-trigger stop.
+            hasSpeech = false;
           }
         }
       }
