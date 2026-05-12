@@ -14,8 +14,9 @@ import {
   type WolkeScope,
 } from '@gruenerator/wolke';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { FiChevronDown, FiExternalLink, FiTrash2, FiWifi } from 'react-icons/fi';
+import { FiChevronDown, FiExternalLink, FiTrash2, FiUsers, FiWifi } from 'react-icons/fi';
 
+import ShareWolkeLinkDialog from './ShareWolkeLinkDialog';
 import WolkeFolderBrowser from './WolkeFolderBrowser';
 
 import { cn } from '@/utils/cn';
@@ -37,6 +38,7 @@ const WolkeConnectionCard = ({
 }: WolkeConnectionCardProps) => {
   const [expanded, setExpanded] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const deleteMutation = useDeleteShareLink(scope, scopeId);
@@ -149,6 +151,18 @@ const WolkeConnectionCard = ({
               </Button>
             )}
 
+            {scope !== 'group' && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => setShareDialogOpen(true)}
+                title="Mit Gruppe teilen"
+              >
+                <FiUsers className="w-4 h-4" />
+              </Button>
+            )}
+
             <Button
               variant="ghost"
               size="icon"
@@ -171,6 +185,16 @@ const WolkeConnectionCard = ({
           </div>
         </CollapsibleContent>
       </div>
+      {scope !== 'group' && (
+        <ShareWolkeLinkDialog
+          shareLinkId={shareLink.id}
+          displayName={displayName}
+          open={shareDialogOpen}
+          onOpenChange={setShareDialogOpen}
+          onSuccess={onSuccess}
+          onError={onError}
+        />
+      )}
     </Collapsible>
   );
 };
