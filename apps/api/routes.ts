@@ -11,10 +11,6 @@ import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
 import { mountAuthStatusContractRouter } from './routes/auth/authStatusContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
-import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
-import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
-import notificationsRouter from './routes/notifications/index.js';
-import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
@@ -25,6 +21,7 @@ import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRou
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
 import { mountDocumentsContractRouter } from './routes/documents/documentsContractRouter.js';
+import { mountEmailContractRouter } from './routes/email/emailContractRouter.js';
 import etherpadRoute from './routes/etherpad/etherpadController.js';
 import { mountExportsContractRouter } from './routes/exports/exportsContractRouter.js';
 import exportDocumentsRouter from './routes/exports/index.js';
@@ -45,6 +42,9 @@ import {
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
+import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
+import notificationsRouter from './routes/notifications/index.js';
+import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
 import researchRouter from './routes/research/researchController.js';
@@ -95,6 +95,7 @@ import { mountTransferContractRouter } from './routes/transfer/transferContractR
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
+import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
 import { mountVoiceContractRouter } from './routes/voice/voiceContractRouter.js';
@@ -532,7 +533,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountTransferContractRouter(app);
   app.use('/api/transfer', standardMutationLimiter, transferRouter);
   app.use('/api/mem0', requireAuth, standardMutationLimiter, mem0Router);
-  app.use('/api/email', requireAuth, standardMutationLimiter, emailRouter);
+  // ts-rest contract router for /api/email — mounts BEFORE legacy emailRouter
+  // so the typed /test endpoint matches first; /send-content stays on legacy.
+  app.use('/api/email', requireAuth);
+  mountEmailContractRouter(app);
+  app.use('/api/email', standardMutationLimiter, emailRouter);
   app.use('/api/auth/init', publicReadLimiter, authInitRouter);
   app.use('/api/recent-activity', publicReadLimiter, recentActivityRouter);
   // ts-rest contract router for notifications — mounts BEFORE the legacy router
