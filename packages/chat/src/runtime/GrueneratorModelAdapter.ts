@@ -22,6 +22,7 @@ import { parseAllMentions } from '../lib/mentionParser';
 import { parseSSELine } from '../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
 import { useDocumentChatStore } from '../stores/documentChatStore';
+import { streamErrorMessage } from './streamErrorMessage';
 import type { ConfirmActionData, DocumentCreatedData } from '../types/messageMetadata';
 
 export type GrueneratorMessageMetadata = {
@@ -1200,16 +1201,23 @@ export function createGrueneratorModelAdapter(
         };
       }
 
-      const response = await configFetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-        signal: abortSignal,
-      });
+      let response: Response;
+      try {
+        response = await configFetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+          signal: abortSignal,
+        });
+      } catch (fetchError) {
+        if (abortSignal?.aborted) return;
+        yield { content: [{ type: 'text' as const, text: streamErrorMessage(fetchError) }] };
+        return;
+      }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error((errorData as { error?: string }).error || `HTTP error ${response.status}`);
+        yield { content: [{ type: 'text' as const, text: streamErrorMessage(null, response) }] };
+        return;
       }
 
       const streamOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
@@ -1232,7 +1240,12 @@ export function createGrueneratorModelAdapter(
         ) {
           return;
         }
-        throw err;
+        // Other mid-stream errors (e.g. backend SSE `error` event) — surface
+        // as an assistant message so the user sees what went wrong in-thread,
+        // not just in the dev console.
+        if (abortSignal?.aborted) return;
+        yield { content: [{ type: 'text' as const, text: streamErrorMessage(err) }] };
+        return;
       }
 
       // Persist server-indexed document IDs to thread for follow-up messages

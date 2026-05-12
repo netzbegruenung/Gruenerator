@@ -11,6 +11,7 @@ import {
 import { parseSSELine } from '../lib/sseParser';
 import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore } from '../stores/chatConfigStore';
+import { streamErrorMessage } from './streamErrorMessage';
 
 function normalizeCiteMarkers(text: string): string {
   return text.replace(/\[cite:(\d+)\]/g, '[$1]');
@@ -204,31 +205,31 @@ export function createNotebookModelAdapter(
       const endpoint = config.endpoint || '/api/chat-service/notebook/stream';
       const c0 = performance.now();
       console.debug('[Notebook] ⏱ Request sent to %s', endpoint);
-      const response = await configFetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: abortSignal,
-      });
+      let response: Response;
+      try {
+        response = await configFetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: abortSignal,
+        });
+      } catch (fetchError) {
+        if (abortSignal?.aborted) return;
+        // Network failure before any response — surface as an assistant message
+        // so the user sees what happened in the conversation, not just in console.
+        yield { content: [{ type: 'text' as const, text: streamErrorMessage(fetchError) }] };
+        return;
+      }
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as {
-          error?: string;
-          message?: string;
-        };
-        if (response.status === 429) {
-          throw new Error(
-            errorData.message ||
-              errorData.error ||
-              'Tageslimit erreicht. Bitte morgen erneut versuchen.'
-          );
-        }
-        throw new Error(errorData.error || `HTTP error ${response.status}`);
+        yield { content: [{ type: 'text' as const, text: streamErrorMessage(null, response) }] };
+        return;
       }
 
       const reader = response.body?.getReader();
       if (!reader) {
-        throw new Error('No response body');
+        yield { content: [{ type: 'text' as const, text: streamErrorMessage(new Error('Keine Antwort vom Server erhalten.')) }] };
+        return;
       }
 
       const decoder = new TextDecoder();
@@ -277,6 +278,7 @@ export function createNotebookModelAdapter(
         };
       }
 
+      let streamErrorEncountered: unknown = null;
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -407,6 +409,7 @@ export function createNotebookModelAdapter(
         if (abortSignal?.aborted) {
           return;
         }
+        streamErrorEncountered = readError;
         console.warn(
           '[Notebook] Stream read error after %d chars: %s',
           accumulatedText.length,
@@ -476,6 +479,13 @@ export function createNotebookModelAdapter(
         console.debug(`[Notebook] ⏱ Total: ${Math.round(performance.now() - c0)}ms`);
       } else if (accumulatedText) {
         yield buildResult();
+      } else if (streamErrorEncountered) {
+        // Stream errored before any answer arrived — surface the real cause
+        // (e.g. backend `error` SSE event) instead of the misleading
+        // "keine passende Antwort" fallback.
+        yield {
+          content: [{ type: 'text' as const, text: streamErrorMessage(streamErrorEncountered) }],
+        };
       } else {
         accumulatedText =
           'Leider konnte ich keine passende Antwort finden. Bitte versuche es mit einer anderen Frage.';
