@@ -1,47 +1,19 @@
 // Display properties (icons, labels, images) are configured in the frontend:
 // apps/web/src/features/notifications/notificationConfig.ts
-export type NotificationType =
-  | 'document_shared'
-  | 'document_permission_changed'
-  | 'document_access_revoked'
-  | 'board_updates'
-  | 'board_comment_added'
-  | 'board_comment_reply'
-  | 'board_user_mentioned'
-  | 'group_activity'
-  | 'group_member_joined'
-  | 'group_member_left'
-  | 'group_role_changed'
-  | 'group_content_shared'
-  | 'group_deleted'
-  | 'wolke_setup'
-  | 'transfer_downloaded';
+//
+// Source of truth for the type/channel enums is the contracts package — both
+// the wire schema (Zod) and the TS types are derived from there.
+import {
+  notificationTypeSchema,
+  type NotificationType,
+  type NotificationChannel,
+  type NotifChannelPreferences,
+} from '@gruenerator/contracts';
 
-export type NotificationChannel = 'email' | 'push' | 'in_app';
+export type { NotificationType, NotificationChannel };
+export type ChannelPreferences = NotifChannelPreferences;
 
-export interface ChannelPreferences {
-  email: boolean;
-  push: boolean;
-  in_app: boolean;
-}
-
-export const ALL_NOTIFICATION_TYPES: NotificationType[] = [
-  'document_shared',
-  'document_permission_changed',
-  'document_access_revoked',
-  'board_updates',
-  'board_comment_added',
-  'board_comment_reply',
-  'board_user_mentioned',
-  'group_activity',
-  'group_member_joined',
-  'group_member_left',
-  'group_role_changed',
-  'group_content_shared',
-  'group_deleted',
-  'wolke_setup',
-  'transfer_downloaded',
-];
+export const ALL_NOTIFICATION_TYPES: readonly NotificationType[] = notificationTypeSchema.options;
 
 export interface Notification {
   id: string;
