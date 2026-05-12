@@ -31,6 +31,10 @@ export interface NotificationTypeConfig {
   image?: string;
   group?: NotificationGroup;
   actions?: (ctx: NotificationActionContext) => (NotificationAction | null)[];
+  // Backend notification types that this UI toggle controls. When omitted,
+  // the toggle controls only its own key. Merged toggles list all the
+  // raw types they cover so a single switch fans out the write.
+  subtypes?: string[];
 }
 
 // ── Shared action builders ───────────────────────────────────────────

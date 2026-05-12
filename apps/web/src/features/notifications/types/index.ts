@@ -1,15 +1,4 @@
-import {
-  AtSign,
-  FileText,
-  LayoutDashboard,
-  MessageSquare,
-  Reply,
-  Share2,
-  Shield,
-  UserMinus,
-  UserPlus,
-  Users,
-} from 'lucide-react';
+import { FileText, LayoutDashboard, MessageSquare, Share2, Users } from 'lucide-react';
 
 import { openLinkAction, type NotificationTypeConfig } from '../notificationConfig';
 
@@ -38,24 +27,12 @@ export const NOTIFICATION_GROUPS: Record<NotificationGroup, { label: string; ord
 
 export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
   document_shared: {
-    label: 'Geteilte Dokumente',
-    description: 'Wenn ein Dokument mit dir geteilt wird',
+    label: 'Dokumente',
+    description: 'Geteilte Dokumente, Berechtigungs- und Zugriffsänderungen',
     icon: FileText,
     group: 'documents',
+    subtypes: ['document_shared', 'document_permission_changed', 'document_access_revoked'],
     actions: (ctx) => [openLinkAction('Dokument öffnen')(ctx)],
-  },
-  document_permission_changed: {
-    label: 'Berechtigungsänderungen',
-    description: 'Wenn deine Dokument-Berechtigung geändert wird',
-    icon: FileText,
-    group: 'documents',
-    actions: (ctx) => [openLinkAction('Dokument öffnen')(ctx)],
-  },
-  document_access_revoked: {
-    label: 'Zugriff entfernt',
-    description: 'Wenn dein Zugriff auf ein Dokument entfernt wird',
-    icon: FileText,
-    group: 'documents',
   },
 
   board_updates: {
@@ -66,53 +43,20 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     actions: (ctx) => [openLinkAction('Board öffnen')(ctx)],
   },
   board_comment_added: {
-    label: 'Neue Kommentare',
-    description: 'Wenn jemand eine Karte kommentiert, an der du beteiligt bist',
+    label: 'Board-Kommentare & Erwähnungen',
+    description: 'Neue Kommentare, Antworten und @-Erwähnungen',
     icon: MessageSquare,
     group: 'board',
-    actions: (ctx) => [openLinkAction('Karte öffnen')(ctx)],
-  },
-  board_comment_reply: {
-    label: 'Antworten auf Kommentare',
-    description: 'Wenn jemand auf deinen Kommentar antwortet',
-    icon: Reply,
-    group: 'board',
-    actions: (ctx) => [openLinkAction('Karte öffnen')(ctx)],
-  },
-  board_user_mentioned: {
-    label: 'Erwähnungen',
-    description: 'Wenn du in einem Kommentar erwähnt wirst',
-    icon: AtSign,
-    group: 'board',
+    subtypes: ['board_comment_added', 'board_comment_reply', 'board_user_mentioned'],
     actions: (ctx) => [openLinkAction('Karte öffnen')(ctx)],
   },
 
-  group_activity: {
-    label: 'Gruppenaktivität',
-    description: 'Allgemeine Aktivität in deinen Gruppen',
+  group_member_joined: {
+    label: 'Mitglieder & Rollen',
+    description: 'Wenn Mitglieder beitreten, austreten oder Rollen sich ändern',
     icon: Users,
     group: 'groups',
-    actions: (ctx) => [openLinkAction('Gruppe öffnen')(ctx)],
-  },
-  group_member_joined: {
-    label: 'Neue Mitglieder',
-    description: 'Wenn jemand deiner Gruppe beitritt',
-    icon: UserPlus,
-    group: 'groups',
-    actions: (ctx) => [openLinkAction('Gruppe öffnen')(ctx)],
-  },
-  group_member_left: {
-    label: 'Ausgetretene Mitglieder',
-    description: 'Wenn jemand deine Gruppe verlässt',
-    icon: UserMinus,
-    group: 'groups',
-    actions: (ctx) => [openLinkAction('Gruppe öffnen')(ctx)],
-  },
-  group_role_changed: {
-    label: 'Rollenänderung',
-    description: 'Wenn deine Rolle geändert wird',
-    icon: Shield,
-    group: 'groups',
+    subtypes: ['group_member_joined', 'group_member_left', 'group_role_changed'],
     actions: (ctx) => [openLinkAction('Gruppe öffnen')(ctx)],
   },
   group_content_shared: {
