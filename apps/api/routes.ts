@@ -113,13 +113,18 @@ import type { Application, Request, Response, NextFunction, Router } from 'expre
  */
 const isRateLimitDisabled = process.env.DISABLE_RATE_LIMITS === 'true';
 
+// Bucket key: authenticated user when known, else client IP. Without this,
+// users sharing an egress IP (office NAT, CGNAT, VPN) compete for one bucket.
+const perUserOrIpKey = (req: Request): string => req.user?.id ?? req.ip ?? 'anonymous';
+
 const aiGenerationLimiter = isRateLimitDisabled
   ? (_req: Request, _res: Response, next: NextFunction) => next()
   : rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 200, // ~13 per minute average — protects against abuse, not normal use
+      max: 200, // AI cost control lives in rateLimitMiddleware.ts; this is a safety net only
       standardHeaders: true,
       legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
       message: { error: 'Too many AI generation requests, please try again later.' },
     });
 
@@ -127,9 +132,10 @@ const standardMutationLimiter = isRateLimitDisabled
   ? (_req: Request, _res: Response, next: NextFunction) => next()
   : rateLimit({
       windowMs: 15 * 60 * 1000,
-      max: 200,
+      max: 2000, // DDoS-only ceiling for writes — bulk ops can spike legitimately
       standardHeaders: true,
       legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
       // Skip GETs so polling endpoints (e.g. /api/subtitler/export-progress/:token,
       // fired every 2s during export) don't consume the mutation budget. The
       // limiter's purpose is abuse-prevention on writes; reads are covered by
@@ -142,9 +148,10 @@ const authenticatedReadLimiter = isRateLimitDisabled
   ? (_req: Request, _res: Response, next: NextFunction) => next()
   : rateLimit({
       windowMs: 15 * 60 * 1000, // 15 minutes
-      max: 1000, // ~66/min — generous for authenticated page loads with many parallel fetches
+      max: 10000, // DDoS-only — heavy users with many tabs + polling can hit 2–3k legitimately
       standardHeaders: true,
       legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
       message: { error: 'Too many requests, please try again later.' },
     });
 
@@ -152,9 +159,10 @@ const publicReadLimiter = isRateLimitDisabled
   ? (_req: Request, _res: Response, next: NextFunction) => next()
   : rateLimit({
       windowMs: 60 * 60 * 1000, // 1 hour
-      max: 500, // soft — prevents scraping, allows normal use
+      max: 2000, // allow embeds & site visitors without tripping legitimate traffic
       standardHeaders: true,
       legacyHeaders: false,
+      keyGenerator: perUserOrIpKey,
       message: { error: 'Too many requests, please try again later.' },
     });
 
