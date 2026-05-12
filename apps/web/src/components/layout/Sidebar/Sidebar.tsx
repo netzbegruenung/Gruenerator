@@ -545,12 +545,6 @@ const SidebarAgents = memo(function SidebarAgents({
   onLinkClick: (path: string, title: string) => void;
 }) {
   const { data: userAgents = [] } = useUserAgents();
-  // "+ Neue*r Agent*in" CTA links to /agents/new (the agent builder). The page
-  // and the route are now available in prod (routes.ts), so the CTA can be
-  // surfaced too. The user-agents list itself (which includes virtualized
-  // custom_generators) is data-driven and safe in prod: users only see their
-  // own data.
-  const showCreateAgentCta = true;
 
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const favoriteAgents = useMemo(() => {
@@ -669,6 +663,10 @@ const SidebarAgents = memo(function SidebarAgents({
             <AllAgentsDialog onLinkClick={onLinkClick} titleClass={titleClass} />
           </li>
 
+          {/*
+            "Neue*r Agent*in" sidebar CTA — disabled until the agent-builder
+            feature ships. Route + SkillsPage CTA remain dev-only via Vite
+            (`devOnly` flag in routes.ts; `import.meta.env.DEV` in SkillsPage).
           {showCreateAgentCta && (
             <li>
               <button
@@ -683,6 +681,7 @@ const SidebarAgents = memo(function SidebarAgents({
               </button>
             </li>
           )}
+          */}
         </ul>
       )}
     </div>
