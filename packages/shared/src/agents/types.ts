@@ -19,7 +19,6 @@ export interface ToolRestrictions {
   allowedCollections?: readonly string[];
   defaultCollection?: string;
   examplesCountry?: 'DE' | 'AT';
-  examplesLvScope?: string | readonly string[];
   personSearchEnabled?: boolean;
 }
 
@@ -62,7 +61,6 @@ export interface Agent {
   enabledTools?: readonly string[];
   fewShotExamples?: readonly FewShotExample[];
   routeTo?: 'chat' | 'search';
-  defaultNotebookId?: string;
   defaultFilter?: AgentDefaultFilter;
   /**
    * Hide this agent from agent-picker / inventory UIs. The identifier stays
@@ -99,7 +97,8 @@ export interface Skill {
   identifier: string;
   title: string;
   description: string;
-  icon: SkillIcon;
+  iconKey: string;
+  icon?: SkillIcon;
   avatar: string;
   backgroundColor: string;
   mention: string;

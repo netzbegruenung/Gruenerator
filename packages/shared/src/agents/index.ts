@@ -6,6 +6,7 @@ export type {
   FewShotExample,
   Skill,
   SkillCategory,
+  SkillIcon,
   ToolRestrictions,
 } from './types.js';
 export { AGENT_CATEGORY_LABELS, SKILL_CATEGORY_LABELS } from './types.js';

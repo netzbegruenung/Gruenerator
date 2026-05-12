@@ -3,7 +3,9 @@ import {
   SKILLS,
   resolveSkillMention,
   type Skill,
+  type SkillIcon,
 } from '@gruenerator/shared/agents';
+import { resolveSkillIcon } from './skillIcons';
 
 export {
   SKILL_CATEGORY_LABELS,
@@ -12,7 +14,12 @@ export {
   type SkillCategory,
 } from '@gruenerator/shared/agents';
 
-export const agentsList: Skill[] = SKILLS.map((skill) => ({ ...skill }));
+type ResolvedSkill = Skill & { icon: SkillIcon };
+
+export const agentsList: ResolvedSkill[] = SKILLS.map((skill) => ({
+  ...skill,
+  icon: resolveSkillIcon(skill.iconKey),
+}));
 
 export function getDefaultAgent(): string {
   return DEFAULT_SYSTEM_AGENT_ID;
