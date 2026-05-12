@@ -448,12 +448,6 @@ export const useAuth = (options: AuthOptions = {}) => {
     lazy || (instant && hasCachedData)
   );
 
-  // Always allow auth on login page (conscious user action). Used inside
-  // `queryFn` to decide whether to short-circuit the cooldown.
-  const isOnLoginPage =
-    typeof window !== 'undefined' &&
-    (window.location.pathname === '/login' || window.location.pathname === '/auth/login');
-
   const {
     data: authData,
     isLoading: isQueryLoading,
@@ -462,22 +456,6 @@ export const useAuth = (options: AuthOptions = {}) => {
   } = useQuery<AuthData>({
     queryKey: ['authStatus'],
     queryFn: async (): Promise<AuthData> => {
-      // Recently-logged-out cooldown: synthesise a guest answer instead of
-      // hitting the server. Side effects still run, so the bootstrap signal
-      // resolves and guards stop holding the splash. Replaces the old
-      // `enabled` gate, which left the query in `pending` forever and hung
-      // the splash.
-      if (isRecentlyLoggedOut() && !isOnLoginPage) {
-        try {
-          localStorage.removeItem(LOGOUT_TIMESTAMP);
-        } catch {
-          // Ignore localStorage errors
-        }
-        const guestAnswer: AuthData = { isAuthenticated: false };
-        applyAuthAnswer(guestAnswer, queryClient);
-        return guestAnswer;
-      }
-
       if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true') {
         const data = buildE2EBypassAuthData();
         applyAuthAnswer(data, queryClient);
