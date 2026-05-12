@@ -103,6 +103,7 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     order: 5,
     category: 'landesebene',
     enabled: false,
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-schleswig-holstein',
   },
   {
     id: 'thueringen-notebook',
@@ -204,6 +205,7 @@ const DEV_ONLY_NOTEBOOKS: NotebookConfigEntry[] = [
     icon: PiMapPin,
     order: 6,
     category: 'landesebene',
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-bayern',
   },
   {
     id: 'boell-stiftung-notebook',
