@@ -1,22 +1,13 @@
 /**
- * Agent configuration types for the AI chat service
+ * Agent configuration types for the AI chat service.
+ *
+ * `ToolRestrictions` is now sourced from `@gruenerator/shared/agents` so the
+ * API and the shared package can't drift. Re-exported here so existing
+ * `import { ToolRestrictions } from '.../routes/chat/agents/types'` callers
+ * keep compiling without touching their import paths.
  */
-
-/**
- * Tool restrictions allow per-agent customization of available search tools.
- * This enables country-specific agents (e.g., Austrian agent) to only access
- * relevant collections, enforced at the server level.
- */
-export interface ToolRestrictions {
-  /** Restrict gruenerator_search to specific collections */
-  allowedCollections?: string[] | undefined;
-  /** Default collection when not specified in query */
-  defaultCollection?: string | undefined;
-  /** Filter social media examples by country (DE = Germany, AT = Austria) */
-  examplesCountry?: 'DE' | 'AT' | undefined;
-  /** Disable person search tool (e.g., no Austrian politician DB exists) */
-  personSearchEnabled?: boolean | undefined;
-}
+import type { ToolRestrictions } from '@gruenerator/shared/agents';
+export type { ToolRestrictions } from '@gruenerator/shared/agents';
 
 /**
  * Hard-pinned filters merged into tool calls (Qdrant / examples service).

@@ -160,7 +160,7 @@ export function createSearchDocumentsTool(deps: ToolDependencies): DynamicStruct
 
       let defaultCollections: string[];
       if (deps.agentConfig.toolRestrictions?.allowedCollections?.length) {
-        defaultCollections = deps.agentConfig.toolRestrictions.allowedCollections;
+        defaultCollections = [...deps.agentConfig.toolRestrictions.allowedCollections];
       } else if (deps.agentConfig.toolRestrictions?.defaultCollection) {
         const dc = deps.agentConfig.toolRestrictions.defaultCollection;
         defaultCollections = [dc, ...getSupplementaryCollectionsForLocale(deps.userLocale)];
