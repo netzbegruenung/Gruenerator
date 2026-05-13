@@ -5,6 +5,14 @@
  * Uses the Vercel AI SDK's pipeUIMessageStreamToResponse() to stream SSE-framed
  * UIMessageChunks directly to Express. This matches the format that
  * DefaultChatTransport's EventSourceParserStream expects on the frontend.
+ *
+ * Block format: markdown (xl-ai `_experimental_markdown`). The HTML format's
+ * rebase tool throws `html diff` whenever the target block contains inline
+ * style spans (e.g. color/background) that don't round-trip cleanly through
+ * `blocksToHTMLLossy → tryParseHTMLToBlocks`. The markdown format uses
+ * `blocksToMarkdownLossy` (drops those spans naturally) and *absorbs*
+ * round-trip drift into the transaction instead of rejecting it, so the
+ * failure mode disappears.
  */
 
 import { type ServerResponse } from 'node:http';
@@ -28,6 +36,8 @@ import { type AgentConfig } from '../chat/agents/types.js';
 const log = createLogger('DocsAI');
 const router = createAuthenticatedRouter();
 
+const docsAiFormat = aiDocumentFormats._experimental_markdown;
+
 /**
  * Strict prompt for BlockNote document operations.
  * Modeled after suitenumerique/docs (github.com/suitenumerique/docs).
@@ -48,20 +58,19 @@ Each operation MUST include "type" and it MUST be one of:
 VALID SHAPES (FOLLOW EXACTLY):
 
 Update:
-{ "type":"update", "id":"<id$>", "block":"<p>...</p>" }
-IMPORTANT: "block" MUST be a STRING containing a SINGLE valid HTML element.
+{ "type":"update", "id":"<id$>", "block":"<markdown for ONE block>" }
+IMPORTANT: "block" MUST be a STRING containing markdown for a SINGLE block (one paragraph, one heading, one list item, one quote, etc).
 
 Add:
-{ "type":"add", "referenceId":"<id$>", "position":"before|after", "blocks":["<p>...</p>"] }
-IMPORTANT: "blocks" MUST be an ARRAY OF STRINGS.
-Each item MUST be a STRING containing a SINGLE valid HTML element.
+{ "type":"add", "referenceId":"<id$>", "position":"before|after", "blocks":["<md block>", ...] }
+IMPORTANT: "blocks" MUST be an ARRAY OF STRINGS, each a single markdown block.
 
 Delete:
 { "type":"delete", "id":"<id$>" }
 
 IDs ALWAYS end with "$". Use ids EXACTLY as provided.
 Do NOT use "replace", "insert", "modify", or any other type value.
-Return ONLY the JSON tool input. No prose, no markdown.`;
+Return ONLY the JSON tool input. No prose, no code fences, no commentary.`;
 
 export const aiRequestBodySchema = z.object({
   messages: z.array(z.unknown()),
@@ -114,7 +123,7 @@ export async function handleAiRequest(req: TypedRequest<AiRequestBody>, res: Res
     }
 
     const modelId = DOCS_AI_MODELS[provider];
-    log.info(`[DocsAI] Using provider: ${provider}, model: ${modelId}`);
+    log.info(`[DocsAI] Using provider: ${provider}, model: ${modelId} (format: markdown)`);
     const model = getModel(provider, modelId);
 
     // Vercel UIMessage shape is structural and SDK-version-coupled; we deliberately
@@ -146,7 +155,7 @@ The docs-chat panel has forwarded the following content (the assistant's prior r
 
 CRITICAL RULES for handling this reference content:
 1. Insert it IN FULL. Include EVERY section: Antragstellende, Antragstext, Begründung, sub-points, lists, conclusions — everything. Do NOT cherry-pick, do NOT summarize, do NOT shorten.
-2. Preserve the original structure: headings stay headings, lists stay lists, paragraphs stay paragraphs. Map markdown elements to BlockNote HTML (h1/h2/h3, p, ul/li, ol/li, blockquote).
+2. Preserve the original structure: headings stay headings, lists stay lists, paragraphs stay paragraphs. Map elements to BlockNote markdown (#, ##, ###, paragraphs, -, 1., >).
 3. Insert ONLY the content itself. Do NOT include this surrounding instruction text, the "ADDITIONAL CONTEXT" header, the "<reference_content>" tags, or any meta-commentary about what you're doing.
 4. Drop conversational chrome from the reference: closing questions to the user ("Passt das so?", "Soll ich noch etwas anpassen?"), self-referential meta ("Hier ist der überarbeitete Antrag…", "Warum das überzeugt: ✅ …"), and chat-style emoji bullets that aren't part of the document content. Keep the substantive document body.
 5. Only deviate from "insert in full" if the user's instruction explicitly limits scope (e.g. "nur die Begründung einfügen", "ersetze nur den Titel mit …").
@@ -158,11 +167,7 @@ ${referenceContent.trim()}
 
     const result = streamText({
       model,
-      system:
-        aiDocumentFormats.html.systemPrompt +
-        '\n\n' +
-        BLOCKNOTE_TOOL_STRICT_PROMPT +
-        referenceContentSection,
+      system: docsAiFormat.systemPrompt + '\n\n' + BLOCKNOTE_TOOL_STRICT_PROMPT + referenceContentSection,
       messages: await convertToModelMessages(messagesWithDocState),
       tools,
       toolChoice: 'auto',

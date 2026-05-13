@@ -65,3 +65,26 @@ export interface ParsedShareLink {
   shareToken: string;
   fullPath: string;
 }
+
+/**
+ * A Wolke link that another user has shared into one of the caller's groups.
+ * The link itself belongs to `sharedByUserId` — the caller only has read access
+ * (open in Nextcloud, test connection) through the public share token.
+ */
+export interface SharedWithMeLink {
+  link: ShareLink;
+  sharedByUserId: string | null;
+  sharedByName: string | null;
+  groupId: string;
+  groupName: string;
+  sharedAt: string;
+}
+
+/**
+ * A group that one of the caller's own links is currently shared with.
+ */
+export interface LinkGroupShare {
+  groupId: string;
+  groupName: string;
+  sharedAt: string;
+}

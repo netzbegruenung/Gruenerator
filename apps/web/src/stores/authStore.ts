@@ -10,6 +10,7 @@ import {
   PERSISTED_AUTH_STATE,
   PERSISTED_AUTH_VERSION,
 } from '../features/auth/storageKeys';
+import { authClient } from '../lib/authClient';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
 import { isDesktopApp } from '../utils/platform';
 
@@ -67,9 +68,9 @@ export interface AuthStore {
   isAuthenticated: boolean;
   // True only when /auth/status (or login flow) has confirmed authentication
   // in the CURRENT page load. Deliberately NOT persisted: every reload starts
-  // false and must be re-confirmed by the server before `GuestRoute` will
-  // redirect away from /login. Prevents the cache-driven redirect loop where
-  // stale `isAuthenticated: true` survives a backend session expiry.
+  // false and must be re-confirmed by the server before downstream code
+  // trusts the cached optimistic state. Prevents the cache-driven redirect
+  // loop where stale `isAuthenticated: true` survives a backend session expiry.
   hasServerConfirmed: boolean;
   isLoading: boolean;
   error: string | null;
@@ -253,7 +254,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       isAuthenticated: data.isAuthenticated,
       // Any call to setAuthState carries a server-confirmed truth (either
       // from /auth/status or the login flow). Promotes the cached optimistic
-      // state to the "verified" tier that GuestRoute trusts for redirects.
+      // state to the "verified" tier that downstream consumers trust for
+      // sensitive decisions.
       hasServerConfirmed: data.isAuthenticated,
       isLoading: false,
       error: null,
@@ -494,10 +496,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       // Step 6: Verify logout completion (optional verification)
       try {
         console.log('[AuthStore] Verifying logout completion...');
-        const statusResponse = await apiClient.get('/auth/status', { skipAuthRedirect: true });
+        const { data: session } = await authClient.getSession();
 
-        const statusData = statusResponse.data as { isAuthenticated?: boolean } | undefined;
-        if (statusData?.isAuthenticated) {
+        if (session?.user) {
           console.warn(
             '[AuthStore] Warning: Still appears authenticated after logout. This may indicate a partial logout.'
           );
