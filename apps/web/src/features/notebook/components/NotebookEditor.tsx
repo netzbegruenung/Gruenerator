@@ -60,6 +60,28 @@ interface UploadedDocument {
 const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
 const MAX_DOCUMENTS = 20;
 
+function getFileTypeBadge(filename: string): { label: string; bgClass: string } {
+  const ext = filename.toLowerCase().split('.').pop() ?? '';
+  switch (ext) {
+    case 'pdf':
+      return { label: 'PDF', bgClass: 'bg-red-500' };
+    case 'docx':
+      return { label: 'DOCX', bgClass: 'bg-blue-500' };
+    case 'doc':
+      return { label: 'DOC', bgClass: 'bg-blue-500' };
+    case 'odt':
+      return { label: 'ODT', bgClass: 'bg-emerald-500' };
+    case 'rtf':
+      return { label: 'RTF', bgClass: 'bg-orange-500' };
+    case 'md':
+      return { label: 'MD', bgClass: 'bg-slate-500' };
+    case 'txt':
+      return { label: 'TXT', bgClass: 'bg-slate-500' };
+    default:
+      return { label: ext.slice(0, 4).toUpperCase() || 'FILE', bgClass: 'bg-grey-500' };
+  }
+}
+
 interface NotebookEditorProps {
   onSave: (data: unknown) => Promise<void>;
   editingCollection?: NotebookCollection | null;
@@ -391,35 +413,51 @@ const NotebookEditor = ({
                       <label className="text-sm font-medium text-foreground">
                         Dokumente ({uploadedDocuments.length}/{MAX_DOCUMENTS})
                       </label>
-                      <div className="mt-xs flex flex-col gap-xs">
+                      <div className="mt-xs grid grid-cols-2 gap-xs max-sm:grid-cols-1">
                         {uploadedDocuments.map((doc) => {
                           const isIndexing = indexingDocIds.has(doc.id);
+                          const fileType = getFileTypeBadge(doc.filename || doc.title);
                           return (
                             <div
                               key={doc.id}
                               className={cn(
-                                'group flex items-center gap-sm rounded-md px-sm py-[5px] min-w-0 transition-colors',
+                                'group relative flex items-center gap-sm rounded-md bg-background-alt p-sm min-w-0 transition-all duration-200',
                                 isIndexing
-                                  ? 'bg-grey-50 dark:bg-grey-900/40'
-                                  : 'hover:bg-grey-100 dark:hover:bg-grey-800/50'
+                                  ? 'opacity-90'
+                                  : 'hover:bg-grey-100 hover:shadow-sm dark:hover:bg-grey-800/60'
                               )}
                             >
-                              {isIndexing ? (
-                                <div className="size-[14px] shrink-0 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-                              ) : (
-                                <HiCheckCircle size={14} className="text-green-600 shrink-0" />
-                              )}
-                              <span
-                                className="text-sm text-foreground truncate flex-1"
-                                title={doc.filename || doc.title}
+                              <div
+                                className={cn(
+                                  'flex h-[26px] w-[34px] shrink-0 items-center justify-center rounded-sm text-[10px] font-bold uppercase tracking-wide text-white',
+                                  fileType.bgClass,
+                                  isIndexing && 'opacity-60'
+                                )}
+                                aria-hidden
                               >
-                                {doc.filename || doc.title}
-                              </span>
-                              {isIndexing && (
-                                <span className="text-xs text-grey-500 shrink-0">
-                                  verarbeitet…
-                                </span>
-                              )}
+                                {fileType.label}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div
+                                  className="truncate text-sm font-medium text-foreground"
+                                  title={doc.filename || doc.title}
+                                >
+                                  {doc.filename || doc.title}
+                                </div>
+                                <div className="mt-[1px] flex items-center gap-xs text-xs text-grey-500">
+                                  {isIndexing ? (
+                                    <>
+                                      <div className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+                                      <span>Wird verarbeitet…</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <HiCheckCircle size={12} className="text-green-600" />
+                                      <span>Bereit</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
                               <Button
                                 type="button"
                                 variant="ghost"
