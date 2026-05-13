@@ -1,21 +1,12 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@gruenerator/ui';
+import { getAgentSlug } from '@gruenerator/shared/agents';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@gruenerator/ui';
 import { type ReactNode } from 'react';
 import { PiStarFill } from 'react-icons/pi';
 
 import { useUserAgents } from '../../../features/agents/api';
 import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
 
-import {
-  DEFAULT_AGENT_ENTRIES,
-  VISIBLE_SYSTEM_AGENTS,
-  getAgentIcon,
-} from './sidebarAgentConfig';
+import { DEFAULT_AGENT_ENTRIES, VISIBLE_SYSTEM_AGENTS, getAgentIcon } from './sidebarAgentConfig';
 import { menuLinkClass } from './sidebarStyles';
 
 import { cn } from '@/utils/cn';
@@ -103,7 +94,9 @@ export function AllAgentsDialog({ onLinkClick, titleClass }: AllAgentsDialogProp
               <AgentListRow
                 key={entry.key}
                 title={entry.label}
-                onClick={() => onLinkClick(`/chat?agent=${entry.identifier}`, entry.label)}
+                onClick={() =>
+                  onLinkClick(`/agents/${getAgentSlug(entry.identifier)}`, entry.label)
+                }
                 avatar={
                   <span className="shrink-0 w-7 h-7 flex items-center justify-center text-secondary-600">
                     <Icon aria-hidden="true" className="h-5 w-5" />
@@ -123,7 +116,9 @@ export function AllAgentsDialog({ onLinkClick, titleClass }: AllAgentsDialogProp
                 key={agent.identifier}
                 title={agent.title}
                 description={agent.description}
-                onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
+                onClick={() =>
+                  onLinkClick(`/agents/${getAgentSlug(agent.identifier)}`, agent.title)
+                }
                 avatar={
                   <span className="shrink-0 w-7 h-7 flex items-center justify-center text-secondary-600">
                     <Icon aria-hidden="true" className="h-5 w-5" />
@@ -151,7 +146,9 @@ export function AllAgentsDialog({ onLinkClick, titleClass }: AllAgentsDialogProp
                   key={`ua-${agent.identifier}`}
                   title={agent.title}
                   description={agent.description}
-                  onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
+                  onClick={() =>
+                    onLinkClick(`/agents/${getAgentSlug(agent.identifier)}`, agent.title)
+                  }
                   avatar={
                     <span
                       className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-sm"

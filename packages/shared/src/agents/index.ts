@@ -21,6 +21,8 @@ export {
 
 export { SKILLS, resolveSkillMention } from './skills.js';
 
+export { getAgentSlug, resolveAgentSlug } from './slug.js';
+
 export {
   MCP_AGENTS,
   MCP_SOCIAL_MEDIA_VARIANTS,
