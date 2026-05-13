@@ -47,6 +47,7 @@ vi.mock('../../../../utils/logger.js', () => ({
 import {
   resolveNotebookCollections,
   isKnownNotebook,
+  isDisabledNotebook,
   NOTEBOOK_COLLECTION_MAP,
 } from '../../../../config/notebookCollectionMap.js';
 import {
@@ -182,7 +183,10 @@ describe('resolveNotebookCollections', () => {
 
 describe('isKnownNotebook', () => {
   it('returns true for all known notebook IDs', () => {
+    // DISABLED_NOTEBOOK_IDS entries stay in the map for admin tooling but
+    // isKnownNotebook returns false for them by design — filter them out.
     for (const id of Object.keys(NOTEBOOK_COLLECTION_MAP)) {
+      if (isDisabledNotebook(id)) continue;
       expect(isKnownNotebook(id)).toBe(true);
     }
   });
