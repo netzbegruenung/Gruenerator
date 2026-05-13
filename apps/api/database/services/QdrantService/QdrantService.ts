@@ -716,7 +716,7 @@ export class QdrantService {
     await this.ensureConnected();
 
     const filter = this._buildSocialMediaFilter(options);
-    const collection: string = options.collection ?? this.collections.social_media_examples;
+    const collection = options.collection || this.collections.social_media_examples;
 
     const results = await this.operations!.searchWithQuality(collection, queryVector, filter, {
       limit: options.limit || 10,
@@ -840,7 +840,7 @@ export class QdrantService {
     await this.ensureConnected();
     return getRandomSocial(
       this.client!,
-      options.collection ?? this.collections.social_media_examples,
+      options.collection || this.collections.social_media_examples,
       options,
       buildSocialMediaFilter
     );
