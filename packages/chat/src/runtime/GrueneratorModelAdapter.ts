@@ -200,7 +200,14 @@ async function* parseSSEStream(
       }
     }
 
-    content.push({ type: 'text' as const, text: accumulatedText });
+    // Normalize [cite:N] → [N] before emitting, so CitationMarkdownText's
+    // placeholder-badge layer (citationProcessing.ts:25) renders inline-reserved
+    // boxes during streaming. Mirrors NotebookModelAdapter's buildResult and
+    // prevents the SearchGraph "[cite:N]" markers from appearing as plain text.
+    content.push({
+      type: 'text' as const,
+      text: accumulatedText.replace(/\[cite:(\d+)\]/g, '[$1]'),
+    });
 
     const custom: GrueneratorMessageMetadata = {
       progress: { ...currentProgress, steps: [...progressSteps] },

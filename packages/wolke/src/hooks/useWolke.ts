@@ -4,14 +4,18 @@ import {
   addShareLink,
   browseFolder,
   deleteShareLink,
+  fetchLinkGroupShares,
   fetchShareLinks,
+  fetchSharedWithMe,
   fetchSyncStatuses,
   setAutoSync,
+  shareLinkWithGroup,
   syncFolder,
   testConnection,
+  unshareLinkFromGroup,
   uploadToWolke,
 } from '../api/wolkeApiClient';
-import { type WolkeScope } from '../types';
+import { type LinkGroupShare, type SharedWithMeLink, type WolkeScope } from '../types';
 
 export const wolkeKeys = {
   all: ['wolke'] as const,
@@ -21,6 +25,9 @@ export const wolkeKeys = {
     ['wolke', 'sync-statuses', scope ?? 'personal', scopeId ?? null] as const,
   files: (shareLinkId: string) => ['wolke', 'files', shareLinkId] as const,
   browse: (shareLinkId: string, path: string) => ['wolke', 'browse', shareLinkId, path] as const,
+  sharedWithMe: () => ['wolke', 'share-links', 'shared-with-me'] as const,
+  linkGroupShares: (shareLinkId: string) =>
+    ['wolke', 'share-links', shareLinkId, 'groups'] as const,
 };
 
 export function useShareLinks(
@@ -117,6 +124,50 @@ export function useSyncFolder(scope?: WolkeScope, scopeId?: string | null) {
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: wolkeKeys.syncStatuses(scope, scopeId),
+      });
+    },
+  });
+}
+
+// ── Group sharing ──────────────────────────────────────────────────────
+
+export function useSharedWithMeLinks(options?: { enabled?: boolean }) {
+  return useQuery<SharedWithMeLink[]>({
+    queryKey: wolkeKeys.sharedWithMe(),
+    queryFn: () => fetchSharedWithMe(),
+    staleTime: 30_000,
+    enabled: options?.enabled,
+  });
+}
+
+export function useLinkGroupShares(shareLinkId: string | null, options?: { enabled?: boolean }) {
+  return useQuery<LinkGroupShare[]>({
+    queryKey: wolkeKeys.linkGroupShares(shareLinkId ?? ''),
+    queryFn: () => fetchLinkGroupShares(shareLinkId!),
+    enabled: !!shareLinkId && options?.enabled !== false,
+    staleTime: 30_000,
+  });
+}
+
+export function useShareLinkWithGroup(shareLinkId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (groupId: string) => shareLinkWithGroup(shareLinkId, groupId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: wolkeKeys.linkGroupShares(shareLinkId),
+      });
+    },
+  });
+}
+
+export function useUnshareLinkFromGroup(shareLinkId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (groupId: string) => unshareLinkFromGroup(shareLinkId, groupId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: wolkeKeys.linkGroupShares(shareLinkId),
       });
     },
   });

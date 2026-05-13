@@ -135,7 +135,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           let documents: DocumentRecord[] = [];
           if (documentIds.length > 0) {
             documents = await postgres.query<DocumentRecord>(
-              'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
+              'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id, status FROM documents WHERE id = ANY($1)',
               [documentIds]
             );
           }

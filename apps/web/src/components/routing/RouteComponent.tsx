@@ -12,7 +12,6 @@ interface RouteComponentProps {
   path: string;
   darkMode: boolean;
   toggleDarkMode: () => void;
-  isSpecial?: boolean;
   layoutMode?: LayoutMode;
 }
 
@@ -27,16 +26,11 @@ const RouteComponent = ({
   path,
   darkMode,
   toggleDarkMode,
-  isSpecial = false,
   layoutMode,
 }: RouteComponentProps): JSX.Element | null => {
   const location = useLocation();
 
-  const route = isSpecial
-    ? (routes.special as RouteConfig[]).find((r) => r.path === path)
-    : ([...routes.guest, ...routes.protected, ...routes.public] as RouteConfig[]).find(
-        (r) => r.path === path
-      );
+  const route = (routes as RouteConfig[]).find((r) => r.path === path);
 
   // Call hook unconditionally (Rules of Hooks)
   const CachedComponent = useRouteCache(

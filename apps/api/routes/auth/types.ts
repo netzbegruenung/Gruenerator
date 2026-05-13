@@ -151,6 +151,7 @@ const VALID_CONTENT_TYPES = [
   'system_notebooks',
   'system_agents',
   'canvas_template',
+  'nextcloud_share_link',
 ] as const;
 
 export const groupContentShareSchema = z.object({
