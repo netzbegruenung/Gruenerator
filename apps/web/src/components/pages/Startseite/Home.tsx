@@ -1,5 +1,6 @@
 import { TypingAnimation } from '@gruenerator/ui';
-import { lazy, memo, Suspense, type ReactNode } from 'react';
+import { useInView } from 'motion/react';
+import { lazy, memo, Suspense, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 import ReelMuster from '../../../assets/images/startseite/Reel_Muster.png';
@@ -10,6 +11,17 @@ const MockGenerator = lazy(() => import('./MockGenerator'));
 const DocumentsMock = lazy(() => import('./DocumentsMock'));
 const ImageComparisonMock = lazy(() => import('./ImageComparisonMock'));
 const NotebookMock = lazy(() => import('./NotebookMock'));
+
+// Gate below-fold lazy chunks on viewport visibility. React.lazy only
+// code-splits — the chunk still fetches as soon as Suspense mounts, which
+// happens on first paint regardless of scroll position. Wrapping defers
+// the fetch until the user scrolls close (200px margin so the chunk lands
+// before the placeholder enters the viewport).
+const LazyOnView = ({ children, fallback }: { children: ReactNode; fallback: ReactNode }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: '200px 0px' });
+  return <div ref={ref}>{inView ? children : fallback}</div>;
+};
 
 const NEWSLETTER_URL =
   'https://896ca129.sibforms.com/serve/MUIFAFnH3lov98jrw3d75u_DFByChA39XRS6JkBKqjTsN9gx0MxCvDn1FMnkvHLgzxEh1JBcEOiyHEkyzRC-XUO2DffKsVccZ4r7CCaYiugoiLf1a-yoTxDwoctxuzCsmDuodwrVwEwnofr7K42jQc-saIKeVuB_8UxrwS18QIaahZml1qMExNno2sEC7HyMy9Nz4f2f8-UJ4QmW';
@@ -121,9 +133,11 @@ const FEATURES: FeatureData[] = [
     description:
       'Optimiere deine Bilder mit Grünerator Imagine. Verbessere Qualität, entferne Hintergründe oder erstelle neue Varianten - alles KI-gestützt in Sekunden.',
     visual: (
-      <Suspense fallback={suspenseFallback}>
-        <ImageComparisonMock />
-      </Suspense>
+      <LazyOnView fallback={suspenseFallback}>
+        <Suspense fallback={suspenseFallback}>
+          <ImageComparisonMock />
+        </Suspense>
+      </LazyOnView>
     ),
   },
   {
@@ -132,9 +146,11 @@ const FEATURES: FeatureData[] = [
     description:
       'Stelle Fragen an Grundsatzprogramme, Bundestagsanträge und Kommunalwiki. Das Notebook liefert Antworten mit Quellenangaben.',
     visual: (
-      <Suspense fallback={suspenseFallback}>
-        <NotebookMock />
-      </Suspense>
+      <LazyOnView fallback={suspenseFallback}>
+        <Suspense fallback={suspenseFallback}>
+          <NotebookMock />
+        </Suspense>
+      </LazyOnView>
     ),
   },
   {
