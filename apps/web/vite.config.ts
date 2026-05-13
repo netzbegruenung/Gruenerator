@@ -28,6 +28,41 @@ const tauriPackages = [
   '@tauri-apps/plugin-store',
 ];
 
+// Build-only plugin: inject <link rel="preload"> for the fonts on the
+// LCP critical path so the browser starts fetching them in parallel with
+// CSS parsing instead of after it. Chrome DevTools traces showed
+// Raleway-Regular (heading font, where the LCP text element renders) was
+// the last node in the critical chain at ~3.3s. Asset filenames are
+// content-hashed, so the plugin resolves the actual emitted filename from
+// the build bundle at HTML-emit time rather than hardcoding a hash.
+function preloadFontsPlugin(): Plugin {
+  const TARGETS = [
+    { pattern: /^assets\/fonts\/Raleway-Regular\..+\.woff$/, type: 'font/woff' },
+    { pattern: /^assets\/fonts\/PTSans-Regular\..+\.woff2$/, type: 'font/woff2' },
+  ];
+  return {
+    name: 'preload-critical-fonts',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        const bundle = ctx.bundle;
+        if (!bundle) return html;
+        const tags: string[] = [];
+        for (const { pattern, type } of TARGETS) {
+          const match = Object.keys(bundle).find((name) => pattern.test(name));
+          if (!match) continue;
+          tags.push(
+            `<link rel="preload" as="font" type="${type}" href="/${match}" crossorigin>`
+          );
+        }
+        if (tags.length === 0) return html;
+        return html.replace('</head>', `    ${tags.join('\n    ')}\n  </head>`);
+      },
+    },
+  };
+}
+
 // Plugin to provide stub modules for Tauri packages in web context
 function tauriStubPlugin(): Plugin {
   return {
@@ -62,6 +97,7 @@ export default defineConfig(({ command }) => ({
   plugins: [
     // Only use Tauri stub plugin when NOT in Tauri context
     ...(!isTauri ? [tauriStubPlugin()] : []),
+    preloadFontsPlugin(),
     react({ jsxRuntime: 'automatic' }),
     ...(command === 'build' ? [babel({ presets: [reactCompilerPreset()] })] : []),
     tailwindcss(),
