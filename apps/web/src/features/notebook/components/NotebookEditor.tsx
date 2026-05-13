@@ -390,22 +390,20 @@ const NotebookEditor = ({
                                 {doc.filename || doc.title}
                               </span>
                             </div>
-                            {!editingCollection && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                onClick={() => handleRemoveDocument(doc.id)}
-                                disabled={loading}
-                                aria-label={`${doc.title} entfernen`}
-                              >
-                                <HiX size={14} />
-                              </Button>
-                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => handleRemoveDocument(doc.id)}
+                              disabled={loading}
+                              aria-label={`${doc.title} entfernen`}
+                            >
+                              <HiX size={14} />
+                            </Button>
                           </div>
                         ))}
                       </div>
-                      {!editingCollection && uploadedDocuments.length < MAX_DOCUMENTS && (
+                      {uploadedDocuments.length < MAX_DOCUMENTS && (
                         <button
                           type="button"
                           className="mt-xs text-sm text-primary-600 hover:underline disabled:opacity-50"
@@ -417,16 +415,14 @@ const NotebookEditor = ({
                             : `+ Weitere Datei hinzufügen (${MAX_DOCUMENTS - uploadedDocuments.length} verbleibend)`}
                         </button>
                       )}
-                      {!editingCollection && (
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          multiple
-                          accept={ACCEPTED_EXTENSIONS.join(',')}
-                          onChange={handleFileSelect}
-                          style={{ display: 'none' }}
-                        />
-                      )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept={ACCEPTED_EXTENSIONS.join(',')}
+                        onChange={handleFileSelect}
+                        style={{ display: 'none' }}
+                      />
                       {uploadError && <p className="mt-xs text-sm text-red-600">{uploadError}</p>}
                     </div>
                   )}
