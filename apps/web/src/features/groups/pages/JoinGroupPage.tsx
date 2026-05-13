@@ -37,7 +37,7 @@ const JoinGroupPage = () => {
       }
       return response.data;
     },
-    enabled: Boolean(joinToken) && !isLoading && isAuthResolved && Boolean(user),
+    enabled: Boolean(joinToken) && !isLoading && Boolean(isAuthResolved) && Boolean(user),
     retry: false,
   });
 
