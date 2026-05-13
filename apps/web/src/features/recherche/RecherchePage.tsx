@@ -1,3 +1,4 @@
+import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
 import {
   Dialog,
   DialogContent,
@@ -50,16 +51,6 @@ import type { ToolEntry } from '../../components/common/ToolGrid';
 import type { NotebookCollection } from '../../types/notebook';
 
 import { cn } from '@/utils/cn';
-
-interface EditorSaveData {
-  id?: string;
-  name: string;
-  description?: string;
-  selectionMode?: 'documents' | 'wolke';
-  documents?: string[];
-  wolkeShareLinks?: string[];
-  labels?: string[];
-}
 
 const tools: ToolEntry[] = [
   {
@@ -559,29 +550,26 @@ const RecherchePage = () => {
   );
 
   const handleSave = useCallback(
-    async (data: unknown) => {
-      const saveData = data as EditorSaveData;
-      if (saveData.id) {
-        await updateQACollection(saveData.id, {
-          name: saveData.name,
-          description: saveData.description,
-          selectionMode: saveData.selectionMode,
-          documents: saveData.documents,
-          wolkeShareLinks: saveData.wolkeShareLinks,
-          labels: saveData.labels,
+    async (data: NotebookEditorSavePayload) => {
+      if (data.id) {
+        await updateQACollection(data.id, {
+          name: data.name,
+          description: data.description,
+          selectionMode: data.selectionMode,
+          documents: data.documents,
+          labels: data.labels,
         });
       } else {
         const result = await createQACollection({
-          name: saveData.name,
-          description: saveData.description,
-          selectionMode: saveData.selectionMode,
-          documents: saveData.documents,
-          wolkeShareLinks: saveData.wolkeShareLinks,
-          labels: saveData.labels,
+          name: data.name,
+          description: data.description,
+          selectionMode: data.selectionMode,
+          documents: data.documents,
+          labels: data.labels,
         });
 
-        if (result?.id && saveData.documents?.length) {
-          startPolling(String(result.id), saveData.documents);
+        if (result?.id && data.documents.length) {
+          startPolling(String(result.id), data.documents);
         }
       }
       setShowEditor(false);

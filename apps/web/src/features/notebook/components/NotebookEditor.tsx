@@ -1,15 +1,9 @@
+import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
 import { Badge, Button } from '@gruenerator/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState, useEffect, useCallback, useRef, type DragEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
-import {
-  HiCheckCircle,
-  HiArrowLeft,
-  HiUpload,
-  HiX,
-  HiPlus,
-  HiPencil,
-} from 'react-icons/hi';
+import { HiCheckCircle, HiArrowLeft, HiUpload, HiX, HiPlus, HiPencil } from 'react-icons/hi';
 
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
@@ -84,7 +78,7 @@ function getFileTypeBadge(filename: string): { label: string; tagClass: string }
 }
 
 interface NotebookEditorProps {
-  onSave: (data: unknown) => Promise<void>;
+  onSave: (data: NotebookEditorSavePayload) => Promise<void>;
   editingCollection?: NotebookCollection | null;
   loading?: boolean;
   onCancel?: () => void;
@@ -287,16 +281,17 @@ const NotebookEditor = ({
   const onSubmit = async (data: NotebookEditorFormData): Promise<void> => {
     if (uploadedDocuments.length === 0) return;
 
-    const qaData = {
-      ...data,
+    const payload: NotebookEditorSavePayload = {
+      ...(editingCollection?.id ? { id: editingCollection.id } : {}),
+      name: data.name,
+      description: data.description,
       selectionMode: 'documents',
       documents: uploadedDocuments.map((doc) => doc.id),
       documentMeta: uploadedDocuments.map((doc) => ({ id: doc.id, title: doc.title })),
-      id: editingCollection?.id,
       labels,
     };
 
-    await onSave(qaData);
+    await onSave(payload);
   };
 
   const handleCancel = (): void => {
