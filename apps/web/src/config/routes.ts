@@ -133,6 +133,11 @@ const NotebookResolverPage = lazy(() =>
     default: m.NotebookResolver,
   }))
 );
+const MyNotebooksPage = lazy(() =>
+  import('../features/notebook/components/MyNotebooksPage').then((m) => ({
+    default: m.MyNotebooksPage,
+  }))
+);
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const SubtitlerBetaPage = lazy(
@@ -194,6 +199,7 @@ export const GrueneratorenBundle = {
   Oparl: OparlPage,
   NotebookRoot: NotebookRootPage,
   NotebookResolver: NotebookResolverPage,
+  MyNotebooks: MyNotebooksPage,
   DocumentView: DocumentViewPage,
   VorlagenListe: VorlagenGallery,
   Reel: Reel,
@@ -257,6 +263,12 @@ const standardRoutes: RouteConfig[] = [
   {
     path: '/notebooks',
     component: GrueneratorenBundle.NotebookRoot,
+    withForm: true,
+    layoutMode: 'sidebarOnly',
+  },
+  {
+    path: '/notebooks/meine',
+    component: GrueneratorenBundle.MyNotebooks,
     withForm: true,
     layoutMode: 'sidebarOnly',
   },
