@@ -240,6 +240,7 @@ const NotebookEditor = ({
       ...data,
       selectionMode: 'documents',
       documents: uploadedDocuments.map((doc) => doc.id),
+      documentMeta: uploadedDocuments.map((doc) => ({ id: doc.id, title: doc.title })),
       id: editingCollection?.id,
       labels,
     };

@@ -4,6 +4,7 @@ import React, { memo, useCallback, useMemo, useState } from 'react';
 import ToolGrid from '../../../components/common/ToolGrid';
 import { useAuthStore } from '../../../stores/authStore';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
+import NotebookCreationProgress from '../../notebook/components/NotebookCreationProgress';
 import NotebookEditor from '../../notebook/components/NotebookEditor';
 import {
   getAustrianNotebooks,
@@ -16,13 +17,18 @@ import type { NotebookCollection } from '../../../types/notebook';
 
 const INITIAL_COUNT = 5;
 
+type CreationPhase =
+  | { kind: 'closed' }
+  | { kind: 'editing' }
+  | { kind: 'processing'; name: string; documents: Array<{ id: string; title: string }> };
+
 const NotebooksSection: React.FC = memo(() => {
-  const [showEditor, setShowEditor] = useState(false);
+  const [phase, setPhase] = useState<CreationPhase>({ kind: 'closed' });
   const [showAll, setShowAll] = useState(false);
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
 
-  const { query, createQACollection, deleteQACollection } = useNotebookCollections({
+  const { query, createQACollection, deleteQACollection, isCreating } = useNotebookCollections({
     isActive: true,
   });
   const qaCollections = query.data ?? [];
@@ -61,8 +67,8 @@ const NotebooksSection: React.FC = memo(() => {
 
   const allTools = useMemo(() => [...userTools, ...systemTools], [userTools, systemTools]);
 
-  const handleCreate = useCallback(() => setShowEditor(true), []);
-  const handleCancel = useCallback(() => setShowEditor(false), []);
+  const handleCreate = useCallback(() => setPhase({ kind: 'editing' }), []);
+  const handleClose = useCallback(() => setPhase({ kind: 'closed' }), []);
 
   const handleShare = useCallback((id: string) => {
     void navigator.clipboard.writeText(`${window.location.origin}/notebook/${id}`);
@@ -83,16 +89,25 @@ const NotebooksSection: React.FC = memo(() => {
         name: string;
         description?: string;
         documents?: (string | number)[];
+        documentMeta?: Array<{ id: string; title: string }>;
       };
       await createQACollection({
         name: saveData.name,
         description: saveData.description,
         documents: saveData.documents,
       });
-      setShowEditor(false);
+      // Hand off to the progress view, which polls per-document status until terminal.
+      // documentMeta carries the upload titles for the progress rows; the IDs from
+      // saveData.documents are authoritative for the polling query.
+      const docs = (saveData.documentMeta ?? []).filter(
+        (d): d is { id: string; title: string } => typeof d.id === 'string'
+      );
+      setPhase({ kind: 'processing', name: saveData.name, documents: docs });
     },
     [createQACollection]
   );
+
+  const dialogOpen = phase.kind !== 'closed';
 
   return (
     <section className="mb-xl">
@@ -119,18 +134,37 @@ const NotebooksSection: React.FC = memo(() => {
         </button>
       )}
 
-      <Dialog open={showEditor} onOpenChange={(open) => !open && handleCancel()}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          if (open) return;
+          // Block dismiss while the create request is in flight or documents are
+          // still being processed in the background. Once everything is terminal
+          // the user closes via the explicit "Schließen" button inside the progress view.
+          if (phase.kind === 'editing' && !isCreating) handleClose();
+        }}
+      >
         <DialogContent
           className="sm:max-w-[700px] w-[calc(100%-1rem)] max-h-[90dvh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
           aria-describedby={undefined}
         >
-          <DialogTitle className="sr-only">Notebook erstellen</DialogTitle>
-          <NotebookEditor
-            onSave={handleSave}
-            onCancel={handleCancel}
-            editingCollection={null}
-            loading={false}
-          />
+          <DialogTitle className="sr-only">
+            {phase.kind === 'processing' ? 'Notebook wird erstellt' : 'Notebook erstellen'}
+          </DialogTitle>
+          {phase.kind === 'processing' ? (
+            <NotebookCreationProgress
+              notebookName={phase.name}
+              documents={phase.documents}
+              onClose={handleClose}
+            />
+          ) : (
+            <NotebookEditor
+              onSave={handleSave}
+              onCancel={handleClose}
+              editingCollection={null}
+              loading={isCreating}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </section>

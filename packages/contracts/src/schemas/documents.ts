@@ -71,6 +71,42 @@ export const syncStatusErrorSchema = z.object({
   message: z.unknown(),
 });
 
+// ── document statuses (used during notebook creation progress polling) ─────
+
+/**
+ * Five-state lifecycle observed across the codebase:
+ *   - 'pending'    DB default for newly-inserted rows
+ *   - 'uploaded'   manualController sets this after the file is on disk
+ *   - 'processing' processUploadedDocument flips this while extracting + embedding
+ *   - 'completed'  final success state
+ *   - 'failed'     final error state (actual error stays in server logs; no error_message column)
+ */
+export const documentStatusValueSchema = z.enum([
+  'pending',
+  'uploaded',
+  'processing',
+  'completed',
+  'failed',
+]);
+
+export const documentStatusesRequestSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(50),
+});
+
+export const documentStatusesResponseSchema = z.object({
+  success: z.boolean(),
+  statuses: z.array(
+    z.object({
+      id: z.string(),
+      status: documentStatusValueSchema,
+    })
+  ),
+});
+
+export type DocumentStatusValue = z.infer<typeof documentStatusValueSchema>;
+export type DocumentStatusesRequest = z.infer<typeof documentStatusesRequestSchema>;
+export type DocumentStatusesResponse = z.infer<typeof documentStatusesResponseSchema>;
+
 // ── Shared error schema ──────────────────────────────────────────────────────
 
 export const documentsAuthErrorSchema = z.object({ error: z.string() });
