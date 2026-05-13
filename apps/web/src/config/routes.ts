@@ -43,6 +43,15 @@ const LegacyNotebookIdRedirectComponent: FC<Record<string, unknown>> = () => {
 const LegacyNotebookIdRedirect = lazy(() =>
   Promise.resolve({ default: LegacyNotebookIdRedirectComponent })
 );
+
+// Redirect singular /agent/:slug → canonical plural /agents/:slug
+const LegacyAgentSlugRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { slug } = useParams();
+  return createElement(Navigate, { to: `/agents/${slug ?? ''}`, replace: true });
+};
+const LegacyAgentSlugRedirect = lazy(() =>
+  Promise.resolve({ default: LegacyAgentSlugRedirectComponent })
+);
 const DocumentToDocsRedirectComponent: FC<Record<string, unknown>> = () => {
   const { id } = useParams();
   return createElement(Navigate, { to: `/docs/${id || ''}`, replace: true });
@@ -123,9 +132,7 @@ const Nutzungsbedingungen = lazy(
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
-const NotebookRootPage = lazy(
-  () => import('../features/notebook/components/NotebooksIndexPage')
-);
+const NotebookRootPage = lazy(() => import('../features/notebook/components/NotebooksIndexPage'));
 const NotebookResolverPage = lazy(() =>
   import('../features/notebook/components/NotebookResolver').then((m) => ({
     default: m.NotebookResolver,
@@ -238,6 +245,11 @@ const standardRoutes: RouteConfig[] = [
     component: AgentBuilderPage,
     devOnly: true,
   },
+  // Chat with a specific system agent at /agents/<slug>. Slug is the agent
+  // identifier with the `gruenerator-` prefix stripped (see `getAgentSlug`
+  // in @gruenerator/shared/agents). ChatPage handles both this path-based
+  // form and the legacy `/chat?agent=<slug>` query form.
+  { path: '/agents/:slug', component: ChatPage, layoutMode: 'sidebarOnly' },
   {
     path: '/desk',
     component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
@@ -368,10 +380,10 @@ const standardRoutes: RouteConfig[] = [
   { path: '/gruenerator/erstellen', component: CreateCustomGeneratorPage, withForm: true },
   { path: '/gruenerator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
   // Redirects for removed pages
-  {
-    path: '/agent/:slug',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
-  },
+  // Legacy singular `/agent/:slug` URLs now route to the canonical plural
+  // `/agents/:slug` so old bookmarks open the agent's chat instead of
+  // bouncing to /workplace.
+  { path: '/agent/:slug', component: LegacyAgentSlugRedirect },
   {
     path: '/prompt/:slug',
     component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),

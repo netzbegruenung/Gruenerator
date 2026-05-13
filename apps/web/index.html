@@ -96,17 +96,6 @@
          while no longer parser-blocking on the critical path. -->
     <script defer src="/config.js"></script>
 
-    <!-- Kick the auth session probe from inline HTML so it runs in
-         parallel with bundle download rather than waiting for React to
-         mount AuthBootstrap. The response lands in the HTTP cache by the
-         time useAuth({ instant: true }) issues its actual fetch. Failure
-         is swallowed — this is a cache warmup, not a contract. -->
-    <script>
-      try {
-        fetch('/api/auth/v2/get-session', { credentials: 'include' }).catch(function () {});
-      } catch (e) {}
-    </script>
-
     <!-- Umami Analytics (GDPR-compliant with consent) -->
     <script>
       (function() {
@@ -132,11 +121,97 @@
       };
     </script>
     <!-- End Umami Code -->
-    
+
+    <!-- Cookie/terms banner styling. Self-contained so the banner can paint
+         before the app stylesheet loads. Uses CSS variable fallbacks so it
+         still looks right under both themes (the pre-paint theme script
+         above sets data-theme="dark"|"light" before any paint). -->
+    <style>
+      .terms-banner {
+        position: fixed; bottom: 0; left: 0; width: 100%;
+        background: var(--background-color, #ffffff);
+        color: var(--font-color, #1a1a1a);
+        padding: 10px 20px;
+        box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.15);
+        z-index: 1003;
+        display: flex; align-items: center; gap: 12px;
+        box-sizing: border-box;
+        font-family: 'PT Sans', Arial, sans-serif;
+        font-size: 16px; line-height: 1.5;
+      }
+      .terms-banner p { flex: 1 1 auto; margin: 0; }
+      .terms-banner a { color: inherit; text-decoration: underline; }
+      .terms-banner__actions { display: flex; gap: 12px; align-items: center; }
+      .terms-banner button {
+        background: var(--font-color-h, #1a1a1a);
+        color: var(--background-color, #ffffff);
+        border: none; border-radius: 50px;
+        padding: 10px 20px;
+        font: inherit; cursor: pointer;
+        transition: background-color 0.3s, color 0.3s;
+      }
+      .terms-banner button:hover { background: var(--secondary-600, #005538); color: #ffffff; }
+      @media (max-width: 768px) {
+        .terms-banner { flex-direction: column; padding: 15px 15px 25px; gap: 10px; text-align: center; font-size: 0.9em; }
+        .terms-banner__actions { flex-direction: column; width: 100%; }
+        .terms-banner button { width: 100%; padding: 12px 20px; }
+      }
+    </style>
 
   </head>
   <body>
     <noscript>Sie müssen JavaScript aktivieren, um diese App nutzen zu können.</noscript>
+
+    <!-- Cookie/terms banner — rendered inline (not by React) so it paints
+         with the first byte of HTML. Previously a lazy React component that
+         was the LCP element on the public landing page for every fresh
+         visitor, gated by ~5s of JS download. The inline <script> below
+         decides whether to keep it visible based on the same `termsAccepted`
+         localStorage key the React version used. Runs synchronously before
+         first paint, so dismissed visitors never see a flash. -->
+    <div id="terms-banner" class="terms-banner">
+      <p>
+        Diese Website verwendet Cookies. Durch die Nutzung stimmst du den
+        <a href="/nutzungsbedingungen">Nutzungsbedingungen</a> zu.
+        <a href="/datenschutz#webanalyse">Mehr erfahren</a>
+      </p>
+      <div class="terms-banner__actions">
+        <button type="button" id="terms-banner-necessary">Nur Notwendige</button>
+        <button type="button" id="terms-banner-accept-all">Alle akzeptieren</button>
+      </div>
+    </div>
+    <script>
+      // Mirrors the 'termsAccepted' key tracked by usePopupDismiss.ts
+      // (POPUP_KEYS registry). The inline write below bypasses the
+      // server-side cross-device sync that the React hook performed for
+      // authenticated users — acceptable because the banner is shown once
+      // on signed-out landing and the vast majority of dismissals happen
+      // before sign-in.
+      (function () {
+        var banner = document.getElementById('terms-banner');
+        if (!banner) return;
+        var dismissed = false;
+        try { dismissed = localStorage.getItem('termsAccepted') === 'true'; } catch (e) {}
+        var noChrome = /-no-header-footer/.test(location.pathname);
+        if (dismissed || noChrome) {
+          banner.remove();
+          return;
+        }
+        function accept(grantAnalytics) {
+          try { localStorage.setItem('termsAccepted', 'true'); } catch (e) {}
+          if (grantAnalytics && typeof window.grantAnalyticsConsent === 'function') {
+            window.grantAnalyticsConsent(); // reloads the page to load Umami
+            return;
+          }
+          banner.remove();
+        }
+        var btnNecessary = document.getElementById('terms-banner-necessary');
+        var btnAccept = document.getElementById('terms-banner-accept-all');
+        if (btnNecessary) btnNecessary.addEventListener('click', function () { accept(false); });
+        if (btnAccept) btnAccept.addEventListener('click', function () { accept(true); });
+      })();
+    </script>
+
     <div id="root"></div>
     <script type="module" src="/src/index.jsx"></script>
   </body>
