@@ -37,6 +37,7 @@ interface NotebookStartpageProps {
   recentCollectionIds: string[];
   showRecentSourceLabel?: boolean;
   showStats?: boolean;
+  showLastAdded?: boolean;
   showManualSearch?: boolean;
   /** Mention slug for the global-chat tab (e.g. 'berlin'). Null hides the tab. */
   notebookMention?: string | null;
@@ -77,6 +78,7 @@ export function NotebookStartpage({
   recentCollectionIds,
   showRecentSourceLabel,
   showStats = true,
+  showLastAdded = true,
   showManualSearch = true,
   notebookMention,
   footer,
@@ -167,7 +169,7 @@ export function NotebookStartpage({
             )}
           </div>
 
-          {recentCollectionIds.length > 0 && (
+          {showLastAdded && recentCollectionIds.length > 0 && (
             <LastAddedSection
               collectionIds={recentCollectionIds}
               showSourceLabel={showRecentSourceLabel}

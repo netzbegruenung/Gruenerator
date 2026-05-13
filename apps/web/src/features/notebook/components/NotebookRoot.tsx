@@ -5,7 +5,7 @@ import { NotebookGallery } from './NotebookGallery';
 import { NotebookPageContent } from './NotebookPage';
 
 function NotebookRootPage() {
-  const config = getNotebookConfig('gruenerator');
+  const config = { ...getNotebookConfig('gruenerator'), exampleQuestions: [] };
   return <NotebookPageContent config={config} startpageFooter={<NotebookGallery />} />;
 }
 
