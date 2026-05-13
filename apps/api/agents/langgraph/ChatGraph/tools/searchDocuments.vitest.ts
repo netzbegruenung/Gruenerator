@@ -33,6 +33,21 @@ vi.mock('../../../../services/search/DiversityReranker.js', () => ({
   applyMMR: vi.fn((results: any[]) => results),
 }));
 
+// rerankResults() in searchDocuments.ts wraps its regoloRerankService call in
+// try/catch; if the service is unmocked it throws and the catch returns
+// early, which skips the filter + MMR step. Mock with an identity-style
+// passthrough so the rerank → filter → MMR pipeline actually runs.
+vi.mock('../../../../services/search/RegoloRerankService.js', () => ({
+  regoloRerankService: {
+    rerank: vi.fn(async ({ documents }: { documents: string[] }) =>
+      documents.map((_, originalIndex) => ({
+        originalIndex,
+        relevanceScore: 1 - originalIndex * 0.05,
+      }))
+    ),
+  },
+}));
+
 vi.mock('../../../../utils/logger.js', () => ({
   createLogger: () => ({
     info: vi.fn(),

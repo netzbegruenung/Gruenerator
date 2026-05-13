@@ -41,9 +41,11 @@ import type {
  */
 const ALL_INTENTS: SearchIntent[] = [
   'research',
+  'compare',
   'search',
   'web',
   'examples',
+  'pressemitteilung_examples',
   'image',
   'image_edit',
   'sharepic',
@@ -278,9 +280,12 @@ describe('every SearchIntent has a handler path', () => {
     sharepic: 'handled via sharepic branch in controller (image generation variant)',
     direct: 'falls through to response generation',
     research: 'handled via search branch (intent !== direct)',
+    compare: 'handled via search branch — multi-document comparison, same path as research',
     search: 'handled via search branch (intent !== direct)',
     web: 'handled via search branch (intent !== direct)',
     examples: 'handled via search branch (intent !== direct)',
+    pressemitteilung_examples:
+      'handled via search branch — landesverbaende press release templates, same path as examples',
     summary: 'handled via summary branch in controller',
     chart: 'routes to respond, chart data handled by controller post-response',
     save_as_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
