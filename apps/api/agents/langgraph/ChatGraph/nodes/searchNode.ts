@@ -101,7 +101,7 @@ export async function executeDocumentSearchParallel(
     collectionsToSearch = notebookCollectionIds;
     log.info(`[Search] Using notebook-scoped collections: ${collectionsToSearch.join(', ')}`);
   } else if (agentConfig.toolRestrictions?.allowedCollections?.length) {
-    collectionsToSearch = agentConfig.toolRestrictions.allowedCollections;
+    collectionsToSearch = [...agentConfig.toolRestrictions.allowedCollections];
     log.info(`[Search] Using agent-allowed collections: ${collectionsToSearch.join(', ')}`);
   } else if (agentConfig.toolRestrictions?.defaultCollection) {
     const dc = agentConfig.toolRestrictions.defaultCollection;
@@ -783,7 +783,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           collectionsToSearch = state.notebookCollectionIds;
           log.info(`[Search] Using notebook-scoped collections: ${collectionsToSearch.join(', ')}`);
         } else if (agentConfig.toolRestrictions?.allowedCollections?.length) {
-          collectionsToSearch = agentConfig.toolRestrictions.allowedCollections;
+          collectionsToSearch = [...agentConfig.toolRestrictions.allowedCollections];
           log.info(`[Search] Using agent-allowed collections: ${collectionsToSearch.join(', ')}`);
         } else if (agentConfig.toolRestrictions?.defaultCollection) {
           const dc = agentConfig.toolRestrictions.defaultCollection;
@@ -1026,8 +1026,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // `toolRestrictions.examplesLvScope`; fall back to the per-agent
         // `defaultFilter.landesverband` (used by per-LV PR agents).
         const lvScope =
-          agentConfig.toolRestrictions?.examplesLvScope ??
-          agentConfig.defaultFilter?.landesverband;
+          agentConfig.toolRestrictions?.examplesLvScope ?? agentConfig.defaultFilter?.landesverband;
 
         // Composer paths want full bodies: PM bodies are reconstructed from
         // chunks inside searchExamples, social bodies skip the 500-char cut.
