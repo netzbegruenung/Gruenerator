@@ -751,6 +751,13 @@ function EditorContent() {
                 isOpen={effectivePanel === 'chat'}
               />
             </Suspense>
+            <button
+              onClick={() => setActiveSidebar(null)}
+              className="hidden max-md:flex absolute top-2 right-2 z-10 h-9 w-9 items-center justify-center rounded-lg bg-background/90 dark:bg-grey-900/90 text-grey-600 hover:bg-grey-100 hover:text-foreground dark:text-grey-300 dark:hover:bg-grey-700 shadow-sm border border-grey-200 dark:border-grey-700"
+              aria-label="KI-Chat schließen"
+            >
+              <FiX size={18} />
+            </button>
           </aside>
         )}
 
