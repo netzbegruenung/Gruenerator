@@ -16,10 +16,31 @@ export interface FewShotExample {
 }
 
 export interface ToolRestrictions {
-  allowedCollections?: readonly string[];
-  defaultCollection?: string;
-  examplesCountry?: 'DE' | 'AT';
-  personSearchEnabled?: boolean;
+  /**
+   * Single canonical definition shared by `apps/api` (under
+   * `exactOptionalPropertyTypes: true`) and the web/shared callers. Each field
+   * is explicitly `T | undefined` so spread assignments from objects whose
+   * properties may be `undefined` type-check on both sides.
+   */
+  allowedCollections?: readonly string[] | undefined;
+  defaultCollection?: string | undefined;
+  examplesCountry?: 'DE' | 'AT' | undefined;
+  personSearchEnabled?: boolean | undefined;
+  /**
+   * Per-Landesverband scope for press/social examples. Accepts a single short
+   * code (e.g. 'BE') or an array (e.g. ['BE', 'BE-F']) when the LV publishes
+   * under multiple codes (Berlin & Thüringen carry both Landesverband and
+   * Fraktion). Press filters via Qdrant `landesverband` field; social
+   * currently logs only (Apify follow-up will add the field to social_media_examples).
+   */
+  examplesLvScope?: string | readonly string[] | undefined;
+  /**
+   * When set, `search_examples` queries this Qdrant collection name instead
+   * of the default `social_media_examples`. Used by per-person tweet-style
+   * agents (e.g. "Tweet wie Ricarda" → `ricarda_lang_tweets`) so the few-shot
+   * grounding comes from that person's tweets only.
+   */
+  examplesCollection?: string | undefined;
 }
 
 /**
