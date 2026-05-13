@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
   Input,
 } from '@gruenerator/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { memo, useCallback, useMemo, useState } from 'react';
 import {
   HiBookOpen,
@@ -37,6 +38,7 @@ import { useNavigate } from 'react-router-dom';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import { useDocumentsStore } from '../../../stores/documentsStore';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 
 import NotebookEditor from './NotebookEditor';
@@ -199,6 +201,8 @@ function RenameDialog({
 
 function MyNotebooksPageInner() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const pollDocumentStatus = useDocumentsStore((s) => s.pollDocumentStatus);
   const {
     query,
     createQACollection,
@@ -247,6 +251,11 @@ function MyNotebooksPageInner() {
         documents?: (string | number)[];
         labels?: string[];
       };
+      const originalIds = new Set((collection.documents ?? []).map((doc) => String(doc.id)));
+      const addedIds = (d.documents ?? [])
+        .map((id) => String(id))
+        .filter((id) => !originalIds.has(id));
+
       await updateQACollection(collection.id, {
         name: d.name,
         description: d.description,
@@ -256,8 +265,14 @@ function MyNotebooksPageInner() {
         custom_prompt: collection.custom_prompt,
       });
       closeDialog();
+
+      if (addedIds.length > 0) {
+        void Promise.all(addedIds.map((id) => pollDocumentStatus(id))).finally(() => {
+          void queryClient.invalidateQueries({ queryKey: ['notebookCollections'] });
+        });
+      }
     },
-    [updateQACollection, closeDialog]
+    [updateQACollection, closeDialog, pollDocumentStatus, queryClient]
   );
 
   const handleCreateSave = useCallback(
