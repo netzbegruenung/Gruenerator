@@ -1,3 +1,5 @@
+import { SlNotebook } from 'react-icons/sl';
+
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
 
 import type { BadgeType } from '../../common/StatusBadge';
@@ -63,7 +65,7 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     path: '/notebooks',
     title: 'Notebooks',
     description: 'Suche, Wissensmanagement & Dokumentenrecherche',
-    icon: getIcon('navigation', 'notebooks'),
+    icon: SlNotebook,
     activePaths: ['/notebooks', '/notebook'],
   };
 
