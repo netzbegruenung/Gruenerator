@@ -52,6 +52,9 @@ export interface GrueneratorAdapterConfig {
   customSystemPrompt?: string | null;
   customRoleName?: string | null;
   customEnabledTools?: Record<string, boolean> | null;
+  /** Mention key of the active /skill (e.g. 'instagram'). Server appends the
+   *  skill's `skillSystemPrompt` to the agent's systemRole when set. */
+  activeSkillMention?: string | null;
 }
 
 export interface GrueneratorAdapterCallbacks {
@@ -1180,6 +1183,7 @@ export function createGrueneratorModelAdapter(
           customSystemPrompt: config.customSystemPrompt || undefined,
           roleName: config.customRoleName || undefined,
           initialAssistantMessage: seededInitialAssistantMessage,
+          activeSkillMention: config.activeSkillMention || undefined,
         };
       } else {
         // Chat mode: full request with mentions, attachments, tools
@@ -1205,6 +1209,7 @@ export function createGrueneratorModelAdapter(
           defaultNotebookId: config.selectedNotebookId || undefined,
           customSystemPrompt: config.customSystemPrompt || undefined,
           initialAssistantMessage: seededInitialAssistantMessage,
+          activeSkillMention: config.activeSkillMention || undefined,
         };
       }
 

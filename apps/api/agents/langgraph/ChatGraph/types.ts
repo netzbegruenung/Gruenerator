@@ -289,6 +289,7 @@ export interface ChatGraphInput {
   currentDocument?: CurrentDocument | undefined;
   userLocale?: UserLocale | undefined;
   customSystemPrompt?: string | undefined;
+  activeSkillMention?: string | undefined;
   userInstructions?: string | undefined;
   contextWindowTokens?: number | undefined;
 }
@@ -346,6 +347,10 @@ export interface ChatGraphState {
 
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;
+
+  // Mention key of the active skill (e.g. 'instagram'). When set, respondNode
+  // appends the skill's `skillSystemPrompt` as an additive section.
+  activeSkillMention: string | null;
 
   // User profile instructions (from profiles.custom_prompt, additive to all modes)
   userInstructions: string | null;

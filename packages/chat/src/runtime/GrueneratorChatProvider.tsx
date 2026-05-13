@@ -258,6 +258,7 @@ function useGrueneratorThreadRuntime() {
     customSystemPrompt,
     customRoleName,
     customEnabledTools,
+    activeSkillMention,
   } = useAgentStore(
     useShallow((s) => ({
       selectedAgentId: s.selectedAgentId,
@@ -268,6 +269,7 @@ function useGrueneratorThreadRuntime() {
       customSystemPrompt: s.customSystemPrompt,
       customRoleName: s.customRoleName,
       customEnabledTools: s.customEnabledTools,
+      activeSkillMention: s.activeSkillMention,
     }))
   );
   const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
@@ -287,6 +289,7 @@ function useGrueneratorThreadRuntime() {
       customSystemPrompt,
       customRoleName,
       customEnabledTools,
+      activeSkillMention,
     }),
     [
       selectedAgentId,
@@ -297,6 +300,7 @@ function useGrueneratorThreadRuntime() {
       customSystemPrompt,
       customRoleName,
       customEnabledTools,
+      activeSkillMention,
     ]
   );
 
