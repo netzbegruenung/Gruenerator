@@ -135,7 +135,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           let documents: DocumentRecord[] = [];
           if (documentIds.length > 0) {
             documents = await postgres.query<DocumentRecord>(
-              'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id, status FROM documents WHERE id = ANY($1)',
+              'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
               [documentIds]
             );
           }
@@ -306,7 +306,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           for (const doc of pendingDocs) {
             processUploadedDocument(pgDocService, qdrantDocService, doc.id, userId).catch((err) => {
               log.error(
-                `[notebookCollectionsContract.createCollection] Background processing failed for doc ${doc.id}:`,
+                `[notebookCollectionsContract.createCollection] Background processing failed for doc ${doc.id} in collection ${collectionId}:`,
                 err
               );
             });
