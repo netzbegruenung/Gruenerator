@@ -6,7 +6,7 @@ import {
 import {
   PiSparkle,
   PiMegaphone,
-  PiNotePencil,
+  PiBuildings,
   PiMagnifyingGlass,
   PiChatsCircle,
   PiMicrophone,
@@ -34,7 +34,7 @@ export const VISIBLE_SYSTEM_AGENTS: readonly Agent[] = ALL_VISIBLE_SYSTEM_AGENTS
 
 const AGENT_ICONS: Partial<Record<SystemAgentId, IconType>> = {
   'gruenerator-universal': PiSparkle,
-  'gruenerator-antrag': PiNotePencil,
+  'gruenerator-antrag': PiBuildings,
   'gruenerator-suche': PiMagnifyingGlass,
   'gruenerator-oeffentlichkeitsarbeit': PiMegaphone,
   'gruenerator-buergerservice': PiChatsCircle,
@@ -79,7 +79,7 @@ export const DEFAULT_AGENT_ENTRIES: readonly DefaultAgentEntry[] = [
   },
   {
     key: 'default-antrag',
-    label: 'Anträge',
+    label: 'Kommunalpolitik',
     identifier: 'gruenerator-antrag',
   },
   {
