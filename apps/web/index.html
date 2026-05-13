@@ -140,7 +140,7 @@
     <style>
       .terms-banner {
         position: fixed; bottom: 0; left: 0; width: 100%;
-        background: var(--background, #ffffff);
+        background: var(--background-color, #ffffff);
         color: var(--font-color, #1a1a1a);
         padding: 10px 20px;
         box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.15);
@@ -155,7 +155,7 @@
       .terms-banner__actions { display: flex; gap: 12px; align-items: center; }
       .terms-banner button {
         background: var(--font-color-h, #1a1a1a);
-        color: var(--background, #ffffff);
+        color: var(--background-color, #ffffff);
         border: none; border-radius: 50px;
         padding: 10px 20px;
         font: inherit; cursor: pointer;
@@ -192,30 +192,34 @@
       </div>
     </div>
     <script>
+      // Mirrors the 'termsAccepted' key tracked by usePopupDismiss.ts
+      // (POPUP_KEYS registry). The inline write below bypasses the
+      // server-side cross-device sync that the React hook performed for
+      // authenticated users — acceptable because the banner is shown once
+      // on signed-out landing and the vast majority of dismissals happen
+      // before sign-in.
       (function () {
-        try {
-          var banner = document.getElementById('terms-banner');
-          if (!banner) return;
-          var dismissed = false;
-          try { dismissed = localStorage.getItem('termsAccepted') === 'true'; } catch (e) {}
-          var noChrome = /-no-header-footer/.test(location.pathname);
-          if (dismissed || noChrome) {
-            banner.parentNode.removeChild(banner);
+        var banner = document.getElementById('terms-banner');
+        if (!banner) return;
+        var dismissed = false;
+        try { dismissed = localStorage.getItem('termsAccepted') === 'true'; } catch (e) {}
+        var noChrome = /-no-header-footer/.test(location.pathname);
+        if (dismissed || noChrome) {
+          banner.remove();
+          return;
+        }
+        function accept(grantAnalytics) {
+          try { localStorage.setItem('termsAccepted', 'true'); } catch (e) {}
+          if (grantAnalytics && typeof window.grantAnalyticsConsent === 'function') {
+            window.grantAnalyticsConsent(); // reloads the page to load Umami
             return;
           }
-          function accept(grantAnalytics) {
-            try { localStorage.setItem('termsAccepted', 'true'); } catch (e) {}
-            if (grantAnalytics && typeof window.grantAnalyticsConsent === 'function') {
-              window.grantAnalyticsConsent(); // reloads the page to load Umami
-              return;
-            }
-            if (banner.parentNode) banner.parentNode.removeChild(banner);
-          }
-          var btnNecessary = document.getElementById('terms-banner-necessary');
-          var btnAccept = document.getElementById('terms-banner-accept-all');
-          if (btnNecessary) btnNecessary.addEventListener('click', function () { accept(false); });
-          if (btnAccept) btnAccept.addEventListener('click', function () { accept(true); });
-        } catch (e) {}
+          banner.remove();
+        }
+        var btnNecessary = document.getElementById('terms-banner-necessary');
+        var btnAccept = document.getElementById('terms-banner-accept-all');
+        if (btnNecessary) btnNecessary.addEventListener('click', function () { accept(false); });
+        if (btnAccept) btnAccept.addEventListener('click', function () { accept(true); });
       })();
     </script>
 
