@@ -1,5 +1,13 @@
 import { useShareStore, type Share } from '@gruenerator/shared/share';
-import { buttonVariants, Label, Tabs, TabsList, TabsTrigger, TabsContent } from '@gruenerator/ui';
+import {
+  buttonVariants,
+  Label,
+  Skeleton,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@gruenerator/ui';
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import { HiArrowLeft, HiArrowRight, HiX, HiPhotograph, HiSearch } from 'react-icons/hi';
@@ -433,9 +441,11 @@ const ImageUploadStep: React.FC<ImageUploadStepProps> = ({
                         disabled={isLoadingUnsplash}
                         className="w-full py-2.5 bg-primary-600 text-white border-none rounded-lg cursor-pointer text-sm hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
                       >
-                        {isLoadingUnsplash
-                          ? 'Lädt...'
-                          : `Mehr laden (${unsplashResults.length} von ${unsplashTotal})`}
+                        {isLoadingUnsplash ? (
+                          <Skeleton className="mx-auto inline-block h-4 w-24" />
+                        ) : (
+                          `Mehr laden (${unsplashResults.length} von ${unsplashTotal})`
+                        )}
                       </button>
                     )}
                   </>
