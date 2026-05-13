@@ -1,3 +1,4 @@
+import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
 import { Dialog, DialogContent, DialogTitle, SectionHeader } from '@gruenerator/ui';
 import React, { memo, useCallback, useMemo, useState } from 'react';
 
@@ -84,25 +85,16 @@ const NotebooksSection: React.FC = memo(() => {
   );
 
   const handleSave = useCallback(
-    async (data: unknown) => {
-      const saveData = data as {
-        name: string;
-        description?: string;
-        documents?: (string | number)[];
-        documentMeta?: Array<{ id: string; title: string }>;
-      };
+    async (data: NotebookEditorSavePayload) => {
       await createQACollection({
-        name: saveData.name,
-        description: saveData.description,
-        documents: saveData.documents,
+        name: data.name,
+        description: data.description,
+        documents: data.documents,
       });
       // Hand off to the progress view, which polls per-document status until terminal.
       // documentMeta carries the upload titles for the progress rows; the IDs from
-      // saveData.documents are authoritative for the polling query.
-      const docs = (saveData.documentMeta ?? []).filter(
-        (d): d is { id: string; title: string } => typeof d.id === 'string'
-      );
-      setPhase({ kind: 'processing', name: saveData.name, documents: docs });
+      // data.documents are authoritative for the polling query.
+      setPhase({ kind: 'processing', name: data.name, documents: data.documentMeta });
     },
     [createQACollection]
   );

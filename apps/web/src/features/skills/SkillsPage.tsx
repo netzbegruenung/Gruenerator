@@ -5,7 +5,7 @@ import {
   type AgentListItem,
   type SkillCategory,
 } from '@gruenerator/chat';
-import { AGENT_CATEGORY_LABELS, type Agent } from '@gruenerator/shared/agents';
+import { AGENT_CATEGORY_LABELS, getAgentSlug, type Agent } from '@gruenerator/shared/agents';
 import { Input, SectionHeader, CardGrid } from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 import {
@@ -263,7 +263,7 @@ function LibraryPageInner() {
   };
 
   const handleSelectAgent = (agent: Agent) => {
-    void navigate(`/chat?agent=${encodeURIComponent(agent.identifier)}`);
+    void navigate(`/agents/${encodeURIComponent(getAgentSlug(agent.identifier))}`);
   };
 
   const handleEditAgent = (agent: Agent) => {

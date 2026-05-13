@@ -4,6 +4,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  Skeleton,
 } from '@gruenerator/ui';
 import { XIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -306,7 +307,11 @@ const TextResultScreen: React.FC<TextResultScreenProps> = memo(
                     >
                       <HiOutlinePencil size={22} />
                       <span className="text-[11px] leading-none">
-                        {editLoading ? 'Lädt...' : 'Bearbeiten'}
+                        {editLoading ? (
+                          <Skeleton className="inline-block h-3 w-14" />
+                        ) : (
+                          'Bearbeiten'
+                        )}
                       </span>
                     </button>
 

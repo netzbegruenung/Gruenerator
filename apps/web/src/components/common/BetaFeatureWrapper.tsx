@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 
 import { useBetaFeatures } from '../../hooks/useBetaFeatures';
 import { useAuthStore } from '../../stores/authStore';
+import AuthSplash from '../routing/AuthSplash';
 
 interface BetaFeatureWrapperProps {
   children: ReactNode;
@@ -21,7 +22,7 @@ const BetaFeatureWrapper = ({
 
   // Show loading state while checking authentication and beta features
   if (isLoading || (!isAuthenticated && user === undefined)) {
-    return <div className="loading-spinner">Lädt...</div>;
+    return <AuthSplash />;
   }
 
   // Redirect to login if not authenticated

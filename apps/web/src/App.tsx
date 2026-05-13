@@ -7,6 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import useAccessibility from './components/hooks/useAccessibility';
 import useDarkMode from './components/hooks/useDarkMode';
 import AuthBootstrap from './components/routing/AuthBootstrap';
+import AuthSplash from './components/routing/AuthSplash';
 import HomeRedirect from './components/routing/HomeRedirect';
 import LegacyGeneratorRedirect from './components/routing/LegacyGeneratorRedirect';
 import RequireAuth from './components/routing/RequireAuth';
@@ -36,9 +37,10 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Toaster } from '@gruenerator/ui';
 
 import { toastApiError } from './components/utils/toastError';
-const PopupNutzungsbedingungen = lazy(
-  () => import('./components/Popups/popup_nutzungsbedingungen')
-);
+// PopupNutzungsbedingungen moved to inline HTML in index.html — see the
+// `terms-banner` block there. It was the LCP element on / for fresh
+// visitors and waited for the React boot to paint; inline removes that
+// dependency entirely. The same `termsAccepted` localStorage key gates both.
 const PopupWartung = lazy(() => import('./components/Popups/popup_wartung'));
 // const CustomGrueneratorenPopup = lazy(() => import('./components/Popups/popup_custom_grueneratoren'));
 // const PopupAustriaLaunch = lazy(() => import('./components/Popups/popup_austria_launch'));
@@ -130,11 +132,7 @@ function App() {
 
   // Show minimal loading state while API client initializes (typically <100ms)
   if (!appReady) {
-    return (
-      <div className="app-loading">
-        <div className="app-loading-text">Lädt...</div>
-      </div>
-    );
+    return <AuthSplash />;
   }
 
   // Maintenance mode blocks entire app (off by default, set VITE_MAINTENANCE_MODE=true to enable)
@@ -143,13 +141,7 @@ function App() {
   if (isMaintenanceMode) {
     return (
       <ErrorBoundary>
-        <Suspense
-          fallback={
-            <div className="app-loading">
-              <div className="app-loading-text">Lädt...</div>
-            </div>
-          }
-        >
+        <Suspense fallback={<AuthSplash />}>
           <PopupWartung />
         </Suspense>
       </ErrorBoundary>
@@ -159,13 +151,7 @@ function App() {
   if (isFirstRun) {
     return (
       <ErrorBoundary>
-        <Suspense
-          fallback={
-            <div className="app-loading">
-              <div className="app-loading-text">Lädt...</div>
-            </div>
-          }
-        >
+        <Suspense fallback={<AuthSplash />}>
           <FirstRunWizard
             requireLogin={requireLogin}
             onComplete={completeFirstRun}
@@ -186,7 +172,6 @@ function App() {
           <ScrollToTop />
           <RouteLogger />
           <SuspenseWrapper>
-            <PopupNutzungsbedingungen />
             {/* <PopupAustriaLaunch /> */}
             <div id="aria-live-region" aria-live="polite" className="sr-only" />
 

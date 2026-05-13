@@ -161,7 +161,13 @@ export function GrueneratorThreadListItem() {
         </ThreadListItemMorePrimitive.Root>
       </ThreadListItemPrimitive.Root>
 
-      <ShareThreadDialog threadId={remoteId ?? null} open={shareOpen} onOpenChange={setShareOpen} />
+      {shareOpen && (
+        <ShareThreadDialog
+          threadId={remoteId ?? null}
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+        />
+      )}
     </>
   );
 }
