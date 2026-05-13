@@ -19,7 +19,13 @@ const mockToolDefinitionsToToolSet = vi.fn();
 vi.mock('@blocknote/xl-ai/server', () => ({
   injectDocumentStateMessages: mockInjectDocumentStateMessages,
   toolDefinitionsToToolSet: mockToolDefinitionsToToolSet,
-  aiDocumentFormats: { html: { systemPrompt: 'You are a document editor.' } },
+  // Mirror the format the controller actually reads: aiDocumentFormats._experimental_markdown.
+  // The earlier html shape is dead since the docs editor switched to markdown
+  // to dodge the "html diff" throw on color-span round-trips.
+  aiDocumentFormats: {
+    _experimental_markdown: { systemPrompt: 'You are a document editor.' },
+    html: { systemPrompt: 'You are a document editor.' },
+  },
 }));
 
 const mockGetModel = vi.fn();
@@ -327,7 +333,7 @@ describe('aiController – POST /api/docs/ai', () => {
       expect(opts.system).toContain('You are a document editor.');
       expect(opts.system).toContain('VALID SHAPES');
       expect(opts.toolChoice).toBe('auto');
-      expect(opts.maxOutputTokens).toBe(4096);
+      expect(opts.maxOutputTokens).toBe(32768);
       expect(opts.temperature).toBe(0.3);
     });
 

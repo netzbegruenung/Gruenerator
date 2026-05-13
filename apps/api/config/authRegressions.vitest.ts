@@ -81,7 +81,18 @@
  */
 
 import pg from 'pg';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+
+// Better Auth refuses to construct when crossSubDomainCookies.enabled is true
+// without a baseURL. In real deploys BETTER_AUTH_URL is always set; in vitest
+// it isn't, so the module-load throws an unhandled rejection that the runner
+// reports as an error even though every test passes. Set a placeholder before
+// the betterAuth.ts import is evaluated.
+vi.hoisted(() => {
+  if (!process.env.BETTER_AUTH_URL) {
+    process.env.BETTER_AUTH_URL = 'http://localhost:3000';
+  }
+});
 
 import { auth } from './betterAuth.js';
 
