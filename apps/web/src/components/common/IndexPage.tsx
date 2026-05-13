@@ -1,3 +1,4 @@
+import { Skeleton } from '@gruenerator/ui';
 import type { ReactNode } from 'react';
 
 import { cn } from '@/utils/cn';
@@ -49,9 +50,10 @@ const IndexPage = ({
 
       <div>
         {loading && (
-          <div className="flex flex-col items-center justify-center py-xl">
-            <div className="spinner" />
-            <p>Lädt...</p>
+          <div className="flex flex-col items-center justify-center gap-md py-xl">
+            <Skeleton className="h-8 w-2/3 max-w-md" />
+            <Skeleton className="h-4 w-1/2 max-w-sm" />
+            <Skeleton className="mt-md h-32 w-full max-w-2xl" />
           </div>
         )}
 
