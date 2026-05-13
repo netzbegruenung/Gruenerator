@@ -1,3 +1,4 @@
+import { getAgentSlug } from '@gruenerator/shared/agents';
 import { Button } from '@gruenerator/ui';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import React, { useMemo, memo } from 'react';
@@ -55,7 +56,7 @@ const CustomGeneratorPage: React.FC = memo(() => {
     if (!slug) return;
     convertMutation.mutate(slug, {
       onSuccess: ({ agent }) => {
-        void navigate(`/chat?agent=${agent.identifier}`);
+        void navigate(`/agents/${getAgentSlug(agent.identifier)}`);
       },
     });
   };
