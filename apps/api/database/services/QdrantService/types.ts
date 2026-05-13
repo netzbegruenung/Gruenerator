@@ -368,6 +368,14 @@ export interface SocialMediaSearchOptions {
    * (federal accounts) are filtered out when this option is set.
    */
   landesverband?: string | readonly string[] | undefined;
+  /**
+   * Override the target Qdrant collection. Defaults to `social_media_examples`.
+   * Set by per-person tweet-style agents (e.g. Ricarda Lang → `ricarda_lang_tweets`)
+   * to search a curated personal corpus instead of the shared green-social pool.
+   * The override collection must share the social_media_examples payload shape
+   * (written via `indexSocialMediaExample`).
+   */
+  collection?: string | undefined;
 }
 
 // =============================================================================

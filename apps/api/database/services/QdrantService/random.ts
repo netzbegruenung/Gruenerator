@@ -75,6 +75,8 @@ interface RandomSocialMediaOptions {
   limit?: number;
   platform?: 'facebook' | 'instagram';
   country?: 'DE' | 'AT';
+  /** Override target collection — see `SocialMediaSearchOptions.collection`. */
+  collection?: string;
 }
 
 // Filter builder types

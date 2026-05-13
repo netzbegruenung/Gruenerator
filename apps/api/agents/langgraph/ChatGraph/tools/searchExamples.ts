@@ -16,30 +16,43 @@ import type { ToolDependencies } from './registry.js';
 const log = createLogger('Tool:SearchExamples');
 
 export function createSearchExamplesTool(deps: ToolDependencies): DynamicStructuredTool {
-    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
+  // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'search_examples',
     description:
       'Suche Social-Media-Beispiele und Vorlagen (Facebook, Instagram). ' +
       'Nutze dieses Tool wenn der Nutzer nach Beispiel-Posts, Vorlagen oder Inspirationen fragt.',
-    schema: z.object({
-      query: z.string().describe('Die Suchanfrage für Beispiele'),
-      platform: z
-        .enum(['facebook', 'instagram'])
-        .optional()
-        .describe('Optionale Plattform-Filterung'),
-    }).describe('Beispielsuche'),
+    schema: z
+      .object({
+        query: z.string().describe('Die Suchanfrage für Beispiele'),
+        platform: z
+          .enum(['facebook', 'instagram'])
+          .optional()
+          .describe('Optionale Plattform-Filterung'),
+      })
+      .describe('Beispielsuche'),
     func: async (input: { query: string; platform?: string }) => {
       const { query, platform } = input;
       const country =
         deps.agentConfig.toolRestrictions?.examplesCountry ||
         (deps.userLocale === 'de-AT' ? 'AT' : undefined);
-      log.info(`[SearchExamples] query="${query.slice(0, 60)}" platform=${platform || 'all'}`);
+      const collection = deps.agentConfig.toolRestrictions?.examplesCollection;
+      // Per-person tweet collections (e.g. ricarda_lang_tweets) are single-
+      // platform corpora — passing facebook/instagram would filter to zero.
+      // The agent prompt is instructed to omit `platform` for these, but
+      // defend in depth here.
+      const effectivePlatform = collection != null ? undefined : platform;
+      log.info(
+        `[SearchExamples] query="${query.slice(0, 60)}" platform=${effectivePlatform || 'all'}${
+          collection != null ? ` collection=${collection}` : ''
+        }`
+      );
 
       const params: Parameters<typeof executeDirectExamplesSearch>[0] = {
         query,
-        ...(platform != null ? { platform } : {}),
+        ...(effectivePlatform != null ? { platform: effectivePlatform } : {}),
         ...(country != null ? { country } : {}),
+        ...(collection != null ? { collection } : {}),
       };
       const result = await executeDirectExamplesSearch(params);
 
