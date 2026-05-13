@@ -12,6 +12,7 @@ import {
   PiBookOpenText,
   PiHandHeart,
   PiFileText,
+  PiBird,
 } from 'react-icons/pi';
 
 import type { IconType } from 'react-icons';
@@ -31,6 +32,7 @@ const ICON_REGISTRY: Record<string, IconType> = {
   'book-open-text': PiBookOpenText,
   'hand-heart': PiHandHeart,
   'file-text': PiFileText,
+  bird: PiBird,
 };
 
 const FALLBACK_ICON: IconType = PiSparkle;
