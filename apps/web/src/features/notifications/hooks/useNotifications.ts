@@ -8,6 +8,7 @@ import {
   dismissNotificationById,
   dismissAllNotificationsClient,
 } from '../../../hooks/useNotificationsTyped';
+import { useAuthStore } from '../../../stores/authStore';
 import { useNotificationStore } from '../../../stores/notificationStore';
 
 import type { Notification } from '../types';
@@ -31,6 +32,7 @@ export function useNotifications() {
 
 export function useUnreadCount() {
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   return useQuery({
     queryKey: ['notifications', 'unread-count'],
@@ -39,6 +41,12 @@ export function useUnreadCount() {
       setUnreadCount(count);
       return count;
     },
+    // ProfileButton mounts on every route (including /login), but the
+    // unread-count endpoint requires auth. Without this gate, guests get
+    // a 401-retry storm that surfaces as an "Unerwarteter Fehler" toast
+    // and incidentally triggers apiClient's 401-recovery session probe.
+    enabled: isAuthenticated,
+    retry: false,
     staleTime: 30_000,
     refetchInterval: 60_000,
     refetchOnMount: false,
