@@ -54,6 +54,12 @@ export interface SearchExamplesParams {
   // sees full Insta captions / FB posts; the legacy direct-executor wrapper
   // and any UI-summary callers keep the truncated default.
   fullBody?: boolean;
+  // Override the social Qdrant collection. Set by per-person tweet-style
+  // agents (e.g. `gruenerator-ricarda-lang` → `ricarda_lang_tweets`) so the
+  // few-shot grounding comes from that person's corpus instead of the shared
+  // `social_media_examples` pool. Press path ignores this — the
+  // Landesverband press collection is locale-derived (DE/AT) elsewhere.
+  examplesCollection?: string;
 }
 
 export interface SearchExamplesResult {
@@ -115,7 +121,15 @@ function truncate(text: string, max: number): string {
 }
 
 async function fetchSocial(params: SearchExamplesParams): Promise<UnifiedExample[]> {
-  const { query, platform, country, limit = 10, fullBody = false, lvScope } = params;
+  const {
+    query,
+    platform,
+    country,
+    limit = 10,
+    fullBody = false,
+    lvScope,
+    examplesCollection,
+  } = params;
 
   if (lvScope !== undefined) {
     // TODO(per-lv-social): wire lvScope into the underlying call once Apify
@@ -131,6 +145,7 @@ async function fetchSocial(params: SearchExamplesParams): Promise<UnifiedExample
     limit,
     threshold: 0.15,
     country: country ?? null,
+    ...(examplesCollection != null && { collection: examplesCollection }),
   });
 
   // Mirror the existing fallback-to-random behaviour from
@@ -140,6 +155,7 @@ async function fetchSocial(params: SearchExamplesParams): Promise<UnifiedExample
       platform: platform as 'facebook' | 'instagram' | null,
       limit: Math.min(limit, 5),
       country: country ?? null,
+      ...(examplesCollection != null && { collection: examplesCollection }),
     });
   }
 

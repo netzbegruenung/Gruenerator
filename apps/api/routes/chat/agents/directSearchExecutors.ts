@@ -294,14 +294,17 @@ export async function executeDirectExamplesSearch(params: {
   query: string;
   platform?: string;
   country?: 'DE' | 'AT';
+  /** Override target collection — see `SearchExamplesParams.examplesCollection`. */
+  collection?: string;
 }): Promise<DirectExamplesResult> {
-  const { query, platform, country } = params;
+  const { query, platform, country, collection } = params;
 
   const result = await searchExamples({
     query,
     kinds: ['social'],
     ...(platform && { platform }),
     ...(country && { country }),
+    ...(collection && { examplesCollection: collection }),
   });
 
   if (result.errors.social) {
