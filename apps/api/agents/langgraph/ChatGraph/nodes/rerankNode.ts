@@ -93,12 +93,21 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
     `[Rerank] Complete: ${candidates.length} → ${reranked.length} results (diversity applied) in ${rerankTimeMs}ms`
   );
 
+  // Top cross-encoder confidence — quality gate reads this to decide whether
+  // its LLM coverage check is needed. Null on failure so the gate falls back
+  // to its existing LLM path (safety net preserved).
+  const scoreValues = Array.from(scores.values());
+  const topRerankScore = scoreValues.length > 0 ? Math.max(...scoreValues) : null;
+
   if (pipelineResult.failed) {
-    log.error(`[Rerank] Cross-encoder failed; returning input order. error=${pipelineResult.error}`);
+    log.error(
+      `[Rerank] Cross-encoder failed; returning input order. error=${pipelineResult.error}`
+    );
     return {
       searchResults: reranked,
       rerankTimeMs,
       rerankFailed: true,
+      topRerankScore: null,
       searchErrors: [
         { source: 'rerank', message: pipelineResult.error ?? 'rerank failed (unknown error)' },
       ],
@@ -108,5 +117,6 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
   return {
     searchResults: reranked,
     rerankTimeMs,
+    topRerankScore,
   };
 }

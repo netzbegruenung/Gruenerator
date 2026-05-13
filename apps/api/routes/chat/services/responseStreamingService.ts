@@ -207,6 +207,36 @@ export function isStreamFailure(err: unknown): err is StreamFailure {
 }
 
 /**
+ * Heartbeat while we wait for the first content token. Some primary models
+ * spend several seconds in TTFB (especially overflow lanes / cold reasoning
+ * starts); without a ping the UI shows `response_start` and nothing else,
+ * which looks like a hang. Cleared on first delta, abort, or error.
+ */
+const HEARTBEAT_INTERVAL_MS = 3_000;
+
+function startResponseHeartbeat(sse: SSEWriter): () => void {
+  const stepId = `generating_${Date.now()}`;
+  const handle = setInterval(() => {
+    if (sse.isEnded()) return;
+    sse.send('thinking_step', {
+      stepId,
+      toolName: 'generating',
+      title: 'Formuliere Antwort…',
+      status: 'in_progress',
+    });
+  }, HEARTBEAT_INTERVAL_MS);
+  // Don't keep the event loop alive solely on this timer if the response is
+  // aborted at the socket layer.
+  if (typeof handle.unref === 'function') handle.unref();
+  let cleared = false;
+  return () => {
+    if (cleared) return;
+    cleared = true;
+    clearInterval(handle);
+  };
+}
+
+/**
  * Set up a one-shot first-token deadline. Returns the deadline promise (which
  * rejects with FirstTokenTimeoutError after FIRST_TOKEN_DEADLINE_MS), an
  * abort signal that fires at the same time, and a clear() to disarm both
@@ -273,6 +303,7 @@ async function streamAndAccumulateOrThrow(params: {
 
   const iterator = result.textStream[Symbol.asyncIterator]();
   let fullText = '';
+  const stopHeartbeat = startResponseHeartbeat(sse);
 
   // Single shared deadline across all initial-probe iterations. Some providers
   // emit empty initial chunks before content; we keep racing against the SAME
@@ -284,6 +315,7 @@ async function streamAndAccumulateOrThrow(params: {
       if (next.done) throw new EmptyCompletionError();
       if (next.value.length > 0) {
         clear();
+        stopHeartbeat();
         fullText += next.value;
         sse.send('text_delta', { text: next.value });
         break;
@@ -291,6 +323,7 @@ async function streamAndAccumulateOrThrow(params: {
     }
   } catch (err) {
     clear();
+    stopHeartbeat();
     throw err;
   }
 
@@ -352,6 +385,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
 
   const iterator = streamRegoloWithReasoning(streamParams)[Symbol.asyncIterator]();
   let fullText = '';
+  const stopHeartbeat = startResponseHeartbeat(sse);
 
   // Phase 1 — race against the deadline until the first TEXT chunk. Reasoning
   // chunks pass through as reasoning_delta but don't satisfy the deadline:
@@ -363,6 +397,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
       const chunk = next.value;
       if (chunk.type === 'text') {
         clear();
+        stopHeartbeat();
         fullText += chunk.delta;
         sse.send('text_delta', { text: chunk.delta });
         break;
@@ -371,6 +406,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     }
   } catch (err) {
     clear();
+    stopHeartbeat();
     throw err;
   }
 

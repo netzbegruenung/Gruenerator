@@ -232,6 +232,17 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         );
       }
 
+      // Light progress ping so the UI shows "Verstehe Anfrage…" immediately,
+      // instead of looking frozen during attachment processing + memory fetch
+      // + classification (collectively 1–8s on a cold path).
+      const classifyStepId = `classify_${Date.now()}`;
+      sse.send('thinking_step', {
+        stepId: classifyStepId,
+        toolName: 'classify',
+        title: 'Verstehe Anfrage…',
+        status: 'in_progress',
+      });
+
       // === Process attachments ===
       const {
         attachmentContext: derivedAttachmentContext,
@@ -486,6 +497,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           `[ChatGraph] image_edit style resolved to "${classifiedState.imageEditStyle}" (greenEditForced=${greenEditMentionForced}, universalForced=${universalEditForced})`
         );
       }
+
+      sse.send('thinking_step', {
+        stepId: classifyStepId,
+        toolName: 'classify',
+        title: 'Verstehe Anfrage…',
+        status: 'completed',
+      });
 
       sse.send('intent', {
         intent: classifiedState.intent,

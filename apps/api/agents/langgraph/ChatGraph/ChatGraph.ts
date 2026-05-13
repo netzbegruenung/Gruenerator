@@ -281,6 +281,12 @@ const ChatStateAnnotation = Annotation.Root({
   qualityAssessmentTimeMs: Annotation<number>({
     reducer: (x, y) => y ?? x ?? 0,
   }),
+  // Top cross-encoder score from the most recent rerank pass. Used by the
+  // quality gate to short-circuit its LLM coverage check when the top result
+  // is clearly strong (avoids a ~150–300ms latency hit on well-formed queries).
+  topRerankScore: Annotation<number | null>({
+    reducer: (x, y) => y ?? x ?? null,
+  }),
 
   // Reliability flags & structured error log (visibility for silent failure surfaces).
   // searchErrors uses APPEND reducer so errors persist across the qualityGate→search loop;
