@@ -58,6 +58,15 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     activePaths: ['/docs'],
   };
 
+  items.notebooks = {
+    id: 'notebooks',
+    path: '/notebooks',
+    title: 'Notebooks',
+    description: 'Suche, Wissensmanagement & Dokumentenrecherche',
+    icon: getIcon('navigation', 'notebooks'),
+    activePaths: ['/notebooks', '/notebook'],
+  };
+
   if (import.meta.env.DEV) {
     items.sites = {
       id: 'sites',
