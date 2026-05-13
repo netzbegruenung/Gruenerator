@@ -62,13 +62,6 @@ function hasFileDrag(e: DragEvent): boolean {
   return Array.from(e.dataTransfer.types).includes('Files');
 }
 
-function formatDocCount(c: NotebookCollection): string {
-  const n = c.document_count ?? c.documents?.length ?? 0;
-  if (n === 0) return 'Keine Dokumente';
-  if (n === 1) return '1 Dokument';
-  return `${n} Dokumente`;
-}
-
 const NotebookManagementCard = memo(function NotebookManagementCard({
   collection,
   isProcessing = false,
@@ -153,7 +146,7 @@ const NotebookManagementCard = memo(function NotebookManagementCard({
               {collection.name}
             </div>
             {collection.description ? (
-              <div className="line-clamp-2 text-xs text-grey-500 dark:text-grey-400">
+              <div className="line-clamp-4 text-xs text-grey-500 dark:text-grey-400">
                 {collection.description}
               </div>
             ) : null}
@@ -192,22 +185,21 @@ const NotebookManagementCard = memo(function NotebookManagementCard({
         </DropdownMenu>
       </div>
 
-      <div className="flex items-center gap-xs">
-        <Badge variant="secondary" className="text-xs">
-          {formatDocCount(collection)}
-        </Badge>
-        {collection.is_public ? (
-          <Badge variant="outline" className="text-xs">
-            Geteilt
-          </Badge>
-        ) : null}
-        {isProcessing ? (
-          <Badge variant="outline" className="gap-xs text-xs text-primary-600">
-            <span className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-            Wird verarbeitet…
-          </Badge>
-        ) : null}
-      </div>
+      {(collection.is_public || isProcessing) && (
+        <div className="flex items-center gap-xs">
+          {collection.is_public ? (
+            <Badge variant="outline" className="text-xs">
+              Geteilt
+            </Badge>
+          ) : null}
+          {isProcessing ? (
+            <Badge variant="outline" className="gap-xs text-xs text-primary-600">
+              <span className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+              Wird verarbeitet…
+            </Badge>
+          ) : null}
+        </div>
+      )}
       </div>
     </div>
   );
