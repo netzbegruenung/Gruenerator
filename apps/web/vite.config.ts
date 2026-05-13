@@ -37,7 +37,7 @@ const tauriPackages = [
 // the build bundle at HTML-emit time rather than hardcoding a hash.
 function preloadFontsPlugin(): Plugin {
   const TARGETS = [
-    { pattern: /^assets\/fonts\/Raleway-Regular\..+\.woff$/, type: 'font/woff' },
+    { pattern: /^assets\/fonts\/Raleway-Regular\..+\.woff2$/, type: 'font/woff2' },
     { pattern: /^assets\/fonts\/PTSans-Regular\..+\.woff2$/, type: 'font/woff2' },
   ];
   return {
