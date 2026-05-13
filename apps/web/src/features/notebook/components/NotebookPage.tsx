@@ -84,6 +84,8 @@ interface NotebookPageContentProps {
   startpageFooter?: ReactNode;
   /** Disable the Statistiken section (e.g. for small dynamic user notebooks). Defaults to true. */
   showStats?: boolean;
+  /** Disable the built-in "Zuletzt hinzugefügt" section (caller renders its own). Defaults to true. */
+  showLastAdded?: boolean;
   /** Disable the manual research tab (dynamic user notebooks have no system collection scope). Defaults to true. */
   showManualSearch?: boolean;
 }
@@ -128,6 +130,7 @@ export const NotebookPageContent = ({
   threadId: threadIdProp,
   startpageFooter,
   showStats = true,
+  showLastAdded = true,
   showManualSearch = true,
 }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
@@ -344,6 +347,7 @@ export const NotebookPageContent = ({
                   recentCollectionIds={recentCollectionIds}
                   showRecentSourceLabel={isMulti}
                   showStats={showStats}
+                  showLastAdded={showLastAdded}
                   showManualSearch={showManualSearch}
                   notebookMention={notebookMention}
                   footer={startpageFooter}

@@ -73,8 +73,12 @@ RUN pnpm --filter @gruenerator/web build
 # into the production image. The build stage is throwaway; only ~150 KB of
 # .so files land in the final image.
 FROM nginx:alpine AS brotli-builder
+# brotli-dev provides libbrotlienc / libbrotlicommon headers + static libs.
+# Recent ngx_brotli versions link against the system libs at the .so step
+# (not the bundled deps/brotli/ submodule the configure step sees), so
+# without brotli-dev the linker fails with "cannot find -lbrotlienc".
 RUN apk add --no-cache git build-base libtool automake autoconf \
-    zlib-dev pcre2-dev openssl-dev linux-headers cmake wget
+    zlib-dev pcre2-dev openssl-dev linux-headers cmake wget brotli-dev
 RUN NGINX_VERSION=$(nginx -v 2>&1 | grep -oE '[0-9.]+$') && \
     wget -q "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" && \
     tar -xzf "nginx-${NGINX_VERSION}.tar.gz" && \
@@ -98,8 +102,10 @@ LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruener
 LABEL org.opencontainers.image.vendor="netzbegruenung"
 LABEL org.opencontainers.image.licenses="MIT"
 
-# Install curl for healthcheck
-RUN apk add --no-cache curl
+# Install curl for healthcheck. brotli-libs is the runtime shared library
+# the ngx_brotli .so files dlopen at nginx startup — without it nginx
+# would fail to load the module with "libbrotlienc.so.1: not found".
+RUN apk add --no-cache curl brotli-libs
 
 # Install compiled Brotli modules + load them in the main context.
 # load_module directives must appear before events/http blocks, so we
