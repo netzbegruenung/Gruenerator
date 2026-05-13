@@ -376,7 +376,9 @@ export class PostgresPersistence {
         await this.db(
           `UPDATE collaborative_documents
            SET content = $2, updated_at = CURRENT_TIMESTAMP
-           WHERE id = $1 AND document_subtype = ANY($3::text[])`,
+           WHERE id = $1
+             AND document_subtype = ANY($3::text[])
+             AND content IS DISTINCT FROM $2`,
           [documentId, preview, DOC_SUBTYPES_PARAM]
         );
         log.debug(`[Preview] Updated preview for ${documentId} (${preview.length} chars)`);
@@ -425,7 +427,9 @@ export class PostgresPersistence {
         await this.db(
           `UPDATE collaborative_documents
            SET content = $2
-           WHERE id = $1 AND document_subtype = ANY($3::text[])`,
+           WHERE id = $1
+             AND document_subtype = ANY($3::text[])
+             AND content IS DISTINCT FROM $2`,
           [documentId, preview, DOC_SUBTYPES_PARAM]
         );
         log.debug(`[Backfill] Extracted preview for ${documentId} (${preview.length} chars)`);
