@@ -91,6 +91,11 @@ interface AgentState {
   customSystemPrompt: string | null;
   customRoleName: string | null;
   customEnabledTools: Record<string, boolean> | null;
+  /** Mention key of the active /skill (e.g. 'instagram'). Composer sets this
+   *  when a skill mention is inserted; cleared on agent change / new thread.
+   *  Sent to backend so it appends only the relevant skill's prompt fragment. */
+  activeSkillMention: string | null;
+  setActiveSkillMention: (mention: string | null) => void;
   setSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
   setSelectedModel: (model: ModelId) => void;
@@ -153,8 +158,12 @@ export const useAgentStore = create<AgentState>()(
       customSystemPrompt: null,
       customRoleName: null,
       customEnabledTools: null,
+      activeSkillMention: null,
 
-      setSelectedAgent: (agentId) => set({ selectedAgentId: agentId }),
+      setActiveSkillMention: (mention) => set({ activeSkillMention: mention }),
+
+      setSelectedAgent: (agentId) =>
+        set({ selectedAgentId: agentId, activeSkillMention: null }),
 
       setSelectedProvider: (provider) => set({ selectedProvider: provider }),
 
@@ -173,6 +182,7 @@ export const useAgentStore = create<AgentState>()(
           compactionState: { ...DEFAULT_COMPACTION_STATE },
           messageCount: 0,
           needsCompaction: false,
+          activeSkillMention: null,
         });
       },
 

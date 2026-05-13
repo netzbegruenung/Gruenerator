@@ -114,6 +114,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         customSystemPrompt: rawCustomSystemPrompt,
         roleName: rawRoleName,
         initialAssistantMessage: rawInitialAssistantMessage,
+        activeSkillMention: rawActiveSkillMention,
       } = args.body;
 
       // === Validate ===
@@ -346,6 +347,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           : undefined,
         userLocale: user.locale ?? 'de-DE',
         customSystemPrompt: rawCustomSystemPrompt ?? undefined,
+        activeSkillMention: rawActiveSkillMention ?? undefined,
         userInstructions,
         contextWindowTokens,
       });

@@ -268,6 +268,12 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         caretPosition
       );
 
+      // Skill mentions activate a per-turn prompt fragment on the backend.
+      // Capture the mention key in the chat store so the next request includes it.
+      if (mentionable.category === 'skill') {
+        useAgentStore.getState().setActiveSkillMention(mentionable.mention);
+      }
+
       composerRuntime.setText(newText);
       dismissPopover();
 

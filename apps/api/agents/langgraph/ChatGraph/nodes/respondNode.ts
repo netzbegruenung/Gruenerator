@@ -7,6 +7,8 @@
  * This separation keeps the graph transport-agnostic and testable.
  */
 
+import { SKILLS } from '@gruenerator/shared/agents';
+
 import { localizePlaceholders } from '../../../../services/localization/index.js';
 import { type Locale } from '../../../../services/localization/types.js';
 import { createLogger } from '../../../../utils/logger.js';
@@ -695,7 +697,19 @@ Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${memoryCont
   const rawSystemRole = intent === 'summary' ? NEUTRAL_SUMMARY_ROLE : agentConfig.systemRole;
   const systemRole = localizePlaceholders(rawSystemRole, (state.userLocale as Locale) || 'de-DE');
 
-  return `${systemRole}
+  // Active-skill prompt fragment: appended only when the user's chat composer
+  // had a /skill mention active for this turn. Each platform skill carries its
+  // own spec (Insta 600 chars, Twitter 280, PM structure …) so the agent's
+  // base systemRole stays platform-agnostic and slim.
+  const activeSkill = state.activeSkillMention
+    ? SKILLS.find((s) => s.mention === state.activeSkillMention)
+    : undefined;
+  const skillFragment =
+    activeSkill && 'skillSystemPrompt' in activeSkill && activeSkill.skillSystemPrompt
+      ? `\n\n## AKTIVE PLATTFORM: ${activeSkill.title}\n${activeSkill.skillSystemPrompt}`
+      : '';
+
+  return `${systemRole}${skillFragment}
 Heutiges Datum: ${today}${localeContext}${userInstructionsFormatted}${intentGuidance}${memoryContextFormatted}${chatHistoryFormatted}${boardContextFormatted}${docMentionContextFormatted}${threadAttachmentsContext}${currentDocumentContext}${attachmentContext}${imageContext}${summaryContextFormatted}${searchContext}${perSourceContext}
 
 ## ANTWORT-REGELN

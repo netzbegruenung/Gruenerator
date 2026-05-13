@@ -50,6 +50,11 @@ export const chatStreamBodySchema = z.object({
   // message of the newly created thread so it survives reloads. Ignored when
   // threadId is set (i.e. not a new-thread request).
   initialAssistantMessage: z.string().max(50_000).nullish(),
+  // Mention key of the currently-active skill (e.g. 'instagram', 'presse',
+  // 'twitter'). When set, the backend looks up the skill in SKILLS and
+  // appends its `skillSystemPrompt` to the agent's systemRole for this turn,
+  // so platform-specific spec only loads when the relevant skill is active.
+  activeSkillMention: z.string().nullish(),
 });
 
 export const chatResumeBodySchema = z.object({
