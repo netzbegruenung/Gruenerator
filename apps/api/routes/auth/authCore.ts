@@ -7,7 +7,7 @@
 
 import { fromNodeHeaders } from 'better-auth/node';
 import { and, eq, like } from 'drizzle-orm';
-import express, { type Router, type Response } from 'express';
+import express, { type Router, type Request, type Response } from 'express';
 
 import { auth } from '../../config/betterAuth.js';
 import { env } from '../../config/env.js';
@@ -23,6 +23,37 @@ const log = createLogger('authCore');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router: Router = express.Router();
+
+/**
+ * Sign the user out of Better Auth AND forward the cookie-clearing headers to
+ * the Express response. `auth.api.signOut({ headers, asResponse: true })`
+ * returns a Response carrying `Set-Cookie: ba.session_token=; Max-Age=0`
+ * (plus the same for `ba.session_data`, the 300s cookie cache). Without this
+ * forwarding step those headers are discarded by the Express handler, so the
+ * browser keeps both cookies — and because the cookie cache stores a signed
+ * copy of the session, subsequent `auth.api.getSession()` calls return the
+ * cached user for up to 300s even though the DB row has been deleted. That's
+ * the "logs me back in immediately after logout" bug.
+ *
+ * Pattern straight from Better Auth issue #7034 (Express/NestJS context).
+ * Multiple Set-Cookie headers must be forwarded — `res.setHeader('Set-Cookie',
+ * cookies)` with an array does this correctly.
+ */
+async function signOutAndForwardCookies(req: Request, res: Response): Promise<void> {
+  try {
+    const betterAuthResponse = await auth.api.signOut({
+      headers: fromNodeHeaders(req.headers),
+      asResponse: true,
+    });
+    const cookies: string[] = [];
+    betterAuthResponse.headers.forEach((value, key) => {
+      if (key.toLowerCase() === 'set-cookie') cookies.push(value);
+    });
+    if (cookies.length) res.setHeader('Set-Cookie', cookies);
+  } catch (err) {
+    log.warn('[Auth Logout] auth.api.signOut threw: %s', (err as Error).message);
+  }
+}
 
 // ============================================================================
 // Health & Test Routes
@@ -103,11 +134,7 @@ router.get('/logout', async (req: AuthRequest, res: Response): Promise<void> => 
     }
   }
 
-  try {
-    await auth.api.signOut({ headers: fromNodeHeaders(req.headers) });
-  } catch {
-    // Sign-out may fail if no session — that's fine
-  }
+  await signOutAndForwardCookies(req, res);
 
   res.status(200).json({ success: true, message: 'Logout completed', sessionCleared: true });
 });
@@ -154,12 +181,7 @@ router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> =>
     }
   }
 
-  try {
-    await auth.api.signOut({ headers: fromNodeHeaders(req.headers) });
-  } catch (err) {
-    // Sign-out may fail if no session — log so we know it happened
-    log.warn('[Auth Logout] auth.api.signOut threw: %s', (err as Error).message);
-  }
+  await signOutAndForwardCookies(req, res);
 
   res.json({
     success: true,
