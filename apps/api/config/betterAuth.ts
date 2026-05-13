@@ -1,6 +1,6 @@
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { type UserProfile } from '@gruenerator/contracts';
-import { betterAuth } from 'better-auth/minimal';
+import { betterAuth } from 'better-auth';
 import { bearer } from 'better-auth/plugins/bearer';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
 import { drizzle } from 'drizzle-orm/node-postgres';
