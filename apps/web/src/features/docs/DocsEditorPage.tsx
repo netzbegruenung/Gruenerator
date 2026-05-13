@@ -158,7 +158,7 @@ function EditorContent() {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const { user, isAuthResolved, loading: authLoading, isInitialLoad } = useAuth({ lazy: true });
-  const isGuest = isAuthResolved && !user;
+  const isGuest = Boolean(isAuthResolved) && !user;
   console.warn('[Docs] Auth debug:', {
     isAuthResolved,
     authLoading,
