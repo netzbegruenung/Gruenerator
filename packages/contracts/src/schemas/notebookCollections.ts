@@ -38,6 +38,29 @@ export const bulkDeleteBodySchema = z.object({
   ids: z.array(z.string()),
 });
 
+/**
+ * Payload emitted by `NotebookEditor.onSave`.
+ *
+ * Frontend-internal boundary between the editor component and its caller's
+ * save handler — NOT an HTTP body. Each caller maps this to the backend
+ * `createCollectionBodySchema` / `updateCollectionBodySchema` (e.g.
+ * `documents` → `document_ids`, `selectionMode` → `selection_mode`).
+ *
+ * `documentMeta` carries upload titles for progress views (the IDs in
+ * `documents` are authoritative for indexing-status polling).
+ */
+export const notebookEditorSavePayloadSchema = z.object({
+  id: z.string().optional(),
+  name: z.string(),
+  description: z.string(),
+  selectionMode: z.literal('documents'),
+  documents: z.array(z.string()),
+  documentMeta: z.array(z.object({ id: z.string(), title: z.string() })),
+  labels: z.array(z.string()),
+});
+
+export type NotebookEditorSavePayload = z.infer<typeof notebookEditorSavePayloadSchema>;
+
 // ── Shared sub-schemas ──────────────────────────────────────────────────────
 
 export const documentRecordSchema = z.object({
