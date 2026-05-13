@@ -9,6 +9,9 @@
  */
 export const DISABLED_NOTEBOOK_IDS: ReadonlySet<string> = new Set<string>([
   'schleswig-holstein-notebook',
+  // Agent-only (by design, not broken): reachable only via the specialized
+  // `gruenerator-ricarda-lang` agent. End-user routes reject queries against it.
+  'ricarda-lang-notebook',
 ]);
 
 /**
@@ -36,6 +39,7 @@ export const NOTEBOOK_COLLECTION_MAP: Record<string, string[]> = {
   'kommunalwiki-notebook': ['kommunalwiki'],
   'boell-stiftung-notebook': ['boell-stiftung'],
   'gruenblog-notebook': ['gruenblog'],
+  'ricarda-lang-notebook': ['ricarda-lang-tweets'],
 };
 
 export function resolveNotebookCollections(notebookIds: string[]): string[] {
