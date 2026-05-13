@@ -1,3 +1,4 @@
+import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
 import {
   Dialog,
   DialogContent,
@@ -29,17 +30,17 @@ import { useNavigate } from 'react-router-dom';
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import apiClient from '../../../components/utils/apiClient';
 import { NotebookIcon } from '../../../config/icons';
-import { useGroups, type GroupSummary } from '../../groups/hooks/useGroups';
 import { useAuthStore } from '../../../stores/authStore';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
+import { useGroups, type GroupSummary } from '../../groups/hooks/useGroups';
+import { getNotebookConfig } from '../config/notebookPagesConfig';
 import {
   getAustrianNotebooks,
   getNotebooksByCategory,
   type NotebookConfigEntry,
 } from '../config/notebooksConfig';
-import { getNotebookConfig } from '../config/notebookPagesConfig';
 
 import { LastAddedSection } from './LastAddedSection';
 import NotebookEditor from './NotebookEditor';
@@ -47,16 +48,6 @@ import { NotebookPageContent } from './NotebookPage';
 import { StatisticsSection } from './StatisticsSection';
 
 import type { NotebookCollection } from '../../../types/notebook';
-
-interface EditorSaveData {
-  id?: string;
-  name: string;
-  description?: string;
-  selectionMode?: 'documents' | 'wolke';
-  documents?: string[];
-  wolkeShareLinks?: string[];
-  labels?: string[];
-}
 
 const EMPTY_COLLECTIONS: NotebookCollection[] = [];
 
@@ -491,29 +482,26 @@ function NotebooksIndexFooter() {
   );
 
   const handleSave = useCallback(
-    async (data: unknown) => {
-      const saveData = data as EditorSaveData;
-      if (saveData.id) {
-        await updateQACollection(saveData.id, {
-          name: saveData.name,
-          description: saveData.description,
-          selectionMode: saveData.selectionMode,
-          documents: saveData.documents,
-          wolkeShareLinks: saveData.wolkeShareLinks,
-          labels: saveData.labels,
+    async (data: NotebookEditorSavePayload) => {
+      if (data.id) {
+        await updateQACollection(data.id, {
+          name: data.name,
+          description: data.description,
+          selectionMode: data.selectionMode,
+          documents: data.documents,
+          labels: data.labels,
         });
       } else {
         const result = await createQACollection({
-          name: saveData.name,
-          description: saveData.description,
-          selectionMode: saveData.selectionMode,
-          documents: saveData.documents,
-          wolkeShareLinks: saveData.wolkeShareLinks,
-          labels: saveData.labels,
+          name: data.name,
+          description: data.description,
+          selectionMode: data.selectionMode,
+          documents: data.documents,
+          labels: data.labels,
         });
 
-        if (result?.id && saveData.documents?.length) {
-          startPolling(String(result.id), saveData.documents);
+        if (result?.id && data.documents.length) {
+          startPolling(String(result.id), data.documents);
         }
       }
       setShowEditor(false);
@@ -556,9 +544,7 @@ function NotebooksIndexFooter() {
         <LastAddedSection collectionIds={systemCollectionIds} showSourceLabel />
       )}
 
-      {systemCollectionIds.length > 0 && (
-        <StatisticsSection collectionIds={systemCollectionIds} />
-      )}
+      {systemCollectionIds.length > 0 && <StatisticsSection collectionIds={systemCollectionIds} />}
 
       {/* Tools section commented out per request — chat composer at the top covers Suche. */}
 
