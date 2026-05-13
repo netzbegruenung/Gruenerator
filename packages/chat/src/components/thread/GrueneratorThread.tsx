@@ -35,6 +35,7 @@ interface GrueneratorThreadProps {
     belowInput?: ReactNode;
     sendAdornment?: ReactNode;
   };
+  requireProfileHydration?: boolean;
 }
 
 function VoiceOrbOverlay() {
@@ -76,6 +77,7 @@ export function GrueneratorThread({
   showModelPicker,
   composerLayout,
   composerSlots,
+  requireProfileHydration,
 }: GrueneratorThreadProps = {}) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
@@ -146,6 +148,7 @@ export function GrueneratorThread({
           {...(showModelPicker !== undefined && { showModelPicker })}
           {...(composerLayout !== undefined && { layout: composerLayout })}
           {...(composerSlots ? { slots: composerSlots } : {})}
+          {...(requireProfileHydration !== undefined && { requireProfileHydration })}
         />
       </ThreadPrimitive.Root>
     </ChatDensityContext.Provider>
