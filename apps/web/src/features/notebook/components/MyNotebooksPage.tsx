@@ -61,6 +61,7 @@ function formatDocCount(c: NotebookCollection): string {
 
 const NotebookManagementCard = memo(function NotebookManagementCard({
   collection,
+  isProcessing = false,
   onOpen,
   onRename,
   onEdit,
@@ -68,6 +69,7 @@ const NotebookManagementCard = memo(function NotebookManagementCard({
   onDelete,
 }: {
   collection: NotebookCollection;
+  isProcessing?: boolean;
   onOpen: (c: NotebookCollection) => void;
   onRename: (c: NotebookCollection) => void;
   onEdit: (c: NotebookCollection) => void;
@@ -134,6 +136,12 @@ const NotebookManagementCard = memo(function NotebookManagementCard({
         {collection.is_public ? (
           <Badge variant="outline" className="text-xs">
             Geteilt
+          </Badge>
+        ) : null}
+        {isProcessing ? (
+          <Badge variant="outline" className="gap-xs text-xs text-primary-600">
+            <span className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+            Wird verarbeitet…
           </Badge>
         ) : null}
       </div>
@@ -212,6 +220,9 @@ function MyNotebooksPageInner() {
     isUpdating,
   } = useNotebookCollections({ isActive: true });
   const [phase, setPhase] = useState<DialogPhase>({ kind: 'closed' });
+  const [processingCollectionIds, setProcessingCollectionIds] = useState<Set<string>>(
+    () => new Set()
+  );
 
   const collections = useMemo<NotebookCollection[]>(() => query.data ?? [], [query.data]);
 
@@ -267,7 +278,14 @@ function MyNotebooksPageInner() {
       closeDialog();
 
       if (addedIds.length > 0) {
+        setProcessingCollectionIds((prev) => new Set(prev).add(collection.id));
         void Promise.all(addedIds.map((id) => pollDocumentStatus(id))).finally(() => {
+          setProcessingCollectionIds((prev) => {
+            if (!prev.has(collection.id)) return prev;
+            const next = new Set(prev);
+            next.delete(collection.id);
+            return next;
+          });
           void queryClient.invalidateQueries({ queryKey: ['notebookCollections'] });
         });
       }
@@ -347,6 +365,7 @@ function MyNotebooksPageInner() {
             <NotebookManagementCard
               key={c.id}
               collection={c}
+              isProcessing={processingCollectionIds.has(c.id)}
               onOpen={handleOpen}
               onRename={(col) => setPhase({ kind: 'rename', collection: col })}
               onEdit={(col) => setPhase({ kind: 'edit', collection: col })}
