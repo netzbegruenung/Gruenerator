@@ -91,6 +91,29 @@ export interface Agent {
    */
   hiddenFromInventory?: boolean;
   /**
+   * Notebook ID this agent auto-selects when the user opens its chat
+   * (`ChatPage` calls `setSelectedNotebook` with this on agent activation).
+   * Used by the per-LV PR agents so the regional notebook pairs with the
+   * regional agent without an extra click. Set by the LV-spec generator
+   * in `system.ts`; absent on hand-written entries.
+   */
+  defaultNotebookId?: string;
+  /**
+   * Frontend icon registry key. Maps to a `react-icons` component in
+   * `apps/web/src/components/layout/Sidebar/sidebarAgentConfig.ts::ICON_REGISTRY`.
+   * Per-LV `gruenerator-oeffentlichkeitsarbeit-*` agents inherit the megaphone
+   * via prefix special-case, so they need no `iconKey` of their own.
+   */
+  iconKey?: string;
+  /**
+   * Surfaces this agent as a pinned entry in the web sidebar (always visible,
+   * separate from user favorites). Label and icon come from the agent's
+   * `title` and `iconKey` respectively — set both before flipping this on.
+   * Used to derive `DEFAULT_AGENT_ENTRIES` and `PINNED_AGENT_IDS` so adding a
+   * new pinned agent is a single edit in the agent definition.
+   */
+  pinnedToSidebar?: boolean;
+  /**
    * UI grouping bucket on AgentListPage. Currently only `'gruppen'` is defined
    * (the synthetic "shared with my groups" bucket, never assigned in config).
    * Additional categories will be added as the agent taxonomy stabilizes.

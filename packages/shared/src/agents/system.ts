@@ -7,6 +7,7 @@ const BASE_AGENTS = [
     // Kept as the backend fallback (chat_threads.agent_id default; 8+ controller
     // call sites). Flag hides it from pickers without removing the identifier.
     hiddenFromInventory: true,
+    iconKey: 'sparkle',
     description:
       'Vielseitiger Textgenerator mit Zugriff auf grüne Parteiprogramme, Positionen und Dokumente via semantischer Suche.',
     systemRole:
@@ -41,6 +42,8 @@ const BASE_AGENTS = [
   {
     identifier: 'gruenerator-antrag',
     title: 'Kommunalpolitik',
+    iconKey: 'buildings',
+    pinnedToSidebar: true,
     description:
       'Kommunalpolitik-Assistenz: bewerte Haushalte und Vorlagen, diskutiere kommunale Strategien, oder entwirf Anträge, Anfragen, Haushaltsanträge, Resolutionen und Redebeiträge — gestützt auf das KommunalWiki und grüne Positionen.',
     systemRole:
@@ -117,6 +120,8 @@ const BASE_AGENTS = [
   {
     identifier: 'gruenerator-suche',
     title: 'Suche',
+    iconKey: 'magnifying-glass',
+    pinnedToSidebar: true,
     description:
       'Recherche mit Quellenangaben über Web und grüne Dokumente — perplexity-artige Antworten mit Zitaten.',
     // systemRole unused — SearchGraph builds its own prompt in searchRespondNode.ts.
@@ -144,6 +149,8 @@ const BASE_AGENTS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
     title: 'Öffentlichkeitsarbeit',
+    iconKey: 'megaphone',
+    pinnedToSidebar: true,
     description: 'Erstellt Pressemitteilungen und Social-Media-Inhalte für alle Plattformen.',
     systemRole:
       'Du bist die*der leitende Kommunikationsmanager*in für {{partyName}} und kombinierst professionelle Pressearbeit mit strategischem Social-Media-Management.\n\n**GENERELLE RICHTLINIEN:**\n- Tonalität: Verbindlich, motivierend und lösungsorientiert\n- Politische Haltung: Vertrete die grünen Werte selbstbewusst\n- Sicherheit: Erfinde niemals Fakten oder Zitate\n- Ziel: Maximale Reichweite bei gleichzeitiger politischer Seriosität\n\nWenn der*die Nutzer*in eine bestimmte Plattform anwählt (z.B. /presse, /instagram, /facebook, /twitter, /linkedin, /reel), bekommst du dafür eine plattformspezifische Spezifikation in deinem Kontext. Halte dich strikt an das dortige Zeichenlimit, die Tonalität und die Beispiel-Suchanweisung. Erstelle für JEDE angefragte Plattform einen eigenen, optimierten Inhalt.\n\n## ARBEITSWEISE\n\nSchritt 1: Recherchiere mit search_documents nach Grünen Positionen zum Thema.\nSchritt 2: Nutze web_search für aktuelle Fakten und Kontext.\nSchritt 3: Folge der plattformspezifischen Beispiel-Suchanweisung (siehe plattformspezifische Spezifikation, falls aktiv).\nSchritt 4: Erstelle den Inhalt plattformgerecht, inspiriert von den gefundenen Beispielen.\nSchritt 5: Prüfe mit self_review: Richtiger Ton? Zeichenlimit? W-Fragen bei PM beantwortet?\nSchritt 6: Überarbeite bei Score unter 4.',
@@ -391,6 +398,7 @@ const BASE_AGENTS = [
     defaultFilter: { landesverband: 'BB' },
   },
   {
+    iconKey: 'chats-circle',
     identifier: 'gruenerator-buergerservice',
     title: 'Bürger*innenanfragen',
     description:
@@ -428,6 +436,7 @@ const BASE_AGENTS = [
     ],
   },
   {
+    iconKey: 'microphone',
     identifier: 'gruenerator-rede-schreiber',
     title: 'Rede',
     description:
@@ -473,6 +482,7 @@ const BASE_AGENTS = [
     ],
   },
   {
+    iconKey: 'book-open-text',
     identifier: 'gruenerator-wahlprogramm',
     title: 'Wahlprogramm',
     description:
@@ -517,6 +527,7 @@ const BASE_AGENTS = [
     ],
   },
   {
+    iconKey: 'hand-heart',
     identifier: 'gruenerator-leichte-sprache',
     title: 'Leichte Sprache',
     description:
@@ -554,6 +565,7 @@ const BASE_AGENTS = [
     ],
   },
   {
+    iconKey: 'file-text',
     identifier: 'gruenerator-docs-editor',
     title: 'Dokument-Assistent',
     description:

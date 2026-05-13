@@ -1,5 +1,5 @@
 import { useAgentStore } from '@gruenerator/chat';
-import { getSystemAgent } from '@gruenerator/shared/agents';
+import { getAgentSlug, getSystemAgent, type Agent } from '@gruenerator/shared/agents';
 import {
   Sheet,
   SheetContent,
@@ -30,7 +30,7 @@ import {
 
 import { AllAgentsDialog } from './AllAgentsDialog';
 import NewItemDropdown from './NewItemDropdown';
-import { DEFAULT_AGENT_ENTRIES, getAgentIcon } from './sidebarAgentConfig';
+import { DEFAULT_AGENT_ENTRIES, PINNED_AGENT_IDS, getAgentIcon } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
 
 import { cn } from '@/utils/cn';
@@ -457,7 +457,7 @@ const SidebarAgents = memo(function SidebarAgents({
   const favoriteAgents = useMemo(() => {
     const out: Agent[] = [];
     for (const identifier of favoriteIdentifiers) {
-      if (HIDDEN_INVENTORY_AGENT_IDS.has(identifier as SystemAgentId)) continue;
+      if (PINNED_AGENT_IDS.has(identifier)) continue;
       const agent = getSystemAgent(identifier);
       if (!agent) continue; // covers deleted agents + migration unknowns
       out.push(agent);
@@ -521,7 +521,9 @@ const SidebarAgents = memo(function SidebarAgents({
               <li key={entry.key}>
                 <button
                   type="button"
-                  onClick={() => onLinkClick(`/chat?agent=${entry.identifier}`, entry.label)}
+                  onClick={() =>
+                    onLinkClick(`/agents/${getAgentSlug(entry.identifier)}`, entry.label)
+                  }
                   className={menuLinkClass(false)}
                 >
                   <span className="shrink-0 w-6 h-6 flex items-center justify-center text-secondary-600">
@@ -539,7 +541,9 @@ const SidebarAgents = memo(function SidebarAgents({
               <li key={`fav-${agent.identifier}`}>
                 <button
                   type="button"
-                  onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
+                  onClick={() =>
+                    onLinkClick(`/agents/${getAgentSlug(agent.identifier)}`, agent.title)
+                  }
                   className={menuLinkClass(false)}
                 >
                   <span className="shrink-0 w-6 h-6 flex items-center justify-center text-secondary-600">
@@ -555,7 +559,9 @@ const SidebarAgents = memo(function SidebarAgents({
             <li key={agent.identifier}>
               <button
                 type="button"
-                onClick={() => onLinkClick(`/chat?agent=${agent.identifier}`, agent.title)}
+                onClick={() =>
+                  onLinkClick(`/agents/${getAgentSlug(agent.identifier)}`, agent.title)
+                }
                 className={menuLinkClass(false)}
               >
                 <span className="shrink-0 w-6 h-6 flex items-center justify-center text-secondary-600">
@@ -596,6 +602,5 @@ const SidebarAgents = memo(function SidebarAgents({
     </div>
   );
 });
-
 
 export default memo(Sidebar);
