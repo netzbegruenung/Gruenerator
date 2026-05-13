@@ -1,3 +1,4 @@
+import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -130,76 +131,78 @@ const NotebookManagementCard = memo(function NotebookManagementCard({
           )}
         >
           <HiUpload />
-          {isFull ? `Notebook ist voll (${MAX_DOCUMENTS_PER_NOTEBOOK}/${MAX_DOCUMENTS_PER_NOTEBOOK})` : `Hier ablegen, um zu „${collection.name}" hinzuzufügen`}
+          {isFull
+            ? `Notebook ist voll (${MAX_DOCUMENTS_PER_NOTEBOOK}/${MAX_DOCUMENTS_PER_NOTEBOOK})`
+            : `Hier ablegen, um zu „${collection.name}" hinzuzufügen`}
         </div>
       ) : null}
       <div className={cn(isDragOver && 'pointer-events-none')}>
-      <div className="flex items-start justify-between gap-sm">
-        <button
-          type="button"
-          onClick={() => onOpen(collection)}
-          className="flex flex-1 cursor-pointer items-start gap-sm bg-transparent text-left"
-        >
-          <HiBookOpen className="mt-1 shrink-0 text-lg text-secondary-600" />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-foreground-heading">
-              {collection.name}
-            </div>
-            {collection.description ? (
-              <div className="line-clamp-4 text-xs text-grey-500 dark:text-grey-400">
-                {collection.description}
+        <div className="flex items-start justify-between gap-sm">
+          <button
+            type="button"
+            onClick={() => onOpen(collection)}
+            className="flex flex-1 cursor-pointer items-start gap-sm bg-transparent text-left"
+          >
+            <HiBookOpen className="mt-1 shrink-0 text-lg text-secondary-600" />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-semibold text-foreground-heading">
+                {collection.name}
               </div>
+              {collection.description ? (
+                <div className="line-clamp-4 text-xs text-grey-500 dark:text-grey-400">
+                  {collection.description}
+                </div>
+              ) : null}
+            </div>
+          </button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Aktionen"
+                className="-mr-2 shrink-0 opacity-70 group-hover:opacity-100"
+              >
+                <HiDotsHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => onOpen(collection)}>
+                <HiExternalLink className="mr-2" /> Öffnen
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onRename(collection)}>
+                <HiPencil className="mr-2" /> Umbenennen
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onEdit(collection)}>
+                <HiPencil className="mr-2" /> Bearbeiten
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onShare(collection)}>
+                <HiShare className="mr-2" /> Link kopieren
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => onDelete(collection)} variant="destructive">
+                <HiTrash className="mr-2" /> Löschen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {(collection.is_public || isProcessing) && (
+          <div className="flex items-center gap-xs">
+            {collection.is_public ? (
+              <Badge variant="outline" className="text-xs">
+                Geteilt
+              </Badge>
+            ) : null}
+            {isProcessing ? (
+              <Badge variant="outline" className="gap-xs text-xs text-primary-600">
+                <span className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+                Wird verarbeitet…
+              </Badge>
             ) : null}
           </div>
-        </button>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label="Aktionen"
-              className="-mr-2 shrink-0 opacity-70 group-hover:opacity-100"
-            >
-              <HiDotsHorizontal />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => onOpen(collection)}>
-              <HiExternalLink className="mr-2" /> Öffnen
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onRename(collection)}>
-              <HiPencil className="mr-2" /> Umbenennen
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onEdit(collection)}>
-              <HiPencil className="mr-2" /> Bearbeiten
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onShare(collection)}>
-              <HiShare className="mr-2" /> Link kopieren
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => onDelete(collection)} variant="destructive">
-              <HiTrash className="mr-2" /> Löschen
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {(collection.is_public || isProcessing) && (
-        <div className="flex items-center gap-xs">
-          {collection.is_public ? (
-            <Badge variant="outline" className="text-xs">
-              Geteilt
-            </Badge>
-          ) : null}
-          {isProcessing ? (
-            <Badge variant="outline" className="gap-xs text-xs text-primary-600">
-              <span className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-              Wird verarbeitet…
-            </Badge>
-          ) : null}
-        </div>
-      )}
+        )}
       </div>
     </div>
   );
@@ -312,23 +315,15 @@ function MyNotebooksPageInner() {
   );
 
   const handleEditSave = useCallback(
-    async (collection: NotebookCollection, data: unknown) => {
-      const d = data as {
-        name: string;
-        description?: string;
-        documents?: (string | number)[];
-        labels?: string[];
-      };
+    async (collection: NotebookCollection, data: NotebookEditorSavePayload) => {
       const originalIds = new Set((collection.documents ?? []).map((doc) => String(doc.id)));
-      const addedIds = (d.documents ?? [])
-        .map((id) => String(id))
-        .filter((id) => !originalIds.has(id));
+      const addedIds = data.documents.filter((id) => !originalIds.has(id));
 
       await updateQACollection(collection.id, {
-        name: d.name,
-        description: d.description,
-        documents: d.documents,
-        labels: d.labels,
+        name: data.name,
+        description: data.description,
+        documents: data.documents,
+        labels: data.labels,
         selectionMode: collection.selection_mode,
         custom_prompt: collection.custom_prompt,
       });
@@ -351,18 +346,12 @@ function MyNotebooksPageInner() {
   );
 
   const handleCreateSave = useCallback(
-    async (data: unknown) => {
-      const d = data as {
-        name: string;
-        description?: string;
-        documents?: (string | number)[];
-        labels?: string[];
-      };
+    async (data: NotebookEditorSavePayload) => {
       await createQACollection({
-        name: d.name,
-        description: d.description,
-        documents: d.documents,
-        labels: d.labels,
+        name: data.name,
+        description: data.description,
+        documents: data.documents,
+        labels: data.labels,
       });
       closeDialog();
     },
@@ -393,7 +382,9 @@ function MyNotebooksPageInner() {
       const existingIds = (collection.documents ?? []).map((d) => String(d.id));
       const remainingSlots = MAX_DOCUMENTS_PER_NOTEBOOK - existingIds.length;
       if (remainingSlots <= 0) {
-        toast.error(`„${collection.name}" ist voll (${MAX_DOCUMENTS_PER_NOTEBOOK}/${MAX_DOCUMENTS_PER_NOTEBOOK} Dokumente)`);
+        toast.error(
+          `„${collection.name}" ist voll (${MAX_DOCUMENTS_PER_NOTEBOOK}/${MAX_DOCUMENTS_PER_NOTEBOOK} Dokumente)`
+        );
         return;
       }
       const filesToUpload = accepted.slice(0, remainingSlots);
@@ -402,9 +393,7 @@ function MyNotebooksPageInner() {
       setProcessingCollectionIds((prev) => new Set(prev).add(collection.id));
 
       try {
-        const uploaded = await Promise.all(
-          filesToUpload.map((f) => uploadFileOnly(f, f.name))
-        );
+        const uploaded = await Promise.all(filesToUpload.map((f) => uploadFileOnly(f, f.name)));
         const newIds = uploaded.map((d) => String(d.id));
 
         await updateQACollection(collection.id, {
@@ -456,127 +445,127 @@ function MyNotebooksPageInner() {
         </div>
 
         {isLoading ? (
-        <div className="grid grid-cols-4 gap-md max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:grid-cols-1">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-28 animate-pulse rounded-md border border-grey-200 bg-grey-50 dark:border-grey-700 dark:bg-grey-900"
-            />
-          ))}
-        </div>
-      ) : isEmpty ? (
-        <div className="flex flex-col items-center gap-md rounded-md border border-dashed border-grey-300 p-xl text-center dark:border-grey-700">
-          <HiBookOpen className="text-3xl text-grey-400" />
-          <div>
-            <div className="text-base font-medium text-foreground-heading">
-              Du hast noch keine eigenen Notebooks
-            </div>
-            <div className="mt-xs text-sm text-grey-500 dark:text-grey-400">
-              Erstelle dein erstes Notebook, um Dokumente und Quellen zu bündeln.
-            </div>
+          <div className="grid grid-cols-4 gap-md max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:grid-cols-1">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-28 animate-pulse rounded-md border border-grey-200 bg-grey-50 dark:border-grey-700 dark:bg-grey-900"
+              />
+            ))}
           </div>
-          <Button onClick={() => setPhase({ kind: 'create' })}>
-            <HiPlus className="mr-1" /> Eigenes Notebook erstellen
-          </Button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-4 gap-md max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:grid-cols-1">
-          {collections.map((c) => (
-            <NotebookManagementCard
-              key={c.id}
-              collection={c}
-              isProcessing={processingCollectionIds.has(c.id)}
-              onOpen={handleOpen}
-              onRename={(col) => setPhase({ kind: 'rename', collection: col })}
-              onEdit={(col) => setPhase({ kind: 'edit', collection: col })}
-              onShare={handleShare}
-              onDelete={(col) => setPhase({ kind: 'delete', collection: col })}
-              onAddFiles={handleAddFilesToCard}
-            />
-          ))}
-        </div>
-      )}
+        ) : isEmpty ? (
+          <div className="flex flex-col items-center gap-md rounded-md border border-dashed border-grey-300 p-xl text-center dark:border-grey-700">
+            <HiBookOpen className="text-3xl text-grey-400" />
+            <div>
+              <div className="text-base font-medium text-foreground-heading">
+                Du hast noch keine eigenen Notebooks
+              </div>
+              <div className="mt-xs text-sm text-grey-500 dark:text-grey-400">
+                Erstelle dein erstes Notebook, um Dokumente und Quellen zu bündeln.
+              </div>
+            </div>
+            <Button onClick={() => setPhase({ kind: 'create' })}>
+              <HiPlus className="mr-1" /> Eigenes Notebook erstellen
+            </Button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 gap-md max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:grid-cols-1">
+            {collections.map((c) => (
+              <NotebookManagementCard
+                key={c.id}
+                collection={c}
+                isProcessing={processingCollectionIds.has(c.id)}
+                onOpen={handleOpen}
+                onRename={(col) => setPhase({ kind: 'rename', collection: col })}
+                onEdit={(col) => setPhase({ kind: 'edit', collection: col })}
+                onShare={handleShare}
+                onDelete={(col) => setPhase({ kind: 'delete', collection: col })}
+                onAddFiles={handleAddFilesToCard}
+              />
+            ))}
+          </div>
+        )}
 
-      {/* Rename dialog */}
-      <Dialog
-        open={phase.kind === 'rename'}
-        onOpenChange={(open) => {
-          if (!open) closeDialog();
-        }}
-      >
-        {phase.kind === 'rename' ? (
-          <RenameDialog
-            collection={phase.collection}
-            isUpdating={isUpdating}
-            onCancel={closeDialog}
-            onSubmit={(name, description) =>
-              void handleRenameSubmit(phase.collection, name, description)
-            }
-          />
-        ) : null}
-      </Dialog>
-
-      {/* Full editor dialog (create or edit) */}
-      <Dialog
-        open={phase.kind === 'create' || phase.kind === 'edit'}
-        onOpenChange={(open) => {
-          if (!open && !isCreating && !isUpdating) closeDialog();
-        }}
-      >
-        <DialogContent
-          className="sm:max-w-[min(1200px,calc(100%-2rem))] w-[calc(100%-1rem)] max-h-[90dvh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
-          aria-describedby={undefined}
+        {/* Rename dialog */}
+        <Dialog
+          open={phase.kind === 'rename'}
+          onOpenChange={(open) => {
+            if (!open) closeDialog();
+          }}
         >
-          <DialogTitle className="sr-only">
-            {phase.kind === 'edit' ? 'Notebook bearbeiten' : 'Notebook erstellen'}
-          </DialogTitle>
-          {phase.kind === 'edit' ? (
-            <NotebookEditor
-              editingCollection={phase.collection}
-              loading={isUpdating}
+          {phase.kind === 'rename' ? (
+            <RenameDialog
+              collection={phase.collection}
+              isUpdating={isUpdating}
               onCancel={closeDialog}
-              onSave={(data) => handleEditSave(phase.collection, data)}
-            />
-          ) : phase.kind === 'create' ? (
-            <NotebookEditor
-              editingCollection={null}
-              loading={isCreating}
-              onCancel={closeDialog}
-              onSave={handleCreateSave}
+              onSubmit={(name, description) =>
+                void handleRenameSubmit(phase.collection, name, description)
+              }
             />
           ) : null}
-        </DialogContent>
-      </Dialog>
+        </Dialog>
 
-      {/* Delete confirmation */}
-      <AlertDialog
-        open={phase.kind === 'delete'}
-        onOpenChange={(open) => {
-          if (!open) closeDialog();
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Notebook löschen?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {phase.kind === 'delete'
-                ? `„${phase.collection.name}" wird unwiderruflich gelöscht. Die enthaltenen Dokumente bleiben in deiner Bibliothek erhalten.`
-                : null}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                if (phase.kind === 'delete') void handleDeleteConfirm(phase.collection);
-              }}
-            >
-              Löschen
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        {/* Full editor dialog (create or edit) */}
+        <Dialog
+          open={phase.kind === 'create' || phase.kind === 'edit'}
+          onOpenChange={(open) => {
+            if (!open && !isCreating && !isUpdating) closeDialog();
+          }}
+        >
+          <DialogContent
+            className="sm:max-w-[min(1200px,calc(100%-2rem))] w-[calc(100%-1rem)] max-h-[90dvh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
+            aria-describedby={undefined}
+          >
+            <DialogTitle className="sr-only">
+              {phase.kind === 'edit' ? 'Notebook bearbeiten' : 'Notebook erstellen'}
+            </DialogTitle>
+            {phase.kind === 'edit' ? (
+              <NotebookEditor
+                editingCollection={phase.collection}
+                loading={isUpdating}
+                onCancel={closeDialog}
+                onSave={(data) => handleEditSave(phase.collection, data)}
+              />
+            ) : phase.kind === 'create' ? (
+              <NotebookEditor
+                editingCollection={null}
+                loading={isCreating}
+                onCancel={closeDialog}
+                onSave={handleCreateSave}
+              />
+            ) : null}
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete confirmation */}
+        <AlertDialog
+          open={phase.kind === 'delete'}
+          onOpenChange={(open) => {
+            if (!open) closeDialog();
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Notebook löschen?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {phase.kind === 'delete'
+                  ? `„${phase.collection.name}" wird unwiderruflich gelöscht. Die enthaltenen Dokumente bleiben in deiner Bibliothek erhalten.`
+                  : null}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (phase.kind === 'delete') void handleDeleteConfirm(phase.collection);
+                }}
+              >
+                Löschen
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </PageContainer>
     </ErrorBoundary>
   );
