@@ -555,12 +555,26 @@ export async function executeIntentPipeline(opts: {
       const toolEnabled = forcedTool || enabledTools?.[currentIntent] !== false;
       if (toolEnabled) {
         let searchInputState = finalState;
-        if (
-          ['complex', 'moderate'].includes(finalState.complexity) &&
-          currentIntent === 'research'
-        ) {
+        const willGenerateBrief =
+          ['complex', 'moderate'].includes(finalState.complexity) && currentIntent === 'research';
+        const briefStepId = willGenerateBrief ? `brief_${Date.now()}` : null;
+        if (willGenerateBrief && briefStepId) {
+          // brief generator is a silent LLM call (~1–3s); ping so the UI doesn't
+          // sit on the stale "intent" message during this window.
+          sse.send('thinking_step', {
+            stepId: briefStepId,
+            toolName: 'brief',
+            title: 'Plane Recherche…',
+            status: 'in_progress',
+          });
           const briefResult = await briefGeneratorNode(finalState);
           searchInputState = { ...finalState, ...briefResult } as ChatGraphState;
+          sse.send('thinking_step', {
+            stepId: briefStepId,
+            toolName: 'brief',
+            title: 'Plane Recherche…',
+            status: 'completed',
+          });
         }
 
         const isDeepResearch = currentIntent === 'research';
@@ -583,11 +597,24 @@ export async function executeIntentPipeline(opts: {
         finalState = { ...searchInputState, ...searchResult } as ChatGraphState;
 
         if (finalState.searchResults?.length > 2) {
+          const rerankStepId = `rerank_${Date.now()}`;
+          sse.send('thinking_step', {
+            stepId: rerankStepId,
+            toolName: 'rerank',
+            title: 'Bewerte Quellen…',
+            status: 'in_progress',
+          });
           const rerankResult = await rerankNode(finalState);
           finalState = { ...finalState, ...rerankResult } as ChatGraphState;
           if (finalState.searchResults.length > 0) {
             finalState.citations = buildCitations(finalState.searchResults);
           }
+          sse.send('thinking_step', {
+            stepId: rerankStepId,
+            toolName: 'rerank',
+            title: 'Bewerte Quellen…',
+            status: 'completed',
+          });
         }
 
         const resultCount = finalState.searchResults?.length || 0;

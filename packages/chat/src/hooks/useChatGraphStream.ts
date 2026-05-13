@@ -218,6 +218,11 @@ export function useChatGraphStream(
 
       abortControllerRef.current = new AbortController();
 
+      // Hoisted so the finally clause can cancel any pending paint frame
+      // before resetting streamingText to '' (otherwise the rAF callback can
+      // win the race and repaint stale text after we've cleared it).
+      let pendingTextFlush: number | null = null;
+
       try {
         const allMessages = [...(messagesRef.current || []), userMessage];
         const formattedMessages = allMessages.map((m, idx) => {
@@ -279,6 +284,32 @@ export function useChatGraphStream(
         let receivedSearchResults: SearchResult[] = [];
         let receivedImage: GeneratedImage | null = null;
         let receivedMetadata: StreamMetadata | null = null;
+
+        // rAF-batched flush for streaming text: collapses N token chunks
+        // arriving within a paint frame into a single setState. Without this,
+        // a 60 tok/s model triggers 60 re-renders/sec, which is the dominant
+        // CPU cost on mid-range devices during streaming.
+        const hasRaf = typeof requestAnimationFrame !== 'undefined';
+        const scheduleTextFlush = () => {
+          if (pendingTextFlush !== null) return;
+          if (hasRaf) {
+            pendingTextFlush = requestAnimationFrame(() => {
+              pendingTextFlush = null;
+              setStreamingText(accumulatedText);
+            });
+          } else {
+            pendingTextFlush = setTimeout(() => {
+              pendingTextFlush = null;
+              setStreamingText(accumulatedText);
+            }, 16) as unknown as number;
+          }
+        };
+        const cancelTextFlush = () => {
+          if (pendingTextFlush === null) return;
+          if (hasRaf) cancelAnimationFrame(pendingTextFlush);
+          else clearTimeout(pendingTextFlush as unknown as ReturnType<typeof setTimeout>);
+          pendingTextFlush = null;
+        };
 
         while (true) {
           const { done, value } = await reader.read();
@@ -418,7 +449,7 @@ export function useChatGraphStream(
               case 'text_delta': {
                 const { text } = data as { text: string };
                 accumulatedText += text;
-                setStreamingText(accumulatedText);
+                scheduleTextFlush();
                 break;
               }
 
@@ -465,6 +496,12 @@ export function useChatGraphStream(
           }
         }
 
+        // Final synchronous flush: cancel any pending rAF and paint the full
+        // accumulated text in one shot so the streaming view matches the
+        // persisted assistantMessage byte-for-byte before it's swapped in.
+        cancelTextFlush();
+        if (accumulatedText) setStreamingText(accumulatedText);
+
         if (accumulatedText || receivedImage) {
           const assistantMessage: ChatMessage = {
             id: `assistant_${Date.now()}`,
@@ -499,6 +536,14 @@ export function useChatGraphStream(
         setProgress({ stage: 'error', message: errorMessage });
         onError?.(errorMessage);
       } finally {
+        if (pendingTextFlush !== null) {
+          if (typeof cancelAnimationFrame !== 'undefined') {
+            cancelAnimationFrame(pendingTextFlush);
+          } else {
+            clearTimeout(pendingTextFlush as unknown as ReturnType<typeof setTimeout>);
+          }
+          pendingTextFlush = null;
+        }
         setIsLoading(false);
         setStreamingText('');
         setStreamingSearchResults([]);

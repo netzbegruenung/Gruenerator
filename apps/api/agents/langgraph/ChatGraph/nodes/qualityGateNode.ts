@@ -53,6 +53,27 @@ export async function qualityGateNode(state: ChatGraphState): Promise<Partial<Ch
     return { qualityAssessmentTimeMs: Date.now() - startTime };
   }
 
+  // Short-circuit: when the cross-encoder is highly confident in the top
+  // result AND we have ≥3 hits, the LLM coverage check is almost always
+  // going to say "sufficient" — skipping it saves ~150–300ms per turn.
+  // Loop still triggers for weak results (low top score OR few results).
+  // If rerank failed, topRerankScore is null and we fall through to the
+  // existing LLM path (safety net preserved).
+  const STRONG_RERANK_THRESHOLD = 0.7;
+  if (
+    state.topRerankScore != null &&
+    state.topRerankScore >= STRONG_RERANK_THRESHOLD &&
+    searchResults.length >= 3
+  ) {
+    log.info(
+      `[QualityGate] Skipping — strong rerank (top=${state.topRerankScore.toFixed(2)}, n=${searchResults.length})`
+    );
+    return {
+      qualityScore: 4,
+      qualityAssessmentTimeMs: Date.now() - startTime,
+    };
+  }
+
   log.info(
     `[QualityGate] Assessing ${searchResults.length} results for: "${searchQuery?.slice(0, 50)}..."`
   );
