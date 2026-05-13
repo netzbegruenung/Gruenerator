@@ -24,7 +24,6 @@ import {
 } from '@gruenerator/ui';
 import { memo, useCallback, useMemo, useState } from 'react';
 import {
-  HiArrowLeft,
   HiBookOpen,
   HiDotsHorizontal,
   HiExternalLink,
@@ -33,9 +32,11 @@ import {
   HiShare,
   HiTrash,
 } from 'react-icons/hi';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
+import PageContainer from '../../../components/common/PageContainer';
+import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 
 import NotebookEditor from './NotebookEditor';
@@ -290,27 +291,18 @@ function MyNotebooksPageInner() {
   const isEmpty = !isLoading && collections.length === 0;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-md py-lg">
-      <div className="mb-lg flex items-center justify-between gap-md">
-        <div className="flex items-center gap-sm">
-          <Link
-            to="/notebooks"
-            className="inline-flex items-center gap-xs text-sm text-grey-500 hover:text-foreground"
-          >
-            <HiArrowLeft /> Zurück
-          </Link>
+    <ErrorBoundary>
+      <PageContainer
+        title="Meine Notebooks"
+        subtitle="Verwalte deine eigenen Notebooks: öffnen, umbenennen, bearbeiten oder löschen."
+      >
+        <div className="mb-lg flex justify-end">
+          <Button onClick={() => setPhase({ kind: 'create' })}>
+            <HiPlus className="mr-1" /> Neues Notebook
+          </Button>
         </div>
-        <Button onClick={() => setPhase({ kind: 'create' })}>
-          <HiPlus className="mr-1" /> Neues Notebook
-        </Button>
-      </div>
 
-      <h1 className="mb-xs text-2xl font-semibold text-foreground-heading">Meine Notebooks</h1>
-      <p className="mb-lg text-sm text-grey-500 dark:text-grey-400">
-        Verwalte deine eigenen Notebooks: öffnen, umbenennen, bearbeiten oder löschen.
-      </p>
-
-      {isLoading ? (
+        {isLoading ? (
         <div className="grid grid-cols-4 gap-md max-lg:grid-cols-3 max-md:grid-cols-2 max-sm:grid-cols-1">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
@@ -430,7 +422,8 @@ function MyNotebooksPageInner() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </PageContainer>
+    </ErrorBoundary>
   );
 }
 
