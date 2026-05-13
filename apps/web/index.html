@@ -96,17 +96,6 @@
          while no longer parser-blocking on the critical path. -->
     <script defer src="/config.js"></script>
 
-    <!-- Kick the auth session probe from inline HTML so it runs in
-         parallel with bundle download rather than waiting for React to
-         mount AuthBootstrap. The response lands in the HTTP cache by the
-         time useAuth({ instant: true }) issues its actual fetch. Failure
-         is swallowed — this is a cache warmup, not a contract. -->
-    <script>
-      try {
-        fetch('/api/auth/v2/get-session', { credentials: 'include' }).catch(function () {});
-      } catch (e) {}
-    </script>
-
     <!-- Umami Analytics (GDPR-compliant with consent) -->
     <script>
       (function() {
