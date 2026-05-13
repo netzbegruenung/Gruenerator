@@ -128,31 +128,18 @@ export function createGrueneratorThreadListAdapter(
     async initialize(_localId: string) {
       if (pendingInit) return pendingInit;
       pendingInit = (async (): Promise<{ remoteId: string; externalId: undefined }> => {
+        // assistant-ui contracts initialize() to mint a NEW remoteId per local thread.
+        // Returning an existing thread's id makes its `then:` reducer overwrite
+        // threadIdMap[remoteId] = mappingId(localId), aliasing two threadIds entries
+        // to the same threadData slot and rendering the same thread twice in the sidebar.
+        // Stale empty drafts are reaped by the auto-cleanup in list() below.
         const threadMode = useAgentStore.getState().threadMode;
-        const emptyThread = cachedThreads.find(
-          (t) => t.agentId === agentId && !t.lastMessage && t.status !== 'archived'
-        );
-        if (emptyThread) {
-          threadTypeCache.set(emptyThread.id, emptyThread.threadType || threadMode);
-          useAgentStore.getState().setCurrentThread(emptyThread.id);
-          return { remoteId: emptyThread.id, externalId: undefined };
-        }
         const result = await apiClient.post<{ id: string }>('/api/chat-service/threads', {
           agentId,
           threadType: threadMode,
         });
         threadTypeCache.set(result.id, threadMode);
         useAgentStore.getState().setCurrentThread(result.id);
-        cachedThreads.push({
-          id: result.id,
-          userId: '',
-          agentId,
-          title: null,
-          threadType: threadMode,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          lastMessage: null,
-        });
         return { remoteId: result.id, externalId: undefined };
       })().finally(() => {
         pendingInit = null;
