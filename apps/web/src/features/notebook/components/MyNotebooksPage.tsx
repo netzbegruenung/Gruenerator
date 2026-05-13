@@ -532,7 +532,7 @@ function MyNotebooksPageInner() {
         }}
       >
         <DialogContent
-          className="sm:max-w-[700px] w-[calc(100%-1rem)] max-h-[90dvh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
+          className="sm:max-w-[min(1200px,calc(100%-2rem))] w-[calc(100%-1rem)] max-h-[90dvh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
           aria-describedby={undefined}
         >
           <DialogTitle className="sr-only">
