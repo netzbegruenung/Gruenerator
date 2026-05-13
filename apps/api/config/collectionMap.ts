@@ -76,4 +76,10 @@ export const COLLECTION_MAP: Record<string, CollectionMapping> = {
     qdrantCollection: 'landesverbaende_documents',
     systemId: 'brandenburg-system',
   },
+  // Agent-only: reached via the `gruenerator-ricarda-lang` specialized agent.
+  // Not surfaced in @mention or notebook gallery.
+  'ricarda-lang-tweets': {
+    qdrantCollection: 'ricarda_lang_tweets',
+    systemId: 'ricarda-lang-tweets-system',
+  },
 };
