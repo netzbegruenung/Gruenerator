@@ -430,6 +430,7 @@ export interface ChatGraphState {
   // Quality gate (iterative search)
   qualityScore: number;
   qualityAssessmentTimeMs: number;
+  topRerankScore: number | null;
 
   // Reliability flags & structured error log
   searchErrors: { source: string; message: string }[];
