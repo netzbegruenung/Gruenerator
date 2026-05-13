@@ -80,10 +80,11 @@ const NotebookEditor = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [labels, setLabels] = useState<string[]>([]);
   const [newLabel, setNewLabel] = useState('');
+  const [indexingDocIds, setIndexingDocIds] = useState<Set<string>>(() => new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { Input, Textarea } = useFormFields() as unknown as FormFieldComponents;
-  const { uploadFileOnly } = useDocumentsStore();
+  const { uploadFileOnly, pollDocumentStatus } = useDocumentsStore();
 
   const { control, handleSubmit, reset, setValue } = useForm<NotebookEditorFormData>({
     defaultValues: {
@@ -136,6 +137,21 @@ const NotebookEditor = ({
         }
         if (newDocs.length > 0) {
           setUploadedDocuments((prev) => [...prev, ...newDocs]);
+          setIndexingDocIds((prev) => {
+            const next = new Set(prev);
+            newDocs.forEach((d) => next.add(d.id));
+            return next;
+          });
+          newDocs.forEach((d) => {
+            void pollDocumentStatus(d.id).finally(() => {
+              setIndexingDocIds((prev) => {
+                if (!prev.has(d.id)) return prev;
+                const next = new Set(prev);
+                next.delete(d.id);
+                return next;
+              });
+            });
+          });
           if (wasEmpty) {
             const firstTitle = newDocs[0].title.replace(/\.[^/.]+$/, '');
             const suggestedName =
@@ -155,7 +171,7 @@ const NotebookEditor = ({
         setIsUploading(false);
       }
     },
-    [uploadFileOnly, setValue, uploadedDocuments.length]
+    [uploadFileOnly, pollDocumentStatus, setValue, uploadedDocuments.length]
   );
 
   const handleFileSelect = useCallback(
@@ -376,44 +392,82 @@ const NotebookEditor = ({
                         Dokumente ({uploadedDocuments.length}/{MAX_DOCUMENTS})
                       </label>
                       <div className="mt-xs flex flex-col gap-xs">
-                        {uploadedDocuments.map((doc) => (
-                          <div
-                            key={doc.id}
-                            className="flex items-center justify-between gap-sm px-sm py-xs bg-background-alt border border-green-300 rounded-lg min-w-0"
-                          >
-                            <div className="flex items-center gap-sm min-w-0 flex-1">
-                              <HiCheckCircle size={18} className="text-green-600 shrink-0" />
-                              <span
-                                className="font-medium text-sm text-foreground truncate"
-                                title={doc.filename || doc.title}
-                              >
-                                {doc.filename || doc.title}
-                              </span>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => handleRemoveDocument(doc.id)}
-                              disabled={loading}
-                              aria-label={`${doc.title} entfernen`}
+                        {uploadedDocuments.map((doc) => {
+                          const isIndexing = indexingDocIds.has(doc.id);
+                          return (
+                            <div
+                              key={doc.id}
+                              className={cn(
+                                'flex items-center justify-between gap-sm px-sm py-xs bg-background-alt border rounded-lg min-w-0',
+                                isIndexing ? 'border-grey-300 dark:border-grey-600' : 'border-green-300'
+                              )}
                             >
-                              <HiX size={14} />
-                            </Button>
-                          </div>
-                        ))}
+                              <div className="flex items-center gap-sm min-w-0 flex-1">
+                                {isIndexing ? (
+                                  <div className="size-[18px] shrink-0 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+                                ) : (
+                                  <HiCheckCircle size={18} className="text-green-600 shrink-0" />
+                                )}
+                                <span
+                                  className="font-medium text-sm text-foreground truncate"
+                                  title={doc.filename || doc.title}
+                                >
+                                  {doc.filename || doc.title}
+                                </span>
+                                {isIndexing && (
+                                  <span className="text-xs text-grey-500 shrink-0">
+                                    Wird verarbeitet…
+                                  </span>
+                                )}
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => handleRemoveDocument(doc.id)}
+                                disabled={loading}
+                                aria-label={`${doc.title} entfernen`}
+                              >
+                                <HiX size={14} />
+                              </Button>
+                            </div>
+                          );
+                        })}
                       </div>
                       {uploadedDocuments.length < MAX_DOCUMENTS && (
-                        <button
-                          type="button"
-                          className="mt-xs text-sm text-primary-600 hover:underline disabled:opacity-50"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploading || loading}
+                        <div
+                          className={cn(
+                            'mt-xs flex min-h-[56px] cursor-pointer items-center justify-center gap-sm rounded-lg border-2 border-dashed bg-background-alt px-sm transition-colors duration-200',
+                            isDragOver
+                              ? 'border-primary-500 bg-green-50 dark:bg-secondary-900'
+                              : 'border-grey-300 hover:border-primary-500 hover:bg-background dark:border-grey-600',
+                            (isUploading || loading) && 'cursor-default opacity-60'
+                          )}
+                          onDrop={handleDrop}
+                          onDragOver={handleDragOver}
+                          onDragLeave={handleDragLeave}
+                          onClick={() => {
+                            if (isUploading || loading) return;
+                            fileInputRef.current?.click();
+                          }}
                         >
-                          {isUploading
-                            ? 'Wird hochgeladen…'
-                            : `+ Weitere Datei hinzufügen (${MAX_DOCUMENTS - uploadedDocuments.length} verbleibend)`}
-                        </button>
+                          {isUploading ? (
+                            <>
+                              <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+                              <span className="text-sm text-grey-500">Wird hochgeladen…</span>
+                            </>
+                          ) : (
+                            <>
+                              <HiUpload className="text-grey-400" />
+                              <span className="text-sm font-medium text-foreground">
+                                Weitere Dateien ablegen oder klicken
+                              </span>
+                              <span className="text-xs text-grey-500">
+                                ({MAX_DOCUMENTS - uploadedDocuments.length} verbleibend)
+                              </span>
+                            </>
+                          )}
+                        </div>
                       )}
                       <input
                         ref={fileInputRef}
