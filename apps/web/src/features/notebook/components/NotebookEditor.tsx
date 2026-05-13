@@ -60,25 +60,49 @@ interface UploadedDocument {
 const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
 const MAX_DOCUMENTS = 20;
 
-function getFileTypeBadge(filename: string): { label: string; bgClass: string } {
+function getFileTypeBadge(filename: string): { label: string; tagClass: string } {
   const ext = filename.toLowerCase().split('.').pop() ?? '';
   switch (ext) {
     case 'pdf':
-      return { label: 'PDF', bgClass: 'bg-red-500' };
+      return {
+        label: 'PDF',
+        tagClass: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+      };
     case 'docx':
-      return { label: 'DOCX', bgClass: 'bg-blue-500' };
+      return {
+        label: 'DOCX',
+        tagClass: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+      };
     case 'doc':
-      return { label: 'DOC', bgClass: 'bg-blue-500' };
+      return {
+        label: 'DOC',
+        tagClass: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
+      };
     case 'odt':
-      return { label: 'ODT', bgClass: 'bg-emerald-500' };
+      return {
+        label: 'ODT',
+        tagClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+      };
     case 'rtf':
-      return { label: 'RTF', bgClass: 'bg-orange-500' };
+      return {
+        label: 'RTF',
+        tagClass: 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300',
+      };
     case 'md':
-      return { label: 'MD', bgClass: 'bg-slate-500' };
+      return {
+        label: 'MD',
+        tagClass: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+      };
     case 'txt':
-      return { label: 'TXT', bgClass: 'bg-slate-500' };
+      return {
+        label: 'TXT',
+        tagClass: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+      };
     default:
-      return { label: ext.slice(0, 4).toUpperCase() || 'FILE', bgClass: 'bg-grey-500' };
+      return {
+        label: ext.slice(0, 4).toUpperCase() || 'FILE',
+        tagClass: 'bg-grey-200 text-grey-700 dark:bg-grey-800 dark:text-grey-300',
+      };
   }
 }
 
@@ -413,7 +437,7 @@ const NotebookEditor = ({
                       <label className="text-sm font-medium text-foreground">
                         Dokumente ({uploadedDocuments.length}/{MAX_DOCUMENTS})
                       </label>
-                      <div className="mt-xs grid grid-cols-2 gap-xs max-sm:grid-cols-1">
+                      <div className="mt-xs grid grid-cols-1 gap-sm md:grid-cols-2 xl:grid-cols-3">
                         {uploadedDocuments.map((doc) => {
                           const isIndexing = indexingDocIds.has(doc.id);
                           const fileType = getFileTypeBadge(doc.filename || doc.title);
@@ -421,22 +445,22 @@ const NotebookEditor = ({
                             <div
                               key={doc.id}
                               className={cn(
-                                'group relative flex items-center gap-sm rounded-md bg-background-alt p-sm min-w-0 transition-all duration-200',
+                                'group relative flex items-center gap-sm rounded-xl border border-grey-200 bg-background p-sm min-w-0 transition-all duration-200 dark:border-grey-800',
                                 isIndexing
                                   ? 'opacity-90'
-                                  : 'hover:bg-grey-100 hover:shadow-sm dark:hover:bg-grey-800/60'
+                                  : 'hover:border-grey-300 hover:shadow-sm dark:hover:border-grey-700'
                               )}
                             >
-                              <div
+                              <span
                                 className={cn(
-                                  'flex h-[26px] w-[34px] shrink-0 items-center justify-center rounded-sm text-[10px] font-bold uppercase tracking-wide text-white',
-                                  fileType.bgClass,
+                                  'shrink-0 rounded-md px-1.5 py-[3px] text-[10px] font-semibold uppercase tracking-wide',
+                                  fileType.tagClass,
                                   isIndexing && 'opacity-60'
                                 )}
                                 aria-hidden
                               >
                                 {fileType.label}
-                              </div>
+                              </span>
                               <div className="min-w-0 flex-1">
                                 <div
                                   className="truncate text-sm font-medium text-foreground"
@@ -444,7 +468,7 @@ const NotebookEditor = ({
                                 >
                                   {doc.filename || doc.title}
                                 </div>
-                                <div className="mt-[1px] flex items-center gap-xs text-xs text-grey-500">
+                                <div className="mt-[2px] flex items-center gap-xs text-xs text-grey-500">
                                   {isIndexing ? (
                                     <>
                                       <div className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
