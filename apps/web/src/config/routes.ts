@@ -265,6 +265,8 @@ const standardRoutes: RouteConfig[] = [
   {
     path: '/notebooks',
     component: GrueneratorenBundle.NotebookRoot,
+    withForm: true,
+    layoutMode: 'sidebarOnly',
   },
   {
     path: '/notebooks/meine',
