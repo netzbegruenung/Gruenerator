@@ -17,6 +17,17 @@ export const SKILLS = [
     promptTemplate: 'Schreibe einen Antrag zum Thema: ',
   },
   {
+    identifier: 'gruenerator-antrag',
+    title: 'Kommunalpolitik',
+    description: 'Haushalt bewerten, beraten, Anträge & Resolutionen entwerfen',
+    iconKey: 'PiBuildings',
+    avatar: '🏛️',
+    backgroundColor: '#316049',
+    mention: 'kommunal',
+    skillCategory: 'dokumente',
+    isSystemDefault: true,
+  },
+  {
     identifier: 'gruenerator-buergerservice',
     title: 'Bürger*innenanfragen',
     description: 'Bürger*innenanfragen beantworten',
