@@ -35,44 +35,36 @@ export class LangChainChunker {
       separators: GERMAN_SEPARATORS,
     };
 
-    try {
-      // @ts-expect-error - LangChain is an optional dependency
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      const { RecursiveCharacterTextSplitter } = await import('langchain/text_splitter');
-      const splitter: { splitText(text: string): Promise<string[]> } =
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        new RecursiveCharacterTextSplitter(opts) as { splitText(text: string): Promise<string[]> };
-      return splitter;
-    } catch (_err1) {
+    // LangChain text_splitter moved across packages over its 0.x → 0.3 history
+    // (`langchain/text_splitter` → `@langchain/core/text_splitter` →
+    // `@langchain/textsplitters`). The first two paths no longer exist in any
+    // installed version, but we keep the probe so a future `pnpm add` of the
+    // current package starts working without code changes. The paths are
+    // assembled at runtime via String(...) so vite's static-import analysis
+    // can't try to resolve them at test-collection time and crash on
+    // unresolvable specifiers.
+    const dynImport = (spec: string): Promise<unknown> => import(/* @vite-ignore */ String(spec));
+    const candidates = [
+      'langchain/text_splitter',
+      '@langchain/core/text_splitter',
+      '@langchain/textsplitters',
+    ];
+    for (const spec of candidates) {
       try {
-        // @ts-expect-error - LangChain is an optional dependency
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-        const { RecursiveCharacterTextSplitter } = await import('@langchain/core/text_splitter');
-        const splitter: { splitText(text: string): Promise<string[]> } =
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-          new RecursiveCharacterTextSplitter(opts) as {
+        const mod = (await dynImport(spec)) as {
+          RecursiveCharacterTextSplitter: new (o: unknown) => {
             splitText(text: string): Promise<string[]>;
           };
-        return splitter;
-      } catch (_err2) {
-        try {
-          // @ts-expect-error - LangChain is an optional dependency
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          const { RecursiveCharacterTextSplitter } = await import('@langchain/textsplitters');
-          const splitter: { splitText(text: string): Promise<string[]> } =
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-            new RecursiveCharacterTextSplitter(opts) as {
-              splitText(text: string): Promise<string[]>;
-            };
-          return splitter;
-        } catch (_err3) {
-          if (vectorConfig.isVerboseMode()) {
-            console.warn('[LangChainChunker] LangChain not available; using fallback');
-          }
-          return null;
-        }
+        };
+        return new mod.RecursiveCharacterTextSplitter(opts);
+      } catch {
+        // try next candidate
       }
     }
+    if (vectorConfig.isVerboseMode()) {
+      console.warn('[LangChainChunker] LangChain not available; using fallback');
+    }
+    return null;
   }
 
   /**
