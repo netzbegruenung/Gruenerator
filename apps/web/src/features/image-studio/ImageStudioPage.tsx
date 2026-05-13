@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useCallback, useMemo, useState, useRef, lazy, Suspense } from 'react';
 import { HiArrowLeft } from 'react-icons/hi';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
@@ -36,7 +36,11 @@ import useImageStudioStore from '../../stores/imageStudioStore';
 
 import ImageStudioCategorySelector from './components/ImageStudioCategorySelector';
 import ImageStudioTypeSelector from './components/ImageStudioTypeSelector';
-import TemplateStudioFlow from './flows/TemplateStudioFlow';
+// Lazy-loaded: TemplateStudioFlow transitively imports @gruenerator/canvas-editor,
+// whose side-effect CSS (canvas-editor.css) would otherwise land in the entry
+// chunk and render-block the landing page even for guests who never open the
+// image studio.
+const TemplateStudioFlow = lazy(() => import('./flows/TemplateStudioFlow'));
 import { useImageGeneration } from './hooks/useImageGeneration';
 import { useTemplateClone } from './hooks/useTemplateClone';
 import { type FormErrors, type UrlTypeMapKey } from './types/componentTypes';
@@ -654,7 +658,11 @@ const ImageStudioPageContent: React.FC = () => {
   const renderCurrentStep = () => {
     // Route all types (KI, templates with text gen, and pure canvas templates) through unified TemplateStudioFlow
     if (typeConfig?.usesFluxApi || typeConfig?.hasTextGeneration || typeConfig?.endpoints?.canvas) {
-      return <TemplateStudioFlow onBack={handleBack} />;
+      return (
+        <Suspense fallback={<Spinner />}>
+          <TemplateStudioFlow onBack={handleBack} />
+        </Suspense>
+      );
     }
 
     // Fallback for unsupported types
