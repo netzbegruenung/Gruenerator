@@ -5,9 +5,9 @@ import {
   useAgentStore,
   type UserRole,
 } from '@gruenerator/chat';
-import { getSystemAgent } from '@gruenerator/shared/agents';
+import { getSystemAgent, resolveAgentSlug } from '@gruenerator/shared/agents';
 import { useCallback, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
@@ -22,11 +22,14 @@ const notebookLinks: NotebookLink[] = SYSTEM_NOTEBOOKS.map((nb) => ({
 
 function ChatPage() {
   const [searchParams] = useSearchParams();
+  const { slug } = useParams<{ slug?: string }>();
   const navigate = useNavigate();
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
   const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
-  const agentParam = searchParams.get('agent');
+  // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
+  // still wins when explicitly set so old deep links keep their behavior.
+  const agentParam = searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null);
   const modeParam = searchParams.get('mode');
 
   // When the URL carries an agent or mode param, jump straight into the thread —
