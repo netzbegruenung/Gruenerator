@@ -424,6 +424,15 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
   const id = idProp ?? idFromParams;
   const user = useAuthStore((s) => s.user);
   const { initDocumentSelection, getSelectedDocumentIds } = useNotebookStore();
+
+  // Reset agent to the default (universal). NotebookPage warms a system
+  // notebook's agent into the persisted store; without a counterpart here,
+  // a stale öffentlichkeitsarbeit-* selection bleeds into user notebooks.
+  const setSelectedAgent = useAgentStore((s) => s.setSelectedAgent);
+  useEffect(() => {
+    setSelectedAgent(null);
+  }, [id, setSelectedAgent]);
+
   const { query, getQACollection } = useNotebookCollections({ isActive: true });
   const collection = id ? getQACollection(id) : undefined;
   const { isLoading, isError, data: qaCollections } = query;
