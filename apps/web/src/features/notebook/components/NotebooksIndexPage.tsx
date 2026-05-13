@@ -584,7 +584,14 @@ function NotebooksIndexFooter() {
 
 function NotebooksIndexPage() {
   const config = useMemo(() => getNotebookConfig('gruenerator'), []);
-  return <NotebookPageContent config={config} startpageFooter={<NotebooksIndexFooter />} />;
+  return (
+    <NotebookPageContent
+      config={config}
+      startpageFooter={<NotebooksIndexFooter />}
+      showLastAdded={false}
+      showStats={false}
+    />
+  );
 }
 
 export default withAuthRequired(NotebooksIndexPage, {
