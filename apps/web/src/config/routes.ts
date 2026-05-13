@@ -123,10 +123,8 @@ const Nutzungsbedingungen = lazy(
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
-const NotebookRootPage = lazy(() =>
-  import('../features/notebook/components/NotebookRoot').then((m) => ({
-    default: m.NotebookRoot,
-  }))
+const NotebookRootPage = lazy(
+  () => import('../features/notebook/components/NotebooksIndexPage')
 );
 const NotebookResolverPage = lazy(() =>
   import('../features/notebook/components/NotebookResolver').then((m) => ({
@@ -168,7 +166,7 @@ const BriefingPage = lazy(() => import('../features/briefing/BriefingPage'));
 const BriefingArchivePage = lazy(() => import('../features/briefing/BriefingArchivePage'));
 const BriefingArticlePage = lazy(() => import('../features/briefing/BriefingArticlePage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
-const RecherchePage = lazy(() => import('../features/recherche/RecherchePage'));
+// const RecherchePage = lazy(() => import('../features/recherche/RecherchePage'));
 const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
 const BoardsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/docs') }));
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
@@ -244,7 +242,11 @@ const standardRoutes: RouteConfig[] = [
     path: '/desk',
     component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
   },
-  { path: '/recherche', component: RecherchePage },
+  // RecherchePage replaced by /notebooks index page; keep route as a redirect for old links
+  {
+    path: '/recherche',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
+  },
   { path: '/skills', component: SkillsPage },
   { path: '/gruppen', component: GruppenPage },
   { path: '/gruppen/:groupId', component: GruppenPage },
@@ -263,8 +265,6 @@ const standardRoutes: RouteConfig[] = [
   {
     path: '/notebooks',
     component: GrueneratorenBundle.NotebookRoot,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
   },
   {
     path: '/notebooks/meine',
@@ -376,7 +376,7 @@ const standardRoutes: RouteConfig[] = [
   },
   {
     path: '/ask',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/recherche') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
   },
   { path: '/datenschutz', component: Datenschutz, public: true },
   { path: '/impressum', component: Impressum, public: true },
