@@ -39,6 +39,18 @@ export const SKILLS = [
     skillCategory: 'presse',
     isSystemDefault: true,
     promptTemplate: 'Schreibe eine PM zum Thema: ',
+    skillSystemPrompt: `**PRESSEMITTEILUNG (ca. 2000 Zeichen):**
+
+Struktur:
+1. **Aussagekräftiger Titel** – klar und informativ
+2. **Lead-Absatz** – wichtigste W-Fragen (Wer, Was, Wann, Wo, Warum)
+3. **Hauptteil** – Details und Kontext
+4. **Zitat** – von der*dem angegebenen Zitatgeber*in, falls vorhanden
+5. **Hintergrundinformationen** – für journalistische Einordnung
+
+Stil: Journalistischer Nachrichtenstil, sachlich und objektiv, keine Emojis, aktive Sprache.
+
+**Beispiel-Suche:** Nutze IMMER \`gruenerator_pressemitteilung_examples\`, um echte PMs aus Landesverbänden als Vorlage zu finden. Orientiere dich an Aufbau, Lead-Absatz, Zitat-Setzung und Tonalität.`,
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -52,6 +64,11 @@ export const SKILLS = [
     skillCategory: 'social',
     isSystemDefault: true,
     promptTemplate: 'Post zu folgendem Thema: ',
+    skillSystemPrompt: `**INSTAGRAM-POST (max. 600 Zeichen):**
+
+Visuell, Emojis am Satzanfang/-ende für Barrierefreiheit, strategische Hashtags. Erste Zeile als Hook.
+
+**Beispiel-Suche:** Nutze IMMER \`search_examples\` mit \`platform="instagram"\`, um echte, erfolgreiche Beispiel-Posts zu finden. Orientiere dich an Ton, Aufbau und Formatierung.`,
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -64,6 +81,11 @@ export const SKILLS = [
     contextPrefix: '[Plattform: Facebook]',
     skillCategory: 'social',
     promptTemplate: 'Beitrag zu folgendem Thema: ',
+    skillSystemPrompt: `**FACEBOOK-POST (max. 600 Zeichen):**
+
+Locker, gesprächig, Emojis sparsam, Community-fokussiert, klarer Call-to-Action am Ende.
+
+**Beispiel-Suche:** Nutze IMMER \`search_examples\` mit \`platform="facebook"\`, um echte, erfolgreiche Beispiel-Posts zu finden. Orientiere dich an Ton, Aufbau und Formatierung.`,
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -76,6 +98,11 @@ export const SKILLS = [
     contextPrefix: '[Plattform: Twitter]',
     skillCategory: 'social',
     promptTemplate: 'Tweet zu folgendem Thema: ',
+    skillSystemPrompt: `**TWEET / X-POST (max. 280 Zeichen):**
+
+Prägnant, pointiert, direkte Sprache, sparsame Emojis. Eine zentrale Aussage statt mehrerer.
+
+**Beispiel-Suche:** Nutze IMMER \`search_examples\` mit \`platform="bluesky"\` (NICHT "twitter"/"x") — unsere Tweet-Beispiele sind in der Beispiel-Datenbank als Bluesky-Posts hinterlegt (Cross-Posts der offiziellen Grünen-Accounts). Orientiere dich an Ton, Aufbau und Formatierung.`,
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -88,6 +115,11 @@ export const SKILLS = [
     contextPrefix: '[Plattform: LinkedIn]',
     skillCategory: 'social',
     promptTemplate: 'LinkedIn-Post zu: ',
+    skillSystemPrompt: `**LINKEDIN-POST (max. 600 Zeichen):**
+
+Professionell aber zugänglich, Analysen und Einblicke, minimale Emojis. Adressiere Multiplikator*innen und Fachpublikum.
+
+**Beispiel-Suche:** Nutze IMMER \`search_examples\` mit \`platform="linkedin"\`, falls Beispiele vorhanden sind. Sonst orientiere dich an einem ruhigen, analytischen Ton.`,
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
@@ -100,6 +132,14 @@ export const SKILLS = [
     contextPrefix: '[Plattform: Reel/TikTok-Skript]',
     skillCategory: 'social',
     promptTemplate: 'Skript zu folgendem Thema: ',
+    skillSystemPrompt: `**REEL / TIKTOK-SKRIPT (max. 1500 Zeichen):**
+
+Skript-Format mit klarer Zeitstruktur:
+- 00:00–00:20 **Hook** (direkter Aufhänger, der scrollt-stoppt)
+- 00:20–01:10 **Main** (Kernbotschaft, eine Aussage)
+- 01:10–01:30 **CTA** (Handlungsaufforderung)
+
+Schreibe gesprochene Sprache, kurze Sätze, visuelle Cues in eckigen Klammern \`[Schnitt: …]\`.`,
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
