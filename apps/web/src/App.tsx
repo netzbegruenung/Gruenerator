@@ -7,6 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import useAccessibility from './components/hooks/useAccessibility';
 import useDarkMode from './components/hooks/useDarkMode';
 import AuthBootstrap from './components/routing/AuthBootstrap';
+import AuthSplash from './components/routing/AuthSplash';
 import HomeRedirect from './components/routing/HomeRedirect';
 import LegacyGeneratorRedirect from './components/routing/LegacyGeneratorRedirect';
 import RequireAuth from './components/routing/RequireAuth';
@@ -131,11 +132,7 @@ function App() {
 
   // Show minimal loading state while API client initializes (typically <100ms)
   if (!appReady) {
-    return (
-      <div className="app-loading">
-        <div className="app-loading-text">Lädt...</div>
-      </div>
-    );
+    return <AuthSplash />;
   }
 
   // Maintenance mode blocks entire app (off by default, set VITE_MAINTENANCE_MODE=true to enable)
@@ -144,13 +141,7 @@ function App() {
   if (isMaintenanceMode) {
     return (
       <ErrorBoundary>
-        <Suspense
-          fallback={
-            <div className="app-loading">
-              <div className="app-loading-text">Lädt...</div>
-            </div>
-          }
-        >
+        <Suspense fallback={<AuthSplash />}>
           <PopupWartung />
         </Suspense>
       </ErrorBoundary>
@@ -160,13 +151,7 @@ function App() {
   if (isFirstRun) {
     return (
       <ErrorBoundary>
-        <Suspense
-          fallback={
-            <div className="app-loading">
-              <div className="app-loading-text">Lädt...</div>
-            </div>
-          }
-        >
+        <Suspense fallback={<AuthSplash />}>
           <FirstRunWizard
             requireLogin={requireLogin}
             onComplete={completeFirstRun}
