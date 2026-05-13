@@ -398,37 +398,43 @@ const NotebookEditor = ({
                             <div
                               key={doc.id}
                               className={cn(
-                                'flex items-center justify-between gap-sm px-sm py-xs bg-background-alt border rounded-lg min-w-0',
-                                isIndexing ? 'border-grey-300 dark:border-grey-600' : 'border-green-300'
+                                'group flex items-center gap-sm rounded-md px-sm py-[5px] min-w-0 transition-colors',
+                                isIndexing
+                                  ? 'bg-grey-50 dark:bg-grey-900/40'
+                                  : 'hover:bg-grey-100 dark:hover:bg-grey-800/50'
                               )}
                             >
-                              <div className="flex items-center gap-sm min-w-0 flex-1">
-                                {isIndexing ? (
-                                  <div className="size-[18px] shrink-0 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-                                ) : (
-                                  <HiCheckCircle size={18} className="text-green-600 shrink-0" />
-                                )}
-                                <span
-                                  className="font-medium text-sm text-foreground truncate"
-                                  title={doc.filename || doc.title}
-                                >
-                                  {doc.filename || doc.title}
+                              {isIndexing ? (
+                                <div className="size-[14px] shrink-0 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+                              ) : (
+                                <HiCheckCircle size={14} className="text-green-600 shrink-0" />
+                              )}
+                              <span
+                                className="text-sm text-foreground truncate flex-1"
+                                title={doc.filename || doc.title}
+                              >
+                                {doc.filename || doc.title}
+                              </span>
+                              {isIndexing && (
+                                <span className="text-xs text-grey-500 shrink-0">
+                                  verarbeitet…
                                 </span>
-                                {isIndexing && (
-                                  <span className="text-xs text-grey-500 shrink-0">
-                                    Wird verarbeitet…
-                                  </span>
-                                )}
-                              </div>
+                              )}
                               <Button
                                 type="button"
                                 variant="ghost"
-                                size="icon-sm"
+                                size="icon-xs"
+                                className={cn(
+                                  'shrink-0 transition-opacity',
+                                  isIndexing
+                                    ? 'opacity-60'
+                                    : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+                                )}
                                 onClick={() => handleRemoveDocument(doc.id)}
                                 disabled={loading}
                                 aria-label={`${doc.title} entfernen`}
                               >
-                                <HiX size={14} />
+                                <HiX size={12} />
                               </Button>
                             </div>
                           );
