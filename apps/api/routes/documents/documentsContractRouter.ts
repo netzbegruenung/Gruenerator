@@ -21,6 +21,7 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { COLLECTION_MAP } from '../../config/collectionMap.js';
 import { applyDefaultFilter } from '../../config/systemCollectionsConfig.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { DocumentSearchService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { getWolkeSyncService } from '../../services/sync/index.js';
@@ -155,6 +156,44 @@ export const documentsContractRouter = s.router(documentsContract, {
         body: {
           success: false,
           message: (error as Error).message || 'Failed to get sync status',
+        },
+      };
+    }
+  },
+
+  getDocumentStatuses: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { ids } = args.body;
+
+      const postgres = getPostgresInstance();
+      const rows = (await postgres.query(
+        `SELECT id, status FROM documents WHERE id = ANY($1) AND user_id = $2`,
+        [ids, userId]
+      )) as Array<{ id: string; status: string }>;
+
+      // IDs not owned by the caller are silently omitted (don't leak existence).
+      // Unknown status strings get normalized to 'pending' — defensive against
+      // legacy rows or future statuses that haven't been added to the enum yet.
+      const allowed = new Set(['pending', 'uploaded', 'processing', 'completed', 'failed']);
+      const statuses = rows.map((r) => ({
+        id: r.id,
+        status: (allowed.has(r.status) ? r.status : 'pending') as
+          | 'pending'
+          | 'uploaded'
+          | 'processing'
+          | 'completed'
+          | 'failed',
+      }));
+
+      return { status: 200 as const, body: { success: true, statuses } };
+    } catch (error) {
+      log.error('[documentsContract.getDocumentStatuses] Error:', error);
+      return {
+        status: 500 as const,
+        body: {
+          success: false,
+          message: (error as Error).message || 'Failed to get document statuses',
         },
       };
     }
