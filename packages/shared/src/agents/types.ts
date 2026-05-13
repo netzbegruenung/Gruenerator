@@ -106,4 +106,5 @@ export interface Skill {
   skillCategory?: SkillCategory;
   promptTemplate?: string;
   isSystemDefault?: boolean;
+  skillSystemPrompt?: string;
 }
