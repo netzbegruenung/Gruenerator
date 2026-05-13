@@ -442,7 +442,17 @@ const BlockNoteEditorInner = ({
           {commentsPortalTarget &&
             showComments &&
             threadStore &&
-            createPortal(<ThreadsSidebar filter="all" />, commentsPortalTarget)}
+            createPortal(
+              <ErrorBoundary
+                fallback={null}
+                onError={(err) =>
+                  console.warn('[Comments] sidebar render failed:', err)
+                }
+              >
+                <ThreadsSidebar filter="all" />
+              </ErrorBoundary>,
+              commentsPortalTarget
+            )}
         </BlockNoteView>
       </ErrorBoundary>
     </div>
