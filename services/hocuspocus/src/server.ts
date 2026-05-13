@@ -136,6 +136,7 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
         );
       }
 
+      void persistence.touchUpdatedAt(documentName);
       void persistence.updateContentPreview(documentName, document);
     },
 
