@@ -43,7 +43,7 @@ async function main(): Promise<void> {
     const result = await client.scroll(COLLECTION, {
       limit: SCROLL_BATCH,
       ...(offset != null && { offset }),
-      with_payload: true,
+      with_payload: ['tweet_id', 'content', 'published_at', 'lang', 'example_id'],
       with_vector: false,
     });
     pages++;
