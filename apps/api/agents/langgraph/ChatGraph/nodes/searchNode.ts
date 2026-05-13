@@ -101,7 +101,7 @@ export async function executeDocumentSearchParallel(
     collectionsToSearch = notebookCollectionIds;
     log.info(`[Search] Using notebook-scoped collections: ${collectionsToSearch.join(', ')}`);
   } else if (agentConfig.toolRestrictions?.allowedCollections?.length) {
-    collectionsToSearch = agentConfig.toolRestrictions.allowedCollections;
+    collectionsToSearch = [...agentConfig.toolRestrictions.allowedCollections];
     log.info(`[Search] Using agent-allowed collections: ${collectionsToSearch.join(', ')}`);
   } else if (agentConfig.toolRestrictions?.defaultCollection) {
     const dc = agentConfig.toolRestrictions.defaultCollection;
@@ -783,7 +783,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           collectionsToSearch = state.notebookCollectionIds;
           log.info(`[Search] Using notebook-scoped collections: ${collectionsToSearch.join(', ')}`);
         } else if (agentConfig.toolRestrictions?.allowedCollections?.length) {
-          collectionsToSearch = agentConfig.toolRestrictions.allowedCollections;
+          collectionsToSearch = [...agentConfig.toolRestrictions.allowedCollections];
           log.info(`[Search] Using agent-allowed collections: ${collectionsToSearch.join(', ')}`);
         } else if (agentConfig.toolRestrictions?.defaultCollection) {
           const dc = agentConfig.toolRestrictions.defaultCollection;
