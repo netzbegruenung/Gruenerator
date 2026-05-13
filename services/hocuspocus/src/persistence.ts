@@ -356,6 +356,18 @@ export class PostgresPersistence {
     }
   }
 
+  async touchUpdatedAt(documentId: string): Promise<void> {
+    try {
+      await this.db(
+        'UPDATE collaborative_documents SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+        [documentId]
+      );
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      log.debug(`[Touch] Failed to touch updated_at for ${documentId}: ${err.message}`);
+    }
+  }
+
   async updateContentPreview(documentId: string, ydoc: Y.Doc): Promise<void> {
     try {
       const fragment = ydoc.getXmlFragment(DOCUMENT_FRAGMENT_NAME);
