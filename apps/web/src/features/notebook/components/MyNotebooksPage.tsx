@@ -21,9 +21,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Input,
+  toast,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState, type DragEvent } from 'react';
 import {
   HiBookOpen,
   HiDotsHorizontal,
@@ -32,6 +33,7 @@ import {
   HiPlus,
   HiShare,
   HiTrash,
+  HiUpload,
 } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
@@ -39,6 +41,7 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useDocumentsStore } from '../../../stores/documentsStore';
+import { cn } from '../../../utils/cn';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 
 import NotebookEditor from './NotebookEditor';
@@ -51,6 +54,13 @@ type DialogPhase =
   | { kind: 'edit'; collection: NotebookCollection }
   | { kind: 'rename'; collection: NotebookCollection }
   | { kind: 'delete'; collection: NotebookCollection };
+
+const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
+const MAX_DOCUMENTS_PER_NOTEBOOK = 20;
+
+function hasFileDrag(e: DragEvent): boolean {
+  return Array.from(e.dataTransfer.types).includes('Files');
+}
 
 function formatDocCount(c: NotebookCollection): string {
   const n = c.document_count ?? c.documents?.length ?? 0;
@@ -67,6 +77,7 @@ const NotebookManagementCard = memo(function NotebookManagementCard({
   onEdit,
   onShare,
   onDelete,
+  onAddFiles,
 }: {
   collection: NotebookCollection;
   isProcessing?: boolean;
@@ -75,9 +86,61 @@ const NotebookManagementCard = memo(function NotebookManagementCard({
   onEdit: (c: NotebookCollection) => void;
   onShare: (c: NotebookCollection) => void;
   onDelete: (c: NotebookCollection) => void;
+  onAddFiles: (c: NotebookCollection, files: File[]) => void;
 }) {
+  const [isDragOver, setIsDragOver] = useState(false);
+  const docCount = collection.document_count ?? collection.documents?.length ?? 0;
+  const isFull = docCount >= MAX_DOCUMENTS_PER_NOTEBOOK;
+
+  const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
+    if (!hasFileDrag(e)) return;
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+  const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
+    if (!hasFileDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = isFull ? 'none' : 'copy';
+  };
+  const handleDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    setIsDragOver(false);
+  };
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+    if (!hasFileDrag(e)) return;
+    e.preventDefault();
+    setIsDragOver(false);
+    if (isProcessing) return;
+    const files = Array.from(e.dataTransfer.files ?? []);
+    if (files.length > 0) onAddFiles(collection, files);
+  };
+
   return (
-    <div className="group relative flex flex-col gap-sm rounded-md border border-grey-200 bg-background p-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md dark:border-grey-700">
+    <div
+      className={cn(
+        'group relative flex flex-col gap-sm rounded-md border border-grey-200 bg-background p-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md dark:border-grey-700',
+        isDragOver && !isFull && 'border-primary-500 ring-2 ring-primary-500/30',
+        isDragOver && isFull && 'border-red-400 ring-2 ring-red-400/20'
+      )}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDragOver ? (
+        <div
+          className={cn(
+            'pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-xs rounded-md text-sm font-medium backdrop-blur-[1px]',
+            isFull
+              ? 'bg-red-50/85 text-red-700 dark:bg-red-900/40 dark:text-red-200'
+              : 'bg-primary-500/10 text-primary-700 dark:text-primary-200'
+          )}
+        >
+          <HiUpload />
+          {isFull ? `Notebook ist voll (${MAX_DOCUMENTS_PER_NOTEBOOK}/${MAX_DOCUMENTS_PER_NOTEBOOK})` : `Hier ablegen, um zu „${collection.name}" hinzuzufügen`}
+        </div>
+      ) : null}
+      <div className={cn(isDragOver && 'pointer-events-none')}>
       <div className="flex items-start justify-between gap-sm">
         <button
           type="button"
@@ -145,6 +208,7 @@ const NotebookManagementCard = memo(function NotebookManagementCard({
           </Badge>
         ) : null}
       </div>
+      </div>
     </div>
   );
 });
@@ -211,6 +275,7 @@ function MyNotebooksPageInner() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const pollDocumentStatus = useDocumentsStore((s) => s.pollDocumentStatus);
+  const uploadFileOnly = useDocumentsStore((s) => s.uploadFileOnly);
   const {
     query,
     createQACollection,
@@ -320,6 +385,69 @@ function MyNotebooksPageInner() {
     [deleteQACollection, closeDialog]
   );
 
+  const handleAddFilesToCard = useCallback(
+    async (collection: NotebookCollection, rawFiles: File[]) => {
+      const accepted = rawFiles.filter((f) =>
+        ACCEPTED_EXTENSIONS.some((ext) => f.name.toLowerCase().endsWith(ext))
+      );
+      const rejectedCount = rawFiles.length - accepted.length;
+      if (rejectedCount > 0) {
+        toast.error(
+          `${rejectedCount} Datei${rejectedCount === 1 ? '' : 'en'} übersprungen — Format nicht unterstützt`
+        );
+      }
+      if (accepted.length === 0) return;
+
+      const existingIds = (collection.documents ?? []).map((d) => String(d.id));
+      const remainingSlots = MAX_DOCUMENTS_PER_NOTEBOOK - existingIds.length;
+      if (remainingSlots <= 0) {
+        toast.error(`„${collection.name}" ist voll (${MAX_DOCUMENTS_PER_NOTEBOOK}/${MAX_DOCUMENTS_PER_NOTEBOOK} Dokumente)`);
+        return;
+      }
+      const filesToUpload = accepted.slice(0, remainingSlots);
+      const overCap = accepted.length - filesToUpload.length;
+
+      setProcessingCollectionIds((prev) => new Set(prev).add(collection.id));
+
+      try {
+        const uploaded = await Promise.all(
+          filesToUpload.map((f) => uploadFileOnly(f, f.name))
+        );
+        const newIds = uploaded.map((d) => String(d.id));
+
+        await updateQACollection(collection.id, {
+          name: collection.name,
+          description: collection.description,
+          documents: [...existingIds, ...newIds],
+          labels: collection.labels,
+          selectionMode: collection.selection_mode,
+          custom_prompt: collection.custom_prompt,
+        });
+        void queryClient.invalidateQueries({ queryKey: ['notebookCollections'] });
+
+        const successLabel = `${filesToUpload.length} Datei${filesToUpload.length === 1 ? '' : 'en'} zu „${collection.name}" hinzugefügt`;
+        toast.success(
+          overCap > 0
+            ? `${successLabel} (${overCap} übersprungen — max ${MAX_DOCUMENTS_PER_NOTEBOOK})`
+            : successLabel
+        );
+
+        await Promise.all(newIds.map((id) => pollDocumentStatus(id)));
+        void queryClient.invalidateQueries({ queryKey: ['notebookCollections'] });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Fehler beim Hochladen');
+      } finally {
+        setProcessingCollectionIds((prev) => {
+          if (!prev.has(collection.id)) return prev;
+          const next = new Set(prev);
+          next.delete(collection.id);
+          return next;
+        });
+      }
+    },
+    [uploadFileOnly, updateQACollection, queryClient, pollDocumentStatus]
+  );
+
   const isLoading = query.isLoading;
   const isEmpty = !isLoading && collections.length === 0;
 
@@ -327,7 +455,7 @@ function MyNotebooksPageInner() {
     <ErrorBoundary>
       <PageContainer
         title="Meine Notebooks"
-        subtitle="Verwalte deine eigenen Notebooks: öffnen, umbenennen, bearbeiten oder löschen."
+        subtitle="Verwalte deine eigenen Notebooks. Ziehe Dateien direkt auf eine Karte, um sie hinzuzufügen."
       >
         <div className="mb-lg flex justify-end">
           <Button onClick={() => setPhase({ kind: 'create' })}>
@@ -371,6 +499,7 @@ function MyNotebooksPageInner() {
               onEdit={(col) => setPhase({ kind: 'edit', collection: col })}
               onShare={handleShare}
               onDelete={(col) => setPhase({ kind: 'delete', collection: col })}
+              onAddFiles={handleAddFilesToCard}
             />
           ))}
         </div>
