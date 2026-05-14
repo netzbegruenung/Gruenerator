@@ -29,25 +29,30 @@ interface OpenAIModelsResponse {
   data: Array<{ id: string; object?: string; owned_by?: string }>;
 }
 
+// Mistral Medium 3.5, Gemma 4 and the gpt-oss/qwen families are all reasoning
+// models with configurable thinking. `reasoning: true` here flags that; how (or
+// whether) that reasoning is surfaced to the UI depends on the streaming path
+// (SDK fullStream for Mistral; Regolo raw streamer for Regolo's reasoning_content).
 const MODEL_METADATA: Record<string, { name: string; reasoning: boolean; vision: boolean }> = {
-  'mistral-medium-2604': { name: 'Mistral Medium 3.5', reasoning: false, vision: false },
-  'mistral-medium-3.5': { name: 'Mistral Medium 3.5', reasoning: false, vision: false },
+  'mistral-medium-2604': { name: 'Mistral Medium 3.5', reasoning: true, vision: false },
+  'mistral-medium-3.5': { name: 'Mistral Medium 3.5', reasoning: true, vision: false },
   'mistral-large-2512': { name: 'Mistral Large', reasoning: false, vision: false },
   'mistral-large-latest': { name: 'Mistral Large', reasoning: false, vision: false },
   'mistral-small-latest': { name: 'Mistral Small', reasoning: false, vision: false },
   'mistral-small-2503': { name: 'Mistral Small (Vision)', reasoning: false, vision: true },
-  'gemma4-31b': { name: 'Gemma 4 31B', reasoning: false, vision: true },
+  'gemma4-31b': { name: 'Gemma 4 31B', reasoning: true, vision: true },
   // Verdigado/LiteLLM serves Gemma 4 under the bare alias 'gemma' (resolves
   // server-side to gemma4:26b-ctx16k). Without this entry, isVisionCapable
   // would return false and the vision-override would hijack every image
   // request on the gemma-4 overflow lane to Regolo, defeating alternation.
-  gemma: { name: 'Gemma 4', reasoning: false, vision: true },
+  gemma: { name: 'Gemma 4', reasoning: true, vision: true },
   'mistral-medium-latest': { name: 'Mistral Medium', reasoning: false, vision: false },
   'pixtral-large-latest': { name: 'Pixtral Large', reasoning: false, vision: true },
   'gpt-oss-120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
   'gpt-oss:120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
   'openai/gpt-oss-120b': { name: 'GPT-OSS 120B', reasoning: true, vision: false },
   'qwen3.5-122b': { name: 'Qwen 3.5 122B', reasoning: true, vision: true },
+  'qwen3.6-27b': { name: 'Qwen 3.6 27B', reasoning: true, vision: false },
   'mistral-small-4-119b': { name: 'Mistral Small 4 119B', reasoning: true, vision: true },
   'Llama-3.3-70B-Instruct': { name: 'Llama 3.3 70B', reasoning: false, vision: false },
   'mistral-small3.2': { name: 'Mistral Small 3.2', reasoning: false, vision: false },
@@ -256,6 +261,16 @@ export async function getAvailableModels(forceRefresh = false): Promise<Playgrou
 export function isVisionCapable(modelId: string): boolean {
   const meta = MODEL_METADATA[modelId];
   return meta?.vision ?? false;
+}
+
+/**
+ * Check if a model ID is a reasoning/thinking model.
+ * Uses MODEL_METADATA (synchronous, no API call needed). Drives request-level
+ * reasoning enablement (e.g. Mistral `reasoningEffort`).
+ */
+export function isReasoningCapable(modelId: string): boolean {
+  const meta = MODEL_METADATA[modelId];
+  return meta?.reasoning ?? false;
 }
 
 /**

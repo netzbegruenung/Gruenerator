@@ -1,6 +1,7 @@
 'use client';
 
 import { ThreadPrimitive, SuggestionPrimitive } from '@assistant-ui/react';
+import type { SkillIcon } from '@gruenerator/shared/agents';
 import { cn } from '../../lib/utils';
 import { useChatDensity } from './chatDensityContext';
 
@@ -11,6 +12,9 @@ interface WelcomeScreenProps {
   description?: string;
   questions?: Array<{ text: string }>;
   avatar?: string;
+  /** Resolved icon component for the active agent/skill — preferred over the
+   *  emoji `avatar` when present. */
+  icon?: SkillIcon;
   firstName?: string | null;
   /**
    * Agent-specific welcome question. May contain the `{firstName}` token,
@@ -28,7 +32,10 @@ function welcomeQuestion(
   if (agentQuestion) {
     return firstName
       ? agentQuestion.replace(/\{firstName\}/g, firstName)
-      : agentQuestion.replace(/\{firstName\}/g, '').replace(/\s+,/g, ',').trim();
+      : agentQuestion
+          .replace(/\{firstName\}/g, '')
+          .replace(/\s+,/g, ',')
+          .trim();
   }
   return firstName ? `Hallo ${firstName}, wie kann ich helfen?` : 'Wie kann ich dir helfen?';
 }
@@ -56,6 +63,7 @@ export function WelcomeScreen({
   description,
   questions,
   avatar,
+  icon: Icon,
   firstName,
   welcomeQuestion: agentWelcomeQuestion,
 }: WelcomeScreenProps = {}) {
@@ -71,14 +79,19 @@ export function WelcomeScreen({
       )}
     >
       <div className="flex w-full flex-col">
-        {avatar && (
+        {Icon ? (
+          <Icon
+            aria-hidden
+            className={cn('text-primary', isCompact ? 'mb-2 h-6 w-6' : 'mb-3 h-9 w-9')}
+          />
+        ) : avatar ? (
           <span
             aria-hidden
             className={cn('leading-none', isCompact ? 'mb-2 text-2xl' : 'mb-3 text-4xl')}
           >
             {avatar}
           </span>
-        )}
+        ) : null}
         <h1
           className={cn(
             'm-0 font-semibold text-foreground-heading',
@@ -90,10 +103,7 @@ export function WelcomeScreen({
 
         {fallbackDescription && (
           <p
-            className={cn(
-              'm-0 mt-1 text-foreground-muted',
-              isCompact ? 'text-[12px]' : 'text-sm'
-            )}
+            className={cn('m-0 mt-1 text-foreground-muted', isCompact ? 'text-[12px]' : 'text-sm')}
           >
             {fallbackDescription}
           </p>
@@ -112,9 +122,7 @@ export function WelcomeScreen({
                   type="button"
                   className={cn(
                     'h-auto w-full border border-border text-left transition-colors hover:border-primary/40 hover:bg-primary/5',
-                    isCompact
-                      ? 'rounded-xl px-3 py-2 text-[12px]'
-                      : 'rounded-2xl px-5 py-4 text-sm'
+                    isCompact ? 'rounded-xl px-3 py-2 text-[12px]' : 'rounded-2xl px-5 py-4 text-sm'
                   )}
                 >
                   <span className="font-medium text-foreground">{question.text}</span>
