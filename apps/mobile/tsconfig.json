@@ -7,6 +7,7 @@
     "noImplicitOverride": true,
     "noImplicitReturns": false,
     "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": false,
 
     "paths": {
       "@gruenerator/shared": ["../../packages/shared/src/index.ts"],
