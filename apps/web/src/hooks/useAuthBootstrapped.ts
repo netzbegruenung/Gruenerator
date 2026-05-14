@@ -17,7 +17,16 @@ import { useQuery } from '@tanstack/react-query';
  * `initialData` from the instant-auth cache). React Query dedupes by
  * `queryKey`, so both subscribers see the same status.
  */
-export const useAuthBootstrapped = (): boolean => {
+/**
+ * Same read-only subscription as `useAuthBootstrapped`, but also surfaces
+ * whether the probe *errored* (server unreachable / transient failure) rather
+ * than answering. `RequireAuth` needs this distinction: an errored probe with
+ * no cached session must not bounce the user to `/login` — login can't reach
+ * the server either. A `success` status with a guest answer still redirects.
+ */
+export const useAuthBootstrap = (): { isBootstrapped: boolean; isError: boolean } => {
   const { status } = useQuery({ queryKey: ['authStatus'], enabled: false });
-  return status !== 'pending';
+  return { isBootstrapped: status !== 'pending', isError: status === 'error' };
 };
+
+export const useAuthBootstrapped = (): boolean => useAuthBootstrap().isBootstrapped;
