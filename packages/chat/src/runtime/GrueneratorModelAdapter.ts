@@ -514,6 +514,15 @@ async function* parseSSEStream(
           const mappedToolName = DEEP_TOOL_MAP[toolName] || toolName;
 
           if (status === 'in_progress') {
+            // Preserve any pre-existing activeToolCall (e.g. the intent-derived
+            // gruenerator_examples_search tool-call set by the `intent` event)
+            // before overwriting with this thinking_step's tool. Otherwise the
+            // examples tool-call is orphaned and search_complete's result has
+            // nowhere to land — leaving the UI with classify/rerank chips and
+            // no examples card.
+            if (activeToolCall && !allToolCalls.includes(activeToolCall)) {
+              allToolCalls.push(activeToolCall);
+            }
             const toolArgs = { query: (args?.query as string) || title, ...args };
             activeToolCall = {
               type: 'tool-call',
