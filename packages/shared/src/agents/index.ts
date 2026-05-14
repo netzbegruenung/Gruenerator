@@ -1,6 +1,8 @@
 export type {
   Agent,
+  AgentAudience,
   AgentCategory,
+  AgentLocalization,
   AgentParams,
   AgentProvider,
   FewShotExample,
@@ -10,6 +12,13 @@ export type {
   ToolRestrictions,
 } from './types.js';
 export { AGENT_CATEGORY_LABELS, SKILL_CATEGORY_LABELS } from './types.js';
+
+export {
+  isAgentVisibleForLocale,
+  localizeAgent,
+  getSystemAgentsForLocale,
+  getVisibleSystemAgentsForLocale,
+} from './audience.js';
 
 export {
   SYSTEM_AGENTS,
