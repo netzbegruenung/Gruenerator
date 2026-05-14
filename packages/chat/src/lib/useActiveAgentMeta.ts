@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { SKILLS, getSystemAgent } from '@gruenerator/shared/agents';
+import { SKILLS, getSystemAgent, localizeAgent } from '@gruenerator/shared/agents';
 import { useScopedAgentId } from './useScopedAgentState';
 
 export interface ActiveAgentMeta {
@@ -12,17 +12,25 @@ export interface ActiveAgentMeta {
   welcomeQuestion?: string;
 }
 
-export function useActiveAgentMeta(): ActiveAgentMeta | null {
+/**
+ * Returns the currently-selected agent's metadata, localized for the
+ * caller-supplied user locale. `userLocale` defaults to 'de-DE' for
+ * backward compatibility with call sites that haven't been updated yet.
+ * AT users with locale plumbed through get the agent's `localized['de-AT']`
+ * overrides applied and `{{partyName}}` substituted to the AT brand.
+ */
+export function useActiveAgentMeta(userLocale: string = 'de-DE'): ActiveAgentMeta | null {
   const selectedAgentId = useScopedAgentId();
 
   return useMemo(() => {
     if (!selectedAgentId) return null;
-    const agent = getSystemAgent(selectedAgentId);
-    if (agent) {
+    const rawAgent = getSystemAgent(selectedAgentId);
+    if (rawAgent) {
       // Prefer the canonical system-agent metadata when navigating via URL or
       // sidebar — avoids `SKILLS.find` returning the first variant
       // (e.g. "Pressemitteilung" instead of "Öffentlichkeitsarbeit") when
       // multiple skills share an identifier.
+      const agent = localizeAgent(rawAgent, userLocale);
       return {
         identifier: selectedAgentId,
         avatar: agent.avatar,
@@ -41,5 +49,5 @@ export function useActiveAgentMeta(): ActiveAgentMeta | null {
       title: skill.title,
       description: skill.description,
     };
-  }, [selectedAgentId]);
+  }, [selectedAgentId, userLocale]);
 }
