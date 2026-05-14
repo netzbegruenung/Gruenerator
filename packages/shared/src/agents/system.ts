@@ -162,6 +162,16 @@ const BASE_AGENTS = [
       'Beschlüsse zur Wärmewende auf Bundesebene',
       'Was steht im Wahlprogramm zur Kindergrundsicherung?',
     ],
+    localized: {
+      'de-AT': {
+        openingQuestions: [
+          'Was sagt Die Grünen Österreich zu Tempo 30?',
+          'Aktuelle Position der Grünen Österreich zur Schuldenbremse',
+          'Beschlüsse zur Wärmewende im Nationalrat',
+          'Was steht im Wahlprogramm zur Kinderarmut?',
+        ],
+      },
+    },
     locale: 'de-DE',
     author: 'Grünerator',
     routeTo: 'search',
@@ -620,6 +630,16 @@ Beispielausgabe:
       'Erstelle eine Rede zur Haushaltsdebatte mit Fokus auf soziale Gerechtigkeit',
       'Ich brauche eine kurze Ansprache (5 Min.) für eine Demo',
     ],
+    localized: {
+      'de-AT': {
+        openingQuestions: [
+          'Ich brauche eine Rede für eine Gemeinderatssitzung zum Thema Klimaschutz',
+          'Schreibe eine Eröffnungsrede für ein Sommerfest der Bezirksgruppe',
+          'Erstelle eine Rede zur Budget-Debatte mit Fokus auf soziale Gerechtigkeit',
+          'Ich brauche eine kurze Ansprache (5 Min.) für eine Demo',
+        ],
+      },
+    },
     locale: 'de-DE',
     author: 'Grünerator',
     enabledTools: [
@@ -666,6 +686,16 @@ Beispielausgabe:
       'Kapitel zu Mobilität und Verkehrswende für unsere Kommune',
       'Schreibe über Bildung und Chancengleichheit',
     ],
+    localized: {
+      'de-AT': {
+        openingQuestions: [
+          'Schreibe ein Kapitel zum Thema Klimaschutz und Energiewende',
+          'Erstelle ein Wahlprogramm-Kapitel zu leistbarem Wohnen',
+          'Kapitel zu Mobilität und Verkehrswende für unsere Gemeinde',
+          'Schreibe über Bildung und Chancengleichheit',
+        ],
+      },
+    },
     locale: 'de-DE',
     author: 'Grünerator',
     enabledTools: [
@@ -711,6 +741,16 @@ Beispielausgabe:
       'Schreibe diese Antrags-Begründung in Leichte Sprache um',
       'Formuliere diese Einladung in Leichter Sprache',
     ],
+    localized: {
+      'de-AT': {
+        openingQuestions: [
+          'Übersetze diese Aussendung in Leichte Sprache',
+          'Erkläre unser Wahlprogramm zum Thema Klimaschutz in Leichter Sprache',
+          'Schreibe diese Antrags-Begründung in Leichte Sprache um',
+          'Formuliere diese Einladung in Leichter Sprache',
+        ],
+      },
+    },
     locale: 'de-DE',
     author: 'Grünerator',
     enabledTools: ['memory', 'memory_save', 'self_review'],
@@ -750,6 +790,16 @@ Beispielausgabe:
       'Kürze den ersten Absatz',
       'Was sagt die Bundespartei zu diesem Thema?',
     ],
+    localized: {
+      'de-AT': {
+        openingQuestions: [
+          'Fass das Dokument kurz zusammen',
+          'Was haben wir hier konkret beschlossen?',
+          'Kürze den ersten Absatz',
+          'Was sagt Die Grünen Österreich zu diesem Thema?',
+        ],
+      },
+    },
     locale: 'de-DE',
     author: 'Grünerator',
     enabledTools: [
