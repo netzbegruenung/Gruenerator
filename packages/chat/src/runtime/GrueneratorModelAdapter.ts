@@ -21,6 +21,7 @@ import { getSystemAgent } from '@gruenerator/shared/agents';
 import { parseAllMentions } from '../lib/mentionParser';
 import { parseSSELine } from '../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
+import { pickStageLabels } from '../lib/progressLabels';
 import { useDocumentChatStore } from '../stores/documentChatStore';
 import { streamErrorMessage } from './streamErrorMessage';
 import type { ConfirmActionData, DocumentCreatedData } from '../types/messageMetadata';
@@ -102,21 +103,15 @@ async function* parseSSEStream(
   const currentEvent = { type: '' };
   let accumulatedText = '';
   let accumulatedReasoning = '';
+  // Themed progress labels — picked once per turn, stable for the whole stream.
+  const stageLabels = pickStageLabels();
   let currentProgress: ChatProgress = {
     stage: 'classifying',
-    message: 'Analysiere Anfrage...',
+    message: stageLabels.classifying,
   };
   const progressSteps: ProgressStep[] = [
-    { stage: 'classifying', label: 'Klassifizierung', status: 'in-progress' },
+    { stage: 'classifying', label: stageLabels.classifying, status: 'in-progress' },
   ];
-
-  const STAGE_LABELS: Record<string, string> = {
-    classifying: 'Klassifizierung',
-    searching: 'Suche',
-    summarizing: 'Zusammenfassung',
-    generating_image: 'Bildgenerierung',
-    generating: 'Generierung',
-  };
 
   function transitionStep(newStage: ProgressStage, labelOverride?: string) {
     // Mark current in-progress step as completed
@@ -127,7 +122,7 @@ async function* parseSSEStream(
       }
     }
     // Add new step if it has a label and isn't 'complete'/'error'/'idle'
-    const label = labelOverride || STAGE_LABELS[newStage];
+    const label = labelOverride || stageLabels[newStage];
     if (label && newStage !== 'complete' && newStage !== 'error' && newStage !== 'idle') {
       // Don't duplicate if the same stage already exists
       if (!progressSteps.some((s) => s.stage === newStage)) {
@@ -362,7 +357,7 @@ async function* parseSSEStream(
             searchStep.status = 'completed';
             searchStep.completedAt = Date.now();
           }
-          transitionStep('generating', 'Generiere Antwort');
+          transitionStep('generating');
           currentProgress = {
             ...currentProgress,
             stage: 'generating',
@@ -415,7 +410,7 @@ async function* parseSSEStream(
 
         case 'summary_complete': {
           const { message } = data as { message: string };
-          transitionStep('generating', 'Generiere Antwort');
+          transitionStep('generating');
           currentProgress = { ...currentProgress, stage: 'generating', message };
           yield buildResult();
           break;
@@ -490,7 +485,7 @@ async function* parseSSEStream(
 
         case 'response_start': {
           const { message } = data as { message: string };
-          transitionStep('generating', 'Generiere Antwort');
+          transitionStep('generating');
           currentProgress = { ...currentProgress, stage: 'generating', message };
           yield buildResult();
           break;
