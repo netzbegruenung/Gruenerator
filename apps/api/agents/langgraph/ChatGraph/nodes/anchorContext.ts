@@ -21,8 +21,14 @@ const MAX_DOC_MENTION_TITLES = 5;
 export function getActiveAnchors(state: ChatGraphState): AnchorDescriptor[] {
   const anchors: AnchorDescriptor[] = [];
 
-  if (state.currentDocument?.title) {
-    anchors.push({ kind: 'currentDocument', title: state.currentDocument.title });
+  // The docs-editor surface always has an open document but no title (the
+  // client sends `title: null`). Emit the anchor regardless so the docs
+  // surface gets its prompt adjunct — fall back to a generic label.
+  if (state.currentDocument) {
+    anchors.push({
+      kind: 'currentDocument',
+      title: state.currentDocument.title ?? 'das geöffnete Dokument',
+    });
   }
 
   if (state.documentMentionContext) {
