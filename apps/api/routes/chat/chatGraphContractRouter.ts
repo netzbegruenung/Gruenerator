@@ -1003,6 +1003,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                 if (r.relevance != null) result.relevance = r.relevance;
                 return result;
               }) ?? [],
+            ...((classifiedState.intent === 'examples' ||
+              classifiedState.intent === 'pressemitteilung_examples') &&
+            finalState.examplesResult
+              ? { examplesResult: finalState.examplesResult }
+              : {}),
           });
         }
       }
