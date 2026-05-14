@@ -78,6 +78,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="rounded-lg p-1.5 text-foreground-muted hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-800"
             aria-label="Schließen"
@@ -112,6 +113,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                 return (
                   <div key={skill.mention} className="flex items-center gap-1">
                     <button
+                      type="button"
                       className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-primary/5"
                       onClick={() => onSelect(skill)}
                     >
@@ -124,6 +126,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                       </div>
                     </button>
                     <button
+                      type="button"
                       onClick={() => toggleFavorite(skill.mention)}
                       className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
                       aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
@@ -150,6 +153,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                 return (
                   <div key={skill.mention} className="flex items-center gap-1">
                     <button
+                      type="button"
                       className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-primary/5"
                       onClick={() => onSelect(skill)}
                     >
@@ -162,6 +166,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                       </div>
                     </button>
                     <button
+                      type="button"
                       onClick={() => toggleFavorite(skill.mention)}
                       className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
                       aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
