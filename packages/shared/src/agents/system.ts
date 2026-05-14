@@ -245,6 +245,7 @@ const BASE_AGENTS = [
   // wrong LV. Skills `/presse-<lv>` and `/social-<lv>` route to these agents.
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
+    slug: 'gruene-berlin',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Berlin',
     description:
@@ -285,6 +286,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
+    slug: 'gruene-hamburg',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Hamburg',
     description:
@@ -325,6 +327,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
+    slug: 'gruene-mv',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit MV',
     description:
@@ -365,6 +368,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
+    slug: 'gruene-thueringen',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Thüringen',
     description:
@@ -405,6 +409,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
+    slug: 'gruene-brandenburg',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Brandenburg',
     description:
@@ -452,6 +457,7 @@ const BASE_AGENTS = [
   // deutscher Landesverbands-PMs.
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-at',
+    slug: 'gruene-oesterreich',
     audience: 'de-AT',
     title: 'Öffentlichkeitsarbeit Österreich',
     iconKey: 'megaphone',
