@@ -8,7 +8,6 @@ export const PRESSEMITTEILUNG_SKILL = {
   avatar: '📰',
   backgroundColor: '#316049',
   mention: 'presse',
-  contextPrefix: '[Plattform: Pressemitteilung]',
   skillCategory: 'presse',
   isSystemDefault: true,
   promptTemplate: 'Schreibe eine PM zum Thema: ',

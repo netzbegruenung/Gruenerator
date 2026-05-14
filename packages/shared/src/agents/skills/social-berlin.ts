@@ -8,7 +8,6 @@ export const SOCIAL_BERLIN_SKILL = {
   avatar: '🐻',
   backgroundColor: '#316049',
   mention: 'social-berlin',
-  contextPrefix: '[LV: Berlin / Modus: Social Media]',
   skillCategory: 'social',
   promptTemplate:
     'Erstelle Social-Media-Posts im Stil Grüne Berlin (Facebook, Instagram, Twitter/X, LinkedIn) zum Thema: ',

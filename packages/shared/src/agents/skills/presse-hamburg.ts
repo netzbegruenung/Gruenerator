@@ -8,7 +8,6 @@ export const PRESSE_HAMBURG_SKILL = {
   avatar: '⚓',
   backgroundColor: '#316049',
   mention: 'presse-hamburg',
-  contextPrefix: '[LV: Hamburg / Modus: PM]',
   skillCategory: 'presse',
   promptTemplate: 'Schreibe eine Pressemitteilung im Stil Grüne Hamburg zum Thema: ',
 } as const satisfies SystemSkill;
