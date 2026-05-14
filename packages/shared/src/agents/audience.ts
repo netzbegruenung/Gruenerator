@@ -3,6 +3,21 @@ import { SYSTEM_AGENTS, VISIBLE_SYSTEM_AGENTS } from './system.js';
 import type { Agent } from './types.js';
 
 /**
+ * Locale-aware party name for `{{partyName}}` placeholders in user-visible
+ * agent fields. Mirrors `PARTY_NAMES` in `apps/api/services/localization/`
+ * so the frontend renders the same brand string the backend uses in
+ * compiled system prompts.
+ */
+const PARTY_NAMES_BY_LOCALE: Record<'de-DE' | 'de-AT', string> = {
+  'de-DE': 'Bündnis 90/Die Grünen',
+  'de-AT': 'Die Grünen – Die Grüne Alternative',
+};
+
+function substitutePartyName(text: string, locale: 'de-DE' | 'de-AT'): string {
+  return text.replace(/\{\{partyName\}\}/g, PARTY_NAMES_BY_LOCALE[locale]);
+}
+
+/**
  * Should the user with `userLocale` see this agent in the inventory / sidebar?
  *
  * - `audience: 'all'` or `undefined` → always visible (default).
@@ -20,13 +35,32 @@ export function isAgentVisibleForLocale(agent: Agent, userLocale: string): boole
 
 /**
  * Apply `agent.localized[userLocale]` overrides on top of the agent's
- * defaults, returning a new Agent. Cheap shallow merge — pass-through if
- * no localized bundle matches the locale.
+ * defaults, then substitute `{{partyName}}` placeholders in user-visible
+ * fields with the locale-appropriate party brand. The second pass fixes
+ * a latent issue where AT users saw "{{partyName}}" rendered literally
+ * in openingMessage / welcomeQuestion / openingQuestions — those strings
+ * never went through the backend's LocalizationService.
  */
 export function localizeAgent(agent: Agent, userLocale: string): Agent {
-  const overrides = agent.localized?.[userLocale === 'de-AT' ? 'de-AT' : 'de-DE'];
-  if (!overrides) return agent;
-  return { ...agent, ...overrides };
+  const locale: 'de-DE' | 'de-AT' = userLocale === 'de-AT' ? 'de-AT' : 'de-DE';
+  const overrides = agent.localized?.[locale];
+
+  // Step 1: apply explicit overrides (per-agent custom AT/DE copy).
+  const merged = overrides ? { ...agent, ...overrides } : agent;
+
+  // Step 2: substitute `{{partyName}}` in the user-visible fields so AT
+  // users see "Die Grünen – Die Grüne Alternative" and DE users see
+  // "Bündnis 90/Die Grünen" without each agent author having to remember.
+  return {
+    ...merged,
+    title: substitutePartyName(merged.title, locale),
+    description: substitutePartyName(merged.description, locale),
+    openingMessage: substitutePartyName(merged.openingMessage, locale),
+    ...(merged.welcomeQuestion != null && {
+      welcomeQuestion: substitutePartyName(merged.welcomeQuestion, locale),
+    }),
+    openingQuestions: merged.openingQuestions.map((q) => substitutePartyName(q, locale)),
+  };
 }
 
 /**
