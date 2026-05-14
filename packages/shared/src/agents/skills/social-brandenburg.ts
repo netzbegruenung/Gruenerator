@@ -8,7 +8,6 @@ export const SOCIAL_BRANDENBURG_SKILL = {
   avatar: '🌻',
   backgroundColor: '#316049',
   mention: 'social-brandenburg',
-  contextPrefix: '[LV: Brandenburg / Modus: Social Media]',
   skillCategory: 'social',
   promptTemplate: 'Erstelle Social-Media-Posts im Stil Brandenburger Bündnisgrüne zum Thema: ',
 } as const satisfies SystemSkill;

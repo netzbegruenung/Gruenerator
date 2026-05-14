@@ -8,7 +8,6 @@ export const REEL_SKILL = {
   avatar: '🎬',
   backgroundColor: '#316049',
   mention: 'reel',
-  contextPrefix: '[Plattform: Reel/TikTok-Skript]',
   skillCategory: 'social',
   promptTemplate: 'Skript zu folgendem Thema: ',
   skillSystemPrompt: `**REEL / TIKTOK-SKRIPT (max. 1500 Zeichen):**

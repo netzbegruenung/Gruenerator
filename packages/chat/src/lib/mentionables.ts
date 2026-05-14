@@ -41,7 +41,6 @@ export interface Mentionable {
   avatar: string;
   backgroundColor: string;
   mention: string;
-  contextPrefix?: string;
   skillCategory?: import('./agents').SkillCategory;
   promptTemplate?: string;
   isSystemDefault?: boolean;
@@ -83,7 +82,6 @@ export function agentToMentionable(agent: AgentListItem): Mentionable {
     avatar: agent.avatar,
     backgroundColor: agent.backgroundColor,
     mention: agent.mention,
-    contextPrefix: agent.contextPrefix,
     skillCategory: agent.skillCategory,
     promptTemplate: agent.promptTemplate,
     isSystemDefault: agent.isSystemDefault,
