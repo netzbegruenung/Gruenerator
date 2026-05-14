@@ -51,6 +51,7 @@ interface SocialMediaSearchOptions extends BaseSearchOptions {
   platform?: string;
   country?: string;
   landesverband?: string | readonly string[];
+  collection?: string;
 }
 
 // Search result interfaces
