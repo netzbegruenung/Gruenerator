@@ -230,7 +230,9 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
   // any background regression instead of 13 independent WARN lines.
   void Promise.allSettled(warmTasks.map((t) => t.run())).then((results) => {
     const failures = results
-      .map((r, i) => (r.status === 'rejected' ? { name: warmTasks[i].name, reason: r.reason } : null))
+      .map((r, i) =>
+        r.status === 'rejected' ? { name: warmTasks[i].name, reason: r.reason as unknown } : null
+      )
       .filter((x): x is { name: string; reason: unknown } => x !== null);
 
     if (failures.length === 0) {
@@ -239,9 +241,7 @@ export async function refreshMonitor(): Promise<MonitorSnapshot> {
     }
 
     const detail = failures.map((f) => `${f.name}: ${toError(f.reason).message}`).join('; ');
-    log.error(
-      `Background warm: ${failures.length}/${warmTasks.length} failed — ${detail}`
-    );
+    log.error(`Background warm: ${failures.length}/${warmTasks.length} failed — ${detail}`);
   });
 
   const durationMs = Date.now() - startTime;

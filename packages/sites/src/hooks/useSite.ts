@@ -82,7 +82,7 @@ export function useSite() {
     queryKey: ['my-site'],
     queryFn: async () => {
       try {
-        const response = await apiClient.get('/sites/my-site');
+        const response = await apiClient.get<{ site: SiteData | null }>('/sites/my-site');
         return response.data.site;
       } catch (err: unknown) {
         if (err && typeof err === 'object' && 'response' in err) {
@@ -98,7 +98,7 @@ export function useSite() {
 
   const createMutation = useMutation({
     mutationFn: async (data: Partial<SiteData>) => {
-      const response = await apiClient.post('/sites/create', data);
+      const response = await apiClient.post<{ site: SiteData }>('/sites/create', data);
       return response.data.site;
     },
     onSuccess: () => {
@@ -108,7 +108,7 @@ export function useSite() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<SiteData> }) => {
-      const response = await apiClient.put(`/sites/${id}`, data);
+      const response = await apiClient.put<{ site: SiteData }>(`/sites/${id}`, data);
       return response.data.site;
     },
     onSuccess: () => {
@@ -118,7 +118,9 @@ export function useSite() {
 
   const publishMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiClient.post(`/sites/${id}/publish`, { publish: true });
+      const response = await apiClient.post<{ site: SiteData }>(`/sites/${id}/publish`, {
+        publish: true,
+      });
       return response.data;
     },
     onSuccess: () => {
@@ -131,7 +133,7 @@ export function useSite() {
       description: string;
       email?: string;
     }): Promise<{ transformed: GeneratedSiteData; raw: AiGeneratedContent }> => {
-      const response = await apiClient.post('/claude_website', data);
+      const response = await apiClient.post<{ json: AiGeneratedContent }>('/claude_website', data);
       const raw: AiGeneratedContent = response.data.json;
       return { transformed: transformAiResponse(raw), raw };
     },
@@ -146,10 +148,14 @@ export function useSite() {
       formData.append('flyer', data.file);
       if (data.email) formData.append('email', data.email);
 
-      const response = await apiClient.post('/sites/generate-from-flyer', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 120000,
-      });
+      const response = await apiClient.post<{ json: AiGeneratedContent }>(
+        '/sites/generate-from-flyer',
+        formData,
+        {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 120000,
+        }
+      );
       const raw: AiGeneratedContent = response.data.json;
       return { transformed: transformAiResponse(raw), raw };
     },

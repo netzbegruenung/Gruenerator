@@ -3,7 +3,7 @@ import axios from 'axios';
 import { type useToast } from '../hooks/useToast';
 
 export function handleApiError(error: unknown, toast: ReturnType<typeof useToast>): void {
-  if (axios.isAxiosError(error)) {
+  if (axios.isAxiosError<{ error?: string }>(error)) {
     const status = error.response?.status;
     const message = error.response?.data?.error || error.message;
 

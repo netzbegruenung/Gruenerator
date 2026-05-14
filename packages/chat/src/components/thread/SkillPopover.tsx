@@ -109,6 +109,7 @@ export function SkillPopover({
         <div className="px-3 py-3 text-xs text-foreground-muted">Kein Skill gefunden</div>
       )}
       <button
+        type="button"
         className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-xs text-foreground-muted transition-colors hover:bg-primary/5 hover:text-foreground"
         onMouseDown={(e) => {
           e.preventDefault();
@@ -133,6 +134,7 @@ function SkillItem({
 }) {
   return (
     <button
+      type="button"
       role="option"
       aria-selected={isSelected}
       data-selected={isSelected}

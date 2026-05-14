@@ -6,12 +6,21 @@ import {
   type SkillCategory,
 } from '@gruenerator/chat';
 import { AGENT_CATEGORY_LABELS, getAgentSlug, type Agent } from '@gruenerator/shared/agents';
-import { Input, SectionHeader, CardGrid } from '@gruenerator/ui';
+import {
+  Input,
+  SectionHeader,
+  CardGrid,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@gruenerator/ui';
 import { useMemo, useState } from 'react';
 import {
   PiSparkle,
   PiStar,
   PiStarFill,
+  PiEye,
   PiMagnifyingGlass,
   PiPencilSimple,
   PiTrash,
@@ -26,8 +35,10 @@ import {
   type SharedAgentEntry,
 } from '../agents/api';
 
+import { Markdown } from '@/components/common/Markdown';
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import PageContainer from '@/components/common/PageContainer';
+import { getAgentIcon } from '@/components/layout/Sidebar/sidebarAgentConfig';
 
 const CATEGORY_ORDER: SkillCategory[] = ['presse', 'social', 'dokumente', 'recherche', 'sonstiges'];
 
@@ -40,44 +51,78 @@ interface SkillCardProps {
 
 function SkillCard({ skill, isFavorite, onToggleFavorite, onSelect }: SkillCardProps) {
   const Icon = skill.icon ?? PiSparkle;
+  const [showText, setShowText] = useState(false);
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onSelect(skill)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
+    <>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest('button')) return;
           onSelect(skill);
-        }
-      }}
-      className="group relative flex flex-row bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md"
-    >
-      <div className="flex items-center justify-center px-md text-secondary-600 shrink-0">
-        <Icon className="text-2xl" />
-      </div>
-      <div className="flex flex-col flex-1 p-md min-w-0">
-        <div className="flex justify-between items-start gap-sm mb-xs">
-          <h3 className="text-base font-semibold text-foreground-heading m-0 truncate">
-            {skill.title}
-          </h3>
-          <button
-            type="button"
-            aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleFavorite(skill.mention);
-            }}
-            className="shrink-0 rounded-md p-1 text-secondary-600 transition-colors hover:bg-secondary-600/10"
-          >
-            {isFavorite ? <PiStarFill className="h-4 w-4" /> : <PiStar className="h-4 w-4" />}
-          </button>
+        }}
+        onKeyDown={(e) => {
+          if ((e.target as HTMLElement).closest('button')) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelect(skill);
+          }
+        }}
+        className="group relative flex flex-row bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md"
+      >
+        <div className="flex items-center justify-center px-md text-secondary-600 shrink-0">
+          <Icon className="text-2xl" />
         </div>
-        <p className="text-sm text-foreground leading-relaxed m-0 line-clamp-2">
-          {skill.description}
-        </p>
+        <div className="flex flex-col flex-1 p-md min-w-0">
+          <div className="flex justify-between items-start gap-sm mb-xs">
+            <h3 className="text-base font-semibold text-foreground-heading m-0 truncate">
+              {skill.title}
+            </h3>
+            <div className="flex shrink-0 gap-1">
+              {skill.skillSystemPrompt && (
+                <button
+                  type="button"
+                  aria-label="Skill-Text anzeigen"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowText(true);
+                  }}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  className="rounded-md p-2 text-secondary-600 transition-colors hover:bg-secondary-600/10"
+                >
+                  <PiEye className="h-4 w-4" />
+                </button>
+              )}
+              <button
+                type="button"
+                aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleFavorite(skill.mention);
+                }}
+                onKeyDown={(e) => e.stopPropagation()}
+                className="rounded-md p-2 text-secondary-600 transition-colors hover:bg-secondary-600/10"
+              >
+                {isFavorite ? <PiStarFill className="h-4 w-4" /> : <PiStar className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <p className="text-sm text-foreground leading-relaxed m-0 line-clamp-2">
+            {skill.description}
+          </p>
+        </div>
       </div>
-    </div>
+      {skill.skillSystemPrompt && (
+        <Dialog open={showText} onOpenChange={setShowText}>
+          <DialogContent className="max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>{skill.title}</DialogTitle>
+            </DialogHeader>
+            <Markdown fallback={<p>{skill.description}</p>}>{skill.skillSystemPrompt}</Markdown>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
   );
 }
 
@@ -89,12 +134,17 @@ interface AgentCardProps {
 }
 
 function AgentCard({ agent, onSelect, onEdit, onDelete }: AgentCardProps) {
+  const Icon = getAgentIcon(agent.identifier);
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={() => onSelect(agent)}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest('button')) return;
+        onSelect(agent);
+      }}
       onKeyDown={(e) => {
+        if ((e.target as HTMLElement).closest('button')) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onSelect(agent);
@@ -102,11 +152,8 @@ function AgentCard({ agent, onSelect, onEdit, onDelete }: AgentCardProps) {
       }}
       className="group relative flex flex-row bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div
-        className="flex items-center justify-center px-md text-2xl shrink-0"
-        style={{ backgroundColor: agent.backgroundColor, color: 'white' }}
-      >
-        {agent.avatar}
+      <div className="flex items-center justify-center px-md text-secondary-600 shrink-0">
+        <Icon className="text-2xl" />
       </div>
       <div className="flex flex-col flex-1 p-md min-w-0">
         <div className="flex justify-between items-start gap-sm mb-xs">
@@ -122,7 +169,8 @@ function AgentCard({ agent, onSelect, onEdit, onDelete }: AgentCardProps) {
                   e.stopPropagation();
                   onEdit(agent);
                 }}
-                className="rounded-md p-1 text-secondary-600 transition-colors hover:bg-secondary-600/10"
+                onKeyDown={(e) => e.stopPropagation()}
+                className="rounded-md p-2 text-secondary-600 transition-colors hover:bg-secondary-600/10"
               >
                 <PiPencilSimple className="h-4 w-4" />
               </button>
@@ -135,7 +183,8 @@ function AgentCard({ agent, onSelect, onEdit, onDelete }: AgentCardProps) {
                   e.stopPropagation();
                   onDelete(agent);
                 }}
-                className="rounded-md p-1 text-red-600 transition-colors hover:bg-red-600/10"
+                onKeyDown={(e) => e.stopPropagation()}
+                className="rounded-md p-2 text-red-600 transition-colors hover:bg-red-600/10"
               >
                 <PiTrash className="h-4 w-4" />
               </button>
@@ -157,6 +206,7 @@ interface SharedAgentCardProps {
 
 function SharedAgentCard({ entry, onSelect }: SharedAgentCardProps) {
   const { agent, groups } = entry;
+  const Icon = getAgentIcon(agent.identifier);
   return (
     <div
       role="button"
@@ -170,11 +220,8 @@ function SharedAgentCard({ entry, onSelect }: SharedAgentCardProps) {
       }}
       className="group relative flex flex-row bg-background border border-grey-200 dark:border-grey-700 rounded-md overflow-hidden cursor-pointer transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div
-        className="flex items-center justify-center px-md text-2xl shrink-0"
-        style={{ backgroundColor: agent.backgroundColor, color: 'white' }}
-      >
-        {agent.avatar}
+      <div className="flex items-center justify-center px-md text-secondary-600 shrink-0">
+        <Icon className="text-2xl" />
       </div>
       <div className="flex flex-col flex-1 p-md min-w-0">
         <h3 className="mb-xs text-base font-semibold text-foreground-heading m-0 truncate">

@@ -191,7 +191,6 @@ export interface Skill {
   avatar: string;
   backgroundColor: string;
   mention: string;
-  contextPrefix?: string;
   skillCategory?: SkillCategory;
   promptTemplate?: string;
   isSystemDefault?: boolean;

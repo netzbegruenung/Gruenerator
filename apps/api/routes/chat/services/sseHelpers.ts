@@ -226,27 +226,74 @@ export interface SSEEventPayloads {
 }
 
 /**
- * German status messages for each intent type.
+ * Picks a random element — used to vary user-facing status copy per chat turn.
  */
-export const INTENT_MESSAGES: Record<SearchIntent, string> = {
-  research: 'Recherchiere im Web und in Dokumenten...',
-  compare: 'Vergleiche die referenzierten Dokumente...',
-  search: 'Durchsuche Grüne Positionen und Programme...',
+function pickOne<T>(pool: readonly T[]): T {
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/**
+ * German status messages for each intent type. Each intent has a small pool of
+ * playful, on-brand phrases; `getIntentMessage` picks one per turn so the same
+ * intent feels fresh across messages. Register is mixed — cheeky for the
+ * fast/creative intents, calmer for research and document edits. Entries keep
+ * the trailing "..." progressive-action convention.
+ */
+export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
+  research: [
+    'Recherchiere im Web und in den Dokumenten...',
+    'Grabe mich durch Quellen und Programme...',
+    'Sammle Fakten von überall her...',
+  ],
+  compare: [
+    'Vergleiche die referenzierten Dokumente...',
+    'Lege die Dokumente nebeneinander...',
+    'Suche die Unterschiede heraus...',
+  ],
+  search: [
+    'Durchsuche Grüne Positionen und Programme...',
+    'Wälze die Parteiprogramme...',
+    'Stöbere in den Beschlüssen...',
+  ],
   // person: 'Suche Informationen zur Person...', // DISABLED: Person search not production ready
-  web: 'Suche aktuelle Informationen im Web...',
-  examples: 'Suche Social-Media-Beispiele...',
-  pressemitteilung_examples: 'Suche Pressemitteilungs-Vorlagen aus Landesverbänden...',
-  image: 'Generiere Bild...',
-  image_edit: 'Bearbeite Bild...',
-  sharepic: 'Erstelle Sharepic...',
-  summary: 'Fasse Dokument(e) zusammen...',
-  chart: 'Erstelle Diagramm...',
-  save_as_doc: 'Erstelle Dokument aus Antwort...',
-  modify_doc: 'Bearbeite Dokument...',
-  edit_current_doc: 'Bearbeite das aktuelle Dokument...',
-  modify_board: 'Aktualisiere Board...',
-  share_doc: 'Teile Dokument mit Gruppe...',
-  direct: 'Beantworte direkt...',
+  web: [
+    'Suche aktuelle Informationen im Web...',
+    'Hole frische Infos aus dem Netz...',
+    'Schaue im Web nach dem neuesten Stand...',
+  ],
+  examples: [
+    'Suche Social-Media-Beispiele...',
+    'Krame in der Social-Media-Kiste...',
+    'Hole Inspiration aus alten Posts...',
+  ],
+  pressemitteilung_examples: [
+    'Suche Pressemitteilungs-Vorlagen aus Landesverbänden...',
+    'Blättere durch Pressemitteilungen der Landesverbände...',
+    'Hole Vorlagen aus den Landesverbänden...',
+  ],
+  image: ['Generiere Bild...', 'Mische die Farben...', 'Spanne die Leinwand auf...'],
+  image_edit: [
+    'Bearbeite Bild...',
+    'Bearbeite das Bild mit dem Pinsel...',
+    'Werfe Farbbeutel auf das Bild...',
+  ],
+  sharepic: [
+    'Erstelle Sharepic...',
+    'Baue dein Sharepic...',
+    'Bringe die Botschaft aufs Sharepic...',
+  ],
+  summary: [
+    'Fasse Dokument(e) zusammen...',
+    'Koche die Dokumente auf das Wichtigste ein...',
+    'Bündele den Inhalt...',
+  ],
+  chart: ['Erstelle Diagramm...', 'Bringe die Zahlen in Form...', 'Zeichne das Diagramm...'],
+  save_as_doc: ['Erstelle Dokument aus Antwort...', 'Gieße die Antwort in ein Dokument...'],
+  modify_doc: ['Bearbeite Dokument...', 'Feile am Dokument...'],
+  edit_current_doc: ['Bearbeite das aktuelle Dokument...', 'Lege im offenen Dokument Hand an...'],
+  modify_board: ['Aktualisiere Board...', 'Bringe das Board auf Stand...'],
+  share_doc: ['Teile Dokument mit Gruppe...', 'Reiche das Dokument an die Gruppe weiter...'],
+  direct: ['Beantworte direkt...', 'Antworte aus dem Stand...', 'Lege direkt los...'],
 };
 
 /**
@@ -345,10 +392,11 @@ export class SSEWriter {
 }
 
 /**
- * Get the German status message for an intent.
+ * Get a German status message for an intent — one phrase picked at random from
+ * the intent's pool, so the copy varies from one chat turn to the next.
  */
 export function getIntentMessage(intent: SearchIntent): string {
-  return INTENT_MESSAGES[intent] || 'Verarbeite Anfrage...';
+  return pickOne(INTENT_MESSAGE_POOLS[intent] ?? ['Verarbeite Anfrage...']);
 }
 
 /**

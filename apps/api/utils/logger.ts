@@ -20,7 +20,7 @@ const logger = winston.createLogger({
       // silently dropped by the formatter and failures look mysterious in CI.
       const meta = Object.keys(rest).length
         ? ' ' +
-          JSON.stringify(rest, (_k, v) =>
+          JSON.stringify(rest, (_k: string, v: unknown) =>
             v instanceof Error ? { name: v.name, message: v.message, stack: v.stack } : v
           )
         : '';

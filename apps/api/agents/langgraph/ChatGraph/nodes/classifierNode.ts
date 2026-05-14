@@ -669,15 +669,41 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
 }
 
 /**
+ * Compact topic hint from the open document so the query optimizer can resolve
+ * anaphora like "dieses Dokument" to a concrete subject. Heuristic only (no LLM)
+ * — the classifier path is latency-sensitive. Caps the excerpt so it stays a
+ * hint, not a full document dump.
+ */
+function extractDocumentTopicHint(
+  currentDocument: NonNullable<ChatGraphState['currentDocument']>
+): string {
+  const excerpt = currentDocument.markdown
+    .replace(/```[\s\S]*?```/g, ' ') // fenced code blocks
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1') // links/images → label text
+    .replace(/[#>*_`~|-]/g, ' ') // markdown punctuation
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 280);
+  const title = currentDocument.title?.trim();
+  if (title) return `"${title}" — ${excerpt}`;
+  return excerpt || 'das geöffnete Dokument';
+}
+
+/**
  * Compact topical hint for the query optimizer so anaphoric pronouns
- * ("dazu", "dies", "darüber") can resolve to a concrete subject. Skips
- * `documentChat` — that anchor lives in its own classifier branch above.
+ * ("dazu", "dies", "darüber", "dieses Dokument") can resolve to a concrete
+ * subject. Skips `documentChat` — that anchor lives in its own classifier
+ * branch above.
  */
 function formatTopicalContext(state: ChatGraphState): string | null {
   const lines = getActiveAnchors(state).flatMap((a): string[] => {
     switch (a.kind) {
       case 'currentDocument':
-        return [`- Aktuell geöffnetes Dokument: "${a.title}"`];
+        return state.currentDocument
+          ? [
+              `- Aktuell geöffnetes Dokument — Inhalt: "${extractDocumentTopicHint(state.currentDocument)}"`,
+            ]
+          : [];
       case 'documentMention':
         return [`- Referenzierte Dokumente: ${a.titles.map((t) => `"${t}"`).join(', ')}`];
       case 'board':
