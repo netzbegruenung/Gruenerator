@@ -8,7 +8,6 @@ export const TWITTER_SKILL = {
   avatar: '🐦',
   backgroundColor: '#316049',
   mention: 'twitter',
-  contextPrefix: '[Plattform: Twitter]',
   skillCategory: 'social',
   promptTemplate: 'Tweet zu folgendem Thema: ',
   skillSystemPrompt: `**TWEET / X-POST (max. 280 Zeichen):**

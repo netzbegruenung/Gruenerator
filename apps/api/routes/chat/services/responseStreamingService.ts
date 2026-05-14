@@ -9,6 +9,7 @@
 
 import { streamText, type ModelMessage, type LanguageModel } from 'ai';
 
+import { isReasoningCapable } from '../../../services/ai/modelDiscovery.js';
 import {
   isRegoloReasoningModel,
   streamRegoloWithReasoning,
@@ -274,6 +275,7 @@ async function streamAndAccumulateOrThrow(params: {
   sse: SSEWriter;
   signal?: AbortSignal;
   logPrefix?: string;
+  providerOptions?: Parameters<typeof streamText>[0]['providerOptions'];
 }): Promise<string | null> {
   const {
     model,
@@ -283,6 +285,7 @@ async function streamAndAccumulateOrThrow(params: {
     sse,
     signal,
     logPrefix = '[ChatGraph]',
+    providerOptions,
   } = params;
 
   const { deadline, signal: deadlineSignal, clear } = createFirstTokenDeadline();
@@ -299,26 +302,48 @@ async function streamAndAccumulateOrThrow(params: {
     maxOutputTokens: maxTokens,
     temperature,
     abortSignal: composed,
+    ...(providerOptions && { providerOptions }),
   });
 
-  const iterator = result.textStream[Symbol.asyncIterator]();
+  // fullStream (not textStream) so reasoning models surface their thinking as
+  // `reasoning_delta` SSE events alongside the answer. A reasoning delta clears
+  // the first-token deadline (the model is demonstrably alive), but only a
+  // `text-delta` ends phase 1 — until visible answer text is on the wire we
+  // can still fall back cleanly.
+  const iterator = result.fullStream[Symbol.asyncIterator]();
   let fullText = '';
+  let textStarted = false;
+  let deadlineCleared = false;
   const stopHeartbeat = startResponseHeartbeat(sse);
 
-  // Single shared deadline across all initial-probe iterations. Some providers
-  // emit empty initial chunks before content; we keep racing against the SAME
-  // timeout (not a fresh one each time) until either content arrives or the
-  // deadline fires.
+  // Phase 1 — race the shared deadline until the first visible text delta.
+  // Some providers emit empty/structural parts (start, text-start, …) and a
+  // reasoning preamble first; we keep racing against the SAME timeout until
+  // text arrives or the deadline fires.
   try {
-    while (true) {
-      const next = await Promise.race([iterator.next(), deadline]);
+    while (!textStarted) {
+      const next = deadlineCleared
+        ? await iterator.next()
+        : await Promise.race([iterator.next(), deadline]);
       if (next.done) throw new EmptyCompletionError();
-      if (next.value.length > 0) {
-        clear();
-        stopHeartbeat();
-        fullText += next.value;
-        sse.send('text_delta', { text: next.value });
-        break;
+      const part = next.value;
+      if (part.type === 'error') throw part.error;
+      if (part.type === 'reasoning-delta' && part.text.length > 0) {
+        if (!deadlineCleared) {
+          clear();
+          stopHeartbeat();
+          deadlineCleared = true;
+        }
+        sse.send('reasoning_delta', { text: part.text });
+      } else if (part.type === 'text-delta' && part.text.length > 0) {
+        if (!deadlineCleared) {
+          clear();
+          stopHeartbeat();
+          deadlineCleared = true;
+        }
+        fullText += part.text;
+        sse.send('text_delta', { text: part.text });
+        textStarted = true;
       }
     }
   } catch (err) {
@@ -327,13 +352,20 @@ async function streamAndAccumulateOrThrow(params: {
     throw err;
   }
 
-  // Past the first real chunk: no more deadline races, just drain.
+  // Phase 2 — visible text is on the wire; just drain. Errors here can't
+  // trigger a clean fallback, so they end the stream gracefully.
   try {
     while (true) {
       const next = await iterator.next();
       if (next.done) break;
-      fullText += next.value;
-      sse.send('text_delta', { text: next.value });
+      const part = next.value;
+      if (part.type === 'error') throw part.error;
+      if (part.type === 'reasoning-delta' && part.text.length > 0) {
+        sse.send('reasoning_delta', { text: part.text });
+      } else if (part.type === 'text-delta' && part.text.length > 0) {
+        fullText += part.text;
+        sse.send('text_delta', { text: part.text });
+      }
     }
   } catch (streamError: unknown) {
     const errorMessage = streamError instanceof Error ? streamError.message : 'Unknown error';
@@ -564,5 +596,11 @@ export async function streamForResolution(params: {
   };
   if (signal) args.signal = signal;
   if (logPrefix) args.logPrefix = logPrefix;
+  // Mistral reasoning models (e.g. Medium 3.5) only think when `reasoningEffort`
+  // is set per request; @ai-sdk/mistral then surfaces the reasoning via
+  // fullStream so streamAndAccumulateOrThrow can emit it as reasoning_delta.
+  if (resolution.provider === 'mistral' && isReasoningCapable(resolution.modelName)) {
+    args.providerOptions = { mistral: { reasoningEffort: 'high' } };
+  }
   return streamAndAccumulateOrThrow(args);
 }

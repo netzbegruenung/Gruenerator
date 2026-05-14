@@ -8,7 +8,6 @@ export const FACEBOOK_SKILL = {
   avatar: '👍',
   backgroundColor: '#316049',
   mention: 'facebook',
-  contextPrefix: '[Plattform: Facebook]',
   skillCategory: 'social',
   promptTemplate: 'Beitrag zu folgendem Thema: ',
   skillSystemPrompt: `**FACEBOOK-POST (max. 600 Zeichen):**
