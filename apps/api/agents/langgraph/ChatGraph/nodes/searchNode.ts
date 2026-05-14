@@ -1039,6 +1039,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           ...(country && { country }),
           ...(lvScope !== undefined && { lvScope }),
           ...(state.platform && { platform: state.platform }),
+          ...(agentConfig.toolRestrictions?.examplesCollection != null && {
+            examplesCollection: agentConfig.toolRestrictions.examplesCollection,
+          }),
           fullBody: true,
         });
 
