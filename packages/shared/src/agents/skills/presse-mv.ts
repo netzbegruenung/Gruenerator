@@ -8,7 +8,6 @@ export const PRESSE_MV_SKILL = {
   avatar: '🌊',
   backgroundColor: '#316049',
   mention: 'presse-mv',
-  contextPrefix: '[LV: Mecklenburg-Vorpommern / Modus: PM]',
   skillCategory: 'presse',
   promptTemplate: 'Schreibe eine Pressemitteilung im Stil Grüne MV zum Thema: ',
 } as const satisfies SystemSkill;

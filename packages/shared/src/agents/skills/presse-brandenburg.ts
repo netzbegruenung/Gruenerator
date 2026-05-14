@@ -8,7 +8,6 @@ export const PRESSE_BRANDENBURG_SKILL = {
   avatar: '🌻',
   backgroundColor: '#316049',
   mention: 'presse-brandenburg',
-  contextPrefix: '[LV: Brandenburg / Modus: PM]',
   skillCategory: 'presse',
   promptTemplate: 'Schreibe eine Pressemitteilung im Stil Brandenburger Bündnisgrüne zum Thema: ',
 } as const satisfies SystemSkill;

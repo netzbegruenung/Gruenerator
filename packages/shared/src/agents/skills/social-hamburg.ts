@@ -8,7 +8,6 @@ export const SOCIAL_HAMBURG_SKILL = {
   avatar: '⚓',
   backgroundColor: '#316049',
   mention: 'social-hamburg',
-  contextPrefix: '[LV: Hamburg / Modus: Social Media]',
   skillCategory: 'social',
   promptTemplate: 'Erstelle Social-Media-Posts im Stil Grüne Hamburg zum Thema: ',
 } as const satisfies SystemSkill;
