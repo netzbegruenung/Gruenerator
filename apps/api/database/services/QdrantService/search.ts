@@ -182,7 +182,7 @@ export function buildSocialMediaFilter(
     const lv = options.landesverband;
     must.push({
       key: 'landesverband',
-      match: Array.isArray(lv) ? { any: [...lv] } : { value: lv as string },
+      match: typeof lv === 'string' ? { value: lv } : { any: [...lv] },
     });
   }
 

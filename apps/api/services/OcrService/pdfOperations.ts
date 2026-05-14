@@ -12,7 +12,7 @@ import type {
   PageExtractionResult,
 } from './types.js';
 
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access -- pdfjs-dist's legacy build ships no type declarations */
 
 /**
  * Lazy load PDF.js to avoid memory overhead
