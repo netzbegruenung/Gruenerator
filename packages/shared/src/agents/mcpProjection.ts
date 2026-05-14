@@ -1,4 +1,4 @@
-import { SKILLS } from './skills.js';
+import { SKILLS } from './skills/index.js';
 import { SYSTEM_AGENTS } from './system.js';
 
 import type { Agent, FewShotExample } from './types.js';

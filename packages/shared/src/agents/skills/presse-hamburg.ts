@@ -1,0 +1,14 @@
+import type { SystemSkill } from './types.js';
+
+export const PRESSE_HAMBURG_SKILL = {
+  identifier: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
+  title: 'PM Hamburg',
+  description: 'Pressemitteilung im Stil Grüne Hamburg',
+  iconKey: 'PiAnchor',
+  avatar: '⚓',
+  backgroundColor: '#316049',
+  mention: 'presse-hamburg',
+  contextPrefix: '[LV: Hamburg / Modus: PM]',
+  skillCategory: 'presse',
+  promptTemplate: 'Schreibe eine Pressemitteilung im Stil Grüne Hamburg zum Thema: ',
+} as const satisfies SystemSkill;

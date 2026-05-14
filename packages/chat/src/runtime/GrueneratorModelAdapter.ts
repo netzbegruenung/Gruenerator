@@ -544,6 +544,28 @@ async function* parseSSEStream(
           break;
         }
 
+        case 'progress_step': {
+          // Internal pipeline stage (classify, rerank, brief). Updates the
+          // progress indicator but MUST NOT touch activeToolCall/allToolCalls
+          // — those are reserved for user-facing tools dispatched via the
+          // `intent` event + `thinking_step`. Conflating the two is what
+          // caused the search→rerank race that orphaned the rich
+          // examples/search/web tool-cards (see PR history).
+          const { title, status } = data as {
+            stepId: string;
+            toolName: string;
+            title: string;
+            status: 'in_progress' | 'completed';
+          };
+          if (status === 'in_progress') {
+            currentProgress = { ...currentProgress, stage: 'searching', message: title };
+          } else if (status === 'completed') {
+            currentProgress = { ...currentProgress, message: title };
+          }
+          yield buildResult();
+          break;
+        }
+
         case 'text_delta': {
           const delta = (data as { text: string }).text;
           accumulatedText += delta;
