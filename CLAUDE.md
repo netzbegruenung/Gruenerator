@@ -10,6 +10,8 @@
 
 Grünerator: AI content creation platform for Die Grünen. pnpm monorepo (web, mobile, desktop, API). EU-hosted infrastructure.
 
+**Locale: Austria (de-AT) is a first-class audience alongside Germany (de-DE).** Default to AT-aware code, not DE-with-AT-toggle. When adding agents, tag `audience: 'de-DE' | 'de-AT' | 'all'` explicitly — leaving it undefined defaults to `'all'` for backward compat, not as a way to skip the decision. System prompts with DE-specific terminology must fork via `userLocale === 'de-AT'`; the `## LÄNDERKONTEXT: ÖSTERREICH` block in `systemPrompt.ts` is the established seam. Notebook routing falls back to `oesterreich-notebook` for AT users when an agent has no `defaultNotebookId`.
+
 ## Commands
 
 All from repo root (pnpm + Turborepo):

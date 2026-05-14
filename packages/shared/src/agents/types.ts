@@ -54,6 +54,31 @@ export interface AgentDefaultFilter {
   landesverband?: readonly string[] | string;
 }
 
+/**
+ * Which user-locale audience an agent is meant for.
+ * - `'de-DE'` — only German users see it (Landesverband PR agents, German-only
+ *   persona agents, anything tied to Bundestag / German LV substrates).
+ * - `'de-AT'` — only Austrian users see it (none yet at the time of writing).
+ * - `'all'` — visible to everyone; the agent itself adapts to `userLocale`
+ *   (e.g. system prompt forks via `LÄNDERKONTEXT: ÖSTERREICH` for AT users).
+ * - `undefined` — treated as `'all'` for backward compatibility.
+ */
+export type AgentAudience = 'de-DE' | 'de-AT' | 'all';
+
+/**
+ * Per-locale UI override bundle. Fields here win over the agent's top-level
+ * defaults when a matching user locale resolves the agent. Used for agents
+ * marked `audience: 'all'` that want to swap welcome copy, opening questions,
+ * or description text per locale without forking into two registry entries.
+ */
+export interface AgentLocalization {
+  title?: string;
+  description?: string;
+  openingMessage?: string;
+  welcomeQuestion?: string;
+  openingQuestions?: readonly string[];
+}
+
 export interface Agent {
   identifier: string;
   title: string;
@@ -119,6 +144,19 @@ export interface Agent {
    * Additional categories will be added as the agent taxonomy stabilizes.
    */
   category?: AgentCategory;
+  /**
+   * Which user-locale audience this agent is meant for. Governs sidebar /
+   * inventory visibility — backend can still resolve the agent by identifier
+   * regardless (for direct URL access or legacy thread reconstruction).
+   * See `AgentAudience` for the semantics; undefined ≈ `'all'`.
+   */
+  audience?: AgentAudience;
+  /**
+   * Optional per-locale overrides applied by `localizeAgent(agent, locale)`.
+   * Useful for `audience: 'all'` agents that should swap title / opening
+   * copy per user locale without forking into two registry entries.
+   */
+  localized?: Partial<Record<'de-DE' | 'de-AT', AgentLocalization>>;
 }
 
 export type AgentCategory = 'gruppen';
