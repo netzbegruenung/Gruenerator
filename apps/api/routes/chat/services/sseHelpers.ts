@@ -33,6 +33,7 @@ export type SSEEventType =
   | 'sharepic_complete'
   | 'response_start'
   | 'thinking_step'
+  | 'progress_step'
   | 'text_delta'
   | 'reasoning_delta'
   | 'fallback'
@@ -83,6 +84,20 @@ export interface ThinkingStepPayload {
     error?: string;
   };
 }
+
+/**
+ * Payload for internal pipeline-progress events (classify, rerank, brief).
+ *
+ * Shape mirrors ThinkingStepPayload but the *semantics* differ:
+ * `thinking_step` is a user-facing tool call (search_examples, ask_human, …)
+ * that renders a tool-card and persists in `allToolCalls`.
+ * `progress_step` is a transient internal stage that drives ONLY the
+ * progress indicator — it must NOT mutate the active/persisted tool-call
+ * stream, or it clobbers the intent-derived tool-call between `intent`
+ * and `search_complete` (the race that made every search→rerank flow
+ * silently drop its rich tool-card).
+ */
+export type ProgressStepPayload = ThinkingStepPayload;
 
 /**
  * SSE event payloads by type.
@@ -138,6 +153,7 @@ export interface SSEEventPayloads {
   };
   response_start: { message: string };
   thinking_step: ThinkingStepPayload;
+  progress_step: ProgressStepPayload;
   text_delta: { text: string };
   reasoning_delta: { text: string };
   fallback: {
