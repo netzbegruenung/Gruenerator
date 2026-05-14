@@ -28,6 +28,35 @@ async function fetchAuthStatus(): Promise<AuthData> {
   };
 }
 
+/**
+ * Three-way classification of a session probe. The key distinction `queryFn`
+ * needs is `guest` (server definitively answered "no session") vs
+ * `transient-error` (we couldn't reach or trust the server) — only the former
+ * may tear down auth state. `authClient.getSession()` returns
+ * `{ data: null, error: null }` for a genuine logged-out user, so any populated
+ * `error` is a transport/server failure (network blip, 5xx, timeout, deploy
+ * cold-start) and must NOT be treated as a logout.
+ */
+type AuthProbeResult =
+  | { kind: 'authenticated'; user: UserProfile }
+  | { kind: 'guest' }
+  | { kind: 'transient-error'; error: unknown };
+
+async function probeAuthStatus(): Promise<AuthProbeResult> {
+  try {
+    const { data, error } = await authClient.getSession();
+    if (error) return { kind: 'transient-error', error };
+    if (!data?.user) return { kind: 'guest' };
+    return {
+      kind: 'authenticated',
+      user: sessionUserToProfile(data.user as unknown as Record<string, unknown>),
+    };
+  } catch (error) {
+    // getSession() threw before returning a response — network failure.
+    return { kind: 'transient-error', error };
+  }
+}
+
 interface AuthOptions {
   skipAuth?: boolean;
   lazy?: boolean;
@@ -488,25 +517,36 @@ export const useAuth = (options: AuthOptions = {}) => {
         return data;
       }
 
-      try {
-        const data = await fetchAuthStatus();
-        applyAuthAnswer(data, queryClient);
-        return data;
-      } catch (error) {
-        // Session probe failed. Tear down auth state and rethrow so React
-        // Query enters its error branch. `useAuthBootstrapped` treats `error`
-        // as "bootstrapped" (the splash unhangs into Startseite via the guard).
-        clearCachedAuthState();
-        useAuthStore.getState().clearAuth();
-        throw error;
+      const result = await probeAuthStatus();
+      if (result.kind === 'transient-error') {
+        // We couldn't reach or trust the server — this is NOT a logout. Leave
+        // the optimistic store state AND the localStorage caches untouched.
+        // Throw so React Query retries and enters its error branch; the
+        // last-good `data` (or `initialData`) survives, so a logged-in user
+        // keeps rendering instead of being torn down to `/login`.
+        throw result.error;
       }
+
+      const data: AuthData =
+        result.kind === 'authenticated'
+          ? { isAuthenticated: true, user: result.user }
+          : { isAuthenticated: false };
+      // `guest` flows through here too: applyAuthAnswer's else-branch wipes
+      // the cache and clears the store — correct, the server definitively
+      // said there is no session.
+      applyAuthAnswer(data, queryClient);
+      return data;
     },
     enabled: isServerAvailable && !skipAuth,
     initialData: cachedEntry?.data,
     initialDataUpdatedAt: cachedEntry?.timestamp,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-    retry: 1,
+    // `queryFn` now only throws on transient (transport/server) failures —
+    // a genuine guest answer resolves normally — so every throw is worth
+    // retrying. Backoff rides out a backend deploy / cold-start window.
+    retry: (failureCount) => failureCount < 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
     // Auth specifically must stay live: sessions can die while a tab sits
     // idle (Better Auth cookie revalidation against a stale row). On focus
     // we want the UI to learn about it immediately, rather than waiting for
