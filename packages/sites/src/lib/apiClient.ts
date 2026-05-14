@@ -17,8 +17,8 @@ export function setSitesUnauthorizedHandler(handler: (() => void) | null): void 
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error?.response?.status === 401 && unauthorizedHandler) {
+  (error: unknown) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401 && unauthorizedHandler) {
       unauthorizedHandler();
     }
     return Promise.reject(error);

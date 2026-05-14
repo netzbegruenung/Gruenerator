@@ -10,6 +10,7 @@ export default [
       'apps/mobile/**/*.{ts,tsx,js,jsx}',
       'apps/desktop/**/*.{ts,tsx,js,jsx}',
       'apps/gruen-o-mat/**/*.{ts,tsx,js,jsx}',
+      'packages/sites/**/*.{ts,tsx,js,jsx}',
     ],
     ...reactConfig[0],
   },
@@ -20,6 +21,7 @@ export default [
       'apps/mobile/**/*.{ts,tsx,js,jsx}',
       'apps/desktop/**/*.{ts,tsx,js,jsx}',
       'apps/gruen-o-mat/**/*.{ts,tsx,js,jsx}',
+      'packages/sites/**/*.{ts,tsx,js,jsx}',
     ],
   })),
 
