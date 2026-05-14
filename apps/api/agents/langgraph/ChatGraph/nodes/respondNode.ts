@@ -608,10 +608,21 @@ const ANCHOR_ADJUNCTS: { [K in AnchorDescriptor['kind']]: string } = {
 function getAnchorAdjuncts(state: ChatGraphState): string {
   if (MODES_WITHOUT_ANCHORS.has(state.intent)) return '';
 
-  const fragments = getActiveAnchors(state).map((a) => ANCHOR_ADJUNCTS[a.kind]);
+  const anchors = getActiveAnchors(state);
+  const fragments = anchors.map((a) => ANCHOR_ADJUNCTS[a.kind]);
   if (fragments.length === 0) return '';
 
-  return `\n\n## ZUSÄTZLICHER KONTEXT\n\n${fragments.join('\n')}\n\nNutze die jeweils relevanten Quellen — keine ist exklusiv. Bei Recherche-Fragen sind Suchergebnisse die primäre Antwortgrundlage; offene/referenzierte Dokumente dienen als thematischer Kontext.`;
+  // Docs-editor surface: when an open document AND retrieved search/notebook
+  // results are both present (e.g. the user typed "@berlin …"), the open
+  // document otherwise dominates the answer and the notebook is silently
+  // ignored. Make co-equal synthesis explicit for this turn.
+  const hasCurrentDocument = anchors.some((a) => a.kind === 'currentDocument');
+  const coEqualLine =
+    hasCurrentDocument && state.searchResults.length > 0
+      ? '\n\nWichtig für den Dokument-Editor: Das AKTUELLE DOKUMENT und die SUCHERGEBNISSE sind hier gleichwertige Quellen — synthetisiere in der Regel über beide. Wenn die Frage aber klar eine Recherche-Aufgabe ist (z.B. ein explizit erwähntes Notebook wie @berlin) und sich erkennbar nicht auf das geöffnete Dokument bezieht, darfst du das Dokument für diese eine Antwort beiseitelassen und allein aus den Suchergebnissen antworten. Ein explizit angefragtes Notebook ignorierst du nie zugunsten des Dokuments.'
+      : '';
+
+  return `\n\n## ZUSÄTZLICHER KONTEXT\n\n${fragments.join('\n')}\n\nNutze die jeweils relevanten Quellen — keine ist exklusiv. Bei Recherche-Fragen sind Suchergebnisse die primäre Antwortgrundlage; offene/referenzierte Dokumente dienen als thematischer Kontext.${coEqualLine}`;
 }
 
 /**
