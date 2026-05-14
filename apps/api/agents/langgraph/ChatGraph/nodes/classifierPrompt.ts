@@ -77,6 +77,8 @@ Wenn intent search/research/web/examples ist, erstelle eine optimierte Suchquery
 - Beispiel: "Schreib eine Pressemitteilung über die Klimapolitik der Grünen" → "Klimapolitik der Grünen"
 - Beispiel: "Erstelle mir Argumente zur Energiewende" → "Energiewende Argumente"
 - Beispiel: "Was sagen die Grünen zum Kohleausstieg?" → "Grüne Kohleausstieg Position"
+- ANAPHER AUFLÖSEN: Wenn die Nachricht sich auf das geöffnete Dokument bezieht ("dieses/diesem Dokument", "hier", "das hier", "dazu") UND ein THEMENKONTEXT mitgeliefert wird, löse die Referenz auf das tatsächliche Thema des Dokuments auf (aus dem Themenkontext) und baue searchQuery + optimizedSearchQuery aus diesem Thema. Suche NIE nach der wörtlichen Meta-Frage.
+- Beispiel: "wie ist unsere position zu diesem dokument" + Themenkontext (Dokument über kommunalen Klimaschutz) → optimizedSearchQuery: "Grüne Position kommunaler Klimaschutz"
 
 SCHRITT 5 - KOMPLEXE ANFRAGEN ZERLEGEN:
 Wenn die Anfrage MEHRERE VERSCHIEDENE Themen vergleicht, kombiniert, ODER verschiedene Aufgaben enthält die verschiedene Themen betreffen:

@@ -62,6 +62,7 @@ interface DocsChatProviderProps {
   documentId: string;
   userId: string | null;
   userName: string | null;
+  documentTitle: string | null;
   children: ReactNode;
 }
 
@@ -69,6 +70,7 @@ export function DocsChatProvider({
   documentId,
   userId,
   userName,
+  documentTitle,
   children,
 }: DocsChatProviderProps) {
   if (!userId) {
@@ -78,7 +80,12 @@ export function DocsChatProvider({
   }
   return (
     <DocsAuiReset>
-      <DocsChatProviderInner documentId={documentId} userId={userId} userName={userName}>
+      <DocsChatProviderInner
+        documentId={documentId}
+        userId={userId}
+        userName={userName}
+        documentTitle={documentTitle}
+      >
         {children}
       </DocsChatProviderInner>
     </DocsAuiReset>
@@ -94,10 +101,17 @@ interface InnerProps {
   documentId: string;
   userId: string;
   userName: string | null;
+  documentTitle: string | null;
   children: ReactNode;
 }
 
-function DocsChatProviderInner({ documentId, userId, userName, children }: InnerProps) {
+function DocsChatProviderInner({
+  documentId,
+  userId,
+  userName,
+  documentTitle,
+  children,
+}: InnerProps) {
   const {
     data: threadResp,
     error: threadError,
@@ -144,6 +158,7 @@ function DocsChatProviderInner({ documentId, userId, userName, children }: Inner
       documentId={documentId}
       userId={userId}
       userName={userName}
+      documentTitle={documentTitle}
     >
       {children}
     </DocsChatReadyHost>
@@ -155,10 +170,18 @@ interface ReadyHostProps {
   documentId: string;
   userId: string;
   userName: string | null;
+  documentTitle: string | null;
   children: ReactNode;
 }
 
-function DocsChatReadyHost({ threadId, documentId, userId, userName, children }: ReadyHostProps) {
+function DocsChatReadyHost({
+  threadId,
+  documentId,
+  userId,
+  userName,
+  documentTitle,
+  children,
+}: ReadyHostProps) {
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const endpoints = useChatConfigStore((s) => s.endpoints);
   const registerContextProvider = useChatConfigStore((s) => s.registerContextProvider);
@@ -191,14 +214,14 @@ function DocsChatReadyHost({ threadId, documentId, userId, userName, children }:
       return {
         currentDocument: {
           id: documentId,
-          title: null,
+          title: documentTitle?.trim() || null,
           markdown,
           selectionText: selection,
         },
       };
     };
     return registerContextProvider(threadId, provider);
-  }, [threadId, documentId, registerContextProvider]);
+  }, [threadId, documentId, documentTitle, registerContextProvider]);
 
   // Per-surface store: docs panel keeps its own selectedAgentId / threadMode /
   // searchMode / model / notebook / custom prompt. The main /chat surface has
