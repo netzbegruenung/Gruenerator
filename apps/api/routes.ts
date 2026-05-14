@@ -4,7 +4,7 @@
  */
 
 import express from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 import authMiddleware from './middleware/authMiddleware.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
@@ -118,7 +118,10 @@ const isRateLimitDisabled = process.env.DISABLE_RATE_LIMITS === 'true';
 
 // Bucket key: authenticated user when known, else client IP. Without this,
 // users sharing an egress IP (office NAT, CGNAT, VPN) compete for one bucket.
-const perUserOrIpKey = (req: Request): string => req.user?.id ?? req.ip ?? 'anonymous';
+// IPv6 addresses are normalised to their /64 prefix via ipKeyGenerator so a
+// single user cannot bypass the limit by rotating low bits of their address.
+const perUserOrIpKey = (req: Request): string =>
+  req.user?.id ?? (req.ip ? ipKeyGenerator(req.ip) : 'anonymous');
 
 const aiGenerationLimiter = isRateLimitDisabled
   ? (_req: Request, _res: Response, next: NextFunction) => next()
