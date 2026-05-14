@@ -46,8 +46,7 @@ function localizeAgent(agent: McpAgentDefinition, country: Country): McpAgentDef
 function buildPromptMessages(
   agent: McpAgentDefinition,
   message: string,
-  country: Country,
-  platformPrefix?: string
+  country: Country
 ): PromptMessage[] {
   const localizedAgent = localizeAgent(agent, country);
   const messages: PromptMessage[] = [];
@@ -82,11 +81,10 @@ function buildPromptMessages(
     }
   }
 
-  // 4. Actual user message (with optional platform prefix)
-  const userText = platformPrefix ? `${platformPrefix} ${message}` : message;
+  // 4. Actual user message
   messages.push({
     role: 'user',
-    content: { type: 'text', text: userText },
+    content: { type: 'text', text: message },
   });
 
   return messages;
@@ -141,12 +139,7 @@ export function registerAgentPrompts(server: McpServer): void {
 
           return {
             description: variant ? `${agent.title} — ${variant.title}` : agent.description,
-            messages: buildPromptMessages(
-              agent,
-              message,
-              country as Country,
-              variant?.contextPrefix
-            ),
+            messages: buildPromptMessages(agent, message, country as Country),
           };
         }
       );

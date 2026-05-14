@@ -8,7 +8,6 @@ export const LINKEDIN_SKILL = {
   avatar: '💼',
   backgroundColor: '#316049',
   mention: 'linkedin',
-  contextPrefix: '[Plattform: LinkedIn]',
   skillCategory: 'social',
   promptTemplate: 'LinkedIn-Post zu: ',
   skillSystemPrompt: `**LINKEDIN-POST (max. 600 Zeichen):**

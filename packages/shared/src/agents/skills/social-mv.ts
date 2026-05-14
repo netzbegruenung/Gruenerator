@@ -8,7 +8,6 @@ export const SOCIAL_MV_SKILL = {
   avatar: '🌊',
   backgroundColor: '#316049',
   mention: 'social-mv',
-  contextPrefix: '[LV: Mecklenburg-Vorpommern / Modus: Social Media]',
   skillCategory: 'social',
   promptTemplate: 'Erstelle Social-Media-Posts im Stil Grüne MV zum Thema: ',
 } as const satisfies SystemSkill;

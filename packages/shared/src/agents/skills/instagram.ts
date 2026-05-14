@@ -8,7 +8,6 @@ export const INSTAGRAM_SKILL = {
   avatar: '📸',
   backgroundColor: '#316049',
   mention: 'instagram',
-  contextPrefix: '[Plattform: Instagram]',
   skillCategory: 'social',
   isSystemDefault: true,
   promptTemplate: 'Post zu folgendem Thema: ',

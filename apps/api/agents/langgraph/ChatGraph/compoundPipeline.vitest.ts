@@ -65,7 +65,6 @@ function makeAgentConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
     systemRole: 'Du schreibst Pressemitteilungen für die Grünen.',
     model: 'mistral-small-latest',
     params: { max_tokens: 2048, temperature: 0.7 },
-    contextPrefix: '[Plattform: Pressemitteilung]',
     ...overrides,
   } as AgentConfig;
 }
@@ -382,7 +381,6 @@ describe('Compound Pipeline: @notebook + @skill', () => {
 
       // Step 7: Verify agent config is preserved for response phase
       expect(searchedState.agentConfig.identifier).toBe('gruenerator-oeffentlichkeitsarbeit');
-      expect(searchedState.agentConfig.contextPrefix).toBe('[Plattform: Pressemitteilung]');
     });
 
     it('handles empty user text (@hamburg @presse with no topic)', async () => {

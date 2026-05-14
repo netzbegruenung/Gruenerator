@@ -8,7 +8,6 @@ export const SOCIAL_THUERINGEN_SKILL = {
   avatar: '🌲',
   backgroundColor: '#316049',
   mention: 'social-thueringen',
-  contextPrefix: '[LV: Thüringen / Modus: Social Media]',
   skillCategory: 'social',
   promptTemplate: 'Erstelle Social-Media-Posts im Stil Bündnisgrüne Thüringen zum Thema: ',
 } as const satisfies SystemSkill;
