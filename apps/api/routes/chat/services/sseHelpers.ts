@@ -242,7 +242,7 @@ function pickOne<T>(pool: readonly T[]): T {
 export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   research: [
     'Recherchiere im Web und in den Dokumenten...',
-    'Grabe mich durch Quellen und Programme...',
+    'Grabe mich durch Quellen und Dokumente...',
     'Sammle Fakten von überall her...',
   ],
   compare: [
@@ -252,8 +252,8 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   ],
   search: [
     'Durchsuche Grüne Positionen und Programme...',
-    'Wälze die Parteiprogramme...',
-    'Stöbere in den Beschlüssen...',
+    'Wälze die Unterlagen...',
+    'Stöbere in den Grünen Dokumenten...',
   ],
   // person: 'Suche Informationen zur Person...', // DISABLED: Person search not production ready
   web: [
