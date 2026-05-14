@@ -47,15 +47,12 @@ export interface McpSocialMediaVariant {
   platform: string;
   title: string;
   description: string;
-  contextPrefix: string;
 }
 
 export const MCP_SOCIAL_MEDIA_VARIANTS: readonly McpSocialMediaVariant[] = SKILLS.filter(
-  (skill): skill is typeof skill & { contextPrefix: string } =>
-    skill.identifier === 'gruenerator-oeffentlichkeitsarbeit' && Boolean(skill.contextPrefix)
+  (skill) => skill.identifier === 'gruenerator-oeffentlichkeitsarbeit'
 ).map((skill) => ({
   platform: skill.mention,
   title: skill.title,
   description: skill.description,
-  contextPrefix: skill.contextPrefix,
 }));
