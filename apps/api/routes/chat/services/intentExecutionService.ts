@@ -561,7 +561,7 @@ export async function executeIntentPipeline(opts: {
         if (willGenerateBrief && briefStepId) {
           // brief generator is a silent LLM call (~1–3s); ping so the UI doesn't
           // sit on the stale "intent" message during this window.
-          sse.send('thinking_step', {
+          sse.send('progress_step', {
             stepId: briefStepId,
             toolName: 'brief',
             title: 'Plane Recherche…',
@@ -569,7 +569,7 @@ export async function executeIntentPipeline(opts: {
           });
           const briefResult = await briefGeneratorNode(finalState);
           searchInputState = { ...finalState, ...briefResult } as ChatGraphState;
-          sse.send('thinking_step', {
+          sse.send('progress_step', {
             stepId: briefStepId,
             toolName: 'brief',
             title: 'Plane Recherche…',
@@ -598,7 +598,7 @@ export async function executeIntentPipeline(opts: {
 
         if (finalState.searchResults?.length > 2) {
           const rerankStepId = `rerank_${Date.now()}`;
-          sse.send('thinking_step', {
+          sse.send('progress_step', {
             stepId: rerankStepId,
             toolName: 'rerank',
             title: 'Bewerte Quellen…',
@@ -609,7 +609,7 @@ export async function executeIntentPipeline(opts: {
           if (finalState.searchResults.length > 0) {
             finalState.citations = buildCitations(finalState.searchResults);
           }
-          sse.send('thinking_step', {
+          sse.send('progress_step', {
             stepId: rerankStepId,
             toolName: 'rerank',
             title: 'Bewerte Quellen…',
