@@ -57,8 +57,12 @@ function SkillCard({ skill, isFavorite, onToggleFavorite, onSelect }: SkillCardP
       <div
         role="button"
         tabIndex={0}
-        onClick={() => onSelect(skill)}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest('button')) return;
+          onSelect(skill);
+        }}
         onKeyDown={(e) => {
+          if ((e.target as HTMLElement).closest('button')) return;
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             onSelect(skill);
@@ -83,7 +87,8 @@ function SkillCard({ skill, isFavorite, onToggleFavorite, onSelect }: SkillCardP
                     e.stopPropagation();
                     setShowText(true);
                   }}
-                  className="rounded-md p-1 text-secondary-600 transition-colors hover:bg-secondary-600/10"
+                  onKeyDown={(e) => e.stopPropagation()}
+                  className="rounded-md p-2 text-secondary-600 transition-colors hover:bg-secondary-600/10"
                 >
                   <PiEye className="h-4 w-4" />
                 </button>
@@ -95,7 +100,8 @@ function SkillCard({ skill, isFavorite, onToggleFavorite, onSelect }: SkillCardP
                   e.stopPropagation();
                   onToggleFavorite(skill.mention);
                 }}
-                className="rounded-md p-1 text-secondary-600 transition-colors hover:bg-secondary-600/10"
+                onKeyDown={(e) => e.stopPropagation()}
+                className="rounded-md p-2 text-secondary-600 transition-colors hover:bg-secondary-600/10"
               >
                 {isFavorite ? <PiStarFill className="h-4 w-4" /> : <PiStar className="h-4 w-4" />}
               </button>
@@ -133,8 +139,12 @@ function AgentCard({ agent, onSelect, onEdit, onDelete }: AgentCardProps) {
     <div
       role="button"
       tabIndex={0}
-      onClick={() => onSelect(agent)}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest('button')) return;
+        onSelect(agent);
+      }}
       onKeyDown={(e) => {
+        if ((e.target as HTMLElement).closest('button')) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onSelect(agent);
@@ -159,7 +169,8 @@ function AgentCard({ agent, onSelect, onEdit, onDelete }: AgentCardProps) {
                   e.stopPropagation();
                   onEdit(agent);
                 }}
-                className="rounded-md p-1 text-secondary-600 transition-colors hover:bg-secondary-600/10"
+                onKeyDown={(e) => e.stopPropagation()}
+                className="rounded-md p-2 text-secondary-600 transition-colors hover:bg-secondary-600/10"
               >
                 <PiPencilSimple className="h-4 w-4" />
               </button>
@@ -172,7 +183,8 @@ function AgentCard({ agent, onSelect, onEdit, onDelete }: AgentCardProps) {
                   e.stopPropagation();
                   onDelete(agent);
                 }}
-                className="rounded-md p-1 text-red-600 transition-colors hover:bg-red-600/10"
+                onKeyDown={(e) => e.stopPropagation()}
+                className="rounded-md p-2 text-red-600 transition-colors hover:bg-red-600/10"
               >
                 <PiTrash className="h-4 w-4" />
               </button>
