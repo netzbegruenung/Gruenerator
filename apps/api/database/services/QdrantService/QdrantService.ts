@@ -424,7 +424,7 @@ export class QdrantService {
       const lv = options.landesverband;
       filter.must!.push({
         key: 'landesverband',
-        match: Array.isArray(lv) ? { any: [...lv] } : { value: lv as string },
+        match: typeof lv === 'string' ? { value: lv } : { any: [...lv] },
       });
     }
 

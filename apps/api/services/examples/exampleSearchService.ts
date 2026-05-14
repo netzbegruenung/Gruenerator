@@ -89,7 +89,7 @@ function pressFilter(contentType: string, lvScope?: string | readonly string[]):
     { key: 'content_type', match: { value: contentType } },
   ];
   if (lvScope !== undefined) {
-    const lvList: string[] = Array.isArray(lvScope) ? [...lvScope] : [lvScope as string];
+    const lvList: string[] = typeof lvScope === 'string' ? [lvScope] : [...lvScope];
     must.push({
       key: 'landesverband',
       match: lvList.length === 1 ? { value: lvList[0] as string } : { any: lvList },

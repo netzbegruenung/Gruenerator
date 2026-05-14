@@ -15,7 +15,7 @@
 
 import { type InferSelectModel } from 'drizzle-orm';
 
-import { subtitlerProjects } from '../../database/schema/index.js';
+import { type subtitlerProjects } from '../../database/schema/index.js';
 
 import type { UpdateProjectBody } from '@gruenerator/contracts';
 
@@ -26,7 +26,10 @@ import type { UpdateProjectBody } from '@gruenerator/contracts';
  */
 export type SubtitlerProjectRow = InferSelectModel<typeof subtitlerProjects>;
 
-export interface SubtitlerProject extends Omit<SubtitlerProjectRow, 'user_id' | 'status' | 'subtitles'> {
+export interface SubtitlerProject extends Omit<
+  SubtitlerProjectRow,
+  'user_id' | 'status' | 'subtitles'
+> {
   user_id: string;
   status: 'saved' | 'exported' | 'processing';
   subtitles: string;

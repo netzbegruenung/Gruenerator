@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express';
+import { z } from 'zod';
 
 import {
   getCollectionFilterableFields,
@@ -7,11 +8,9 @@ import {
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
-import {
-  requireApiKey,
-  assertLandesverbandAllowed,
-} from '../../middleware/apiKeyMiddleware.js';
+import { requireApiKey, assertLandesverbandAllowed } from '../../middleware/apiKeyMiddleware.js';
 import { apiKeyRateLimit } from '../../middleware/apiKeyRateLimitMiddleware.js';
+import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { notebookQAService } from '../../services/notebook/index.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
@@ -127,127 +126,128 @@ router.get('/filters', async (req: Request, res: Response) => {
 
 /**
  * POST /api/v1/notebooks/ask
- * body: { question, landesverband, filters?, fastMode? }
  */
-router.post('/ask', async (req: Request, res: Response) => {
-  const startTime = Date.now();
-  const ctx = req.apiKey;
-  if (!ctx) {
-    res.status(401).json({ error: 'API key context missing' });
-    return;
-  }
-
-  const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
-  const lv = typeof req.body?.landesverband === 'string' ? req.body.landesverband.trim() : '';
-  const fastMode = req.body?.fastMode === true;
-  const filters = (req.body?.filters as Record<string, unknown> | undefined) ?? undefined;
-
-  if (!question) {
-    res.status(400).json({ error: 'question is required' });
-    return;
-  }
-  if (!lv) {
-    res.status(400).json({ error: 'landesverband is required' });
-    return;
-  }
-  const auth = assertLandesverbandAllowed(ctx, lv);
-  if (!auth.ok) {
-    res.status(403).json({ error: auth.reason });
-    return;
-  }
-  const collectionId = getSystemCollectionIdForLandesverband(lv);
-  if (!collectionId) {
-    res.status(404).json({ error: `Unknown Landesverband: ${lv}` });
-    return;
-  }
-
-  try {
-    const result = await notebookQAService.askSingleCollection({
-      collectionId,
-      question,
-      userId: ctx.userId,
-      requestFilters: filters,
-      aiWorkerPool: getAIWorkerPool(req),
-      fastMode,
-    });
-
-    notebookHelper
-      .logNotebookUsage(
-        collectionId,
-        ctx.userId,
-        question,
-        (result.answer || '').length,
-        Date.now() - startTime,
-        { apiKeyId: ctx.id, landesverband: lv }
-      )
-      .catch((e) => log.warn('[v1.notebooks.ask] usage log failed:', e));
-
-    res.json(result);
-  } catch (err) {
-    log.error('[v1.notebooks.ask] Error:', err);
-    const message = err instanceof Error ? err.message : 'Internal server error';
-    res.status(500).json({ error: message });
-  }
+const askRequestSchema = z.object({
+  question: z.string().trim().min(1, 'question is required'),
+  landesverband: z.string().trim().min(1, 'landesverband is required'),
+  filters: z.record(z.string(), z.unknown()).optional(),
+  fastMode: z.boolean().default(false),
 });
+type AskRequestBody = z.infer<typeof askRequestSchema>;
+
+router.post(
+  '/ask',
+  validateBody(askRequestSchema),
+  async (req: TypedRequest<AskRequestBody>, res: Response) => {
+    const startTime = Date.now();
+    const ctx = req.apiKey;
+    if (!ctx) {
+      res.status(401).json({ error: 'API key context missing' });
+      return;
+    }
+
+    const { question, landesverband: lv, fastMode, filters } = req.body;
+
+    const auth = assertLandesverbandAllowed(ctx, lv);
+    if (!auth.ok) {
+      res.status(403).json({ error: auth.reason });
+      return;
+    }
+    const collectionId = getSystemCollectionIdForLandesverband(lv);
+    if (!collectionId) {
+      res.status(404).json({ error: `Unknown Landesverband: ${lv}` });
+      return;
+    }
+
+    try {
+      const result = await notebookQAService.askSingleCollection({
+        collectionId,
+        question,
+        userId: ctx.userId,
+        requestFilters: filters,
+        aiWorkerPool: getAIWorkerPool(req),
+        fastMode,
+      });
+
+      notebookHelper
+        .logNotebookUsage(
+          collectionId,
+          ctx.userId,
+          question,
+          (result.answer || '').length,
+          Date.now() - startTime,
+          { apiKeyId: ctx.id, landesverband: lv }
+        )
+        .catch((e) => log.warn('[v1.notebooks.ask] usage log failed:', e));
+
+      res.json(result);
+    } catch (err) {
+      log.error('[v1.notebooks.ask] Error:', err);
+      const message = err instanceof Error ? err.message : 'Internal server error';
+      res.status(500).json({ error: message });
+    }
+  }
+);
 
 /**
  * POST /api/v1/notebooks/search
- * Raw chunks without synthesis. Body: { query, landesverband, filters? }
+ * Raw chunks without synthesis.
  */
-router.post('/search', async (req: Request, res: Response) => {
-  const ctx = req.apiKey;
-  if (!ctx) {
-    res.status(401).json({ error: 'API key context missing' });
-    return;
-  }
-
-  const query = typeof req.body?.query === 'string' ? req.body.query.trim() : '';
-  const lv = typeof req.body?.landesverband === 'string' ? req.body.landesverband.trim() : '';
-  const filters = (req.body?.filters as Record<string, unknown> | undefined) ?? undefined;
-
-  if (!query) {
-    res.status(400).json({ error: 'query is required' });
-    return;
-  }
-  if (!lv) {
-    res.status(400).json({ error: 'landesverband is required' });
-    return;
-  }
-  const auth = assertLandesverbandAllowed(ctx, lv);
-  if (!auth.ok) {
-    res.status(403).json({ error: auth.reason });
-    return;
-  }
-  const collectionId = getSystemCollectionIdForLandesverband(lv);
-  if (!collectionId) {
-    res.status(404).json({ error: `Unknown Landesverband: ${lv}` });
-    return;
-  }
-
-  try {
-    // Reuse the QA pipeline in fast mode and return only sources/citations.
-    // Keeps a single code path for retrieval — partner-side re-synthesis works
-    // off the same chunks that /ask would synthesize from.
-    const result = await notebookQAService.askSingleCollection({
-      collectionId,
-      question: query,
-      userId: ctx.userId,
-      requestFilters: filters,
-      aiWorkerPool: getAIWorkerPool(req),
-      fastMode: true,
-    });
-
-    res.json({
-      query,
-      landesverband: lv,
-      sources: result.sources ?? [],
-      citations: result.citations ?? [],
-    });
-  } catch (err) {
-    log.error('[v1.notebooks.search] Error:', err);
-    const message = err instanceof Error ? err.message : 'Internal server error';
-    res.status(500).json({ error: message });
-  }
+const searchRequestSchema = z.object({
+  query: z.string().trim().min(1, 'query is required'),
+  landesverband: z.string().trim().min(1, 'landesverband is required'),
+  filters: z.record(z.string(), z.unknown()).optional(),
 });
+type SearchRequestBody = z.infer<typeof searchRequestSchema>;
+
+router.post(
+  '/search',
+  validateBody(searchRequestSchema),
+  async (req: TypedRequest<SearchRequestBody>, res: Response) => {
+    const ctx = req.apiKey;
+    if (!ctx) {
+      res.status(401).json({ error: 'API key context missing' });
+      return;
+    }
+
+    const { query, landesverband: lv, filters } = req.body;
+
+    const auth = assertLandesverbandAllowed(ctx, lv);
+    if (!auth.ok) {
+      res.status(403).json({ error: auth.reason });
+      return;
+    }
+    const collectionId = getSystemCollectionIdForLandesverband(lv);
+    if (!collectionId) {
+      res.status(404).json({ error: `Unknown Landesverband: ${lv}` });
+      return;
+    }
+
+    try {
+      // Reuse the QA pipeline in fast mode and return only sources/citations.
+      // Keeps a single code path for retrieval — partner-side re-synthesis works
+      // off the same chunks that /ask would synthesize from.
+      const result = await notebookQAService.askSingleCollection({
+        collectionId,
+        question: query,
+        userId: ctx.userId,
+        requestFilters: filters,
+        aiWorkerPool: getAIWorkerPool(req),
+        fastMode: true,
+      });
+
+      res.json({
+        query,
+        landesverband: lv,
+        sources: result.sources ?? [],
+        citations: result.citations ?? [],
+      });
+    } catch (err) {
+      log.error('[v1.notebooks.search] Error:', err);
+      const message = err instanceof Error ? err.message : 'Internal server error';
+      res.status(500).json({ error: message });
+    }
+  }
+);
 
 export default router;

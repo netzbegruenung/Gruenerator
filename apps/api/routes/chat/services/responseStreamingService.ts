@@ -356,14 +356,15 @@ async function streamAndAccumulateOrThrow(params: {
   // trigger a clean fallback, so they end the stream gracefully.
   try {
     while (true) {
-      const { done, value } = await iterator.next();
-      if (done) break;
-      if (value.type === 'error') throw value.error;
-      if (value.type === 'reasoning-delta' && value.text.length > 0) {
-        sse.send('reasoning_delta', { text: value.text });
-      } else if (value.type === 'text-delta' && value.text.length > 0) {
-        fullText += value.text;
-        sse.send('text_delta', { text: value.text });
+      const next = await iterator.next();
+      if (next.done) break;
+      const part = next.value;
+      if (part.type === 'error') throw part.error;
+      if (part.type === 'reasoning-delta' && part.text.length > 0) {
+        sse.send('reasoning_delta', { text: part.text });
+      } else if (part.type === 'text-delta' && part.text.length > 0) {
+        fullText += part.text;
+        sse.send('text_delta', { text: part.text });
       }
     }
   } catch (streamError: unknown) {
