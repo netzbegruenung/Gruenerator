@@ -97,6 +97,7 @@ function MentionItem({
 }) {
   return (
     <button
+      type="button"
       role="option"
       aria-selected={isSelected}
       data-selected={isSelected}

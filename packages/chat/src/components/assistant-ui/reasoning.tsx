@@ -55,7 +55,7 @@ export function ReasoningTrigger({
   label?: string;
   className?: string;
 }) {
-  const computedLabel = label ?? (active ? 'Denkt nach …' : 'Gedanken');
+  const computedLabel = label ?? (active ? 'Grünerator denkt nach …' : 'Grünerators Gedanken');
   return (
     <CollapsibleTrigger
       className={cn(

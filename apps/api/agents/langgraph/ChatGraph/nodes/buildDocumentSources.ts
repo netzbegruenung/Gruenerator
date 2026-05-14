@@ -70,6 +70,11 @@ export function buildDocumentSources(opts: BuildOpts): DocumentSource[] {
   }
 
   for (const id of opts.docMentionIds) {
+    // The open document is already represented by the `current_doc` source
+    // below — its content is injected directly into the prompt and it has no
+    // separate Qdrant index to retrieve from. Skip it here so it isn't fanned
+    // out as a phantom 0-result search source. Mirrors classifierNode.ts:150-152.
+    if (id === opts.currentDocument?.id) continue;
     sources.push({ kind: 'doc_mention', id, label: `@${shortId(id)}` });
   }
 
