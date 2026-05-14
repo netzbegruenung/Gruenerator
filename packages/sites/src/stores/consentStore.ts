@@ -16,7 +16,7 @@ const loadStoredConsents = (): Record<string, PlatformConsent> => {
   try {
     const stored = localStorage.getItem(CONSENT_STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      return JSON.parse(stored) as Record<string, PlatformConsent>;
     }
   } catch {
     // Ignore parse errors
