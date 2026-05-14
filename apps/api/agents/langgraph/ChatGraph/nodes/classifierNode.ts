@@ -51,7 +51,7 @@ const log = createLogger('ChatGraph:Classifier');
 const PM_NOUN_PATTERN =
   /\b(pressemitteilung|pressemeldung|pm|presseaussendung|presse[-\s]?statement)\b/i;
 const SOCIAL_NOUN_PATTERN =
-  /\b(post|tweet|posting|reel|tiktok|instagram|facebook|linkedin|twitter|social[-\s]?media)\b/i;
+  /\b(post|tweet|tweete|tweeten|posting|reel|tiktok|instagram|facebook|linkedin|twitter|social[-\s]?media)\b/i;
 const INSTAGRAM_PATTERN = /\b(instagram|insta|reel|story)\b/i;
 const FACEBOOK_PATTERN = /\b(facebook|\bfb\b|fb-?post|fb-?beitrag)\b/i;
 
