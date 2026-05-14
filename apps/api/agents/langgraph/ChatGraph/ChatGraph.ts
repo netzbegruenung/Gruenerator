@@ -727,6 +727,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     searchErrors: [],
     briefGenerationFailed: false,
     rerankFailed: false,
+    topRerankScore: null,
 
     // Image generation (will be set by image node)
     imagePrompt: null,
