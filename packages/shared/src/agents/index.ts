@@ -19,7 +19,7 @@ export {
   type SystemAgentId,
 } from './system.js';
 
-export { SKILLS, resolveSkillMention } from './skills.js';
+export { SKILLS, resolveSkillMention } from './skills/index.js';
 
 export { getAgentSlug, resolveAgentSlug } from './slug.js';
 
