@@ -1,12 +1,13 @@
 import { getAgentSlug } from '@gruenerator/shared/agents';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@gruenerator/ui';
-import { type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { PiStarFill } from 'react-icons/pi';
 
 import { useUserAgents } from '../../../features/agents/api';
 import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
+import { useAuthStore } from '../../../stores/authStore';
 
-import { DEFAULT_AGENT_ENTRIES, VISIBLE_SYSTEM_AGENTS, getAgentIcon } from './sidebarAgentConfig';
+import { getDefaultAgentEntries, getVisibleSystemAgents, getAgentIcon } from './sidebarAgentConfig';
 import { menuLinkClass } from './sidebarStyles';
 
 import { cn } from '@/utils/cn';
@@ -71,6 +72,9 @@ export function AllAgentsDialog({ onLinkClick, titleClass }: AllAgentsDialogProp
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggle = useAgentFavoritesStore((s) => s.toggle);
   const { data: userAgents = [] } = useUserAgents();
+  const userLocale = useAuthStore((state) => state.locale) ?? 'de-DE';
+  const defaultAgentEntries = useMemo(() => getDefaultAgentEntries(userLocale), [userLocale]);
+  const visibleSystemAgents = useMemo(() => getVisibleSystemAgents(userLocale), [userLocale]);
 
   return (
     <Dialog>
@@ -88,7 +92,7 @@ export function AllAgentsDialog({ onLinkClick, titleClass }: AllAgentsDialogProp
           <DialogTitle>Alle Agents</DialogTitle>
         </DialogHeader>
         <ul className="list-none m-0 p-0 max-h-[60vh] overflow-y-auto scrollbar-thin">
-          {DEFAULT_AGENT_ENTRIES.map((entry) => {
+          {defaultAgentEntries.map((entry) => {
             const Icon = getAgentIcon(entry.identifier);
             return (
               <AgentListRow
@@ -109,7 +113,7 @@ export function AllAgentsDialog({ onLinkClick, titleClass }: AllAgentsDialogProp
 
           <li className="my-2 border-t border-grey-200 dark:border-grey-800" aria-hidden="true" />
 
-          {VISIBLE_SYSTEM_AGENTS.map((agent) => {
+          {visibleSystemAgents.map((agent) => {
             const Icon = getAgentIcon(agent.identifier);
             return (
               <AgentListRow

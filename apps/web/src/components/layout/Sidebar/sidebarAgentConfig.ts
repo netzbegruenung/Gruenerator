@@ -1,5 +1,6 @@
 import {
   VISIBLE_SYSTEM_AGENTS as ALL_VISIBLE_SYSTEM_AGENTS,
+  getVisibleSystemAgentsForLocale,
   type Agent,
 } from '@gruenerator/shared/agents';
 import {
@@ -57,34 +58,40 @@ export interface DefaultAgentEntry {
 
 /**
  * Pinned defaults — always visible at the top of the sidebar regardless of
- * favorites. Derived from `pinnedToSidebar: true` on the agent definition.
- * To pin a new agent: flip that flag on its `SYSTEM_AGENTS` entry and add an
- * `iconKey` — no edits in this file.
+ * favorites. Derived from `pinnedToSidebar: true` on the agent definition,
+ * then filtered + localized for the user's locale via the shared registry
+ * helper. To pin a new agent: flip that flag on its `SYSTEM_AGENTS` entry
+ * and add an `iconKey` — no edits in this file.
  *
  * Order follows array order in `SYSTEM_AGENTS`.
  */
-export const DEFAULT_AGENT_ENTRIES: readonly DefaultAgentEntry[] = ALL_VISIBLE_SYSTEM_AGENTS.filter(
-  (a) => a.pinnedToSidebar === true
-).map((a) => ({
-  key: `default-${a.identifier.replace(/^gruenerator-/, '')}`,
-  label: a.title,
-  identifier: a.identifier,
-}));
+export function getDefaultAgentEntries(userLocale: string): readonly DefaultAgentEntry[] {
+  return getVisibleSystemAgentsForLocale(userLocale)
+    .filter((a) => a.pinnedToSidebar === true)
+    .map((a) => ({
+      key: `default-${a.identifier.replace(/^gruenerator-/, '')}`,
+      label: a.title,
+      identifier: a.identifier,
+    }));
+}
 
 /**
  * Identifier set for the pinned agents. Used by sidebar consumers (e.g.
  * `Sidebar.tsx`) to filter the favorites list and avoid double-rendering
- * agents that are already pinned at the top.
+ * agents that are already pinned at the top. Locale-aware so AT users
+ * don't accidentally de-dupe a DE-only pinned agent they can't see.
  */
-export const PINNED_AGENT_IDS: ReadonlySet<string> = new Set(
-  DEFAULT_AGENT_ENTRIES.map((e) => e.identifier)
-);
+export function getPinnedAgentIds(userLocale: string): ReadonlySet<string> {
+  return new Set(getDefaultAgentEntries(userLocale).map((e) => e.identifier));
+}
 
 /**
  * Agents shown in the "Alle Agents" modal: visible registry minus the pinned
- * set (those are rendered separately). Single source of truth for the modal
- * — keeps it from drifting against the sidebar.
+ * set (those are rendered separately) and minus those whose `audience`
+ * excludes this user's locale. Single source of truth for the modal — keeps
+ * it from drifting against the sidebar.
  */
-export const VISIBLE_SYSTEM_AGENTS: readonly Agent[] = ALL_VISIBLE_SYSTEM_AGENTS.filter(
-  (a) => !PINNED_AGENT_IDS.has(a.identifier)
-);
+export function getVisibleSystemAgents(userLocale: string): readonly Agent[] {
+  const pinned = getPinnedAgentIds(userLocale);
+  return getVisibleSystemAgentsForLocale(userLocale).filter((a) => !pinned.has(a.identifier));
+}

@@ -30,7 +30,7 @@ import {
 
 import { AllAgentsDialog } from './AllAgentsDialog';
 import NewItemDropdown from './NewItemDropdown';
-import { DEFAULT_AGENT_ENTRIES, PINNED_AGENT_IDS, getAgentIcon } from './sidebarAgentConfig';
+import { getDefaultAgentEntries, getPinnedAgentIds, getAgentIcon } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
 
 import { cn } from '@/utils/cn';
@@ -452,18 +452,21 @@ const SidebarAgents = memo(function SidebarAgents({
   onLinkClick: (path: string, title: string) => void;
 }) {
   const { data: userAgents = [] } = useUserAgents();
+  const userLocale = useAuthStore((state) => state.locale) ?? 'de-DE';
+  const pinnedAgentIds = useMemo(() => getPinnedAgentIds(userLocale), [userLocale]);
+  const defaultAgentEntries = useMemo(() => getDefaultAgentEntries(userLocale), [userLocale]);
 
   const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const favoriteAgents = useMemo(() => {
     const out: Agent[] = [];
     for (const identifier of favoriteIdentifiers) {
-      if (PINNED_AGENT_IDS.has(identifier)) continue;
+      if (pinnedAgentIds.has(identifier)) continue;
       const agent = getSystemAgent(identifier);
       if (!agent) continue; // covers deleted agents + migration unknowns
       out.push(agent);
     }
     return out;
-  }, [favoriteIdentifiers]);
+  }, [favoriteIdentifiers, pinnedAgentIds]);
 
   // Favorites store uses identifier strings as keys; user-agent identifiers
   // don't collide with skill mentions (different namespaces).
@@ -515,7 +518,7 @@ const SidebarAgents = memo(function SidebarAgents({
       </button>
       {isExpanded && (
         <ul className="list-none m-0 p-0">
-          {DEFAULT_AGENT_ENTRIES.map((entry) => {
+          {defaultAgentEntries.map((entry) => {
             const Icon = getAgentIcon(entry.identifier);
             return (
               <li key={entry.key}>

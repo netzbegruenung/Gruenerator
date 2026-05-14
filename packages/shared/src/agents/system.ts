@@ -204,6 +204,7 @@ const BASE_AGENTS = [
   // wrong LV. Skills `/presse-<lv>` and `/social-<lv>` route to these agents.
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
+    audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Berlin',
     description:
       'Pressemitteilungen und Social-Media-Inhalte im Stil der Grünen Berlin (AGH-Wahlkampf, Wegner-Attacke, Kiez-Frame).',
@@ -243,6 +244,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
+    audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Hamburg',
     description:
       'Pressemitteilungen und Social-Media-Inhalte im Stil der Grünen Hamburg (Rot-Grün-Regierungston, hanseatischer Weg, Bürgerschafts-Anker).',
@@ -282,6 +284,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
+    audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit MV',
     description:
       'Pressemitteilungen und Social-Media-Inhalte im Stil der Grünen Mecklenburg-Vorpommern (Ostsee-Frame, Erneuerbare als Wirtschaftsthema, Reiche-Personalisierung).',
@@ -321,6 +324,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
+    audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Thüringen',
     description:
       'Pressemitteilungen und Social-Media-Inhalte im Stil der Grünen Thüringen (außerparlamentarische Opposition, Brombeer-Regierung, „Vorreiter verspielt").',
@@ -360,6 +364,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
+    audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Brandenburg',
     description:
       'Pressemitteilungen und Social-Media-Inhalte im Stil der Brandenburger Bündnisgrünen (Bündnisgrüne statt Grüne, Strukturwandel/Lausitz, außerparlamentarisch).',
@@ -399,6 +404,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-ricarda-lang',
+    audience: 'de-DE',
     title: 'Tweet like Ricarda',
     iconKey: 'bird',
     pinnedToSidebar: true,
@@ -837,6 +843,7 @@ Schritt 6: Überarbeite bei Score unter 4.`;
 
 const LV_PR_AGENTS: Agent[] = LV_PR_SPECS.map((spec) => ({
   identifier: `gruenerator-oeffentlichkeitsarbeit-${spec.lv}`,
+  audience: 'de-DE',
   title: `Öffentlichkeitsarbeit (${spec.title})`,
   description: `Erstellt Pressemitteilungen und Social-Media-Inhalte für die Grünen ${spec.title} — mit regionaler Verankerung und LV-spezifischen Vorlagen.`,
   systemRole: buildLvPrSystemRole(spec),
