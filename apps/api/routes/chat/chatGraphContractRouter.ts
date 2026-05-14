@@ -236,7 +236,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       // instead of looking frozen during attachment processing + memory fetch
       // + classification (collectively 1–8s on a cold path).
       const classifyStepId = `classify_${Date.now()}`;
-      sse.send('thinking_step', {
+      sse.send('progress_step', {
         stepId: classifyStepId,
         toolName: 'classify',
         title: 'Verstehe Anfrage…',
@@ -498,7 +498,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         );
       }
 
-      sse.send('thinking_step', {
+      sse.send('progress_step', {
         stepId: classifyStepId,
         toolName: 'classify',
         title: 'Verstehe Anfrage…',
