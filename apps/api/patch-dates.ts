@@ -22,8 +22,8 @@
 import * as cheerio from 'cheerio';
 
 import { getSourceById } from './config/landesverbaendeConfig.js';
-import { ContentExtractor } from './services/scrapers/implementations/LandesverbandScraper/extractors/ContentExtractor.js';
 import { getQdrantInstance } from './database/services/QdrantService/index.js';
+import { ContentExtractor } from './services/scrapers/implementations/LandesverbandScraper/extractors/ContentExtractor.js';
 
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
@@ -50,7 +50,10 @@ interface QdrantPoint {
 
 async function fetchPage(url: string): Promise<string | null> {
   try {
-    const r = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(15000) });
+    const r = await fetch(url, {
+      headers: { 'User-Agent': UA },
+      signal: AbortSignal.timeout(15000),
+    });
     if (!r.ok) return null;
     return await r.text();
   } catch {
@@ -118,7 +121,7 @@ async function main(): Promise<void> {
   let patched = 0;
   let no_html = 0;
   let no_date = 0;
-  let already = 0;
+  const already = 0;
 
   for (let i = 0; i < candidates.length; i++) {
     const p = candidates[i];

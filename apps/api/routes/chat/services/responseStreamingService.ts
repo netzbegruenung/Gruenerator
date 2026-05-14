@@ -330,10 +330,10 @@ async function streamAndAccumulateOrThrow(params: {
   // Past the first real chunk: no more deadline races, just drain.
   try {
     while (true) {
-      const { done, value } = await iterator.next();
-      if (done) break;
-      fullText += value;
-      sse.send('text_delta', { text: value });
+      const next = await iterator.next();
+      if (next.done) break;
+      fullText += next.value;
+      sse.send('text_delta', { text: next.value });
     }
   } catch (streamError: unknown) {
     const errorMessage = streamError instanceof Error ? streamError.message : 'Unknown error';
