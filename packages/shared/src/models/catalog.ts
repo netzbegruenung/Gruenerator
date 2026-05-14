@@ -30,7 +30,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     id: 'gemma-litellm',
     name: '🌳 Gemma 4',
     description: 'Leichtgewichtig, antwortet schnell',
-    model: 'gpt-oss:120b',
+    model: 'gemma',
     provider: 'litellm',
     icon: 'zap',
     region: 'self-hosted',
