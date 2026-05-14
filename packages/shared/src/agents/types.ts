@@ -81,6 +81,13 @@ export interface AgentLocalization {
 
 export interface Agent {
   identifier: string;
+  /**
+   * Optional URL slug override. When set, `/agents/<slug>` resolves here and
+   * link-builders emit this instead of the `gruenerator-`-stripped identifier.
+   * The derived slug stays a working alias, so old links never break. Used for
+   * agents whose derived slug is unwieldy (`oeffentlichkeitsarbeit-mecklenburg-vorpommern`).
+   */
+  slug?: string;
   title: string;
   description: string;
   systemRole: string;
