@@ -14,7 +14,13 @@ export function useSearchRuntime(searchMode: SearchMode) {
     (): GrueneratorAdapterConfig => ({
       agentId: null,
       modelId: 'mistral',
-      enabledTools: { search: true, web: true, examples: false, research: false },
+      enabledTools: {
+        search: true,
+        web: true,
+        examples: false,
+        pressemitteilung_examples: false,
+        research: false,
+      },
       threadId: null,
       threadMode: 'search',
       searchMode,
