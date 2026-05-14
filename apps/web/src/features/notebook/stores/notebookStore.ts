@@ -1,11 +1,12 @@
-import { notebookFilterFieldSchema } from '@gruenerator/contracts';
+import { type notebookFilterFieldSchema } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
-import type { z } from 'zod';
 
 import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
 import { type NotebookCollection } from '../../../types/notebook';
+
+import type { z } from 'zod';
 
 // ── API response shapes ────────────────────────────────────────────────────
 
