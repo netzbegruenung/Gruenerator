@@ -399,7 +399,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-ricarda-lang',
-    title: 'Tweet wie Ricarda',
+    title: 'Tweet like Ricarda',
     iconKey: 'bird',
     pinnedToSidebar: true,
     description:
