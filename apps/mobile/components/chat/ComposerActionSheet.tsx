@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useAgentStore, MODEL_OPTIONS, type ToolKey } from '@gruenerator/chat';
+import { QWEN_WARNING } from '@gruenerator/shared/models';
 import { memo, useCallback } from 'react';
 import { View, Text, Pressable, Switch, ScrollView, StyleSheet } from 'react-native';
 import { useShallow } from 'zustand/shallow';
@@ -131,14 +132,14 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
                 >
                   {model.description}
                 </Text>
-                {model.warning && (
+                {model.region === 'cn' && (
                   <Text
                     style={[
                       styles.modelChipWarningText,
                       { color: active ? colors.white : colors.warning },
                     ]}
                   >
-                    {model.warning}
+                    {QWEN_WARNING}
                   </Text>
                 )}
               </Pressable>
