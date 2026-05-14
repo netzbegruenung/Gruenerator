@@ -251,6 +251,7 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
 function useGrueneratorThreadRuntime() {
   const {
     selectedAgentId,
+    selectedModel,
     enabledTools,
     selectedNotebookId,
     threadMode,
@@ -262,6 +263,7 @@ function useGrueneratorThreadRuntime() {
   } = useAgentStore(
     useShallow((s) => ({
       selectedAgentId: s.selectedAgentId,
+      selectedModel: s.selectedModel,
       enabledTools: s.enabledTools,
       selectedNotebookId: s.selectedNotebookId,
       threadMode: s.threadMode,
@@ -280,7 +282,7 @@ function useGrueneratorThreadRuntime() {
   const getConfig = useCallback(
     (): GrueneratorAdapterConfig => ({
       agentId: selectedAgentId,
-      modelId: 'litellm',
+      modelId: selectedModel,
       enabledTools,
       threadId: useAgentStore.getState().currentThreadId,
       selectedNotebookId,
@@ -293,6 +295,7 @@ function useGrueneratorThreadRuntime() {
     }),
     [
       selectedAgentId,
+      selectedModel,
       enabledTools,
       selectedNotebookId,
       threadMode,
