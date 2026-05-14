@@ -748,6 +748,7 @@ function EditorContent() {
                 documentId={id}
                 userId={user ? String(user.id) : null}
                 userName={user?.display_name ?? null}
+                documentTitle={docData?.title ?? null}
                 isOpen={effectivePanel === 'chat'}
               />
             </Suspense>
