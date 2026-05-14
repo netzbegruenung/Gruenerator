@@ -15,6 +15,15 @@ import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
 import { useFirstName } from '@/hooks/useFirstName';
 import { useAuthStore } from '@/stores/authStore';
 
+/**
+ * AT users get this notebook when their selected agent doesn't pin its own.
+ * Keeps `@notebook` lookups and RAG aligned to gruene.at content instead of
+ * silently retaining whichever (likely DE) notebook the user picked last.
+ * DE has no equivalent single-notebook default — DE keeps its current behavior
+ * (no auto-switch when the agent has no preference).
+ */
+const AT_DEFAULT_NOTEBOOK_ID = 'oesterreich-notebook';
+
 const notebookLinks: NotebookLink[] = SYSTEM_NOTEBOOKS.map((nb) => ({
   id: nb.id,
   path: nb.path,
@@ -64,6 +73,14 @@ function ChatPage() {
         store.selectedNotebookId !== agentMeta.defaultNotebookId
       ) {
         store.setSelectedNotebook(agentMeta.defaultNotebookId);
+      } else if (
+        !agentMeta?.defaultNotebookId &&
+        userLocale === 'de-AT' &&
+        store.selectedNotebookId !== AT_DEFAULT_NOTEBOOK_ID
+      ) {
+        // AT-first: agents without an explicit notebook pair with the
+        // Österreich notebook so RAG / @notebook queries stay in-locale.
+        store.setSelectedNotebook(AT_DEFAULT_NOTEBOOK_ID);
       }
     } else if (store.selectedAgentId !== null) {
       store.setSelectedAgent(null);
@@ -76,7 +93,7 @@ function ChatPage() {
       store.setThreadMode(modeParam);
       store.setChatViewMode('thread');
     }
-  }, [agentParam, modeParam]);
+  }, [agentParam, modeParam, userLocale]);
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
