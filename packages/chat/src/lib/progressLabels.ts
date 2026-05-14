@@ -27,12 +27,12 @@ export const STAGE_LABEL_POOLS: Record<LabelledStage, readonly string[]> = {
   ],
   searching: [
     'Stöbere im Archiv …',
-    'Wälze die Parteiprogramme …',
+    'Wälze die Unterlagen …',
     'Durchforste die Quellen …',
-    'Blättere durch die Anträge …',
+    'Blättere durch die Dokumente …',
   ],
   summarizing: [
-    'Bündele die Argumente …',
+    'Bündele die Kernpunkte …',
     'Koche es auf den Punkt ein …',
     'Fasse das Wichtigste zusammen …',
   ],
@@ -40,7 +40,7 @@ export const STAGE_LABEL_POOLS: Record<LabelledStage, readonly string[]> = {
     'Mische die Farben …',
     'Werfe Farbbeutel auf die Leinwand …',
     'Spanne die Leinwand auf …',
-    'Male dein Sharepic …',
+    'Male das Motiv …',
   ],
   generating: ['Formuliere die Antwort …', 'Feile an den Worten …', 'Bringe es aufs Papier …'],
 };
