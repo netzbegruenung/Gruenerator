@@ -119,6 +119,7 @@ export function GrueneratorThread({
                 description={activeAgent?.description}
                 questions={activeAgent?.openingQuestions?.map((text) => ({ text }))}
                 avatar={activeAgent?.avatar}
+                {...(activeAgent?.icon ? { icon: activeAgent.icon } : {})}
                 {...(activeAgent?.welcomeQuestion
                   ? { welcomeQuestion: activeAgent.welcomeQuestion }
                   : {})}

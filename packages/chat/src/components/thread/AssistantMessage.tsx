@@ -96,12 +96,12 @@ export const AssistantMessage = memo(function AssistantMessage() {
         <div
           className={
             isCompact
-              ? 'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs'
-              : 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm'
+              ? 'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-white'
+              : 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white'
           }
           style={{ backgroundColor: messageAgent.backgroundColor }}
         >
-          {messageAgent.avatar}
+          <messageAgent.icon className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden />
         </div>
       ) : (
         <ChatIcon size={isCompact ? 24 : 32} className="flex-shrink-0" />
@@ -110,6 +110,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
         {isNonDefaultAgent && messageAgent && (
           <SkillBadge
             avatar={messageAgent.avatar}
+            icon={messageAgent.icon}
             title={messageAgent.title}
             backgroundColor={messageAgent.backgroundColor}
           />
