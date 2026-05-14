@@ -1,5 +1,3 @@
-import type { SystemSkill } from './types.js';
-
 import { AKTIONSIDEEN_SKILL } from './aktionsideen.js';
 import { ANTRAG_SKILL } from './antrag.js';
 import { BUERGERSERVICE_SKILL } from './buergerservice.js';
@@ -23,6 +21,8 @@ import { SOCIAL_MV_SKILL } from './social-mv.js';
 import { SOCIAL_THUERINGEN_SKILL } from './social-thueringen.js';
 import { TWITTER_SKILL } from './twitter.js';
 import { WAHLPROGRAMM_SKILL } from './wahlprogramm.js';
+
+import type { SystemSkill } from './types.js';
 
 export type { SystemSkill } from './types.js';
 

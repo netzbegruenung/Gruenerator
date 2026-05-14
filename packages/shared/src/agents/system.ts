@@ -29,6 +29,16 @@ const BASE_AGENTS = [
       'Verfasse einen Blogbeitrag über die Verkehrswende in unserer Stadt',
       'Schreibe einen Flyer-Text für den Infostand',
     ],
+    localized: {
+      'de-AT': {
+        openingQuestions: [
+          'Schreibe einen Newsletter-Text zur Klimaschutz-Initiative der Grünen Österreich',
+          'Erstelle eine Einladung zu unserer Landesversammlung',
+          'Verfasse einen Blogbeitrag über den ÖBB-Ausbau und die Verkehrswende',
+          'Schreibe einen Flyer-Text für den Infostand am Wochenmarkt',
+        ],
+      },
+    },
     locale: 'de-DE',
     author: 'Grünerator',
     fewShotExamples: [
@@ -64,6 +74,16 @@ const BASE_AGENTS = [
       'Änderungsantrag zum Haushalt: 200.000 € mehr für Radwegeausbau',
       'Antrag auf Einrichtung eines Jugendparlaments',
     ],
+    localized: {
+      'de-AT': {
+        openingQuestions: [
+          'Bewerte unseren Gemeinderats-Voranschlag aus grüner Sicht',
+          'Welche Hebel hat eine Gemeinde im Budget für mehr Klimaschutz?',
+          'Änderungsantrag zum Budget: 200.000 € mehr für Radwegeausbau',
+          'Antrag auf Einrichtung eines Jugendgemeinderats',
+        ],
+      },
+    },
     locale: 'de-DE',
     author: 'Grünerator',
     toolRestrictions: {
@@ -171,6 +191,17 @@ const BASE_AGENTS = [
       'LinkedIn-Post über unseren Erfolg im Stadtrat',
       'Beispiele: Wie schreiben andere Landesverbände PMs zu Klimaschutz?',
     ],
+    localized: {
+      'de-AT': {
+        openingQuestions: [
+          'Pressemitteilung zur Verabschiedung unseres Klimaschutzkonzepts',
+          'Instagram- und Facebook-Posts zum Thema ÖBB-Ausbau und Verkehrswende',
+          'PM zu unserer Kritik am neuen Flächenwidmungsplan',
+          'LinkedIn-Post über unseren Erfolg im Gemeinderat',
+          'Beispiele: Wie kommuniziert Die Grünen Österreich zur Klimakrise?',
+        ],
+      },
+    },
     locale: 'de-DE',
     author: 'Grünerator',
     enabledTools: [
@@ -541,6 +572,16 @@ Beispielausgabe:
       'Beschwerde über mangelnde Radwege - wie antworten?',
       'Frage einer*eines Bürger*in zu unserem Klimaschutzkonzept',
     ],
+    localized: {
+      'de-AT': {
+        openingQuestions: [
+          'Ein*e Bürger*in fragt, warum wir gegen den Ausbau der Schnellstraße gestimmt haben',
+          'Anfrage zur grünen Position beim Thema Windkraftausbau in Österreich',
+          'Beschwerde über mangelnde Radwege in der Gemeinde – wie antworten?',
+          'Frage einer*eines Bürger*in zu unserem Klimaschutz-Programm',
+        ],
+      },
+    },
     locale: 'de-DE',
     author: 'Grünerator',
     enabledTools: ['search', 'web', 'scrape', 'memory', 'memory_save'],

@@ -131,6 +131,7 @@ function ChatPage() {
             onNavigate={handleNavigate}
             firstName={firstName}
             requireProfileHydration
+            userLocale={userLocale}
           />
         )}
       </main>
