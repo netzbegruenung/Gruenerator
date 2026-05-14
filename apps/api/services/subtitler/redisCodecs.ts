@@ -16,9 +16,10 @@ import {
   type ExportProgress,
   type RedisJobResult,
 } from '@gruenerator/contracts';
-import type { z } from 'zod';
 
 import { createLogger } from '../../utils/logger.js';
+
+import type { z } from 'zod';
 
 const log = createLogger('subtitler-redis');
 
@@ -27,11 +28,11 @@ const log = createLogger('subtitler-redis');
  * input was `null` (key miss) or if validation failed (logged). Callers
  * MUST treat `null` as "no usable data" rather than "key missing".
  */
-export function parseRedisJson<S extends z.ZodTypeAny>(
+export function parseRedisJson<T>(
   raw: string | null,
-  schema: S,
+  schema: z.ZodType<T>,
   context: string
-): z.infer<S> | null {
+): T | null {
   if (raw == null) return null;
   let parsed: unknown;
   try {

@@ -124,6 +124,8 @@ export function buildPendingAction(opts: {
         title: 'Board aktualisieren',
         payload: { boardId: boardIds[0], rows: [], responseText: fullText },
       };
+    case 'compare':
+    case 'pressemitteilung_examples':
     case 'sharepic':
     case 'search':
     case 'research':

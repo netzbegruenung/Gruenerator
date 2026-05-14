@@ -140,9 +140,8 @@ export async function executeDirectSearch(params: {
   const userFilter = buildSubcategoryFilter(filters);
   let agentLvFilter: QdrantFilter | undefined;
   if (agentLandesverband && qdrantCollection === 'landesverbaende_documents') {
-    const lvList: string[] = Array.isArray(agentLandesverband)
-      ? [...agentLandesverband]
-      : [agentLandesverband as string];
+    const lvList: string[] =
+      typeof agentLandesverband === 'string' ? [agentLandesverband] : [...agentLandesverband];
     agentLvFilter = {
       must: [
         {

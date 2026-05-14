@@ -1,7 +1,8 @@
 import { toast } from '@gruenerator/ui';
-import type { AxiosError } from 'axios';
 
 import { getErrorMessage } from './errorMessages';
+
+import type { AxiosError } from 'axios';
 
 /**
  * Stable toast IDs for dedup — 12 parallel failed requests collapse into 1 toast.
@@ -16,7 +17,7 @@ const TOAST_IDS = {
 function readRetryAfterSeconds(error: unknown): number | null {
   const headers = (error as AxiosError | undefined)?.response?.headers;
   if (!headers) return null;
-  const raw = headers['retry-after'] ?? headers['Retry-After'];
+  const raw: unknown = headers['retry-after'] ?? headers['Retry-After'];
   if (!raw) return null;
   const asNumber = Number(raw);
   if (Number.isFinite(asNumber) && asNumber > 0) return Math.ceil(asNumber);
@@ -51,9 +52,7 @@ export function toastApiError(error: unknown): void {
   const { title, message } = getErrorMessage(error);
   const retryAfter = status === 429 ? readRetryAfterSeconds(error) : null;
   const description =
-    retryAfter !== null
-      ? `Bitte versuche es in ${retryAfter} Sekunden erneut.`
-      : message;
+    retryAfter !== null ? `Bitte versuche es in ${retryAfter} Sekunden erneut.` : message;
 
   toast.error(title, {
     id: pickToastId(status),

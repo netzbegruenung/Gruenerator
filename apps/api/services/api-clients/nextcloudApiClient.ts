@@ -423,7 +423,7 @@ class NextcloudApiClient {
       });
 
       if (response.status === 201 || response.status === 204) {
-        const rawEtag = response.headers?.etag ?? response.headers?.ETag;
+        const rawEtag: unknown = response.headers?.etag ?? response.headers?.ETag;
         const etag = typeof rawEtag === 'string' ? rawEtag.replace(/^"|"$/g, '') : undefined;
 
         console.log('[NextcloudApiClient] File uploaded successfully', {
