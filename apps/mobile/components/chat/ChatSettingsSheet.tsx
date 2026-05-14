@@ -6,6 +6,7 @@ import {
   type ToolKey,
   type ThreadMode,
 } from '@gruenerator/chat';
+import { QWEN_WARNING } from '@gruenerator/shared/models';
 import { memo, useCallback } from 'react';
 import { View, Text, Pressable, Switch, ScrollView, StyleSheet } from 'react-native';
 import { useShallow } from 'zustand/shallow';
@@ -189,14 +190,14 @@ export const ChatSettingsSheet = memo(function ChatSettingsSheet({ visible, onDi
                 >
                   {model.description}
                 </Text>
-                {model.warning && (
+                {model.region === 'cn' && (
                   <Text
                     style={[
                       styles.modelChipWarningText,
                       { color: active ? colors.white : colors.warning },
                     ]}
                   >
-                    {model.warning}
+                    {QWEN_WARNING}
                   </Text>
                 )}
               </Pressable>
