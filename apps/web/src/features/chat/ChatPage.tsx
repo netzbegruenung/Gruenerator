@@ -13,6 +13,7 @@ import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
 import { useFirstName } from '@/hooks/useFirstName';
+import { useAuthStore } from '@/stores/authStore';
 
 const notebookLinks: NotebookLink[] = SYSTEM_NOTEBOOKS.map((nb) => ({
   id: nb.id,
@@ -27,6 +28,7 @@ function ChatPage() {
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
   const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
+  const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
   const agentParam = searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null);
@@ -112,6 +114,7 @@ function ChatPage() {
             onNavigate={handleNavigate}
             firstName={firstName}
             requireProfileHydration
+            userLocale={userLocale}
           />
         )}
       </main>

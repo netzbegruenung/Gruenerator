@@ -36,6 +36,13 @@ interface GrueneratorThreadProps {
     sendAdornment?: ReactNode;
   };
   requireProfileHydration?: boolean;
+  /**
+   * User's locale (`'de-DE'` or `'de-AT'`). Plumbed into `useActiveAgentMeta`
+   * so the welcome screen (greeting, opening questions, party-name
+   * placeholders) renders AT-flavored copy for Austrian users. Defaults to
+   * `'de-DE'` when the consumer hasn't wired locale through yet.
+   */
+  userLocale?: string;
 }
 
 function VoiceOrbOverlay() {
@@ -78,13 +85,14 @@ export function GrueneratorThread({
   composerLayout,
   composerSlots,
   requireProfileHydration,
+  userLocale,
 }: GrueneratorThreadProps = {}) {
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const messageComponents = useMemo(() => ({ UserMessage, AssistantMessage }), []);
   const collab = useChatCollaborationContext();
   const collaborators = useCollaborators(collab?.provider ?? null);
   const isCompact = density === 'compact';
-  const activeAgent = useActiveAgentMeta();
+  const activeAgent = useActiveAgentMeta(userLocale);
 
   return (
     <ChatDensityContext.Provider value={density}>
