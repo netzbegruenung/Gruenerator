@@ -19,30 +19,11 @@ type LabelledStage = Extract<
 >;
 
 export const STAGE_LABEL_POOLS: Record<LabelledStage, readonly string[]> = {
-  classifying: [
-    'Sortiere dein Anliegen …',
-    'Stricke einen Plan …',
-    'Lese zwischen den Zeilen …',
-    'Denke kurz nach …',
-  ],
-  searching: [
-    'Stöbere im Archiv …',
-    'Wälze die Parteiprogramme …',
-    'Durchforste die Quellen …',
-    'Blättere durch die Anträge …',
-  ],
-  summarizing: [
-    'Bündele die Argumente …',
-    'Koche es auf den Punkt ein …',
-    'Fasse das Wichtigste zusammen …',
-  ],
-  generating_image: [
-    'Mische die Farben …',
-    'Werfe Farbbeutel auf die Leinwand …',
-    'Spanne die Leinwand auf …',
-    'Male dein Sharepic …',
-  ],
-  generating: ['Formuliere die Antwort …', 'Feile an den Worten …', 'Bringe es aufs Papier …'],
+  classifying: ['Sortiere …', 'Stricke …', 'Überlege …', 'Verstehe …'],
+  searching: ['Durchsuche …', 'Stöbere …', 'Wälze …', 'Blättere …'],
+  summarizing: ['Verdichte …', 'Bündele …', 'Fasse zusammen …'],
+  generating_image: ['Male …', 'Zeichne …', 'Pinsele …', 'Mische …'],
+  generating: ['Formuliere …', 'Schreibe …', 'Feile …', 'Tippe …'],
 };
 
 /**
