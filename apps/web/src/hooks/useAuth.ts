@@ -63,7 +63,7 @@ interface AuthOptions {
   instant?: boolean;
 }
 
-interface AuthData {
+export interface AuthData {
   isAuthenticated: boolean;
   user?: UserProfile;
 }
