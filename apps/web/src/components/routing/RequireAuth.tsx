@@ -17,13 +17,14 @@ import AuthSplash from './AuthSplash';
  * this guard entirely — they are mounted bare in `App.tsx`. The list of
  * public routes is `routes.filter((r) => r.public)` from `config/routes.ts`.
  *
- * Bootstrap state is read from React Query via `useAuthBootstrap()`, not
- * from a mirrored Zustand flag — see that hook for why.
+ * Both the bootstrap signal AND `isAuthenticated` are read from the single
+ * `authStatus` React Query via `useAuthBootstrap()`, not from a mirrored
+ * Zustand flag — see that hook for why. `isLoggingOut` stays on the store: it
+ * is a transient action-flag, not a cached truth.
  */
 const RequireAuth = () => {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
-  const { isBootstrapped, isError } = useAuthBootstrap();
+  const { isBootstrapped, isError, isAuthenticated } = useAuthBootstrap();
   const location = useLocation();
 
   // During logout the store may momentarily show authenticated from stale

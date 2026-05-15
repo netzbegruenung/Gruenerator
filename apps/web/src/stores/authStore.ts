@@ -3,13 +3,7 @@ import { type UserProfile } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
 import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
-import {
-  INSTANT_AUTH_CACHE,
-  LOGIN_INTENT,
-  LOGOUT_TIMESTAMP,
-  PERSISTED_AUTH_STATE,
-  PERSISTED_AUTH_VERSION,
-} from '../features/auth/storageKeys';
+import { INSTANT_AUTH_CACHE, LOGIN_INTENT, LOGOUT_TIMESTAMP } from '../features/auth/storageKeys';
 import { authClient } from '../lib/authClient';
 import { openDesktopLogin, type AuthSource } from '../utils/desktopAuth';
 import { isDesktopApp } from '../utils/platform';
@@ -52,14 +46,6 @@ export interface ApiResponse<T = unknown> {
   error?: string;
   data?: T;
   [key: string]: unknown;
-}
-
-interface PersistedAuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-  selectedMessageColor: string;
-  locale: SupportedLocale;
-  isLoading: boolean;
 }
 
 export interface AuthStore {
@@ -109,15 +95,10 @@ function detectBrowserLocale(): SupportedLocale {
   return 'de-DE';
 }
 
-// Cache version + TTL config. Storage key constants live in `features/auth/storageKeys.ts`
-// so every read/write site shares the same literal — see that file for the rationale.
-const AUTH_STORAGE_KEY = PERSISTED_AUTH_STATE;
-const AUTH_VERSION_KEY = PERSISTED_AUTH_VERSION;
+// Storage key aliases. The literals live in `features/auth/storageKeys.ts` so every
+// read/write site shares the same string — see that file for the rationale.
 const LOGOUT_TIMESTAMP_KEY = LOGOUT_TIMESTAMP;
 const LOGIN_INTENT_KEY = LOGIN_INTENT;
-const AUTH_CACHE_VERSION = '1.2'; // Increment to invalidate old cache
-const AUTH_EXPIRY_TIME = 15 * 60 * 1000; // 15 minutes (increased from 10)
-const LOGOUT_COOLDOWN_TIME = 60 * 1000; // 1 minute cooldown after logout
 
 // Helper functions for legacy compatibility (deprecated)
 const legacyHelpers = {
@@ -146,103 +127,26 @@ const legacyHelpers = {
   },
 };
 
-// Helper to load persisted auth state
-const loadPersistedAuthState = (): PersistedAuthState | null => {
-  try {
-    // Check if user recently logged out
-    const logoutTimestamp = localStorage.getItem(LOGOUT_TIMESTAMP_KEY);
-    if (logoutTimestamp && Date.now() - parseInt(logoutTimestamp) < LOGOUT_COOLDOWN_TIME) {
-      return null;
-    }
-
-    // Check cache version first
-    const storedVersion = localStorage.getItem(AUTH_VERSION_KEY);
-    if (storedVersion !== AUTH_CACHE_VERSION) {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      localStorage.setItem(AUTH_VERSION_KEY, AUTH_CACHE_VERSION);
-      return null;
-    }
-
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (stored) {
-      const { authState, timestamp, cacheVersion } = JSON.parse(stored) as {
-        authState: PersistedAuthState;
-        timestamp: number;
-        cacheVersion: string;
-      };
-
-      // Double-check cache version in stored data
-      if (cacheVersion !== AUTH_CACHE_VERSION) {
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-        return null;
-      }
-
-      // Check if stored state is still valid (not expired)
-      if (timestamp && Date.now() - timestamp < AUTH_EXPIRY_TIME) {
-        return {
-          user: authState.user,
-          isAuthenticated: authState.isAuthenticated,
-          selectedMessageColor: authState.selectedMessageColor || '#008939',
-          locale: authState.locale || 'de-DE',
-          isLoading: false, // Don't start in loading state if we have persisted data
-        };
-      } else {
-        // Remove expired data
-        localStorage.removeItem(AUTH_STORAGE_KEY);
-      }
-    }
-  } catch {
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    localStorage.removeItem(AUTH_VERSION_KEY);
-  }
-  return null;
-};
-
-// Helper to persist auth state
-const persistAuthState = (authState: Partial<AuthStore>): void => {
-  try {
-    const dataToStore = {
-      authState: {
-        user: authState.user,
-        isAuthenticated: authState.isAuthenticated,
-        selectedMessageColor: authState.selectedMessageColor,
-        locale: authState.locale,
-      },
-      timestamp: Date.now(),
-      cacheVersion: AUTH_CACHE_VERSION,
-    };
-
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(dataToStore));
-    localStorage.setItem(AUTH_VERSION_KEY, AUTH_CACHE_VERSION);
-  } catch (error) {
-    // If storage is full, try to clear some space
-    if (error instanceof Error && error.name === 'QuotaExceededError') {
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-      localStorage.removeItem(AUTH_VERSION_KEY);
-    }
-  }
-};
-
-// Load initial state from localStorage if available
-const persistedState = loadPersistedAuthState();
-
 /**
  * Zustand store for authentication state management
  */
 export const useAuthStore = create<AuthStore>((set, get) => ({
-  // Auth state - use persisted state if available, otherwise defaults
-  user: persistedState?.user || null,
-  isAuthenticated: persistedState?.isAuthenticated || false,
+  // Auth state — Zustand no longer persists to localStorage. React Query's
+  // instant-auth cache (seeded via `initialData` in useAuth) is the single
+  // source of truth for a warm start; this store is a pure in-memory mirror,
+  // populated by the queryFn's `applyAuthAnswer` → `setAuthState`.
+  user: null,
+  isAuthenticated: false,
   // Intentionally always false on init — server must reconfirm every load.
   hasServerConfirmed: false,
-  isLoading: persistedState ? false : true, // Don't start loading if we have persisted data
+  isLoading: true,
   error: null,
   isLoggingOut: false, // New state to track logout in progress
 
-  selectedMessageColor: persistedState?.selectedMessageColor || '#008939', // Default Klee
+  selectedMessageColor: '#008939', // Default Klee
 
   // Locale/language preference
-  locale: persistedState?.locale || detectBrowserLocale(),
+  locale: detectBrowserLocale(),
 
   // Main actions
   setAuthState: (data: AuthStateData) => {
@@ -279,10 +183,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   clearAuth: () => {
     // CRITICAL: Set logout timestamp to prevent immediate re-auth
     localStorage.setItem(LOGOUT_TIMESTAMP_KEY, Date.now().toString());
-
-    // CRITICAL: Clear ALL persisted auth data to prevent data leakage
-    localStorage.removeItem(AUTH_STORAGE_KEY);
-    localStorage.removeItem(AUTH_VERSION_KEY);
 
     // Clear the instant-auth cache used by useInstantAuth() / getCachedAuthState()
     // Without this, LoginPage reads stale cached auth and causes redirect loops.
@@ -702,17 +602,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
 // Export legacy helpers for backward compatibility
 export { legacyHelpers };
-
-// Subscribe to changes and persist them to localStorage
-useAuthStore.subscribe((state) => {
-  // Only persist if the user is authenticated to avoid overwriting with null
-  if (state.isAuthenticated && state.user) {
-    persistAuthState(state);
-  }
-});
-
-// Legacy initialization - no longer needed with new auth system
-// Auth state is now managed via backend API calls in useAuth hook
 
 // Helper to set login intent (clears logout timestamp)
 const setLoginIntent = () => {

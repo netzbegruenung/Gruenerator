@@ -130,11 +130,11 @@ async function shouldRedirectOn401(): Promise<boolean> {
 // ─────────────────────────────────────────────────────────────────────
 //
 // Background: backend-detected dead sessions used to leave the frontend's
-// `localStorage['authState']` and Zustand-persisted `gruenerator_auth_state`
-// claiming the user was authenticated. After `performLoginRedirect()`
-// triggered a full-page navigation to /login, the next mount read those
-// stale caches and `GuestRoute` bounced the user straight back to
-// /workplace — where the next API call 401'd again. Infinite loop.
+// `localStorage['authState']` instant-auth cache claiming the user was
+// authenticated. After `performLoginRedirect()` triggered a full-page
+// navigation to /login, the next mount read that stale cache and `GuestRoute`
+// bounced the user straight back to /workplace — where the next API call
+// 401'd again. Infinite loop.
 //
 // Two defenses are applied here, in order:
 //   1. Before redirecting, wipe the caches AND set `LOGOUT_TIMESTAMP` so
