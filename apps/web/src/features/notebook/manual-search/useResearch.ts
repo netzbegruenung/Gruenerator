@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-import apiClient from '../../components/utils/apiClient';
+import apiClient from '../../../components/utils/apiClient';
 
 import { type SearchMode, type SortOption } from './useResearchFilters';
 
