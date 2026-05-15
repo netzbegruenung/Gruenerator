@@ -1,7 +1,6 @@
 import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
 import {
   Button,
-  Dialog,
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -11,17 +10,17 @@ import {
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
-import { HiArrowLeft, HiPencil } from 'react-icons/hi';
+import { HiArrowLeft } from 'react-icons/hi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useDocumentsStore } from '../../../stores/documentsStore';
+import { cn } from '../../../utils/cn';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 
 import NotebookEditor from './NotebookEditor';
-import { RenameNotebookDialog } from './RenameNotebookDialog';
 
 import type { NotebookCollection } from '../../../types/notebook';
 
@@ -36,7 +35,7 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
   const pollDocumentStatus = useDocumentsStore((s) => s.pollDocumentStatus);
   const { query, createQACollection, updateQACollection, isCreating, isUpdating } =
     useNotebookCollections({ isActive: true });
-  const [renameOpen, setRenameOpen] = useState(false);
+  const [editingField, setEditingField] = useState<'name' | 'desc' | null>(null);
 
   const collections = useMemo<NotebookCollection[]>(() => query.data ?? [], [query.data]);
   const editingCollection = useMemo<NotebookCollection | null>(() => {
@@ -88,31 +87,46 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
     [createQACollection, goBack]
   );
 
-  const handleRenameSubmit = useCallback(
-    async (collection: NotebookCollection, name: string, description: string) => {
-      if (!name) return;
-      await updateQACollection(collection.id, {
-        name,
-        description: description || undefined,
-        custom_prompt: collection.custom_prompt,
-        selectionMode: collection.selection_mode,
-        labels: collection.labels,
+  const commitHeroName = useCallback(
+    async (raw: string) => {
+      setEditingField(null);
+      if (!editingCollection) return;
+      const trimmed = raw.trim().slice(0, 100);
+      if (!trimmed || trimmed === editingCollection.name) return;
+      await updateQACollection(editingCollection.id, {
+        name: trimmed,
+        description: editingCollection.description ?? undefined,
+        custom_prompt: editingCollection.custom_prompt,
+        selectionMode: editingCollection.selection_mode,
+        labels: editingCollection.labels,
       });
-      setRenameOpen(false);
     },
-    [updateQACollection]
+    [editingCollection, updateQACollection]
+  );
+
+  const commitHeroDesc = useCallback(
+    async (raw: string) => {
+      setEditingField(null);
+      if (!editingCollection) return;
+      const trimmed = raw.trim().slice(0, 500);
+      if (trimmed === (editingCollection.description ?? '')) return;
+      await updateQACollection(editingCollection.id, {
+        name: editingCollection.name,
+        description: trimmed || undefined,
+        custom_prompt: editingCollection.custom_prompt,
+        selectionMode: editingCollection.selection_mode,
+        labels: editingCollection.labels,
+      });
+    },
+    [editingCollection, updateQACollection]
   );
 
   const isEditMissing = mode === 'edit' && !query.isLoading && !editingCollection;
 
-  const pageTitle = mode === 'edit' ? (editingCollection?.name ?? 'Notebook') : 'Neues Notebook';
-  const pageSubtitle =
-    mode === 'edit' && editingCollection?.description ? editingCollection.description : undefined;
-
   return (
     <ErrorBoundary>
       <PageContainer maxWidth="lg" noPadTop>
-        <div className="mb-md flex items-center justify-between">
+        <div className="mb-md">
           <Button
             variant="ghost"
             size="sm"
@@ -122,27 +136,80 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
             <HiArrowLeft size={14} />
             Meine Notebooks
           </Button>
-          {mode === 'edit' && editingCollection ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setRenameOpen(true)}
-              className="gap-xs text-grey-500 hover:text-foreground"
-            >
-              <HiPencil size={14} />
-              Umbenennen
-            </Button>
-          ) : null}
         </div>
 
         {mode === 'edit' && editingCollection ? (
           <div className="mb-xl text-center">
-            <h1 className="mb-xs text-4xl font-semibold text-foreground-heading max-md:text-2xl">
-              {pageTitle}
-            </h1>
-            {pageSubtitle ? (
-              <p className="text-lg text-grey-500 dark:text-grey-400">{pageSubtitle}</p>
-            ) : null}
+            {editingField === 'name' ? (
+              <input
+                autoFocus
+                defaultValue={editingCollection.name}
+                maxLength={100}
+                onBlur={(e) => void commitHeroName(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void commitHeroName(e.currentTarget.value);
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setEditingField(null);
+                  }
+                }}
+                className="mb-xs w-full bg-transparent text-center text-4xl font-semibold text-foreground-heading outline-none max-md:text-2xl"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditingField('name')}
+                disabled={isUpdating}
+                className="mb-xs block w-full rounded-md px-2 py-1 text-center transition-colors hover:bg-background-alt/50"
+                aria-label="Name bearbeiten"
+              >
+                <h1 className="text-4xl font-semibold text-foreground-heading max-md:text-2xl">
+                  {editingCollection.name}
+                </h1>
+              </button>
+            )}
+
+            {editingField === 'desc' ? (
+              <textarea
+                autoFocus
+                rows={2}
+                defaultValue={editingCollection.description ?? ''}
+                maxLength={500}
+                placeholder="Beschreibung hinzufügen…"
+                onBlur={(e) => void commitHeroDesc(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    void commitHeroDesc(e.currentTarget.value);
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setEditingField(null);
+                  }
+                }}
+                className="w-full resize-none bg-transparent text-center text-lg text-grey-500 outline-none placeholder:text-grey-400 dark:text-grey-400"
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditingField('desc')}
+                disabled={isUpdating}
+                className="block w-full rounded-md px-2 py-1 text-center transition-colors hover:bg-background-alt/50"
+                aria-label="Beschreibung bearbeiten"
+              >
+                <p
+                  className={cn(
+                    'text-lg',
+                    editingCollection.description
+                      ? 'text-grey-500 dark:text-grey-400'
+                      : 'italic text-grey-400'
+                  )}
+                >
+                  {editingCollection.description || 'Beschreibung hinzufügen…'}
+                </p>
+              </button>
+            )}
           </div>
         ) : null}
 
@@ -179,24 +246,6 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
             onSave={handleCreateSave}
           />
         )}
-
-        <Dialog
-          open={renameOpen}
-          onOpenChange={(open) => {
-            if (!isUpdating) setRenameOpen(open);
-          }}
-        >
-          {renameOpen && editingCollection ? (
-            <RenameNotebookDialog
-              collection={editingCollection}
-              isUpdating={isUpdating}
-              onCancel={() => setRenameOpen(false)}
-              onSubmit={(name, description) =>
-                void handleRenameSubmit(editingCollection, name, description)
-              }
-            />
-          ) : null}
-        </Dialog>
       </PageContainer>
     </ErrorBoundary>
   );
