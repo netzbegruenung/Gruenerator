@@ -24,6 +24,7 @@ import {
   PiFileText,
   PiPaperclip,
   PiSparkle,
+  PiNotePencil,
 } from 'react-icons/pi';
 import { MdDiversity1 } from 'react-icons/md';
 import { agentsList, type AgentListItem } from './agents';
@@ -500,6 +501,34 @@ export function getDocMentionables(): Mentionable[] {
   return [...docToolMentionables, ...dynamicDocMentionables];
 }
 
+export interface UserNotebookMentionable {
+  id: string;
+  title: string;
+  slug: string;
+}
+
+let dynamicUserNotebookMentionables: Mentionable[] = [];
+
+export function setUserNotebookMentionables(notebooks: UserNotebookMentionable[]): void {
+  dynamicUserNotebookMentionables = notebooks.map((n) => ({
+    type: 'notebook' as const,
+    category: 'function' as const,
+    trigger: '@' as const,
+    identifier: n.id,
+    title: n.title,
+    description: `Mein Notizbuch: ${n.title}`,
+    avatar: '📓',
+    icon: PiNotePencil,
+    backgroundColor: '#316049',
+    mention: n.slug,
+  }));
+  rebuildMentionableMap();
+}
+
+export function getUserNotebookMentionables(): Mentionable[] {
+  return dynamicUserNotebookMentionables;
+}
+
 export const documentMentionables: Mentionable[] = [
   {
     type: 'document',
@@ -519,6 +548,7 @@ export function getAllMentionables(): Mentionable[] {
   return [
     ...agentMentionables,
     ...customAgentMentionables,
+    ...dynamicUserNotebookMentionables,
     ...notebookMentionables,
     ...toolMentionables,
     ...boardToolMentionables,
@@ -536,6 +566,7 @@ function rebuildMentionableMap(): void {
   const orderedSources = [
     agentMentionables,
     customAgentMentionables,
+    dynamicUserNotebookMentionables,
     notebookMentionables,
     toolMentionables,
     boardToolMentionables,
@@ -565,6 +596,7 @@ export function filterMentionables(query: string): {
   agents: Mentionable[];
   customAgents: Mentionable[];
   notebooks: Mentionable[];
+  userNotebooks: Mentionable[];
   tools: Mentionable[];
   boards: Mentionable[];
   docs: Mentionable[];
@@ -577,6 +609,7 @@ export function filterMentionables(query: string): {
       agents: agentMentionables,
       customAgents: customAgentMentionables,
       notebooks: notebookMentionables,
+      userNotebooks: dynamicUserNotebookMentionables,
       tools: toolMentionables,
       boards: allBoards,
       docs: allDocs,
@@ -593,6 +626,7 @@ export function filterMentionables(query: string): {
     agents: agentMentionables.filter(matchFn),
     customAgents: customAgentMentionables.filter(matchFn),
     notebooks: notebookMentionables.filter(matchFn),
+    userNotebooks: dynamicUserNotebookMentionables.filter(matchFn),
     tools: toolMentionables.filter(matchFn),
     boards: 'board'.startsWith(q) || q.startsWith('board') ? allBoards : allBoards.filter(matchFn),
     docs: 'dok'.startsWith(q) || q.startsWith('dok') ? allDocs : allDocs.filter(matchFn),
@@ -608,5 +642,12 @@ export function filterMentionablesByCategory(
   if (category === 'skill') {
     return [...all.agents, ...all.customAgents];
   }
-  return [...all.tools, ...all.boards, ...all.docs, ...all.documents, ...all.notebooks];
+  return [
+    ...all.tools,
+    ...all.boards,
+    ...all.docs,
+    ...all.documents,
+    ...all.userNotebooks,
+    ...all.notebooks,
+  ];
 }

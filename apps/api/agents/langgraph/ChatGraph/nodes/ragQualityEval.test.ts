@@ -229,6 +229,7 @@ async function evaluateBudgetAllocation() {
     chatHistoryContext: null,
     notebookIds: [],
     notebookCollectionIds: [],
+    notebookDocumentIds: [],
     defaultNotebookCollectionIds: [],
     documentIds: [],
     documentChatIds: [],

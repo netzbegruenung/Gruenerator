@@ -51,6 +51,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     researchBrief: null,
     researchMeta: null,
     notebookCollectionIds: [],
+    notebookDocumentIds: [],
     ...overrides,
   } as unknown as ChatGraphState;
 }
