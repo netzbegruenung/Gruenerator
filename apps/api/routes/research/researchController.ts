@@ -27,7 +27,7 @@ const router: Router = express.Router();
 const SNIPPET_MAX_CHARS = 400;
 const CHUNK_PREVIEW_MAX_CHARS = 200;
 
-function truncateSnippet(text: string, limit: number = SNIPPET_MAX_CHARS): string {
+export function truncateSnippet(text: string, limit: number = SNIPPET_MAX_CHARS): string {
   if (!text || text.length <= limit) return text;
 
   const truncated = text.slice(0, limit);
@@ -52,7 +52,11 @@ function escapeHtml(text: string): string {
  * Extract the best snippet from text based on query terms, with <mark> highlighting.
  * Falls back to plain truncation if no query terms match.
  */
-function highlightSnippet(text: string, query: string, limit: number = SNIPPET_MAX_CHARS): string {
+export function highlightSnippet(
+  text: string,
+  query: string,
+  limit: number = SNIPPET_MAX_CHARS
+): string {
   if (!text || !query) return truncateSnippet(text, limit);
 
   const terms = query

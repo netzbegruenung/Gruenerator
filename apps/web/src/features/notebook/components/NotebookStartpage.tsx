@@ -39,6 +39,10 @@ interface NotebookStartpageProps {
   showStats?: boolean;
   showLastAdded?: boolean;
   showManualSearch?: boolean;
+  /** Hide the filter UI on the manual-research tab (user notebooks have no facets). */
+  hideManualSearchFilters?: boolean;
+  /** Route the manual-research tab to a per-notebook endpoint instead of /research/search. */
+  manualSearchEndpoint?: { type: 'notebook'; notebookId: string };
   /** Mention slug for the global-chat tab (e.g. 'berlin'). Null hides the tab. */
   notebookMention?: string | null;
   footer?: ReactNode;
@@ -80,6 +84,8 @@ export function NotebookStartpage({
   showStats = true,
   showLastAdded = true,
   showManualSearch = true,
+  hideManualSearchFilters = false,
+  manualSearchEndpoint,
   notebookMention,
   footer,
 }: NotebookStartpageProps) {
@@ -184,7 +190,11 @@ export function NotebookStartpage({
 
       {activeView === 'recherche' && (
         <div className="mx-auto max-w-3xl">
-          <NotebookManualSearch collectionIds={recentCollectionIds} />
+          <NotebookManualSearch
+            collectionIds={recentCollectionIds}
+            hideFilters={hideManualSearchFilters}
+            searchEndpoint={manualSearchEndpoint}
+          />
         </div>
       )}
 

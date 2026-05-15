@@ -19,6 +19,8 @@ import {
   notebookFiltersResponseSchema,
   notebookPublicCollectionResponseSchema,
   notebookQAResponseSchema,
+  notebookResearchSearchBodySchema,
+  notebookResearchSearchResponseSchema,
 } from '../schemas/notebook.js';
 
 const c = initContract();
@@ -76,6 +78,28 @@ export const notebookContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'Ask a question of a single collection',
+    },
+
+    /**
+     * POST /api/auth/notebook/:id/research-search
+     * Chunk-level manual research search over a single user-owned notebook.
+     * Requires authentication + ownership. System collection IDs are rejected
+     * here — use the `/research/search` route for those.
+     */
+    researchSearch: {
+      method: 'POST',
+      path: '/api/auth/notebook/:id/research-search',
+      pathParams: z.object({ id: z.string() }),
+      body: notebookResearchSearchBodySchema,
+      responses: {
+        200: notebookResearchSearchResponseSchema,
+        400: notebookErrorResponseSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Manual research over a single user-owned notebook (chunk-level)',
     },
 
     /**

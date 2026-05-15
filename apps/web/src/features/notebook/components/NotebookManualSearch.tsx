@@ -102,15 +102,29 @@ function resultToCardProps(result: ResearchResult) {
 
 interface NotebookManualSearchProps {
   collectionIds: string[];
+  /** Hide type/category/region/sort/mode/filter-panel UI. Search input + results only. */
+  hideFilters?: boolean;
+  /**
+   * Override the search transport. When `{ type: 'notebook' }`, routes to the
+   * per-notebook endpoint with ownership-scoped Qdrant search instead of the
+   * system-collection `/research/search`.
+   */
+  searchEndpoint?: { type: 'notebook'; notebookId: string };
 }
 
-export function NotebookManualSearch({ collectionIds }: NotebookManualSearchProps) {
+export function NotebookManualSearch({
+  collectionIds,
+  hideFilters = false,
+  searchEndpoint,
+}: NotebookManualSearchProps) {
   const [query, setQuery] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const lastQueryRef = useRef('');
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const { results, metadata, isLoading, error, search } = useResearch();
+  const { results, metadata, isLoading, error, search } = useResearch(
+    searchEndpoint?.type === 'notebook' ? { notebookId: searchEndpoint.notebookId } : undefined
+  );
   const {
     filterFields,
     filtersLoading,
@@ -130,8 +144,9 @@ export function NotebookManualSearch({ collectionIds }: NotebookManualSearchProp
   } = useResearchFilters(collectionIds);
 
   useEffect(() => {
+    if (hideFilters) return;
     setFiltersEnabled(true);
-  }, [setFiltersEnabled]);
+  }, [hideFilters, setFiltersEnabled]);
 
   const getKeywordConfig = (field: string) => filterFields[field];
   const getActiveValues = useCallback(
@@ -209,67 +224,31 @@ export function NotebookManualSearch({ collectionIds }: NotebookManualSearchProp
         variant="composer"
         submitPlacement="tray"
         bottomContent={
-          <div className="flex flex-wrap items-center gap-xs">
-            {contentTypeConfig && (contentTypeConfig.values ?? []).length > 0 && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <HiBarsArrowDown className="size-4" />
-                    {filtersLoading
-                      ? 'Laden...'
-                      : activeContentTypes.length > 0
-                        ? `${activeContentTypes.length} Typ${activeContentTypes.length > 1 ? 'en' : ''}`
-                        : 'Typ'}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  {(contentTypeConfig.values ?? []).map((v) => (
-                    <DropdownMenuCheckboxItem
-                      key={v.value}
-                      checked={activeContentTypes.includes(v.value)}
-                      onCheckedChange={(checked) => {
-                        setKeywordFilter(
-                          'content_type',
-                          checked
-                            ? [...activeContentTypes, v.value]
-                            : activeContentTypes.filter((t) => t !== v.value)
-                        );
-                      }}
-                      onSelect={(e) => e.preventDefault()}
-                    >
-                      {v.value} ({v.count})
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-
-            {(['primary_category', 'subcategories', 'region'] as const).map((field) => {
-              const config = getKeywordConfig(field);
-              const values = config?.values ?? [];
-              const active = getActiveValues(field);
-              if (!config || values.length === 0) return null;
-              return (
-                <DropdownMenu key={field}>
+          hideFilters ? undefined : (
+            <div className="flex flex-wrap items-center gap-xs">
+              {contentTypeConfig && (contentTypeConfig.values ?? []).length > 0 && (
+                <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm">
-                      <HiTag className="size-4" />
+                      <HiBarsArrowDown className="size-4" />
                       {filtersLoading
                         ? 'Laden...'
-                        : active.length > 0
-                          ? `${active.length} ${config.label}`
-                          : config.label}
+                        : activeContentTypes.length > 0
+                          ? `${activeContentTypes.length} Typ${activeContentTypes.length > 1 ? 'en' : ''}`
+                          : 'Typ'}
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="max-h-[20rem] overflow-y-auto">
-                    {values.map((v) => (
+                  <DropdownMenuContent align="start">
+                    {(contentTypeConfig.values ?? []).map((v) => (
                       <DropdownMenuCheckboxItem
                         key={v.value}
-                        checked={active.includes(v.value)}
+                        checked={activeContentTypes.includes(v.value)}
                         onCheckedChange={(checked) => {
                           setKeywordFilter(
-                            field,
-                            checked ? [...active, v.value] : active.filter((t) => t !== v.value)
+                            'content_type',
+                            checked
+                              ? [...activeContentTypes, v.value]
+                              : activeContentTypes.filter((t) => t !== v.value)
                           );
                         }}
                         onSelect={(e) => e.preventDefault()}
@@ -279,82 +258,120 @@ export function NotebookManualSearch({ collectionIds }: NotebookManualSearchProp
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-              );
-            })}
+              )}
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <HiArrowsUpDown className="size-4" />
-                  {SORT_LABELS[sortBy] ?? 'Relevanz'}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuRadioGroup
-                  value={sortBy}
-                  onValueChange={(v) => setSortBy(v as SortOption)}
-                >
-                  {SORT_OPTIONS.map((opt) => (
-                    <DropdownMenuRadioItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              {(['primary_category', 'subcategories', 'region'] as const).map((field) => {
+                const config = getKeywordConfig(field);
+                const values = config?.values ?? [];
+                const active = getActiveValues(field);
+                if (!config || values.length === 0) return null;
+                return (
+                  <DropdownMenu key={field}>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <HiTag className="size-4" />
+                        {filtersLoading
+                          ? 'Laden...'
+                          : active.length > 0
+                            ? `${active.length} ${config.label}`
+                            : config.label}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="max-h-[20rem] overflow-y-auto">
+                      {values.map((v) => (
+                        <DropdownMenuCheckboxItem
+                          key={v.value}
+                          checked={active.includes(v.value)}
+                          onCheckedChange={(checked) => {
+                            setKeywordFilter(
+                              field,
+                              checked ? [...active, v.value] : active.filter((t) => t !== v.value)
+                            );
+                          }}
+                          onSelect={(e) => e.preventDefault()}
+                        >
+                          {v.value} ({v.count})
+                        </DropdownMenuCheckboxItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                );
+              })}
 
-            <ResearchFilterPanel
-              filterFields={filterFields}
-              activeFilters={activeFilters}
-              dateFilterCount={dateFilterCount}
-              filtersLoading={filtersLoading}
-              onSetDateFilter={setDateFilter}
-              onClearDates={clearDateFilters}
-              onFiltersOpen={() => setFiltersEnabled(true)}
-            />
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={searchMode !== 'hybrid' ? 'default' : 'outline'}
-                  size="sm"
-                  aria-label="Suchmodus"
-                  title={`Suchmodus: ${modeLabel}`}
-                >
-                  <HiCog6Tooth className="size-4" />
-                  {modeLabel}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" sideOffset={8} className="w-auto p-2">
-                <div className="space-y-1.5">
-                  <span className="block px-1 text-xs font-medium text-grey-500 dark:text-grey-400">
-                    Suchmodus
-                  </span>
-                  <div className="flex flex-col gap-0.5">
-                    {MODE_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => setSearchMode(opt.value)}
-                        className={cn(
-                          'rounded-md px-3 py-1.5 text-left text-sm transition-colors',
-                          searchMode === opt.value
-                            ? 'bg-primary-500 text-white'
-                            : 'text-foreground hover:bg-background-alt'
-                        )}
-                      >
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <HiArrowsUpDown className="size-4" />
+                    {SORT_LABELS[sortBy] ?? 'Relevanz'}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuRadioGroup
+                    value={sortBy}
+                    onValueChange={(v) => setSortBy(v as SortOption)}
+                  >
+                    {SORT_OPTIONS.map((opt) => (
+                      <DropdownMenuRadioItem key={opt.value} value={opt.value}>
                         {opt.label}
-                      </button>
+                      </DropdownMenuRadioItem>
                     ))}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              <ResearchFilterPanel
+                filterFields={filterFields}
+                activeFilters={activeFilters}
+                dateFilterCount={dateFilterCount}
+                filtersLoading={filtersLoading}
+                onSetDateFilter={setDateFilter}
+                onClearDates={clearDateFilters}
+                onFiltersOpen={() => setFiltersEnabled(true)}
+              />
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={searchMode !== 'hybrid' ? 'default' : 'outline'}
+                    size="sm"
+                    aria-label="Suchmodus"
+                    title={`Suchmodus: ${modeLabel}`}
+                  >
+                    <HiCog6Tooth className="size-4" />
+                    {modeLabel}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" sideOffset={8} className="w-auto p-2">
+                  <div className="space-y-1.5">
+                    <span className="block px-1 text-xs font-medium text-grey-500 dark:text-grey-400">
+                      Suchmodus
+                    </span>
+                    <div className="flex flex-col gap-0.5">
+                      {MODE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setSearchMode(opt.value)}
+                          className={cn(
+                            'rounded-md px-3 py-1.5 text-left text-sm transition-colors',
+                            searchMode === opt.value
+                              ? 'bg-primary-500 text-white'
+                              : 'text-foreground hover:bg-background-alt'
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )
         }
       />
 
-      {activeFilterCount > 0 && (
+      {!hideFilters && activeFilterCount > 0 && (
         <ActiveFilterChips
           filterFields={filterFields}
           activeFilters={activeFilters}
