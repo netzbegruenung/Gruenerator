@@ -42,6 +42,12 @@ import type { Application, Request } from 'express';
 const log = createLogger('notebookContractRouter');
 const notebookHelper = new NotebookQdrantHelper();
 
+const MODE_WEIGHTS: Record<'hybrid' | 'vector' | 'text', readonly [number, number]> = {
+  hybrid: [0.7, 0.3],
+  vector: [1.0, 0.0],
+  text: [0.0, 1.0],
+};
+
 /**
  * Extract the authenticated user id or return a 401 contract response.
  * Used by `askMulti` / `askSingle` where req.user is required.
@@ -287,16 +293,7 @@ export const notebookContractRouter = s.router(notebookContract, {
       const effectiveLimit = Math.min(Math.max(limit ?? 30, 1), 100);
       const effectiveMode = mode ?? 'hybrid';
       const effectiveSort = sortBy ?? 'relevance';
-
-      let vectorWeight = 0.7;
-      let textWeight = 0.3;
-      if (effectiveMode === 'vector') {
-        vectorWeight = 1.0;
-        textWeight = 0.0;
-      } else if (effectiveMode === 'text') {
-        vectorWeight = 0.0;
-        textWeight = 1.0;
-      }
+      const [vectorWeight, textWeight] = MODE_WEIGHTS[effectiveMode];
 
       const documentSearchService = getQdrantDocumentService();
       const resp = await documentSearchService.search({

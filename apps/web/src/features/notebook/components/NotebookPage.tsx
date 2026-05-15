@@ -86,10 +86,11 @@ interface NotebookPageContentProps {
   showLastAdded?: boolean;
   /** Disable the manual research tab (dynamic user notebooks have no system collection scope). Defaults to true. */
   showManualSearch?: boolean;
-  /** Hide filter UI on the manual research tab. For user notebooks: no facets. */
-  hideManualSearchFilters?: boolean;
-  /** Route manual research to a per-notebook endpoint instead of /research/search. */
-  manualSearchEndpoint?: { type: 'notebook'; notebookId: string };
+  /**
+   * When set, the manual research tab scopes to a single user-owned notebook
+   * (ownership-checked, no facet filter UI). Forwarded to `NotebookManualSearch`.
+   */
+  manualSearchNotebookId?: string;
 }
 
 interface NotebookPageProps {
@@ -134,8 +135,7 @@ export const NotebookPageContent = ({
   showStats = true,
   showLastAdded = true,
   showManualSearch = true,
-  hideManualSearchFilters = false,
-  manualSearchEndpoint,
+  manualSearchNotebookId,
 }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
   const isSingleSystem = !isMulti && config.collections[0]?.id.endsWith('-system');
@@ -353,8 +353,7 @@ export const NotebookPageContent = ({
                   showStats={showStats}
                   showLastAdded={showLastAdded}
                   showManualSearch={showManualSearch}
-                  hideManualSearchFilters={hideManualSearchFilters}
-                  manualSearchEndpoint={manualSearchEndpoint}
+                  manualSearchNotebookId={manualSearchNotebookId}
                   notebookMention={notebookMention}
                   footer={startpageFooter}
                 />
@@ -486,8 +485,7 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
       showStats={false}
       showLastAdded={false}
       showManualSearch
-      hideManualSearchFilters
-      manualSearchEndpoint={{ type: 'notebook', notebookId: collection.id }}
+      manualSearchNotebookId={collection.id}
     />
   );
 };
