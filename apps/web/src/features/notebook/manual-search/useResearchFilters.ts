@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
-import apiClient from '../../components/utils/apiClient';
+import apiClient from '../../../components/utils/apiClient';
 
 export type SearchMode = 'hybrid' | 'vector' | 'text';
 export type SortOption = 'relevance' | 'date_desc' | 'date_asc';

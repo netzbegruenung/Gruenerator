@@ -42,12 +42,6 @@ const MAIN_TOOLS: ToolItem[] = [
     devOnly: true,
   },
   {
-    id: 'recherche',
-    title: 'Notebook-Daten durchsuchen',
-    path: '/recherche',
-    icon: getIcon('navigation', 'datenbank')!,
-  },
-  {
     id: 'transfer',
     title: 'Transfer',
     path: '/transfer',

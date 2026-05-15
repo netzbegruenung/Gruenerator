@@ -17,15 +17,15 @@ import { HiArrowsUpDown, HiBarsArrowDown, HiCog6Tooth, HiTag } from 'react-icons
 import { IoSearch } from 'react-icons/io5';
 
 import IndexCard from '../../../components/common/IndexCard';
-import ActiveFilterChips from '../../research/components/ActiveFilterChips';
-import ResearchFilterPanel from '../../research/components/ResearchFilterPanel';
-import { useResearch, type ResearchResult } from '../../research/useResearch';
+import SearchBar from '../../search/components/SearchBar';
+import ActiveFilterChips from '../manual-search/ActiveFilterChips';
+import ResearchFilterPanel from '../manual-search/ResearchFilterPanel';
+import { useResearch, type ResearchResult } from '../manual-search/useResearch';
 import {
   useResearchFilters,
   type SearchMode,
   type SortOption,
-} from '../../research/useResearchFilters';
-import SearchBar from '../../search/components/SearchBar';
+} from '../manual-search/useResearchFilters';
 
 import { cn } from '@/utils/cn';
 
