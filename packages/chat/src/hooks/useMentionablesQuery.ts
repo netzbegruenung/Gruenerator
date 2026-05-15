@@ -18,6 +18,7 @@ import {
   setBoardMentionables,
   setCustomAgents,
   setDocMentionables,
+  setUserNotebookMentionables,
   type CustomAgentMentionable,
   type Mentionable,
 } from '../lib/mentionables';
@@ -31,6 +32,11 @@ interface DocListItem {
   id: string;
   title: string;
   document_subtype?: string;
+}
+
+interface UserNotebookListItem {
+  id: string;
+  name: string;
 }
 
 const STALE_TIME = 60_000;
@@ -107,14 +113,35 @@ export function useDocsQuery() {
   });
 }
 
+export function useUserNotebooksQuery() {
+  const apiClient = useApiClient();
+  return useQuery<UserNotebookListItem[]>({
+    queryKey: ['mention-user-notebooks'],
+    queryFn: async () => {
+      const res = await apiClient
+        .get<{ collections?: UserNotebookListItem[] }>('/auth/notebook-collections')
+        .catch(() => ({ collections: [] }));
+      const list = Array.isArray(res?.collections) ? res.collections : [];
+      setUserNotebookMentionables(
+        list.map((n) => ({ id: n.id, title: n.name, slug: slugify(n.name) }))
+      );
+      return list;
+    },
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
 /**
- * Convenience hook that triggers all three queries — call from the chat
- * composer so dynamic mentionables are warm by the time @-popovers open.
+ * Convenience hook that triggers all dynamic-mentionable queries — call from
+ * the chat composer so dynamic mentionables are warm by the time @-popovers
+ * open.
  */
 export function useMentionablesQuery(): void {
   useCustomAgentsQuery();
   useBoardsQuery();
   useDocsQuery();
+  useUserNotebooksQuery();
 }
 
 /**
@@ -138,4 +165,3 @@ export function useDocMentionables(): Mentionable[] {
     }));
   }, [data]);
 }
-

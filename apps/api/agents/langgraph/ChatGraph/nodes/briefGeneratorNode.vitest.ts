@@ -41,6 +41,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     searchSources: [],
     notebookIds: [],
     notebookCollectionIds: [],
+    notebookDocumentIds: [],
     ...overrides,
   } as unknown as ChatGraphState;
 }

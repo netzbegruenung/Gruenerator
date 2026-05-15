@@ -280,6 +280,12 @@ export interface ChatGraphInput {
   imageAttachments?: ImageAttachment[] | undefined;
   threadAttachments?: ThreadAttachment[] | undefined;
   notebookIds?: string[] | undefined;
+  /**
+   * Document IDs already resolved from user-owned notebook UUIDs. The controller
+   * resolves UUID notebook mentions to their backing document IDs (ownership
+   * enforced there) so the graph can stay synchronous in init.
+   */
+  notebookDocumentIds?: string[] | undefined;
   defaultNotebookId?: string | undefined;
   documentIds?: string[] | undefined;
   textIds?: string[] | undefined;
@@ -323,6 +329,12 @@ export interface ChatGraphState {
   // Notebook scoping (from @notebook mentions)
   notebookIds: string[];
   notebookCollectionIds: string[];
+  /**
+   * Document IDs scoped from user-owned notebook (UUID) mentions. Used by
+   * searchNode to filter Qdrant hits to documents inside the mentioned
+   * personal notebook(s). Ownership is verified upstream in the controller.
+   */
+  notebookDocumentIds: string[];
 
   // Default notebook scoping (from persistent UI selection)
   defaultNotebookCollectionIds: string[];

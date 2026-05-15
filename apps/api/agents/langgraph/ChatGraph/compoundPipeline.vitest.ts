@@ -96,6 +96,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     threadAttachments: [],
     notebookIds: ['hamburg-notebook'],
     notebookCollectionIds: ['hamburg'],
+    notebookDocumentIds: [],
     defaultNotebookCollectionIds: [],
     documentIds: [],
     documentChatIds: [],
@@ -278,6 +279,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
     it('searches only in notebook-scoped collections', async () => {
       const state = makeState({
         notebookCollectionIds: ['hamburg'],
+        notebookDocumentIds: [],
         searchQuery: 'Klimapolitik',
         intent: 'search',
       });
@@ -291,6 +293,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
     it('returns results from the scoped collection', async () => {
       const state = makeState({
         notebookCollectionIds: ['hamburg'],
+        notebookDocumentIds: [],
         searchQuery: 'Klimapolitik',
         intent: 'search',
       });
@@ -336,6 +339,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         ],
         notebookIds: ['hamburg-notebook'],
         notebookCollectionIds: ['hamburg'],
+        notebookDocumentIds: [],
         agentConfig: makeAgentConfig(),
         aiWorkerPool,
       });
@@ -392,6 +396,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         messages: [{ role: 'user' as const, content: '' }],
         notebookIds: ['hamburg-notebook'],
         notebookCollectionIds: ['hamburg'],
+        notebookDocumentIds: [],
         agentConfig: makeAgentConfig(),
         aiWorkerPool,
         searchQuery: null,
@@ -427,6 +432,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         messages: [{ role: 'user' as const, content: 'Klimapolitik Hamburg' }],
         notebookIds: ['hamburg-notebook'],
         notebookCollectionIds: ['hamburg'],
+        notebookDocumentIds: [],
         agentConfig: makeUniversalAgentConfig(),
         aiWorkerPool: {
           processRequest: vi.fn().mockResolvedValue({
@@ -452,6 +458,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         ],
         notebookIds: [],
         notebookCollectionIds: [],
+        notebookDocumentIds: [],
         agentConfig: makeAgentConfig(),
         aiWorkerPool: {
           processRequest: vi.fn().mockResolvedValue({
