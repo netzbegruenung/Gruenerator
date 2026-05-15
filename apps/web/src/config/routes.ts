@@ -144,6 +144,16 @@ const MyNotebooksPage = lazy(() =>
     default: m.MyNotebooksPage,
   }))
 );
+const NotebookCreatePage = lazy(() =>
+  import('../features/notebook/components/NotebookEditorPage').then((m) => ({
+    default: m.NotebookCreatePage,
+  }))
+);
+const NotebookEditPage = lazy(() =>
+  import('../features/notebook/components/NotebookEditorPage').then((m) => ({
+    default: m.NotebookEditPage,
+  }))
+);
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
 const Reel = lazy(() => import('../features/subtitler/components/SubtitlerPage'));
 const SubtitlerBetaPage = lazy(
@@ -289,6 +299,16 @@ const standardRoutes: RouteConfig[] = [
     path: '/notebooks/meine',
     component: GrueneratorenBundle.MyNotebooks,
     withForm: true,
+    layoutMode: 'sidebarOnly',
+  },
+  {
+    path: '/notebooks/meine/neu',
+    component: NotebookCreatePage,
+    layoutMode: 'sidebarOnly',
+  },
+  {
+    path: '/notebooks/meine/:id/bearbeiten',
+    component: NotebookEditPage,
     layoutMode: 'sidebarOnly',
   },
   {
