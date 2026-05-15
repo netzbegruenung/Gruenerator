@@ -1,5 +1,5 @@
 import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
-import { Badge, Button } from '@gruenerator/ui';
+import { Badge, Button, Input, Separator } from '@gruenerator/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState, useEffect, useCallback, useRef, type DragEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -283,12 +283,7 @@ const NotebookEditor = ({
   };
 
   return (
-    <motion.div
-      className="relative p-lg sm:p-xl"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-    >
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
       <div>
         {!editingCollection && (
           <div className="flex items-center justify-center gap-2 pb-md">
@@ -372,166 +367,167 @@ const NotebookEditor = ({
               transition={{ duration: 0.2 }}
             >
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-lg">
-                <section className="rounded-xl bg-background-alt/50 px-md py-md">
-                  {editing === 'name' ? (
-                    <input
-                      type="text"
-                      defaultValue={watchedName}
-                      autoFocus
-                      maxLength={100}
-                      placeholder="Name des Notebooks"
-                      onBlur={(e) => commitName(e.currentTarget.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          commitName(e.currentTarget.value);
-                        } else if (e.key === 'Escape') {
-                          e.preventDefault();
-                          setEditing(null);
-                        }
-                      }}
-                      className="w-full bg-transparent text-xl font-semibold text-foreground outline-none placeholder:text-grey-400"
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setEditing('name')}
-                      className="group flex w-full items-center gap-xs rounded-md px-1 py-[2px] text-left transition-colors hover:bg-background"
-                      aria-label="Name bearbeiten"
-                    >
-                      <span
-                        className={cn(
-                          'truncate text-xl font-semibold leading-tight',
-                          watchedName ? 'text-foreground' : 'italic text-grey-400'
-                        )}
-                      >
-                        {watchedName || 'Notebook benennen…'}
-                      </span>
-                      <HiPencil
-                        size={12}
-                        className="ml-auto shrink-0 text-grey-400 opacity-0 transition-opacity group-hover:opacity-60"
+                {!editingCollection && (
+                  <section className="space-y-xs">
+                    {editing === 'name' ? (
+                      <input
+                        type="text"
+                        defaultValue={watchedName}
+                        autoFocus
+                        maxLength={100}
+                        placeholder="Name des Notebooks"
+                        onBlur={(e) => commitName(e.currentTarget.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            commitName(e.currentTarget.value);
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            setEditing(null);
+                          }
+                        }}
+                        className="w-full bg-transparent text-2xl font-semibold text-foreground outline-none placeholder:text-grey-400"
                       />
-                    </button>
-                  )}
-
-                  {editing === 'desc' ? (
-                    <textarea
-                      defaultValue={watchedDesc}
-                      autoFocus
-                      rows={3}
-                      maxLength={500}
-                      placeholder="Kurze Beschreibung…"
-                      onBlur={(e) => commitDesc(e.currentTarget.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                          e.preventDefault();
-                          commitDesc(e.currentTarget.value);
-                        } else if (e.key === 'Escape') {
-                          e.preventDefault();
-                          setEditing(null);
-                        }
-                      }}
-                      className="mt-xs w-full resize-none rounded-md border border-grey-200 bg-background px-sm py-xs text-sm text-foreground outline-none placeholder:text-grey-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-grey-700"
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setEditing('desc')}
-                      className="group mt-[2px] flex w-full items-center gap-xs rounded-md px-1 py-[2px] text-left transition-colors hover:bg-background"
-                      aria-label="Beschreibung bearbeiten"
-                    >
-                      <span
-                        className={cn(
-                          'line-clamp-2 text-sm leading-relaxed',
-                          watchedDesc ? 'text-grey-600 dark:text-grey-300' : 'italic text-grey-400'
-                        )}
-                      >
-                        {watchedDesc || 'Beschreibung hinzufügen…'}
-                      </span>
-                      <HiPencil
-                        size={11}
-                        className="ml-auto shrink-0 text-grey-400 opacity-0 transition-opacity group-hover:opacity-60"
-                      />
-                    </button>
-                  )}
-
-                  <div className="mt-md flex flex-wrap items-center gap-xs">
-                    {labels.map((label) => (
-                      <Badge
-                        key={label}
-                        variant="secondary"
-                        className="gap-1 border-transparent bg-secondary-600 text-xs text-white"
-                      >
-                        {label}
-                        <button
-                          type="button"
-                          className="ml-0.5 inline-flex items-center hover:text-grey-200"
-                          onClick={() => handleRemoveLabel(label)}
-                          aria-label={`Label "${label}" entfernen`}
-                        >
-                          <HiX size={11} />
-                        </button>
-                      </Badge>
-                    ))}
-                    {editing === 'labels' ? (
-                      <div className="flex items-center gap-xs">
-                        <input
-                          type="text"
-                          value={newLabel}
-                          autoFocus
-                          onChange={(e) => setNewLabel(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleAddLabel();
-                            } else if (e.key === 'Escape') {
-                              e.preventDefault();
-                              setNewLabel('');
-                              setEditing(null);
-                            }
-                          }}
-                          onBlur={() => {
-                            if (!newLabel.trim()) setEditing(null);
-                          }}
-                          placeholder="Label…"
-                          maxLength={30}
-                          disabled={loading || labels.length >= 10}
-                          className="w-32 rounded-md border border-grey-300 bg-background px-sm py-[2px] text-xs text-foreground placeholder:text-grey-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-grey-600"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={handleAddLabel}
-                          disabled={loading || !newLabel.trim() || labels.length >= 10}
-                          aria-label="Label hinzufügen"
-                        >
-                          <HiPlus size={12} />
-                        </Button>
-                      </div>
                     ) : (
-                      labels.length < 10 && (
-                        <button
-                          type="button"
-                          onClick={() => setEditing('labels')}
-                          className="inline-flex items-center gap-1 rounded-full border border-dashed border-grey-300 px-2 py-[2px] text-xs text-grey-500 transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-grey-600"
+                      <button
+                        type="button"
+                        onClick={() => setEditing('name')}
+                        className="group flex w-full items-center gap-xs rounded-md px-1 py-[2px] text-left transition-colors hover:bg-background-alt/50"
+                        aria-label="Name bearbeiten"
+                      >
+                        <span
+                          className={cn(
+                            'truncate text-2xl font-semibold leading-tight',
+                            watchedName ? 'text-foreground-heading' : 'italic text-grey-400'
+                          )}
                         >
-                          <HiPlus size={10} />
-                          {labels.length === 0 ? 'Label hinzufügen' : 'Weiteres Label'}
-                        </button>
-                      )
+                          {watchedName || 'Notebook benennen…'}
+                        </span>
+                        <HiPencil
+                          size={14}
+                          className="ml-auto shrink-0 text-grey-400 opacity-0 transition-opacity group-hover:opacity-60"
+                        />
+                      </button>
                     )}
-                  </div>
+
+                    {editing === 'desc' ? (
+                      <textarea
+                        defaultValue={watchedDesc}
+                        autoFocus
+                        rows={3}
+                        maxLength={500}
+                        placeholder="Kurze Beschreibung…"
+                        onBlur={(e) => commitDesc(e.currentTarget.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                            e.preventDefault();
+                            commitDesc(e.currentTarget.value);
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            setEditing(null);
+                          }
+                        }}
+                        className="w-full resize-none rounded-md border border-grey-200 bg-background px-sm py-xs text-sm text-foreground outline-none placeholder:text-grey-400 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-grey-700"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setEditing('desc')}
+                        className="group flex w-full items-center gap-xs rounded-md px-1 py-[2px] text-left transition-colors hover:bg-background-alt/50"
+                        aria-label="Beschreibung bearbeiten"
+                      >
+                        <span
+                          className={cn(
+                            'line-clamp-2 text-base leading-relaxed',
+                            watchedDesc
+                              ? 'text-grey-600 dark:text-grey-300'
+                              : 'italic text-grey-400'
+                          )}
+                        >
+                          {watchedDesc || 'Beschreibung hinzufügen…'}
+                        </span>
+                        <HiPencil
+                          size={12}
+                          className="ml-auto shrink-0 text-grey-400 opacity-0 transition-opacity group-hover:opacity-60"
+                        />
+                      </button>
+                    )}
+                  </section>
+                )}
+
+                <section className="flex flex-wrap items-center gap-xs">
+                  {labels.map((label) => (
+                    <Badge
+                      key={label}
+                      variant="secondary"
+                      className="gap-1 border-transparent bg-secondary-600 text-xs text-white"
+                    >
+                      {label}
+                      <button
+                        type="button"
+                        className="ml-0.5 inline-flex items-center hover:text-grey-200"
+                        onClick={() => handleRemoveLabel(label)}
+                        aria-label={`Label "${label}" entfernen`}
+                      >
+                        <HiX size={11} />
+                      </button>
+                    </Badge>
+                  ))}
+                  {editing === 'labels' ? (
+                    <div className="flex items-center gap-xs">
+                      <Input
+                        type="text"
+                        value={newLabel}
+                        autoFocus
+                        onChange={(e) => setNewLabel(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddLabel();
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            setNewLabel('');
+                            setEditing(null);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!newLabel.trim()) setEditing(null);
+                        }}
+                        placeholder="Label…"
+                        maxLength={30}
+                        disabled={loading || labels.length >= 10}
+                        className="h-7 w-32 text-xs"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={handleAddLabel}
+                        disabled={loading || !newLabel.trim() || labels.length >= 10}
+                        aria-label="Label hinzufügen"
+                      >
+                        <HiPlus size={12} />
+                      </Button>
+                    </div>
+                  ) : (
+                    labels.length < 10 && (
+                      <button
+                        type="button"
+                        onClick={() => setEditing('labels')}
+                        className="inline-flex items-center gap-1 rounded-full border border-dashed border-grey-300 px-2 py-[2px] text-xs text-grey-500 transition-colors hover:border-primary-500 hover:text-primary-600 dark:border-grey-600"
+                      >
+                        <HiPlus size={10} />
+                        {labels.length === 0 ? 'Label hinzufügen' : 'Weiteres Label'}
+                      </button>
+                    )
+                  )}
                 </section>
 
-                {/* Documents: cards + dropzone */}
                 {uploadedDocuments.length > 0 && (
-                  <div className="space-y-sm">
-                    <div className="flex items-baseline justify-between px-1">
-                      <label className="text-xs font-medium uppercase tracking-wide text-grey-500">
-                        Dokumente
-                      </label>
-                      <span className="text-xs text-grey-500">
+                  <div className="space-y-md">
+                    <div className="flex items-baseline justify-between">
+                      <h2 className="text-xl font-semibold text-foreground-heading">Dokumente</h2>
+                      <span className="text-sm text-grey-500">
                         {uploadedDocuments.length}/{MAX_DOCUMENTS}
                       </span>
                     </div>
@@ -635,7 +631,8 @@ const NotebookEditor = ({
                   </div>
                 )}
 
-                <div className="flex flex-wrap justify-end gap-sm pt-lg border-t border-grey-200 dark:border-grey-700">
+                <Separator />
+                <div className="flex flex-wrap justify-end gap-sm">
                   {!editingCollection && (
                     <Button
                       type="button"
