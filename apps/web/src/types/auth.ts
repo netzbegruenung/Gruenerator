@@ -23,19 +23,6 @@ export interface AuthState {
   locale: 'de-DE' | 'de-AT';
 }
 
-export interface PersistedAuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-  selectedMessageColor: string;
-  locale: 'de-DE' | 'de-AT';
-}
-
-export interface AuthStorageData {
-  authState: PersistedAuthState;
-  timestamp: number;
-  cacheVersion: string;
-}
-
 export interface ProfileData {
   display_name?: string;
   email?: string;
