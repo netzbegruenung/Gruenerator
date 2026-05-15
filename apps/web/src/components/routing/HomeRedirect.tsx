@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 
-import { useAuthBootstrapped } from '../../hooks/useAuthBootstrapped';
+import { useAuthBootstrap } from '../../hooks/useAuthBootstrapped';
 import { useAuthStore } from '../../stores/authStore';
 
 import AuthSplash from './AuthSplash';
@@ -20,9 +20,8 @@ interface HomeRedirectProps {
  * guard simple and the special case visible at the call site in App.tsx.
  */
 const HomeRedirect = ({ children }: HomeRedirectProps) => {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
-  const isBootstrapped = useAuthBootstrapped();
+  const { isBootstrapped, isAuthenticated } = useAuthBootstrap();
 
   if (isLoggingOut) return <>{children}</>;
   if (!isBootstrapped) return <AuthSplash />;
