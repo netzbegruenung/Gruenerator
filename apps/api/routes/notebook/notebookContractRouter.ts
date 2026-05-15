@@ -290,6 +290,27 @@ export const notebookContractRouter = s.router(notebookContract, {
         return { status: 403 as const, body: { error: 'Forbidden' } };
       }
 
+      // Resolve notebook → document IDs via the n:m join collection. Chunks
+      // in the `documents` Qdrant collection are NOT tagged with collection_id
+      // (membership lives in `notebook_collection_documents`), so filtering on
+      // a `collection_id` payload field on chunks returns zero results.
+      const collectionDocs = await notebookHelper.getCollectionDocuments(collectionId);
+      const documentIds = collectionDocs.map((d) => d.document_id);
+
+      if (documentIds.length === 0) {
+        return {
+          status: 200 as const,
+          body: {
+            results: [],
+            metadata: {
+              totalResults: 0,
+              collections: [collectionId as string],
+              timeMs: Date.now() - startTime,
+            },
+          },
+        };
+      }
+
       const effectiveLimit = Math.min(Math.max(limit ?? 30, 1), 100);
       const effectiveMode = mode ?? 'hybrid';
       const effectiveSort = sortBy ?? 'relevance';
@@ -306,10 +327,8 @@ export const notebookContractRouter = s.router(notebookContract, {
           textWeight,
           threshold: 0.2,
           searchCollection: 'documents',
-          additionalFilter: {
-            must: [{ key: 'collection_id', match: { value: collectionId } }],
-          },
         },
+        filters: { documentIds },
       });
 
       const tagged = (resp.results ?? []).map((doc) => ({
