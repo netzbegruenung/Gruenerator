@@ -33,7 +33,8 @@ export async function rerankNode(state: ChatGraphState): Promise<Partial<ChatGra
   const { searchResults, searchQuery, hasTemporal, researchBrief } = state;
   const rerankCfg = vectorConfig.get('rerank');
 
-  const isNotebookScoped = (state.notebookCollectionIds?.length ?? 0) > 0;
+  const isNotebookScoped =
+    (state.notebookCollectionIds?.length ?? 0) > 0 || (state.notebookDocumentIds?.length ?? 0) > 0;
   const inputLimit = isNotebookScoped ? 20 : rerankCfg.inputLimit;
   const outputLimit = isNotebookScoped ? 12 : rerankCfg.outputLimit;
 

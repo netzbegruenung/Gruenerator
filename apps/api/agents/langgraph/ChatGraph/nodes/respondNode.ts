@@ -212,7 +212,8 @@ async function formatSearchContext(state: ChatGraphState): Promise<string> {
 
   // Default: budget-based truncation
   // Notebook-scoped searches get more results and higher budget for deeper answers
-  const isNotebookScoped = (state.notebookCollectionIds?.length ?? 0) > 0;
+  const isNotebookScoped =
+    (state.notebookCollectionIds?.length ?? 0) > 0 || (state.notebookDocumentIds?.length ?? 0) > 0;
   const maxResults = isNotebookScoped ? 12 : MAX_SEARCH_RESULTS;
   const topResults = state.searchResults.slice(0, maxResults);
 
