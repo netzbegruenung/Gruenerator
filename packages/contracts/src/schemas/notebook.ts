@@ -83,3 +83,40 @@ export const notebookQAResponseSchema = z.object({
   isPersonQuery: z.boolean().nullish(),
   person: z.unknown().nullish(),
 });
+
+// ── Per-notebook manual research (chunk-level Qdrant search) ────────────────
+
+export const notebookResearchSearchBodySchema = z.object({
+  query: z.string().min(2),
+  limit: z.number().nullish(),
+  mode: z.enum(['hybrid', 'vector', 'text']).nullish(),
+  sortBy: z.enum(['relevance', 'date_desc', 'date_asc']).nullish(),
+});
+
+export const notebookResearchResultSchema = z.object({
+  document_id: z.string(),
+  title: z.string(),
+  source_url: z.string().nullable(),
+  relevant_content: z.string(),
+  similarity_score: z.number(),
+  chunk_count: z.number(),
+  top_chunks: z.array(
+    z.object({
+      preview: z.string(),
+      chunk_index: z.number(),
+      page_number: z.number().nullable(),
+    })
+  ),
+  collection_id: z.string().nullish(),
+  collection_name: z.string().nullish(),
+  published_at: z.string().nullable().nullish(),
+});
+
+export const notebookResearchSearchResponseSchema = z.object({
+  results: z.array(notebookResearchResultSchema),
+  metadata: z.object({
+    totalResults: z.number(),
+    collections: z.array(z.string()),
+    timeMs: z.number(),
+  }),
+});
