@@ -3,7 +3,7 @@ import { Badge, Button, Input, Separator } from '@gruenerator/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState, useEffect, useCallback, useRef, type DragEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
-import { HiCheckCircle, HiArrowLeft, HiUpload, HiX, HiPlus, HiPencil } from 'react-icons/hi';
+import { HiArrowLeft, HiUpload, HiX, HiPlus, HiPencil } from 'react-icons/hi';
 
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
@@ -31,29 +31,33 @@ interface UploadedDocument {
 const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
 const MAX_DOCUMENTS = 100;
 
-function getFileTypeStyle(filename: string): { label: string; borderClass: string } {
+function getFileTypeStyle(filename: string): { label: string; cornerClass: string } {
   const ext = filename.toLowerCase().split('.').pop() ?? '';
   switch (ext) {
     case 'pdf':
-      return { label: 'PDF', borderClass: 'border-red-300 dark:border-red-900/50' };
+      return { label: 'PDF', cornerClass: 'bg-red-400 dark:bg-red-700' };
     case 'docx':
-      return { label: 'DOCX', borderClass: 'border-blue-300 dark:border-blue-900/50' };
+      return { label: 'DOCX', cornerClass: 'bg-blue-400 dark:bg-blue-700' };
     case 'doc':
-      return { label: 'DOC', borderClass: 'border-blue-300 dark:border-blue-900/50' };
+      return { label: 'DOC', cornerClass: 'bg-blue-400 dark:bg-blue-700' };
     case 'odt':
-      return { label: 'ODT', borderClass: 'border-emerald-300 dark:border-emerald-900/50' };
+      return { label: 'ODT', cornerClass: 'bg-emerald-400 dark:bg-emerald-700' };
     case 'rtf':
-      return { label: 'RTF', borderClass: 'border-orange-300 dark:border-orange-900/50' };
+      return { label: 'RTF', cornerClass: 'bg-orange-400 dark:bg-orange-700' };
     case 'md':
-      return { label: 'MD', borderClass: 'border-slate-300 dark:border-slate-700' };
+      return { label: 'MD', cornerClass: 'bg-slate-400 dark:bg-slate-600' };
     case 'txt':
-      return { label: 'TXT', borderClass: 'border-slate-300 dark:border-slate-700' };
+      return { label: 'TXT', cornerClass: 'bg-slate-400 dark:bg-slate-600' };
     default:
       return {
         label: ext.slice(0, 4).toUpperCase() || 'FILE',
-        borderClass: 'border-grey-300 dark:border-grey-700',
+        cornerClass: 'bg-grey-400 dark:bg-grey-600',
       };
   }
+}
+
+function hasFileDrag(e: DragEvent): boolean {
+  return Array.from(e.dataTransfer.types).includes('Files');
 }
 
 interface NotebookEditorProps {
@@ -202,7 +206,8 @@ const NotebookEditor = ({
   );
 
   const handleDrop = useCallback(
-    (e: DragEvent<HTMLDivElement>) => {
+    (e: DragEvent<HTMLElement>) => {
+      if (!hasFileDrag(e)) return;
       e.preventDefault();
       setIsDragOver(false);
       const files = Array.from(e.dataTransfer.files ?? []);
@@ -211,13 +216,20 @@ const NotebookEditor = ({
     [handleFilesUpload]
   );
 
-  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
+  const handleDragEnter = useCallback((e: DragEvent<HTMLElement>) => {
+    if (!hasFileDrag(e)) return;
     e.preventDefault();
     setIsDragOver(true);
   }, []);
 
-  const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
+  const handleDragOver = useCallback((e: DragEvent<HTMLElement>) => {
+    if (!hasFileDrag(e)) return;
     e.preventDefault();
+  }, []);
+
+  const handleDragLeave = useCallback((e: DragEvent<HTMLElement>) => {
+    if (!hasFileDrag(e)) return;
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
     setIsDragOver(false);
   }, []);
 
@@ -322,6 +334,7 @@ const NotebookEditor = ({
                       isUploading && 'cursor-default opacity-85'
                     )}
                     onDrop={handleDrop}
+                    onDragEnter={handleDragEnter}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onClick={() => !isUploading && fileInputRef.current?.click()}
@@ -523,14 +536,39 @@ const NotebookEditor = ({
                   )}
                 </section>
 
-                {uploadedDocuments.length > 0 && (
-                  <div className="space-y-md">
-                    <div className="flex items-baseline justify-between">
-                      <h2 className="text-xl font-semibold text-foreground-heading">Dokumente</h2>
+                <section
+                  className="relative space-y-md"
+                  onDragEnter={handleDragEnter}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <div className="flex items-center justify-between gap-md">
+                    <h2 className="text-xl font-semibold text-foreground-heading">Dokumente</h2>
+                    <div className="flex items-center gap-sm">
                       <span className="text-sm text-grey-500">
                         {uploadedDocuments.length}/{MAX_DOCUMENTS}
                       </span>
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={
+                          loading || isUploading || uploadedDocuments.length >= MAX_DOCUMENTS
+                        }
+                        aria-label="Dokumente hinzufügen"
+                      >
+                        <HiPlus size={16} />
+                      </Button>
                     </div>
+                  </div>
+
+                  {uploadedDocuments.length === 0 ? (
+                    <p className="py-lg text-center text-sm text-grey-500">
+                      Noch keine Dokumente. Ziehe Dateien hierher oder klicke auf +.
+                    </p>
+                  ) : (
                     <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
                       {uploadedDocuments.map((doc) => {
                         const isIndexing = indexingDocIds.has(doc.id);
@@ -539,12 +577,18 @@ const NotebookEditor = ({
                           <div
                             key={doc.id}
                             className={cn(
-                              'group relative flex min-h-[112px] min-w-0 flex-col gap-xs rounded-xl border-2 bg-background p-md transition-all duration-200',
-                              fileType.borderClass,
+                              'group relative flex min-h-[112px] min-w-0 flex-col gap-xs overflow-hidden rounded-xl border border-grey-200 bg-background p-md transition-all duration-200 dark:border-grey-800',
                               isIndexing ? 'opacity-90' : 'hover:shadow-sm'
                             )}
                             aria-label={`${fileType.label}: ${doc.filename || doc.title}`}
                           >
+                            <div
+                              className={cn(
+                                'pointer-events-none absolute right-0 top-0 h-[3px] w-12 rounded-bl-md',
+                                fileType.cornerClass
+                              )}
+                              aria-hidden
+                            />
                             <Button
                               type="button"
                               variant="ghost"
@@ -567,69 +611,37 @@ const NotebookEditor = ({
                             >
                               {doc.filename || doc.title}
                             </div>
-                            <div className="mt-auto flex items-center gap-xs text-xs text-grey-500">
-                              {isIndexing ? (
-                                <>
-                                  <div className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-                                  <span>Wird verarbeitet…</span>
-                                </>
-                              ) : (
-                                <>
-                                  <HiCheckCircle size={12} className="text-green-600" />
-                                  <span>Bereit</span>
-                                </>
-                              )}
-                            </div>
+                            {isIndexing ? (
+                              <div className="mt-auto flex items-center gap-xs text-xs text-grey-500">
+                                <div className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+                                <span>Wird verarbeitet…</span>
+                              </div>
+                            ) : null}
                           </div>
                         );
                       })}
                     </div>
-                    {uploadedDocuments.length < MAX_DOCUMENTS && (
-                      <div
-                        className={cn(
-                          'flex min-h-[64px] cursor-pointer items-center justify-center gap-sm rounded-lg border-2 border-dashed bg-background-alt px-md py-sm transition-colors duration-200',
-                          isDragOver
-                            ? 'border-primary-500 bg-green-50 dark:bg-secondary-900'
-                            : 'border-grey-300 hover:border-primary-500 hover:bg-background dark:border-grey-600',
-                          (isUploading || loading) && 'cursor-default opacity-60'
-                        )}
-                        onDrop={handleDrop}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onClick={() => {
-                          if (isUploading || loading) return;
-                          fileInputRef.current?.click();
-                        }}
-                      >
-                        {isUploading ? (
-                          <>
-                            <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-                            <span className="text-sm text-grey-500">Wird hochgeladen…</span>
-                          </>
-                        ) : (
-                          <>
-                            <HiUpload className="text-grey-400" />
-                            <span className="text-sm font-medium text-foreground">
-                              Weitere Dateien ablegen oder klicken
-                            </span>
-                            <span className="text-xs text-grey-500">
-                              ({MAX_DOCUMENTS - uploadedDocuments.length} verbleibend)
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    )}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      accept={ACCEPTED_EXTENSIONS.join(',')}
-                      onChange={handleFileSelect}
-                      style={{ display: 'none' }}
-                    />
-                    {uploadError && <p className="mt-xs text-sm text-red-600">{uploadError}</p>}
-                  </div>
-                )}
+                  )}
+
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept={ACCEPTED_EXTENSIONS.join(',')}
+                    onChange={handleFileSelect}
+                    style={{ display: 'none' }}
+                  />
+                  {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
+
+                  {isDragOver && (
+                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center gap-sm rounded-xl border-2 border-dashed border-primary-500 bg-primary-500/10 backdrop-blur-[2px]">
+                      <HiUpload className="text-primary-700 dark:text-primary-300" />
+                      <span className="text-sm font-medium text-primary-700 dark:text-primary-300">
+                        Dateien hier ablegen
+                      </span>
+                    </div>
+                  )}
+                </section>
 
                 <Separator />
                 <div className="flex flex-wrap justify-end gap-sm">
