@@ -1,5 +1,5 @@
 import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
-import { Badge, Button, Input, Separator } from '@gruenerator/ui';
+import { Badge, Button, Input, Label, Separator, Switch } from '@gruenerator/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState, useEffect, useCallback, useRef, type DragEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -8,12 +8,16 @@ import { HiArrowLeft, HiUpload, HiX, HiPlus, HiPencil } from 'react-icons/hi';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
 
+type PublicOwnership = 'owner' | 'public_data';
+
 interface NotebookCollection {
   id?: string;
   name: string;
   description?: string;
   documents?: { id: string; title?: string }[];
   labels?: string[];
+  is_public?: boolean;
+  public_ownership?: PublicOwnership | null;
 }
 
 interface NotebookEditorFormData {
@@ -82,6 +86,8 @@ const NotebookEditor = ({
   const [newLabel, setNewLabel] = useState('');
   const [indexingDocIds, setIndexingDocIds] = useState<Set<string>>(() => new Set());
   const [editing, setEditing] = useState<null | 'name' | 'desc' | 'labels'>(null);
+  const [isPublic, setIsPublic] = useState(false);
+  const [publicOwnership, setPublicOwnership] = useState<PublicOwnership | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { uploadFileOnly, pollDocumentStatus } = useDocumentsStore();
@@ -122,6 +128,8 @@ const NotebookEditor = ({
         description: editingCollection.description || '',
       });
       setLabels(editingCollection.labels || []);
+      setIsPublic(editingCollection.is_public === true);
+      setPublicOwnership(editingCollection.public_ownership ?? null);
       if (editingCollection.documents?.length) {
         setUploadedDocuments(
           editingCollection.documents.map((doc) => ({
@@ -134,6 +142,8 @@ const NotebookEditor = ({
     } else {
       reset({ name: '', description: '' });
       setLabels([]);
+      setIsPublic(false);
+      setPublicOwnership(null);
       setUploadedDocuments([]);
       setStep(1);
     }
@@ -271,6 +281,7 @@ const NotebookEditor = ({
 
   const onSubmit = async (data: NotebookEditorFormData): Promise<void> => {
     if (uploadedDocuments.length === 0) return;
+    if (isPublic && !publicOwnership) return;
 
     const payload: NotebookEditorSavePayload = {
       ...(editingCollection?.id ? { id: editingCollection.id } : {}),
@@ -280,6 +291,8 @@ const NotebookEditor = ({
       documents: uploadedDocuments.map((doc) => doc.id),
       documentMeta: uploadedDocuments.map((doc) => ({ id: doc.id, title: doc.title })),
       labels,
+      isPublic,
+      publicOwnership: isPublic ? publicOwnership : null,
     };
 
     await onSave(payload);
@@ -290,6 +303,8 @@ const NotebookEditor = ({
     setUploadedDocuments([]);
     setLabels([]);
     setNewLabel('');
+    setIsPublic(false);
+    setPublicOwnership(null);
     setStep(1);
     if (onCancel) onCancel();
   };
@@ -644,6 +659,67 @@ const NotebookEditor = ({
                 </section>
 
                 <Separator />
+
+                <section className="space-y-md">
+                  <div className="flex items-center justify-between gap-md">
+                    <div className="space-y-xs">
+                      <Label htmlFor="notebook-public-toggle" className="text-base">
+                        Notebook öffentlich machen
+                      </Label>
+                      <p className="text-sm text-grey-500 dark:text-grey-400">
+                        Dein Notebook wird unter „Von der Basis" auf der Notebooks-Seite sichtbar.
+                      </p>
+                    </div>
+                    <Switch
+                      id="notebook-public-toggle"
+                      checked={isPublic}
+                      onCheckedChange={(checked) => {
+                        setIsPublic(checked);
+                        if (!checked) setPublicOwnership(null);
+                      }}
+                      disabled={loading}
+                    />
+                  </div>
+
+                  {isPublic && (
+                    <fieldset className="space-y-xs rounded-md border border-grey-200 p-md dark:border-grey-700">
+                      <legend className="px-1 text-xs font-medium uppercase tracking-wide text-grey-500">
+                        Bitte bestätige
+                      </legend>
+                      <label className="flex cursor-pointer items-start gap-sm rounded-md px-1 py-xs transition-colors hover:bg-background-alt/50">
+                        <input
+                          type="radio"
+                          name="public-ownership"
+                          value="owner"
+                          checked={publicOwnership === 'owner'}
+                          onChange={() => setPublicOwnership('owner')}
+                          disabled={loading}
+                          className="mt-0.5 accent-primary-500"
+                        />
+                        <span className="text-sm text-foreground">
+                          Ich besitze die Daten oder habe die Rechte zur Veröffentlichung
+                        </span>
+                      </label>
+                      <label className="flex cursor-pointer items-start gap-sm rounded-md px-1 py-xs transition-colors hover:bg-background-alt/50">
+                        <input
+                          type="radio"
+                          name="public-ownership"
+                          value="public_data"
+                          checked={publicOwnership === 'public_data'}
+                          onChange={() => setPublicOwnership('public_data')}
+                          disabled={loading}
+                          className="mt-0.5 accent-primary-500"
+                        />
+                        <span className="text-sm text-foreground">
+                          Die Daten sind öffentlich verfügbar (z.B. offizielle Dokumente,
+                          Pressemitteilungen)
+                        </span>
+                      </label>
+                    </fieldset>
+                  )}
+                </section>
+
+                <Separator />
                 <div className="flex flex-wrap justify-end gap-sm">
                   {!editingCollection && (
                     <Button
@@ -658,7 +734,12 @@ const NotebookEditor = ({
                   )}
                   <Button
                     type="submit"
-                    disabled={loading || uploadedDocuments.length === 0 || !watchedName.trim()}
+                    disabled={
+                      loading ||
+                      uploadedDocuments.length === 0 ||
+                      !watchedName.trim() ||
+                      (isPublic && !publicOwnership)
+                    }
                   >
                     {loading
                       ? 'Wird gespeichert...'
