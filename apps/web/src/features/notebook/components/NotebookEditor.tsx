@@ -29,50 +29,29 @@ interface UploadedDocument {
 }
 
 const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
-const MAX_DOCUMENTS = 20;
+const MAX_DOCUMENTS = 100;
 
-function getFileTypeBadge(filename: string): { label: string; tagClass: string } {
+function getFileTypeStyle(filename: string): { label: string; borderClass: string } {
   const ext = filename.toLowerCase().split('.').pop() ?? '';
   switch (ext) {
     case 'pdf':
-      return {
-        label: 'PDF',
-        tagClass: 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
-      };
+      return { label: 'PDF', borderClass: 'border-red-300 dark:border-red-900/50' };
     case 'docx':
-      return {
-        label: 'DOCX',
-        tagClass: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
-      };
+      return { label: 'DOCX', borderClass: 'border-blue-300 dark:border-blue-900/50' };
     case 'doc':
-      return {
-        label: 'DOC',
-        tagClass: 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300',
-      };
+      return { label: 'DOC', borderClass: 'border-blue-300 dark:border-blue-900/50' };
     case 'odt':
-      return {
-        label: 'ODT',
-        tagClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
-      };
+      return { label: 'ODT', borderClass: 'border-emerald-300 dark:border-emerald-900/50' };
     case 'rtf':
-      return {
-        label: 'RTF',
-        tagClass: 'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300',
-      };
+      return { label: 'RTF', borderClass: 'border-orange-300 dark:border-orange-900/50' };
     case 'md':
-      return {
-        label: 'MD',
-        tagClass: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-      };
+      return { label: 'MD', borderClass: 'border-slate-300 dark:border-slate-700' };
     case 'txt':
-      return {
-        label: 'TXT',
-        tagClass: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-      };
+      return { label: 'TXT', borderClass: 'border-slate-300 dark:border-slate-700' };
     default:
       return {
         label: ext.slice(0, 4).toUpperCase() || 'FILE',
-        tagClass: 'bg-grey-200 text-grey-700 dark:bg-grey-800 dark:text-grey-300',
+        borderClass: 'border-grey-300 dark:border-grey-700',
       };
   }
 }
@@ -305,50 +284,28 @@ const NotebookEditor = ({
 
   return (
     <motion.div
-      className="p-md sm:p-lg"
+      className="relative p-lg sm:p-xl"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
     >
       <div>
-        {/* Header: title - dots - close */}
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-sm pb-md">
-          <span className="text-base font-semibold text-foreground truncate">
-            {editingCollection
-              ? 'Notebook bearbeiten'
-              : step === 1
-                ? 'Dokument hochladen'
-                : 'Notebook erstellen'}
-          </span>
-
-          {!editingCollection && (
-            <div className="flex items-center justify-center gap-2">
-              <div
-                className={cn(
-                  'size-2 rounded-full transition-all duration-250',
-                  step === 1 ? 'bg-primary-500 scale-125' : 'bg-primary-500 opacity-45'
-                )}
-              />
-              <div
-                className={cn(
-                  'size-2 rounded-full transition-all duration-250',
-                  step === 2 ? 'bg-primary-500 scale-125' : 'bg-grey-300'
-                )}
-              />
-            </div>
-          )}
-
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="justify-self-end rounded-full"
-            onClick={handleCancel}
-            disabled={isUploading || loading}
-            aria-label="Schließen"
-          >
-            <HiX size={18} />
-          </Button>
-        </div>
+        {!editingCollection && (
+          <div className="flex items-center justify-center gap-2 pb-md">
+            <div
+              className={cn(
+                'size-2 rounded-full transition-all duration-250',
+                step === 1 ? 'bg-primary-500 scale-125' : 'bg-primary-500 opacity-45'
+              )}
+            />
+            <div
+              className={cn(
+                'size-2 rounded-full transition-all duration-250',
+                step === 2 ? 'bg-primary-500 scale-125' : 'bg-grey-300'
+              )}
+            />
+          </div>
+        )}
 
         <AnimatePresence mode="wait">
           {step === 1 && !editingCollection ? (
@@ -414,9 +371,8 @@ const NotebookEditor = ({
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.2 }}
             >
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-md">
-                {/* Compact header: name / description / labels — click to edit */}
-                <section className="rounded-xl bg-background-alt/50 px-sm py-sm">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-lg">
+                <section className="rounded-xl bg-background-alt/50 px-md py-md">
                   {editing === 'name' ? (
                     <input
                       type="text"
@@ -434,7 +390,7 @@ const NotebookEditor = ({
                           setEditing(null);
                         }
                       }}
-                      className="w-full bg-transparent text-lg font-semibold text-foreground outline-none placeholder:text-grey-400"
+                      className="w-full bg-transparent text-xl font-semibold text-foreground outline-none placeholder:text-grey-400"
                     />
                   ) : (
                     <button
@@ -445,7 +401,7 @@ const NotebookEditor = ({
                     >
                       <span
                         className={cn(
-                          'truncate text-lg font-semibold leading-tight',
+                          'truncate text-xl font-semibold leading-tight',
                           watchedName ? 'text-foreground' : 'italic text-grey-400'
                         )}
                       >
@@ -486,7 +442,7 @@ const NotebookEditor = ({
                     >
                       <span
                         className={cn(
-                          'line-clamp-1 text-sm',
+                          'line-clamp-2 text-sm leading-relaxed',
                           watchedDesc ? 'text-grey-600 dark:text-grey-300' : 'italic text-grey-400'
                         )}
                       >
@@ -499,7 +455,7 @@ const NotebookEditor = ({
                     </button>
                   )}
 
-                  <div className="mt-sm flex flex-wrap items-center gap-xs">
+                  <div className="mt-md flex flex-wrap items-center gap-xs">
                     {labels.map((label) => (
                       <Badge
                         key={label}
@@ -570,7 +526,7 @@ const NotebookEditor = ({
 
                 {/* Documents: cards + dropzone */}
                 {uploadedDocuments.length > 0 && (
-                  <div className="space-y-xs">
+                  <div className="space-y-sm">
                     <div className="flex items-baseline justify-between px-1">
                       <label className="text-xs font-medium uppercase tracking-wide text-grey-500">
                         Dokumente
@@ -579,57 +535,26 @@ const NotebookEditor = ({
                         {uploadedDocuments.length}/{MAX_DOCUMENTS}
                       </span>
                     </div>
-                    <div className="grid grid-cols-1 gap-sm md:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
                       {uploadedDocuments.map((doc) => {
                         const isIndexing = indexingDocIds.has(doc.id);
-                        const fileType = getFileTypeBadge(doc.filename || doc.title);
+                        const fileType = getFileTypeStyle(doc.filename || doc.title);
                         return (
                           <div
                             key={doc.id}
                             className={cn(
-                              'group relative flex items-center gap-sm rounded-xl border border-grey-200 bg-background p-sm min-w-0 transition-all duration-200 dark:border-grey-800',
-                              isIndexing
-                                ? 'opacity-90'
-                                : 'hover:border-grey-300 hover:shadow-sm dark:hover:border-grey-700'
+                              'group relative flex min-h-[112px] min-w-0 flex-col gap-xs rounded-xl border-2 bg-background p-md transition-all duration-200',
+                              fileType.borderClass,
+                              isIndexing ? 'opacity-90' : 'hover:shadow-sm'
                             )}
+                            aria-label={`${fileType.label}: ${doc.filename || doc.title}`}
                           >
-                            <span
-                              className={cn(
-                                'shrink-0 rounded-md px-1.5 py-[3px] text-[10px] font-semibold uppercase tracking-wide',
-                                fileType.tagClass,
-                                isIndexing && 'opacity-60'
-                              )}
-                              aria-hidden
-                            >
-                              {fileType.label}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <div
-                                className="truncate text-sm font-medium text-foreground"
-                                title={doc.filename || doc.title}
-                              >
-                                {doc.filename || doc.title}
-                              </div>
-                              <div className="mt-[2px] flex items-center gap-xs text-xs text-grey-500">
-                                {isIndexing ? (
-                                  <>
-                                    <div className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-                                    <span>Wird verarbeitet…</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <HiCheckCircle size={12} className="text-green-600" />
-                                    <span>Bereit</span>
-                                  </>
-                                )}
-                              </div>
-                            </div>
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon-xs"
                               className={cn(
-                                'shrink-0 transition-opacity',
+                                'absolute right-1 top-1 transition-opacity',
                                 isIndexing
                                   ? 'opacity-60'
                                   : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
@@ -640,6 +565,25 @@ const NotebookEditor = ({
                             >
                               <HiX size={12} />
                             </Button>
+                            <div
+                              className="line-clamp-3 break-words pr-6 text-sm font-medium leading-snug text-foreground"
+                              title={doc.filename || doc.title}
+                            >
+                              {doc.filename || doc.title}
+                            </div>
+                            <div className="mt-auto flex items-center gap-xs text-xs text-grey-500">
+                              {isIndexing ? (
+                                <>
+                                  <div className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+                                  <span>Wird verarbeitet…</span>
+                                </>
+                              ) : (
+                                <>
+                                  <HiCheckCircle size={12} className="text-green-600" />
+                                  <span>Bereit</span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
@@ -647,7 +591,7 @@ const NotebookEditor = ({
                     {uploadedDocuments.length < MAX_DOCUMENTS && (
                       <div
                         className={cn(
-                          'flex min-h-[52px] cursor-pointer items-center justify-center gap-sm rounded-lg border-2 border-dashed bg-background-alt px-sm transition-colors duration-200',
+                          'flex min-h-[64px] cursor-pointer items-center justify-center gap-sm rounded-lg border-2 border-dashed bg-background-alt px-md py-sm transition-colors duration-200',
                           isDragOver
                             ? 'border-primary-500 bg-green-50 dark:bg-secondary-900'
                             : 'border-grey-300 hover:border-primary-500 hover:bg-background dark:border-grey-600',
@@ -691,7 +635,7 @@ const NotebookEditor = ({
                   </div>
                 )}
 
-                <div className="flex flex-wrap justify-end gap-sm pt-md border-t border-grey-200 dark:border-grey-700">
+                <div className="flex flex-wrap justify-end gap-sm pt-lg border-t border-grey-200 dark:border-grey-700">
                   {!editingCollection && (
                     <Button
                       type="button"

@@ -1,4 +1,3 @@
-import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,19 +44,15 @@ import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 
-import NotebookEditor from './NotebookEditor';
-
 import type { NotebookCollection } from '../../../types/notebook';
 
 type DialogPhase =
   | { kind: 'closed' }
-  | { kind: 'create' }
-  | { kind: 'edit'; collection: NotebookCollection }
   | { kind: 'rename'; collection: NotebookCollection }
   | { kind: 'delete'; collection: NotebookCollection };
 
 const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
-const MAX_DOCUMENTS_PER_NOTEBOOK = 20;
+const MAX_DOCUMENTS_PER_NOTEBOOK = 100;
 
 function hasFileDrag(e: DragEvent): boolean {
   return Array.from(e.dataTransfer.types).includes('Files');
@@ -271,14 +266,9 @@ function MyNotebooksPageInner() {
   const queryClient = useQueryClient();
   const pollDocumentStatus = useDocumentsStore((s) => s.pollDocumentStatus);
   const uploadFileOnly = useDocumentsStore((s) => s.uploadFileOnly);
-  const {
-    query,
-    createQACollection,
-    updateQACollection,
-    deleteQACollection,
-    isCreating,
-    isUpdating,
-  } = useNotebookCollections({ isActive: true });
+  const { query, updateQACollection, deleteQACollection, isUpdating } = useNotebookCollections({
+    isActive: true,
+  });
   const [phase, setPhase] = useState<DialogPhase>({ kind: 'closed' });
   const [processingCollectionIds, setProcessingCollectionIds] = useState<Set<string>>(
     () => new Set()
@@ -312,50 +302,6 @@ function MyNotebooksPageInner() {
       closeDialog();
     },
     [updateQACollection, closeDialog]
-  );
-
-  const handleEditSave = useCallback(
-    async (collection: NotebookCollection, data: NotebookEditorSavePayload) => {
-      const originalIds = new Set((collection.documents ?? []).map((doc) => String(doc.id)));
-      const addedIds = data.documents.filter((id) => !originalIds.has(id));
-
-      await updateQACollection(collection.id, {
-        name: data.name,
-        description: data.description,
-        documents: data.documents,
-        labels: data.labels,
-        selectionMode: collection.selection_mode,
-        custom_prompt: collection.custom_prompt,
-      });
-      closeDialog();
-
-      if (addedIds.length > 0) {
-        setProcessingCollectionIds((prev) => new Set(prev).add(collection.id));
-        void Promise.all(addedIds.map((id) => pollDocumentStatus(id))).finally(() => {
-          setProcessingCollectionIds((prev) => {
-            if (!prev.has(collection.id)) return prev;
-            const next = new Set(prev);
-            next.delete(collection.id);
-            return next;
-          });
-          void queryClient.invalidateQueries({ queryKey: ['notebookCollections'] });
-        });
-      }
-    },
-    [updateQACollection, closeDialog, pollDocumentStatus, queryClient]
-  );
-
-  const handleCreateSave = useCallback(
-    async (data: NotebookEditorSavePayload) => {
-      await createQACollection({
-        name: data.name,
-        description: data.description,
-        documents: data.documents,
-        labels: data.labels,
-      });
-      closeDialog();
-    },
-    [createQACollection, closeDialog]
   );
 
   const handleDeleteConfirm = useCallback(
@@ -439,7 +385,7 @@ function MyNotebooksPageInner() {
         subtitle="Verwalte deine eigenen Notebooks. Ziehe Dateien direkt auf eine Karte, um sie hinzuzufügen."
       >
         <div className="mb-lg flex justify-end">
-          <Button onClick={() => setPhase({ kind: 'create' })}>
+          <Button onClick={() => void navigate('/notebooks/meine/neu')}>
             <HiPlus className="mr-1" /> Neues Notebook
           </Button>
         </div>
@@ -464,7 +410,7 @@ function MyNotebooksPageInner() {
                 Erstelle dein erstes Notebook, um Dokumente und Quellen zu bündeln.
               </div>
             </div>
-            <Button onClick={() => setPhase({ kind: 'create' })}>
+            <Button onClick={() => void navigate('/notebooks/meine/neu')}>
               <HiPlus className="mr-1" /> Eigenes Notebook erstellen
             </Button>
           </div>
@@ -477,7 +423,7 @@ function MyNotebooksPageInner() {
                 isProcessing={processingCollectionIds.has(c.id)}
                 onOpen={handleOpen}
                 onRename={(col) => setPhase({ kind: 'rename', collection: col })}
-                onEdit={(col) => setPhase({ kind: 'edit', collection: col })}
+                onEdit={(col) => void navigate(`/notebooks/meine/${col.id}/bearbeiten`)}
                 onShare={handleShare}
                 onDelete={(col) => setPhase({ kind: 'delete', collection: col })}
                 onAddFiles={handleAddFilesToCard}
@@ -503,38 +449,6 @@ function MyNotebooksPageInner() {
               }
             />
           ) : null}
-        </Dialog>
-
-        {/* Full editor dialog (create or edit) */}
-        <Dialog
-          open={phase.kind === 'create' || phase.kind === 'edit'}
-          onOpenChange={(open) => {
-            if (!open && !isCreating && !isUpdating) closeDialog();
-          }}
-        >
-          <DialogContent
-            className="sm:max-w-[min(1200px,calc(100%-2rem))] w-[calc(100%-1rem)] max-h-[90dvh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
-            aria-describedby={undefined}
-          >
-            <DialogTitle className="sr-only">
-              {phase.kind === 'edit' ? 'Notebook bearbeiten' : 'Notebook erstellen'}
-            </DialogTitle>
-            {phase.kind === 'edit' ? (
-              <NotebookEditor
-                editingCollection={phase.collection}
-                loading={isUpdating}
-                onCancel={closeDialog}
-                onSave={(data) => handleEditSave(phase.collection, data)}
-              />
-            ) : phase.kind === 'create' ? (
-              <NotebookEditor
-                editingCollection={null}
-                loading={isCreating}
-                onCancel={closeDialog}
-                onSave={handleCreateSave}
-              />
-            ) : null}
-          </DialogContent>
         </Dialog>
 
         {/* Delete confirmation */}
