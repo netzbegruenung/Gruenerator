@@ -486,6 +486,9 @@ export const profileApiService = {
       ...(collectionData.public_ownership
         ? { public_ownership: collectionData.public_ownership }
         : {}),
+      ...(Array.isArray(collectionData.wolkeFolders)
+        ? { wolke_folders: collectionData.wolkeFolders }
+        : {}),
     };
 
     const response = await apiClient.post<NotebookCollectionMutationResponse>(
@@ -526,6 +529,9 @@ export const profileApiService = {
         : {}),
       ...(collectionData.public_ownership
         ? { public_ownership: collectionData.public_ownership }
+        : {}),
+      ...(Array.isArray(collectionData.wolkeFolders)
+        ? { wolke_folders: collectionData.wolkeFolders }
         : {}),
     };
 
