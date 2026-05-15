@@ -22,6 +22,8 @@ const logger = createLogger('NotebookQdrantHelper');
 // Type Interfaces
 // =============================================================================
 
+type PublicOwnership = 'owner' | 'public_data';
+
 interface NotebookCollectionData {
   id?: string;
   user_id: string;
@@ -38,6 +40,8 @@ interface NotebookCollectionData {
   last_used_at?: string | null;
   created_at?: string;
   updated_at?: string;
+  is_public?: boolean;
+  public_ownership?: PublicOwnership | null;
 }
 
 interface NotebookCollection {
@@ -56,6 +60,8 @@ interface NotebookCollection {
   settings: Record<string, unknown>;
   document_count: number;
   last_used_at: string | null;
+  is_public: boolean;
+  public_ownership: PublicOwnership | null;
   notebook_collection_documents?: CollectionDocument[];
 }
 
@@ -193,6 +199,8 @@ class NotebookQdrantHelper {
           settings: collectionData.settings || {},
           document_count: collectionData.document_count || 0,
           last_used_at: collectionData.last_used_at || null,
+          is_public: collectionData.is_public === true,
+          public_ownership: collectionData.public_ownership ?? null,
         },
       };
 
@@ -603,6 +611,10 @@ class NotebookQdrantHelper {
    * Format collection data from Qdrant payload
    */
   formatCollectionFromPayload(payload: Record<string, unknown>): NotebookCollection {
+    const rawOwnership = payload.public_ownership;
+    const publicOwnership: PublicOwnership | null =
+      rawOwnership === 'owner' || rawOwnership === 'public_data' ? rawOwnership : null;
+
     return {
       id: payload.collection_id as string,
       user_id: payload.user_id as string,
@@ -619,7 +631,39 @@ class NotebookQdrantHelper {
       settings: (payload.settings as Record<string, unknown>) || {},
       document_count: (payload.document_count as number) || 0,
       last_used_at: payload.last_used_at as string | null,
+      is_public: payload.is_public === true,
+      public_ownership: publicOwnership,
     };
+  }
+
+  /**
+   * List all notebook collections marked is_public=true across all users.
+   * Powers the "Von der Basis" community section on /notebooks.
+   */
+  async getPublicNotebookCollections(
+    options: GetCollectionsOptions = {}
+  ): Promise<NotebookCollection[]> {
+    await this.ensureInitialized();
+
+    try {
+      const { limit = 200, offset = 0 } = options;
+
+      const filter: QdrantFilter = {
+        must: [{ key: 'is_public', match: { value: true } }],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collections,
+        filter,
+        { limit, offset, withPayload: true }
+      );
+
+      return results.map((result) => this.formatCollectionFromPayload(result.payload));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error listing public Notebook collections: ${message}`);
+      throw new Error(`Failed to list public Notebook collections: ${message}`);
+    }
   }
 
   /**

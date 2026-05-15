@@ -43,6 +43,22 @@ export const notebookCollectionsContract = c.router(
     },
 
     /**
+     * GET /api/auth/notebook-collections/public
+     * List all notebook collections marked is_public=true across all users.
+     * Powers the "Von der Basis" section on /notebooks.
+     */
+    listPublicCollections: {
+      method: 'GET',
+      path: '/api/auth/notebook-collections/public',
+      responses: {
+        200: collectionsListResponseSchema,
+        401: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'List publicly published notebook collections',
+    },
+
+    /**
      * POST /api/auth/notebook-collections
      * Create a new notebook collection.
      */
