@@ -202,10 +202,10 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         return { status: 400 as const, body: { error: 'Name is required' } };
       }
 
-      if (Array.isArray(document_ids) && document_ids.length > 20) {
+      if (Array.isArray(document_ids) && document_ids.length > 100) {
         return {
           status: 400 as const,
-          body: { error: 'A notebook can contain at most 20 documents' },
+          body: { error: 'A notebook can contain at most 100 documents' },
         };
       }
 
@@ -361,10 +361,10 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         return { status: 400 as const, body: { error: 'Name is required' } };
       }
 
-      if (Array.isArray(document_ids) && document_ids.length > 20) {
+      if (Array.isArray(document_ids) && document_ids.length > 100) {
         return {
           status: 400 as const,
-          body: { error: 'A notebook can contain at most 20 documents' },
+          body: { error: 'A notebook can contain at most 100 documents' },
         };
       }
 
