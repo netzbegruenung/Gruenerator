@@ -4,7 +4,7 @@ import { memo, useMemo } from 'react';
 import { MessagePrimitive, useMessage } from '@assistant-ui/react';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
-import { ChatIcon } from '../icons';
+import { GrueneratorHomeIconLoading } from '../icons';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
@@ -104,7 +104,12 @@ export const AssistantMessage = memo(function AssistantMessage() {
           <messageAgent.icon className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden />
         </div>
       ) : (
-        <ChatIcon size={isCompact ? 24 : 32} className="flex-shrink-0" />
+        <GrueneratorHomeIconLoading
+          loading={isStreaming}
+          width={isCompact ? 24 : 32}
+          height={isCompact ? 24 : 32}
+          className="flex-shrink-0"
+        />
       )}
       <div className="min-w-0 flex-1">
         {isNonDefaultAgent && messageAgent && (

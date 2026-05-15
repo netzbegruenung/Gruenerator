@@ -343,3 +343,4 @@ export { ModalThread, type ModalThreadProps } from './components/gruen-o-mat/Mod
 
 // Icons
 export { ChatIcon } from './components/icons/ChatIcon';
+export { default as GrueneratorHomeIconLoading } from './components/icons/GrueneratorHomeIconLoading';
