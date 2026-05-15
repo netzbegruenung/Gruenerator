@@ -42,10 +42,9 @@ import {
   type NotebookConfigEntry,
 } from '../config/notebooksConfig';
 
-import { LastAddedSection } from './LastAddedSection';
 import NotebookEditor from './NotebookEditor';
 import { NotebookPageContent } from './NotebookPage';
-import { StatisticsSection } from './StatisticsSection';
+import { VonDerBasisSection } from './VonDerBasisSection';
 
 import type { NotebookCollection } from '../../../types/notebook';
 
@@ -403,11 +402,6 @@ function NotebooksIndexFooter() {
     [isAustrian]
   );
 
-  const systemCollectionIds = useMemo(() => {
-    const config = getNotebookConfig('gruenerator');
-    return config.collections.filter((c) => !c.locale || c.locale === locale).map((c) => c.id);
-  }, [locale]);
-
   const queryClient = useQueryClient();
   const {
     query: collectionsQuery,
@@ -540,11 +534,7 @@ function NotebooksIndexFooter() {
         </div>
       </div>
 
-      {systemCollectionIds.length > 0 && (
-        <LastAddedSection collectionIds={systemCollectionIds} showSourceLabel />
-      )}
-
-      {systemCollectionIds.length > 0 && <StatisticsSection collectionIds={systemCollectionIds} />}
+      <VonDerBasisSection />
 
       {/* Tools section commented out per request — chat composer at the top covers Suche. */}
 
@@ -576,6 +566,7 @@ function NotebooksIndexPage() {
       startpageFooter={<NotebooksIndexFooter />}
       showLastAdded={false}
       showStats={false}
+      showExamples={false}
     />
   );
 }

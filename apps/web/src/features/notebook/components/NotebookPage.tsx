@@ -84,6 +84,8 @@ interface NotebookPageContentProps {
   showStats?: boolean;
   /** Disable the built-in "Zuletzt hinzugefügt" section (caller renders its own). Defaults to true. */
   showLastAdded?: boolean;
+  /** Disable the example-question chip grid below the composer. Defaults to true. */
+  showExamples?: boolean;
   /** Disable the manual research tab (dynamic user notebooks have no system collection scope). Defaults to true. */
   showManualSearch?: boolean;
   /** Hide filter UI on the manual research tab. For user notebooks: no facets. */
@@ -133,6 +135,7 @@ export const NotebookPageContent = ({
   startpageFooter,
   showStats = true,
   showLastAdded = true,
+  showExamples = true,
   showManualSearch = true,
   hideManualSearchFilters = false,
   manualSearchEndpoint,
@@ -343,7 +346,7 @@ export const NotebookPageContent = ({
                   subtitle={config.infoPanelDescription}
                   sources={config.sources}
                   placeholder={config.placeholder}
-                  exampleQuestions={config.exampleQuestions ?? []}
+                  exampleQuestions={showExamples ? (config.exampleQuestions ?? []) : []}
                   composerSourceFilters={sourceFilters}
                   composerCategoryFilters={categoryFilters}
                   mode={mode}

@@ -10,6 +10,9 @@ import { z } from 'zod';
 
 // ── Request bodies ──────────────────────────────────────────────────────────
 
+export const publicOwnershipSchema = z.enum(['owner', 'public_data']);
+export type PublicOwnership = z.infer<typeof publicOwnershipSchema>;
+
 export const createCollectionBodySchema = z.object({
   name: z.string(),
   description: z.string().nullish(),
@@ -20,6 +23,8 @@ export const createCollectionBodySchema = z.object({
   auto_sync: z.boolean().nullish(),
   remove_missing_on_sync: z.boolean().nullish(),
   labels: z.array(z.string()).nullish(),
+  is_public: z.boolean().nullish(),
+  public_ownership: publicOwnershipSchema.nullish(),
 });
 
 export const updateCollectionBodySchema = z.object({
@@ -32,6 +37,8 @@ export const updateCollectionBodySchema = z.object({
   auto_sync: z.boolean().nullish(),
   remove_missing_on_sync: z.boolean().nullish(),
   labels: z.array(z.string()).nullish(),
+  is_public: z.boolean().nullish(),
+  public_ownership: publicOwnershipSchema.nullish(),
 });
 
 export const bulkDeleteBodySchema = z.object({
@@ -57,6 +64,8 @@ export const notebookEditorSavePayloadSchema = z.object({
   documents: z.array(z.string()),
   documentMeta: z.array(z.object({ id: z.string(), title: z.string() })),
   labels: z.array(z.string()),
+  isPublic: z.boolean(),
+  publicOwnership: publicOwnershipSchema.nullable(),
 });
 
 export type NotebookEditorSavePayload = z.infer<typeof notebookEditorSavePayloadSchema>;
@@ -102,6 +111,8 @@ export const transformedCollectionSchema = z.object({
   settings: z.unknown().nullish(),
   notebook_collection_documents: z.array(z.object({ document_id: z.string() })).nullish(),
   labels: z.array(z.string()).nullish(),
+  is_public: z.boolean().nullish(),
+  public_ownership: publicOwnershipSchema.nullable().optional(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────
