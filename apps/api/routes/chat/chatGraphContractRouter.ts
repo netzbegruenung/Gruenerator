@@ -37,6 +37,7 @@ import {
 import { getCachedPersona } from '../../services/mem0/personaService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { NextcloudShareManager } from '../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
 
@@ -110,6 +111,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         defaultNotebookId: rawDefaultNotebookId,
         boardIds: rawBoardIds,
         docMentionIds: rawDocMentionIds,
+        wolkeFiles: rawWolkeFiles,
         currentDocument: rawCurrentDocument,
         customSystemPrompt: rawCustomSystemPrompt,
         roleName: rawRoleName,
@@ -145,6 +147,26 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         rawDefaultNotebookId && isKnownNotebook(rawDefaultNotebookId)
           ? rawDefaultNotebookId
           : undefined;
+
+      // Filter wolkeFiles to refs whose shareLinkId is still owned + active for this user.
+      // Stale refs (deleted/deactivated share link) are dropped silently so the chat still works.
+      let wolkeFiles: typeof rawWolkeFiles = undefined;
+      if (rawWolkeFiles?.length) {
+        try {
+          const userShareLinks = await NextcloudShareManager.getShareLinks(userId);
+          const allowedIds = new Set(userShareLinks.filter((l) => l.is_active).map((l) => l.id));
+          const filtered = rawWolkeFiles.filter((f) => allowedIds.has(f.shareLinkId));
+          wolkeFiles = filtered.length > 0 ? filtered : undefined;
+          if (filtered.length < rawWolkeFiles.length) {
+            log.warn(
+              `[ChatGraph] Dropped ${rawWolkeFiles.length - filtered.length} stale wolkeFiles ref(s) for user ${userId}`
+            );
+          }
+        } catch (err) {
+          log.warn(`[ChatGraph] wolkeFiles ownership check failed; ignoring refs`, err);
+          wolkeFiles = undefined;
+        }
+      }
 
       log.info(`[ChatGraph] Processing request for user ${userId}, agent ${agentId ?? 'default'}`);
       if (notebookIds.length > 0) {
@@ -339,6 +361,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             ? []
             : undefined,
         boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
+        wolkeFiles,
         // When the docs editor sends a currentDocument, also surface its id as a
         // doc-mention so the existing modify_doc / summary intent paths activate
         // (they key off `hasDocMentions`). Explicit @doc mentions always take

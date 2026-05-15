@@ -107,6 +107,78 @@ export function useDocsQuery() {
   });
 }
 
+export interface ChatShareLink {
+  id: string;
+  label?: string;
+  share_link?: string;
+  is_active?: boolean;
+  baseUrl?: string;
+}
+
+export interface ChatWolkeFile {
+  name: string;
+  href: string;
+  size: number | null;
+  isDirectory?: boolean;
+  fileExtension?: string;
+  isSupported?: boolean;
+  sizeFormatted?: string;
+  lastModifiedFormatted?: string;
+}
+
+export interface ChatWolkeBrowse {
+  shareLink: { id: string; label?: string; baseUrl?: string };
+  files: ChatWolkeFile[];
+}
+
+/**
+ * User's connected Nextcloud share links. Used by the @wolke picker to
+ * resolve which share to browse and to render the empty-state when the user
+ * has none. The endpoint is identical to the one apps/web's wolke feature
+ * page uses — we just route it through the chat package's ChatAdapter so
+ * mobile/desktop hosts don't need to set up the web-specific apiClient.
+ */
+export function useUserShareLinksQuery(enabled = true) {
+  const apiClient = useApiClient();
+  return useQuery<ChatShareLink[]>({
+    queryKey: ['mention-wolke-share-links'],
+    queryFn: async () => {
+      const res = await apiClient.get<{ shareLinks?: ChatShareLink[] } | ChatShareLink[]>(
+        '/nextcloud/share-links'
+      );
+      if (Array.isArray(res)) return res.filter((l) => l.is_active !== false);
+      return (res?.shareLinks ?? []).filter((l) => l.is_active !== false);
+    },
+    staleTime: STALE_TIME,
+    enabled,
+    retry: 1,
+  });
+}
+
+/**
+ * Folder listing for a single share link + path. Disabled until both
+ * `shareLinkId` and `enabled` are truthy so we don't fire empty browses.
+ */
+export function useWolkeBrowseQuery(shareLinkId: string | null, path: string, enabled = true) {
+  const apiClient = useApiClient();
+  return useQuery<ChatWolkeBrowse>({
+    queryKey: ['mention-wolke-browse', shareLinkId, path],
+    queryFn: async () => {
+      const qs = path ? `?path=${encodeURIComponent(path)}` : '';
+      const res = await apiClient.get<ChatWolkeBrowse>(
+        `/documents/wolke/browse/${shareLinkId}${qs}`
+      );
+      return {
+        shareLink: res.shareLink,
+        files: Array.isArray(res.files) ? res.files : [],
+      };
+    },
+    enabled: !!shareLinkId && enabled,
+    staleTime: 15_000,
+    retry: 1,
+  });
+}
+
 /**
  * Convenience hook that triggers all three queries — call from the chat
  * composer so dynamic mentionables are warm by the time @-popovers open.
@@ -138,4 +210,3 @@ export function useDocMentionables(): Mentionable[] {
     }));
   }, [data]);
 }
-

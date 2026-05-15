@@ -9,6 +9,20 @@
  */
 import { z } from 'zod';
 
+// ── Shared sub-schemas ──────────────────────────────────────────────────────
+
+/**
+ * Reference to a single file inside a user's connected Wolke (Nextcloud)
+ * share link. Selected via the @wolke mentionable in chat; resolved
+ * server-side at send-time by downloading the file via WebDAV.
+ */
+export const wolkeFileRefSchema = z.object({
+  shareLinkId: z.string(),
+  path: z.string(),
+  name: z.string(),
+});
+export type WolkeFileRef = z.infer<typeof wolkeFileRefSchema>;
+
 // ── Request bodies ──────────────────────────────────────────────────────────
 //
 // All optional fields use `.nullish()` (= `.optional().nullable()`) so they
@@ -35,6 +49,7 @@ export const chatStreamBodySchema = z.object({
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
   docMentionIds: z.array(z.string()).nullish(),
+  wolkeFiles: z.array(wolkeFileRefSchema).nullish(),
   currentDocument: z
     .object({
       id: z.string(),

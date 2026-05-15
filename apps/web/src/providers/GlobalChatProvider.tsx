@@ -130,6 +130,7 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           window.location.href = buildLoginUrl(currentPath);
         }
       },
+      wolkeConnectUrl: '/profile/wolke',
       renderSharepic: renderSharepicToImage,
       onEditSharepic: (variant: SharepicVariant) => {
         const handoffId =

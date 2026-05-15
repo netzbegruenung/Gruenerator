@@ -13,7 +13,13 @@ import {
   resolveNotebookCollections,
 } from '../../../../config/notebookCollectionMap.js';
 
-import type { ChatGraphState, DocumentSource, SearchIntent, SynthesisMode } from '../types.js';
+import type {
+  ChatGraphState,
+  DocumentSource,
+  SearchIntent,
+  SynthesisMode,
+  WolkeFileRef,
+} from '../types.js';
 
 const COMPARE_VERB_PATTERN =
   /\b(vergleich|unterschied|pro\s+und\s+contra|gegenüber|im\s+vergleich|versus|vs\.?|gemeinsamkeit|abweichung|kontrast|stell.*gegenüber)/i;
@@ -48,6 +54,7 @@ interface BuildOpts {
   documentChatIds: string[];
   docMentionIds: string[];
   notebookIds: string[];
+  wolkeFiles: WolkeFileRef[];
   threadAttachments: ChatGraphState['threadAttachments'];
   currentDocument: ChatGraphState['currentDocument'];
 }
@@ -86,6 +93,15 @@ export function buildDocumentSources(opts: BuildOpts): DocumentSource[] {
       id,
       label: notebookLabel(id),
       ...(known ? { collectionIds } : {}),
+    });
+  }
+
+  for (const ref of opts.wolkeFiles) {
+    sources.push({
+      kind: 'wolke',
+      id: `wolke:${ref.shareLinkId}:${ref.path}`,
+      label: ref.name,
+      wolke: ref,
     });
   }
 
