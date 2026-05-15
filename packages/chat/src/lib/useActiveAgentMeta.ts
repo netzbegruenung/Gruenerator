@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { SKILLS, getSystemAgent, localizeAgent, type SkillIcon } from '@gruenerator/shared/agents';
 import { agentsList } from './agents';
+import { resolveAgentIcon } from './agentIcons';
 import { useScopedAgentId } from './useScopedAgentState';
 
 export interface ActiveAgentMeta {
@@ -28,7 +29,7 @@ export function useActiveAgentMeta(userLocale: string = 'de-DE'): ActiveAgentMet
     if (!selectedAgentId) return null;
     // The resolved icon component lives on the skills catalog; system agents
     // and skills that share an identifier reuse the same branding.
-    const icon = agentsList.find((a) => a.identifier === selectedAgentId)?.icon;
+    const skillIcon = agentsList.find((a) => a.identifier === selectedAgentId)?.icon;
     const rawAgent = getSystemAgent(selectedAgentId);
     if (rawAgent) {
       // Prefer the canonical system-agent metadata when navigating via URL or
@@ -36,6 +37,11 @@ export function useActiveAgentMeta(userLocale: string = 'de-DE'): ActiveAgentMet
       // (e.g. "Pressemitteilung" instead of "Öffentlichkeitsarbeit") when
       // multiple skills share an identifier.
       const agent = localizeAgent(rawAgent, userLocale);
+      // System agents that aren't in the skills catalog (e.g. `gruenerator-suche`)
+      // still carry their own `iconKey` — resolve it here so WelcomeScreen
+      // doesn't silently fall back to the emoji avatar.
+      const icon: SkillIcon | undefined =
+        skillIcon ?? resolveAgentIcon(selectedAgentId, agent.iconKey);
       return {
         identifier: selectedAgentId,
         avatar: agent.avatar,
@@ -52,7 +58,7 @@ export function useActiveAgentMeta(userLocale: string = 'de-DE'): ActiveAgentMet
     return {
       identifier: selectedAgentId,
       avatar: skill.avatar,
-      ...(icon ? { icon } : {}),
+      ...(skillIcon ? { icon: skillIcon } : {}),
       title: skill.title,
       description: skill.description,
     };
