@@ -1,5 +1,5 @@
-import { Skeleton } from '@gruenerator/ui';
-import { memo } from 'react';
+import { Skeleton, SectionHeader } from '@gruenerator/ui';
+import { memo, useMemo, useState } from 'react';
 import { HiBookOpen } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
@@ -43,11 +43,25 @@ const VonDerBasisCard = memo(function VonDerBasisCard({
 
 export function VonDerBasisSection() {
   const { data, isLoading } = usePublicNotebookCollections({ enabled: true });
+  const [query, setQuery] = useState('');
+
   const collections = data ?? [];
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return collections;
+    return collections.filter(
+      (c) => c.name.toLowerCase().includes(q) || (c.description ?? '').toLowerCase().includes(q)
+    );
+  }, [collections, query]);
 
   return (
     <section className="mt-xl">
-      <h2 className="mb-md text-xl font-semibold text-foreground-heading">Von der Basis</h2>
+      <SectionHeader
+        title="Von der Basis"
+        searchQuery={query}
+        onSearchChange={setQuery}
+        searchPlaceholder="Notizbücher durchsuchen…"
+      />
 
       {isLoading ? (
         <div className="grid grid-cols-3 gap-sm max-lg:grid-cols-2 max-sm:grid-cols-1">
@@ -66,9 +80,13 @@ export function VonDerBasisSection() {
           Noch keine öffentlichen Notebooks. Sei der oder die Erste — veröffentliche eines deiner
           Notebooks im Editor.
         </p>
+      ) : filtered.length === 0 ? (
+        <p className="rounded-md border border-dashed border-grey-300 px-md py-lg text-center text-sm text-grey-500 dark:border-grey-700 dark:text-grey-400">
+          Keine Treffer für „{query}".
+        </p>
       ) : (
         <div className="grid grid-cols-3 gap-sm max-lg:grid-cols-2 max-sm:grid-cols-1">
-          {collections.map((c) => (
+          {filtered.map((c) => (
             <VonDerBasisCard key={c.id} collection={c} />
           ))}
         </div>
