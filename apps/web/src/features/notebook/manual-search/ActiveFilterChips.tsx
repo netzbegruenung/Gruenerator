@@ -1,7 +1,7 @@
 import { Badge } from '@gruenerator/ui';
 import { HiXMark } from 'react-icons/hi2';
 
-import { type ActiveFilters, type FilterFieldConfig } from '../useResearchFilters';
+import { type ActiveFilters, type FilterFieldConfig } from './useResearchFilters';
 
 interface ActiveFilterChipsProps {
   filterFields: Record<string, FilterFieldConfig>;

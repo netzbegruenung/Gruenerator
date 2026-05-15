@@ -106,6 +106,7 @@ const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
 const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
 const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
+const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
 const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
 const CreateCustomGeneratorPage = lazy(
   () => import('../features/generators/CreateCustomGeneratorPage')
@@ -182,7 +183,6 @@ const CollabCanvasStudioPage = lazy(
   () => import('../features/image-studio/CollabCanvasStudioPage')
 );
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
-const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
 const MonitorPage = lazy(() => import('../features/monitor/MonitorPage'));
 const DocsPage = lazy(() => import('../features/docs/DocsPage'));
 const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
@@ -263,7 +263,11 @@ const standardRoutes: RouteConfig[] = [
   { path: '/gruppen', component: GruppenPage },
   { path: '/gruppen/:groupId', component: GruppenPage },
   { path: '/gruen-o-mat', component: GruenOMatDemoPage },
-  { path: '/research', component: ResearchPage },
+  // ResearchPage removed; /notebooks is the canonical entry point. Keep route as redirect for old links.
+  {
+    path: '/research',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
+  },
   { path: '/monitor', component: MonitorPage },
   { path: '/briefing', component: BriefingPage },
   { path: '/briefing/:agentId/archiv', component: BriefingArchivePage },
@@ -271,6 +275,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/admin', component: AdminDashboardPage },
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/playground', component: PlaygroundPage },
+  { path: '/icon-test', component: IconAnimationTestPage, devOnly: true },
   { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe, devOnly: true },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
