@@ -1,23 +1,30 @@
-import { AnimatePresence, motion } from 'motion/react';
-
 import type { SVGProps } from 'react';
-
-export type WorkplaceLoadingVariant = 'A' | 'B' | 'C';
 
 interface Props extends SVGProps<SVGSVGElement> {
   loading?: boolean;
-  variant?: WorkplaceLoadingVariant;
-  speed?: number;
 }
 
+// Gear's geometric center, derived from the center-dot clip rect
+// `M 240 352 L 305 416` → midpoint (272.5, 384).
 const GEAR_CENTER = { x: 272, y: 384 };
-const BAR_CENTER = { x: 576, y: 532 };
-// Orbit ring is shifted ~48px right of the gear so the full ring fits inside
-// the 0–768 viewBox even at the radius needed to clearly enclose the gear.
-const ORBIT_CENTER = { x: 320, y: 384 };
 
-const BAR_BEARING_DEG =
-  (Math.atan2(BAR_CENTER.y - ORBIT_CENTER.y, BAR_CENTER.x - ORBIT_CENTER.x) * 180) / Math.PI;
+// Three dots sit where the bar was. Bar bbox is roughly x ∈ [490, 662],
+// y ∈ [510, 554] (post-translate). Vertical center 532, three dots of radius
+// 26 with ~8u gap fit cleanly within the bar's horizontal footprint.
+const DOT_Y = 532;
+const DOT_RADIUS = 26;
+const DOT_X = [516, 576, 636];
+const DOT_CYCLE_S = 1.4;
+const DOT_STAGGER_S = 0.16;
+const FADE_S = 0.3;
+
+const KEYFRAMES = `
+@keyframes ghi-cog-spin { to { transform: rotate(360deg); } }
+@keyframes ghi-dot-pulse {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-20px); }
+}
+`;
 
 const GEAR_CENTER_DOT_D =
   'M 304.18 385.68 C 304.13 386.71 304.02 387.74 303.87 388.77 C 303.71 389.79 303.51 390.81 303.25 391.81 C 303 392.82 302.7 393.8 302.34 394.78 C 301.99 395.75 301.59 396.71 301.14 397.64 C 300.7 398.58 300.21 399.49 299.67 400.38 C 299.14 401.27 298.56 402.13 297.94 402.95 C 297.32 403.79 296.66 404.58 295.96 405.35 C 295.26 406.11 294.53 406.84 293.75 407.54 C 292.98 408.23 292.18 408.88 291.35 409.5 C 290.52 410.11 289.65 410.68 288.76 411.21 C 287.87 411.74 286.96 412.23 286.02 412.67 C 285.08 413.11 284.12 413.5 283.14 413.85 C 282.17 414.19 281.18 414.49 280.17 414.74 C 279.16 414.99 278.15 415.18 277.12 415.33 C 276.1 415.48 275.07 415.58 274.03 415.63 C 273 415.68 271.96 415.67 270.93 415.62 C 269.89 415.56 268.86 415.46 267.84 415.3 C 266.81 415.15 265.8 414.94 264.79 414.69 C 263.79 414.43 262.8 414.13 261.82 413.77 C 260.85 413.42 259.89 413.02 258.96 412.58 C 258.02 412.13 257.11 411.64 256.23 411.1 C 255.34 410.57 254.48 409.99 253.65 409.37 C 252.82 408.75 252.02 408.09 251.26 407.39 C 250.49 406.69 249.76 405.96 249.07 405.19 C 248.38 404.42 247.72 403.62 247.11 402.78 C 246.49 401.95 245.92 401.08 245.39 400.19 C 244.86 399.3 244.38 398.39 243.94 397.45 C 243.5 396.51 243.11 395.55 242.76 394.58 C 242.41 393.6 242.11 392.61 241.87 391.6 C 241.62 390.6 241.42 389.58 241.27 388.55 C 241.12 387.53 241.02 386.5 240.98 385.46 C 240.93 384.43 240.93 383.39 240.99 382.36 C 241.04 381.32 241.15 380.29 241.3 379.27 C 241.46 378.25 241.66 377.23 241.92 376.23 C 242.18 375.22 242.48 374.23 242.83 373.26 C 243.18 372.28 243.58 371.33 244.03 370.39 C 244.48 369.46 244.96 368.55 245.5 367.66 C 246.04 366.77 246.62 365.91 247.23 365.08 C 247.86 364.25 248.52 363.45 249.21 362.69 C 249.91 361.93 250.65 361.2 251.42 360.5 C 252.19 359.81 252.99 359.15 253.82 358.54 C 254.66 357.93 255.52 357.35 256.41 356.82 C 257.3 356.29 258.22 355.81 259.16 355.37 C 260.09 354.93 261.05 354.54 262.03 354.19 C 263 353.84 264 353.55 265 353.3 C 266.01 353.05 267.02 352.85 268.05 352.7 C 269.07 352.55 270.11 352.46 271.14 352.41 C 272.18 352.36 273.21 352.37 274.25 352.42 C 275.28 352.48 276.31 352.58 277.34 352.73 C 278.36 352.89 279.38 353.1 280.38 353.35 C 281.38 353.61 282.38 353.91 283.35 354.26 C 284.32 354.62 285.28 355.02 286.21 355.46 C 287.15 355.91 288.06 356.4 288.95 356.93 C 289.83 357.47 290.69 358.05 291.52 358.67 C 292.35 359.29 293.15 359.95 293.91 360.64 C 294.68 361.34 295.41 362.08 296.11 362.85 C 296.8 363.62 297.45 364.42 298.07 365.26 C 298.68 366.09 299.25 366.95 299.78 367.84 C 300.31 368.73 300.8 369.65 301.23 370.59 C 301.68 371.53 302.07 372.48 302.41 373.46 C 302.76 374.44 303.06 375.43 303.3 376.43 C 303.55 377.44 303.75 378.46 303.9 379.48 C 304.05 380.51 304.15 381.54 304.2 382.57 C 304.24 383.61 304.24 384.64 304.18 385.68 Z';
@@ -27,117 +34,81 @@ const GEAR_BODY_D =
 
 const BAR_D = 'M 124.27 14.8 L 114.64 59.17 L -48.08 59.17 L -38.47 14.8 Z';
 
-const GrueneratorHomeIconLoading = ({
-  loading = false,
-  variant = 'A',
-  speed = 1,
-  ...svgProps
-}: Props) => {
-  const safeSpeed = speed <= 0 ? 1 : speed;
-  const fadeDur = 0.4 / safeSpeed;
-  const strokeDur = 0.4 / safeSpeed;
-  const strokeDelay = 0.2 / safeSpeed;
-  const spinStartDelay = strokeDelay + strokeDur;
+const GrueneratorHomeIconLoading = ({ loading = false, ...svgProps }: Props) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 768 768"
+    fill="currentColor"
+    width="1em"
+    height="1em"
+    {...svgProps}
+  >
+    <defs>
+      <clipPath id="ghi-loading-clip-circle">
+        <path d="M 240 352 L 305 352 L 305 416 L 240 416 Z" />
+      </clipPath>
+      <clipPath id="ghi-loading-clip-gear">
+        <path d="M 98.34 190.85 L 465.34 210.13 L 446.05 577.13 L 79.06 557.84 Z" />
+      </clipPath>
+    </defs>
 
-  const isOrbit = variant === 'B';
-  const isDualArc = variant === 'C';
-  const ringCx = isOrbit ? ORBIT_CENTER.x : BAR_CENTER.x;
-  const ringCy = isOrbit ? ORBIT_CENTER.y : BAR_CENTER.y;
-  const ringR = isOrbit ? 290 : 50;
-  const ringStrokeWidth = 28;
-  const ringStartRotation = isOrbit ? BAR_BEARING_DEG : 0;
-  const rotationOrigin = `${ringCx}px ${ringCy}px`;
-  // Bigger orbit covers more visual distance per revolution, so slow it down
-  // to keep the perceptual spin speed similar to variants A/C.
-  const variantSpinDur = (isOrbit ? 1.5 : 1) / safeSpeed;
+    <style>{KEYFRAMES}</style>
 
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 768 768"
-      fill="currentColor"
-      width="1em"
-      height="1em"
-      {...svgProps}
-    >
-      <defs>
-        <clipPath id="ghi-loading-clip-circle">
-          <path d="M 240 352 L 305 352 L 305 416 L 240 416 Z" />
-        </clipPath>
-        <clipPath id="ghi-loading-clip-gear">
-          <path d="M 98.34 190.85 L 465.34 210.13 L 446.05 577.13 L 79.06 557.84 Z" />
-        </clipPath>
-      </defs>
-
-      <g clipPath="url(#ghi-loading-clip-circle)">
-        <g clipPath="url(#ghi-loading-clip-gear)">
-          <path d={GEAR_CENTER_DOT_D} />
+    {/* Cog — slow continuous spin */}
+    <g transform={`translate(${GEAR_CENTER.x} ${GEAR_CENTER.y})`}>
+      <g
+        style={
+          loading
+            ? {
+                transformOrigin: '0 0',
+                animation: 'ghi-cog-spin 3s linear infinite',
+              }
+            : undefined
+        }
+      >
+        <g transform={`translate(${-GEAR_CENTER.x} ${-GEAR_CENTER.y})`}>
+          <g clipPath="url(#ghi-loading-clip-circle)">
+            <g clipPath="url(#ghi-loading-clip-gear)">
+              <path d={GEAR_CENTER_DOT_D} />
+            </g>
+          </g>
+          <g clipPath="url(#ghi-loading-clip-gear)">
+            <path fillRule="evenodd" d={GEAR_BODY_D} />
+          </g>
         </g>
       </g>
+    </g>
 
-      <g clipPath="url(#ghi-loading-clip-gear)">
-        <path fillRule="evenodd" d={GEAR_BODY_D} />
+    {/* Bar — fades out while loading */}
+    <g
+      transform="translate(538, 495)"
+      style={{
+        opacity: loading ? 0 : 1,
+        transition: `opacity ${FADE_S}s ease`,
+      }}
+    >
+      <path d={BAR_D} />
+    </g>
+
+    {/* Three dots — fade in and pulse while loading. Animation runs always
+        (cheap on compositor); opacity gates visibility with a smooth fade. */}
+    {DOT_X.map((x, i) => (
+      <g key={x} transform={`translate(${x} ${DOT_Y})`}>
+        <g
+          style={{
+            transformOrigin: '0 0',
+            opacity: loading ? 1 : 0,
+            animation: `ghi-dot-pulse ${DOT_CYCLE_S}s ease-in-out ${(i * DOT_STAGGER_S).toFixed(
+              2
+            )}s infinite`,
+            transition: `opacity ${FADE_S}s ease`,
+          }}
+        >
+          <circle cx={0} cy={0} r={DOT_RADIUS} />
+        </g>
       </g>
-
-      <motion.g
-        transform="translate(538, 495)"
-        animate={loading ? { opacity: 0, scale: 0 } : { opacity: 1, scale: 1 }}
-        transition={{ duration: fadeDur, ease: 'easeInOut' }}
-        style={{ transformOrigin: '38px 37px', transformBox: 'view-box' }}
-      >
-        <path d={BAR_D} />
-      </motion.g>
-
-      <AnimatePresence>
-        {loading && (
-          <motion.g
-            key="spinner-ring"
-            initial={{ rotate: ringStartRotation }}
-            animate={{ rotate: ringStartRotation + 360 }}
-            transition={{
-              repeat: Infinity,
-              duration: variantSpinDur,
-              ease: 'linear',
-              delay: spinStartDelay,
-              repeatType: 'loop',
-            }}
-            style={{ transformOrigin: rotationOrigin, transformBox: 'view-box' }}
-          >
-            <motion.circle
-              cx={ringCx}
-              cy={ringCy}
-              r={ringR}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={ringStrokeWidth}
-              strokeLinecap="round"
-              pathLength={1}
-              initial={{ strokeDasharray: '0 1' }}
-              animate={{ strokeDasharray: '0.25 0.75' }}
-              exit={{ strokeDasharray: '0 1' }}
-              transition={{ duration: strokeDur, delay: strokeDelay, ease: 'easeOut' }}
-            />
-            {isDualArc && (
-              <motion.circle
-                cx={ringCx}
-                cy={ringCy}
-                r={ringR}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={ringStrokeWidth}
-                strokeLinecap="round"
-                pathLength={1}
-                initial={{ strokeDasharray: '0 1', strokeDashoffset: 0.5 }}
-                animate={{ strokeDasharray: '0.25 0.75', strokeDashoffset: 0.5 }}
-                exit={{ strokeDasharray: '0 1', strokeDashoffset: 0.5 }}
-                transition={{ duration: strokeDur, delay: strokeDelay, ease: 'easeOut' }}
-              />
-            )}
-          </motion.g>
-        )}
-      </AnimatePresence>
-    </svg>
-  );
-};
+    ))}
+  </svg>
+);
 
 export default GrueneratorHomeIconLoading;
