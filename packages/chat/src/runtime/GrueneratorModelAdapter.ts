@@ -998,6 +998,7 @@ export function createGrueneratorModelAdapter(
       let textIds: string[] = [];
       let boardIds: string[] = [];
       let docMentionIds: string[] = [];
+      let wolkeFiles: ReturnType<typeof parseAllMentions>['wolkeFiles'] = [];
       let hasDocumentChat = false;
       if (isChatMode)
         for (let i = formattedMessages.length - 1; i >= 0; i--) {
@@ -1022,6 +1023,7 @@ export function createGrueneratorModelAdapter(
             textIds = parsed.textIds;
             boardIds = parsed.boardIds;
             docMentionIds = parsed.docMentionIds;
+            wolkeFiles = parsed.wolkeFiles;
             hasDocumentChat = parsed.hasDocumentChat;
             textPart.text = parsed.cleanText;
 
@@ -1201,6 +1203,7 @@ export function createGrueneratorModelAdapter(
           textIds: textIds.length > 0 ? textIds : undefined,
           boardIds: boardIds.length > 0 ? boardIds : undefined,
           docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
+          wolkeFiles: wolkeFiles.length > 0 ? wolkeFiles : undefined,
           documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
           documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
           currentDocument: injectedCurrentDocument,
@@ -1228,6 +1231,7 @@ export function createGrueneratorModelAdapter(
           textIds: textIds.length > 0 ? textIds : undefined,
           boardIds: boardIds.length > 0 ? boardIds : undefined,
           docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
+          wolkeFiles: wolkeFiles.length > 0 ? wolkeFiles : undefined,
           documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
           documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
           currentDocument: injectedCurrentDocument,

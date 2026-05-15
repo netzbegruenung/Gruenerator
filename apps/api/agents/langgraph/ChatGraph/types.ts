@@ -13,7 +13,10 @@
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
+import type { WolkeFileRef } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
+
+export type { WolkeFileRef };
 
 /**
  * Search source backends that can be queried in parallel.
@@ -108,6 +111,7 @@ export const SOURCE_PREFIX = {
   RESEARCH_SYNTHESIS: 'research_synthesis',
   DOCUMENT: 'document',
   DOCUMENT_CHAT: 'documentchat:',
+  WOLKE: 'wolke:',
 } as const;
 
 /**
@@ -161,7 +165,8 @@ export type DocumentSourceKind =
   | 'doc_mention' // docMentionIds (collab @doc)
   | 'notebook' // notebookIds (collection scope)
   | 'attachment' // threadAttachments (uploaded file context)
-  | 'current_doc'; // currentDocument (open in docs editor)
+  | 'current_doc' // currentDocument (open in docs editor)
+  | 'wolke'; // wolkeFiles (@wolke mentionable — Nextcloud file picker)
 
 /**
  * Normalized reference to a single document the user is working with this turn.
@@ -176,6 +181,9 @@ export interface DocumentSource {
   // For `notebook` kind: Qdrant collection keys for this notebook (a single
   // notebook can span multiple collections). Empty for non-notebook kinds.
   collectionIds?: string[] | undefined;
+  // For `wolke` kind: the original share-link + path so searchNode can fetch
+  // the file content via WebDAV at retrieval time.
+  wolke?: WolkeFileRef | undefined;
 }
 
 /**
@@ -286,6 +294,7 @@ export interface ChatGraphInput {
   documentChatIds?: string[] | undefined;
   boardIds?: string[] | undefined;
   docMentionIds?: string[] | undefined;
+  wolkeFiles?: WolkeFileRef[] | undefined;
   currentDocument?: CurrentDocument | undefined;
   userLocale?: UserLocale | undefined;
   customSystemPrompt?: string | undefined;
@@ -340,6 +349,10 @@ export interface ChatGraphState {
   // Collaborative document context (from @doc mentions)
   docMentionIds: string[];
   documentMentionContext: string | null;
+
+  // Wolke (Nextcloud) file refs selected via @wolke mentionable.
+  // Downloaded + parsed inline at searchNode time; never persisted.
+  wolkeFiles: WolkeFileRef[];
 
   // Current open document in the docs editor (primary context, not retrieval scope).
   // Set when chat is embedded in a document editor surface.
