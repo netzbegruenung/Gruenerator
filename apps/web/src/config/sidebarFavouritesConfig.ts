@@ -19,14 +19,8 @@ const TOOL_ITEMS: FavouriteItemConfig[] = [
   {
     id: 'notebooks',
     title: 'Notebooks',
-    path: '/recherche',
+    path: '/notebooks',
     icon: getIcon('navigation', 'notebooks')!,
-  },
-  {
-    id: 'research',
-    title: 'Recherche',
-    path: '/research',
-    icon: getIcon('navigation', 'research')!,
   },
   { id: 'scanner', title: 'Scanner', path: '/scanner', icon: getIcon('navigation', 'scanner')! },
   {

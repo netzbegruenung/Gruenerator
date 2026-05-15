@@ -2,7 +2,7 @@ import { Badge, Button, Popover, PopoverContent, PopoverTrigger } from '@gruener
 import { useState } from 'react';
 import { HiAdjustmentsHorizontal, HiCheck, HiChevronDown } from 'react-icons/hi2';
 
-import { type ActiveFilters, type FilterFieldConfig } from '../useResearchFilters';
+import { type ActiveFilters, type FilterFieldConfig } from './useResearchFilters';
 
 import { cn } from '@/utils/cn';
 
