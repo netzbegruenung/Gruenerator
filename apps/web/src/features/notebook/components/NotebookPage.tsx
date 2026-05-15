@@ -15,8 +15,7 @@ import {
   type ExtraAction,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
-import { PanelLeft } from 'lucide-react';
-import React, { useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { FaFileWord } from 'react-icons/fa';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
@@ -31,7 +30,6 @@ import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import useNotebookStore from '../stores/notebookStore';
 
-import { DocumentBrowserPanel } from './DocumentBrowserPanel';
 import { NotebookStartpage } from './NotebookStartpage';
 
 interface NotebookCollection {
@@ -88,6 +86,10 @@ interface NotebookPageContentProps {
   showLastAdded?: boolean;
   /** Disable the manual research tab (dynamic user notebooks have no system collection scope). Defaults to true. */
   showManualSearch?: boolean;
+  /** Hide filter UI on the manual research tab. For user notebooks: no facets. */
+  hideManualSearchFilters?: boolean;
+  /** Route manual research to a per-notebook endpoint instead of /research/search. */
+  manualSearchEndpoint?: { type: 'notebook'; notebookId: string };
 }
 
 interface NotebookPageProps {
@@ -132,6 +134,8 @@ export const NotebookPageContent = ({
   showStats = true,
   showLastAdded = true,
   showManualSearch = true,
+  hideManualSearchFilters = false,
+  manualSearchEndpoint,
 }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
   const isSingleSystem = !isMulti && config.collections[0]?.id.endsWith('-system');
@@ -349,6 +353,8 @@ export const NotebookPageContent = ({
                   showStats={showStats}
                   showLastAdded={showLastAdded}
                   showManualSearch={showManualSearch}
+                  hideManualSearchFilters={hideManualSearchFilters}
+                  manualSearchEndpoint={manualSearchEndpoint}
                   notebookMention={notebookMention}
                   footer={startpageFooter}
                 />
@@ -427,7 +433,6 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
   const { id: idFromParams } = useParams<{ id: string }>();
   const id = idProp ?? idFromParams;
   const user = useAuthStore((s) => s.user);
-  const { initDocumentSelection, getSelectedDocumentIds } = useNotebookStore();
 
   // Reset agent to the default (universal). NotebookPage warms a system
   // notebook's agent into the persisted store; without a counterpart here,
@@ -440,23 +445,6 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
   const { query, getQACollection } = useNotebookCollections({ isActive: true });
   const collection = id ? getQACollection(id) : undefined;
   const { isLoading, isError, data: qaCollections } = query;
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  // Seed the per-collection document selection exactly once per id. We accept
-  // documents whose status is 'completed' or absent — the wire schema only
-  // recently started shipping `status`, so missing-status is treated as ready
-  // rather than silently un-selected.
-  const seededRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!collection || seededRef.current === collection.id) return;
-    const docIds = (collection.documents || [])
-      .filter((d) => d.status === 'completed' || d.status === undefined)
-      .map((d) => d.id);
-    initDocumentSelection(collection.id, docIds);
-    seededRef.current = collection.id;
-  }, [collection, initDocumentSelection]);
-
-  const selectedDocumentIds = collection ? getSelectedDocumentIds(collection.id) : [];
 
   if (isLoading)
     return (
@@ -476,50 +464,31 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
     );
   }
 
-  const hasDocuments = (collection.documents || []).length > 0;
-
   const config: NotebookConfig = {
     id: collection.id,
     title: collection.name || 'Notebook',
     authTitle: 'Q&A Notebook',
     collectionType: 'single',
     collections: [{ id: collection.id, name: collection.name }],
-    startPageTitle: `Fragen zu "${collection.name || 'Notebook'}"`,
+    startPageTitle: collection.name || 'Notebook',
     placeholder: 'Stellen Sie eine Frage zu den Dokumenten...',
-    infoPanelDescription: `Durchsuche die Dokumente in "${collection.name}" mit KI-gestützten Fragen.`,
+    infoPanelDescription:
+      collection.description ||
+      `Durchsuche die Dokumente in "${collection.name}" mit KI-gestützten Fragen.`,
     headerIcon: () => null,
     exampleQuestions: [],
     persistMessages: true,
   };
 
-  if (!hasDocuments) {
-    return <NotebookPageContent config={config} showStats={false} showManualSearch={false} />;
-  }
-
   return (
-    <div className="flex h-full min-h-0">
-      {sidebarOpen && (
-        <div className="hidden w-72 shrink-0 lg:block">
-          <DocumentBrowserPanel collection={collection} />
-        </div>
-      )}
-      <div className="relative flex min-w-0 flex-1 flex-col">
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute left-2 top-2 z-10 hidden rounded-md p-1.5 text-foreground-muted transition-colors hover:bg-background-alt hover:text-foreground lg:block"
-          aria-label={sidebarOpen ? 'Dokumente ausblenden' : 'Dokumente einblenden'}
-          title={sidebarOpen ? 'Dokumente ausblenden' : 'Dokumente einblenden'}
-        >
-          <PanelLeft className="h-4 w-4" />
-        </button>
-        <NotebookPageContent
-          config={config}
-          documentIds={selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined}
-          showStats={false}
-          showManualSearch={false}
-        />
-      </div>
-    </div>
+    <NotebookPageContent
+      config={config}
+      showStats={false}
+      showLastAdded={false}
+      showManualSearch
+      hideManualSearchFilters
+      manualSearchEndpoint={{ type: 'notebook', notebookId: collection.id }}
+    />
   );
 };
 
