@@ -10,17 +10,11 @@ import {
   Badge,
   Button,
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Input,
   toast,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
@@ -43,6 +37,8 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
+
+import { RenameNotebookDialog } from './RenameNotebookDialog';
 
 import type { NotebookCollection } from '../../../types/notebook';
 
@@ -202,64 +198,6 @@ const NotebookManagementCard = memo(function NotebookManagementCard({
     </div>
   );
 });
-
-function RenameDialog({
-  collection,
-  isUpdating,
-  onCancel,
-  onSubmit,
-}: {
-  collection: NotebookCollection;
-  isUpdating: boolean;
-  onCancel: () => void;
-  onSubmit: (name: string, description: string) => void;
-}) {
-  const [name, setName] = useState(collection.name);
-  const [description, setDescription] = useState(collection.description ?? '');
-  const canSave = name.trim().length > 0 && !isUpdating;
-
-  return (
-    <DialogContent className="sm:max-w-[480px]">
-      <DialogHeader>
-        <DialogTitle>Notebook umbenennen</DialogTitle>
-        <DialogDescription>
-          Ändere den Namen und die Beschreibung deines Notebooks.
-        </DialogDescription>
-      </DialogHeader>
-      <div className="flex flex-col gap-md py-sm">
-        <div className="flex flex-col gap-xs">
-          <label htmlFor="rename-name" className="text-sm font-medium">
-            Name
-          </label>
-          <Input
-            id="rename-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-          />
-        </div>
-        <div className="flex flex-col gap-xs">
-          <label htmlFor="rename-description" className="text-sm font-medium">
-            Beschreibung
-          </label>
-          <Input
-            id="rename-description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-          />
-        </div>
-      </div>
-      <DialogFooter>
-        <Button variant="ghost" onClick={onCancel} disabled={isUpdating}>
-          Abbrechen
-        </Button>
-        <Button onClick={() => onSubmit(name.trim(), description.trim())} disabled={!canSave}>
-          Speichern
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  );
-}
 
 function MyNotebooksPageInner() {
   const navigate = useNavigate();
@@ -440,7 +378,7 @@ function MyNotebooksPageInner() {
           }}
         >
           {phase.kind === 'rename' ? (
-            <RenameDialog
+            <RenameNotebookDialog
               collection={phase.collection}
               isUpdating={isUpdating}
               onCancel={closeDialog}
