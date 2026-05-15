@@ -2,6 +2,8 @@
  * Notebook/Q&A Collection Types
  */
 
+import { type WolkeFolderRef } from '@gruenerator/contracts';
+
 import type { Document } from './documents';
 
 /**
@@ -44,6 +46,7 @@ export interface NotebookCollection {
   wolke_share_links?: WolkeShareLink[];
   selection_mode?: 'documents' | 'wolke' | 'mixed';
   labels?: string[];
+  wolke_folders?: WolkeFolderRef[];
 }
 
 /**
@@ -76,6 +79,7 @@ export interface NotebookCollectionInput {
   remove_missing_on_sync?: boolean;
   is_public?: boolean;
   public_ownership?: NotebookPublicOwnership | null;
+  wolkeFolders?: WolkeFolderRef[];
 }
 
 /**
