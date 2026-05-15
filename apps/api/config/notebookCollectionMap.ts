@@ -72,3 +72,46 @@ export function getAllCollectionIds(): string[] {
   }
   return [...all];
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Heuristic to distinguish user-notebook IDs (UUIDs from `notebook_collections`)
+ * from system-notebook slugs (e.g. `hamburg-notebook`). Used by chat routing to
+ * split mentioned notebook IDs onto the right resolution path.
+ */
+export function isUserNotebookId(id: string): boolean {
+  return UUID_RE.test(id);
+}
+
+/**
+ * Resolve user-mentioned notebook UUIDs into the document IDs that scope chat
+ * search. Ownership is enforced here — UUIDs not owned by `userId` are
+ * silently dropped so a forged or stale ID returns no documents.
+ *
+ * Imported lazily inside the function body to avoid a Qdrant-helper boot
+ * dependency at module load time (the helper initialises its Qdrant client).
+ */
+export async function resolveUserNotebookDocumentIds(
+  userId: string,
+  notebookIds: string[]
+): Promise<{ documentIds: string[]; resolvedUserNotebookIds: string[] }> {
+  const uuids = notebookIds.filter(isUserNotebookId);
+  if (uuids.length === 0 || !userId) {
+    return { documentIds: [], resolvedUserNotebookIds: [] };
+  }
+  const { NotebookQdrantHelper } = await import('../database/services/NotebookQdrantHelper.js');
+  const helper = new NotebookQdrantHelper();
+  const documentIds = new Set<string>();
+  const resolved: string[] = [];
+  for (const uuid of uuids) {
+    const collection = await helper.getNotebookCollection(uuid);
+    if (!collection || collection.user_id !== userId) continue;
+    resolved.push(uuid);
+    const docs = await helper.getCollectionDocuments(uuid);
+    for (const d of docs) {
+      if (d.document_id) documentIds.add(d.document_id);
+    }
+  }
+  return { documentIds: [...documentIds], resolvedUserNotebookIds: resolved };
+}
