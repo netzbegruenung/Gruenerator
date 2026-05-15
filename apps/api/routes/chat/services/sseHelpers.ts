@@ -240,60 +240,24 @@ function pickOne<T>(pool: readonly T[]): T {
  * the trailing "..." progressive-action convention.
  */
 export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
-  research: [
-    'Recherchiere im Web und in den Dokumenten...',
-    'Grabe mich durch Quellen und Dokumente...',
-    'Sammle Fakten von überall her...',
-  ],
-  compare: [
-    'Vergleiche die referenzierten Dokumente...',
-    'Lege die Dokumente nebeneinander...',
-    'Suche die Unterschiede heraus...',
-  ],
-  search: [
-    'Durchsuche Grüne Positionen und Programme...',
-    'Wälze die Unterlagen...',
-    'Stöbere in den Grünen Dokumenten...',
-  ],
+  research: ['Recherchiere...', 'Grabe...', 'Sammle...'],
+  compare: ['Vergleiche...', 'Stelle gegenüber...', 'Prüfe...'],
+  search: ['Durchsuche...', 'Stöbere...', 'Wälze...'],
   // person: 'Suche Informationen zur Person...', // DISABLED: Person search not production ready
-  web: [
-    'Suche aktuelle Informationen im Web...',
-    'Hole frische Infos aus dem Netz...',
-    'Schaue im Web nach dem neuesten Stand...',
-  ],
-  examples: [
-    'Suche Social-Media-Beispiele...',
-    'Krame in der Social-Media-Kiste...',
-    'Hole Inspiration aus alten Posts...',
-  ],
-  pressemitteilung_examples: [
-    'Suche Pressemitteilungs-Vorlagen aus Landesverbänden...',
-    'Blättere durch Pressemitteilungen der Landesverbände...',
-    'Hole Vorlagen aus den Landesverbänden...',
-  ],
-  image: ['Generiere Bild...', 'Mische die Farben...', 'Spanne die Leinwand auf...'],
-  image_edit: [
-    'Bearbeite Bild...',
-    'Bearbeite das Bild mit dem Pinsel...',
-    'Werfe Farbbeutel auf das Bild...',
-  ],
-  sharepic: [
-    'Erstelle Sharepic...',
-    'Baue dein Sharepic...',
-    'Bringe die Botschaft aufs Sharepic...',
-  ],
-  summary: [
-    'Fasse Dokument(e) zusammen...',
-    'Koche die Dokumente auf das Wichtigste ein...',
-    'Bündele den Inhalt...',
-  ],
-  chart: ['Erstelle Diagramm...', 'Bringe die Zahlen in Form...', 'Zeichne das Diagramm...'],
-  save_as_doc: ['Erstelle Dokument aus Antwort...', 'Gieße die Antwort in ein Dokument...'],
-  modify_doc: ['Bearbeite Dokument...', 'Feile am Dokument...'],
-  edit_current_doc: ['Bearbeite das aktuelle Dokument...', 'Lege im offenen Dokument Hand an...'],
-  modify_board: ['Aktualisiere Board...', 'Bringe das Board auf Stand...'],
-  share_doc: ['Teile Dokument mit Gruppe...', 'Reiche das Dokument an die Gruppe weiter...'],
-  direct: ['Beantworte direkt...', 'Antworte aus dem Stand...', 'Lege direkt los...'],
+  web: ['Surfe...', 'Suche im Netz...', 'Recherchiere online...'],
+  examples: ['Krame...', 'Hole Beispiele...', 'Suche Inspiration...'],
+  pressemitteilung_examples: ['Suche Pressemitteilungen...', 'Blättere...', 'Hole Vorlagen...'],
+  image: ['Generiere...', 'Male...', 'Zeichne...'],
+  image_edit: ['Bearbeite...', 'Pinsele...', 'Retuschiere...'],
+  sharepic: ['Gestalte...', 'Baue...', 'Erstelle...'],
+  summary: ['Fasse zusammen...', 'Verdichte...', 'Bündele...'],
+  chart: ['Zeichne...', 'Plotte...', 'Erstelle...'],
+  save_as_doc: ['Speichere...', 'Sichere...', 'Archiviere...'],
+  modify_doc: ['Bearbeite...', 'Ändere...', 'Überarbeite...'],
+  edit_current_doc: ['Passe an...', 'Bearbeite...', 'Ändere...'],
+  modify_board: ['Aktualisiere...', 'Ergänze...', 'Pflege...'],
+  share_doc: ['Teile...', 'Sende...', 'Reiche weiter...'],
+  direct: ['Antworte...', 'Schreibe...', 'Formuliere...'],
 };
 
 /**
