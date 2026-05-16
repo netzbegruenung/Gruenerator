@@ -68,7 +68,7 @@ export function SkillPopover({
       <div ref={listRef} className="overflow-y-auto">
       {quickAccessAgents.length > 0 && (
         <>
-          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+          <div className="sticky top-0 z-[1] bg-background px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
             Skills
           </div>
           {quickAccessAgents.map((agent) => {
@@ -86,7 +86,7 @@ export function SkillPopover({
       )}
       {customAgents.length > 0 && (
         <>
-          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+          <div className="sticky top-0 z-[1] bg-background px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
             Meine Skills
           </div>
           {customAgents.map((agent) => {
