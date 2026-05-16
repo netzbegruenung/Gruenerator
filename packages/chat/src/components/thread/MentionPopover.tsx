@@ -85,7 +85,7 @@ export function MentionPopover({
     >
       {sections.map((section) => (
         <div key={section.label}>
-          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+          <div className="sticky top-0 z-[1] bg-background px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
             {section.label}
           </div>
           {section.kind === 'flat'
