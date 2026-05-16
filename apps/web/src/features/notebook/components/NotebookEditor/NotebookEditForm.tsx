@@ -12,6 +12,7 @@ import {
 import { motion } from 'motion/react';
 import { HiUpload } from 'react-icons/hi';
 
+import NotebookEditorDocsSection from '../NotebookEditorDocsSection';
 import NotebookEditorWolkeSection from '../NotebookEditorWolkeSection';
 
 import DocumentCard from './DocumentCard';
@@ -48,8 +49,11 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
     handleDragLeave,
     handleRemoveDocument,
     handleWolkeDocsImported,
+    handleDocsImported,
     handleSubmit,
     onSubmit,
+    linkedDocs,
+    setLinkedDocs,
   } = state;
 
   return (
@@ -62,6 +66,15 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
           onFoldersChange={setWolkeFolders}
           remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
           onDocsImported={handleWolkeDocsImported}
+          disabled={loading || isUploading}
+        />
+
+        <NotebookEditorDocsSection
+          linkedDocs={linkedDocs}
+          onLinkedDocsChange={setLinkedDocs}
+          remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+          onDocsImported={handleDocsImported}
+          onUploadedDocumentRemoved={handleRemoveDocument}
           disabled={loading || isUploading}
         />
 

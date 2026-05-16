@@ -1,8 +1,9 @@
 import { Button, SectionHeader } from '@gruenerator/ui';
-import { HiCloud, HiUpload } from 'react-icons/hi';
+import { HiCloud, HiDocumentText, HiUpload } from 'react-icons/hi';
 
 import { cn } from '../../../../utils/cn';
 
+import NotebookEditorDocsSection from '../NotebookEditorDocsSection';
 import NotebookEditorWolkeSection from '../NotebookEditorWolkeSection';
 
 import DocumentCard from './DocumentCard';
@@ -35,9 +36,14 @@ export default function SourcesStep({ state }: SourcesStepProps) {
     handleDragLeave,
     handleRemoveDocument,
     handleWolkeDocsImported,
+    handleDocsImported,
     handleCancel,
     handleNext,
     canAdvanceFromSources,
+    linkedDocs,
+    setLinkedDocs,
+    docsPanelOpen,
+    setDocsPanelOpen,
   } = state;
 
   return (
@@ -48,7 +54,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div className="grid grid-cols-1 gap-md sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3">
         <button
           type="button"
           onClick={() => !isUploading && fileInputRef.current?.click()}
@@ -101,6 +107,25 @@ export default function SourcesStep({ state }: SourcesStepProps) {
             </p>
           </div>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setDocsPanelOpen(!docsPanelOpen)}
+          className={cn(
+            'group flex min-h-[180px] flex-col items-center justify-center gap-sm rounded-xl border-2 p-lg text-center transition-all',
+            docsPanelOpen
+              ? 'border-amber-500 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30'
+              : 'border-grey-200 hover:border-amber-400 hover:bg-background-alt dark:border-grey-700'
+          )}
+        >
+          <div className="flex items-center justify-center rounded-xl bg-amber-50 p-md text-amber-600 transition-colors group-hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-400">
+            <HiDocumentText size={28} />
+          </div>
+          <div>
+            <p className="m-0 text-base font-semibold text-foreground">Aus Docs importieren</p>
+            <p className="mt-xs m-0 text-xs text-grey-500">Eigene Docs als Quelle einbinden</p>
+          </div>
+        </button>
       </div>
 
       <input
@@ -121,6 +146,19 @@ export default function SourcesStep({ state }: SourcesStepProps) {
             onFoldersChange={setWolkeFolders}
             remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
             onDocsImported={handleWolkeDocsImported}
+            disabled={loading || isUploading}
+          />
+        </div>
+      )}
+
+      {docsPanelOpen && (
+        <div className="rounded-xl border border-grey-200 bg-background p-md dark:border-grey-800">
+          <NotebookEditorDocsSection
+            linkedDocs={linkedDocs}
+            onLinkedDocsChange={setLinkedDocs}
+            remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+            onDocsImported={handleDocsImported}
+            onUploadedDocumentRemoved={handleRemoveDocument}
             disabled={loading || isUploading}
           />
         </div>
