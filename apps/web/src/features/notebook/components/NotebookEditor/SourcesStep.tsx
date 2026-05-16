@@ -1,11 +1,4 @@
-import {
-  Button,
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-  SectionHeader,
-} from '@gruenerator/ui';
+import { Button, SectionHeader } from '@gruenerator/ui';
 import { HiCloud, HiUpload } from 'react-icons/hi';
 
 import { cn } from '../../../../utils/cn';
@@ -133,7 +126,7 @@ export default function SourcesStep({ state }: SourcesStepProps) {
         </div>
       )}
 
-      {uploadedDocuments.length > 0 ? (
+      {uploadedDocuments.length > 0 && (
         <section className="space-y-md">
           <SectionHeader
             title="Hinzugefügte Dokumente"
@@ -164,13 +157,6 @@ export default function SourcesStep({ state }: SourcesStepProps) {
             ))}
           </div>
         </section>
-      ) : (
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>Noch keine Dokumente</EmptyTitle>
-            <EmptyDescription>Wähle oben eine Quelle, um loszulegen.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
       )}
 
       {isDragOver && (

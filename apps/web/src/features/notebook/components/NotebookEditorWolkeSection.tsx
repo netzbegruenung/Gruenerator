@@ -163,7 +163,7 @@ const NotebookEditorWolkeSection = ({
     <section>
       <SectionHeader
         title="Wolke-Ordner"
-        onCreate={hasShareLinks ? () => setPickerOpen((v) => !v) : undefined}
+        onCreate={hasShareLinks && folders.length > 0 ? () => setPickerOpen((v) => !v) : undefined}
         createLabel="Wolke-Ordner hinzufügen"
         actions={headerActions}
       />
@@ -182,7 +182,7 @@ const NotebookEditorWolkeSection = ({
         </div>
       ) : (
         <>
-          {pickerOpen && availableLinks.length > 0 && (
+          {(pickerOpen || folders.length === 0) && availableLinks.length > 0 && (
             <div className="mb-md flex flex-col gap-1 rounded-xl border border-grey-200 bg-background p-xs dark:border-grey-700">
               <p className="m-0 px-1 pb-1 text-xs uppercase tracking-wide text-grey-500">
                 Verbundene Wolken
@@ -201,83 +201,77 @@ const NotebookEditorWolkeSection = ({
             </div>
           )}
 
-          {folders.length === 0 && !pickerOpen ? (
-            <p className="py-lg text-center text-sm text-grey-500">
-              Noch kein Wolke-Ordner verknüpft. Klicke auf + um einen hinzuzufügen.
-            </p>
-          ) : (
-            folders.length > 0 && (
-              <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-                {folders.map((folder) => {
-                  const isSyncing = syncingId === folder.shareLinkId;
-                  return (
+          {folders.length > 0 && (
+            <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+              {folders.map((folder) => {
+                const isSyncing = syncingId === folder.shareLinkId;
+                return (
+                  <div
+                    key={folder.shareLinkId}
+                    className={cn(
+                      'group relative flex min-h-[112px] min-w-0 flex-col gap-xs overflow-hidden rounded-xl border border-grey-200 bg-background p-md transition-all duration-200 dark:border-grey-800',
+                      isSyncing ? 'opacity-90' : 'hover:shadow-sm'
+                    )}
+                    aria-label={`Wolke-Ordner: ${folder.folderName}`}
+                  >
                     <div
-                      key={folder.shareLinkId}
+                      className="pointer-events-none absolute right-0 top-0 h-[3px] w-12 rounded-bl-md bg-secondary-400 dark:bg-secondary-700"
+                      aria-hidden
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
                       className={cn(
-                        'group relative flex min-h-[112px] min-w-0 flex-col gap-xs overflow-hidden rounded-xl border border-grey-200 bg-background p-md transition-all duration-200 dark:border-grey-800',
-                        isSyncing ? 'opacity-90' : 'hover:shadow-sm'
+                        'absolute right-1 top-1 transition-opacity',
+                        isSyncing
+                          ? 'opacity-60'
+                          : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
                       )}
-                      aria-label={`Wolke-Ordner: ${folder.folderName}`}
+                      disabled={disabled || isSyncing}
+                      onClick={() => handleRemove(folder.shareLinkId)}
+                      title="Bereits importierte Dokumente bleiben im Notebook."
+                      aria-label={`${folder.folderName} entfernen`}
                     >
-                      <div
-                        className="pointer-events-none absolute right-0 top-0 h-[3px] w-12 rounded-bl-md bg-secondary-400 dark:bg-secondary-700"
+                      <HiX size={12} />
+                    </Button>
+                    <div className="flex items-start gap-xs pr-6">
+                      <HiCloud
+                        size={14}
+                        className="mt-[2px] shrink-0 text-secondary-600 dark:text-secondary-400"
                         aria-hidden
                       />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        className={cn(
-                          'absolute right-1 top-1 transition-opacity',
-                          isSyncing
-                            ? 'opacity-60'
-                            : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
-                        )}
-                        disabled={disabled || isSyncing}
-                        onClick={() => handleRemove(folder.shareLinkId)}
-                        title="Bereits importierte Dokumente bleiben im Notebook."
-                        aria-label={`${folder.folderName} entfernen`}
+                      <div
+                        className="line-clamp-2 break-words text-sm font-medium leading-snug text-foreground"
+                        title={folder.folderName}
                       >
-                        <HiX size={12} />
-                      </Button>
-                      <div className="flex items-start gap-xs pr-6">
-                        <HiCloud
-                          size={14}
-                          className="mt-[2px] shrink-0 text-secondary-600 dark:text-secondary-400"
-                          aria-hidden
-                        />
-                        <div
-                          className="line-clamp-2 break-words text-sm font-medium leading-snug text-foreground"
-                          title={folder.folderName}
-                        >
-                          {folder.folderName}
-                        </div>
-                      </div>
-                      <div className="mt-auto flex items-center justify-between gap-xs">
-                        <span className="text-xs text-grey-500">
-                          {isSyncing ? 'Wird synchronisiert…' : formatRelative(folder.lastSyncedAt)}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={disabled || isSyncing || remainingSlots <= 0}
-                          onClick={() => void handleSync(folder)}
-                          aria-label={`${folder.folderName} synchronisieren`}
-                        >
-                          {isSyncing ? (
-                            <span className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-                          ) : (
-                            <HiRefresh size={12} />
-                          )}
-                          Sync
-                        </Button>
+                        {folder.folderName}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            )
+                    <div className="mt-auto flex items-center justify-between gap-xs">
+                      <span className="text-xs text-grey-500">
+                        {isSyncing ? 'Wird synchronisiert…' : formatRelative(folder.lastSyncedAt)}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={disabled || isSyncing || remainingSlots <= 0}
+                        onClick={() => void handleSync(folder)}
+                        aria-label={`${folder.folderName} synchronisieren`}
+                      >
+                        {isSyncing ? (
+                          <span className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+                        ) : (
+                          <HiRefresh size={12} />
+                        )}
+                        Sync
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {error && (
