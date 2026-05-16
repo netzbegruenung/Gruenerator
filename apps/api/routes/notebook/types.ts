@@ -5,7 +5,7 @@
 import { type AuthenticatedRequest } from '../../middleware/types.js';
 
 import type AIWorkerPool from '../../workers/aiWorkerPool.js';
-import type { WolkeFolderRef } from '@gruenerator/contracts';
+import type { LinkedDocRef, WolkeFolderRef } from '@gruenerator/contracts';
 import type { ParamsDictionary } from 'express-serve-static-core';
 
 // =============================================================================
@@ -26,6 +26,7 @@ export interface CreateCollectionBody {
   remove_missing_on_sync?: boolean | undefined;
   labels?: string[] | undefined;
   wolke_folders?: WolkeFolderRef[] | undefined;
+  linked_docs?: LinkedDocRef[] | undefined;
 }
 
 /**
@@ -42,6 +43,7 @@ export interface UpdateCollectionBody {
   remove_missing_on_sync?: boolean | undefined;
   labels?: string[] | undefined;
   wolke_folders?: WolkeFolderRef[] | undefined;
+  linked_docs?: LinkedDocRef[] | undefined;
 }
 
 /**
@@ -108,6 +110,7 @@ export interface TransformedCollection {
   notebook_collection_documents?: Array<{ document_id: string }>;
   labels?: string[];
   wolke_folders?: WolkeFolderRef[];
+  linked_docs?: LinkedDocRef[];
   slug_suffix?: string | null;
 }
 
