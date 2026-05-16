@@ -17,7 +17,13 @@ import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
 
-import type { ChatGraphState, DocumentSource, SearchResult, ThreadAttachment } from '../types.js';
+import type {
+  ChatGraphState,
+  DocumentSource,
+  ResearchToolResult,
+  SearchResult,
+  ThreadAttachment,
+} from '../types.js';
 
 const log = createLogger('ChatGraph:Respond');
 
@@ -191,7 +197,58 @@ async function cleanFindings(state: ChatGraphState): Promise<string | null> {
  * For complex research queries with a researchBrief, uses LLM cleaning
  * to produce a coherent summary instead of raw truncated snippets.
  */
-async function formatSearchContext(state: ChatGraphState): Promise<string> {
+export function formatResearchWrapperContext(meta: ResearchToolResult): string {
+  // Wrapper-mode prompt: the synthesized answer is rendered separately as the
+  // Recherche-Karte (researchMeta tool result). The agent must NOT re-synthesize
+  // from chunks — that produces drift (small models drop confidence and emit
+  // "keine Informationen" while the card shows a confident answer). Treat this
+  // as a thin conversational wrapper around the artifact.
+  const synthesisPreview = meta.answer.length > 800 ? `${meta.answer.slice(0, 800)}…` : meta.answer;
+  const followUpHint =
+    meta.followUpQuestions.length > 0
+      ? 'nimm ggf. eine der Folge-Fragen aus der Karte auf, oder '
+      : '';
+  return `
+
+## RECHERCHE ABGESCHLOSSEN — DU BIST WRAPPER, NICHT ANTWORTGEBER
+
+Die vollständige Recherche-Antwort und alle ${meta.citations.length} Quellen werden dem*der Nutzer*in als separate Recherche-Karte oberhalb deiner Antwort angezeigt.
+
+WICHTIG:
+1. Wiederhole NICHT die Recherche-Antwort — sie ist bereits sichtbar.
+2. Verweise konversationell auf die Karte (maximal 2 Sätze).
+3. Sage NIE "keine Informationen", "keine Treffer", "konnte nichts finden" o.ä. — die Recherche WAR erfolgreich (Konfidenz: ${meta.confidence}, ${meta.citations.length} Quellen).
+4. Wenn passend: ${followUpHint}biete eine weiterführende Frage an.
+
+Synthese (NUR zur Orientierung — wiederhole sie nicht):
+${synthesisPreview}`;
+}
+
+export async function formatSearchContext(state: ChatGraphState): Promise<string> {
+  // Research mode with usable synthesis: emit a wrapper-mode block so the
+  // model writes a thin conversational reference, not a re-synthesis from
+  // raw chunks. The tool artifact (researchMeta) is the single source of
+  // truth for the answer; the chat reply just frames it.
+  if (
+    state.intent === 'research' &&
+    state.researchMeta?.answer &&
+    state.researchMeta.confidence !== 'low'
+  ) {
+    log.info(
+      `[Respond] Wrapper-mode (intent=research, confidence=${state.researchMeta.confidence}, citations=${state.researchMeta.citations.length}, answer_len=${state.researchMeta.answer.length})`
+    );
+    return formatResearchWrapperContext(state.researchMeta);
+  }
+
+  // Log why wrapper-mode did NOT apply so regressions are easy to spot in
+  // production logs (e.g. confidence dropping to 'low', meta missing,
+  // intent mis-classified).
+  if (state.intent === 'research') {
+    log.info(
+      `[Respond] Wrapper-mode skipped for research intent: hasMeta=${!!state.researchMeta}, hasAnswer=${!!state.researchMeta?.answer}, confidence=${state.researchMeta?.confidence ?? 'none'} — falling through to chunk-based context`
+    );
+  }
+
   if (state.searchResults.length === 0) {
     return '';
   }
