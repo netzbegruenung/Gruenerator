@@ -15,10 +15,26 @@ interface TestCase {
 
 const fuzzyMatchTests: TestCase[] = [
   // Research intent with typos
-  { input: 'recgerchiere', expectedIntent: 'research', description: 'Typo: recgerchiere → recherchiere' },
-  { input: 'recherchier', expectedIntent: 'research', description: 'Typo: recherchier → recherchiere' },
-  { input: 'recherschiere', expectedIntent: 'research', description: 'Typo: recherschiere → recherchiere' },
-  { input: 'untzersuche', expectedIntent: 'research', description: 'Typo: untzersuche → untersuche' },
+  {
+    input: 'recgerchiere',
+    expectedIntent: 'research',
+    description: 'Typo: recgerchiere → recherchiere',
+  },
+  {
+    input: 'recherchier',
+    expectedIntent: 'research',
+    description: 'Typo: recherchier → recherchiere',
+  },
+  {
+    input: 'recherschiere',
+    expectedIntent: 'research',
+    description: 'Typo: recherschiere → recherchiere',
+  },
+  {
+    input: 'untzersuche',
+    expectedIntent: 'research',
+    description: 'Typo: untzersuche → untersuche',
+  },
   { input: 'analysere', expectedIntent: 'research', description: 'Typo: analysere → analysiere' },
 
   // Web intent with typos
@@ -27,7 +43,11 @@ const fuzzyMatchTests: TestCase[] = [
   { input: 'aketuell', expectedIntent: 'web', description: 'Typo: aketuell → aktuell' },
 
   // Image intent with typos
-  { input: 'visualesiere', expectedIntent: 'image', description: 'Typo: visualesiere → visualisiere' },
+  {
+    input: 'visualesiere',
+    expectedIntent: 'image',
+    description: 'Typo: visualesiere → visualisiere',
+  },
   { input: 'illustreire', expectedIntent: 'image', description: 'Typo: illustreire → illustriere' },
 
   // Search intent with typos
@@ -35,7 +55,11 @@ const fuzzyMatchTests: TestCase[] = [
   // This is acceptable - very short words with multiple errors shouldn't match
   { input: 'positon', expectedIntent: 'search', description: 'Typo: positon → position' },
   { input: 'proramm', expectedIntent: 'search', description: 'Typo: proramm → programm' },
-  { input: 'wahlproramm', expectedIntent: 'search', description: 'Typo: wahlproramm → wahlprogramm' },
+  {
+    input: 'wahlproramm',
+    expectedIntent: 'search',
+    description: 'Typo: wahlproramm → wahlprogramm',
+  },
 
   // Examples intent with typos
   { input: 'beispeil', expectedIntent: 'examples', description: 'Typo: beispeil → beispiel' },
@@ -66,15 +90,43 @@ const heuristicTests: TestCase[] = [
   },
 
   // Existing exact match patterns should still work
-  { input: 'recherchiere nach klimapolitik', expectedIntent: 'research', description: 'Exact match: recherchiere' },
-  { input: 'erstelle ein bild von einem baum', expectedIntent: 'image', description: 'Exact match: image generation' },
-  { input: 'suche im netz nach nachrichten', expectedIntent: 'web', description: 'Exact match: web search' },
-  { input: 'was ist das parteiprogramm der grüne', expectedIntent: 'search', description: 'Exact match: party program' },
+  {
+    input: 'recherchiere nach klimapolitik',
+    expectedIntent: 'research',
+    description: 'Exact match: recherchiere',
+  },
+  {
+    input: 'erstelle ein bild von einem baum',
+    expectedIntent: 'image',
+    description: 'Exact match: image generation',
+  },
+  {
+    input: 'suche im netz nach nachrichten',
+    expectedIntent: 'web',
+    description: 'Exact match: web search',
+  },
+  {
+    input: 'was ist das parteiprogramm der grüne',
+    expectedIntent: 'search',
+    description: 'Exact match: party program',
+  },
 
   // Non-search queries should remain as direct
-  { input: 'hallo wie geht es dir', expectedIntent: 'direct', description: 'Greeting should be direct' },
-  { input: 'danke für die hilfe', expectedIntent: 'direct', description: 'Thanks should be direct' },
-  { input: 'schreib mir einen tweet', expectedIntent: 'direct', description: 'Creative task without research' },
+  {
+    input: 'hallo wie geht es dir',
+    expectedIntent: 'direct',
+    description: 'Greeting should be direct',
+  },
+  {
+    input: 'danke für die hilfe',
+    expectedIntent: 'direct',
+    description: 'Thanks should be direct',
+  },
+  {
+    input: 'schreib mir einen tweet',
+    expectedIntent: 'direct',
+    description: 'Creative task without research',
+  },
 ];
 
 // NEW: Content-type awareness tests

@@ -17,11 +17,21 @@ export default function RechercheLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen
         name="suche"
-        options={{ headerShown: true, title: 'Suche', headerTintColor: theme.text, headerStyle: { backgroundColor: theme.background } }}
+        options={{
+          headerShown: true,
+          title: 'Suche',
+          headerTintColor: theme.text,
+          headerStyle: { backgroundColor: theme.background },
+        }}
       />
       <Stack.Screen
         name="research"
-        options={{ headerShown: true, title: 'Recherche', headerTintColor: theme.text, headerStyle: { backgroundColor: theme.background } }}
+        options={{
+          headerShown: true,
+          title: 'Recherche',
+          headerTintColor: theme.text,
+          headerStyle: { backgroundColor: theme.background },
+        }}
       />
     </Stack>
   );

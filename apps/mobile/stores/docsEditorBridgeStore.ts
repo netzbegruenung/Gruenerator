@@ -112,7 +112,8 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
         prev.underline === formatting.underline &&
         prev.strike === formatting.strike &&
         prev.blockType === formatting.blockType
-      ) return s;
+      )
+        return s;
       return { activeFormatting: formatting };
     }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),

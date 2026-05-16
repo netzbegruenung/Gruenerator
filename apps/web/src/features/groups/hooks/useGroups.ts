@@ -286,9 +286,7 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
 export const useCloneCanvasTemplate = () => {
   return useMutation({
     mutationFn: async (canvasId: string) => {
-      const response = await apiClient.post<{ newCanvasId: string }>(
-        `/canvas/${canvasId}/clone`
-      );
+      const response = await apiClient.post<{ newCanvasId: string }>(`/canvas/${canvasId}/clone`);
       return response.data;
     },
   });

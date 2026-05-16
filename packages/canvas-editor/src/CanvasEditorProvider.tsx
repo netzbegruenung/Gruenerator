@@ -103,10 +103,7 @@ export interface CanvasEditorServices {
    * wraps the authenticated endpoint and rate-limit checks. When omitted,
    * the AI-edit tool is hidden.
    */
-  editAiImage?: (
-    image: File,
-    instruction: string
-  ) => Promise<{ file: File; objectUrl: string }>;
+  editAiImage?: (image: File, instruction: string) => Promise<{ file: File; objectUrl: string }>;
 
   /** API base URL for multi-page export */
   apiBaseUrl?: string;

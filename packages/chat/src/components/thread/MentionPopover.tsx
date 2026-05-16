@@ -73,50 +73,45 @@ export function MentionPopover({
   let itemIndex = 0;
 
   return (
-    <MentionFloatingPanel
-      open={isOpen}
-      onDismiss={onDismiss}
-      width="w-64"
-      role="listbox"
-    >
+    <MentionFloatingPanel open={isOpen} onDismiss={onDismiss} width="w-64" role="listbox">
       <div ref={listRef} className="overflow-y-auto">
-      {sections.map((section) => (
-        <div key={section.label}>
-          <div className="sticky top-0 z-[1] bg-background px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            {section.label}
-          </div>
-          {section.kind === 'flat'
-            ? section.items.map((item) => {
-                const idx = itemIndex++;
-                return (
-                  <MentionItem
-                    key={item.identifier}
-                    mentionable={item}
-                    isSelected={idx === selectedIndex}
-                    onSelect={onSelect}
-                  />
-                );
-              })
-            : section.groups.map((group) => (
-                <div key={group.sublabel}>
-                  <div className="px-3 pt-1 text-[9px] uppercase tracking-wider text-foreground-muted/50">
-                    {group.sublabel}
+        {sections.map((section) => (
+          <div key={section.label}>
+            <div className="sticky top-0 z-[1] bg-background px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+              {section.label}
+            </div>
+            {section.kind === 'flat'
+              ? section.items.map((item) => {
+                  const idx = itemIndex++;
+                  return (
+                    <MentionItem
+                      key={item.identifier}
+                      mentionable={item}
+                      isSelected={idx === selectedIndex}
+                      onSelect={onSelect}
+                    />
+                  );
+                })
+              : section.groups.map((group) => (
+                  <div key={group.sublabel}>
+                    <div className="px-3 pt-1 text-[9px] uppercase tracking-wider text-foreground-muted/50">
+                      {group.sublabel}
+                    </div>
+                    {group.items.map((item) => {
+                      const idx = itemIndex++;
+                      return (
+                        <MentionItem
+                          key={item.identifier}
+                          mentionable={item}
+                          isSelected={idx === selectedIndex}
+                          onSelect={onSelect}
+                        />
+                      );
+                    })}
                   </div>
-                  {group.items.map((item) => {
-                    const idx = itemIndex++;
-                    return (
-                      <MentionItem
-                        key={item.identifier}
-                        mentionable={item}
-                        isSelected={idx === selectedIndex}
-                        onSelect={onSelect}
-                      />
-                    );
-                  })}
-                </div>
-              ))}
-        </div>
-      ))}
+                ))}
+          </div>
+        ))}
       </div>
     </MentionFloatingPanel>
   );

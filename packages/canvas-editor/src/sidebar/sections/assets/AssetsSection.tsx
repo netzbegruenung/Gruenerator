@@ -132,9 +132,7 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
   // --- Desktop: Canva-style browse/drill-down ---
   if (!isMobile) {
     return (
-      <div
-        className={cn(SIDEBAR_SECTION, 'gap-md p-md max-canvas-mobile:p-sm min-w-[296px]')}
-      >
+      <div className={cn(SIDEBAR_SECTION, 'gap-md p-md max-canvas-mobile:p-sm min-w-[296px]')}>
         <BrowseView search={search} {...props} />
       </div>
     );
@@ -466,9 +464,7 @@ function MobileView({
     });
   }
 
-  const defaultSubsection = hasAssetsFeature
-    ? 'grafiken'
-    : subsections[0]?.id || 'suche';
+  const defaultSubsection = hasAssetsFeature ? 'grafiken' : subsections[0]?.id || 'suche';
 
   return (
     <div className={cn(SIDEBAR_SECTION, 'w-full')}>

@@ -29,16 +29,16 @@ Bei nicht erlaubtem Landesverband antwortet der Server mit 403.
     apiKey: string
   ) {
     if (!apiKey) {
-      return { error: true, message: 'No API key forwarded — set Authorization: Bearer header on the MCP request.' };
+      return {
+        error: true,
+        message: 'No API key forwarded — set Authorization: Bearer header on the MCP request.',
+      };
     }
-    const result = await callGrueneratorApi(
-      '/api/v1/notebooks/ask',
-      {
-        apiKey,
-        method: 'POST',
-        body: { question, landesverband, ...(fastMode !== undefined && { fastMode }) },
-      }
-    );
+    const result = await callGrueneratorApi('/api/v1/notebooks/ask', {
+      apiKey,
+      method: 'POST',
+      body: { question, landesverband, ...(fastMode !== undefined && { fastMode }) },
+    });
     if (!result.ok) {
       return { error: true, status: result.status, message: result.message };
     }

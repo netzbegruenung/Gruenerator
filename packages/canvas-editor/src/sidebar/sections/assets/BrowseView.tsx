@@ -17,7 +17,12 @@ import { IconsSection } from '../IconsSection';
 import { IllustrationenSection } from '../IllustrationenSection';
 import { RahmenSection } from '../RahmenSection';
 
-import { CATEGORY_CARDS, PREVIEW_COMPONENTS, type AssetView, type CategoryCardDef } from './constants';
+import {
+  CATEGORY_CARDS,
+  PREVIEW_COMPONENTS,
+  type AssetView,
+  type CategoryCardDef,
+} from './constants';
 import { SearchInput, SearchResultsGrid } from './SearchResultsGrid';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
@@ -45,21 +50,21 @@ function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick:
       className={cn(
         'group flex flex-col items-center gap-sm cursor-pointer bg-transparent border-none p-0 rounded-lg',
         'focus-visible:outline-none focus-visible:ring-2',
-        ring,
+        ring
       )}
     >
       <div
         className={cn(
           'flex items-center justify-center size-20 rounded-full bg-transparent',
           'transition-[box-shadow] duration-200 ease-out',
-          hoverShadow,
+          hoverShadow
         )}
       >
         <span
           className={cn(
             'inline-flex items-center justify-center transition-transform duration-200 ease-out group-hover:scale-[1.04]',
             usesIconColor && 'text-3xl',
-            usesIconColor && iconColor,
+            usesIconColor && iconColor
           )}
         >
           {image ? (
@@ -86,9 +91,7 @@ function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick:
           )}
         </span>
       </div>
-      <span className="text-xs text-foreground text-center leading-tight max-w-20">
-        {label}
-      </span>
+      <span className="text-xs text-foreground text-center leading-tight max-w-20">{label}</span>
     </button>
   );
 }
@@ -159,7 +162,8 @@ function RecentlyUsedGrid({
 
   const handleClick = (item: RecentItem) => {
     if (item.type === 'asset' && onAddAsset) onAddAsset(item.id);
-    else if (item.type === 'shape' && onAddShape && item.shapeType) onAddShape(item.shapeType as ShapeType);
+    else if (item.type === 'shape' && onAddShape && item.shapeType)
+      onAddShape(item.shapeType as ShapeType);
     else if (item.type === 'illustration' && onAddIllustration) onAddIllustration(item.id);
   };
 
@@ -210,11 +214,7 @@ function AssetGrid({
           type="button"
           title={`${asset.label} hinzufügen`}
         >
-          <img
-            src={asset.src}
-            alt={asset.label}
-            className="w-10 h-10 object-contain shrink-0"
-          />
+          <img src={asset.src} alt={asset.label} className="w-10 h-10 object-contain shrink-0" />
           <span className="text-xs text-foreground truncate">{asset.label}</span>
         </button>
       ))}
@@ -320,7 +320,11 @@ export function BrowseView(props: BrowseViewProps) {
       }
     }
     return items;
-  }, [sectionProps.assetInstances, sectionProps.shapeInstances, sectionProps.illustrationInstances]);
+  }, [
+    sectionProps.assetInstances,
+    sectionProps.shapeInstances,
+    sectionProps.illustrationInstances,
+  ]);
 
   if (activeView !== 'browse') {
     return renderDrillDown();

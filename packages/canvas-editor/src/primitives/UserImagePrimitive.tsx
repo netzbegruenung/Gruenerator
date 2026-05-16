@@ -93,11 +93,7 @@ function UserImagePrimitiveInner({
           onTransformEnd(node.x(), node.y(), newWidth, newHeight, newRotation);
         }}
       >
-        <Image
-          image={image}
-          width={width}
-          height={height}
-        />
+        <Image image={image} width={width} height={height} />
 
         {isSelected && (
           <Rect

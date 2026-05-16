@@ -24,12 +24,14 @@ interface TrackedRequest extends Request {
   _reqId?: string;
 }
 
-const simpleGenerationSchema = z.object({
-  useProMode: z.boolean().optional(),
-  usePrivacyMode: z.boolean().optional(),
-  useWebSearchTool: z.boolean().optional(),
-  useAgentMode: z.boolean().optional(),
-}).passthrough();
+const simpleGenerationSchema = z
+  .object({
+    useProMode: z.boolean().optional(),
+    usePrivacyMode: z.boolean().optional(),
+    useWebSearchTool: z.boolean().optional(),
+    useAgentMode: z.boolean().optional(),
+  })
+  .passthrough();
 
 type SimpleGenerationBody = z.infer<typeof simpleGenerationSchema>;
 
@@ -95,27 +97,31 @@ router.use((req: TrackedRequest, res: Response, next: NextFunction) => {
  *
  * Process a simple Antrag generation request through LangGraph
  */
-router.post('/', validateBody(simpleGenerationSchema), async (req: TypedRequest<SimpleGenerationBody>, res: Response): Promise<void> => {
-  log.debug('[simpleGeneration] Incoming request body flags:', {
-    useProMode: req.body.useProMode,
-    usePrivacyMode: req.body.usePrivacyMode,
-    useWebSearchTool: req.body.useWebSearchTool,
-    useAgentMode: req.body.useAgentMode,
-  });
+router.post(
+  '/',
+  validateBody(simpleGenerationSchema),
+  async (req: TypedRequest<SimpleGenerationBody>, res: Response): Promise<void> => {
+    log.debug('[simpleGeneration] Incoming request body flags:', {
+      useProMode: req.body.useProMode,
+      usePrivacyMode: req.body.usePrivacyMode,
+      useWebSearchTool: req.body.useWebSearchTool,
+      useAgentMode: req.body.useAgentMode,
+    });
 
-  // Agent mode: delegate to AntragAgentGraph pipeline
-  if (req.body.useAgentMode) {
-    log.debug('[simpleGeneration] Delegating to AntragAgentGraph');
-    if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
-      return processAntragAgentStreaming(req, res);
+    // Agent mode: delegate to AntragAgentGraph pipeline
+    if (req.body.useAgentMode) {
+      log.debug('[simpleGeneration] Delegating to AntragAgentGraph');
+      if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
+        return processAntragAgentStreaming(req, res);
+      }
+      return processAntragAgentRequest(req, res);
     }
-    return processAntragAgentRequest(req, res);
-  }
 
-  if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
-    return processGraphRequestStreaming('antrag_simple', req, res);
+    if (req.query.stream === 'true' || req.headers.accept === 'text/event-stream') {
+      return processGraphRequestStreaming('antrag_simple', req, res);
+    }
+    await processGraphRequest('antrag_simple', req, res);
   }
-  await processGraphRequest('antrag_simple', req, res);
-});
+);
 
 export default router;

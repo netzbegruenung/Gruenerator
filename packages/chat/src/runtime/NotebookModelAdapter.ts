@@ -228,7 +228,14 @@ export function createNotebookModelAdapter(
 
       const reader = response.body?.getReader();
       if (!reader) {
-        yield { content: [{ type: 'text' as const, text: streamErrorMessage(new Error('Keine Antwort vom Server erhalten.')) }] };
+        yield {
+          content: [
+            {
+              type: 'text' as const,
+              text: streamErrorMessage(new Error('Keine Antwort vom Server erhalten.')),
+            },
+          ],
+        };
         return;
       }
 

@@ -1,4 +1,5 @@
 # GPU Clusters API Reference
+
 ## Contents
 
 - [Cluster Endpoints](#cluster-endpoints)
@@ -20,29 +21,28 @@
 - [Volume Statuses](#volume-statuses)
 - [Cluster Response Object](#cluster-response-object)
 
-
 Base URL: `https://api.together.xyz/v1`
 
 ## Cluster Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST /compute/clusters` | Create cluster | Provision a new GPU cluster |
-| `GET /compute/clusters` | List clusters | List all GPU clusters |
-| `GET /compute/clusters/{id}` | Get cluster | Get cluster details |
-| `PUT /compute/clusters/{id}` | Update cluster | Scale or change cluster type |
-| `DELETE /compute/clusters/{id}` | Delete cluster | Remove a cluster |
-| `GET /compute/regions` | List regions | Available regions, GPUs, drivers |
+| Method                          | Path           | Description                      |
+| ------------------------------- | -------------- | -------------------------------- |
+| `POST /compute/clusters`        | Create cluster | Provision a new GPU cluster      |
+| `GET /compute/clusters`         | List clusters  | List all GPU clusters            |
+| `GET /compute/clusters/{id}`    | Get cluster    | Get cluster details              |
+| `PUT /compute/clusters/{id}`    | Update cluster | Scale or change cluster type     |
+| `DELETE /compute/clusters/{id}` | Delete cluster | Remove a cluster                 |
+| `GET /compute/regions`          | List regions   | Available regions, GPUs, drivers |
 
 ## Storage Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST /compute/clusters/storage/volumes` | Create volume | Create shared storage |
-| `GET /compute/clusters/storage/volumes` | List volumes | List all volumes |
-| `GET /compute/clusters/storage/volumes/{id}` | Get volume | Get volume details |
-| `PUT /compute/clusters/storage/volumes` | Update volume | Resize a volume |
-| `DELETE /compute/clusters/storage/volumes/{id}` | Delete volume | Remove a volume |
+| Method                                          | Path          | Description           |
+| ----------------------------------------------- | ------------- | --------------------- |
+| `POST /compute/clusters/storage/volumes`        | Create volume | Create shared storage |
+| `GET /compute/clusters/storage/volumes`         | List volumes  | List all volumes      |
+| `GET /compute/clusters/storage/volumes/{id}`    | Get volume    | Get volume details    |
+| `PUT /compute/clusters/storage/volumes`         | Update volume | Resize a volume       |
+| `DELETE /compute/clusters/storage/volumes/{id}` | Delete volume | Remove a volume       |
 
 ## Create Cluster
 
@@ -72,20 +72,20 @@ print(cluster.cluster_id)
 ```
 
 ```typescript
-import Together from "together-ai";
+import Together from 'together-ai';
 const client = new Together();
 
 const cluster = await client.beta.clusters.create({
-  cluster_name: "my-gpu-cluster",
-  region: "us-central-8",
-  gpu_type: "H100_SXM",
+  cluster_name: 'my-gpu-cluster',
+  region: 'us-central-8',
+  gpu_type: 'H100_SXM',
   num_gpus: 8,
-  driver_version: "CUDA_12_6_560",
-  billing_type: "ON_DEMAND",
-  cluster_type: "KUBERNETES",
+  driver_version: 'CUDA_12_6_560',
+  billing_type: 'ON_DEMAND',
+  cluster_type: 'KUBERNETES',
   // @ts-expect-error -- required by API but not yet in SDK types
-  cuda_version: "12.6",
-  nvidia_driver_version: "560",
+  cuda_version: '12.6',
+  nvidia_driver_version: '560',
 });
 console.log(cluster.cluster_id);
 ```
@@ -121,20 +121,20 @@ together beta clusters create \
 
 ### Create Request Body
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `cluster_name` | string | Yes | Name of the cluster |
-| `region` | string | Yes | Region (use `list_regions()` in Python or `listRegions()` in TypeScript to find valid regions) |
-| `gpu_type` | string | Yes | GPU type (see Instance Types below) |
-| `num_gpus` | integer | Yes | Number of GPUs (must be a multiple of 8) |
-| `driver_version` | string | Yes | Combined driver string, e.g. `CUDA_12_6_560` (see Driver Versions below) |
-| `cuda_version` | string | Yes | CUDA version, e.g. `"12.6"` |
-| `nvidia_driver_version` | string | Yes | NVIDIA driver version, e.g. `"560"` |
-| `billing_type` | string | Yes | `ON_DEMAND` or `RESERVED` |
-| `cluster_type` | string | No | `KUBERNETES` (default) or `SLURM` |
-| `duration_days` | integer | No | Reservation length in days (only with `RESERVED`) |
-| `volume_id` | string | No | Existing shared volume ID to attach |
-| `shared_volume` | object | No | Inline volume: `{volume_name, size_tib, region}` |
+| Field                   | Type    | Required | Description                                                                                    |
+| ----------------------- | ------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `cluster_name`          | string  | Yes      | Name of the cluster                                                                            |
+| `region`                | string  | Yes      | Region (use `list_regions()` in Python or `listRegions()` in TypeScript to find valid regions) |
+| `gpu_type`              | string  | Yes      | GPU type (see Instance Types below)                                                            |
+| `num_gpus`              | integer | Yes      | Number of GPUs (must be a multiple of 8)                                                       |
+| `driver_version`        | string  | Yes      | Combined driver string, e.g. `CUDA_12_6_560` (see Driver Versions below)                       |
+| `cuda_version`          | string  | Yes      | CUDA version, e.g. `"12.6"`                                                                    |
+| `nvidia_driver_version` | string  | Yes      | NVIDIA driver version, e.g. `"560"`                                                            |
+| `billing_type`          | string  | Yes      | `ON_DEMAND` or `RESERVED`                                                                      |
+| `cluster_type`          | string  | No       | `KUBERNETES` (default) or `SLURM`                                                              |
+| `duration_days`         | integer | No       | Reservation length in days (only with `RESERVED`)                                              |
+| `volume_id`             | string  | No       | Existing shared volume ID to attach                                                            |
+| `shared_volume`         | object  | No       | Inline volume: `{volume_name, size_tib, region}`                                               |
 
 ## List Clusters
 
@@ -169,7 +169,7 @@ print(f"Status: {cluster.status}, GPUs: {cluster.num_gpus}")
 ```
 
 ```typescript
-const cluster = await client.beta.clusters.retrieve("cluster-id");
+const cluster = await client.beta.clusters.retrieve('cluster-id');
 console.log(cluster);
 ```
 
@@ -194,9 +194,9 @@ cluster = client.beta.clusters.update(
 ```
 
 ```typescript
-const cluster = await client.beta.clusters.update("cluster-id", {
+const cluster = await client.beta.clusters.update('cluster-id', {
   num_gpus: 16,
-  cluster_type: "KUBERNETES",
+  cluster_type: 'KUBERNETES',
 });
 ```
 
@@ -215,10 +215,10 @@ together beta clusters update <CLUSTER_ID> --num-gpus 16 --cluster-type KUBERNET
 
 ### Update Request Body
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `num_gpus` | integer | New GPU count (must be a multiple of 8) |
-| `cluster_type` | string | `KUBERNETES` or `SLURM` |
+| Field          | Type    | Description                             |
+| -------------- | ------- | --------------------------------------- |
+| `num_gpus`     | integer | New GPU count (must be a multiple of 8) |
+| `cluster_type` | string  | `KUBERNETES` or `SLURM`                 |
 
 ## Delete Cluster
 
@@ -227,7 +227,7 @@ client.beta.clusters.delete("cluster-id")
 ```
 
 ```typescript
-await client.beta.clusters.delete("cluster-id");
+await client.beta.clusters.delete('cluster-id');
 ```
 
 ```shell
@@ -276,9 +276,9 @@ print(volume.volume_id)
 
 ```typescript
 const volume = await client.beta.clusters.storage.create({
-  volume_name: "my-shared-volume",
+  volume_name: 'my-shared-volume',
   size_tib: 2,
-  region: "us-central-8",
+  region: 'us-central-8',
 });
 console.log(volume.volume_id);
 ```
@@ -300,11 +300,11 @@ together beta clusters storage create \
 
 ### Volume Create Request Body
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `volume_name` | string | Yes | Name of the volume |
-| `size_tib` | integer | Yes | Size in tebibytes (TiB) |
-| `region` | string | Yes | Region name |
+| Field         | Type    | Required | Description             |
+| ------------- | ------- | -------- | ----------------------- |
+| `volume_name` | string  | Yes      | Name of the volume      |
+| `size_tib`    | integer | Yes      | Size in tebibytes (TiB) |
+| `region`      | string  | Yes      | Region name             |
 
 ## List Shared Volumes
 
@@ -337,7 +337,7 @@ print(f"{volume.volume_name}: {volume.size_tib} TiB ({volume.status})")
 ```
 
 ```typescript
-const volume = await client.beta.clusters.storage.retrieve("volume-id");
+const volume = await client.beta.clusters.storage.retrieve('volume-id');
 console.log(volume);
 ```
 
@@ -362,7 +362,7 @@ volume = client.beta.clusters.storage.update(
 
 ```typescript
 const volume = await client.beta.clusters.storage.update({
-  volume_id: "volume-id",
+  volume_id: 'volume-id',
   size_tib: 5,
 });
 ```
@@ -384,7 +384,7 @@ client.beta.clusters.storage.delete("volume-id")
 ```
 
 ```typescript
-await client.beta.clusters.storage.delete("volume-id");
+await client.beta.clusters.storage.delete('volume-id');
 ```
 
 ```shell
@@ -399,14 +399,14 @@ together beta clusters storage delete <VOLUME_ID>
 
 ## Instance Types
 
-| CLI Value | GPU | Memory | Notes |
-|-----------|-----|--------|-------|
-| `H100_SXM` | NVIDIA H100 | 80GB | InfiniBand networking |
-| `H100_SXM_INF` | NVIDIA H100 | 80GB | Inference-optimized, lower IB bandwidth |
-| `H200_SXM` | NVIDIA H200 | 141GB | InfiniBand networking |
-| `B200_SXM` | NVIDIA B200 | 192GB | InfiniBand networking |
-| `L40_PCIE` | NVIDIA L40 | 48GB | PCIe |
-| `RTX_6000_PCI` | NVIDIA RTX 6000 | 24GB | PCIe |
+| CLI Value      | GPU             | Memory | Notes                                   |
+| -------------- | --------------- | ------ | --------------------------------------- |
+| `H100_SXM`     | NVIDIA H100     | 80GB   | InfiniBand networking                   |
+| `H100_SXM_INF` | NVIDIA H100     | 80GB   | Inference-optimized, lower IB bandwidth |
+| `H200_SXM`     | NVIDIA H200     | 141GB  | InfiniBand networking                   |
+| `B200_SXM`     | NVIDIA B200     | 192GB  | InfiniBand networking                   |
+| `L40_PCIE`     | NVIDIA L40      | 48GB   | PCIe                                    |
+| `RTX_6000_PCI` | NVIDIA RTX 6000 | 24GB   | PCIe                                    |
 
 ## Driver Versions
 
@@ -416,46 +416,46 @@ The `list_regions()` response returns driver versions as a list of objects:
 
 ```json
 [
-  {"cuda_version": "12.6", "nvidia_driver_version": "560"},
-  {"cuda_version": "12.4", "nvidia_driver_version": "550"}
+  { "cuda_version": "12.6", "nvidia_driver_version": "560" },
+  { "cuda_version": "12.4", "nvidia_driver_version": "550" }
 ]
 ```
 
 The combined `driver_version` string follows the pattern `CUDA_{major}_{minor}_{nvidia}`:
 
 | `driver_version` | `cuda_version` | `nvidia_driver_version` |
-|-------------------|----------------|--------------------------|
-| `CUDA_12_4_550` | `12.4` | `550` |
-| `CUDA_12_5_555` | `12.5` | `555` |
-| `CUDA_12_6_560` | `12.6` | `560` |
-| `CUDA_12_6_565` | `12.6` | `565` |
-| `CUDA_12_8_570` | `12.8` | `570` |
-| `CUDA_12_9_575` | `12.9` | `575` |
+| ---------------- | -------------- | ----------------------- |
+| `CUDA_12_4_550`  | `12.4`         | `550`                   |
+| `CUDA_12_5_555`  | `12.5`         | `555`                   |
+| `CUDA_12_6_560`  | `12.6`         | `560`                   |
+| `CUDA_12_6_565`  | `12.6`         | `565`                   |
+| `CUDA_12_8_570`  | `12.8`         | `570`                   |
+| `CUDA_12_9_575`  | `12.9`         | `575`                   |
 
 ## Cluster Statuses
 
-| Status | Description |
-|--------|-------------|
-| `Scheduled` | Cluster creation accepted, awaiting resource allocation |
-| `WaitingForControlPlaneNodes` | Control plane provisioning |
-| `WaitingForDataPlaneNodes` | Worker nodes provisioning |
-| `WaitingForSubnet` | Network setup |
-| `WaitingForSharedVolume` | Storage provisioning |
-| `InstallingDrivers` | CUDA driver installation |
-| `RunningAcceptanceTests` | GPU/network health validation |
-| `Ready` | Cluster operational |
-| `Degraded` | Some nodes unhealthy |
-| `Paused` | Cluster paused |
-| `OnDemandComputePaused` | On-demand compute paused (credit issue) |
-| `Deleting` | Cluster being removed |
+| Status                        | Description                                             |
+| ----------------------------- | ------------------------------------------------------- |
+| `Scheduled`                   | Cluster creation accepted, awaiting resource allocation |
+| `WaitingForControlPlaneNodes` | Control plane provisioning                              |
+| `WaitingForDataPlaneNodes`    | Worker nodes provisioning                               |
+| `WaitingForSubnet`            | Network setup                                           |
+| `WaitingForSharedVolume`      | Storage provisioning                                    |
+| `InstallingDrivers`           | CUDA driver installation                                |
+| `RunningAcceptanceTests`      | GPU/network health validation                           |
+| `Ready`                       | Cluster operational                                     |
+| `Degraded`                    | Some nodes unhealthy                                    |
+| `Paused`                      | Cluster paused                                          |
+| `OnDemandComputePaused`       | On-demand compute paused (credit issue)                 |
+| `Deleting`                    | Cluster being removed                                   |
 
 ## Volume Statuses
 
-| Status | Description |
-|--------|-------------|
-| `available` | Ready for attachment |
-| `bound` | Attached to a cluster |
-| `provisioning` | Being created |
+| Status         | Description           |
+| -------------- | --------------------- |
+| `available`    | Ready for attachment  |
+| `bound`        | Attached to a cluster |
+| `provisioning` | Being created         |
 
 ## Cluster Response Object
 

@@ -27,9 +27,7 @@ export default function DocumentCard({ doc, indexing, loading, onRemove }: Docum
       <div
         className={cn(
           'pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent to-transparent',
-          isWolke
-            ? 'via-secondary-400/50 dark:via-secondary-500/40'
-            : fileType?.accentVia
+          isWolke ? 'via-secondary-400/50 dark:via-secondary-500/40' : fileType?.accentVia
         )}
         aria-hidden
       />
@@ -39,9 +37,7 @@ export default function DocumentCard({ doc, indexing, loading, onRemove }: Docum
         size="icon-xs"
         className={cn(
           'absolute right-1 top-1 transition-opacity',
-          indexing
-            ? 'opacity-60'
-            : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+          indexing ? 'opacity-60' : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
         )}
         onClick={() => onRemove(doc.id)}
         disabled={loading}

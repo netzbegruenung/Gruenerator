@@ -325,13 +325,29 @@ function ShapeSearchPreview({ type }: { type: ShapeType }): React.ReactElement {
     case 'line':
       return (
         <svg width={26} height={10} viewBox="0 0 100 10" aria-hidden="true">
-          <line x1="2" y1="5" x2="98" y2="5" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+          <line
+            x1="2"
+            y1="5"
+            x2="98"
+            y2="5"
+            stroke="currentColor"
+            strokeWidth="5"
+            strokeLinecap="round"
+          />
         </svg>
       );
     case 'line-thick':
       return (
         <svg width={26} height={14} viewBox="0 0 100 14" aria-hidden="true">
-          <line x1="2" y1="7" x2="98" y2="7" stroke="currentColor" strokeWidth="12" strokeLinecap="round" />
+          <line
+            x1="2"
+            y1="7"
+            x2="98"
+            y2="7"
+            stroke="currentColor"
+            strokeWidth="12"
+            strokeLinecap="round"
+          />
         </svg>
       );
     case 'line-dashed':
@@ -373,7 +389,15 @@ function ShapeSearchPreview({ type }: { type: ShapeType }): React.ReactElement {
     case 'line-arrow':
       return (
         <svg width={26} height={12} viewBox="0 0 100 12" aria-hidden="true">
-          <line x1="2" y1="6" x2="78" y2="6" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+          <line
+            x1="2"
+            y1="6"
+            x2="78"
+            y2="6"
+            stroke="currentColor"
+            strokeWidth="4"
+            strokeLinecap="round"
+          />
           <polygon points="78,1 98,6 78,11" fill="currentColor" />
         </svg>
       );
@@ -384,10 +408,7 @@ function ShapeSearchPreview({ type }: { type: ShapeType }): React.ReactElement {
     case 'speech-pointed':
       return (
         <svg width={24} height={24} viewBox="0 0 100 100" aria-hidden="true">
-          <path
-            d="M5,8 L95,8 L95,68 L60,68 L72,90 L40,68 L5,68 Z"
-            fill="currentColor"
-          />
+          <path d="M5,8 L95,8 L95,68 L60,68 L72,90 L40,68 L5,68 Z" fill="currentColor" />
         </svg>
       );
     case 'cloud-fluffy':

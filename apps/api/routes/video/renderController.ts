@@ -47,9 +47,7 @@ const renderBodySchema = z.object({
   options: z
     .object({
       fps: z.number().optional(),
-      size: z
-        .object({ width: z.number(), height: z.number() })
-        .optional(),
+      size: z.object({ width: z.number(), height: z.number() }).optional(),
       format: z.string().optional(),
     })
     .optional(),
@@ -70,51 +68,59 @@ function jobKey(id: string): string {
  * Request body: { design: IDesign, options: { fps, size, format } }
  * Response: { render: { id: string } }
  */
-router.post('/render', validateBody(renderBodySchema), async (req: TypedRequest<RenderBody>, res: Response): Promise<void> => {
-  const { design, options } = req.body;
+router.post(
+  '/render',
+  validateBody(renderBodySchema),
+  async (req: TypedRequest<RenderBody>, res: Response): Promise<void> => {
+    const { design, options } = req.body;
 
-  if (!design) {
-    res.status(400).json({ error: 'design payload is required' });
-    return;
+    if (!design) {
+      res.status(400).json({ error: 'design payload is required' });
+      return;
+    }
+
+    try {
+      const id = crypto.randomUUID();
+      const userId = req.user?.id || 'anonymous';
+
+      const job: RenderJob = {
+        id,
+        status: 'PENDING',
+        progress: 0,
+        design,
+        options: {
+          fps: options?.fps || 30,
+          size: options?.size ||
+            (design.size as { width: number; height: number } | undefined) || {
+              width: 1080,
+              height: 1920,
+            },
+          format: options?.format || 'mp4',
+        },
+        userId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Store job data in Redis
+      await redisClient.set(jobKey(id), JSON.stringify(job), { EX: RENDER_JOB_TTL });
+
+      // Push to queue for the Remotion worker
+      await redisClient.lPush(RENDER_QUEUE_KEY, id);
+
+      log.info(`Render job created: ${id} by user ${userId}`);
+
+      res.json({
+        render: { id },
+      });
+    } catch (error: unknown) {
+      log.error(
+        `Failed to create render job: ${error instanceof Error ? error.message : String(error)}`
+      );
+      res.status(500).json({ error: 'Failed to create render job' });
+    }
   }
-
-  try {
-    const id = crypto.randomUUID();
-    const userId = req.user?.id || 'anonymous';
-
-    const job: RenderJob = {
-      id,
-      status: 'PENDING',
-      progress: 0,
-      design,
-      options: {
-        fps: options?.fps || 30,
-        size: options?.size || (design.size as { width: number; height: number } | undefined) || { width: 1080, height: 1920 },
-        format: options?.format || 'mp4',
-      },
-      userId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    // Store job data in Redis
-    await redisClient.set(jobKey(id), JSON.stringify(job), { EX: RENDER_JOB_TTL });
-
-    // Push to queue for the Remotion worker
-    await redisClient.lPush(RENDER_QUEUE_KEY, id);
-
-    log.info(`Render job created: ${id} by user ${userId}`);
-
-    res.json({
-      render: { id },
-    });
-  } catch (error: unknown) {
-    log.error(
-      `Failed to create render job: ${error instanceof Error ? error.message : String(error)}`
-    );
-    res.status(500).json({ error: 'Failed to create render job' });
-  }
-});
+);
 
 /**
  * GET /api/video/render/:id

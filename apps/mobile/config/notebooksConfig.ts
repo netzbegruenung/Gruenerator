@@ -151,14 +151,11 @@ const PRODUCTION_NOTEBOOKS: MobileNotebookEntry[] = [
   },
 ];
 
-export const MOBILE_SYSTEM_NOTEBOOKS: MobileNotebookEntry[] = [
-  ...PRODUCTION_NOTEBOOKS,
-].sort((a, b) => a.order - b.order);
+export const MOBILE_SYSTEM_NOTEBOOKS: MobileNotebookEntry[] = [...PRODUCTION_NOTEBOOKS].sort(
+  (a, b) => a.order - b.order
+);
 
-export const HIDDEN_NOTEBOOK_IDS = [
-  'gruenerator-notebook',
-  'gruenblog-notebook',
-];
+export const HIDDEN_NOTEBOOK_IDS = ['gruenerator-notebook', 'gruenblog-notebook'];
 
 export const getVisibleNotebooks = (): MobileNotebookEntry[] =>
   MOBILE_SYSTEM_NOTEBOOKS.filter((nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id));

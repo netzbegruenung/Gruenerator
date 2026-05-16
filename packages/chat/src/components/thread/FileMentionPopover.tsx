@@ -183,163 +183,163 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
   return (
     <MentionFloatingPanel open={visible} onDismiss={onDismiss} width="w-72">
       <div onKeyDown={handleKeyDown} className="flex min-h-0 flex-1 flex-col">
-      <Command className="flex min-h-0 flex-1 flex-col rounded-xl" shouldFilter={isRootLevel}>
-        <CommandInput
-          placeholder={isRootLevel ? 'Suchen...' : 'In Dokumenten suchen...'}
-          value={level === 'documents' ? searchQuery : undefined}
-          onValueChange={level === 'documents' ? handleSearchChange : undefined}
-        />
-        <CommandList className="min-h-0 flex-1">
-          <ScrollArea className="h-full">
-            {isRootLevel ? (
-              <>
-                {/* Section 1: Notebooks */}
-                {loadingCollections ? (
-                  <div className="space-y-2 p-3">
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                  </div>
-                ) : collections.length > 0 ? (
-                  <CommandGroup heading="Notizbücher">
-                    {collections.map((collection) => (
-                      <CommandItem
-                        key={collection.id}
-                        value={collection.name}
-                        onSelect={() => handleCollectionSelect(collection)}
-                        className="flex items-center justify-between gap-2"
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-base flex-shrink-0">📓</span>
-                          <span className="truncate text-sm">{collection.name}</span>
-                        </div>
-                        <Badge variant="secondary" className="flex-shrink-0 text-xs">
-                          {collection.documentCount}
-                        </Badge>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                ) : null}
-
-                {/* Section 2: Recent Uploaded Documents */}
-                {loadingContent ? (
-                  <div className="space-y-2 p-3">
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                  </div>
-                ) : documents.length > 0 ? (
-                  <CommandGroup heading="Letzte Dokumente">
-                    {documents.slice(0, 10).map((doc) => (
-                      <CommandItem
-                        key={doc.id}
-                        value={doc.title}
-                        onSelect={() => handleUserDocumentSelect(doc.id, doc.title)}
-                        className="flex items-center gap-2"
-                      >
-                        <span className="text-base flex-shrink-0">📄</span>
-                        <span className="truncate text-sm">{doc.title}</span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                ) : null}
-
-                {/* Section 3: Saved Texts */}
-                {loadingContent ? null : texts.length > 0 ? (
-                  <CommandGroup heading="Gespeicherte Texte">
-                    {texts.slice(0, 10).map((text) => (
-                      <CommandItem
-                        key={text.id}
-                        value={text.title}
-                        onSelect={() => handleUserTextSelect(text.id, text.title)}
-                        className="flex items-center gap-2"
-                      >
-                        <span className="text-base flex-shrink-0">📝</span>
-                        <div className="min-w-0 flex-1 flex items-center gap-2">
-                          <span className="truncate text-sm">{text.title}</span>
+        <Command className="flex min-h-0 flex-1 flex-col rounded-xl" shouldFilter={isRootLevel}>
+          <CommandInput
+            placeholder={isRootLevel ? 'Suchen...' : 'In Dokumenten suchen...'}
+            value={level === 'documents' ? searchQuery : undefined}
+            onValueChange={level === 'documents' ? handleSearchChange : undefined}
+          />
+          <CommandList className="min-h-0 flex-1">
+            <ScrollArea className="h-full">
+              {isRootLevel ? (
+                <>
+                  {/* Section 1: Notebooks */}
+                  {loadingCollections ? (
+                    <div className="space-y-2 p-3">
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-full" />
+                    </div>
+                  ) : collections.length > 0 ? (
+                    <CommandGroup heading="Notizbücher">
+                      {collections.map((collection) => (
+                        <CommandItem
+                          key={collection.id}
+                          value={collection.name}
+                          onSelect={() => handleCollectionSelect(collection)}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base flex-shrink-0">📓</span>
+                            <span className="truncate text-sm">{collection.name}</span>
+                          </div>
                           <Badge variant="secondary" className="flex-shrink-0 text-xs">
-                            {text.documentType}
+                            {collection.documentCount}
                           </Badge>
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                ) : null}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  ) : null}
 
-                {/* Section 4: Collaborative Documents */}
-                {collabDocs.length > 0 ? (
-                  <CommandGroup heading="Kollaborative Dokumente">
-                    {collabDocs.map((doc) => (
-                      <CommandItem
-                        key={doc.identifier}
-                        value={doc.title}
-                        onSelect={() =>
-                          handleCollabDocSelect(doc.identifier, doc.mention, doc.title)
-                        }
-                        className="flex items-center gap-2"
-                      >
-                        <span className="text-base flex-shrink-0">📝</span>
-                        <span className="truncate text-sm">{doc.title}</span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                ) : null}
-              </>
-            ) : (
-              <>
-                <CommandGroup heading={selectedCollection?.name}>
-                  <CommandItem onSelect={handleBack} className="text-foreground-muted">
-                    <span className="mr-2">←</span> Zurück
-                  </CommandItem>
-                </CommandGroup>
-
-                {searchQuery && searchResults.length > 0 ? (
-                  <CommandGroup heading="Suchergebnisse">
-                    {searchResults.map((result) => (
-                      <CommandItem
-                        key={result.documentId}
-                        value={result.title}
-                        onSelect={() => handleSearchResultSelect(result)}
-                        className="flex flex-col items-start gap-0.5"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-base">📄</span>
-                          <span className="text-sm font-medium">{result.title}</span>
-                        </div>
-                        {result.excerpt && (
-                          <span className="ml-7 line-clamp-1 text-xs text-foreground-muted">
-                            {result.excerpt}
-                          </span>
-                        )}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                ) : (
-                  <CommandGroup heading="Dokumente">
-                    {selectedCollection?.documents.map((doc) => (
-                      <CommandItem
-                        key={doc.id}
-                        value={doc.title}
-                        onSelect={() => handleDocumentSelect(doc.id, doc.title)}
-                        className="flex items-center gap-2"
-                      >
-                        <span className="text-base">📄</span>
-                        <div className="min-w-0 flex-1">
+                  {/* Section 2: Recent Uploaded Documents */}
+                  {loadingContent ? (
+                    <div className="space-y-2 p-3">
+                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-8 w-full" />
+                    </div>
+                  ) : documents.length > 0 ? (
+                    <CommandGroup heading="Letzte Dokumente">
+                      {documents.slice(0, 10).map((doc) => (
+                        <CommandItem
+                          key={doc.id}
+                          value={doc.title}
+                          onSelect={() => handleUserDocumentSelect(doc.id, doc.title)}
+                          className="flex items-center gap-2"
+                        >
+                          <span className="text-base flex-shrink-0">📄</span>
                           <span className="truncate text-sm">{doc.title}</span>
-                          {doc.pageCount && (
-                            <span className="ml-2 text-xs text-foreground-muted">
-                              · {doc.pageCount} Seiten
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  ) : null}
+
+                  {/* Section 3: Saved Texts */}
+                  {loadingContent ? null : texts.length > 0 ? (
+                    <CommandGroup heading="Gespeicherte Texte">
+                      {texts.slice(0, 10).map((text) => (
+                        <CommandItem
+                          key={text.id}
+                          value={text.title}
+                          onSelect={() => handleUserTextSelect(text.id, text.title)}
+                          className="flex items-center gap-2"
+                        >
+                          <span className="text-base flex-shrink-0">📝</span>
+                          <div className="min-w-0 flex-1 flex items-center gap-2">
+                            <span className="truncate text-sm">{text.title}</span>
+                            <Badge variant="secondary" className="flex-shrink-0 text-xs">
+                              {text.documentType}
+                            </Badge>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  ) : null}
+
+                  {/* Section 4: Collaborative Documents */}
+                  {collabDocs.length > 0 ? (
+                    <CommandGroup heading="Kollaborative Dokumente">
+                      {collabDocs.map((doc) => (
+                        <CommandItem
+                          key={doc.identifier}
+                          value={doc.title}
+                          onSelect={() =>
+                            handleCollabDocSelect(doc.identifier, doc.mention, doc.title)
+                          }
+                          className="flex items-center gap-2"
+                        >
+                          <span className="text-base flex-shrink-0">📝</span>
+                          <span className="truncate text-sm">{doc.title}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <CommandGroup heading={selectedCollection?.name}>
+                    <CommandItem onSelect={handleBack} className="text-foreground-muted">
+                      <span className="mr-2">←</span> Zurück
+                    </CommandItem>
+                  </CommandGroup>
+
+                  {searchQuery && searchResults.length > 0 ? (
+                    <CommandGroup heading="Suchergebnisse">
+                      {searchResults.map((result) => (
+                        <CommandItem
+                          key={result.documentId}
+                          value={result.title}
+                          onSelect={() => handleSearchResultSelect(result)}
+                          className="flex flex-col items-start gap-0.5"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">📄</span>
+                            <span className="text-sm font-medium">{result.title}</span>
+                          </div>
+                          {result.excerpt && (
+                            <span className="ml-7 line-clamp-1 text-xs text-foreground-muted">
+                              {result.excerpt}
                             </span>
                           )}
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                )}
-              </>
-            )}
-            <CommandEmpty>Keine Ergebnisse gefunden</CommandEmpty>
-          </ScrollArea>
-        </CommandList>
-      </Command>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  ) : (
+                    <CommandGroup heading="Dokumente">
+                      {selectedCollection?.documents.map((doc) => (
+                        <CommandItem
+                          key={doc.id}
+                          value={doc.title}
+                          onSelect={() => handleDocumentSelect(doc.id, doc.title)}
+                          className="flex items-center gap-2"
+                        >
+                          <span className="text-base">📄</span>
+                          <div className="min-w-0 flex-1">
+                            <span className="truncate text-sm">{doc.title}</span>
+                            {doc.pageCount && (
+                              <span className="ml-2 text-xs text-foreground-muted">
+                                · {doc.pageCount} Seiten
+                              </span>
+                            )}
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                </>
+              )}
+              <CommandEmpty>Keine Ergebnisse gefunden</CommandEmpty>
+            </ScrollArea>
+          </CommandList>
+        </Command>
       </div>
     </MentionFloatingPanel>
   );

@@ -60,9 +60,7 @@ export default function WolkeImportModal({ open, onOpenChange }: WolkeImportModa
           const errParsed = docsErrorSchema.safeParse(
             await response.json().catch(() => ({ error: 'Import fehlgeschlagen' }))
           );
-          throw new Error(
-            errParsed.success ? errParsed.data.error : `HTTP ${response.status}`
-          );
+          throw new Error(errParsed.success ? errParsed.data.error : `HTTP ${response.status}`);
         }
 
         const { documentId } = docImportResponseSchema.parse(await response.json());

@@ -374,7 +374,10 @@ function addNativeBadges(slide: PptxGenJS.Slide, state: PresentationSlideState):
         y,
         w,
         h,
-        fill: { color: hexToRgb(badge.backgroundColor), transparency: (1 - (badge.opacity ?? 1)) * 100 },
+        fill: {
+          color: hexToRgb(badge.backgroundColor),
+          transparency: (1 - (badge.opacity ?? 1)) * 100,
+        },
         rotate: badge.rotation,
       });
 
@@ -418,7 +421,10 @@ function addNativeBadges(slide: PptxGenJS.Slide, state: PresentationSlideState):
         y,
         w,
         h,
-        fill: { color: hexToRgb(badge.backgroundColor), transparency: (1 - (badge.opacity ?? 1)) * 100 },
+        fill: {
+          color: hexToRgb(badge.backgroundColor),
+          transparency: (1 - (badge.opacity ?? 1)) * 100,
+        },
         rectRadius: pxToInchX(badge.cornerRadius * badge.scale),
         rotate: badge.rotation,
       });

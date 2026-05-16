@@ -364,7 +364,16 @@ function FramePrimitiveInner({
       e.cancelBubble = true;
       onSelect(frame.id);
     },
-    [onSelect, frame.id, frame.clipType, frame.width, frame.height, frame.scaleX, frame.scaleY, isSelected]
+    [
+      onSelect,
+      frame.id,
+      frame.clipType,
+      frame.width,
+      frame.height,
+      frame.scaleX,
+      frame.scaleY,
+      isSelected,
+    ]
   );
 
   const { width: w, height: h } = frame;
@@ -524,8 +533,7 @@ function FramePrimitiveInner({
             // *more* (proportionally) and lock the other to it.
             const wScale = newBox.width / oldBox.width;
             const hScale = newBox.height / oldBox.height;
-            const masterScale =
-              Math.abs(wScale - 1) > Math.abs(hScale - 1) ? wScale : hScale;
+            const masterScale = Math.abs(wScale - 1) > Math.abs(hScale - 1) ? wScale : hScale;
             const adjustedWidth = oldBox.width * masterScale;
             const adjustedHeight = oldBox.height * masterScale;
             if (adjustedWidth < 20 || adjustedHeight < 20) {
