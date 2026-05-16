@@ -32,6 +32,7 @@ export const notificationTypeSchema = z.enum([
   'group_content_shared',
   'group_deleted',
   'transfer_downloaded',
+  'notebook_liked',
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 

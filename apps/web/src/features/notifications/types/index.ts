@@ -1,4 +1,4 @@
-import { FileText, LayoutDashboard, MessageSquare, Share2, Users } from 'lucide-react';
+import { FileText, Heart, LayoutDashboard, MessageSquare, Share2, Users } from 'lucide-react';
 
 import { openLinkAction, type NotificationTypeConfig } from '../notificationConfig';
 
@@ -71,6 +71,14 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     description: 'Wenn eine Gruppe aufgelöst wird',
     icon: Users,
     group: 'groups',
+  },
+
+  notebook_liked: {
+    label: 'Notizbuch-Likes',
+    description: 'Wenn andere dein öffentliches Notizbuch mögen',
+    icon: Heart,
+    group: 'system',
+    actions: (ctx) => [openLinkAction('Notizbuch öffnen')(ctx)],
   },
 
   // transfer_downloaded: {
