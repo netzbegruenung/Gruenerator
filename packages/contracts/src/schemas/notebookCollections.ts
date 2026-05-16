@@ -46,6 +46,25 @@ export const wolkeFolderRefSchema = z.object({
 });
 export type WolkeFolderRef = z.infer<typeof wolkeFolderRefSchema>;
 
+/**
+ * Experimental: User-owned Doc linked to a notebook as a source.
+ *
+ * Persisted inside `settings.linked_docs` (JSONB on `notebook_collections`).
+ * Each entry remembers which Doc was imported and the resulting Document id
+ * so a re-sync can replace the previous snapshot in place.
+ *
+ * The actual content import goes through the regular file-upload path
+ * (markdown export → File → uploadFileOnly), so security and indexing
+ * reuse the same plumbing as manual uploads.
+ */
+export const linkedDocRefSchema = z.object({
+  docId: z.string(),
+  docTitle: z.string(),
+  documentId: z.string().nullable().optional(),
+  lastSyncedAt: z.string().nullable().optional(),
+});
+export type LinkedDocRef = z.infer<typeof linkedDocRefSchema>;
+
 export const createCollectionBodySchema = z.object({
   name: z.string(),
   description: z.string().nullish(),
@@ -59,6 +78,7 @@ export const createCollectionBodySchema = z.object({
   is_public: z.boolean().nullish(),
   public_ownership: publicOwnershipSchema.nullish(),
   wolke_folders: z.array(wolkeFolderRefSchema).nullish(),
+  linked_docs: z.array(linkedDocRefSchema).nullish(),
 });
 
 export const updateCollectionBodySchema = z.object({
@@ -74,6 +94,7 @@ export const updateCollectionBodySchema = z.object({
   is_public: z.boolean().nullish(),
   public_ownership: publicOwnershipSchema.nullish(),
   wolke_folders: z.array(wolkeFolderRefSchema).nullish(),
+  linked_docs: z.array(linkedDocRefSchema).nullish(),
 });
 
 export const bulkDeleteBodySchema = z.object({
@@ -102,6 +123,7 @@ export const notebookEditorSavePayloadSchema = z.object({
   isPublic: z.boolean(),
   publicOwnership: publicOwnershipSchema.nullable(),
   wolkeFolders: z.array(wolkeFolderRefSchema).default([]),
+  linkedDocs: z.array(linkedDocRefSchema).default([]),
 });
 
 export type NotebookEditorSavePayload = z.infer<typeof notebookEditorSavePayloadSchema>;
@@ -154,6 +176,7 @@ export const transformedCollectionSchema = z.object({
   is_public: z.boolean().nullish(),
   public_ownership: publicOwnershipSchema.nullable().optional(),
   wolke_folders: z.array(wolkeFolderRefSchema).nullish(),
+  linked_docs: z.array(linkedDocRefSchema).nullish(),
   likes_count: z.number().nullish(),
   share_mode: notebookShareModeSchema.nullish(),
   edit_policy: notebookEditPolicySchema.nullish(),

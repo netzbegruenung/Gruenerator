@@ -1,9 +1,14 @@
-import { type NotebookEditorSavePayload, type WolkeFolderRef } from '@gruenerator/contracts';
+import {
+  type LinkedDocRef,
+  type NotebookEditorSavePayload,
+  type WolkeFolderRef,
+} from '@gruenerator/contracts';
 import { useState, useEffect, useCallback, useMemo, useRef, type DragEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
 import { useDocumentsStore } from '../../../../stores/documentsStore';
 
+import { type ImportedLinkedDoc } from '../NotebookEditorDocsSection';
 import { type ImportedWolkeDocument } from '../NotebookEditorWolkeSection';
 
 import {
@@ -42,6 +47,8 @@ export function useNotebookEditorState({
   const [publicOwnership, setPublicOwnership] = useState<PublicOwnership | null>(null);
   const [wolkeFolders, setWolkeFolders] = useState<WolkeFolderRef[]>([]);
   const [wolkePanelOpen, setWolkePanelOpen] = useState(false);
+  const [linkedDocs, setLinkedDocs] = useState<LinkedDocRef[]>([]);
+  const [docsPanelOpen, setDocsPanelOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { uploadFileOnly, pollDocumentStatus } = useDocumentsStore();
@@ -63,6 +70,7 @@ export function useNotebookEditorState({
       setIsPublic(editingCollection.is_public === true);
       setPublicOwnership(editingCollection.public_ownership ?? null);
       setWolkeFolders(editingCollection.wolke_folders ?? []);
+      setLinkedDocs(editingCollection.linked_docs ?? []);
       if (editingCollection.documents?.length) {
         setUploadedDocuments(
           editingCollection.documents.map((doc) => ({
@@ -79,11 +87,17 @@ export function useNotebookEditorState({
       setIsPublic(false);
       setPublicOwnership(null);
       setWolkeFolders([]);
+      setLinkedDocs([]);
       setUploadedDocuments([]);
       setStep(0);
       setWolkePanelOpen(false);
+      setDocsPanelOpen(false);
     }
   }, [editingCollection, reset]);
+
+  useEffect(() => {
+    if (linkedDocs.length > 0) setDocsPanelOpen(true);
+  }, [linkedDocs.length]);
 
   useEffect(() => {
     if (wolkeFolders.length > 0) setWolkePanelOpen(true);
@@ -193,6 +207,35 @@ export function useNotebookEditorState({
     setUploadedDocuments((prev) => prev.filter((doc) => doc.id !== id));
   }, []);
 
+  const handleDocsImported = useCallback(
+    (docs: ImportedLinkedDoc[]) => {
+      if (docs.length === 0) return;
+      setUploadedDocuments((prev) => {
+        const seen = new Set(prev.map((d) => d.id));
+        const additions: UploadedDocument[] = docs
+          .filter((d) => !seen.has(d.id))
+          .map((d) => ({ id: d.id, title: d.title }));
+        return [...prev, ...additions];
+      });
+      setIndexingDocIds((prev) => {
+        const next = new Set(prev);
+        docs.forEach((d) => next.add(d.id));
+        return next;
+      });
+      docs.forEach((d) => {
+        void pollDocumentStatus(d.id).finally(() => {
+          setIndexingDocIds((prev) => {
+            if (!prev.has(d.id)) return prev;
+            const next = new Set(prev);
+            next.delete(d.id);
+            return next;
+          });
+        });
+      });
+    },
+    [pollDocumentStatus]
+  );
+
   const handleWolkeDocsImported = useCallback(
     (docs: ImportedWolkeDocument[]) => {
       if (docs.length === 0) return;
@@ -240,9 +283,13 @@ export function useNotebookEditorState({
     () => uploadedDocuments.filter((d) => d.source === 'wolke'),
     [uploadedDocuments]
   );
+  const linkedDocDocumentIds = useMemo(
+    () => new Set(linkedDocs.flatMap((d) => (d.documentId ? [d.documentId] : []))),
+    [linkedDocs]
+  );
   const manualDocuments = useMemo(
-    () => uploadedDocuments.filter((d) => d.source !== 'wolke'),
-    [uploadedDocuments]
+    () => uploadedDocuments.filter((d) => d.source !== 'wolke' && !linkedDocDocumentIds.has(d.id)),
+    [uploadedDocuments, linkedDocDocumentIds]
   );
 
   const handleBack = useCallback(() => setStep((s) => Math.max(0, s - 1)), []);
@@ -267,10 +314,20 @@ export function useNotebookEditorState({
         isPublic,
         publicOwnership: isPublic ? publicOwnership : null,
         wolkeFolders,
+        linkedDocs,
       };
       await onSave(payload);
     },
-    [onSave, editingCollection, uploadedDocuments, labels, isPublic, publicOwnership, wolkeFolders]
+    [
+      onSave,
+      editingCollection,
+      uploadedDocuments,
+      labels,
+      isPublic,
+      publicOwnership,
+      wolkeFolders,
+      linkedDocs,
+    ]
   );
 
   const handleCancel = useCallback(() => {
@@ -281,14 +338,12 @@ export function useNotebookEditorState({
     setIsPublic(false);
     setPublicOwnership(null);
     setWolkeFolders([]);
+    setLinkedDocs([]);
     setStep(0);
     if (onCancel) onCancel();
   }, [reset, onCancel]);
 
-  const submitForm = useCallback(
-    () => void handleSubmit(onSubmit)(),
-    [handleSubmit, onSubmit]
-  );
+  const submitForm = useCallback(() => void handleSubmit(onSubmit)(), [handleSubmit, onSubmit]);
 
   return {
     step,
@@ -304,6 +359,8 @@ export function useNotebookEditorState({
     publicOwnership,
     wolkeFolders,
     wolkePanelOpen,
+    linkedDocs,
+    docsPanelOpen,
     fileInputRef,
     watchedName,
     watchedDesc,
@@ -319,6 +376,8 @@ export function useNotebookEditorState({
     setPublicOwnership,
     setWolkeFolders,
     setWolkePanelOpen,
+    setLinkedDocs,
+    setDocsPanelOpen,
     setValue,
     handleSubmit,
     onSubmit,
@@ -330,6 +389,7 @@ export function useNotebookEditorState({
     handleDragLeave,
     handleRemoveDocument,
     handleWolkeDocsImported,
+    handleDocsImported,
     handleAddLabel,
     handleRemoveLabel,
     handleBack,
