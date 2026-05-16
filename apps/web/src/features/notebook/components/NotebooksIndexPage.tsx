@@ -1,8 +1,4 @@
-import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
 import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -14,16 +10,8 @@ import {
   SectionHeader,
   Skeleton,
 } from '@gruenerator/ui';
-import { useQueryClient } from '@tanstack/react-query';
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import {
-  HiCog,
-  HiDotsVertical,
-  HiOutlineTrash,
-  HiPencil,
-  HiShare,
-  HiUserGroup,
-} from 'react-icons/hi';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { HiDotsVertical, HiOutlineTrash, HiPencil, HiShare, HiUserGroup } from 'react-icons/hi';
 import { PiStar, PiStarFill } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
@@ -31,7 +19,6 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import apiClient from '../../../components/utils/apiClient';
 import { NotebookIcon } from '../../../config/icons';
 import { useAuthStore } from '../../../stores/authStore';
-import { useDocumentsStore } from '../../../stores/documentsStore';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { useGroups, type GroupSummary } from '../../groups/hooks/useGroups';
@@ -42,7 +29,6 @@ import {
   type NotebookConfigEntry,
 } from '../config/notebooksConfig';
 
-import NotebookEditor from './NotebookEditor';
 import { NotebookPageContent } from './NotebookPage';
 import { VonDerBasisSection } from './VonDerBasisSection';
 
@@ -200,7 +186,6 @@ const EigeneNotebooks = memo(
     loading,
     copiedId,
   }: EigeneNotebooksProps) => {
-    const navigate = useNavigate();
     const [expanded, setExpanded] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [sharedInfo, setSharedInfo] = useState<string | null>(null);
@@ -242,22 +227,7 @@ const EigeneNotebooks = memo(
 
     return (
       <div className="mt-xl">
-        <SectionHeader
-          title="Eigene"
-          onCreate={onCreate}
-          createLabel="Notebook erstellen"
-          actions={
-            <button
-              type="button"
-              onClick={() => void navigate('/notebooks/meine')}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-grey-500 transition-colors hover:bg-grey-200/40 hover:text-foreground dark:hover:bg-grey-700/40"
-              aria-label="Meine Notebooks verwalten"
-              title="Meine Notebooks verwalten"
-            >
-              <HiCog size={16} />
-            </button>
-          }
-        />
+        <SectionHeader title="Eigene" onCreate={onCreate} createLabel="Notebook erstellen" />
         {loading ? (
           <div className="flex flex-col gap-sm">
             {Array.from({ length: 3 }, (_, i) => (
@@ -398,37 +368,21 @@ function NotebooksIndexFooter() {
     [isAustrian]
   );
 
-  const queryClient = useQueryClient();
-  const {
-    query: collectionsQuery,
-    createQACollection,
-    updateQACollection,
-    deleteQACollection,
-    getQACollection,
-  } = useNotebookCollections({ isActive: true });
+  const { query: collectionsQuery, deleteQACollection } = useNotebookCollections({
+    isActive: true,
+  });
   const qaCollections = collectionsQuery.data ?? EMPTY_COLLECTIONS;
   const collectionsLoading = collectionsQuery.isLoading;
 
-  const pollDocumentStatus = useDocumentsStore((s) => s.pollDocumentStatus);
-
-  const [showEditor, setShowEditor] = useState(false);
-  const [editingCollection, setEditingCollection] = useState<NotebookCollection | null>(null);
-  const pollingRef = useRef<Set<string>>(new Set());
-
   const handleCreate = useCallback(() => {
-    setEditingCollection(null);
-    setShowEditor(true);
-  }, []);
+    void navigate('/notebooks/neu');
+  }, [navigate]);
 
   const handleEdit = useCallback(
     (collectionId: string) => {
-      const collection = getQACollection(collectionId);
-      if (collection) {
-        setEditingCollection(collection);
-        setShowEditor(true);
-      }
+      void navigate(`/notebooks/${collectionId}/bearbeiten`);
     },
-    [getQACollection]
+    [navigate]
   );
 
   const handleView = useCallback(
@@ -452,59 +406,6 @@ function NotebooksIndexFooter() {
     void navigator.clipboard.writeText(url);
     setCopiedId(collectionId);
     setTimeout(() => setCopiedId(null), 2000);
-  }, []);
-
-  const startPolling = useCallback(
-    (collectionId: string, documentIds: string[]) => {
-      if (pollingRef.current.has(collectionId)) return;
-      pollingRef.current.add(collectionId);
-
-      Promise.all(documentIds.map((docId) => pollDocumentStatus(docId)))
-        .then(() => {
-          pollingRef.current.delete(collectionId);
-          void queryClient.invalidateQueries({ queryKey: ['notebookCollections'] });
-        })
-        .catch(() => {
-          pollingRef.current.delete(collectionId);
-        });
-    },
-    [pollDocumentStatus, queryClient]
-  );
-
-  const handleSave = useCallback(
-    async (data: NotebookEditorSavePayload) => {
-      if (data.id) {
-        await updateQACollection(data.id, {
-          name: data.name,
-          description: data.description,
-          selectionMode: data.selectionMode,
-          documents: data.documents,
-          labels: data.labels,
-          wolkeFolders: data.wolkeFolders,
-        });
-      } else {
-        const result = await createQACollection({
-          name: data.name,
-          description: data.description,
-          selectionMode: data.selectionMode,
-          documents: data.documents,
-          labels: data.labels,
-          wolkeFolders: data.wolkeFolders,
-        });
-
-        if (result?.id && data.documents.length) {
-          startPolling(String(result.id), data.documents);
-        }
-      }
-      setShowEditor(false);
-      setEditingCollection(null);
-    },
-    [createQACollection, updateQACollection, startPolling]
-  );
-
-  const handleCancel = useCallback(() => {
-    setShowEditor(false);
-    setEditingCollection(null);
   }, []);
 
   return (
@@ -533,25 +434,6 @@ function NotebooksIndexFooter() {
       </div>
 
       <VonDerBasisSection />
-
-      {/* Tools section commented out per request — chat composer at the top covers Suche. */}
-
-      <Dialog open={showEditor} onOpenChange={(open) => !open && handleCancel()}>
-        <DialogContent
-          className="sm:max-w-[700px] w-[calc(100%-1rem)] max-h-[90dvh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
-          aria-describedby={undefined}
-        >
-          <DialogTitle className="sr-only">
-            {editingCollection ? 'Notebook bearbeiten' : 'Notebook erstellen'}
-          </DialogTitle>
-          <NotebookEditor
-            onSave={handleSave}
-            onCancel={handleCancel}
-            editingCollection={editingCollection}
-            loading={collectionsLoading}
-          />
-        </DialogContent>
-      </Dialog>
     </section>
   );
 }
