@@ -72,7 +72,8 @@ export async function syncWolkeFolder(
 
     const alreadyImportedIds = results
       .filter(
-        (r) => r.skipped === true && r.reason === 'already_imported' && typeof r.documentId === 'string'
+        (r) =>
+          r.skipped === true && r.reason === 'already_imported' && typeof r.documentId === 'string'
       )
       .map((r) => r.documentId as string);
 

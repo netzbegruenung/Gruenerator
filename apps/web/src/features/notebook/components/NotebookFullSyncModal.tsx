@@ -40,7 +40,9 @@ function StatusIcon({ status }: { status: SyncProgressStatus }) {
     );
   }
   if (status === 'done') {
-    return <HiCheck size={16} className="shrink-0 text-green-600 dark:text-green-400" aria-hidden />;
+    return (
+      <HiCheck size={16} className="shrink-0 text-green-600 dark:text-green-400" aria-hidden />
+    );
   }
   return (
     <HiExclamation size={16} className="shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
