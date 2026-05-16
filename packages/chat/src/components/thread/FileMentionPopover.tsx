@@ -14,6 +14,7 @@ import {
 } from '@gruenerator/ui';
 import { useFileMentionData } from '../../hooks/useFileMentionData';
 import { useDocMentionables } from '../../hooks/useMentionablesQuery';
+import { MentionFloatingPanel } from './MentionFloatingPanel';
 import { documentToSlug } from '../../lib/documentMentionables';
 import type {
   CollabDocSelection,
@@ -177,24 +178,19 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
     [level, handleBack, onDismiss]
   );
 
-  if (!visible) return null;
-
   const isRootLevel = level === 'root';
 
   return (
-    <div
-      className="absolute z-50 w-72 rounded-xl border border-border bg-background shadow-lg"
-      style={{ bottom: '100%', left: 0, marginBottom: '0.5rem' }}
-      onKeyDown={handleKeyDown}
-    >
-      <Command className="rounded-xl" shouldFilter={isRootLevel}>
+    <MentionFloatingPanel open={visible} onDismiss={onDismiss} width="w-72">
+      <div onKeyDown={handleKeyDown} className="flex min-h-0 flex-1 flex-col">
+      <Command className="flex min-h-0 flex-1 flex-col rounded-xl" shouldFilter={isRootLevel}>
         <CommandInput
           placeholder={isRootLevel ? 'Suchen...' : 'In Dokumenten suchen...'}
           value={level === 'documents' ? searchQuery : undefined}
           onValueChange={level === 'documents' ? handleSearchChange : undefined}
         />
-        <CommandList>
-          <ScrollArea className="max-h-72">
+        <CommandList className="min-h-0 flex-1">
+          <ScrollArea className="h-full">
             {isRootLevel ? (
               <>
                 {/* Section 1: Notebooks */}
@@ -344,6 +340,7 @@ export function FileMentionPopover({ visible, onSelect, onDismiss }: FileMention
           </ScrollArea>
         </CommandList>
       </Command>
-    </div>
+      </div>
+    </MentionFloatingPanel>
   );
 }
