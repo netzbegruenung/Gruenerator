@@ -27,6 +27,7 @@ import {
   HiOutlineLink,
   HiOutlinePhotograph,
   HiOutlineTrash,
+  HiOutlineUserGroup,
   HiPencil,
   HiCheck,
   HiX,
@@ -165,6 +166,7 @@ const GroupInfoSection = memo(
     const navigate = useNavigate();
     const { members, isLoadingMembers } = useGroupMembers(groupId, { isActive: true });
     const [membersPopoverOpen, setMembersPopoverOpen] = useState(false);
+    const [membersDialogOpen, setMembersDialogOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const cloneTemplate = useCloneCanvasTemplate();
 
@@ -479,6 +481,18 @@ const GroupInfoSection = memo(
                       ? 'Verwalte Mitglieder und geteilte Inhalte.'
                       : 'Du bist Mitglied dieser Gruppe.')}
                 </p>
+                {!isLoadingMembers && (
+                  <button
+                    type="button"
+                    onClick={() => setMembersDialogOpen(true)}
+                    className="sm:hidden mt-sm self-start inline-flex items-center gap-1.5 rounded-full bg-grey-100 dark:bg-grey-800 px-sm py-xs text-xs font-medium text-foreground hover:bg-grey-200 dark:hover:bg-grey-700 transition-colors"
+                  >
+                    <HiOutlineUserGroup className="size-3.5" aria-hidden="true" />
+                    <span>
+                      {memberCount} {memberCount === 1 ? 'Mitglied' : 'Mitglieder'}
+                    </span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -773,6 +787,24 @@ const GroupInfoSection = memo(
                 Endgültig löschen
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={membersDialogOpen} onOpenChange={setMembersDialogOpen}>
+          <DialogContent className="max-w-md p-md">
+            <DialogHeader>
+              <DialogTitle>Mitglieder{!isLoadingMembers ? ` (${memberCount})` : ''}</DialogTitle>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto">
+              <GroupMembersList
+                groupId={groupId}
+                isActive={membersDialogOpen}
+                hideHeader
+                isCurrentUserAdmin={data?.isAdmin}
+                currentUserId={currentUserId}
+                createdBy={data?.groupInfo?.created_by}
+              />
+            </div>
           </DialogContent>
         </Dialog>
       </>
