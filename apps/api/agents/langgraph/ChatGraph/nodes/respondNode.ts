@@ -16,6 +16,7 @@ import { formatGermanDate } from '../../../../utils/stringUtils.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
 import { type AnchorDescriptor, getActiveAnchors } from './anchorContext.js';
+import { buildCitableSources, type CitableSource } from './citableSources.js';
 
 import type {
   ChatGraphState,
@@ -272,12 +273,15 @@ export async function formatSearchContext(state: ChatGraphState): Promise<string
   const isNotebookScoped =
     (state.notebookCollectionIds?.length ?? 0) > 0 || (state.notebookDocumentIds?.length ?? 0) > 0;
   const maxResults = isNotebookScoped ? 12 : MAX_SEARCH_RESULTS;
-  const topResults = state.searchResults.slice(0, maxResults);
+  // Group chunks → sources so each `[N]` is one source. Dedup means a wolke
+  // file with 5 chunks renders as a single `[1]` block (multiple excerpts
+  // concatenated), not 5 separate entries the model would over-cite.
+  const sources = buildCitableSources(state.searchResults.slice(0, maxResults));
 
   // Document chat gets the highest budget for focused Q&A
   const isDocumentChat = state.documentChatIds?.length > 0;
-  // Detect if any results have crawled content (longer than typical snippets)
-  const hasCrawledContent = topResults.some((r) => r.content.length > 500);
+  // Detect if any source has crawled content (longer than typical snippets)
+  const hasCrawledContent = sources.some((s) => (s.representative.content?.length ?? 0) > 500);
   // Multi-source results get the higher budget (mixed doc + web content)
   const isMultiSource = (state.searchSources?.length || 0) > 1;
   const budget = isDocumentChat
@@ -288,27 +292,50 @@ export async function formatSearchContext(state: ChatGraphState): Promise<string
         ? SEARCH_CONTEXT_BUDGET_CRAWLED
         : SEARCH_CONTEXT_BUDGET;
 
-  // Crawled results get 2x weight in budget allocation
-  const weightedRelevance = topResults.map((r) => {
-    const base = r.relevance || 0.5;
-    const crawlBoost = r.content.length > 500 ? 2 : 1;
+  // Crawled sources get 2x weight in budget allocation
+  const weightedRelevance = sources.map((s) => {
+    const base = s.representative.relevance || 0.5;
+    const crawlBoost = (s.representative.content?.length ?? 0) > 500 ? 2 : 1;
     return base * crawlBoost;
   });
-  const totalWeightedRelevance = weightedRelevance.reduce((sum, w) => sum + w, 0);
+  const totalWeightedRelevance = weightedRelevance.reduce((sum, w) => sum + w, 0) || 1;
 
-  const resultsText = topResults
-    .map((r, i) => {
+  const resultsText = sources
+    .map((s, i) => {
       const charBudget = Math.max(
         200,
         Math.floor(((weightedRelevance[i] ?? 0) / totalWeightedRelevance) * budget)
       );
-      const content =
-        r.content.length > charBudget ? truncateDocument(r.content, charBudget) : r.content;
-      return `[${i + 1}] **${r.title}**\n${content}`.trim();
+      const body = formatSourceChunks(s, charBudget);
+      return `[${i + 1}] **${s.title}**\n${body}`.trim();
     })
     .join('\n\n');
 
-  return `\n\n## SUCHERGEBNISSE\n\n${resultsText}\n\n---\n[Ende der Suchergebnisse. Insgesamt ${topResults.length} Quelle(n) verfügbar.]`;
+  return `\n\n## SUCHERGEBNISSE\n\n${resultsText}\n\n---\n[Ende der Suchergebnisse. Insgesamt ${sources.length} Quelle(n) verfügbar.]`;
+}
+
+/**
+ * Render the chunks of a single CitableSource into a prompt block. When a
+ * source has multiple chunks (e.g. several excerpts from one wolke file or
+ * notebook doc), each chunk gets an `--- Auszug N:` separator so the model
+ * sees distinct evidence under the same `[N]`. Char budget is split evenly
+ * across the chunks, with a per-chunk floor.
+ */
+function formatSourceChunks(source: CitableSource, totalCharBudget: number): string {
+  const chunks = source.chunks.slice(0, 4); // bounded — popover still has the full set
+  if (chunks.length === 1) {
+    const text = chunks[0].content ?? '';
+    return text.length > totalCharBudget ? truncateDocument(text, totalCharBudget) : text;
+  }
+  const perChunkBudget = Math.max(150, Math.floor(totalCharBudget / chunks.length));
+  return chunks
+    .map((c, i) => {
+      const text = c.content ?? '';
+      const truncated =
+        text.length > perChunkBudget ? truncateDocument(text, perChunkBudget) : text;
+      return `--- Auszug ${i + 1}:\n${truncated}`;
+    })
+    .join('\n\n');
 }
 
 /**
@@ -321,27 +348,40 @@ export async function formatSearchContext(state: ChatGraphState): Promise<string
  * results — the existing single-pool SUCHERGEBNISSE block handles those.
  */
 function formatPerSourceContext(state: ChatGraphState): string {
-  const sources: DocumentSource[] = state.documentSources ?? [];
+  const docSources: DocumentSource[] = state.documentSources ?? [];
   const perSource: Record<string, SearchResult[]> = state.perSourceResults ?? {};
 
+  if (docSources.length < 2) return '';
+
+  // Flatten perSourceResults across all DocumentSources, then re-group via the
+  // canonical CitableSource view. This makes per-doc `[N]` markers in the
+  // model output align with the same `[N]` ids the SUCHERGEBNISSE block uses
+  // and with the Citation array — they all derive from one ordering now.
+  const flat: SearchResult[] = [];
+  for (const ds of docSources) {
+    const rows = perSource[ds.id];
+    if (!rows || rows.length === 0) continue;
+    flat.push(...rows);
+  }
+  if (flat.length === 0) return '';
+
+  const sources = buildCitableSources(flat);
   if (sources.length < 2) return '';
-  const populatedSources = sources.filter((s) => (perSource[s.id]?.length ?? 0) > 0);
-  if (populatedSources.length === 0) return '';
 
   const TOTAL_BUDGET = 8000;
-  const perDocBudget = Math.floor(TOTAL_BUDGET / populatedSources.length);
+  const perDocBudget = Math.floor(TOTAL_BUDGET / sources.length);
 
-  const blocks = populatedSources.map((src, idx) => {
-    const results = (perSource[src.id] ?? []).slice(0, 6);
-    const inner = results
+  const blocks = sources.map((s) => {
+    const chunks = s.chunks.slice(0, 6);
+    const inner = chunks
       .map((r, i) => {
-        const charBudget = Math.max(150, Math.floor(perDocBudget / Math.max(1, results.length)));
+        const charBudget = Math.max(150, Math.floor(perDocBudget / Math.max(1, chunks.length)));
         const content =
           r.content.length > charBudget ? truncateDocument(r.content, charBudget) : r.content;
-        return `(${idx + 1}.${i + 1}) **${r.title}**\n${content}`.trim();
+        return `(${s.id}.${i + 1}) **${r.title}**\n${content}`.trim();
       })
       .join('\n\n');
-    return `### Dokument ${idx + 1}: ${src.label}\n\n${inner}`;
+    return `### Dokument ${s.id}: ${s.title}\n\n${inner}`;
   });
 
   return `\n\n## QUELLEN PRO DOKUMENT\n\n${blocks.join('\n\n')}\n\n---\n[Ende der dokumentbezogenen Quellen. Halte die Aussagen je Dokument auseinander.]`;
@@ -726,7 +766,11 @@ export async function buildSystemMessage(state: ChatGraphState): Promise<string>
     getModeGuidance(state) + getAnchorAdjuncts(state) + getSynthesisGuidance(state);
 
   const hasSources = state.searchResults.length > 0 && intent !== 'direct';
-  const sourceCount = state.searchResults.filter((r) => r.url).length;
+  // Citations are the canonical "what the model can cite as [N]" — derived
+  // from the same CitableSource ordering the prompt block uses. Don't
+  // recompute or filter independently here, or the model's [N] markers can
+  // drift from the rendered Citation array (the original wolke bug).
+  const sourceCount = state.citations.length;
   // Polished-content suppresses inline citations only when generating output;
   // research questions always cite inline regardless of contentType heuristics.
   const isPolishedContent = !!state.contentType && intent !== 'search';
