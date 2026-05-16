@@ -287,7 +287,7 @@ const GroupInfoSection = memo(
             <Popover open={membersPopoverOpen} onOpenChange={handleMembersPopoverOpenChange}>
               <PopoverTrigger asChild>
                 <button
-                  className="inline-flex items-center -space-x-1.5 cursor-pointer"
+                  className="hidden sm:inline-flex items-center -space-x-1.5 cursor-pointer"
                   onMouseEnter={handleMembersMouseEnter}
                   onMouseLeave={handleMembersMouseLeave}
                 >
@@ -295,11 +295,8 @@ const GroupInfoSection = memo(
                     <span className="text-xs text-foreground">…</span>
                   ) : (
                     <>
-                      {members?.slice(0, 5).map((member, idx) => (
-                        <span
-                          key={member.user_id}
-                          className={`relative ${idx >= 2 ? 'hidden sm:inline-block' : 'inline-block'}`}
-                        >
+                      {members?.slice(0, 5).map((member) => (
+                        <span key={member.user_id} className="relative">
                           <img
                             src={getRobotAvatarPath(validateRobotId(member.avatar_robot_id))}
                             alt=""
@@ -310,13 +307,8 @@ const GroupInfoSection = memo(
                           )}
                         </span>
                       ))}
-                      {memberCount > 2 && (
-                        <span className="sm:hidden flex items-center justify-center size-7 rounded-full ring-2 ring-background bg-grey-200 dark:bg-grey-700 text-[0.6rem] font-semibold text-grey-600 dark:text-grey-300">
-                          +{memberCount - 2}
-                        </span>
-                      )}
                       {memberCount > 5 && (
-                        <span className="hidden sm:flex items-center justify-center size-7 rounded-full ring-2 ring-background bg-grey-200 dark:bg-grey-700 text-[0.6rem] font-semibold text-grey-600 dark:text-grey-300">
+                        <span className="flex items-center justify-center size-7 rounded-full ring-2 ring-background bg-grey-200 dark:bg-grey-700 text-[0.6rem] font-semibold text-grey-600 dark:text-grey-300">
                           +{memberCount - 5}
                         </span>
                       )}
@@ -638,7 +630,9 @@ const GroupInfoSection = memo(
                                   )}
                                   {section.cloneOnOpen && (
                                     <p className="text-[10px] text-primary-600 mt-xxs m-0">
-                                      {isCloning ? 'Vorlage wird geöffnet...' : 'Klicken um Kopie zu erstellen'}
+                                      {isCloning
+                                        ? 'Vorlage wird geöffnet...'
+                                        : 'Klicken um Kopie zu erstellen'}
                                     </p>
                                   )}
                                 </div>
@@ -659,7 +653,10 @@ const GroupInfoSection = memo(
                                     {cardInner}
                                   </button>
                                 ) : href ? (
-                                  <a href={href} className="flex flex-col no-underline text-foreground">
+                                  <a
+                                    href={href}
+                                    className="flex flex-col no-underline text-foreground"
+                                  >
                                     {cardInner}
                                   </a>
                                 ) : (
