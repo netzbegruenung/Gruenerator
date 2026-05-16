@@ -10,7 +10,6 @@
 
 import express, { type Response } from 'express';
 
-import { env } from '../../config/env.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddleware from '../../middleware/authMiddleware.js';
@@ -615,69 +614,6 @@ router.delete(
     } catch (error) {
       log.error('[Notebook Collections] Error in DELETE /:id:', error);
       return res.status(500).json({ error: 'Failed to delete Notebook collection' });
-    }
-  }
-);
-
-/**
- * POST /api/notebook-collections/:id/share
- * Generate public sharing link
- */
-router.post(
-  '/:id/share',
-  requireAuth,
-  async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
-    try {
-      const userId = req.user!.id;
-      const collectionId = fromParam<NotebookId>(req.params.id);
-
-      const collection = await notebookHelper.getNotebookCollection(collectionId);
-      if (!collection || collection.user_id !== userId) {
-        return res.status(404).json({ error: 'Notebook collection not found' });
-      }
-
-      const result = await notebookHelper.createPublicAccess(collectionId, userId);
-      const publicUrl = `${env.BASE_URL}/notebook/public/${result.access_token}`;
-
-      return res.json({
-        success: true,
-        public_url: publicUrl,
-        access_token: result.access_token,
-        message: 'Public link generated successfully',
-      });
-    } catch (error) {
-      log.error('[Notebook Collections] Error in POST /:id/share:', error);
-      return res.status(500).json({ error: 'Internal server error' });
-    }
-  }
-);
-
-/**
- * DELETE /api/notebook-collections/:id/share
- * Revoke public access
- */
-router.delete(
-  '/:id/share',
-  requireAuth,
-  async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
-    try {
-      const userId = req.user!.id;
-      const collectionId = fromParam<NotebookId>(req.params.id);
-
-      const collection = await notebookHelper.getNotebookCollection(collectionId);
-      if (!collection || collection.user_id !== userId) {
-        return res.status(404).json({ error: 'Notebook collection not found' });
-      }
-
-      await notebookHelper.revokePublicAccess(collectionId);
-
-      return res.json({
-        success: true,
-        message: 'Public access revoked successfully',
-      });
-    } catch (error) {
-      log.error('[Notebook Collections] Error in DELETE /:id/share:', error);
-      return res.status(500).json({ error: 'Internal server error' });
     }
   }
 );

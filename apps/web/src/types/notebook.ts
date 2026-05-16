@@ -23,6 +23,10 @@ export interface WolkeShareLink {
  */
 export type NotebookPublicOwnership = 'owner' | 'public_data';
 
+export type NotebookShareMode = 'private' | 'groups' | 'authenticated';
+export type NotebookEditPolicy = 'owner_only' | 'group_admins' | 'all_members';
+export type NotebookAccessSource = 'owned' | 'shared' | 'authenticated';
+
 /**
  * Base notebook collection type representing a Q&A collection
  */
@@ -48,6 +52,9 @@ export interface NotebookCollection {
   labels?: string[];
   wolke_folders?: WolkeFolderRef[];
   likes_count?: number;
+  share_mode?: NotebookShareMode | null;
+  edit_policy?: NotebookEditPolicy | null;
+  access_source?: NotebookAccessSource | null;
 }
 
 /**

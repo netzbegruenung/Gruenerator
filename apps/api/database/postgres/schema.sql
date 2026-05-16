@@ -368,16 +368,6 @@ CREATE TABLE IF NOT EXISTS notebook_collection_documents (
     UNIQUE(collection_id, document_id)
 );
 
-CREATE TABLE IF NOT EXISTS notebook_public_access (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    collection_id UUID REFERENCES notebook_collections(id) ON DELETE CASCADE,
-    access_token TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMPTZ,
-    created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
-    is_active BOOLEAN DEFAULT TRUE
-);
-
 CREATE TABLE IF NOT EXISTS notebook_usage_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     collection_id UUID REFERENCES notebook_collections(id) ON DELETE CASCADE,

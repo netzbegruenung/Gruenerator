@@ -28,6 +28,7 @@ export {
   userProfileContract,
   notebookContract,
   notebookCollectionsContract,
+  notebookSharingContract,
   docsContract,
   documentsContract,
   subtitlerContract,
@@ -57,6 +58,7 @@ export * from './schemas/shares.js';
 export * from './schemas/userProfile.js';
 export * from './schemas/notebook.js';
 export * from './schemas/notebookCollections.js';
+export * from './schemas/notebookSharing.js';
 export * from './schemas/docs.js';
 export * from './schemas/documents.js';
 export * from './schemas/subtitler.js';

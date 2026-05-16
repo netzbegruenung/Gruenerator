@@ -22,16 +22,6 @@ export const notebook_collection_documents = pgTable('notebook_collection_docume
   added_by: uuid('added_by'),
 });
 
-export const notebook_public_access = pgTable('notebook_public_access', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  collection_id: uuid('collection_id'),
-  access_token: text('access_token').notNull().unique(),
-  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
-  expires_at: timestamp('expires_at', { withTimezone: true }),
-  created_by: uuid('created_by'),
-  is_active: boolean('is_active').default(true),
-});
-
 export const notebook_usage_logs = pgTable('notebook_usage_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
   collection_id: uuid('collection_id'),
@@ -46,5 +36,4 @@ export const notebook_usage_logs = pgTable('notebook_usage_logs', {
 
 export type NotebookCollection = InferSelectModel<typeof notebook_collections>;
 export type NotebookCollectionDocument = InferSelectModel<typeof notebook_collection_documents>;
-export type NotebookPublicAccess = InferSelectModel<typeof notebook_public_access>;
 export type NotebookUsageLog = InferSelectModel<typeof notebook_usage_logs>;
