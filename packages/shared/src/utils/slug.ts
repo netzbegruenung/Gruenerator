@@ -60,5 +60,5 @@ export function buildNotebookSlug(name: string, suffix: string): string {
  */
 export function extractSlugSuffix(slug: string): string | null {
   const match = SUFFIX_RE.exec(slug);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
