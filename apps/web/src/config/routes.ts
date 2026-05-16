@@ -139,11 +139,6 @@ const NotebookResolverPage = lazy(() =>
     default: m.NotebookResolver,
   }))
 );
-const MyNotebooksPage = lazy(() =>
-  import('../features/notebook/components/MyNotebooksPage').then((m) => ({
-    default: m.MyNotebooksPage,
-  }))
-);
 const NotebookCreatePage = lazy(() =>
   import('../features/notebook/components/NotebookEditorPage').then((m) => ({
     default: m.NotebookCreatePage,
@@ -214,7 +209,6 @@ export const GrueneratorenBundle = {
   Oparl: OparlPage,
   NotebookRoot: NotebookRootPage,
   NotebookResolver: NotebookResolverPage,
-  MyNotebooks: MyNotebooksPage,
   DocumentView: DocumentViewPage,
   VorlagenListe: VorlagenGallery,
   Reel: Reel,
@@ -295,21 +289,26 @@ const standardRoutes: RouteConfig[] = [
     withForm: true,
     layoutMode: 'sidebarOnly',
   },
+  // Explicit routes must come BEFORE the catch-all /notebooks/:idOrSlug so they
+  // win the match — react-router resolves by listed order for path-level conflicts.
   {
-    path: '/notebooks/meine',
-    component: GrueneratorenBundle.MyNotebooks,
-    withForm: true,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/notebooks/meine/neu',
+    path: '/notebooks/neu',
     component: NotebookCreatePage,
     layoutMode: 'sidebarOnly',
   },
   {
-    path: '/notebooks/meine/:id/bearbeiten',
+    path: '/notebooks/:id/bearbeiten',
     component: NotebookEditPage,
     layoutMode: 'sidebarOnly',
+  },
+  // Legacy /notebooks/meine paths → fold to the new single-page surface.
+  {
+    path: '/notebooks/meine',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
+  },
+  {
+    path: '/notebooks/meine/neu',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/neu') })),
   },
   {
     path: '/notebooks/:idOrSlug',
