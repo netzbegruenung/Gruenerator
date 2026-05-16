@@ -169,12 +169,16 @@ export function useUserShareLinksQuery(enabled = true) {
     queryKey: ['mention-wolke-share-links'],
     queryFn: async () => {
       const res = await apiClient.get<{ shareLinks?: ChatShareLink[] } | ChatShareLink[]>(
-        '/nextcloud/share-links'
+        '/api/nextcloud/share-links'
       );
       if (Array.isArray(res)) return res.filter((l) => l.is_active !== false);
       return (res?.shareLinks ?? []).filter((l) => l.is_active !== false);
     },
-    staleTime: STALE_TIME,
+    // Re-fetch on every picker open: users add/remove share links via
+    // /profile/wolke between sessions, and stale caching would keep showing
+    // the "Keine Wolke verbunden" empty state after the user just connected.
+    staleTime: 0,
+    refetchOnMount: 'always',
     enabled,
     retry: 1,
   });
@@ -191,7 +195,7 @@ export function useWolkeBrowseQuery(shareLinkId: string | null, path: string, en
     queryFn: async () => {
       const qs = path ? `?path=${encodeURIComponent(path)}` : '';
       const res = await apiClient.get<ChatWolkeBrowse>(
-        `/documents/wolke/browse/${shareLinkId}${qs}`
+        `/api/documents/wolke/browse/${shareLinkId}${qs}`
       );
       return {
         shareLink: res.shareLink,
