@@ -55,6 +55,12 @@ export interface NotebookCollection {
   share_mode?: NotebookShareMode | null;
   edit_policy?: NotebookEditPolicy | null;
   access_source?: NotebookAccessSource | null;
+  /**
+   * Stable 6-char tail used to build pretty URLs (`/notebooks/<name>-Ab3xK9`).
+   * Null only for legacy rows before the boot-time backfill has run; once
+   * present, never changes — renames rewrite the name prefix only.
+   */
+  slug_suffix?: string | null;
 }
 
 /**

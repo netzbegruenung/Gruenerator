@@ -125,6 +125,10 @@ export const wolkeShareLinkSchema = z.object({
 /**
  * TransformedCollection — the shape returned by GET /. Uses z.unknown() for
  * `settings` because it is a Record<string, unknown> with no index signature.
+ *
+ * `slug_suffix` is the stable 6-char tail used in pretty URLs (see
+ * packages/shared/src/utils/slug.ts). Nullish on the schema for legacy points
+ * predating the backfill — the API guarantees a value on post-backfill rows.
  */
 export const transformedCollectionSchema = z.object({
   id: z.string(),
@@ -154,6 +158,7 @@ export const transformedCollectionSchema = z.object({
   share_mode: notebookShareModeSchema.nullish(),
   edit_policy: notebookEditPolicySchema.nullish(),
   access_source: notebookAccessSourceSchema.nullish(),
+  slug_suffix: z.string().nullish(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────
@@ -186,6 +191,7 @@ export const createCollectionResponseSchema = z.object({
     auto_sync: z.boolean().nullish(),
     remove_missing_on_sync: z.boolean().nullish(),
     settings: z.unknown().nullish(),
+    slug_suffix: z.string().nullish(),
   }),
   message: z.string(),
 });
@@ -242,4 +248,19 @@ export const unlikeCollectionResponseSchema = z.object({
 export const listMyLikedCollectionsResponseSchema = z.object({
   success: z.literal(true),
   liked_ids: z.array(z.string()),
+});
+
+/**
+ * Resolve a notebook URL fragment (slug or UUID) to its canonical ID.
+ * Used by the frontend NotebookResolver to translate Notion-style slug URLs
+ * like `/notebooks/my-research-Ab3xK9` into the UUID the rest of the app
+ * already consumes. The route honours the same access rules as direct
+ * id-based lookups; share_mode is returned so the resolver can short-circuit
+ * UI states (e.g. "shared notebook" banner) without a second round-trip.
+ */
+export const resolveCollectionResponseSchema = z.object({
+  id: z.string(),
+  slug_suffix: z.string(),
+  name: z.string(),
+  share_mode: notebookShareModeSchema.nullable(),
 });
