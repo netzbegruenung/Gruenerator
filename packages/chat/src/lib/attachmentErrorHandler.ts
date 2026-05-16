@@ -1,6 +1,5 @@
 export function handleAttachmentError(error: unknown): void {
-  const message =
-    error instanceof Error ? error.message : 'Datei konnte nicht hinzugefügt werden.';
+  const message = error instanceof Error ? error.message : 'Datei konnte nicht hinzugefügt werden.';
   console.warn('[Attachment]', error);
   void import('sonner')
     .then(({ toast }) => {

@@ -614,7 +614,10 @@ export const createShape = (
   y: number,
   color: string
 ): ShapeInstance => {
-  const dims = DEFAULT_DIMENSIONS[type] ?? { width: DEFAULT_SHAPE_SIZE, height: DEFAULT_SHAPE_SIZE };
+  const dims = DEFAULT_DIMENSIONS[type] ?? {
+    width: DEFAULT_SHAPE_SIZE,
+    height: DEFAULT_SHAPE_SIZE,
+  };
   const base: ShapeInstance = {
     id: `shape-${Date.now()}`,
     type,

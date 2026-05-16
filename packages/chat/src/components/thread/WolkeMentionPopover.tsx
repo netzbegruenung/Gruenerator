@@ -109,152 +109,153 @@ export function WolkeMentionPopover({ visible, onSelect, onDismiss }: WolkeMenti
           }
         }}
       >
-      <div className="border-b border-border px-3 py-2">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-foreground-muted/70">
-            Wolke
-          </span>
-          {shareLinks && shareLinks.length > 1 && (
-            <select
-              value={activeShareId ?? ''}
-              onChange={(e) => {
-                setActiveShareId(e.target.value);
-                setFolderPath('');
-              }}
-              className="rounded-md border border-border bg-background px-2 py-1 text-xs"
-            >
-              {shareLinks.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.label || l.id.slice(0, 8)}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-        {!hasNoShares && (
-          <div className="mt-2 flex items-center gap-2">
-            <input
-              type="text"
-              autoFocus
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder="Dateien filtern…"
-              className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary/40"
-            />
-          </div>
-        )}
-        {!hasNoShares && folderPath && (
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              setFolderPath(parentOf(folderPath));
-              setFilter('');
-            }}
-            className="mt-2 text-xs text-foreground-muted hover:text-foreground"
-          >
-            ← {folderPath || '/'}
-          </button>
-        )}
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
-        {hasNoShares ? (
-          <div className="flex flex-col items-start gap-2 px-3 py-4">
-            <p className="text-sm font-medium text-foreground">Keine Wolke verbunden</p>
-            <p className="text-xs text-foreground-muted">
-              Verbinde zuerst deinen Nextcloud-Ordner, damit du Dateien per @wolke einfügen kannst.
-            </p>
-            {wolkeConnectUrl && (
-              <a
-                href={wolkeConnectUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-1 inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary/90"
-                onMouseDown={(e) => e.stopPropagation()}
+        <div className="border-b border-border px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-foreground-muted/70">
+              Wolke
+            </span>
+            {shareLinks && shareLinks.length > 1 && (
+              <select
+                value={activeShareId ?? ''}
+                onChange={(e) => {
+                  setActiveShareId(e.target.value);
+                  setFolderPath('');
+                }}
+                className="rounded-md border border-border bg-background px-2 py-1 text-xs"
               >
-                Wolke verbinden
-              </a>
+                {shareLinks.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.label || l.id.slice(0, 8)}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
-        ) : browse.isLoading ? (
-          <div className="px-3 py-4 text-sm text-foreground-muted">Lade Dateien…</div>
-        ) : browse.isError ? (
-          <div className="px-3 py-4 text-sm text-foreground-muted">
-            Fehler beim Laden der Dateien.
-          </div>
-        ) : filteredFiles.length === 0 ? (
-          <div className="px-3 py-4 text-sm text-foreground-muted">
-            {filter ? 'Keine Treffer.' : 'Ordner ist leer.'}
-          </div>
-        ) : (
-          filteredFiles.map((file) => {
-            const path = joinPath(folderPath, file.name);
-            const key = `${activeShareId}:${path}`;
-            const isSelected = selection.has(key);
-            const isDisabled = !file.isDirectory && file.isSupported === false;
-            return (
-              <button
-                key={key}
-                type="button"
-                disabled={isDisabled}
-                aria-pressed={isSelected}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  if (file.isDirectory) {
-                    setFolderPath(path);
-                    setFilter('');
-                  } else {
-                    toggleFile(file);
-                  }
-                }}
-                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                  isSelected
-                    ? 'bg-primary/10 text-foreground'
-                    : isDisabled
-                      ? 'cursor-not-allowed text-foreground-muted/50'
-                      : 'text-foreground-muted hover:bg-primary/5'
-                }`}
-              >
-                <span aria-hidden className="text-base">
-                  {file.isDirectory ? '📁' : isSelected ? '☑️' : '📄'}
-                </span>
-                <span className="flex-1 truncate">{file.name}</span>
-                {!file.isDirectory && (
-                  <span className="text-xs text-foreground-muted/70">{file.sizeFormatted}</span>
-                )}
-              </button>
-            );
-          })
-        )}
-      </div>
-
-      <div className="flex items-center justify-between border-t border-border px-3 py-2">
-        <span className="text-xs text-foreground-muted">{selectionList.length} ausgewählt</span>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onMouseDown={(e) => {
-              e.preventDefault();
-              onDismiss();
-            }}
-            className="rounded-md px-2 py-1 text-xs text-foreground-muted hover:bg-primary/5"
-          >
-            Abbrechen
-          </button>
-          <button
-            type="button"
-            disabled={selectionList.length === 0 || hasNoShares}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              handleConfirm();
-            }}
-            className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-white hover:bg-primary/90 disabled:opacity-50"
-          >
-            Hinzufügen
-          </button>
+          {!hasNoShares && (
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="text"
+                autoFocus
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Dateien filtern…"
+                className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary/40"
+              />
+            </div>
+          )}
+          {!hasNoShares && folderPath && (
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setFolderPath(parentOf(folderPath));
+                setFilter('');
+              }}
+              className="mt-2 text-xs text-foreground-muted hover:text-foreground"
+            >
+              ← {folderPath || '/'}
+            </button>
+          )}
         </div>
-      </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {hasNoShares ? (
+            <div className="flex flex-col items-start gap-2 px-3 py-4">
+              <p className="text-sm font-medium text-foreground">Keine Wolke verbunden</p>
+              <p className="text-xs text-foreground-muted">
+                Verbinde zuerst deinen Nextcloud-Ordner, damit du Dateien per @wolke einfügen
+                kannst.
+              </p>
+              {wolkeConnectUrl && (
+                <a
+                  href={wolkeConnectUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary/90"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  Wolke verbinden
+                </a>
+              )}
+            </div>
+          ) : browse.isLoading ? (
+            <div className="px-3 py-4 text-sm text-foreground-muted">Lade Dateien…</div>
+          ) : browse.isError ? (
+            <div className="px-3 py-4 text-sm text-foreground-muted">
+              Fehler beim Laden der Dateien.
+            </div>
+          ) : filteredFiles.length === 0 ? (
+            <div className="px-3 py-4 text-sm text-foreground-muted">
+              {filter ? 'Keine Treffer.' : 'Ordner ist leer.'}
+            </div>
+          ) : (
+            filteredFiles.map((file) => {
+              const path = joinPath(folderPath, file.name);
+              const key = `${activeShareId}:${path}`;
+              const isSelected = selection.has(key);
+              const isDisabled = !file.isDirectory && file.isSupported === false;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={isDisabled}
+                  aria-pressed={isSelected}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (file.isDirectory) {
+                      setFolderPath(path);
+                      setFilter('');
+                    } else {
+                      toggleFile(file);
+                    }
+                  }}
+                  className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                    isSelected
+                      ? 'bg-primary/10 text-foreground'
+                      : isDisabled
+                        ? 'cursor-not-allowed text-foreground-muted/50'
+                        : 'text-foreground-muted hover:bg-primary/5'
+                  }`}
+                >
+                  <span aria-hidden className="text-base">
+                    {file.isDirectory ? '📁' : isSelected ? '☑️' : '📄'}
+                  </span>
+                  <span className="flex-1 truncate">{file.name}</span>
+                  {!file.isDirectory && (
+                    <span className="text-xs text-foreground-muted/70">{file.sizeFormatted}</span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-border px-3 py-2">
+          <span className="text-xs text-foreground-muted">{selectionList.length} ausgewählt</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onDismiss();
+              }}
+              className="rounded-md px-2 py-1 text-xs text-foreground-muted hover:bg-primary/5"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              disabled={selectionList.length === 0 || hasNoShares}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                handleConfirm();
+              }}
+              className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-white hover:bg-primary/90 disabled:opacity-50"
+            >
+              Hinzufügen
+            </button>
+          </div>
+        </div>
       </div>
     </MentionFloatingPanel>
   );

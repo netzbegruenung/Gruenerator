@@ -89,7 +89,9 @@ export const isReactElement = (content: unknown): content is React.ReactElement 
 /**
  * Entfernt GRUEN_TITLE Tags aus dem Inhalt (Frontend-Fallback)
  */
-export const removeGruenTitleTags = (content: string | null | undefined): string | null | undefined => {
+export const removeGruenTitleTags = (
+  content: string | null | undefined
+): string | null | undefined => {
   if (!content || typeof content !== 'string') return content;
 
   // Remove GRUEN_TITLE tags that should have been processed by backend
@@ -100,7 +102,9 @@ export const removeGruenTitleTags = (content: string | null | undefined): string
  * Entfernt eine umschließende Code-Fence (```...```) falls der gesamte Inhalt
  * innerhalb einer einzigen Fence liegt. Bewahrt inneren Text (Markdown) für normales Rendering.
  */
-export const stripWrappingCodeFence = (content: string | null | undefined): string | null | undefined => {
+export const stripWrappingCodeFence = (
+  content: string | null | undefined
+): string | null | undefined => {
   if (!content || typeof content !== 'string') return content;
 
   // Normalize leading/trailing whitespace to avoid false negatives
@@ -118,7 +122,9 @@ export const stripWrappingCodeFence = (content: string | null | undefined): stri
 /**
  * Normalisiert überschüssige Zeilenumbrüche im Text
  */
-export const normalizeLineBreaks = (content: string | null | undefined): string | null | undefined => {
+export const normalizeLineBreaks = (
+  content: string | null | undefined
+): string | null | undefined => {
   if (!content || typeof content !== 'string') return content;
 
   // If content looks like Markdown, skip HTML normalization entirely —

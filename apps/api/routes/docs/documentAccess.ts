@@ -44,7 +44,8 @@ export async function checkGroupAccess(userId: string, documentId: string): Prom
   )) as { content_type: string; permissions: { read: boolean; write: boolean } | null }[];
 
   if (groupAccess.length > 0 && groupAccess[0].permissions?.read !== false) {
-    const method = groupAccess[0].content_type === 'canvas_template' ? 'group:template' : 'group:read';
+    const method =
+      groupAccess[0].content_type === 'canvas_template' ? 'group:template' : 'group:read';
     return { hasAccess: true, accessMethod: method };
   }
 
@@ -62,8 +63,7 @@ export async function checkDocumentAccess(
 }
 
 export function autoGrantSharePermission(document: CollaborativeDocument, userId: string): void {
-  const isLinkShared =
-    document.share_mode === 'authenticated' || document.share_mode === 'public';
+  const isLinkShared = document.share_mode === 'authenticated' || document.share_mode === 'public';
   if (
     !isLinkShared ||
     document.created_by === userId ||

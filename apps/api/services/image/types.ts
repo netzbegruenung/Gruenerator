@@ -61,7 +61,11 @@ export interface ImageAttachment {
  * Implemented by TemporaryImageStorage.
  */
 export interface SharepicImageManager {
-  storeForRequest(requestId: string, userId: string, imageAttachment: ImageAttachment): Promise<string>;
+  storeForRequest(
+    requestId: string,
+    userId: string,
+    imageAttachment: ImageAttachment
+  ): Promise<string>;
   retrieveAndConsume(requestId: string): Promise<ImageAttachment | null>;
   hasImageForRequest(requestId: string): Promise<boolean>;
   deleteImageForRequest(requestId: string): Promise<boolean>;

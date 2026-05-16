@@ -15,12 +15,7 @@ import { AssetsSection, ImageBackgroundSection } from '../sidebar';
 import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { BalkenSettingsSection } from '../sidebar/sections/BalkenSettingsSection';
 import { FrameSettingsSection } from '../sidebar/sections/FrameSettingsSection';
-import {
-  chatTab,
-  createCommonSectionEntries,
-  toolsTab,
-  uploadsTab,
-} from './commonSections';
+import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { CANVAS_RECOMMENDED_ASSETS, SYSTEM_ASSETS } from '../utils/canvasAssets';
 import {
   calculateDreizeilenLayout,
@@ -270,7 +265,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
   ],
 
   getVisibleTabs: () => {
-      // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
+    // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
     // 'settings' tab kept registered but hidden — opened via getAutoSwitchTab on balken
     // selection so the icon strip doesn't shift when a balken is clicked.
     return ['image-background', 'text', 'assets', 'tools', 'uploads', 'chat', 'share'];
@@ -715,9 +710,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           setState((prev) => ({
             ...prev,
             balkenInstances: prev.balkenInstances.map((b) =>
-              b.id === id
-                ? { ...b, texts: b.texts.map((t, i) => (i === index ? text : t)) }
-                : b
+              b.id === id ? { ...b, texts: b.texts.map((t, i) => (i === index ? text : t)) } : b
             ),
           }));
           debouncedSaveToHistory(getState());

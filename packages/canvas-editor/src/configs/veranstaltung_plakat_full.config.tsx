@@ -19,10 +19,7 @@ import {
 
 import { veranstaltungFullConfig } from './veranstaltung_full.config';
 
-import type {
-  VeranstaltungFullState,
-  VeranstaltungFullActions,
-} from './veranstaltung_full.config';
+import type { VeranstaltungFullState, VeranstaltungFullActions } from './veranstaltung_full.config';
 import type { FullCanvasConfig, LayoutResult } from './types';
 import type { CircleBadgeInstance, CircleBadgeTextLine } from '../primitives';
 

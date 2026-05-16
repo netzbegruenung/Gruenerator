@@ -258,10 +258,7 @@ export const getAustrianNotebooks = (): NotebookConfigEntry[] =>
  * (not `SystemAgentId`) so callers can look up by arbitrary agent identifiers —
  * population side is already typed via `NotebookConfigEntry.defaultAgent`.
  */
-export const getNotebooksByDefaultAgent = (): ReadonlyMap<
-  string,
-  NotebookConfigEntry[]
-> => {
+export const getNotebooksByDefaultAgent = (): ReadonlyMap<string, NotebookConfigEntry[]> => {
   const map = new Map<string, NotebookConfigEntry[]>();
   for (const nb of SYSTEM_NOTEBOOKS) {
     if (!nb.defaultAgent) continue;

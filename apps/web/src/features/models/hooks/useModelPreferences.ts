@@ -83,8 +83,7 @@ export function useModelPreferences(options: UseModelPreferencesOptions = {}) {
     defaults: query.data?.defaults ?? {},
     enabledModelIds,
     isLoading: query.isLoading,
-    toggleModel: (modelId: ModelId, enabled: boolean) =>
-      mutation.mutateAsync({ modelId, enabled }),
+    toggleModel: (modelId: ModelId, enabled: boolean) => mutation.mutateAsync({ modelId, enabled }),
     isSaving: mutation.isPending,
   };
 }

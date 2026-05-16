@@ -84,7 +84,10 @@ const FilterPopover = ({
       tabIndex={-1}
     >
       <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-grey-200 dark:border-grey-700">
-        <h3 id="filter-popover-title" className="m-0 text-base font-semibold text-foreground-heading">
+        <h3
+          id="filter-popover-title"
+          className="m-0 text-base font-semibold text-foreground-heading"
+        >
           {title}
         </h3>
         <button

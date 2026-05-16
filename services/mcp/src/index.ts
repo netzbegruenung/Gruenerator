@@ -308,22 +308,35 @@ function createMcpServer(baseUrl: string, apiKey: string | null) {
   // Bearer API key. Without a key, these are not advertised in tools/list,
   // and the MCP server stays anonymous-callable for the existing public tools.
   if (apiKey) {
-    server.tool(notebooksListTool.name, notebooksListTool.inputSchema, wrapToolHandler(
-      'NotebooksList',
-      (p) => notebooksListTool.handler(p, apiKey)
-    ));
-    server.tool(notebooksAskTool.name, notebooksAskTool.inputSchema, wrapToolHandler(
-      'NotebooksAsk',
-      (p) => notebooksAskTool.handler(p as Parameters<typeof notebooksAskTool.handler>[0], apiKey)
-    ));
-    server.tool(notebooksSearchTool.name, notebooksSearchTool.inputSchema, wrapToolHandler(
-      'NotebooksSearch',
-      (p) => notebooksSearchTool.handler(p as Parameters<typeof notebooksSearchTool.handler>[0], apiKey)
-    ));
-    server.tool(notebooksGetFiltersTool.name, notebooksGetFiltersTool.inputSchema, wrapToolHandler(
-      'NotebooksGetFilters',
-      (p) => notebooksGetFiltersTool.handler(p as Parameters<typeof notebooksGetFiltersTool.handler>[0], apiKey)
-    ));
+    server.tool(
+      notebooksListTool.name,
+      notebooksListTool.inputSchema,
+      wrapToolHandler('NotebooksList', (p) => notebooksListTool.handler(p, apiKey))
+    );
+    server.tool(
+      notebooksAskTool.name,
+      notebooksAskTool.inputSchema,
+      wrapToolHandler('NotebooksAsk', (p) =>
+        notebooksAskTool.handler(p as Parameters<typeof notebooksAskTool.handler>[0], apiKey)
+      )
+    );
+    server.tool(
+      notebooksSearchTool.name,
+      notebooksSearchTool.inputSchema,
+      wrapToolHandler('NotebooksSearch', (p) =>
+        notebooksSearchTool.handler(p as Parameters<typeof notebooksSearchTool.handler>[0], apiKey)
+      )
+    );
+    server.tool(
+      notebooksGetFiltersTool.name,
+      notebooksGetFiltersTool.inputSchema,
+      wrapToolHandler('NotebooksGetFilters', (p) =>
+        notebooksGetFiltersTool.handler(
+          p as Parameters<typeof notebooksGetFiltersTool.handler>[0],
+          apiKey
+        )
+      )
+    );
   }
 
   // Compare Tool (cross-source comparison)

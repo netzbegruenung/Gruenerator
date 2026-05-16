@@ -20,9 +20,7 @@ export class ConnectionService {
     const result = await getNango().listConnections({ connectionId: userId });
 
     return Object.entries(NANGO_PROVIDERS).map(([key, config]) => {
-      const connection = result.connections.find(
-        (c) => c.provider_config_key === key,
-      );
+      const connection = result.connections.find((c) => c.provider_config_key === key);
       return {
         provider: key as NangoProviderKey,
         label: config.label,
@@ -36,7 +34,7 @@ export class ConnectionService {
 
   static async getConnection(
     userId: string,
-    providerKey: NangoProviderKey,
+    providerKey: NangoProviderKey
   ): Promise<ConnectionDetail> {
     const connection = await getNango().getConnection(providerKey, userId);
     const credentials = connection.credentials as { access_token?: string };
@@ -50,10 +48,7 @@ export class ConnectionService {
     };
   }
 
-  static async deleteConnection(
-    userId: string,
-    providerKey: NangoProviderKey,
-  ): Promise<void> {
+  static async deleteConnection(userId: string, providerKey: NangoProviderKey): Promise<void> {
     await getNango().deleteConnection(providerKey, userId);
   }
 

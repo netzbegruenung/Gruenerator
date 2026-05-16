@@ -17,7 +17,10 @@ describe('forwardBetterAuthCookies', () => {
   it('copies every Set-Cookie from a Better Auth Response onto the Express response', () => {
     const fakeRes = makeFakeRes();
     const headers = new Headers();
-    headers.append('set-cookie', '__Secure-ba.state=abc; Domain=.example.com; HttpOnly; Secure; SameSite=Lax');
+    headers.append(
+      'set-cookie',
+      '__Secure-ba.state=abc; Domain=.example.com; HttpOnly; Secure; SameSite=Lax'
+    );
     headers.append('set-cookie', '__Secure-ba.pkce=def; HttpOnly; Secure');
     const response = new Response(null, { status: 200, headers });
 
@@ -39,7 +42,8 @@ describe('forwardBetterAuthCookies', () => {
 
   it('preserves the original cookie strings verbatim (no re-encoding of attributes)', () => {
     const fakeRes = makeFakeRes();
-    const raw = '__Secure-ba.state=xyz; Max-Age=300; Domain=.gruenerator.eu; Path=/; SameSite=Lax; HttpOnly; Secure';
+    const raw =
+      '__Secure-ba.state=xyz; Max-Age=300; Domain=.gruenerator.eu; Path=/; SameSite=Lax; HttpOnly; Secure';
     const headers = new Headers();
     headers.append('set-cookie', raw);
     const response = new Response(null, { status: 200, headers });

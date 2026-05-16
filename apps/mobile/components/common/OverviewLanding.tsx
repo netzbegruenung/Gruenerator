@@ -31,10 +31,7 @@ export const OverviewLanding = memo(function OverviewLanding({
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-    >
+    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.header}>
         <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
         {subtitle && (
