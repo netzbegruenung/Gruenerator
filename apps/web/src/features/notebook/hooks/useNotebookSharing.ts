@@ -6,6 +6,7 @@
  * at compile time and responses are status-narrowed.
  */
 import {
+  type NotebookAudience,
   type NotebookEditPolicy,
   type NotebookShareMode,
   type NotebookUserGroup,
@@ -82,6 +83,27 @@ export function useSetNotebookShareMode(notebookId: string) {
       });
       if (result.status !== 200) {
         throw new Error(`Failed to set share mode (HTTP ${result.status})`);
+      }
+      return result.body;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: SHARE_SETTINGS_KEY(notebookId) });
+      void qc.invalidateQueries({ queryKey: ['notebookCollections'] });
+    },
+  });
+}
+
+export function useSetNotebookAudience(notebookId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (audience: NotebookAudience) => {
+      const client = getContractsClient();
+      const result = await client.notebookSharing.setAudience({
+        params: { id: notebookId },
+        body: { audience },
+      });
+      if (result.status !== 200) {
+        throw new Error(`Failed to set audience (HTTP ${result.status})`);
       }
       return result.body;
     },
