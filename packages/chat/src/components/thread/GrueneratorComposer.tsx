@@ -48,12 +48,6 @@ interface GrueneratorComposerProps {
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
   showModelPicker?: boolean;
-  /**
-   * Toolbar layout. `compact-overflow` is tuned for narrow side panels
-   * (e.g. the docs editor 320px aside): hides ModelPicker to save horizontal
-   * room. All other toggles stay visible because they still fit.
-   */
-  layout?: 'default' | 'compact-overflow';
   insideAgent?: boolean;
   /** Render-prop slots for surface-specific UI. */
   slots?: {
@@ -224,7 +218,6 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showPlusMenu = true,
   showToolToggles = true,
   showModelPicker = true,
-  layout = 'default',
   insideAgent = false,
   slots,
   requireProfileHydration = false,
@@ -581,7 +574,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             {toolbarExtra}
           </div>
           <div className="flex items-center gap-0.5">
-            {showModelPicker && layout !== 'compact-overflow' && <ModelPicker />}
+            {showModelPicker && <ModelPicker />}
             {/* TODO: re-enable when realtime voice agent is ready for users
             <ComposerVoiceToggle />
             */}
