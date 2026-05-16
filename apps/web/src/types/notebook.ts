@@ -2,7 +2,7 @@
  * Notebook/Q&A Collection Types
  */
 
-import { type WolkeFolderRef } from '@gruenerator/contracts';
+import { type LinkedDocRef, type WolkeFolderRef } from '@gruenerator/contracts';
 
 import type { Document } from './documents';
 
@@ -51,6 +51,7 @@ export interface NotebookCollection {
   selection_mode?: 'documents' | 'wolke' | 'mixed';
   labels?: string[];
   wolke_folders?: WolkeFolderRef[];
+  linked_docs?: LinkedDocRef[];
   likes_count?: number;
   share_mode?: NotebookShareMode | null;
   edit_policy?: NotebookEditPolicy | null;
@@ -94,6 +95,7 @@ export interface NotebookCollectionInput {
   is_public?: boolean;
   public_ownership?: NotebookPublicOwnership | null;
   wolkeFolders?: WolkeFolderRef[];
+  linkedDocs?: LinkedDocRef[];
 }
 
 /**

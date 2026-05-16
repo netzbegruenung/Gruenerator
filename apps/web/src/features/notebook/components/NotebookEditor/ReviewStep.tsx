@@ -20,6 +20,7 @@ export default function ReviewStep({ state }: ReviewStepProps) {
     watchedDesc,
     manualDocuments,
     wolkeDocuments,
+    linkedDocs,
     labels,
     isPublic,
     publicOwnership,
@@ -42,6 +43,7 @@ export default function ReviewStep({ state }: ReviewStepProps) {
             <span className="font-medium text-foreground">
               {manualDocuments.length} eigene
               {wolkeDocuments.length > 0 && `, ${wolkeDocuments.length} aus der Wolke`}
+              {linkedDocs.length > 0 && `, ${linkedDocs.length} aus Docs`}
             </span>
           </div>
           {labels.length > 0 && (

@@ -1,4 +1,4 @@
-import { type WolkeFolderRef } from '@gruenerator/contracts';
+import { type LinkedDocRef, type WolkeFolderRef } from '@gruenerator/contracts';
 import { type DragEvent } from 'react';
 
 export type PublicOwnership = 'owner' | 'public_data';
@@ -12,6 +12,7 @@ export interface NotebookCollection {
   is_public?: boolean;
   public_ownership?: PublicOwnership | null;
   wolke_folders?: WolkeFolderRef[];
+  linked_docs?: LinkedDocRef[];
 }
 
 export interface NotebookEditorFormData {
