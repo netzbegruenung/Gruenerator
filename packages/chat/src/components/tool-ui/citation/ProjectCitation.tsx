@@ -99,25 +99,36 @@ const CardCitation = memo(function CardCitation({
 
 const InlineCitation = memo(function InlineCitation(citation: CitationProps) {
   const faviconUrl = getFaviconUrl(citation.domain);
+  const label = citation.domain || citation.title;
+  const baseClass =
+    'inline-flex items-center gap-1 rounded-full bg-card border border-border/50 px-2 py-0.5 text-xs text-foreground-muted';
+  const interactiveClass = ' hover:border-border hover:text-foreground transition-colors';
+  const icon = faviconUrl ? (
+    <img src={faviconUrl} alt="" width={12} height={12} className="flex-shrink-0" loading="lazy" />
+  ) : null;
+  const text = <span className="truncate max-w-[120px]">{label}</span>;
+
+  // URL-less sources (e.g. private Wolke files) render as a non-clickable
+  // badge with the same visual footprint so layout matches and the user
+  // still sees which source is being cited.
+  if (!citation.url) {
+    return (
+      <span className={baseClass}>
+        {icon}
+        {text}
+      </span>
+    );
+  }
 
   return (
     <a
       href={citation.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 rounded-full bg-card border border-border/50 px-2 py-0.5 text-xs text-foreground-muted hover:border-border hover:text-foreground transition-colors"
+      className={baseClass + interactiveClass}
     >
-      {faviconUrl && (
-        <img
-          src={faviconUrl}
-          alt=""
-          width={12}
-          height={12}
-          className="flex-shrink-0"
-          loading="lazy"
-        />
-      )}
-      <span className="truncate max-w-[120px]">{citation.domain || citation.title}</span>
+      {icon}
+      {text}
     </a>
   );
 });
