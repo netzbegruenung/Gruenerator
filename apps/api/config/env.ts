@@ -34,6 +34,9 @@ const envSchema = z.object({
   // ── Session / Auth core ────────────────────────────────────────────────
   SESSION_SECRET: z.string().optional(),
   ADMIN_TOKEN: z.string().optional(),
+  // Comma-separated emails elevated to is_admin = true at session-parse time.
+  // Runtime override — no DB write. Empty/unset → no overrides.
+  ADMIN_EMAILS: z.string().optional(),
   ALLOW_DEV_AUTH_BYPASS: boolFlag(false),
   DEV_AUTH_BYPASS_TOKEN: z.string().optional(),
 
