@@ -24,6 +24,14 @@ import { getPostgresInstance } from '../../database/services/PostgresService.js'
 import { processUploadedDocument } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
+import {
+  getLikeCountsForEntities,
+  getLikedEntityIdsForUser,
+  likeEntity,
+  unlikeEntity,
+} from '../../services/entityLikes/EntityLikesService.js';
+import { createNotification } from '../../services/notifications/NotificationService.js';
+import { getProfileService } from '../../services/user/ProfileService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId, type NotebookId } from '../../utils/types/branded.js';
@@ -214,6 +222,11 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       const collections =
         (await notebookHelper.getPublicNotebookCollections()) as NotebookCollectionFromQdrantRaw[];
 
+      const likeCounts = await getLikeCountsForEntities(
+        'notebook',
+        collections.map((c) => c.id)
+      );
+
       const transformedData = await Promise.all(
         collections.map(async (collection) => {
           const documentIds = (collection.notebook_collection_documents || []).map(
@@ -248,6 +261,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
             wolke_folders,
             is_public: collection.is_public === true,
             public_ownership: collection.public_ownership ?? null,
+            likes_count: likeCounts.get(collection.id) ?? 0,
           };
         })
       );
@@ -835,6 +849,85 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       };
     } catch (error) {
       log.error('[notebookCollectionsContract.removeDocument] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
+  listMyLikedCollections: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const liked_ids = await getLikedEntityIdsForUser({ userId, entityType: 'notebook' });
+      return {
+        status: 200 as const,
+        body: { success: true, liked_ids },
+      };
+    } catch (error) {
+      log.error('[notebookCollectionsContract.listMyLikedCollections] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
+  likeCollection: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const collectionId = fromParam<NotebookId>(args.params.id);
+
+      const collection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!collection || collection.is_public !== true) {
+        return { status: 404 as const, body: { error: 'Notebook collection not found' } };
+      }
+
+      const result = await likeEntity({ userId, entityType: 'notebook', entityId: collectionId });
+
+      if (result.createdNew && collection.user_id && collection.user_id !== userId) {
+        const profile = await getProfileService().getProfileById(userId);
+        const likerName = profile?.display_name?.trim() || 'Jemand';
+        createNotification({
+          userId: collection.user_id,
+          type: 'notebook_liked',
+          title: `${likerName} mag dein Notizbuch`,
+          body: collection.name ?? null,
+          metadata: {
+            notebookId: collectionId,
+            notebookTitle: collection.name,
+            likerId: userId,
+            likerName,
+          },
+          actionUrl: `/notebook/${collectionId}`,
+          groupKey: `notebook:${collectionId}:liked`,
+        }).catch((err) => {
+          log.warn('[notebookCollectionsContract.likeCollection] notification failed', err);
+        });
+      }
+
+      return {
+        status: 200 as const,
+        body: { success: true, liked: true, count: result.count },
+      };
+    } catch (error) {
+      log.error('[notebookCollectionsContract.likeCollection] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
+  unlikeCollection: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const collectionId = fromParam<NotebookId>(args.params.id);
+
+      const collection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!collection || collection.is_public !== true) {
+        return { status: 404 as const, body: { error: 'Notebook collection not found' } };
+      }
+
+      const result = await unlikeEntity({ userId, entityType: 'notebook', entityId: collectionId });
+
+      return {
+        status: 200 as const,
+        body: { success: true, liked: false, count: result.count },
+      };
+    } catch (error) {
+      log.error('[notebookCollectionsContract.unlikeCollection] Error:', error);
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },

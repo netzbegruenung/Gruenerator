@@ -21,6 +21,9 @@ import {
   simpleSuccessMessageSchema,
   shareCollectionResponseSchema,
   bulkDeleteResponseSchema,
+  likeCollectionResponseSchema,
+  unlikeCollectionResponseSchema,
+  listMyLikedCollectionsResponseSchema,
 } from '../schemas/notebookCollections.js';
 
 const c = initContract();
@@ -223,6 +226,60 @@ export const notebookCollectionsContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'Bulk delete notebook collections',
+    },
+
+    /**
+     * GET /api/auth/notebook-collections/likes
+     * Return the IDs of public notebooks the authenticated user has liked.
+     * Kept separate from listPublicCollections so the public listing stays
+     * user-agnostic and cacheable.
+     */
+    listMyLikedCollections: {
+      method: 'GET',
+      path: '/api/auth/notebook-collections/likes',
+      responses: {
+        200: listMyLikedCollectionsResponseSchema,
+        401: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: "List the authenticated user's liked notebook IDs",
+    },
+
+    /**
+     * POST /api/auth/notebook-collections/:id/like
+     * Like a public notebook collection. Idempotent; only fresh likes
+     * trigger a notification to the notebook owner (and never if owner === self).
+     */
+    likeCollection: {
+      method: 'POST',
+      path: '/api/auth/notebook-collections/:id/like',
+      pathParams: z.object({ id: z.string() }),
+      body: c.noBody(),
+      responses: {
+        200: likeCollectionResponseSchema,
+        401: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Like a public notebook collection',
+    },
+
+    /**
+     * DELETE /api/auth/notebook-collections/:id/like
+     * Remove the authenticated user's like from a notebook collection.
+     */
+    unlikeCollection: {
+      method: 'DELETE',
+      path: '/api/auth/notebook-collections/:id/like',
+      pathParams: z.object({ id: z.string() }),
+      body: c.noBody(),
+      responses: {
+        200: unlikeCollectionResponseSchema,
+        401: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Unlike a notebook collection',
     },
   },
   { pathPrefix: '' }
