@@ -6,6 +6,8 @@
  * (searchNode imports heavyweight services that break under Vitest).
  */
 
+import { buildCitableSources, type CitableSource } from './citableSources.js';
+
 import type { SearchResult, Citation } from '../types.js';
 
 /**
@@ -107,32 +109,44 @@ export function resolveCollectionName(source: string): string | undefined {
 }
 
 /**
- * Build citations from search results.
- * Enriched with provenance data for inline popovers and grouped source cards.
+ * Project a single CitableSource into the Citation shape the renderer
+ * consumes. URL is `''` for sources without a public URL (private wolke
+ * files, future no-URL types) — existing chip/popover code truthy-checks
+ * this field, so empty-string is the safe sentinel.
+ */
+export function projectCitation(source: CitableSource): Citation {
+  const r = source.representative;
+  return {
+    id: source.id,
+    title: source.title || r.title,
+    url: source.url ?? '',
+    snippet: r.content.slice(0, 200),
+    citedText: r.content.length > 50 ? r.content.slice(0, 1500) : undefined,
+    source: r.source,
+    collectionName: resolveCollectionName(r.source),
+    domain: extractDomain(source.url),
+    relevance: r.relevance,
+    contentType: r.contentType
+      ? CONTENT_TYPE_LABELS[r.contentType.toLowerCase()] || r.contentType
+      : undefined,
+    documentId: r.documentId,
+    chunkIndex: r.chunkIndex,
+    similarityScore: r.similarityScore,
+    collectionId: r.collectionId,
+    documentSourceId: typeof r.documentSourceId === 'string' ? r.documentSourceId : undefined,
+  };
+}
+
+/**
+ * Build citations from search results. Thin projection over the canonical
+ * CitableSource[] view so the model's `[N]` markers stay in lockstep with
+ * the prompt's source numbering.
+ *
+ * Eligibility: any source with content (URL is metadata, not a gate). This
+ * fixes private-file types like Wolke that previously got dropped here.
  */
 export function buildCitations(results: SearchResult[]): Citation[] {
-  return results
-    .filter((r) => r.url)
-    .slice(0, 8)
-    .map((r, i) => ({
-      id: i + 1,
-      title: r.title,
-      url: r.url || '',
-      snippet: r.content.slice(0, 200),
-      citedText: r.content.length > 50 ? r.content.slice(0, 1500) : undefined,
-      source: r.source,
-      collectionName: resolveCollectionName(r.source),
-      domain: extractDomain(r.url),
-      relevance: r.relevance,
-      contentType: r.contentType
-        ? CONTENT_TYPE_LABELS[r.contentType.toLowerCase()] || r.contentType
-        : undefined,
-      documentId: r.documentId,
-      chunkIndex: r.chunkIndex,
-      similarityScore: r.similarityScore,
-      collectionId: r.collectionId,
-      // Multi-doc fan-out tags each result with its DocumentSource id; promote
-      // here so the UI can group source cards by referenced document.
-      documentSourceId: typeof r.documentSourceId === 'string' ? r.documentSourceId : undefined,
-    }));
+  return buildCitableSources(results)
+    .filter((s) => (s.representative.content?.length ?? 0) > 0)
+    .map(projectCitation);
 }
