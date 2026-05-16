@@ -18,7 +18,6 @@
 import { notebookCollectionsContract, type WolkeFolderRef } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { env } from '../../config/env.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { processUploadedDocument } from '../../services/document-services/DocumentProcessingService/index.js';
@@ -35,6 +34,12 @@ import { getProfileService } from '../../services/user/ProfileService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId, type NotebookId } from '../../utils/types/branded.js';
+
+import {
+  checkNotebookAccess,
+  requireNotebookEdit,
+  requireNotebookOwner,
+} from './notebookAccess.js';
 
 import type { DocumentRecord, WolkeShareLink } from './types.js';
 import type { UserProfile } from '../../services/user/types.js';
@@ -130,14 +135,53 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         notebook_collection_documents?: Array<{ document_id: string }>;
         is_public?: boolean;
         public_ownership?: 'owner' | 'public_data' | null;
+        share_mode?: 'private' | 'groups' | 'authenticated';
+        edit_policy?: 'owner_only' | 'group_admins' | 'all_members';
       };
 
-      const collections = (await notebookHelper.getUserNotebookCollections(
+      const owned = (await notebookHelper.getUserNotebookCollections(
         userId
       )) as NotebookCollectionFromQdrantRaw[];
+      const ownedIds = new Set(owned.map((c) => c.id));
+
+      // Notebooks shared with any group the user belongs to.
+      const groupSharedIdRows = (await postgres.query(
+        `SELECT DISTINCT gcs.content_id
+           FROM group_content_shares gcs
+           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id
+           WHERE gcs.content_type = 'notebook_collections' AND gm.user_id = $1`,
+        [userId]
+      )) as Array<{ content_id: string }>;
+      const groupSharedIds = groupSharedIdRows
+        .map((r) => r.content_id)
+        .filter((id) => !ownedIds.has(id));
+      const groupShared = (
+        groupSharedIds.length > 0
+          ? ((await notebookHelper.getNotebookCollectionsByIds(
+              groupSharedIds
+            )) as NotebookCollectionFromQdrantRaw[])
+          : []
+      ).filter((c) => c.share_mode === 'groups');
+      const groupSharedIdsSet = new Set(groupShared.map((c) => c.id));
+
+      // Notebooks visible to any authenticated user — excluding ones we already have.
+      const authShared = (
+        (await notebookHelper.getNotebookCollectionsByShareMode(
+          'authenticated'
+        )) as NotebookCollectionFromQdrantRaw[]
+      ).filter((c) => !ownedIds.has(c.id) && !groupSharedIdsSet.has(c.id));
+
+      const tagged: Array<{
+        collection: NotebookCollectionFromQdrantRaw;
+        access_source: 'owned' | 'shared' | 'authenticated';
+      }> = [
+        ...owned.map((c) => ({ collection: c, access_source: 'owned' as const })),
+        ...groupShared.map((c) => ({ collection: c, access_source: 'shared' as const })),
+        ...authShared.map((c) => ({ collection: c, access_source: 'authenticated' as const })),
+      ];
 
       const transformedData = await Promise.all(
-        collections.map(async (collection) => {
+        tagged.map(async ({ collection, access_source }) => {
           const documentIds = (collection.notebook_collection_documents || []).map(
             (qcd) => qcd.document_id
           );
@@ -179,13 +223,16 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
             wolke_folders,
             is_public: collection.is_public === true,
             public_ownership: collection.public_ownership ?? null,
+            access_source,
           };
         })
       );
 
       const totalWolkeFolders = transformedData.reduce((acc, c) => acc + c.wolke_folders.length, 0);
       log.debug(
-        `[listCollections] returning ${transformedData.length} collection(s), ${totalWolkeFolders} wolke_folders total`
+        `[listCollections] returning ${transformedData.length} collection(s) ` +
+          `(owned=${owned.length} shared=${groupShared.length} authenticated=${authShared.length}), ` +
+          `${totalWolkeFolders} wolke_folders total`
       );
 
       return {
@@ -498,10 +545,15 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         };
       }
 
+      const guard = await requireNotebookEdit(collectionId, userId);
+      if (guard) return guard;
+
       const existingCollection = await notebookHelper.getNotebookCollection(collectionId);
-      if (!existingCollection || existingCollection.user_id !== userId) {
+      if (!existingCollection) {
         return { status: 404 as const, body: { error: 'Notebook collection not found' } };
       }
+
+      const isOwner = existingCollection.user_id === userId;
 
       let allDocumentIds: string[] = [];
       let wolkeDocuments: DocumentRecord[] = [];
@@ -596,7 +648,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         updateData.remove_missing_on_sync = false;
       }
 
-      if (typeof is_public === 'boolean') {
+      if (isOwner && typeof is_public === 'boolean') {
         updateData.is_public = is_public;
         updateData.public_ownership = is_public ? (public_ownership ?? null) : null;
       }
@@ -632,8 +684,11 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       const userId = getUserId(args.req);
       const collectionId = fromParam<NotebookId>(args.params.id);
 
+      const guard = await requireNotebookEdit(collectionId, userId);
+      if (guard) return guard;
+
       const collection = await notebookHelper.getNotebookCollection(collectionId);
-      if (!collection || collection.user_id !== userId) {
+      if (!collection) {
         return { status: 404 as const, body: { error: 'Notebook collection not found' } };
       }
 
@@ -717,8 +772,11 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         };
       }
 
-      const collection = await notebookHelper.getNotebookCollection(collectionId);
-      if (!collection || collection.user_id !== userId) {
+      const access = await checkNotebookAccess(collectionId, userId);
+      if (!access.exists) {
+        return { status: 404 as const, body: { error: 'Notebook collection not found' } };
+      }
+      if (!access.canRead) {
         return { status: 404 as const, body: { error: 'Notebook collection not found' } };
       }
 
@@ -756,10 +814,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       const userId = getUserId(args.req);
       const collectionId = fromParam<NotebookId>(args.params.id);
 
-      const existingCollection = await notebookHelper.getNotebookCollection(collectionId);
-      if (!existingCollection || existingCollection.user_id !== userId) {
-        return { status: 404 as const, body: { error: 'Notebook collection not found' } };
-      }
+      const guard = await requireNotebookOwner(collectionId, userId);
+      if (guard) return guard;
 
       await notebookHelper.deleteNotebookCollection(collectionId);
 
@@ -776,66 +832,14 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
     }
   },
 
-  shareCollection: async (args) => {
-    try {
-      const userId = getUserId(args.req);
-      const collectionId = fromParam<NotebookId>(args.params.id);
-
-      const collection = await notebookHelper.getNotebookCollection(collectionId);
-      if (!collection || collection.user_id !== userId) {
-        return { status: 404 as const, body: { error: 'Notebook collection not found' } };
-      }
-
-      const result = await notebookHelper.createPublicAccess(collectionId, userId);
-      const publicUrl = `${env.BASE_URL}/notebook/public/${result.access_token}`;
-
-      return {
-        status: 200 as const,
-        body: {
-          success: true,
-          public_url: publicUrl,
-          access_token: result.access_token,
-          message: 'Public link generated successfully',
-        },
-      };
-    } catch (error) {
-      log.error('[notebookCollectionsContract.shareCollection] Error:', error);
-      return { status: 500 as const, body: { error: 'Internal server error' } };
-    }
-  },
-
-  revokeShare: async (args) => {
-    try {
-      const userId = getUserId(args.req);
-      const collectionId = fromParam<NotebookId>(args.params.id);
-
-      const collection = await notebookHelper.getNotebookCollection(collectionId);
-      if (!collection || collection.user_id !== userId) {
-        return { status: 404 as const, body: { error: 'Notebook collection not found' } };
-      }
-
-      await notebookHelper.revokePublicAccess(collectionId);
-
-      return {
-        status: 200 as const,
-        body: { success: true, message: 'Public access revoked successfully' },
-      };
-    } catch (error) {
-      log.error('[notebookCollectionsContract.revokeShare] Error:', error);
-      return { status: 500 as const, body: { error: 'Internal server error' } };
-    }
-  },
-
   removeDocument: async (args) => {
     try {
       const userId = getUserId(args.req);
       const collectionId = fromParam<NotebookId>(args.params.id);
       const documentId = fromParam<DocumentId>(args.params.documentId);
 
-      const collection = await notebookHelper.getNotebookCollection(collectionId);
-      if (!collection || collection.user_id !== userId) {
-        return { status: 404 as const, body: { error: 'Notebook collection not found' } };
-      }
+      const guard = await requireNotebookEdit(collectionId, userId);
+      if (guard) return guard;
 
       await notebookHelper.removeDocumentsFromCollection(collectionId, [documentId]);
 
