@@ -175,6 +175,11 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         })
       );
 
+      const totalWolkeFolders = transformedData.reduce((acc, c) => acc + c.wolke_folders.length, 0);
+      log.debug(
+        `[listCollections] returning ${transformedData.length} collection(s), ${totalWolkeFolders} wolke_folders total`
+      );
+
       return {
         status: 200 as const,
         body: { success: true, collections: transformedData },
@@ -281,6 +286,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       const document_ids = documentIdsRaw ?? [];
       const wolke_share_link_ids = wolkeLinkIdsRaw ?? [];
       const wolke_folders = Array.isArray(wolkeFoldersRaw) ? wolkeFoldersRaw : [];
+      log.debug(
+        `[createCollection] incoming wolke_folders raw=${typeof wolkeFoldersRaw} array=${Array.isArray(wolkeFoldersRaw)} count=${wolke_folders.length}`
+      );
 
       if (!name || !name.trim()) {
         return { status: 400 as const, body: { error: 'Name is required' } };
@@ -545,6 +553,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       };
 
       const existingSettings = (existingCollection.settings as Record<string, unknown>) || {};
+      const existingWolkeFoldersCount = Array.isArray(existingSettings.wolke_folders)
+        ? (existingSettings.wolke_folders as unknown[]).length
+        : 0;
       const settingsPatch: Record<string, unknown> = { ...existingSettings };
       let settingsChanged = false;
       if (Array.isArray(labels)) {
@@ -558,6 +569,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       if (settingsChanged) {
         updateData.settings = settingsPatch;
       }
+      log.debug(
+        `[updateCollection ${collectionId}] incoming wolke_folders raw=${typeof wolkeFoldersRaw} array=${Array.isArray(wolkeFoldersRaw)} count=${Array.isArray(wolkeFoldersRaw) ? wolkeFoldersRaw.length : 0} existing=${existingWolkeFoldersCount} settingsChanged=${settingsChanged}`
+      );
 
       if (selection_mode === 'wolke') {
         if (typeof auto_sync === 'boolean') updateData.auto_sync = auto_sync;
