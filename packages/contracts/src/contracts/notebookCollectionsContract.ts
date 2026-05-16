@@ -23,12 +23,39 @@ import {
   likeCollectionResponseSchema,
   unlikeCollectionResponseSchema,
   listMyLikedCollectionsResponseSchema,
+  resolveCollectionResponseSchema,
 } from '../schemas/notebookCollections.js';
 
 const c = initContract();
 
 export const notebookCollectionsContract = c.router(
   {
+    /**
+     * GET /api/auth/notebook-collections/resolve/:slugOrId
+     * Resolve a notebook URL fragment (Notion-style slug or UUID) to its
+     * canonical ID. Used by NotebookResolver on the frontend to translate
+     * pretty URLs into the UUID downstream components already consume.
+     *
+     * IMPORTANT: this entry must appear BEFORE listCollections in the router
+     * object — ts-rest preserves declaration order when building the Express
+     * matcher, and the parameterised `/resolve/:slugOrId` path otherwise gets
+     * shadowed by other `/:id` routes at the same depth (e.g. /likes,
+     * /public). Adding it first means `/resolve/...` always matches first.
+     */
+    resolveCollection: {
+      method: 'GET',
+      path: '/api/auth/notebook-collections/resolve/:slugOrId',
+      pathParams: z.object({ slugOrId: z.string() }),
+      responses: {
+        200: resolveCollectionResponseSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Resolve a notebook slug or UUID to its canonical ID',
+    },
+
     /**
      * GET /api/auth/notebook-collections
      * List the authenticated user's notebook collections.
