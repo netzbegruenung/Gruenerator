@@ -692,17 +692,12 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // Build enriched citations from results
         citations = buildCitations(results);
 
-        // Include the synthesized answer as context
-        if (researchResult.answer) {
-          results.unshift({
-            source: 'research_synthesis',
-            title: 'Recherche-Zusammenfassung',
-            content: researchResult.answer,
-            relevance: 1.0,
-          });
-        }
-
         // Capture full metadata for the persisted tool-call payload.
+        // The synthesized `answer` is consumed directly by respondNode via
+        // `state.researchMeta` (wrapper-mode prompt), so we no longer
+        // need to unshift it into `results` as a fake `research_synthesis`
+        // chunk — that workaround caused drift when small response models
+        // treated it as one source among many and contradicted the artifact.
         researchMeta = {
           answer: researchResult.answer,
           citations,
@@ -710,6 +705,9 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           searchSteps: researchResult.searchSteps,
           followUpQuestions: researchResult.followUpQuestions,
         };
+        log.info(
+          `[Search] researchMeta captured (answer_len=${researchResult.answer?.length ?? 0}, confidence=${researchResult.confidence}, citations=${citations.length}, follow_ups=${researchResult.followUpQuestions.length})`
+        );
         break;
       }
 
