@@ -21,6 +21,7 @@ const SYNTHETIC_MENTION_TYPES = [
   'application/x-gruenerator-datei-notebook',
   'application/x-gruenerator-datei-document',
   'application/x-gruenerator-datei-text',
+  'application/x-gruenerator-wolke',
 ];
 
 export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
