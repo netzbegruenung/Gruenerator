@@ -44,7 +44,7 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
   }, [collections, mode, params.id]);
 
   const goBack = useCallback(() => {
-    void navigate('/notebooks/meine');
+    void navigate('/notebooks');
   }, [navigate]);
 
   const handleEditSave = useCallback(

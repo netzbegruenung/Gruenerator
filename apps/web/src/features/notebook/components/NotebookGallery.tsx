@@ -84,11 +84,11 @@ function ManageAllCard() {
       role="button"
       tabIndex={0}
       className="group flex min-h-[4rem] cursor-pointer items-center gap-sm rounded-md border border-dashed border-primary-400 bg-primary-50 px-md py-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md dark:border-primary-700 dark:bg-primary-950/30"
-      onClick={() => navigate('/notebooks/meine')}
+      onClick={() => navigate('/notebooks')}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          void navigate('/notebooks/meine');
+          void navigate('/notebooks');
         }
       }}
     >
