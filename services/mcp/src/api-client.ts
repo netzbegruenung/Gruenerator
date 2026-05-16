@@ -21,9 +21,7 @@ export async function callGrueneratorApi<T = Record<string, unknown>>(
     };
   }
 
-  const qs = opts.query
-    ? '?' + new URLSearchParams(opts.query).toString()
-    : '';
+  const qs = opts.query ? '?' + new URLSearchParams(opts.query).toString() : '';
   const url = `${baseUrl}${path}${qs}`;
   const method = opts.method ?? 'GET';
 

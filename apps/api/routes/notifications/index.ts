@@ -42,7 +42,10 @@ router.get('/stream', (req: AuthRequest, res: Response) => {
     res.write(`event: notification\ndata: ${JSON.stringify(notification)}\n\n`);
     flushRes();
   }).catch((err: unknown) => {
-    log.warn('Failed to subscribe to notifications SSE', { userId, error: err instanceof Error ? err.message : String(err) });
+    log.warn('Failed to subscribe to notifications SSE', {
+      userId,
+      error: err instanceof Error ? err.message : String(err),
+    });
   });
 
   const keepAlive = setInterval(() => {

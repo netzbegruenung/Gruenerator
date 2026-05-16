@@ -44,7 +44,7 @@ Mehr zur Einrichtung des Wolke-Links: → [Wolke einbinden](/docs/Profil/gruene-
 
 ### Schritt 5 (optional): Notebook öffentlich machen
 
-Mit dem Schalter **„Notebook öffentlich machen"** taucht dein Notebook unter **„Von der Basis"** auf der allgemeinen Notebooks-Seite auf — sichtbar für alle Grünerator-Nutzer*innen. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen:
+Mit dem Schalter **„Notebook öffentlich machen"** taucht dein Notebook unter **„Von der Basis"** auf der allgemeinen Notebooks-Seite auf — sichtbar für alle Grünerator-Nutzer\*innen. Sobald du den Schalter aktivierst, musst du eine der beiden Aussagen bestätigen:
 
 - **„Ich besitze die Daten oder habe die Rechte zur Veröffentlichung"** — z.&nbsp;B. eigene Texte, Beschlüsse deines Verbands, Material, das du selbst veröffentlichen darfst.
 - **„Die Daten sind öffentlich verfügbar"** — z.&nbsp;B. offizielle Dokumente, Pressemitteilungen, frei zugängliche Veröffentlichungen.

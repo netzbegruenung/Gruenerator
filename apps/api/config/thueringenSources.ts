@@ -63,7 +63,8 @@ export const THUERINGEN_BESCHLUESSE: ThueringenPdfSource[] = [
   // --- LDK Oktober 2025 ---
   {
     url: 'https://gruene-thueringen.de/wp-content/uploads/sites/2/2025/10/L1_Fuer_eine_starke_Gesellschaft_mit_Zukunft_Kein_Rotstift_bei_Naturschutz_Klima_und_gesellschaftliche-2.pdf',
-    title: 'Für eine starke Gesellschaft mit Zukunft – Kein Rotstift bei Naturschutz, Klima und gesellschaftliche Teilhabe',
+    title:
+      'Für eine starke Gesellschaft mit Zukunft – Kein Rotstift bei Naturschutz, Klima und gesellschaftliche Teilhabe',
     date: '2025-10-01',
     contentType: 'beschluss',
     category: 'LDK Oktober 2025',
@@ -158,7 +159,8 @@ export const THUERINGEN_BESCHLUESSE: ThueringenPdfSource[] = [
   // --- LDK Februar 2024 ---
   {
     url: 'https://gruene-thueringen.de/wp-content/uploads/sites/88/2024/02/D1_DRINGLICHKEITSANTRAG_Was_jetzt_zu_tun_ist_10_Punkte_fuer_eine_stabile_Demokratie_in_Thueringen.pdf',
-    title: 'Dringlichkeitsantrag: Was jetzt zu tun ist – 10 Punkte für eine stabile Demokratie in Thüringen',
+    title:
+      'Dringlichkeitsantrag: Was jetzt zu tun ist – 10 Punkte für eine stabile Demokratie in Thüringen',
     date: '2024-02-01',
     contentType: 'beschluss',
     category: 'LDK Februar 2024',
@@ -202,14 +204,16 @@ export const THUERINGEN_BESCHLUESSE: ThueringenPdfSource[] = [
   },
   {
     url: 'https://gruene-thueringen.de/wp-content/uploads/sites/88/2023/03/A1NEU_Versorgungsstrukturen_an_den_medizinischen_Bedarf_der_Menschen_anpassen_-__Fuer_ein_gut_zugaengliches.pdf',
-    title: 'Versorgungsstrukturen an den medizinischen Bedarf der Menschen anpassen – Für ein gut zugängliches Gesundheitssystem',
+    title:
+      'Versorgungsstrukturen an den medizinischen Bedarf der Menschen anpassen – Für ein gut zugängliches Gesundheitssystem',
     date: '2023-03-01',
     contentType: 'beschluss',
     category: 'LDK März 2023',
   },
   {
     url: 'https://gruene-thueringen.de/wp-content/uploads/sites/88/2023/03/A3_Starke_Gruene_starkes_Thueringen_Gruene_Weichenstellungen_fuer_ein_erfolgreiches_Superwahljahr_2024.pdf',
-    title: 'Starke Grüne, starkes Thüringen – Grüne Weichenstellungen für ein erfolgreiches Superwahljahr 2024',
+    title:
+      'Starke Grüne, starkes Thüringen – Grüne Weichenstellungen für ein erfolgreiches Superwahljahr 2024',
     date: '2023-03-01',
     contentType: 'beschluss',
     category: 'LDK März 2023',
@@ -297,7 +301,8 @@ export const THUERINGEN_BESCHLUESSE: ThueringenPdfSource[] = [
   },
   {
     url: 'https://gruene-thueringen.de/wp-content/uploads/sites/88/2022/06/A5NEU_Es_klappert_die_Muehle_auch_weiterhin_am_Bach_Ausnahmen_fuer_Muehlen_zur_Energiegewinnung_schaffen.pdf',
-    title: 'Es klappert die Mühle auch weiterhin am Bach – Ausnahmen für Mühlen zur Energiegewinnung schaffen',
+    title:
+      'Es klappert die Mühle auch weiterhin am Bach – Ausnahmen für Mühlen zur Energiegewinnung schaffen',
     date: '2022-06-01',
     contentType: 'beschluss',
     category: 'LDK Juni 2022',
@@ -357,7 +362,8 @@ export const THUERINGEN_BESCHLUESSE: ThueringenPdfSource[] = [
   },
   {
     url: 'https://www.gruene-thueringen.de/wp-content/uploads/sites/88/2021/03/B90G_TH-Klug_investieren_in_Bildung_und_Klima_fuer_ein_krisenfestes_und_zukunftssicheres_Thueringen-2020.pdf',
-    title: 'Klug investieren in Bildung und Klima für ein krisenfestes und zukunftssicheres Thüringen',
+    title:
+      'Klug investieren in Bildung und Klima für ein krisenfestes und zukunftssicheres Thüringen',
     date: '2020-01-01',
     contentType: 'beschluss',
     category: 'LDK 2020',
@@ -475,7 +481,8 @@ export const THUERINGEN_BESCHLUESSE: ThueringenPdfSource[] = [
   },
   {
     url: 'https://www.gruene-thueringen.de/wp-content/uploads/sites/88/2021/03/B90G_TH-Zukunftsfaehig_demokratisch_gut-Gruene_Perspektiven_fuer_eine_moderne_Schulpolitik_in_Thueringen-2017.pdf',
-    title: 'Zukunftsfähig, demokratisch, gut – Grüne Perspektiven für eine moderne Schulpolitik in Thüringen',
+    title:
+      'Zukunftsfähig, demokratisch, gut – Grüne Perspektiven für eine moderne Schulpolitik in Thüringen',
     date: '2017-01-01',
     contentType: 'beschluss',
     category: 'LDK 2017',
@@ -503,7 +510,8 @@ export const THUERINGEN_BESCHLUESSE: ThueringenPdfSource[] = [
   },
   {
     url: 'https://www.gruene-thueringen.de/wp-content/uploads/sites/88/2021/03/B90G_TH-Die_Gebietsreform_braucht_Transparenz_klare_Kriterien_und_eine_ernstgemeinte_BuergerInnenbeteiligung-2017.pdf',
-    title: 'Die Gebietsreform braucht Transparenz, klare Kriterien und eine ernstgemeinte BürgerInnenbeteiligung',
+    title:
+      'Die Gebietsreform braucht Transparenz, klare Kriterien und eine ernstgemeinte BürgerInnenbeteiligung',
     date: '2017-01-01',
     contentType: 'beschluss',
     category: 'LDK 2017',
@@ -661,7 +669,8 @@ export const THUERINGEN_BESCHLUESSE: ThueringenPdfSource[] = [
   },
   {
     url: 'https://www.gruene-thueringen.de/wp-content/uploads/sites/88/2021/03/B90G_TH-Demonstration_fuer_Frieden_und_gegen_deutschen_Waffenhandel_als_eine_der_weltweiten_Fluchtursachen-2015.pdf',
-    title: 'Demonstration für Frieden und gegen deutschen Waffenhandel als eine der weltweiten Fluchtursachen',
+    title:
+      'Demonstration für Frieden und gegen deutschen Waffenhandel als eine der weltweiten Fluchtursachen',
     date: '2015-01-01',
     contentType: 'beschluss',
     category: 'LDK 2015',

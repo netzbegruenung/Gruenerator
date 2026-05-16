@@ -719,9 +719,7 @@ type ShareLookupResult =
   | { kind: 'ok'; row: OwnedShareRow }
   | {
       kind: 'fail';
-      response:
-        | { status: 403; body: { error: string } }
-        | { status: 404; body: { error: string } };
+      response: { status: 403; body: { error: string } } | { status: 404; body: { error: string } };
     };
 
 /**

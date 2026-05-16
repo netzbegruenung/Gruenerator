@@ -207,14 +207,9 @@ async function deleteDevice(deviceId: string): Promise<void> {
  * Remove a user's registration for a single Expo token (e.g. explicit
  * unregister on logout). No-op if the row is already gone.
  */
-export async function unregisterPushToken(
-  userId: string,
-  expoPushToken: string
-): Promise<void> {
+export async function unregisterPushToken(userId: string, expoPushToken: string): Promise<void> {
   const db = getDrizzleInstance();
   await db
     .delete(appPushDevices)
-    .where(
-      and(eq(appPushDevices.userId, userId), eq(appPushDevices.expoPushToken, expoPushToken))
-    );
+    .where(and(eq(appPushDevices.userId, userId), eq(appPushDevices.expoPushToken, expoPushToken)));
 }

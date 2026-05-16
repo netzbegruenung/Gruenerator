@@ -57,7 +57,10 @@ export async function performTextSearch(
       Array.isArray(options.documentIds) &&
       options.documentIds.length > 0
     ) {
-      filter.must!.push({ key: 'document_id', match: { any: options.documentIds as (string | number)[] } });
+      filter.must!.push({
+        key: 'document_id',
+        match: { any: options.documentIds as (string | number)[] },
+      });
     }
 
     if (options.sourceType) {

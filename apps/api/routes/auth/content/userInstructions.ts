@@ -90,10 +90,7 @@ router.put(
       const { custom_prompt, presseabbinder, knowledge = [] } = req.body;
 
       log.debug('[User Content /anweisungen-wissen PUT] Incoming request body for user:', userId);
-      log.debug(
-        '[User Content /anweisungen-wissen PUT] Request body keys:',
-        Object.keys(req.body)
-      );
+      log.debug('[User Content /anweisungen-wissen PUT] Request body keys:', Object.keys(req.body));
       log.debug(
         '[User Content /anweisungen-wissen PUT] Knowledge entries count:',
         knowledge?.length || 0

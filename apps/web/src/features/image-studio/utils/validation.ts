@@ -16,7 +16,10 @@ type ValidationErrors = Record<string, string>;
 /**
  * Validates form data against TYPE_CONFIG.validation rules
  */
-export const validateFormData = (type: string, formData: Record<string, unknown>): ValidationErrors => {
+export const validateFormData = (
+  type: string,
+  formData: Record<string, unknown>
+): ValidationErrors => {
   const config = getTypeConfig(type);
   const errors: ValidationErrors = {};
 

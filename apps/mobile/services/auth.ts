@@ -131,9 +131,7 @@ export async function handleAuthCallback(
   return promise;
 }
 
-async function exchangeCodeForTokens(
-  code: string
-): Promise<{ success: boolean; error?: string }> {
+async function exchangeCodeForTokens(code: string): Promise<{ success: boolean; error?: string }> {
   try {
     const apiClient = getGlobalApiClient();
 

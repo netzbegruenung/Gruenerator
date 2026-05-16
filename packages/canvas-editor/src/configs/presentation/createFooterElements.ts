@@ -54,7 +54,8 @@ export function createFooterElements(
     id: 'footer-number',
     type: 'text',
     x: (_s, l) =>
-      ((l['footer-number'] as { x?: number })?.x ?? PRES_CONFIG.canvas.width - PRES_CONFIG.margins.right) - 40,
+      ((l['footer-number'] as { x?: number })?.x ??
+        PRES_CONFIG.canvas.width - PRES_CONFIG.margins.right) - 40,
     y: (_s, l) => (l['footer-number'] as { y?: number })?.y ?? PRES_CONFIG.footer.y,
     order: startOrder + 2,
     textKey: 'slideNumber',

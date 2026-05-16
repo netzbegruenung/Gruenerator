@@ -214,9 +214,7 @@ export async function deepResearchNodeLegacy(
     return { searchTimeMs: Date.now() - start };
   }
 
-  log.info(
-    `[DeepResearch:Legacy] Starting deep research: "${state.searchQuery.substring(0, 80)}"`
-  );
+  log.info(`[DeepResearch:Legacy] Starting deep research: "${state.searchQuery.substring(0, 80)}"`);
 
   let webState = toWebSearchState(state);
 

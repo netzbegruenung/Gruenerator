@@ -1,10 +1,5 @@
 import { memo, useCallback, useEffect, useState } from 'react';
-import {
-  PiArrowsOut,
-  PiFile,
-  PiMagnifyingGlassMinus,
-  PiMagnifyingGlassPlus,
-} from 'react-icons/pi';
+import { PiArrowsOut, PiFile, PiMagnifyingGlassMinus, PiMagnifyingGlassPlus } from 'react-icons/pi';
 
 interface CanvasMetaBarProps {
   pageCount: number;

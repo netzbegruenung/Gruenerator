@@ -23,7 +23,6 @@ interface ProcessingStats {
   avgBatchTime: number;
 }
 
-
 /**
  * Generic batch processor for async operations
  */
@@ -94,11 +93,17 @@ export class BatchProcessor<T = unknown, R = unknown> {
           this.stats.errors++;
 
           const failedBatch = batchSlice[index];
-          const errorResults: R[] = failedBatch.map((item) => ({
-            item,
-            error: (result.reason instanceof Error ? result.reason.message : String(result.reason)) || 'Batch processing failed',
-            batchIndex: i + index,
-          } as R));
+          const errorResults: R[] = failedBatch.map(
+            (item) =>
+              ({
+                item,
+                error:
+                  (result.reason instanceof Error
+                    ? result.reason.message
+                    : String(result.reason)) || 'Batch processing failed',
+                batchIndex: i + index,
+              }) as R
+          );
           results.push(...errorResults);
         }
       });

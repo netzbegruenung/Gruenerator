@@ -35,7 +35,10 @@ const ProfileTabSkeleton = ({ type = 'default', itemCount = 3 }: ProfileTabSkele
               .map((_, index) => (
                 <motion.div
                   key={index}
-                  className={cn(shimmerBg, 'flex justify-between p-md rounded-xxs mb-sm items-center')}
+                  className={cn(
+                    shimmerBg,
+                    'flex justify-between p-md rounded-xxs mb-sm items-center'
+                  )}
                   variants={shimmer}
                   initial="initial"
                   animate="animate"

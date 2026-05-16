@@ -30,7 +30,10 @@ function getDimensionTag(width: number | string, height: number | string): strin
   return null;
 }
 
-export function suggestTagsFromTemplate(previewData: PreviewData | null | undefined, templateType: string | null | undefined): string {
+export function suggestTagsFromTemplate(
+  previewData: PreviewData | null | undefined,
+  templateType: string | null | undefined
+): string {
   const tags: string[] = [];
 
   if (templateType === 'canva') {

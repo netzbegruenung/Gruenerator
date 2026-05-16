@@ -41,7 +41,8 @@ export const WolkeSaveModal = ({
 
   const activeShareLinks = shareLinks.filter((l) => l.is_active);
   const effectiveShareLinkId =
-    selectedShareLinkId ?? (activeShareLinks.length === 1 ? (activeShareLinks[0]?.id ?? null) : null);
+    selectedShareLinkId ??
+    (activeShareLinks.length === 1 ? (activeShareLinks[0]?.id ?? null) : null);
   const selectedShareLink = activeShareLinks.find((l) => l.id === effectiveShareLinkId);
   const canSwitchShareLink = activeShareLinks.length > 1;
 

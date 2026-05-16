@@ -36,12 +36,12 @@ On first access, note the `NANGO_SECRET_KEY` from the dashboard and add it to `.
 
 In the Nango dashboard, add these integrations:
 
-| Integration Key | Provider | Scopes |
-|---|---|---|
-| `google` | Google | `drive.readonly`, `docs.readonly`, `sheets.readonly`, `userinfo.email` |
-| `microsoft` | Microsoft | `Files.Read`, `Sites.Read.All`, `Team.ReadBasic.All`, `User.Read` |
-| `jira` | Atlassian (Jira) | `read:jira-work`, `read:jira-user` |
-| `confluence` | Atlassian (Confluence) | `read:confluence-content.all`, `read:confluence-space.summary` |
+| Integration Key | Provider               | Scopes                                                                 |
+| --------------- | ---------------------- | ---------------------------------------------------------------------- |
+| `google`        | Google                 | `drive.readonly`, `docs.readonly`, `sheets.readonly`, `userinfo.email` |
+| `microsoft`     | Microsoft              | `Files.Read`, `Sites.Read.All`, `Team.ReadBasic.All`, `User.Read`      |
+| `jira`          | Atlassian (Jira)       | `read:jira-work`, `read:jira-user`                                     |
+| `confluence`    | Atlassian (Confluence) | `read:confluence-content.all`, `read:confluence-space.summary`         |
 
 OAuth redirect URI for all providers: `https://nango.gruenerator.eu/oauth/callback`
 
@@ -56,15 +56,16 @@ Nango Container (nangohq/nango-server)
 ```
 
 The Gruenerator API backend uses `@nangohq/node` SDK to:
+
 - Trigger OAuth flows via session tokens
 - Retrieve fresh access tokens for API calls
 - Revoke tokens on disconnect
 
 ## Ports
 
-| Port | Purpose |
-|---|---|
-| 3003 | Nango API + Dashboard |
+| Port | Purpose                          |
+| ---- | -------------------------------- |
+| 3003 | Nango API + Dashboard            |
 | 3009 | Connect UI (OAuth flow frontend) |
 
 ## License

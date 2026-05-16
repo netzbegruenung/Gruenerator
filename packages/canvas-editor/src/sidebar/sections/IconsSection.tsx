@@ -151,7 +151,9 @@ export function IconsSection({
         <>
           <div ref={sentinelRef} className="h-px w-full" />
           {hasMore && !paginationLoading && (
-            <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]', 'mt-2')}>
+            <div
+              className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(56px,1fr))]', 'mt-2')}
+            >
               {Array.from({ length: 6 }).map((_, i) => (
                 <Skeleton key={i} className="aspect-square rounded-lg" />
               ))}
