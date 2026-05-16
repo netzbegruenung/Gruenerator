@@ -158,6 +158,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
           remove_missing_on_sync: !!collection.remove_missing_on_sync,
           labels,
           wolke_folders,
+          slug_suffix: collection.slug_suffix ?? null,
         };
       })
     );
@@ -263,6 +264,11 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
 
     const result = await notebookHelper.storeNotebookCollection(collectionData);
     const collectionId = result.collection_id;
+    // storeNotebookCollection minted (or preserved) the slug suffix; refetch to
+    // surface it back to the client so the UI can navigate straight to the
+    // pretty URL instead of falling back to the UUID path.
+    const persisted = await notebookHelper.getNotebookCollection(collectionId);
+    const slugSuffix = persisted?.slug_suffix ?? null;
 
     try {
       await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
@@ -305,6 +311,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
         documents_from_wolke: selection_mode === 'wolke' ? wolkeDocuments.length : 0,
         wolke_share_links: selection_mode === 'wolke' ? wolke_share_link_ids : [],
         created_at: new Date().toISOString(),
+        slug_suffix: slugSuffix,
       },
       message: `Notebook collection created successfully with ${allDocumentIds.length} document(s)`,
     });

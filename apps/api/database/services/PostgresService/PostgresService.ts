@@ -93,6 +93,22 @@ export class PostgresService {
         );
       }
 
+      // Run idempotent data backfills that touch Qdrant payloads (not SQL).
+      // Dynamic import so the migrations module isn't required for tests that
+      // construct PostgresService without notebook infra. Failures inside the
+      // backfill itself are swallowed by the runner — only an import error
+      // would propagate here.
+      try {
+        const { backfillNotebookSlugSuffixes } =
+          await import('../../../services/migrations/backfillNotebookSlugSuffixes.js');
+        await backfillNotebookSlugSuffixes();
+      } catch (error) {
+        console.warn(
+          '[PostgresService] ⚠️ Notebook slug backfill skipped:',
+          (error as Error).message
+        );
+      }
+
       // Auto-sync schema columns (non-critical — log internally)
       let schemaOk = true;
       try {
