@@ -1,11 +1,12 @@
 'use client';
 
 import { GrueneratorThread } from '@gruenerator/chat';
-import type { ReactNode } from 'react';
 
 import { DocAiEditToggle } from './DocAiEditToggle';
 import { useDocsChat } from './DocsChatProvider';
 import { SelectionChip } from './SelectionChip';
+
+import type { ReactNode } from 'react';
 
 function DocsChatStatus({ children }: { children: ReactNode }) {
   return (
@@ -27,16 +28,14 @@ export function DocsAssistantChat() {
   }
 
   if (state.status === 'error') {
-    return (
-      <DocsChatStatus>Chat konnte nicht geladen werden: {state.error.message}</DocsChatStatus>
-    );
+    return <DocsChatStatus>Chat konnte nicht geladen werden: {state.error.message}</DocsChatStatus>;
   }
 
   return (
     <GrueneratorThread
       firstName={state.userName ?? null}
       density="compact"
-      composerLayout="compact-overflow"
+      showToolToggles={false}
       composerSlots={{
         aboveInput: <SelectionChip documentId={state.documentId} />,
         sendAdornment: (

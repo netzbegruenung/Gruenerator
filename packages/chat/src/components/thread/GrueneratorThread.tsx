@@ -29,7 +29,6 @@ interface GrueneratorThreadProps {
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
   showModelPicker?: boolean;
-  composerLayout?: 'default' | 'compact-overflow';
   composerSlots?: {
     aboveInput?: ReactNode;
     belowInput?: ReactNode;
@@ -82,7 +81,6 @@ export function GrueneratorThread({
   showPlusMenu,
   showToolToggles,
   showModelPicker,
-  composerLayout,
   composerSlots,
   requireProfileHydration,
   userLocale,
@@ -155,7 +153,6 @@ export function GrueneratorThread({
           {...(showPlusMenu !== undefined && { showPlusMenu })}
           {...(showToolToggles !== undefined && { showToolToggles })}
           {...(showModelPicker !== undefined && { showModelPicker })}
-          {...(composerLayout !== undefined && { layout: composerLayout })}
           {...(composerSlots ? { slots: composerSlots } : {})}
           {...(requireProfileHydration !== undefined && { requireProfileHydration })}
         />
