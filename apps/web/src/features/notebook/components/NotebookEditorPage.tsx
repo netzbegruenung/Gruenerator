@@ -8,6 +8,7 @@ import {
   EmptyTitle,
   toast,
 } from '@gruenerator/ui';
+import { buildNotebookSlug, extractSlugSuffix } from '@gruenerator/shared/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { HiArrowLeft, HiShare } from 'react-icons/hi';
@@ -44,7 +45,13 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
   const collections = useMemo<NotebookCollection[]>(() => query.data ?? [], [query.data]);
   const editingCollection = useMemo<NotebookCollection | null>(() => {
     if (mode !== 'edit' || !params.id) return null;
-    return collections.find((c) => c.id === params.id) ?? null;
+    const byId = collections.find((c) => c.id === params.id);
+    if (byId) return byId;
+    const suffix = extractSlugSuffix(params.id);
+    if (suffix) {
+      return collections.find((c) => c.slug_suffix === suffix) ?? null;
+    }
+    return null;
   }, [collections, mode, params.id]);
 
   const goBack = useCallback(() => {
@@ -82,7 +89,7 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
 
   const handleCreateSave = useCallback(
     async (data: NotebookEditorSavePayload) => {
-      await createQACollection({
+      const created = await createQACollection({
         name: data.name,
         description: data.description,
         documents: data.documents,
@@ -92,9 +99,12 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
         wolkeFolders: data.wolkeFolders,
       });
       toast.success(`Notebook „${data.name}" erstellt`);
-      goBack();
+      const slug = created.slug_suffix
+        ? buildNotebookSlug(created.name, created.slug_suffix)
+        : created.id;
+      void navigate(`/notebooks/${slug}/bearbeiten`);
     },
-    [createQACollection, goBack]
+    [createQACollection, navigate]
   );
 
   const commitHeroName = useCallback(
