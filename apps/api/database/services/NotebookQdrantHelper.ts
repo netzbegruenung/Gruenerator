@@ -24,6 +24,28 @@ const logger = createLogger('NotebookQdrantHelper');
 
 type PublicOwnership = 'owner' | 'public_data';
 
+export type NotebookShareMode = 'private' | 'groups' | 'authenticated';
+export type NotebookEditPolicy = 'owner_only' | 'group_admins' | 'all_members';
+
+const NOTEBOOK_SHARE_MODES: readonly NotebookShareMode[] = ['private', 'groups', 'authenticated'];
+const NOTEBOOK_EDIT_POLICIES: readonly NotebookEditPolicy[] = [
+  'owner_only',
+  'group_admins',
+  'all_members',
+];
+
+function normalizeShareMode(raw: unknown): NotebookShareMode {
+  return NOTEBOOK_SHARE_MODES.includes(raw as NotebookShareMode)
+    ? (raw as NotebookShareMode)
+    : 'private';
+}
+
+function normalizeEditPolicy(raw: unknown): NotebookEditPolicy {
+  return NOTEBOOK_EDIT_POLICIES.includes(raw as NotebookEditPolicy)
+    ? (raw as NotebookEditPolicy)
+    : 'owner_only';
+}
+
 interface NotebookCollectionData {
   id?: string;
   user_id: string;
@@ -42,6 +64,8 @@ interface NotebookCollectionData {
   updated_at?: string;
   is_public?: boolean;
   public_ownership?: PublicOwnership | null;
+  share_mode?: NotebookShareMode;
+  edit_policy?: NotebookEditPolicy;
 }
 
 interface NotebookCollection {
@@ -62,6 +86,8 @@ interface NotebookCollection {
   last_used_at: string | null;
   is_public: boolean;
   public_ownership: PublicOwnership | null;
+  share_mode: NotebookShareMode;
+  edit_policy: NotebookEditPolicy;
   notebook_collection_documents?: CollectionDocument[];
 }
 
@@ -201,6 +227,8 @@ class NotebookQdrantHelper {
           last_used_at: collectionData.last_used_at || null,
           is_public: collectionData.is_public === true,
           public_ownership: collectionData.public_ownership ?? null,
+          share_mode: normalizeShareMode(collectionData.share_mode),
+          edit_policy: normalizeEditPolicy(collectionData.edit_policy),
         },
       };
 
@@ -461,46 +489,12 @@ class NotebookQdrantHelper {
   }
 
   /**
-   * Create public access token
-   */
-  async createPublicAccess(
-    collectionId: string,
-    createdBy: string | null = null,
-    expiresAt: string | null = null
-  ): Promise<{ success: boolean; access_token: string }> {
-    await this.ensureInitialized();
-
-    try {
-      const accessToken = crypto.randomBytes(32).toString('hex');
-
-      const point: QdrantPoint = {
-        id: this.generateNumericId(accessToken),
-        vector: this.generateDummyVector(),
-        payload: {
-          collection_id: collectionId,
-          access_token: accessToken,
-          created_at: new Date().toISOString(),
-          expires_at: expiresAt,
-          created_by: createdBy,
-          is_active: true,
-          view_count: 0,
-          last_accessed_at: null,
-        },
-      };
-
-      await this.qdrantOps!.batchUpsert(this.qdrant.collections.notebook_public_access, [point]);
-
-      logger.info(`Created public access for collection: ${collectionId}`);
-      return { success: true, access_token: accessToken };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Error creating public access: ${message}`);
-      throw new Error(`Failed to create public access: ${message}`);
-    }
-  }
-
-  /**
    * Get public access by token
+   *
+   * Token creation/revocation was removed when the notebook share model moved
+   * to share_mode + edit_policy + group_content_shares. Existing tokens in the
+   * Qdrant `notebook_public_access` collection still resolve here so previously
+   * issued public links keep working until they expire or are cleaned up.
    */
   async getPublicAccess(accessToken: string): Promise<PublicAccessData | null> {
     await this.ensureInitialized();
@@ -535,28 +529,6 @@ class NotebookQdrantHelper {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Error getting public access: ${message}`);
       throw new Error(`Failed to get public access: ${message}`);
-    }
-  }
-
-  /**
-   * Revoke public access
-   */
-  async revokePublicAccess(collectionId: string): Promise<{ success: boolean }> {
-    await this.ensureInitialized();
-
-    try {
-      const filter: QdrantFilter = {
-        must: [{ key: 'collection_id', match: { value: collectionId } }],
-      };
-
-      await this.qdrantOps!.batchDelete(this.qdrant.collections.notebook_public_access, filter);
-
-      logger.info(`Revoked public access for collection: ${collectionId}`);
-      return { success: true };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Error revoking public access: ${message}`);
-      throw new Error(`Failed to revoke public access: ${message}`);
     }
   }
 
@@ -633,7 +605,78 @@ class NotebookQdrantHelper {
       last_used_at: payload.last_used_at as string | null,
       is_public: payload.is_public === true,
       public_ownership: publicOwnership,
+      share_mode: normalizeShareMode(payload.share_mode),
+      edit_policy: normalizeEditPolicy(payload.edit_policy),
     };
+  }
+
+  /**
+   * Fetch notebook collections by an explicit list of IDs.
+   * Used by listAccessibleCollections to materialize group-shared notebooks.
+   */
+  async getNotebookCollectionsByIds(collectionIds: string[]): Promise<NotebookCollection[]> {
+    await this.ensureInitialized();
+    if (collectionIds.length === 0) return [];
+
+    try {
+      const filter: QdrantFilter = {
+        must: [{ key: 'collection_id', match: { any: collectionIds } }],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collections,
+        filter,
+        { limit: Math.max(collectionIds.length, 100), withPayload: true }
+      );
+
+      const collections = results.map((result: ScrollPoint) =>
+        this.formatCollectionFromPayload(result.payload)
+      );
+
+      for (const collection of collections) {
+        const documents = await this.getCollectionDocuments(collection.id);
+        collection.notebook_collection_documents = documents;
+        collection.document_count = documents.length;
+      }
+
+      return collections;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error fetching notebook collections by ids: ${message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch notebook collections by share_mode (e.g., 'authenticated').
+   * Lets listAccessibleCollections surface notebooks readable to any logged-in
+   * user without per-id lookups.
+   */
+  async getNotebookCollectionsByShareMode(
+    shareMode: NotebookShareMode,
+    options: GetCollectionsOptions = {}
+  ): Promise<NotebookCollection[]> {
+    await this.ensureInitialized();
+
+    try {
+      const { limit = 200, offset = 0 } = options;
+
+      const filter: QdrantFilter = {
+        must: [{ key: 'share_mode', match: { value: shareMode } }],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collections,
+        filter,
+        { limit, offset, withPayload: true }
+      );
+
+      return results.map((result: ScrollPoint) => this.formatCollectionFromPayload(result.payload));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error fetching notebook collections by share_mode: ${message}`);
+      return [];
+    }
   }
 
   /**

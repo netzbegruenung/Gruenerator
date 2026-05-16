@@ -263,16 +263,6 @@ export interface NotebookCollectionDocumentRow {
   added_by: string | null;
 }
 
-export interface NotebookPublicAccessRow {
-  id: string;
-  collection_id: string;
-  access_token: string;
-  created_at: Date;
-  expires_at: Date | null;
-  created_by: string | null;
-  is_active: boolean;
-}
-
 export interface NotebookUsageLogRow {
   id: string;
   collection_id: string | null;
@@ -794,7 +784,6 @@ export interface Database {
   yjs_document_updates: YjsDocumentUpdateRow;
   notebook_collections: NotebookCollectionRow;
   notebook_collection_documents: NotebookCollectionDocumentRow;
-  notebook_public_access: NotebookPublicAccessRow;
   notebook_usage_logs: NotebookUsageLogRow;
   custom_generators: CustomGeneratorRow;
   custom_generator_documents: CustomGeneratorDocumentRow;

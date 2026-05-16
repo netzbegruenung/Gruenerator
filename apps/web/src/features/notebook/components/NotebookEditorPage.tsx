@@ -10,17 +10,19 @@ import {
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
-import { HiArrowLeft } from 'react-icons/hi';
+import { HiArrowLeft, HiShare } from 'react-icons/hi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../../components/common/PageContainer';
 import ErrorBoundary from '../../../components/ErrorBoundary';
+import { useAuthStore } from '../../../stores/authStore';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 
 import NotebookEditor from './NotebookEditor';
+import { NotebookShareModal } from './NotebookShareModal';
 
 import type { NotebookCollection } from '../../../types/notebook';
 
@@ -33,9 +35,11 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
   const queryClient = useQueryClient();
   const params = useParams<{ id: string }>();
   const pollDocumentStatus = useDocumentsStore((s) => s.pollDocumentStatus);
+  const currentUserId = useAuthStore((s) => s.user?.id ?? null);
   const { query, createQACollection, updateQACollection, isCreating, isUpdating } =
     useNotebookCollections({ isActive: true });
   const [editingField, setEditingField] = useState<'name' | 'desc' | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const collections = useMemo<NotebookCollection[]>(() => query.data ?? [], [query.data]);
   const editingCollection = useMemo<NotebookCollection | null>(() => {
@@ -132,7 +136,7 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
   return (
     <ErrorBoundary>
       <PageContainer maxWidth="lg" noPadTop>
-        <div className="mb-md">
+        <div className="mb-md flex items-center justify-between gap-md">
           <Button
             variant="ghost"
             size="sm"
@@ -142,7 +146,28 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
             <HiArrowLeft size={14} />
             Meine Notebooks
           </Button>
+          {mode === 'edit' &&
+          editingCollection &&
+          currentUserId &&
+          editingCollection.user_id === currentUserId ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShareOpen(true)}
+              className="gap-xs"
+            >
+              <HiShare size={14} />
+              Teilen
+            </Button>
+          ) : null}
         </div>
+        {mode === 'edit' && editingCollection ? (
+          <NotebookShareModal
+            notebookId={editingCollection.id}
+            open={shareOpen}
+            onOpenChange={setShareOpen}
+          />
+        ) : null}
 
         {mode === 'edit' && editingCollection ? (
           <div className="mb-xl text-center">

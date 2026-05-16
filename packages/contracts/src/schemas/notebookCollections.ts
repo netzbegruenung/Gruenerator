@@ -13,6 +13,19 @@ import { z } from 'zod';
 export const publicOwnershipSchema = z.enum(['owner', 'public_data']);
 export type PublicOwnership = z.infer<typeof publicOwnershipSchema>;
 
+export const notebookShareModeSchema = z.enum(['private', 'groups', 'authenticated']);
+export type NotebookShareMode = z.infer<typeof notebookShareModeSchema>;
+
+export const notebookEditPolicySchema = z.enum(['owner_only', 'group_admins', 'all_members']);
+export type NotebookEditPolicy = z.infer<typeof notebookEditPolicySchema>;
+
+/**
+ * Tag every notebook in a list response with how the calling user can reach it.
+ * Lets the UI render a "Mit dir geteilt" section without re-querying access.
+ */
+export const notebookAccessSourceSchema = z.enum(['owned', 'shared', 'authenticated']);
+export type NotebookAccessSource = z.infer<typeof notebookAccessSourceSchema>;
+
 /**
  * Experimental: Wolke folder attached to a notebook.
  *
@@ -138,6 +151,9 @@ export const transformedCollectionSchema = z.object({
   public_ownership: publicOwnershipSchema.nullable().optional(),
   wolke_folders: z.array(wolkeFolderRefSchema).nullish(),
   likes_count: z.number().nullish(),
+  share_mode: notebookShareModeSchema.nullish(),
+  edit_policy: notebookEditPolicySchema.nullish(),
+  access_source: notebookAccessSourceSchema.nullish(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────
@@ -199,13 +215,6 @@ export const searchResultItemSchema = z.object({
 
 export const simpleSuccessMessageSchema = z.object({
   success: z.boolean(),
-  message: z.string(),
-});
-
-export const shareCollectionResponseSchema = z.object({
-  success: z.boolean(),
-  public_url: z.string(),
-  access_token: z.string(),
   message: z.string(),
 });
 
