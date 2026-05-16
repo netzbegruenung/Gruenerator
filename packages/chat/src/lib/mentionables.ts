@@ -24,12 +24,20 @@ import {
   PiFileText,
   PiPaperclip,
   PiSparkle,
+  PiCloud,
   PiNotePencil,
 } from 'react-icons/pi';
 import { MdDiversity1 } from 'react-icons/md';
 import { agentsList, type AgentListItem } from './agents';
 
-export type MentionableType = 'agent' | 'notebook' | 'tool' | 'document' | 'board' | 'doc';
+export type MentionableType =
+  | 'agent'
+  | 'notebook'
+  | 'tool'
+  | 'document'
+  | 'board'
+  | 'doc'
+  | 'wolke';
 export type MentionableCategory = 'skill' | 'function';
 
 export interface Mentionable {
@@ -544,6 +552,80 @@ export const documentMentionables: Mentionable[] = [
   },
 ];
 
+// @wolke opens a sub-popover that lets the user pick files from their
+// connected Nextcloud share link(s). Selected files are inserted into the
+// text as opaque `@wolke:<base64>` tokens which the parser decodes back into
+// {shareLinkId, path, name} refs sent in the request body.
+export const wolkeMentionables: Mentionable[] = [
+  {
+    type: 'wolke',
+    category: 'function',
+    trigger: '@',
+    identifier: 'wolke-trigger',
+    title: 'Wolke',
+    description: 'Eigene Wolke-Dateien einfügen',
+    avatar: '☁️',
+    icon: PiCloud,
+    backgroundColor: '#0EA5E9',
+    mention: 'wolke',
+  },
+];
+
+export interface WolkeFileToken {
+  shareLinkId: string;
+  path: string;
+  name: string;
+}
+
+// Base64-url encoding so the resulting token has no spaces, '/', or '+'
+// characters that would break the `(\S+)` mention regex.
+function toBase64Url(input: string): string {
+  if (typeof globalThis.btoa === 'function') {
+    return globalThis
+      .btoa(unescape(encodeURIComponent(input)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  }
+  return Buffer.from(input, 'utf-8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+function fromBase64Url(input: string): string {
+  const padded = input.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4));
+  const full = padded + pad;
+  if (typeof globalThis.atob === 'function') {
+    return decodeURIComponent(escape(globalThis.atob(full)));
+  }
+  return Buffer.from(full, 'base64').toString('utf-8');
+}
+
+export function encodeWolkeToken(ref: WolkeFileToken): string {
+  return `@wolke:${toBase64Url(JSON.stringify(ref))}`;
+}
+
+export function decodeWolkeToken(token: string): WolkeFileToken | null {
+  try {
+    const parsed = JSON.parse(fromBase64Url(token)) as unknown;
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof (parsed as Record<string, unknown>).shareLinkId === 'string' &&
+      typeof (parsed as Record<string, unknown>).path === 'string' &&
+      typeof (parsed as Record<string, unknown>).name === 'string'
+    ) {
+      return parsed as WolkeFileToken;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function getAllMentionables(): Mentionable[] {
   return [
     ...agentMentionables,
@@ -556,6 +638,7 @@ export function getAllMentionables(): Mentionable[] {
     ...docToolMentionables,
     ...dynamicDocMentionables,
     ...documentMentionables,
+    ...wolkeMentionables,
   ];
 }
 
@@ -574,6 +657,7 @@ function rebuildMentionableMap(): void {
     docToolMentionables,
     dynamicDocMentionables,
     documentMentionables,
+    wolkeMentionables,
   ];
   for (const source of orderedSources) {
     for (const m of source) {
@@ -601,6 +685,7 @@ export function filterMentionables(query: string): {
   boards: Mentionable[];
   docs: Mentionable[];
   documents: Mentionable[];
+  wolke: Mentionable[];
 } {
   const allBoards = [...boardToolMentionables, ...dynamicBoardMentionables];
   const allDocs = [...docToolMentionables, ...dynamicDocMentionables];
@@ -614,6 +699,7 @@ export function filterMentionables(query: string): {
       boards: allBoards,
       docs: allDocs,
       documents: documentMentionables,
+      wolke: wolkeMentionables,
     };
   }
   const q = query.toLowerCase();
@@ -631,6 +717,7 @@ export function filterMentionables(query: string): {
     boards: 'board'.startsWith(q) || q.startsWith('board') ? allBoards : allBoards.filter(matchFn),
     docs: 'dok'.startsWith(q) || q.startsWith('dok') ? allDocs : allDocs.filter(matchFn),
     documents: documentMentionables.filter(matchFn),
+    wolke: wolkeMentionables.filter(matchFn),
   };
 }
 
@@ -647,6 +734,7 @@ export function filterMentionablesByCategory(
     ...all.boards,
     ...all.docs,
     ...all.documents,
+    ...all.wolke,
     ...all.userNotebooks,
     ...all.notebooks,
   ];

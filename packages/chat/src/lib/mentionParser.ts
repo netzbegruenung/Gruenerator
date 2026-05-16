@@ -1,6 +1,6 @@
 import { getDefaultAgent } from './agents';
 import { resolveDocumentSlug } from './documentMentionables';
-import { resolveMentionable } from './mentionables';
+import { decodeWolkeToken, resolveMentionable, type WolkeFileToken } from './mentionables';
 
 export interface MentionResult {
   agentId: string;
@@ -18,6 +18,7 @@ export interface ParsedMentions {
   hasDocumentChat: boolean;
   boardIds: string[];
   docMentionIds: string[];
+  wolkeFiles: WolkeFileToken[];
   unresolvedMentions: string[];
   cleanText: string;
 }
@@ -54,12 +55,14 @@ export function parseAllMentions(text: string): ParsedMentions {
   const textIds: string[] = [];
   const boardIds: string[] = [];
   const docMentionIds: string[] = [];
+  const wolkeFiles: WolkeFileToken[] = [];
   const seenNotebooks = new Set<string>();
   const seenTools = new Set<string>();
   const seenDocuments = new Set<string>();
   const seenTexts = new Set<string>();
   const seenBoards = new Set<string>();
   const seenDocMentions = new Set<string>();
+  const seenWolke = new Set<string>();
   const unresolvedMentions: string[] = [];
   const mentionSpans: [number, number][] = [];
 
@@ -96,6 +99,29 @@ export function parseAllMentions(text: string): ParsedMentions {
     // Handle bare @dokumentchat trigger (strip from text; signal via hasDocumentChat flag)
     if (trigger === '@' && alias === 'dokumentchat') {
       hasDocumentChat = true;
+      const triggerIndex = match.index + match[0].indexOf('@');
+      mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
+      continue;
+    }
+
+    // Handle @wolke:<base64-token> — decoded into wolkeFiles
+    if (trigger === '@' && alias.startsWith('wolke:')) {
+      const token = alias.slice(6);
+      const ref = decodeWolkeToken(token);
+      if (ref) {
+        const key = `${ref.shareLinkId}:${ref.path}`;
+        if (!seenWolke.has(key)) {
+          seenWolke.add(key);
+          wolkeFiles.push(ref);
+        }
+      }
+      const triggerIndex = match.index + match[0].indexOf('@');
+      mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
+      continue;
+    }
+
+    // Handle bare @wolke trigger (popover hint — strip, no payload)
+    if (trigger === '@' && alias === 'wolke') {
       const triggerIndex = match.index + match[0].indexOf('@');
       mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
       continue;
@@ -165,6 +191,7 @@ export function parseAllMentions(text: string): ParsedMentions {
     hasDocumentChat,
     boardIds,
     docMentionIds,
+    wolkeFiles,
     unresolvedMentions,
     cleanText,
   };
@@ -177,6 +204,7 @@ export type MentionPreviewKind =
   | 'tool'
   | 'notebook'
   | 'board'
+  | 'wolke'
   | 'unresolved';
 
 export interface MentionPreview {
@@ -210,7 +238,31 @@ export function extractMentionPreviews(text: string): MentionPreview[] {
     // types and shouldn't render chips (especially red unresolved ones).
     if (end === text.length) continue;
 
-    if (trigger === '@' && (alias === 'datei' || alias === 'dokumentchat')) {
+    if (trigger === '@' && (alias === 'datei' || alias === 'dokumentchat' || alias === 'wolke')) {
+      continue;
+    }
+
+    if (trigger === '@' && alias.startsWith('wolke:')) {
+      const token = alias.slice(6);
+      const ref = decodeWolkeToken(token);
+      if (ref) {
+        previews.push({
+          kind: 'wolke',
+          match: literal,
+          start: triggerIndex,
+          end,
+          title: ref.name,
+          avatar: '☁️',
+        });
+      } else {
+        previews.push({
+          kind: 'unresolved',
+          match: literal,
+          start: triggerIndex,
+          end,
+          title: alias,
+        });
+      }
       continue;
     }
 

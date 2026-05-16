@@ -33,6 +33,12 @@ export interface ChatConfig {
     canvasType: string,
     initialProps: Record<string, unknown>
   ) => Promise<string | null>;
+  /**
+   * URL the @wolke picker links to when the user hasn't connected any
+   * Nextcloud share link yet. Platform-specific (web: `/wolke`, native: a deep
+   * link). Omit to hide the CTA — only the warning copy renders.
+   */
+  wolkeConnectUrl?: string;
 }
 
 export interface ResolvedEndpoints {
@@ -112,6 +118,8 @@ interface ChatConfigStore extends ResolvedChatConfig {
     canvasType: string,
     initialProps: Record<string, unknown>
   ) => Promise<string | null>;
+  /** URL the @wolke empty-state CTA opens (new tab). Hidden when unset. */
+  wolkeConnectUrl?: string;
   /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
   contextProviders: Map<string, ChatRequestContextProvider>;
   /** Register a context provider for a thread. Returns the unregister function. */
@@ -177,6 +185,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   endpoints: DEFAULT_ENDPOINTS,
   docsBaseUrl: undefined,
   onEditInDocs: undefined,
+  wolkeConnectUrl: undefined,
   contextProviders: new Map(),
   documentEditHandlers: new Map(),
 
@@ -189,6 +198,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       onEditInDocs: config?.onEditInDocs,
       onEditSharepic: config?.onEditSharepic,
       renderSharepic: config?.renderSharepic,
+      wolkeConnectUrl: config?.wolkeConnectUrl,
     });
   },
 

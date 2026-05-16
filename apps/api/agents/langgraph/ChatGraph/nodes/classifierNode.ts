@@ -72,6 +72,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     documentChatIds: state.documentChatIds ?? [],
     docMentionIds: state.docMentionIds ?? [],
     notebookIds: state.notebookIds ?? [],
+    wolkeFiles: state.wolkeFiles ?? [],
     threadAttachments: state.threadAttachments ?? [],
     currentDocument: state.currentDocument ?? null,
   });
@@ -137,6 +138,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const hasNotebooks = state.notebookIds && state.notebookIds.length > 0;
     const hasDocuments = state.documentIds && state.documentIds.length > 0;
     const hasDocumentChat = state.documentChatIds && state.documentChatIds.length > 0;
+    const hasWolkeFiles = state.wolkeFiles && state.wolkeFiles.length > 0;
     const hasBoards = state.boardIds && state.boardIds.length > 0;
     // Open document in the docs-editor is primary context, not retrieval scope.
     // Distinct from documentChatIds — we do NOT force-route to search for it.
@@ -326,6 +328,22 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
       return classifyWithForcedSearch({
         reason: 'Document',
         docCount: state.documentIds.length,
+        aiWorkerPool,
+        userContent,
+        conversationContext,
+        topicalContext,
+        temporal,
+        complexity,
+        startTime,
+      });
+    }
+
+    // @wolke selections force search intent — the wolke file content must reach
+    // respondNode via perSourceResults, and that only happens inside the search path.
+    if (hasWolkeFiles && userContent.length > 0) {
+      return classifyWithForcedSearch({
+        reason: 'Wolke',
+        docCount: state.wolkeFiles.length,
         aiWorkerPool,
         userContent,
         conversationContext,
