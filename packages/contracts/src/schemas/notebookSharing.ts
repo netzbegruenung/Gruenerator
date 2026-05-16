@@ -9,13 +9,18 @@
  */
 import { z } from 'zod';
 
-import { notebookEditPolicySchema, notebookShareModeSchema } from './notebookCollections.js';
+import {
+  notebookAudienceSchema,
+  notebookEditPolicySchema,
+  notebookShareModeSchema,
+} from './notebookCollections.js';
 
 // ── Settings shape ──────────────────────────────────────────────────────────
 
 export const notebookShareSettingsSchema = z.object({
   share_mode: notebookShareModeSchema,
   edit_policy: notebookEditPolicySchema,
+  audience: notebookAudienceSchema,
 });
 export type NotebookShareSettings = z.infer<typeof notebookShareSettingsSchema>;
 
@@ -27,6 +32,10 @@ export const notebookShareModeBodySchema = z.object({
 
 export const notebookEditPolicyBodySchema = z.object({
   policy: notebookEditPolicySchema,
+});
+
+export const notebookAudienceBodySchema = z.object({
+  audience: notebookAudienceSchema,
 });
 
 export const notebookAddGroupShareBodySchema = z.object({

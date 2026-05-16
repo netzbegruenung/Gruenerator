@@ -18,6 +18,7 @@ import { z } from 'zod';
 import { notebookErrorResponseSchema } from '../schemas/notebook.js';
 import {
   notebookAddGroupShareBodySchema,
+  notebookAudienceBodySchema,
   notebookEditPolicyBodySchema,
   notebookGroupSharesResponseSchema,
   notebookShareErrorResponseSchema,
@@ -101,6 +102,28 @@ export const notebookSharingContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'Set notebook edit policy',
+    },
+
+    /**
+     * PUT /api/auth/notebook-collections/:id/share/audience
+     * Update locale audience (de-DE | de-AT | all). Owner only.
+     * Only filters the `share_mode='authenticated'` listing — owners and
+     * explicit group-share viewers always see the notebook regardless of
+     * audience.
+     */
+    setAudience: {
+      method: 'PUT',
+      path: '/api/auth/notebook-collections/:id/share/audience',
+      pathParams: z.object({ id: z.string() }),
+      body: notebookAudienceBodySchema,
+      responses: {
+        200: notebookSimpleSuccessSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Set notebook locale audience',
     },
 
     /**
