@@ -15,7 +15,7 @@
  * guard only — should never fire in production).
  */
 
-import { notebookCollectionsContract } from '@gruenerator/contracts';
+import { notebookCollectionsContract, type WolkeFolderRef } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { env } from '../../config/env.js';
@@ -153,6 +153,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
 
           const settings = (collection.settings as Record<string, unknown>) || {};
           const labels = Array.isArray(settings.labels) ? (settings.labels as string[]) : [];
+          const wolke_folders = Array.isArray(settings.wolke_folders)
+            ? (settings.wolke_folders as WolkeFolderRef[])
+            : [];
 
           return {
             ...collection,
@@ -165,6 +168,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
             auto_sync: !!collection.auto_sync,
             remove_missing_on_sync: !!collection.remove_missing_on_sync,
             labels,
+            wolke_folders,
             is_public: collection.is_public === true,
             public_ownership: collection.public_ownership ?? null,
           };
@@ -221,6 +225,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
 
           const settings = (collection.settings as Record<string, unknown>) || {};
           const labels = Array.isArray(settings.labels) ? (settings.labels as string[]) : [];
+          const wolke_folders = Array.isArray(settings.wolke_folders)
+            ? (settings.wolke_folders as WolkeFolderRef[])
+            : [];
 
           return {
             ...collection,
@@ -233,6 +240,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
             auto_sync: !!collection.auto_sync,
             remove_missing_on_sync: !!collection.remove_missing_on_sync,
             labels,
+            wolke_folders,
             is_public: collection.is_public === true,
             public_ownership: collection.public_ownership ?? null,
           };
@@ -266,11 +274,13 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         labels,
         is_public,
         public_ownership,
+        wolke_folders: wolkeFoldersRaw,
       } = args.body;
 
       const selection_mode = selectionModeRaw ?? 'documents';
       const document_ids = documentIdsRaw ?? [];
       const wolke_share_link_ids = wolkeLinkIdsRaw ?? [];
+      const wolke_folders = Array.isArray(wolkeFoldersRaw) ? wolkeFoldersRaw : [];
 
       if (!name || !name.trim()) {
         return { status: 400 as const, body: { error: 'Name is required' } };
@@ -359,6 +369,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           selection_mode === 'wolke' ? !!(remove_missing_on_sync ?? false) : false,
         settings: {
           ...(Array.isArray(labels) ? { labels: labels.map((l) => l.trim()).filter(Boolean) } : {}),
+          wolke_folders,
         },
         is_public: is_public === true,
         public_ownership: is_public === true ? (public_ownership ?? null) : null,
@@ -438,6 +449,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         labels,
         is_public,
         public_ownership,
+        wolke_folders: wolkeFoldersRaw,
       } = args.body;
 
       const selection_mode = selectionModeRaw ?? 'documents';
@@ -532,12 +544,19 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         wolke_share_link_ids: selection_mode === 'wolke' ? wolke_share_link_ids : null,
       };
 
+      const existingSettings = (existingCollection.settings as Record<string, unknown>) || {};
+      const settingsPatch: Record<string, unknown> = { ...existingSettings };
+      let settingsChanged = false;
       if (Array.isArray(labels)) {
-        const existingSettings = (existingCollection.settings as Record<string, unknown>) || {};
-        updateData.settings = {
-          ...existingSettings,
-          labels: labels.map((l) => l.trim()).filter(Boolean),
-        };
+        settingsPatch.labels = labels.map((l) => l.trim()).filter(Boolean);
+        settingsChanged = true;
+      }
+      if (Array.isArray(wolkeFoldersRaw)) {
+        settingsPatch.wolke_folders = wolkeFoldersRaw;
+        settingsChanged = true;
+      }
+      if (settingsChanged) {
+        updateData.settings = settingsPatch;
       }
 
       if (selection_mode === 'wolke') {

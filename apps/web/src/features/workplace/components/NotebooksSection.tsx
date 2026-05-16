@@ -90,6 +90,7 @@ const NotebooksSection: React.FC = memo(() => {
         name: data.name,
         description: data.description,
         documents: data.documents,
+        wolkeFolders: data.wolkeFolders,
       });
       // Hand off to the progress view, which polls per-document status until terminal.
       // documentMeta carries the upload titles for the progress rows; the IDs from

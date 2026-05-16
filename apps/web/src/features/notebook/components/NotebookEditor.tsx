@@ -1,4 +1,4 @@
-import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
+import { type NotebookEditorSavePayload, type WolkeFolderRef } from '@gruenerator/contracts';
 import { Badge, Button, Input, Label, Separator, Switch } from '@gruenerator/ui';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState, useEffect, useCallback, useRef, type DragEvent } from 'react';
@@ -7,6 +7,10 @@ import { HiArrowLeft, HiUpload, HiX, HiPlus, HiPencil } from 'react-icons/hi';
 
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
+
+import NotebookEditorWolkeSection, {
+  type ImportedWolkeDocument,
+} from './NotebookEditorWolkeSection';
 
 type PublicOwnership = 'owner' | 'public_data';
 
@@ -18,6 +22,7 @@ interface NotebookCollection {
   labels?: string[];
   is_public?: boolean;
   public_ownership?: PublicOwnership | null;
+  wolke_folders?: WolkeFolderRef[];
 }
 
 interface NotebookEditorFormData {
@@ -88,6 +93,7 @@ const NotebookEditor = ({
   const [editing, setEditing] = useState<null | 'name' | 'desc' | 'labels'>(null);
   const [isPublic, setIsPublic] = useState(false);
   const [publicOwnership, setPublicOwnership] = useState<PublicOwnership | null>(null);
+  const [wolkeFolders, setWolkeFolders] = useState<WolkeFolderRef[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { uploadFileOnly, pollDocumentStatus } = useDocumentsStore();
@@ -130,6 +136,7 @@ const NotebookEditor = ({
       setLabels(editingCollection.labels || []);
       setIsPublic(editingCollection.is_public === true);
       setPublicOwnership(editingCollection.public_ownership ?? null);
+      setWolkeFolders(editingCollection.wolke_folders ?? []);
       if (editingCollection.documents?.length) {
         setUploadedDocuments(
           editingCollection.documents.map((doc) => ({
@@ -144,6 +151,7 @@ const NotebookEditor = ({
       setLabels([]);
       setIsPublic(false);
       setPublicOwnership(null);
+      setWolkeFolders([]);
       setUploadedDocuments([]);
       setStep(1);
     }
@@ -263,7 +271,39 @@ const NotebookEditor = ({
     setStep(1);
     reset({ name: '', description: '' });
     setLabels([]);
+    setWolkeFolders([]);
   }, [reset]);
+
+  const handleWolkeDocsImported = useCallback(
+    (docs: ImportedWolkeDocument[]) => {
+      if (docs.length === 0) return;
+      const wasEmpty = uploadedDocuments.length === 0;
+      setUploadedDocuments((prev) => {
+        const seen = new Set(prev.map((d) => d.id));
+        const additions: UploadedDocument[] = docs
+          .filter((d) => !seen.has(d.id))
+          .map((d) => ({ id: d.id, title: d.title }));
+        return [...prev, ...additions];
+      });
+      setIndexingDocIds((prev) => {
+        const next = new Set(prev);
+        docs.forEach((d) => next.add(d.id));
+        return next;
+      });
+      docs.forEach((d) => {
+        void pollDocumentStatus(d.id).finally(() => {
+          setIndexingDocIds((prev) => {
+            if (!prev.has(d.id)) return prev;
+            const next = new Set(prev);
+            next.delete(d.id);
+            return next;
+          });
+        });
+      });
+      if (wasEmpty) setStep(2);
+    },
+    [uploadedDocuments.length, pollDocumentStatus]
+  );
 
   const handleAddLabel = useCallback(() => {
     const trimmed = newLabel.trim();
@@ -293,6 +333,7 @@ const NotebookEditor = ({
       labels,
       isPublic,
       publicOwnership: isPublic ? publicOwnership : null,
+      wolkeFolders,
     };
 
     await onSave(payload);
@@ -305,6 +346,7 @@ const NotebookEditor = ({
     setNewLabel('');
     setIsPublic(false);
     setPublicOwnership(null);
+    setWolkeFolders([]);
     setStep(1);
     if (onCancel) onCancel();
   };
@@ -550,6 +592,14 @@ const NotebookEditor = ({
                     )
                   )}
                 </section>
+
+                <NotebookEditorWolkeSection
+                  folders={wolkeFolders}
+                  onFoldersChange={setWolkeFolders}
+                  remainingSlots={MAX_DOCUMENTS - uploadedDocuments.length}
+                  onDocsImported={handleWolkeDocsImported}
+                  disabled={loading || isUploading}
+                />
 
                 <section
                   className="relative space-y-md"

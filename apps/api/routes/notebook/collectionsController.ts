@@ -30,6 +30,7 @@ import type {
   NotebookCollectionFromQdrant,
 } from './types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { WolkeFolderRef } from '@gruenerator/contracts';
 
 const log = createLogger('notebookCollections');
 const { requireAuth } = authMiddleware;
@@ -142,6 +143,9 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
 
         const settings = (collection.settings as Record<string, unknown>) || {};
         const labels = Array.isArray(settings.labels) ? (settings.labels as string[]) : [];
+        const wolke_folders: WolkeFolderRef[] = Array.isArray(settings.wolke_folders)
+          ? (settings.wolke_folders as WolkeFolderRef[])
+          : [];
 
         return {
           ...collection,
@@ -154,6 +158,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
           auto_sync: !!collection.auto_sync,
           remove_missing_on_sync: !!collection.remove_missing_on_sync,
           labels,
+          wolke_folders,
         };
       })
     );
@@ -187,7 +192,9 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       auto_sync = false,
       remove_missing_on_sync = false,
       labels,
+      wolke_folders: wolkeFoldersRaw,
     } = req.body as CreateCollectionBody;
+    const wolke_folders = Array.isArray(wolkeFoldersRaw) ? wolkeFoldersRaw : [];
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Name is required' });
@@ -251,6 +258,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       remove_missing_on_sync: selection_mode === 'wolke' ? !!remove_missing_on_sync : false,
       settings: {
         ...(Array.isArray(labels) ? { labels: labels.map((l) => l.trim()).filter(Boolean) } : {}),
+        wolke_folders,
       },
     };
 
@@ -328,6 +336,7 @@ router.put(
         auto_sync,
         remove_missing_on_sync,
         labels,
+        wolke_folders: wolkeFoldersRaw,
       } = req.body as UpdateCollectionBody;
 
       if (!name || !name.trim()) {
@@ -395,12 +404,19 @@ router.put(
         wolke_share_link_ids: selection_mode === 'wolke' ? wolke_share_link_ids : null,
       };
 
+      const existingSettings = (existingCollection.settings as Record<string, unknown>) || {};
+      const settingsPatch: Record<string, unknown> = { ...existingSettings };
+      let settingsChanged = false;
       if (Array.isArray(labels)) {
-        const existingSettings = (existingCollection.settings as Record<string, unknown>) || {};
-        updateData.settings = {
-          ...existingSettings,
-          labels: labels.map((l) => l.trim()).filter(Boolean),
-        };
+        settingsPatch.labels = labels.map((l) => l.trim()).filter(Boolean);
+        settingsChanged = true;
+      }
+      if (Array.isArray(wolkeFoldersRaw)) {
+        settingsPatch.wolke_folders = wolkeFoldersRaw;
+        settingsChanged = true;
+      }
+      if (settingsChanged) {
+        updateData.settings = settingsPatch;
       }
 
       if (selection_mode === 'wolke') {

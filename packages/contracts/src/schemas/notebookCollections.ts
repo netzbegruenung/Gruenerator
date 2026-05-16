@@ -13,6 +13,26 @@ import { z } from 'zod';
 export const publicOwnershipSchema = z.enum(['owner', 'public_data']);
 export type PublicOwnership = z.infer<typeof publicOwnershipSchema>;
 
+/**
+ * Experimental: Wolke folder attached to a notebook.
+ *
+ * Persisted inside `settings.wolke_folders` (JSONB on `notebook_collections`).
+ * On HTTP body the field name is snake_case (`wolke_folders`) to match the rest
+ * of the collection contract; the inner object keeps camelCase because the
+ * payload is opaque to Postgres.
+ *
+ * Sync is manual today (button on the editor card). The persisted pointer is
+ * the foundation a future auto-sync follow-up needs.
+ */
+export const wolkeFolderRefSchema = z.object({
+  shareLinkId: z.string(),
+  shareLabel: z.string().nullish(),
+  folderPath: z.string(),
+  folderName: z.string(),
+  lastSyncedAt: z.string().nullable().optional(),
+});
+export type WolkeFolderRef = z.infer<typeof wolkeFolderRefSchema>;
+
 export const createCollectionBodySchema = z.object({
   name: z.string(),
   description: z.string().nullish(),
@@ -25,6 +45,7 @@ export const createCollectionBodySchema = z.object({
   labels: z.array(z.string()).nullish(),
   is_public: z.boolean().nullish(),
   public_ownership: publicOwnershipSchema.nullish(),
+  wolke_folders: z.array(wolkeFolderRefSchema).nullish(),
 });
 
 export const updateCollectionBodySchema = z.object({
@@ -39,6 +60,7 @@ export const updateCollectionBodySchema = z.object({
   labels: z.array(z.string()).nullish(),
   is_public: z.boolean().nullish(),
   public_ownership: publicOwnershipSchema.nullish(),
+  wolke_folders: z.array(wolkeFolderRefSchema).nullish(),
 });
 
 export const bulkDeleteBodySchema = z.object({
@@ -66,6 +88,7 @@ export const notebookEditorSavePayloadSchema = z.object({
   labels: z.array(z.string()),
   isPublic: z.boolean(),
   publicOwnership: publicOwnershipSchema.nullable(),
+  wolkeFolders: z.array(wolkeFolderRefSchema).default([]),
 });
 
 export type NotebookEditorSavePayload = z.infer<typeof notebookEditorSavePayloadSchema>;
@@ -113,6 +136,7 @@ export const transformedCollectionSchema = z.object({
   labels: z.array(z.string()).nullish(),
   is_public: z.boolean().nullish(),
   public_ownership: publicOwnershipSchema.nullable().optional(),
+  wolke_folders: z.array(wolkeFolderRefSchema).nullish(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────
