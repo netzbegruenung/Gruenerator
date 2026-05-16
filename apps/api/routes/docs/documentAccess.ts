@@ -62,8 +62,10 @@ export async function checkDocumentAccess(
 }
 
 export function autoGrantSharePermission(document: CollaborativeDocument, userId: string): void {
+  const isLinkShared =
+    document.share_mode === 'authenticated' || document.share_mode === 'public';
   if (
-    document.share_mode !== 'authenticated' ||
+    !isLinkShared ||
     document.created_by === userId ||
     (document.permissions && document.permissions[userId])
   ) {
