@@ -70,7 +70,10 @@ export const LV_CONTENT_TYPE_LABELS: Record<LandesverbandContentType, string> = 
  * filter only on LVs that have BOTH (Berlin, MV, Thüringen) — for LVs with a single
  * organ the dropdown would render one entry.
  */
-export const LANDESVERBAND_SOURCE_TYPES = ['landesverband', 'fraktion'] as const satisfies readonly string[];
+export const LANDESVERBAND_SOURCE_TYPES = [
+  'landesverband',
+  'fraktion',
+] as const satisfies readonly string[];
 
 export type LandesverbandSourceType = (typeof LANDESVERBAND_SOURCE_TYPES)[number];
 
@@ -110,9 +113,12 @@ export type FilterableFieldName = (typeof FILTERABLE_FIELD_NAMES)[number];
  * accepts only `CuratedListId` keys; declarations for fields without a typed
  * vocabulary fall back to `Record<string, string>`.
  */
-export type ValueLabelsFor<F extends FilterableFieldName> =
-  F extends 'source_id' ? Partial<Record<LandesverbandSourceId, string>>
-  : F extends 'curated_lists' ? Partial<Record<CuratedListId, string>>
-  : F extends 'source_type' ? Partial<Record<LandesverbandSourceType, string>>
-  : F extends 'content_type' ? Partial<Record<LandesverbandContentType, string>>
-  : Record<string, string>;
+export type ValueLabelsFor<F extends FilterableFieldName> = F extends 'source_id'
+  ? Partial<Record<LandesverbandSourceId, string>>
+  : F extends 'curated_lists'
+    ? Partial<Record<CuratedListId, string>>
+    : F extends 'source_type'
+      ? Partial<Record<LandesverbandSourceType, string>>
+      : F extends 'content_type'
+        ? Partial<Record<LandesverbandContentType, string>>
+        : Record<string, string>;

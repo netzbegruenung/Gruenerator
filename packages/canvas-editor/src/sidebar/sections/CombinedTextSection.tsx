@@ -166,8 +166,8 @@ export function CombinedTextSection({
 
       {!hasFreeformText && !hasTemplateFields && !hasCanvasTexts && (
         <SidebarHint>
-          Klicke auf den Text im Canvas, um ihn direkt zu bearbeiten. Du kannst Texte auch per
-          Drag & Drop verschieben.
+          Klicke auf den Text im Canvas, um ihn direkt zu bearbeiten. Du kannst Texte auch per Drag
+          & Drop verschieben.
         </SidebarHint>
       )}
 

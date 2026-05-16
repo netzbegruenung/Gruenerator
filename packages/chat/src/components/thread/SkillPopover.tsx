@@ -59,63 +59,58 @@ export function SkillPopover({
   let itemIndex = 0;
 
   return (
-    <MentionFloatingPanel
-      open={isOpen}
-      onDismiss={onDismiss}
-      width="w-64"
-      role="listbox"
-    >
+    <MentionFloatingPanel open={isOpen} onDismiss={onDismiss} width="w-64" role="listbox">
       <div ref={listRef} className="overflow-y-auto">
-      {quickAccessAgents.length > 0 && (
-        <>
-          <div className="sticky top-0 z-[1] bg-background px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            Skills
-          </div>
-          {quickAccessAgents.map((agent) => {
-            const idx = itemIndex++;
-            return (
-              <SkillItem
-                key={agent.mention}
-                mentionable={agent}
-                isSelected={idx === selectedIndex}
-                onSelect={onSelect}
-              />
-            );
-          })}
-        </>
-      )}
-      {customAgents.length > 0 && (
-        <>
-          <div className="sticky top-0 z-[1] bg-background px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            Meine Skills
-          </div>
-          {customAgents.map((agent) => {
-            const idx = itemIndex++;
-            return (
-              <SkillItem
-                key={agent.mention}
-                mentionable={agent}
-                isSelected={idx === selectedIndex}
-                onSelect={onSelect}
-              />
-            );
-          })}
-        </>
-      )}
-      {showEmptyHint && (
-        <div className="px-3 py-3 text-xs text-foreground-muted">Kein Skill gefunden</div>
-      )}
-      <button
-        type="button"
-        className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-xs text-foreground-muted transition-colors hover:bg-primary/5 hover:text-foreground"
-        onMouseDown={(e) => {
-          e.preventDefault();
-          setLibraryOpen(true);
-        }}
-      >
-        <Library className="h-3.5 w-3.5" />
-        Alle Skills durchsuchen...
-      </button>
+        {quickAccessAgents.length > 0 && (
+          <>
+            <div className="sticky top-0 z-[1] bg-background px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+              Skills
+            </div>
+            {quickAccessAgents.map((agent) => {
+              const idx = itemIndex++;
+              return (
+                <SkillItem
+                  key={agent.mention}
+                  mentionable={agent}
+                  isSelected={idx === selectedIndex}
+                  onSelect={onSelect}
+                />
+              );
+            })}
+          </>
+        )}
+        {customAgents.length > 0 && (
+          <>
+            <div className="sticky top-0 z-[1] bg-background px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+              Meine Skills
+            </div>
+            {customAgents.map((agent) => {
+              const idx = itemIndex++;
+              return (
+                <SkillItem
+                  key={agent.mention}
+                  mentionable={agent}
+                  isSelected={idx === selectedIndex}
+                  onSelect={onSelect}
+                />
+              );
+            })}
+          </>
+        )}
+        {showEmptyHint && (
+          <div className="px-3 py-3 text-xs text-foreground-muted">Kein Skill gefunden</div>
+        )}
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-xs text-foreground-muted transition-colors hover:bg-primary/5 hover:text-foreground"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setLibraryOpen(true);
+          }}
+        >
+          <Library className="h-3.5 w-3.5" />
+          Alle Skills durchsuchen...
+        </button>
       </div>
     </MentionFloatingPanel>
   );

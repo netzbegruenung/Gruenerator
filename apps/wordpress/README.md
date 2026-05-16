@@ -84,6 +84,7 @@ typ(bereich): beschreibung
 ```
 
 Typen:
+
 - `feat:` Neue Features
 - `fix:` Bugfixes
 - `docs:` Dokumentationsänderungen
@@ -92,6 +93,7 @@ Typen:
 - `test:` Test-bezogene Änderungen
 
 Beispiel:
+
 ```bash
 git commit -m "feat(profil): Füge Lebenslauf-Block hinzu"
 ```
@@ -121,4 +123,4 @@ Deine Beiträge sind willkommen! Bitte lies Dir unsere [Contribution Guidelines]
 
 ## 🔗 Verwandte Projekte
 
-- [Sunflower WordPress-Theme](https://github.com/codeispoetry/sunflower) - Das Basis-Theme für dieses Plugin 
+- [Sunflower WordPress-Theme](https://github.com/codeispoetry/sunflower) - Das Basis-Theme für dieses Plugin

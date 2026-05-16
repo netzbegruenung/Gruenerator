@@ -445,9 +445,7 @@ const BlockNoteEditorInner = ({
             createPortal(
               <ErrorBoundary
                 fallback={null}
-                onError={(err) =>
-                  console.warn('[Comments] sidebar render failed:', err)
-                }
+                onError={(err) => console.warn('[Comments] sidebar render failed:', err)}
               >
                 <ThreadsSidebar filter="all" />
               </ErrorBoundary>,

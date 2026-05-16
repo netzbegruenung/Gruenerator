@@ -76,9 +76,7 @@ export function rowToChatMessage(row: DbChatMessageRow): ChatMessage {
     content: row.content ?? '',
     userId: row.user_id,
     createdAt:
-      row.created_at instanceof Date
-        ? row.created_at.toISOString()
-        : (row.created_at ?? undefined),
+      row.created_at instanceof Date ? row.created_at.toISOString() : (row.created_at ?? undefined),
     status: 'complete',
     toolCalls: Array.isArray(row.tool_calls) ? row.tool_calls : undefined,
     metadata: row.sender_name ? { senderName: row.sender_name } : undefined,

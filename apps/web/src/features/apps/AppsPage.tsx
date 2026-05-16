@@ -199,9 +199,7 @@ const ApiAccessSection = () => {
 
   return (
     <section className="flex w-full max-w-[40rem] flex-col items-center gap-6">
-      <h2 className="text-xl font-bold text-foreground-heading">
-        Programmatischer Zugriff (API)
-      </h2>
+      <h2 className="text-xl font-bold text-foreground-heading">Programmatischer Zugriff (API)</h2>
       <p className="text-center text-sm text-grey-600 dark:text-grey-400">
         Du baust eine eigene Integration? Über unsere REST-API kannst du Notebook-Inhalte je
         Landesverband direkt abfragen — mit Authentifizierung über einen API-Key.
@@ -278,10 +276,10 @@ const ApiAccessSection = () => {
       </Accordion>
 
       <p className="text-center text-xs text-grey-500">
-        Auch direkt als MCP-Server nutzbar: dieselbe URL wie oben + <code>Authorization: Bearer</code>{' '}
-        Header — die Tools <code>notebooks_list</code>, <code>notebooks_ask</code>,{' '}
-        <code>notebooks_search</code> und <code>notebooks_get_filters</code> erscheinen dann
-        automatisch.
+        Auch direkt als MCP-Server nutzbar: dieselbe URL wie oben +{' '}
+        <code>Authorization: Bearer</code> Header — die Tools <code>notebooks_list</code>,{' '}
+        <code>notebooks_ask</code>, <code>notebooks_search</code> und{' '}
+        <code>notebooks_get_filters</code> erscheinen dann automatisch.
       </p>
     </section>
   );

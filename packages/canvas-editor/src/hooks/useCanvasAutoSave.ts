@@ -186,122 +186,125 @@ export const useCanvasAutoSave = (
   };
 
   // Stable auto-save function that reads from refs
-  const performAutoSave = useCallback(async (imageSrc: string) => {
-    const refs = latestRefs.current;
-    // Read current store state directly to avoid stale closures
-    const storeState = autoSaveStoreApi.getState();
+  const performAutoSave = useCallback(
+    async (imageSrc: string) => {
+      const refs = latestRefs.current;
+      // Read current store state directly to avoid stale closures
+      const storeState = autoSaveStoreApi.getState();
 
-    console.log('[AutoSave][performAutoSave] entry', {
-      canvasType: refs.canvasType,
-      enabled: refs.enabled,
-      hasImageSrc: !!imageSrc,
-      imageSrcLen: imageSrc?.length ?? 0,
-      currentStatus: storeState.autoSaveStatus,
-      currentToken: storeState.autoSavedShareToken,
-      lastSavedImageSame: storeState.lastAutoSavedImageSrc === imageSrc,
-    });
-
-    if (!imageSrc) {
-      console.log('[AutoSave][performAutoSave] skip: no imageSrc');
-      return;
-    }
-    if (refs.enabled === false) {
-      console.log('[AutoSave][performAutoSave] skip: enabled=false');
-      return;
-    }
-    if (storeState.autoSaveStatus === 'saving') {
-      console.log('[AutoSave][performAutoSave] skip: already saving');
-      return;
-    }
-    if (storeState.lastAutoSavedImageSrc === imageSrc) {
-      console.log('[AutoSave][performAutoSave] skip: imageSrc identical to last save (dedup)');
-      return;
-    }
-
-    refs.setAutoSaveStatus('saving');
-
-    try {
-      const title = `Canvas: ${refs.canvasType}`;
-
-      let share;
-
-      // Resolve the original background. Prefer the in-state Blob; if unavailable
-      // (image arrived via imageSrc URL prop), fetch the URL once. Without this
-      // fallback, sharepics created with a default background lose it on reload
-      // because hasOriginalImage flagged true but no file was ever uploaded.
-      let originalImageBase64: string | undefined;
-      const bgFile = refs.canvasState.backgroundImageFile as File | Blob | null | undefined;
-      const currentImageSrc = refs.canvasState.currentImageSrc as string | undefined;
-      if (bgFile) {
-        try {
-          originalImageBase64 = await fileToBase64(bgFile);
-        } catch (err) {
-          console.warn('[AutoSave] Failed to convert background image to base64:', err);
-        }
-      } else if (currentImageSrc) {
-        try {
-          const res = await fetch(currentImageSrc);
-          if (res.ok) {
-            const blob = await res.blob();
-            originalImageBase64 = await fileToBase64(blob);
-          }
-        } catch (err) {
-          console.warn('[AutoSave] Failed to fetch background image URL for upload:', err);
-        }
-      }
-
-      const metadata = buildCanvasShareMetadata(
-        refs.canvasType,
-        refs.canvasState,
-        !!originalImageBase64
-      );
-
-      // If we already have a shareToken, update the existing entry instead of creating new
-      if (storeState.autoSavedShareToken) {
-        console.log('[AutoSave][performAutoSave] branch: UPDATE', {
-          shareToken: storeState.autoSavedShareToken,
-          hasOriginalImage: !!originalImageBase64,
-        });
-        share = await refs.updateImageShare({
-          shareToken: storeState.autoSavedShareToken,
-          imageBase64: imageSrc,
-          title,
-          metadata,
-          originalImage: originalImageBase64,
-        });
-      } else {
-        console.log('[AutoSave][performAutoSave] branch: CREATE (no token in store)', {
-          hasOriginalImage: !!originalImageBase64,
-        });
-        share = await refs.createImageShare({
-          imageData: imageSrc,
-          title,
-          imageType: refs.canvasType,
-          metadata,
-          originalImage: originalImageBase64,
-          status: 'draft',
-        });
-      }
-
-      console.log('[AutoSave][performAutoSave] api response', {
-        gotShareToken: !!share?.shareToken,
-        shareToken: share?.shareToken ?? null,
+      console.log('[AutoSave][performAutoSave] entry', {
+        canvasType: refs.canvasType,
+        enabled: refs.enabled,
+        hasImageSrc: !!imageSrc,
+        imageSrcLen: imageSrc?.length ?? 0,
+        currentStatus: storeState.autoSaveStatus,
+        currentToken: storeState.autoSavedShareToken,
+        lastSavedImageSame: storeState.lastAutoSavedImageSrc === imageSrc,
       });
 
-      if (share?.shareToken) {
-        refs.setAutoSavedShareToken(share.shareToken);
-        refs.setLastAutoSavedImageSrc(imageSrc);
-        refs.setAutoSaveStatus('saved');
-      } else {
-        console.warn(
-          '[AutoSave][performAutoSave] api returned no shareToken — status stays at "saving"'
-        );
+      if (!imageSrc) {
+        console.log('[AutoSave][performAutoSave] skip: no imageSrc');
+        return;
       }
-    } catch (error) {
-      console.error('[AutoSave][performAutoSave] error:', error);
-      refs.setAutoSaveStatus('error');
-    }
-  }, [autoSaveStoreApi]);
+      if (refs.enabled === false) {
+        console.log('[AutoSave][performAutoSave] skip: enabled=false');
+        return;
+      }
+      if (storeState.autoSaveStatus === 'saving') {
+        console.log('[AutoSave][performAutoSave] skip: already saving');
+        return;
+      }
+      if (storeState.lastAutoSavedImageSrc === imageSrc) {
+        console.log('[AutoSave][performAutoSave] skip: imageSrc identical to last save (dedup)');
+        return;
+      }
+
+      refs.setAutoSaveStatus('saving');
+
+      try {
+        const title = `Canvas: ${refs.canvasType}`;
+
+        let share;
+
+        // Resolve the original background. Prefer the in-state Blob; if unavailable
+        // (image arrived via imageSrc URL prop), fetch the URL once. Without this
+        // fallback, sharepics created with a default background lose it on reload
+        // because hasOriginalImage flagged true but no file was ever uploaded.
+        let originalImageBase64: string | undefined;
+        const bgFile = refs.canvasState.backgroundImageFile as File | Blob | null | undefined;
+        const currentImageSrc = refs.canvasState.currentImageSrc as string | undefined;
+        if (bgFile) {
+          try {
+            originalImageBase64 = await fileToBase64(bgFile);
+          } catch (err) {
+            console.warn('[AutoSave] Failed to convert background image to base64:', err);
+          }
+        } else if (currentImageSrc) {
+          try {
+            const res = await fetch(currentImageSrc);
+            if (res.ok) {
+              const blob = await res.blob();
+              originalImageBase64 = await fileToBase64(blob);
+            }
+          } catch (err) {
+            console.warn('[AutoSave] Failed to fetch background image URL for upload:', err);
+          }
+        }
+
+        const metadata = buildCanvasShareMetadata(
+          refs.canvasType,
+          refs.canvasState,
+          !!originalImageBase64
+        );
+
+        // If we already have a shareToken, update the existing entry instead of creating new
+        if (storeState.autoSavedShareToken) {
+          console.log('[AutoSave][performAutoSave] branch: UPDATE', {
+            shareToken: storeState.autoSavedShareToken,
+            hasOriginalImage: !!originalImageBase64,
+          });
+          share = await refs.updateImageShare({
+            shareToken: storeState.autoSavedShareToken,
+            imageBase64: imageSrc,
+            title,
+            metadata,
+            originalImage: originalImageBase64,
+          });
+        } else {
+          console.log('[AutoSave][performAutoSave] branch: CREATE (no token in store)', {
+            hasOriginalImage: !!originalImageBase64,
+          });
+          share = await refs.createImageShare({
+            imageData: imageSrc,
+            title,
+            imageType: refs.canvasType,
+            metadata,
+            originalImage: originalImageBase64,
+            status: 'draft',
+          });
+        }
+
+        console.log('[AutoSave][performAutoSave] api response', {
+          gotShareToken: !!share?.shareToken,
+          shareToken: share?.shareToken ?? null,
+        });
+
+        if (share?.shareToken) {
+          refs.setAutoSavedShareToken(share.shareToken);
+          refs.setLastAutoSavedImageSrc(imageSrc);
+          refs.setAutoSaveStatus('saved');
+        } else {
+          console.warn(
+            '[AutoSave][performAutoSave] api returned no shareToken — status stays at "saving"'
+          );
+        }
+      } catch (error) {
+        console.error('[AutoSave][performAutoSave] error:', error);
+        refs.setAutoSaveStatus('error');
+      }
+    },
+    [autoSaveStoreApi]
+  );
 
   // Only trigger on generatedImage changes
   useEffect(() => {

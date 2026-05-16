@@ -32,7 +32,10 @@ async function main(): Promise<void> {
   await landesverbandScraperService.init();
 
   const startAll = Date.now();
-  const results: Record<string, { stored: number; updated: number; skipped: number; errors: number }> = {};
+  const results: Record<
+    string,
+    { stored: number; updated: number; skipped: number; errors: number }
+  > = {};
 
   for (const id of sourceIds) {
     const start = Date.now();
@@ -54,7 +57,9 @@ async function main(): Promise<void> {
   const totalDur = Math.round((Date.now() - startAll) / 1000);
   console.log('\n═══ SUMMARY ═══');
   for (const [id, r] of Object.entries(results)) {
-    console.log(`  ${id}: stored=${r.stored} updated=${r.updated} skipped=${r.skipped} errors=${r.errors}`);
+    console.log(
+      `  ${id}: stored=${r.stored} updated=${r.updated} skipped=${r.skipped} errors=${r.errors}`
+    );
   }
   console.log(`Total duration: ${totalDur}s\n`);
   process.exit(0);

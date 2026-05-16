@@ -167,7 +167,8 @@ ${referenceContent.trim()}
 
     const result = streamText({
       model,
-      system: docsAiFormat.systemPrompt + '\n\n' + BLOCKNOTE_TOOL_STRICT_PROMPT + referenceContentSection,
+      system:
+        docsAiFormat.systemPrompt + '\n\n' + BLOCKNOTE_TOOL_STRICT_PROMPT + referenceContentSection,
       messages: await convertToModelMessages(messagesWithDocState),
       tools,
       toolChoice: 'auto',

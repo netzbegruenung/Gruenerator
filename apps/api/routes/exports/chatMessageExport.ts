@@ -74,7 +74,10 @@ function getRoleLabel(role: 'user' | 'assistant'): string {
 router.post(
   '/',
   validateBody(chatMessageExportSchema),
-  async (req: TypedRequest<z.infer<typeof chatMessageExportSchema>>, res: Response<Buffer | { success: boolean; error?: string }>) => {
+  async (
+    req: TypedRequest<z.infer<typeof chatMessageExportSchema>>,
+    res: Response<Buffer | { success: boolean; error?: string }>
+  ) => {
     try {
       const { content, role, timestamp, metadata } = req.body;
 

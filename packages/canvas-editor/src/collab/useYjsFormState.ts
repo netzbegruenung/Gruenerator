@@ -58,11 +58,14 @@ export function useYjsFormState({ ydoc, isSynced, fallback }: Options): Result {
   const updateFormState = useCallback(
     (changes: Partial<FormState>) => {
       if (!ydoc || !isSynced) {
-        console.warn('[CanvasCollab][updateFormState] WRITE LOST: not synced — falls to local-only', {
-          hasYdoc: !!ydoc,
-          isSynced,
-          changedKeys: Object.keys(changes),
-        });
+        console.warn(
+          '[CanvasCollab][updateFormState] WRITE LOST: not synced — falls to local-only',
+          {
+            hasYdoc: !!ydoc,
+            isSynced,
+            changedKeys: Object.keys(changes),
+          }
+        );
         setLocalFallback((prev) => ({ ...prev, ...changes }));
         return;
       }

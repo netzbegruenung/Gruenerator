@@ -2,7 +2,7 @@
 
 ## Context
 
-Gruenerator braucht OAuth-basierte Connectoren für externe Cloud-Dienste, damit Nutzer*innen Dateien und Dokumente durchsuchen und importieren können. Wir hosten **Nango** (Elastic License v2) als Connector-Middleware auf unseren EU-Servern.
+Gruenerator braucht OAuth-basierte Connectoren für externe Cloud-Dienste, damit Nutzer\*innen Dateien und Dokumente durchsuchen und importieren können. Wir hosten **Nango** (Elastic License v2) als Connector-Middleware auf unseren EU-Servern.
 
 **Scope dieser Phase:** Infrastruktur + Backend + 5 Provider-Gruppen in Nango konfiguriert. **Kein Frontend-UI** — die Verbindungen werden zunächst über das Nango Dashboard und die API verwaltet. Frontend folgt später.
 
@@ -10,16 +10,16 @@ Gruenerator braucht OAuth-basierte Connectoren für externe Cloud-Dienste, damit
 
 ## Provider (5 Gruppen, 8 Dienste)
 
-| # | Provider | OAuth | Scopes (read-only) |
-|---|---|---|---|
-| 1 | **Google Drive** | Google OAuth | `drive.readonly`, `userinfo.email` |
-| 2 | **Google Docs/Sheets** | (selber Google OAuth) | `docs.readonly`, `sheets.readonly` |
-| 3 | **Microsoft OneDrive** | Azure AD OAuth | `Files.Read`, `User.Read` |
-| 4 | **Microsoft SharePoint** | (selber Azure AD OAuth) | `Sites.Read.All` |
-| 5 | **Microsoft Teams (nur Dateien)** | (selber Azure AD OAuth) | `Team.ReadBasic.All` |
-| 6 | **Jira Cloud** | Atlassian OAuth 2.0 (3LO) | `read:jira-work`, `read:jira-user` |
-| 7 | **Confluence Cloud** | (selber Atlassian OAuth) | `read:confluence-content.all`, `read:confluence-space.summary` |
-| 8 | **WebDAV (generisch)** | Kein OAuth — Nutzer*in gibt URL + Credentials | Kein Nango — eigener Adapter basierend auf Wolke-Client |
+| #   | Provider                          | OAuth                                          | Scopes (read-only)                                             |
+| --- | --------------------------------- | ---------------------------------------------- | -------------------------------------------------------------- |
+| 1   | **Google Drive**                  | Google OAuth                                   | `drive.readonly`, `userinfo.email`                             |
+| 2   | **Google Docs/Sheets**            | (selber Google OAuth)                          | `docs.readonly`, `sheets.readonly`                             |
+| 3   | **Microsoft OneDrive**            | Azure AD OAuth                                 | `Files.Read`, `User.Read`                                      |
+| 4   | **Microsoft SharePoint**          | (selber Azure AD OAuth)                        | `Sites.Read.All`                                               |
+| 5   | **Microsoft Teams (nur Dateien)** | (selber Azure AD OAuth)                        | `Team.ReadBasic.All`                                           |
+| 6   | **Jira Cloud**                    | Atlassian OAuth 2.0 (3LO)                      | `read:jira-work`, `read:jira-user`                             |
+| 7   | **Confluence Cloud**              | (selber Atlassian OAuth)                       | `read:confluence-content.all`, `read:confluence-space.summary` |
+| 8   | **WebDAV (generisch)**            | Kein OAuth — Nutzer\*in gibt URL + Credentials | Kein Nango — eigener Adapter basierend auf Wolke-Client        |
 
 > Google = 1 OAuth-App. Microsoft = 1 OAuth-App. Atlassian = 1 OAuth-App (deckt Jira + Confluence). WebDAV = kein OAuth. **3 OAuth-Registrierungen + 1 Credentials-basierter Adapter.**
 
@@ -72,38 +72,38 @@ GRANT ALL PRIVILEGES ON DATABASE nango TO gruenerator;
 Nach `ocr`-Service einfügen:
 
 ```yaml
-  nango:
-    image: nangohq/nango-server:0.48.1
-    restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
-    environment:
-      - NANGO_DB_HOST=host.docker.internal
-      - NANGO_DB_PORT=5432
-      - NANGO_DB_USER=${POSTGRES_USER}
-      - NANGO_DB_PASSWORD=${POSTGRES_PASSWORD}
-      - NANGO_DB_NAME=nango
-      - NANGO_REDIS_URL=redis://redis:6379/1
-      - NANGO_SERVER_URL=${NANGO_PUBLIC_URL}
-      - NANGO_ENCRYPTION_KEY=${NANGO_ENCRYPTION_KEY}
-      - NANGO_SECRET_KEY=${NANGO_SECRET_KEY}
-      - FLAG_SERVE_CONNECT_UI=true
-      - SERVER_PORT=3003
-      - NANGO_CONNECT_UI_PORT=3009
-      - TELEMETRY=false
-    networks:
-      - gruenerator
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
-    labels:
-      - 'com.gruenerator.service=nango'
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3003/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+nango:
+  image: nangohq/nango-server:0.48.1
+  restart: unless-stopped
+  depends_on:
+    redis:
+      condition: service_healthy
+  environment:
+    - NANGO_DB_HOST=host.docker.internal
+    - NANGO_DB_PORT=5432
+    - NANGO_DB_USER=${POSTGRES_USER}
+    - NANGO_DB_PASSWORD=${POSTGRES_PASSWORD}
+    - NANGO_DB_NAME=nango
+    - NANGO_REDIS_URL=redis://redis:6379/1
+    - NANGO_SERVER_URL=${NANGO_PUBLIC_URL}
+    - NANGO_ENCRYPTION_KEY=${NANGO_ENCRYPTION_KEY}
+    - NANGO_SECRET_KEY=${NANGO_SECRET_KEY}
+    - FLAG_SERVE_CONNECT_UI=true
+    - SERVER_PORT=3003
+    - NANGO_CONNECT_UI_PORT=3009
+    - TELEMETRY=false
+  networks:
+    - gruenerator
+  extra_hosts:
+    - 'host.docker.internal:host-gateway'
+  labels:
+    - 'com.gruenerator.service=nango'
+  healthcheck:
+    test: ['CMD', 'curl', '-f', 'http://localhost:3003/health']
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 30s
 ```
 
 ### 1.4 `nginx.conf` — Subdomain-Routing
@@ -146,16 +146,16 @@ Nango folgt dem **`ocr`-Pattern**: Pre-built Image, kein Custom GHCR Build.
 
 ### 1b.1 Passbolt-Einträge anlegen (manuell)
 
-| Secret | Zweck |
-|---|---|
+| Secret                 | Zweck                                                             |
+| ---------------------- | ----------------------------------------------------------------- |
 | `NANGO_ENCRYPTION_KEY` | AES-256 Key für Token-Verschlüsselung (`openssl rand -base64 32`) |
-| `NANGO_SECRET_KEY` | API Secret Key (aus Nango Dashboard nach erstem Start) |
+| `NANGO_SECRET_KEY`     | API Secret Key (aus Nango Dashboard nach erstem Start)            |
 
 ### 1b.2 `Salt/pillars/gruenerator/prod.sls` + `test.sls`
 
 ```yaml
-  nango-encryption-key: <passbolt-uuid>
-  nango-secret-key: <passbolt-uuid>
+nango-encryption-key: <passbolt-uuid>
+nango-secret-key: <passbolt-uuid>
 ```
 
 ### 1b.3 `Salt/pillars/letsencrypt/.../gruenerator.sls`
@@ -167,38 +167,38 @@ Nango folgt dem **`ocr`-Pattern**: Pre-built Image, kein Custom GHCR Build.
 Nango-Service nach `ocr` einfügen:
 
 ```yaml
-  nango:
-    image: nangohq/nango-server:0.48.1
-    restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
-    environment:
-      - NANGO_DB_HOST=host.docker.internal
-      - NANGO_DB_PORT=5432
-      - NANGO_DB_USER={{ pillar["gruenerator"]["postgres-user"] }}
-      - NANGO_DB_PASSWORD={{ pillar["passbolt"][pillar["gruenerator"]["postgres-password"]] }}
-      - NANGO_DB_NAME=nango
-      - NANGO_REDIS_URL=redis://redis:6379/1
-      - NANGO_SERVER_URL=https://nango.{{ pillar["gruenerator"]["domain"] }}
-      - NANGO_ENCRYPTION_KEY={{ pillar["passbolt"][pillar["gruenerator"]["nango-encryption-key"]] }}
-      - NANGO_SECRET_KEY={{ pillar["passbolt"][pillar["gruenerator"]["nango-secret-key"]] }}
-      - FLAG_SERVE_CONNECT_UI=true
-      - SERVER_PORT=3003
-      - NANGO_CONNECT_UI_PORT=3009
-      - TELEMETRY=false
-    networks:
-      - gruenerator
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    labels:
-      - "com.gruenerator.service=nango"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+nango:
+  image: nangohq/nango-server:0.48.1
+  restart: unless-stopped
+  depends_on:
+    redis:
+      condition: service_healthy
+  environment:
+    - NANGO_DB_HOST=host.docker.internal
+    - NANGO_DB_PORT=5432
+    - NANGO_DB_USER={{ pillar["gruenerator"]["postgres-user"] }}
+    - NANGO_DB_PASSWORD={{ pillar["passbolt"][pillar["gruenerator"]["postgres-password"]] }}
+    - NANGO_DB_NAME=nango
+    - NANGO_REDIS_URL=redis://redis:6379/1
+    - NANGO_SERVER_URL=https://nango.{{ pillar["gruenerator"]["domain"] }}
+    - NANGO_ENCRYPTION_KEY={{ pillar["passbolt"][pillar["gruenerator"]["nango-encryption-key"]] }}
+    - NANGO_SECRET_KEY={{ pillar["passbolt"][pillar["gruenerator"]["nango-secret-key"]] }}
+    - FLAG_SERVE_CONNECT_UI=true
+    - SERVER_PORT=3003
+    - NANGO_CONNECT_UI_PORT=3009
+    - TELEMETRY=false
+  networks:
+    - gruenerator
+  extra_hosts:
+    - 'host.docker.internal:host-gateway'
+  labels:
+    - 'com.gruenerator.service=nango'
+  healthcheck:
+    test: ['CMD', 'curl', '-f', 'http://localhost:3003/health']
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 30s
 ```
 
 ### 1b.5 `Salt/states/gruenerator-docker/files/nginx.conf.j2`
@@ -266,27 +266,27 @@ Nach erstem Start `nango.gruenerator.eu` aufrufen.
 
 ### 2.1 OAuth-App-Registrierungen
 
-| App | Console | Redirect URI |
-|---|---|---|
-| Google | [Google Cloud Console](https://console.cloud.google.com) | `https://nango.gruenerator.eu/oauth/callback` |
-| Microsoft | [Azure Portal](https://portal.azure.com) → App Registration | `https://nango.gruenerator.eu/oauth/callback` |
+| App       | Console                                                                        | Redirect URI                                  |
+| --------- | ------------------------------------------------------------------------------ | --------------------------------------------- |
+| Google    | [Google Cloud Console](https://console.cloud.google.com)                       | `https://nango.gruenerator.eu/oauth/callback` |
+| Microsoft | [Azure Portal](https://portal.azure.com) → App Registration                    | `https://nango.gruenerator.eu/oauth/callback` |
 | Atlassian | [Atlassian Developer Console](https://developer.atlassian.com/console/myapps/) | `https://nango.gruenerator.eu/oauth/callback` |
 
 ### 2.2 Integrationen im Nango Dashboard
 
-| Integration Key | Provider | Scopes |
-|---|---|---|
-| `google` | Google | `drive.readonly`, `docs.readonly`, `sheets.readonly`, `userinfo.email` |
-| `microsoft` | Microsoft | `Files.Read`, `Sites.Read.All`, `Team.ReadBasic.All`, `User.Read` |
-| `jira` | Atlassian (Jira) | `read:jira-work`, `read:jira-user` |
-| `confluence` | Atlassian (Confluence) | `read:confluence-content.all`, `read:confluence-space.summary` |
+| Integration Key | Provider               | Scopes                                                                 |
+| --------------- | ---------------------- | ---------------------------------------------------------------------- |
+| `google`        | Google                 | `drive.readonly`, `docs.readonly`, `sheets.readonly`, `userinfo.email` |
+| `microsoft`     | Microsoft              | `Files.Read`, `Sites.Read.All`, `Team.ReadBasic.All`, `User.Read`      |
+| `jira`          | Atlassian (Jira)       | `read:jira-work`, `read:jira-user`                                     |
+| `confluence`    | Atlassian (Confluence) | `read:confluence-content.all`, `read:confluence-space.summary`         |
 
 > Kein `ChannelMessage.Read.All` bei Microsoft — bewusste DSGVO-Entscheidung.
 > Atlassian: Eine App-Registration, aber separate Nango-Integrationen für Jira und Confluence (unterschiedliche Scopes).
 
 ### 2.3 WebDAV (ohne Nango)
 
-WebDAV läuft nicht über Nango (kein OAuth), sondern als eigener Adapter basierend auf dem bestehenden Wolke/Nextcloud WebDAV-Client. Nutzer*innen geben Server-URL + Benutzername + App-Password ein.
+WebDAV läuft nicht über Nango (kein OAuth), sondern als eigener Adapter basierend auf dem bestehenden Wolke/Nextcloud WebDAV-Client. Nutzer\*innen geben Server-URL + Benutzername + App-Password ein.
 
 Unterstützt automatisch: **ownCloud**, **Seafile**, **HiDrive**, **Uni-Clouds**, und jede andere WebDAV-Instanz.
 
@@ -339,18 +339,22 @@ GET    /api/connections/:providerKey/files/:fileId → Datei-Inhalt lesen
 ### 3.5 Provider API-Clients
 
 **`apps/api/services/api-clients/googleDriveClient.ts`**
+
 - `listFiles(token, folderId?)`, `getFile(token, fileId)`, `downloadFile(token, fileId)`
 - `exportDoc(token, docId, mimeType)`, `searchFiles(token, query)`
 
 **`apps/api/services/api-clients/microsoftGraphClient.ts`**
+
 - `listDriveItems(token, folderId?)`, `getDriveItem(token, itemId)`, `downloadDriveItem(token, itemId)`
 - `listSharePointSites(token)`, `listTeamsDriveItems(token, teamId)`
 
 **`apps/api/services/api-clients/atlassianClient.ts`**
+
 - Jira: `listProjects(token)`, `listIssues(token, projectKey, query?)`, `getIssue(token, issueKey)`, `getIssueAttachments(token, issueKey)`
 - Confluence: `listSpaces(token)`, `listPages(token, spaceKey)`, `getPageContent(token, pageId)`, `searchContent(token, query)`
 
 **`apps/api/services/api-clients/webdavClient.ts`**
+
 - Generischer WebDAV-Adapter, extrahiert aus `nextcloudApiClient.ts`
 - `listFiles(credentials, path?)`, `downloadFile(credentials, path)`, `getFileInfo(credentials, path)`
 - `testConnection(credentials)` — PROPFIND-Probe
@@ -409,11 +413,13 @@ NANGO_ENCRYPTION_KEY=
 > OAuth-Verbindungsvorgang)
 >
 > **Verarbeitete Daten:**
+>
 > - OAuth-Zugangsdaten (Access-Token und Refresh-Token)
 > - Metadaten der abgerufenen Dateien (Dateiname, Dateityp, Änderungsdatum)
 > - Dateiinhalte der von Ihnen ausgewählten Dokumente (nur transient)
 >
 > **Speicherung:**
+>
 > - OAuth-Tokens: verschlüsselt (AES-256) auf EU-Servern
 > - Dateiinhalte: keine dauerhafte Speicherung
 > - Keine automatische Hintergrundsynchronisation
@@ -456,17 +462,17 @@ NANGO_ENCRYPTION_KEY=
 
 Neue Einträge pro Provider:
 
-| Feld | Wert (pro Provider anpassen) |
-|---|---|
-| **Verarbeitungstätigkeit** | Connected Account — [Provider] |
-| **Zweck** | Lesezugriff auf Cloud-Dokumente für KI-gestützte Inhaltserstellung |
-| **Rechtsgrundlage** | Art. 6 Abs. 1 lit. a DSGVO |
-| **Betroffene** | Registrierte Nutzer\*innen |
-| **Datenkategorien** | OAuth-Tokens, Dateimetadaten, Dateiinhalte (transient) |
-| **Empfänger** | [Provider] (API-Zugriff) |
-| **Drittlandtransfer** | USA (DPF, SCCs, DPA) |
-| **Löschfristen** | Tokens: bei Kontotrennung; Dateiinhalte: keine Speicherung |
-| **TOM** | AES-256, EU-Hosting, Read-only Scopes, kein Background-Sync |
+| Feld                       | Wert (pro Provider anpassen)                                       |
+| -------------------------- | ------------------------------------------------------------------ |
+| **Verarbeitungstätigkeit** | Connected Account — [Provider]                                     |
+| **Zweck**                  | Lesezugriff auf Cloud-Dokumente für KI-gestützte Inhaltserstellung |
+| **Rechtsgrundlage**        | Art. 6 Abs. 1 lit. a DSGVO                                         |
+| **Betroffene**             | Registrierte Nutzer\*innen                                         |
+| **Datenkategorien**        | OAuth-Tokens, Dateimetadaten, Dateiinhalte (transient)             |
+| **Empfänger**              | [Provider] (API-Zugriff)                                           |
+| **Drittlandtransfer**      | USA (DPF, SCCs, DPA)                                               |
+| **Löschfristen**           | Tokens: bei Kontotrennung; Dateiinhalte: keine Speicherung         |
+| **TOM**                    | AES-256, EU-Hosting, Read-only Scopes, kein Background-Sync        |
 
 ### 4.4 DSFA
 
@@ -475,12 +481,14 @@ Neue Einträge pro Provider:
 ### 4.5 Checkliste vor Launch
 
 **Pflicht:**
+
 - [ ] Datenschutzerklärung aktualisieren (4 Abschnitte)
 - [ ] Verarbeitungsverzeichnis aktualisieren (4 Einträge: Google, Microsoft, Atlassian, WebDAV)
 - [ ] Disconnect/Revoke-Flow testen
 - [ ] Hosting-Provider DPA deckt Nango-DB ab
 
 **Empfohlen:**
+
 - [ ] Datenschutzbeauftragte\*n informieren
 - [ ] Consent-Events loggen
 - [ ] DSFA-Nicht-Erforderlichkeit dokumentieren
@@ -490,6 +498,7 @@ Neue Einträge pro Provider:
 ## Dateiübersicht
 
 ### Neue Dateien (~9)
+
 - `services/nango/.env.example`
 - `services/nango/README.md`
 - `apps/api/config/nango.ts`
@@ -501,20 +510,23 @@ Neue Einträge pro Provider:
 - `apps/api/routes/connections/connectionsController.ts`
 
 ### Gruenerator-Repo — Geänderte Dateien (~4)
+
 - `docker-compose.prod.yml` — Nango Service (lokale Dev-Referenz)
-- `nginx.conf` — nango.* Server-Block (lokale Dev-Referenz)
+- `nginx.conf` — nango.\* Server-Block (lokale Dev-Referenz)
 - `apps/api/routes.ts` — /api/connections registrieren
-- `.env.example` — NANGO_* Variablen
+- `.env.example` — NANGO\_\* Variablen
 
 ### Salt-Repo — Geänderte Dateien (~6)
+
 - `states/gruenerator-docker/files/docker-compose.yml.j2` — Nango Service
-- `states/gruenerator-docker/files/nginx.conf.j2` — nango.* Server-Block
-- `states/gruenerator-docker/files/backend.env.j2` — NANGO_* Env-Vars
+- `states/gruenerator-docker/files/nginx.conf.j2` — nango.\* Server-Block
+- `states/gruenerator-docker/files/backend.env.j2` — NANGO\_\* Env-Vars
 - `pillars/gruenerator/prod.sls` — Nango Passbolt-UUIDs
 - `pillars/gruenerator/test.sls` — Nango Passbolt-UUIDs (Test)
 - `pillars/letsencrypt/.../gruenerator.sls` — nango.gruenerator.eu Domain
 
 ### Bestehender Code als Vorlage
+
 - `apps/api/services/api-clients/nextcloudApiClient.ts` — WebDAV-Client extrahieren
 - `ocr`-Service in `docker-compose.yml.j2` — Pattern für pre-built Images
 - `mcp`-Server-Block in `nginx.conf.j2` — Pattern für Subdomain-Routing
@@ -536,6 +548,7 @@ Neue Einträge pro Provider:
 ## Späteres Frontend (Phase 2)
 
 Wenn die Backend-API steht und getestet ist:
+
 - `@nangohq/frontend` SDK in `apps/web`
 - "Verbindungen"-Tab im Profil (`/profile/verbindungen`)
 - Pre-OAuth Info-Screen (DSGVO)
@@ -543,11 +556,11 @@ Wenn die Backend-API steht und getestet ist:
 
 ## Spätere Provider
 
-| Provider | Aufwand | Nango-Template vorhanden |
-|---|---|---|
-| Dropbox | ~1 Tag | Ja |
-| Box | ~1 Tag | Ja |
-| Slack (nur Dateien) | ~1 Tag | Ja |
-| Notion | ~1 Tag | Ja |
-| Google Calendar | ~0.5 Tage | Ja (selber OAuth) |
-| Trello | ~0.5 Tage | Ja (selber Atlassian OAuth) |
+| Provider            | Aufwand   | Nango-Template vorhanden    |
+| ------------------- | --------- | --------------------------- |
+| Dropbox             | ~1 Tag    | Ja                          |
+| Box                 | ~1 Tag    | Ja                          |
+| Slack (nur Dateien) | ~1 Tag    | Ja                          |
+| Notion              | ~1 Tag    | Ja                          |
+| Google Calendar     | ~0.5 Tage | Ja (selber OAuth)           |
+| Trello              | ~0.5 Tage | Ja (selber Atlassian OAuth) |

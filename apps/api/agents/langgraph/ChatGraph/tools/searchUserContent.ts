@@ -25,22 +25,24 @@ export function createSearchUserContentTool(deps: ToolDependencies): DynamicStru
     return null;
   }
 
-    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
+  // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'search_user_content',
     description:
       'Durchsuche die hochgeladenen Dokumente und gespeicherten Texte des Nutzers. ' +
       'Nutze dieses Tool wenn der Nutzer auf eigene Inhalte Bezug nimmt — z.B. "mein Antrag", ' +
       '"meine Notizen", "das Dokument das ich hochgeladen habe", "fasse meinen Text zusammen".',
-    schema: z.object({
-      query: z.string().describe('Die Suchanfrage'),
-      source_type: z
-        .enum(['documents', 'texts', 'all'])
-        .optional()
-        .describe(
-          'documents=hochgeladene Dateien, texts=gespeicherte Texte, all=beides (Standard)'
-        ),
-    }).describe('Nutzerinhalte durchsuchen'),
+    schema: z
+      .object({
+        query: z.string().describe('Die Suchanfrage'),
+        source_type: z
+          .enum(['documents', 'texts', 'all'])
+          .optional()
+          .describe(
+            'documents=hochgeladene Dateien, texts=gespeicherte Texte, all=beides (Standard)'
+          ),
+      })
+      .describe('Nutzerinhalte durchsuchen'),
     func: async (input: { query: string; source_type?: string }) => {
       const { query, source_type } = input;
       const effectiveSourceType = source_type || 'all';

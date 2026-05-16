@@ -52,9 +52,7 @@ function preloadFontsPlugin(): Plugin {
         for (const { pattern, type } of TARGETS) {
           const match = Object.keys(bundle).find((name) => pattern.test(name));
           if (!match) continue;
-          tags.push(
-            `<link rel="preload" as="font" type="${type}" href="/${match}" crossorigin>`
-          );
+          tags.push(`<link rel="preload" as="font" type="${type}" href="/${match}" crossorigin>`);
         }
         if (tags.length === 0) return html;
         return html.replace('</head>', `    ${tags.join('\n    ')}\n  </head>`);

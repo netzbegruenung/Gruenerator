@@ -13,7 +13,10 @@ Erfordert einen Bearer API-Key — wird automatisch aus dem Request-Header weite
 
   async handler(_params: Record<string, unknown>, apiKey: string) {
     if (!apiKey) {
-      return { error: true, message: 'No API key forwarded — set Authorization: Bearer header on the MCP request.' };
+      return {
+        error: true,
+        message: 'No API key forwarded — set Authorization: Bearer header on the MCP request.',
+      };
     }
     const result = await callGrueneratorApi('/api/v1/notebooks', { apiKey });
     if (!result.ok) {

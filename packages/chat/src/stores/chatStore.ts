@@ -162,8 +162,7 @@ export const useAgentStore = create<AgentState>()(
 
       setActiveSkillMention: (mention) => set({ activeSkillMention: mention }),
 
-      setSelectedAgent: (agentId) =>
-        set({ selectedAgentId: agentId, activeSkillMention: null }),
+      setSelectedAgent: (agentId) => set({ selectedAgentId: agentId, activeSkillMention: null }),
 
       setSelectedProvider: (provider) => set({ selectedProvider: provider }),
 

@@ -171,9 +171,9 @@ const ConnectedAccountsSection = memo(({ onSuccess, onError }: ConnectedAccounts
         variant="warning"
         className="mb-md"
       >
-        <strong>Experimentelles Feature</strong> — Die Verbindungen zu externen Diensten
-        (Google, Microsoft, Jira, Confluence) sind noch in der Erprobung. Verbindungen
-        können sich ändern oder unerwartet abbrechen. Bitte melde Probleme dem Team.
+        <strong>Experimentelles Feature</strong> — Die Verbindungen zu externen Diensten (Google,
+        Microsoft, Jira, Confluence) sind noch in der Erprobung. Verbindungen können sich ändern
+        oder unerwartet abbrechen. Bitte melde Probleme dem Team.
       </DismissableBanner>
       <div className="flex items-center gap-sm mb-md">
         <FiLink className="w-6 h-6 text-foreground-heading" />

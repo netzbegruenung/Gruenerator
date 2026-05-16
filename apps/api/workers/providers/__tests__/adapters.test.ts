@@ -10,7 +10,6 @@ import { getGenerationConfig } from '../../../services/ai/config.js';
 import { getModel, isProviderConfigured, getDefaultModel } from '../../../services/ai/providers.js';
 import * as providers from '../index.js';
 
-
 console.log('='.repeat(60));
 console.log('Testing AI Provider Adapters (Vercel SDK Migration)');
 console.log('='.repeat(60));
@@ -80,14 +79,8 @@ try {
     'executeProvider function:',
     typeof providers.executeProvider === 'function' ? '✅' : '❌'
   );
-  console.log(
-    'claude adapter (should be undefined):',
-    !('claude' in providers) ? '✅' : '❌'
-  );
-  console.log(
-    'telekom adapter (should be undefined):',
-    !('telekom' in providers) ? '✅' : '❌'
-  );
+  console.log('claude adapter (should be undefined):', !('claude' in providers) ? '✅' : '❌');
+  console.log('telekom adapter (should be undefined):', !('telekom' in providers) ? '✅' : '❌');
 } catch (error: unknown) {
   console.log('Test 4 failed:', (error as { message?: string }).message);
 }

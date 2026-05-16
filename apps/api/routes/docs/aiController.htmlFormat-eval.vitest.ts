@@ -115,7 +115,8 @@ const TEST_PROMPTS = [
   },
   {
     name: 'add-bullet-at-end',
-    message: 'Füge am Ende der Liste einen neuen Stichpunkt hinzu: "Du bist bereit, gelegentlich abends zu arbeiten."',
+    message:
+      'Füge am Ende der Liste einen neuen Stichpunkt hinzu: "Du bist bereit, gelegentlich abends zu arbeiten."',
     expectedOpType: 'add',
     expectListItems: true,
   },
@@ -174,7 +175,12 @@ const MODELS: ModelConfig[] = [
 // ─── Format validators (the actual contract) ───────────────────────────
 
 interface FormatViolation {
-  kind: 'over-wrapped-li' | 'multi-item-ul' | 'no-tool-call' | 'invalid-op-type' | 'missing-id-suffix';
+  kind:
+    | 'over-wrapped-li'
+    | 'multi-item-ul'
+    | 'no-tool-call'
+    | 'invalid-op-type'
+    | 'missing-id-suffix';
   detail: string;
 }
 
@@ -186,7 +192,11 @@ interface OperationCheck {
 
 function isOverWrappedListItem(html: string): boolean {
   const trimmed = html.trim();
-  return /^<ul[\s>]/i.test(trimmed) && /<\/ul>\s*$/i.test(trimmed) && (trimmed.match(/<li[\s>]/gi)?.length ?? 0) === 1;
+  return (
+    /^<ul[\s>]/i.test(trimmed) &&
+    /<\/ul>\s*$/i.test(trimmed) &&
+    (trimmed.match(/<li[\s>]/gi)?.length ?? 0) === 1
+  );
 }
 
 function isMultiItemUl(html: string): boolean {
@@ -266,7 +276,9 @@ async function runOnce(
   const start = Date.now();
   try {
     const provider = modelConfig.provider();
-    const model = provider.chat ? provider.chat(modelConfig.modelId) : provider(modelConfig.modelId);
+    const model = provider.chat
+      ? provider.chat(modelConfig.modelId)
+      : provider(modelConfig.modelId);
 
     const result = await generateText({
       model,
@@ -434,7 +446,9 @@ describe.skipIf(!RUN_EVAL)('BlockNote HTML format compliance — real-API eval',
       if (violationKinds.size > 0) {
         console.log(`    seen kinds:  ${[...violationKinds].join(', ')}`);
       }
-      console.log(`    verdict:     ${pct === 100 ? '✓ recommended' : pct >= 80 ? '~ usable' : '✗ avoid'}`);
+      console.log(
+        `    verdict:     ${pct === 100 ? '✓ recommended' : pct >= 80 ? '~ usable' : '✗ avoid'}`
+      );
     }
     console.log('\n' + '═'.repeat(72));
 

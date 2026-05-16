@@ -88,9 +88,7 @@ export function ToolPanel({
           </button>
           <div className="flex items-center gap-2 text-xs text-foreground-muted">
             <HiCheckCircle size={12} className="shrink-0 text-green-700 dark:text-green-400" />
-            <span className="flex-1 truncate">
-              In Uploads gespeichert · {success.itemName}
-            </span>
+            <span className="flex-1 truncate">In Uploads gespeichert · {success.itemName}</span>
             {success.onJumpToUploads ? (
               <button
                 type="button"

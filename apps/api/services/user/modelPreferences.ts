@@ -71,9 +71,6 @@ export async function setModelPreference(
   return getModelPreferencesForUser(userId);
 }
 
-export function isModelEnabledForUser(
-  prefs: ModelPreferencesMap,
-  modelId: ModelId
-): boolean {
+export function isModelEnabledForUser(prefs: ModelPreferencesMap, modelId: ModelId): boolean {
   return prefs[modelId]?.enabled ?? isModelEnabledByDefault(modelId);
 }

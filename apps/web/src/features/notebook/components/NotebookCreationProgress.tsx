@@ -50,9 +50,7 @@ const NotebookCreationProgress = ({ notebookName, documents, onClose }: Props) =
   const ids = documents.map((d) => d.id);
   const { statuses, allDone } = useDocumentStatusPolling(ids, { enabled: ids.length > 0 });
 
-  const doneCount = documents.filter((d) =>
-    TERMINAL.has(statuses[d.id] ?? 'pending')
-  ).length;
+  const doneCount = documents.filter((d) => TERMINAL.has(statuses[d.id] ?? 'pending')).length;
   const total = documents.length;
   const percent = total === 0 ? 100 : Math.round((doneCount / total) * 100);
 

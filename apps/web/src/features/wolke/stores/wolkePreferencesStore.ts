@@ -89,9 +89,7 @@ const useWolkePreferencesStore = create<WolkePreferencesStore>()(
       },
 
       isFavourite: (shareLinkId, folderPath) =>
-        get().favourites.some(
-          (f) => f.shareLinkId === shareLinkId && f.folderPath === folderPath
-        ),
+        get().favourites.some((f) => f.shareLinkId === shareLinkId && f.folderPath === folderPath),
 
       getFavouritesForShareLink: (shareLinkId) =>
         get().favourites.filter((f) => f.shareLinkId === shareLinkId),

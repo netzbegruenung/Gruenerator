@@ -116,16 +116,12 @@ export function buildCanvasItems<
 
   // 9. Pill Badges (e.g., "Wusstest du?" labels)
   if (state.pillBadgeInstances) {
-    state.pillBadgeInstances.forEach((p) =>
-      items.push({ id: p.id, type: 'pill-badge', data: p })
-    );
+    state.pillBadgeInstances.forEach((p) => items.push({ id: p.id, type: 'pill-badge', data: p }));
   }
 
   // 10. User-uploaded images
   if (state.userImageInstances) {
-    state.userImageInstances.forEach((u) =>
-      items.push({ id: u.id, type: 'user-image', data: u })
-    );
+    state.userImageInstances.forEach((u) => items.push({ id: u.id, type: 'user-image', data: u }));
   }
 
   return items;

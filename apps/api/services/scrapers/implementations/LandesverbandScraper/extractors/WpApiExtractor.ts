@@ -13,7 +13,10 @@
  * optimization can pipe `post.content.rendered` directly into DocumentProcessor.
  */
 
-import type { LandesverbandSource, ContentPath } from '../../../../../config/landesverbaendeConfig.js';
+import type {
+  LandesverbandSource,
+  ContentPath,
+} from '../../../../../config/landesverbaendeConfig.js';
 
 interface WpPost {
   link: string;

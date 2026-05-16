@@ -494,9 +494,7 @@ export function createBalkenActions<TState extends { balkenInstances: BalkenInst
       setState((prev) => ({
         ...prev,
         balkenInstances: prev.balkenInstances.map((b) =>
-          b.id === id
-            ? { ...b, texts: b.texts.map((t, i) => (i === index ? text : t)) }
-            : b
+          b.id === id ? { ...b, texts: b.texts.map((t, i) => (i === index ? text : t)) } : b
         ),
       }));
       debouncedSaveToHistory(getState());

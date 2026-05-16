@@ -1,4 +1,11 @@
-import React, { useRef, useState, useCallback, Component, type ErrorInfo, type ReactNode } from 'react';
+import React, {
+  useRef,
+  useState,
+  useCallback,
+  Component,
+  type ErrorInfo,
+  type ReactNode,
+} from 'react';
 
 import { useDesktopTabsStore } from '../../../stores/desktopTabsStore';
 
@@ -24,7 +31,12 @@ class TabBarErrorBoundary extends Component<{ children: ReactNode }, ErrorBounda
 
   render() {
     if (this.state.hasError) {
-      return <div className="tab-bar-container flex-1 flex items-end h-full min-w-0 overflow-hidden mr-3 gap-1" style={{ ...appRegionNoDrag, flex: 1 }} />;
+      return (
+        <div
+          className="tab-bar-container flex-1 flex items-end h-full min-w-0 overflow-hidden mr-3 gap-1"
+          style={{ ...appRegionNoDrag, flex: 1 }}
+        />
+      );
     }
     return this.props.children;
   }

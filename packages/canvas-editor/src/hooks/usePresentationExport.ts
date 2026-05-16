@@ -41,28 +41,25 @@ export function usePresentationExport(
   });
   const [error, setError] = useState<string | null>(null);
 
-  const captureAllPages = useCallback(
-    async (): Promise<string[]> => {
-      const total = canvasRefs.length;
-      const images: string[] = [];
+  const captureAllPages = useCallback(async (): Promise<string[]> => {
+    const total = canvasRefs.length;
+    const images: string[] = [];
 
-      setExportProgress({ current: 0, total, phase: 'capturing' });
+    setExportProgress({ current: 0, total, phase: 'capturing' });
 
-      for (let i = 0; i < canvasRefs.length; i++) {
-        const ref = canvasRefs[i];
-        if (ref.current) {
-          const dataUrl = await ref.current.captureCanvas();
-          if (dataUrl) {
-            images.push(dataUrl);
-          }
+    for (let i = 0; i < canvasRefs.length; i++) {
+      const ref = canvasRefs[i];
+      if (ref.current) {
+        const dataUrl = await ref.current.captureCanvas();
+        if (dataUrl) {
+          images.push(dataUrl);
         }
-        setExportProgress({ current: i + 1, total, phase: 'capturing' });
       }
+      setExportProgress({ current: i + 1, total, phase: 'capturing' });
+    }
 
-      return images;
-    },
-    [canvasRefs]
-  );
+    return images;
+  }, [canvasRefs]);
 
   // ─── PPTX Export (client-side, editable text) ───
   const exportAsPptx = useCallback(async () => {
