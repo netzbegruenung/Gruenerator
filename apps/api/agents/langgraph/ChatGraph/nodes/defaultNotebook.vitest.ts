@@ -93,6 +93,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     threadAttachments: [],
     notebookIds: [],
     notebookCollectionIds: [],
+    notebookDocumentIds: [],
     defaultNotebookCollectionIds: [],
     documentIds: [],
     memoryContext: null,

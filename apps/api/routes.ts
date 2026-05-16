@@ -307,13 +307,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/auth/notebook-collections', requireAuth);
   mountNotebookCollectionsContractRouter(app);
   app.use('/api/auth/notebook-collections', authenticatedReadLimiter, notebookCollectionsRouter);
-  // ts-rest contract router for notebook interaction — mounts BEFORE the
-  // legacy router so contract-modeled routes match first. Mixed auth: some
-  // routes are public (`/public/:token`), others require auth. `optionalAuth`
-  // populates `req.user` for valid sessions WITHOUT rejecting unauthenticated
-  // requests, so per-handler `requireAuthUser()` checks can do the actual
-  // gating. Without this middleware `req.user` would always be undefined and
-  // authenticated routes (askMulti, askSingle, researchSearch) would 401.
+  // Mixed-auth contract: `optionalAuth` populates req.user without rejecting,
+  // so per-handler `requireAuthUser()` gates the writes and the public/:token
+  // routes still work. Mounted before the legacy router so contract routes win.
   app.use('/api/auth/notebook', optionalAuth);
   mountNotebookContractRouter(app);
   app.use('/api/auth/notebook', authenticatedReadLimiter, notebookInteractionRouter);

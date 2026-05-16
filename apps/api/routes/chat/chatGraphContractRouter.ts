@@ -27,7 +27,11 @@ import {
   rerankNode,
   buildCitations,
 } from '../../agents/langgraph/ChatGraph/index.js';
-import { isKnownNotebook } from '../../config/notebookCollectionMap.js';
+import {
+  isKnownNotebook,
+  isUserNotebookId,
+  resolveUserNotebookDocumentIds,
+} from '../../config/notebookCollectionMap.js';
 import { isRegoloReasoningModel } from '../../services/ai/regoloReasoningStream.js';
 import {
   getMem0Instance,
@@ -142,7 +146,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         return { status: 200 as const, body: undefined };
       }
 
-      const notebookIds = rawNotebookIds?.filter(isKnownNotebook) ?? [];
+      const systemNotebookIds = rawNotebookIds?.filter(isKnownNotebook) ?? [];
+      const userNotebookUuids = rawNotebookIds?.filter(isUserNotebookId) ?? [];
+      const { documentIds: notebookDocumentIds, resolvedUserNotebookIds } =
+        userNotebookUuids.length > 0
+          ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
+          : { documentIds: [], resolvedUserNotebookIds: [] };
+      const notebookIds = [...systemNotebookIds, ...resolvedUserNotebookIds];
       const defaultNotebookId =
         rawDefaultNotebookId && isKnownNotebook(rawDefaultNotebookId)
           ? rawDefaultNotebookId
@@ -171,6 +181,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       log.info(`[ChatGraph] Processing request for user ${userId}, agent ${agentId ?? 'default'}`);
       if (notebookIds.length > 0) {
         log.info(`[ChatGraph] Notebook scoping: ${notebookIds.join(', ')}`);
+      }
+      if (resolvedUserNotebookIds.length > 0) {
+        log.info(
+          `[ChatGraph] User-notebook scoping: ${resolvedUserNotebookIds.length} notebook(s) → ${notebookDocumentIds.length} document(s)`
+        );
       }
 
       // === Convert messages ===
@@ -353,6 +368,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
         threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
         notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
+        notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
         defaultNotebookId,
         documentIds: rawDocumentIds?.length ? rawDocumentIds : undefined,
         documentChatIds: rawDocumentChatIds?.length

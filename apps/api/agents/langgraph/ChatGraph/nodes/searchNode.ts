@@ -754,9 +754,20 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           break;
         }
 
-        // If specific documents are referenced, use document-scoped search
-        if (state.documentIds && state.documentIds.length > 0) {
-          log.info(`[Search] Using document-scoped search: ${state.documentIds.length} doc(s)`);
+        // Union of @datei picks and @user-notebook resolved doc IDs. Both reach
+        // the same Qdrant filter — a personal notebook is effectively a saved
+        // set of @datei picks.
+        const explicitDocIds = state.documentIds ?? [];
+        const userNotebookDocIds = state.notebookDocumentIds ?? [];
+        const scopeDocIds = [...new Set([...explicitDocIds, ...userNotebookDocIds])];
+
+        if (scopeDocIds.length > 0) {
+          const fromUserNotebook = userNotebookDocIds.length > 0;
+          log.info(
+            `[Search] Using document-scoped search: ${scopeDocIds.length} doc(s)${
+              fromUserNotebook ? ` (incl. ${userNotebookDocIds.length} from user notebook)` : ''
+            }`
+          );
           try {
             const documentSearchService = (
               await import('../../../../services/document-services/DocumentSearchService/index.js')
@@ -770,7 +781,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
                 threshold: 0.2,
               },
               filters: {
-                documentIds: state.documentIds,
+                documentIds: scopeDocIds,
               },
             });
 
@@ -783,7 +794,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
                 relevance: r.similarity_score ?? 0.5,
               });
             }
-            searchedCollections.push('user-documents');
+            searchedCollections.push(fromUserNotebook ? 'user-notebook' : 'user-documents');
           } catch (err: unknown) {
             log.warn(
               `[Search] Document-scoped search failed: ${err instanceof Error ? err.message : String(err)}`

@@ -120,6 +120,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         updated_at: string;
         settings?: Record<string, unknown> | undefined;
         notebook_collection_documents?: Array<{ document_id: string }>;
+        is_public?: boolean;
+        public_ownership?: 'owner' | 'public_data' | null;
       };
 
       const collections = (await notebookHelper.getUserNotebookCollections(
@@ -163,6 +165,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
             auto_sync: !!collection.auto_sync,
             remove_missing_on_sync: !!collection.remove_missing_on_sync,
             labels,
+            is_public: collection.is_public === true,
+            public_ownership: collection.public_ownership ?? null,
           };
         })
       );
@@ -173,6 +177,74 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       };
     } catch (error) {
       log.error('[notebookCollectionsContract.listCollections] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
+  listPublicCollections: async () => {
+    try {
+      type NotebookCollectionFromQdrantRaw = {
+        id: string;
+        user_id: string;
+        name: string;
+        description: string | null;
+        custom_prompt: string | null;
+        selection_mode?: string | undefined;
+        wolke_share_link_ids?: string[] | null | undefined;
+        auto_sync?: boolean | undefined;
+        remove_missing_on_sync?: boolean | undefined;
+        created_at: string;
+        updated_at: string;
+        settings?: Record<string, unknown> | undefined;
+        notebook_collection_documents?: Array<{ document_id: string }>;
+        is_public?: boolean;
+        public_ownership?: 'owner' | 'public_data' | null;
+      };
+
+      const postgres = getPostgresInstance();
+      const collections =
+        (await notebookHelper.getPublicNotebookCollections()) as NotebookCollectionFromQdrantRaw[];
+
+      const transformedData = await Promise.all(
+        collections.map(async (collection) => {
+          const documentIds = (collection.notebook_collection_documents || []).map(
+            (qcd) => qcd.document_id
+          );
+
+          let documents: DocumentRecord[] = [];
+          if (documentIds.length > 0) {
+            documents = await postgres.query<DocumentRecord>(
+              'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
+              [documentIds]
+            );
+          }
+
+          const settings = (collection.settings as Record<string, unknown>) || {};
+          const labels = Array.isArray(settings.labels) ? (settings.labels as string[]) : [];
+
+          return {
+            ...collection,
+            documents,
+            document_count: documents.length,
+            selection_mode: collection.selection_mode || 'documents',
+            wolke_share_links: [] as WolkeShareLink[],
+            has_wolke_sources: false,
+            documents_from_wolke: 0,
+            auto_sync: !!collection.auto_sync,
+            remove_missing_on_sync: !!collection.remove_missing_on_sync,
+            labels,
+            is_public: collection.is_public === true,
+            public_ownership: collection.public_ownership ?? null,
+          };
+        })
+      );
+
+      return {
+        status: 200 as const,
+        body: { success: true, collections: transformedData },
+      };
+    } catch (error) {
+      log.error('[notebookCollectionsContract.listPublicCollections] Error:', error);
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
@@ -192,6 +264,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         auto_sync,
         remove_missing_on_sync,
         labels,
+        is_public,
+        public_ownership,
       } = args.body;
 
       const selection_mode = selectionModeRaw ?? 'documents';
@@ -206,6 +280,15 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         return {
           status: 400 as const,
           body: { error: 'A notebook can contain at most 100 documents' },
+        };
+      }
+
+      if (is_public === true && !public_ownership) {
+        return {
+          status: 400 as const,
+          body: {
+            error: 'public_ownership is required when is_public is true (owner | public_data)',
+          },
         };
       }
 
@@ -277,6 +360,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         settings: {
           ...(Array.isArray(labels) ? { labels: labels.map((l) => l.trim()).filter(Boolean) } : {}),
         },
+        is_public: is_public === true,
+        public_ownership: is_public === true ? (public_ownership ?? null) : null,
       };
 
       const result = await notebookHelper.storeNotebookCollection(collectionData);
@@ -351,6 +436,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         auto_sync,
         remove_missing_on_sync,
         labels,
+        is_public,
+        public_ownership,
       } = args.body;
 
       const selection_mode = selectionModeRaw ?? 'documents';
@@ -365,6 +452,15 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         return {
           status: 400 as const,
           body: { error: 'A notebook can contain at most 100 documents' },
+        };
+      }
+
+      if (is_public === true && !public_ownership) {
+        return {
+          status: 400 as const,
+          body: {
+            error: 'public_ownership is required when is_public is true (owner | public_data)',
+          },
         };
       }
 
@@ -451,6 +547,11 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       } else {
         updateData.auto_sync = false;
         updateData.remove_missing_on_sync = false;
+      }
+
+      if (typeof is_public === 'boolean') {
+        updateData.is_public = is_public;
+        updateData.public_ownership = is_public ? (public_ownership ?? null) : null;
       }
 
       await notebookHelper.updateNotebookCollection(collectionId, updateData);
