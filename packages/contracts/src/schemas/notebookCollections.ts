@@ -137,6 +137,7 @@ export const transformedCollectionSchema = z.object({
   is_public: z.boolean().nullish(),
   public_ownership: publicOwnershipSchema.nullable().optional(),
   wolke_folders: z.array(wolkeFolderRefSchema).nullish(),
+  likes_count: z.number().nullish(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────
@@ -215,4 +216,21 @@ export const bulkDeleteResponseSchema = z.object({
   failed_ids: z.array(z.string()),
   total_requested: z.number(),
   deleted_ids: z.array(z.string()),
+});
+
+export const likeCollectionResponseSchema = z.object({
+  success: z.literal(true),
+  liked: z.literal(true),
+  count: z.number(),
+});
+
+export const unlikeCollectionResponseSchema = z.object({
+  success: z.literal(true),
+  liked: z.literal(false),
+  count: z.number(),
+});
+
+export const listMyLikedCollectionsResponseSchema = z.object({
+  success: z.literal(true),
+  liked_ids: z.array(z.string()),
 });
