@@ -14,7 +14,7 @@ interface NotebookCreateWizardProps {
 export default function NotebookCreateWizard({ state }: NotebookCreateWizardProps) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <div className="mx-auto w-full max-w-3xl">
+      <div className="mx-auto w-full max-w-4xl">
         <AnimatePresence mode="wait">
           <motion.div
             key={state.step}
