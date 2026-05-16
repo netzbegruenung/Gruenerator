@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { filterMentionables, type Mentionable } from '../../lib/mentionables';
 import { getFilteredFunctions } from '../../lib/mentionDetection';
+import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface MentionPopoverProps {
   query: string;
@@ -68,21 +69,17 @@ export function MentionPopover({
     el?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex, visible]);
 
-  if (!visible || totalItems === 0 || !anchorRect) return null;
-
+  const isOpen = visible && totalItems > 0 && !!anchorRect;
   let itemIndex = 0;
 
   return (
-    <div
-      ref={listRef}
+    <MentionFloatingPanel
+      open={isOpen}
+      onDismiss={onDismiss}
+      width="w-64"
       role="listbox"
-      className="mention-popover absolute z-50 max-h-60 w-64 overflow-y-auto rounded-xl border border-border bg-background shadow-lg"
-      style={{
-        bottom: '100%',
-        left: 0,
-        marginBottom: '0.5rem',
-      }}
     >
+      <div ref={listRef} className="overflow-y-auto">
       {sections.map((section) => (
         <div key={section.label}>
           <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
@@ -120,7 +117,8 @@ export function MentionPopover({
               ))}
         </div>
       ))}
-    </div>
+      </div>
+    </MentionFloatingPanel>
   );
 }
 

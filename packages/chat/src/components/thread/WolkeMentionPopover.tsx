@@ -8,6 +8,7 @@ import {
 } from '../../hooks/useMentionablesQuery';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { type WolkeFileToken } from '../../lib/mentionables';
+import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface WolkeMentionPopoverProps {
   visible: boolean;
@@ -66,8 +67,6 @@ export function WolkeMentionPopover({ visible, onSelect, onDismiss }: WolkeMenti
     return files.filter((f) => f.name.toLowerCase().includes(q));
   }, [browse.data, filter]);
 
-  if (!visible) return null;
-
   const hasNoShares = !linksLoading && (!shareLinks || shareLinks.length === 0);
   const selectionList = [...selection.values()];
 
@@ -94,18 +93,22 @@ export function WolkeMentionPopover({ visible, onSelect, onDismiss }: WolkeMenti
   };
 
   return (
-    <div
+    <MentionFloatingPanel
+      open={visible}
+      onDismiss={onDismiss}
+      width="w-[360px]"
       role="dialog"
-      aria-label="Wolke-Dateien auswählen"
-      className="mention-popover absolute z-50 flex max-h-[420px] w-[360px] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-lg"
-      style={{ bottom: '100%', left: 0, marginBottom: '0.5rem' }}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          onDismiss();
-        }
-      }}
+      ariaLabel="Wolke-Dateien auswählen"
     >
+      <div
+        className="flex min-h-0 flex-1 flex-col"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            onDismiss();
+          }
+        }}
+      >
       <div className="border-b border-border px-3 py-2">
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs font-semibold uppercase tracking-wider text-foreground-muted/70">
@@ -252,6 +255,7 @@ export function WolkeMentionPopover({ visible, onSelect, onDismiss }: WolkeMenti
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </MentionFloatingPanel>
   );
 }
