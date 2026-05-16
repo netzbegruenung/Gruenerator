@@ -5,6 +5,7 @@ import { Library } from 'lucide-react';
 import { filterMentionables, type Mentionable } from '../../lib/mentionables';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
 import { SkillLibraryModal } from '../skills/SkillLibraryModal';
+import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface SkillPopoverProps {
   query: string;
@@ -52,23 +53,19 @@ export function SkillPopover({
     );
   }
 
-  if (!visible || !anchorRect) return null;
-
+  const isOpen = visible && !!anchorRect;
   const showEmptyHint = allItems.length === 0 && query.length > 0;
 
   let itemIndex = 0;
 
   return (
-    <div
-      ref={listRef}
+    <MentionFloatingPanel
+      open={isOpen}
+      onDismiss={onDismiss}
+      width="w-64"
       role="listbox"
-      className="mention-popover absolute z-50 max-h-60 w-64 overflow-y-auto rounded-xl border border-border bg-background shadow-lg"
-      style={{
-        bottom: '100%',
-        left: 0,
-        marginBottom: '0.5rem',
-      }}
     >
+      <div ref={listRef} className="overflow-y-auto">
       {quickAccessAgents.length > 0 && (
         <>
           <div className="sticky top-0 z-[1] bg-background px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
@@ -119,7 +116,8 @@ export function SkillPopover({
         <Library className="h-3.5 w-3.5" />
         Alle Skills durchsuchen...
       </button>
-    </div>
+      </div>
+    </MentionFloatingPanel>
   );
 }
 
