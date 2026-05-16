@@ -12,6 +12,7 @@ export { sharesContract } from './sharesContract.js';
 export { userProfileContract } from './userProfileContract.js';
 export { notebookContract } from './notebookContract.js';
 export { notebookCollectionsContract } from './notebookCollectionsContract.js';
+export { notebookSharingContract } from './notebookSharingContract.js';
 export { docsContract } from './docsContract.js';
 export { documentsContract } from './documentsContract.js';
 export { subtitlerContract } from './subtitlerContract.js';

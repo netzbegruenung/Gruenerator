@@ -19,7 +19,6 @@ import {
   syncCollectionResponseSchema,
   searchResultItemSchema,
   simpleSuccessMessageSchema,
-  shareCollectionResponseSchema,
   bulkDeleteResponseSchema,
   likeCollectionResponseSchema,
   unlikeCollectionResponseSchema,
@@ -155,42 +154,6 @@ export const notebookCollectionsContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'Delete a notebook collection',
-    },
-
-    /**
-     * POST /api/auth/notebook-collections/:id/share
-     * Generate a public sharing link for a notebook collection.
-     */
-    shareCollection: {
-      method: 'POST',
-      path: '/api/auth/notebook-collections/:id/share',
-      pathParams: z.object({ id: z.string() }),
-      body: c.noBody(),
-      responses: {
-        200: shareCollectionResponseSchema,
-        401: notebookErrorResponseSchema,
-        404: notebookErrorResponseSchema,
-        500: notebookErrorResponseSchema,
-      },
-      summary: 'Generate a public sharing link for a notebook collection',
-    },
-
-    /**
-     * DELETE /api/auth/notebook-collections/:id/share
-     * Revoke public access to a notebook collection.
-     */
-    revokeShare: {
-      method: 'DELETE',
-      path: '/api/auth/notebook-collections/:id/share',
-      pathParams: z.object({ id: z.string() }),
-      body: c.noBody(),
-      responses: {
-        200: simpleSuccessMessageSchema,
-        401: notebookErrorResponseSchema,
-        404: notebookErrorResponseSchema,
-        500: notebookErrorResponseSchema,
-      },
-      summary: 'Revoke public access to a notebook collection',
     },
 
     /**
