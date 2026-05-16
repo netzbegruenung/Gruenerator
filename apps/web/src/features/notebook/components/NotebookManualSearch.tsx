@@ -12,11 +12,13 @@ import {
   PopoverTrigger,
   StatusBanner,
 } from '@gruenerator/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type JSX, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { HiArrowsUpDown, HiBarsArrowDown, HiCog6Tooth, HiTag } from 'react-icons/hi2';
 import { IoSearch } from 'react-icons/io5';
+import rehypeRaw from 'rehype-raw';
 
 import IndexCard from '../../../components/common/IndexCard';
+import { Markdown } from '../../../components/common/Markdown/Markdown';
 import SearchBar from '../../search/components/SearchBar';
 import ActiveFilterChips from '../manual-search/ActiveFilterChips';
 import ResearchFilterPanel from '../manual-search/ResearchFilterPanel';
@@ -26,6 +28,8 @@ import {
   type SearchMode,
   type SortOption,
 } from '../manual-search/useResearchFilters';
+
+import type { Components } from 'react-markdown';
 
 import { cn } from '@/utils/cn';
 
@@ -59,6 +63,22 @@ function formatPublishedDate(iso: string): string {
   }
 }
 
+// Inline-friendly component map for search snippets: demote h1–h6 to bold
+// spans (a header rendered as h1 inside a 200-char teaser is visually absurd),
+// collapse horizontal rules to a soft separator, keep paragraphs as spans so
+// the snippet stays inline.
+const SNIPPET_MARKDOWN_COMPONENTS: Partial<Components> = {
+  h1: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
+  h2: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
+  h3: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
+  h4: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
+  h5: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
+  h6: ({ children }): JSX.Element => <span className="font-semibold">{children}</span>,
+  hr: (): JSX.Element => <span className="mx-1 text-grey-400"> · </span>,
+};
+
+const SNIPPET_REHYPE_PLUGINS = [rehypeRaw];
+
 function resultToCardProps(result: ResearchResult) {
   const similarityPercent = Math.round(result.similarity_score * 100);
   const tags = result.collection_name ? [result.collection_name] : [];
@@ -68,14 +88,16 @@ function resultToCardProps(result: ResearchResult) {
   const metaParts = [`${chunkLabel} · ${similarityPercent}% Relevanz`];
   if (result.published_at) metaParts.push(formatPublishedDate(result.published_at));
 
-  const hasHighlights = result.relevant_content?.includes('<mark>');
-
   return {
     title: result.title,
-    description: hasHighlights ? (
-      <span dangerouslySetInnerHTML={{ __html: result.relevant_content }} />
-    ) : (
-      result.relevant_content
+    description: (
+      <Markdown
+        inline
+        rehypePlugins={SNIPPET_REHYPE_PLUGINS}
+        components={SNIPPET_MARKDOWN_COMPONENTS}
+      >
+        {result.relevant_content ?? ''}
+      </Markdown>
     ),
     tags,
     meta: (

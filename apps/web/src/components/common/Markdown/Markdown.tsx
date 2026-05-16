@@ -8,7 +8,9 @@ import {
   type ReactNode,
 } from 'react';
 
-import type { Components } from 'react-markdown';
+import type { Components, Options } from 'react-markdown';
+
+type PluggableList = NonNullable<Options['rehypePlugins']>;
 
 const ReactMarkdown = lazy(() => import('react-markdown'));
 
@@ -82,6 +84,8 @@ interface MarkdownProps {
   components?: Partial<Components>;
   fallback?: ReactNode;
   inline?: boolean;
+  rehypePlugins?: PluggableList;
+  remarkPlugins?: PluggableList;
 }
 
 export const Markdown = ({
@@ -90,6 +94,8 @@ export const Markdown = ({
   components,
   fallback,
   inline,
+  rehypePlugins,
+  remarkPlugins,
 }: MarkdownProps): JSX.Element => {
   const baseComponents = inline ? INLINE_COMPONENTS : MARKDOWN_COMPONENTS;
   const Wrapper = inline ? 'span' : 'div';
@@ -101,7 +107,11 @@ export const Markdown = ({
     <MarkdownErrorBoundary fallback={rawFallback}>
       <Suspense fallback={rawFallback}>
         <Wrapper className={className}>
-          <ReactMarkdown components={{ ...baseComponents, ...components }}>
+          <ReactMarkdown
+            components={{ ...baseComponents, ...components }}
+            rehypePlugins={rehypePlugins}
+            remarkPlugins={remarkPlugins}
+          >
             {processedContent}
           </ReactMarkdown>
         </Wrapper>
