@@ -27,6 +27,7 @@ function SectionHeader({
   size = 'default',
   title,
   titleHref,
+  onTitleClick,
   onCreate,
   createLabel,
   createMenu,
@@ -40,6 +41,8 @@ function SectionHeader({
   VariantProps<typeof sectionHeaderVariants> & {
     title: string;
     titleHref?: string;
+    /** In-app click handler for the title. Takes precedence over `titleHref`. */
+    onTitleClick?: () => void;
     onCreate?: () => void;
     createLabel?: string;
     /** Wraps the plus button as a dropdown trigger. Receives the button as children. */
@@ -135,7 +138,17 @@ function SectionHeader({
       {...props}
     >
       <div className="flex items-center gap-xs">
-        {titleHref ? (
+        {onTitleClick ? (
+          <button
+            type="button"
+            onClick={onTitleClick}
+            className="bg-transparent border-none p-0 cursor-pointer text-left"
+          >
+            <Heading className={cn(headingClass, 'hover:text-primary-600 transition-colors')}>
+              {title}
+            </Heading>
+          </button>
+        ) : titleHref ? (
           <a href={titleHref} target="_blank" rel="noopener noreferrer" className="no-underline">
             <Heading className={cn(headingClass, 'hover:text-primary-600 transition-colors')}>
               {title}
