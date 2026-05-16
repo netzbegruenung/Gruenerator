@@ -509,23 +509,34 @@ async function* parseSSEStream(
           const mappedToolName = DEEP_TOOL_MAP[toolName] || toolName;
 
           if (status === 'in_progress') {
-            // Preserve any pre-existing activeToolCall (e.g. the intent-derived
-            // gruenerator_examples_search tool-call set by the `intent` event)
-            // before overwriting with this thinking_step's tool. Otherwise the
-            // examples tool-call is orphaned and search_complete's result has
-            // nowhere to land — leaving the UI with classify/rerank chips and
-            // no examples card.
-            if (activeToolCall && !allToolCalls.includes(activeToolCall)) {
-              allToolCalls.push(activeToolCall);
+            // The backend heartbeat (responseStreamingService.startResponseHeartbeat)
+            // re-emits the SAME stepId every 3s. If it matches the current
+            // activeToolCall, or is already in allToolCalls, skip the
+            // archive-and-replace below — otherwise we'd render two tool-call
+            // parts with the same toolCallId and trip assistant-ui's
+            // `tapResources` with "Duplicate key toolCallId-…".
+            const isDuplicateStepId =
+              (activeToolCall !== null && activeToolCall.toolCallId === stepId) ||
+              allToolCalls.some((tc) => tc.toolCallId === stepId);
+            if (!isDuplicateStepId) {
+              // Preserve any pre-existing activeToolCall (e.g. the intent-derived
+              // gruenerator_examples_search tool-call set by the `intent` event)
+              // before overwriting with this thinking_step's tool. Otherwise the
+              // examples tool-call is orphaned and search_complete's result has
+              // nowhere to land — leaving the UI with classify/rerank chips and
+              // no examples card.
+              if (activeToolCall !== null && !allToolCalls.includes(activeToolCall)) {
+                allToolCalls.push(activeToolCall);
+              }
+              const toolArgs = { query: (args?.query as string) || title, ...args };
+              activeToolCall = {
+                type: 'tool-call',
+                toolCallId: stepId,
+                toolName: mappedToolName,
+                args: toolArgs as Record<string, string | number | boolean | null>,
+                argsText: JSON.stringify(toolArgs),
+              };
             }
-            const toolArgs = { query: (args?.query as string) || title, ...args };
-            activeToolCall = {
-              type: 'tool-call',
-              toolCallId: stepId,
-              toolName: mappedToolName,
-              args: toolArgs as Record<string, string | number | boolean | null>,
-              argsText: JSON.stringify(toolArgs),
-            };
             currentProgress = { stage: 'searching', message: title };
           } else if (status === 'completed') {
             if (activeToolCall?.toolCallId === stepId) {
