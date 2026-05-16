@@ -20,6 +20,17 @@ export const notebookEditPolicySchema = z.enum(['owner_only', 'group_admins', 'a
 export type NotebookEditPolicy = z.infer<typeof notebookEditPolicySchema>;
 
 /**
+ * Locale audience for a notebook. Only constrains the visibility of
+ * `share_mode='authenticated'` listings: 'de-DE' / 'de-AT' hide the notebook
+ * from viewers whose `users.locale` doesn't match; 'all' shows it everywhere.
+ * Owner + explicit group-share viewers always bypass the audience filter.
+ *
+ * Convention mirrors `AgentAudience` (`packages/shared/src/agents/types.ts`).
+ */
+export const notebookAudienceSchema = z.enum(['de-DE', 'de-AT', 'all']);
+export type NotebookAudience = z.infer<typeof notebookAudienceSchema>;
+
+/**
  * Tag every notebook in a list response with how the calling user can reach it.
  * Lets the UI render a "Mit dir geteilt" section without re-querying access.
  */
@@ -79,6 +90,7 @@ export const createCollectionBodySchema = z.object({
   public_ownership: publicOwnershipSchema.nullish(),
   wolke_folders: z.array(wolkeFolderRefSchema).nullish(),
   linked_docs: z.array(linkedDocRefSchema).nullish(),
+  audience: notebookAudienceSchema.nullish(),
 });
 
 export const updateCollectionBodySchema = z.object({
@@ -95,6 +107,7 @@ export const updateCollectionBodySchema = z.object({
   public_ownership: publicOwnershipSchema.nullish(),
   wolke_folders: z.array(wolkeFolderRefSchema).nullish(),
   linked_docs: z.array(linkedDocRefSchema).nullish(),
+  audience: notebookAudienceSchema.nullish(),
 });
 
 export const bulkDeleteBodySchema = z.object({
@@ -180,6 +193,7 @@ export const transformedCollectionSchema = z.object({
   likes_count: z.number().nullish(),
   share_mode: notebookShareModeSchema.nullish(),
   edit_policy: notebookEditPolicySchema.nullish(),
+  audience: notebookAudienceSchema.nullish(),
   access_source: notebookAccessSourceSchema.nullish(),
   slug_suffix: z.string().nullish(),
 });

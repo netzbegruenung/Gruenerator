@@ -66,6 +66,16 @@ function getUserId(req: Request): string {
   return user.id;
 }
 
+/**
+ * Resolve the calling user's locale for audience-filter decisions.
+ * Falls back to 'de-DE' when the column is unset (matches the database
+ * default in apps/api/database/schema/core.ts).
+ */
+function getUserLocale(req: Request): 'de-DE' | 'de-AT' {
+  const user = req.user as UserProfile | undefined;
+  return user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
+}
+
 // ── Helpers copied from collectionsController ──────────────────────────────
 
 async function resolveWolkeLinksToDocuments(
@@ -192,6 +202,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         public_ownership?: 'owner' | 'public_data' | null;
         share_mode?: 'private' | 'groups' | 'authenticated';
         edit_policy?: 'owner_only' | 'group_admins' | 'all_members';
+        audience?: 'de-DE' | 'de-AT' | 'all';
       };
 
       const owned = (await notebookHelper.getUserNotebookCollections(
@@ -219,12 +230,21 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       ).filter((c) => c.share_mode === 'groups');
       const groupSharedIdsSet = new Set(groupShared.map((c) => c.id));
 
-      // Notebooks visible to any authenticated user — excluding ones we already have.
+      // Notebooks visible to any authenticated user — excluding ones we already
+      // have AND respecting the audience filter so an AT viewer doesn't get a
+      // DE-targeted notebook (and vice versa). Legacy rows have no `audience`
+      // → normaliser returns 'all' → always visible.
+      const viewerLocale = getUserLocale(args.req);
       const authShared = (
         (await notebookHelper.getNotebookCollectionsByShareMode(
           'authenticated'
         )) as NotebookCollectionFromQdrantRaw[]
-      ).filter((c) => !ownedIds.has(c.id) && !groupSharedIdsSet.has(c.id));
+      ).filter(
+        (c) =>
+          !ownedIds.has(c.id) &&
+          !groupSharedIdsSet.has(c.id) &&
+          (c.audience === undefined || c.audience === 'all' || c.audience === viewerLocale)
+      );
 
       const tagged: Array<{
         collection: NotebookCollectionFromQdrantRaw;
@@ -396,7 +416,12 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         is_public,
         public_ownership,
         wolke_folders: wolkeFoldersRaw,
+        audience: audienceRaw,
       } = args.body;
+      // Default audience to the creator's locale so an Austrian user creating
+      // a notebook ships AT-targeted by default. Caller can override via the
+      // share modal (PUT /share/audience) or by sending an explicit value.
+      const audience = audienceRaw ?? getUserLocale(args.req);
 
       const selection_mode = selectionModeRaw ?? 'documents';
       const document_ids = documentIdsRaw ?? [];
@@ -497,6 +522,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         },
         is_public: is_public === true,
         public_ownership: is_public === true ? (public_ownership ?? null) : null,
+        audience,
       };
 
       const result = await notebookHelper.storeNotebookCollection(collectionData);

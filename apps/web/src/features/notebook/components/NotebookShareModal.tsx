@@ -30,11 +30,16 @@ import {
   useNotebookGroupShares,
   useNotebookShareSettings,
   useRemoveNotebookGroupShare,
+  useSetNotebookAudience,
   useSetNotebookEditPolicy,
   useSetNotebookShareMode,
 } from '../hooks/useNotebookSharing';
 
-import type { NotebookEditPolicy, NotebookShareMode } from '@gruenerator/contracts';
+import type {
+  NotebookAudience,
+  NotebookEditPolicy,
+  NotebookShareMode,
+} from '@gruenerator/contracts';
 
 interface NotebookShareModalProps {
   notebookId: string;
@@ -54,6 +59,12 @@ const EDIT_POLICY_LABELS: Record<NotebookEditPolicy, string> = {
   all_members: 'Alle Mitglieder der geteilten Gruppen',
 };
 
+const AUDIENCE_LABELS: Record<NotebookAudience, string> = {
+  all: 'Beide Länder (DE & AT)',
+  'de-DE': 'Nur Deutschland',
+  'de-AT': 'Nur Österreich',
+};
+
 export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookShareModalProps) {
   const settingsQuery = useNotebookShareSettings(notebookId, open);
   const groupSharesQuery = useNotebookGroupShares(notebookId, open);
@@ -61,11 +72,13 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
 
   const setShareMode = useSetNotebookShareMode(notebookId);
   const setEditPolicy = useSetNotebookEditPolicy(notebookId);
+  const setAudience = useSetNotebookAudience(notebookId);
   const addGroupShare = useAddNotebookGroupShare(notebookId);
   const removeGroupShare = useRemoveNotebookGroupShare(notebookId);
 
   const shareMode = settingsQuery.data?.share_mode ?? 'private';
   const editPolicy = settingsQuery.data?.edit_policy ?? 'owner_only';
+  const audience = settingsQuery.data?.audience ?? 'all';
 
   const sharedGroupIds = useMemo(
     () => new Set((groupSharesQuery.data ?? []).map((g) => g.group_id)),
@@ -170,6 +183,32 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
                 ) : null}
               </div>
             ) : null}
+
+            <Separator />
+
+            <div>
+              <p className="mb-xs text-sm font-semibold">Zielgruppe</p>
+              <Select
+                value={audience}
+                onValueChange={(v) => setAudience.mutate(v as NotebookAudience)}
+                disabled={setAudience.isPending}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(AUDIENCE_LABELS) as NotebookAudience[]).map((a) => (
+                    <SelectItem key={a} value={a}>
+                      {AUDIENCE_LABELS[a]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-xs text-xs text-grey-500">
+                Wirkt nur in &quot;Mit Anmeldung&quot;: Nutzer*innen aus dem anderen Land sehen das
+                Notebook dann nicht. Gruppen-Mitglieder und Eigentümer*in sind nicht betroffen.
+              </p>
+            </div>
 
             <Separator />
 
