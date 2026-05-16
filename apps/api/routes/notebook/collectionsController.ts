@@ -29,7 +29,7 @@ import type {
   NotebookCollectionFromQdrant,
 } from './types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { WolkeFolderRef } from '@gruenerator/contracts';
+import type { LinkedDocRef, WolkeFolderRef } from '@gruenerator/contracts';
 
 const log = createLogger('notebookCollections');
 const { requireAuth } = authMiddleware;
@@ -145,6 +145,9 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
         const wolke_folders: WolkeFolderRef[] = Array.isArray(settings.wolke_folders)
           ? (settings.wolke_folders as WolkeFolderRef[])
           : [];
+        const linked_docs: LinkedDocRef[] = Array.isArray(settings.linked_docs)
+          ? (settings.linked_docs as LinkedDocRef[])
+          : [];
 
         return {
           ...collection,
@@ -158,6 +161,7 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
           remove_missing_on_sync: !!collection.remove_missing_on_sync,
           labels,
           wolke_folders,
+          linked_docs,
           slug_suffix: collection.slug_suffix ?? null,
         };
       })
@@ -193,8 +197,10 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       remove_missing_on_sync = false,
       labels,
       wolke_folders: wolkeFoldersRaw,
+      linked_docs: linkedDocsRaw,
     } = req.body as CreateCollectionBody;
     const wolke_folders = Array.isArray(wolkeFoldersRaw) ? wolkeFoldersRaw : [];
+    const linked_docs = Array.isArray(linkedDocsRaw) ? linkedDocsRaw : [];
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Name is required' });
@@ -259,6 +265,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       settings: {
         ...(Array.isArray(labels) ? { labels: labels.map((l) => l.trim()).filter(Boolean) } : {}),
         wolke_folders,
+        linked_docs,
       },
     };
 
@@ -343,6 +350,7 @@ router.put(
         remove_missing_on_sync,
         labels,
         wolke_folders: wolkeFoldersRaw,
+        linked_docs: linkedDocsRaw,
       } = req.body as UpdateCollectionBody;
 
       if (!name || !name.trim()) {
@@ -419,6 +427,10 @@ router.put(
       }
       if (Array.isArray(wolkeFoldersRaw)) {
         settingsPatch.wolke_folders = wolkeFoldersRaw;
+        settingsChanged = true;
+      }
+      if (Array.isArray(linkedDocsRaw)) {
+        settingsPatch.linked_docs = linkedDocsRaw;
         settingsChanged = true;
       }
       if (settingsChanged) {

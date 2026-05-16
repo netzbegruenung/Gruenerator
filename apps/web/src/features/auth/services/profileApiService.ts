@@ -489,6 +489,9 @@ export const profileApiService = {
       ...(Array.isArray(collectionData.wolkeFolders)
         ? { wolke_folders: collectionData.wolkeFolders }
         : {}),
+      ...(Array.isArray(collectionData.linkedDocs)
+        ? { linked_docs: collectionData.linkedDocs }
+        : {}),
     };
 
     const response = await apiClient.post<NotebookCollectionMutationResponse>(
@@ -532,6 +535,9 @@ export const profileApiService = {
         : {}),
       ...(Array.isArray(collectionData.wolkeFolders)
         ? { wolke_folders: collectionData.wolkeFolders }
+        : {}),
+      ...(Array.isArray(collectionData.linkedDocs)
+        ? { linked_docs: collectionData.linkedDocs }
         : {}),
     };
 
