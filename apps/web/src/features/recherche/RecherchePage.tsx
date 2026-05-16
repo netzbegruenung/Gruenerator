@@ -558,6 +558,7 @@ const RecherchePage = () => {
           selectionMode: data.selectionMode,
           documents: data.documents,
           labels: data.labels,
+          wolkeFolders: data.wolkeFolders,
         });
       } else {
         const result = await createQACollection({
@@ -566,6 +567,7 @@ const RecherchePage = () => {
           selectionMode: data.selectionMode,
           documents: data.documents,
           labels: data.labels,
+          wolkeFolders: data.wolkeFolders,
         });
 
         if (result?.id && data.documents.length) {

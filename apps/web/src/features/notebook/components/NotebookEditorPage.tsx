@@ -61,6 +61,7 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
         custom_prompt: collection.custom_prompt,
         is_public: data.isPublic,
         public_ownership: data.publicOwnership,
+        wolkeFolders: data.wolkeFolders,
       });
 
       toast.success(`Notebook „${data.name}" gespeichert`);
@@ -84,6 +85,7 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
         labels: data.labels,
         is_public: data.isPublic,
         public_ownership: data.publicOwnership,
+        wolkeFolders: data.wolkeFolders,
       });
       toast.success(`Notebook „${data.name}" erstellt`);
       goBack();

@@ -62,10 +62,25 @@ interface WolkeBrowseApiResponse {
   files: WolkeFile[];
 }
 
+/**
+ * Mirrors apps/api/routes/documents/types.ts WolkeImportResult.
+ * TODO: move to @gruenerator/contracts and z.infer instead of duplicating.
+ */
+interface WolkeImportResult {
+  filename: string;
+  success: boolean;
+  skipped?: boolean;
+  reason?: string;
+  documentId?: string;
+  vectorsCreated?: number;
+  error?: string;
+}
+
 interface WolkeImportApiResponse {
   success: boolean;
   message?: string;
-  summary?: Record<string, unknown>;
+  results?: WolkeImportResult[];
+  summary?: { total: number; successful: number; failed: number; skipped: number };
 }
 
 interface Document {
@@ -141,7 +156,8 @@ interface WolkeFileResponse {
 
 interface WolkeImportResponse {
   success: boolean;
-  summary?: Record<string, unknown>;
+  results?: WolkeImportResult[];
+  summary?: { total: number; successful: number; failed: number; skipped: number };
   message?: string;
 }
 
@@ -770,4 +786,5 @@ export type {
   WolkeFile,
   WolkeFileResponse,
   WolkeImportResponse,
+  WolkeImportResult,
 };
