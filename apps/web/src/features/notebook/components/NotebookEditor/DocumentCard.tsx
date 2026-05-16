@@ -26,8 +26,10 @@ export default function DocumentCard({ doc, indexing, loading, onRemove }: Docum
     >
       <div
         className={cn(
-          'pointer-events-none absolute right-0 top-0 h-[3px] w-12 rounded-bl-md',
-          isWolke ? 'bg-secondary-400 dark:bg-secondary-700' : fileType?.cornerClass
+          'pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent to-transparent',
+          isWolke
+            ? 'via-secondary-400/50 dark:via-secondary-500/40'
+            : fileType?.accentVia
         )}
         aria-hidden
       />
