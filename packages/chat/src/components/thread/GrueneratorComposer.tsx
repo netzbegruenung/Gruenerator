@@ -26,6 +26,7 @@ import { computeMentionInsertion } from '../../lib/mentionInsertion';
 import { FileMentionPopover } from './FileMentionPopover';
 import { WolkeMentionPopover } from './WolkeMentionPopover';
 import type { CollabDocSelection } from '../../lib/documentMentionables';
+import type { WolkeFileToken } from '../../lib/mentionables';
 import { PlusMenu } from './PlusMenu';
 import { ModelPicker } from './ModelPicker';
 import { getCaretCoords } from '../../lib/caretPosition';
@@ -363,19 +364,30 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   );
 
   const handleWolkeSelect = useCallback(
-    (tokens: string[]) => {
-      const textarea = textareaRef.current;
-      if (!textarea || tokens.length === 0) return;
-      const currentText = composerRuntime.getState().text;
-      const caret = textarea.selectionStart;
-      const insert = `${currentText.slice(0, caret)}${tokens.join(' ')} ${currentText.slice(caret)}`;
-      composerRuntime.setText(insert);
+    (files: WolkeFileToken[]) => {
+      if (files.length === 0) return;
+      for (const f of files) {
+        void composerRuntime.addAttachment({
+          id: `gruenerator-wolke-${f.shareLinkId}:${f.path}`,
+          type: 'document',
+          name: f.name,
+          contentType: 'application/x-gruenerator-wolke',
+          content: [
+            {
+              type: 'data',
+              name: 'gruenerator-mention',
+              data: {
+                kind: 'wolke',
+                shareLinkId: f.shareLinkId,
+                path: f.path,
+                name: f.name,
+              },
+            },
+          ],
+        });
+      }
       dismissPopover();
-      requestAnimationFrame(() => {
-        const pos = caret + tokens.join(' ').length + 1;
-        textarea.setSelectionRange(pos, pos);
-        textarea.focus();
-      });
+      requestAnimationFrame(() => textareaRef.current?.focus());
     },
     [composerRuntime, dismissPopover]
   );

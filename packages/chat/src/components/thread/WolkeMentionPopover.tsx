@@ -7,11 +7,11 @@ import {
   type ChatWolkeFile,
 } from '../../hooks/useMentionablesQuery';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
-import { encodeWolkeToken } from '../../lib/mentionables';
+import { type WolkeFileToken } from '../../lib/mentionables';
 
 interface WolkeMentionPopoverProps {
   visible: boolean;
-  onSelect: (tokens: string[]) => void;
+  onSelect: (files: WolkeFileToken[]) => void;
   onDismiss: () => void;
 }
 
@@ -88,10 +88,9 @@ export function WolkeMentionPopover({ visible, onSelect, onDismiss }: WolkeMenti
 
   const handleConfirm = () => {
     if (selectionList.length === 0) return;
-    const tokens = selectionList.map((f) =>
-      encodeWolkeToken({ shareLinkId: f.shareLinkId, path: f.path, name: f.name })
+    onSelect(
+      selectionList.map((f) => ({ shareLinkId: f.shareLinkId, path: f.path, name: f.name }))
     );
-    onSelect(tokens);
   };
 
   return (

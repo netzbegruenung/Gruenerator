@@ -1051,13 +1051,15 @@ export function createGrueneratorModelAdapter(
         const seenDocs = new Set(documentIds);
         const seenTexts = new Set(textIds);
         const seenCollab = new Set(docMentionIds);
+        const seenWolke = new Set(wolkeFiles.map((f) => `${f.shareLinkId}:${f.path}`));
         type GruenMentionData =
           | { kind: 'collab'; id: string; slug: string; title: string }
           | {
               kind: 'document';
               documentId: string;
               sourceType: 'notebook' | 'document' | 'text';
-            };
+            }
+          | { kind: 'wolke'; shareLinkId: string; path: string; name: string };
         const attachments = (lastUserMsg as { attachments: readonly CompleteAttachment[] })
           .attachments;
         for (const att of attachments) {
@@ -1083,6 +1085,16 @@ export function createGrueneratorModelAdapter(
                   seenDocs.add(data.documentId);
                   documentIds.push(data.documentId);
                 }
+              }
+            } else if (data.kind === 'wolke') {
+              const key = `${data.shareLinkId}:${data.path}`;
+              if (!seenWolke.has(key)) {
+                seenWolke.add(key);
+                wolkeFiles.push({
+                  shareLinkId: data.shareLinkId,
+                  path: data.path,
+                  name: data.name,
+                });
               }
             }
           }
