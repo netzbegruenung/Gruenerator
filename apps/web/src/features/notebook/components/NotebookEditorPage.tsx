@@ -12,7 +12,7 @@ import {
 import { buildNotebookSlug, extractSlugSuffix } from '@gruenerator/shared/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
-import { HiArrowLeft, HiShare } from 'react-icons/hi';
+import { HiArrowLeft, HiRefresh, HiShare } from 'react-icons/hi';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
@@ -25,6 +25,7 @@ import { webAppDocsAdapter } from '../../docs/docsAdapter';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 
 import NotebookEditor from './NotebookEditor';
+import { NotebookFullSyncModal } from './NotebookFullSyncModal';
 import { NotebookShareModal } from './NotebookShareModal';
 
 import type { NotebookCollection } from '../../../types/notebook';
@@ -43,6 +44,7 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
     useNotebookCollections({ isActive: true });
   const [editingField, setEditingField] = useState<'name' | 'desc' | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [fullSyncOpen, setFullSyncOpen] = useState(false);
 
   const collections = useMemo<NotebookCollection[]>(() => query.data ?? [], [query.data]);
   const editingCollection = useMemo<NotebookCollection | null>(() => {
@@ -165,15 +167,29 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
             editingCollection &&
             currentUserId &&
             editingCollection.user_id === currentUserId ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShareOpen(true)}
-                className="gap-xs"
-              >
-                <HiShare size={14} />
-                Teilen
-              </Button>
+              <div className="flex items-center gap-xs">
+                {((editingCollection.wolke_folders?.length ?? 0) > 0 ||
+                  (editingCollection.linked_docs?.length ?? 0) > 0) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setFullSyncOpen(true)}
+                    className="gap-xs"
+                  >
+                    <HiRefresh size={14} />
+                    Alle Quellen aktualisieren
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShareOpen(true)}
+                  className="gap-xs"
+                >
+                  <HiShare size={14} />
+                  Teilen
+                </Button>
+              </div>
             ) : null}
           </div>
           {mode === 'edit' && editingCollection ? (
@@ -181,6 +197,13 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
               notebookId={editingCollection.id}
               open={shareOpen}
               onOpenChange={setShareOpen}
+            />
+          ) : null}
+          {mode === 'edit' && editingCollection && fullSyncOpen ? (
+            <NotebookFullSyncModal
+              collection={editingCollection}
+              open={fullSyncOpen}
+              onOpenChange={setFullSyncOpen}
             />
           ) : null}
 
