@@ -1,4 +1,25 @@
+import {
+  type ConnectionTestResult,
+  type ParsedShareLink,
+  type ShareLink,
+  type ShareLinkValidationResult,
+  type SyncStatus,
+  type WolkeFileItem,
+  type WolkeScope,
+} from '@gruenerator/wolke';
+
 import apiClient from '@/components/utils/apiClient';
+
+// Re-export the shared domain types so existing consumers of this module keep
+// working without each call site having to switch to @gruenerator/wolke.
+export type {
+  ConnectionTestResult,
+  ShareLink,
+  ShareLinkValidationResult,
+  SyncStatus,
+  WolkeFileItem,
+  WolkeScope,
+};
 
 // ── API response shapes ────────────────────────────────────────────────
 
@@ -22,65 +43,6 @@ interface FilesResponse {
 interface SyncStatusesResponse {
   success: boolean;
   syncStatuses?: SyncStatus[];
-}
-
-export type WolkeScope = 'personal' | 'group';
-
-export interface ShareLink {
-  id: string;
-  share_link?: string;
-  label?: string;
-  folder_name?: string;
-  base_url?: string;
-  share_token?: string;
-  is_active?: boolean;
-  created_at?: string;
-  updated_at?: string;
-  display_name?: string;
-  user_id?: string;
-}
-
-export interface SyncStatus {
-  share_link_id: string;
-  folder_path: string;
-  auto_sync_enabled: boolean;
-  sync_status: 'idle' | 'syncing' | 'completed' | 'failed';
-  last_sync_at: string | null;
-  files_processed: number;
-  files_failed: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface WolkeFileItem {
-  path: string;
-  name: string;
-  size?: number;
-  mimeType?: string;
-  lastModified?: string;
-  isDirectory?: boolean;
-  fileExtension: string;
-  isSupported: boolean;
-  sizeFormatted: string;
-  lastModifiedFormatted?: string;
-}
-
-export interface ConnectionTestResult {
-  success: boolean;
-  message?: string;
-}
-
-export interface ShareLinkValidationResult {
-  isValid: boolean;
-  shareToken?: string;
-  baseUrl?: string;
-  error: string | null;
-}
-
-interface ParsedShareLink {
-  baseUrl: string;
-  shareToken: string;
-  fullPath: string;
 }
 
 function getBasePath(scope?: WolkeScope, scopeId?: string | null): string {

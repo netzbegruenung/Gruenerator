@@ -183,21 +183,10 @@ router.get(
         folderPath,
       });
 
-      // Get the share link
-      const shareLink = (await wolkeSyncService.getShareLink(userId, shareLinkId)) as {
-        id?: string;
-        label?: string;
-        base_url?: string;
-        share_link?: string;
-      } | null;
-
-      if (!shareLink) {
-        res.status(404).json({ success: false, message: 'Share link not found' });
-        return;
-      }
+      const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
 
       // List all files and folders (unfiltered, unlike listFolderContents which is for sync)
-      const client = await NextcloudApiClient.create(shareLink.share_link ?? '');
+      const client = await NextcloudApiClient.create(shareLink.share_link);
       const files = await client.listFolder(folderPath || undefined);
 
       // Filter and enrich files with additional metadata for UI
@@ -233,10 +222,9 @@ router.get(
       });
     } catch (error) {
       log.error('[GET /browse/:shareLinkId] Error:', error);
-      res.status(500).json({
-        success: false,
-        message: (error as Error).message || 'Failed to browse Wolke files',
-      });
+      const message = (error as Error).message || 'Failed to browse Wolke files';
+      const status = message === 'Share link not found' ? 404 : 500;
+      res.status(status).json({ success: false, message });
     }
   }
 );
@@ -258,13 +246,7 @@ router.post(
 
       log.debug(`[POST /import] Importing ${files.length} files from share link ${shareLinkId}`);
 
-      // Get the share link
-      const shareLink = (await wolkeSyncService.getShareLink(userId, shareLinkId)) as {
-        id: string;
-        url: string;
-        token?: string;
-        share_link?: string;
-      };
+      const shareLink = await wolkeSyncService.getShareLink(userId, shareLinkId);
 
       const results: WolkeImportResult[] = [];
       let successCount = 0;
