@@ -1,6 +1,7 @@
 import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
 import { Dialog, DialogContent, DialogTitle, SectionHeader } from '@gruenerator/ui';
 import React, { memo, useCallback, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import ToolGrid from '../../../components/common/ToolGrid';
 import { useAuthStore } from '../../../stores/authStore';
@@ -24,6 +25,7 @@ type CreationPhase =
   | { kind: 'processing'; name: string; documents: Array<{ id: string; title: string }> };
 
 const NotebooksSection: React.FC = memo(() => {
+  const navigate = useNavigate();
   const [phase, setPhase] = useState<CreationPhase>({ kind: 'closed' });
   const [showAll, setShowAll] = useState(false);
   const locale = useAuthStore((state) => state.locale);
@@ -106,6 +108,7 @@ const NotebooksSection: React.FC = memo(() => {
     <section className="mb-xl">
       <SectionHeader
         title="Notebooks"
+        onTitleClick={() => navigate('/notebooks')}
         onCreate={handleCreate}
         createLabel="Eigenes Notebook erstellen"
       />
