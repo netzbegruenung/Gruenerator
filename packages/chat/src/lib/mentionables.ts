@@ -708,11 +708,21 @@ export function filterMentionables(query: string): {
     m.title.toLowerCase().includes(q) ||
     m.identifier.toLowerCase().includes(q);
 
+  const isNotebookCategoryQuery =
+    'notebook'.startsWith(q) ||
+    q.startsWith('notebook') ||
+    'notizbuch'.startsWith(q) ||
+    q.startsWith('notizbuch') ||
+    'notiz'.startsWith(q) ||
+    q.startsWith('notiz');
+
   return {
     agents: agentMentionables.filter(matchFn),
     customAgents: customAgentMentionables.filter(matchFn),
-    notebooks: notebookMentionables.filter(matchFn),
-    userNotebooks: dynamicUserNotebookMentionables.filter(matchFn),
+    notebooks: isNotebookCategoryQuery ? notebookMentionables : notebookMentionables.filter(matchFn),
+    userNotebooks: isNotebookCategoryQuery
+      ? dynamicUserNotebookMentionables
+      : dynamicUserNotebookMentionables.filter(matchFn),
     tools: toolMentionables.filter(matchFn),
     boards: 'board'.startsWith(q) || q.startsWith('board') ? allBoards : allBoards.filter(matchFn),
     docs: 'dok'.startsWith(q) || q.startsWith('dok') ? allDocs : allDocs.filter(matchFn),
