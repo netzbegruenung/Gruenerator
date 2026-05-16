@@ -1,9 +1,9 @@
 import { type NotebookEditorSavePayload, type WolkeFolderRef } from '@gruenerator/contracts';
-import { Badge, Button, Input, Label, Separator, Switch } from '@gruenerator/ui';
+import { Badge, Button, Input, Label, SectionHeader, Separator, Switch } from '@gruenerator/ui';
 import { AnimatePresence, motion } from 'motion/react';
-import { useState, useEffect, useCallback, useRef, type DragEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type DragEvent } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
-import { HiArrowLeft, HiUpload, HiX, HiPlus, HiPencil } from 'react-icons/hi';
+import { HiArrowLeft, HiCloud, HiUpload, HiX, HiPlus, HiPencil } from 'react-icons/hi';
 
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
@@ -18,7 +18,7 @@ interface NotebookCollection {
   id?: string;
   name: string;
   description?: string;
-  documents?: { id: string; title?: string }[];
+  documents?: { id: string; title?: string; source_type?: string | null }[];
   labels?: string[];
   is_public?: boolean;
   public_ownership?: PublicOwnership | null;
@@ -34,6 +34,8 @@ interface UploadedDocument {
   id: string;
   title: string;
   filename?: string;
+  /** 'wolke' when the document was synced from a Wolke folder. Undefined for manual uploads. */
+  source?: 'wolke';
   [key: string]: unknown;
 }
 
@@ -142,6 +144,7 @@ const NotebookEditor = ({
           editingCollection.documents.map((doc) => ({
             id: doc.id,
             title: doc.title || 'Dokument',
+            ...(doc.source_type === 'wolke' ? { source: 'wolke' as const } : {}),
           }))
         );
         setStep(2);
@@ -282,7 +285,7 @@ const NotebookEditor = ({
         const seen = new Set(prev.map((d) => d.id));
         const additions: UploadedDocument[] = docs
           .filter((d) => !seen.has(d.id))
-          .map((d) => ({ id: d.id, title: d.title }));
+          .map((d) => ({ id: d.id, title: d.title, source: 'wolke' as const }));
         return [...prev, ...additions];
       });
       setIndexingDocIds((prev) => {
@@ -318,6 +321,15 @@ const NotebookEditor = ({
   const handleRemoveLabel = useCallback((labelToRemove: string) => {
     setLabels((prev) => prev.filter((l) => l !== labelToRemove));
   }, []);
+
+  const wolkeDocuments = useMemo(
+    () => uploadedDocuments.filter((d) => d.source === 'wolke'),
+    [uploadedDocuments]
+  );
+  const manualDocuments = useMemo(
+    () => uploadedDocuments.filter((d) => d.source !== 'wolke'),
+    [uploadedDocuments]
+  );
 
   const onSubmit = async (data: NotebookEditorFormData): Promise<void> => {
     if (uploadedDocuments.length === 0) return;
@@ -601,41 +613,98 @@ const NotebookEditor = ({
                   disabled={loading || isUploading}
                 />
 
+                {wolkeDocuments.length > 0 && (
+                  <section>
+                    <SectionHeader
+                      title="Wolke Dokumente"
+                      actions={
+                        <span className="text-sm text-grey-500">{wolkeDocuments.length}</span>
+                      }
+                    />
+                    <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+                      {wolkeDocuments.map((doc) => {
+                        const isIndexing = indexingDocIds.has(doc.id);
+                        const displayName = doc.filename || doc.title;
+                        return (
+                          <div
+                            key={doc.id}
+                            className={cn(
+                              'group relative flex min-h-[112px] min-w-0 flex-col gap-xs overflow-hidden rounded-xl border border-grey-200 bg-background p-md transition-all duration-200 dark:border-grey-800',
+                              isIndexing ? 'opacity-90' : 'hover:shadow-sm'
+                            )}
+                            aria-label={`Wolke: ${displayName}`}
+                          >
+                            <div
+                              className="pointer-events-none absolute right-0 top-0 h-[3px] w-12 rounded-bl-md bg-secondary-400 dark:bg-secondary-700"
+                              aria-hidden
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-xs"
+                              className={cn(
+                                'absolute right-1 top-1 transition-opacity',
+                                isIndexing
+                                  ? 'opacity-60'
+                                  : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+                              )}
+                              onClick={() => handleRemoveDocument(doc.id)}
+                              disabled={loading}
+                              aria-label={`${doc.title} entfernen`}
+                            >
+                              <HiX size={12} />
+                            </Button>
+                            <div className="flex items-start gap-xs pr-6">
+                              <HiCloud
+                                size={14}
+                                className="mt-[2px] shrink-0 text-secondary-600 dark:text-secondary-400"
+                                aria-hidden
+                              />
+                              <div
+                                className="line-clamp-3 break-words text-sm font-medium leading-snug text-foreground"
+                                title={displayName}
+                              >
+                                {displayName}
+                              </div>
+                            </div>
+                            {isIndexing ? (
+                              <div className="mt-auto flex items-center gap-xs text-xs text-grey-500">
+                                <div className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+                                <span>Wird verarbeitet…</span>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+
                 <section
-                  className="relative space-y-md"
+                  className="relative"
                   onDragEnter={handleDragEnter}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
-                  <div className="flex items-center justify-between gap-md">
-                    <h2 className="text-xl font-semibold text-foreground-heading">Dokumente</h2>
-                    <div className="flex items-center gap-sm">
+                  <SectionHeader
+                    title="Dokumente"
+                    onCreate={() => fileInputRef.current?.click()}
+                    createLabel="Dokumente hinzufügen"
+                    actions={
                       <span className="text-sm text-grey-500">
-                        {uploadedDocuments.length}/{MAX_DOCUMENTS}
+                        {manualDocuments.length}/{MAX_DOCUMENTS}
                       </span>
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="outline"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={
-                          loading || isUploading || uploadedDocuments.length >= MAX_DOCUMENTS
-                        }
-                        aria-label="Dokumente hinzufügen"
-                      >
-                        <HiPlus size={16} />
-                      </Button>
-                    </div>
-                  </div>
+                    }
+                  />
 
-                  {uploadedDocuments.length === 0 ? (
+                  {manualDocuments.length === 0 ? (
                     <p className="py-lg text-center text-sm text-grey-500">
                       Noch keine Dokumente. Ziehe Dateien hierher oder klicke auf +.
                     </p>
                   ) : (
                     <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-                      {uploadedDocuments.map((doc) => {
+                      {manualDocuments.map((doc) => {
                         const isIndexing = indexingDocIds.has(doc.id);
                         const fileType = getFileTypeStyle(doc.filename || doc.title);
                         return (

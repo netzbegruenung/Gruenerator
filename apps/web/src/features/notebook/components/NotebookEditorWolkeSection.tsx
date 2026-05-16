@@ -1,8 +1,8 @@
 import { type WolkeFolderRef } from '@gruenerator/contracts';
-import { Badge, Button } from '@gruenerator/ui';
+import { Badge, Button, SectionHeader } from '@gruenerator/ui';
 import { useShareLinks, type ShareLink } from '@gruenerator/wolke';
 import { useState, useCallback, useMemo } from 'react';
-import { HiCloud, HiPlus, HiRefresh, HiX, HiExclamation } from 'react-icons/hi';
+import { HiCloud, HiExclamation, HiRefresh, HiX } from 'react-icons/hi';
 import { Link } from 'react-router-dom';
 
 import { useDocumentsStore } from '../../../stores/documentsStore';
@@ -38,6 +38,15 @@ function pickShareLabel(link: ShareLink): string {
     link.label?.trim() || link.display_name?.trim() || link.folder_name?.trim() || 'Wolke-Ordner'
   );
 }
+
+const ExperimentalBadge = (
+  <Badge
+    variant="outline"
+    className="border-amber-300 bg-amber-50 text-[10px] uppercase text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+  >
+    Experimentell
+  </Badge>
+);
 
 const NotebookEditorWolkeSection = ({
   folders,
@@ -97,7 +106,7 @@ const NotebookEditorWolkeSection = ({
         const sliced = supported.slice(0, Math.max(0, remainingSlots));
         const skipped = supported.length - sliced.length;
         if (sliced.length === 0) {
-          setError('Notebook ist voll (max. 20 Dokumente).');
+          setError('Notebook ist voll.');
           return;
         }
 
@@ -128,7 +137,7 @@ const NotebookEditorWolkeSection = ({
 
         if (skipped > 0) {
           setError(
-            `${skipped} Datei${skipped === 1 ? '' : 'en'} übersprungen — max. 20 pro Notebook.`
+            `${skipped} Datei${skipped === 1 ? '' : 'en'} übersprungen — Notebook fast voll.`
           );
         }
       } catch (e) {
@@ -143,38 +152,26 @@ const NotebookEditorWolkeSection = ({
   const isLoading = shareLinksQuery.isLoading;
   const hasShareLinks = (shareLinksQuery.data ?? []).length > 0;
 
+  const headerActions = (
+    <div className="flex items-center gap-xs">
+      {ExperimentalBadge}
+      {hasShareLinks && <span className="text-sm text-grey-500">{folders.length}</span>}
+    </div>
+  );
+
   return (
-    <section className="rounded-xl bg-background-alt/50 px-sm py-sm">
-      <header className="flex flex-wrap items-center justify-between gap-xs pb-xs">
-        <div className="flex items-center gap-xs">
-          <HiCloud className="text-grey-400" size={16} aria-hidden />
-          <span className="text-sm font-semibold text-foreground">Wolke-Ordner</span>
-          <Badge
-            variant="outline"
-            className="border-amber-300 bg-amber-50 text-[10px] uppercase text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
-          >
-            Experimentell
-          </Badge>
-        </div>
-        {hasShareLinks && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            disabled={disabled || availableLinks.length === 0}
-            onClick={() => setPickerOpen((v) => !v)}
-            aria-label="Wolke-Ordner hinzufügen"
-          >
-            <HiPlus size={14} />
-            Ordner hinzufügen
-          </Button>
-        )}
-      </header>
+    <section>
+      <SectionHeader
+        title="Wolke-Ordner"
+        onCreate={hasShareLinks ? () => setPickerOpen((v) => !v) : undefined}
+        createLabel="Wolke-Ordner hinzufügen"
+        actions={headerActions}
+      />
 
       {isLoading ? (
-        <div className="h-16 animate-pulse rounded-md bg-grey-100 dark:bg-grey-900" />
+        <div className="h-24 animate-pulse rounded-xl bg-grey-100 dark:bg-grey-900" />
       ) : !hasShareLinks ? (
-        <div className="flex flex-col items-start gap-xs rounded-lg border border-dashed border-grey-300 bg-background p-md dark:border-grey-700">
+        <div className="flex flex-col items-start gap-xs rounded-xl border border-dashed border-grey-300 bg-background p-md dark:border-grey-700">
           <p className="m-0 text-sm text-foreground">Du hast noch keine Wolke verbunden.</p>
           <p className="m-0 text-xs text-grey-500">
             Verbinde sie einmal und du kannst hier ganze Ordner als Quelle hinzufügen.
@@ -186,7 +183,7 @@ const NotebookEditorWolkeSection = ({
       ) : (
         <>
           {pickerOpen && availableLinks.length > 0 && (
-            <div className="mb-xs flex flex-col gap-1 rounded-lg border border-grey-200 bg-background p-xs dark:border-grey-700">
+            <div className="mb-md flex flex-col gap-1 rounded-xl border border-grey-200 bg-background p-xs dark:border-grey-700">
               <p className="m-0 px-1 pb-1 text-xs uppercase tracking-wide text-grey-500">
                 Verbundene Wolken
               </p>
@@ -204,68 +201,87 @@ const NotebookEditorWolkeSection = ({
             </div>
           )}
 
-          {folders.length === 0 && !pickerOpen && (
-            <p className="m-0 text-xs text-grey-500">
-              Noch kein Ordner verknüpft — füge einen hinzu und synchronisiere ihn manuell.
+          {folders.length === 0 && !pickerOpen ? (
+            <p className="py-lg text-center text-sm text-grey-500">
+              Noch kein Wolke-Ordner verknüpft. Klicke auf + um einen hinzuzufügen.
             </p>
-          )}
-
-          {folders.length > 0 && (
-            <ul className="flex flex-col gap-xs">
-              {folders.map((folder) => {
-                const isSyncing = syncingId === folder.shareLinkId;
-                return (
-                  <li
-                    key={folder.shareLinkId}
-                    className={cn(
-                      'group flex items-center gap-sm rounded-lg border border-grey-200 bg-background p-sm dark:border-grey-800',
-                      isSyncing && 'opacity-90'
-                    )}
-                  >
-                    <HiCloud size={16} className="shrink-0 text-grey-400" aria-hidden />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium text-foreground">
-                        {folder.folderName}
+          ) : (
+            folders.length > 0 && (
+              <div className="grid grid-cols-1 gap-md sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+                {folders.map((folder) => {
+                  const isSyncing = syncingId === folder.shareLinkId;
+                  return (
+                    <div
+                      key={folder.shareLinkId}
+                      className={cn(
+                        'group relative flex min-h-[112px] min-w-0 flex-col gap-xs overflow-hidden rounded-xl border border-grey-200 bg-background p-md transition-all duration-200 dark:border-grey-800',
+                        isSyncing ? 'opacity-90' : 'hover:shadow-sm'
+                      )}
+                      aria-label={`Wolke-Ordner: ${folder.folderName}`}
+                    >
+                      <div
+                        className="pointer-events-none absolute right-0 top-0 h-[3px] w-12 rounded-bl-md bg-secondary-400 dark:bg-secondary-700"
+                        aria-hidden
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-xs"
+                        className={cn(
+                          'absolute right-1 top-1 transition-opacity',
+                          isSyncing
+                            ? 'opacity-60'
+                            : 'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+                        )}
+                        disabled={disabled || isSyncing}
+                        onClick={() => handleRemove(folder.shareLinkId)}
+                        title="Bereits importierte Dokumente bleiben im Notebook."
+                        aria-label={`${folder.folderName} entfernen`}
+                      >
+                        <HiX size={12} />
+                      </Button>
+                      <div className="flex items-start gap-xs pr-6">
+                        <HiCloud
+                          size={14}
+                          className="mt-[2px] shrink-0 text-secondary-600 dark:text-secondary-400"
+                          aria-hidden
+                        />
+                        <div
+                          className="line-clamp-2 break-words text-sm font-medium leading-snug text-foreground"
+                          title={folder.folderName}
+                        >
+                          {folder.folderName}
+                        </div>
                       </div>
-                      <div className="mt-[2px] text-xs text-grey-500">
-                        {isSyncing ? 'Wird synchronisiert…' : formatRelative(folder.lastSyncedAt)}
+                      <div className="mt-auto flex items-center justify-between gap-xs">
+                        <span className="text-xs text-grey-500">
+                          {isSyncing ? 'Wird synchronisiert…' : formatRelative(folder.lastSyncedAt)}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={disabled || isSyncing || remainingSlots <= 0}
+                          onClick={() => void handleSync(folder)}
+                          aria-label={`${folder.folderName} synchronisieren`}
+                        >
+                          {isSyncing ? (
+                            <span className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+                          ) : (
+                            <HiRefresh size={12} />
+                          )}
+                          Sync
+                        </Button>
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={disabled || isSyncing || remainingSlots <= 0}
-                      onClick={() => void handleSync(folder)}
-                      aria-label={`${folder.folderName} synchronisieren`}
-                    >
-                      {isSyncing ? (
-                        <span className="size-3 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-                      ) : (
-                        <HiRefresh size={14} />
-                      )}
-                      Synchronisieren
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-xs"
-                      className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                      disabled={disabled || isSyncing}
-                      onClick={() => handleRemove(folder.shareLinkId)}
-                      title="Nur die Verbindung wird entfernt — bereits importierte Dokumente bleiben im Notebook."
-                      aria-label={`${folder.folderName} entfernen`}
-                    >
-                      <HiX size={12} />
-                    </Button>
-                  </li>
-                );
-              })}
-            </ul>
+                  );
+                })}
+              </div>
+            )
           )}
 
           {error && (
-            <div className="mt-xs flex items-start gap-xs rounded-md bg-amber-50 px-sm py-xs text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+            <div className="mt-md flex items-start gap-xs rounded-md bg-amber-50 px-sm py-xs text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
               <HiExclamation size={14} className="mt-[1px] shrink-0" aria-hidden />
               <span>{error}</span>
             </div>
