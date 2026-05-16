@@ -26,7 +26,11 @@ const config: Config = {
   projectName: 'docusaurus', // Usually your repo name.
 
   onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  markdown: {
+    hooks: {
+      onBrokenMarkdownLinks: 'warn',
+    },
+  },
 
   // Algolia site verification
   headTags: [
@@ -53,6 +57,15 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
+          // Hidden until ready — remove entries to re-enable in the sidebar.
+          // landesverbaende: dev-only LV-Korpus analysis pages.
+          // monitor: Themen-Monitor not online yet.
+          // briefings: Briefing-Archiv hidden for now.
+          exclude: [
+            'landesverbaende/**',
+            'monitor/**',
+            'briefings/**',
+          ],
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
@@ -142,7 +155,8 @@ const config: Config = {
           position: 'left',
           items: [
             { to: '/docs/category/grünerieren', label: 'Grünerieren' },
-            { to: '/docs/monitor/intro', label: 'Themen-Monitor' },
+            // { to: '/docs/monitor/intro', label: 'Themen-Monitor' }, // hidden — Themen-Monitor not online yet
+            { to: '/docs/category/notebooks', label: 'Notebooks' },
             { to: '/docs/category/profil', label: 'Profil' },
             { to: '/docs/category/integrationen', label: 'Integrationen' },
           ],
@@ -219,10 +233,10 @@ const config: Config = {
               label: 'Was kann ich fragen?',
               to: '/docs/integrationen/mcp-was-kann-ich-fragen',
             },
-            {
-              label: 'Themen-Monitor',
-              to: '/docs/monitor/intro',
-            },
+            // {
+            //   label: 'Themen-Monitor',
+            //   to: '/docs/monitor/intro',
+            // }, // hidden — Themen-Monitor not online yet
           ],
         },
         {
