@@ -47,6 +47,7 @@ export interface NotebookCollection {
   selection_mode?: 'documents' | 'wolke' | 'mixed';
   labels?: string[];
   wolke_folders?: WolkeFolderRef[];
+  likes_count?: number;
 }
 
 /**

@@ -3,15 +3,27 @@ import { memo, useMemo, useState } from 'react';
 import { HiBookOpen } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
+import { LikeButton } from '../../../components/common/LikeButton';
+import { useEntityLikes } from '../../likes/hooks/useEntityLikes';
 import { usePublicNotebookCollections } from '../hooks/usePublicNotebookCollections';
 
 import type { NotebookCollection } from '../../../types/notebook';
 
+interface VonDerBasisCardProps {
+  collection: NotebookCollection;
+  liked: boolean;
+  toggling: boolean;
+  canLike: boolean;
+  onToggleLike: (id: string) => void;
+}
+
 const VonDerBasisCard = memo(function VonDerBasisCard({
   collection,
-}: {
-  collection: NotebookCollection;
-}) {
+  liked,
+  toggling,
+  canLike,
+  onToggleLike,
+}: VonDerBasisCardProps) {
   const navigate = useNavigate();
   return (
     <div
@@ -37,12 +49,21 @@ const VonDerBasisCard = memo(function VonDerBasisCard({
           </div>
         ) : null}
       </div>
+      <LikeButton
+        liked={liked}
+        count={collection.likes_count ?? 0}
+        loading={toggling}
+        disabled={!canLike}
+        disabledReason={canLike ? undefined : 'Melde dich an, um zu liken'}
+        onToggle={() => onToggleLike(collection.id)}
+      />
     </div>
   );
 });
 
 export function VonDerBasisSection() {
   const { data, isLoading } = usePublicNotebookCollections({ enabled: true });
+  const { likedIds, toggleLike, isToggling, canLike } = useEntityLikes('notebook');
   const [query, setQuery] = useState('');
 
   const collections = data ?? [];
@@ -87,7 +108,14 @@ export function VonDerBasisSection() {
       ) : (
         <div className="grid grid-cols-3 gap-sm max-lg:grid-cols-2 max-sm:grid-cols-1">
           {filtered.map((c) => (
-            <VonDerBasisCard key={c.id} collection={c} />
+            <VonDerBasisCard
+              key={c.id}
+              collection={c}
+              liked={likedIds.has(c.id)}
+              toggling={isToggling(c.id)}
+              canLike={canLike}
+              onToggleLike={toggleLike}
+            />
           ))}
         </div>
       )}

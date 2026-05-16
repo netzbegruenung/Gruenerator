@@ -1,5 +1,5 @@
 import { type InferSelectModel } from 'drizzle-orm';
-import { boolean, index, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const userTemplates = pgTable(
   'user_templates',
@@ -36,22 +36,3 @@ export const userTemplates = pgTable(
 );
 
 export type UserTemplate = InferSelectModel<typeof userTemplates>;
-
-export const templateLikes = pgTable(
-  'template_likes',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    user_id: uuid('user_id').notNull(),
-    template_id: text('template_id').notNull(),
-    template_type: text('template_type').notNull().default('system'),
-    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    unique('template_likes_user_template_unique').on(t.user_id, t.template_id),
-    index('idx_template_likes_user_id').on(t.user_id),
-    index('idx_template_likes_template_id').on(t.template_id),
-    index('idx_template_likes_popularity').on(t.template_id, t.created_at),
-  ]
-);
-
-export type TemplateLike = InferSelectModel<typeof templateLikes>;

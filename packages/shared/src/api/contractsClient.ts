@@ -23,6 +23,7 @@ import {
   searchContract,
   boardsContract,
   notebookContract,
+  notebookCollectionsContract,
   wordpressContract,
   transferContract,
   notificationsContract,
@@ -131,6 +132,7 @@ const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
 const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
+const _notebookCollectionsClient = () => initClient(notebookCollectionsContract, CLIENT_OPTS);
 const _wordpressClient = () => initClient(wordpressContract, CLIENT_OPTS);
 const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
@@ -147,6 +149,7 @@ export interface ContractsClient {
   search: ReturnType<typeof _searchClient>;
   boards: ReturnType<typeof _boardsClient>;
   notebook: ReturnType<typeof _notebookClient>;
+  notebookCollections: ReturnType<typeof _notebookCollectionsClient>;
   wordpress: ReturnType<typeof _wordpressClient>;
   transfer: ReturnType<typeof _transferClient>;
   notifications: ReturnType<typeof _notificationsClient>;
@@ -180,6 +183,7 @@ export function getContractsClient(): ContractsClient {
     search: _searchClient(),
     boards: _boardsClient(),
     notebook: _notebookClient(),
+    notebookCollections: _notebookCollectionsClient(),
     wordpress: _wordpressClient(),
     transfer: _transferClient(),
     notifications: _notificationsClient(),
