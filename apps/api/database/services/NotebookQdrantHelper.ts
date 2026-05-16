@@ -5,6 +5,7 @@
 
 import * as crypto from 'crypto';
 
+import { generateSlugSuffix } from '@gruenerator/shared/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
@@ -66,6 +67,16 @@ interface NotebookCollectionData {
   public_ownership?: PublicOwnership | null;
   share_mode?: NotebookShareMode;
   edit_policy?: NotebookEditPolicy;
+  /**
+   * 6-char URL-safe tail used in Notion-style slugs (`my-notes-Ab3xK9`).
+   * Assigned at creation, immutable afterwards — rename rewrites the name
+   * prefix but never the suffix, so shared URLs survive renames. `null` only
+   * appears for legacy rows in the transient window before the boot-time
+   * backfill (apps/api/services/migrations/backfillNotebookSlugSuffixes.ts)
+   * has run; if such a row is edited before backfill, storeNotebookCollection
+   * mints a fresh suffix.
+   */
+  slug_suffix?: string | null;
 }
 
 interface NotebookCollection {
@@ -88,6 +99,7 @@ interface NotebookCollection {
   public_ownership: PublicOwnership | null;
   share_mode: NotebookShareMode;
   edit_policy: NotebookEditPolicy;
+  slug_suffix: string | null;
   notebook_collection_documents?: CollectionDocument[];
 }
 
@@ -206,6 +218,12 @@ class NotebookQdrantHelper {
         collectionData.custom_prompt || ''
       );
 
+      // Slug suffix: keep an existing one if provided (preserves stability on
+      // rename), otherwise mint a fresh collision-free 6-char tail. The chance
+      // of a real collision at 56^6 ≈ 30 billion is negligible, but probing
+      // once is cheap and matches the share_token uniqueness pattern.
+      const slugSuffix = collectionData.slug_suffix ?? (await this.allocateFreshSlugSuffix());
+
       const point: QdrantPoint = {
         id: this.generateNumericId(collectionId),
         vector: embedding,
@@ -229,6 +247,7 @@ class NotebookQdrantHelper {
           public_ownership: collectionData.public_ownership ?? null,
           share_mode: normalizeShareMode(collectionData.share_mode),
           edit_policy: normalizeEditPolicy(collectionData.edit_policy),
+          slug_suffix: slugSuffix,
         },
       };
 
@@ -240,6 +259,97 @@ class NotebookQdrantHelper {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Error storing Notebook collection: ${message}`);
       throw new Error(`Failed to store Notebook collection: ${message}`);
+    }
+  }
+
+  /**
+   * Mint a slug suffix that isn't already claimed by another notebook.
+   * Retries up to 5 times — at 56^6 the loop almost never iterates twice.
+   */
+  private async allocateFreshSlugSuffix(): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = generateSlugSuffix();
+      const existing = await this.getNotebookCollectionBySlugSuffix(candidate);
+      if (!existing) return candidate;
+    }
+    // Statistically unreachable, but better than a silent dup.
+    throw new Error('Failed to allocate unique slug suffix after 5 attempts');
+  }
+
+  /**
+   * One-shot backfill: scan every notebook point and assign a fresh
+   * `slug_suffix` to anything missing one. Idempotent — re-running after a
+   * successful backfill is a no-op because matching points have a suffix.
+   *
+   * Reads payloads directly (instead of going through the public update path)
+   * to avoid re-embedding 5k notebooks. Suffixes are uniqueness-checked via
+   * the same allocateFreshSlugSuffix helper used at create time.
+   */
+  async backfillSlugSuffixes(): Promise<{ scanned: number; updated: number }> {
+    await this.ensureInitialized();
+
+    let scanned = 0;
+    let updated = 0;
+
+    // Single scroll with a large limit — notebook counts are O(thousands) per
+    // tenant, so a windowed scroll isn't needed yet. If the dataset grows
+    // beyond ~100k rows, switch to a paged scroll via the raw Qdrant client.
+    const allResults = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collections,
+      {},
+      { limit: 100_000, withPayload: true }
+    );
+
+    for (const point of allResults) {
+      scanned++;
+      const existingSuffix = point.payload.slug_suffix;
+      if (typeof existingSuffix === 'string' && existingSuffix.length > 0) continue;
+
+      const fresh = await this.allocateFreshSlugSuffix();
+      // Patch only the slug_suffix field via Qdrant's set_payload — leaves
+      // the existing semantic embedding intact. A batchUpsert here would
+      // require re-supplying the vector and silently overwrite each
+      // notebook's embedding with zeros.
+      await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
+        payload: { slug_suffix: fresh },
+        points: [point.id],
+      });
+      updated++;
+
+      if (updated > 0 && updated % 50 === 0) {
+        logger.info(`[backfillSlugSuffixes] Progress: ${updated} slugs assigned`);
+      }
+    }
+
+    logger.info(`[backfillSlugSuffixes] Done. scanned=${scanned} updated=${updated}`);
+    return { scanned, updated };
+  }
+
+  /**
+   * Resolve a notebook by its Notion-style slug tail (the 6-char suffix
+   * after the last `-` in URLs like `/notebooks/my-research-Ab3xK9`).
+   * Returns null when no notebook has that suffix.
+   */
+  async getNotebookCollectionBySlugSuffix(slugSuffix: string): Promise<NotebookCollection | null> {
+    await this.ensureInitialized();
+
+    try {
+      const filter: QdrantFilter = {
+        must: [{ key: 'slug_suffix', match: { value: slugSuffix } }],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collections,
+        filter,
+        { limit: 1, withPayload: true }
+      );
+
+      if (results.length === 0) return null;
+      return this.formatCollectionFromPayload(results[0].payload);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error getting Notebook collection by slug suffix: ${message}`);
+      return null;
     }
   }
 
@@ -607,6 +717,10 @@ class NotebookQdrantHelper {
       public_ownership: publicOwnership,
       share_mode: normalizeShareMode(payload.share_mode),
       edit_policy: normalizeEditPolicy(payload.edit_policy),
+      slug_suffix:
+        typeof payload.slug_suffix === 'string' && payload.slug_suffix.length > 0
+          ? payload.slug_suffix
+          : null,
     };
   }
 

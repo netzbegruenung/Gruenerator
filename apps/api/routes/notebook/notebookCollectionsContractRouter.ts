@@ -16,6 +16,7 @@
  */
 
 import { notebookCollectionsContract, type WolkeFolderRef } from '@gruenerator/contracts';
+import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
@@ -113,7 +114,61 @@ async function validateWolkeShareLinks(
 
 const s = initServer();
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const notebookCollectionsContractRouter = s.router(notebookCollectionsContract, {
+  resolveCollection: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const input = args.params.slugOrId;
+
+      // UUID branch: legacy URL or direct ID — look up by canonical id.
+      // Slug branch: pretty URL, dig the 6-char tail out and resolve via the
+      // payload index. If neither matches, the user typed a system-notebook
+      // slug or pure noise; let the frontend resolver handle the not-found UI.
+      let collectionId: string | null = null;
+      if (UUID_RE.test(input)) {
+        collectionId = input;
+      } else {
+        const suffix = extractSlugSuffix(input);
+        if (suffix) {
+          const bySlug = await notebookHelper.getNotebookCollectionBySlugSuffix(suffix);
+          collectionId = bySlug?.id ?? null;
+        }
+      }
+
+      if (!collectionId) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+
+      const access = await checkNotebookAccess(collectionId, userId);
+      if (!access.exists) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+      if (!access.canRead) {
+        return { status: 403 as const, body: { error: 'Keine Berechtigung' } };
+      }
+
+      const collection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!collection) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+
+      return {
+        status: 200 as const,
+        body: {
+          id: collection.id,
+          slug_suffix: collection.slug_suffix ?? '',
+          name: collection.name,
+          share_mode: collection.share_mode ?? null,
+        },
+      };
+    } catch (error) {
+      log.error('[notebookCollectionsContract.resolveCollection] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
   listCollections: async (args) => {
     try {
       const userId = getUserId(args.req);

@@ -108,6 +108,7 @@ export interface TransformedCollection {
   notebook_collection_documents?: Array<{ document_id: string }>;
   labels?: string[];
   wolke_folders?: WolkeFolderRef[];
+  slug_suffix?: string | null;
 }
 
 /**
@@ -134,6 +135,7 @@ export interface CollectionCreateResponse {
     documents_from_wolke: number;
     wolke_share_links: string[];
     created_at: string;
+    slug_suffix?: string | null;
   };
   message: string;
 }
@@ -233,6 +235,7 @@ export interface NotebookCollectionFromQdrant {
   updated_at: string;
   settings?: Record<string, unknown> | undefined;
   notebook_collection_documents?: Array<{ document_id: string }>;
+  slug_suffix?: string | null;
 }
 
 /**
