@@ -99,7 +99,11 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
       }
       return {
         status: 200 as const,
-        body: { share_mode: collection.share_mode, edit_policy: collection.edit_policy },
+        body: {
+          share_mode: collection.share_mode,
+          edit_policy: collection.edit_policy,
+          audience: collection.audience,
+        },
       };
     } catch (error) {
       log.error('[notebookSharingContract.getShareSettings] Error:', error);
@@ -149,6 +153,29 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
       };
     } catch (error) {
       log.error('[notebookSharingContract.setEditPolicy] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
+  setAudience: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const collection = await notebookHelper.getNotebookCollection(args.params.id);
+      if (!collection) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+      if (collection.user_id !== userId) {
+        return { status: 403 as const, body: { error: 'Nur Eigentümer*in erlaubt' } };
+      }
+      await notebookHelper.updateNotebookCollection(args.params.id, {
+        audience: args.body.audience,
+      });
+      return {
+        status: 200 as const,
+        body: { success: true, message: 'Zielgruppe aktualisiert' },
+      };
+    } catch (error) {
+      log.error('[notebookSharingContract.setAudience] Error:', error);
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },

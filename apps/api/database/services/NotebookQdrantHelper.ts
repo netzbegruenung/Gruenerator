@@ -27,6 +27,7 @@ type PublicOwnership = 'owner' | 'public_data';
 
 export type NotebookShareMode = 'private' | 'groups' | 'authenticated';
 export type NotebookEditPolicy = 'owner_only' | 'group_admins' | 'all_members';
+export type NotebookAudience = 'de-DE' | 'de-AT' | 'all';
 
 const NOTEBOOK_SHARE_MODES: readonly NotebookShareMode[] = ['private', 'groups', 'authenticated'];
 const NOTEBOOK_EDIT_POLICIES: readonly NotebookEditPolicy[] = [
@@ -34,6 +35,7 @@ const NOTEBOOK_EDIT_POLICIES: readonly NotebookEditPolicy[] = [
   'group_admins',
   'all_members',
 ];
+const NOTEBOOK_AUDIENCES: readonly NotebookAudience[] = ['de-DE', 'de-AT', 'all'];
 
 function normalizeShareMode(raw: unknown): NotebookShareMode {
   return NOTEBOOK_SHARE_MODES.includes(raw as NotebookShareMode)
@@ -45,6 +47,10 @@ function normalizeEditPolicy(raw: unknown): NotebookEditPolicy {
   return NOTEBOOK_EDIT_POLICIES.includes(raw as NotebookEditPolicy)
     ? (raw as NotebookEditPolicy)
     : 'owner_only';
+}
+
+function normalizeAudience(raw: unknown): NotebookAudience {
+  return NOTEBOOK_AUDIENCES.includes(raw as NotebookAudience) ? (raw as NotebookAudience) : 'all';
 }
 
 interface NotebookCollectionData {
@@ -67,6 +73,14 @@ interface NotebookCollectionData {
   public_ownership?: PublicOwnership | null;
   share_mode?: NotebookShareMode;
   edit_policy?: NotebookEditPolicy;
+  /**
+   * Locale audience for `share_mode='authenticated'` listings. When set to
+   * 'de-DE' / 'de-AT' the notebook is hidden from viewers whose `users.locale`
+   * doesn't match; 'all' (the default for legacy rows) shows it everywhere.
+   * Has no effect on owners or group-share recipients — those are explicit
+   * grants and bypass the audience filter.
+   */
+  audience?: NotebookAudience;
   /**
    * 6-char URL-safe tail used in Notion-style slugs (`my-notes-Ab3xK9`).
    * Assigned at creation, immutable afterwards — rename rewrites the name
@@ -99,6 +113,7 @@ interface NotebookCollection {
   public_ownership: PublicOwnership | null;
   share_mode: NotebookShareMode;
   edit_policy: NotebookEditPolicy;
+  audience: NotebookAudience;
   slug_suffix: string | null;
   notebook_collection_documents?: CollectionDocument[];
 }
@@ -247,6 +262,7 @@ class NotebookQdrantHelper {
           public_ownership: collectionData.public_ownership ?? null,
           share_mode: normalizeShareMode(collectionData.share_mode),
           edit_policy: normalizeEditPolicy(collectionData.edit_policy),
+          audience: normalizeAudience(collectionData.audience),
           slug_suffix: slugSuffix,
         },
       };
@@ -717,6 +733,7 @@ class NotebookQdrantHelper {
       public_ownership: publicOwnership,
       share_mode: normalizeShareMode(payload.share_mode),
       edit_policy: normalizeEditPolicy(payload.edit_policy),
+      audience: normalizeAudience(payload.audience),
       slug_suffix:
         typeof payload.slug_suffix === 'string' && payload.slug_suffix.length > 0
           ? payload.slug_suffix
