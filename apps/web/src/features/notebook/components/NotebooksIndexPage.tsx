@@ -11,6 +11,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
+  SectionHeader,
   Skeleton,
 } from '@gruenerator/ui';
 import { useQueryClient } from '@tanstack/react-query';
@@ -20,7 +21,6 @@ import {
   HiDotsVertical,
   HiOutlineTrash,
   HiPencil,
-  HiPlus,
   HiShare,
   HiUserGroup,
 } from 'react-icons/hi';
@@ -42,10 +42,9 @@ import {
   type NotebookConfigEntry,
 } from '../config/notebooksConfig';
 
-import { LastAddedSection } from './LastAddedSection';
 import NotebookEditor from './NotebookEditor';
 import { NotebookPageContent } from './NotebookPage';
-import { StatisticsSection } from './StatisticsSection';
+import { VonDerBasisSection } from './VonDerBasisSection';
 
 import type { NotebookCollection } from '../../../types/notebook';
 
@@ -158,8 +157,8 @@ const NotebookSection = memo(
     if (filtered.length === 0) return null;
 
     return (
-      <>
-        <h2 className="text-xl font-semibold text-foreground-heading mt-xl mb-md">{title}</h2>
+      <section className="mt-xl">
+        <SectionHeader title={title} />
         <div
           className={
             columns === 2
@@ -171,7 +170,7 @@ const NotebookSection = memo(
             <NotebookCard key={notebook.id} notebook={notebook} groups={groups} />
           ))}
         </div>
-      </>
+      </section>
     );
   }
 );
@@ -242,27 +241,23 @@ const EigeneNotebooks = memo(
     const shouldCollapse = qaCollections.length > COLLAPSE_THRESHOLD;
 
     return (
-      <div>
-        <div className="flex items-center gap-xs mt-xl mb-md">
-          <h2 className="text-xl font-semibold text-foreground-heading m-0">Eigene</h2>
-          <button
-            type="button"
-            onClick={onCreate}
-            className="flex items-center justify-center w-7 h-7 rounded-full text-primary-600 hover:bg-primary-600/10 transition-colors cursor-pointer"
-            aria-label="Notebook erstellen"
-          >
-            <HiPlus size={18} />
-          </button>
-          <button
-            type="button"
-            onClick={() => void navigate('/notebooks/meine')}
-            className="flex items-center justify-center w-7 h-7 rounded-full text-grey-500 hover:text-foreground hover:bg-grey-200/40 dark:hover:bg-grey-700/40 transition-colors cursor-pointer"
-            aria-label="Meine Notebooks verwalten"
-            title="Meine Notebooks verwalten"
-          >
-            <HiCog size={16} />
-          </button>
-        </div>
+      <div className="mt-xl">
+        <SectionHeader
+          title="Eigene"
+          onCreate={onCreate}
+          createLabel="Notebook erstellen"
+          actions={
+            <button
+              type="button"
+              onClick={() => void navigate('/notebooks/meine')}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-grey-500 transition-colors hover:bg-grey-200/40 hover:text-foreground dark:hover:bg-grey-700/40"
+              aria-label="Meine Notebooks verwalten"
+              title="Meine Notebooks verwalten"
+            >
+              <HiCog size={16} />
+            </button>
+          }
+        />
         {loading ? (
           <div className="flex flex-col gap-sm">
             {Array.from({ length: 3 }, (_, i) => (
@@ -403,11 +398,6 @@ function NotebooksIndexFooter() {
     [isAustrian]
   );
 
-  const systemCollectionIds = useMemo(() => {
-    const config = getNotebookConfig('gruenerator');
-    return config.collections.filter((c) => !c.locale || c.locale === locale).map((c) => c.id);
-  }, [locale]);
-
   const queryClient = useQueryClient();
   const {
     query: collectionsQuery,
@@ -490,6 +480,7 @@ function NotebooksIndexFooter() {
           selectionMode: data.selectionMode,
           documents: data.documents,
           labels: data.labels,
+          wolkeFolders: data.wolkeFolders,
         });
       } else {
         const result = await createQACollection({
@@ -498,6 +489,7 @@ function NotebooksIndexFooter() {
           selectionMode: data.selectionMode,
           documents: data.documents,
           labels: data.labels,
+          wolkeFolders: data.wolkeFolders,
         });
 
         if (result?.id && data.documents.length) {
@@ -540,11 +532,7 @@ function NotebooksIndexFooter() {
         </div>
       </div>
 
-      {systemCollectionIds.length > 0 && (
-        <LastAddedSection collectionIds={systemCollectionIds} showSourceLabel />
-      )}
-
-      {systemCollectionIds.length > 0 && <StatisticsSection collectionIds={systemCollectionIds} />}
+      <VonDerBasisSection />
 
       {/* Tools section commented out per request — chat composer at the top covers Suche. */}
 
@@ -576,6 +564,7 @@ function NotebooksIndexPage() {
       startpageFooter={<NotebooksIndexFooter />}
       showLastAdded={false}
       showStats={false}
+      showExamples={false}
     />
   );
 }

@@ -99,6 +99,9 @@ const ChatStateAnnotation = Annotation.Root({
   notebookCollectionIds: Annotation<string[]>({
     reducer: (x, y) => y ?? x ?? [],
   }),
+  notebookDocumentIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
   // Default notebook scoping (from persistent UI selection)
   defaultNotebookCollectionIds: Annotation<string[]>({
     reducer: (x, y) => y ?? x ?? [],
@@ -647,6 +650,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     // Notebook scoping
     notebookIds: input.notebookIds || [],
     notebookCollectionIds: input.notebookIds ? resolveNotebookCollections(input.notebookIds) : [],
+    notebookDocumentIds: input.notebookDocumentIds ?? [],
 
     // Default notebook scoping (from persistent UI selection)
     defaultNotebookCollectionIds: input.defaultNotebookId

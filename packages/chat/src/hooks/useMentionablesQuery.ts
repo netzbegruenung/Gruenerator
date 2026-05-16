@@ -18,6 +18,7 @@ import {
   setBoardMentionables,
   setCustomAgents,
   setDocMentionables,
+  setUserNotebookMentionables,
   type CustomAgentMentionable,
   type Mentionable,
 } from '../lib/mentionables';
@@ -31,6 +32,11 @@ interface DocListItem {
   id: string;
   title: string;
   document_subtype?: string;
+}
+
+interface UserNotebookListItem {
+  id: string;
+  name: string;
 }
 
 const STALE_TIME = 60_000;
@@ -100,6 +106,25 @@ export function useDocsQuery() {
       const docs = await apiClient.get<DocListItem[]>('/api/docs');
       const list = Array.isArray(docs) ? docs.filter((d) => d.document_subtype !== 'boards') : [];
       setDocMentionables(list.map((d) => ({ id: d.id, title: d.title, slug: slugify(d.title) })));
+      return list;
+    },
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export function useUserNotebooksQuery() {
+  const apiClient = useApiClient();
+  return useQuery<UserNotebookListItem[]>({
+    queryKey: ['mention-user-notebooks'],
+    queryFn: async () => {
+      const res = await apiClient
+        .get<{ collections?: UserNotebookListItem[] }>('/auth/notebook-collections')
+        .catch(() => ({ collections: [] }));
+      const list = Array.isArray(res?.collections) ? res.collections : [];
+      setUserNotebookMentionables(
+        list.map((n) => ({ id: n.id, title: n.name, slug: slugify(n.name) }))
+      );
       return list;
     },
     staleTime: STALE_TIME,
@@ -180,13 +205,15 @@ export function useWolkeBrowseQuery(shareLinkId: string | null, path: string, en
 }
 
 /**
- * Convenience hook that triggers all three queries — call from the chat
- * composer so dynamic mentionables are warm by the time @-popovers open.
+ * Convenience hook that triggers all dynamic-mentionable queries — call from
+ * the chat composer so dynamic mentionables are warm by the time @-popovers
+ * open.
  */
 export function useMentionablesQuery(): void {
   useCustomAgentsQuery();
   useBoardsQuery();
   useDocsQuery();
+  useUserNotebooksQuery();
 }
 
 /**

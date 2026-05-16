@@ -17,6 +17,11 @@ export interface WolkeShareLink {
 }
 
 /**
+ * Discloses why a notebook was published. Captured alongside the is_public flag.
+ */
+export type NotebookPublicOwnership = 'owner' | 'public_data';
+
+/**
  * Base notebook collection type representing a Q&A collection
  */
 export interface NotebookCollection {
@@ -26,6 +31,7 @@ export interface NotebookCollection {
   description?: string;
   custom_prompt?: string;
   is_public: boolean;
+  public_ownership?: NotebookPublicOwnership | null;
   public_url_token?: string | null;
   view_count: number;
   last_accessed?: string;
@@ -68,6 +74,8 @@ export interface NotebookCollectionInput {
   labels?: string[];
   auto_sync?: boolean;
   remove_missing_on_sync?: boolean;
+  is_public?: boolean;
+  public_ownership?: NotebookPublicOwnership | null;
 }
 
 /**

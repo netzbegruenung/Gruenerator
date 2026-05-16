@@ -84,12 +84,15 @@ interface NotebookPageContentProps {
   showStats?: boolean;
   /** Disable the built-in "Zuletzt hinzugefügt" section (caller renders its own). Defaults to true. */
   showLastAdded?: boolean;
+  /** Disable the example-question chip grid below the composer. Defaults to true. */
+  showExamples?: boolean;
   /** Disable the manual research tab (dynamic user notebooks have no system collection scope). Defaults to true. */
   showManualSearch?: boolean;
-  /** Hide filter UI on the manual research tab. For user notebooks: no facets. */
-  hideManualSearchFilters?: boolean;
-  /** Route manual research to a per-notebook endpoint instead of /research/search. */
-  manualSearchEndpoint?: { type: 'notebook'; notebookId: string };
+  /**
+   * When set, the manual research tab scopes to a single user-owned notebook
+   * (ownership-checked, no facet filter UI). Forwarded to `NotebookManualSearch`.
+   */
+  manualSearchNotebookId?: string;
 }
 
 interface NotebookPageProps {
@@ -133,9 +136,9 @@ export const NotebookPageContent = ({
   startpageFooter,
   showStats = true,
   showLastAdded = true,
+  showExamples = true,
   showManualSearch = true,
-  hideManualSearchFilters = false,
-  manualSearchEndpoint,
+  manualSearchNotebookId,
 }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
   const isSingleSystem = !isMulti && config.collections[0]?.id.endsWith('-system');
@@ -343,7 +346,7 @@ export const NotebookPageContent = ({
                   subtitle={config.infoPanelDescription}
                   sources={config.sources}
                   placeholder={config.placeholder}
-                  exampleQuestions={config.exampleQuestions ?? []}
+                  exampleQuestions={showExamples ? (config.exampleQuestions ?? []) : []}
                   composerSourceFilters={sourceFilters}
                   composerCategoryFilters={categoryFilters}
                   mode={mode}
@@ -353,8 +356,7 @@ export const NotebookPageContent = ({
                   showStats={showStats}
                   showLastAdded={showLastAdded}
                   showManualSearch={showManualSearch}
-                  hideManualSearchFilters={hideManualSearchFilters}
-                  manualSearchEndpoint={manualSearchEndpoint}
+                  manualSearchNotebookId={manualSearchNotebookId}
                   notebookMention={notebookMention}
                   footer={startpageFooter}
                 />
@@ -486,8 +488,7 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
       showStats={false}
       showLastAdded={false}
       showManualSearch
-      hideManualSearchFilters
-      manualSearchEndpoint={{ type: 'notebook', notebookId: collection.id }}
+      manualSearchNotebookId={collection.id}
     />
   );
 };

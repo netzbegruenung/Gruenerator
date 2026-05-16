@@ -52,6 +52,7 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
     threadAttachments: [],
     notebookIds: [],
     notebookCollectionIds: [],
+    notebookDocumentIds: [],
     defaultNotebookCollectionIds: [],
     documentIds: [],
     documentChatIds: [],

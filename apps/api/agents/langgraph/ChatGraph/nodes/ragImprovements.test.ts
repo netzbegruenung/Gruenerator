@@ -188,6 +188,7 @@ async function testExpandedContextWindow() {
     chatHistoryContext: null,
     notebookIds: [],
     notebookCollectionIds: [],
+    notebookDocumentIds: [],
     defaultNotebookCollectionIds: [],
     documentIds: [],
     documentChatIds: [],

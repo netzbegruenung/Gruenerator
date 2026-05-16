@@ -59,6 +59,8 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
         labels: data.labels,
         selectionMode: collection.selection_mode,
         custom_prompt: collection.custom_prompt,
+        is_public: data.isPublic,
+        public_ownership: data.publicOwnership,
       });
 
       toast.success(`Notebook „${data.name}" gespeichert`);
@@ -80,6 +82,8 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
         description: data.description,
         documents: data.documents,
         labels: data.labels,
+        is_public: data.isPublic,
+        public_ownership: data.publicOwnership,
       });
       toast.success(`Notebook „${data.name}" erstellt`);
       goBack();

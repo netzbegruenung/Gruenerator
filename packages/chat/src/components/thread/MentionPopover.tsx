@@ -13,10 +13,11 @@ interface MentionPopoverProps {
   anchorRect: { x: number; y: number } | null;
 }
 
-interface MentionSection {
-  label: string;
-  items: Mentionable[];
-}
+type MentionSubgroup = { sublabel: string; items: Mentionable[] };
+
+type MentionSection =
+  | { kind: 'flat'; label: string; items: Mentionable[] }
+  | { kind: 'grouped'; label: string; groups: MentionSubgroup[] };
 
 export function MentionPopover({
   query,
@@ -27,22 +28,39 @@ export function MentionPopover({
   anchorRect,
 }: MentionPopoverProps) {
   const listRef = useRef<HTMLDivElement>(null);
-  const { notebooks, tools, boards, docs, documents, wolke } = filterMentionables(query);
+  const { notebooks, userNotebooks, tools, boards, docs, documents, wolke } =
+    filterMentionables(query);
 
-  const sections: MentionSection[] = useMemo(
-    () =>
-      [
-        { label: 'Werkzeuge', items: tools },
-        { label: 'Boards', items: boards },
-        { label: 'Dokumente', items: docs },
-        { label: 'Dateien', items: documents },
-        { label: 'Wolke', items: wolke },
-        { label: 'Notizbücher', items: notebooks },
-      ].filter((s) => s.items.length > 0),
-    [tools, boards, docs, documents, wolke, notebooks]
+  const sections: MentionSection[] = useMemo(() => {
+    const notebookGroups: MentionSubgroup[] = [];
+    if (userNotebooks.length > 0) {
+      notebookGroups.push({ sublabel: 'meine', items: userNotebooks });
+    }
+    if (notebooks.length > 0) {
+      notebookGroups.push({ sublabel: 'system', items: notebooks });
+    }
+
+    const all: MentionSection[] = [
+      { kind: 'flat', label: 'Werkzeuge', items: tools },
+      { kind: 'flat', label: 'Boards', items: boards },
+      { kind: 'flat', label: 'Dokumente', items: docs },
+      { kind: 'flat', label: 'Dateien', items: documents },
+      { kind: 'flat', label: 'Wolke', items: wolke },
+      ...(notebookGroups.length > 0
+        ? [{ kind: 'grouped' as const, label: 'Notizbücher', groups: notebookGroups }]
+        : []),
+    ];
+
+    return all.filter((s) =>
+      s.kind === 'flat' ? s.items.length > 0 : s.groups.some((g) => g.items.length > 0)
+    );
+  }, [tools, boards, docs, documents, wolke, notebooks, userNotebooks]);
+
+  const totalItems = sections.reduce(
+    (sum, s) =>
+      sum + (s.kind === 'flat' ? s.items.length : s.groups.reduce((n, g) => n + g.items.length, 0)),
+    0
   );
-
-  const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
 
   useEffect(() => {
     if (!visible) return;
@@ -70,17 +88,36 @@ export function MentionPopover({
           <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
             {section.label}
           </div>
-          {section.items.map((item) => {
-            const idx = itemIndex++;
-            return (
-              <MentionItem
-                key={item.identifier}
-                mentionable={item}
-                isSelected={idx === selectedIndex}
-                onSelect={onSelect}
-              />
-            );
-          })}
+          {section.kind === 'flat'
+            ? section.items.map((item) => {
+                const idx = itemIndex++;
+                return (
+                  <MentionItem
+                    key={item.identifier}
+                    mentionable={item}
+                    isSelected={idx === selectedIndex}
+                    onSelect={onSelect}
+                  />
+                );
+              })
+            : section.groups.map((group) => (
+                <div key={group.sublabel}>
+                  <div className="px-3 pt-1 text-[9px] uppercase tracking-wider text-foreground-muted/50">
+                    {group.sublabel}
+                  </div>
+                  {group.items.map((item) => {
+                    const idx = itemIndex++;
+                    return (
+                      <MentionItem
+                        key={item.identifier}
+                        mentionable={item}
+                        isSelected={idx === selectedIndex}
+                        onSelect={onSelect}
+                      />
+                    );
+                  })}
+                </div>
+              ))}
         </div>
       ))}
     </div>
