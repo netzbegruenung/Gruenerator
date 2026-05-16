@@ -2,16 +2,12 @@ import {
   CardActionsMenu,
   CardGrid,
   cn,
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   SectionHeader,
   Skeleton,
   VideoCard,
 } from '@gruenerator/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Share2, Trash2 } from 'lucide-react';
 import React, { memo, useCallback, useState } from 'react';
 import { FaImage, FaVideo } from 'react-icons/fa';
@@ -27,14 +23,7 @@ import {
   FiRadio,
 } from 'react-icons/fi';
 import { HiOutlineDocumentText } from 'react-icons/hi';
-import {
-  PiImageSquare,
-  PiKanban,
-  PiPencilLine,
-  PiStar,
-  PiStarFill,
-  PiVideoCamera,
-} from 'react-icons/pi';
+import { PiKanban, PiPencilLine, PiStar, PiStarFill } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
@@ -514,17 +503,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
     })
     .slice(0, 10);
 
-  const { createBoard, deleteBoard } = useBoardsTyped({ enabled: true });
-
-  const createEmptyDoc = useMutation({
-    mutationFn: async () => {
-      const res = await apiClient.post('/docs', { title: 'Neues Dokument' });
-      return res.data as { id: string };
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
-    },
-  });
+  const { deleteBoard } = useBoardsTyped({ enabled: true });
 
   const handleConvertText = useCallback(
     async (textId: string) => {
@@ -601,61 +580,9 @@ const RecentlyCreatedSection: React.FC = memo(() => {
     void navigator.clipboard.writeText(`${window.location.origin}${item.href}`);
   }, []);
 
-  const handleCreateDoc = useCallback(() => {
-    createEmptyDoc.mutate(undefined, {
-      onSuccess: (data) => navigate(`/docs/${data.id}`),
-    });
-  }, [createEmptyDoc, navigate]);
-
-  const handleCreateBoard = useCallback(() => {
-    createBoard.mutate(
-      { title: 'Neues Board' },
-      { onSuccess: (board) => navigate(`/boards/${board.id}`) }
-    );
-  }, [createBoard, navigate]);
-
-  const handleCreateWhiteboard = useCallback(() => {
-    createBoard.mutate(
-      { title: 'Neues Whiteboard', boardType: 'whiteboard' },
-      { onSuccess: (board) => navigate(`/boards/${board.id}`) }
-    );
-  }, [createBoard, navigate]);
-
-  const createMenu = useCallback(
-    (trigger: React.ReactNode) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={handleCreateDoc}>
-            <HiOutlineDocumentText />
-            Dokument
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleCreateBoard}>
-            <PiKanban />
-            Board
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleCreateWhiteboard}>
-            <PiPencilLine />
-            Whiteboard
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => navigate('/imagine')}>
-            <PiImageSquare />
-            Bild erstellen
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate('/studio/video')}>
-            <PiVideoCamera />
-            Reel / Video erstellen
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
-    [handleCreateDoc, handleCreateBoard, handleCreateWhiteboard, navigate]
-  );
-
   return (
     <section className="mb-xl">
-      <SectionHeader title="Zuletzt erstellt" createLabel="Neu erstellen" createMenu={createMenu} />
+      <SectionHeader title="Zuletzt" />
 
       {isLoading ? (
         <CardGrid columns="5">
