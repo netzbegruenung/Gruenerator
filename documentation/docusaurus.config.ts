@@ -156,6 +156,7 @@ const config: Config = {
           items: [
             { to: '/docs/category/grünerieren', label: 'Grünerieren' },
             // { to: '/docs/monitor/intro', label: 'Themen-Monitor' }, // hidden — Themen-Monitor not online yet
+            { to: '/docs/category/notebooks', label: 'Notebooks' },
             { to: '/docs/category/profil', label: 'Profil' },
             { to: '/docs/category/integrationen', label: 'Integrationen' },
           ],
