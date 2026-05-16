@@ -24,6 +24,7 @@ import { detectMention } from '../../lib/mentionDetection';
 import { getFilteredForMode } from '../../lib/mentionDetection';
 import { computeMentionInsertion } from '../../lib/mentionInsertion';
 import { FileMentionPopover } from './FileMentionPopover';
+import { WolkeMentionPopover } from './WolkeMentionPopover';
 import type { CollabDocSelection } from '../../lib/documentMentionables';
 import { PlusMenu } from './PlusMenu';
 import { ModelPicker } from './ModelPicker';
@@ -195,7 +196,7 @@ function ComposerButtons({
 
 interface MentionState {
   visible: boolean;
-  mode: 'functions' | 'skills' | 'datei';
+  mode: 'functions' | 'skills' | 'datei' | 'wolke';
   query: string;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
@@ -255,6 +256,24 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       // When user selects the @docs trigger, also open the unified file/doc picker
       if (mentionable.type === 'doc' && mentionable.identifier === 'docs-picker-trigger') {
         setMention((prev) => ({ ...prev, mode: 'datei' }));
+        return;
+      }
+
+      // When user selects the @wolke trigger, swap to the Wolke file picker
+      if (mentionable.type === 'wolke') {
+        // Strip the in-progress "@wolk…" trigger from the textarea — the picker
+        // inserts one @wolke:<token> per chosen file via handleWolkeSelect.
+        if (mention.mentionStart >= 0) {
+          const currentText = composerRuntime.getState().text;
+          const before = currentText.slice(0, mention.mentionStart);
+          const after = currentText.slice(textarea.selectionStart);
+          composerRuntime.setText(`${before}${after}`);
+          requestAnimationFrame(() => {
+            const pos = before.length;
+            textarea.setSelectionRange(pos, pos);
+          });
+        }
+        setMention((prev) => ({ ...prev, mode: 'wolke', visible: true, mentionStart: -1 }));
         return;
       }
 
@@ -350,10 +369,28 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [composerRuntime, dismissPopover, stripTriggerText]
   );
 
+  const handleWolkeSelect = useCallback(
+    (tokens: string[]) => {
+      const textarea = textareaRef.current;
+      if (!textarea || tokens.length === 0) return;
+      const currentText = composerRuntime.getState().text;
+      const caret = textarea.selectionStart;
+      const insert = `${currentText.slice(0, caret)}${tokens.join(' ')} ${currentText.slice(caret)}`;
+      composerRuntime.setText(insert);
+      dismissPopover();
+      requestAnimationFrame(() => {
+        const pos = caret + tokens.join(' ').length + 1;
+        textarea.setSelectionRange(pos, pos);
+        textarea.focus();
+      });
+    },
+    [composerRuntime, dismissPopover]
+  );
+
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      // Don't interfere when file/doc browser is open
-      if (mention.mode === 'datei') return;
+      // Don't interfere when file/doc browser or wolke picker is open
+      if (mention.mode === 'datei' || mention.mode === 'wolke') return;
 
       const textarea = e.target;
       const text = textarea.value;
@@ -385,7 +422,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       // In datei/docs mode, only handle Escape (cmdk handles arrow keys internally).
       // Enter is swallowed so the textarea doesn't submit the form while the picker
       // is open — the user must select via the picker or dismiss with Escape first.
-      if (mention.mode === 'datei') {
+      if (mention.mode === 'datei' || mention.mode === 'wolke') {
         if (e.key === 'Escape') {
           e.preventDefault();
           dismissPopover();
@@ -475,6 +512,12 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
               onSelect={(s) =>
                 s.kind === 'document' ? handleDocumentSelect(s.doc) : handleCollabDocSelect(s.doc)
               }
+              onDismiss={dismissPopover}
+            />
+          ) : mention.mode === 'wolke' ? (
+            <WolkeMentionPopover
+              visible={mention.visible}
+              onSelect={handleWolkeSelect}
               onDismiss={dismissPopover}
             />
           ) : mention.mode === 'skills' ? (

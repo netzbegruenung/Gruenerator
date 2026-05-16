@@ -43,6 +43,7 @@ import {
   extractDomain,
   resolveCollectionName,
 } from './citationUtils.js';
+import { retrieveWolkeFile } from './wolkeRetrieval.js';
 
 import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
@@ -354,6 +355,16 @@ export async function executeMultiDocFanout(
         return [src.id, results];
       }
 
+      if (src.kind === 'wolke') {
+        collections.add(`wolke:${src.wolke?.shareLinkId.slice(0, 8) ?? '?'}`);
+        if (!agentConfig.userId) {
+          log.warn(`[Search] Skipping wolke source ${src.id}: no userId on agentConfig`);
+          return [src.id, []];
+        }
+        const results = await retrieveWolkeFile(src, perSourceLimit, agentConfig.userId);
+        return [src.id, results];
+      }
+
       if (src.kind === 'notebook' && src.collectionIds && src.collectionIds.length > 0) {
         const collectionPromises = src.collectionIds.map((collection) => {
           collections.add(collection);
@@ -455,13 +466,17 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         s.kind === 'document' ||
         s.kind === 'document_chat' ||
         s.kind === 'doc_mention' ||
-        s.kind === 'notebook'
+        s.kind === 'notebook' ||
+        s.kind === 'wolke'
     );
+    const hasWolke = retrievableDocSources.some((s) => s.kind === 'wolke');
 
     // Multi-document fan-out: when the user references ≥2 retrievable doc sources,
     // run a doc-scoped retrieval per source so each gets its own evidence budget.
     // Prevents one denser/better-embedded doc from starving the others at rerank time.
-    if (retrievableDocSources.length >= 2) {
+    // Wolke sources always fan out (single or multiple) because they have no single-source
+    // retrieval path in the `case 'search'` block — they're only fetched via retrieveWolkeFile.
+    if (retrievableDocSources.length >= 2 || hasWolke) {
       const query = truncateQuery(searchQuery || '');
       log.info(
         `[Search] Multi-doc fan-out across ${retrievableDocSources.length} sources: ${retrievableDocSources.map((s) => `${s.kind}:${s.id.slice(0, 8)}`).join(', ')}`
