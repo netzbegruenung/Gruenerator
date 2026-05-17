@@ -24,7 +24,7 @@ import {
 import { useEffect, useMemo, useRef } from 'react';
 import { HiTrash } from 'react-icons/hi';
 
-import { useAuthStore, type SupportedLocale } from '../../../stores/authStore';
+import { useAuthStore } from '../../../stores/authStore';
 import {
   useAddNotebookGroupShare,
   useMyGroupsForSharing,
@@ -54,11 +54,6 @@ const EDIT_POLICY_LABELS: Record<NotebookEditPolicy, string> = {
   owner_only: 'Nur ich',
   group_admins: 'Gruppen-Admins der geteilten Gruppen',
   all_members: 'Alle Mitglieder der geteilten Gruppen',
-};
-
-const COUNTRY_DISPLAY: Record<SupportedLocale, { flag: string; label: string }> = {
-  'de-DE': { flag: '🇩🇪', label: 'Deutschland' },
-  'de-AT': { flag: '🇦🇹', label: 'Österreich' },
 };
 
 export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookShareModalProps) {
@@ -199,23 +194,10 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
             ) : null}
 
             {shareMode === 'authenticated' ? (
-              <>
-                <Separator />
-
-                <div>
-                  <p className="mb-xs text-sm font-semibold">Zielgruppe</p>
-                  <div className="flex items-center gap-xs rounded-md border border-grey-200 bg-background px-sm py-xs text-sm dark:border-grey-700">
-                    <span aria-hidden className="text-base">
-                      {COUNTRY_DISPLAY[userLocale].flag}
-                    </span>
-                    <span>Sichtbar für: {COUNTRY_DISPLAY[userLocale].label}</span>
-                  </div>
-                  <p className="mt-xs text-xs text-grey-500">
-                    Automatisch nach deinem Land festgelegt. Nutzer*innen aus dem anderen Land sehen
-                    das Notebook nicht. Gruppen-Mitglieder und Eigentümer*in sind nicht betroffen.
-                  </p>
-                </div>
-              </>
+              <p className="text-xs text-grey-500">
+                Sichtbar nur für eingeloggte Nutzer*innen aus deinem Land. Gruppen-Mitglieder und
+                Eigentümer*in sind nicht betroffen.
+              </p>
             ) : null}
 
             <Separator />
