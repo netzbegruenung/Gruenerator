@@ -113,7 +113,7 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-[42rem]">
         <DialogHeader>
           <DialogTitle>Notebook teilen</DialogTitle>
           <DialogDescription>
