@@ -27,6 +27,8 @@ export { chunkAndEmbedText } from './chunkingPipeline.js';
 
 export { processFileUpload, processUploadedDocument } from './fileProcessing.js';
 
+export { triggerPendingDocProcessing } from './triggerPendingDocProcessing.js';
+
 export { processTextContent } from './textProcessing.js';
 
 export { processUrlContent } from './urlProcessing.js';
