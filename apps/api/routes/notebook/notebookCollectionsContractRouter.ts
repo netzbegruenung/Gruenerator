@@ -241,8 +241,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           'authenticated'
         )) as NotebookCollectionFromQdrantRaw[]
       ).filter(
-        (c) =>
-          !ownedIds.has(c.id) && !groupSharedIdsSet.has(c.id) && c.audience === viewerLocale
+        (c) => !ownedIds.has(c.id) && !groupSharedIdsSet.has(c.id) && c.audience === viewerLocale
       );
 
       const tagged: Array<{

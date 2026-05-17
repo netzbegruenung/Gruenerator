@@ -55,9 +55,7 @@ function normalizeEditPolicy(raw: unknown): NotebookEditPolicy {
 // locale, so this fallback only fires for the rare case of a row that escaped
 // the backfill (e.g. created during the same boot cycle).
 function normalizeAudience(raw: unknown): NotebookAudience {
-  return NOTEBOOK_AUDIENCES.includes(raw as NotebookAudience)
-    ? (raw as NotebookAudience)
-    : 'de-DE';
+  return NOTEBOOK_AUDIENCES.includes(raw as NotebookAudience) ? (raw as NotebookAudience) : 'de-DE';
 }
 
 interface NotebookCollectionData {
