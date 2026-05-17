@@ -185,7 +185,7 @@ const NotebookEditorWolkeSection = ({
           {(pickerOpen || folders.length === 0) && availableLinks.length > 0 && (
             <div className="mb-md flex flex-col gap-1 rounded-xl border border-grey-200 bg-background p-xs dark:border-grey-700">
               <p className="m-0 px-1 pb-1 text-xs uppercase tracking-wide text-grey-500">
-                Verbundene Wolken
+                Verbundene Wolke-Ordner
               </p>
               {availableLinks.map((link) => (
                 <button
