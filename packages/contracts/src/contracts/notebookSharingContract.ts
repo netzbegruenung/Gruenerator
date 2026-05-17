@@ -21,6 +21,7 @@ import {
   notebookAudienceBodySchema,
   notebookEditPolicyBodySchema,
   notebookGroupSharesResponseSchema,
+  notebookIsPublicBodySchema,
   notebookShareErrorResponseSchema,
   notebookShareModeBodySchema,
   notebookShareSettingsSchema,
@@ -124,6 +125,28 @@ export const notebookSharingContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'Set notebook locale audience',
+    },
+
+    /**
+     * PUT /api/auth/notebook-collections/:id/share/is-public
+     * Toggle Von-der-Basis discovery on top of share_mode='authenticated'.
+     * Owner only. is_public=true requires public_ownership and a share_mode
+     * that grants read access to authenticated users (enforced server-side).
+     */
+    setIsPublic: {
+      method: 'PUT',
+      path: '/api/auth/notebook-collections/:id/share/is-public',
+      pathParams: z.object({ id: z.string() }),
+      body: notebookIsPublicBodySchema,
+      responses: {
+        200: notebookSimpleSuccessSchema,
+        400: notebookErrorResponseSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Toggle Von-der-Basis discovery for a notebook',
     },
 
     /**

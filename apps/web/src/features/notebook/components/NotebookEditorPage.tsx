@@ -74,8 +74,6 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
         labels: data.labels,
         selectionMode: collection.selection_mode,
         custom_prompt: collection.custom_prompt,
-        is_public: data.isPublic,
-        public_ownership: data.publicOwnership,
         wolkeFolders: data.wolkeFolders,
         linkedDocs: data.linkedDocs,
       });
@@ -99,8 +97,6 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
         description: data.description,
         documents: data.documents,
         labels: data.labels,
-        is_public: data.isPublic,
-        public_ownership: data.publicOwnership,
         wolkeFolders: data.wolkeFolders,
         linkedDocs: data.linkedDocs,
       });

@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from 'motion/react';
 import DetailsStep from './DetailsStep';
 import ReviewStep from './ReviewStep';
 import SourcesStep from './SourcesStep';
-import VisibilityStep from './VisibilityStep';
 import type { NotebookEditorStateBundle } from './useNotebookEditorState';
 
 interface NotebookCreateWizardProps {
@@ -29,9 +28,6 @@ export default function NotebookCreateWizard({ state }: NotebookCreateWizardProp
               </MultiStepForm.Step>
               <MultiStepForm.Step title="Details" subtitle="Wie soll dein Notebook heißen?">
                 <DetailsStep state={state} />
-              </MultiStepForm.Step>
-              <MultiStepForm.Step title="Sichtbarkeit" subtitle="Wer darf dein Notebook sehen?">
-                <VisibilityStep state={state} />
               </MultiStepForm.Step>
               <MultiStepForm.Step title="Überprüfen" subtitle="Alles bereit zum Erstellen?">
                 <ReviewStep state={state} />
