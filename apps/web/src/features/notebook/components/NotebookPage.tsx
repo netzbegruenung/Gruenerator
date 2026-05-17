@@ -30,6 +30,7 @@ import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
 import { useNotebookCollection } from '../hooks/useNotebookCollection';
 import useNotebookStore from '../stores/notebookStore';
 
+import { NotebookAccessError } from './NotebookAccessError';
 import { NotebookStartpage } from './NotebookStartpage';
 
 interface NotebookCollection {
@@ -446,7 +447,7 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
   // Single-collection fetch gated by checkNotebookAccess — works for direct
   // URL access to a `share_mode='authenticated'` notebook regardless of the
   // viewer's locale (audience is a discovery-listing hint, not an access wall).
-  const { data, isLoading } = useNotebookCollection(id);
+  const { data, isLoading, refetch } = useNotebookCollection(id);
   const collection = data?.collection ?? null;
   const fetchError = data?.error ?? null;
 
@@ -458,17 +459,7 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
     );
 
   if (!collection) {
-    const message =
-      fetchError === 'forbidden'
-        ? 'Du hast keinen Zugriff auf dieses Notebook.'
-        : fetchError === 'not-found'
-          ? 'Dieses Notebook existiert nicht.'
-          : 'Notebook konnte nicht geladen werden.';
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-sm p-md text-foreground-muted">
-        <p>{message}</p>
-      </div>
-    );
+    return <NotebookAccessError variant={fetchError ?? 'unknown'} onRetry={() => void refetch()} />;
   }
 
   const config: NotebookConfig = {
