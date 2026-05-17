@@ -90,6 +90,7 @@ export function useSetNotebookShareMode(notebookId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: SHARE_SETTINGS_KEY(notebookId) });
       void qc.invalidateQueries({ queryKey: ['notebookCollections'] });
+      void qc.invalidateQueries({ queryKey: ['notebook', 'collection'] });
     },
   });
 }
@@ -111,6 +112,7 @@ export function useSetNotebookAudience(notebookId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: SHARE_SETTINGS_KEY(notebookId) });
       void qc.invalidateQueries({ queryKey: ['notebookCollections'] });
+      void qc.invalidateQueries({ queryKey: ['notebook', 'collection'] });
     },
   });
 }
@@ -132,6 +134,7 @@ export function useSetNotebookIsPublic(notebookId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: SHARE_SETTINGS_KEY(notebookId) });
       void qc.invalidateQueries({ queryKey: ['notebookCollections'] });
+      void qc.invalidateQueries({ queryKey: ['notebook', 'collection'] });
     },
   });
 }
