@@ -205,6 +205,18 @@ export const collectionsListResponseSchema = z.object({
 });
 
 /**
+ * Single-collection response used by GET /:slugOrId. Same enriched shape as
+ * one entry in collectionsListResponseSchema.collections, but reached via a
+ * dedicated access check (checkNotebookAccess) so direct URL visits succeed
+ * for `share_mode='authenticated'` notebooks regardless of the audience
+ * filter that gates the list-style discovery.
+ */
+export const getCollectionResponseSchema = z.object({
+  success: z.boolean(),
+  collection: transformedCollectionSchema,
+});
+
+/**
  * Create collection response.
  * The `collection` sub-object is loosely typed for `settings` and arbitrary
  * extra fields written by `storeNotebookCollection`.

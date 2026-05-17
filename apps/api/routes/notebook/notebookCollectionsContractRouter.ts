@@ -118,6 +118,90 @@ async function validateWolkeShareLinks(
   return true;
 }
 
+/**
+ * Shape of a notebook collection as it comes back from Qdrant before
+ * enrichment. Matches the inline type previously duplicated inside
+ * listCollections + getCollection handlers.
+ */
+type NotebookCollectionFromQdrantRaw = {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  custom_prompt: string | null;
+  selection_mode?: string | undefined;
+  wolke_share_link_ids?: string[] | null | undefined;
+  auto_sync?: boolean | undefined;
+  remove_missing_on_sync?: boolean | undefined;
+  created_at: string;
+  updated_at: string;
+  settings?: Record<string, unknown> | undefined;
+  notebook_collection_documents?: Array<{ document_id: string }>;
+  is_public?: boolean;
+  public_ownership?: 'owner' | 'public_data' | null;
+  share_mode?: 'private' | 'groups' | 'authenticated';
+  edit_policy?: 'owner_only' | 'group_admins' | 'all_members';
+  audience?: 'de-DE' | 'de-AT';
+};
+
+/**
+ * Enrich a raw Qdrant notebook collection with the derived fields the API
+ * contract response expects (documents, wolke_share_links, labels parsed
+ * out of settings, etc.). Caller picks `accessSource` based on how the
+ * viewer reached the collection.
+ *
+ * Used by both listCollections (per-entry) and getCollection (one entry).
+ */
+async function enrichNotebookCollection(
+  collection: NotebookCollectionFromQdrantRaw,
+  accessSource: 'owned' | 'shared' | 'authenticated'
+) {
+  const postgres = getPostgresInstance();
+  const documentIds = (collection.notebook_collection_documents || []).map(
+    (qcd) => qcd.document_id
+  );
+
+  let documents: DocumentRecord[] = [];
+  if (documentIds.length > 0) {
+    documents = await postgres.query<DocumentRecord>(
+      'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
+      [documentIds]
+    );
+  }
+
+  let wolke_share_links: WolkeShareLink[] = [];
+  if (collection.wolke_share_link_ids) {
+    try {
+      wolke_share_links = collection.wolke_share_link_ids.map((id) => ({ id }));
+    } catch (error) {
+      log.error('[notebookCollectionsContract] Error fetching Wolke share links:', error);
+    }
+  }
+
+  const settings = (collection.settings as Record<string, unknown>) || {};
+  const labels = Array.isArray(settings.labels) ? (settings.labels as string[]) : [];
+  const wolke_folders = Array.isArray(settings.wolke_folders)
+    ? (settings.wolke_folders as WolkeFolderRef[])
+    : [];
+
+  return {
+    ...collection,
+    documents,
+    document_count: documents.length,
+    selection_mode: collection.selection_mode || 'documents',
+    wolke_share_links,
+    has_wolke_sources: wolke_share_links.length > 0,
+    documents_from_wolke: documents.filter((doc) => doc.source_type === 'wolke').length,
+    auto_sync: !!collection.auto_sync,
+    remove_missing_on_sync: !!collection.remove_missing_on_sync,
+    labels,
+    wolke_folders,
+    is_public: collection.is_public === true,
+    public_ownership: collection.public_ownership ?? null,
+    access_source: accessSource,
+  };
+}
+
 // ── Contract router ────────────────────────────────────────────────────────
 
 const s = initServer();
@@ -182,27 +266,6 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       const userId = getUserId(args.req);
       const postgres = getPostgresInstance();
 
-      type NotebookCollectionFromQdrantRaw = {
-        id: string;
-        user_id: string;
-        name: string;
-        description: string | null;
-        custom_prompt: string | null;
-        selection_mode?: string | undefined;
-        wolke_share_link_ids?: string[] | null | undefined;
-        auto_sync?: boolean | undefined;
-        remove_missing_on_sync?: boolean | undefined;
-        created_at: string;
-        updated_at: string;
-        settings?: Record<string, unknown> | undefined;
-        notebook_collection_documents?: Array<{ document_id: string }>;
-        is_public?: boolean;
-        public_ownership?: 'owner' | 'public_data' | null;
-        share_mode?: 'private' | 'groups' | 'authenticated';
-        edit_policy?: 'owner_only' | 'group_admins' | 'all_members';
-        audience?: 'de-DE' | 'de-AT';
-      };
-
       const owned = (await notebookHelper.getUserNotebookCollections(
         userId
       )) as NotebookCollectionFromQdrantRaw[];
@@ -252,51 +315,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       ];
 
       const transformedData = await Promise.all(
-        tagged.map(async ({ collection, access_source }) => {
-          const documentIds = (collection.notebook_collection_documents || []).map(
-            (qcd) => qcd.document_id
-          );
-
-          let documents: DocumentRecord[] = [];
-          if (documentIds.length > 0) {
-            documents = await postgres.query<DocumentRecord>(
-              'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
-              [documentIds]
-            );
-          }
-
-          let wolke_share_links: WolkeShareLink[] = [];
-          if (collection.wolke_share_link_ids) {
-            try {
-              wolke_share_links = collection.wolke_share_link_ids.map((id) => ({ id }));
-            } catch (error) {
-              log.error('[notebookCollectionsContract] Error fetching Wolke share links:', error);
-            }
-          }
-
-          const settings = (collection.settings as Record<string, unknown>) || {};
-          const labels = Array.isArray(settings.labels) ? (settings.labels as string[]) : [];
-          const wolke_folders = Array.isArray(settings.wolke_folders)
-            ? (settings.wolke_folders as WolkeFolderRef[])
-            : [];
-
-          return {
-            ...collection,
-            documents,
-            document_count: documents.length,
-            selection_mode: collection.selection_mode || 'documents',
-            wolke_share_links,
-            has_wolke_sources: wolke_share_links.length > 0,
-            documents_from_wolke: documents.filter((doc) => doc.source_type === 'wolke').length,
-            auto_sync: !!collection.auto_sync,
-            remove_missing_on_sync: !!collection.remove_missing_on_sync,
-            labels,
-            wolke_folders,
-            is_public: collection.is_public === true,
-            public_ownership: collection.public_ownership ?? null,
-            access_source,
-          };
-        })
+        tagged.map(({ collection, access_source }) =>
+          enrichNotebookCollection(collection, access_source)
+        )
       );
 
       const totalWolkeFolders = transformedData.reduce((acc, c) => acc + c.wolke_folders.length, 0);
@@ -1036,6 +1057,59 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           error: err.message || 'Failed to perform bulk delete of Notebook collections',
         },
       };
+    }
+  },
+
+  getCollection: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const input = args.params.slugOrId;
+
+      let collectionId: string | null = null;
+      if (UUID_RE.test(input)) {
+        collectionId = input;
+      } else {
+        const suffix = extractSlugSuffix(input);
+        if (suffix) {
+          const bySlug = await notebookHelper.getNotebookCollectionBySlugSuffix(suffix);
+          collectionId = bySlug?.id ?? null;
+        }
+      }
+
+      if (!collectionId) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+
+      const access = await checkNotebookAccess(collectionId, userId);
+      if (!access.exists) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+      if (!access.canRead) {
+        return { status: 403 as const, body: { error: 'Keine Berechtigung' } };
+      }
+
+      const collection = (await notebookHelper.getNotebookCollection(
+        collectionId
+      )) as NotebookCollectionFromQdrantRaw | null;
+      if (!collection) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+
+      const accessSource: 'owned' | 'shared' | 'authenticated' = access.isOwner
+        ? 'owned'
+        : collection.share_mode === 'groups'
+          ? 'shared'
+          : 'authenticated';
+
+      const enriched = await enrichNotebookCollection(collection, accessSource);
+
+      return {
+        status: 200 as const,
+        body: { success: true, collection: enriched },
+      };
+    } catch (error) {
+      log.error('[notebookCollectionsContract.getCollection] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
 });
