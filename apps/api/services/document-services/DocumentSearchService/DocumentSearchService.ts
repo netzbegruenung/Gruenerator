@@ -423,7 +423,8 @@ export class DocumentSearchService extends BaseSearchService {
     documentId: string,
     chunks: ChunkWithMetadata[],
     embeddings: number[][],
-    metadata: VectorMetadata = {}
+    metadata: VectorMetadata = {},
+    onBatchUpserted?: (upserted: number, total: number) => Promise<void> | void
   ): Promise<VectorStoreResult> {
     await this.ensureInitialized();
     if (!this.qdrantOps) {
@@ -435,7 +436,8 @@ export class DocumentSearchService extends BaseSearchService {
       documentId,
       chunks,
       embeddings,
-      metadata
+      metadata,
+      onBatchUpserted
     );
   }
 
