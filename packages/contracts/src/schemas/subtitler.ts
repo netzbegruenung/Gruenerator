@@ -303,7 +303,7 @@ export const autoProcessStartResponseSchema = z.object({
  * pipeline. Read by GET /auto-progress and GET /auto-download.
  */
 export const autoProgressSchema = z.object({
-  status: z.enum(['processing', 'complete', 'error']),
+  status: z.enum(['processing', 'processing_done', 'complete', 'error']),
   stage: z.number().nullish(),
   stageProgress: z.number().nullish(),
   overallProgress: z.number().nullish(),
