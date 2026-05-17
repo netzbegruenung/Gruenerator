@@ -24,6 +24,7 @@ import {
   unlikeCollectionResponseSchema,
   listMyLikedCollectionsResponseSchema,
   resolveCollectionResponseSchema,
+  getCollectionResponseSchema,
 } from '../schemas/notebookCollections.js';
 
 const c = initContract();
@@ -270,6 +271,32 @@ export const notebookCollectionsContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'Unlike a notebook collection',
+    },
+
+    /**
+     * GET /api/auth/notebook-collections/:slugOrId
+     * Fetch a single collection by UUID or slug-with-suffix, gated by
+     * checkNotebookAccess. Used by DynamicNotebookPage so direct URL access
+     * to a notebook shared with `share_mode='authenticated'` works regardless
+     * of the audience filter that gates listCollections (audience is a
+     * discovery-curation hint, not an access wall).
+     *
+     * Declared LAST among GET routes on this prefix so literal-segment paths
+     * (`/public`, `/likes`, `/resolve/...`) keep matching first; the
+     * `:slugOrId` pattern would otherwise capture them.
+     */
+    getCollection: {
+      method: 'GET',
+      path: '/api/auth/notebook-collections/:slugOrId',
+      pathParams: z.object({ slugOrId: z.string() }),
+      responses: {
+        200: getCollectionResponseSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Fetch a single notebook collection by UUID or slug',
     },
   },
   { pathPrefix: '' }
