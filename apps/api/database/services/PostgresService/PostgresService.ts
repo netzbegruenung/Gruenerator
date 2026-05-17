@@ -109,6 +109,18 @@ export class PostgresService {
         );
       }
 
+      try {
+        const { backfillNotebookAudience } = await import(
+          '../../../services/migrations/backfillNotebookAudience.js'
+        );
+        await backfillNotebookAudience();
+      } catch (error) {
+        console.warn(
+          '[PostgresService] ⚠️ Notebook audience backfill skipped:',
+          (error as Error).message
+        );
+      }
+
       // Auto-sync schema columns (non-critical — log internally)
       let schemaOk = true;
       try {
