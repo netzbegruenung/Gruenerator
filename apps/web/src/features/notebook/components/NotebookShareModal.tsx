@@ -211,9 +211,8 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
                     <span>Sichtbar für: {COUNTRY_DISPLAY[userLocale].label}</span>
                   </div>
                   <p className="mt-xs text-xs text-grey-500">
-                    Automatisch nach deinem Land festgelegt. Nutzer*innen aus dem anderen Land
-                    sehen das Notebook nicht. Gruppen-Mitglieder und Eigentümer*in sind nicht
-                    betroffen.
+                    Automatisch nach deinem Land festgelegt. Nutzer*innen aus dem anderen Land sehen
+                    das Notebook nicht. Gruppen-Mitglieder und Eigentümer*in sind nicht betroffen.
                   </p>
                 </div>
               </>
