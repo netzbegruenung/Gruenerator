@@ -14,17 +14,20 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
   Separator,
+  Switch,
 } from '@gruenerator/ui';
 import { useEffect, useMemo, useRef } from 'react';
 import { HiTrash } from 'react-icons/hi';
 
 import { useAuthStore } from '../../../stores/authStore';
+import { cn } from '../../../utils/cn';
 import {
   useAddNotebookGroupShare,
   useMyGroupsForSharing,
@@ -33,10 +36,15 @@ import {
   useRemoveNotebookGroupShare,
   useSetNotebookAudience,
   useSetNotebookEditPolicy,
+  useSetNotebookIsPublic,
   useSetNotebookShareMode,
 } from '../hooks/useNotebookSharing';
 
-import type { NotebookEditPolicy, NotebookShareMode } from '@gruenerator/contracts';
+import type {
+  NotebookEditPolicy,
+  NotebookShareMode,
+  PublicOwnership,
+} from '@gruenerator/contracts';
 
 interface NotebookShareModalProps {
   notebookId: string;
@@ -64,12 +72,15 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
   const setShareMode = useSetNotebookShareMode(notebookId);
   const setEditPolicy = useSetNotebookEditPolicy(notebookId);
   const setAudience = useSetNotebookAudience(notebookId);
+  const setIsPublic = useSetNotebookIsPublic(notebookId);
   const addGroupShare = useAddNotebookGroupShare(notebookId);
   const removeGroupShare = useRemoveNotebookGroupShare(notebookId);
 
   const userLocale = useAuthStore((s) => s.locale);
   const shareMode = settingsQuery.data?.share_mode ?? 'private';
   const editPolicy = settingsQuery.data?.edit_policy ?? 'owner_only';
+  const isPublic = settingsQuery.data?.is_public ?? false;
+  const publicOwnership = settingsQuery.data?.public_ownership ?? null;
 
   const sharedGroupIds = useMemo(
     () => new Set((groupSharesQuery.data ?? []).map((g) => g.group_id)),
@@ -194,10 +205,75 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
             ) : null}
 
             {shareMode === 'authenticated' ? (
-              <p className="text-xs text-grey-500">
-                Sichtbar nur für eingeloggte Nutzer*innen aus deinem Land. Gruppen-Mitglieder und
-                Eigentümer*in sind nicht betroffen.
-              </p>
+              <>
+                <p className="text-xs text-grey-500">
+                  Sichtbar nur für eingeloggte Nutzer*innen aus deinem Land. Gruppen-Mitglieder und
+                  Eigentümer*in sind nicht betroffen.
+                </p>
+
+                <div className="flex items-start justify-between gap-md rounded-lg border border-grey-200 p-md dark:border-grey-700">
+                  <div className="space-y-xs">
+                    <Label htmlFor="notebook-von-der-basis-toggle" className="text-sm">
+                      Auf „Von der Basis" listen
+                    </Label>
+                    <p className="text-xs text-grey-500 dark:text-grey-400">
+                      Dein Notebook erscheint dann auf der Notebooks-Seite zum Entdecken.
+                    </p>
+                  </div>
+                  <Switch
+                    id="notebook-von-der-basis-toggle"
+                    checked={isPublic}
+                    onCheckedChange={(checked) => {
+                      if (!checked) {
+                        setIsPublic.mutate({ is_public: false, public_ownership: null });
+                      } else {
+                        // Default to 'owner' on first activation — the most
+                        // common case. User can change via the buttons below.
+                        setIsPublic.mutate({
+                          is_public: true,
+                          public_ownership: publicOwnership ?? 'owner',
+                        });
+                      }
+                    }}
+                    disabled={setIsPublic.isPending}
+                  />
+                </div>
+
+                {isPublic ? (
+                  <div className="space-y-sm">
+                    <p className="text-sm text-foreground-heading">Bitte bestätige:</p>
+                    <div className="grid grid-cols-1 gap-sm sm:grid-cols-2">
+                      {(['owner', 'public_data'] as const).map((choice: PublicOwnership) => (
+                        <button
+                          key={choice}
+                          type="button"
+                          onClick={() =>
+                            setIsPublic.mutate({ is_public: true, public_ownership: choice })
+                          }
+                          disabled={setIsPublic.isPending}
+                          className={cn(
+                            'flex flex-col gap-xs rounded-lg border p-md text-left transition-colors',
+                            publicOwnership === choice
+                              ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/20'
+                              : 'border-grey-200 hover:border-primary-300 dark:border-grey-700 dark:hover:border-primary-600'
+                          )}
+                        >
+                          <span className="text-sm font-medium text-foreground">
+                            {choice === 'owner'
+                              ? 'Ich besitze die Daten'
+                              : 'Daten sind öffentlich verfügbar'}
+                          </span>
+                          <span className="text-xs text-grey-500">
+                            {choice === 'owner'
+                              ? '… oder habe die Rechte zur Veröffentlichung'
+                              : 'z.B. offizielle Dokumente, Pressemitteilungen'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </>
             ) : null}
 
             <Separator />

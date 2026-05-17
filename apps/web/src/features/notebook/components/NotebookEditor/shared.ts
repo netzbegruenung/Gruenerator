@@ -1,16 +1,12 @@
 import { type LinkedDocRef, type WolkeFolderRef } from '@gruenerator/contracts';
 import { type DragEvent } from 'react';
 
-export type PublicOwnership = 'owner' | 'public_data';
-
 export interface NotebookCollection {
   id?: string;
   name: string;
   description?: string;
   documents?: { id: string; title?: string; source_type?: string | null }[];
   labels?: string[];
-  is_public?: boolean;
-  public_ownership?: PublicOwnership | null;
   wolke_folders?: WolkeFolderRef[];
   linked_docs?: LinkedDocRef[];
 }
@@ -30,7 +26,7 @@ export interface UploadedDocument {
 
 export const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
 export const MAX_DOCUMENTS = 100;
-export const TOTAL_STEPS = 4;
+export const TOTAL_STEPS = 3;
 
 export function getFileTypeStyle(filename: string): { label: string; accentVia: string } {
   const ext = filename.toLowerCase().split('.').pop() ?? '';
