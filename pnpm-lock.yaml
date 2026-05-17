@@ -490,6 +490,9 @@ importers:
       '@gruenerator/collab':
         specifier: workspace:*
         version: link:../../packages/collab
+      '@gruenerator/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@gruenerator/docs':
         specifier: workspace:^
         version: link:../../packages/docs
