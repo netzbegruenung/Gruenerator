@@ -31,6 +31,8 @@ interface DocumentStatusResponse {
   data?: {
     status: DocumentStatus;
     vectorCount?: number;
+    processingStage?: 'extracting' | 'chunking' | 'upserting' | null;
+    processingProgress?: { stage: string; current: number; total: number } | null;
   };
 }
 
