@@ -22,8 +22,105 @@ const __dirname = path.dirname(__filename);
 
 const DOCLING_BASE_URL = env.DOCLING_URL ?? 'http://ocr:5001';
 
+// Long-poll window per status request. Docling-serve blocks server-side up to this
+// long and returns early on terminal state, so short jobs don't pay polling latency
+// and long jobs cost ~1 HTTP round-trip per POLL_WAIT_SECONDS.
+const POLL_WAIT_SECONDS = 5;
+
+interface DoclingDoc {
+  md_content?: string;
+  markdown?: string;
+  md?: string;
+  text?: string;
+  num_pages?: number;
+  page_count?: number;
+}
+
+interface DoclingResponse {
+  document?: DoclingDoc;
+  documents?: DoclingDoc[];
+  status?: string;
+  processing_time?: number;
+  md_content?: string;
+  markdown?: string;
+  md?: string;
+  text?: string;
+  num_pages?: number;
+  page_count?: number;
+}
+
+type TaskStatus = 'pending' | 'started' | 'success' | 'failure';
+
+interface TaskStatusResponse {
+  task_id?: string;
+  task_status?: TaskStatus;
+}
+
+interface AsyncSubmitResponse {
+  task_id?: string;
+  task_status?: TaskStatus;
+}
+
 /**
- * Shared core: send a buffer to Docling-Serve and parse the markdown response.
+ * Submit an async conversion job. Returns the task_id assigned by docling-serve.
+ */
+async function submitAsyncJob(formData: FormData, signal: AbortSignal): Promise<string> {
+  const res = await fetch(`${DOCLING_BASE_URL}/v1/convert/file/async`, {
+    method: 'POST',
+    body: formData,
+    signal,
+  });
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => 'unknown');
+    throw new Error(`Docling async submit returned ${res.status}: ${errorText}`);
+  }
+  const body = (await res.json()) as AsyncSubmitResponse;
+  if (!body.task_id) {
+    throw new Error('Docling async submit response missing task_id');
+  }
+  return body.task_id;
+}
+
+/**
+ * Long-poll the task status until terminal, then fetch and return the conversion result.
+ * The shared AbortSignal lets the outer deadline cancel an in-flight long-poll immediately.
+ */
+async function pollUntilDone(
+  taskId: string,
+  deadlineMs: number,
+  signal: AbortSignal,
+  logPrefix: string
+): Promise<DoclingResponse> {
+  while (Date.now() < deadlineMs) {
+    const statusRes = await fetch(
+      `${DOCLING_BASE_URL}/v1/status/poll/${taskId}?wait=${POLL_WAIT_SECONDS}`,
+      { signal }
+    );
+    if (!statusRes.ok) {
+      const errorText = await statusRes.text().catch(() => 'unknown');
+      throw new Error(`Docling status poll returned ${statusRes.status}: ${errorText}`);
+    }
+    const status = (await statusRes.json()) as TaskStatusResponse;
+
+    if (status.task_status === 'success') {
+      const resultRes = await fetch(`${DOCLING_BASE_URL}/v1/result/${taskId}`, { signal });
+      if (!resultRes.ok) {
+        const errorText = await resultRes.text().catch(() => 'unknown');
+        throw new Error(`Docling result fetch returned ${resultRes.status}: ${errorText}`);
+      }
+      return (await resultRes.json()) as DoclingResponse;
+    }
+    if (status.task_status === 'failure') {
+      throw new Error(`Docling task ${taskId} reported failure`);
+    }
+    console.log(`${logPrefix} task=${taskId} status=${status.task_status ?? 'unknown'}, polling`);
+  }
+  throw new Error(`Docling task ${taskId} exceeded client deadline`);
+}
+
+/**
+ * Shared core: submit a buffer to Docling-Serve via the async API, poll until the
+ * conversion finishes, then parse the markdown response. Bounded by DOCLING_MAX_WAIT_MS.
  */
 async function sendBufferToDocling(
   fileBuffer: Buffer,
@@ -31,6 +128,10 @@ async function sendBufferToDocling(
   logPrefix: string
 ): Promise<ExtractionResult> {
   const startTime = Date.now();
+  const maxWaitMs = env.DOCLING_MAX_WAIT_MS;
+  const deadlineMs = startTime + maxWaitMs;
+  const abort = new AbortController();
+  const deadlineTimer = setTimeout(() => abort.abort(), maxWaitMs);
 
   try {
     const formData = new FormData();
@@ -45,40 +146,13 @@ async function sendBufferToDocling(
     formData.append('parameters', new Blob([optionsPayload], { type: 'application/json' }));
 
     console.log(
-      `${logPrefix} Sending to ${DOCLING_BASE_URL}/v1/convert/file (${fileBuffer.length} bytes)`
+      `${logPrefix} Submitting async job to ${DOCLING_BASE_URL}/v1/convert/file/async (${fileBuffer.length} bytes, deadline=${maxWaitMs}ms)`
     );
 
-    const response = await fetch(`${DOCLING_BASE_URL}/v1/convert/file`, {
-      method: 'POST',
-      body: formData,
-    });
+    const taskId = await submitAsyncJob(formData, abort.signal);
+    console.log(`${logPrefix} task=${taskId} submitted, polling`);
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'unknown');
-      throw new Error(`Docling API returned ${response.status}: ${errorText}`);
-    }
-
-    interface DoclingDoc {
-      md_content?: string;
-      markdown?: string;
-      md?: string;
-      text?: string;
-      num_pages?: number;
-      page_count?: number;
-    }
-    interface DoclingResponse {
-      document?: DoclingDoc;
-      documents?: DoclingDoc[];
-      status?: string;
-      processing_time?: number;
-      md_content?: string;
-      markdown?: string;
-      md?: string;
-      text?: string;
-      num_pages?: number;
-      page_count?: number;
-    }
-    const result = (await response.json()) as DoclingResponse;
+    const result = await pollUntilDone(taskId, deadlineMs, abort.signal, logPrefix);
 
     // docling-serve returns { document: { md_content, filename, ... }, status, processing_time }
     const documents = result?.document ?? result?.documents ?? [result];
@@ -125,6 +199,8 @@ async function sendBufferToDocling(
       fileName,
     });
     throw new Error(`Docling extraction failed: ${errMsg}`);
+  } finally {
+    clearTimeout(deadlineTimer);
   }
 }
 
