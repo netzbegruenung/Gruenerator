@@ -12,6 +12,7 @@ import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.
 import { mistralEmbeddingService } from '../../services/mistral/index.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { getPostgresInstance } from './PostgresService.js';
 import { type QdrantService, getQdrantInstance } from './QdrantService/index.js';
 import { QdrantOperations } from './QdrantService/operations/index.js';
 
@@ -27,7 +28,7 @@ type PublicOwnership = 'owner' | 'public_data';
 
 export type NotebookShareMode = 'private' | 'groups' | 'authenticated';
 export type NotebookEditPolicy = 'owner_only' | 'group_admins' | 'all_members';
-export type NotebookAudience = 'de-DE' | 'de-AT' | 'all';
+export type NotebookAudience = 'de-DE' | 'de-AT';
 
 const NOTEBOOK_SHARE_MODES: readonly NotebookShareMode[] = ['private', 'groups', 'authenticated'];
 const NOTEBOOK_EDIT_POLICIES: readonly NotebookEditPolicy[] = [
@@ -35,7 +36,7 @@ const NOTEBOOK_EDIT_POLICIES: readonly NotebookEditPolicy[] = [
   'group_admins',
   'all_members',
 ];
-const NOTEBOOK_AUDIENCES: readonly NotebookAudience[] = ['de-DE', 'de-AT', 'all'];
+const NOTEBOOK_AUDIENCES: readonly NotebookAudience[] = ['de-DE', 'de-AT'];
 
 function normalizeShareMode(raw: unknown): NotebookShareMode {
   return NOTEBOOK_SHARE_MODES.includes(raw as NotebookShareMode)
@@ -49,8 +50,14 @@ function normalizeEditPolicy(raw: unknown): NotebookEditPolicy {
     : 'owner_only';
 }
 
+// Default to 'de-DE' for unknown / legacy values. The boot-time
+// backfillAudience migration rewrites any 'all' rows to the owner's actual
+// locale, so this fallback only fires for the rare case of a row that escaped
+// the backfill (e.g. created during the same boot cycle).
 function normalizeAudience(raw: unknown): NotebookAudience {
-  return NOTEBOOK_AUDIENCES.includes(raw as NotebookAudience) ? (raw as NotebookAudience) : 'all';
+  return NOTEBOOK_AUDIENCES.includes(raw as NotebookAudience)
+    ? (raw as NotebookAudience)
+    : 'de-DE';
 }
 
 interface NotebookCollectionData {
@@ -74,11 +81,10 @@ interface NotebookCollectionData {
   share_mode?: NotebookShareMode;
   edit_policy?: NotebookEditPolicy;
   /**
-   * Locale audience for `share_mode='authenticated'` listings. When set to
-   * 'de-DE' / 'de-AT' the notebook is hidden from viewers whose `users.locale`
-   * doesn't match; 'all' (the default for legacy rows) shows it everywhere.
-   * Has no effect on owners or group-share recipients — those are explicit
-   * grants and bypass the audience filter.
+   * Locale audience for `share_mode='authenticated'` listings: the notebook
+   * is hidden from authenticated viewers whose `profiles.locale` doesn't
+   * match. Owners and explicit group-share recipients always bypass the
+   * filter. Defaults to the creator's locale on create.
    */
   audience?: NotebookAudience;
   /**
@@ -338,6 +344,68 @@ class NotebookQdrantHelper {
     }
 
     logger.info(`[backfillSlugSuffixes] Done. scanned=${scanned} updated=${updated}`);
+    return { scanned, updated };
+  }
+
+  /**
+   * One-shot backfill: rewrite legacy `audience='all'` (or missing-audience)
+   * notebook rows to the owner's actual locale, looked up once per distinct
+   * user_id from `profiles.locale`. Idempotent — a row whose audience is
+   * already 'de-DE' or 'de-AT' is skipped.
+   *
+   * Patches via `setPayload` so we don't re-embed thousands of notebooks.
+   */
+  async backfillAudience(): Promise<{ scanned: number; updated: number }> {
+    await this.ensureInitialized();
+
+    let scanned = 0;
+    let updated = 0;
+
+    const allResults = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collections,
+      {},
+      { limit: 100_000, withPayload: true }
+    );
+
+    const targets: Array<{ id: string | number; userId: string }> = [];
+    for (const point of allResults) {
+      scanned++;
+      const audience = point.payload.audience;
+      if (audience === 'de-DE' || audience === 'de-AT') continue;
+      const userId = point.payload.user_id;
+      if (typeof userId !== 'string' || userId.length === 0) continue;
+      targets.push({ id: point.id, userId });
+    }
+
+    if (targets.length === 0) {
+      logger.info(`[backfillAudience] Nothing to backfill. scanned=${scanned}`);
+      return { scanned, updated };
+    }
+
+    const userIds = Array.from(new Set(targets.map((t) => t.userId)));
+    const postgres = getPostgresInstance();
+    const rows = await postgres.query<{ id: string; locale: string | null }>(
+      'SELECT id::text AS id, locale FROM profiles WHERE id::text = ANY($1)',
+      [userIds]
+    );
+    const localeByUser = new Map<string, NotebookAudience>();
+    for (const row of rows) {
+      localeByUser.set(row.id, row.locale === 'de-AT' ? 'de-AT' : 'de-DE');
+    }
+
+    for (const target of targets) {
+      const newAudience: NotebookAudience = localeByUser.get(target.userId) ?? 'de-DE';
+      await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
+        payload: { audience: newAudience },
+        points: [target.id],
+      });
+      updated++;
+      if (updated > 0 && updated % 50 === 0) {
+        logger.info(`[backfillAudience] Progress: ${updated} rows updated`);
+      }
+    }
+
+    logger.info(`[backfillAudience] Done. scanned=${scanned} updated=${updated}`);
     return { scanned, updated };
   }
 

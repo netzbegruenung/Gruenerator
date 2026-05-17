@@ -202,7 +202,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         public_ownership?: 'owner' | 'public_data' | null;
         share_mode?: 'private' | 'groups' | 'authenticated';
         edit_policy?: 'owner_only' | 'group_admins' | 'all_members';
-        audience?: 'de-DE' | 'de-AT' | 'all';
+        audience?: 'de-DE' | 'de-AT';
       };
 
       const owned = (await notebookHelper.getUserNotebookCollections(
@@ -230,10 +230,11 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       ).filter((c) => c.share_mode === 'groups');
       const groupSharedIdsSet = new Set(groupShared.map((c) => c.id));
 
-      // Notebooks visible to any authenticated user — excluding ones we already
-      // have AND respecting the audience filter so an AT viewer doesn't get a
-      // DE-targeted notebook (and vice versa). Legacy rows have no `audience`
-      // → normaliser returns 'all' → always visible.
+      // Notebooks visible to any authenticated user — excluding ones we
+      // already have AND respecting the audience filter so an AT viewer
+      // doesn't get a DE-targeted notebook (and vice versa). Legacy 'all'
+      // rows are rewritten to the owner's locale at boot via
+      // `backfillNotebookAudience`, so an exact match is all we need.
       const viewerLocale = getUserLocale(args.req);
       const authShared = (
         (await notebookHelper.getNotebookCollectionsByShareMode(
@@ -241,9 +242,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         )) as NotebookCollectionFromQdrantRaw[]
       ).filter(
         (c) =>
-          !ownedIds.has(c.id) &&
-          !groupSharedIdsSet.has(c.id) &&
-          (c.audience === undefined || c.audience === 'all' || c.audience === viewerLocale)
+          !ownedIds.has(c.id) && !groupSharedIdsSet.has(c.id) && c.audience === viewerLocale
       );
 
       const tagged: Array<{
