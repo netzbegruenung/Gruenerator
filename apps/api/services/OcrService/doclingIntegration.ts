@@ -27,6 +27,57 @@ const DOCLING_BASE_URL = env.DOCLING_URL ?? 'http://ocr:5001';
 // and long jobs cost ~1 HTTP round-trip per POLL_WAIT_SECONDS.
 const POLL_WAIT_SECONDS = 5;
 
+// Minimum delay between poll iterations. Defends against docling-serve returning
+// immediately (not honoring `wait`) which would otherwise busy-loop the event
+// loop and inflate listener counts on the shared deadline AbortSignal.
+const MIN_POLL_INTERVAL_MS = 1000;
+
+/**
+ * Run `fn` with a fresh child AbortSignal that aborts when `parent` aborts.
+ *
+ * Why: undici's fetch attaches an abort listener to the signal it's given and is
+ * supposed to remove it on settle, but when a single AbortSignal is reused
+ * across many fetches the listener count grows unbounded (observed: 25k+
+ * listeners on the shared deadline signal during long stuck polls). Giving each
+ * fetch its own short-lived signal — derived from the parent via one
+ * once-listener that's explicitly removed in `finally` — keeps the parent at
+ * exactly one outstanding listener per in-flight request.
+ */
+async function withChildSignal<T>(
+  parent: AbortSignal,
+  fn: (signal: AbortSignal) => Promise<T>
+): Promise<T> {
+  if (parent.aborted) {
+    throw new Error('Operation aborted');
+  }
+  const controller = new AbortController();
+  const onAbort = (): void => controller.abort();
+  parent.addEventListener('abort', onAbort, { once: true });
+  try {
+    return await fn(controller.signal);
+  } finally {
+    parent.removeEventListener('abort', onAbort);
+  }
+}
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new Error('Operation aborted'));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = (): void => {
+      clearTimeout(timer);
+      reject(new Error('Operation aborted'));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 interface DoclingDoc {
   md_content?: string;
   markdown?: string;
@@ -65,11 +116,13 @@ interface AsyncSubmitResponse {
  * Submit an async conversion job. Returns the task_id assigned by docling-serve.
  */
 async function submitAsyncJob(formData: FormData, signal: AbortSignal): Promise<string> {
-  const res = await fetch(`${DOCLING_BASE_URL}/v1/convert/file/async`, {
-    method: 'POST',
-    body: formData,
-    signal,
-  });
+  const res = await withChildSignal(signal, (s) =>
+    fetch(`${DOCLING_BASE_URL}/v1/convert/file/async`, {
+      method: 'POST',
+      body: formData,
+      signal: s,
+    })
+  );
   if (!res.ok) {
     const errorText = await res.text().catch(() => 'unknown');
     throw new Error(`Docling async submit returned ${res.status}: ${errorText}`);
@@ -83,7 +136,9 @@ async function submitAsyncJob(formData: FormData, signal: AbortSignal): Promise<
 
 /**
  * Long-poll the task status until terminal, then fetch and return the conversion result.
- * The shared AbortSignal lets the outer deadline cancel an in-flight long-poll immediately.
+ * The parent AbortSignal lets the outer deadline cancel an in-flight long-poll
+ * immediately; each fetch runs under a fresh child signal (see withChildSignal).
+ * A small backoff guards against servers that ignore the `wait` parameter.
  */
 async function pollUntilDone(
   taskId: string,
@@ -92,9 +147,11 @@ async function pollUntilDone(
   logPrefix: string
 ): Promise<DoclingResponse> {
   while (Date.now() < deadlineMs) {
-    const statusRes = await fetch(
-      `${DOCLING_BASE_URL}/v1/status/poll/${taskId}?wait=${POLL_WAIT_SECONDS}`,
-      { signal }
+    const iterStart = Date.now();
+    const statusRes = await withChildSignal(signal, (s) =>
+      fetch(`${DOCLING_BASE_URL}/v1/status/poll/${taskId}?wait=${POLL_WAIT_SECONDS}`, {
+        signal: s,
+      })
     );
     if (!statusRes.ok) {
       const errorText = await statusRes.text().catch(() => 'unknown');
@@ -103,7 +160,9 @@ async function pollUntilDone(
     const status = (await statusRes.json()) as TaskStatusResponse;
 
     if (status.task_status === 'success') {
-      const resultRes = await fetch(`${DOCLING_BASE_URL}/v1/result/${taskId}`, { signal });
+      const resultRes = await withChildSignal(signal, (s) =>
+        fetch(`${DOCLING_BASE_URL}/v1/result/${taskId}`, { signal: s })
+      );
       if (!resultRes.ok) {
         const errorText = await resultRes.text().catch(() => 'unknown');
         throw new Error(`Docling result fetch returned ${resultRes.status}: ${errorText}`);
@@ -114,6 +173,12 @@ async function pollUntilDone(
       throw new Error(`Docling task ${taskId} reported failure`);
     }
     console.log(`${logPrefix} task=${taskId} status=${status.task_status ?? 'unknown'}, polling`);
+
+    const elapsed = Date.now() - iterStart;
+    const backoff = MIN_POLL_INTERVAL_MS - elapsed;
+    if (backoff > 0 && Date.now() + backoff < deadlineMs) {
+      await sleep(backoff, signal);
+    }
   }
   throw new Error(`Docling task ${taskId} exceeded client deadline`);
 }
