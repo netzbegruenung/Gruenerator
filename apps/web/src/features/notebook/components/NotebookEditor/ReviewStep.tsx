@@ -22,8 +22,6 @@ export default function ReviewStep({ state }: ReviewStepProps) {
     wolkeDocuments,
     linkedDocs,
     labels,
-    isPublic,
-    publicOwnership,
     uploadedDocuments,
     loading,
     handleBack,
@@ -62,16 +60,6 @@ export default function ReviewStep({ state }: ReviewStepProps) {
               </div>
             </div>
           )}
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-grey-500">Sichtbarkeit</span>
-            <span className="font-medium text-foreground">
-              {!isPublic
-                ? 'Privat'
-                : publicOwnership === 'owner'
-                  ? 'Öffentlich (eigene Daten)'
-                  : 'Öffentlich (öffentliche Daten)'}
-            </span>
-          </div>
         </CardContent>
       </Card>
 
@@ -82,12 +70,7 @@ export default function ReviewStep({ state }: ReviewStepProps) {
         <Button
           type="button"
           onClick={submitForm}
-          disabled={
-            loading ||
-            uploadedDocuments.length === 0 ||
-            !watchedName.trim() ||
-            (isPublic && !publicOwnership)
-          }
+          disabled={loading || uploadedDocuments.length === 0 || !watchedName.trim()}
         >
           {loading ? 'Wird erstellt…' : 'Notebook erstellen'}
         </Button>
