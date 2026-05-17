@@ -1,3 +1,4 @@
+import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import { Skeleton, SectionHeader } from '@gruenerator/ui';
 import { memo, useMemo, useState } from 'react';
 import { HiBookOpen } from 'react-icons/hi';
@@ -25,15 +26,24 @@ const VonDerBasisCard = memo(function VonDerBasisCard({
   onToggleLike,
 }: VonDerBasisCardProps) {
   const navigate = useNavigate();
+  // Route prefix is `/notebooks/` (plural); the legacy `/notebook/:id` singular
+  // path only existed to redirect, so building the URL correctly the first time
+  // avoids an extra hop. Use the pretty slug when the row has one, falling back
+  // to the UUID for legacy pre-backfill collections.
+  const href = `/notebooks/${
+    collection.slug_suffix
+      ? buildNotebookSlug(collection.name, collection.slug_suffix)
+      : collection.id
+  }`;
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={() => void navigate(`/notebook/${collection.id}`)}
+      onClick={() => void navigate(href)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          void navigate(`/notebook/${collection.id}`);
+          void navigate(href);
         }
       }}
       className="group flex min-h-[4rem] cursor-pointer items-center gap-sm rounded-md border border-grey-200 bg-background px-md py-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md dark:border-grey-700"
@@ -46,6 +56,11 @@ const VonDerBasisCard = memo(function VonDerBasisCard({
         {collection.description ? (
           <div className="truncate text-xs text-grey-500 dark:text-grey-400">
             {collection.description}
+          </div>
+        ) : null}
+        {collection.creator_name ? (
+          <div className="truncate text-xs text-grey-500 dark:text-grey-400">
+            von {collection.creator_name}
           </div>
         ) : null}
       </div>

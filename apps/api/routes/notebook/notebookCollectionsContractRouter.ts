@@ -366,6 +366,20 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         collections.map((c) => c.id)
       );
 
+      const userIds = Array.from(new Set(collections.map((c) => c.user_id)));
+      const profileRows = userIds.length
+        ? await postgres.query<{
+            id: string;
+            display_name: string | null;
+            email: string | null;
+          }>('SELECT id::text AS id, display_name, email FROM profiles WHERE id::text = ANY($1)', [
+            userIds,
+          ])
+        : [];
+      const nameByUserId = new Map(
+        profileRows.map((p) => [p.id, p.display_name ?? p.email?.split('@')[0] ?? null] as const)
+      );
+
       const transformedData = await Promise.all(
         collections.map(async (collection) => {
           const documentIds = (collection.notebook_collection_documents || []).map(
@@ -401,6 +415,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
             is_public: collection.is_public === true,
             public_ownership: collection.public_ownership ?? null,
             likes_count: likeCounts.get(collection.id) ?? 0,
+            creator_name: nameByUserId.get(collection.user_id) ?? null,
           };
         })
       );

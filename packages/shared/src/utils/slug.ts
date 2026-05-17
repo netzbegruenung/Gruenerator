@@ -20,16 +20,33 @@ const SUFFIX_RE = new RegExp(`-([${SUFFIX_ALPHABET}]{${SUFFIX_LENGTH}})$`);
 
 /**
  * Turn an arbitrary user-supplied name into a URL-safe slug fragment.
- * Diacritics are stripped, the result is lowercased, non-alphanumerics
- * become `-`, repeats collapsed, length capped at 40 chars.
- * Empty results (e.g. all-emoji titles) fall back to "notebook".
+ * German umlauts and ß are transliterated (ä→ae, ö→oe, ü→ue, ß→ss) so
+ * "Bürger*innen" stays readable as "buerger-innen" instead of collapsing
+ * to "brger-innen". Remaining diacritics (e.g. French accents) are still
+ * stripped via NFD because there's no single-locale transliteration that
+ * makes sense for everything. Non-alphanumerics become `-`, repeats
+ * collapsed, length capped at 40 chars. Empty results (e.g. all-emoji
+ * titles) fall back to "notebook".
  */
+const GERMAN_TRANSLITERATIONS: Array<[RegExp, string]> = [
+  [/ä/g, 'ae'],
+  [/ö/g, 'oe'],
+  [/ü/g, 'ue'],
+  [/Ä/g, 'Ae'],
+  [/Ö/g, 'Oe'],
+  [/Ü/g, 'Ue'],
+  [/ß/g, 'ss'],
+];
+
 export function slugifyName(name: string): string {
-  const normalized = name
+  let transliterated = name;
+  for (const [pattern, replacement] of GERMAN_TRANSLITERATIONS) {
+    transliterated = transliterated.replace(pattern, replacement);
+  }
+  const normalized = transliterated
     .normalize('NFD')
     .replace(COMBINING_DIACRITICS, '')
     .toLowerCase()
-    .replace(/ß/g, 'ss')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 40)
