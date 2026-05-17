@@ -58,6 +58,11 @@ const VonDerBasisCard = memo(function VonDerBasisCard({
             {collection.description}
           </div>
         ) : null}
+        {collection.creator_name ? (
+          <div className="truncate text-xs text-grey-500 dark:text-grey-400">
+            von {collection.creator_name}
+          </div>
+        ) : null}
       </div>
       <LikeButton
         liked={liked}
