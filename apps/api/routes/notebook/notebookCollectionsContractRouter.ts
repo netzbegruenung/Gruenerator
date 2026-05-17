@@ -21,9 +21,8 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { processUploadedDocument } from '../../services/document-services/DocumentProcessingService/index.js';
+import { triggerPendingDocProcessing } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
-import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import {
   getLikeCountsForEntities,
   getLikedEntityIdsForUser,
@@ -537,29 +536,13 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         return { status: 500 as const, body: { error: 'Failed to add documents to collection' } };
       }
 
-      // Fire-and-forget: process any documents still in 'uploaded' state
-      if (selection_mode !== 'wolke' && allDocumentIds.length > 0) {
-        const pendingDocs = (await postgres.query(
-          `SELECT id FROM documents WHERE id = ANY($1) AND user_id = $2 AND status = 'uploaded'`,
-          [allDocumentIds, userId]
-        )) as Array<{ id: string }>;
-
-        log.info(
-          `[notebookCollectionsContract.createCollection] firing processUploadedDocument for ${pendingDocs.length} doc(s) in collection ${collectionId}`
-        );
-
-        if (pendingDocs.length > 0) {
-          const pgDocService = getPostgresDocumentService();
-          const qdrantDocService = getQdrantDocumentService();
-          for (const doc of pendingDocs) {
-            processUploadedDocument(pgDocService, qdrantDocService, doc.id, userId).catch((err) => {
-              log.error(
-                `[notebookCollectionsContract.createCollection] Background processing failed for doc ${doc.id} in collection ${collectionId}:`,
-                err
-              );
-            });
-          }
-        }
+      if (selection_mode !== 'wolke') {
+        await triggerPendingDocProcessing({
+          documentIds: allDocumentIds,
+          userId,
+          logScope: 'notebookCollectionsContract.createCollection',
+          collectionId,
+        });
       }
 
       return {
@@ -747,31 +730,13 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
 
       await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
 
-      // Fire-and-forget: process any newly-added documents still in 'uploaded'
-      // state. Mirrors createCollection — without this, files added via the
-      // edit-existing-notebook flow stay at status='uploaded' forever.
-      if (selection_mode !== 'wolke' && allDocumentIds.length > 0) {
-        const pendingDocs = (await postgres.query(
-          `SELECT id FROM documents WHERE id = ANY($1) AND user_id = $2 AND status = 'uploaded'`,
-          [allDocumentIds, userId]
-        )) as Array<{ id: string }>;
-
-        log.info(
-          `[notebookCollectionsContract.updateCollection] firing processUploadedDocument for ${pendingDocs.length} doc(s) in collection ${collectionId}`
-        );
-
-        if (pendingDocs.length > 0) {
-          const pgDocService = getPostgresDocumentService();
-          const qdrantDocService = getQdrantDocumentService();
-          for (const doc of pendingDocs) {
-            processUploadedDocument(pgDocService, qdrantDocService, doc.id, userId).catch((err) => {
-              log.error(
-                `[notebookCollectionsContract.updateCollection] Background processing failed for doc ${doc.id} in collection ${collectionId}:`,
-                err
-              );
-            });
-          }
-        }
+      if (selection_mode !== 'wolke') {
+        await triggerPendingDocProcessing({
+          documentIds: allDocumentIds,
+          userId,
+          logScope: 'notebookCollectionsContract.updateCollection',
+          collectionId,
+        });
       }
 
       return {
