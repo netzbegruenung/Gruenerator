@@ -30,6 +30,7 @@ interface DocumentUploadResponse {
 interface DocumentStatusResponse {
   data?: {
     status: DocumentStatus;
+    vectorCount?: number;
   };
 }
 
@@ -417,8 +418,13 @@ export const useDocumentsStore = create<DocumentsStore>()(
         }
       },
 
-      // Poll document status until it reaches a terminal state
+      // Poll document status until it reaches a terminal state.
+      // Terminal = chunks queryable in Qdrant: status='completed' && vectorCount>0, or 'failed'.
+      // 'uploaded' is transient (attach triggers processing); soft-timeout below bounds it.
       pollDocumentStatus: async (documentId, onStatusChange) => {
+        const STUCK_UPLOADED_TIMEOUT_MS = 30_000;
+        const startedAt = Date.now();
+
         const poll = (): Promise<DocumentStatus> =>
           new Promise((resolve, reject) => {
             const interval = setInterval(async () => {
@@ -427,19 +433,27 @@ export const useDocumentsStore = create<DocumentsStore>()(
                   `/documents/${documentId}/status`
                 );
                 const status = (response.data?.data?.status ?? 'pending') as DocumentStatus;
-                console.debug('[notebook-upload] poll', { documentId, status });
+                const vectorCount = response.data?.data?.vectorCount ?? 0;
+                console.debug('[notebook-upload] poll', { documentId, status, vectorCount });
 
                 if (onStatusChange) onStatusChange(status);
 
-                // Update store
                 set((state) => {
                   const idx = state.documents.findIndex((d) => d.id === documentId);
                   if (idx !== -1) state.documents[idx].status = status;
                 });
 
-                // 'uploaded' = staged on disk, awaiting notebook save before processing
-                // kicks off — terminal from the spinner's perspective.
-                if (status === 'uploaded' || status === 'completed' || status === 'failed') {
+                const isQueryable = status === 'completed' && vectorCount > 0;
+                if (isQueryable || status === 'failed') {
+                  clearInterval(interval);
+                  resolve(status);
+                  return;
+                }
+
+                if (status === 'uploaded' && Date.now() - startedAt > STUCK_UPLOADED_TIMEOUT_MS) {
+                  console.warn(
+                    `[notebook-upload] doc ${documentId} stuck in 'uploaded' >${STUCK_UPLOADED_TIMEOUT_MS}ms — releasing spinner`
+                  );
                   clearInterval(interval);
                   resolve(status);
                 }

@@ -97,8 +97,7 @@ export async function generateAndStoreEmbeddings(
     });
 
     if (!chunks || chunks.length === 0) {
-      console.warn('[OcrService] No chunks generated from document');
-      return { chunksProcessed: 0, embeddings: 0 };
+      throw new Error('No chunks generated from document — extracted text is unusable');
     }
 
     console.log(`[OcrService] Generated ${chunks.length} chunks from document`);
@@ -112,8 +111,9 @@ export async function generateAndStoreEmbeddings(
     console.log(`[OcrService] ${qualityChunks.length} high-quality chunks after filtering`);
 
     if (qualityChunks.length === 0) {
-      console.warn('[OcrService] No high-quality chunks after filtering');
-      return { chunksProcessed: 0, embeddings: 0 };
+      throw new Error(
+        `No high-quality chunks after filtering (${chunks.length} raw chunks rejected)`
+      );
     }
 
     // Step 3: Generate embeddings in batches
