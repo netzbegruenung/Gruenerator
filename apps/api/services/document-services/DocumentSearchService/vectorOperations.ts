@@ -44,7 +44,8 @@ export async function storeDocumentVectors(
   documentId: string,
   chunks: ChunkWithMetadata[],
   embeddings: number[][],
-  metadata: VectorMetadata = {}
+  metadata: VectorMetadata = {},
+  onBatchUpserted?: (upserted: number, total: number) => Promise<void> | void
 ): Promise<VectorStoreResult> {
   if (chunks.length !== embeddings.length) {
     throw new Error('Number of chunks and embeddings must match');
@@ -79,6 +80,14 @@ export async function storeDocumentVectors(
     console.log(
       `[VectorOperations] Upserted batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(points.length / BATCH_SIZE)} (${batch.length} vectors)`
     );
+    if (onBatchUpserted) {
+      try {
+        await onBatchUpserted(totalUpserted, points.length);
+      } catch (err) {
+        // Progress reporting is best-effort — don't fail the upsert if metadata write fails.
+        console.warn('[VectorOperations] onBatchUpserted callback failed:', (err as Error).message);
+      }
+    }
   }
 
   console.log(`[VectorOperations] Stored ${totalUpserted} vectors for document ${documentId}`);

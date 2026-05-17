@@ -166,6 +166,25 @@ router.get(
         `[GET /:id/status] poll user=${userId} doc=${req.params.id} status=${document.status}`
       );
 
+      // Surface processing stage/progress from the metadata JSONB so the
+      // upload UI can render per-doc stage labels + an upsert progress bar.
+      const docMeta =
+        typeof document.metadata === 'string'
+          ? (JSON.parse(document.metadata) as Record<string, unknown>)
+          : ((document.metadata ?? {}) as Record<string, unknown>);
+      const processingStage =
+        (docMeta.processing_stage as 'extracting' | 'chunking' | 'upserting' | null | undefined) ??
+        null;
+      const processingProgress =
+        (docMeta.processing_progress as
+          | {
+              stage: string;
+              current: number;
+              total: number;
+            }
+          | null
+          | undefined) ?? null;
+
       res.json({
         success: true,
         data: {
@@ -173,6 +192,8 @@ router.get(
           status: document.status,
           title: document.title,
           vectorCount: document.vector_count || 0,
+          processingStage,
+          processingProgress,
         },
       });
     } catch (error) {
