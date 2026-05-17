@@ -16,6 +16,7 @@ import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { transferService } from '../../services/transferService.js';
 import { type SharedMediaRow, type ShareResult } from '../../types/media.js';
+import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 import { parseJSON } from '../../utils/parseJSON.js';
 import { redisClient } from '../../utils/redis/index.js';
@@ -1208,10 +1209,7 @@ router.get(
             result.mimeType || share.mime_type || 'application/octet-stream'
           );
           res.setHeader('Content-Length', result.size);
-          res.setHeader(
-            'Content-Disposition',
-            `attachment; filename="${encodeURIComponent(result.fileName)}"`
-          );
+          setContentDisposition(res, result.fileName);
 
           log.info(`Transfer download: ${(shareToken as string).substring(0, 8)} (public)`);
           res.send(result.buffer);
@@ -1292,7 +1290,7 @@ router.get(
           share.mime_type || (share.media_type === 'video' ? 'video/mp4' : 'image/png')
         );
         res.setHeader('Content-Length', fileSize);
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        setContentDisposition(res, filename);
 
         log.info(`Download started: ${shareToken} by user ${userId} (${userEmail})`);
 
