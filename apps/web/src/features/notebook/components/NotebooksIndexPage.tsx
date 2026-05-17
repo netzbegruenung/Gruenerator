@@ -469,6 +469,7 @@ function NotebooksIndexPage() {
       showLastAdded={false}
       showStats={false}
       showExamples={false}
+      hideGlobalChat
     />
   );
 }
