@@ -66,6 +66,17 @@ export interface SingleCollectionMetadata {
   citations_count: number;
   subcategory_filters_applied: Record<string, unknown> | null;
   fast_mode?: boolean | undefined;
+  // Set on empty-result responses for user collections so callers (and the
+  // chat respondNode) can distinguish "still indexing" / "failed" / "ready".
+  corpus_state?: 'indexing' | 'failed' | 'ready' | undefined;
+  corpus_state_detail?:
+    | {
+        indexing_count: number;
+        failed_count: number;
+        ready_count: number;
+        total_count: number;
+      }
+    | undefined;
 }
 
 /**
