@@ -1001,7 +1001,12 @@ export class NotebookQAService {
          FROM documents
          WHERE id = ANY($1) AND user_id = $2`,
         [documentIds, userId]
-      )) as Array<{ id: string; title: string | null; status: string; vector_count: number | null }>;
+      )) as Array<{
+        id: string;
+        title: string | null;
+        status: string;
+        vector_count: number | null;
+      }>;
 
       const indexing: CorpusDocSummary[] = [];
       const failed: CorpusDocSummary[] = [];
