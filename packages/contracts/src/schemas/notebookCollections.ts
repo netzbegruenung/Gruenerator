@@ -21,13 +21,14 @@ export type NotebookEditPolicy = z.infer<typeof notebookEditPolicySchema>;
 
 /**
  * Locale audience for a notebook. Only constrains the visibility of
- * `share_mode='authenticated'` listings: 'de-DE' / 'de-AT' hide the notebook
- * from viewers whose `users.locale` doesn't match; 'all' shows it everywhere.
- * Owner + explicit group-share viewers always bypass the audience filter.
+ * `share_mode='authenticated'` listings: viewers whose `profiles.locale`
+ * doesn't match the audience don't see the notebook in their authenticated
+ * listing. Owners + explicit group-share viewers always bypass the filter.
  *
- * Convention mirrors `AgentAudience` (`packages/shared/src/agents/types.ts`).
+ * 'all' was retired (legacy rows are backfilled to the owner's locale at
+ * server boot via `backfillNotebookAudience`).
  */
-export const notebookAudienceSchema = z.enum(['de-DE', 'de-AT', 'all']);
+export const notebookAudienceSchema = z.enum(['de-DE', 'de-AT']);
 export type NotebookAudience = z.infer<typeof notebookAudienceSchema>;
 
 /**
