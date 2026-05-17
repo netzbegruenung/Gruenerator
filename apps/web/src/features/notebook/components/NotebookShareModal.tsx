@@ -113,7 +113,7 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Notebook teilen</DialogTitle>
           <DialogDescription>
@@ -130,7 +130,7 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
         {settingsQuery.isLoading ? (
           <p className="text-sm text-grey-500">Wird geladen…</p>
         ) : settingsQuery.data ? (
-          <div className="flex flex-col gap-md">
+          <div className="-mx-2 flex max-h-[70vh] flex-col gap-md overflow-y-auto px-2">
             <div>
               <p className="mb-xs text-sm font-semibold">Sichtbarkeit</p>
               <Select
