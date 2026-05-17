@@ -1,5 +1,5 @@
 ---
-sidebar_position: 1
+sidebar_position: 0
 title: 'April 2026: Das große Work-Update'
 ---
 
