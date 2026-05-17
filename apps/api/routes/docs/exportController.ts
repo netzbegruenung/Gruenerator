@@ -5,6 +5,7 @@ import { Router, type Request, type Response } from 'express';
 import * as Y from 'yjs';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 
 import { DOCS_SUBTYPES } from './constants.js';
 
@@ -235,7 +236,7 @@ router.get('/:id/export/html', async (req: Request, res: Response) => {
 </html>`;
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${document.title}.html"`);
+    setContentDisposition(res, `${document.title}.html`);
     return res.send(html);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -305,7 +306,7 @@ router.get('/:id/export/markdown', async (req: Request, res: Response) => {
     const markdown = `# ${document.title}\n\n${content}`;
 
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${document.title}.md"`);
+    setContentDisposition(res, `${document.title}.md`);
     return res.send(markdown);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
@@ -381,7 +382,7 @@ router.get('/:id/export/text', async (req: Request, res: Response) => {
     const text = `${document.title}\n\n${content}`;
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${document.title}.txt"`);
+    setContentDisposition(res, `${document.title}.txt`);
     return res.send(text);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
