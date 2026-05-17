@@ -168,23 +168,61 @@ export const documentsContractRouter = s.router(documentsContract, {
 
       const postgres = getPostgresInstance();
       const rows = (await postgres.query(
-        `SELECT id, status FROM documents WHERE id = ANY($1) AND user_id = $2`,
+        `SELECT id, status, metadata FROM documents WHERE id = ANY($1) AND user_id = $2`,
         [ids, userId]
-      )) as Array<{ id: string; status: string }>;
+      )) as Array<{
+        id: string;
+        status: string;
+        metadata: Record<string, unknown> | string | null;
+      }>;
 
       // IDs not owned by the caller are silently omitted (don't leak existence).
       // Unknown status strings get normalized to 'pending' — defensive against
       // legacy rows or future statuses that haven't been added to the enum yet.
-      const allowed = new Set(['pending', 'uploaded', 'processing', 'completed', 'failed']);
-      const statuses = rows.map((r) => ({
-        id: r.id,
-        status: (allowed.has(r.status) ? r.status : 'pending') as
-          | 'pending'
-          | 'uploaded'
-          | 'processing'
-          | 'completed'
-          | 'failed',
-      }));
+      const allowedStatuses = new Set(['pending', 'uploaded', 'processing', 'completed', 'failed']);
+      const allowedStages = new Set(['extracting', 'chunking', 'upserting']);
+
+      const statuses = rows.map((r) => {
+        const meta =
+          typeof r.metadata === 'string'
+            ? (JSON.parse(r.metadata) as Record<string, unknown>)
+            : ((r.metadata ?? {}) as Record<string, unknown>);
+
+        const rawStage = meta.processing_stage as string | null | undefined;
+        const stage =
+          rawStage && allowedStages.has(rawStage)
+            ? (rawStage as 'extracting' | 'chunking' | 'upserting')
+            : null;
+
+        const rawProgress = meta.processing_progress as
+          | { stage?: string; current?: number; total?: number }
+          | null
+          | undefined;
+        const progress =
+          rawProgress &&
+          typeof rawProgress.stage === 'string' &&
+          allowedStages.has(rawProgress.stage) &&
+          typeof rawProgress.current === 'number' &&
+          typeof rawProgress.total === 'number'
+            ? {
+                stage: rawProgress.stage as 'extracting' | 'chunking' | 'upserting',
+                current: rawProgress.current,
+                total: rawProgress.total,
+              }
+            : null;
+
+        return {
+          id: r.id,
+          status: (allowedStatuses.has(r.status) ? r.status : 'pending') as
+            | 'pending'
+            | 'uploaded'
+            | 'processing'
+            | 'completed'
+            | 'failed',
+          stage,
+          progress,
+        };
+      });
 
       return { status: 200 as const, body: { success: true, statuses } };
     } catch (error) {
