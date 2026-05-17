@@ -90,6 +90,12 @@ interface NotebookPageContentProps {
   /** Disable the manual research tab (dynamic user notebooks have no system collection scope). Defaults to true. */
   showManualSearch?: boolean;
   /**
+   * Suppress the global-chat ("Chat") tab even when a notebook mention is available.
+   * Used by aggregate surfaces (e.g. the /notebooks index) where the chat tab
+   * doesn't correspond to a specific notebook the user picked. Defaults to false.
+   */
+  hideGlobalChat?: boolean;
+  /**
    * When set, the manual research tab scopes to a single user-owned notebook
    * (ownership-checked, no facet filter UI). Forwarded to `NotebookManualSearch`.
    */
@@ -139,6 +145,7 @@ export const NotebookPageContent = ({
   showLastAdded = true,
   showExamples = true,
   showManualSearch = true,
+  hideGlobalChat = false,
   manualSearchNotebookId,
 }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
@@ -357,6 +364,7 @@ export const NotebookPageContent = ({
                   showStats={showStats}
                   showLastAdded={showLastAdded}
                   showManualSearch={showManualSearch}
+                  hideGlobalChat={hideGlobalChat}
                   manualSearchNotebookId={manualSearchNotebookId}
                   notebookMention={notebookMention}
                   footer={startpageFooter}
