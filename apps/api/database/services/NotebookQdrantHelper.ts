@@ -895,7 +895,10 @@ class NotebookQdrantHelper {
 
   /**
    * List all notebook collections marked is_public=true across all users.
-   * Powers the "Von der Basis" community section on /notebooks.
+   * Powers the "Von der Basis" community section on /notebooks. `is_public`
+   * is a discovery flag orthogonal to `share_mode`; access is still governed
+   * by `checkNotebookAccess`, which requires share_mode='authenticated' (or
+   * group membership) for non-owner reads.
    */
   async getPublicNotebookCollections(
     options: GetCollectionsOptions = {}
