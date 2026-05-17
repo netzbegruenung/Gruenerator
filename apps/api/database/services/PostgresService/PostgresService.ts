@@ -110,9 +110,8 @@ export class PostgresService {
       }
 
       try {
-        const { backfillNotebookAudience } = await import(
-          '../../../services/migrations/backfillNotebookAudience.js'
-        );
+        const { backfillNotebookAudience } =
+          await import('../../../services/migrations/backfillNotebookAudience.js');
         await backfillNotebookAudience();
       } catch (error) {
         console.warn(
