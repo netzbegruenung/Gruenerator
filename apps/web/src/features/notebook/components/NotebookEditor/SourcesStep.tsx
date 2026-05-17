@@ -1,5 +1,5 @@
-import { Button, SectionHeader } from '@gruenerator/ui';
-import { HiCloud, HiDocumentText, HiUpload } from 'react-icons/hi';
+import { Button, FileCard, SectionHeader } from '@gruenerator/ui';
+import { HiCloud, HiDocumentText, HiOutlineDocument, HiUpload } from 'react-icons/hi';
 
 import { cn } from '../../../../utils/cn';
 
@@ -17,6 +17,7 @@ interface SourcesStepProps {
 export default function SourcesStep({ state }: SourcesStepProps) {
   const {
     uploadedDocuments,
+    stagedFiles,
     wolkeFolders,
     wolkePanelOpen,
     setWolkePanelOpen,
@@ -35,6 +36,8 @@ export default function SourcesStep({ state }: SourcesStepProps) {
     handleDragOver,
     handleDragLeave,
     handleRemoveDocument,
+    handleUnstageFile,
+    handleCommitStagedUpload,
     handleWolkeDocsImported,
     handleDocsImported,
     handleCancel,
@@ -138,6 +141,39 @@ export default function SourcesStep({ state }: SourcesStepProps) {
       />
 
       {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
+
+      {stagedFiles.length > 0 && (
+        <section className="space-y-md">
+          <SectionHeader
+            title="Bereit zum Hochladen"
+            actions={
+              <span className="text-sm text-grey-500">
+                {stagedFiles.length} Datei{stagedFiles.length === 1 ? '' : 'en'}
+              </span>
+            }
+          />
+          <div className="grid grid-cols-1 gap-sm sm:grid-cols-2 md:grid-cols-3">
+            {stagedFiles.map((file, idx) => (
+              <FileCard
+                key={`${file.name}-${file.size}-${idx}`}
+                name={file.name}
+                size={file.size}
+                icon={<HiOutlineDocument size={20} />}
+                onRemove={isUploading ? undefined : () => handleUnstageFile(idx)}
+              />
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              onClick={() => void handleCommitStagedUpload()}
+              disabled={isUploading}
+            >
+              {isUploading ? 'Wird hochgeladen…' : `Hochladen (${stagedFiles.length})`}
+            </Button>
+          </div>
+        </section>
+      )}
 
       {wolkePanelOpen && (
         <div className="rounded-xl border border-grey-200 bg-background p-md dark:border-grey-800">
