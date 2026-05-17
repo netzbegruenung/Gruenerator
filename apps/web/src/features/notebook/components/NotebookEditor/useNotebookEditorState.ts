@@ -118,7 +118,16 @@ export function useNotebookEditorState({
 
       try {
         for (const file of filesToUpload) {
+          console.debug('[notebook-upload] uploading', {
+            filename: file.name,
+            size: file.size,
+          });
           const doc = await uploadFileOnly(file, file.name);
+          console.debug('[notebook-upload] uploaded', {
+            docId: doc.id,
+            title: doc.title,
+            status: doc.status,
+          });
           newDocs.push({ id: doc.id, title: doc.title || file.name });
         }
         if (newDocs.length > 0) {

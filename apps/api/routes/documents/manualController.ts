@@ -81,6 +81,9 @@ router.post(
   async (req: DocumentRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user?.id;
+      log.info(
+        `[POST /upload-only] start user=${userId ?? 'anon'} file=${req.file?.originalname ?? 'none'} size=${req.file?.size ?? 0}`
+      );
       if (!userId) {
         res.status(401).json({ error: 'Unauthorized' });
         return;
@@ -158,6 +161,10 @@ router.get(
         res.status(404).json({ success: false, message: 'Document not found' });
         return;
       }
+
+      log.debug(
+        `[GET /:id/status] poll user=${userId} doc=${req.params.id} status=${document.status}`
+      );
 
       res.json({
         success: true,
