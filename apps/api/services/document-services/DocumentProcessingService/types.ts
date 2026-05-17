@@ -119,6 +119,7 @@ export interface QdrantDocumentServiceLike {
     documentId: string,
     chunks: Array<{ text: string; tokens?: number }>,
     embeddings: number[][],
-    metadata: Record<string, unknown>
+    metadata: Record<string, unknown>,
+    onBatchUpserted?: (upserted: number, total: number) => Promise<void> | void
   ) => Promise<unknown>;
 }

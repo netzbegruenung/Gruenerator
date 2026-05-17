@@ -22,7 +22,12 @@ const INITIAL_COUNT = 5;
 type CreationPhase =
   | { kind: 'closed' }
   | { kind: 'editing' }
-  | { kind: 'processing'; name: string; documents: Array<{ id: string; title: string }> };
+  | {
+      kind: 'processing';
+      name: string;
+      documents: Array<{ id: string; title: string }>;
+      collectionId: string;
+    };
 
 const NotebooksSection: React.FC = memo(() => {
   const navigate = useNavigate();
@@ -88,7 +93,7 @@ const NotebooksSection: React.FC = memo(() => {
 
   const handleSave = useCallback(
     async (data: NotebookEditorSavePayload) => {
-      await createQACollection({
+      const created = await createQACollection({
         name: data.name,
         description: data.description,
         documents: data.documents,
@@ -96,8 +101,14 @@ const NotebooksSection: React.FC = memo(() => {
       });
       // Hand off to the progress view, which polls per-document status until terminal.
       // documentMeta carries the upload titles for the progress rows; the IDs from
-      // data.documents are authoritative for the polling query.
-      setPhase({ kind: 'processing', name: data.name, documents: data.documentMeta });
+      // data.documents are authoritative for the polling query. collectionId enables
+      // auto-navigate to the edit page when all docs finish successfully.
+      setPhase({
+        kind: 'processing',
+        name: data.name,
+        documents: data.documentMeta,
+        collectionId: String(created.id),
+      });
     },
     [createQACollection]
   );
@@ -151,6 +162,7 @@ const NotebooksSection: React.FC = memo(() => {
             <NotebookCreationProgress
               notebookName={phase.name}
               documents={phase.documents}
+              collectionId={phase.collectionId}
               onClose={handleClose}
             />
           ) : (
