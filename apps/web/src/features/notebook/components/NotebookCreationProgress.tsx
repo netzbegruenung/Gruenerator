@@ -4,7 +4,6 @@ import { HiCheckCircle, HiOutlineClock, HiX } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 
 import { cn } from '../../../utils/cn';
-
 import { useDocumentStatusPolling } from '../hooks/useDocumentStatusPolling';
 
 import type {
@@ -94,7 +93,7 @@ const NotebookCreationProgress = ({ notebookName, documents, collectionId, onClo
   useEffect(() => {
     if (allDone && failedCount === 0 && !hasNavigatedRef.current) {
       hasNavigatedRef.current = true;
-      navigate(`/notebooks/${collectionId}/bearbeiten`);
+      void navigate(`/notebooks/${collectionId}/bearbeiten`);
     }
   }, [allDone, failedCount, collectionId, navigate]);
 
@@ -197,7 +196,7 @@ const NotebookCreationProgress = ({ notebookName, documents, collectionId, onClo
           {allDone && failedCount > 0 && (
             <Button
               variant="ghost"
-              onClick={() => navigate(`/notebooks/${collectionId}/bearbeiten`)}
+              onClick={() => void navigate(`/notebooks/${collectionId}/bearbeiten`)}
             >
               Trotzdem öffnen
             </Button>
