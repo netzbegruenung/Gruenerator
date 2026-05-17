@@ -305,6 +305,7 @@ export const autoProcessStartResponseSchema = z.object({
 export const autoProgressSchema = z.object({
   status: z.enum(['processing', 'processing_done', 'complete', 'error']),
   stage: z.number().nullish(),
+  stageName: z.string().nullish(),
   stageProgress: z.number().nullish(),
   overallProgress: z.number().nullish(),
   outputPath: z.string().nullish(),
