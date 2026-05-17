@@ -33,6 +33,7 @@ export type NotebookAccessSource = 'owned' | 'shared' | 'authenticated';
 export interface NotebookCollection {
   id: string;
   user_id: string;
+  creator_name?: string | null;
   name: string;
   description?: string;
   custom_prompt?: string;
