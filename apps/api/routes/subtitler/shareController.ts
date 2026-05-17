@@ -17,6 +17,7 @@ import express, { type Response, type Router } from 'express';
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { parseExportProgress } from '../../services/subtitler/redisCodecs.js';
+import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -491,7 +492,7 @@ router.get(
 
         res.setHeader('Content-Type', 'video/mp4');
         res.setHeader('Content-Length', stat.size);
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        setContentDisposition(res, filename);
 
         log.info(`Download started: ${shareToken} by user ${userId}`);
         fs.createReadStream(videoPath).pipe(res);

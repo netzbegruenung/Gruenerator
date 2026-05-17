@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import fontkit from '@pdf-lib/fontkit';
 import express, { type Request, type Response } from 'express';
 
+import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validation/index.js';
 
@@ -235,7 +236,7 @@ router.post(
       const filename = `${sanitizeFilename(title || 'Dokument')}.pdf`;
 
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      setContentDisposition(res, filename);
       return res.status(200).send(buffer);
     } catch (err) {
       const error = err as Error;
