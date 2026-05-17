@@ -427,6 +427,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
                   `/documents/${documentId}/status`
                 );
                 const status = (response.data?.data?.status ?? 'pending') as DocumentStatus;
+                console.debug('[notebook-upload] poll', { documentId, status });
 
                 if (onStatusChange) onStatusChange(status);
 
@@ -436,7 +437,9 @@ export const useDocumentsStore = create<DocumentsStore>()(
                   if (idx !== -1) state.documents[idx].status = status;
                 });
 
-                if (status === 'completed' || status === 'failed') {
+                // 'uploaded' = staged on disk, awaiting notebook save before processing
+                // kicks off — terminal from the spinner's perspective.
+                if (status === 'uploaded' || status === 'completed' || status === 'failed') {
                   clearInterval(interval);
                   resolve(status);
                 }
