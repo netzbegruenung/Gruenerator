@@ -195,6 +195,7 @@ export const transformedCollectionSchema = z.object({
   audience: notebookAudienceSchema.nullish(),
   access_source: notebookAccessSourceSchema.nullish(),
   slug_suffix: z.string().nullish(),
+  creator_name: z.string().nullish(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────
