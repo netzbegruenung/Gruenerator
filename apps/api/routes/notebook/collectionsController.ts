@@ -13,9 +13,8 @@ import express, { type Response } from 'express';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddleware from '../../middleware/authMiddleware.js';
-import { processUploadedDocument } from '../../services/document-services/DocumentProcessingService/index.js';
+import { triggerPendingDocProcessing } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
-import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId, type NotebookId } from '../../utils/types/branded.js';
 
@@ -285,28 +284,13 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       return res.status(500).json({ error: 'Failed to add documents to collection' });
     }
 
-    // Fire-and-forget: process any documents that are still in 'uploaded' state
-    if (selection_mode !== 'wolke' && allDocumentIds.length > 0) {
-      const pendingDocs = (await postgres.query(
-        `SELECT id FROM documents WHERE id = ANY($1) AND user_id = $2 AND status = 'uploaded'`,
-        [allDocumentIds, userId]
-      )) as Array<{ id: string }>;
-
-      if (pendingDocs.length > 0) {
-        const pgDocService = getPostgresDocumentService();
-        const qdrantDocService = getQdrantDocumentService();
-        for (const doc of pendingDocs) {
-          processUploadedDocument(pgDocService, qdrantDocService, doc.id, userId).catch((err) => {
-            log.error(
-              `[Notebook Collections] Background processing failed for doc ${doc.id}:`,
-              err
-            );
-          });
-        }
-        log.debug(
-          `[Notebook Collections] Kicked off background processing for ${pendingDocs.length} document(s)`
-        );
-      }
+    if (selection_mode !== 'wolke') {
+      await triggerPendingDocProcessing({
+        documentIds: allDocumentIds,
+        userId,
+        logScope: 'Notebook Collections',
+        collectionId,
+      });
     }
 
     return res.status(201).json({
