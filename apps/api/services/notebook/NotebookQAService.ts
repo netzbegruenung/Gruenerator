@@ -29,6 +29,7 @@ import {
   applyDefaultFilter,
   type SubcategoryFilters,
 } from '../../config/systemCollectionsConfig.js';
+import { checkNotebookAccess } from '../../routes/notebook/notebookAccess.js';
 import { createLogger } from '../../utils/logger.js';
 import { getEnrichedPersonSearchService } from '../bundestag/index.js';
 import { DocumentSearchService } from '../document-services/index.js';
@@ -288,8 +289,18 @@ export class NotebookQAService {
         throw new Error('getCollectionFn and getDocumentIdsFn required for user collections');
       }
       collection = await getCollectionFn(collectionId);
-      if (!collection || (collection.user_id !== userId && collection.user_id !== 'SYSTEM')) {
+      if (!collection) {
         throw new Error('Collection not found or access denied');
+      }
+      // SYSTEM-owned rows bypass the user-scoped check (built-in collections
+      // surfaced under user-collection plumbing). Everything else goes through
+      // the canonical access predicate, which honours owner / share_mode='authenticated'
+      // (+ group memberships when applicable).
+      if (collection.user_id !== 'SYSTEM') {
+        const access = await checkNotebookAccess(collectionId, userId ?? null);
+        if (!access.canRead) {
+          throw new Error('Collection not found or access denied');
+        }
       }
       documentIds = await getDocumentIdsFn(collectionId);
       if (!documentIds || documentIds.length === 0) {
@@ -565,8 +576,18 @@ export class NotebookQAService {
         throw new Error('getCollectionFn and getDocumentIdsFn required for user collections');
       }
       collection = await getCollectionFn(collectionId);
-      if (!collection || (collection.user_id !== userId && collection.user_id !== 'SYSTEM')) {
+      if (!collection) {
         throw new Error('Collection not found or access denied');
+      }
+      // SYSTEM-owned rows bypass the user-scoped check (built-in collections
+      // surfaced under user-collection plumbing). Everything else goes through
+      // the canonical access predicate, which honours owner / share_mode='authenticated'
+      // (+ group memberships when applicable).
+      if (collection.user_id !== 'SYSTEM') {
+        const access = await checkNotebookAccess(collectionId, userId ?? null);
+        if (!access.canRead) {
+          throw new Error('Collection not found or access denied');
+        }
       }
       documentIds = await getDocumentIdsFn(collectionId);
       if (!documentIds || documentIds.length === 0) {

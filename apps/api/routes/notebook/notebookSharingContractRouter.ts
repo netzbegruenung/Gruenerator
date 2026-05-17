@@ -103,6 +103,8 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
           share_mode: collection.share_mode,
           edit_policy: collection.edit_policy,
           audience: collection.audience,
+          is_public: collection.is_public === true,
+          public_ownership: collection.public_ownership ?? null,
         },
       };
     } catch (error) {
@@ -121,15 +123,68 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
       if (collection.user_id !== userId) {
         return { status: 403 as const, body: { error: 'Nur Eigentümer*in erlaubt' } };
       }
-      await notebookHelper.updateNotebookCollection(args.params.id, {
+      // Invariant: Von-der-Basis discovery only makes sense atop
+      // share_mode='authenticated'. Stepping down to 'private'/'groups'
+      // clears the discovery flag so the listing query and the access
+      // check stay in lockstep (the original orphan-listing bug).
+      const updates: { share_mode: typeof args.body.mode; is_public?: boolean; public_ownership?: null } = {
         share_mode: args.body.mode,
-      });
+      };
+      if (args.body.mode !== 'authenticated' && collection.is_public === true) {
+        updates.is_public = false;
+        updates.public_ownership = null;
+      }
+      await notebookHelper.updateNotebookCollection(args.params.id, updates);
       return {
         status: 200 as const,
         body: { success: true, message: 'Sichtbarkeit aktualisiert' },
       };
     } catch (error) {
       log.error('[notebookSharingContract.setShareMode] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
+  setIsPublic: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const collection = await notebookHelper.getNotebookCollection(args.params.id);
+      if (!collection) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+      if (collection.user_id !== userId) {
+        return { status: 403 as const, body: { error: 'Nur Eigentümer*in erlaubt' } };
+      }
+      const { is_public, public_ownership } = args.body;
+      if (is_public) {
+        if (!public_ownership) {
+          return {
+            status: 400 as const,
+            body: { error: 'Bitte bestätige die Quelle der Inhalte (Eigentum oder öffentlich).' },
+          };
+        }
+        if (collection.share_mode !== 'authenticated') {
+          return {
+            status: 400 as const,
+            body: {
+              error: 'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann auf Von der Basis listen.',
+            },
+          };
+        }
+      }
+      await notebookHelper.updateNotebookCollection(args.params.id, {
+        is_public,
+        public_ownership: is_public ? public_ownership : null,
+      });
+      return {
+        status: 200 as const,
+        body: {
+          success: true,
+          message: is_public ? 'Notebook auf Von der Basis gelistet' : 'Listung entfernt',
+        },
+      };
+    } catch (error) {
+      log.error('[notebookSharingContract.setIsPublic] Error:', error);
       return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },

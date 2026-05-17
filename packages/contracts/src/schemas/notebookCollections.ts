@@ -134,8 +134,6 @@ export const notebookEditorSavePayloadSchema = z.object({
   documents: z.array(z.string()),
   documentMeta: z.array(z.object({ id: z.string(), title: z.string() })),
   labels: z.array(z.string()),
-  isPublic: z.boolean(),
-  publicOwnership: publicOwnershipSchema.nullable(),
   wolkeFolders: z.array(wolkeFolderRefSchema).default([]),
   linkedDocs: z.array(linkedDocRefSchema).default([]),
 });
