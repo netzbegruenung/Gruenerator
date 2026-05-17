@@ -4,10 +4,8 @@ import {
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
-  Label,
   SectionHeader,
   Separator,
-  Switch,
 } from '@gruenerator/ui';
 import { motion } from 'motion/react';
 import { HiUpload } from 'react-icons/hi';
@@ -35,10 +33,6 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
     isDragOver,
     uploadError,
     indexingDocIds,
-    isPublic,
-    setIsPublic,
-    publicOwnership,
-    setPublicOwnership,
     loading,
     watchedName,
     fileInputRef,
@@ -158,76 +152,10 @@ export default function NotebookEditForm({ state }: NotebookEditFormProps) {
         </section>
 
         <Separator />
-
-        <section className="space-y-md">
-          <div className="flex items-center justify-between gap-md">
-            <div className="space-y-xs">
-              <Label htmlFor="notebook-public-toggle" className="text-base">
-                Notebook öffentlich machen
-              </Label>
-              <p className="text-sm text-grey-500 dark:text-grey-400">
-                Dein Notebook wird unter „Von der Basis" auf der Notebooks-Seite sichtbar.
-              </p>
-            </div>
-            <Switch
-              id="notebook-public-toggle"
-              checked={isPublic}
-              onCheckedChange={(checked) => {
-                setIsPublic(checked);
-                if (!checked) setPublicOwnership(null);
-              }}
-              disabled={loading}
-            />
-          </div>
-
-          {isPublic && (
-            <fieldset className="space-y-xs rounded-md border border-grey-200 p-md dark:border-grey-700">
-              <legend className="px-1 text-xs font-medium uppercase tracking-wide text-grey-500">
-                Bitte bestätige
-              </legend>
-              <label className="flex cursor-pointer items-start gap-sm rounded-md px-1 py-xs transition-colors hover:bg-background-alt/50">
-                <input
-                  type="radio"
-                  name="public-ownership"
-                  value="owner"
-                  checked={publicOwnership === 'owner'}
-                  onChange={() => setPublicOwnership('owner')}
-                  disabled={loading}
-                  className="mt-0.5 accent-primary-500"
-                />
-                <span className="text-sm text-foreground">
-                  Ich besitze die Daten oder habe die Rechte zur Veröffentlichung
-                </span>
-              </label>
-              <label className="flex cursor-pointer items-start gap-sm rounded-md px-1 py-xs transition-colors hover:bg-background-alt/50">
-                <input
-                  type="radio"
-                  name="public-ownership"
-                  value="public_data"
-                  checked={publicOwnership === 'public_data'}
-                  onChange={() => setPublicOwnership('public_data')}
-                  disabled={loading}
-                  className="mt-0.5 accent-primary-500"
-                />
-                <span className="text-sm text-foreground">
-                  Die Daten sind öffentlich verfügbar (z.B. offizielle Dokumente,
-                  Pressemitteilungen)
-                </span>
-              </label>
-            </fieldset>
-          )}
-        </section>
-
-        <Separator />
         <div className="flex flex-wrap justify-end gap-sm">
           <Button
             type="submit"
-            disabled={
-              loading ||
-              uploadedDocuments.length === 0 ||
-              !watchedName.trim() ||
-              (isPublic && !publicOwnership)
-            }
+            disabled={loading || uploadedDocuments.length === 0 || !watchedName.trim()}
           >
             {loading ? 'Wird gespeichert...' : 'Aktualisieren'}
           </Button>

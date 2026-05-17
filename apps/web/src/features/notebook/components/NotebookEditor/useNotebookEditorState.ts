@@ -17,7 +17,6 @@ import {
   hasFileDrag,
   type NotebookCollection,
   type NotebookEditorFormData,
-  type PublicOwnership,
   type UploadedDocument,
 } from './shared';
 
@@ -47,8 +46,6 @@ export function useNotebookEditorState({
   const [newLabel, setNewLabel] = useState('');
   const [indexingDocIds, setIndexingDocIds] = useState<Set<string>>(() => new Set());
   const [addingLabel, setAddingLabel] = useState(false);
-  const [isPublic, setIsPublic] = useState(false);
-  const [publicOwnership, setPublicOwnership] = useState<PublicOwnership | null>(null);
   const [wolkeFolders, setWolkeFolders] = useState<WolkeFolderRef[]>([]);
   const [wolkePanelOpen, setWolkePanelOpen] = useState(false);
   const [linkedDocs, setLinkedDocs] = useState<LinkedDocRef[]>([]);
@@ -71,8 +68,6 @@ export function useNotebookEditorState({
         description: editingCollection.description || '',
       });
       setLabels(editingCollection.labels || []);
-      setIsPublic(editingCollection.is_public === true);
-      setPublicOwnership(editingCollection.public_ownership ?? null);
       setWolkeFolders(editingCollection.wolke_folders ?? []);
       setLinkedDocs(editingCollection.linked_docs ?? []);
       if (editingCollection.documents?.length) {
@@ -88,8 +83,6 @@ export function useNotebookEditorState({
     } else {
       reset({ name: '', description: '' });
       setLabels([]);
-      setIsPublic(false);
-      setPublicOwnership(null);
       setWolkeFolders([]);
       setLinkedDocs([]);
       setUploadedDocuments([]);
@@ -331,12 +324,10 @@ export function useNotebookEditorState({
   // Block advancing while files are still staged — uncommitted picks would be lost.
   const canAdvanceFromSources = uploadedDocuments.length > 0 && stagedFiles.length === 0;
   const canAdvanceFromDetails = watchedName.trim().length > 0;
-  const canAdvanceFromVisibility = !isPublic || publicOwnership !== null;
 
   const onSubmit = useCallback(
     async (data: NotebookEditorFormData): Promise<void> => {
       if (uploadedDocuments.length === 0) return;
-      if (isPublic && !publicOwnership) return;
       const payload: NotebookEditorSavePayload = {
         ...(editingCollection?.id ? { id: editingCollection.id } : {}),
         name: data.name,
@@ -345,23 +336,12 @@ export function useNotebookEditorState({
         documents: uploadedDocuments.map((doc) => doc.id),
         documentMeta: uploadedDocuments.map((doc) => ({ id: doc.id, title: doc.title })),
         labels,
-        isPublic,
-        publicOwnership: isPublic ? publicOwnership : null,
         wolkeFolders,
         linkedDocs,
       };
       await onSave(payload);
     },
-    [
-      onSave,
-      editingCollection,
-      uploadedDocuments,
-      labels,
-      isPublic,
-      publicOwnership,
-      wolkeFolders,
-      linkedDocs,
-    ]
+    [onSave, editingCollection, uploadedDocuments, labels, wolkeFolders, linkedDocs]
   );
 
   const handleCancel = useCallback(() => {
@@ -370,8 +350,6 @@ export function useNotebookEditorState({
     setStagedFiles([]);
     setLabels([]);
     setNewLabel('');
-    setIsPublic(false);
-    setPublicOwnership(null);
     setWolkeFolders([]);
     setLinkedDocs([]);
     setStep(0);
@@ -391,8 +369,6 @@ export function useNotebookEditorState({
     newLabel,
     indexingDocIds,
     addingLabel,
-    isPublic,
-    publicOwnership,
     wolkeFolders,
     wolkePanelOpen,
     linkedDocs,
@@ -405,11 +381,8 @@ export function useNotebookEditorState({
     loading,
     canAdvanceFromSources,
     canAdvanceFromDetails,
-    canAdvanceFromVisibility,
     setNewLabel,
     setAddingLabel,
-    setIsPublic,
-    setPublicOwnership,
     setWolkeFolders,
     setWolkePanelOpen,
     setLinkedDocs,
