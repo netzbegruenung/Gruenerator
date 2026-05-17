@@ -70,7 +70,7 @@ jobs:
 
       - name: Checkout repository
         if: steps.check.outputs.should_run == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Linux dependencies
         if: steps.check.outputs.should_run == 'true' && matrix.platform == 'ubuntu-22.04'
@@ -84,11 +84,11 @@ jobs:
 
       - name: Setup pnpm
         if: steps.check.outputs.should_run == 'true'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
         if: steps.check.outputs.should_run == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -142,7 +142,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download signature files from release
         env:
@@ -205,7 +205,7 @@ jobs:
           EOF
 
       - name: Upload latest.json to release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: latest.json
         env:
