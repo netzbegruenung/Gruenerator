@@ -13,7 +13,6 @@ import express, { type Response } from 'express';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddleware from '../../middleware/authMiddleware.js';
-import { triggerPendingDocProcessing } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId, type NotebookId } from '../../utils/types/branded.js';
@@ -282,15 +281,6 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       log.error('[Notebook Collections] Error adding documents:', docError);
       await notebookHelper.deleteNotebookCollection(collectionId);
       return res.status(500).json({ error: 'Failed to add documents to collection' });
-    }
-
-    if (selection_mode !== 'wolke') {
-      await triggerPendingDocProcessing({
-        documentIds: allDocumentIds,
-        userId,
-        logScope: 'Notebook Collections',
-        collectionId,
-      });
     }
 
     return res.status(201).json({

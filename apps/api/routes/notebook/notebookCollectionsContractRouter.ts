@@ -21,7 +21,6 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { triggerPendingDocProcessing } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
 import {
   getLikeCountsForEntities,
@@ -536,15 +535,6 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         return { status: 500 as const, body: { error: 'Failed to add documents to collection' } };
       }
 
-      if (selection_mode !== 'wolke') {
-        await triggerPendingDocProcessing({
-          documentIds: allDocumentIds,
-          userId,
-          logScope: 'notebookCollectionsContract.createCollection',
-          collectionId,
-        });
-      }
-
       return {
         status: 201 as const,
         body: {
@@ -729,15 +719,6 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       }
 
       await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
-
-      if (selection_mode !== 'wolke') {
-        await triggerPendingDocProcessing({
-          documentIds: allDocumentIds,
-          userId,
-          logScope: 'notebookCollectionsContract.updateCollection',
-          collectionId,
-        });
-      }
 
       return {
         status: 200 as const,
