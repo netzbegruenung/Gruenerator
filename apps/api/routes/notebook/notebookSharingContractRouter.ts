@@ -127,7 +127,11 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
       // share_mode='authenticated'. Stepping down to 'private'/'groups'
       // clears the discovery flag so the listing query and the access
       // check stay in lockstep (the original orphan-listing bug).
-      const updates: { share_mode: typeof args.body.mode; is_public?: boolean; public_ownership?: null } = {
+      const updates: {
+        share_mode: typeof args.body.mode;
+        is_public?: boolean;
+        public_ownership?: null;
+      } = {
         share_mode: args.body.mode,
       };
       if (args.body.mode !== 'authenticated' && collection.is_public === true) {
@@ -167,7 +171,8 @@ export const notebookSharingContractRouter = s.router(notebookSharingContract, {
           return {
             status: 400 as const,
             body: {
-              error: 'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann auf Von der Basis listen.',
+              error:
+                'Bitte zuerst Sichtbarkeit auf „Mit Anmeldung" setzen, dann auf Von der Basis listen.',
             },
           };
         }
