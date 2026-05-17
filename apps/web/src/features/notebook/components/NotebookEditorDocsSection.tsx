@@ -1,12 +1,24 @@
 import { type LinkedDocRef } from '@gruenerator/contracts';
-import { useDocuments, type Document } from '@gruenerator/docs';
-import { Badge, Button, SectionHeader } from '@gruenerator/ui';
-import { useState, useCallback, useMemo } from 'react';
-import { HiDocumentText, HiExclamation, HiRefresh, HiX } from 'react-icons/hi';
+import { useDocuments, useDocsAdapter, type Document } from '@gruenerator/docs';
+import {
+  Badge,
+  Button,
+  Input,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  SectionHeader,
+} from '@gruenerator/ui';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { HiDocumentText, HiExclamation, HiRefresh, HiSearch, HiX } from 'react-icons/hi';
 import { Link } from 'react-router-dom';
 
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
+import { DocumentCard } from '../../docs/DocumentCard';
 
 export interface ImportedLinkedDoc {
   id: string;
@@ -23,6 +35,8 @@ interface Props {
   onUploadedDocumentRemoved: (documentId: string) => void;
   disabled: boolean;
 }
+
+const DOCS_PER_PAGE = 12;
 
 function formatRelative(iso: string | null | undefined): string {
   if (!iso) return 'Noch nicht importiert';
@@ -61,16 +75,38 @@ const NotebookEditorDocsSection = ({
   disabled,
 }: Props) => {
   const docsQuery = useDocuments();
+  const docsAdapter = useDocsAdapter();
   const { uploadFileOnly } = useDocumentsStore();
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const attachedIds = useMemo(() => new Set(linkedDocs.map((d) => d.docId)), [linkedDocs]);
   const availableDocs = useMemo(
     () => (docsQuery.data ?? []).filter((d) => !attachedIds.has(d.id)),
     [docsQuery.data, attachedIds]
+  );
+
+  const filteredDocs = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return availableDocs;
+    return availableDocs.filter((d) => d.title.toLowerCase().includes(q));
+  }, [availableDocs, searchQuery]);
+
+  // Reset to page 1 whenever the filter result changes — keeps the user from
+  // landing on an empty late page after typing a query.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, availableDocs.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredDocs.length / DOCS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedDocs = filteredDocs.slice(
+    (safePage - 1) * DOCS_PER_PAGE,
+    safePage * DOCS_PER_PAGE
   );
 
   const importDoc = useCallback(
@@ -102,7 +138,6 @@ const NotebookEditorDocsSection = ({
           lastSyncedAt: new Date().toISOString(),
         };
         onLinkedDocsChange([...linkedDocs, newRef]);
-        setPickerOpen(false);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Import fehlgeschlagen.');
       } finally {
@@ -173,8 +208,8 @@ const NotebookEditorDocsSection = ({
     <section>
       <SectionHeader
         title="Docs"
-        onCreate={hasAnyDocs && linkedDocs.length > 0 ? () => setPickerOpen((v) => !v) : undefined}
-        createLabel="Doc hinzufügen"
+        onCreate={hasAnyDocs ? () => setPickerOpen((v) => !v) : undefined}
+        createLabel={pickerOpen ? 'Schließen' : 'Doc hinzufügen'}
         actions={headerActions}
       />
 
@@ -192,27 +227,80 @@ const NotebookEditorDocsSection = ({
         </div>
       ) : (
         <>
-          {(pickerOpen || linkedDocs.length === 0) && availableDocs.length > 0 && (
-            <div className="mb-md flex flex-col gap-1 rounded-xl border border-grey-200 bg-background p-xs dark:border-grey-700">
-              <p className="m-0 px-1 pb-1 text-xs uppercase tracking-wide text-grey-500">
-                Deine Docs
-              </p>
-              {availableDocs.map((doc) => (
-                <button
-                  key={doc.id}
-                  type="button"
-                  disabled={disabled || syncingId === doc.id}
-                  className="flex items-center gap-sm rounded-md px-sm py-xs text-left transition-colors hover:bg-background-alt disabled:opacity-60"
-                  onClick={() => void handleAttach(doc)}
-                >
-                  {syncingId === doc.id ? (
-                    <span className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-                  ) : (
-                    <HiDocumentText size={14} className="shrink-0 text-grey-400" aria-hidden />
+          {pickerOpen && (
+            <div className="mb-md flex flex-col gap-md rounded-xl border border-grey-200 bg-background p-md dark:border-grey-700">
+              <div className="relative">
+                <HiSearch
+                  size={14}
+                  className="pointer-events-none absolute left-sm top-1/2 -translate-y-1/2 text-grey-400"
+                  aria-hidden
+                />
+                <Input
+                  type="search"
+                  placeholder="Docs durchsuchen…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8"
+                  aria-label="Docs durchsuchen"
+                />
+              </div>
+
+              {filteredDocs.length === 0 ? (
+                <p className="text-xs text-grey-500">
+                  {availableDocs.length === 0
+                    ? 'Alle deine Docs sind bereits hinzugefügt.'
+                    : 'Keine Treffer für deine Suche.'}
+                </p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 gap-sm sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+                    {paginatedDocs.map((doc) => (
+                      <DocumentCard
+                        key={doc.id}
+                        doc={doc}
+                        adapter={docsAdapter}
+                        mode="select"
+                        isSelected={syncingId === doc.id}
+                        isDisabled={disabled || (syncingId !== null && syncingId !== doc.id)}
+                        onSelect={() => void handleAttach(doc)}
+                      />
+                    ))}
+                  </div>
+
+                  {totalPages > 1 && (
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                            className={cn(safePage <= 1 && 'pointer-events-none opacity-50')}
+                            aria-disabled={safePage <= 1}
+                          />
+                        </PaginationItem>
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              isActive={page === safePage}
+                              onClick={() => setCurrentPage(page)}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                            className={cn(
+                              safePage >= totalPages && 'pointer-events-none opacity-50'
+                            )}
+                            aria-disabled={safePage >= totalPages}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
                   )}
-                  <span className="truncate text-sm text-foreground">{doc.title}</span>
-                </button>
-              ))}
+                </>
+              )}
             </div>
           )}
 

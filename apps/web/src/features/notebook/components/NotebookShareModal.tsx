@@ -21,9 +21,10 @@ import {
   SelectValue,
   Separator,
 } from '@gruenerator/ui';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { HiTrash } from 'react-icons/hi';
 
+import { useAuthStore, type SupportedLocale } from '../../../stores/authStore';
 import {
   useAddNotebookGroupShare,
   useMyGroupsForSharing,
@@ -35,11 +36,7 @@ import {
   useSetNotebookShareMode,
 } from '../hooks/useNotebookSharing';
 
-import type {
-  NotebookAudience,
-  NotebookEditPolicy,
-  NotebookShareMode,
-} from '@gruenerator/contracts';
+import type { NotebookEditPolicy, NotebookShareMode } from '@gruenerator/contracts';
 
 interface NotebookShareModalProps {
   notebookId: string;
@@ -59,10 +56,9 @@ const EDIT_POLICY_LABELS: Record<NotebookEditPolicy, string> = {
   all_members: 'Alle Mitglieder der geteilten Gruppen',
 };
 
-const AUDIENCE_LABELS: Record<NotebookAudience, string> = {
-  all: 'Beide Länder (DE & AT)',
-  'de-DE': 'Nur Deutschland',
-  'de-AT': 'Nur Österreich',
+const COUNTRY_DISPLAY: Record<SupportedLocale, { flag: string; label: string }> = {
+  'de-DE': { flag: '🇩🇪', label: 'Deutschland' },
+  'de-AT': { flag: '🇦🇹', label: 'Österreich' },
 };
 
 export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookShareModalProps) {
@@ -76,9 +72,9 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
   const addGroupShare = useAddNotebookGroupShare(notebookId);
   const removeGroupShare = useRemoveNotebookGroupShare(notebookId);
 
+  const userLocale = useAuthStore((s) => s.locale);
   const shareMode = settingsQuery.data?.share_mode ?? 'private';
   const editPolicy = settingsQuery.data?.edit_policy ?? 'owner_only';
-  const audience = settingsQuery.data?.audience ?? 'all';
 
   const sharedGroupIds = useMemo(
     () => new Set((groupSharesQuery.data ?? []).map((g) => g.group_id)),
@@ -90,6 +86,24 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
   );
 
   const editPolicyMeaningful = shareMode === 'groups';
+
+  // Auto-pin audience to the owner's locale: legacy rows persist 'all' or even
+  // the wrong country; the UI no longer offers a choice. Run at most once per
+  // open() so we never thrash on refetch.
+  const correctedRef = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      correctedRef.current = false;
+      return;
+    }
+    if (correctedRef.current) return;
+    if (settingsQuery.isLoading || !settingsQuery.data) return;
+    if (settingsQuery.data.share_mode !== 'authenticated') return;
+    if (settingsQuery.data.audience === userLocale) return;
+    if (setAudience.isPending) return;
+    correctedRef.current = true;
+    setAudience.mutate(userLocale);
+  }, [open, settingsQuery.data, settingsQuery.isLoading, userLocale, setAudience]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -184,31 +198,25 @@ export function NotebookShareModal({ notebookId, open, onOpenChange }: NotebookS
               </div>
             ) : null}
 
-            <Separator />
+            {shareMode === 'authenticated' ? (
+              <>
+                <Separator />
 
-            <div>
-              <p className="mb-xs text-sm font-semibold">Zielgruppe</p>
-              <Select
-                value={audience}
-                onValueChange={(v) => setAudience.mutate(v as NotebookAudience)}
-                disabled={setAudience.isPending}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(AUDIENCE_LABELS) as NotebookAudience[]).map((a) => (
-                    <SelectItem key={a} value={a}>
-                      {AUDIENCE_LABELS[a]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="mt-xs text-xs text-grey-500">
-                Wirkt nur in &quot;Mit Anmeldung&quot;: Nutzer*innen aus dem anderen Land sehen das
-                Notebook dann nicht. Gruppen-Mitglieder und Eigentümer*in sind nicht betroffen.
-              </p>
-            </div>
+                <div>
+                  <p className="mb-xs text-sm font-semibold">Zielgruppe</p>
+                  <div className="flex items-center gap-xs rounded-md border border-grey-200 bg-background px-sm py-xs text-sm dark:border-grey-700">
+                    <span aria-hidden className="text-base">
+                      {COUNTRY_DISPLAY[userLocale].flag}
+                    </span>
+                    <span>Sichtbar für: {COUNTRY_DISPLAY[userLocale].label}</span>
+                  </div>
+                  <p className="mt-xs text-xs text-grey-500">
+                    Automatisch nach deinem Land festgelegt. Nutzer*innen aus dem anderen Land sehen
+                    das Notebook nicht. Gruppen-Mitglieder und Eigentümer*in sind nicht betroffen.
+                  </p>
+                </div>
+              </>
+            ) : null}
 
             <Separator />
 
