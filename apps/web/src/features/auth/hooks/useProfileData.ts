@@ -208,6 +208,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     mutationFn: profileApiService.createQACollection,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
     },
   });
 
@@ -221,6 +222,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     }) => profileApiService.updateQACollection(collectionId, collectionData),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
     },
   });
 
@@ -228,6 +230,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     mutationFn: profileApiService.deleteQACollection,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
     },
   });
 
@@ -235,6 +238,7 @@ export const useNotebookCollections = ({ isActive, enabled = true }: TabHookOpti
     mutationFn: (collectionId: string | number) => profileApiService.syncQACollection(collectionId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.notebookCollections(user?.id) });
+      void queryClient.invalidateQueries({ queryKey: ['notebook', 'collection'] });
     },
   });
 

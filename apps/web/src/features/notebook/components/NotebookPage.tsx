@@ -24,10 +24,10 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { useExportStore } from '../../../stores/core/exportStore';
-import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
+import { useNotebookCollection } from '../hooks/useNotebookCollection';
 import useNotebookStore from '../stores/notebookStore';
 
 import { NotebookStartpage } from './NotebookStartpage';
@@ -434,7 +434,6 @@ interface DynamicNotebookPageProps {
 export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {}) => {
   const { id: idFromParams } = useParams<{ id: string }>();
   const id = idProp ?? idFromParams;
-  const user = useAuthStore((s) => s.user);
 
   // Reset agent to the default (universal). NotebookPage warms a system
   // notebook's agent into the persisted store; without a counterpart here,
@@ -444,9 +443,12 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
     setSelectedAgent(null);
   }, [id, setSelectedAgent]);
 
-  const { query, getQACollection } = useNotebookCollections({ isActive: true });
-  const collection = id ? getQACollection(id) : undefined;
-  const { isLoading, isError, data: qaCollections } = query;
+  // Single-collection fetch gated by checkNotebookAccess — works for direct
+  // URL access to a `share_mode='authenticated'` notebook regardless of the
+  // viewer's locale (audience is a discovery-listing hint, not an access wall).
+  const { data, isLoading } = useNotebookCollection(id);
+  const collection = data?.collection ?? null;
+  const fetchError = data?.error ?? null;
 
   if (isLoading)
     return (
@@ -455,13 +457,16 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
       </div>
     );
 
-  if (isError || !collection) {
+  if (!collection) {
+    const message =
+      fetchError === 'forbidden'
+        ? 'Du hast keinen Zugriff auf dieses Notebook.'
+        : fetchError === 'not-found'
+          ? 'Dieses Notebook existiert nicht.'
+          : 'Notebook konnte nicht geladen werden.';
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-sm p-md text-foreground-muted">
-        <p>Notebook nicht gefunden oder keine Berechtigung.</p>
-        <p className="text-xs">
-          Collection ID: {id} · User ID: {user?.id} · Collections: {qaCollections?.length || 0}
-        </p>
+        <p>{message}</p>
       </div>
     );
   }
