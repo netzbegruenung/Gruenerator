@@ -61,12 +61,14 @@ const VonDerBasisCard = memo(function VonDerBasisCard({
   );
 });
 
+const SKELETON_KEYS = ['skeleton-0', 'skeleton-1', 'skeleton-2'];
+
 export function VonDerBasisSection() {
   const { data, isLoading } = usePublicNotebookCollections({ enabled: true });
   const { likedIds, toggleLike, isToggling, canLike } = useEntityLikes('notebook');
   const [query, setQuery] = useState('');
 
-  const collections = data ?? [];
+  const collections = useMemo(() => data ?? [], [data]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return collections;
@@ -86,9 +88,9 @@ export function VonDerBasisSection() {
 
       {isLoading ? (
         <div className="grid grid-cols-3 gap-sm max-lg:grid-cols-2 max-sm:grid-cols-1">
-          {Array.from({ length: 3 }).map((_, i) => (
+          {SKELETON_KEYS.map((key) => (
             <div
-              key={i}
+              key={key}
               className="flex min-h-[4rem] items-center gap-sm rounded-md border border-grey-200 px-md py-md dark:border-grey-700"
             >
               <Skeleton className="size-5 shrink-0 rounded" />
@@ -103,7 +105,7 @@ export function VonDerBasisSection() {
         </p>
       ) : filtered.length === 0 ? (
         <p className="rounded-md border border-dashed border-grey-300 px-md py-lg text-center text-sm text-grey-500 dark:border-grey-700 dark:text-grey-400">
-          Keine Treffer für „{query}".
+          Keine Treffer für „{query}“.
         </p>
       ) : (
         <div className="grid grid-cols-3 gap-sm max-lg:grid-cols-2 max-sm:grid-cols-1">
