@@ -9,6 +9,7 @@ import { generateSlugSuffix } from '@gruenerator/shared/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
+import { triggerPendingDocProcessing } from '../../services/document-services/DocumentProcessingService/index.js';
 import { mistralEmbeddingService } from '../../services/mistral/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -585,7 +586,13 @@ class NotebookQdrantHelper {
   }
 
   /**
-   * Add documents to Notebook collection
+   * Add documents to a Notebook collection.
+   *
+   * Also kicks off deferred processing for any attached docs still at
+   * status='uploaded'. The SQL filter inside `triggerPendingDocProcessing`
+   * is the natural gate — already-processed docs (e.g. Wolke imports at
+   * status='completed') are a no-op. Skipped when `addedBy` is null because
+   * the processing query needs a user_id.
    */
   async addDocumentsToCollection(
     collectionId: string,
@@ -612,6 +619,16 @@ class NotebookQdrantHelper {
       );
 
       logger.info(`Added ${documentIds.length} documents to collection: ${collectionId}`);
+
+      if (addedBy && documentIds.length > 0) {
+        await triggerPendingDocProcessing({
+          documentIds,
+          userId: addedBy,
+          logScope: 'NotebookQdrantHelper.addDocumentsToCollection',
+          collectionId,
+        });
+      }
+
       return { success: true, added_count: documentIds.length };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
