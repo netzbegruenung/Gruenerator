@@ -86,10 +86,8 @@ function nodeToSignal(node: Node): string {
     case 'blockquote':
       return inner;
 
-    case 'img': {
-      const alt = el.getAttribute('alt') || 'Bild';
-      return `[${alt} — Bild separat in Signal anhängen]\n\n`;
-    }
+    case 'img':
+      return '';
 
     default:
       return inner;
