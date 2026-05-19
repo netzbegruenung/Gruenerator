@@ -4,7 +4,7 @@
  */
 
 import { getContractsClient } from '@gruenerator/shared/api';
-import { type ModelId } from '@gruenerator/shared/models';
+import { type TextModelId } from '@gruenerator/shared/models';
 
 export async function fetchModelPreferences() {
   const client = getContractsClient();
@@ -15,7 +15,7 @@ export async function fetchModelPreferences() {
   return result.body;
 }
 
-export async function updateModelPreference(modelId: ModelId, enabled: boolean) {
+export async function updateModelPreference(modelId: TextModelId, enabled: boolean) {
   const client = getContractsClient();
   const result = await client.modelPreferences.updatePreference({
     body: { modelId, enabled },

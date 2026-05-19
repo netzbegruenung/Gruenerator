@@ -122,7 +122,7 @@ class FluxImageService {
   private retryableErrors: Set<string>;
   private circuitBreaker: CircuitBreaker;
 
-  static async create(backend?: FluxBackend): Promise<FluxImageService> {
+  static async create(backend?: FluxBackend, modelPath?: string): Promise<FluxImageService> {
     const useBackend = backend || (env.FLUX_BACKEND as FluxBackend) || 'hosted';
 
     if (useBackend === 'regolo') {
@@ -137,8 +137,10 @@ class FluxImageService {
       return new mod.IonosImageService() as unknown as FluxImageService;
     }
 
-    console.log('[FluxImageService] Using hosted BFL API backend');
-    return new FluxImageService();
+    console.log(
+      `[FluxImageService] Using hosted BFL API backend${modelPath ? ` (${modelPath})` : ''}`
+    );
+    return new FluxImageService(modelPath ? { modelPath } : {});
   }
 
   constructor(options: FluxImageServiceOptions = {}) {
@@ -458,7 +460,7 @@ class FluxImageService {
     mimeType: string = 'image/jpeg',
     options: GenerateFromImageOptions = {}
   ): Promise<GenerateResult> {
-    const modelPath = options.modelPathOverride || '/v1/flux-2-pro';
+    const modelPath = options.modelPathOverride || this.modelPath;
     const url = `${this.baseUrl}${modelPath}`;
     const headers = {
       accept: 'application/json',

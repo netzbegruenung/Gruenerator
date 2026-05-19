@@ -2,14 +2,14 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { createStore, useStore, type StoreApi } from 'zustand';
-import type { ModelId } from '@gruenerator/shared/models';
+import type { TextModelId } from '@gruenerator/shared/models';
 import type { SearchMode, ThreadMode } from '../stores/chatStore';
 
 export interface ChatSurfaceState {
   selectedAgentId: string | null;
   threadMode: ThreadMode;
   searchMode: SearchMode;
-  selectedModel: ModelId | null;
+  selectedModel: TextModelId | null;
   selectedNotebookId: string;
   customSystemPrompt: string | null;
   customRoleName: string | null;
@@ -17,7 +17,7 @@ export interface ChatSurfaceState {
   setSelectedAgent: (agentId: string | null) => void;
   setThreadMode: (mode: ThreadMode) => void;
   setSearchMode: (mode: SearchMode) => void;
-  setSelectedModel: (model: ModelId) => void;
+  setSelectedModel: (model: TextModelId) => void;
   setSelectedNotebook: (id: string) => void;
   setCustomSystemPrompt: (prompt: string | null) => void;
   setCustomRoleName: (name: string | null) => void;
