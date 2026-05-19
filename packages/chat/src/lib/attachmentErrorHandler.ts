@@ -1,22 +1,17 @@
 import type { AttachmentAddErrorEvent } from '@assistant-ui/core';
+import { useAttachmentNoticeStore } from '../stores/attachmentNoticeStore';
 
 const FRIENDLY_ACCEPTED_SUMMARY =
   'PDF, Word, Excel, PowerPoint, Bilder (JPG, PNG, WebP), Text- und Code-Dateien';
 
-function showAttachmentToast(title: string, description: string): void {
-  void import('sonner')
-    .then(({ toast }) => {
-      toast.error(title, { description });
-    })
-    .catch(() => {
-      // sonner not installed in host app — fall back to console only
-    });
+function pushNotice(title: string, description: string): void {
+  useAttachmentNoticeStore.getState().setNotice({ title, description });
 }
 
 export function handleAttachmentError(error: unknown): void {
   const message = error instanceof Error ? error.message : 'Datei konnte nicht hinzugefügt werden.';
   console.warn('[Attachment]', error);
-  showAttachmentToast('Anhang nicht möglich', message);
+  pushNotice('Anhang nicht möglich', message);
 }
 
 // Extracts the rejected MIME type from AUI's English error message
@@ -26,16 +21,17 @@ function extractRejectedContentType(message: string): string | null {
   return match ? match[1] : null;
 }
 
-// Subscribes to assistant-ui's `attachmentAddError` event and renders a
-// clean German toast in place of AUI's raw English message. The original
-// rejection still bubbles to window.onunhandledrejection so GlitchTip
-// keeps capturing rejected file types as telemetry.
+// Subscribes to assistant-ui's `attachmentAddError` event and surfaces a
+// clean German notice inline in the thread (rendered by
+// InlineAttachmentNotice) in place of AUI's raw English message. The
+// original rejection still bubbles to window.onunhandledrejection so
+// GlitchTip keeps capturing rejected file types as telemetry.
 export function handleAttachmentAddError(event: AttachmentAddErrorEvent): void {
   console.warn('[Attachment]', event);
 
   if (event.reason === 'not-accepted') {
     const contentType = extractRejectedContentType(event.message) ?? 'unbekannt';
-    showAttachmentToast(
+    pushNotice(
       'Dateityp nicht unterstützt',
       `"${contentType}" kann nicht angehängt werden. Unterstützt: ${FRIENDLY_ACCEPTED_SUMMARY}.`
     );
@@ -43,11 +39,11 @@ export function handleAttachmentAddError(event: AttachmentAddErrorEvent): void {
   }
 
   if (event.reason === 'no-adapter') {
-    showAttachmentToast('Anhänge deaktiviert', 'In diesem Chat sind keine Anhänge möglich.');
+    pushNotice('Anhänge deaktiviert', 'In diesem Chat sind keine Anhänge möglich.');
     return;
   }
 
-  showAttachmentToast(
+  pushNotice(
     'Anhang fehlgeschlagen',
     'Die Datei konnte nicht angehängt werden. Bitte erneut versuchen.'
   );
