@@ -35,6 +35,13 @@ export {
   useScopedSetCustomRoleName,
   getScopedSnapshot,
 } from './lib/useScopedAgentState';
+export {
+  AUTO_MODEL_ID,
+  resolveAutoModel,
+  type AutoModelId,
+  type AutoResolverContext,
+  type SelectedModel,
+} from './lib/resolveAutoModel';
 
 // Context & API Client
 export {
