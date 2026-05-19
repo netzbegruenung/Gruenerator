@@ -28,6 +28,7 @@ import {
   HiOutlinePhotograph,
   HiOutlineTrash,
   HiOutlineUserGroup,
+  HiOutlineGlobeAlt,
   HiPencil,
   HiCheck,
   HiX,
@@ -36,6 +37,7 @@ import { PiSquaresFour } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../../../components/utils/apiClient';
+import { type GroupAudience } from '../hooks/useGroupRequests';
 import {
   useCloneCanvasTemplate,
   useGroupMembers,
@@ -44,8 +46,10 @@ import {
 } from '../hooks/useGroups';
 
 import AddContentToGroupModal from './AddContentToGroupModal';
+import GroupJoinRequestsSection from './GroupJoinRequestsSection';
 import GroupLinksSection from './GroupLinksSection';
 import GroupMembersList from './GroupMembersList';
+import GroupVisibilityDialog from './GroupVisibilityDialog';
 
 export interface GroupInfo {
   id?: string;
@@ -54,6 +58,8 @@ export interface GroupInfo {
   created_by?: string;
   avatar_url?: string | null;
   links?: GroupLink[];
+  is_public?: boolean;
+  audience?: GroupAudience;
 }
 
 export interface GroupData {
@@ -124,6 +130,8 @@ interface GroupInfoSectionProps {
   onDeleteLink?: (linkId: string) => void;
   isAddingLink?: boolean;
   isUpdatingLink?: boolean;
+  onSuccessMessage?: (msg: string) => void;
+  onErrorMessage?: (msg: string) => void;
 }
 
 const GroupInfoSection = memo(
@@ -162,12 +170,15 @@ const GroupInfoSection = memo(
     onDeleteLink,
     isAddingLink,
     isUpdatingLink,
+    onSuccessMessage,
+    onErrorMessage,
   }: GroupInfoSectionProps) => {
     const navigate = useNavigate();
     const { members, isLoadingMembers } = useGroupMembers(groupId, { isActive: true });
     const [membersPopoverOpen, setMembersPopoverOpen] = useState(false);
     const [membersDialogOpen, setMembersDialogOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showVisibilityDialog, setShowVisibilityDialog] = useState(false);
     const cloneTemplate = useCloneCanvasTemplate();
 
     const handleCloneTemplate = useCallback(
@@ -365,6 +376,10 @@ const GroupInfoSection = memo(
                       {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem onClick={() => setShowVisibilityDialog(true)}>
+                    <HiOutlineGlobeAlt className="size-4 mr-xs" />
+                    {data?.groupInfo?.is_public ? 'Öffentlich (verwalten)' : 'Öffentlich machen'}
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => setShowDeleteConfirm(true)}
@@ -497,6 +512,15 @@ const GroupInfoSection = memo(
             )}
           </div>
         </div>
+
+        {data?.isAdmin && (
+          <GroupJoinRequestsSection
+            groupId={groupId}
+            isAdmin={!!data?.isAdmin}
+            onSuccessMessage={onSuccessMessage ?? (() => {})}
+            onErrorMessage={onErrorMessage ?? (() => {})}
+          />
+        )}
 
         <div>
           <SectionHeader
@@ -760,6 +784,18 @@ const GroupInfoSection = memo(
             }}
             onAddLink={onAddLink}
             isAddingLink={isAddingLink}
+          />
+        )}
+
+        {data?.isAdmin && (
+          <GroupVisibilityDialog
+            groupId={groupId}
+            isOpen={showVisibilityDialog}
+            onClose={() => setShowVisibilityDialog(false)}
+            currentIsPublic={data?.groupInfo?.is_public ?? false}
+            currentAudience={(data?.groupInfo?.audience as GroupAudience) ?? 'all'}
+            onSuccessMessage={onSuccessMessage ?? (() => {})}
+            onErrorMessage={onErrorMessage ?? (() => {})}
           />
         )}
 

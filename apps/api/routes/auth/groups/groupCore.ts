@@ -566,7 +566,8 @@ router.get(
       const row = await postgres.queryOne(
         `SELECT
           gm.role, gm.joined_at,
-          g.id, g.name, g.description, g.created_at, g.created_by, g.join_token, g.settings, g.avatar_url, g.links
+          g.id, g.name, g.description, g.created_at, g.created_by, g.join_token, g.settings, g.avatar_url, g.links,
+          g.is_public, g.audience
         FROM group_memberships gm
         JOIN groups g ON g.id = gm.group_id
         WHERE gm.group_id = $1 AND gm.user_id = $2`,
@@ -596,6 +597,8 @@ router.get(
           settings: row.settings,
           avatar_url: row.avatar_url,
           links: row.links || [],
+          is_public: row.is_public ?? false,
+          audience: row.audience ?? 'all',
         },
         membership: {
           role: row.role,

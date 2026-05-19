@@ -35,6 +35,9 @@ const DEFAULT_CHANNEL_PREFERENCES: Record<NotificationType, ChannelPreferences> 
   group_role_changed: { email: false, push: true, in_app: true },
   group_content_shared: { email: true, push: true, in_app: true },
   group_deleted: { email: false, push: true, in_app: true },
+  group_join_requested: { email: true, push: true, in_app: true },
+  group_join_approved: { email: true, push: true, in_app: true },
+  group_join_denied: { email: false, push: true, in_app: true },
   transfer_downloaded: { email: false, push: true, in_app: true },
   notebook_liked: { email: false, push: false, in_app: true },
 };
