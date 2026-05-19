@@ -57,13 +57,22 @@ const IMAGE_FAMILY_CONFIG: SettingConfig = {
   multiple: false,
 };
 
+const FLUX_VARIANT_LABEL_RE = /^(?:⭐\s+)?Flux\s+/;
+
+function shortCost(multiplier: number): string {
+  if (multiplier === 0.5) return '½ Bild';
+  if (multiplier === 1) return '1 Bild';
+  return `${multiplier} Bilder`;
+}
+
 const FLUX_VARIANT_CONFIG: SettingConfig = {
   key: 'fluxVariant',
   label: 'Variante',
-  options: FLUX_VARIANT_ORDER.map((id) => ({
-    id,
-    label: IMAGE_MODEL_BY_ID[id].name.replace(/^Flux /, ''),
-  })),
+  options: FLUX_VARIANT_ORDER.map((id) => {
+    const variant = IMAGE_MODEL_BY_ID[id];
+    const bareName = variant.name.replace(FLUX_VARIANT_LABEL_RE, '');
+    return { id, label: `${bareName} (${shortCost(variant.costMultiplier)})` };
+  }),
   multiple: false,
 };
 
