@@ -2,9 +2,7 @@ import React, { useRef, useState } from 'react';
 import styles from './styles.module.css';
 
 function transformTextNode(text: string): string {
-  return text
-    .replace(/\*innen\b/g, ':innen')
-    .replace(/\*in\b/g, ':in');
+  return text.replace(/\*innen\b/g, ':innen').replace(/\*in\b/g, ':in');
 }
 
 function nodeToSignal(node: Node): string {
@@ -129,9 +127,9 @@ export default function SignalMessage({ children }: SignalMessageProps): React.J
         {children}
       </div>
       <footer className={styles.footer}>
-        Beim Kopieren werden Markdown-Auszeichnungen automatisch in Signals Format gewandelt
-        (Fett, Kursiv, Links). Genderstern wird zum Doppelpunkt, damit Signal Worte nicht
-        umkippt. Bilder bitte separat anhängen.
+        Beim Kopieren werden Markdown-Auszeichnungen automatisch in Signals Format gewandelt (Fett,
+        Kursiv, Links). Genderstern wird zum Doppelpunkt, damit Signal Worte nicht umkippt. Bilder
+        bitte separat anhängen.
       </footer>
     </aside>
   );
