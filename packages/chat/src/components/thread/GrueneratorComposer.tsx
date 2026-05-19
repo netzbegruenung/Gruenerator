@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useRef, useState, useCallback } from 'react';
+import { memo, useRef, useState, useCallback, useEffect } from 'react';
 import {
   AuiIf,
   ComposerPrimitive,
@@ -36,6 +36,7 @@ import { useChatDensity } from './chatDensityContext';
 import type { Mentionable } from '../../lib/mentionables';
 import type { DocumentMention } from '../../lib/documentMentionables';
 import { useUserProfileStore } from '../../stores/userProfileStore';
+import { handleAttachmentAddError } from '../../lib/attachmentErrorHandler';
 
 interface GrueneratorComposerProps {
   isRunning?: boolean;
@@ -238,6 +239,14 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   // Composer mount drives lazy fetching of mentionable data (custom agents,
   // boards, docs). The query is deduplicated across consumers via React Query.
   useMentionablesQuery();
+
+  // AUI's file-input handler validates against the adapter's `accept` list and
+  // throws a raw English error before our adapter's add() runs. Subscribe to
+  // the structured event so the user sees a clean German toast instead.
+  useEffect(
+    () => composerRuntime.unstable_on('attachmentAddError', handleAttachmentAddError),
+    [composerRuntime]
+  );
 
   const dismissPopover = useCallback(() => setMention(INITIAL_MENTION_STATE), []);
 

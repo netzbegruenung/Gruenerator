@@ -11,6 +11,7 @@ import { auth, type BetterAuthUser } from '../config/betterAuth.js';
 import { env } from '../config/env.js';
 import { BRAND } from '../utils/domainUtils.js';
 import { createLogger } from '../utils/logger.js';
+import { captureAuthIssue } from '../utils/observability/captureAuthIssue.js';
 import { UserId, type UserId as UserIdBrand } from '../utils/types/branded.js';
 
 import { type AuthenticatedRequest } from './types.js';
@@ -118,7 +119,12 @@ async function tryResolveUser(req: Request): Promise<Express.User | null> {
       req.headers.authorization ? 'present' : 'absent'
     );
   } catch (err) {
-    log.error('[Auth] Session check threw for %s: %s', req.originalUrl, (err as Error).message);
+    // Silent-catch boundary: returning `null` below produces a generic 401
+    // for the user without any error reaching Express's error middleware,
+    // so Sentry's `setupExpressErrorHandler` would never see this. Capture
+    // explicitly to surface session-resolution failures (DB errors, Redis
+    // outages, malformed cookies) that would otherwise be invisible.
+    captureAuthIssue({ stage: 'session-resolve', cause: err, req });
   }
 
   return null;

@@ -16,6 +16,7 @@ import { UserMessage } from './UserMessage';
 import { AssistantMessage } from './AssistantMessage';
 import { GrueneratorComposer } from './GrueneratorComposer';
 import { AutoMessageSender } from './AutoMessageSender';
+import { InlineAttachmentNotice } from './InlineAttachmentNotice';
 import { ChatDensityContext, type ChatDensity } from './chatDensityContext';
 import { useChatCollaborationContext } from '../../context/ChatCollaborationContext';
 import { useActiveAgentMeta } from '../../lib/useActiveAgentMeta';
@@ -125,6 +126,8 @@ export function GrueneratorThread({
             </ThreadPrimitive.Empty>
 
             <ThreadPrimitive.Messages components={messageComponents} />
+
+            <InlineAttachmentNotice />
 
             {collab && collab.typingUsers.length > 0 && (
               <TypingIndicator names={collab.typingUsers} />
