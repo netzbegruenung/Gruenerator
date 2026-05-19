@@ -9,12 +9,14 @@ import {
   type AssistantRuntime,
 } from '@assistant-ui/react';
 import {
+  AUTO_MODEL_ID,
   ChatCollaborationProvider,
   ChatSurfaceProvider,
   GrueneratorAttachmentAdapter,
   convertToThreadMessageLike,
   createChatSurfaceStore,
   createGrueneratorModelAdapter,
+  resolveAutoModel,
   useChatCollaboration,
   useChatConfigStore,
   type ChatRequestContext,
@@ -22,6 +24,7 @@ import {
   type GrueneratorAdapterConfig,
 } from '@gruenerator/chat';
 import { chatThreadResponseSchema, type ChatThreadResponse } from '@gruenerator/contracts';
+import { getSystemAgent } from '@gruenerator/shared/agents';
 import { invokeDocumentAI, useEditorStore } from '@gruenerator/docs';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { loadedThreadMessagesSchema } from '@gruenerator/shared/chat';
@@ -256,9 +259,18 @@ function DocsChatReadyHost({
   const getConfig = useMemo<() => GrueneratorAdapterConfig>(
     () => () => {
       const surface = surfaceStore.getState();
+      const resolvedModelId =
+        surface.selectedModel === AUTO_MODEL_ID
+          ? resolveAutoModel({
+              threadMode: surface.threadMode,
+              agent: surface.selectedAgentId
+                ? (getSystemAgent(surface.selectedAgentId) ?? null)
+                : null,
+            })
+          : (surface.selectedModel ?? '');
       return {
         agentId: surface.selectedAgentId ?? 'gruenerator-docs-editor',
-        modelId: surface.selectedModel ?? '',
+        modelId: resolvedModelId,
         enabledTools: {
           search: true,
           web: true,

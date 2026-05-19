@@ -21,9 +21,11 @@ import {
   RuntimeAdapterProvider,
   ExportedMessageRepository,
 } from '@assistant-ui/react';
-import { type TextModelId } from '@gruenerator/shared/models';
+import { type ModelId } from '@gruenerator/shared/models';
+import { getSystemAgent } from '@gruenerator/shared/agents';
 import { createChatApiClient } from '../context/ChatContext';
 import { useAgentStore } from '../stores/chatStore';
+import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
 import { useChatConfigStore, type ChatConfig } from '../stores/chatConfigStore';
 import { getDefaultAgent } from '../lib/agents';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
@@ -59,7 +61,7 @@ interface GrueneratorChatProviderProps {
   getExternalThreads?: () => ExternalThreadEntry[];
   onExternalThreadClick?: (externalId: string) => void;
   activePath?: string;
-  enabledModelIds?: ReadonlySet<TextModelId> | null;
+  enabledModelIds?: ReadonlySet<ModelId> | null;
 }
 
 interface PersistedToolCall {
@@ -279,10 +281,17 @@ function useGrueneratorThreadRuntime() {
   const compactionState = useAgentStore((s) => s.compactionState);
   const triggerCompaction = useAgentStore((s) => s.triggerCompaction);
 
-  const getConfig = useCallback(
-    (): GrueneratorAdapterConfig => ({
+  const getConfig = useCallback((): GrueneratorAdapterConfig => {
+    const resolvedModelId =
+      selectedModel === AUTO_MODEL_ID
+        ? resolveAutoModel({
+            threadMode,
+            agent: selectedAgentId ? (getSystemAgent(selectedAgentId) ?? null) : null,
+          })
+        : selectedModel;
+    return {
       agentId: selectedAgentId,
-      modelId: selectedModel,
+      modelId: resolvedModelId,
       enabledTools,
       threadId: useAgentStore.getState().currentThreadId,
       selectedNotebookId,
@@ -292,20 +301,19 @@ function useGrueneratorThreadRuntime() {
       customRoleName,
       customEnabledTools,
       activeSkillMention,
-    }),
-    [
-      selectedAgentId,
-      selectedModel,
-      enabledTools,
-      selectedNotebookId,
-      threadMode,
-      searchMode,
-      customSystemPrompt,
-      customRoleName,
-      customEnabledTools,
-      activeSkillMention,
-    ]
-  );
+    };
+  }, [
+    selectedAgentId,
+    selectedModel,
+    enabledTools,
+    selectedNotebookId,
+    threadMode,
+    searchMode,
+    customSystemPrompt,
+    customRoleName,
+    customEnabledTools,
+    activeSkillMention,
+  ]);
 
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
