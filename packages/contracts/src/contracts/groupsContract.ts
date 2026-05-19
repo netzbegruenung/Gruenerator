@@ -11,13 +11,27 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
+  createGroupBodySchema,
   discoverGroupsResponseSchema,
+  groupCreateResponseSchema,
+  groupDetailsResponseSchema,
   groupErrorResponseSchema,
+  groupLinkBodySchema,
+  groupLinkResponseSchema,
+  groupMembersResponseSchema,
+  groupOkResponseSchema,
   groupSuccessResponseSchema,
   groupVisibilityResponseSchema,
+  joinByTokenBodySchema,
+  joinGroupResponseSchema,
   joinRequestsResponseSchema,
+  listUserGroupsResponseSchema,
+  memberRoleBodySchema,
   requestToJoinResponseSchema,
   setGroupVisibilityBodySchema,
+  updateGroupInfoBodySchema,
+  updateGroupNameBodySchema,
+  verifyTokenResponseSchema,
 } from '../schemas/groups.js';
 
 const c = initContract();
@@ -133,5 +147,200 @@ export const groupsContract = c.router({
       500: groupErrorResponseSchema,
     },
     summary: 'Deny a join request (admin)',
+  },
+
+  // ── Core group CRUD / membership / links (migrated from legacy raw routes) ──
+
+  listUserGroups: {
+    method: 'GET',
+    path: '/api/auth/groups',
+    responses: {
+      200: listUserGroupsResponseSchema,
+      401: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'List the groups the authenticated user belongs to',
+  },
+
+  createGroup: {
+    method: 'POST',
+    path: '/api/auth/groups',
+    body: createGroupBodySchema,
+    responses: {
+      200: groupCreateResponseSchema,
+      401: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Create a new group',
+  },
+
+  deleteGroup: {
+    method: 'DELETE',
+    path: '/api/auth/groups/:groupId',
+    pathParams: z.object({ groupId: z.string() }),
+    responses: {
+      200: groupSuccessResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Delete a group (creator/admin)',
+  },
+
+  getDetails: {
+    method: 'GET',
+    path: '/api/auth/groups/:groupId/details',
+    pathParams: z.object({ groupId: z.string() }),
+    responses: {
+      200: groupDetailsResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Get group details + the caller membership',
+  },
+
+  updateInfo: {
+    method: 'PUT',
+    path: '/api/auth/groups/:groupId/info',
+    pathParams: z.object({ groupId: z.string() }),
+    body: updateGroupInfoBodySchema,
+    responses: {
+      200: groupSuccessResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Update group name/description/settings (admin)',
+  },
+
+  updateName: {
+    method: 'PUT',
+    path: '/api/auth/groups/:groupId/name',
+    pathParams: z.object({ groupId: z.string() }),
+    body: updateGroupNameBodySchema,
+    responses: {
+      200: groupSuccessResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Update group name (legacy)',
+  },
+
+  verifyToken: {
+    method: 'GET',
+    path: '/api/auth/groups/verify-token/:joinToken',
+    pathParams: z.object({ joinToken: z.string() }),
+    responses: {
+      200: verifyTokenResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Verify a join token',
+  },
+
+  joinByToken: {
+    method: 'POST',
+    path: '/api/auth/groups/join',
+    body: joinByTokenBodySchema,
+    responses: {
+      200: joinGroupResponseSchema,
+      401: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Join a group via token',
+  },
+
+  leaveGroup: {
+    method: 'DELETE',
+    path: '/api/auth/groups/:groupId/members/self',
+    pathParams: z.object({ groupId: z.string() }),
+    responses: {
+      200: groupSuccessResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Leave a group (non-creator)',
+  },
+
+  listMembers: {
+    method: 'GET',
+    path: '/api/auth/groups/:groupId/members',
+    pathParams: z.object({ groupId: z.string() }),
+    responses: {
+      200: groupMembersResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'List group members',
+  },
+
+  updateMemberRole: {
+    method: 'PUT',
+    path: '/api/auth/groups/:groupId/members/:memberId/role',
+    pathParams: z.object({ groupId: z.string(), memberId: z.string() }),
+    body: memberRoleBodySchema,
+    responses: {
+      200: groupSuccessResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Change a member role (admin)',
+  },
+
+  addLink: {
+    method: 'POST',
+    path: '/api/auth/groups/:groupId/links',
+    pathParams: z.object({ groupId: z.string() }),
+    body: groupLinkBodySchema,
+    responses: {
+      200: groupLinkResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Add a group link (admin)',
+  },
+
+  updateLink: {
+    method: 'PUT',
+    path: '/api/auth/groups/:groupId/links/:linkId',
+    pathParams: z.object({ groupId: z.string(), linkId: z.string() }),
+    body: groupLinkBodySchema,
+    responses: {
+      200: groupLinkResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Update a group link (admin)',
+  },
+
+  deleteLink: {
+    method: 'DELETE',
+    path: '/api/auth/groups/:groupId/links/:linkId',
+    pathParams: z.object({ groupId: z.string(), linkId: z.string() }),
+    responses: {
+      200: groupOkResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Delete a group link (admin)',
   },
 });
