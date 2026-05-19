@@ -151,7 +151,7 @@ const ImageModelSettingsSection = React.memo(
                                   }`}
                                   title={formatCost(variant.costMultiplier)}
                                 >
-                                  {variant.name.replace(/^Flux /, '')} ·{' '}
+                                  {variant.name.replace(/^(?:⭐\s+)?Flux\s+/, '')} ·{' '}
                                   {formatCost(variant.costMultiplier)}
                                 </button>
                               );
