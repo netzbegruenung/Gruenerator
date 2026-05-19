@@ -1,4 +1,12 @@
-import { FileText, Heart, LayoutDashboard, MessageSquare, Share2, Users } from 'lucide-react';
+import {
+  FileText,
+  Heart,
+  LayoutDashboard,
+  MessageSquare,
+  Share2,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 
 import { openLinkAction, type NotificationTypeConfig } from '../notificationConfig';
 
@@ -71,6 +79,15 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     description: 'Wenn eine Gruppe aufgelöst wird',
     icon: Users,
     group: 'groups',
+  },
+  group_join_requested: {
+    label: 'Beitrittsanfragen',
+    description:
+      'Wenn jemand einer öffentlichen Gruppe beitreten möchte oder deine Anfrage beantwortet wird',
+    icon: UserPlus,
+    group: 'groups',
+    subtypes: ['group_join_requested', 'group_join_approved', 'group_join_denied'],
+    actions: (ctx) => [openLinkAction('Gruppe öffnen')(ctx)],
   },
 
   notebook_liked: {

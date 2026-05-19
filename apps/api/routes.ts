@@ -9,6 +9,7 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import authMiddleware from './middleware/authMiddleware.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
+import { mountGroupsContractRouter } from './routes/auth/groups/groupsContractRouter.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
@@ -312,6 +313,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // be `.use`'d before the contract router mounts the GET /api/auth/groups/me
   // handler so the middleware actually runs.
   app.use('/api/auth/groups', requireAuth);
+  // Public-group discovery + join-request endpoints (additive to the legacy
+  // group routes). Mounted under the shared `/api/auth/groups` prefix; its
+  // literal paths (/discover, /:id/visibility, /:id/join-requests) don't
+  // collide with any legacy group route.
+  mountGroupsContractRouter(app);
   // Sharing endpoints (share mode, edit policy, group shares) — mounted BEFORE
   // the CRUD router so :id/share doesn't fall through to the legacy router.
   mountNotebookSharingContractRouter(app);
