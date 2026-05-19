@@ -16,6 +16,7 @@ import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import * as chatMemory from '../../services/chat/ChatMemoryService.js';
 import { createLogger } from '../../utils/logger.js';
+import { captureAuthIssue } from '../../utils/observability/captureAuthIssue.js';
 
 import type { AuthRequest, LocaleUpdateBody } from './types.js';
 
@@ -52,6 +53,7 @@ async function signOutAndForwardCookies(req: Request, res: Response): Promise<vo
     if (cookies.length) res.setHeader('Set-Cookie', cookies);
   } catch (err) {
     log.warn('[Auth Logout] auth.api.signOut threw: %s', (err as Error).message);
+    captureAuthIssue({ stage: 'logout', cause: err, req });
   }
 }
 
@@ -78,11 +80,29 @@ router.get('/test', (_req: AuthRequest, res: Response): void => {
 router.get('/error', (req: AuthRequest, res: Response): void => {
   const htmlEscape = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const errorCode = htmlEscape(String(req.query.message || 'unknown_error'));
+  const rawMessage = typeof req.query.message === 'string' ? req.query.message : null;
+  const errorCode = htmlEscape(rawMessage ?? 'unknown_error');
   const correlationId = htmlEscape(String(req.query.correlationId || 'N/A'));
   const retry = req.query.retry === 'true';
 
   log.error(`[Auth Error] Code: ${errorCode}, Correlation: ${correlationId}`);
+
+  // Capture the upstream failure with the error code as the synthetic error
+  // name so events cluster per code in GlitchTip (e.g. all `account_not_linked`
+  // failures in one issue). Skip when no `?message=` query is present — that
+  // means a user landed here directly (bookmark, browser back) with no real
+  // signal to report. Benign codes like `please_restart_the_process` are
+  // suppressed by `captureAuthIssue`'s built-in filter.
+  if (rawMessage) {
+    const synthetic = new Error(`auth-error-route: ${rawMessage}`);
+    synthetic.name = rawMessage;
+    captureAuthIssue({
+      stage: 'auth-error-route',
+      cause: synthetic,
+      req,
+      extras: { errorCode: rawMessage, correlationId, retry },
+    });
+  }
 
   if (retry) {
     res.status(401).send(`<!DOCTYPE html>
