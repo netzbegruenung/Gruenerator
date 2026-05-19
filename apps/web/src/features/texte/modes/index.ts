@@ -1,6 +1,7 @@
 import { antragMode } from './antrag';
 import { bildBearbeitenMode } from './bildBearbeiten';
 import { bildBegruenenMode } from './bildBegruenen';
+import { bildHintergrundEntfernenMode } from './bildHintergrundEntfernen';
 import { bildVergroessernMode } from './bildVergroessern';
 import { boardsMode } from './boards';
 import { imagineMode } from './imagine';
@@ -25,6 +26,7 @@ const ALL_MODES: ModeDefinition[] = [
   bildBearbeitenMode,
   bildBegruenenMode,
   bildVergroessernMode,
+  bildHintergrundEntfernenMode,
   textEditorMode,
 ];
 
