@@ -1,4 +1,4 @@
-import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL_ID } from '@gruenerator/shared/models';
+import { DEFAULT_IMAGE_MODEL_ID } from '@gruenerator/shared/models';
 
 import type { ModeDefinition } from './types';
 
@@ -23,12 +23,6 @@ export const imagineMode: ModeDefinition = {
         { id: 'realistic-pure', label: 'Realistisch' },
         { id: 'pixel-pure', label: 'Pixel Art' },
       ],
-      multiple: false,
-    },
-    {
-      key: 'imageModel',
-      label: 'Modell',
-      options: IMAGE_MODELS.map((m) => ({ id: m.id, label: m.name })),
       multiple: false,
     },
   ],
