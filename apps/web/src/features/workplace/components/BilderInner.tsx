@@ -24,7 +24,7 @@ import { MODE_MAP } from '../../texte/modes';
 
 import { cn } from '@/utils/cn';
 
-type SubMode = 'erstellen' | 'bearbeiten' | 'vergroessern';
+type SubMode = 'erstellen' | 'bearbeiten' | 'begruenen' | 'vergroessern';
 
 const SUB_MODE_CONFIG: SettingConfig = {
   key: 'subMode',
@@ -32,6 +32,7 @@ const SUB_MODE_CONFIG: SettingConfig = {
   options: [
     { id: 'erstellen', label: 'Erstellen' },
     { id: 'bearbeiten', label: 'Bearbeiten' },
+    { id: 'begruenen', label: '🌳 Begrünen' },
     { id: 'vergroessern', label: 'Vergrößern' },
   ],
   multiple: false,
@@ -39,6 +40,7 @@ const SUB_MODE_CONFIG: SettingConfig = {
 
 const ERSTELLEN_MODE_ID = 'imagine';
 const BEARBEITEN_MODE_ID = 'bild-bearbeiten';
+const BEGRUENEN_MODE_ID = 'bild-begruenen';
 const VERGROESSERN_MODE_ID = 'bild-vergroessern';
 
 const IMAGE_FAMILY_CONFIG: SettingConfig = {
@@ -116,6 +118,8 @@ const BilderInner: React.FC = memo(() => {
 
   const [editError, setEditError] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
+  const [greenEditError, setGreenEditError] = useState<string | null>(null);
+  const [greenEditLoading, setGreenEditLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const queryClient = useQueryClient();
@@ -124,11 +128,19 @@ const BilderInner: React.FC = memo(() => {
 
   const erstellenDef = MODE_MAP[ERSTELLEN_MODE_ID];
   const bearbeitenDef = MODE_MAP[BEARBEITEN_MODE_ID];
+  const begruenenDef = MODE_MAP[BEGRUENEN_MODE_ID];
   const vergroessernDef = MODE_MAP[VERGROESSERN_MODE_ID];
   const isErstellen = subMode === 'erstellen';
   const isBearbeiten = subMode === 'bearbeiten';
+  const isBegruenen = subMode === 'begruenen';
   const isVergroessern = subMode === 'vergroessern';
-  const activeDef = isErstellen ? erstellenDef : isBearbeiten ? bearbeitenDef : vergroessernDef;
+  const activeDef = isErstellen
+    ? erstellenDef
+    : isBearbeiten
+      ? bearbeitenDef
+      : isBegruenen
+        ? begruenenDef
+        : vergroessernDef;
 
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [outpaintLoading, setOutpaintLoading] = useState(false);
@@ -275,6 +287,35 @@ const BilderInner: React.FC = memo(() => {
     }
   }, [prompt, sourceFile, editLoading, setResult, createImageShare, queryClient]);
 
+  const handleSubmitGreenEdit = useCallback(async () => {
+    const trimmed = prompt.trim();
+    if (!sourceFile || !trimmed || greenEditLoading) return;
+    setGreenEditLoading(true);
+    setGreenEditError(null);
+    try {
+      const { objectUrl, base64 } = await editAiImage(sourceFile, trimmed, 'green-edit');
+      setResult(objectUrl, true);
+      createImageShare({
+        imageData: base64,
+        title: trimmed.slice(0, 100),
+        imageType: 'edit',
+        status: 'ready',
+        metadata: {
+          prompt: trimmed,
+          sourceFilename: sourceFile.name,
+          editType: 'green-edit',
+        },
+      })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['recent-activity'] }))
+        .catch(() => {});
+    } catch (err) {
+      console.error('[BilderInner:begruenen] Green edit failed:', err);
+      setGreenEditError(err instanceof Error ? err.message : 'Begrünung fehlgeschlagen');
+    } finally {
+      setGreenEditLoading(false);
+    }
+  }, [prompt, sourceFile, greenEditLoading, setResult, createImageShare, queryClient]);
+
   const handleSubmitOutpaint = useCallback(async () => {
     if (!sourceFile || outpaintLoading) return;
     setOutpaintLoading(true);
@@ -316,19 +357,35 @@ const BilderInner: React.FC = memo(() => {
       void handleSubmitCreate();
     } else if (isBearbeiten) {
       void handleSubmitEdit();
+    } else if (isBegruenen) {
+      void handleSubmitGreenEdit();
     } else {
       void handleSubmitOutpaint();
     }
-  }, [isErstellen, isBearbeiten, handleSubmitCreate, handleSubmitEdit, handleSubmitOutpaint]);
+  }, [
+    isErstellen,
+    isBearbeiten,
+    isBegruenen,
+    handleSubmitCreate,
+    handleSubmitEdit,
+    handleSubmitGreenEdit,
+    handleSubmitOutpaint,
+  ]);
 
   const handleDownload = useCallback(() => {
     if (!resultImage) return;
     const link = document.createElement('a');
     link.href = resultImage;
-    const slug = isErstellen ? 'bild' : isBearbeiten ? 'bearbeitet' : 'vergroessert';
+    const slug = isErstellen
+      ? 'bild'
+      : isBearbeiten
+        ? 'bearbeitet'
+        : isBegruenen
+          ? 'begruent'
+          : 'vergroessert';
     link.download = `gruenerator-${slug}-${Date.now()}.png`;
     link.click();
-  }, [resultImage, isErstellen, isBearbeiten]);
+  }, [resultImage, isErstellen, isBearbeiten, isBegruenen]);
 
   const filePickerPill = useMemo(
     () =>
@@ -410,7 +467,7 @@ const BilderInner: React.FC = memo(() => {
             onChange={(val) => handleFluxVariantChange(val as ImageModelId)}
           />
         )}
-        {(isBearbeiten || isVergroessern) && filePickerPill}
+        {(isBearbeiten || isBegruenen || isVergroessern) && filePickerPill}
         {isVergroessern && (
           <SettingsDropdown
             config={ASPECT_RATIO_CONFIG}
@@ -425,6 +482,7 @@ const BilderInner: React.FC = memo(() => {
       subMode,
       isErstellen,
       isBearbeiten,
+      isBegruenen,
       isVergroessern,
       erstellenDef?.settings,
       modeState,
@@ -439,19 +497,29 @@ const BilderInner: React.FC = memo(() => {
     ]
   );
 
-  const loading = isErstellen ? createLoading : isBearbeiten ? editLoading : outpaintLoading;
+  const loading = isErstellen
+    ? createLoading
+    : isBearbeiten
+      ? editLoading
+      : isBegruenen
+        ? greenEditLoading
+        : outpaintLoading;
   const error = isErstellen
     ? createError
       ? String(createError)
       : null
     : isBearbeiten
       ? editError
-      : outpaintError;
+      : isBegruenen
+        ? greenEditError
+        : outpaintError;
   const altText = isErstellen
     ? 'Generiertes Bild'
     : isBearbeiten
       ? 'Bearbeitetes Bild'
-      : 'Vergrößertes Bild';
+      : isBegruenen
+        ? 'Begrüntes Bild'
+        : 'Vergrößertes Bild';
 
   return (
     <div className="flex flex-col gap-md">
