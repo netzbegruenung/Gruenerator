@@ -5,12 +5,15 @@
  * Handles style detection, rate limiting, and returns base64 + URL for display.
  */
 
+import { IMAGE_MODEL_BY_ID } from '@gruenerator/shared/models';
+
 import { ImageGenerationCounter } from '../../../../services/counters/index.js';
 import {
   FluxImageService,
   buildFluxPrompt,
   type VariantKey,
 } from '../../../../services/flux/index.js';
+import { getImageModelForUser } from '../../../../services/user/imageModelPreference.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { redisClient } from '../../../../utils/redis/index.js';
 
@@ -160,8 +163,9 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
       `[ImageNode] Built FLUX prompt (${fluxPrompt.length} chars), dimensions: ${dimensions.width}x${dimensions.height}`
     );
 
-    // Generate image
-    const flux = await FluxImageService.create();
+    // Generate image with user's chosen model
+    const userModel = IMAGE_MODEL_BY_ID[await getImageModelForUser(userId)];
+    const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
     const { stored } = await flux.generateFromPrompt(fluxPrompt, {
       width: dimensions.width,
       height: dimensions.height,
@@ -169,8 +173,7 @@ export async function imageNode(state: ChatGraphState): Promise<Partial<ChatGrap
       safety_tolerance: 2,
     });
 
-    // Increment rate limit counter
-    await imageCounter.incrementCount(userId);
+    await imageCounter.incrementCount(userId, Math.round(userModel.costMultiplier * 100));
     const updatedStatus = await imageCounter.checkLimit(userId);
 
     const imageTimeMs = Date.now() - startTime;
