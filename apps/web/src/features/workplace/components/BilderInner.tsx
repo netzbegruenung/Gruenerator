@@ -1,12 +1,18 @@
 import { getGlobalApiClient } from '@gruenerator/shared/api';
+import {
+  FLUX_VARIANT_ORDER,
+  IMAGE_FAMILIES,
+  IMAGE_MODEL_BY_ID,
+  getDefaultModelForFamily,
+  getImageFamily,
+  type ImageFamilyId,
+  type ImageModelId,
+} from '@gruenerator/shared/models';
 import { useShareStore } from '@gruenerator/shared/share';
 import {
   AIPromptInput,
   Button,
   SettingsDropdown,
-  pillBase,
-  pillInactive,
-  pillActive,
   type SettingConfig,
 } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,15 +31,37 @@ import { cn } from '@/utils/cn';
 
 type SubMode = 'erstellen' | 'bearbeiten' | 'vergroessern';
 
-const SUB_TABS: ReadonlyArray<{ id: SubMode; label: string }> = [
-  { id: 'erstellen', label: 'Erstellen' },
-  { id: 'bearbeiten', label: 'Bearbeiten' },
-  { id: 'vergroessern', label: 'Vergrößern' },
-];
+const SUB_MODE_CONFIG: SettingConfig = {
+  key: 'subMode',
+  label: 'Modus',
+  options: [
+    { id: 'erstellen', label: 'Erstellen' },
+    { id: 'bearbeiten', label: 'Bearbeiten' },
+    { id: 'vergroessern', label: 'Vergrößern' },
+  ],
+  multiple: false,
+};
 
 const ERSTELLEN_MODE_ID = 'imagine';
 const BEARBEITEN_MODE_ID = 'bild-bearbeiten';
 const VERGROESSERN_MODE_ID = 'bild-vergroessern';
+
+const IMAGE_FAMILY_CONFIG: SettingConfig = {
+  key: 'imageFamily',
+  label: 'Modell',
+  options: IMAGE_FAMILIES.map((f) => ({ id: f.id, label: f.name })),
+  multiple: false,
+};
+
+const FLUX_VARIANT_CONFIG: SettingConfig = {
+  key: 'fluxVariant',
+  label: 'Variante',
+  options: FLUX_VARIANT_ORDER.map((id) => ({
+    id,
+    label: IMAGE_MODEL_BY_ID[id].name.replace(/^Flux /, ''),
+  })),
+  multiple: false,
+};
 
 type AspectRatio = '16:9' | '4:3' | '1:1' | '3:4' | '9:16';
 
@@ -307,24 +335,7 @@ const BilderInner: React.FC = memo(() => {
     link.click();
   }, [resultImage, isErstellen, isBearbeiten]);
 
-  const erstellenToolbar = useMemo(() => {
-    if (!erstellenDef?.settings?.length && !usage) return null;
-    return (
-      <>
-        {erstellenDef?.settings?.map((config) => (
-          <SettingsDropdown
-            key={config.key}
-            config={config}
-            value={(modeState[config.key] as string) ?? ''}
-            onChange={(val) => updateField(config.key, val as string)}
-          />
-        ))}
-        {usage && <UsageBadge usage={usage} />}
-      </>
-    );
-  }, [erstellenDef?.settings, modeState, updateField, usage]);
-
-  const bearbeitenToolbar = useMemo(
+  const filePickerPill = useMemo(
     () =>
       sourcePreviewUrl ? (
         <div className="flex items-center gap-1.5 rounded-md border border-grey-200 dark:border-grey-700 bg-background-pure pl-1 pr-1.5 py-0.5">
@@ -354,42 +365,83 @@ const BilderInner: React.FC = memo(() => {
     [sourcePreviewUrl, sourceFile, clearSource]
   );
 
-  const vergroessernToolbar = useMemo(
+  const selectedImageModel = (modeState.imageModel as ImageModelId | undefined) ?? null;
+  const selectedFamily: ImageFamilyId | null = selectedImageModel
+    ? getImageFamily(selectedImageModel)
+    : null;
+
+  const handleFamilyChange = useCallback(
+    (familyId: ImageFamilyId) => {
+      updateField('imageModel', getDefaultModelForFamily(familyId));
+    },
+    [updateField]
+  );
+
+  const handleFluxVariantChange = useCallback(
+    (variantId: ImageModelId) => {
+      updateField('imageModel', variantId);
+    },
+    [updateField]
+  );
+
+  const toolbar = useMemo(
     () => (
       <>
-        {sourcePreviewUrl ? (
-          <div className="flex items-center gap-1.5 rounded-md border border-grey-200 dark:border-grey-700 bg-background-pure pl-1 pr-1.5 py-0.5">
-            <img src={sourcePreviewUrl} alt="" className="size-6 object-cover rounded" />
-            <span className="text-xs text-grey-600 dark:text-grey-300 max-w-[120px] truncate">
-              {sourceFile?.name ?? 'Bild'}
-            </span>
-            <button
-              type="button"
-              onClick={clearSource}
-              className="text-grey-400 hover:text-grey-600 dark:hover:text-grey-200"
-              aria-label="Bild entfernen"
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 text-xs text-grey-500 dark:text-grey-400 hover:text-grey-700 dark:hover:text-grey-200 px-2 py-1 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors"
-          >
-            <ImagePlus className="size-3.5" />
-            Bild hochladen
-          </button>
-        )}
         <SettingsDropdown
-          config={ASPECT_RATIO_CONFIG}
-          value={aspectRatio}
-          onChange={(val) => setAspectRatio(val as AspectRatio)}
+          config={SUB_MODE_CONFIG}
+          value={subMode}
+          onChange={(val) => setSubMode(val as SubMode)}
         />
+        {isErstellen &&
+          erstellenDef?.settings?.map((config) => (
+            <SettingsDropdown
+              key={config.key}
+              config={config}
+              value={(modeState[config.key] as string) ?? ''}
+              onChange={(val) => updateField(config.key, val as string)}
+            />
+          ))}
+        {isErstellen && (
+          <SettingsDropdown
+            config={IMAGE_FAMILY_CONFIG}
+            value={selectedFamily ?? 'flux'}
+            onChange={(val) => handleFamilyChange(val as ImageFamilyId)}
+          />
+        )}
+        {isErstellen && selectedFamily === 'flux' && (
+          <SettingsDropdown
+            config={FLUX_VARIANT_CONFIG}
+            value={selectedImageModel ?? 'flux-pro'}
+            onChange={(val) => handleFluxVariantChange(val as ImageModelId)}
+          />
+        )}
+        {(isBearbeiten || isVergroessern) && filePickerPill}
+        {isVergroessern && (
+          <SettingsDropdown
+            config={ASPECT_RATIO_CONFIG}
+            value={aspectRatio}
+            onChange={(val) => setAspectRatio(val as AspectRatio)}
+          />
+        )}
+        {usage && <UsageBadge usage={usage} />}
       </>
     ),
-    [sourcePreviewUrl, sourceFile, clearSource, aspectRatio]
+    [
+      subMode,
+      isErstellen,
+      isBearbeiten,
+      isVergroessern,
+      erstellenDef?.settings,
+      modeState,
+      updateField,
+      selectedFamily,
+      selectedImageModel,
+      handleFamilyChange,
+      handleFluxVariantChange,
+      filePickerPill,
+      aspectRatio,
+      usage,
+    ]
   );
 
   const loading = isErstellen ? createLoading : isBearbeiten ? editLoading : outpaintLoading;
@@ -400,11 +452,6 @@ const BilderInner: React.FC = memo(() => {
     : isBearbeiten
       ? editError
       : outpaintError;
-  const toolbar = isErstellen
-    ? erstellenToolbar
-    : isBearbeiten
-      ? bearbeitenToolbar
-      : vergroessernToolbar;
   const altText = isErstellen
     ? 'Generiertes Bild'
     : isBearbeiten
@@ -413,22 +460,6 @@ const BilderInner: React.FC = memo(() => {
 
   return (
     <div className="flex flex-col gap-md">
-      <div className="flex justify-center gap-1.5">
-        {SUB_TABS.map((tab) => {
-          const active = tab.id === subMode;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setSubMode(tab.id)}
-              className={cn(pillBase, active ? pillActive : pillInactive)}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
       <input
         ref={fileInputRef}
         type="file"
