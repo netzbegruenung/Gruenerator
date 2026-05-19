@@ -33,12 +33,22 @@ export interface TextModelOption extends BaseModelOption {
   offByDefault?: boolean;
 }
 
+export type ImageFamilyId = 'flux' | 'regolo' | 'ionos';
+
 export interface ImageModelOption extends BaseModelOption {
   modality: 'image';
   id: ImageModelId;
+  family: ImageFamilyId;
   backend: ImageBackend;
   modelPath?: string;
   costMultiplier: number;
+}
+
+export interface ImageFamilyOption {
+  id: ImageFamilyId;
+  name: string;
+  description: string;
+  region: ModelRegion;
 }
 
 export type ModelOption = TextModelOption | ImageModelOption;
@@ -102,8 +112,9 @@ export const MODEL_OPTIONS: ModelOption[] = [
   {
     modality: 'image',
     id: 'flux-pro',
-    name: '⭐ Flux Pro',
-    description: 'Ausgewogen — Standard für produktive Bildgenerierung',
+    family: 'flux',
+    name: 'Flux Pro',
+    description: 'Ausgewogen — Standard',
     backend: 'hosted',
     modelPath: '/v1/flux-2-pro',
     costMultiplier: 1,
@@ -113,7 +124,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
   {
     modality: 'image',
     id: 'flux-klein',
-    name: '⚡ Flux Klein',
+    family: 'flux',
+    name: 'Flux Klein',
     description: 'Schnell & günstig — verbraucht nur ½ Bild pro Generation',
     backend: 'hosted',
     modelPath: '/v1/flux-2-klein-9b',
@@ -124,7 +136,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
   {
     modality: 'image',
     id: 'flux-max',
-    name: '👑 Flux Max',
+    family: 'flux',
+    name: 'Flux Max',
     description: 'Höchste Qualität & Recherche — verbraucht 2 Bilder pro Generation',
     backend: 'hosted',
     modelPath: '/v1/flux-2-max',
@@ -135,6 +148,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   {
     modality: 'image',
     id: 'regolo-image',
+    family: 'regolo',
     name: '🌳 Qwen-Image',
     description: 'Selbst gehostet, klimaneutral',
     backend: 'regolo',
@@ -145,14 +159,44 @@ export const MODEL_OPTIONS: ModelOption[] = [
   {
     modality: 'image',
     id: 'ionos-image',
-    name: 'IONOS Schnell',
-    description: 'EU-Cloud, FLUX.1-schnell',
+    family: 'ionos',
+    name: '🌳 IONOS Schnell',
+    description: 'EU-Cloud, klimaneutral',
     backend: 'ionos',
     costMultiplier: 1,
     icon: 'server',
-    region: 'eu',
+    region: 'self-hosted',
   },
 ];
+
+export const IMAGE_FAMILIES: ImageFamilyOption[] = [
+  { id: 'flux', name: '⭐ Flux', description: 'Black Forest Labs (EU)', region: 'eu' },
+  {
+    id: 'regolo',
+    name: '🌳 Qwen-Image',
+    description: 'Selbst gehostet, klimaneutral',
+    region: 'self-hosted',
+  },
+  {
+    id: 'ionos',
+    name: '🌳 IONOS Schnell',
+    description: 'EU-Cloud, klimaneutral',
+    region: 'self-hosted',
+  },
+];
+
+export const DEFAULT_FLUX_MODEL_ID: ImageModelId = 'flux-pro';
+export const FLUX_VARIANT_ORDER: ImageModelId[] = ['flux-klein', 'flux-pro', 'flux-max'];
+
+export function getImageFamily(id: ImageModelId): ImageFamilyId {
+  return IMAGE_MODEL_BY_ID[id].family;
+}
+
+export function getDefaultModelForFamily(family: ImageFamilyId): ImageModelId {
+  if (family === 'flux') return DEFAULT_FLUX_MODEL_ID;
+  if (family === 'regolo') return 'regolo-image';
+  return 'ionos-image';
+}
 
 export const TEXT_MODELS: TextModelOption[] = MODEL_OPTIONS.filter(
   (m): m is TextModelOption => m.modality === 'text'
