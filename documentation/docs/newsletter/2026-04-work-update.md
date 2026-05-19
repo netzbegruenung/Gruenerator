@@ -1,5 +1,5 @@
 ---
-sidebar_position: 0
+sidebar_position: 1
 title: 'April 2026: Das große Work-Update'
 ---
 
@@ -9,13 +9,13 @@ _Newsletter April 2026_
 
 ---
 
-Wir müssen alle mehr arbeiten, heißt es. Wie es selten heißt: Wir müssen effizienter arbeiten. Aber warum eigentlich nicht? Mit einem KI-assistierten Arbeitsplatz können wir schneller und effizienter werden, ohne den Menschen zu ersetzen. Dafür veröffentliche ich heute das Work-Update. Der neue Grünerator Workplace ist präzise für Vorstandsarbeit, Kreis- und Landesgeschäftsstellen sowie kleine Abgeordnetenbüros erstellt worden. Ich habe versucht, die Workflows beim Erstellen von Pressemitteilungen, Social-Media-Posts und Anträgen so gut es geht nachzuempfinden.
+Wir müssen alle mehr arbeiten, heißt es. Wie es selten heißt: Wir müssen effizienter arbeiten. Aber warum eigentlich nicht? Mit einem KI-assistierten Arbeitsplatz können wir schneller und effizienter werden, ohne den Menschen zu ersetzen. Dafür veröffentliche ich heute das Work-Update. Der neue **Grünerator Workplace** ist präzise für Vorstandsarbeit, Kreis- und Landesgeschäftsstellen sowie kleine Abgeordnetenbüros erstellt worden. Ich habe versucht, die Workflows beim Erstellen von Pressemitteilungen, Social-Media-Posts und Anträgen so gut es geht nachzuempfinden.
 
 ## Grünerator Docs – Grünes Google Docs
 
 Ich muss zugeben: Ich bin großer Fan von Google Docs. Die Einfachheit, gemeinsam mit anderen an Dokumenten zu arbeiten, fand ich immer großartig. Aber für Parteizwecke ein Google-Programm zu verwenden? Schwierig.
 
-Dafür veröffentliche ich endlich ein Feature, an dem ich schon länger arbeite: Grünerator Docs. Grünerator Docs ist ein KI-assistierter Dokumenteneditor, der ähnlich funktioniert wie Notion oder WordPress. Das Design ist clean und arbeitsfokussiert. Ihr könnt verschiedene Dokumententypen erstellen, von abhakbaren To-Do-Listen über Terminpläne bis hin zu Anträgen und Pressemitteilungen.
+Dafür veröffentliche ich endlich ein Feature, an dem ich schon länger arbeite: **Grünerator Docs**. Grünerator Docs ist ein KI-assistierter Dokumenteneditor, der ähnlich funktioniert wie Notion oder WordPress. Das Design ist clean und arbeitsfokussiert. Ihr könnt verschiedene Dokumententypen erstellen, von abhakbaren To-Do-Listen über Terminpläne bis hin zu Anträgen und Pressemitteilungen.
 
 Diese können anschließend geteilt werden, entweder nur für Parteimitglieder (hinter Login) oder öffentlich. Das Teilen von Dokumenten war relativ kompliziert zu programmieren; sollten hier Fehler auftreten, meldet euch gern! Docs basiert auf einer Open-Source-Software, die unter anderem von der deutschen und französischen Regierung getragen wird. Grünerator und Europa – das passt einfach.
 
@@ -23,11 +23,11 @@ Diese können anschließend geteilt werden, entweder nur für Parteimitglieder (
 
 Womit ich nie so wirklich warm wurde, sind Trello-Boards. Da sie jedoch sehr beliebt sind, habe ich mir überlegt, wie man sie intelligent in den Grünerator integrieren kann.
 
-Herausgekommen sind die neuen Grünerator Boards. Sie funktionieren exakt wie jene Trello-Boards, sehen dabei jedoch großartig aus und können mit der Grünerator-KI erstellt werden. In den Boards können neben Kommentaren auch Dokumente aus Grünerator Docs zugeordnet werden. Außerdem arbeiten die Boards kollaborativ – dazu gleich mehr.
+Herausgekommen sind die neuen **Grünerator Boards**. Sie funktionieren exakt wie jene Trello-Boards, sehen dabei jedoch großartig aus und können mit der Grünerator-KI erstellt werden. In den Boards können neben Kommentaren auch Dokumente aus Grünerator Docs zugeordnet werden. Außerdem arbeiten die Boards kollaborativ – dazu gleich mehr.
 
 ## Gruppen und kollaboratives Arbeiten
 
-Erstmals ermöglicht der Grünerator nun gemeinsames Arbeiten. Dafür starte ich ein neues Feature: Gruppen. Diese funktionieren einladungsbasiert und dienen als zentraler Content-Hub für die Zusammenarbeit in eurer Geschäftsstelle, eurem Vorstand oder eurem Social-Media-Team. In Gruppen können Boards, Dokumente, Grüneratoren, Notebooks und Links geteilt sowie Boards und Dokumente gemeinsam bearbeitet werden. Aktuell können nur Admins Inhalte in Gruppen einpflegen – das ist zunächst so gewollt, ich passe es aber ggf. später an.
+Erstmals ermöglicht der Grünerator nun gemeinsames Arbeiten. Dafür starte ich ein neues Feature: **Gruppen**. Diese funktionieren einladungsbasiert und dienen als zentraler Content-Hub für die Zusammenarbeit in eurer Geschäftsstelle, eurem Vorstand oder eurem Social-Media-Team. In Gruppen können Boards, Dokumente, Grüneratoren, Notebooks und Links geteilt sowie Boards und Dokumente gemeinsam bearbeitet werden. Aktuell können nur Admins Inhalte in Gruppen einpflegen – das ist zunächst so gewollt, ich passe es aber ggf. später an.
 
 Meiner Meinung nach kann dies ein echter Meilenstein für die gemeinsame, KI-assistierte Arbeit werden. Allerdings braucht es noch etwas Zeit, da kollaborative Features extrem schwer zu testen und zu debuggen sind. Dafür brauche ich jetzt deine Hilfe!
 
