@@ -220,7 +220,8 @@ jobs:
           merge-multiple: true
 
       - name: Aggregate summaries
-        run: pnpm --filter @gruenerator/api run sync:aggregate -- --dir summaries/
+        # pnpm --filter sets cwd to apps/api/, so pass an absolute path.
+        run: pnpm --filter @gruenerator/api run sync:aggregate -- --dir "${{ github.workspace }}/summaries/"
         env:
           BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
           BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
@@ -321,6 +322,8 @@ jobs:
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
           QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
+          # pnpm --filter sets cwd to apps/api/; override the cwd-relative default.
+          STATS_OUTPUT_PATH: ${{ github.workspace }}/documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
 
       - name: Create PR for stats page update
         if: always()
@@ -418,6 +421,8 @@ jobs:
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
           QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
+          # pnpm --filter sets cwd to apps/api/; override the cwd-relative default.
+          STATS_OUTPUT_PATH: ${{ github.workspace }}/documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
 
       - name: Create PR for stats page update
         if: always()
