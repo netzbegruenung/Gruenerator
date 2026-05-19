@@ -1,4 +1,5 @@
 import { SYSTEM_AGENTS, type Agent } from '@gruenerator/shared/agents';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import apiClient from '../../components/utils/apiClient';
@@ -114,11 +115,15 @@ export function useShareSystemAgentWithGroup() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ groupId, identifier }: { groupId: string; identifier: string }) => {
-      await apiClient.post(`/auth/groups/${groupId}/share`, {
-        contentType: 'system_agents',
-        contentId: identifier,
-        permissions: { read: true, write: false, collaborative: false },
+      const res = await getContractsClient().groups.shareContent({
+        params: { groupId },
+        body: {
+          contentType: 'system_agents',
+          contentId: identifier,
+          permissions: { read: true, write: false, collaborative: false },
+        },
       });
+      if (res.status !== 200) throw new Error('share failed');
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['shared-system-agents'] });
