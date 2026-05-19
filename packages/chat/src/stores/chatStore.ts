@@ -1,18 +1,17 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
-  TEXT_MODELS,
-  TEXT_MODEL_BY_ID,
-  type TextModelId,
-  type TextModelOption,
-  type TextProvider,
+  MODEL_OPTIONS,
+  MODEL_BY_ID,
+  type ModelId,
+  type ModelOption,
+  type Provider,
 } from '@gruenerator/shared/models';
+import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
 import type { ChatApiClient } from '../context/ChatContext';
 
-export const MODEL_OPTIONS = TEXT_MODELS;
-export type ModelId = TextModelId;
-export type ModelOption = TextModelOption;
-export type Provider = TextProvider;
+export { MODEL_OPTIONS, AUTO_MODEL_ID };
+export type { ModelId, ModelOption, Provider, AutoModelId, SelectedModel };
 
 export interface CompactionState {
   summary: string | null;
@@ -75,7 +74,7 @@ interface ThreadSettings {
 interface AgentState {
   selectedAgentId: string | null;
   selectedProvider: Provider;
-  selectedModel: ModelId;
+  selectedModel: SelectedModel;
   currentThreadId: string | null;
   currentThreadTitle: string | null;
   enabledTools: Record<ToolKey, boolean>;
@@ -100,7 +99,7 @@ interface AgentState {
   setActiveSkillMention: (mention: string | null) => void;
   setSelectedAgent: (agentId: string | null) => void;
   setSelectedProvider: (provider: Provider) => void;
-  setSelectedModel: (model: ModelId) => void;
+  setSelectedModel: (model: SelectedModel) => void;
   setCurrentThread: (threadId: string | null) => void;
   setCurrentThreadTitle: (title: string | null) => void;
   toggleTool: (tool: ToolKey) => void;
@@ -169,7 +168,11 @@ export const useAgentStore = create<AgentState>()(
       setSelectedProvider: (provider) => set({ selectedProvider: provider }),
 
       setSelectedModel: (model) => {
-        const modelOption = TEXT_MODEL_BY_ID[model];
+        if (model === AUTO_MODEL_ID) {
+          set({ selectedModel: model });
+          return;
+        }
+        const modelOption = MODEL_OPTIONS.find((m) => m.id === model);
         if (modelOption) {
           set({ selectedModel: model, selectedProvider: modelOption.provider });
         }
@@ -390,7 +393,7 @@ export const useAgentStore = create<AgentState>()(
         }
         if (version < 8) {
           const current = state.selectedModel as string | undefined;
-          const def = current ? TEXT_MODEL_BY_ID[current as TextModelId] : undefined;
+          const def = current ? MODEL_BY_ID[current as ModelId] : undefined;
           if (def?.offByDefault) {
             state.selectedModel = 'gemma-litellm';
             state.selectedProvider = 'litellm';

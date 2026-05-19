@@ -178,6 +178,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit',
+    autoRoutingHint: 'creative',
     title: 'Öffentlichkeitsarbeit',
     iconKey: 'megaphone',
     pinnedToSidebar: true,
@@ -245,6 +246,7 @@ const BASE_AGENTS = [
   // wrong LV. Skills `/presse-<lv>` and `/social-<lv>` route to these agents.
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
+    autoRoutingHint: 'creative',
     slug: 'gruene-berlin',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Berlin',
@@ -286,6 +288,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
+    autoRoutingHint: 'creative',
     slug: 'gruene-hamburg',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Hamburg',
@@ -327,6 +330,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
+    autoRoutingHint: 'creative',
     slug: 'gruene-mv',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit MV',
@@ -368,6 +372,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
+    autoRoutingHint: 'creative',
     slug: 'gruene-thueringen',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Thüringen',
@@ -409,6 +414,7 @@ const BASE_AGENTS = [
   },
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
+    autoRoutingHint: 'creative',
     slug: 'gruene-brandenburg',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Brandenburg',
@@ -457,6 +463,7 @@ const BASE_AGENTS = [
   // deutscher Landesverbands-PMs.
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-at',
+    autoRoutingHint: 'creative',
     slug: 'gruene-oesterreich',
     audience: 'de-AT',
     title: 'Öffentlichkeitsarbeit Österreich',
@@ -710,6 +717,7 @@ Beispielausgabe:
   {
     iconKey: 'microphone',
     identifier: 'gruenerator-rede-schreiber',
+    autoRoutingHint: 'creative',
     title: 'Rede',
     description:
       'Erstellt überzeugende politische Reden für {{partyName}} mit Einstiegsideen, Kernargumenten und Tipps für die*den Redner*in.',
@@ -766,6 +774,7 @@ Beispielausgabe:
   {
     iconKey: 'book-open-text',
     identifier: 'gruenerator-wahlprogramm',
+    autoRoutingHint: 'creative',
     title: 'Wahlprogramm',
     description:
       'Erstellt strukturierte Wahlprogramm-Kapitel mit konkreten Forderungen und zukunftsorientierter Sprache.',
@@ -1035,6 +1044,7 @@ Schritt 6: Überarbeite bei Score unter 4.`;
 
 const LV_PR_AGENTS: Agent[] = LV_PR_SPECS.map((spec) => ({
   identifier: `gruenerator-oeffentlichkeitsarbeit-${spec.lv}`,
+  autoRoutingHint: 'creative',
   audience: 'de-DE',
   title: `Öffentlichkeitsarbeit (${spec.title})`,
   description: `Erstellt Pressemitteilungen und Social-Media-Inhalte für die Grünen ${spec.title} — mit regionaler Verankerung und LV-spezifischen Vorlagen.`,
