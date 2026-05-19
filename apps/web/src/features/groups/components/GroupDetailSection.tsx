@@ -323,6 +323,8 @@ const GroupDetailSection = memo(
           onDeleteLink={deleteLink}
           isAddingLink={isAddingLink}
           isUpdatingLink={isUpdatingLink}
+          onSuccessMessage={onSuccessMessage}
+          onErrorMessage={onErrorMessage}
         />
       </motion.div>
     );

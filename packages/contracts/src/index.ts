@@ -46,6 +46,7 @@ export {
   imageModelPreferenceContract,
   adminVorlagenContract,
   canvasAiContract,
+  groupsContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -78,3 +79,4 @@ export * from './schemas/imageModelPreference.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/skill.js';
+export * from './schemas/groups.js';
