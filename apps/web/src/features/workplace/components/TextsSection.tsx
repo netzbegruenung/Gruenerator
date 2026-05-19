@@ -1,7 +1,7 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { CardGrid, SectionHeader, Skeleton } from '@gruenerator/ui';
 import React, { useCallback, useState } from 'react';
 
-import apiClient from '../../../components/utils/apiClient';
 import { useUserTexts } from '../../auth/hooks/useProfileData';
 import { useGroups, type GroupSummary } from '../../groups/hooks/useGroups';
 
@@ -30,11 +30,15 @@ const TextsSection = React.memo(() => {
 
   const handleShareToGroup = useCallback(async (textId: string | number, groupId: string) => {
     try {
-      await apiClient.post(`/auth/groups/${groupId}/share`, {
-        contentType: 'user_documents',
-        contentId: textId,
-        permissions: { read: true, write: false, collaborative: false },
+      const res = await getContractsClient().groups.shareContent({
+        params: { groupId },
+        body: {
+          contentType: 'user_documents',
+          contentId: String(textId),
+          permissions: { read: true, write: false, collaborative: false },
+        },
       });
+      if (res.status !== 200) throw new Error('share failed');
       setSharedTextId(textId);
       setTimeout(() => setSharedTextId(null), 2000);
     } catch {
