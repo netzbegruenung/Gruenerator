@@ -30,3 +30,4 @@ export { modelPreferencesContract } from './modelPreferencesContract.js';
 export { imageModelPreferenceContract } from './imageModelPreferenceContract.js';
 export { adminVorlagenContract } from './adminVorlagenContract.js';
 export { canvasAiContract } from './canvasAi.js';
+export { groupsContract } from './groupsContract.js';
