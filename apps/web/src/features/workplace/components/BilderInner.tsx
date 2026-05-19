@@ -67,7 +67,7 @@ const FLUX_VARIANT_CONFIG: SettingConfig = {
   multiple: false,
 };
 
-type AspectRatio = '16:9' | '4:3' | '1:1' | '3:4' | '9:16';
+type AspectRatio = '16:9' | '4:3' | '1:1' | '3:4' | '9:16' | 'custom';
 
 const ASPECT_RATIO_CONFIG: SettingConfig = {
   key: 'aspectRatio',
@@ -78,9 +78,14 @@ const ASPECT_RATIO_CONFIG: SettingConfig = {
     { id: '1:1', label: 'Quadrat 1:1' },
     { id: '3:4', label: 'Hochformat 3:4' },
     { id: '9:16', label: 'Hochformat 9:16' },
+    { id: 'custom', label: 'Frei (Pixel)' },
   ],
   multiple: false,
 };
+
+const MIN_CUSTOM_SIDE = 256;
+const MAX_CUSTOM_SIDE = 2048;
+const MAX_CUSTOM_AREA = 4_194_304;
 
 interface UsageStatus {
   count: number;
@@ -158,7 +163,17 @@ const BilderInner: React.FC = memo(() => {
           : hintergrundDef;
 
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
+  const [customWidth, setCustomWidth] = useState<number>(1280);
+  const [customHeight, setCustomHeight] = useState<number>(1280);
   const [outpaintLoading, setOutpaintLoading] = useState(false);
+  const isCustomAspect = aspectRatio === 'custom';
+  const customArea = customWidth * customHeight;
+  const customSizeValid =
+    customWidth >= MIN_CUSTOM_SIDE &&
+    customWidth <= MAX_CUSTOM_SIDE &&
+    customHeight >= MIN_CUSTOM_SIDE &&
+    customHeight <= MAX_CUSTOM_SIDE &&
+    customArea <= MAX_CUSTOM_AREA;
   const [outpaintError, setOutpaintError] = useState<string | null>(null);
 
   const { state: modeState, updateField } = useModeState(ERSTELLEN_MODE_ID);
@@ -374,12 +389,22 @@ const BilderInner: React.FC = memo(() => {
 
   const handleSubmitOutpaint = useCallback(async () => {
     if (!sourceFile || outpaintLoading) return;
+    if (isCustomAspect && !customSizeValid) {
+      setOutpaintError(
+        `Ungültige Größe — ${MIN_CUSTOM_SIDE}–${MAX_CUSTOM_SIDE}px pro Seite, max. ${MAX_CUSTOM_AREA / 1_000_000} MP.`
+      );
+      return;
+    }
     setOutpaintLoading(true);
     setOutpaintError(null);
     try {
       const form = new FormData();
       form.append('image', sourceFile);
       form.append('aspectRatio', aspectRatio);
+      if (isCustomAspect) {
+        form.append('width', String(customWidth));
+        form.append('height', String(customHeight));
+      }
       const res = await getGlobalApiClient().post<{
         success: boolean;
         image?: { base64?: string };
@@ -390,13 +415,18 @@ const BilderInner: React.FC = memo(() => {
       }
       const base64 = res.data.image.base64;
       setResult(base64, false);
-      const title = `Vergrößert ${aspectRatio} — ${sourceFile.name}`;
+      const sizeLabel = isCustomAspect ? `${customWidth}×${customHeight}` : aspectRatio;
+      const title = `Vergrößert ${sizeLabel} — ${sourceFile.name}`;
       createImageShare({
         imageData: base64,
         title: title.slice(0, 100),
         imageType: 'imagine',
         status: 'ready',
-        metadata: { sourceFilename: sourceFile.name, aspectRatio },
+        metadata: {
+          sourceFilename: sourceFile.name,
+          aspectRatio,
+          ...(isCustomAspect && { customWidth, customHeight }),
+        },
       })
         .then(() => queryClient.invalidateQueries({ queryKey: ['recent-activity'] }))
         .catch(() => {});
@@ -406,7 +436,18 @@ const BilderInner: React.FC = memo(() => {
     } finally {
       setOutpaintLoading(false);
     }
-  }, [sourceFile, outpaintLoading, aspectRatio, setResult, createImageShare, queryClient]);
+  }, [
+    sourceFile,
+    outpaintLoading,
+    aspectRatio,
+    isCustomAspect,
+    customWidth,
+    customHeight,
+    customSizeValid,
+    setResult,
+    createImageShare,
+    queryClient,
+  ]);
 
   const onSubmit = useCallback(() => {
     if (isErstellen) {
@@ -448,6 +489,43 @@ const BilderInner: React.FC = memo(() => {
     link.download = `gruenerator-${slug}-${Date.now()}.png`;
     link.click();
   }, [resultImage, isErstellen, isBearbeiten, isBegruenen, isVergroessern]);
+
+  const vergroessernDropZone = useMemo(
+    () =>
+      sourcePreviewUrl ? (
+        <div className="flex items-center gap-3 py-1">
+          <img
+            src={sourcePreviewUrl}
+            alt=""
+            className="size-12 object-cover rounded-md border border-grey-200 dark:border-grey-700"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium truncate text-foreground">
+              {sourceFile?.name ?? 'Bild'}
+            </div>
+            <div className="text-xs text-grey-500">Bereit zum Vergrößern</div>
+          </div>
+          <button
+            type="button"
+            onClick={clearSource}
+            className="text-grey-400 hover:text-grey-700 dark:hover:text-grey-200 p-1"
+            aria-label="Bild entfernen"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="w-full flex items-center gap-2 py-1 text-grey-500 dark:text-grey-400 hover:text-foreground transition-colors"
+        >
+          <ImagePlus className="size-4" />
+          <span className="text-[15px]">Bild zum Vergrößern hochladen</span>
+        </button>
+      ),
+    [sourcePreviewUrl, sourceFile, clearSource]
+  );
 
   const filePickerPill = useMemo(
     () =>
@@ -529,13 +607,47 @@ const BilderInner: React.FC = memo(() => {
             onChange={(val) => handleFluxVariantChange(val as ImageModelId)}
           />
         )}
-        {(isBearbeiten || isBegruenen || isVergroessern || isHintergrund) && filePickerPill}
+        {(isBearbeiten || isBegruenen || isHintergrund) && filePickerPill}
         {isVergroessern && (
           <SettingsDropdown
             config={ASPECT_RATIO_CONFIG}
             value={aspectRatio}
             onChange={(val) => setAspectRatio(val as AspectRatio)}
           />
+        )}
+        {isVergroessern && isCustomAspect && (
+          <span
+            className={cn(
+              'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs',
+              customSizeValid
+                ? 'border-grey-200 dark:border-grey-700 text-grey-700 dark:text-grey-300'
+                : 'border-red-300 text-red-600 dark:border-red-700 dark:text-red-400'
+            )}
+            title={`${MIN_CUSTOM_SIDE}–${MAX_CUSTOM_SIDE}px pro Seite, max. ${MAX_CUSTOM_AREA / 1_000_000} MP`}
+          >
+            <input
+              type="number"
+              min={MIN_CUSTOM_SIDE}
+              max={MAX_CUSTOM_SIDE}
+              step={8}
+              value={customWidth}
+              onChange={(e) => setCustomWidth(Number(e.target.value) || 0)}
+              className="w-16 bg-transparent text-right outline-none"
+              aria-label="Breite in Pixeln"
+            />
+            <span className="text-grey-400">×</span>
+            <input
+              type="number"
+              min={MIN_CUSTOM_SIDE}
+              max={MAX_CUSTOM_SIDE}
+              step={8}
+              value={customHeight}
+              onChange={(e) => setCustomHeight(Number(e.target.value) || 0)}
+              className="w-16 bg-transparent outline-none"
+              aria-label="Höhe in Pixeln"
+            />
+            <span className="text-grey-400">px</span>
+          </span>
         )}
         {usage && <UsageBadge usage={usage} />}
       </>
@@ -547,6 +659,10 @@ const BilderInner: React.FC = memo(() => {
       isBegruenen,
       isVergroessern,
       isHintergrund,
+      isCustomAspect,
+      customWidth,
+      customHeight,
+      customSizeValid,
       erstellenDef?.settings,
       modeState,
       updateField,
@@ -609,6 +725,10 @@ const BilderInner: React.FC = memo(() => {
         placeholder={activeDef?.placeholder ?? ''}
         examples={activeDef?.examples}
         toolbar={toolbar}
+        inputAreaOverride={isVergroessern ? vergroessernDropZone : undefined}
+        canSubmit={
+          isVergroessern ? !!sourceFile && (!isCustomAspect || customSizeValid) : undefined
+        }
       />
 
       {resultImage && (
