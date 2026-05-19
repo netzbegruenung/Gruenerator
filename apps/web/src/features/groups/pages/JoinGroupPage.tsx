@@ -31,7 +31,7 @@ const JoinGroupPage = () => {
         params: { joinToken: joinToken ?? '' },
       });
       if (res.status !== 200) {
-        throw new Error(res.body.message ?? 'Ungültiger Einladungslink');
+        throw new Error('Ungültiger Einladungslink');
       }
       return { group: { name: res.body.group.name }, alreadyMember: res.body.alreadyMember };
     },
