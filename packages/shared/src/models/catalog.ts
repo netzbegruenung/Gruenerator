@@ -81,7 +81,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     modality: 'text',
     id: 'litellm',
     name: '🌳 GPT-OSS',
-    description: 'Selbst gehostet bei Verdigado, Regolo als Overflow',
+    description: 'Selbst gehostet bei Verdigado',
     model: 'gpt-oss:120b',
     provider: 'litellm',
     icon: 'server',
