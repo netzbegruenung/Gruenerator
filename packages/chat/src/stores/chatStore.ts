@@ -176,7 +176,8 @@ export const useAgentStore = create<AgentState>()(
           set({ selectedModel: model });
           return;
         }
-        const modelOption = model in TEXT_MODEL_BY_ID ? TEXT_MODEL_BY_ID[model as TextModelId] : undefined;
+        const modelOption =
+          model in TEXT_MODEL_BY_ID ? TEXT_MODEL_BY_ID[model as TextModelId] : undefined;
         if (modelOption) {
           set({ selectedModel: model, selectedProvider: modelOption.provider });
         }
