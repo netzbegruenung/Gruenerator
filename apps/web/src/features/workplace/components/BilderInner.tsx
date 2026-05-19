@@ -283,9 +283,7 @@ const BilderInner: React.FC = memo(() => {
           >
             <X className="size-4" />
           </button>
-          <div
-            className={cn('flex justify-center', !isErstellen && 'bg-grey-50 dark:bg-grey-900')}
-          >
+          <div className={cn('flex justify-center', !isErstellen && 'bg-grey-50 dark:bg-grey-900')}>
             <img
               src={resultImage}
               alt={altText}
