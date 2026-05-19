@@ -539,8 +539,20 @@ async function startWorker(): Promise<void> {
     next();
   });
 
-  // Sentry error handler (must be before custom error handler)
-  Sentry.setupExpressErrorHandler(app);
+  // Sentry error handler (must be before custom error handler).
+  //
+  // Sentry's default `shouldHandleError` only captures 5xx, which silently
+  // drops every Better Auth credential / OAuth-state / JWT failure (all 4xx).
+  // Widen to also capture 400/401/403 — the auth failure universe — while
+  // still excluding noisy 404s and benign 422 validations.
+  Sentry.setupExpressErrorHandler(app, {
+    shouldHandleError(error) {
+      const raw = error.statusCode ?? error.status ?? error.output?.statusCode ?? 500;
+      const status = typeof raw === 'string' ? Number.parseInt(raw, 10) : raw;
+      if (!Number.isFinite(status)) return true;
+      return status >= 500 || status === 400 || status === 401 || status === 403;
+    },
+  });
 
   // Error handler
   app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
