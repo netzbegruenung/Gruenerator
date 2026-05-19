@@ -114,6 +114,15 @@ export interface GenerateFromImageOptions extends SubmitOptions, PollOptions {
   seed?: number;
 }
 
+export interface OutpaintOptions extends PollOptions {
+  width: number;
+  height: number;
+  output_format?: 'jpeg' | 'png';
+  reference_offset_x?: number;
+  reference_offset_y?: number;
+  auto_crop?: boolean;
+}
+
 class FluxImageService {
   private apiKey: string;
   private baseUrl: string;
@@ -505,6 +514,64 @@ class FluxImageService {
     }
 
     console.log(`[FluxImageService] Image-to-image generation completed successfully`);
+    const stored = await this.download(result.result.sample, {
+      extension: options.output_format === 'png' ? 'png' : 'jpg',
+    });
+    return { request, result, stored };
+  }
+
+  /**
+   * Outpainting via FLUX Tools — extends an image beyond its borders without
+   * a prompt. Always hits the hosted BFL `/v1/flux-tools/outpainting-v1`
+   * endpoint regardless of which backend the service was constructed with;
+   * outpainting is its own paid endpoint and isn't model-parameterized.
+   */
+  async outpaintImage(imageBuffer: Buffer, options: OutpaintOptions): Promise<GenerateResult> {
+    const url = `${this.baseUrl}/v1/flux-tools/outpainting-v1`;
+    const headers = {
+      accept: 'application/json',
+      'Content-Type': 'application/json',
+      'x-key': this.apiKey,
+    };
+    const base64 = imageBuffer.toString('base64');
+
+    const body: Record<string, unknown> = {
+      input_image: base64,
+      width: options.width,
+      height: options.height,
+      output_format: options.output_format || 'jpeg',
+    };
+    if (typeof options.reference_offset_x === 'number') {
+      body.reference_offset_x = options.reference_offset_x;
+    }
+    if (typeof options.reference_offset_y === 'number') {
+      body.reference_offset_y = options.reference_offset_y;
+    }
+    if (options.auto_crop) body.auto_crop = true;
+
+    console.log(
+      `[FluxImageService] Submitting outpainting request to ${url}, target ${options.width}x${options.height}, source size: ${Math.round(imageBuffer.length / 1024)}KB`
+    );
+
+    const request = await this.executeWithRetry(async (family?: number) => {
+      const axiosConfig: AxiosConfigWithFamily = {
+        headers,
+        timeout: this.retryConfig.networkTimeoutMs,
+      };
+      if (family) axiosConfig.family = family as 4 | 6;
+
+      const res = await axios.post<SubmitResponse>(url, body, axiosConfig);
+      return res.data;
+    }, 'outpaint');
+
+    const { id, polling_url } = request;
+    console.log(`[FluxImageService] Outpainting submitted, ID: ${id}`);
+
+    const result = await this.poll(polling_url, id, options);
+    if (result?.status !== 'Ready' || !result?.result?.sample) {
+      throw new Error('No sample URL in outpainting result');
+    }
+
     const stored = await this.download(result.result.sample, {
       extension: options.output_format === 'png' ? 'png' : 'jpg',
     });
