@@ -165,8 +165,11 @@ NotebookSection.displayName = 'NotebookSection';
 
 const COLLAPSE_THRESHOLD = 3;
 
+const isOwnedCollection = (c: NotebookCollection): boolean =>
+  c.access_source == null || c.access_source === 'owned';
+
 interface EigeneNotebooksProps {
-  qaCollections: { id: string; name: string }[];
+  qaCollections: NotebookCollection[];
   onView: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
@@ -191,14 +194,19 @@ const EigeneNotebooks = memo(
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [sharedInfo, setSharedInfo] = useState<string | null>(null);
     const [shareError, setShareError] = useState<string | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
 
     const { userGroups = [] } = useGroups({ isActive: qaCollections.length > 0 });
 
     const handleDelete = async (id: string, name: string) => {
       if (window.confirm(`Notebook "${name}" wirklich löschen?`)) {
         setDeletingId(id);
+        setDeleteError(null);
         try {
           await onDelete(id);
+        } catch {
+          setDeleteError(id);
+          setTimeout(() => setDeleteError(null), 2000);
         } finally {
           setDeletingId(null);
         }
@@ -299,7 +307,7 @@ const EigeneNotebooks = memo(
                               <HiShare />
                               {copiedId === c.id ? 'Link kopiert!' : 'Link kopieren'}
                             </DropdownMenuItem>
-                            {userGroups.length > 0 && (
+                            {isOwnedCollection(c) && userGroups.length > 0 && (
                               <>
                                 <DropdownMenuSeparator />
                                 {(userGroups as { id: string; name: string }[]).map((group) => (
@@ -315,14 +323,22 @@ const EigeneNotebooks = memo(
                             )}
                           </DropdownMenuSubContent>
                         </DropdownMenuSub>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => handleDelete(c.id, c.name)}
-                        >
-                          <HiOutlineTrash />
-                          {deletingId === c.id ? 'Wird gelöscht…' : 'Löschen'}
-                        </DropdownMenuItem>
+                        {isOwnedCollection(c) && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => handleDelete(c.id, c.name)}
+                            >
+                              <HiOutlineTrash />
+                              {deleteError === c.id
+                                ? 'Fehler!'
+                                : deletingId === c.id
+                                  ? 'Wird gelöscht…'
+                                  : 'Löschen'}
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
