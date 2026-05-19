@@ -279,3 +279,79 @@ export const groupLinkResponseSchema = z.object({
 export const groupOkResponseSchema = z.object({
   success: z.literal(true),
 });
+
+// ── Content sharing (migrated from the legacy groupContent.ts routes) ──────────
+
+export const groupContentTypeSchema = z.enum([
+  'documents',
+  'custom_generators',
+  'notebook_collections',
+  'user_documents',
+  'database',
+  'collaborative_documents',
+  'system_notebooks',
+  'system_agents',
+  'canvas_template',
+  'nextcloud_share_link',
+]);
+export type GroupContentType = z.infer<typeof groupContentTypeSchema>;
+
+export const shareContentBodySchema = z.object({
+  contentType: groupContentTypeSchema,
+  contentId: z.string().min(1, 'Content-ID ist erforderlich.'),
+  permissions: z
+    .object({
+      read: z.boolean().nullish(),
+      write: z.boolean().nullish(),
+      collaborative: z.boolean().nullish(),
+    })
+    .nullish(),
+});
+export type ShareContentBody = z.infer<typeof shareContentBodySchema>;
+
+export const unshareContentBodySchema = z.object({
+  contentType: groupContentTypeSchema,
+  contentId: z.string().min(1, 'Content-ID ist erforderlich.'),
+});
+export type UnshareContentBody = z.infer<typeof unshareContentBodySchema>;
+
+export const contentPermissionsBodySchema = z.object({
+  contentType: groupContentTypeSchema,
+  permissions: z.record(z.boolean()),
+});
+export type ContentPermissionsBody = z.infer<typeof contentPermissionsBodySchema>;
+
+export const deleteContentBodySchema = z.object({
+  contentType: groupContentTypeSchema,
+});
+export type DeleteContentBody = z.infer<typeof deleteContentBodySchema>;
+
+/**
+ * `GET /content` returns a fixed envelope keyed by display bucket, but each
+ * bucket holds heterogeneous, dynamically-hydrated items (different source
+ * tables per content type). The frontend already narrows these per-bucket via
+ * its own casts, so the wire contract keeps items as loose records.
+ */
+const groupContentBucketSchema = z.array(z.record(z.unknown()));
+
+export const groupContentResponseSchema = z.object({
+  success: z.literal(true),
+  content: z.object({
+    documents: groupContentBucketSchema,
+    generators: groupContentBucketSchema,
+    notebooks: groupContentBucketSchema,
+    texts: groupContentBucketSchema,
+    templates: groupContentBucketSchema,
+    collaborative_documents: groupContentBucketSchema,
+    system_notebooks: groupContentBucketSchema,
+    system_agents: groupContentBucketSchema,
+    canvas_templates: groupContentBucketSchema,
+  }),
+});
+export type GroupContentResponse = z.infer<typeof groupContentResponseSchema>;
+
+export const groupVorlagenResponseSchema = z.object({
+  success: z.literal(true),
+  vorlagen: z.array(z.record(z.unknown())),
+  tags: z.array(z.string()),
+});

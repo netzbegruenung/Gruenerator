@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +17,6 @@ import { useNavigate } from 'react-router-dom';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import apiClient from '../../components/utils/apiClient';
 import { getIcon } from '../../config/icons';
 import { useGroups } from '../../features/groups/hooks/useGroups';
 import { useBoardsTyped } from '../../hooks/useBoardsTyped';
@@ -48,11 +48,15 @@ function BoardsListPage() {
 
   const handleShareToGroup = async (boardId: string, groupId: string) => {
     try {
-      await apiClient.post(`/auth/groups/${groupId}/share`, {
-        contentType: 'collaborative_documents',
-        contentId: boardId,
-        permissions: { read: true, write: false, collaborative: false },
+      const res = await getContractsClient().groups.shareContent({
+        params: { groupId },
+        body: {
+          contentType: 'collaborative_documents',
+          contentId: boardId,
+          permissions: { read: true, write: false, collaborative: false },
+        },
       });
+      if (res.status !== 200) throw new Error('share failed');
       setSharedInfo(boardId);
       setTimeout(() => setSharedInfo(null), 2000);
     } catch {
