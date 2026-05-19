@@ -77,3 +77,4 @@ export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/canvasAi.js';
+export * from './schemas/skill.js';
