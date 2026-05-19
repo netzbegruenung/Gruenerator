@@ -4,15 +4,18 @@ interface UniversalEditResponse {
   image: string | { base64: string; filename?: string };
 }
 
+export type ImageEditType = 'universal' | 'green-edit';
+
 export async function editAiImage(
   image: File,
-  instruction: string
+  instruction: string,
+  editType: ImageEditType = 'universal'
 ): Promise<{ file: File; objectUrl: string; base64: string }> {
   const form = new FormData();
   form.append('image', image);
   form.append('text', instruction);
   form.append('precision', 'true');
-  form.append('type', 'universal');
+  form.append('type', editType);
 
   const response = await apiClient.post<UniversalEditResponse>('/flux/green-edit/prompt', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
