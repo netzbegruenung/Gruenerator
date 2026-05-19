@@ -27,5 +27,6 @@ export { unsplashContract } from './unsplashContract.js';
 export { notificationsContract } from './notificationsContract.js';
 export { emailContract } from './emailContract.js';
 export { modelPreferencesContract } from './modelPreferencesContract.js';
+export { imageModelPreferenceContract } from './imageModelPreferenceContract.js';
 export { adminVorlagenContract } from './adminVorlagenContract.js';
 export { canvasAiContract } from './canvasAi.js';

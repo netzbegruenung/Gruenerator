@@ -21,7 +21,7 @@ import {
   RuntimeAdapterProvider,
   ExportedMessageRepository,
 } from '@assistant-ui/react';
-import { type ModelId } from '@gruenerator/shared/models';
+import { type TextModelId } from '@gruenerator/shared/models';
 import { createChatApiClient } from '../context/ChatContext';
 import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore, type ChatConfig } from '../stores/chatConfigStore';
@@ -59,7 +59,7 @@ interface GrueneratorChatProviderProps {
   getExternalThreads?: () => ExternalThreadEntry[];
   onExternalThreadClick?: (externalId: string) => void;
   activePath?: string;
-  enabledModelIds?: ReadonlySet<ModelId> | null;
+  enabledModelIds?: ReadonlySet<TextModelId> | null;
 }
 
 interface PersistedToolCall {

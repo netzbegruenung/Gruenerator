@@ -1,16 +1,18 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
-  MODEL_OPTIONS,
-  MODEL_BY_ID,
-  type ModelId,
-  type ModelOption,
-  type Provider,
+  TEXT_MODELS,
+  TEXT_MODEL_BY_ID,
+  type TextModelId,
+  type TextModelOption,
+  type TextProvider,
 } from '@gruenerator/shared/models';
 import type { ChatApiClient } from '../context/ChatContext';
 
-export { MODEL_OPTIONS };
-export type { ModelId, ModelOption, Provider };
+export const MODEL_OPTIONS = TEXT_MODELS;
+export type ModelId = TextModelId;
+export type ModelOption = TextModelOption;
+export type Provider = TextProvider;
 
 export interface CompactionState {
   summary: string | null;
@@ -167,7 +169,7 @@ export const useAgentStore = create<AgentState>()(
       setSelectedProvider: (provider) => set({ selectedProvider: provider }),
 
       setSelectedModel: (model) => {
-        const modelOption = MODEL_OPTIONS.find((m) => m.id === model);
+        const modelOption = TEXT_MODEL_BY_ID[model];
         if (modelOption) {
           set({ selectedModel: model, selectedProvider: modelOption.provider });
         }
@@ -388,7 +390,7 @@ export const useAgentStore = create<AgentState>()(
         }
         if (version < 8) {
           const current = state.selectedModel as string | undefined;
-          const def = current ? MODEL_BY_ID[current as ModelId] : undefined;
+          const def = current ? TEXT_MODEL_BY_ID[current as TextModelId] : undefined;
           if (def?.offByDefault) {
             state.selectedModel = 'gemma-litellm';
             state.selectedProvider = 'litellm';

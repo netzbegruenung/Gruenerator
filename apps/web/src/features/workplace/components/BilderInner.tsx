@@ -15,6 +15,7 @@ import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 import { useLightbox } from '../../image-studio/hooks/useLightbox';
 import { editAiImage } from '../../image-studio/services/imageEditingService';
+import { useImageModelPreference } from '../../models/hooks/useImageModelPreference';
 import { useModeState } from '../../texte/hooks/useModeState';
 import { MODE_MAP } from '../../texte/modes';
 
@@ -60,6 +61,16 @@ const BilderInner: React.FC = memo(() => {
     loading: createLoading,
     error: createError,
   } = useApiSubmit(erstellenDef?.endpoint ?? '/imagine/pure');
+
+  const { defaultImageModel, isLoading: isPrefLoading } = useImageModelPreference();
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current || isPrefLoading) return;
+    seededRef.current = true;
+    if (defaultImageModel !== modeState.imageModel) {
+      updateField('imageModel', defaultImageModel);
+    }
+  }, [isPrefLoading, defaultImageModel, modeState.imageModel, updateField]);
 
   useEffect(
     () => () => {
@@ -115,7 +126,7 @@ const BilderInner: React.FC = memo(() => {
     try {
       const payload: Record<string, unknown> = { prompt: trimmed };
       if (modeState.variant) payload.variant = modeState.variant;
-      if (modeState.backend) payload.backend = modeState.backend;
+      if (modeState.imageModel) payload.imageModel = modeState.imageModel;
       const result = await submitForm(payload);
       const base64 = (result as { image?: { base64?: string } })?.image?.base64;
       if (base64) {
@@ -138,7 +149,7 @@ const BilderInner: React.FC = memo(() => {
     createLoading,
     submitForm,
     modeState.variant,
-    modeState.backend,
+    modeState.imageModel,
     setResult,
     createImageShare,
     queryClient,
