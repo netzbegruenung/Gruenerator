@@ -13,7 +13,7 @@ import { getSystemAgent } from '@gruenerator/shared/agents';
 
 import { composerToolbarButtonClass } from '../../lib/utils';
 import { useChatDensity } from './chatDensityContext';
-import { MODEL_OPTIONS } from '../../stores/chatStore';
+import { MODEL_OPTIONS, type ThreadMode } from '../../stores/chatStore';
 import {
   useScopedAgentId,
   useScopedSelectedModel,
@@ -35,12 +35,22 @@ const AUTO_OPTION: AutoOption = {
   description: 'Modell passend zum Kontext',
 };
 
-export const ModelPicker = memo(function ModelPicker() {
+interface ModelPickerProps {
+  /** When the picker is mounted on a non-/chat surface that lacks a
+   * ChatSurfaceProvider (e.g. NotebookChatProvider), pass the implicit
+   * thread mode here so `resolveAutoModel` picks the right default. */
+  threadModeOverride?: ThreadMode;
+}
+
+export const ModelPicker = memo(function ModelPicker({
+  threadModeOverride,
+}: ModelPickerProps = {}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const selectedModel = useScopedSelectedModel();
   const setSelectedModel = useScopedSetSelectedModel();
   const selectedAgentId = useScopedAgentId();
-  const threadMode = useScopedThreadMode();
+  const scopedThreadMode = useScopedThreadMode();
+  const threadMode = threadModeOverride ?? scopedThreadMode;
   const { enabledModelIds } = useModelPreferencesContext();
   const isCompact = useChatDensity() === 'compact';
 

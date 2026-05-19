@@ -93,7 +93,6 @@ router.post(
         width: target.width,
         height: target.height,
         output_format: 'jpeg',
-        auto_crop: true,
       });
 
       const fluxBuffer = fs.readFileSync(stored.filePath);

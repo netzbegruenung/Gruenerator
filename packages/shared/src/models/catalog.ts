@@ -70,7 +70,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   {
     modality: 'text',
     id: 'mistral-medium-3.5',
-    name: '⭐ Mistral Medium',
+    name: '⭐ Mistral',
     description: 'Bester Allrounder',
     model: 'mistral-medium-2604',
     provider: 'mistral',

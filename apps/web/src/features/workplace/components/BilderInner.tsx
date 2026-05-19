@@ -96,6 +96,38 @@ const MIN_CUSTOM_SIDE = 256;
 const MAX_CUSTOM_SIDE = 2048;
 const MAX_CUSTOM_AREA = 4_194_304;
 
+const ASPECT_RATIO_VALUE: Record<Exclude<AspectRatio, 'custom'>, number> = {
+  '16:9': 16 / 9,
+  '4:3': 4 / 3,
+  '1:1': 1,
+  '3:4': 3 / 4,
+  '9:16': 9 / 16,
+};
+
+const SAME_RATIO_EXPANSION = 1.22;
+
+function computeOutpaintGeometry(
+  srcW: number,
+  srcH: number,
+  aspect: Exclude<AspectRatio, 'custom'>
+): { width: number; height: number } {
+  const target = ASPECT_RATIO_VALUE[aspect];
+  const input = srcW / srcH;
+  let tw: number;
+  let th: number;
+  if (Math.abs(input - target) < 0.01) {
+    tw = Math.round(srcW * SAME_RATIO_EXPANSION);
+    th = Math.round(srcH * SAME_RATIO_EXPANSION);
+  } else if (input > target) {
+    tw = srcW;
+    th = Math.round(srcW / target);
+  } else {
+    tw = Math.round(srcH * target);
+    th = srcH;
+  }
+  return { width: tw, height: th };
+}
+
 interface UsageStatus {
   count: number;
   remaining: number;
@@ -138,6 +170,7 @@ const BilderInner: React.FC = memo(() => {
 
   const [sourceFile, setSourceFile] = useState<File | null>(null);
   const [sourcePreviewUrl, setSourcePreviewUrl] = useState<string | null>(null);
+  const [sourceDims, setSourceDims] = useState<{ width: number; height: number } | null>(null);
 
   const [editError, setEditError] = useState<string | null>(null);
   const [editLoading, setEditLoading] = useState(false);
@@ -254,9 +287,18 @@ const BilderInner: React.FC = memo(() => {
       const file = e.target.files?.[0] ?? null;
       if (!file) return;
       if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
+      const objectUrl = URL.createObjectURL(file);
       setSourceFile(file);
-      setSourcePreviewUrl(URL.createObjectURL(file));
+      setSourcePreviewUrl(objectUrl);
+      setSourceDims(null);
       setEditError(null);
+      setOutpaintError(null);
+      const img = new Image();
+      img.src = objectUrl;
+      img
+        .decode()
+        .then(() => setSourceDims({ width: img.naturalWidth, height: img.naturalHeight }))
+        .catch(() => {});
       if (subModeRef.current === 'hintergrund') {
         removeBgHandlerRef.current?.(file);
       }
@@ -268,6 +310,7 @@ const BilderInner: React.FC = memo(() => {
     if (sourcePreviewUrl) URL.revokeObjectURL(sourcePreviewUrl);
     setSourceFile(null);
     setSourcePreviewUrl(null);
+    setSourceDims(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [sourcePreviewUrl]);
 
@@ -398,22 +441,52 @@ const BilderInner: React.FC = memo(() => {
 
   const handleSubmitOutpaint = useCallback(async () => {
     if (!sourceFile || outpaintLoading) return;
-    if (isCustomAspect && !customSizeValid) {
-      setOutpaintError(
-        `Ungültige Größe — ${MIN_CUSTOM_SIDE}–${MAX_CUSTOM_SIDE}px pro Seite, max. ${MAX_CUSTOM_AREA / 1_000_000} MP.`
-      );
+    if (!sourceDims) {
+      setOutpaintError('Bildgröße konnte nicht ermittelt werden — bitte Bild neu hochladen.');
       return;
+    }
+    let targetW: number;
+    let targetH: number;
+    if (isCustomAspect) {
+      if (!customSizeValid) {
+        setOutpaintError(
+          `Ungültige Größe — ${MIN_CUSTOM_SIDE}–${MAX_CUSTOM_SIDE}px pro Seite, max. ${MAX_CUSTOM_AREA / 1_000_000} MP.`
+        );
+        return;
+      }
+      if (customWidth < sourceDims.width || customHeight < sourceDims.height) {
+        setOutpaintError(
+          `Ziel-Canvas (${customWidth}×${customHeight}) ist kleiner als dein Bild (${sourceDims.width}×${sourceDims.height}). Bitte größere Maße wählen — sonst wird das Bild beschnitten statt erweitert.`
+        );
+        return;
+      }
+      targetW = customWidth;
+      targetH = customHeight;
+    } else {
+      const computed = computeOutpaintGeometry(sourceDims.width, sourceDims.height, aspectRatio);
+      if (Math.max(computed.width, computed.height) > MAX_CUSTOM_SIDE) {
+        setOutpaintError(
+          `Dein Bild (${sourceDims.width}×${sourceDims.height}) ist zu groß für das Format ${aspectRatio}. Bitte ein kleineres Bild hochladen oder „Frei (Pixel)“ wählen.`
+        );
+        return;
+      }
+      if (computed.width * computed.height > MAX_CUSTOM_AREA) {
+        setOutpaintError(
+          `Das erweiterte Bild wäre über ${MAX_CUSTOM_AREA / 1_000_000} MP. Bitte ein kleineres Bild hochladen.`
+        );
+        return;
+      }
+      targetW = computed.width;
+      targetH = computed.height;
     }
     setOutpaintLoading(true);
     setOutpaintError(null);
     try {
       const form = new FormData();
       form.append('image', sourceFile);
-      form.append('aspectRatio', aspectRatio);
-      if (isCustomAspect) {
-        form.append('width', String(customWidth));
-        form.append('height', String(customHeight));
-      }
+      form.append('aspectRatio', 'custom');
+      form.append('width', String(targetW));
+      form.append('height', String(targetH));
       const res = await getGlobalApiClient().post<{
         success: boolean;
         image?: { base64?: string };
@@ -456,6 +529,7 @@ const BilderInner: React.FC = memo(() => {
     }
   }, [
     sourceFile,
+    sourceDims,
     outpaintLoading,
     aspectRatio,
     isCustomAspect,
@@ -745,7 +819,9 @@ const BilderInner: React.FC = memo(() => {
         toolbar={toolbar}
         inputAreaOverride={isVergroessern ? vergroessernDropZone : undefined}
         canSubmit={
-          isVergroessern ? !!sourceFile && (!isCustomAspect || customSizeValid) : undefined
+          isVergroessern
+            ? !!sourceFile && !!sourceDims && (!isCustomAspect || customSizeValid)
+            : undefined
         }
       />
 
