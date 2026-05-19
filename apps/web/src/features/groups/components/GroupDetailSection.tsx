@@ -1,24 +1,10 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
-
-// ── API response shapes ────────────────────────────────────────────────
-
-interface GroupDetailsApiResponse {
-  success: boolean;
-  message?: string;
-  group?: Record<string, unknown> & {
-    join_token?: string;
-    name?: string;
-    description?: string;
-  };
-  membership?: Record<string, unknown> & { isAdmin?: boolean };
-  knowledge?: unknown[];
-}
 import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { useGroupPresence } from '../hooks/useGroupPresence';
 import { useGroups, useGroupAvatar, useGroupLinks, useGroupSharing } from '../hooks/useGroups';
@@ -57,17 +43,14 @@ const GroupDetailSection = memo(
     } = useQuery({
       queryKey: ['groupDetails', groupId],
       queryFn: async () => {
-        const response = await apiClient.get<GroupDetailsApiResponse>(
-          `/auth/groups/${groupId}/details`
-        );
-        const result = response.data;
-        if (!result.success) throw new Error(result.message ?? 'Failed to fetch group details');
+        const res = await getContractsClient().groups.getDetails({ params: { groupId } });
+        if (res.status !== 200) throw new Error('Failed to fetch group details');
         return {
-          groupInfo: result.group,
-          isAdmin: result.membership?.isAdmin ?? false,
-          membership: result.membership,
-          joinToken: result.group?.join_token,
-          knowledge: result.knowledge ?? [],
+          groupInfo: res.body.group,
+          isAdmin: res.body.membership.isAdmin,
+          membership: res.body.membership,
+          joinToken: res.body.group.join_token ?? undefined,
+          knowledge: [] as unknown[],
         };
       },
       enabled: !!groupId,

@@ -131,3 +131,151 @@ export const setGroupVisibilityBodySchema = z.object({
   audience: groupAudienceSchema,
 });
 export type SetGroupVisibilityBody = z.infer<typeof setGroupVisibilityBodySchema>;
+
+// ── Core group CRUD / membership (migrated from the legacy raw routes) ─────────
+//
+// Date fields are wire strings (ISO). The server normalizes the pg `Date`
+// objects via `toISOString()` before returning so the handler return types
+// match these schemas.
+
+export const groupSummarySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullish(),
+  created_at: z.string().nullish(),
+  created_by: z.string().nullish(),
+  join_token: z.string().nullish(),
+  settings: z.record(z.unknown()).nullish(),
+  avatar_url: z.string().nullish(),
+  links: z.array(groupLinkSchema).nullish(),
+  role: z.string(),
+  joined_at: z.string().nullish(),
+  isAdmin: z.boolean(),
+  member_count: z.number().nullish(),
+  content_count: z.number().nullish(),
+});
+export type GroupSummaryDto = z.infer<typeof groupSummarySchema>;
+
+export const groupDetailSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullish(),
+  created_at: z.string().nullish(),
+  created_by: z.string().nullish(),
+  join_token: z.string().nullish(),
+  settings: z.record(z.unknown()).nullish(),
+  avatar_url: z.string().nullish(),
+  links: z.array(groupLinkSchema).nullish(),
+  is_public: z.boolean().nullish(),
+  audience: groupAudienceSchema.nullish(),
+});
+export type GroupDetailDto = z.infer<typeof groupDetailSchema>;
+
+export const groupMembershipSchema = z.object({
+  role: z.string(),
+  joined_at: z.string().nullish(),
+  isAdmin: z.boolean(),
+});
+export type GroupMembershipDto = z.infer<typeof groupMembershipSchema>;
+
+export const groupMemberSchema = z.object({
+  user_id: z.string(),
+  role: z.string(),
+  joined_at: z.string().nullish(),
+  first_name: z.string().nullable(),
+  display_name: z.string().nullable(),
+  avatar_robot_id: z.number().nullish(),
+});
+export type GroupMemberDto = z.infer<typeof groupMemberSchema>;
+
+export const groupTokenRefSchema = z.object({ id: z.string(), name: z.string() });
+
+// ── Request bodies ─────────────────────────────────────────────────────────────
+
+export const createGroupBodySchema = z.object({
+  name: z.string().min(1, 'Gruppenname ist erforderlich.'),
+  description: z.string().nullish(),
+});
+export type CreateGroupBody = z.infer<typeof createGroupBodySchema>;
+
+export const updateGroupInfoBodySchema = z.object({
+  name: z.string().nullish(),
+  description: z.string().nullish(),
+  // Free-form group settings (e.g. `templateTags`). Kept as a generic record so
+  // the typed client accepts the frontend's `Record<string, unknown>` value.
+  settings: z.record(z.unknown()).nullish(),
+});
+export type UpdateGroupInfoBody = z.infer<typeof updateGroupInfoBodySchema>;
+
+export const updateGroupNameBodySchema = z.object({
+  name: z.string().nullish(),
+});
+export type UpdateGroupNameBody = z.infer<typeof updateGroupNameBodySchema>;
+
+export const joinByTokenBodySchema = z.object({
+  joinToken: z.string().min(1, 'Beitritts-Token ist erforderlich.'),
+});
+export type JoinByTokenBody = z.infer<typeof joinByTokenBodySchema>;
+
+export const memberRoleBodySchema = z.object({
+  role: groupRoleSchema,
+});
+export type MemberRoleBody = z.infer<typeof memberRoleBodySchema>;
+
+export const groupLinkBodySchema = z.object({
+  title: z
+    .string()
+    .min(1, 'Titel ist erforderlich.')
+    .max(100, 'Titel darf max. 100 Zeichen haben.'),
+  url: z.string().regex(/^https?:\/\/.+/, 'URL muss mit http:// oder https:// beginnen.'),
+  // The UI icon picker constrains this to ALLOWED_LINK_ICONS; the frontend
+  // type is `string`, so the wire contract stays `string` to avoid casts.
+  icon: z.string(),
+  description: z.string().max(300, 'Beschreibung darf max. 300 Zeichen haben.').nullish(),
+});
+export type GroupLinkBody = z.infer<typeof groupLinkBodySchema>;
+
+// ── Wrapper response shapes (mirror the legacy `{ success, ... }` envelopes) ───
+
+export const listUserGroupsResponseSchema = z.object({
+  success: z.literal(true),
+  groups: z.array(groupSummarySchema),
+});
+
+export const groupCreateResponseSchema = z.object({
+  success: z.literal(true),
+  group: groupSummarySchema,
+});
+
+export const groupDetailsResponseSchema = z.object({
+  success: z.literal(true),
+  group: groupDetailSchema,
+  membership: groupMembershipSchema,
+});
+
+export const groupMembersResponseSchema = z.object({
+  success: z.literal(true),
+  members: z.array(groupMemberSchema),
+});
+
+export const verifyTokenResponseSchema = z.object({
+  success: z.literal(true),
+  group: groupTokenRefSchema,
+  alreadyMember: z.boolean(),
+});
+
+export const joinGroupResponseSchema = z.object({
+  success: z.literal(true),
+  group: groupTokenRefSchema,
+  alreadyMember: z.boolean().nullish(),
+  message: z.string().nullish(),
+});
+
+export const groupLinkResponseSchema = z.object({
+  success: z.literal(true),
+  link: groupLinkSchema,
+});
+
+export const groupOkResponseSchema = z.object({
+  success: z.literal(true),
+});
