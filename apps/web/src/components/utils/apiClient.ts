@@ -8,6 +8,7 @@ import {
   LOGOUT_TIMESTAMP,
   REDIRECT_TIMESTAMPS,
 } from '../../features/auth/storageKeys';
+import { captureAuthIssue } from '../../lib/observability/captureAuthIssue';
 import { buildLoginUrl, isPublicPage } from '../../utils/authRedirect';
 import { getDesktopToken } from '../../utils/desktopAuth';
 import { isDesktopApp } from '../../utils/platform';
@@ -260,6 +261,13 @@ function performLoginRedirect(): void {
     console.warn(
       '[apiClient] Auth-redirect circuit breaker tripped — wiping all auth state and forcing clean /login'
     );
+    captureAuthIssue({
+      stage: 'redirect-loop',
+      cause: new Error(
+        `Auth-redirect circuit breaker tripped: ${recent.length} redirects in ${CIRCUIT_BREAKER_WINDOW_MS}ms`
+      ),
+      extras: { redirectCount: recent.length, windowMs: CIRCUIT_BREAKER_WINDOW_MS },
+    });
     wipeAllAuthCaches();
     clearRedirectTimestamps();
     window.location.replace('/login');
