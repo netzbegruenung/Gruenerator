@@ -10,6 +10,7 @@ import * as schema from '../database/schema/index.js';
 import { loadConfig } from '../database/services/PostgresService/config.js';
 import { mobileTokenExchange } from '../plugins/mobileTokenExchange.js';
 import { createLogger } from '../utils/logger.js';
+import { captureAuthIssue } from '../utils/observability/captureAuthIssue.js';
 import { redisClient } from '../utils/redis/client.js';
 
 import { ALLOWED_DOMAINS } from './domains.js';
@@ -318,6 +319,28 @@ export const auth = betterAuth({
           );
         },
       },
+    },
+  },
+
+  // Forward Better Auth's caught endpoint errors (sign-in, sign-up, callback,
+  // token-exchange, etc.) to GlitchTip. Without this, errors that Better Auth
+  // handles internally (responding 400/401 to the client) never reach the
+  // Express error middleware and never reach Sentry. The "Failed to parse
+  // state" warn-downgrade in the `logger:` block above still suppresses
+  // benign OAuth replays; `isBenignAuthError` inside `captureAuthIssue`
+  // catches any that slip through, and the sentinel on already-captured
+  // errors prevents double-capture from plugin endpoints that have already
+  // called `captureAuthIssue` before re-throwing.
+  onAPIError: {
+    onError: (error, ctx) => {
+      const path = (ctx as { path?: unknown } | undefined)?.path;
+      const pathStr = typeof path === 'string' ? path : 'unknown';
+      const stage = pathStr.includes('token-exchange')
+        ? 'token-exchange'
+        : pathStr.includes('callback')
+          ? 'oauth-callback'
+          : 'better-auth';
+      captureAuthIssue({ stage, cause: error, extras: { path: pathStr } });
     },
   },
 
