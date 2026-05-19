@@ -1,0 +1,84 @@
+.card {
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 10px;
+  margin: 1.75rem 0;
+  background: var(--ifm-background-surface-color);
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 1rem;
+  background: var(--ifm-color-emphasis-100);
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ifm-color-emphasis-700);
+  font-weight: 600;
+}
+
+.button {
+  background: var(--ifm-color-primary);
+  color: #fff;
+  border: none;
+  padding: 0.4rem 0.95rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.button:hover {
+  background: var(--ifm-color-primary-darker);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.button[data-status='copied'] {
+  background: var(--ifm-color-success);
+}
+
+.button[data-status='error'] {
+  background: var(--ifm-color-danger);
+}
+
+.body {
+  padding: 1.1rem 1.35rem;
+  font-family: var(--ifm-font-family-base);
+  line-height: 1.55;
+}
+
+.body > p:last-child,
+.body > ol:last-child,
+.body > ul:last-child {
+  margin-bottom: 0;
+}
+
+.body img {
+  max-width: 320px;
+  width: 100%;
+  display: block;
+  margin: 1rem auto;
+  border-radius: 8px;
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.footer {
+  padding: 0.6rem 1rem;
+  background: var(--ifm-color-emphasis-100);
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  font-size: 0.78rem;
+  color: var(--ifm-color-emphasis-700);
+  line-height: 1.45;
+}
