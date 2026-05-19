@@ -273,6 +273,7 @@ export function NotebookComposer({
       showMentions={false}
       showPlusMenu={false}
       showToolToggles={false}
+      modelPickerThreadModeOverride="notebook"
       toolbarExtra={
         <NotebookSettingsDropdown
           mode={mode}

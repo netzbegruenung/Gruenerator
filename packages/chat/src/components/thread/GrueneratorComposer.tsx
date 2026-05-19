@@ -13,7 +13,7 @@ import { ArrowUp, Mic, Square, X } from 'lucide-react';
 import { RiVoiceAiFill } from 'react-icons/ri';
 import { cn } from '@gruenerator/ui';
 import { useScopedAgentId } from '../../lib/useScopedAgentState';
-import { useAgentStore } from '../../stores/chatStore';
+import { useAgentStore, type ThreadMode } from '../../stores/chatStore';
 import { ToolToggles } from '../ToolToggles';
 import { SearchDepthToggle } from '../SearchDepthToggle';
 import { getSystemAgent } from '@gruenerator/shared/agents';
@@ -49,6 +49,10 @@ interface GrueneratorComposerProps {
   showPlusMenu?: boolean;
   showToolToggles?: boolean;
   showModelPicker?: boolean;
+  /** Forwarded to ModelPicker for surfaces without a ChatSurfaceProvider
+   * (e.g. NotebookChatProvider) so auto-mode resolves to the surface's
+   * implicit thread mode. */
+  modelPickerThreadModeOverride?: ThreadMode;
   insideAgent?: boolean;
   /** Render-prop slots for surface-specific UI. */
   slots?: {
@@ -219,6 +223,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
   showPlusMenu = true,
   showToolToggles = true,
   showModelPicker = true,
+  modelPickerThreadModeOverride,
   insideAgent = false,
   slots,
   requireProfileHydration = false,
@@ -586,7 +591,13 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             {toolbarExtra}
           </div>
           <div className="flex items-center gap-0.5">
-            {showModelPicker && <ModelPicker />}
+            {showModelPicker && (
+              <ModelPicker
+                {...(modelPickerThreadModeOverride && {
+                  threadModeOverride: modelPickerThreadModeOverride,
+                })}
+              />
+            )}
             {/* TODO: re-enable when realtime voice agent is ready for users
             <ComposerVoiceToggle />
             */}
