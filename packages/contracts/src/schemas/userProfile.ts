@@ -9,13 +9,13 @@ import { z } from 'zod';
 export const profileUpdateBodySchema = z.object({
   display_name: z.string().optional(),
   username: z.string().optional(),
-  avatar_robot_id: z.number().int().min(1).max(9).optional(),
+  avatar_robot_id: z.number().int().min(1).max(10).optional(),
   email: z.string().optional(),
   custom_prompt: z.string().optional(),
 });
 
 export const avatarUpdateBodySchema = z.object({
-  avatar_robot_id: z.number().int().min(1).max(9),
+  avatar_robot_id: z.number().int().min(1).max(10),
 });
 
 export const betaFeatureToggleBodySchema = z.object({
@@ -31,15 +31,6 @@ export const userDefaultUpdateBodySchema = z.object({
   generator: z.string().min(1),
   key: z.string().min(1),
   value: z.unknown(),
-});
-
-export const notificationPreferencesBodySchema = z.object({
-  category: z.string().min(1),
-  channels: z.object({
-    email: z.boolean().optional(),
-    push: z.boolean().optional(),
-    in_app: z.boolean().optional(),
-  }),
 });
 
 export const deleteAccountBodySchema = z.object({
@@ -125,14 +116,6 @@ export const betaFeaturesSchema = z.record(z.boolean());
 
 export const userDefaultsSchema = z.record(z.record(z.unknown()));
 
-export const channelPreferencesSchema = z.object({
-  email: z.boolean(),
-  push: z.boolean(),
-  in_app: z.boolean(),
-});
-
-export const notificationPreferencesResponseDataSchema = z.record(channelPreferencesSchema);
-
 // ── Response schemas ─────────────────────────────────────────────────────────
 
 export const getProfileResponseSchema = z.object({
@@ -177,18 +160,6 @@ export const getUserDefaultsResponseSchema = z.object({
 export const updateUserDefaultsResponseSchema = z.object({
   success: z.literal(true),
   userDefaults: userDefaultsSchema,
-  message: z.string(),
-});
-
-export const getNotificationPreferencesResponseSchema = z.object({
-  success: z.literal(true),
-  preferences: notificationPreferencesResponseDataSchema,
-  defaults: notificationPreferencesResponseDataSchema,
-});
-
-export const updateNotificationPreferencesResponseSchema = z.object({
-  success: z.literal(true),
-  preferences: notificationPreferencesResponseDataSchema,
   message: z.string(),
 });
 

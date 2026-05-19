@@ -1,18 +1,18 @@
 /**
- * ts-rest contract for user profile endpoints.
+ * ts-rest contract for user profile endpoints. Sole owner of these routes
+ * (the legacy apps/api/routes/auth/userProfile.ts router was removed):
+ *   GET    /api/auth/profile
+ *   PUT    /api/auth/profile
+ *   PATCH  /api/auth/profile/avatar
+ *   GET    /api/auth/profile/beta-features
+ *   PATCH  /api/auth/profile/beta-features
+ *   PATCH  /api/auth/profile/message-color
+ *   GET    /api/auth/profile/user-defaults
+ *   PATCH  /api/auth/profile/user-defaults
+ *   DELETE /api/auth/delete-account
  *
- * Covers the full surface of apps/api/routes/auth/userProfile.ts:
- *   GET    /api/profile
- *   PUT    /api/profile
- *   PATCH  /api/profile/avatar
- *   GET    /api/profile/beta-features
- *   PATCH  /api/profile/beta-features
- *   PATCH  /api/profile/message-color
- *   GET    /api/profile/user-defaults
- *   PATCH  /api/profile/user-defaults
- *   GET    /api/profile/notification-preferences
- *   PATCH  /api/profile/notification-preferences
- *   DELETE /api/delete-account
+ * Notification preferences (GET/PATCH /api/auth/profile/notification-preferences)
+ * are owned by notificationsContract, not this contract.
  */
 import { initContract } from '@ts-rest/core';
 
@@ -22,7 +22,6 @@ import {
   betaFeatureToggleBodySchema,
   messageColorUpdateBodySchema,
   userDefaultUpdateBodySchema,
-  notificationPreferencesBodySchema,
   deleteAccountBodySchema,
   getProfileResponseSchema,
   updateProfileResponseSchema,
@@ -32,8 +31,6 @@ import {
   updateMessageColorResponseSchema,
   getUserDefaultsResponseSchema,
   updateUserDefaultsResponseSchema,
-  getNotificationPreferencesResponseSchema,
-  updateNotificationPreferencesResponseSchema,
   deleteAccountResponseSchema,
   userProfileErrorResponseSchema,
   deleteAccountErrorResponseSchema,
@@ -49,7 +46,7 @@ export const userProfileContract = c.router(
      */
     getProfile: {
       method: 'GET',
-      path: '/api/profile',
+      path: '/api/auth/profile',
       responses: {
         200: getProfileResponseSchema,
         500: userProfileErrorResponseSchema,
@@ -63,7 +60,7 @@ export const userProfileContract = c.router(
      */
     updateProfile: {
       method: 'PUT',
-      path: '/api/profile',
+      path: '/api/auth/profile',
       body: profileUpdateBodySchema,
       responses: {
         200: updateProfileResponseSchema,
@@ -79,7 +76,7 @@ export const userProfileContract = c.router(
      */
     updateAvatar: {
       method: 'PATCH',
-      path: '/api/profile/avatar',
+      path: '/api/auth/profile/avatar',
       body: avatarUpdateBodySchema,
       responses: {
         200: updateAvatarResponseSchema,
@@ -95,7 +92,7 @@ export const userProfileContract = c.router(
      */
     getBetaFeatures: {
       method: 'GET',
-      path: '/api/profile/beta-features',
+      path: '/api/auth/profile/beta-features',
       responses: {
         200: getBetaFeaturesResponseSchema,
         500: userProfileErrorResponseSchema,
@@ -109,7 +106,7 @@ export const userProfileContract = c.router(
      */
     updateBetaFeatures: {
       method: 'PATCH',
-      path: '/api/profile/beta-features',
+      path: '/api/auth/profile/beta-features',
       body: betaFeatureToggleBodySchema,
       responses: {
         200: updateBetaFeaturesResponseSchema,
@@ -125,7 +122,7 @@ export const userProfileContract = c.router(
      */
     updateMessageColor: {
       method: 'PATCH',
-      path: '/api/profile/message-color',
+      path: '/api/auth/profile/message-color',
       body: messageColorUpdateBodySchema,
       responses: {
         200: updateMessageColorResponseSchema,
@@ -140,7 +137,7 @@ export const userProfileContract = c.router(
      */
     getUserDefaults: {
       method: 'GET',
-      path: '/api/profile/user-defaults',
+      path: '/api/auth/profile/user-defaults',
       responses: {
         200: getUserDefaultsResponseSchema,
         500: userProfileErrorResponseSchema,
@@ -154,7 +151,7 @@ export const userProfileContract = c.router(
      */
     updateUserDefaults: {
       method: 'PATCH',
-      path: '/api/profile/user-defaults',
+      path: '/api/auth/profile/user-defaults',
       body: userDefaultUpdateBodySchema,
       responses: {
         200: updateUserDefaultsResponseSchema,
@@ -164,42 +161,12 @@ export const userProfileContract = c.router(
     },
 
     /**
-     * GET /api/profile/notification-preferences
-     * Get per-category, per-channel notification preferences.
-     */
-    getNotificationPreferences: {
-      method: 'GET',
-      path: '/api/profile/notification-preferences',
-      responses: {
-        200: getNotificationPreferencesResponseSchema,
-        500: userProfileErrorResponseSchema,
-      },
-      summary: 'Get notification preferences',
-    },
-
-    /**
-     * PATCH /api/profile/notification-preferences
-     * Update notification preference channels for a single category.
-     */
-    updateNotificationPreferences: {
-      method: 'PATCH',
-      path: '/api/profile/notification-preferences',
-      body: notificationPreferencesBodySchema,
-      responses: {
-        200: updateNotificationPreferencesResponseSchema,
-        400: userProfileErrorResponseSchema,
-        500: userProfileErrorResponseSchema,
-      },
-      summary: 'Update notification preferences',
-    },
-
-    /**
-     * DELETE /api/delete-account
+     * DELETE /api/auth/delete-account
      * Delete the current user's account (requires confirmation phrase).
      */
     deleteAccount: {
       method: 'DELETE',
-      path: '/api/delete-account',
+      path: '/api/auth/delete-account',
       body: deleteAccountBodySchema,
       responses: {
         200: deleteAccountResponseSchema,
