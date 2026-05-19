@@ -418,7 +418,9 @@ const BilderInner: React.FC = memo(() => {
         success: boolean;
         image?: { base64?: string };
         error?: string;
-      }>('/imagine/outpaint', form);
+      }>('/imagine/outpaint', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
       if (!res.data.success || !res.data.image?.base64) {
         throw new Error(res.data.error || 'Vergrößerung fehlgeschlagen');
       }
@@ -441,7 +443,14 @@ const BilderInner: React.FC = memo(() => {
         .catch(() => {});
     } catch (err) {
       console.error('[BilderInner:vergroessern] Outpaint failed:', err);
-      setOutpaintError(err instanceof Error ? err.message : 'Vergrößerung fehlgeschlagen');
+      const axiosBody = (err as { response?: { data?: { error?: string; details?: unknown } } })
+        ?.response?.data;
+      const serverMessage =
+        axiosBody?.error ||
+        (axiosBody?.details ? `Validierung: ${JSON.stringify(axiosBody.details)}` : null);
+      setOutpaintError(
+        serverMessage ?? (err instanceof Error ? err.message : 'Vergrößerung fehlgeschlagen')
+      );
     } finally {
       setOutpaintLoading(false);
     }
