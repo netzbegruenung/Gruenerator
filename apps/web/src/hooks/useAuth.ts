@@ -10,6 +10,7 @@ import {
   SESSION_ACTIVE,
 } from '../features/auth/storageKeys';
 import { authClient } from '../lib/authClient';
+import { captureAuthIssue } from '../lib/observability/captureAuthIssue';
 import { sessionUserToProfile } from '../lib/sessionUserToProfile';
 import { useAuthStore, type User } from '../stores/authStore';
 
@@ -200,6 +201,13 @@ const detectPartialLogoutState = async () => {
         console.warn(
           '[useAuth] Partial logout detected: Frontend logged out but backend still authenticated'
         );
+        // Always capture: partial logout is never normal — it indicates a
+        // failed signOut, cross-tab desync, or a Set-Cookie that didn't make
+        // it to the browser. Single high-signal bucket in GlitchTip.
+        captureAuthIssue({
+          stage: 'partial-logout',
+          cause: new Error('Partial logout: frontend logged out, backend still authenticated'),
+        });
         return {
           isPartialLogout: true,
           needsRecovery: true,
@@ -212,6 +220,7 @@ const detectPartialLogoutState = async () => {
     return { isPartialLogout: false };
   } catch (error: unknown) {
     console.warn('[useAuth] Could not check for partial logout state:', error);
+    captureAuthIssue({ stage: 'partial-logout-check-failed', cause: error });
     return { isPartialLogout: false };
   }
 };

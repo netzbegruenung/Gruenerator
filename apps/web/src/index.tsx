@@ -44,7 +44,19 @@ if (!rootElement) {
 const root = createRoot(rootElement);
 root.render(
   // <React.StrictMode>
-  <App />
+  <Sentry.ErrorBoundary
+    fallback={({ error }) => (
+      <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
+        <h1>Etwas ist schiefgelaufen</h1>
+        <p>Bitte lade die Seite neu. Wenn der Fehler bleibt, kontaktiere den Support.</p>
+        <pre style={{ whiteSpace: 'pre-wrap', color: '#888', marginTop: '1rem' }}>
+          {error instanceof Error ? error.message : String(error)}
+        </pre>
+      </div>
+    )}
+  >
+    <App />
+  </Sentry.ErrorBoundary>
   // </React.StrictMode>
 );
 
