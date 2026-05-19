@@ -147,6 +147,10 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
+    "prebuild": "pnpm build:skills",
+    "predev": "pnpm build:skills",
+    "build:skills": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-skills.ts",
+    "watch:skills": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-skills.ts --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
@@ -165,7 +169,11 @@
     "@gruenerator/eslint-config": "workspace:*",
     "@tanstack/react-query": "^5.100.9",
     "@types/react": "^19.2.14",
+    "chokidar": "^3.6.0",
+    "cross-env": "^7.0.3",
     "eslint": "^9.39.4",
+    "gray-matter": "^4.0.3",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
