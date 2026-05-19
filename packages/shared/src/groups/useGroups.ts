@@ -14,6 +14,19 @@ import {
   type VerifyTokenResult,
 } from './types.js';
 
+/**
+ * Safely read a `message` off a ts-rest error body. The client response type
+ * widens the body to `unknown` for non-2xx (undeclared) statuses, so we extract
+ * defensively rather than asserting the error-schema shape.
+ */
+function errMessage(body: unknown, fallback = 'Aktion fehlgeschlagen.'): string {
+  if (body && typeof body === 'object' && 'message' in body) {
+    const m = (body as { message?: unknown }).message;
+    if (typeof m === 'string') return m;
+  }
+  return fallback;
+}
+
 export const useUserGroups = (options: { enabled?: boolean } = {}) =>
   useQuery({
     queryKey: GROUPS_QUERY_KEY,
@@ -79,7 +92,7 @@ export const useDeleteGroup = () => {
   return useMutation({
     mutationFn: async (groupId: string) => {
       const res = await getContractsClient().groups.deleteGroup({ params: { groupId } });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new Error(errMessage(res.body));
       return groupId;
     },
     onSuccess: (groupId) => {
@@ -102,7 +115,7 @@ export const useUpdateGroupInfo = (groupId: string) => {
         params: { groupId },
         body: input,
       });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new Error(errMessage(res.body));
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
@@ -119,7 +132,7 @@ export const useUpdateGroupName = (groupId: string) => {
         params: { groupId },
         body: { name },
       });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new Error(errMessage(res.body));
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
@@ -135,7 +148,7 @@ export const useVerifyJoinToken = (joinToken: string | null | undefined) =>
       const res = await getContractsClient().groups.verifyToken({
         params: { joinToken: joinToken ?? '' },
       });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new Error(errMessage(res.body));
       return { group: res.body.group, alreadyMember: res.body.alreadyMember };
     },
     enabled: !!joinToken,
@@ -149,7 +162,7 @@ export const useJoinGroup = () => {
   return useMutation({
     mutationFn: async (joinToken: string) => {
       const res = await getContractsClient().groups.joinByToken({ body: { joinToken } });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new Error(errMessage(res.body));
       return { group: res.body.group, alreadyMember: res.body.alreadyMember ?? false };
     },
     onSuccess: () => {
@@ -163,7 +176,7 @@ export const useLeaveGroup = () => {
   return useMutation({
     mutationFn: async (groupId: string) => {
       const res = await getContractsClient().groups.leaveGroup({ params: { groupId } });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new Error(errMessage(res.body));
       return groupId;
     },
     onSuccess: (groupId) => {
@@ -182,7 +195,7 @@ export const useUpdateMemberRole = (groupId: string) => {
         params: { groupId, memberId: input.memberId },
         body: { role: input.role },
       });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new Error(errMessage(res.body));
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: groupMembersKey(groupId) });
@@ -195,7 +208,7 @@ export const useAddGroupLink = (groupId: string) => {
   return useMutation({
     mutationFn: async (link: Omit<GroupLink, 'id'>) => {
       const res = await getContractsClient().groups.addLink({ params: { groupId }, body: link });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new Error(errMessage(res.body));
       return res.body.link as GroupLink;
     },
     onSuccess: () => {
@@ -213,7 +226,7 @@ export const useUpdateGroupLink = (groupId: string) => {
         params: { groupId, linkId },
         body: link,
       });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new Error(errMessage(res.body));
       return res.body.link as GroupLink;
     },
     onSuccess: () => {
