@@ -5,6 +5,7 @@
  * Wraps the FluxImageService with style detection and rate limiting.
  */
 
+import { IMAGE_MODEL_BY_ID } from '@gruenerator/shared/models';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 
@@ -14,6 +15,7 @@ import {
   buildFluxPrompt,
   type VariantKey,
 } from '../../../../services/flux/index.js';
+import { getImageModelForUser } from '../../../../services/user/imageModelPreference.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { redisClient } from '../../../../utils/redis/index.js';
 
@@ -90,7 +92,8 @@ export function createGenerateImageTool(deps: ToolDependencies): DynamicStructur
 
       try {
         const { prompt, dimensions } = buildFluxPrompt({ variant, subject: description });
-        const flux = await FluxImageService.create();
+        const userModel = IMAGE_MODEL_BY_ID[await getImageModelForUser(userId)];
+        const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
         const { stored } = await flux.generateFromPrompt(prompt, {
           width: dimensions.width,
           height: dimensions.height,
@@ -98,7 +101,7 @@ export function createGenerateImageTool(deps: ToolDependencies): DynamicStructur
           safety_tolerance: 2,
         });
 
-        await imageCounter.incrementCount(userId);
+        await imageCounter.incrementCount(userId, Math.round(userModel.costMultiplier * 100));
 
         const imageUrl = `/uploads/flux/results/${stored.relativePath.split('/').slice(-2).join('/')}`;
 

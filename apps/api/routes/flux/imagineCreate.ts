@@ -4,6 +4,8 @@ import path from 'path';
 import express, { type Response } from 'express';
 import { z } from 'zod';
 
+import { IMAGE_MODEL_BY_ID } from '@gruenerator/shared/models';
+
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { ImageGenerationCounter } from '../../services/counters/index.js';
@@ -13,6 +15,7 @@ import {
   FLUX_WIDTH,
   FLUX_HEIGHT,
 } from '../../services/image/ImagineCanvasRenderer.js';
+import { getImageModelForUser } from '../../services/user/imageModelPreference.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
@@ -164,7 +167,8 @@ router.post(
         `[ImagineCreate] Calling FLUX API with dimensions ${dimensions.width}x${dimensions.height}${width && height ? ' (custom)' : ' (default)'}`
       );
 
-      const flux = await FluxImageService.create();
+      const userModel = IMAGE_MODEL_BY_ID[await getImageModelForUser(userId)];
+      const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
       const fluxOptions: {
         width: number;
         height: number;
@@ -227,7 +231,7 @@ router.post(
       const filePath = path.join(baseDir, filename);
       fs.writeFileSync(filePath, labeledBuffer);
 
-      await imageCounter.incrementCount(userId);
+      await imageCounter.incrementCount(userId, Math.round(userModel.costMultiplier * 100));
       const updatedLimitStatus = await imageCounter.checkLimit(userId);
 
       log.debug(

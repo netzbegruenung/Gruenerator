@@ -5,10 +5,13 @@ import express, { type Response } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 
+import { IMAGE_MODEL_BY_ID } from '@gruenerator/shared/models';
+
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { ImageGenerationCounter } from '../../services/counters/index.js';
 import { FluxImageService, buildUniversalPrompt } from '../../services/flux/index.js';
+import { getImageModelForUser } from '../../services/user/imageModelPreference.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 import { addKiLabel } from '../sharepic/sharepic_canvas/imagine_label_canvas.js';
@@ -298,8 +301,9 @@ router.post(
             ? buildUniversalPrompt(userText)
             : buildGreenEditPrompt(userText, isPrecision);
 
-      const flux = await FluxImageService.create();
-      log.debug(`[Image Edit] Starting image generation with FLUX.2 Pro`);
+      const userModel = IMAGE_MODEL_BY_ID[await getImageModelForUser(userId)];
+      const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
+      log.debug(`[Image Edit] Starting image generation with model ${userModel.id}`);
       const { request, result, stored } = (await flux.generateFromImage(
         prompt,
         req.file.buffer,
@@ -316,7 +320,10 @@ router.post(
       const labeledBase64 = labeledBuffer.toString('base64');
       fs.writeFileSync(stored.filePath, labeledBuffer);
 
-      const incrementResult = await imageCounter.incrementCount(userId);
+      const incrementResult = await imageCounter.incrementCount(
+        userId,
+        Math.round(userModel.costMultiplier * 100)
+      );
       log.debug(`[Image Edit] Updated usage counter for user ${userId}:`, incrementResult);
 
       return res.json({
@@ -449,7 +456,8 @@ router.post(
             ? buildUniversalPrompt(userText)
             : buildGreenEditPrompt(userText, isPrecision);
 
-      const flux = await FluxImageService.create();
+      const userModel = IMAGE_MODEL_BY_ID[await getImageModelForUser(userId)];
+      const flux = await FluxImageService.create(userModel.backend, userModel.modelPath);
       let generationResult: FluxGenerationResult;
 
       if (req.file) {
@@ -477,7 +485,10 @@ router.post(
       const labeledBase64 = labeledBuffer.toString('base64');
       fs.writeFileSync(stored.filePath, labeledBuffer);
 
-      const incrementResult = await imageCounter.incrementCount(userId);
+      const incrementResult = await imageCounter.incrementCount(
+        userId,
+        Math.round(userModel.costMultiplier * 100)
+      );
       log.debug(`[Image Edit Generate] Updated usage counter for user ${userId}:`, incrementResult);
 
       return res.json({
