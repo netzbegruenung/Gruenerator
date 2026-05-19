@@ -197,9 +197,15 @@ export async function logout(): Promise<void> {
     useAuthStore.getState().setLoggingOut(true);
 
     const apiClient = getGlobalApiClient();
-    await apiClient.post(API_ENDPOINTS.AUTH_MOBILE_LOGOUT).catch(() => {
+    await apiClient.post(API_ENDPOINTS.AUTH_MOBILE_LOGOUT).catch((err: unknown) => {
       // Server-side session invalidation is best-effort; local cleanup is
-      // what actually logs the user out on the device.
+      // what actually logs the user out on the device. The previous
+      // empty-arrow .catch hid every server-side logout failure (Better Auth
+      // 500s, network drops, expired bearer tokens) — log to surface in the
+      // React Native console + Metro logs. Server-side captures land in
+      // GlitchTip via the `onAPIError` hook in `apps/api/config/betterAuth.ts`
+      // (PR #974), so we don't need a client-side Sentry SDK here.
+      console.error('[Auth] Logout endpoint failed (proceeding with local cleanup):', err);
     });
   } finally {
     await secureStorage.clearAll();

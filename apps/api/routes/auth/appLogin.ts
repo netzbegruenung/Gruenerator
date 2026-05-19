@@ -35,6 +35,7 @@ import { auth } from '../../config/betterAuth.js';
 import { env } from '../../config/env.js';
 import { forwardBetterAuthCookies } from '../../utils/betterAuthBridge.js';
 import { createLogger } from '../../utils/logger.js';
+import { captureAuthIssue } from '../../utils/observability/captureAuthIssue.js';
 import { parseJSON } from '../../utils/parseJSON.js';
 import redisClient from '../../utils/redis/client.js';
 
@@ -150,11 +151,17 @@ router.get('/login', loginLimiter, async (req: AuthRequest, res: Response): Prom
     const { url } = (await response.json()) as { url?: string };
 
     if (!url) {
-      log.error(
-        '[AppLogin] No URL returned from Better Auth signInWithOAuth2 (provider=%s, callbackURL=%s)',
-        providerId,
-        callbackURL
+      const noUrlErr = new Error(
+        `signInWithOAuth2 returned no URL (provider=${providerId}, callbackURL=${callbackURL})`
       );
+      noUrlErr.name = 'OAuthInitNoURL';
+      log.error('[AppLogin] %s', noUrlErr.message);
+      captureAuthIssue({
+        stage: 'oauth-init',
+        cause: noUrlErr,
+        req,
+        extras: { source, providerId, callbackURL },
+      });
       res.status(500).json({ error: 'Failed to initiate OAuth flow' });
       return;
     }
@@ -168,6 +175,12 @@ router.get('/login', loginLimiter, async (req: AuthRequest, res: Response): Prom
     res.redirect(url);
   } catch (error) {
     log.error('[AppLogin] Error initiating OAuth:', error);
+    captureAuthIssue({
+      stage: 'oauth-init',
+      cause: error,
+      req,
+      extras: { source, providerId },
+    });
     res.status(500).json({ error: 'Failed to initiate login' });
   }
 });
@@ -201,6 +214,14 @@ router.get('/app-callback', async (req: AuthRequest, res: Response): Promise<voi
 
     if (!session?.user) {
       log.error('[AppCallback] No session found after OAuth callback');
+      const noSessionErr = new Error('No session after OAuth callback');
+      noSessionErr.name = 'AppCallbackNoSession';
+      captureAuthIssue({
+        stage: 'oauth-no-session',
+        cause: noSessionErr,
+        req,
+        extras: { redirectTo },
+      });
       const errorRedirect = appendQueryParam(redirectTo, 'error', 'no_session');
       res.redirect(errorRedirect);
       return;
@@ -229,6 +250,12 @@ router.get('/app-callback', async (req: AuthRequest, res: Response): Promise<voi
     res.redirect(redirectWithCode);
   } catch (error) {
     log.error('[AppCallback] Error processing callback:', error);
+    captureAuthIssue({
+      stage: 'oauth-callback',
+      cause: error,
+      req,
+      extras: { stateNonce },
+    });
     res.status(500).json({ error: 'Failed to process callback' });
   }
 });
