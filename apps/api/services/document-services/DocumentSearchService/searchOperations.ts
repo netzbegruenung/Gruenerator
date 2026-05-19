@@ -50,13 +50,22 @@ export async function performTextSearch(
   try {
     const limit = options.limit || 5;
 
-    const filter: QdrantFilter = { must: [{ key: 'user_id', match: { value: userId } }] };
-
-    if (
+    const scopedByDocumentIds = !!(
       options.documentIds &&
       Array.isArray(options.documentIds) &&
       options.documentIds.length > 0
-    ) {
+    );
+
+    // See findSimilarChunks for the rationale: when documentIds is supplied,
+    // the upstream caller has already authorized the viewer for that exact set,
+    // so adding a user_id filter would break shared-notebook search.
+    const filter: QdrantFilter = { must: [] };
+
+    if (!scopedByDocumentIds) {
+      filter.must!.push({ key: 'user_id', match: { value: userId } });
+    }
+
+    if (scopedByDocumentIds) {
       filter.must!.push({
         key: 'document_id',
         match: { any: options.documentIds as (string | number)[] },
@@ -164,14 +173,21 @@ export async function findSimilarChunks(
 
   const filter: QdrantFilter = { must: [] };
 
-  if (searchCollection === 'documents') {
+  const scopedByDocumentIds = !!(filters.documentIds && filters.documentIds.length > 0);
+
+  // When documentIds is supplied the upstream caller (e.g. checkNotebookAccess
+  // in NotebookQAService) has already authorized the viewer for exactly those
+  // documents. The document_id filter below narrows Qdrant to that authorized
+  // set; adding a user_id filter on top would exclude documents owned by
+  // someone who shared their notebook with us, breaking shared-notebook search.
+  if (searchCollection === 'documents' && !scopedByDocumentIds) {
     filter.must!.push({ key: 'user_id', match: { value: userId as string } });
   }
 
-  if (filters.documentIds && filters.documentIds.length > 0) {
+  if (scopedByDocumentIds) {
     filter.must!.push({
       key: 'document_id',
-      match: { any: filters.documentIds },
+      match: { any: filters.documentIds! },
     });
   }
 
@@ -291,14 +307,21 @@ export async function findHybridChunks(
 
   const filter: QdrantFilter = { must: [] };
 
-  if (searchCollection === 'documents') {
+  const scopedByDocumentIds = !!(filters.documentIds && filters.documentIds.length > 0);
+
+  // When documentIds is supplied the upstream caller (e.g. checkNotebookAccess
+  // in NotebookQAService) has already authorized the viewer for exactly those
+  // documents. The document_id filter below narrows Qdrant to that authorized
+  // set; adding a user_id filter on top would exclude documents owned by
+  // someone who shared their notebook with us, breaking shared-notebook search.
+  if (searchCollection === 'documents' && !scopedByDocumentIds) {
     filter.must!.push({ key: 'user_id', match: { value: userId as string } });
   }
 
-  if (filters.documentIds && filters.documentIds.length > 0) {
+  if (scopedByDocumentIds) {
     filter.must!.push({
       key: 'document_id',
-      match: { any: filters.documentIds },
+      match: { any: filters.documentIds! },
     });
   }
 
