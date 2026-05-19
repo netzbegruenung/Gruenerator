@@ -74,6 +74,7 @@ export default [
       'pnpm-lock.yaml',
       'apps/wordpress/**',
       'apps/api/scripts/**',
+      'packages/shared/scripts/**',
     ],
   },
 ];
