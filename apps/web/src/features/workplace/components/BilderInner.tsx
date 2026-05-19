@@ -9,12 +9,7 @@ import {
   type ImageModelId,
 } from '@gruenerator/shared/models';
 import { useShareStore } from '@gruenerator/shared/share';
-import {
-  AIPromptInput,
-  Button,
-  SettingsDropdown,
-  type SettingConfig,
-} from '@gruenerator/ui';
+import { AIPromptInput, Button, SettingsDropdown, type SettingConfig } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, ImagePlus, X } from 'lucide-react';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
