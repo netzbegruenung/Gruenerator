@@ -1,3 +1,4 @@
+import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useShareStore } from '@gruenerator/shared/share';
 import {
   AIPromptInput,
@@ -7,7 +8,7 @@ import {
   pillInactive,
   pillActive,
 } from '@gruenerator/ui';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, ImagePlus, X } from 'lucide-react';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -30,6 +31,37 @@ const SUB_TABS: ReadonlyArray<{ id: SubMode; label: string }> = [
 
 const ERSTELLEN_MODE_ID = 'imagine';
 const BEARBEITEN_MODE_ID = 'bild-bearbeiten';
+
+interface UsageStatus {
+  count: number;
+  remaining: number;
+  limit: number;
+}
+
+interface UsageStatusResponse {
+  success: boolean;
+  data?: UsageStatus & { timeUntilReset?: string };
+}
+
+function formatImageCount(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ',');
+}
+
+function UsageBadge({ usage }: { usage: UsageStatus }) {
+  const isLow = usage.remaining <= 1;
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-sm py-xs text-xs font-medium ${
+        isLow
+          ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
+          : 'bg-grey-100 text-grey-700 dark:bg-grey-800 dark:text-grey-300'
+      }`}
+      title={`Heutiges Tageskontingent: ${formatImageCount(usage.count)} von ${usage.limit} Bildern verbraucht`}
+    >
+      {formatImageCount(usage.remaining)} / {usage.limit} Bilder heute
+    </span>
+  );
+}
 
 const BilderInner: React.FC = memo(() => {
   const [subMode, setSubMode] = useState<SubMode>('erstellen');
@@ -71,6 +103,19 @@ const BilderInner: React.FC = memo(() => {
       updateField('imageModel', defaultImageModel);
     }
   }, [isPrefLoading, defaultImageModel, modeState.imageModel, updateField]);
+
+  const [usage, setUsage] = useState<UsageStatus | null>(null);
+  const usageQuery = useQuery({
+    queryKey: ['image-generation-status'],
+    queryFn: async (): Promise<UsageStatus | null> => {
+      const res = await getGlobalApiClient().get<UsageStatusResponse>('/image-generation/status');
+      return res.data.data ?? null;
+    },
+    staleTime: 60_000,
+  });
+  useEffect(() => {
+    if (usageQuery.data) setUsage(usageQuery.data);
+  }, [usageQuery.data]);
 
   useEffect(
     () => () => {
@@ -128,6 +173,8 @@ const BilderInner: React.FC = memo(() => {
       if (modeState.variant) payload.variant = modeState.variant;
       if (modeState.imageModel) payload.imageModel = modeState.imageModel;
       const result = await submitForm(payload);
+      const usageFromResponse = (result as { usage?: UsageStatus })?.usage;
+      if (usageFromResponse) setUsage(usageFromResponse);
       const base64 = (result as { image?: { base64?: string } })?.image?.base64;
       if (base64) {
         setResult(base64, false);
@@ -197,10 +244,10 @@ const BilderInner: React.FC = memo(() => {
   }, [resultImage, isErstellen]);
 
   const erstellenToolbar = useMemo(() => {
-    if (!erstellenDef?.settings?.length) return null;
+    if (!erstellenDef?.settings?.length && !usage) return null;
     return (
       <>
-        {erstellenDef.settings.map((config) => (
+        {erstellenDef?.settings?.map((config) => (
           <SettingsDropdown
             key={config.key}
             config={config}
@@ -208,9 +255,10 @@ const BilderInner: React.FC = memo(() => {
             onChange={(val) => updateField(config.key, val as string)}
           />
         ))}
+        {usage && <UsageBadge usage={usage} />}
       </>
     );
-  }, [erstellenDef?.settings, modeState, updateField]);
+  }, [erstellenDef?.settings, modeState, updateField, usage]);
 
   const bearbeitenToolbar = useMemo(
     () =>
