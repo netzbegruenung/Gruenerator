@@ -178,6 +178,7 @@ export const notebookCollectionsContract = c.router(
       responses: {
         200: simpleSuccessMessageSchema,
         401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
         404: notebookErrorResponseSchema,
         500: notebookErrorResponseSchema,
       },
