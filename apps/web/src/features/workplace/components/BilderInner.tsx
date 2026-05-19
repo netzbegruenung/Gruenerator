@@ -17,24 +17,30 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
 import { Lightbox } from '../../image-studio/components/Lightbox';
 import { useLightbox } from '../../image-studio/hooks/useLightbox';
-import { editAiImage } from '../../image-studio/services/imageEditingService';
+import {
+  editAiImage,
+  removeImageBackground,
+} from '../../image-studio/services/imageEditingService';
 import { useImageModelPreference } from '../../models/hooks/useImageModelPreference';
 import { useModeState } from '../../texte/hooks/useModeState';
 import { MODE_MAP } from '../../texte/modes';
 
 import { cn } from '@/utils/cn';
 
-type SubMode = 'erstellen' | 'bearbeiten' | 'begruenen' | 'vergroessern';
+type SubMode = 'erstellen' | 'bearbeiten' | 'begruenen' | 'vergroessern' | 'hintergrund';
+
+const SUB_MODE_OPTIONS: SettingConfig['options'] = [
+  { id: 'erstellen', label: 'Erstellen' },
+  { id: 'bearbeiten', label: 'Bearbeiten' },
+  { id: 'begruenen', label: '🌳 Begrünen' },
+  { id: 'vergroessern', label: 'Vergrößern' },
+  ...(import.meta.env.DEV ? [{ id: 'hintergrund', label: 'Hintergrund entfernen' }] : []),
+];
 
 const SUB_MODE_CONFIG: SettingConfig = {
   key: 'subMode',
   label: 'Modus',
-  options: [
-    { id: 'erstellen', label: 'Erstellen' },
-    { id: 'bearbeiten', label: 'Bearbeiten' },
-    { id: 'begruenen', label: '🌳 Begrünen' },
-    { id: 'vergroessern', label: 'Vergrößern' },
-  ],
+  options: SUB_MODE_OPTIONS,
   multiple: false,
 };
 
@@ -42,6 +48,7 @@ const ERSTELLEN_MODE_ID = 'imagine';
 const BEARBEITEN_MODE_ID = 'bild-bearbeiten';
 const BEGRUENEN_MODE_ID = 'bild-begruenen';
 const VERGROESSERN_MODE_ID = 'bild-vergroessern';
+const HINTERGRUND_MODE_ID = 'bild-hintergrund-entfernen';
 
 const IMAGE_FAMILY_CONFIG: SettingConfig = {
   key: 'imageFamily',
@@ -120,6 +127,8 @@ const BilderInner: React.FC = memo(() => {
   const [editLoading, setEditLoading] = useState(false);
   const [greenEditError, setGreenEditError] = useState<string | null>(null);
   const [greenEditLoading, setGreenEditLoading] = useState(false);
+  const [removeBgError, setRemoveBgError] = useState<string | null>(null);
+  const [removeBgLoading, setRemoveBgLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const queryClient = useQueryClient();
@@ -130,17 +139,21 @@ const BilderInner: React.FC = memo(() => {
   const bearbeitenDef = MODE_MAP[BEARBEITEN_MODE_ID];
   const begruenenDef = MODE_MAP[BEGRUENEN_MODE_ID];
   const vergroessernDef = MODE_MAP[VERGROESSERN_MODE_ID];
+  const hintergrundDef = MODE_MAP[HINTERGRUND_MODE_ID];
   const isErstellen = subMode === 'erstellen';
   const isBearbeiten = subMode === 'bearbeiten';
   const isBegruenen = subMode === 'begruenen';
   const isVergroessern = subMode === 'vergroessern';
+  const isHintergrund = subMode === 'hintergrund';
   const activeDef = isErstellen
     ? erstellenDef
     : isBearbeiten
       ? bearbeitenDef
       : isBegruenen
         ? begruenenDef
-        : vergroessernDef;
+        : isVergroessern
+          ? vergroessernDef
+          : hintergrundDef;
 
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [outpaintLoading, setOutpaintLoading] = useState(false);
@@ -206,6 +219,10 @@ const BilderInner: React.FC = memo(() => {
     setResultIsObjectUrl(false);
   }, [resultImage, resultIsObjectUrl]);
 
+  const subModeRef = useRef<SubMode>(subMode);
+  subModeRef.current = subMode;
+  const removeBgHandlerRef = useRef<((file: File) => void) | null>(null);
+
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0] ?? null;
@@ -214,6 +231,9 @@ const BilderInner: React.FC = memo(() => {
       setSourceFile(file);
       setSourcePreviewUrl(URL.createObjectURL(file));
       setEditError(null);
+      if (subModeRef.current === 'hintergrund') {
+        removeBgHandlerRef.current?.(file);
+      }
     },
     [sourcePreviewUrl]
   );
@@ -316,6 +336,40 @@ const BilderInner: React.FC = memo(() => {
     }
   }, [prompt, sourceFile, greenEditLoading, setResult, createImageShare, queryClient]);
 
+  const handleSubmitRemoveBg = useCallback(
+    async (fileOverride?: File) => {
+      const file = fileOverride ?? sourceFile;
+      if (!file || removeBgLoading) return;
+      setRemoveBgLoading(true);
+      setRemoveBgError(null);
+      try {
+        const { objectUrl, base64 } = await removeImageBackground(file);
+        setResult(objectUrl, true);
+        const title = `Ohne Hintergrund — ${file.name}`;
+        createImageShare({
+          imageData: base64,
+          title: title.slice(0, 100),
+          imageType: 'edit',
+          status: 'ready',
+          metadata: { sourceFilename: file.name, editType: 'remove-background' },
+        })
+          .then(() => queryClient.invalidateQueries({ queryKey: ['recent-activity'] }))
+          .catch(() => {});
+      } catch (err) {
+        console.error('[BilderInner:hintergrund] Background removal failed:', err);
+        setRemoveBgError(
+          err instanceof Error ? err.message : 'Hintergrundentfernung fehlgeschlagen'
+        );
+      } finally {
+        setRemoveBgLoading(false);
+      }
+    },
+    [sourceFile, removeBgLoading, setResult, createImageShare, queryClient]
+  );
+  removeBgHandlerRef.current = (file: File) => {
+    void handleSubmitRemoveBg(file);
+  };
+
   const handleSubmitOutpaint = useCallback(async () => {
     if (!sourceFile || outpaintLoading) return;
     setOutpaintLoading(true);
@@ -359,17 +413,21 @@ const BilderInner: React.FC = memo(() => {
       void handleSubmitEdit();
     } else if (isBegruenen) {
       void handleSubmitGreenEdit();
-    } else {
+    } else if (isVergroessern) {
       void handleSubmitOutpaint();
+    } else {
+      void handleSubmitRemoveBg();
     }
   }, [
     isErstellen,
     isBearbeiten,
     isBegruenen,
+    isVergroessern,
     handleSubmitCreate,
     handleSubmitEdit,
     handleSubmitGreenEdit,
     handleSubmitOutpaint,
+    handleSubmitRemoveBg,
   ]);
 
   const handleDownload = useCallback(() => {
@@ -382,10 +440,12 @@ const BilderInner: React.FC = memo(() => {
         ? 'bearbeitet'
         : isBegruenen
           ? 'begruent'
-          : 'vergroessert';
+          : isVergroessern
+            ? 'vergroessert'
+            : 'ohne-hintergrund';
     link.download = `gruenerator-${slug}-${Date.now()}.png`;
     link.click();
-  }, [resultImage, isErstellen, isBearbeiten, isBegruenen]);
+  }, [resultImage, isErstellen, isBearbeiten, isBegruenen, isVergroessern]);
 
   const filePickerPill = useMemo(
     () =>
@@ -467,7 +527,7 @@ const BilderInner: React.FC = memo(() => {
             onChange={(val) => handleFluxVariantChange(val as ImageModelId)}
           />
         )}
-        {(isBearbeiten || isBegruenen || isVergroessern) && filePickerPill}
+        {(isBearbeiten || isBegruenen || isVergroessern || isHintergrund) && filePickerPill}
         {isVergroessern && (
           <SettingsDropdown
             config={ASPECT_RATIO_CONFIG}
@@ -484,6 +544,7 @@ const BilderInner: React.FC = memo(() => {
       isBearbeiten,
       isBegruenen,
       isVergroessern,
+      isHintergrund,
       erstellenDef?.settings,
       modeState,
       updateField,
@@ -503,7 +564,9 @@ const BilderInner: React.FC = memo(() => {
       ? editLoading
       : isBegruenen
         ? greenEditLoading
-        : outpaintLoading;
+        : isVergroessern
+          ? outpaintLoading
+          : removeBgLoading;
   const error = isErstellen
     ? createError
       ? String(createError)
@@ -512,14 +575,18 @@ const BilderInner: React.FC = memo(() => {
       ? editError
       : isBegruenen
         ? greenEditError
-        : outpaintError;
+        : isVergroessern
+          ? outpaintError
+          : removeBgError;
   const altText = isErstellen
     ? 'Generiertes Bild'
     : isBearbeiten
       ? 'Bearbeitetes Bild'
       : isBegruenen
         ? 'Begrüntes Bild'
-        : 'Vergrößertes Bild';
+        : isVergroessern
+          ? 'Vergrößertes Bild'
+          : 'Bild ohne Hintergrund';
 
   return (
     <div className="flex flex-col gap-md">
