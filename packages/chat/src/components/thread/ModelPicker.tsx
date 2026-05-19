@@ -32,7 +32,7 @@ interface AutoOption {
 const AUTO_OPTION: AutoOption = {
   id: AUTO_MODEL_ID,
   name: 'Automatisch',
-  description: 'Wählt automatisch das passende Modell für den Kontext',
+  description: 'Modell passend zum Kontext',
 };
 
 export const ModelPicker = memo(function ModelPicker() {
