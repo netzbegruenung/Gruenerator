@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
   Badge,
   Button,
@@ -10,7 +11,6 @@ import {
 import { useCallback, useState } from 'react';
 import { FiCheckCircle, FiTrash2, FiUsers } from 'react-icons/fi';
 
-import apiClient from '../../../components/utils/apiClient';
 import { useCanvasSharing } from '../hooks/useCanvasSharing';
 
 interface ShareCanvasDialogProps {
@@ -59,11 +59,15 @@ export function ShareCanvasDialog({ canvasId, open, onOpenChange }: ShareCanvasD
     setVorlageStatus('sharing');
     setVorlageError(null);
     try {
-      await apiClient.post(`/auth/groups/${vorlageGroupId}/share`, {
-        contentType: 'canvas_template',
-        contentId: canvasId,
-        permissions: { read: true },
+      const res = await getContractsClient().groups.shareContent({
+        params: { groupId: vorlageGroupId },
+        body: {
+          contentType: 'canvas_template',
+          contentId: canvasId,
+          permissions: { read: true },
+        },
       });
+      if (res.status !== 200) throw new Error('share failed');
       setVorlageStatus('shared');
       setVorlageSharedGroupName(targetGroup?.name ?? null);
       setVorlageGroupId('');

@@ -1,3 +1,5 @@
+import { type GroupContentType } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
   useAddGroupLink,
   useCreateGroup,
@@ -19,7 +21,6 @@ import {
   type GroupMember,
   type GroupSummary,
 } from '@gruenerator/shared/groups';
-import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import apiClient from '../../../components/utils/apiClient';
@@ -235,10 +236,6 @@ interface GroupContentData {
   [key: string]: unknown[];
 }
 
-interface ContentResponse {
-  content?: Record<string, unknown[]>;
-}
-
 export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptions = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const queryClient = useQueryClient();
@@ -249,8 +246,9 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
     if (!user?.id || !groupId) {
       throw new Error('User not authenticated or group ID missing');
     }
-    const response = await apiClient.get<ContentResponse>(`/auth/groups/${groupId}/content`);
-    return (response.data.content ?? {}) as GroupContentData;
+    const res = await getContractsClient().groups.listGroupContent({ params: { groupId } });
+    if (res.status !== 200) throw new Error('Fehler beim Laden der Gruppeninhalte.');
+    return res.body.content as GroupContentData;
   };
 
   const queryEnabled = !!user?.id && !!groupId && isAuthenticated && !authLoading;
@@ -270,9 +268,12 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
 
   const unshareContentMutation = useMutation({
     mutationFn: async ({ contentId, contentType }: { contentId: string; contentType: string }) => {
-      await apiClient.delete(`/auth/groups/${groupId}/content/${contentId}`, {
-        data: { contentType },
+      if (!groupId) throw new Error('Group ID missing');
+      const res = await getContractsClient().groups.removeGroupContent({
+        params: { groupId, contentId },
+        body: { contentType: contentType as GroupContentType },
       });
+      if (res.status !== 200) throw new Error(errMessage(res.body));
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
