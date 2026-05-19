@@ -35,7 +35,7 @@ function nodeToSignal(node: Node): string {
   switch (tag) {
     case 'strong':
     case 'b':
-      return `*${inner.trim()}*`;
+      return inner.trim();
 
     case 'em':
     case 'i':
@@ -65,7 +65,7 @@ function nodeToSignal(node: Node): string {
     case 'h4':
     case 'h5':
     case 'h6':
-      return `*${inner.trim()}*\n\n`;
+      return `${inner.trim()}\n\n`;
 
     case 'li': {
       const parent = el.parentElement;
@@ -166,8 +166,9 @@ export default function SignalMessage({ children }: SignalMessageProps): React.J
         {children}
       </div>
       <footer className={styles.footer}>
-        Beim Kopieren werden Markdown-Auszeichnungen automatisch in Signals Format gewandelt (Fett,
-        Kursiv, Links). Genderstern wird zum Doppelpunkt, damit Signal Worte nicht umkippt.
+        Beim Kopieren werden Links zu reinen URLs und der Genderstern zum Doppelpunkt. Fett wird
+        weggelassen, weil Signal Markdown-Sternchen nicht rendert – bei Bedarf einzelne Begriffe im
+        Chat manuell hervorheben.
         {attachment
           ? ' Das Bild lädst du mit dem zweiten Button herunter und hängst es in Signal an.'
           : ' Bilder bitte separat anhängen.'}

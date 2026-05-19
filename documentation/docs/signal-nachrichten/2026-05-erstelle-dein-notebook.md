@@ -11,13 +11,13 @@ _Verschickt am 19. Mai 2026 als Signal-Broadcast · Kurzfassung zum [Newsletter 
 
 ---
 
-Die Karte unten zeigt die Nachricht, wie sie in Signal-Gruppen verschickt wurde. Mit einem Klick auf **„Für Signal kopieren"** landet der Text Signal-tauglich formatiert (Fett mit einfachen Sternchen, Links als URL, Genderstern als Doppelpunkt) in der Zwischenablage – einfach in den Chat einfügen, das Bild separat anhängen.
+Die Karte unten zeigt die Nachricht, wie sie in Signal-Gruppen verschickt wurde — in ihr-Form, weil Signal mehrere Leute gleichzeitig erreicht. Mit einem Klick auf **„Für Signal kopieren"** landet der Text in der Zwischenablage: Links als reine URL, Genderstern als Doppelpunkt, Fett wird weggelassen (Signal rendert keine Markdown-Sternchen) — wenn du Fett brauchst, einfach im Chat manuell setzen. Das Bild lädst du mit dem zweiten Button herunter und hängst es in Signal an.
 
 <SignalMessage>
 
 Hallo zusammen,
 
-ab sofort kannst du im Grünerator deine eigenen Notebooks erstellen – mit eigenen Quellen, eigenen Fragen, eigenen Antworten. Ein Notebook ist dein persönliches Archiv: Du wirfst Dokumente rein, und der Grünerator beantwortet deine Fragen ausschließlich auf Basis dieser Dokumente – mit nachprüfbaren Quellenangaben.
+ab sofort könnt ihr im Grünerator eure eigenen Notebooks erstellen – mit eigenen Quellen, eigenen Fragen, eigenen Antworten. Ein Notebook ist euer persönliches Archiv: Ihr werft Dokumente rein, und der Grünerator beantwortet eure Fragen ausschließlich auf Basis dieser Dokumente – mit nachprüfbaren Quellenangaben.
 
 ![Grünerator Notebooks – Erstelle dein eigenes Notebook: Werbegrafik mit Smartphone-Screenshot der Quellenliste eines Notebooks](/img/signal-nachrichten/2026-05-erstelle-dein-notebook.png)
 
@@ -27,13 +27,13 @@ Um ein Notebook zu erstellen: [gruenerator.eu/notebooks](https://gruenerator.eu/
 
 Außerdem neu im Mai-Update:
 
-1. **Neuer Dokumenten-Chat.** Jedes Grünerator-Dokument hat jetzt einen eigenen Chat. Mit dem Toggle „AN" schreibt die KI direkt ins Dokument, du behältst die Kontrolle. Tippe „/" im Editor und wähle „KI" zum Weiterschreiben. Diktieren geht auch.
+1. **Neuer Dokumenten-Chat.** Jedes Grünerator-Dokument hat jetzt einen eigenen Chat. Mit dem Toggle „AN" schreibt die KI direkt ins Dokument, ihr behaltet die Kontrolle. Tippt „/" im Editor und wählt „KI" zum Weiterschreiben. Diktieren geht auch.
 
-2. **Neue Agents.** Im Chat gibt es neue Spezialist\*innen für Öffentlichkeitsarbeit und Kommunalpolitik, dazu einen „Tweet-wie-Ricarda"-Agent (nur DE). Mit @wolke hängst du Dateien aus der Grünen Wolke an, mit @recherche startest du tiefe Websuchen. Außerdem ein neues, sehr gutes Mistral-Modell aus Frankreich.
+2. **Neue Agents.** Im Chat gibt es neue Spezialist\*innen für Öffentlichkeitsarbeit und Kommunalpolitik, dazu einen „Tweet-wie-Ricarda"-Agent (nur DE). Mit @wolke hängt ihr Dateien aus der Grünen Wolke an, mit @recherche startet ihr tiefe Websuchen. Außerdem ein neues, sehr gutes Mistral-Modell aus Frankreich.
 
 3. **Bilder erstellen und bearbeiten.** Auf der Startseite und direkt aus dem Chat, unter anderem mit Flux Max für noch bessere Ergebnisse.
 
-Der Grünerator befindet sich derzeit in besonders aktiver Entwicklung – es können zwischendurch Fehler auftreten. Dabei zählt jede Rückmeldung. Schreib mir bitte, wenn etwas hakt.
+Der Grünerator befindet sich derzeit in besonders aktiver Entwicklung – es können zwischendurch Fehler auftreten. Dabei zählt jede Rückmeldung. Schreibt mir bitte, wenn etwas hakt.
 
 Viel Spaß beim Grünerieren!
 
