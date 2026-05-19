@@ -11,9 +11,5 @@ export const bildBearbeitenMode: ModeDefinition = {
   useCustomSubmit: true,
   useMarkdown: false,
   promptField: 'editPrompt',
-  examples: [
-    { label: 'Mehr Grün', text: 'Füge Bäume, Sträucher und Fahrradwege hinzu' },
-    { label: 'Plakat-Stil', text: 'Mache das Bild zu einem grünen Wahlplakat mit ' },
-    { label: 'Hintergrund', text: 'Tausche den Hintergrund gegen ' },
-  ],
+  examples: [{ label: 'Mehr Grün', text: 'Füge Bäume, Sträucher und Fahrradwege hinzu' }],
 };

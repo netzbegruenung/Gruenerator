@@ -11,7 +11,7 @@ import {
 import { useShareStore } from '@gruenerator/shared/share';
 import { AIPromptInput, Button, SettingsDropdown, type SettingConfig } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, ImagePlus, X } from 'lucide-react';
+import { Download, Image as ImageIcon, ImagePlus, X } from 'lucide-react';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
@@ -101,14 +101,16 @@ function UsageBadge({ usage }: { usage: UsageStatus }) {
   const isLow = usage.remaining <= 1;
   return (
     <span
-      className={`inline-flex items-center rounded-full px-sm py-xs text-xs font-medium ${
+      className={`inline-flex items-center gap-1 rounded-full px-sm py-xs text-xs font-medium ${
         isLow
           ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
           : 'bg-grey-100 text-grey-700 dark:bg-grey-800 dark:text-grey-300'
       }`}
-      title={`Heutiges Tageskontingent: ${formatImageCount(usage.count)} von ${usage.limit} Bildern verbraucht`}
+      title={`Heutiges Tageskontingent: ${formatImageCount(usage.count)} von ${usage.limit} Bildern heute verbraucht`}
+      aria-label={`${formatImageCount(usage.remaining)} von ${usage.limit} Bildern heute übrig`}
     >
-      {formatImageCount(usage.remaining)} / {usage.limit} Bilder heute
+      <ImageIcon className="size-3.5" aria-hidden="true" />
+      {formatImageCount(usage.remaining)}/{usage.limit}
     </span>
   );
 }

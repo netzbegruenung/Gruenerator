@@ -14,7 +14,5 @@ export const bildBegruenenMode: ModeDefinition = {
   promptField: 'editPrompt',
   examples: [
     { label: 'Mehr Bäume', text: 'Pflanze viele große Straßenbäume entlang der Fahrbahn' },
-    { label: 'Radweg', text: 'Füge einen geschützten Radweg mit grüner Trennung hinzu' },
-    { label: 'Fußgängerzone', text: 'Mache daraus eine grüne Fußgängerzone mit Sitzgelegenheiten' },
   ],
 };
