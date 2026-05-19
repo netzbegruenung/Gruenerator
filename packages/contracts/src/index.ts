@@ -43,6 +43,7 @@ export {
   notificationsContract,
   emailContract,
   modelPreferencesContract,
+  imageModelPreferenceContract,
   adminVorlagenContract,
   canvasAiContract,
 } from './contracts/index.js';
@@ -73,5 +74,6 @@ export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
 export * from './schemas/email.js';
 export * from './schemas/modelPreferences.js';
+export * from './schemas/imageModelPreference.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/canvasAi.js';

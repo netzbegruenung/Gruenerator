@@ -1,10 +1,10 @@
 'use client';
 
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
-import { type ModelId } from '@gruenerator/shared/models';
+import { type TextModelId } from '@gruenerator/shared/models';
 
 export interface ModelPreferencesContextValue {
-  enabledModelIds: ReadonlySet<ModelId> | null;
+  enabledModelIds: ReadonlySet<TextModelId> | null;
 }
 
 const ModelPreferencesContext = createContext<ModelPreferencesContextValue>({
@@ -13,7 +13,7 @@ const ModelPreferencesContext = createContext<ModelPreferencesContextValue>({
 
 interface ModelPreferencesProviderProps {
   children: ReactNode;
-  enabledModelIds?: ReadonlySet<ModelId> | null;
+  enabledModelIds?: ReadonlySet<TextModelId> | null;
 }
 
 export function ModelPreferencesProvider({

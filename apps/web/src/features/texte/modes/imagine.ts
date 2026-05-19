@@ -1,3 +1,5 @@
+import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL_ID } from '@gruenerator/shared/models';
+
 import type { ModeDefinition } from './types';
 
 export const imagineMode: ModeDefinition = {
@@ -24,18 +26,15 @@ export const imagineMode: ModeDefinition = {
       multiple: false,
     },
     {
-      key: 'backend',
+      key: 'imageModel',
       label: 'Modell',
-      options: [
-        { id: 'regolo', label: 'Standard' },
-        { id: '', label: 'Flux Pro' },
-      ],
+      options: IMAGE_MODELS.map((m) => ({ id: m.id, label: m.name })),
       multiple: false,
     },
   ],
   defaults: {
     variant: '',
-    backend: 'regolo',
+    imageModel: DEFAULT_IMAGE_MODEL_ID,
   },
   examples: [
     { label: 'Plakat', text: 'Ein grünes Wahlplakat mit Sonnenblumen und dem Slogan ' },

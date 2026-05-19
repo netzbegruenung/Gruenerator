@@ -1,7 +1,7 @@
 'use client';
 
 import { createStore, useStore } from 'zustand';
-import type { ModelId } from '@gruenerator/shared/models';
+import type { TextModelId } from '@gruenerator/shared/models';
 import { useChatSurfaceContext, type ChatSurfaceState } from '../context/ChatSurfaceContext';
 import { useAgentStore, type SearchMode, type ThreadMode } from '../stores/chatStore';
 
@@ -45,9 +45,9 @@ export function useScopedSearchMode(): SearchMode {
   return useScopedField((s) => s.searchMode, global);
 }
 
-export function useScopedSelectedModel(): ModelId | null {
+export function useScopedSelectedModel(): TextModelId | null {
   const global = useAgentStore((s) => s.selectedModel);
-  return useScopedField<ModelId | null>((s) => s.selectedModel, global);
+  return useScopedField<TextModelId | null>((s) => s.selectedModel, global);
 }
 
 export function useScopedSelectedNotebookId(): string {
@@ -88,7 +88,7 @@ export function useScopedSetSearchMode(): (mode: SearchMode) => void {
   return (mode) => ctx.store.getState().setSearchMode(mode);
 }
 
-export function useScopedSetSelectedModel(): (model: ModelId) => void {
+export function useScopedSetSelectedModel(): (model: TextModelId) => void {
   const ctx = useChatSurfaceContext();
   const globalSet = useAgentStore((s) => s.setSelectedModel);
   if (!ctx) return globalSet;
