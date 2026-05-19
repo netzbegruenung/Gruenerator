@@ -35,8 +35,8 @@ import {
   type SharedAgentEntry,
 } from '../agents/api';
 
-import { Markdown } from '@/components/common/Markdown';
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
+import { Markdown } from '@/components/common/Markdown';
 import PageContainer from '@/components/common/PageContainer';
 import { getAgentIcon } from '@/components/layout/Sidebar/sidebarAgentConfig';
 
@@ -79,20 +79,18 @@ function SkillCard({ skill, isFavorite, onToggleFavorite, onSelect }: SkillCardP
               {skill.title}
             </h3>
             <div className="flex shrink-0 gap-1">
-              {skill.skillSystemPrompt && (
-                <button
-                  type="button"
-                  aria-label="Skill-Text anzeigen"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowText(true);
-                  }}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  className="rounded-md p-2 text-secondary-600 transition-colors hover:bg-secondary-600/10"
-                >
-                  <PiEye className="h-4 w-4" />
-                </button>
-              )}
+              <button
+                type="button"
+                aria-label="Skill-Text anzeigen"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowText(true);
+                }}
+                onKeyDown={(e) => e.stopPropagation()}
+                className="rounded-md p-2 text-secondary-600 transition-colors hover:bg-secondary-600/10"
+              >
+                <PiEye className="h-4 w-4" />
+              </button>
               <button
                 type="button"
                 aria-label={isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
@@ -112,16 +110,34 @@ function SkillCard({ skill, isFavorite, onToggleFavorite, onSelect }: SkillCardP
           </p>
         </div>
       </div>
-      {skill.skillSystemPrompt && (
-        <Dialog open={showText} onOpenChange={setShowText}>
-          <DialogContent className="max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{skill.title}</DialogTitle>
-            </DialogHeader>
+      <Dialog open={showText} onOpenChange={setShowText}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{skill.title}</DialogTitle>
+          </DialogHeader>
+          {skill.skillSystemPrompt ? (
             <Markdown fallback={<p>{skill.description}</p>}>{skill.skillSystemPrompt}</Markdown>
-          </DialogContent>
-        </Dialog>
-      )}
+          ) : (
+            <div className="flex flex-col gap-md">
+              <p className="text-sm text-foreground m-0">{skill.description}</p>
+              {skill.promptTemplate && (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-secondary-600 mb-xs m-0">
+                    Schnellbefehl
+                  </p>
+                  <code className="block rounded-md bg-grey-100 dark:bg-grey-800 p-sm text-sm font-mono whitespace-pre-wrap break-words">
+                    {skill.promptTemplate}
+                  </code>
+                </div>
+              )}
+              <p className="text-xs italic text-foreground/70 m-0">
+                Dieser Skill fügt nur den Schnellbefehl ein und injiziert keinen zusätzlichen
+                Systemprompt — Stil und Tonalität kommen vom zugrundeliegenden Agenten.
+              </p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
