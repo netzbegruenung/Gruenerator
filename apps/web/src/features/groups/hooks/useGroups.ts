@@ -32,6 +32,16 @@ export { getGroupInitials, type GroupLink, type GroupMember, type GroupSummary }
 
 export const useGroupDetails = useGroupDetailsShared;
 
+// ts-rest widens the body to `unknown` for non-2xx statuses; read `message`
+// defensively rather than asserting the error-schema shape.
+function errMessage(body: unknown, fallback = 'Aktion fehlgeschlagen.'): string {
+  if (body && typeof body === 'object' && 'message' in body) {
+    const m = (body as { message?: unknown }).message;
+    if (typeof m === 'string') return m;
+  }
+  return fallback;
+}
+
 interface MutationOptions<T = unknown> {
   onSuccess?: (result: T) => void;
   onError?: (error: Error) => void;
@@ -67,7 +77,7 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
     mutationFn: async (input: { groupId: string; name?: string; description?: string }) => {
       const { groupId, ...body } = input;
       const res = await getContractsClient().groups.updateInfo({ params: { groupId }, body });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new Error(errMessage(res.body));
       return { groupId, data: res.body };
     },
     onSuccess: ({ groupId }) => {
@@ -82,7 +92,7 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
         params: { groupId: input.groupId },
         body: { name: input.name },
       });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new Error(errMessage(res.body));
       return { groupId: input.groupId, data: res.body };
     },
     onSuccess: ({ groupId }) => {
@@ -305,7 +315,7 @@ export const useUpdateGroupSettings = (groupId: string | null) => {
         params: { groupId },
         body: { settings },
       });
-      if (res.status !== 200) throw new Error(res.body.message);
+      if (res.status !== 200) throw new Error(errMessage(res.body));
       return res.body;
     },
     onSuccess: () => {
