@@ -157,15 +157,8 @@ function EditorContent() {
   const isEmbedded = searchParams.get('embedded') === 'true';
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
-  const { user, isAuthResolved, loading: authLoading, isInitialLoad } = useAuth({ lazy: true });
+  const { user, isAuthResolved } = useAuth({ lazy: true });
   const isGuest = Boolean(isAuthResolved) && !user;
-  console.warn('[Docs] Auth debug:', {
-    isAuthResolved,
-    authLoading,
-    isInitialLoad,
-    hasUser: !!user,
-    isGuest,
-  });
   const [darkMode, toggleDarkMode] = useDarkMode();
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
