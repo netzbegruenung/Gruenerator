@@ -21,9 +21,7 @@ export const COLLAB_SUBTYPES = [
 export const DOCS_SUBTYPES = COLLAB_SUBTYPES;
 
 /** Document-only subtypes (excludes boards and canvas, which have their own listing endpoints). */
-export const DOCS_ONLY_SUBTYPES = COLLAB_SUBTYPES.filter(
-  (s) => s !== 'boards' && s !== 'canvas'
-);
+export const DOCS_ONLY_SUBTYPES = COLLAB_SUBTYPES.filter((s) => s !== 'boards' && s !== 'canvas');
 
 /** Marker for permissions auto-granted when a user visits an 'authenticated' share link */
 export const GRANTED_BY_SHARE_LINK = 'auto:share_link';

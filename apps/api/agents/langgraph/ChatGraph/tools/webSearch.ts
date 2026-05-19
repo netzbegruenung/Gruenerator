@@ -22,26 +22,28 @@ import type { ToolDependencies } from './registry.js';
 const log = createLogger('Tool:WebSearch');
 
 export function createWebSearchTool(deps: ToolDependencies): DynamicStructuredTool {
-    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
+  // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'web_search',
     description:
       'Suche aktuelle Informationen im Web. ' +
       'Nutze dieses Tool bei Fragen zu aktuellen Ereignissen, Nachrichten, ' +
       'externen Fakten oder wenn der Nutzer explizit eine Websuche anfragt.',
-    schema: z.object({
-      query: z.string().describe('Die Suchanfrage'),
-      time_range: z
-        .enum(['day', 'week', 'month', 'year'])
-        .optional()
-        .describe('Zeitraum-Filter (z.B. "day" für heute, "week" für diese Woche)'),
-      max_results: z
-        .number()
-        .min(1)
-        .max(10)
-        .optional()
-        .describe('Anzahl gewünschter Ergebnisse (Standard: 5, max: 10)'),
-    }).describe('Web-Suche'),
+    schema: z
+      .object({
+        query: z.string().describe('Die Suchanfrage'),
+        time_range: z
+          .enum(['day', 'week', 'month', 'year'])
+          .optional()
+          .describe('Zeitraum-Filter (z.B. "day" für heute, "week" für diese Woche)'),
+        max_results: z
+          .number()
+          .min(1)
+          .max(10)
+          .optional()
+          .describe('Anzahl gewünschter Ergebnisse (Standard: 5, max: 10)'),
+      })
+      .describe('Web-Suche'),
     func: async (input: { query: string; time_range?: string; max_results?: number }) => {
       const { query, time_range, max_results } = input;
       const effectiveMaxResults = max_results ?? 5;

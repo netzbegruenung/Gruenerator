@@ -56,6 +56,7 @@ import {
   getOriginalFilename,
 } from '../../services/subtitler/tusService.js';
 import { getVideoMetadata } from '../../services/subtitler/videoUploadService.js';
+import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -344,7 +345,7 @@ router.get(
           .replace(/[^a-zA-Z0-9_-]/g, '_') + '_gruenerator.mp4';
       res.setHeader('Content-Type', 'video/mp4');
       res.setHeader('Content-Length', stats.size);
-      res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+      setContentDisposition(res, filename);
 
       const stream = fs.createReadStream(exportData.outputPath);
       stream.pipe(res);
@@ -780,10 +781,7 @@ router.get(
       const stats = await fsPromises.stat(parsed.outputPath);
       res.setHeader('Content-Type', 'video/mp4');
       res.setHeader('Content-Length', stats.size);
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename=video_${uploadId}_gruenerator.mp4`
-      );
+      setContentDisposition(res, `video_${uploadId}_gruenerator.mp4`);
       fs.createReadStream(parsed.outputPath).pipe(res);
     } catch (e: unknown) {
       if (!res.headersSent)

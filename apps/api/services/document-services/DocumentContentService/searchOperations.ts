@@ -31,7 +31,12 @@ interface DocumentSearchServiceLike {
   getDocumentFullText: (
     userId: string,
     docId: string
-  ) => Promise<{ success: boolean; fullText: string; chunkCount: number; error?: string | undefined }>;
+  ) => Promise<{
+    success: boolean;
+    fullText: string;
+    chunkCount: number;
+    error?: string | undefined;
+  }>;
 }
 
 export async function performVectorSearch(

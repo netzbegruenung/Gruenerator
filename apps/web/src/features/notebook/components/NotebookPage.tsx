@@ -24,12 +24,13 @@ import withAuthRequired from '../../../components/common/LoginRequired/withAuthR
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { useExportStore } from '../../../stores/core/exportStore';
-import { useNotebookCollections } from '../../auth/hooks/useProfileData';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
 import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
+import { useNotebookCollection } from '../hooks/useNotebookCollection';
 import useNotebookStore from '../stores/notebookStore';
 
+import { NotebookAccessError } from './NotebookAccessError';
 import { NotebookStartpage } from './NotebookStartpage';
 
 interface NotebookCollection {
@@ -89,6 +90,12 @@ interface NotebookPageContentProps {
   /** Disable the manual research tab (dynamic user notebooks have no system collection scope). Defaults to true. */
   showManualSearch?: boolean;
   /**
+   * Suppress the global-chat ("Chat") tab even when a notebook mention is available.
+   * Used by aggregate surfaces (e.g. the /notebooks index) where the chat tab
+   * doesn't correspond to a specific notebook the user picked. Defaults to false.
+   */
+  hideGlobalChat?: boolean;
+  /**
    * When set, the manual research tab scopes to a single user-owned notebook
    * (ownership-checked, no facet filter UI). Forwarded to `NotebookManualSearch`.
    */
@@ -138,6 +145,7 @@ export const NotebookPageContent = ({
   showLastAdded = true,
   showExamples = true,
   showManualSearch = true,
+  hideGlobalChat = false,
   manualSearchNotebookId,
 }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
@@ -356,6 +364,7 @@ export const NotebookPageContent = ({
                   showStats={showStats}
                   showLastAdded={showLastAdded}
                   showManualSearch={showManualSearch}
+                  hideGlobalChat={hideGlobalChat}
                   manualSearchNotebookId={manualSearchNotebookId}
                   notebookMention={notebookMention}
                   footer={startpageFooter}
@@ -434,7 +443,6 @@ interface DynamicNotebookPageProps {
 export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {}) => {
   const { id: idFromParams } = useParams<{ id: string }>();
   const id = idProp ?? idFromParams;
-  const user = useAuthStore((s) => s.user);
 
   // Reset agent to the default (universal). NotebookPage warms a system
   // notebook's agent into the persisted store; without a counterpart here,
@@ -444,9 +452,12 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
     setSelectedAgent(null);
   }, [id, setSelectedAgent]);
 
-  const { query, getQACollection } = useNotebookCollections({ isActive: true });
-  const collection = id ? getQACollection(id) : undefined;
-  const { isLoading, isError, data: qaCollections } = query;
+  // Single-collection fetch gated by checkNotebookAccess — works for direct
+  // URL access to a `share_mode='authenticated'` notebook regardless of the
+  // viewer's locale (audience is a discovery-listing hint, not an access wall).
+  const { data, isLoading, refetch } = useNotebookCollection(id);
+  const collection = data?.collection ?? null;
+  const fetchError = data?.error ?? null;
 
   if (isLoading)
     return (
@@ -455,15 +466,8 @@ export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {
       </div>
     );
 
-  if (isError || !collection) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-sm p-md text-foreground-muted">
-        <p>Notebook nicht gefunden oder keine Berechtigung.</p>
-        <p className="text-xs">
-          Collection ID: {id} · User ID: {user?.id} · Collections: {qaCollections?.length || 0}
-        </p>
-      </div>
-    );
+  if (!collection) {
+    return <NotebookAccessError variant={fetchError ?? 'unknown'} onRetry={() => void refetch()} />;
   }
 
   const config: NotebookConfig = {

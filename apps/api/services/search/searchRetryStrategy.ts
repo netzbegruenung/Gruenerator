@@ -35,12 +35,22 @@ export function isRecoverableError(error: Error): boolean {
   }
 
   // 5xx server errors are recoverable
-  if (/\b5\d{2}\b/.test(msg) || msg.includes('internal server error') || msg.includes('bad gateway') || msg.includes('service unavailable')) {
+  if (
+    /\b5\d{2}\b/.test(msg) ||
+    msg.includes('internal server error') ||
+    msg.includes('bad gateway') ||
+    msg.includes('service unavailable')
+  ) {
     return true;
   }
 
   // 4xx client errors are NOT recoverable
-  if (/\b4\d{2}\b/.test(msg) || msg.includes('not found') || msg.includes('unauthorized') || msg.includes('forbidden')) {
+  if (
+    /\b4\d{2}\b/.test(msg) ||
+    msg.includes('not found') ||
+    msg.includes('unauthorized') ||
+    msg.includes('forbidden')
+  ) {
     return false;
   }
 
@@ -52,10 +62,7 @@ export function isRecoverableError(error: Error): boolean {
  * Execute a function with retry logic.
  * Only retries on recoverable errors; immediately throws on non-recoverable ones.
  */
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  options: RetryOptions
-): Promise<T> {
+export async function withRetry<T>(fn: () => Promise<T>, options: RetryOptions): Promise<T> {
   const { maxRetries, delayMs, label = 'operation' } = options;
   const checkRecoverable = options.isRecoverable ?? isRecoverableError;
 
@@ -68,7 +75,9 @@ export async function withRetry<T>(
       lastError = err instanceof Error ? err : new Error(String(err));
 
       if (attempt < maxRetries && checkRecoverable(lastError)) {
-        log.warn(`[Retry] ${label} attempt ${attempt + 1} failed (recoverable): ${lastError.message}. Retrying in ${delayMs}ms...`);
+        log.warn(
+          `[Retry] ${label} attempt ${attempt + 1} failed (recoverable): ${lastError.message}. Retrying in ${delayMs}ms...`
+        );
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       } else if (!checkRecoverable(lastError)) {
         log.warn(`[Retry] ${label} failed with non-recoverable error: ${lastError.message}`);
@@ -123,7 +132,9 @@ export class CircuitBreaker {
    */
   recordSuccess(): void {
     if (this.consecutiveFailures > 0) {
-      log.info(`[${this.label}] Success after ${this.consecutiveFailures} failures, resetting circuit`);
+      log.info(
+        `[${this.label}] Success after ${this.consecutiveFailures} failures, resetting circuit`
+      );
     }
     this.consecutiveFailures = 0;
     this.openedAt = null;
@@ -136,7 +147,9 @@ export class CircuitBreaker {
     this.consecutiveFailures++;
     if (this.consecutiveFailures >= this.failureThreshold && this.openedAt === null) {
       this.openedAt = Date.now();
-      log.warn(`[${this.label}] Circuit OPENED after ${this.consecutiveFailures} consecutive failures`);
+      log.warn(
+        `[${this.label}] Circuit OPENED after ${this.consecutiveFailures} consecutive failures`
+      );
     }
   }
 

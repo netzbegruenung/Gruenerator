@@ -61,10 +61,7 @@ const useDarkMode = (): [boolean, () => void] => {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ value: darkMode, timestamp: Date.now() })
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ value: darkMode, timestamp: Date.now() }));
     localStorage.removeItem(LEGACY_KEY);
     listeners.forEach((cb) => {
       if (cb !== setDarkMode) cb(darkMode);

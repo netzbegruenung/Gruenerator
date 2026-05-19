@@ -52,7 +52,11 @@ export function AiCreateTool({ onJumpToUploads }: AiCreateToolProps) {
   const canSubmit = prompt.trim().length >= 5;
   const error = uploadError ?? generationError;
   const isBusy = isGenerating || isUploading;
-  const progressMessage = isGenerating ? 'Generiere Bild…' : isUploading ? 'Speichern in Uploads…' : null;
+  const progressMessage = isGenerating
+    ? 'Generiere Bild…'
+    : isUploading
+      ? 'Speichern in Uploads…'
+      : null;
 
   return (
     <ToolPanel

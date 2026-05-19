@@ -15,6 +15,7 @@ export type {
   GenerateFromPromptOptions,
   GenerateResult,
   GenerateFromImageOptions,
+  OutpaintOptions,
 } from './FluxImageService.js';
 
 export {

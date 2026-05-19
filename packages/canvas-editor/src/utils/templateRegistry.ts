@@ -7,12 +7,7 @@
 
 import type { CanvasConfigId } from '../configs/types';
 
-export type TemplateCategory =
-  | 'sharepic'
-  | 'slider'
-  | 'plakat'
-  | 'presentation'
-  | 'profilbild';
+export type TemplateCategory = 'sharepic' | 'slider' | 'plakat' | 'presentation' | 'profilbild';
 
 export interface TemplateInfo {
   id: CanvasConfigId;

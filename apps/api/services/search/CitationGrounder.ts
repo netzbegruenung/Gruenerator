@@ -127,14 +127,18 @@ export function validateCitations(
       grounded.push(citationId);
     } else {
       ungrounded.push(citationId);
-      log.debug(`[Ground] Citation [${citationId}] ungrounded (overlap: ${overlap.toFixed(2)}): "${claim.slice(0, 80)}..."`);
+      log.debug(
+        `[Ground] Citation [${citationId}] ungrounded (overlap: ${overlap.toFixed(2)}): "${claim.slice(0, 80)}..."`
+      );
     }
   }
 
   const totalCitations = foundCitations.size;
   const confidence = totalCitations > 0 ? grounded.length / totalCitations : 1;
 
-  log.info(`[Ground] ${grounded.length}/${totalCitations} citations grounded (confidence: ${confidence.toFixed(2)})`);
+  log.info(
+    `[Ground] ${grounded.length}/${totalCitations} citations grounded (confidence: ${confidence.toFixed(2)})`
+  );
 
   return {
     groundedCitations: grounded.sort((a, b) => a - b),

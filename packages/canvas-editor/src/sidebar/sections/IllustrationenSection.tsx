@@ -179,7 +179,9 @@ export function IllustrationenSection({
         <>
           <div ref={sentinelRef} className="h-px w-full" />
           {hasMore && (
-            <div className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(64px,1fr))]', 'mt-2')}>
+            <div
+              className={cn(CARD_GRID, 'grid-cols-[repeat(auto-fill,minmax(64px,1fr))]', 'mt-2')}
+            >
               {Array.from({ length: 6 }).map((_, i) => (
                 <Skeleton key={i} className="aspect-square rounded-lg" />
               ))}

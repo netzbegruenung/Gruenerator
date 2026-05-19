@@ -35,9 +35,7 @@ function mask(value: string | undefined): string {
 async function main() {
   const to = parseRecipient();
   if (!to) {
-    console.error(
-      'No recipient. Pass --to <addr> or set TEST_EMAIL_TO / CONTENT_SYNC_EMAIL.'
-    );
+    console.error('No recipient. Pass --to <addr> or set TEST_EMAIL_TO / CONTENT_SYNC_EMAIL.');
     process.exit(2);
   }
 

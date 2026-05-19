@@ -8,9 +8,7 @@ const AGENT_ID_PREFIX = 'gruenerator-';
  * verbose identifier (`gruenerator-oeffentlichkeitsarbeit-berlin`).
  */
 const customSlugToIdentifier = new Map<string, string>(
-  SYSTEM_AGENTS.flatMap((agent) =>
-    agent.slug ? [[agent.slug, agent.identifier] as const] : []
-  )
+  SYSTEM_AGENTS.flatMap((agent) => (agent.slug ? [[agent.slug, agent.identifier] as const] : []))
 );
 
 /**

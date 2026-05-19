@@ -17,7 +17,7 @@ export type ReelStatus =
 export interface ReelProcessingState {
   status: ReelStatus;
   uploadProgress: number;
-  processingStage: 1 | 2 | 3 | 4;
+  processingStage: number;
   stageName: string;
   stageProgress: number;
   overallProgress: number;
@@ -127,11 +127,15 @@ export function useReelProcessing() {
 
         if (!isMountedRef.current) return;
 
+        const stage = progress.stage ?? 1;
         updateState({
-          processingStage: progress.stage,
-          stageName: progress.stageName || PROCESSING_STAGES[progress.stage]?.name || '',
-          stageProgress: progress.stageProgress,
-          overallProgress: progress.overallProgress,
+          processingStage: stage,
+          stageName:
+            progress.stageName ||
+            PROCESSING_STAGES[stage as keyof typeof PROCESSING_STAGES]?.name ||
+            '',
+          stageProgress: progress.stageProgress ?? 0,
+          overallProgress: progress.overallProgress ?? 0,
         });
 
         if (progress.status === 'complete') {

@@ -1,3 +1,4 @@
+import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -378,18 +379,33 @@ function NotebooksIndexFooter() {
     void navigate('/notebooks/neu');
   }, [navigate]);
 
+  // Resolve a collectionId to the Notion-style URL fragment when the row has
+  // a slug_suffix, falling back to the raw UUID for legacy pre-backfill rows.
+  // The bearbeiten/view routes both accept either form via NotebookResolver,
+  // so a fallback simply gives a less-pretty URL — never a 404.
+  const buildSlugFragment = useCallback(
+    (collectionId: string): string => {
+      const c = qaCollections.find((x) => x.id === collectionId);
+      if (c?.slug_suffix) return buildNotebookSlug(c.name, c.slug_suffix);
+      return collectionId;
+    },
+    [qaCollections]
+  );
+
   const handleEdit = useCallback(
     (collectionId: string) => {
-      void navigate(`/notebooks/${collectionId}/bearbeiten`);
+      void navigate(`/notebooks/${buildSlugFragment(collectionId)}/bearbeiten`);
     },
-    [navigate]
+    [navigate, buildSlugFragment]
   );
 
   const handleView = useCallback(
     (collectionId: string) => {
-      void navigate(`/notebook/${collectionId}`, { state: { freshConversation: true } });
+      void navigate(`/notebooks/${buildSlugFragment(collectionId)}`, {
+        state: { freshConversation: true },
+      });
     },
-    [navigate]
+    [navigate, buildSlugFragment]
   );
 
   const handleDelete = useCallback(
@@ -401,12 +417,18 @@ function NotebooksIndexFooter() {
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const handleShare = useCallback((collectionId: string) => {
-    const url = `${window.location.origin}/notebook/${collectionId}`;
-    void navigator.clipboard.writeText(url);
-    setCopiedId(collectionId);
-    setTimeout(() => setCopiedId(null), 2000);
-  }, []);
+  const handleShare = useCallback(
+    (collectionId: string) => {
+      // Canonical URL: plural `/notebooks/...` with the Notion-style slug. The
+      // legacy singular `/notebook/:id` route still redirects, but copying the
+      // canonical form means the redirect never fires for share recipients.
+      const url = `${window.location.origin}/notebooks/${buildSlugFragment(collectionId)}`;
+      void navigator.clipboard.writeText(url);
+      setCopiedId(collectionId);
+      setTimeout(() => setCopiedId(null), 2000);
+    },
+    [buildSlugFragment]
+  );
 
   return (
     <section className="mt-xl">
@@ -447,6 +469,7 @@ function NotebooksIndexPage() {
       showLastAdded={false}
       showStats={false}
       showExamples={false}
+      hideGlobalChat
     />
   );
 }

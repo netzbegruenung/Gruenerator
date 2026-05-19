@@ -87,6 +87,28 @@ export async function processUploadedDocument(
 
   let filePath: string | null = null;
 
+  // Helper: write current pipeline stage into documents.metadata JSONB so the
+  // frontend status poll can surface "Wird gescannt / Wird zerlegt / Wird indexiert".
+  // Best-effort — never fails the processing run.
+  const markStage = async (
+    stage: 'extracting' | 'chunking' | 'upserting',
+    progress?: { current: number; total: number }
+  ): Promise<void> => {
+    try {
+      await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
+        additionalMetadata: {
+          processing_stage: stage,
+          processing_progress: progress ? { stage, ...progress } : null,
+        },
+      });
+    } catch (err) {
+      console.warn(
+        `[DocumentProcessingService] markStage(${stage}) failed for ${documentId}:`,
+        (err as Error).message
+      );
+    }
+  };
+
   try {
     await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
       status: 'processing',
@@ -114,18 +136,30 @@ export async function processUploadedDocument(
       size: buffer.length,
     };
 
+    await markStage('extracting');
     const extractedText = await extractTextFromFile(file);
     if (!extractedText || extractedText.trim().length === 0) {
       throw new Error('No text could be extracted from the document');
     }
 
+    await markStage('chunking');
     const { chunks, embeddings } = await chunkAndEmbedText(extractedText);
 
-    await qdrantDocumentService.storeDocumentVectors(userId, documentId, chunks, embeddings, {
-      sourceType: document.source_type || 'manual',
-      title: document.title,
-      filename: document.filename,
-    });
+    await markStage('upserting', { current: 0, total: chunks.length });
+    await qdrantDocumentService.storeDocumentVectors(
+      userId,
+      documentId,
+      chunks,
+      embeddings,
+      {
+        sourceType: document.source_type || 'manual',
+        title: document.title,
+        filename: document.filename,
+      },
+      async (upserted, total) => {
+        await markStage('upserting', { current: upserted, total });
+      }
+    );
 
     await postgresDocumentService.updateDocumentMetadata(documentId, userId, {
       status: 'completed',

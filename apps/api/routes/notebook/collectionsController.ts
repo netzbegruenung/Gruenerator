@@ -13,9 +13,7 @@ import express, { type Response } from 'express';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddleware from '../../middleware/authMiddleware.js';
-import { processUploadedDocument } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
-import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId, type NotebookId } from '../../utils/types/branded.js';
 
@@ -29,7 +27,7 @@ import type {
   NotebookCollectionFromQdrant,
 } from './types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
-import type { WolkeFolderRef } from '@gruenerator/contracts';
+import type { LinkedDocRef, WolkeFolderRef } from '@gruenerator/contracts';
 
 const log = createLogger('notebookCollections');
 const { requireAuth } = authMiddleware;
@@ -145,6 +143,9 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
         const wolke_folders: WolkeFolderRef[] = Array.isArray(settings.wolke_folders)
           ? (settings.wolke_folders as WolkeFolderRef[])
           : [];
+        const linked_docs: LinkedDocRef[] = Array.isArray(settings.linked_docs)
+          ? (settings.linked_docs as LinkedDocRef[])
+          : [];
 
         return {
           ...collection,
@@ -158,6 +159,8 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
           remove_missing_on_sync: !!collection.remove_missing_on_sync,
           labels,
           wolke_folders,
+          linked_docs,
+          slug_suffix: collection.slug_suffix ?? null,
         };
       })
     );
@@ -192,8 +195,10 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       remove_missing_on_sync = false,
       labels,
       wolke_folders: wolkeFoldersRaw,
+      linked_docs: linkedDocsRaw,
     } = req.body as CreateCollectionBody;
     const wolke_folders = Array.isArray(wolkeFoldersRaw) ? wolkeFoldersRaw : [];
+    const linked_docs = Array.isArray(linkedDocsRaw) ? linkedDocsRaw : [];
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Name is required' });
@@ -258,11 +263,17 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       settings: {
         ...(Array.isArray(labels) ? { labels: labels.map((l) => l.trim()).filter(Boolean) } : {}),
         wolke_folders,
+        linked_docs,
       },
     };
 
     const result = await notebookHelper.storeNotebookCollection(collectionData);
     const collectionId = result.collection_id;
+    // storeNotebookCollection minted (or preserved) the slug suffix; refetch to
+    // surface it back to the client so the UI can navigate straight to the
+    // pretty URL instead of falling back to the UUID path.
+    const persisted = await notebookHelper.getNotebookCollection(collectionId);
+    const slugSuffix = persisted?.slug_suffix ?? null;
 
     try {
       await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
@@ -270,30 +281,6 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       log.error('[Notebook Collections] Error adding documents:', docError);
       await notebookHelper.deleteNotebookCollection(collectionId);
       return res.status(500).json({ error: 'Failed to add documents to collection' });
-    }
-
-    // Fire-and-forget: process any documents that are still in 'uploaded' state
-    if (selection_mode !== 'wolke' && allDocumentIds.length > 0) {
-      const pendingDocs = (await postgres.query(
-        `SELECT id FROM documents WHERE id = ANY($1) AND user_id = $2 AND status = 'uploaded'`,
-        [allDocumentIds, userId]
-      )) as Array<{ id: string }>;
-
-      if (pendingDocs.length > 0) {
-        const pgDocService = getPostgresDocumentService();
-        const qdrantDocService = getQdrantDocumentService();
-        for (const doc of pendingDocs) {
-          processUploadedDocument(pgDocService, qdrantDocService, doc.id, userId).catch((err) => {
-            log.error(
-              `[Notebook Collections] Background processing failed for doc ${doc.id}:`,
-              err
-            );
-          });
-        }
-        log.debug(
-          `[Notebook Collections] Kicked off background processing for ${pendingDocs.length} document(s)`
-        );
-      }
     }
 
     return res.status(201).json({
@@ -305,6 +292,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
         documents_from_wolke: selection_mode === 'wolke' ? wolkeDocuments.length : 0,
         wolke_share_links: selection_mode === 'wolke' ? wolke_share_link_ids : [],
         created_at: new Date().toISOString(),
+        slug_suffix: slugSuffix,
       },
       message: `Notebook collection created successfully with ${allDocumentIds.length} document(s)`,
     });
@@ -336,6 +324,7 @@ router.put(
         remove_missing_on_sync,
         labels,
         wolke_folders: wolkeFoldersRaw,
+        linked_docs: linkedDocsRaw,
       } = req.body as UpdateCollectionBody;
 
       if (!name || !name.trim()) {
@@ -412,6 +401,10 @@ router.put(
       }
       if (Array.isArray(wolkeFoldersRaw)) {
         settingsPatch.wolke_folders = wolkeFoldersRaw;
+        settingsChanged = true;
+      }
+      if (Array.isArray(linkedDocsRaw)) {
+        settingsPatch.linked_docs = linkedDocsRaw;
         settingsChanged = true;
       }
       if (settingsChanged) {

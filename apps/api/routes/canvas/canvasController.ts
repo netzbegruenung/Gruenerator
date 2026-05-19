@@ -9,7 +9,6 @@ import { type DocumentPermissions } from '../docs/types.js';
 import cloneRouter from './cloneController.js';
 import resizeRouter from './resizeController.js';
 
-
 const CANVAS_SUBTYPE = 'canvas';
 
 interface CanvasDocumentRow {

@@ -29,3 +29,6 @@ export { escapeHtml } from './escapeHtml.js';
 // German relative time formatting
 export { formatRelativeTime } from './formatRelativeTime.js';
 export type { FormatRelativeTimeOptions } from './formatRelativeTime.js';
+
+// Notebook URL slug helpers (Notion-style: name-prefix + stable 6-char suffix)
+export { slugifyName, generateSlugSuffix, buildNotebookSlug, extractSlugSuffix } from './slug.js';

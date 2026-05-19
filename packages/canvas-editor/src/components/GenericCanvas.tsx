@@ -334,9 +334,12 @@ function GenericCanvasWithRef<
         exportedImageRef.current = dataUrl;
         lastAutoSaveHistoryIndexRef.current = historyIndex;
       } else {
-        console.warn('[AutoSave][historyEffect] capture FAILED: stageRef.current.toDataURL() returned null', {
-          stageRefSet: !!stageRef.current,
-        });
+        console.warn(
+          '[AutoSave][historyEffect] capture FAILED: stageRef.current.toDataURL() returned null',
+          {
+            stageRefSet: !!stageRef.current,
+          }
+        );
       }
     }, 1500);
 

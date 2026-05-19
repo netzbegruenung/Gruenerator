@@ -12,10 +12,7 @@ export {
 } from './canvasEditorStore';
 
 // Store factory and provider
-export {
-  createCanvasEditorStore,
-  defaultCanvasEditorStore,
-} from './createCanvasEditorStore';
+export { createCanvasEditorStore, defaultCanvasEditorStore } from './createCanvasEditorStore';
 export type {
   CanvasEditorStoreApi,
   CanvasEditorStoreState,

@@ -117,10 +117,7 @@ async function scrollByUrl(url: string): Promise<ScrollPoint[]> {
     };
     if (offset !== null) body.offset = offset;
 
-    const data = await qdrantPost<ScrollResponse>(
-      `/collections/${COLLECTION}/points/scroll`,
-      body
-    );
+    const data = await qdrantPost<ScrollResponse>(`/collections/${COLLECTION}/points/scroll`, body);
     const batch = data.result?.points ?? [];
     if (batch.length === 0) break;
     points.push(...batch);

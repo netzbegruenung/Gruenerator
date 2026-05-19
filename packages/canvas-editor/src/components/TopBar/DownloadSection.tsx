@@ -11,7 +11,6 @@ import {
 import { useState } from 'react';
 import { FaDownload } from 'react-icons/fa';
 
-
 export type CanvasDownloadChoice = 'png' | 'jpeg' | 'pdf' | 'pdf-print';
 
 export interface DownloadSectionProps {

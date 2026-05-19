@@ -15,8 +15,8 @@ const FolderStarButton = ({
   folderName: string;
   className?: string;
 }) => {
-  const starred = useWolkePreferencesStore(
-    (s) => s.favourites.some((f) => f.shareLinkId === shareLinkId && f.folderPath === folderPath)
+  const starred = useWolkePreferencesStore((s) =>
+    s.favourites.some((f) => f.shareLinkId === shareLinkId && f.folderPath === folderPath)
   );
   const toggleFavourite = useWolkePreferencesStore((s) => s.toggleFavourite);
 

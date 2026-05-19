@@ -131,9 +131,7 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
         log.info(`[CanvasCollab][Store] persisted ${documentName} (${state.length} bytes)`);
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
-        log.error(
-          `[CanvasCollab][Store] FAILED to persist ${documentName}: ${err.message}`
-        );
+        log.error(`[CanvasCollab][Store] FAILED to persist ${documentName}: ${err.message}`);
       }
 
       void persistence.touchUpdatedAt(documentName);

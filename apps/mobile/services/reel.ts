@@ -1,3 +1,4 @@
+import { type AutoProgress, type ExportProgress } from '@gruenerator/contracts';
 import { Paths, File as ExpoFile } from 'expo-file-system';
 import * as tus from 'tus-js-client';
 
@@ -5,16 +6,7 @@ import { secureStorage } from './storage';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/api';
 
-export interface AutoProgressResponse {
-  status: 'processing' | 'processing_done' | 'complete' | 'error';
-  stage: 1 | 2 | 3 | 4;
-  stageName: string;
-  stageProgress: number;
-  overallProgress: number;
-  error: string | null;
-  outputPath: string | null;
-  duration: number | null;
-}
+export type AutoProgressResponse = AutoProgress;
 
 export interface ManualResultResponse {
   status: 'processing' | 'complete' | 'error';
@@ -207,11 +199,7 @@ export async function getManualResult(
   };
 }
 
-export interface ExportProgressResponse {
-  status: 'exporting' | 'complete' | 'error';
-  progress: number;
-  error: string | null;
-}
+export type ExportProgressResponse = ExportProgress;
 
 /**
  * Start video export with burned-in subtitles

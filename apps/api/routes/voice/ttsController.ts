@@ -1,6 +1,7 @@
 import express, { type Request, type Response, type Router } from 'express';
 
 import ttsService from '../../services/voice/ttsService.js';
+import { buildContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('ttsController');
@@ -44,7 +45,7 @@ router.post('/generate', async (req: GenerateRequest, res: Response) => {
     res.set({
       'Content-Type': 'audio/wav',
       'Content-Length': String(wavBuffer.length),
-      'Content-Disposition': 'inline; filename="speech.wav"',
+      'Content-Disposition': buildContentDisposition('speech.wav', 'inline'),
     });
     return res.send(wavBuffer);
   } catch (error) {

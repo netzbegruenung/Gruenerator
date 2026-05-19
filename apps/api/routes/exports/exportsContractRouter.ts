@@ -22,6 +22,7 @@ import { exportsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { generateDocxBuffer, sanitizeDocxFilename } from './docxController.js';
@@ -44,7 +45,7 @@ export const exportsContractRouter = s.router(exportsContract, {
         'Content-Type',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       );
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      setContentDisposition(res, filename);
 
       // Return a stream so @ts-rest/express pipes the raw bytes instead of
       // running them through res.json() (which would corrupt the binary).
@@ -73,7 +74,7 @@ export const exportsContractRouter = s.router(exportsContract, {
       const filename = `${sanitizePdfFilename(title || 'Dokument')}.pdf`;
 
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      setContentDisposition(res, filename);
 
       return {
         status: 200 as const,

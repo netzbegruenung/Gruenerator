@@ -43,9 +43,10 @@ export interface SearchExamplesParams {
   country?: 'DE' | 'AT';
   // Landesverband short-code(s) used by per-LV PR agents to scope examples
   // to one regional substrate (e.g. 'BE' for Berlin, ['BE', 'BE-F'] when the
-  // LV has both Landesverband and Fraktion content). Press applies it as a
-  // Qdrant filter; social currently logs but does not filter (Apify ingestion
-  // needs to populate `landesverband` on social_media_examples first).
+  // LV has both Landesverband and Fraktion content). Both press and social
+  // apply it as a Qdrant `landesverband` filter. Social ignores the scope
+  // when `examplesCollection` is set, since per-person tweet collections
+  // (e.g. ricarda_lang_tweets) carry no `landesverband` payload.
   lvScope?: string | readonly string[];
   platform?: string;
   limit?: number;
@@ -131,13 +132,11 @@ async function fetchSocial(params: SearchExamplesParams): Promise<UnifiedExample
     examplesCollection,
   } = params;
 
-  if (lvScope !== undefined) {
-    // TODO(per-lv-social): wire lvScope into the underlying call once Apify
-    // ingestion populates `landesverband` on social_media_examples payloads.
-    // Today it's a logged no-op; results fall back to country/platform scope.
-    log.info(
-      `[ExampleSearch] social lvScope=${JSON.stringify(lvScope)} requested (no-op until Apify lands landesverband field)`
-    );
+  // Per-person tweet collections (e.g. ricarda_lang_tweets) carry no
+  // `landesverband` field — applying lvScope there would zero out the result.
+  const effectiveLvScope = examplesCollection != null ? undefined : lvScope;
+  if (effectiveLvScope !== undefined) {
+    log.debug(`[ExampleSearch] social lvScope=${JSON.stringify(effectiveLvScope)}`);
   }
 
   let results = await contentExamplesService.searchSocialMediaExamples(query, {
@@ -145,6 +144,7 @@ async function fetchSocial(params: SearchExamplesParams): Promise<UnifiedExample
     limit,
     threshold: 0.15,
     country: country ?? null,
+    ...(effectiveLvScope !== undefined && { landesverband: effectiveLvScope }),
     ...(examplesCollection != null && { collection: examplesCollection }),
   });
 
@@ -155,6 +155,7 @@ async function fetchSocial(params: SearchExamplesParams): Promise<UnifiedExample
       platform: platform as 'facebook' | 'instagram' | null,
       limit: Math.min(limit, 5),
       country: country ?? null,
+      ...(effectiveLvScope !== undefined && { landesverband: effectiveLvScope }),
       ...(examplesCollection != null && { collection: examplesCollection }),
     });
   }

@@ -53,7 +53,14 @@ export interface ClassificationResult {
   /** Type of request (conversation, content creation, document query, or text edit) */
   requestType?: 'conversation' | 'document_query' | 'content_creation' | 'text_edit' | undefined;
   /** Sub-intent for conversation requests */
-  subIntent?: 'summarize' | 'translate' | 'compare' | 'explain' | 'brainstorm' | 'general' | undefined;
+  subIntent?:
+    | 'summarize'
+    | 'translate'
+    | 'compare'
+    | 'explain'
+    | 'brainstorm'
+    | 'general'
+    | undefined;
   /** Context for text edit requests */
   editContext?: EditContext | undefined;
 }
@@ -77,7 +84,11 @@ export interface ChatContext {
 /**
  * AI Worker Pool interface — re-exported from workers/types (canonical source)
  */
-export type { AIWorkerPool, AIRequestData as AIWorkerRequest, AIWorkerResult as AIWorkerResponse } from '../../workers/types.js';
+export type {
+  AIWorkerPool,
+  AIRequestData as AIWorkerRequest,
+  AIWorkerResult as AIWorkerResponse,
+} from '../../workers/types.js';
 
 /**
  * AI classification response format (after enrichment with routes)
@@ -86,7 +97,14 @@ export interface AIClassificationResponse {
   /** Type of request */
   requestType: 'conversation' | 'document_query' | 'content_creation' | 'text_edit';
   /** Sub-intent for conversation requests */
-  subIntent?: 'summarize' | 'translate' | 'compare' | 'explain' | 'brainstorm' | 'general' | undefined;
+  subIntent?:
+    | 'summarize'
+    | 'translate'
+    | 'compare'
+    | 'explain'
+    | 'brainstorm'
+    | 'general'
+    | undefined;
   /** Detected intents (fully enriched with routes and params) */
   intents: Intent[];
   /** Context for text edit requests */

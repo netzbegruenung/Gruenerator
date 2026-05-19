@@ -6,6 +6,7 @@
 import archiver from 'archiver';
 import express, { type Request, type Response } from 'express';
 
+import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('exportZip');
@@ -62,7 +63,7 @@ router.post(
       const filename = `gruenerator-${canvasType}-${timestamp}.zip`;
 
       res.setHeader('Content-Type', 'application/zip');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      setContentDisposition(res, filename);
 
       // Create archiver instance
       const archive = archiver('zip', {

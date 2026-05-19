@@ -18,12 +18,7 @@ import {
 import { HiPaintBrush } from 'react-icons/hi2';
 
 import { createBaseActions } from './factory/commonActions';
-import {
-  chatTab,
-  createCommonSectionEntries,
-  toolsTab,
-  uploadsTab,
-} from './commonSections';
+import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { BackgroundSection } from '../sidebar/sections';
 
 import type { BaseCanvasState } from './factory/baseTypes';

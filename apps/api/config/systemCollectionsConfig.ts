@@ -143,7 +143,6 @@ const LV_SOURCE_TYPE_FIELD: FilterableField<'source_type'> = {
   valueLabels: LV_SOURCE_TYPE_LABELS,
 };
 
-
 export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
   'grundsatz-system': {
     id: 'grundsatz-system',

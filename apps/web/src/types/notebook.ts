@@ -2,7 +2,7 @@
  * Notebook/Q&A Collection Types
  */
 
-import { type WolkeFolderRef } from '@gruenerator/contracts';
+import { type LinkedDocRef, type WolkeFolderRef } from '@gruenerator/contracts';
 
 import type { Document } from './documents';
 
@@ -33,6 +33,7 @@ export type NotebookAccessSource = 'owned' | 'shared' | 'authenticated';
 export interface NotebookCollection {
   id: string;
   user_id: string;
+  creator_name?: string | null;
   name: string;
   description?: string;
   custom_prompt?: string;
@@ -51,10 +52,17 @@ export interface NotebookCollection {
   selection_mode?: 'documents' | 'wolke' | 'mixed';
   labels?: string[];
   wolke_folders?: WolkeFolderRef[];
+  linked_docs?: LinkedDocRef[];
   likes_count?: number;
   share_mode?: NotebookShareMode | null;
   edit_policy?: NotebookEditPolicy | null;
   access_source?: NotebookAccessSource | null;
+  /**
+   * Stable 6-char tail used to build pretty URLs (`/notebooks/<name>-Ab3xK9`).
+   * Null only for legacy rows before the boot-time backfill has run; once
+   * present, never changes — renames rewrite the name prefix only.
+   */
+  slug_suffix?: string | null;
 }
 
 /**
@@ -88,6 +96,7 @@ export interface NotebookCollectionInput {
   is_public?: boolean;
   public_ownership?: NotebookPublicOwnership | null;
   wolkeFolders?: WolkeFolderRef[];
+  linkedDocs?: LinkedDocRef[];
 }
 
 /**

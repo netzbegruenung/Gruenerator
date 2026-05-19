@@ -15,6 +15,16 @@ export interface RedisClient {
 }
 
 /**
+ * Extension required by ImageGenerationCounter to support per-call increment
+ * amounts (centi-credits per model). node-redis exposes `incrBy`; ioredis
+ * uses lowercase `incrby`. We keep this off the base RedisClient interface so
+ * other counters remain structurally compatible with both clients.
+ */
+export interface RedisIncrByClient extends RedisClient {
+  incrBy(key: string, increment: number): Promise<number>;
+}
+
+/**
  * Message object for token counting
  */
 export interface Message {

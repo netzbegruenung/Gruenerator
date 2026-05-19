@@ -230,6 +230,10 @@ export function NotebookManualSearch({ collectionIds, notebookId }: NotebookManu
 
   const filterControls = hideFilters ? undefined : (
     <div className="flex flex-wrap items-center gap-xs">
+      {/* Hidden 2026-05-18: Typ / Primärkategorie / Unterkategorien / Region facet
+          dropdowns removed from manuelle Recherche on the /notebooks index per UX
+          request. The underlying filter plumbing stays — only the UI is suppressed.
+          To restore, delete the surrounding JSX block-comment wrapper.
       {contentTypeConfig && (contentTypeConfig.values ?? []).length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -301,6 +305,7 @@ export function NotebookManualSearch({ collectionIds, notebookId }: NotebookManu
           </DropdownMenu>
         );
       })}
+      */}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
