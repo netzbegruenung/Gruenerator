@@ -1,5 +1,20 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styles from './styles.module.css';
+
+type Attachment = {
+  url: string;
+  filename: string;
+};
+
+function filenameFromUrl(url: string): string {
+  try {
+    const pathname = new URL(url, 'https://example.com').pathname;
+    const last = pathname.split('/').filter(Boolean).pop();
+    return last ?? 'bild';
+  } catch {
+    return 'bild';
+  }
+}
 
 function transformTextNode(text: string): string {
   return text.replace(/\*innen\b/g, ':innen').replace(/\*in\b/g, ':in');
@@ -20,7 +35,7 @@ function nodeToSignal(node: Node): string {
   switch (tag) {
     case 'strong':
     case 'b':
-      return `*${inner.trim()}*`;
+      return inner.trim();
 
     case 'em':
     case 'i':
@@ -50,7 +65,7 @@ function nodeToSignal(node: Node): string {
     case 'h4':
     case 'h5':
     case 'h6':
-      return `*${inner.trim()}*\n\n`;
+      return `${inner.trim()}\n\n`;
 
     case 'li': {
       const parent = el.parentElement;
@@ -93,6 +108,18 @@ type SignalMessageProps = {
 export default function SignalMessage({ children }: SignalMessageProps): React.JSX.Element {
   const bodyRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<'idle' | 'copied' | 'error'>('idle');
+  const [attachment, setAttachment] = useState<Attachment | null>(null);
+
+  useEffect(() => {
+    if (!bodyRef.current) return;
+    const img = bodyRef.current.querySelector('img');
+    const src = img?.getAttribute('src');
+    if (src) {
+      setAttachment({ url: src, filename: filenameFromUrl(src) });
+    } else {
+      setAttachment(null);
+    }
+  }, [children]);
 
   async function handleCopy() {
     if (!bodyRef.current) return;
@@ -113,23 +140,38 @@ export default function SignalMessage({ children }: SignalMessageProps): React.J
     <aside className={styles.card} aria-label="Signal-Nachricht zum Kopieren">
       <header className={styles.header}>
         <span className={styles.label}>Signal-Vorschau</span>
-        <button
-          type="button"
-          className={styles.button}
-          onClick={handleCopy}
-          aria-live="polite"
-          data-status={status}
-        >
-          {buttonLabel}
-        </button>
+        <div className={styles.actions}>
+          {attachment && (
+            <a
+              href={attachment.url}
+              download={attachment.filename}
+              className={styles.downloadLink}
+              aria-label={`Bild ${attachment.filename} herunterladen`}
+            >
+              Bild herunterladen
+            </a>
+          )}
+          <button
+            type="button"
+            className={styles.button}
+            onClick={handleCopy}
+            aria-live="polite"
+            data-status={status}
+          >
+            {buttonLabel}
+          </button>
+        </div>
       </header>
       <div className={styles.body} ref={bodyRef}>
         {children}
       </div>
       <footer className={styles.footer}>
-        Beim Kopieren werden Markdown-Auszeichnungen automatisch in Signals Format gewandelt (Fett,
-        Kursiv, Links). Genderstern wird zum Doppelpunkt, damit Signal Worte nicht umkippt. Bilder
-        bitte separat anhängen.
+        Beim Kopieren werden Links zu reinen URLs und der Genderstern zum Doppelpunkt. Fett wird
+        weggelassen, weil Signal Markdown-Sternchen nicht rendert – bei Bedarf einzelne Begriffe im
+        Chat manuell hervorheben.
+        {attachment
+          ? ' Das Bild lädst du mit dem zweiten Button herunter und hängst es in Signal an.'
+          : ' Bilder bitte separat anhängen.'}
       </footer>
     </aside>
   );
