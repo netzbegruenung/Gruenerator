@@ -21,11 +21,7 @@ import {
   useScopedThreadMode,
 } from '../../lib/useScopedAgentState';
 import { useModelPreferencesContext } from '../../context/ModelPreferencesContext';
-import {
-  AUTO_MODEL_ID,
-  resolveAutoModel,
-  type SelectedModel,
-} from '../../lib/resolveAutoModel';
+import { AUTO_MODEL_ID, resolveAutoModel, type SelectedModel } from '../../lib/resolveAutoModel';
 
 interface AutoOption {
   id: typeof AUTO_MODEL_ID;
