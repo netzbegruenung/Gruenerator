@@ -2,6 +2,7 @@ import express, { type Router, type Response } from 'express';
 
 import { getMem0Instance, normalizeCategory } from '../../services/mem0/index.js';
 import { invalidatePersona } from '../../services/mem0/personaService.js';
+import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
 import type { MemoryCategory } from '../../services/mem0/categories.js';
@@ -261,7 +262,7 @@ router.get(
 
       const filename = `gruenerator-erinnerungen-${new Date().toISOString().slice(0, 10)}.json`;
       res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      setContentDisposition(res, filename);
       res.json(exportData);
     } catch (error) {
       const err = error as Error;

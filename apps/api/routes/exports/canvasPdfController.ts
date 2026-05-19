@@ -13,6 +13,7 @@ import express, { type Request, type Response } from 'express';
 import { PDFDocument } from 'pdf-lib';
 
 import { rateLimitMiddleware, incrementRateLimit } from '../../middleware/rateLimitMiddleware.js';
+import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
 import { getServerFormat, paperSizeForFormat } from './pageConstants.js';
@@ -96,7 +97,7 @@ router.post('/', rateLimitMiddleware('pdf_export'), async (req: Request, res: Re
     const filename = `${formatId}-${safeTitle}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    setContentDisposition(res, filename);
     res.send(Buffer.from(pdfBytes));
 
     await incrementRateLimit(req);

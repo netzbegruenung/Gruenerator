@@ -42,19 +42,21 @@ Bewertungsskala:
 5 = Ausgezeichnet, alle Kriterien erfüllt`;
 
 export function createSelfReviewTool(deps: ToolDependencies): DynamicStructuredTool {
-    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
+  // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'self_review',
     description:
       'Bewerte einen Entwurf gegen die Qualitätskriterien. ' +
       'Nutze dieses Tool NACH dem Erstellen eines Entwurfs, um die Qualität zu prüfen und ggf. zu verbessern.',
-    schema: z.object({
-      draft: z.string().describe('Der zu prüfende Entwurf'),
-      format_type: z
-        .string()
-        .optional()
-        .describe('Art des Textes (z.B. Antrag, Rede, Pressemitteilung, Social-Media-Post)'),
-    }).describe('Selbstprüfung'),
+    schema: z
+      .object({
+        draft: z.string().describe('Der zu prüfende Entwurf'),
+        format_type: z
+          .string()
+          .optional()
+          .describe('Art des Textes (z.B. Antrag, Rede, Pressemitteilung, Social-Media-Post)'),
+      })
+      .describe('Selbstprüfung'),
     func: async (input: { draft: string; format_type?: string }) => {
       const { draft, format_type } = input;
       const criteria = getReviewCriteria(deps.agentConfig.identifier);

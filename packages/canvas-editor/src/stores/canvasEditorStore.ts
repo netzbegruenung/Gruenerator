@@ -18,10 +18,7 @@ export type {
 } from './createCanvasEditorStore';
 
 // Re-export factory and default singleton
-export {
-  createCanvasEditorStore,
-  defaultCanvasEditorStore,
-} from './createCanvasEditorStore';
+export { createCanvasEditorStore, defaultCanvasEditorStore } from './createCanvasEditorStore';
 
 // Re-export context-aware hooks (these are the primary API)
 export {
@@ -45,11 +42,9 @@ import type { CanvasEditorState } from './createCanvasEditorStore';
 import type { SnapTarget, SnapLine } from '../utils/snapping';
 import type { Layer } from '@gruenerator/shared/canvas-editor';
 
-export const useCanvasLayers = (): Layer[] =>
-  useCanvasStoreShallow((s) => s.layers);
+export const useCanvasLayers = (): Layer[] => useCanvasStoreShallow((s) => s.layers);
 
-export const useCanvasSelection = (): string[] =>
-  useCanvasStoreShallow((s) => s.selectedLayerIds);
+export const useCanvasSelection = (): string[] => useCanvasStoreShallow((s) => s.selectedLayerIds);
 
 export const useCanvasConfig = (): CanvasEditorState['config'] =>
   useCanvasStoreShallow((s) => s.config);
@@ -57,14 +52,12 @@ export const useCanvasConfig = (): CanvasEditorState['config'] =>
 export const useCanvasContainerSize = (): { width: number; height: number } =>
   useCanvasStoreShallow((s) => s.containerSize);
 
-export const useRenderVersion = (): number =>
-  useCanvasStoreSelector((s) => s.renderVersion);
+export const useRenderVersion = (): number => useCanvasStoreSelector((s) => s.renderVersion);
 
 export const useSnapGuides = (): { h: boolean; v: boolean } =>
   useCanvasStoreShallow((s) => s.snapGuides);
 
-export const useSnapLines = (): SnapLine[] =>
-  useCanvasStoreShallow((s) => s.snapLines);
+export const useSnapLines = (): SnapLine[] => useCanvasStoreShallow((s) => s.snapLines);
 
 export const useElementPositions = (): Record<string, SnapTarget> =>
   useCanvasStoreShallow((s) => s.elementPositions);

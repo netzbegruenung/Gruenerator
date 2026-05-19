@@ -9,13 +9,21 @@
  */
 import { z } from 'zod';
 
-import { notebookEditPolicySchema, notebookShareModeSchema } from './notebookCollections.js';
+import {
+  notebookAudienceSchema,
+  notebookEditPolicySchema,
+  notebookShareModeSchema,
+  publicOwnershipSchema,
+} from './notebookCollections.js';
 
 // ── Settings shape ──────────────────────────────────────────────────────────
 
 export const notebookShareSettingsSchema = z.object({
   share_mode: notebookShareModeSchema,
   edit_policy: notebookEditPolicySchema,
+  audience: notebookAudienceSchema,
+  is_public: z.boolean(),
+  public_ownership: publicOwnershipSchema.nullable(),
 });
 export type NotebookShareSettings = z.infer<typeof notebookShareSettingsSchema>;
 
@@ -27,6 +35,21 @@ export const notebookShareModeBodySchema = z.object({
 
 export const notebookEditPolicyBodySchema = z.object({
   policy: notebookEditPolicySchema,
+});
+
+export const notebookAudienceBodySchema = z.object({
+  audience: notebookAudienceSchema,
+});
+
+/**
+ * Toggle Von-der-Basis discovery on top of `share_mode='authenticated'`.
+ * `public_ownership` MUST be non-null when `is_public=true` (legal
+ * attestation for community listing). When `is_public=false`, ownership is
+ * cleared server-side regardless of what's sent.
+ */
+export const notebookIsPublicBodySchema = z.object({
+  is_public: z.boolean(),
+  public_ownership: publicOwnershipSchema.nullable(),
 });
 
 export const notebookAddGroupShareBodySchema = z.object({

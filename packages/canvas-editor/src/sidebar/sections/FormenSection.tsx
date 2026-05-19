@@ -97,23 +97,17 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
   'rounded-rect': {
     id: 'rounded-rect',
     title: 'Abgerundetes Rechteck hinzufügen',
-    renderPreview: () => (
-      <div className="w-[32px] h-[32px] bg-current shrink-0 rounded-[8px]" />
-    ),
+    renderPreview: () => <div className="w-[32px] h-[32px] bg-current shrink-0 rounded-[8px]" />,
   },
   circle: {
     id: 'circle',
     title: 'Kreis hinzufügen',
-    renderPreview: () => (
-      <div className="w-[32px] h-[32px] bg-current shrink-0 rounded-full" />
-    ),
+    renderPreview: () => <div className="w-[32px] h-[32px] bg-current shrink-0 rounded-full" />,
   },
   ellipse: {
     id: 'ellipse',
     title: 'Ellipse hinzufügen',
-    renderPreview: () => (
-      <div className="w-[32px] h-[20px] bg-current shrink-0 rounded-full" />
-    ),
+    renderPreview: () => <div className="w-[32px] h-[20px] bg-current shrink-0 rounded-full" />,
   },
   ring: {
     id: 'ring',
@@ -180,7 +174,15 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Linie hinzufügen',
     renderPreview: () => (
       <svg width={32} height={12} viewBox="0 0 100 12" aria-hidden="true" className="shrink-0">
-        <line x1="2" y1="6" x2="98" y2="6" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
+        <line
+          x1="2"
+          y1="6"
+          x2="98"
+          y2="6"
+          stroke="currentColor"
+          strokeWidth="6"
+          strokeLinecap="round"
+        />
       </svg>
     ),
   },
@@ -189,7 +191,15 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Dicke Linie hinzufügen',
     renderPreview: () => (
       <svg width={32} height={16} viewBox="0 0 100 16" aria-hidden="true" className="shrink-0">
-        <line x1="2" y1="8" x2="98" y2="8" stroke="currentColor" strokeWidth="14" strokeLinecap="round" />
+        <line
+          x1="2"
+          y1="8"
+          x2="98"
+          y2="8"
+          stroke="currentColor"
+          strokeWidth="14"
+          strokeLinecap="round"
+        />
       </svg>
     ),
   },
@@ -244,7 +254,15 @@ const SHAPE_PREVIEWS: { readonly [K in ShapeType]: ShapeDefinition<K> } = {
     title: 'Linie mit Pfeil hinzufügen',
     renderPreview: () => (
       <svg width={32} height={14} viewBox="0 0 100 14" aria-hidden="true" className="shrink-0">
-        <line x1="2" y1="7" x2="78" y2="7" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
+        <line
+          x1="2"
+          y1="7"
+          x2="78"
+          y2="7"
+          stroke="currentColor"
+          strokeWidth="5"
+          strokeLinecap="round"
+        />
         <polygon points="78,1 98,7 78,13" fill="currentColor" />
       </svg>
     ),
@@ -528,7 +546,9 @@ const SHAPES_BY_CATEGORY: Record<ShapeCategory, ReadonlyArray<ShapeDefinition>> 
 
 function shapeMatchesQuery(shape: ShapeDefinition, q: string): boolean {
   const def = getShapeDef(shape.id);
-  return def.name.toLowerCase().includes(q) || def.tags.some((tag) => tag.toLowerCase().includes(q));
+  return (
+    def.name.toLowerCase().includes(q) || def.tags.some((tag) => tag.toLowerCase().includes(q))
+  );
 }
 
 export function FormenSection({

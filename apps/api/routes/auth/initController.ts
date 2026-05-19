@@ -138,42 +138,44 @@ async function fetchNotebookCollections(userId: string): Promise<unknown[]> {
     const collections = await notebookHelper.getUserNotebookCollections(userId);
 
     return await Promise.all(
-      (collections as unknown as Array<Record<string, unknown>>).map(async (collection: Record<string, unknown>) => {
-        const documentIds = (
-          (collection.notebook_collection_documents as Array<{ document_id: string }>) || []
-        ).map((qcd: { document_id: string }) => qcd.document_id);
+      (collections as unknown as Array<Record<string, unknown>>).map(
+        async (collection: Record<string, unknown>) => {
+          const documentIds = (
+            (collection.notebook_collection_documents as Array<{ document_id: string }>) || []
+          ).map((qcd: { document_id: string }) => qcd.document_id);
 
-        let documents: Array<Record<string, unknown>> = [];
-        if (documentIds.length > 0) {
-          documents = await db.query(
-            'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
-            [documentIds]
-          );
+          let documents: Array<Record<string, unknown>> = [];
+          if (documentIds.length > 0) {
+            documents = await db.query(
+              'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
+              [documentIds]
+            );
+          }
+
+          let wolke_share_links: Array<{ id: string }> = [];
+          if (collection.wolke_share_link_ids) {
+            wolke_share_links = (collection.wolke_share_link_ids as string[]).map((id: string) => ({
+              id,
+            }));
+          }
+
+          const settings = (collection.settings as Record<string, unknown>) || {};
+          const labels = Array.isArray(settings.labels) ? settings.labels : [];
+
+          return {
+            ...collection,
+            documents,
+            document_count: documents.length,
+            selection_mode: collection.selection_mode || 'documents',
+            wolke_share_links,
+            has_wolke_sources: wolke_share_links.length > 0,
+            documents_from_wolke: documents.filter((doc) => doc.source_type === 'wolke').length,
+            auto_sync: !!collection.auto_sync,
+            remove_missing_on_sync: !!collection.remove_missing_on_sync,
+            labels,
+          };
         }
-
-        let wolke_share_links: Array<{ id: string }> = [];
-        if (collection.wolke_share_link_ids) {
-          wolke_share_links = (collection.wolke_share_link_ids as string[]).map((id: string) => ({
-            id,
-          }));
-        }
-
-        const settings = (collection.settings as Record<string, unknown>) || {};
-        const labels = Array.isArray(settings.labels) ? settings.labels : [];
-
-        return {
-          ...collection,
-          documents,
-          document_count: documents.length,
-          selection_mode: collection.selection_mode || 'documents',
-          wolke_share_links,
-          has_wolke_sources: wolke_share_links.length > 0,
-          documents_from_wolke: documents.filter((doc) => doc.source_type === 'wolke').length,
-          auto_sync: !!collection.auto_sync,
-          remove_missing_on_sync: !!collection.remove_missing_on_sync,
-          labels,
-        };
-      })
+      )
     );
   } catch (error) {
     log.warn('Notebook collections fetch failed in init:', error);

@@ -108,11 +108,7 @@ export function classifyError(error: Error | VectorBackendError): ErrorClassific
   }
 
   // Authorization errors
-  if (
-    message.includes('forbidden') ||
-    message.includes('authorization') ||
-    errorStatus === 403
-  ) {
+  if (message.includes('forbidden') || message.includes('authorization') || errorStatus === 403) {
     return { type: 'AUTHORIZATION_ERROR', statusCode: 403 };
   }
 
@@ -127,11 +123,7 @@ export function classifyError(error: Error | VectorBackendError): ErrorClassific
   }
 
   // Rate limiting
-  if (
-    message.includes('rate limit') ||
-    message.includes('too many') ||
-    errorStatus === 429
-  ) {
+  if (message.includes('rate limit') || message.includes('too many') || errorStatus === 429) {
     return { type: 'RATE_LIMIT_ERROR', statusCode: 429 };
   }
 

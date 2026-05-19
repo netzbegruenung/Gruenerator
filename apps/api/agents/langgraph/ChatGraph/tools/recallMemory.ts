@@ -16,16 +16,18 @@ import type { ToolDependencies } from './registry.js';
 const log = createLogger('Tool:RecallMemory');
 
 export function createRecallMemoryTool(deps: ToolDependencies): DynamicStructuredTool {
-    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
+  // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'recall_memory',
     description:
       'Rufe gespeicherte Informationen über den Nutzer aus früheren Gesprächen ab. ' +
       'Nutze dieses Tool wenn der Nutzer auf frühere Gespräche verweist, ' +
       'persönliche Informationen erwartet oder du Kontext brauchst.',
-    schema: z.object({
-      query: z.string().describe('Wonach in den Erinnerungen gesucht werden soll'),
-    }).describe('Erinnerung abrufen'),
+    schema: z
+      .object({
+        query: z.string().describe('Wonach in den Erinnerungen gesucht werden soll'),
+      })
+      .describe('Erinnerung abrufen'),
     func: async (input: { query: string }) => {
       const { query } = input;
       const mem0 = getMem0Instance();

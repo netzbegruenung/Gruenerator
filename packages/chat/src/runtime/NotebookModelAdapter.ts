@@ -9,6 +9,7 @@ import {
   type FallbackInfo,
 } from '../hooks/useChatGraphStream';
 import { parseSSELine } from '../lib/sseParser';
+import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
 import { useAgentStore } from '../stores/chatStore';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { streamErrorMessage } from './streamErrorMessage';
@@ -152,7 +153,13 @@ export function createNotebookModelAdapter(
         (config.collectionIds && config.collectionIds.length > 1) ||
         (!config.collectionId && config.collectionIds && config.collectionIds.length === 1);
 
-      const selectedModel = useAgentStore.getState().selectedModel;
+      const rawSelectedModel = useAgentStore.getState().selectedModel;
+      // Notebook surfaces are always notebook-scoped; pre-resolve 'auto' here so
+      // the backend doesn't fall back to its generic DEFAULT_MODEL (gpt-oss).
+      const selectedModel =
+        rawSelectedModel === AUTO_MODEL_ID
+          ? resolveAutoModel({ threadMode: 'notebook', agent: null })
+          : rawSelectedModel;
 
       // Resolve optional sharepic context (canvas-editor in-section chat).
       // Captured before the request so image data + structured text travel with
@@ -228,7 +235,14 @@ export function createNotebookModelAdapter(
 
       const reader = response.body?.getReader();
       if (!reader) {
-        yield { content: [{ type: 'text' as const, text: streamErrorMessage(new Error('Keine Antwort vom Server erhalten.')) }] };
+        yield {
+          content: [
+            {
+              type: 'text' as const,
+              text: streamErrorMessage(new Error('Keine Antwort vom Server erhalten.')),
+            },
+          ],
+        };
         return;
       }
 

@@ -176,7 +176,9 @@ export class LinkExtractor {
               `Sitemap ${sitemapUrl}: reached MAX_DEPTH=${MAX_DEPTH}, not recursing into ${childSitemaps.length} children`
             );
           } else {
-            log?.(`Sitemap index ${sitemapUrl}: recursing into ${childSitemaps.length} child sitemaps`);
+            log?.(
+              `Sitemap index ${sitemapUrl}: recursing into ${childSitemaps.length} child sitemaps`
+            );
             const childLinks = await this.extractLinksFromSitemaps(
               childSitemaps,
               filter,

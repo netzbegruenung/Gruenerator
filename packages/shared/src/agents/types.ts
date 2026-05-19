@@ -131,6 +131,13 @@ export interface Agent {
    */
   defaultNotebookId?: string;
   /**
+   * Routing hint for the "Automatisch" model picker. Read by the frontend
+   * resolver (`resolveAutoModel`) to map this agent to a context-appropriate
+   * model without hand-curating ID lists. `'creative'` → Gemma 4 today;
+   * `'research'` is reserved for a future bucket.
+   */
+  autoRoutingHint?: 'creative' | 'research';
+  /**
    * Frontend icon registry key. Maps to a `react-icons` component in
    * `apps/web/src/components/layout/Sidebar/sidebarAgentConfig.ts::ICON_REGISTRY`.
    * Per-LV `gruenerator-oeffentlichkeitsarbeit-*` agents inherit the megaphone

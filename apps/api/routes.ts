@@ -9,6 +9,7 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import authMiddleware from './middleware/authMiddleware.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
+import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
@@ -26,6 +27,7 @@ import { mountExportsContractRouter } from './routes/exports/exportsContractRout
 import exportDocumentsRouter from './routes/exports/index.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
+import outpaintRoute from './routes/flux/outpaint.js';
 import { mountImagePickerContractRouter } from './routes/image/imagePickerContractRouter.js';
 import {
   pickerController as imagePickerRoute,
@@ -559,6 +561,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/auth/profile', requireAuth);
   mountNotificationsContractRouter(app);
   mountModelPreferencesContractRouter(app);
+  mountImageModelPreferenceContractRouter(app);
   app.use('/api/notifications', requireAuth, publicReadLimiter, notificationsRouter);
   app.use('/api/media', requireAuth, authenticatedReadLimiter, mediaRouter);
   app.use('/api/og/docs', publicReadLimiter, ogDocsRouter);
@@ -664,6 +667,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/flux/green-edit', aiGenerationLimiter, fluxImageEditingRoute);
   app.use('/api/imagine/create', aiGenerationLimiter, imagineCreateRoute);
   app.use('/api/imagine/pure', aiGenerationLimiter, imaginePureRoute);
+  app.use('/api/imagine/outpaint', aiGenerationLimiter, outpaintRoute);
 
   // Web redirect to frontend imagine (KI image studio)
   app.get('/web', (req: Request, res: Response) => {

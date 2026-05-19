@@ -28,7 +28,7 @@ class CanvasRefRegistry {
     if (process.env.NODE_ENV !== 'production' && this.stageRefs.has(canvasId)) {
       console.warn(
         `[CanvasRefRegistry] Overwriting existing stage ref for canvasId="${canvasId}". ` +
-        'This may indicate two canvas instances sharing the same ID.'
+          'This may indicate two canvas instances sharing the same ID.'
       );
     }
     this.stageRefs.set(canvasId, refGetter);

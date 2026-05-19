@@ -16,13 +16,12 @@
  */
 
 import { notebookCollectionsContract, type WolkeFolderRef } from '@gruenerator/contracts';
+import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
-import { processUploadedDocument } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
-import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import {
   getLikeCountsForEntities,
   getLikedEntityIdsForUser,
@@ -63,6 +62,16 @@ function getUserId(req: Request): string {
     throw new Error('Authentication required');
   }
   return user.id;
+}
+
+/**
+ * Resolve the calling user's locale for audience-filter decisions.
+ * Falls back to 'de-DE' when the column is unset (matches the database
+ * default in apps/api/database/schema/core.ts).
+ */
+function getUserLocale(req: Request): 'de-DE' | 'de-AT' {
+  const user = req.user as UserProfile | undefined;
+  return user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
 }
 
 // ── Helpers copied from collectionsController ──────────────────────────────
@@ -109,35 +118,153 @@ async function validateWolkeShareLinks(
   return true;
 }
 
+/**
+ * Shape of a notebook collection as it comes back from Qdrant before
+ * enrichment. Matches the inline type previously duplicated inside
+ * listCollections + getCollection handlers.
+ */
+type NotebookCollectionFromQdrantRaw = {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  custom_prompt: string | null;
+  selection_mode?: string | undefined;
+  wolke_share_link_ids?: string[] | null | undefined;
+  auto_sync?: boolean | undefined;
+  remove_missing_on_sync?: boolean | undefined;
+  created_at: string;
+  updated_at: string;
+  settings?: Record<string, unknown> | undefined;
+  notebook_collection_documents?: Array<{ document_id: string }>;
+  is_public?: boolean;
+  public_ownership?: 'owner' | 'public_data' | null;
+  share_mode?: 'private' | 'groups' | 'authenticated';
+  edit_policy?: 'owner_only' | 'group_admins' | 'all_members';
+  audience?: 'de-DE' | 'de-AT';
+};
+
+/**
+ * Enrich a raw Qdrant notebook collection with the derived fields the API
+ * contract response expects (documents, wolke_share_links, labels parsed
+ * out of settings, etc.). Caller picks `accessSource` based on how the
+ * viewer reached the collection.
+ *
+ * Used by both listCollections (per-entry) and getCollection (one entry).
+ */
+async function enrichNotebookCollection(
+  collection: NotebookCollectionFromQdrantRaw,
+  accessSource: 'owned' | 'shared' | 'authenticated'
+) {
+  const postgres = getPostgresInstance();
+  const documentIds = (collection.notebook_collection_documents || []).map(
+    (qcd) => qcd.document_id
+  );
+
+  let documents: DocumentRecord[] = [];
+  if (documentIds.length > 0) {
+    documents = await postgres.query<DocumentRecord>(
+      'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
+      [documentIds]
+    );
+  }
+
+  let wolke_share_links: WolkeShareLink[] = [];
+  if (collection.wolke_share_link_ids) {
+    try {
+      wolke_share_links = collection.wolke_share_link_ids.map((id) => ({ id }));
+    } catch (error) {
+      log.error('[notebookCollectionsContract] Error fetching Wolke share links:', error);
+    }
+  }
+
+  const settings = (collection.settings as Record<string, unknown>) || {};
+  const labels = Array.isArray(settings.labels) ? (settings.labels as string[]) : [];
+  const wolke_folders = Array.isArray(settings.wolke_folders)
+    ? (settings.wolke_folders as WolkeFolderRef[])
+    : [];
+
+  return {
+    ...collection,
+    documents,
+    document_count: documents.length,
+    selection_mode: collection.selection_mode || 'documents',
+    wolke_share_links,
+    has_wolke_sources: wolke_share_links.length > 0,
+    documents_from_wolke: documents.filter((doc) => doc.source_type === 'wolke').length,
+    auto_sync: !!collection.auto_sync,
+    remove_missing_on_sync: !!collection.remove_missing_on_sync,
+    labels,
+    wolke_folders,
+    is_public: collection.is_public === true,
+    public_ownership: collection.public_ownership ?? null,
+    access_source: accessSource,
+  };
+}
+
 // ── Contract router ────────────────────────────────────────────────────────
 
 const s = initServer();
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const notebookCollectionsContractRouter = s.router(notebookCollectionsContract, {
+  resolveCollection: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const input = args.params.slugOrId;
+
+      // UUID branch: legacy URL or direct ID — look up by canonical id.
+      // Slug branch: pretty URL, dig the 6-char tail out and resolve via the
+      // payload index. If neither matches, the user typed a system-notebook
+      // slug or pure noise; let the frontend resolver handle the not-found UI.
+      let collectionId: string | null = null;
+      if (UUID_RE.test(input)) {
+        collectionId = input;
+      } else {
+        const suffix = extractSlugSuffix(input);
+        if (suffix) {
+          const bySlug = await notebookHelper.getNotebookCollectionBySlugSuffix(suffix);
+          collectionId = bySlug?.id ?? null;
+        }
+      }
+
+      if (!collectionId) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+
+      const access = await checkNotebookAccess(collectionId, userId);
+      if (!access.exists) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+      if (!access.canRead) {
+        return { status: 403 as const, body: { error: 'Keine Berechtigung' } };
+      }
+
+      const collection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!collection) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+
+      return {
+        status: 200 as const,
+        body: {
+          id: collection.id,
+          slug_suffix: collection.slug_suffix ?? '',
+          name: collection.name,
+          share_mode: collection.share_mode ?? null,
+        },
+      };
+    } catch (error) {
+      log.error('[notebookCollectionsContract.resolveCollection] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
+    }
+  },
+
   listCollections: async (args) => {
     try {
       const userId = getUserId(args.req);
       const postgres = getPostgresInstance();
-
-      type NotebookCollectionFromQdrantRaw = {
-        id: string;
-        user_id: string;
-        name: string;
-        description: string | null;
-        custom_prompt: string | null;
-        selection_mode?: string | undefined;
-        wolke_share_link_ids?: string[] | null | undefined;
-        auto_sync?: boolean | undefined;
-        remove_missing_on_sync?: boolean | undefined;
-        created_at: string;
-        updated_at: string;
-        settings?: Record<string, unknown> | undefined;
-        notebook_collection_documents?: Array<{ document_id: string }>;
-        is_public?: boolean;
-        public_ownership?: 'owner' | 'public_data' | null;
-        share_mode?: 'private' | 'groups' | 'authenticated';
-        edit_policy?: 'owner_only' | 'group_admins' | 'all_members';
-      };
 
       const owned = (await notebookHelper.getUserNotebookCollections(
         userId
@@ -164,12 +291,19 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       ).filter((c) => c.share_mode === 'groups');
       const groupSharedIdsSet = new Set(groupShared.map((c) => c.id));
 
-      // Notebooks visible to any authenticated user — excluding ones we already have.
+      // Notebooks visible to any authenticated user — excluding ones we
+      // already have AND respecting the audience filter so an AT viewer
+      // doesn't get a DE-targeted notebook (and vice versa). Legacy 'all'
+      // rows are rewritten to the owner's locale at boot via
+      // `backfillNotebookAudience`, so an exact match is all we need.
+      const viewerLocale = getUserLocale(args.req);
       const authShared = (
         (await notebookHelper.getNotebookCollectionsByShareMode(
           'authenticated'
         )) as NotebookCollectionFromQdrantRaw[]
-      ).filter((c) => !ownedIds.has(c.id) && !groupSharedIdsSet.has(c.id));
+      ).filter(
+        (c) => !ownedIds.has(c.id) && !groupSharedIdsSet.has(c.id) && c.audience === viewerLocale
+      );
 
       const tagged: Array<{
         collection: NotebookCollectionFromQdrantRaw;
@@ -181,51 +315,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       ];
 
       const transformedData = await Promise.all(
-        tagged.map(async ({ collection, access_source }) => {
-          const documentIds = (collection.notebook_collection_documents || []).map(
-            (qcd) => qcd.document_id
-          );
-
-          let documents: DocumentRecord[] = [];
-          if (documentIds.length > 0) {
-            documents = await postgres.query<DocumentRecord>(
-              'SELECT id, title, page_count, created_at, source_type, wolke_share_link_id FROM documents WHERE id = ANY($1)',
-              [documentIds]
-            );
-          }
-
-          let wolke_share_links: WolkeShareLink[] = [];
-          if (collection.wolke_share_link_ids) {
-            try {
-              wolke_share_links = collection.wolke_share_link_ids.map((id) => ({ id }));
-            } catch (error) {
-              log.error('[notebookCollectionsContract] Error fetching Wolke share links:', error);
-            }
-          }
-
-          const settings = (collection.settings as Record<string, unknown>) || {};
-          const labels = Array.isArray(settings.labels) ? (settings.labels as string[]) : [];
-          const wolke_folders = Array.isArray(settings.wolke_folders)
-            ? (settings.wolke_folders as WolkeFolderRef[])
-            : [];
-
-          return {
-            ...collection,
-            documents,
-            document_count: documents.length,
-            selection_mode: collection.selection_mode || 'documents',
-            wolke_share_links,
-            has_wolke_sources: wolke_share_links.length > 0,
-            documents_from_wolke: documents.filter((doc) => doc.source_type === 'wolke').length,
-            auto_sync: !!collection.auto_sync,
-            remove_missing_on_sync: !!collection.remove_missing_on_sync,
-            labels,
-            wolke_folders,
-            is_public: collection.is_public === true,
-            public_ownership: collection.public_ownership ?? null,
-            access_source,
-          };
-        })
+        tagged.map(({ collection, access_source }) =>
+          enrichNotebookCollection(collection, access_source)
+        )
       );
 
       const totalWolkeFolders = transformedData.reduce((acc, c) => acc + c.wolke_folders.length, 0);
@@ -274,6 +366,20 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         collections.map((c) => c.id)
       );
 
+      const userIds = Array.from(new Set(collections.map((c) => c.user_id)));
+      const profileRows = userIds.length
+        ? await postgres.query<{
+            id: string;
+            display_name: string | null;
+            email: string | null;
+          }>('SELECT id::text AS id, display_name, email FROM profiles WHERE id::text = ANY($1)', [
+            userIds,
+          ])
+        : [];
+      const nameByUserId = new Map(
+        profileRows.map((p) => [p.id, p.display_name ?? p.email?.split('@')[0] ?? null] as const)
+      );
+
       const transformedData = await Promise.all(
         collections.map(async (collection) => {
           const documentIds = (collection.notebook_collection_documents || []).map(
@@ -309,6 +415,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
             is_public: collection.is_public === true,
             public_ownership: collection.public_ownership ?? null,
             likes_count: likeCounts.get(collection.id) ?? 0,
+            creator_name: nameByUserId.get(collection.user_id) ?? null,
           };
         })
       );
@@ -341,7 +448,12 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         is_public,
         public_ownership,
         wolke_folders: wolkeFoldersRaw,
+        audience: audienceRaw,
       } = args.body;
+      // Default audience to the creator's locale so an Austrian user creating
+      // a notebook ships AT-targeted by default. Caller can override via the
+      // share modal (PUT /share/audience) or by sending an explicit value.
+      const audience = audienceRaw ?? getUserLocale(args.req);
 
       const selection_mode = selectionModeRaw ?? 'documents';
       const document_ids = documentIdsRaw ?? [];
@@ -442,6 +554,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         },
         is_public: is_public === true,
         public_ownership: is_public === true ? (public_ownership ?? null) : null,
+        audience,
       };
 
       const result = await notebookHelper.storeNotebookCollection(collectionData);
@@ -456,27 +569,6 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         );
         await notebookHelper.deleteNotebookCollection(collectionId);
         return { status: 500 as const, body: { error: 'Failed to add documents to collection' } };
-      }
-
-      // Fire-and-forget: process any documents still in 'uploaded' state
-      if (selection_mode !== 'wolke' && allDocumentIds.length > 0) {
-        const pendingDocs = (await postgres.query(
-          `SELECT id FROM documents WHERE id = ANY($1) AND user_id = $2 AND status = 'uploaded'`,
-          [allDocumentIds, userId]
-        )) as Array<{ id: string }>;
-
-        if (pendingDocs.length > 0) {
-          const pgDocService = getPostgresDocumentService();
-          const qdrantDocService = getQdrantDocumentService();
-          for (const doc of pendingDocs) {
-            processUploadedDocument(pgDocService, qdrantDocService, doc.id, userId).catch((err) => {
-              log.error(
-                `[notebookCollectionsContract.createCollection] Background processing failed for doc ${doc.id} in collection ${collectionId}:`,
-                err
-              );
-            });
-          }
-        }
       }
 
       return {
@@ -980,6 +1072,59 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
           error: err.message || 'Failed to perform bulk delete of Notebook collections',
         },
       };
+    }
+  },
+
+  getCollection: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const input = args.params.slugOrId;
+
+      let collectionId: string | null = null;
+      if (UUID_RE.test(input)) {
+        collectionId = input;
+      } else {
+        const suffix = extractSlugSuffix(input);
+        if (suffix) {
+          const bySlug = await notebookHelper.getNotebookCollectionBySlugSuffix(suffix);
+          collectionId = bySlug?.id ?? null;
+        }
+      }
+
+      if (!collectionId) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+
+      const access = await checkNotebookAccess(collectionId, userId);
+      if (!access.exists) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+      if (!access.canRead) {
+        return { status: 403 as const, body: { error: 'Keine Berechtigung' } };
+      }
+
+      const collection = (await notebookHelper.getNotebookCollection(
+        collectionId
+      )) as NotebookCollectionFromQdrantRaw | null;
+      if (!collection) {
+        return { status: 404 as const, body: { error: 'Notebook nicht gefunden' } };
+      }
+
+      const accessSource: 'owned' | 'shared' | 'authenticated' = access.isOwner
+        ? 'owned'
+        : collection.share_mode === 'groups'
+          ? 'shared'
+          : 'authenticated';
+
+      const enriched = await enrichNotebookCollection(collection, accessSource);
+
+      return {
+        status: 200 as const,
+        body: { success: true, collection: enriched },
+      };
+    } catch (error) {
+      log.error('[notebookCollectionsContract.getCollection] Error:', error);
+      return { status: 500 as const, body: { error: 'Internal server error' } };
     }
   },
 });

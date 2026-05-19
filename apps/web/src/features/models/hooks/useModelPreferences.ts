@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { type TextModelId } from '@gruenerator/shared/models';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { type ModelId } from '@gruenerator/shared/models';
+import { useMemo } from 'react';
 
 import {
   fetchModelPreferences,
@@ -37,7 +37,7 @@ export function useModelPreferences(options: UseModelPreferencesOptions = {}) {
   });
 
   const mutation = useMutation({
-    mutationFn: async ({ modelId, enabled }: { modelId: ModelId; enabled: boolean }) => {
+    mutationFn: async ({ modelId, enabled }: { modelId: TextModelId; enabled: boolean }) => {
       return updateModelPreference(modelId, enabled) as Promise<ModelPreferencesResponse>;
     },
     onMutate: async ({ modelId, enabled }) => {
@@ -71,9 +71,9 @@ export function useModelPreferences(options: UseModelPreferencesOptions = {}) {
 
   const enabledModelIds = useMemo(() => {
     if (!query.data) return null;
-    const set = new Set<ModelId>();
+    const set = new Set<TextModelId>();
     for (const [id, pref] of Object.entries(preferences)) {
-      if (pref?.enabled) set.add(id as ModelId);
+      if (pref?.enabled) set.add(id as TextModelId);
     }
     return set;
   }, [preferences, query.data]);
@@ -83,7 +83,7 @@ export function useModelPreferences(options: UseModelPreferencesOptions = {}) {
     defaults: query.data?.defaults ?? {},
     enabledModelIds,
     isLoading: query.isLoading,
-    toggleModel: (modelId: ModelId, enabled: boolean) =>
+    toggleModel: (modelId: TextModelId, enabled: boolean) =>
       mutation.mutateAsync({ modelId, enabled }),
     isSaving: mutation.isPending,
   };

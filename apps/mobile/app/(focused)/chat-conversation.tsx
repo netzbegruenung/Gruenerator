@@ -45,7 +45,10 @@ export default function ChatConversationScreen() {
   const isNewChat = threadId === 'new';
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.background }]}
+      edges={['top', 'bottom']}
+    >
       <MobileChatProvider threadId={isNewChat ? null : threadId}>
         <AssistantThread theme={theme} />
         {isNewChat && initialMessage && <InitialMessageSender message={initialMessage} />}

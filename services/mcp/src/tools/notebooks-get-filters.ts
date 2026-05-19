@@ -17,12 +17,15 @@ Erfordert einen Bearer API-Key, dessen Scope den \`landesverband\` abdeckt.`,
 
   async handler({ landesverband }: { landesverband: string }, apiKey: string) {
     if (!apiKey) {
-      return { error: true, message: 'No API key forwarded — set Authorization: Bearer header on the MCP request.' };
+      return {
+        error: true,
+        message: 'No API key forwarded — set Authorization: Bearer header on the MCP request.',
+      };
     }
-    const result = await callGrueneratorApi(
-      '/api/v1/notebooks/filters',
-      { apiKey, query: { landesverband } }
-    );
+    const result = await callGrueneratorApi('/api/v1/notebooks/filters', {
+      apiKey,
+      query: { landesverband },
+    });
     if (!result.ok) {
       return { error: true, status: result.status, message: result.message };
     }

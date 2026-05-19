@@ -348,8 +348,8 @@ const Datenschutz = () => {
       </ul>
 
       <p>
-        <strong>7. Linkup Technologies</strong> (Linkup Technologies SAS, 28 avenue des
-        Pépinières, 94260 Fresnes, Frankreich; Handelsregister Créteil 930 910 740)
+        <strong>7. Linkup Technologies</strong> (Linkup Technologies SAS, 28 avenue des Pépinières,
+        94260 Fresnes, Frankreich; Handelsregister Créteil 930 910 740)
       </p>
       <ul>
         <li>Zweck: Agentische Web-Recherche mit Quellenangaben (Suche-Modus, Tiefenrecherche)</li>

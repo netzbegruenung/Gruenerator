@@ -1,8 +1,8 @@
 import {
-  ALL_MODEL_IDS,
-  MODEL_BY_ID,
+  TEXT_MODEL_IDS,
+  TEXT_MODEL_BY_ID,
   isModelEnabledByDefault,
-  type ModelId,
+  type TextModelId,
 } from '@gruenerator/shared/models';
 
 import { getProfileService } from './ProfileService.js';
@@ -13,7 +13,7 @@ export interface ModelPreference {
   enabled: boolean;
 }
 
-export type ModelPreferencesMap = Record<ModelId, ModelPreference>;
+export type ModelPreferencesMap = Record<TextModelId, ModelPreference>;
 
 const USER_DEFAULTS_KEY = 'models';
 
@@ -26,7 +26,7 @@ function isStoredPreference(value: unknown): value is ModelPreference {
   );
 }
 
-function resolvePreference(stored: unknown, modelId: ModelId): ModelPreference {
+function resolvePreference(stored: unknown, modelId: TextModelId): ModelPreference {
   if (isStoredPreference(stored)) {
     return { enabled: stored.enabled };
   }
@@ -35,7 +35,7 @@ function resolvePreference(stored: unknown, modelId: ModelId): ModelPreference {
 
 export function getDefaultModelPreferences(): ModelPreferencesMap {
   const result = {} as ModelPreferencesMap;
-  for (const id of ALL_MODEL_IDS) {
+  for (const id of TEXT_MODEL_IDS) {
     result[id] = { enabled: isModelEnabledByDefault(id) };
   }
   return result;
@@ -53,7 +53,7 @@ export async function getModelPreferencesForUser(
   const stored = (profile?.user_defaults?.[USER_DEFAULTS_KEY] ?? {}) as Record<string, unknown>;
 
   const result = {} as ModelPreferencesMap;
-  for (const id of ALL_MODEL_IDS) {
+  for (const id of TEXT_MODEL_IDS) {
     result[id] = resolvePreference(stored[id], id);
   }
   return result;
@@ -61,19 +61,16 @@ export async function getModelPreferencesForUser(
 
 export async function setModelPreference(
   userId: string,
-  modelId: ModelId,
+  modelId: TextModelId,
   enabled: boolean
 ): Promise<ModelPreferencesMap> {
-  if (!MODEL_BY_ID[modelId]) {
+  if (!TEXT_MODEL_BY_ID[modelId]) {
     throw new Error(`Unknown modelId: ${modelId}`);
   }
   await getProfileService().updateUserDefault(userId, USER_DEFAULTS_KEY, modelId, { enabled });
   return getModelPreferencesForUser(userId);
 }
 
-export function isModelEnabledForUser(
-  prefs: ModelPreferencesMap,
-  modelId: ModelId
-): boolean {
+export function isModelEnabledForUser(prefs: ModelPreferencesMap, modelId: TextModelId): boolean {
   return prefs[modelId]?.enabled ?? isModelEnabledByDefault(modelId);
 }

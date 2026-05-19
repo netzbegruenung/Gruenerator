@@ -144,6 +144,9 @@ const envSchema = z.object({
   // ── OCR ────────────────────────────────────────────────────────────────
   OCR_PROVIDER: z.string().optional(),
   DOCLING_URL: z.string().optional(),
+  // Outer client deadline for the async Docling conversion flow (submit → poll → result).
+  // 50 MB / 1000 pages is the validation ceiling; 10 min covers worst-case scan-heavy PDFs.
+  DOCLING_MAX_WAIT_MS: numStr(600_000),
   REMBG_URL: z.string().optional(),
 
   // ── Hocuspocus / Yjs ──────────────────────────────────────────────────

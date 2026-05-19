@@ -23,12 +23,40 @@ import {
   likeCollectionResponseSchema,
   unlikeCollectionResponseSchema,
   listMyLikedCollectionsResponseSchema,
+  resolveCollectionResponseSchema,
+  getCollectionResponseSchema,
 } from '../schemas/notebookCollections.js';
 
 const c = initContract();
 
 export const notebookCollectionsContract = c.router(
   {
+    /**
+     * GET /api/auth/notebook-collections/resolve/:slugOrId
+     * Resolve a notebook URL fragment (Notion-style slug or UUID) to its
+     * canonical ID. Used by NotebookResolver on the frontend to translate
+     * pretty URLs into the UUID downstream components already consume.
+     *
+     * IMPORTANT: this entry must appear BEFORE listCollections in the router
+     * object — ts-rest preserves declaration order when building the Express
+     * matcher, and the parameterised `/resolve/:slugOrId` path otherwise gets
+     * shadowed by other `/:id` routes at the same depth (e.g. /likes,
+     * /public). Adding it first means `/resolve/...` always matches first.
+     */
+    resolveCollection: {
+      method: 'GET',
+      path: '/api/auth/notebook-collections/resolve/:slugOrId',
+      pathParams: z.object({ slugOrId: z.string() }),
+      responses: {
+        200: resolveCollectionResponseSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Resolve a notebook slug or UUID to its canonical ID',
+    },
+
     /**
      * GET /api/auth/notebook-collections
      * List the authenticated user's notebook collections.
@@ -243,6 +271,32 @@ export const notebookCollectionsContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'Unlike a notebook collection',
+    },
+
+    /**
+     * GET /api/auth/notebook-collections/:slugOrId
+     * Fetch a single collection by UUID or slug-with-suffix, gated by
+     * checkNotebookAccess. Used by DynamicNotebookPage so direct URL access
+     * to a notebook shared with `share_mode='authenticated'` works regardless
+     * of the audience filter that gates listCollections (audience is a
+     * discovery-curation hint, not an access wall).
+     *
+     * Declared LAST among GET routes on this prefix so literal-segment paths
+     * (`/public`, `/likes`, `/resolve/...`) keep matching first; the
+     * `:slugOrId` pattern would otherwise capture them.
+     */
+    getCollection: {
+      method: 'GET',
+      path: '/api/auth/notebook-collections/:slugOrId',
+      pathParams: z.object({ slugOrId: z.string() }),
+      responses: {
+        200: getCollectionResponseSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Fetch a single notebook collection by UUID or slug',
     },
   },
   { pathPrefix: '' }

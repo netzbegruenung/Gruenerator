@@ -16,7 +16,14 @@ interface ExtractedParts {
 }
 
 const VALID_EDIT_TYPES: ReadonlyArray<EditOperationType> = [
-  'shorten', 'expand', 'rewrite', 'improve', 'simplify', 'formalize', 'translate', 'generic',
+  'shorten',
+  'expand',
+  'rewrite',
+  'improve',
+  'simplify',
+  'formalize',
+  'translate',
+  'generic',
 ];
 
 function toEditOperationType(value: string | undefined): EditOperationType {

@@ -62,7 +62,8 @@ const CURRENT_PATTERNS = [
 ];
 
 // German months for absolute date detection
-const GERMAN_MONTHS = '(?:januar|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)';
+const GERMAN_MONTHS =
+  '(?:januar|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)';
 
 // Dynamic year detection: current year and next year are "current", current-1 is "recent"
 function getYearPatterns(): { currentYears: number[]; recentYear: number } {

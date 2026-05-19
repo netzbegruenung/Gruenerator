@@ -7,6 +7,7 @@
 import express, { type Request, type Response } from 'express';
 import { PDFDocument } from 'pdf-lib';
 
+import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('exportPdfSlides');
@@ -69,9 +70,7 @@ router.post(
         const imageBytes = Buffer.from(base64Data, 'base64');
 
         const image =
-          format === 'png'
-            ? await pdfDoc.embedPng(imageBytes)
-            : await pdfDoc.embedJpg(imageBytes);
+          format === 'png' ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
 
         const page = pdfDoc.addPage([pageWidth, pageHeight]);
 
@@ -106,7 +105,7 @@ router.post(
       const filename = `${title.replace(/[^a-zA-Z0-9äöüÄÖÜß\s-]/g, '').trim() || 'Praesentation'}-${timestamp}.pdf`;
 
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      setContentDisposition(res, filename);
       res.send(Buffer.from(pdfBytes));
 
       log.info(`[exportPdfSlides] PDF created with ${images.length} pages`);

@@ -5,7 +5,7 @@ import { PROCESSING_STAGES } from '../../hooks/useReelProcessing';
 import { colors, spacing, borderRadius, typography } from '../../theme';
 
 interface ProcessingProgressProps {
-  currentStage: 1 | 2 | 3 | 4;
+  currentStage: number;
   stageName: string;
   stageProgress: number;
   overallProgress: number;

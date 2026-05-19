@@ -59,11 +59,12 @@ router.post(
         return;
       }
 
-      const { expoPushToken, deviceName, deviceType } = (req.body as {
-        expoPushToken?: string;
-        deviceName?: string;
-        deviceType?: string;
-      }) ?? {};
+      const { expoPushToken, deviceName, deviceType } =
+        (req.body as {
+          expoPushToken?: string;
+          deviceName?: string;
+          deviceType?: string;
+        }) ?? {};
 
       if (!expoPushToken) {
         res.status(400).json({
@@ -120,26 +121,22 @@ router.post(
  *
  * List the caller's push-capable devices.
  */
-router.get(
-  '/mobile/devices',
-  requireAuth,
-  async (req: Request, res: Response): Promise<void> => {
-    try {
-      const userId = req.user?.id;
-      if (!userId) {
-        res.status(401).json({ success: false, error: 'unauthorized' });
-        return;
-      }
-
-      const { getUserDevices } = await import('../../services/pushNotificationService.js');
-      const devices = await getUserDevices(userId);
-
-      res.json({ success: true, devices });
-    } catch (error) {
-      log.error('[MobileAuth] Error getting devices:', error);
-      res.status(500).json({ success: false, error: 'server_error' });
+router.get('/mobile/devices', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'unauthorized' });
+      return;
     }
+
+    const { getUserDevices } = await import('../../services/pushNotificationService.js');
+    const devices = await getUserDevices(userId);
+
+    res.json({ success: true, devices });
+  } catch (error) {
+    log.error('[MobileAuth] Error getting devices:', error);
+    res.status(500).json({ success: false, error: 'server_error' });
   }
-);
+});
 
 export default router;

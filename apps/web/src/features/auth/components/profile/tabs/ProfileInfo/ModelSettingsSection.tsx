@@ -1,10 +1,10 @@
 import {
-  MODEL_OPTIONS,
+  TEXT_MODELS,
   QWEN_WARNING,
   REGION_LABELS,
   REGION_ORDER,
-  type ModelId,
-  type ModelOption,
+  type TextModelId,
+  type TextModelOption,
   type ModelRegion,
 } from '@gruenerator/shared/models';
 import { Switch } from '@gruenerator/ui';
@@ -18,8 +18,8 @@ interface ModelSettingsSectionProps {
   onErrorMessage: (message: string) => void;
 }
 
-function groupByRegion(models: ModelOption[]): Map<ModelRegion, ModelOption[]> {
-  const grouped = new Map<ModelRegion, ModelOption[]>();
+function groupByRegion(models: TextModelOption[]): Map<ModelRegion, TextModelOption[]> {
+  const grouped = new Map<ModelRegion, TextModelOption[]>();
   for (const model of models) {
     const list = grouped.get(model.region) ?? [];
     list.push(model);
@@ -31,9 +31,9 @@ function groupByRegion(models: ModelOption[]): Map<ModelRegion, ModelOption[]> {
 const ModelSettingsSection = React.memo(
   ({ onSuccessMessage, onErrorMessage }: ModelSettingsSectionProps) => {
     const { preferences, isLoading, toggleModel } = useModelPreferences();
-    const grouped = groupByRegion(MODEL_OPTIONS);
+    const grouped = groupByRegion(TEXT_MODELS);
 
-    const handleToggle = async (modelId: ModelId, label: string, enabled: boolean) => {
+    const handleToggle = async (modelId: TextModelId, label: string, enabled: boolean) => {
       try {
         await toggleModel(modelId, enabled);
         onSuccessMessage(`${label} ${enabled ? 'aktiviert' : 'deaktiviert'}.`);

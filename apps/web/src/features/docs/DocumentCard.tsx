@@ -3,6 +3,7 @@ import { cn } from '@gruenerator/ui';
 import { memo } from 'react';
 import {
   FiCalendar,
+  FiCheck,
   FiCheckSquare,
   FiClipboard,
   FiEdit3,
@@ -75,16 +76,34 @@ export const DocumentCard = memo(function DocumentCard({
   onDelete,
   onRename,
   onShare,
+  mode = 'navigate',
+  isSelected = false,
+  isDisabled = false,
+  onSelect,
 }: {
   doc: DocumentCardDoc;
   adapter: ReturnType<typeof useDocsAdapter>;
-  onDelete: (id: string, e: React.MouseEvent) => void;
-  onRename: (doc: { id: string; title: string }, e: React.MouseEvent) => void;
-  onShare: (doc: { id: string; title: string }) => void;
+  onDelete?: (id: string, e: React.MouseEvent) => void;
+  onRename?: (doc: { id: string; title: string }, e: React.MouseEvent) => void;
+  onShare?: (doc: { id: string; title: string }) => void;
+  mode?: 'navigate' | 'select';
+  isSelected?: boolean;
+  isDisabled?: boolean;
+  onSelect?: (id: string) => void;
 }) {
   const style = DOC_TYPE_STYLE[doc.document_subtype] || DOC_TYPE_STYLE.blank;
   const TypeIcon = style.icon;
   const hasContent = !!doc.content?.trim();
+  const isSelectMode = mode === 'select';
+
+  const handleClick = () => {
+    if (isDisabled) return;
+    if (isSelectMode) {
+      onSelect?.(doc.id);
+    } else {
+      adapter.navigateToDocument(doc.id);
+    }
+  };
 
   return (
     <div
@@ -94,10 +113,23 @@ export const DocumentCard = memo(function DocumentCard({
         'hover:shadow-md hover:border-grey-300',
         'dark:border-grey-700 dark:hover:border-grey-500',
         'md:hover:-translate-y-0.5',
-        'max-sm:aspect-[4/3]'
+        'max-sm:aspect-[4/3]',
+        isSelected && 'border-primary-500 ring-2 ring-primary-400 dark:border-primary-400',
+        isDisabled && 'pointer-events-none opacity-60'
       )}
-      onClick={() => adapter.navigateToDocument(doc.id)}
+      onClick={handleClick}
+      role={isSelectMode ? 'button' : undefined}
+      aria-pressed={isSelectMode ? isSelected : undefined}
+      aria-disabled={isDisabled || undefined}
     >
+      {isSelectMode && isSelected ? (
+        <div
+          className="absolute right-2 top-2 z-10 flex size-6 items-center justify-center rounded-full bg-primary-500 text-white shadow-sm"
+          aria-hidden
+        >
+          <FiCheck size={14} />
+        </div>
+      ) : null}
       {hasContent ? (
         <div className="relative flex-1 overflow-hidden bg-grey-50 dark:bg-grey-800/50">
           <div
@@ -138,15 +170,17 @@ export const DocumentCard = memo(function DocumentCard({
               )}
             </div>
           </div>
-          <CardActionMenu
-            ariaLabel="Dokumentoptionen"
-            onRename={(e) => onRename(doc, e)}
-            onDelete={(e) => onDelete(doc.id, e)}
-            onShare={(e) => {
-              e.stopPropagation();
-              onShare({ id: doc.id, title: doc.title });
-            }}
-          />
+          {!isSelectMode && onRename && onDelete && onShare ? (
+            <CardActionMenu
+              ariaLabel="Dokumentoptionen"
+              onRename={(e) => onRename(doc, e)}
+              onDelete={(e) => onDelete(doc.id, e)}
+              onShare={(e) => {
+                e.stopPropagation();
+                onShare({ id: doc.id, title: doc.title });
+              }}
+            />
+          ) : null}
         </div>
       </div>
     </div>

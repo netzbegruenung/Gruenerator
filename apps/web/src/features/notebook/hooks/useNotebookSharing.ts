@@ -6,11 +6,13 @@
  * at compile time and responses are status-narrowed.
  */
 import {
+  type NotebookAudience,
   type NotebookEditPolicy,
   type NotebookShareMode,
   type NotebookUserGroup,
   type NotebookGroupShare,
   type NotebookShareSettings,
+  type PublicOwnership,
 } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -88,6 +90,51 @@ export function useSetNotebookShareMode(notebookId: string) {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: SHARE_SETTINGS_KEY(notebookId) });
       void qc.invalidateQueries({ queryKey: ['notebookCollections'] });
+      void qc.invalidateQueries({ queryKey: ['notebook', 'collection'] });
+    },
+  });
+}
+
+export function useSetNotebookAudience(notebookId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (audience: NotebookAudience) => {
+      const client = getContractsClient();
+      const result = await client.notebookSharing.setAudience({
+        params: { id: notebookId },
+        body: { audience },
+      });
+      if (result.status !== 200) {
+        throw new Error(`Failed to set audience (HTTP ${result.status})`);
+      }
+      return result.body;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: SHARE_SETTINGS_KEY(notebookId) });
+      void qc.invalidateQueries({ queryKey: ['notebookCollections'] });
+      void qc.invalidateQueries({ queryKey: ['notebook', 'collection'] });
+    },
+  });
+}
+
+export function useSetNotebookIsPublic(notebookId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { is_public: boolean; public_ownership: PublicOwnership | null }) => {
+      const client = getContractsClient();
+      const result = await client.notebookSharing.setIsPublic({
+        params: { id: notebookId },
+        body: input,
+      });
+      if (result.status !== 200) {
+        throw new Error(`Failed to set Von-der-Basis discovery (HTTP ${result.status})`);
+      }
+      return result.body;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: SHARE_SETTINGS_KEY(notebookId) });
+      void qc.invalidateQueries({ queryKey: ['notebookCollections'] });
+      void qc.invalidateQueries({ queryKey: ['notebook', 'collection'] });
     },
   });
 }

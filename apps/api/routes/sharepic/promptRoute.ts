@@ -100,7 +100,10 @@ router.post(
   '/generate-from-prompt',
   requireAuth,
   validateBody(generateFromPromptSchema),
-  async (req: TypedRequest<z.infer<typeof generateFromPromptSchema>>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<z.infer<typeof generateFromPromptSchema>>,
+    res: Response
+  ): Promise<void> => {
     try {
       const { prompt } = req.body;
       const trimmedPrompt = prompt.trim();

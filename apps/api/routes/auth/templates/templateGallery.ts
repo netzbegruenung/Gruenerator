@@ -18,6 +18,7 @@ import {
   likeEntity,
   unlikeEntity,
 } from '../../../services/entityLikes/EntityLikesService.js';
+import { setContentDisposition } from '../../../utils/http/contentDisposition.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { AuthRequest } from '../types.js';
@@ -638,7 +639,7 @@ router.get(
       }
 
       // Set content disposition for download
-      res.setHeader('Content-Disposition', `attachment; filename="${decodedFileName}"`);
+      setContentDisposition(res, decodedFileName);
 
       // Set content type based on file extension
       const ext = path.extname(decodedFileName).toLowerCase();

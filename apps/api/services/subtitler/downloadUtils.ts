@@ -13,6 +13,7 @@ import { type Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 
 import { type VideoMetadata } from '../../routes/subtitler/types.js';
+import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
 
@@ -461,7 +462,7 @@ async function streamVideoFile(
 
   res.setHeader('Content-Type', 'video/mp4');
   res.setHeader('Content-Length', fileSize);
-  res.setHeader('Content-Disposition', `attachment; filename=${sanitizedFilename}`);
+  setContentDisposition(res, sanitizedFilename);
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Connection', 'keep-alive');
 

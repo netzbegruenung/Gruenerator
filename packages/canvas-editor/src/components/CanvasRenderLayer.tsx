@@ -155,7 +155,7 @@ interface CanvasRenderLayerProps<
 // Primitives keep their selected/isSelected prop for testability.
 function createSelectableWrapper<P extends object>(
   Component: React.ComponentType<P>,
-  propName: 'selected' | 'isSelected' = 'selected',
+  propName: 'selected' | 'isSelected' = 'selected'
 ) {
   type WrapperProps = Omit<P, 'selected' | 'isSelected'> & { elementId: string };
   return memo(function SelectableWrapper({ elementId, ...rest }: WrapperProps) {
@@ -168,7 +168,10 @@ const SelectableBalkenGroup = createSelectableWrapper(BalkenGroup);
 const SelectableIconPrimitive = createSelectableWrapper(IconPrimitive);
 const SelectableShapePrimitive = createSelectableWrapper(ShapePrimitive, 'isSelected');
 const SelectableFramePrimitive = createSelectableWrapper(FramePrimitive, 'isSelected');
-const SelectableIllustrationPrimitive = createSelectableWrapper(IllustrationPrimitive, 'isSelected');
+const SelectableIllustrationPrimitive = createSelectableWrapper(
+  IllustrationPrimitive,
+  'isSelected'
+);
 const SelectableAssetPrimitive = createSelectableWrapper(AssetPrimitive, 'isSelected');
 const SelectableCircleBadge = createSelectableWrapper(CircleBadge);
 const SelectablePillBadge = createSelectableWrapper(PillBadge);

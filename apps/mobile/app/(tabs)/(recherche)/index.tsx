@@ -208,152 +208,159 @@ export default function NotebooksScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-    {searchOpen && (
-      <View style={[styles.searchBar, { backgroundColor: theme.background, borderColor: theme.cardBorder }]}>
-        <Ionicons name="search" size={18} color={theme.textSecondary} />
-        <TextInput
-          ref={searchInputRef}
-          style={[styles.searchInput, { color: theme.text }]}
-          placeholder="Notebooks durchsuchen..."
-          placeholderTextColor={theme.textSecondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCorrect={false}
-        />
-        <Pressable onPress={toggleSearch} hitSlop={8}>
-          <Ionicons name="close" size={20} color={theme.textSecondary} />
-        </Pressable>
-      </View>
-    )}
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.scrollContent}
-      keyboardShouldPersistTaps="handled"
-    >
-
-      {filteredResults ? (
-        <View>
-          {filteredResults.length > 0 && (
-            <NotebookSection
-              title="Notebooks"
-              notebooks={filteredResults}
-              onNotebookPress={handleNotebookPress}
-            />
-          )}
-          {filteredCollections.length > 0 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Meine Notebooks</Text>
-              {filteredCollections.map((c) => (
-                <NotebookCard
-                  key={c.id}
-                  icon="book"
-                  title={c.name}
-                  onPress={() => handleCollectionPress(c.id)}
-                  isProcessing={processingIds.has(c.id)}
-                />
-              ))}
-            </View>
-          )}
-          {filteredResults.length === 0 && filteredCollections.length === 0 && (
-            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-              Keine Ergebnisse für &ldquo;{searchQuery}&rdquo;
-            </Text>
-          )}
+      {searchOpen && (
+        <View
+          style={[
+            styles.searchBar,
+            { backgroundColor: theme.background, borderColor: theme.cardBorder },
+          ]}
+        >
+          <Ionicons name="search" size={18} color={theme.textSecondary} />
+          <TextInput
+            ref={searchInputRef}
+            style={[styles.searchInput, { color: theme.text }]}
+            placeholder="Notebooks durchsuchen..."
+            placeholderTextColor={theme.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCorrect={false}
+          />
+          <Pressable onPress={toggleSearch} hitSlop={8}>
+            <Ionicons name="close" size={20} color={theme.textSecondary} />
+          </Pressable>
         </View>
-      ) : (
-        <View>
-          <NotebookSection
-            title="Bundesebene"
-            notebooks={bundesebene}
-            onNotebookPress={handleNotebookPress}
-          />
-          <NotebookSection
-            title="Landesebene"
-            notebooks={landesebene}
-            onNotebookPress={handleNotebookPress}
-          />
-          <NotebookSection
-            title="Weitere"
-            notebooks={weitere}
-            onNotebookPress={handleNotebookPress}
-          />
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Meine Notebooks</Text>
-              <Pressable
-                onPress={() => setCreatorVisible(true)}
-                style={[styles.addButton, { backgroundColor: colors.primary[600] + '15' }]}
-                hitSlop={8}
-              >
-                <Ionicons name="add" size={20} color={colors.primary[600]} />
-              </Pressable>
-            </View>
-            {isLoading ? (
-              <View style={styles.loadingPlaceholder}>
-                {[0, 1, 2].map((i) => (
-                  <View
-                    key={i}
-                    style={[styles.skeletonCard, { backgroundColor: theme.surface, borderColor: theme.cardBorder }]}
+      )}
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {filteredResults ? (
+          <View>
+            {filteredResults.length > 0 && (
+              <NotebookSection
+                title="Notebooks"
+                notebooks={filteredResults}
+                onNotebookPress={handleNotebookPress}
+              />
+            )}
+            {filteredCollections.length > 0 && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>Meine Notebooks</Text>
+                {filteredCollections.map((c) => (
+                  <NotebookCard
+                    key={c.id}
+                    icon="book"
+                    title={c.name}
+                    onPress={() => handleCollectionPress(c.id)}
+                    isProcessing={processingIds.has(c.id)}
                   />
                 ))}
               </View>
-            ) : collections.length === 0 ? (
+            )}
+            {filteredResults.length === 0 && filteredCollections.length === 0 && (
               <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                Noch keine eigenen Notebooks.
+                Keine Ergebnisse für &ldquo;{searchQuery}&rdquo;
               </Text>
-            ) : (
-              collections.map((c) => (
-                <NotebookCard
-                  key={c.id}
-                  icon="book"
-                  title={c.name}
-                  onPress={() => handleCollectionPress(c.id)}
-                  onLongPress={() => handleDeleteCollection(c.id, c.name)}
-                  isProcessing={processingIds.has(c.id)}
-                />
-              ))
             )}
           </View>
+        ) : (
+          <View>
+            <NotebookSection
+              title="Bundesebene"
+              notebooks={bundesebene}
+              onNotebookPress={handleNotebookPress}
+            />
+            <NotebookSection
+              title="Landesebene"
+              notebooks={landesebene}
+              onNotebookPress={handleNotebookPress}
+            />
+            <NotebookSection
+              title="Weitere"
+              notebooks={weitere}
+              onNotebookPress={handleNotebookPress}
+            />
+
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>Meine Notebooks</Text>
+                <Pressable
+                  onPress={() => setCreatorVisible(true)}
+                  style={[styles.addButton, { backgroundColor: colors.primary[600] + '15' }]}
+                  hitSlop={8}
+                >
+                  <Ionicons name="add" size={20} color={colors.primary[600]} />
+                </Pressable>
+              </View>
+              {isLoading ? (
+                <View style={styles.loadingPlaceholder}>
+                  {[0, 1, 2].map((i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.skeletonCard,
+                        { backgroundColor: theme.surface, borderColor: theme.cardBorder },
+                      ]}
+                    />
+                  ))}
+                </View>
+              ) : collections.length === 0 ? (
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                  Noch keine eigenen Notebooks.
+                </Text>
+              ) : (
+                collections.map((c) => (
+                  <NotebookCard
+                    key={c.id}
+                    icon="book"
+                    title={c.name}
+                    onPress={() => handleCollectionPress(c.id)}
+                    onLongPress={() => handleDeleteCollection(c.id, c.name)}
+                    isProcessing={processingIds.has(c.id)}
+                  />
+                ))
+              )}
+            </View>
+          </View>
+        )}
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>Tools</Text>
+          <View style={styles.toolGrid}>
+            <View style={styles.gridItem}>
+              <ToolCard
+                icon="search"
+                title="Suche"
+                description="Webrecherche mit KI"
+                onPress={() => router.push('/(tabs)/(recherche)/suche' as Href)}
+              />
+            </View>
+            <View style={styles.gridItem}>
+              <ToolCard
+                icon="document-text"
+                title="Recherche"
+                description="Dokumentensuche"
+                onPress={() => router.push('/(tabs)/(recherche)/research' as Href)}
+              />
+            </View>
+          </View>
         </View>
+
+        <NotebookCreator
+          visible={creatorVisible}
+          onClose={() => setCreatorVisible(false)}
+          createCollection={createCollection}
+        />
+      </ScrollView>
+      {!searchOpen && (
+        <Pressable
+          onPress={toggleSearch}
+          style={[styles.fab, { backgroundColor: colors.primary[600] }]}
+        >
+          <Ionicons name="search" size={22} color={colors.white} />
+        </Pressable>
       )}
-
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Tools</Text>
-        <View style={styles.toolGrid}>
-          <View style={styles.gridItem}>
-            <ToolCard
-              icon="search"
-              title="Suche"
-              description="Webrecherche mit KI"
-              onPress={() => router.push('/(tabs)/(recherche)/suche' as Href)}
-            />
-          </View>
-          <View style={styles.gridItem}>
-            <ToolCard
-              icon="document-text"
-              title="Recherche"
-              description="Dokumentensuche"
-              onPress={() => router.push('/(tabs)/(recherche)/research' as Href)}
-            />
-          </View>
-        </View>
-      </View>
-
-      <NotebookCreator
-        visible={creatorVisible}
-        onClose={() => setCreatorVisible(false)}
-        createCollection={createCollection}
-      />
-    </ScrollView>
-    {!searchOpen && (
-      <Pressable
-        onPress={toggleSearch}
-        style={[styles.fab, { backgroundColor: colors.primary[600] }]}
-      >
-        <Ionicons name="search" size={22} color={colors.white} />
-      </Pressable>
-    )}
     </SafeAreaView>
   );
 }

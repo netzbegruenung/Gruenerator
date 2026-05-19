@@ -12,12 +12,7 @@ import { CombinedTextSection } from '../sidebar/sections/CombinedTextSection';
 import { CANVAS_RECOMMENDED_ASSETS, type AssetInstance } from '../utils/canvasAssets';
 import { VERANSTALTUNG_CONFIG, calculateVeranstaltungLayout } from '../utils/veranstaltungLayout';
 
-import {
-  chatTab,
-  createCommonSectionEntries,
-  toolsTab,
-  uploadsTab,
-} from './commonSections';
+import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import {
   createAssetActions,
   createIconActions,

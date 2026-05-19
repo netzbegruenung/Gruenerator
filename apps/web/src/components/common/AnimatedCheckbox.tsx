@@ -127,9 +127,11 @@ const AnimatedCheckbox = ({
           'min-h-[2.75rem] text-[clamp(0.875rem,2.5vw,1rem)]',
           'p-[clamp(0.5rem,2vw,0.75rem)_clamp(0.75rem,3vw,1rem)_clamp(0.5rem,2vw,0.75rem)_clamp(2.25rem,6vw,2.5rem)]',
           'hover:bg-hover-alt',
-          !isSimple && 'max-sm:text-[0.875rem] max-sm:rounded-[0.375rem] max-sm:whitespace-normal max-sm:break-words max-sm:max-w-full max-sm:box-border',
+          !isSimple &&
+            'max-sm:text-[0.875rem] max-sm:rounded-[0.375rem] max-sm:whitespace-normal max-sm:break-words max-sm:max-w-full max-sm:box-border',
           !isSimple && 'sm:max-md:text-[0.9375rem]',
-          isSimple && 'max-md:py-2 max-md:pr-3 max-md:pl-8 max-md:text-[0.875rem] max-md:min-h-10 max-md:whitespace-normal max-md:break-words max-md:max-w-full max-md:box-border',
+          isSimple &&
+            'max-md:py-2 max-md:pr-3 max-md:pl-8 max-md:text-[0.875rem] max-md:min-h-10 max-md:whitespace-normal max-md:break-words max-md:max-w-full max-md:box-border',
           isSimple && 'md:py-3 md:pr-4 md:pl-10 md:text-base'
         )}
       >

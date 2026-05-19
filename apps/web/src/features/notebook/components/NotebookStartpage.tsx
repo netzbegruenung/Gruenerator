@@ -40,6 +40,12 @@ interface NotebookStartpageProps {
   showLastAdded?: boolean;
   showManualSearch?: boolean;
   /**
+   * Suppresses the global-chat ("Chat") tab even when a `notebookMention` is set.
+   * Used by aggregate surfaces (e.g. the /notebooks index) where routing into the
+   * global chat doesn't correspond to a specific notebook the user picked.
+   */
+  hideGlobalChat?: boolean;
+  /**
    * When set, the manual-research tab scopes search to a single user-owned notebook
    * (ownership-checked, no facet filters). Forwarded to `NotebookManualSearch`.
    */
@@ -85,13 +91,14 @@ export function NotebookStartpage({
   showStats = true,
   showLastAdded = true,
   showManualSearch = true,
+  hideGlobalChat = false,
   manualSearchNotebookId,
   notebookMention,
   footer,
 }: NotebookStartpageProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('ki');
   const manualSearchAvailable = showManualSearch && recentCollectionIds.length > 0;
-  const globalChatAvailable = !!notebookMention;
+  const globalChatAvailable = !!notebookMention && !hideGlobalChat;
   const anyExtraTabAvailable = manualSearchAvailable || globalChatAvailable;
 
   // Force-fall-through to 'ki' if the currently selected tab isn't available

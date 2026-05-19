@@ -1,7 +1,5 @@
-import { type WolkeFolderRef } from '@gruenerator/contracts';
+import { type LinkedDocRef, type WolkeFolderRef } from '@gruenerator/contracts';
 import { type DragEvent } from 'react';
-
-export type PublicOwnership = 'owner' | 'public_data';
 
 export interface NotebookCollection {
   id?: string;
@@ -9,9 +7,8 @@ export interface NotebookCollection {
   description?: string;
   documents?: { id: string; title?: string; source_type?: string | null }[];
   labels?: string[];
-  is_public?: boolean;
-  public_ownership?: PublicOwnership | null;
   wolke_folders?: WolkeFolderRef[];
+  linked_docs?: LinkedDocRef[];
 }
 
 export interface NotebookEditorFormData {
@@ -29,29 +26,29 @@ export interface UploadedDocument {
 
 export const ACCEPTED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.txt', '.md', '.odt', '.rtf'];
 export const MAX_DOCUMENTS = 100;
-export const TOTAL_STEPS = 4;
+export const TOTAL_STEPS = 3;
 
-export function getFileTypeStyle(filename: string): { label: string; cornerClass: string } {
+export function getFileTypeStyle(filename: string): { label: string; accentVia: string } {
   const ext = filename.toLowerCase().split('.').pop() ?? '';
   switch (ext) {
     case 'pdf':
-      return { label: 'PDF', cornerClass: 'bg-red-400 dark:bg-red-700' };
+      return { label: 'PDF', accentVia: 'via-red-400/50 dark:via-red-500/40' };
     case 'docx':
-      return { label: 'DOCX', cornerClass: 'bg-blue-400 dark:bg-blue-700' };
+      return { label: 'DOCX', accentVia: 'via-blue-400/50 dark:via-blue-500/40' };
     case 'doc':
-      return { label: 'DOC', cornerClass: 'bg-blue-400 dark:bg-blue-700' };
+      return { label: 'DOC', accentVia: 'via-blue-400/50 dark:via-blue-500/40' };
     case 'odt':
-      return { label: 'ODT', cornerClass: 'bg-emerald-400 dark:bg-emerald-700' };
+      return { label: 'ODT', accentVia: 'via-emerald-400/50 dark:via-emerald-500/40' };
     case 'rtf':
-      return { label: 'RTF', cornerClass: 'bg-orange-400 dark:bg-orange-700' };
+      return { label: 'RTF', accentVia: 'via-orange-400/50 dark:via-orange-500/40' };
     case 'md':
-      return { label: 'MD', cornerClass: 'bg-slate-400 dark:bg-slate-600' };
+      return { label: 'MD', accentVia: 'via-slate-400/50 dark:via-slate-500/40' };
     case 'txt':
-      return { label: 'TXT', cornerClass: 'bg-slate-400 dark:bg-slate-600' };
+      return { label: 'TXT', accentVia: 'via-slate-400/50 dark:via-slate-500/40' };
     default:
       return {
         label: ext.slice(0, 4).toUpperCase() || 'FILE',
-        cornerClass: 'bg-grey-400 dark:bg-grey-600',
+        accentVia: 'via-grey-400/50 dark:via-grey-500/40',
       };
   }
 }

@@ -18,8 +18,10 @@ import { z } from 'zod';
 import { notebookErrorResponseSchema } from '../schemas/notebook.js';
 import {
   notebookAddGroupShareBodySchema,
+  notebookAudienceBodySchema,
   notebookEditPolicyBodySchema,
   notebookGroupSharesResponseSchema,
+  notebookIsPublicBodySchema,
   notebookShareErrorResponseSchema,
   notebookShareModeBodySchema,
   notebookShareSettingsSchema,
@@ -101,6 +103,50 @@ export const notebookSharingContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'Set notebook edit policy',
+    },
+
+    /**
+     * PUT /api/auth/notebook-collections/:id/share/audience
+     * Update locale audience (de-DE | de-AT | all). Owner only.
+     * Only filters the `share_mode='authenticated'` listing — owners and
+     * explicit group-share viewers always see the notebook regardless of
+     * audience.
+     */
+    setAudience: {
+      method: 'PUT',
+      path: '/api/auth/notebook-collections/:id/share/audience',
+      pathParams: z.object({ id: z.string() }),
+      body: notebookAudienceBodySchema,
+      responses: {
+        200: notebookSimpleSuccessSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Set notebook locale audience',
+    },
+
+    /**
+     * PUT /api/auth/notebook-collections/:id/share/is-public
+     * Toggle Von-der-Basis discovery on top of share_mode='authenticated'.
+     * Owner only. is_public=true requires public_ownership and a share_mode
+     * that grants read access to authenticated users (enforced server-side).
+     */
+    setIsPublic: {
+      method: 'PUT',
+      path: '/api/auth/notebook-collections/:id/share/is-public',
+      pathParams: z.object({ id: z.string() }),
+      body: notebookIsPublicBodySchema,
+      responses: {
+        200: notebookSimpleSuccessSchema,
+        400: notebookErrorResponseSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Toggle Von-der-Basis discovery for a notebook',
     },
 
     /**

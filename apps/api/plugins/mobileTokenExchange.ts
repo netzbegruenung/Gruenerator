@@ -161,7 +161,10 @@ export const mobileTokenExchange = () => {
             );
             payload = verified.payload;
           } catch (err) {
-            log.warn('[TokenExchangeCode] Invalid or expired login code: %s', (err as Error).message);
+            log.warn(
+              '[TokenExchangeCode] Invalid or expired login code: %s',
+              (err as Error).message
+            );
             throw new Error('Login code is invalid or expired');
           }
 

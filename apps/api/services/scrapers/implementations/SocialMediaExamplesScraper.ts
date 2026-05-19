@@ -11,7 +11,7 @@ const log = createLogger('SocialMediaExamplesScraper');
 const INSTAGRAM_ACTOR = 'apify/instagram-post-scraper';
 const FACEBOOK_ACTOR = 'apify/facebook-posts-scraper';
 const DEFAULT_WAIT_SECS = 180;
-const MAX_POSTS_PER_ACCOUNT = 50;
+const DEFAULT_MAX_POSTS_PER_ACCOUNT = 50;
 
 type Platform = 'instagram' | 'facebook';
 type CountryCode = 'DE' | 'AT';
@@ -144,9 +144,13 @@ async function fetchFacebookPosts(
   return posts;
 }
 
-async function scrapeAccount(client: ApifyClient, account: AccountConfig): Promise<RawPost[]> {
+async function scrapeAccount(
+  client: ApifyClient,
+  account: AccountConfig,
+  maxPosts: number
+): Promise<RawPost[]> {
   const fetcher = account.platform === 'instagram' ? fetchInstagramPosts : fetchFacebookPosts;
-  return fetcher(client, account.handle, MAX_POSTS_PER_ACCOUNT);
+  return fetcher(client, account.handle, maxPosts);
 }
 
 export async function scrapeAndIndexSocialMedia(
@@ -154,6 +158,14 @@ export async function scrapeAndIndexSocialMedia(
     forceUpdate?: boolean;
     /** Restrict scrape to a single Landesverband short code (e.g. 'BE'). */
     landesverband?: string;
+    /** Override max posts fetched per account (default 50). */
+    maxPostsPerAccount?: number;
+    /**
+     * Restrict scrape to specific platforms. Use when an account's FB page
+     * is private (Apify returns an `error: "not_available"` row) so re-runs
+     * don't burn quota on guaranteed-empty fetches. Omit to scrape both.
+     */
+    platforms?: readonly Platform[];
   } = {}
 ): Promise<ScrapeResult> {
   const result: ScrapeResult = { stored: 0, updated: 0, skipped: 0, fetchErrors: 0, errors: 0 };
@@ -178,11 +190,22 @@ export async function scrapeAndIndexSocialMedia(
     return result;
   }
 
-  const targets = getScrapeTargets({
+  const allTargets = getScrapeTargets({
     ...(options.landesverband !== undefined && { landesverband: options.landesverband }),
   });
-  const scopeLabel = options.landesverband ? ` (landesverband=${options.landesverband})` : '';
-  log.info(`Starting social media examples sync for ${targets.length} accounts${scopeLabel}`);
+  const targets =
+    options.platforms !== undefined && options.platforms.length > 0
+      ? allTargets.filter((t) => options.platforms!.includes(t.platform))
+      : allTargets;
+  const scopeLabel = [
+    options.landesverband ? `landesverband=${options.landesverband}` : null,
+    options.platforms ? `platforms=${options.platforms.join(',')}` : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  log.info(
+    `Starting social media examples sync for ${targets.length} accounts${scopeLabel ? ` (${scopeLabel})` : ''}`
+  );
 
   if (targets.length === 0 && options.landesverband !== undefined) {
     log.warn(
@@ -198,7 +221,11 @@ export async function scrapeAndIndexSocialMedia(
     let posts: RawPost[];
     try {
       log.info(`Scraping ${label}...`);
-      posts = await scrapeAccount(client, account);
+      posts = await scrapeAccount(
+        client,
+        account,
+        options.maxPostsPerAccount ?? DEFAULT_MAX_POSTS_PER_ACCOUNT
+      );
       log.info(`Fetched ${posts.length} posts from ${label}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

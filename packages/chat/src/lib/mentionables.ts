@@ -719,7 +719,9 @@ export function filterMentionables(query: string): {
   return {
     agents: agentMentionables.filter(matchFn),
     customAgents: customAgentMentionables.filter(matchFn),
-    notebooks: isNotebookCategoryQuery ? notebookMentionables : notebookMentionables.filter(matchFn),
+    notebooks: isNotebookCategoryQuery
+      ? notebookMentionables
+      : notebookMentionables.filter(matchFn),
     userNotebooks: isNotebookCategoryQuery
       ? dynamicUserNotebookMentionables
       : dynamicUserNotebookMentionables.filter(matchFn),
