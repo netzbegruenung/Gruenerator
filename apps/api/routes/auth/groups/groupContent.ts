@@ -11,6 +11,7 @@ import express, { type Router, type Response } from 'express';
 
 import { notebook_collections } from '../../../database/schema/notebooks.js';
 import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
+import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/index.js';
@@ -32,6 +33,8 @@ import { getPostgresAndCheckMembership } from './groupCore.js';
 
 const log = createLogger('groupContent');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
+
+const notebookHelper = new NotebookQdrantHelper();
 
 const router: Router = express.Router();
 
@@ -242,11 +245,31 @@ router.post(
         }
       }
 
+      // User notebooks live in Qdrant, not Postgres — verify ownership there.
+      if (contentType === 'notebook_collections') {
+        const collection = await notebookHelper.getNotebookCollection(contentId);
+        if (!collection) {
+          res.status(404).json({
+            success: false,
+            message: 'Inhalt nicht gefunden.',
+          });
+          return;
+        }
+        if (collection.user_id !== userId) {
+          res.status(403).json({
+            success: false,
+            message: 'Du bist nicht Besitzer*in dieses Inhalts.',
+          });
+          return;
+        }
+      }
+
       // System content (notebooks/agents) is globally available — skip ownership check
       if (
         contentType !== 'system_notebooks' &&
         contentType !== 'system_agents' &&
-        contentType !== 'nextcloud_share_link'
+        contentType !== 'nextcloud_share_link' &&
+        contentType !== 'notebook_collections'
       ) {
         const tableName = tableNameMap[contentType] || contentType;
         const ownerColumn =
