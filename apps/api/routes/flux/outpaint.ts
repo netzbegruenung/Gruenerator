@@ -18,16 +18,28 @@ const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 const imageCounter = new ImageGenerationCounter(redisClient);
 
-const aspectRatioSchema = z.enum(['16:9', '4:3', '1:1', '3:4', '9:16']);
-type AspectRatio = z.infer<typeof aspectRatioSchema>;
+const presetAspectSchema = z.enum(['16:9', '4:3', '1:1', '3:4', '9:16']);
+type PresetAspect = z.infer<typeof presetAspectSchema>;
 
-const bodySchema = z.object({
-  aspectRatio: aspectRatioSchema,
-});
+const MAX_AREA_PIXELS = 4_194_304; // BFL's 4MP cap
+
+const bodySchema = z.union([
+  z.object({ aspectRatio: presetAspectSchema }),
+  z
+    .object({
+      aspectRatio: z.literal('custom'),
+      width: z.coerce.number().int().min(256).max(2048),
+      height: z.coerce.number().int().min(256).max(2048),
+    })
+    .refine((d) => d.width * d.height <= MAX_AREA_PIXELS, {
+      message: `Bild zu groß — maximal ${MAX_AREA_PIXELS / 1_000_000} Megapixel (Breite × Höhe).`,
+      path: ['width'],
+    }),
+]);
 
 // Target canvas dimensions per aspect — keeps the output under BFL's 4MP cap
 // while staying close to typical social-media sizes.
-const ASPECT_DIMENSIONS: Record<AspectRatio, { width: number; height: number }> = {
+const ASPECT_DIMENSIONS: Record<PresetAspect, { width: number; height: number }> = {
   '16:9': { width: 1600, height: 896 },
   '4:3': { width: 1408, height: 1056 },
   '1:1': { width: 1280, height: 1280 },
@@ -68,7 +80,10 @@ router.post(
         });
       }
 
-      const target = ASPECT_DIMENSIONS[parsed.data.aspectRatio];
+      const target =
+        parsed.data.aspectRatio === 'custom'
+          ? { width: parsed.data.width, height: parsed.data.height }
+          : ASPECT_DIMENSIONS[parsed.data.aspectRatio];
       log.debug(
         `[Outpaint] User ${userId} expanding ${Math.round(req.file.size / 1024)}KB image to ${target.width}x${target.height} (${parsed.data.aspectRatio})`
       );
