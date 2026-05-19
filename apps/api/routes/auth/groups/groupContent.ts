@@ -6,11 +6,8 @@
 import fs from 'fs';
 import path from 'path';
 
-import { inArray } from 'drizzle-orm';
 import express, { type Router, type Response } from 'express';
 
-import { notebook_collections } from '../../../database/schema/notebooks.js';
-import { getDrizzleInstance } from '../../../database/services/DrizzleService.js';
 import { NotebookQdrantHelper } from '../../../database/services/NotebookQdrantHelper.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
@@ -581,23 +578,22 @@ router.get(
 
       if (contentByType.notebook_collections.length > 0) {
         const ids = contentByType.notebook_collections.map((s: ShareRecord) => s.content_id);
+        // Notebooks live in Qdrant, not Postgres — hydrate details from there.
         fetchPromises.push(
-          getDrizzleInstance()
-            .select({
-              id: notebook_collections.id,
-              name: notebook_collections.name,
-              description: notebook_collections.description,
-              created_at: notebook_collections.created_at,
-              updated_at: notebook_collections.updated_at,
-              user_id: notebook_collections.user_id,
-            })
-            .from(notebook_collections)
-            .where(inArray(notebook_collections.id, ids))
-            .then((data) => ({
-              type: 'notebook_collections',
-              result: { data: data as Array<Record<string, unknown>> },
-              shares: contentByType.notebook_collections,
-            }))
+          notebookHelper.getNotebookCollectionsByIds(ids).then((collections) => ({
+            type: 'notebook_collections',
+            result: {
+              data: collections.map((c) => ({
+                id: c.id,
+                name: c.name,
+                description: c.description,
+                created_at: c.created_at,
+                updated_at: c.updated_at,
+                user_id: c.user_id,
+              })),
+            },
+            shares: contentByType.notebook_collections,
+          }))
         );
       }
 
