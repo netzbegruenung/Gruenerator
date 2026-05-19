@@ -19,6 +19,7 @@ import {
   type GroupMember,
   type GroupSummary,
 } from '@gruenerator/shared/groups';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import apiClient from '../../../components/utils/apiClient';
@@ -65,11 +66,9 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
   const updateInfoMutation = useMutation({
     mutationFn: async (input: { groupId: string; name?: string; description?: string }) => {
       const { groupId, ...body } = input;
-      const res = await apiClient.put<Record<string, unknown>>(
-        `/auth/groups/${groupId}/info`,
-        body
-      );
-      return { groupId, data: res.data };
+      const res = await getContractsClient().groups.updateInfo({ params: { groupId }, body });
+      if (res.status !== 200) throw new Error(res.body.message);
+      return { groupId, data: res.body };
     },
     onSuccess: ({ groupId }) => {
       void queryClient.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
@@ -79,11 +78,12 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
 
   const updateNameMutation = useMutation({
     mutationFn: async (input: { groupId: string; name: string }) => {
-      const res = await apiClient.put<Record<string, unknown>>(
-        `/auth/groups/${input.groupId}/name`,
-        { name: input.name }
-      );
-      return { groupId: input.groupId, data: res.data };
+      const res = await getContractsClient().groups.updateName({
+        params: { groupId: input.groupId },
+        body: { name: input.name },
+      });
+      if (res.status !== 200) throw new Error(res.body.message);
+      return { groupId: input.groupId, data: res.body };
     },
     onSuccess: ({ groupId }) => {
       void queryClient.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
@@ -301,11 +301,12 @@ export const useUpdateGroupSettings = (groupId: string | null) => {
       if (!user?.id || !groupId) {
         throw new Error('User not authenticated or group ID missing');
       }
-      const response = await apiClient.put<Record<string, unknown>>(
-        `/auth/groups/${groupId}/info`,
-        { settings }
-      );
-      return response.data;
+      const res = await getContractsClient().groups.updateInfo({
+        params: { groupId },
+        body: { settings },
+      });
+      if (res.status !== 200) throw new Error(res.body.message);
+      return res.body;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['groupDetails'] });

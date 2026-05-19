@@ -1,16 +1,14 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 import Spinner from '../../../components/common/Spinner';
-import apiClient from '../../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useGroups } from '../hooks/useGroups';
 
 interface VerifyTokenResponse {
-  success: boolean;
-  message?: string;
   group: { name: string };
   alreadyMember?: boolean;
 }
@@ -29,13 +27,13 @@ const JoinGroupPage = () => {
   const verifyQuery = useQuery<VerifyTokenResponse, Error>({
     queryKey: ['group-verify-token', joinToken],
     queryFn: async () => {
-      const response = await apiClient.get<VerifyTokenResponse>(
-        `/auth/groups/verify-token/${joinToken}`
-      );
-      if (!response.data.success) {
-        throw new Error(response.data.message ?? 'Ungültiger Einladungslink');
+      const res = await getContractsClient().groups.verifyToken({
+        params: { joinToken: joinToken ?? '' },
+      });
+      if (res.status !== 200) {
+        throw new Error(res.body.message ?? 'Ungültiger Einladungslink');
       }
-      return response.data;
+      return { group: { name: res.body.group.name }, alreadyMember: res.body.alreadyMember };
     },
     enabled: Boolean(joinToken) && !isLoading && Boolean(isAuthResolved) && Boolean(user),
     retry: false,

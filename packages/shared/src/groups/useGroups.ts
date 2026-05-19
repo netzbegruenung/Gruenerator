@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { getGlobalApiClient } from '../api/index.js';
+import { getContractsClient, getGlobalApiClient } from '../api/index.js';
 
 import {
   GROUPS_QUERY_KEY,
@@ -18,8 +18,9 @@ export const useUserGroups = (options: { enabled?: boolean } = {}) =>
   useQuery({
     queryKey: GROUPS_QUERY_KEY,
     queryFn: async (): Promise<GroupSummary[]> => {
-      const res = await getGlobalApiClient().get<{ groups?: GroupSummary[] }>('/auth/groups');
-      return res.data.groups ?? [];
+      const res = await getContractsClient().groups.listUserGroups();
+      if (res.status !== 200) throw new Error('Fehler beim Laden der Gruppen.');
+      return res.body.groups as GroupSummary[];
     },
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
@@ -30,11 +31,14 @@ export const useGroupDetails = (groupId: string | null | undefined) =>
   useQuery({
     queryKey: groupDetailsKey(groupId ?? ''),
     queryFn: async (): Promise<{ group: GroupDetail; membership: GroupMembership }> => {
-      const res = await getGlobalApiClient().get<{
-        group: GroupDetail;
-        membership: GroupMembership;
-      }>(`/auth/groups/${groupId}/details`);
-      return { group: res.data.group, membership: res.data.membership };
+      const res = await getContractsClient().groups.getDetails({
+        params: { groupId: groupId ?? '' },
+      });
+      if (res.status !== 200) throw new Error('Fehler beim Laden der Gruppendetails.');
+      return {
+        group: res.body.group as GroupDetail,
+        membership: res.body.membership as GroupMembership,
+      };
     },
     enabled: !!groupId,
     staleTime: 60 * 1000,
@@ -44,10 +48,11 @@ export const useGroupMembers = (groupId: string | null | undefined) =>
   useQuery({
     queryKey: groupMembersKey(groupId ?? ''),
     queryFn: async (): Promise<GroupMember[]> => {
-      const res = await getGlobalApiClient().get<{ members?: GroupMember[] }>(
-        `/auth/groups/${groupId}/members`
-      );
-      return res.data.members ?? [];
+      const res = await getContractsClient().groups.listMembers({
+        params: { groupId: groupId ?? '' },
+      });
+      if (res.status !== 200) throw new Error('Fehler beim Laden der Gruppenmitglieder.');
+      return res.body.members as GroupMember[];
     },
     enabled: !!groupId,
     staleTime: 2 * 60 * 1000,
@@ -57,8 +62,11 @@ export const useCreateGroup = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { name: string; description?: string }) => {
-      const res = await getGlobalApiClient().post<{ group: GroupSummary }>('/auth/groups', input);
-      return res.data.group;
+      const res = await getContractsClient().groups.createGroup({
+        body: { name: input.name, description: input.description },
+      });
+      if (res.status !== 200) throw new Error('Fehler beim Erstellen der Gruppe.');
+      return res.body.group as GroupSummary;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
@@ -70,7 +78,8 @@ export const useDeleteGroup = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (groupId: string) => {
-      await getGlobalApiClient().delete(`/auth/groups/${groupId}`);
+      const res = await getContractsClient().groups.deleteGroup({ params: { groupId } });
+      if (res.status !== 200) throw new Error(res.body.message);
       return groupId;
     },
     onSuccess: (groupId) => {
@@ -89,7 +98,11 @@ export const useUpdateGroupInfo = (groupId: string) => {
       description?: string | null;
       settings?: Record<string, unknown>;
     }) => {
-      await getGlobalApiClient().put(`/auth/groups/${groupId}/info`, input);
+      const res = await getContractsClient().groups.updateInfo({
+        params: { groupId },
+        body: input,
+      });
+      if (res.status !== 200) throw new Error(res.body.message);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
@@ -102,7 +115,11 @@ export const useUpdateGroupName = (groupId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (name: string) => {
-      await getGlobalApiClient().put(`/auth/groups/${groupId}/name`, { name });
+      const res = await getContractsClient().groups.updateName({
+        params: { groupId },
+        body: { name },
+      });
+      if (res.status !== 200) throw new Error(res.body.message);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
@@ -115,11 +132,11 @@ export const useVerifyJoinToken = (joinToken: string | null | undefined) =>
   useQuery({
     queryKey: ['groupVerifyToken', joinToken],
     queryFn: async (): Promise<VerifyTokenResult> => {
-      const res = await getGlobalApiClient().get<{
-        group: { id: string; name: string };
-        alreadyMember: boolean;
-      }>(`/auth/groups/verify-token/${joinToken}`);
-      return { group: res.data.group, alreadyMember: res.data.alreadyMember };
+      const res = await getContractsClient().groups.verifyToken({
+        params: { joinToken: joinToken ?? '' },
+      });
+      if (res.status !== 200) throw new Error(res.body.message);
+      return { group: res.body.group, alreadyMember: res.body.alreadyMember };
     },
     enabled: !!joinToken,
     retry: false,
@@ -131,11 +148,9 @@ export const useJoinGroup = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (joinToken: string) => {
-      const res = await getGlobalApiClient().post<{
-        group: { id: string; name: string };
-        alreadyMember?: boolean;
-      }>('/auth/groups/join', { joinToken });
-      return res.data;
+      const res = await getContractsClient().groups.joinByToken({ body: { joinToken } });
+      if (res.status !== 200) throw new Error(res.body.message);
+      return { group: res.body.group, alreadyMember: res.body.alreadyMember ?? false };
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
@@ -147,7 +162,8 @@ export const useLeaveGroup = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (groupId: string) => {
-      await getGlobalApiClient().delete(`/auth/groups/${groupId}/members/self`);
+      const res = await getContractsClient().groups.leaveGroup({ params: { groupId } });
+      if (res.status !== 200) throw new Error(res.body.message);
       return groupId;
     },
     onSuccess: (groupId) => {
@@ -162,9 +178,11 @@ export const useUpdateMemberRole = (groupId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { memberId: string; role: 'admin' | 'member' }) => {
-      await getGlobalApiClient().put(`/auth/groups/${groupId}/members/${input.memberId}/role`, {
-        role: input.role,
+      const res = await getContractsClient().groups.updateMemberRole({
+        params: { groupId, memberId: input.memberId },
+        body: { role: input.role },
       });
+      if (res.status !== 200) throw new Error(res.body.message);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: groupMembersKey(groupId) });
@@ -176,11 +194,9 @@ export const useAddGroupLink = (groupId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (link: Omit<GroupLink, 'id'>) => {
-      const res = await getGlobalApiClient().post<{ link: GroupLink }>(
-        `/auth/groups/${groupId}/links`,
-        link
-      );
-      return res.data.link;
+      const res = await getContractsClient().groups.addLink({ params: { groupId }, body: link });
+      if (res.status !== 200) throw new Error(res.body.message);
+      return res.body.link as GroupLink;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });
@@ -193,11 +209,12 @@ export const useUpdateGroupLink = (groupId: string) => {
   return useMutation({
     mutationFn: async (input: { linkId: string } & Omit<GroupLink, 'id'>) => {
       const { linkId, ...link } = input;
-      const res = await getGlobalApiClient().put<{ link: GroupLink }>(
-        `/auth/groups/${groupId}/links/${linkId}`,
-        link
-      );
-      return res.data.link;
+      const res = await getContractsClient().groups.updateLink({
+        params: { groupId, linkId },
+        body: link,
+      });
+      if (res.status !== 200) throw new Error(res.body.message);
+      return res.body.link as GroupLink;
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });
@@ -209,7 +226,8 @@ export const useDeleteGroupLink = (groupId: string) => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (linkId: string) => {
-      await getGlobalApiClient().delete(`/auth/groups/${groupId}/links/${linkId}`);
+      const res = await getContractsClient().groups.deleteLink({ params: { groupId, linkId } });
+      if (res.status !== 200) throw new Error('Fehler beim Löschen des Links.');
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });
@@ -221,6 +239,9 @@ export const useDeleteGroupLink = (groupId: string) => {
  * Upload a group avatar. Accepts either a `FormData` (already built by the
  * caller) or a web `File`. Mobile builds FormData with `{ uri, name, type }`
  * objects; web passes a `File` directly.
+ *
+ * Stays on the raw axios client: ts-rest models `multipart/form-data` poorly,
+ * so the avatar endpoints remain on the legacy router.
  */
 export const useUploadGroupAvatar = (groupId: string) => {
   const qc = useQueryClient();
