@@ -3,11 +3,10 @@ import React, { Suspense, lazy, memo, useState } from 'react';
 import ModePillRow from '../../texte/components/ModePillRow';
 import { DEFAULT_MODE } from '../../texte/modes';
 
-import BildBearbeitenInner from './BildBearbeitenInner';
+import BilderInner from './BilderInner';
 import BoardsInner from './BoardsInner';
 import ChatInner from './ChatInner';
 import DocsInner from './DocsInner';
-import ImagineInner from './ImagineInner';
 
 const EigeneTab = lazy(() => import('../../texte/tabs/EigeneTab'));
 
@@ -17,8 +16,7 @@ const CreatorSection: React.FC = memo(() => {
   const isEigene = mode === 'eigene';
   const isBoards = mode === 'boards';
   const isDocs = mode === 'docs';
-  const isImagine = mode === 'imagine';
-  const isBildBearbeiten = mode === 'bild-bearbeiten';
+  const isBilder = mode === 'bilder';
 
   return (
     <div className="w-full flex flex-col gap-md">
@@ -38,10 +36,8 @@ const CreatorSection: React.FC = memo(() => {
         >
           <EigeneTab />
         </Suspense>
-      ) : isImagine ? (
-        <ImagineInner key={mode} />
-      ) : isBildBearbeiten ? (
-        <BildBearbeitenInner key={mode} />
+      ) : isBilder ? (
+        <BilderInner key={mode} />
       ) : isBoards ? (
         <BoardsInner key={mode} />
       ) : isDocs ? (

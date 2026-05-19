@@ -30,8 +30,7 @@ export const MODE_MAP: Record<string, ModeDefinition> = Object.fromEntries(
 
 export const MODE_GROUPS: ModeGroupEntry[] = [
   { id: 'chat', label: 'Chat' },
-  { id: 'imagine', label: 'Bild erstellen' },
-  { id: 'bild-bearbeiten', label: 'Bild bearbeiten' },
+  { id: 'bilder', label: 'Bilder' },
   { id: 'boards', label: 'Boards' },
   { id: 'docs', label: 'Dokumente' },
   { id: 'eigene', label: 'Eigene' },
