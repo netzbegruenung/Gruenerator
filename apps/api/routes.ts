@@ -27,6 +27,7 @@ import { mountExportsContractRouter } from './routes/exports/exportsContractRout
 import exportDocumentsRouter from './routes/exports/index.js';
 import imagineCreateRoute from './routes/flux/imagineCreate.js';
 import imaginePureRoute from './routes/flux/imaginePure.js';
+import outpaintRoute from './routes/flux/outpaint.js';
 import { mountImagePickerContractRouter } from './routes/image/imagePickerContractRouter.js';
 import {
   pickerController as imagePickerRoute,
@@ -666,6 +667,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/flux/green-edit', aiGenerationLimiter, fluxImageEditingRoute);
   app.use('/api/imagine/create', aiGenerationLimiter, imagineCreateRoute);
   app.use('/api/imagine/pure', aiGenerationLimiter, imaginePureRoute);
+  app.use('/api/imagine/outpaint', aiGenerationLimiter, outpaintRoute);
 
   // Web redirect to frontend imagine (KI image studio)
   app.get('/web', (req: Request, res: Response) => {

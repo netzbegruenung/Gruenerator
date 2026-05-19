@@ -1,5 +1,6 @@
 import { antragMode } from './antrag';
 import { bildBearbeitenMode } from './bildBearbeiten';
+import { bildVergroessernMode } from './bildVergroessern';
 import { boardsMode } from './boards';
 import { imagineMode } from './imagine';
 import { presseSocialMode } from './presseSocial';
@@ -21,6 +22,7 @@ const ALL_MODES: ModeDefinition[] = [
   boardsMode,
   imagineMode,
   bildBearbeitenMode,
+  bildVergroessernMode,
   textEditorMode,
 ];
 
