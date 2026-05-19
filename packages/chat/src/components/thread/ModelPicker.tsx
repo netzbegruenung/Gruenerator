@@ -8,7 +8,7 @@ import {
   ResponsiveMenuSection,
   ResponsiveMenuItem,
 } from '@gruenerator/ui';
-import { isModelEnabledByDefault, MODEL_BY_ID } from '@gruenerator/shared/models';
+import { isModelEnabledByDefault, TEXT_MODEL_BY_ID } from '@gruenerator/shared/models';
 import { getSystemAgent } from '@gruenerator/shared/agents';
 
 import { composerToolbarButtonClass } from '../../lib/utils';
@@ -58,7 +58,7 @@ export const ModelPicker = memo(function ModelPicker() {
   const resolvedAuto = useMemo(() => {
     if (selectedModel !== AUTO_MODEL_ID) return null;
     const agent = selectedAgentId ? (getSystemAgent(selectedAgentId) ?? null) : null;
-    return MODEL_BY_ID[resolveAutoModel({ threadMode, agent })];
+    return TEXT_MODEL_BY_ID[resolveAutoModel({ threadMode, agent })];
   }, [selectedModel, selectedAgentId, threadMode]);
 
   const fallback = visibleCatalogModels[0] ?? MODEL_OPTIONS[0];

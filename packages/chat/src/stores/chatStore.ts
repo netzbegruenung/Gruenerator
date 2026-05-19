@@ -1,17 +1,21 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
-  MODEL_OPTIONS,
-  MODEL_BY_ID,
-  type ModelId,
-  type ModelOption,
-  type Provider,
+  TEXT_MODELS,
+  TEXT_MODEL_BY_ID,
+  type TextModelId,
+  type TextModelOption,
+  type TextProvider,
 } from '@gruenerator/shared/models';
 import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
 import type { ChatApiClient } from '../context/ChatContext';
 
-export { MODEL_OPTIONS, AUTO_MODEL_ID };
-export type { ModelId, ModelOption, Provider, AutoModelId, SelectedModel };
+export const MODEL_OPTIONS = TEXT_MODELS;
+export { AUTO_MODEL_ID };
+export type ModelId = TextModelId;
+export type ModelOption = TextModelOption;
+export type Provider = TextProvider;
+export type { AutoModelId, SelectedModel };
 
 export interface CompactionState {
   summary: string | null;
@@ -172,7 +176,7 @@ export const useAgentStore = create<AgentState>()(
           set({ selectedModel: model });
           return;
         }
-        const modelOption = MODEL_OPTIONS.find((m) => m.id === model);
+        const modelOption = model in TEXT_MODEL_BY_ID ? TEXT_MODEL_BY_ID[model as TextModelId] : undefined;
         if (modelOption) {
           set({ selectedModel: model, selectedProvider: modelOption.provider });
         }
@@ -393,7 +397,7 @@ export const useAgentStore = create<AgentState>()(
         }
         if (version < 8) {
           const current = state.selectedModel as string | undefined;
-          const def = current ? MODEL_BY_ID[current as ModelId] : undefined;
+          const def = current ? TEXT_MODEL_BY_ID[current as TextModelId] : undefined;
           if (def?.offByDefault) {
             state.selectedModel = 'gemma-litellm';
             state.selectedProvider = 'litellm';
