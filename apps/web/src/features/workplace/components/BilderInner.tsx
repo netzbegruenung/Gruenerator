@@ -7,6 +7,7 @@ import {
   pillBase,
   pillInactive,
   pillActive,
+  type SettingConfig,
 } from '@gruenerator/ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, ImagePlus, X } from 'lucide-react';
@@ -22,15 +23,32 @@ import { MODE_MAP } from '../../texte/modes';
 
 import { cn } from '@/utils/cn';
 
-type SubMode = 'erstellen' | 'bearbeiten';
+type SubMode = 'erstellen' | 'bearbeiten' | 'vergroessern';
 
 const SUB_TABS: ReadonlyArray<{ id: SubMode; label: string }> = [
   { id: 'erstellen', label: 'Erstellen' },
   { id: 'bearbeiten', label: 'Bearbeiten' },
+  { id: 'vergroessern', label: 'Vergrößern' },
 ];
 
 const ERSTELLEN_MODE_ID = 'imagine';
 const BEARBEITEN_MODE_ID = 'bild-bearbeiten';
+const VERGROESSERN_MODE_ID = 'bild-vergroessern';
+
+type AspectRatio = '16:9' | '4:3' | '1:1' | '3:4' | '9:16';
+
+const ASPECT_RATIO_CONFIG: SettingConfig = {
+  key: 'aspectRatio',
+  label: 'Format',
+  options: [
+    { id: '16:9', label: 'Querformat 16:9' },
+    { id: '4:3', label: 'Querformat 4:3' },
+    { id: '1:1', label: 'Quadrat 1:1' },
+    { id: '3:4', label: 'Hochformat 3:4' },
+    { id: '9:16', label: 'Hochformat 9:16' },
+  ],
+  multiple: false,
+};
 
 interface UsageStatus {
   count: number;
@@ -83,8 +101,15 @@ const BilderInner: React.FC = memo(() => {
 
   const erstellenDef = MODE_MAP[ERSTELLEN_MODE_ID];
   const bearbeitenDef = MODE_MAP[BEARBEITEN_MODE_ID];
+  const vergroessernDef = MODE_MAP[VERGROESSERN_MODE_ID];
   const isErstellen = subMode === 'erstellen';
-  const activeDef = isErstellen ? erstellenDef : bearbeitenDef;
+  const isBearbeiten = subMode === 'bearbeiten';
+  const isVergroessern = subMode === 'vergroessern';
+  const activeDef = isErstellen ? erstellenDef : isBearbeiten ? bearbeitenDef : vergroessernDef;
+
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
+  const [outpaintLoading, setOutpaintLoading] = useState(false);
+  const [outpaintError, setOutpaintError] = useState<string | null>(null);
 
   const { state: modeState, updateField } = useModeState(ERSTELLEN_MODE_ID);
 
@@ -227,21 +252,60 @@ const BilderInner: React.FC = memo(() => {
     }
   }, [prompt, sourceFile, editLoading, setResult, createImageShare, queryClient]);
 
+  const handleSubmitOutpaint = useCallback(async () => {
+    if (!sourceFile || outpaintLoading) return;
+    setOutpaintLoading(true);
+    setOutpaintError(null);
+    try {
+      const form = new FormData();
+      form.append('image', sourceFile);
+      form.append('aspectRatio', aspectRatio);
+      const res = await getGlobalApiClient().post<{
+        success: boolean;
+        image?: { base64?: string };
+        error?: string;
+      }>('/imagine/outpaint', form);
+      if (!res.data.success || !res.data.image?.base64) {
+        throw new Error(res.data.error || 'Vergrößerung fehlgeschlagen');
+      }
+      const base64 = res.data.image.base64;
+      setResult(base64, false);
+      const title = `Vergrößert ${aspectRatio} — ${sourceFile.name}`;
+      createImageShare({
+        imageData: base64,
+        title: title.slice(0, 100),
+        imageType: 'imagine',
+        status: 'ready',
+        metadata: { sourceFilename: sourceFile.name, aspectRatio },
+      })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['recent-activity'] }))
+        .catch(() => {});
+    } catch (err) {
+      console.error('[BilderInner:vergroessern] Outpaint failed:', err);
+      setOutpaintError(err instanceof Error ? err.message : 'Vergrößerung fehlgeschlagen');
+    } finally {
+      setOutpaintLoading(false);
+    }
+  }, [sourceFile, outpaintLoading, aspectRatio, setResult, createImageShare, queryClient]);
+
   const onSubmit = useCallback(() => {
     if (isErstellen) {
       void handleSubmitCreate();
-    } else {
+    } else if (isBearbeiten) {
       void handleSubmitEdit();
+    } else {
+      void handleSubmitOutpaint();
     }
-  }, [isErstellen, handleSubmitCreate, handleSubmitEdit]);
+  }, [isErstellen, isBearbeiten, handleSubmitCreate, handleSubmitEdit, handleSubmitOutpaint]);
 
   const handleDownload = useCallback(() => {
     if (!resultImage) return;
     const link = document.createElement('a');
     link.href = resultImage;
-    link.download = `gruenerator-${isErstellen ? 'bild' : 'bearbeitet'}-${Date.now()}.png`;
+    const slug = isErstellen ? 'bild' : isBearbeiten ? 'bearbeitet' : 'vergroessert';
+    link.download = `gruenerator-${slug}-${Date.now()}.png`;
     link.click();
-  }, [resultImage, isErstellen]);
+  }, [resultImage, isErstellen, isBearbeiten]);
 
   const erstellenToolbar = useMemo(() => {
     if (!erstellenDef?.settings?.length && !usage) return null;
@@ -290,10 +354,62 @@ const BilderInner: React.FC = memo(() => {
     [sourcePreviewUrl, sourceFile, clearSource]
   );
 
-  const loading = isErstellen ? createLoading : editLoading;
-  const error = isErstellen ? (createError ? String(createError) : null) : editError;
-  const toolbar = isErstellen ? erstellenToolbar : bearbeitenToolbar;
-  const altText = isErstellen ? 'Generiertes Bild' : 'Bearbeitetes Bild';
+  const vergroessernToolbar = useMemo(
+    () => (
+      <>
+        {sourcePreviewUrl ? (
+          <div className="flex items-center gap-1.5 rounded-md border border-grey-200 dark:border-grey-700 bg-background-pure pl-1 pr-1.5 py-0.5">
+            <img src={sourcePreviewUrl} alt="" className="size-6 object-cover rounded" />
+            <span className="text-xs text-grey-600 dark:text-grey-300 max-w-[120px] truncate">
+              {sourceFile?.name ?? 'Bild'}
+            </span>
+            <button
+              type="button"
+              onClick={clearSource}
+              className="text-grey-400 hover:text-grey-600 dark:hover:text-grey-200"
+              aria-label="Bild entfernen"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 text-xs text-grey-500 dark:text-grey-400 hover:text-grey-700 dark:hover:text-grey-200 px-2 py-1 rounded-md hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors"
+          >
+            <ImagePlus className="size-3.5" />
+            Bild hochladen
+          </button>
+        )}
+        <SettingsDropdown
+          config={ASPECT_RATIO_CONFIG}
+          value={aspectRatio}
+          onChange={(val) => setAspectRatio(val as AspectRatio)}
+        />
+      </>
+    ),
+    [sourcePreviewUrl, sourceFile, clearSource, aspectRatio]
+  );
+
+  const loading = isErstellen ? createLoading : isBearbeiten ? editLoading : outpaintLoading;
+  const error = isErstellen
+    ? createError
+      ? String(createError)
+      : null
+    : isBearbeiten
+      ? editError
+      : outpaintError;
+  const toolbar = isErstellen
+    ? erstellenToolbar
+    : isBearbeiten
+      ? bearbeitenToolbar
+      : vergroessernToolbar;
+  const altText = isErstellen
+    ? 'Generiertes Bild'
+    : isBearbeiten
+      ? 'Bearbeitetes Bild'
+      : 'Vergrößertes Bild';
 
   return (
     <div className="flex flex-col gap-md">
