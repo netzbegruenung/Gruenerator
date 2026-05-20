@@ -35,6 +35,7 @@ import {
   docsContract,
   documentsContract,
   groupsContract,
+  userProfileContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 
@@ -147,6 +148,7 @@ const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS
 const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
 const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
+const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -167,6 +169,7 @@ export interface ContractsClient {
   docs: ReturnType<typeof _docsClient>;
   documents: ReturnType<typeof _documentsClient>;
   groups: ReturnType<typeof _groupsClient>;
+  userProfile: ReturnType<typeof _userProfileClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -204,6 +207,7 @@ export function getContractsClient(): ContractsClient {
     docs: _docsClient(),
     documents: _documentsClient(),
     groups: _groupsClient(),
+    userProfile: _userProfileClient(),
   };
 
   return _client;

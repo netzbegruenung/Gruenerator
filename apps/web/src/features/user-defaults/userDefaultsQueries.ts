@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import apiClient from '../../components/utils/apiClient';
@@ -61,7 +62,12 @@ export function useSetUserDefault<G extends UserDefaultsGenerator, K extends Use
 
   return useMutation({
     mutationFn: async ({ generator, key, value }: SetUserDefaultVariables<G, K>) => {
-      await apiClient.patch('/auth/profile/user-defaults', { generator, key, value });
+      const res = await getContractsClient().userProfile.updateUserDefaults({
+        body: { generator, key, value },
+      });
+      if (res.status !== 200) {
+        throw new Error(`Failed to save user default (HTTP ${res.status})`);
+      }
     },
     onMutate: async ({ generator, key, value }) => {
       await queryClient.cancelQueries({ queryKey: USER_DEFAULTS_QUERY_KEY });
