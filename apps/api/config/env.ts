@@ -34,6 +34,9 @@ const envSchema = z.object({
   // ── Session / Auth core ────────────────────────────────────────────────
   SESSION_SECRET: z.string().optional(),
   ADMIN_TOKEN: z.string().optional(),
+  // Comma-separated emails elevated to is_admin = true at session-parse time.
+  // Runtime override — no DB write. Empty/unset → no overrides.
+  ADMIN_EMAILS: z.string().optional(),
   ALLOW_DEV_AUTH_BYPASS: boolFlag(false),
   DEV_AUTH_BYPASS_TOKEN: z.string().optional(),
 
@@ -87,6 +90,11 @@ const envSchema = z.object({
   REGOLO_DEFAULT_MODEL: z.string().optional(),
   BFL_API_KEY: z.string().optional(),
 
+  // ── Web Search Providers ───────────────────────────────────────────────
+  // Linkup (https://docs.linkup.so) — when set, replaces SearXNG for @web
+  // and replaces the deep-research orchestrator for @recherche.
+  LINKUP_API_KEY: z.string().optional(),
+
   // ── Image / Flux ───────────────────────────────────────────────────────
   FLUX_BACKEND: z.string().optional(),
   FLUX_MAX_RETRIES: numStr(3),
@@ -136,6 +144,10 @@ const envSchema = z.object({
   // ── OCR ────────────────────────────────────────────────────────────────
   OCR_PROVIDER: z.string().optional(),
   DOCLING_URL: z.string().optional(),
+  // Outer client deadline for the async Docling conversion flow (submit → poll → result).
+  // 50 MB / 1000 pages is the validation ceiling; 10 min covers worst-case scan-heavy PDFs.
+  DOCLING_MAX_WAIT_MS: numStr(600_000),
+  REMBG_URL: z.string().optional(),
 
   // ── Hocuspocus / Yjs ──────────────────────────────────────────────────
   HOCUSPOCUS_ENABLED: boolFlag(false),

@@ -73,6 +73,7 @@ interface ChatOverviewProps {
   onNavigate?: (path: string) => void;
   onSelectNotebook?: (notebookId: string) => void;
   onSelectRole?: (role: UserRole) => void;
+  requireProfileHydration?: boolean;
 }
 
 const INITIAL_NOTEBOOK_COUNT = 3;
@@ -83,6 +84,7 @@ export function ChatOverview({
   onNavigate,
   onSelectNotebook,
   onSelectRole,
+  requireProfileHydration,
 }: ChatOverviewProps) {
   const assistantRuntime = useAssistantRuntime();
   const [showAllNotebooks, setShowAllNotebooks] = useState(false);
@@ -95,7 +97,7 @@ export function ChatOverview({
       useAgentStore.getState().setChatViewMode('thread');
       return;
     }
-    assistantRuntime.switchToNewThread();
+    void assistantRuntime.threads.switchToNewThread();
   }, [assistantRuntime]);
 
   return (
@@ -138,6 +140,7 @@ export function ChatOverview({
           toolbarExtra={<ExampleSuggestions />}
           onNavigate={onNavigate}
           firstName={firstName}
+          requireProfileHydration={requireProfileHydration}
         />
       </ThreadPrimitive.Root>
     </div>

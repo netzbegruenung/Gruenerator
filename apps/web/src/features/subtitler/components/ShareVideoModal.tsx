@@ -7,9 +7,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@gruenerator/ui';
+import { QRCodeSVG } from 'qrcode.react';
 import React, { useState, useEffect } from 'react';
 import { FaCheck, FaCopy, FaShareAlt } from 'react-icons/fa';
-import QRCode from 'react-qr-code';
 
 import EnhancedSelect from '../../../components/common/EnhancedSelect/EnhancedSelect';
 import { useSubtitlerShareStore, getShareUrl } from '../../../stores/subtitlerShareStore';
@@ -168,7 +168,11 @@ const ShareVideoModal: React.FC<ShareVideoModalProps> = ({ projectId, title, onC
 
             <div className="flex gap-lg max-sm:flex-col max-sm:items-center">
               <div className="shrink-0 rounded-lg bg-white p-sm">
-                <QRCode value={getShareUrl(currentShare.shareToken || '')} size={160} level="M" />
+                <QRCodeSVG
+                  value={getShareUrl(currentShare.shareToken || '')}
+                  size={160}
+                  level="M"
+                />
               </div>
 
               <div className="flex min-w-0 flex-1 flex-col gap-xs">

@@ -137,22 +137,9 @@ export class AuthService {
         return true;
       }
 
-      const groupResult = await this.db(
-        `SELECT gcs.permissions FROM group_content_shares gcs
-         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
-         WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
-        [userId, documentId]
-      );
-
-      if (groupResult.length > 0) {
-        const groupPerms = (
-          typeof groupResult[0].permissions === 'string'
-            ? JSON.parse(groupResult[0].permissions)
-            : groupResult[0].permissions
-        ) as { read?: boolean; write?: boolean } | null;
-        if (groupPerms?.write === true) {
-          return true;
-        }
+      const groupPerms = await this.getGroupSharePermissions(userId, documentId);
+      if (groupPerms?.write === true) {
+        return true;
       }
 
       return false;
@@ -160,6 +147,26 @@ export class AuthService {
       log.error(`[CanEdit] Error checking edit permission: ${error}`);
       return false;
     }
+  }
+
+  private async getGroupSharePermissions(
+    userId: string,
+    contentId: string
+  ): Promise<{ read?: boolean; write?: boolean } | null> {
+    const rows = await this.db(
+      `SELECT gcs.permissions FROM group_content_shares gcs
+       INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
+       WHERE gcs.content_type IN ('collaborative_documents', 'canvas_template')
+         AND gcs.content_id = $2
+       LIMIT 1`,
+      [userId, contentId]
+    );
+    if (rows.length === 0) return null;
+    const raw = rows[0].permissions;
+    return (typeof raw === 'string' ? JSON.parse(raw) : raw) as {
+      read?: boolean;
+      write?: boolean;
+    } | null;
   }
 
   private async checkRoomAccess(
@@ -186,7 +193,7 @@ export class AuthService {
     log.debug(`[Auth-Chat] Checking thread access: ${threadId} for user: ${userId}`);
 
     const directAccess = await this.db(
-      `SELECT user_id, permissions, is_public FROM chat_threads
+      `SELECT user_id, permissions, is_public, doc_id FROM chat_threads
        WHERE id = $1 LIMIT 1`,
       [threadId]
     );
@@ -200,7 +207,15 @@ export class AuthService {
       user_id: string;
       permissions: Record<string, unknown> | null;
       is_public: boolean;
+      doc_id: string | null;
     };
+
+    if (thread.doc_id) {
+      log.debug(
+        `[Auth-Chat] Thread ${threadId} is doc-bound (doc=${thread.doc_id}); delegating to doc permissions`
+      );
+      return this.checkDocumentPermissions(thread.doc_id, userId);
+    }
 
     const isOwner = thread.user_id === userId;
     const hasDirectPermission = thread.permissions && userId in thread.permissions;
@@ -324,23 +339,11 @@ export class AuthService {
     let groupCanEdit: boolean | undefined;
 
     if (!hasAccess) {
-      const groupResult = await this.db(
-        `SELECT gcs.permissions FROM group_content_shares gcs
-         INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1
-         WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
-        [userId, documentName]
-      );
-
-      if (groupResult.length > 0) {
-        const groupPerms = (
-          typeof groupResult[0].permissions === 'string'
-            ? JSON.parse(groupResult[0].permissions)
-            : groupResult[0].permissions
-        ) as { read?: boolean; write?: boolean } | null;
-
-        if (groupPerms?.read !== false) {
+      const groupPerms = await this.getGroupSharePermissions(userId, documentName);
+      if (groupPerms) {
+        if (groupPerms.read !== false) {
           hasAccess = true;
-          groupCanEdit = groupPerms?.write === true;
+          groupCanEdit = groupPerms.write === true;
           log.debug(`[Auth] Group access granted (canEdit: ${groupCanEdit})`);
         } else {
           log.warn(`[Auth] Group share found but read=false for user ${userId}, denying`);

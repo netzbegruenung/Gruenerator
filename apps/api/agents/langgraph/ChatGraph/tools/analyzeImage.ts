@@ -23,22 +23,24 @@ export function createAnalyzeImageTool(deps: ToolDependencies): DynamicStructure
       `Es ${imageCount === 1 ? 'ist 1 Bild' : `sind ${imageCount} Bilder`} angehängt. ` +
       `Nutze dieses Tool wenn der Nutzer Fragen zu einem hochgeladenen Bild hat ` +
       `oder du den Bildinhalt verstehen musst.`,
-    schema: z.object({
-      instruction: z
-        .string()
-        .describe(
-          'Anweisung zur Bildanalyse (z.B. "Beschreibe das Bild", "Was steht auf dem Schild?")'
-        ),
-      imageIndex: z
-        .number()
-        .int()
-        .min(0)
-        .max(imageCount - 1)
-        .default(0)
-        .describe(
-          `Index des zu analysierenden Bildes (0 bis ${imageCount - 1}). Standard: 0 (erstes Bild).`
-        ),
-    }).describe('Bildanalyse Tool'),
+    schema: z
+      .object({
+        instruction: z
+          .string()
+          .describe(
+            'Anweisung zur Bildanalyse (z.B. "Beschreibe das Bild", "Was steht auf dem Schild?")'
+          ),
+        imageIndex: z
+          .number()
+          .int()
+          .min(0)
+          .max(imageCount - 1)
+          .default(0)
+          .describe(
+            `Index des zu analysierenden Bildes (0 bis ${imageCount - 1}). Standard: 0 (erstes Bild).`
+          ),
+      })
+      .describe('Bildanalyse Tool'),
     func: async (input: { instruction: string; imageIndex?: number }) => {
       const { instruction, imageIndex = 0 } = input;
       const imageAttachment = deps.imageAttachments?.[imageIndex];

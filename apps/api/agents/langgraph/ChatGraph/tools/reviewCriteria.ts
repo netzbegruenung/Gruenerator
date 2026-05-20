@@ -15,7 +15,8 @@ const ANTRAG_CRITERIA: ReviewCriterion[] = [
   { id: 'betreff', label: 'Enthält einen klaren, prägnanten Betreff', weight: 2 },
   {
     id: 'beschluss',
-    label: 'Hat einen konkreten Beschlussvorschlag ("Die Verwaltung wird beauftragt...")',
+    label:
+      'Hat einen konkreten Beschlussvorschlag bzw. eine zentrale Forderung (bei Anfrage: präzise W-Fragen)',
     weight: 3,
   },
   {
@@ -27,6 +28,26 @@ const ANTRAG_CRITERIA: ReviewCriterion[] = [
   { id: 'laenge', label: 'Angemessene Länge (ca. 1500-2000 Zeichen für Anträge)', weight: 1 },
   { id: 'struktur', label: 'Klare Struktur mit erkennbaren Abschnitten', weight: 2 },
   { id: 'finanzen', label: 'Finanzielle Auswirkungen werden angesprochen', weight: 1 },
+  // Type-conditional criteria — reviewer LLM scopes via the "(nur bei …)" prefix and
+  // the format_type signal from selfReview. Not applicable rows score as passed.
+  {
+    id: 'haushaltsklarheit',
+    label:
+      '(nur bei Haushaltsantrag) Haushaltsstelle, Änderungsbetrag und Deckungsvorschlag sind explizit benannt',
+    weight: 2,
+  },
+  {
+    id: 'bewertung_balance',
+    label:
+      '(nur bei Haushaltsbewertung) Sowohl Stärken als auch Schwächen werden behandelt, nicht nur Kritik',
+    weight: 2,
+  },
+  {
+    id: 'bewertung_konkret',
+    label:
+      '(nur bei Haushaltsbewertung) Konkrete, umsetzbare Verbesserungsvorschläge statt nur Allgemeinplätze',
+    weight: 2,
+  },
 ];
 
 const REDE_CRITERIA: ReviewCriterion[] = [

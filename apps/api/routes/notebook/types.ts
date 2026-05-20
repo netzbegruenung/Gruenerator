@@ -5,6 +5,7 @@
 import { type AuthenticatedRequest } from '../../middleware/types.js';
 
 import type AIWorkerPool from '../../workers/aiWorkerPool.js';
+import type { LinkedDocRef, WolkeFolderRef } from '@gruenerator/contracts';
 import type { ParamsDictionary } from 'express-serve-static-core';
 
 // =============================================================================
@@ -24,6 +25,8 @@ export interface CreateCollectionBody {
   auto_sync?: boolean | undefined;
   remove_missing_on_sync?: boolean | undefined;
   labels?: string[] | undefined;
+  wolke_folders?: WolkeFolderRef[] | undefined;
+  linked_docs?: LinkedDocRef[] | undefined;
 }
 
 /**
@@ -39,6 +42,8 @@ export interface UpdateCollectionBody {
   auto_sync?: boolean | undefined;
   remove_missing_on_sync?: boolean | undefined;
   labels?: string[] | undefined;
+  wolke_folders?: WolkeFolderRef[] | undefined;
+  linked_docs?: LinkedDocRef[] | undefined;
 }
 
 /**
@@ -79,6 +84,7 @@ export interface DocumentRecord {
   created_at: string;
   source_type?: string | undefined;
   wolke_share_link_id?: string | undefined;
+  status?: string | undefined;
 }
 
 /**
@@ -102,6 +108,10 @@ export interface TransformedCollection {
   has_wolke_sources: boolean;
   documents_from_wolke: number;
   notebook_collection_documents?: Array<{ document_id: string }>;
+  labels?: string[];
+  wolke_folders?: WolkeFolderRef[];
+  linked_docs?: LinkedDocRef[];
+  slug_suffix?: string | null;
 }
 
 /**
@@ -128,6 +138,7 @@ export interface CollectionCreateResponse {
     documents_from_wolke: number;
     wolke_share_links: string[];
     created_at: string;
+    slug_suffix?: string | null;
   };
   message: string;
 }
@@ -227,6 +238,7 @@ export interface NotebookCollectionFromQdrant {
   updated_at: string;
   settings?: Record<string, unknown> | undefined;
   notebook_collection_documents?: Array<{ document_id: string }>;
+  slug_suffix?: string | null;
 }
 
 /**

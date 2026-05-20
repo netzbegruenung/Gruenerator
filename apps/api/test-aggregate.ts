@@ -59,21 +59,17 @@ try {
     writeFileSync(path.join(dir, `summary-${id}.json`), JSON.stringify(fakeSummary(id)));
   }
 
-  const result = spawnSync(
-    'npx',
-    ['tsx', 'apps/api/aggregate-sync-summaries.ts', '--dir', dir],
-    {
-      env: {
-        ...process.env,
-        SYNC_SUMMARY_PATH: outPath,
-        // Empty recipient → aggregator skips SMTP path; we're testing merging.
-        CONTENT_SYNC_EMAIL: '',
-        // Avoid contaminating the test from local .env Brevo creds either.
-        BREVO_SMTP_HOST: '',
-      },
-      stdio: 'inherit',
-    }
-  );
+  const result = spawnSync('npx', ['tsx', 'apps/api/aggregate-sync-summaries.ts', '--dir', dir], {
+    env: {
+      ...process.env,
+      SYNC_SUMMARY_PATH: outPath,
+      // Empty recipient → aggregator skips SMTP path; we're testing merging.
+      CONTENT_SYNC_EMAIL: '',
+      // Avoid contaminating the test from local .env Brevo creds either.
+      BREVO_SMTP_HOST: '',
+    },
+    stdio: 'inherit',
+  });
 
   if (result.status !== 0) {
     console.error(`✗ aggregator exited with status ${result.status}`);
@@ -95,7 +91,9 @@ try {
     process.exit(1);
   }
 
-  console.log(`✓ aggregator merged ${got} sources correctly (totals.stored=${merged.totals.stored})`);
+  console.log(
+    `✓ aggregator merged ${got} sources correctly (totals.stored=${merged.totals.stored})`
+  );
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

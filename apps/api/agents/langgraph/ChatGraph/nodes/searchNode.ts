@@ -14,6 +14,10 @@ import {
   executeResearch,
 } from '../../../../routes/chat/agents/directSearch.js';
 import {
+  searchExamples,
+  type ExampleKind,
+} from '../../../../services/examples/exampleSearchService.js';
+import {
   selectAndCrawlTopUrls,
   type CrawlableResult,
 } from '../../../../services/search/CrawlingService.js';
@@ -21,7 +25,15 @@ import { expandQuery } from '../../../../services/search/QueryExpansionService.j
 import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
 import { createLogger } from '../../../../utils/logger.js';
 import { type AIWorkerPool } from '../../../../workers/types.js';
-import { SOURCE_PREFIX, type ChatGraphState, type SearchResult, type Citation } from '../types.js';
+import {
+  SOURCE_PREFIX,
+  type ChatGraphState,
+  type DocumentSource,
+  type SearchResult,
+  type Citation,
+  type ResearchToolResult,
+  type ExamplesToolResult,
+} from '../types.js';
 
 import {
   COLLECTION_LABELS,
@@ -31,6 +43,7 @@ import {
   extractDomain,
   resolveCollectionName,
 } from './citationUtils.js';
+import { retrieveWolkeFile } from './wolkeRetrieval.js';
 
 import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
@@ -89,7 +102,7 @@ export async function executeDocumentSearchParallel(
     collectionsToSearch = notebookCollectionIds;
     log.info(`[Search] Using notebook-scoped collections: ${collectionsToSearch.join(', ')}`);
   } else if (agentConfig.toolRestrictions?.allowedCollections?.length) {
-    collectionsToSearch = agentConfig.toolRestrictions.allowedCollections;
+    collectionsToSearch = [...agentConfig.toolRestrictions.allowedCollections];
     log.info(`[Search] Using agent-allowed collections: ${collectionsToSearch.join(', ')}`);
   } else if (agentConfig.toolRestrictions?.defaultCollection) {
     const dc = agentConfig.toolRestrictions.defaultCollection;
@@ -280,6 +293,138 @@ export function mergeSearchResults(...resultSets: SearchResult[][]): SearchResul
 }
 
 /**
+ * Execute per-source fan-out for multi-document chat.
+ *
+ * Each retrievable DocumentSource gets its own scoped retrieval call so the
+ * top-K budget is split evenly instead of one source dominating the merged
+ * pool. Results are tagged with `documentSourceId` for downstream grouping
+ * (rerank, respond, citations) and returned keyed by source id.
+ *
+ * Per-source budget is `max(3, floor(12 / N))` — enough headroom for rerank
+ * to pick decent chunks per doc without bloating the prompt.
+ */
+export interface MultiDocFanoutResult {
+  perSourceResults: Record<string, SearchResult[]>;
+  searchedCollections: string[];
+  errors: { source: string; message: string }[];
+}
+
+export async function executeMultiDocFanout(
+  query: string,
+  sources: DocumentSource[],
+  agentConfig: AgentConfig
+): Promise<MultiDocFanoutResult> {
+  const perSourceLimit = Math.max(3, Math.floor(12 / sources.length));
+  const errors: { source: string; message: string }[] = [];
+  const collections = new Set<string>();
+
+  const documentSearchService = (
+    await import('../../../../services/document-services/DocumentSearchService/index.js')
+  ).getQdrantDocumentService();
+
+  const sourcePromises = sources.map(async (src): Promise<[string, SearchResult[]]> => {
+    try {
+      if (src.kind === 'document' || src.kind === 'document_chat' || src.kind === 'doc_mention') {
+        const sourcePrefix =
+          src.kind === 'document_chat'
+            ? SOURCE_PREFIX.DOCUMENT_CHAT
+            : src.kind === 'doc_mention'
+              ? `${SOURCE_PREFIX.DOCUMENT}:`
+              : `${SOURCE_PREFIX.DOCUMENT}:`;
+        const response = await documentSearchService.search({
+          query,
+          userId: agentConfig.userId,
+          options: {
+            limit: perSourceLimit,
+            mode: 'hybrid',
+            threshold: 0.15,
+          },
+          filters: {
+            documentIds: [src.id],
+          },
+        });
+        collections.add(`${src.kind}:${src.id.slice(0, 8)}`);
+        const results: SearchResult[] = (response.results || []).map((r) => ({
+          source: `${sourcePrefix}${r.document_id || src.id}`,
+          title: r.title || src.label,
+          content: r.relevant_content || '',
+          url: r.source_url || undefined,
+          relevance: r.similarity_score ?? 0.5,
+          documentSourceId: src.id,
+        }));
+        return [src.id, results];
+      }
+
+      if (src.kind === 'wolke') {
+        collections.add(`wolke:${src.wolke?.shareLinkId.slice(0, 8) ?? '?'}`);
+        if (!agentConfig.userId) {
+          log.warn(`[Search] Skipping wolke source ${src.id}: no userId on agentConfig`);
+          return [src.id, []];
+        }
+        const results = await retrieveWolkeFile(src, perSourceLimit, agentConfig.userId);
+        return [src.id, results];
+      }
+
+      if (src.kind === 'notebook' && src.collectionIds && src.collectionIds.length > 0) {
+        const collectionPromises = src.collectionIds.map((collection) => {
+          collections.add(collection);
+          return executeDirectSearch({
+            query,
+            collection,
+            limit: perSourceLimit,
+          }).catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            errors.push({ source: `notebook:${src.id}:${collection}`, message: msg });
+            return null;
+          });
+        });
+        const responses = await Promise.all(collectionPromises);
+        const results: SearchResult[] = [];
+        for (const response of responses) {
+          if (!response?.results) continue;
+          for (const r of response.results) {
+            results.push({
+              source: `${SOURCE_PREFIX.GRUENERATOR}${response.collection}`,
+              title: deriveCitationTitle(r.source, r.url, response.collection),
+              content: r.excerpt || '',
+              url: r.url || undefined,
+              relevance: r.relevance === 'Sehr hoch' ? 0.9 : r.relevance === 'Hoch' ? 0.7 : 0.5,
+              contentType: r.contentType || undefined,
+              documentId: r.documentId,
+              chunkIndex: r.chunkIndex,
+              similarityScore: r.score,
+              collectionId: r.collectionId,
+              documentSourceId: src.id,
+            });
+          }
+        }
+        results.sort((a, b) => (b.relevance ?? 0) - (a.relevance ?? 0));
+        return [src.id, results.slice(0, perSourceLimit * 2)];
+      }
+
+      return [src.id, []];
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.warn(`[Search] Multi-doc source ${src.kind}:${src.id} failed: ${msg}`);
+      errors.push({ source: `${src.kind}:${src.id}`, message: msg });
+      return [src.id, []];
+    }
+  });
+
+  const entries = await Promise.all(sourcePromises);
+  const perSourceResults: Record<string, SearchResult[]> = {};
+  for (const [id, results] of entries) {
+    perSourceResults[id] = results;
+  }
+
+  return {
+    perSourceResults,
+    searchedCollections: [...collections],
+    errors,
+  };
+}
+
+/**
  * Search node implementation.
  * Routes to the appropriate search function based on intent.
  * Supports parallel multi-source search when searchSources has multiple entries.
@@ -311,8 +456,53 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     let results: SearchResult[] = [];
     let citations: Citation[] = [];
     let searchedCollections: string[] = [];
+    let researchMeta: ResearchToolResult | null = null;
+    let examplesResult: ExamplesToolResult | null = null;
 
     const searchSources = state.searchSources || [];
+    const documentSources = state.documentSources || [];
+    const retrievableDocSources = documentSources.filter(
+      (s) =>
+        s.kind === 'document' ||
+        s.kind === 'document_chat' ||
+        s.kind === 'doc_mention' ||
+        s.kind === 'notebook' ||
+        s.kind === 'wolke'
+    );
+    const hasWolke = retrievableDocSources.some((s) => s.kind === 'wolke');
+
+    // Multi-document fan-out: when the user references ≥2 retrievable doc sources,
+    // run a doc-scoped retrieval per source so each gets its own evidence budget.
+    // Prevents one denser/better-embedded doc from starving the others at rerank time.
+    // Wolke sources always fan out (single or multiple) because they have no single-source
+    // retrieval path in the `case 'search'` block — they're only fetched via retrieveWolkeFile.
+    if (retrievableDocSources.length >= 2 || hasWolke) {
+      const query = truncateQuery(searchQuery || '');
+      log.info(
+        `[Search] Multi-doc fan-out across ${retrievableDocSources.length} sources: ${retrievableDocSources.map((s) => `${s.kind}:${s.id.slice(0, 8)}`).join(', ')}`
+      );
+
+      const fanoutResult = await executeMultiDocFanout(query, retrievableDocSources, agentConfig);
+
+      const aggregatedErrors = fanoutResult.errors;
+      const flatResults = Object.values(fanoutResult.perSourceResults).flat();
+      flatResults.sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
+      const citationsBuilt = buildCitations(flatResults);
+
+      log.info(
+        `[Search] Multi-doc complete: ${flatResults.length} total results across ${Object.keys(fanoutResult.perSourceResults).length} sources, ${aggregatedErrors.length} errors in ${Date.now() - startTime}ms`
+      );
+
+      return {
+        searchResults: flatResults,
+        perSourceResults: fanoutResult.perSourceResults,
+        citations: citationsBuilt,
+        searchCount: 1,
+        searchTimeMs: Date.now() - startTime,
+        searchedCollections: fanoutResult.searchedCollections,
+        ...(aggregatedErrors.length > 0 && { searchErrors: aggregatedErrors }),
+      };
+    }
 
     // Parallel multi-source search when classifier requests multiple backends
     if (searchSources.length > 1) {
@@ -455,8 +645,11 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       };
     }
 
-    // Single-source mode: existing switch logic (backward compatible)
-    switch (intent) {
+    // Single-source mode: existing switch logic (backward compatible).
+    // 'compare' degrades to plain search when only one (or zero) doc source
+    // is present — the multi-doc fan-out above is its real path.
+    const effectiveIntent = intent === 'compare' ? 'search' : intent;
+    switch (effectiveIntent) {
       case 'research': {
         // Dynamic research depth based on query complexity
         const complexity = state.complexity || 'moderate';
@@ -467,16 +660,23 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         };
         const { depth, maxSources } = depthConfig[complexity];
 
-        // Use research brief (compressed intent) when available, fall back to raw query
-        const question = state.researchBrief || searchQuery || '';
+        // Pass the user's actual short query to the search planner.
+        // The brief is for orienting the synthesis LLM, not for SearXNG —
+        // a 460-char paragraph as a search string returns near-random hits.
+        const question = searchQuery || state.researchBrief || '';
         log.info(
           `[Search] Research depth: ${depth}, maxSources: ${maxSources} (complexity: ${complexity}, brief: ${!!state.researchBrief})`
         );
 
         const researchResult = await executeResearch({
           question,
+          brief: state.researchBrief,
           depth,
           maxSources,
+          complexity,
+          userLocale: state.userLocale,
+          aiWorkerPool: state.aiWorkerPool,
+          ...(state.onResearchProgress && { onProgress: state.onResearchProgress }),
         });
 
         // Convert research citations to SearchResult format
@@ -492,15 +692,22 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // Build enriched citations from results
         citations = buildCitations(results);
 
-        // Include the synthesized answer as context
-        if (researchResult.answer) {
-          results.unshift({
-            source: 'research_synthesis',
-            title: 'Recherche-Zusammenfassung',
-            content: researchResult.answer,
-            relevance: 1.0,
-          });
-        }
+        // Capture full metadata for the persisted tool-call payload.
+        // The synthesized `answer` is consumed directly by respondNode via
+        // `state.researchMeta` (wrapper-mode prompt), so we no longer
+        // need to unshift it into `results` as a fake `research_synthesis`
+        // chunk — that workaround caused drift when small response models
+        // treated it as one source among many and contradicted the artifact.
+        researchMeta = {
+          answer: researchResult.answer,
+          citations,
+          confidence: researchResult.confidence,
+          searchSteps: researchResult.searchSteps,
+          followUpQuestions: researchResult.followUpQuestions,
+        };
+        log.info(
+          `[Search] researchMeta captured (answer_len=${researchResult.answer?.length ?? 0}, confidence=${researchResult.confidence}, citations=${citations.length}, follow_ups=${researchResult.followUpQuestions.length})`
+        );
         break;
       }
 
@@ -545,9 +752,20 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           break;
         }
 
-        // If specific documents are referenced, use document-scoped search
-        if (state.documentIds && state.documentIds.length > 0) {
-          log.info(`[Search] Using document-scoped search: ${state.documentIds.length} doc(s)`);
+        // Union of @datei picks and @user-notebook resolved doc IDs. Both reach
+        // the same Qdrant filter — a personal notebook is effectively a saved
+        // set of @datei picks.
+        const explicitDocIds = state.documentIds ?? [];
+        const userNotebookDocIds = state.notebookDocumentIds ?? [];
+        const scopeDocIds = [...new Set([...explicitDocIds, ...userNotebookDocIds])];
+
+        if (scopeDocIds.length > 0) {
+          const fromUserNotebook = userNotebookDocIds.length > 0;
+          log.info(
+            `[Search] Using document-scoped search: ${scopeDocIds.length} doc(s)${
+              fromUserNotebook ? ` (incl. ${userNotebookDocIds.length} from user notebook)` : ''
+            }`
+          );
           try {
             const documentSearchService = (
               await import('../../../../services/document-services/DocumentSearchService/index.js')
@@ -561,7 +779,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
                 threshold: 0.2,
               },
               filters: {
-                documentIds: state.documentIds,
+                documentIds: scopeDocIds,
               },
             });
 
@@ -574,7 +792,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
                 relevance: r.similarity_score ?? 0.5,
               });
             }
-            searchedCollections.push('user-documents');
+            searchedCollections.push(fromUserNotebook ? 'user-notebook' : 'user-documents');
           } catch (err: unknown) {
             log.warn(
               `[Search] Document-scoped search failed: ${err instanceof Error ? err.message : String(err)}`
@@ -589,7 +807,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
           collectionsToSearch = state.notebookCollectionIds;
           log.info(`[Search] Using notebook-scoped collections: ${collectionsToSearch.join(', ')}`);
         } else if (agentConfig.toolRestrictions?.allowedCollections?.length) {
-          collectionsToSearch = agentConfig.toolRestrictions.allowedCollections;
+          collectionsToSearch = [...agentConfig.toolRestrictions.allowedCollections];
           log.info(`[Search] Using agent-allowed collections: ${collectionsToSearch.join(', ')}`);
         } else if (agentConfig.toolRestrictions?.defaultCollection) {
           const dc = agentConfig.toolRestrictions.defaultCollection;
@@ -816,29 +1034,78 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         break;
       }
 
+      case 'pressemitteilung_examples':
       case 'examples': {
-        // Social media examples search — derive country from locale when agent doesn't set it
+        // Build kinds from intent + secondaryIntent. The dual SearchIntent
+        // surface stays so postResponseService picks the right tool name (and
+        // therefore the right UI card); the *data fetch* is unified.
+        const kinds: ExampleKind[] = [];
+        if (intent === 'pressemitteilung_examples') kinds.push('press');
+        if (intent === 'examples' || state.secondaryIntent === 'examples') kinds.push('social');
+
         const country =
           agentConfig.toolRestrictions?.examplesCountry ||
           (state.userLocale === 'de-AT' ? 'AT' : undefined);
-        const examplesParams: Parameters<typeof executeDirectExamplesSearch>[0] = {
+        // LV scope feeds press-examples filtering. Prefer the explicit
+        // `toolRestrictions.examplesLvScope`; fall back to the per-agent
+        // `defaultFilter.landesverband` (used by per-LV PR agents).
+        const lvScope =
+          agentConfig.toolRestrictions?.examplesLvScope ?? agentConfig.defaultFilter?.landesverband;
+
+        // Composer paths want full bodies: PM bodies are reconstructed from
+        // chunks inside searchExamples, social bodies skip the 500-char cut.
+        // Pass platform hint when set so social fetches filter to Insta/FB.
+        // lvScope (per-LV PR agents) constrains press to one LV substrate;
+        // social currently logs but does not filter (Apify follow-up).
+        const unified = await searchExamples({
           query: searchQuery || '',
+          kinds,
+          ...(country && { country }),
+          ...(lvScope !== undefined && { lvScope }),
+          ...(state.platform && { platform: state.platform }),
+          ...(agentConfig.toolRestrictions?.examplesCollection != null && {
+            examplesCollection: agentConfig.toolRestrictions.examplesCollection,
+          }),
+          fullBody: true,
+        });
+
+        results = unified.all.map((e) => ({
+          source: 'examples',
+          title:
+            e.kind === 'press'
+              ? `Pressemitteilung${e.lv ? ` (${e.lv})` : ''}: ${e.title}`
+              : e.title,
+          content: e.body,
+          relevance: e.relevance,
+          ...(e.url && { url: e.url }),
+        }));
+        // Press items have URLs → citations; social posts don't.
+        citations = (unified.byKind.press ?? []).length > 0 ? buildCitations(results) : [];
+
+        // Stash the rich kind-segmented shape on state so postResponseService
+        // can persist it under `result.examples` for the per-kind UI cards.
+        examplesResult = {
+          ...(unified.byKind.press && {
+            press: unified.byKind.press.map((e) => ({
+              id: e.id,
+              title: e.title,
+              body: e.body,
+              lv: e.lv ?? '',
+              ...(e.sourceId && { sourceId: e.sourceId }),
+              ...(e.publishedAt && { publishedAt: e.publishedAt }),
+              ...(e.url && { url: e.url }),
+            })),
+          }),
+          ...(unified.byKind.social && {
+            social: unified.byKind.social.map((e) => ({
+              id: e.id,
+              platform: e.platform ?? 'unknown',
+              content: e.body,
+              ...(e.author && { author: e.author }),
+              ...(e.publishedAt && { date: e.publishedAt }),
+            })),
+          }),
         };
-        if (country != null) {
-          examplesParams.country = country;
-        }
-        const examplesResult = await executeDirectExamplesSearch(examplesParams);
-
-        results =
-          examplesResult.examples?.map((e) => ({
-            source: 'examples',
-            title: `${e.platform} Beispiel${e.author ? ` von ${e.author}` : ''}`,
-            content: e.content || '',
-            relevance: 0.8,
-          })) || [];
-
-        // Examples typically don't have URLs for citations
-        citations = [];
         break;
       }
 
@@ -851,6 +1118,7 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       case 'modify_doc':
       case 'modify_board':
       case 'share_doc':
+      case 'edit_current_doc':
       case 'direct':
         // These intents are handled by other graph nodes; no search needed.
         break;
@@ -869,6 +1137,8 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
       citations: citations.length > 0 ? citations : buildCitations(results),
       searchCount: 1,
       searchTimeMs,
+      researchMeta,
+      examplesResult,
       ...(searchedCollections.length > 0 && { searchedCollections }),
     };
   } catch (error: unknown) {

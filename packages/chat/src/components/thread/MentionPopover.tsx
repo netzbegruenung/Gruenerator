@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { filterMentionables, type Mentionable } from '../../lib/mentionables';
 import { getFilteredFunctions } from '../../lib/mentionDetection';
+import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface MentionPopoverProps {
   query: string;
@@ -13,10 +14,11 @@ interface MentionPopoverProps {
   anchorRect: { x: number; y: number } | null;
 }
 
-interface MentionSection {
-  label: string;
-  items: Mentionable[];
-}
+type MentionSubgroup = { sublabel: string; items: Mentionable[] };
+
+type MentionSection =
+  | { kind: 'flat'; label: string; items: Mentionable[] }
+  | { kind: 'grouped'; label: string; groups: MentionSubgroup[] };
 
 export function MentionPopover({
   query,
@@ -27,21 +29,39 @@ export function MentionPopover({
   anchorRect,
 }: MentionPopoverProps) {
   const listRef = useRef<HTMLDivElement>(null);
-  const { notebooks, tools, boards, docs, documents } = filterMentionables(query);
+  const { notebooks, userNotebooks, tools, boards, docs, documents, wolke } =
+    filterMentionables(query);
 
-  const sections: MentionSection[] = useMemo(
-    () =>
-      [
-        { label: 'Werkzeuge', items: tools },
-        { label: 'Boards', items: boards },
-        { label: 'Dokumente', items: docs },
-        { label: 'Dateien', items: documents },
-        { label: 'Notizbücher', items: notebooks },
-      ].filter((s) => s.items.length > 0),
-    [tools, boards, docs, documents, notebooks]
+  const sections: MentionSection[] = useMemo(() => {
+    const notebookGroups: MentionSubgroup[] = [];
+    if (userNotebooks.length > 0) {
+      notebookGroups.push({ sublabel: 'meine', items: userNotebooks });
+    }
+    if (notebooks.length > 0) {
+      notebookGroups.push({ sublabel: 'system', items: notebooks });
+    }
+
+    const all: MentionSection[] = [
+      { kind: 'flat', label: 'Werkzeuge', items: tools },
+      { kind: 'flat', label: 'Boards', items: boards },
+      { kind: 'flat', label: 'Dokumente', items: docs },
+      { kind: 'flat', label: 'Dateien', items: documents },
+      { kind: 'flat', label: 'Wolke', items: wolke },
+      ...(notebookGroups.length > 0
+        ? [{ kind: 'grouped' as const, label: 'Notizbücher', groups: notebookGroups }]
+        : []),
+    ];
+
+    return all.filter((s) =>
+      s.kind === 'flat' ? s.items.length > 0 : s.groups.some((g) => g.items.length > 0)
+    );
+  }, [tools, boards, docs, documents, wolke, notebooks, userNotebooks]);
+
+  const totalItems = sections.reduce(
+    (sum, s) =>
+      sum + (s.kind === 'flat' ? s.items.length : s.groups.reduce((n, g) => n + g.items.length, 0)),
+    0
   );
-
-  const totalItems = sections.reduce((sum, s) => sum + s.items.length, 0);
 
   useEffect(() => {
     if (!visible) return;
@@ -49,40 +69,51 @@ export function MentionPopover({
     el?.scrollIntoView({ block: 'nearest' });
   }, [selectedIndex, visible]);
 
-  if (!visible || totalItems === 0 || !anchorRect) return null;
-
+  const isOpen = visible && totalItems > 0 && !!anchorRect;
   let itemIndex = 0;
 
   return (
-    <div
-      ref={listRef}
-      role="listbox"
-      className="mention-popover absolute z-50 max-h-60 w-64 overflow-y-auto rounded-xl border border-border bg-background shadow-lg"
-      style={{
-        bottom: '100%',
-        left: 0,
-        marginBottom: '0.5rem',
-      }}
-    >
-      {sections.map((section) => (
-        <div key={section.label}>
-          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            {section.label}
+    <MentionFloatingPanel open={isOpen} onDismiss={onDismiss} width="w-64" role="listbox">
+      <div ref={listRef} className="overflow-y-auto">
+        {sections.map((section) => (
+          <div key={section.label}>
+            <div className="sticky top-0 z-[1] bg-background px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+              {section.label}
+            </div>
+            {section.kind === 'flat'
+              ? section.items.map((item) => {
+                  const idx = itemIndex++;
+                  return (
+                    <MentionItem
+                      key={item.identifier}
+                      mentionable={item}
+                      isSelected={idx === selectedIndex}
+                      onSelect={onSelect}
+                    />
+                  );
+                })
+              : section.groups.map((group) => (
+                  <div key={group.sublabel}>
+                    <div className="px-3 pt-1 text-[9px] uppercase tracking-wider text-foreground-muted/50">
+                      {group.sublabel}
+                    </div>
+                    {group.items.map((item) => {
+                      const idx = itemIndex++;
+                      return (
+                        <MentionItem
+                          key={item.identifier}
+                          mentionable={item}
+                          isSelected={idx === selectedIndex}
+                          onSelect={onSelect}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
           </div>
-          {section.items.map((item) => {
-            const idx = itemIndex++;
-            return (
-              <MentionItem
-                key={item.identifier}
-                mentionable={item}
-                isSelected={idx === selectedIndex}
-                onSelect={onSelect}
-              />
-            );
-          })}
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </MentionFloatingPanel>
   );
 }
 
@@ -97,6 +128,7 @@ function MentionItem({
 }) {
   return (
     <button
+      type="button"
       role="option"
       aria-selected={isSelected}
       data-selected={isSelected}
@@ -108,11 +140,8 @@ function MentionItem({
         onSelect(mentionable);
       }}
     >
-      <span
-        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm"
-        style={{ backgroundColor: mentionable.backgroundColor }}
-      >
-        {mentionable.avatar}
+      <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-secondary-600">
+        {mentionable.icon ? <mentionable.icon className="h-4 w-4" /> : null}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{mentionable.title}</p>

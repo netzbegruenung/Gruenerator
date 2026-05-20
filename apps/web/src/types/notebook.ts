@@ -2,6 +2,8 @@
  * Notebook/Q&A Collection Types
  */
 
+import { type LinkedDocRef, type WolkeFolderRef } from '@gruenerator/contracts';
+
 import type { Document } from './documents';
 
 /**
@@ -17,15 +19,26 @@ export interface WolkeShareLink {
 }
 
 /**
+ * Discloses why a notebook was published. Captured alongside the is_public flag.
+ */
+export type NotebookPublicOwnership = 'owner' | 'public_data';
+
+export type NotebookShareMode = 'private' | 'groups' | 'authenticated';
+export type NotebookEditPolicy = 'owner_only' | 'group_admins' | 'all_members';
+export type NotebookAccessSource = 'owned' | 'shared' | 'authenticated';
+
+/**
  * Base notebook collection type representing a Q&A collection
  */
 export interface NotebookCollection {
   id: string;
   user_id: string;
+  creator_name?: string | null;
   name: string;
   description?: string;
   custom_prompt?: string;
   is_public: boolean;
+  public_ownership?: NotebookPublicOwnership | null;
   public_url_token?: string | null;
   view_count: number;
   last_accessed?: string;
@@ -38,6 +51,18 @@ export interface NotebookCollection {
   wolke_share_links?: WolkeShareLink[];
   selection_mode?: 'documents' | 'wolke' | 'mixed';
   labels?: string[];
+  wolke_folders?: WolkeFolderRef[];
+  linked_docs?: LinkedDocRef[];
+  likes_count?: number;
+  share_mode?: NotebookShareMode | null;
+  edit_policy?: NotebookEditPolicy | null;
+  access_source?: NotebookAccessSource | null;
+  /**
+   * Stable 6-char tail used to build pretty URLs (`/notebooks/<name>-Ab3xK9`).
+   * Null only for legacy rows before the boot-time backfill has run; once
+   * present, never changes — renames rewrite the name prefix only.
+   */
+  slug_suffix?: string | null;
 }
 
 /**
@@ -68,6 +93,10 @@ export interface NotebookCollectionInput {
   labels?: string[];
   auto_sync?: boolean;
   remove_missing_on_sync?: boolean;
+  is_public?: boolean;
+  public_ownership?: NotebookPublicOwnership | null;
+  wolkeFolders?: WolkeFolderRef[];
+  linkedDocs?: LinkedDocRef[];
 }
 
 /**

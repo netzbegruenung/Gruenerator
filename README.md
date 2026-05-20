@@ -131,7 +131,7 @@ Hocuspocus-powered collaborative editing:
 - **Native Mobile App** — Expo 55 / React Native app with full feature support
 - **Desktop App** — Tauri 2 desktop application for Windows, macOS, and Linux
 - **Docs Editor** — Collaborative document editor with real-time sync
-- **Sites Builder** — Website builder for Green party organizations
+- **Sites Builder** — Embedded candidate-site builder at `/sites` (web), powered by `packages/sites`
 - **Grün-O-Mat** — Political compass / decision-making tool
 - **MCP Server** — Model Context Protocol server for AI integrations ([mcp.gruenerator.eu](https://mcp.gruenerator.eu))
 - **Notebook Q&A** — RAG-powered knowledge base with Landesverband-specific content
@@ -197,7 +197,6 @@ This is a **pnpm + Turborepo** monorepo with 10 apps, 7 packages, and 4 services
 | `apps/api`         | Express 5 backend + LangGraph agents |
 | `apps/mobile`      | Expo 55 / React Native mobile app    |
 | `apps/desktop`     | Tauri 2 desktop wrapper              |
-| `apps/sites`       | Site builder                         |
 | `apps/gruen-o-mat` | Political compass tool               |
 | `apps/wordpress`   | WordPress plugin                     |
 
@@ -209,6 +208,8 @@ This is a **pnpm + Turborepo** monorepo with 10 apps, 7 packages, and 4 services
 | `packages/shared`        | Shared stores, hooks, API clients, components |
 | `packages/canvas-editor` | Image/canvas editor library                   |
 | `packages/docs`          | Document types, Tiptap utilities              |
+| `packages/sites`         | Embedded candidate site builder               |
+| `packages/sites-design`  | Site builder design tokens + components       |
 | `packages/voice`         | Voice synthesis utilities                     |
 
 ### Services

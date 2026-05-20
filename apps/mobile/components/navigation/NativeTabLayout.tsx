@@ -36,11 +36,7 @@ export function NativeTabLayout() {
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(docs)">
         {Platform.select({
-          ios: (
-            <NativeTabs.Trigger.Icon
-              sf={{ default: 'doc.text', selected: 'doc.text.fill' }}
-            />
-          ),
+          ios: <NativeTabs.Trigger.Icon sf={{ default: 'doc.text', selected: 'doc.text.fill' }} />,
           android: (
             <NativeTabs.Trigger.Icon
               src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="document-text" />}

@@ -13,6 +13,7 @@ import type {
   UsageStats,
   DatabaseStateCheck,
   ShareLinkUpdates,
+  SharedWithUserLink,
 } from './types.js';
 
 export class NextcloudShareManager {
@@ -310,6 +311,16 @@ export class NextcloudShareManager {
         throw new Error('Failed to delete share link - profile not found');
       }
 
+      // Cascade: remove any group shares that point at this link. There is no FK
+      // (content_id is just TEXT in group_content_shares), so we delete manually.
+      await postgres.exec(
+        `DELETE FROM group_content_shares
+         WHERE content_type = 'nextcloud_share_link'
+           AND content_id = $1
+           AND shared_by_user_id = $2`,
+        [shareLinkId, userId]
+      );
+
       console.log('[NextcloudShareManager] Share link deleted successfully', { shareLinkId });
       return { success: true, deletedId: shareLinkId };
     } catch (error) {
@@ -497,6 +508,107 @@ export class NextcloudShareManager {
       });
       throw error;
     }
+  }
+
+  /**
+   * List Wolke share links that other users have shared into one of this user's groups.
+   * The actual link payload lives in the owner's profiles.nextcloud_share_links JSONB,
+   * so we join group_content_shares → profiles by (shared_by_user_id) and extract
+   * the matching element from the owner's array by content_id.
+   */
+  static async listLinksSharedWithUser(userId: string): Promise<SharedWithUserLink[]> {
+    if (!userId) {
+      throw new Error('User ID is required');
+    }
+
+    const postgres = await this.getPostgres();
+
+    const rows = await postgres.query<{
+      content_id: string;
+      shared_at: string;
+      shared_by_user_id: string | null;
+      group_id: string;
+      group_name: string;
+      owner_display_name: string | null;
+      owner_first_name: string | null;
+      owner_links: unknown;
+    }>(
+      `SELECT
+         gcs.content_id,
+         gcs.shared_at,
+         gcs.shared_by_user_id,
+         gcs.group_id,
+         g.name AS group_name,
+         owner.display_name AS owner_display_name,
+         owner.first_name AS owner_first_name,
+         owner.nextcloud_share_links AS owner_links
+       FROM group_content_shares gcs
+       JOIN group_memberships gm ON gm.group_id = gcs.group_id
+       JOIN groups g ON g.id = gcs.group_id
+       LEFT JOIN profiles owner ON owner.id = gcs.shared_by_user_id
+       WHERE gcs.content_type = 'nextcloud_share_link'
+         AND gm.user_id = $1
+         AND gcs.shared_by_user_id IS NOT NULL
+         AND gcs.shared_by_user_id <> $1
+       ORDER BY gcs.shared_at DESC`,
+      [userId],
+      { table: 'group_content_shares' }
+    );
+
+    const result: SharedWithUserLink[] = [];
+    for (const row of rows ?? []) {
+      const links: NextcloudShareLink[] = Array.isArray(row.owner_links)
+        ? (row.owner_links as NextcloudShareLink[])
+        : [];
+      const link = links.find((l) => l.id === row.content_id);
+      // If the owner deleted the link but the group_content_shares row still
+      // exists, the cascade in deleteShareLink should have removed it. Skip
+      // dangling rows defensively rather than throwing here.
+      if (!link) continue;
+      result.push({
+        link,
+        sharedByUserId: row.shared_by_user_id,
+        sharedByName: row.owner_display_name ?? row.owner_first_name ?? null,
+        groupId: row.group_id,
+        groupName: row.group_name,
+        sharedAt: row.shared_at,
+      });
+    }
+    return result;
+  }
+
+  /**
+   * List the groups that a given share link is currently shared with.
+   * Used by the "Share with group" dialog to render the existing shares.
+   */
+  static async listGroupSharesForLink(
+    userId: string,
+    shareLinkId: string
+  ): Promise<Array<{ groupId: string; groupName: string; sharedAt: string }>> {
+    if (!userId || !shareLinkId) {
+      throw new Error('User ID and share link ID are required');
+    }
+    const postgres = await this.getPostgres();
+    const rows = await postgres.query<{
+      group_id: string;
+      group_name: string;
+      shared_at: string;
+    }>(
+      `SELECT gcs.group_id, g.name AS group_name, gcs.shared_at
+       FROM group_content_shares gcs
+       JOIN groups g ON g.id = gcs.group_id
+       WHERE gcs.content_type = 'nextcloud_share_link'
+         AND gcs.content_id = $1
+         AND gcs.shared_by_user_id = $2
+       ORDER BY gcs.shared_at DESC`,
+      [shareLinkId, userId],
+      { table: 'group_content_shares' }
+    );
+    return (rows ?? []).map((r) => ({
+      groupId: r.group_id,
+      groupName: r.group_name,
+      sharedAt: r.shared_at,
+    }));
   }
 
   /**

@@ -16,20 +16,22 @@ import type { ToolDependencies } from './registry.js';
 const log = createLogger('Tool:Research');
 
 export function createResearchTool(_deps: ToolDependencies): DynamicStructuredTool {
-    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
+  // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'research',
     description:
       'Führe eine strukturierte Recherche mit mehreren Quellen durch. ' +
       'Nutze dieses Tool für komplexe Fragen, die Informationen aus mehreren Quellen kombinieren, ' +
       'Vergleiche, detaillierte Analysen oder faktenbasierte Inhalte (Pressemitteilungen, Artikel, Reden).',
-    schema: z.object({
-      query: z.string().describe('Die Recherche-Frage'),
-      depth: z
-        .enum(['quick', 'thorough'])
-        .optional()
-        .describe('Recherchetiefe: "quick" (Standard) oder "thorough" für umfassendere Suche'),
-    }).describe('Web Recherche'),
+    schema: z
+      .object({
+        query: z.string().describe('Die Recherche-Frage'),
+        depth: z
+          .enum(['quick', 'thorough'])
+          .optional()
+          .describe('Recherchetiefe: "quick" (Standard) oder "thorough" für umfassendere Suche'),
+      })
+      .describe('Web Recherche'),
     func: async (input: { query: string; depth?: 'quick' | 'thorough' }) => {
       const { query, depth } = input;
       const searchDepth: 'quick' | 'thorough' = (depth || 'quick') as 'quick' | 'thorough';

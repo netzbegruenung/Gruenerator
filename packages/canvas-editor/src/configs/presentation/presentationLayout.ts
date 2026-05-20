@@ -34,8 +34,10 @@ export function calculateTitleLayout(state: PresentationSlideState): LayoutResul
   const titleBlockHeight = titleLines.length * titleFontSize * title.lineHeight;
 
   // Vertically center the title block in the upper 2/3 of the canvas
-  const availableHeight = PRES_CONFIG.canvas.height - margins.top - PRES_CONFIG.footer.height - margins.bottom;
-  const totalTextHeight = titleBlockHeight + subtitle.gapFromTitle + subtitleFontSize * subtitle.lineHeight;
+  const availableHeight =
+    PRES_CONFIG.canvas.height - margins.top - PRES_CONFIG.footer.height - margins.bottom;
+  const totalTextHeight =
+    titleBlockHeight + subtitle.gapFromTitle + subtitleFontSize * subtitle.lineHeight;
   const titleY = margins.top + Math.max(0, (availableHeight - totalTextHeight) / 2);
   const subtitleY = titleY + titleBlockHeight + subtitle.gapFromTitle;
 
@@ -52,7 +54,7 @@ export function calculateTitleLayout(state: PresentationSlideState): LayoutResul
       fontSize: subtitleFontSize,
       width: subtitle.maxWidth,
     },
-    'sunflower': {
+    sunflower: {
       x: sunflower.x,
       y: sunflower.y,
       width: sunflower.size,

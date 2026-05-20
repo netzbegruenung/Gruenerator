@@ -76,7 +76,32 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
   const [copySuccess, setCopySuccess] = useState(false);
   const [directShareSuccess, setDirectShareSuccess] = useState(false);
   const [isChangingMode, setIsChangingMode] = useState(false);
-  const [hasGroups, setHasGroups] = useState(false);
+
+  const [templateMode, setTemplateMode] = useState<'idle' | 'editing' | 'saving' | 'saved'>('idle');
+  const [templateTitle, setTemplateTitle] = useState(documentTitle ?? '');
+  const [templateError, setTemplateError] = useState<string | null>(null);
+
+  const saveAsTemplate = async () => {
+    const trimmed = templateTitle.trim();
+    if (!trimmed) {
+      setTemplateError('Bitte gib der Vorlage einen Titel.');
+      return;
+    }
+    try {
+      setTemplateMode('saving');
+      setTemplateError(null);
+      await apiClient.post(`/docs/${documentId}/save-as-template`, {
+        title: trimmed,
+        is_private: true,
+      });
+      setTemplateMode('saved');
+      setTimeout(() => setTemplateMode('idle'), 2500);
+    } catch (err) {
+      console.error('Failed to save as template:', err);
+      setTemplateError('Vorlage konnte nicht gespeichert werden.');
+      setTemplateMode('editing');
+    }
+  };
 
   const fetchCollaborators = useCallback(async () => {
     try {
@@ -254,11 +279,11 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
 
   const shareModeOptions = useMemo(
     () => [
-      ...(hasGroups ? [{ value: 'private', label: 'Privat' }] : []),
+      { value: 'private', label: 'Privat' },
       { value: 'authenticated', label: 'Mit Anmeldung' },
       { value: 'public', label: 'Öffentlich' },
     ],
-    [hasGroups]
+    []
   );
 
   return (
@@ -267,7 +292,7 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
       onClick={onClose}
     >
       <div
-        className="flex max-h-[80vh] w-[600px] max-w-[90%] flex-col overflow-hidden rounded-lg bg-background shadow-lg dark:border dark:border-grey-700"
+        className="flex max-h-[80vh] w-[880px] max-w-[90%] flex-col overflow-hidden rounded-lg bg-background shadow-lg dark:border dark:border-grey-700"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-grey-200 p-6 dark:border-grey-700">
@@ -286,100 +311,91 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
           </Alert>
         )}
 
-        <div className="border-b border-grey-200 p-4 px-6 dark:border-grey-700">
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="flex flex-col" style={{ flex: '1 1 160px', minWidth: 0 }}>
-              <label className="mb-1 text-sm font-medium">Zugriffsmodus</label>
-              <select
-                className="h-9 rounded-md border border-grey-300 bg-background px-3 text-sm outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
-                value={shareSettings.share_mode}
-                onChange={(e) => changeShareMode(e.target.value as ShareMode)}
-                disabled={isChangingMode}
-              >
-                {shareModeOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {showLinkSection && (
-              <div className="flex flex-col self-end" style={{ flex: '0 0 auto' }}>
+        <div className="flex flex-1 flex-col overflow-hidden md:flex-row md:items-start">
+          <div className="border-b border-grey-200 p-4 px-6 dark:border-grey-700 md:w-[300px] md:shrink-0 md:border-b-0 md:border-r md:p-6">
+            <div className="flex flex-wrap items-end gap-2 md:flex-col md:items-stretch">
+              <div className="flex min-w-0 flex-col sm:flex-row sm:items-center sm:gap-2 md:flex-col md:items-stretch md:gap-1">
+                <label className="mb-1 whitespace-nowrap text-sm font-medium sm:mb-0">
+                  Zugriffsmodus
+                </label>
                 <select
                   className="h-9 rounded-md border border-grey-300 bg-background px-3 text-sm outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
-                  value={shareSettings.share_permission}
-                  onChange={(e) => updateSharePermission(e.target.value as 'viewer' | 'editor')}
+                  value={shareSettings.share_mode}
+                  onChange={(e) => changeShareMode(e.target.value as ShareMode)}
+                  disabled={isChangingMode}
                 >
-                  <option value="editor">Kann bearbeiten</option>
-                  <option value="viewer">Kann ansehen</option>
+                  {shareModeOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
               </div>
-            )}
-          </div>
-          <span className="mt-1 text-xs text-grey-500 dark:text-grey-400">
-            {SHARE_MODE_OPTIONS.find((o) => o.value === shareSettings.share_mode)?.description}
-          </span>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
-          <GroupShareSection
-            documentId={documentId}
-            apiClient={apiClient}
-            onGroupsLoaded={setHasGroups}
-          />
-
-          <p className="mb-3 text-base font-semibold">Zugriff</p>
-          {isLoading ? (
-            <div className="flex justify-center py-6">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-grey-300 border-t-primary-600" />
-            </div>
-          ) : collaborators.length === 0 ? (
-            <p className="py-6 text-center text-grey-500 dark:text-grey-400">
-              Noch niemand eingeladen
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {collaborators
-                .filter((c): c is UserCollaborator => c.type !== 'group')
-                .map((collaborator) => (
-                  <div
-                    key={collaborator.user_id}
-                    className="flex flex-nowrap items-center justify-between rounded-md border border-grey-200 bg-background p-3 dark:border-grey-700"
+              {showLinkSection && (
+                <div className="flex flex-col self-end" style={{ flex: '0 0 auto' }}>
+                  <select
+                    className="h-9 rounded-md border border-grey-300 bg-background px-3 text-sm outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
+                    value={shareSettings.share_permission}
+                    onChange={(e) => updateSharePermission(e.target.value as 'viewer' | 'editor')}
                   >
-                    <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-3">
+                    <option value="editor">Kann bearbeiten</option>
+                    <option value="viewer">Kann ansehen</option>
+                  </select>
+                </div>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-grey-500 dark:text-grey-400">
+              {SHARE_MODE_OPTIONS.find((o) => o.value === shareSettings.share_mode)?.description}
+            </p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6">
+            <GroupShareSection documentId={documentId} apiClient={apiClient} />
+
+            <p className="mb-3 text-base font-semibold">Zugriff</p>
+            {isLoading ? (
+              <div className="flex justify-center py-6">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-grey-300 border-t-primary-600" />
+              </div>
+            ) : collaborators.length === 0 ? (
+              <p className="py-6 text-center text-grey-500 dark:text-grey-400">
+                Noch niemand eingeladen
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {collaborators
+                  .filter((c): c is UserCollaborator => c.type !== 'group')
+                  .map((collaborator) => (
+                    <div
+                      key={collaborator.user_id}
+                      title={`Hinzugefügt am ${formatDate(collaborator.granted_at)}`}
+                      className="flex max-w-full flex-nowrap items-center gap-2 rounded-full border border-grey-200 bg-background py-1 pl-1 pr-2 dark:border-grey-700"
+                    >
                       {(() => {
                         const avatar = getAvatarDisplayProps(collaborator);
                         return avatar.type === 'robot' ? (
                           <img
                             src={getRobotAvatarPath(avatar.robotId!)}
                             alt={avatar.alt}
-                            className="h-8 w-8 shrink-0 rounded-full object-cover"
+                            className="h-7 w-7 shrink-0 rounded-full object-cover"
                           />
                         ) : (
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xs font-semibold text-white">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-600 text-xs font-semibold text-white">
                             {avatar.initials}
                           </div>
                         );
                       })()}
-                      <div className="min-w-0">
-                        <span className="block truncate text-sm font-medium">
-                          {collaborator.display_name}
-                        </span>
-                        <span className="block truncate text-xs text-grey-500 dark:text-grey-400">
-                          {collaborator.email}
-                        </span>
-                        <span className="block text-xs text-grey-500 dark:text-grey-400">
-                          Hinzugefügt am {formatDate(collaborator.granted_at)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-nowrap items-center gap-2">
+                      <span className="min-w-0 max-w-[200px] truncate text-sm font-medium">
+                        {collaborator.display_name}
+                      </span>
                       {collaborator.permission_level === 'owner' ? (
-                        <Badge>{getPermissionLabel(collaborator.permission_level)}</Badge>
+                        <Badge className="rounded-full">
+                          {getPermissionLabel(collaborator.permission_level)}
+                        </Badge>
                       ) : (
                         <>
                           <select
-                            className="h-7 w-[150px] rounded-md border border-grey-300 bg-background px-2 text-xs outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
+                            className="h-7 rounded-full border border-grey-300 bg-background px-2 text-xs outline-none focus:border-primary-600 focus:ring-1 focus:ring-primary-600 dark:border-grey-600 dark:bg-grey-800"
                             value={collaborator.permission_level}
                             onChange={(e) =>
                               handleUpdatePermission(
@@ -391,20 +407,64 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
                             <option value="editor">Bearbeiter*in</option>
                             <option value="viewer">Betrachter*in</option>
                           </select>
-                          <Button
-                            variant="outline"
-                            size="xs"
+                          <button
+                            type="button"
+                            aria-label="Entfernen"
                             onClick={() => handleRevokePermission(collaborator.user_id)}
+                            className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-base leading-none text-grey-500 hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10"
                           >
-                            Entfernen
-                          </Button>
+                            ×
+                          </button>
                         </>
                       )}
                     </div>
-                  </div>
-                ))}
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-grey-200 px-6 py-3 dark:border-grey-700">
+          {templateMode === 'idle' && (
+            <button
+              type="button"
+              onClick={() => setTemplateMode('editing')}
+              className="cursor-pointer bg-transparent border-none p-0 text-sm font-medium text-secondary-600 hover:underline"
+            >
+              Als Vorlage speichern
+            </button>
+          )}
+          {templateMode === 'editing' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                value={templateTitle}
+                onChange={(e) => setTemplateTitle(e.target.value)}
+                placeholder="Titel der Vorlage"
+                className="flex-1 min-w-[200px] h-8 rounded-md border border-grey-300 bg-background px-2 text-sm outline-none focus:border-primary-600 dark:border-grey-600"
+              />
+              <Button size="xs" onClick={saveAsTemplate}>
+                Speichern
+              </Button>
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={() => {
+                  setTemplateMode('idle');
+                  setTemplateError(null);
+                }}
+              >
+                Abbrechen
+              </Button>
             </div>
           )}
+          {templateMode === 'saving' && (
+            <p className="text-sm text-grey-500">Vorlage wird gespeichert…</p>
+          )}
+          {templateMode === 'saved' && (
+            <p className="text-sm text-green-600">✓ Vorlage gespeichert</p>
+          )}
+          {templateError && <p className="mt-1 text-xs text-red-600">{templateError}</p>}
         </div>
 
         <div className="flex items-center border-t border-grey-200 p-4 px-6 dark:border-grey-700">

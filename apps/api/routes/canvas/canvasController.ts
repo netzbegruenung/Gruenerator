@@ -4,10 +4,10 @@ import { z } from 'zod';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { checkDocumentAccess } from '../docs/documentAccess.js';
+import { type DocumentPermissions } from '../docs/types.js';
 
+import cloneRouter from './cloneController.js';
 import resizeRouter from './resizeController.js';
-
-import type { CollaborativeDocument } from '../docs/types.js';
 
 const CANVAS_SUBTYPE = 'canvas';
 
@@ -17,8 +17,9 @@ interface CanvasDocumentRow {
   created_by: string;
   created_at: string;
   updated_at: string;
-  permissions: Record<string, { level: string; granted_at: string }> | null;
+  permissions: DocumentPermissions | null;
   is_public: boolean;
+  share_mode?: 'private' | 'authenticated' | 'public';
   template_type: string;
   base_template_id: string | null;
   thumbnail_url: string | null;
@@ -34,9 +35,10 @@ const DEFAULT_CANVAS_FORMAT = 'post-portrait';
 const router = Router();
 const db = getPostgresInstance();
 
-// Mount the resize sub-router first so POST /:id/resize matches before the
-// generic /:id PATCH handler.
+// Mount the resize/clone sub-routers first so their POST /:id/<action> match
+// before the generic /:id PATCH handler.
 router.use(resizeRouter);
+router.use(cloneRouter);
 
 const createCanvasSchema = z.object({
   title: z.string().optional(),
@@ -189,7 +191,7 @@ router.get('/:id', async (req: Request<{ id: string }>, res: Response) => {
     if (result.length === 0) return res.status(404).json({ error: 'Canvas not found' });
 
     const canvas = result[0];
-    const access = await checkDocumentAccess(canvas as unknown as CollaborativeDocument, userId);
+    const access = await checkDocumentAccess(canvas, userId);
     if (!access.hasAccess) return res.status(403).json({ error: 'Access denied' });
 
     return res.json(canvas);

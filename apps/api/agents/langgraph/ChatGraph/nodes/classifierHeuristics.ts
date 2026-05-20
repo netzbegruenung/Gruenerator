@@ -28,12 +28,17 @@ export const INTENT_KEYWORDS: Record<
     | 'sharepic'
     | 'save_as_doc'
     | 'modify_doc'
+    | 'edit_current_doc'
     | 'modify_board'
     | 'share_doc'
+    | 'pressemitteilung_examples'
   >,
   string[]
 > = {
   research: ['recherchiere', 'recherche', 'untersuche', 'analysiere', 'erforsche'],
+  // 'compare' is upgraded post-classification (≥2 doc sources + compare verbs);
+  // keep this list empty so the heuristic doesn't fire it on single-doc queries.
+  compare: [],
   image: ['visualisiere', 'zeichne', 'illustriere', 'grafik', 'illustration'],
   web: ['internet', 'netz', 'online', 'aktuell', 'nachricht', 'news'],
   search: ['wahlprogramm', 'beschluss', 'grundsatzprogramm'],
@@ -41,6 +46,57 @@ export const INTENT_KEYWORDS: Record<
   summary: ['zusammenfassung', 'zusammenfassen', 'kurzfassung', 'überblick'],
   chart: ['diagramm', 'balkendiagramm', 'kreisdiagramm', 'liniendiagramm', 'chart', 'statistik'],
 };
+
+// `image_edit` is intentionally NOT in INTENT_KEYWORDS: a bare "bearbeite" with
+// no image context (attachment or explicit noun) means "edit the text", not
+// "edit a picture". Routing to `image_edit` requires combining the verb match
+// below with an image signal that only classifierNode sees, so we expose the
+// predicates separately instead of letting fuzzyMatchIntent fire on its own.
+//
+// We anchor with `(?:^|\W)` instead of `\b` because JS `\b` is ASCII-only —
+// a space-then-`ä` pair is non-word→non-word and yields no boundary, so
+// `\bändere` would silently fail. `(?:^|\W)` consumes the space (or matches
+// start-of-string) and works for both ASCII and umlaut alternatives.
+const IMAGE_EDIT_VERB_PATTERN =
+  /(?:^|\W)(bearbeit|editier|modifizier|transformier|umwandl|ändere|ändern|aender|mach\s+\S.{0,40}?\s+(?:rein|dazu|hinein|drauf)|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+hinzu|edit|change)/i;
+
+const IMAGE_NOUN_PATTERN =
+  /(?:^|\W)(bild|bilds|foto|fotos|image|images|picture|pictures|photo|photos)(?:$|\W)/i;
+
+/**
+ * True when the user's text contains an image-edit verb (e.g. "bearbeite",
+ * "ändere", "mach mehr Bäume rein").
+ */
+export function hasImageEditVerb(text: string): boolean {
+  return IMAGE_EDIT_VERB_PATTERN.test(text);
+}
+
+/**
+ * True when the user's text mentions a picture/photo/image noun, used to
+ * recognise the no-attachment edit case ("bearbeite das Foto").
+ */
+export function mentionsImageNoun(text: string): boolean {
+  return IMAGE_NOUN_PATTERN.test(text);
+}
+
+// Document mutation verbs — used by classifierNode to route `edit_current_doc`
+// (open doc in editor) and `modify_doc` (collaborative doc mention) intents.
+// Same `(?:^|\W)` anchor reasoning as IMAGE_EDIT_VERB_PATTERN above: JS `\b` is
+// ASCII-only and silently fails before an umlaut. We list both umlaut and
+// ASCII-folded stems because `userContent` is NOT folded before testing.
+//
+// Separable-verb constructions ("füge X ein", "passe X an", "schreib X um")
+// use the `\S.{0,40}?` intervening-words window from IMAGE_EDIT_VERB_PATTERN.
+//
+// Strategy: this regex is the **fast path** that catches ~85% of explicit
+// edit requests with zero latency. The classifier pairs it with an LLM
+// tiebreak (see `docsIntentTiebreak.ts`) for the residual cases (indirect
+// phrasings, comparative imperatives like "mach das knackiger", colloquial
+// or English requests). DO NOT try to make this regex exhaustive — that's
+// the LLM's job. Only add stems for verbs frequent enough to justify
+// bypassing the LLM call.
+export const DOC_MODIFY_PATTERN =
+  /(?:^|\W)(aender|änder|bearbeit|ergaenz|ergänz|aktualisier|ueberarbeit|überarbeit|f(?:ü|ue)g(?:e)?\s+\S.{0,40}?\s+(?:hinzu|ein)|einf(?:ü|ue)g|vereinfach|umschreib|schreib\s+\S.{0,40}?\s+(?:um|neu)|kuerz|kürz|erweiter|verläng|verlaenger|ersetz|umformulier|formulier\s+\S.{0,40}?\s+(?:um|neu)|verbesser|korrigier|anpass|pass\s+\S.{0,40}?\s+an|entfern|loesch|lösch|streich|(?:ü|ue)bersetz|mach\s+\S.{0,40}?\s+(?:k(?:ü|ue)rzer|l(?:ä|ae)nger|pr(?:ä|ae)ziser|kompakter|pr(?:ä|ae)gnanter|knackiger|verst(?:ä|ae)ndlicher|freundlicher|formeller|pers(?:ö|oe)nlicher))/i;
 
 /**
  * Find intent using fuzzy (Levenshtein-based) matching.

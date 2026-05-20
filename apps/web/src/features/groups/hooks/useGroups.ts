@@ -1,4 +1,7 @@
+import { type GroupContentType } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
+  errMessage,
   useAddGroupLink,
   useCreateGroup,
   useDeleteGroup,
@@ -65,11 +68,9 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
   const updateInfoMutation = useMutation({
     mutationFn: async (input: { groupId: string; name?: string; description?: string }) => {
       const { groupId, ...body } = input;
-      const res = await apiClient.put<Record<string, unknown>>(
-        `/auth/groups/${groupId}/info`,
-        body
-      );
-      return { groupId, data: res.data };
+      const res = await getContractsClient().groups.updateInfo({ params: { groupId }, body });
+      if (res.status !== 200) throw new Error(errMessage(res.body));
+      return { groupId, data: res.body };
     },
     onSuccess: ({ groupId }) => {
       void queryClient.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
@@ -79,11 +80,12 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
 
   const updateNameMutation = useMutation({
     mutationFn: async (input: { groupId: string; name: string }) => {
-      const res = await apiClient.put<Record<string, unknown>>(
-        `/auth/groups/${input.groupId}/name`,
-        { name: input.name }
-      );
-      return { groupId: input.groupId, data: res.data };
+      const res = await getContractsClient().groups.updateName({
+        params: { groupId: input.groupId },
+        body: { name: input.name },
+      });
+      if (res.status !== 200) throw new Error(errMessage(res.body));
+      return { groupId: input.groupId, data: res.body };
     },
     onSuccess: ({ groupId }) => {
       void queryClient.invalidateQueries({ queryKey: GROUPS_QUERY_KEY });
@@ -225,10 +227,6 @@ interface GroupContentData {
   [key: string]: unknown[];
 }
 
-interface ContentResponse {
-  content?: Record<string, unknown[]>;
-}
-
 export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptions = {}) => {
   const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
   const queryClient = useQueryClient();
@@ -239,8 +237,9 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
     if (!user?.id || !groupId) {
       throw new Error('User not authenticated or group ID missing');
     }
-    const response = await apiClient.get<ContentResponse>(`/auth/groups/${groupId}/content`);
-    return (response.data.content ?? {}) as GroupContentData;
+    const res = await getContractsClient().groups.listGroupContent({ params: { groupId } });
+    if (res.status !== 200) throw new Error('Fehler beim Laden der Gruppeninhalte.');
+    return res.body.content as GroupContentData;
   };
 
   const queryEnabled = !!user?.id && !!groupId && isAuthenticated && !authLoading;
@@ -260,9 +259,12 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
 
   const unshareContentMutation = useMutation({
     mutationFn: async ({ contentId, contentType }: { contentId: string; contentType: string }) => {
-      await apiClient.delete(`/auth/groups/${groupId}/content/${contentId}`, {
-        data: { contentType },
+      if (!groupId) throw new Error('Group ID missing');
+      const res = await getContractsClient().groups.removeGroupContent({
+        params: { groupId, contentId },
+        body: { contentType: contentType as GroupContentType },
       });
+      if (res.status !== 200) throw new Error(errMessage(res.body));
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: groupContentQueryKey });
@@ -283,40 +285,13 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
   };
 };
 
-interface VorlagenData {
-  vorlagen?: unknown[];
-  tags?: string[];
-}
-
-export const useGroupVorlagen = (groupId: string | null, { isActive }: UseGroupsOptions = {}) => {
-  const { user, isAuthenticated, loading: authLoading } = useOptimizedAuth();
-
-  const fetchVorlagenFn = async (): Promise<VorlagenData> => {
-    if (!user?.id || !groupId) {
-      throw new Error('User not authenticated or group ID missing');
-    }
-    const response = await apiClient.get<VorlagenData>(`/auth/groups/${groupId}/vorlagen`);
-    return response.data;
-  };
-
-  const query = useQuery({
-    queryKey: ['groupVorlagen', groupId],
-    queryFn: fetchVorlagenFn,
-    enabled: !!user?.id && !!groupId && isAuthenticated && !authLoading && isActive,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: 'always' as const,
-    retry: (failureCount: number) => failureCount < 2,
+export const useCloneCanvasTemplate = () => {
+  return useMutation({
+    mutationFn: async (canvasId: string) => {
+      const response = await apiClient.post<{ newCanvasId: string }>(`/canvas/${canvasId}/clone`);
+      return response.data;
+    },
   });
-
-  return {
-    vorlagen: query.data?.vorlagen || [],
-    tags: query.data?.tags || [],
-    isLoadingVorlagen: query.isPending,
-    isFetchingVorlagen: query.isFetching,
-    refetchVorlagen: query.refetch,
-  };
 };
 
 export const useUpdateGroupSettings = (groupId: string | null) => {
@@ -328,14 +303,15 @@ export const useUpdateGroupSettings = (groupId: string | null) => {
       if (!user?.id || !groupId) {
         throw new Error('User not authenticated or group ID missing');
       }
-      const response = await apiClient.put<Record<string, unknown>>(
-        `/auth/groups/${groupId}/info`,
-        { settings }
-      );
-      return response.data;
+      const res = await getContractsClient().groups.updateInfo({
+        params: { groupId },
+        body: { settings },
+      });
+      if (res.status !== 200) throw new Error(errMessage(res.body));
+      return res.body;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['groupDetails'] });
+      void queryClient.invalidateQueries({ queryKey: groupDetailsKey(groupId ?? '') });
       void queryClient.invalidateQueries({ queryKey: ['groupVorlagen', groupId] });
     },
   });

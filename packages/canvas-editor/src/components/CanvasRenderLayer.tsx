@@ -50,30 +50,12 @@ interface OptionalCanvasStateProperties {
   >;
 }
 
-type FontStyleType = 'normal' | 'italic' | 'bold' | 'bold italic';
-
 /** Additional text element attributes */
 interface AdditionalTextAttrs {
   text?: string;
   x?: number;
   y?: number;
   width?: number;
-  scale?: number;
-}
-
-/** Additional text item from canvas items */
-interface AdditionalTextItem {
-  id: string;
-  text: string;
-  x: number;
-  y: number;
-  width?: number;
-  fontSize?: number;
-  fontFamily?: string;
-  fontStyle?: FontStyleType;
-  fill?: string;
-  opacity?: number;
-  rotation?: number;
   scale?: number;
 }
 
@@ -101,6 +83,7 @@ interface CanvasRenderLayerProps<
       scale: number,
       rotation: number
     ) => void;
+    handleBalkenTextChange: (id: string, index: number, text: string) => void;
     handleIconDragEnd: (id: string, x: number, y: number) => void;
     handleIconTransformEnd: (
       id: string,
@@ -172,7 +155,7 @@ interface CanvasRenderLayerProps<
 // Primitives keep their selected/isSelected prop for testability.
 function createSelectableWrapper<P extends object>(
   Component: React.ComponentType<P>,
-  propName: 'selected' | 'isSelected' = 'selected',
+  propName: 'selected' | 'isSelected' = 'selected'
 ) {
   type WrapperProps = Omit<P, 'selected' | 'isSelected'> & { elementId: string };
   return memo(function SelectableWrapper({ elementId, ...rest }: WrapperProps) {
@@ -185,7 +168,10 @@ const SelectableBalkenGroup = createSelectableWrapper(BalkenGroup);
 const SelectableIconPrimitive = createSelectableWrapper(IconPrimitive);
 const SelectableShapePrimitive = createSelectableWrapper(ShapePrimitive, 'isSelected');
 const SelectableFramePrimitive = createSelectableWrapper(FramePrimitive, 'isSelected');
-const SelectableIllustrationPrimitive = createSelectableWrapper(IllustrationPrimitive, 'isSelected');
+const SelectableIllustrationPrimitive = createSelectableWrapper(
+  IllustrationPrimitive,
+  'isSelected'
+);
 const SelectableAssetPrimitive = createSelectableWrapper(AssetPrimitive, 'isSelected');
 const SelectableCircleBadge = createSelectableWrapper(CircleBadge);
 const SelectablePillBadge = createSelectableWrapper(PillBadge);
@@ -213,7 +199,7 @@ function CanvasRenderLayerInner<
       {sortedRenderList.map((item) => {
         // Render Config Element
         if (item.type === 'element') {
-          const elementConfig = item.data as unknown as CanvasElementConfig;
+          const elementConfig = item.data;
           return (
             <GenericCanvasElement
               key={elementConfig.id}
@@ -237,7 +223,7 @@ function CanvasRenderLayerInner<
 
         // Render Balken
         if (item.type === 'balken') {
-          const balken = item.data as unknown as BalkenInstance;
+          const balken = item.data;
           return (
             <SelectableBalkenGroup
               key={balken.id}
@@ -251,24 +237,7 @@ function CanvasRenderLayerInner<
               rotation={balken.rotation}
               barOffsets={balken.barOffsets}
               onSelect={() => handlers.handleBalkenSelect(balken.id)}
-              onTextChange={(idx, txt) => {
-                const stateWithActions = state as unknown as Record<string, unknown>;
-                if (
-                  (
-                    stateWithActions.actions as unknown as Record<
-                      string,
-                      (id: string, idx: number, txt: string) => void
-                    >
-                  )?.setBalkenText
-                ) {
-                  (
-                    stateWithActions.actions as unknown as Record<
-                      string,
-                      (id: string, idx: number, txt: string) => void
-                    >
-                  ).setBalkenText(balken.id, idx, txt);
-                }
-              }}
+              onTextChange={(idx, txt) => handlers.handleBalkenTextChange(balken.id, idx, txt)}
               onDragEnd={(x, y) => handlers.handleBalkenDragEnd(balken.id, x, y)}
               onTransformEnd={(x, y, s, r) =>
                 handlers.handleBalkenTransformEnd(balken.id, x, y, s, r)
@@ -323,7 +292,7 @@ function CanvasRenderLayerInner<
 
         // Render Shape
         if (item.type === 'shape') {
-          const shape = item.data as unknown as ShapeInstance;
+          const shape = item.data;
           return (
             <SelectableShapePrimitive
               key={shape.id}
@@ -338,7 +307,7 @@ function CanvasRenderLayerInner<
 
         // Render Frame
         if (item.type === 'frame') {
-          const frame = item.data as unknown as FrameInstance;
+          const frame = item.data;
           return (
             <SelectableFramePrimitive
               key={frame.id}
@@ -354,7 +323,7 @@ function CanvasRenderLayerInner<
 
         // Render Illustration
         if (item.type === 'illustration') {
-          const ill = item.data as unknown as IllustrationInstance;
+          const ill = item.data;
           return (
             <SelectableIllustrationPrimitive
               key={ill.id}
@@ -376,7 +345,7 @@ function CanvasRenderLayerInner<
 
         // Render Asset (decorative elements like sunflowers, arrows)
         if (item.type === 'asset') {
-          const asset = item.data as unknown as AssetInstance;
+          const asset = item.data;
           return (
             <SelectableAssetPrimitive
               key={asset.id}
@@ -393,7 +362,7 @@ function CanvasRenderLayerInner<
 
         // Render Circle Badge (e.g., date circles)
         if (item.type === 'circle-badge') {
-          const badge = item.data as unknown as CircleBadgeInstance;
+          const badge = item.data;
           return (
             <SelectableCircleBadge
               key={badge.id}
@@ -427,7 +396,7 @@ function CanvasRenderLayerInner<
 
         // Render Pill Badge (e.g., "Wusstest du?" labels)
         if (item.type === 'pill-badge') {
-          const pill = item.data as unknown as PillBadgeInstance;
+          const pill = item.data;
           return (
             <SelectablePillBadge
               key={pill.id}
@@ -465,7 +434,7 @@ function CanvasRenderLayerInner<
 
         // Render User Image
         if (item.type === 'user-image') {
-          const userImage = item.data as unknown as UserImageInstance;
+          const userImage = item.data;
           return (
             <SelectableUserImagePrimitive
               key={userImage.id}
@@ -484,7 +453,7 @@ function CanvasRenderLayerInner<
 
         // Render Additional Text
         if (item.type === 'additional-text') {
-          const textItem = item.data as unknown as AdditionalTextItem;
+          const textItem = item.data;
           if (!textItem) return null;
           return (
             <SelectableCanvasText

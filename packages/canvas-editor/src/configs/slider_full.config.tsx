@@ -10,15 +10,21 @@
  */
 
 import { HiPhotograph, HiSparkles } from 'react-icons/hi';
-import { PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
+import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
 import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
-import { BackgroundSection, AssetsSection, CombinedTextSection } from '../sidebar/sections';
+import {
+  AssetsSection,
+  BackgroundSection,
+  CombinedTextSection,
+  FrameSettingsSection,
+} from '../sidebar/sections';
 import { createPillBadgeInstance, getPillBadgeColorsForScheme } from '../utils/pillBadgeUtils';
 import { SLIDER_CONFIG, calculateSliderLayout, getSliderColors } from '../utils/sliderLayout';
 
-import { chatTab, createChatSection, uploadsSectionEntry, uploadsTab } from './commonSections';
+import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/commonActions';
+import { fromLayout } from './factory/layoutAccessors';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
@@ -262,13 +268,12 @@ const sunflowerElement: ImageElementConfig<SliderState> = {
 const headlineTextElement: TextElementConfig<SliderState> = {
   id: 'headline-text',
   type: 'text',
-  x: (_s, l) => (l['headline-text'] as { x?: number })?.x ?? SLIDER_CONFIG.headline.x,
-  y: (_s, l) => (l['headline-text'] as { y?: number })?.y ?? 300,
+  x: fromLayout('headline-text', 'x', SLIDER_CONFIG.headline.x),
+  y: fromLayout('headline-text', 'y', 300),
   order: 4,
   textKey: 'headline',
   width: SLIDER_CONFIG.headline.maxWidth,
-  fontSize: (_s, l) =>
-    (l['headline-text'] as { fontSize?: number })?.fontSize ?? SLIDER_CONFIG.headline.fontSize,
+  fontSize: fromLayout('headline-text', 'fontSize', SLIDER_CONFIG.headline.fontSize),
   fontFamily: `${SLIDER_CONFIG.headline.fontFamily}, Arial, sans-serif`,
   fontStyle: SLIDER_CONFIG.headline.fontStyle,
   align: 'left',
@@ -285,13 +290,12 @@ const headlineTextElement: TextElementConfig<SliderState> = {
 const subtextTextElement: TextElementConfig<SliderState> = {
   id: 'subtext-text',
   type: 'text',
-  x: (_s, l) => (l['subtext-text'] as { x?: number })?.x ?? SLIDER_CONFIG.subtext.x,
-  y: (_s, l) => (l['subtext-text'] as { y?: number })?.y ?? 600,
+  x: fromLayout('subtext-text', 'x', SLIDER_CONFIG.subtext.x),
+  y: fromLayout('subtext-text', 'y', 600),
   order: 5,
   textKey: 'subtext',
   width: SLIDER_CONFIG.subtext.maxWidth,
-  fontSize: (_s, l) =>
-    (l['subtext-text'] as { fontSize?: number })?.fontSize ?? SLIDER_CONFIG.subtext.fontSize,
+  fontSize: fromLayout('subtext-text', 'fontSize', SLIDER_CONFIG.subtext.fontSize),
   fontFamily: `${SLIDER_CONFIG.subtext.fontFamily}, Arial, sans-serif`,
   fontStyle: SLIDER_CONFIG.subtext.fontStyle,
   align: 'left',
@@ -308,13 +312,12 @@ const subtextTextElement: TextElementConfig<SliderState> = {
 const subtext2TextElement: TextElementConfig<SliderState> = {
   id: 'subtext2-text',
   type: 'text',
-  x: (_s, l) => (l['subtext2-text'] as { x?: number })?.x ?? SLIDER_CONFIG.subtext2.x,
-  y: (_s, l) => (l['subtext2-text'] as { y?: number })?.y ?? 800,
+  x: fromLayout('subtext2-text', 'x', SLIDER_CONFIG.subtext2.x),
+  y: fromLayout('subtext2-text', 'y', 800),
   order: 6,
   textKey: 'subtext2',
   width: SLIDER_CONFIG.subtext2.maxWidth,
-  fontSize: (_s, l) =>
-    (l['subtext2-text'] as { fontSize?: number })?.fontSize ?? SLIDER_CONFIG.subtext2.fontSize,
+  fontSize: fromLayout('subtext2-text', 'fontSize', SLIDER_CONFIG.subtext2.fontSize),
   fontFamily: `${SLIDER_CONFIG.subtext2.fontFamily}, Arial, sans-serif`,
   fontStyle: SLIDER_CONFIG.subtext2.fontStyle,
   align: 'left',
@@ -460,6 +463,13 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
       label: 'Elemente',
       ariaLabel: 'Dekorative Elemente',
     },
+    {
+      id: 'frame-settings',
+      icon: PiFrameCornersFill,
+      label: 'Rahmen',
+      ariaLabel: 'Rahmen-Einstellungen',
+    },
+    toolsTab,
     uploadsTab,
     {
       id: 'ai',
@@ -471,9 +481,15 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
   ],
 
   // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  getVisibleTabs: () => ['background', 'text', 'assets', 'uploads', 'chat'],
+  // 'background' tab kept registered but hidden — opened via getAutoSwitchTab when
+  // the canvas background is clicked.
+  getVisibleTabs: () => ['text', 'assets', 'tools', 'uploads', 'chat'],
 
-  getAutoSwitchTab: (selectedElement) => (selectedElement?.startsWith('frame-') ? 'assets' : null),
+  getAutoSwitchTab: (selectedElement) => {
+    if (selectedElement === 'background') return 'background';
+    if (selectedElement?.startsWith('frame-')) return 'frame-settings';
+    return null;
+  },
 
   sections: {
     background: {
@@ -508,8 +524,22 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         ...injectFeatureProps(state, actions, context),
       }),
     },
-    uploads: uploadsSectionEntry,
-    chat: createChatSection('slider', sliderAiCapabilities),
+    'frame-settings': {
+      component: FrameSettingsSection,
+      propsFactory: (state, actions, context) => {
+        const selectedId = context?.selectedElement ?? null;
+        const selectedFrame = selectedId
+          ? (state.frameInstances?.find((f) => f.id === selectedId) ?? null)
+          : null;
+        return {
+          selectedFrame,
+          onSetFrameImage: actions.setFrameImage,
+          onUpdateFrame: actions.updateFrame,
+          onRemoveFrame: actions.removeFrame,
+        };
+      },
+    },
+    ...createCommonSectionEntries('slider', sliderAiCapabilities),
     share: createShareSection<SliderState, SliderActions>('slider', (state) => {
       const label = state.label || '';
       const headline = state.headline || '';

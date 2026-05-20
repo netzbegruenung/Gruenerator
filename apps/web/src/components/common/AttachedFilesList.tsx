@@ -85,7 +85,8 @@ const AttachedFilesList = ({
               'inline-flex items-center px-xs py-xxs bg-[var(--secondary-50)] border border-[var(--secondary-200)] rounded-[var(--card-border-radius-small)] text-[0.8rem] max-w-full min-w-0 shrink',
               'dark:bg-grey-700 dark:border-grey-600',
               compact && 'text-[0.75rem] px-xxs py-1 max-w-full',
-              hasWarning && 'border-[var(--error-500)]! bg-[rgba(211,47,47,0.05)] dark:bg-[rgba(211,47,47,0.1)] dark:border-[var(--error-400)]!',
+              hasWarning &&
+                'border-[var(--error-500)]! bg-[rgba(211,47,47,0.05)] dark:bg-[rgba(211,47,47,0.1)] dark:border-[var(--error-400)]!',
               'max-sm:text-[0.75rem] max-sm:px-xxs max-sm:max-w-[calc(100vw-2*var(--spacing-medium))]',
               'sm:max-md:max-w-[calc(50vw-var(--spacing-small))]',
               'md:max-w-[300px]'
@@ -106,7 +107,8 @@ const AttachedFilesList = ({
                 'ml-xxs p-0 bg-none border-none cursor-pointer text-[var(--error-500)] flex items-center justify-center w-4 h-4 rounded-full transition-all shrink-0 min-w-[16px]',
                 'hover:bg-[var(--error-50)] dark:hover:bg-grey-600',
                 'max-sm:w-[18px] max-sm:h-[18px] max-sm:min-w-[18px]',
-                hasWarning && 'text-[var(--error-600)] hover:bg-[var(--error-100)] hover:text-[var(--error-700)] dark:text-[var(--error-400)] dark:hover:bg-[var(--error-900)] dark:hover:text-[var(--error-300)]'
+                hasWarning &&
+                  'text-[var(--error-600)] hover:bg-[var(--error-100)] hover:text-[var(--error-700)] dark:text-[var(--error-400)] dark:hover:bg-[var(--error-900)] dark:hover:text-[var(--error-300)]'
               )}
               onClick={(e: React.MouseEvent) => handleRemoveFile(index, e)}
               aria-label={`${file.name} entfernen`}

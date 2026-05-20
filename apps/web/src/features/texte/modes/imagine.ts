@@ -1,3 +1,5 @@
+import { DEFAULT_IMAGE_MODEL_ID } from '@gruenerator/shared/models';
+
 import type { ModeDefinition } from './types';
 
 export const imagineMode: ModeDefinition = {
@@ -23,23 +25,10 @@ export const imagineMode: ModeDefinition = {
       ],
       multiple: false,
     },
-    {
-      key: 'backend',
-      label: 'Modell',
-      options: [
-        { id: 'regolo', label: 'Standard' },
-        { id: '', label: 'Flux Pro' },
-      ],
-      multiple: false,
-    },
   ],
   defaults: {
     variant: '',
-    backend: 'regolo',
+    imageModel: DEFAULT_IMAGE_MODEL_ID,
   },
-  examples: [
-    { label: 'Plakat', text: 'Ein grünes Wahlplakat mit Sonnenblumen und dem Slogan ' },
-    { label: 'Social Media', text: 'Ein Instagram-Bild zum Thema Klimaschutz mit ' },
-    { label: 'Illustration', text: 'Eine Illustration im Stil einer Infografik über ' },
-  ],
+  examples: [{ label: 'Plakat', text: 'Ein grünes Wahlplakat mit Sonnenblumen und dem Slogan ' }],
 };

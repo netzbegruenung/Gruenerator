@@ -3,7 +3,7 @@
  *
  * Verifies that all SearchIntent values are consistently wired across:
  * - Backend types (SearchIntent union, ImageStyle union)
- * - SSE helpers (INTENT_MESSAGES, PROGRESS_MESSAGES)
+ * - SSE helpers (INTENT_MESSAGE_POOLS, PROGRESS_MESSAGES)
  * - ChatGraph routing (intentToToolKey, routeAfterClassification)
  * - Controller (TOOL_PRIORITY for forced tools)
  * - Frontend types (SearchIntent, GeneratedImage.style, styleLabels)
@@ -15,7 +15,7 @@
 import { describe, it, expect } from 'vitest';
 
 import {
-  INTENT_MESSAGES,
+  INTENT_MESSAGE_POOLS,
   PROGRESS_MESSAGES,
   getIntentMessage,
 } from '../../../routes/chat/services/sseHelpers.js';
@@ -41,9 +41,11 @@ import type {
  */
 const ALL_INTENTS: SearchIntent[] = [
   'research',
+  'compare',
   'search',
   'web',
   'examples',
+  'pressemitteilung_examples',
   'image',
   'image_edit',
   'sharepic',
@@ -51,6 +53,7 @@ const ALL_INTENTS: SearchIntent[] = [
   'chart',
   'save_as_doc',
   'modify_doc',
+  'edit_current_doc',
   'modify_board',
   'share_doc',
   'direct',
@@ -59,30 +62,38 @@ const ALL_INTENTS: SearchIntent[] = [
 /**
  * All ImageStyle values that must be supported.
  */
-const ALL_IMAGE_STYLES: ImageStyle[] = ['illustration', 'realistic', 'pixel', 'green-edit'];
+const ALL_IMAGE_STYLES: ImageStyle[] = [
+  'illustration',
+  'realistic',
+  'pixel',
+  'green-edit',
+  'universal',
+];
 
 // ============================================================================
 // 1. Type-Level Consistency
 // ============================================================================
 
 describe('SearchIntent type consistency', () => {
-  it('INTENT_MESSAGES has an entry for every SearchIntent', () => {
+  it('INTENT_MESSAGE_POOLS has a non-empty pool for every SearchIntent', () => {
     for (const intent of ALL_INTENTS) {
-      expect(
-        INTENT_MESSAGES[intent],
-        `Missing INTENT_MESSAGES entry for "${intent}"`
-      ).toBeDefined();
-      expect(typeof INTENT_MESSAGES[intent]).toBe('string');
-      expect(INTENT_MESSAGES[intent].length).toBeGreaterThan(0);
+      const pool = INTENT_MESSAGE_POOLS[intent];
+      expect(pool, `Missing INTENT_MESSAGE_POOLS entry for "${intent}"`).toBeDefined();
+      expect(Array.isArray(pool)).toBe(true);
+      expect(pool.length).toBeGreaterThan(0);
+      for (const message of pool) {
+        expect(typeof message).toBe('string');
+        expect(message.length).toBeGreaterThan(0);
+      }
     }
   });
 
-  it('INTENT_MESSAGES has no extra entries beyond SearchIntent', () => {
-    const intentKeys = Object.keys(INTENT_MESSAGES);
+  it('INTENT_MESSAGE_POOLS has no extra entries beyond SearchIntent', () => {
+    const intentKeys = Object.keys(INTENT_MESSAGE_POOLS);
     for (const key of intentKeys) {
       expect(
         ALL_INTENTS.includes(key as SearchIntent),
-        `INTENT_MESSAGES has unexpected key "${key}" not in SearchIntent`
+        `INTENT_MESSAGE_POOLS has unexpected key "${key}" not in SearchIntent`
       ).toBe(true);
     }
   });
@@ -177,8 +188,14 @@ describe('ChatGraphState shape', () => {
 
 describe('imageEditNode', () => {
   it('exports imageEditNode function', async () => {
-    const { imageEditNode } = await import('./nodes/imageEditNode.js');
-    expect(typeof imageEditNode).toBe('function');
+    // fs-based check (see sibling test below): direct dynamic import pulls in
+    // the vision/flux pipelines and exceeds vitest's 5s import budget.
+    const fs = await import('fs');
+    const source = fs.readFileSync(
+      new URL('./nodes/imageEditNode.ts', import.meta.url).pathname,
+      'utf-8'
+    );
+    expect(source).toMatch(/export\s+async\s+function\s+imageEditNode\s*\(/);
   });
 
   it('is re-exported from nodes barrel', async () => {
@@ -211,39 +228,50 @@ describe('image-related intents', () => {
     expect(imageIntents.length).toBe(2);
   });
 
-  it('INTENT_MESSAGES differentiates image vs image_edit', () => {
-    expect(INTENT_MESSAGES['image']).not.toBe(INTENT_MESSAGES['image_edit']);
+  it('INTENT_MESSAGE_POOLS differentiates image vs image_edit', () => {
+    const imagePool = INTENT_MESSAGE_POOLS['image'];
+    const imageEditPool = INTENT_MESSAGE_POOLS['image_edit'];
+    const overlap = imagePool.filter((m) => imageEditPool.includes(m));
+    expect(overlap, 'image and image_edit pools must not share a phrase').toEqual([]);
   });
 
-  it('image_edit message mentions editing', () => {
-    expect(INTENT_MESSAGES['image_edit'].toLowerCase()).toContain('bearbeit');
+  it('image_edit pool mentions editing', () => {
+    expect(
+      INTENT_MESSAGE_POOLS['image_edit'].some((m) => m.toLowerCase().includes('bearbeit'))
+    ).toBe(true);
   });
 
-  it('image message mentions generation', () => {
-    expect(INTENT_MESSAGES['image'].toLowerCase()).toContain('generier');
+  it('image pool mentions generation', () => {
+    expect(INTENT_MESSAGE_POOLS['image'].some((m) => m.toLowerCase().includes('generier'))).toBe(
+      true
+    );
   });
 });
 
 // ============================================================================
-// 6. INTENT_MESSAGES are in German
+// 6. INTENT_MESSAGE_POOLS are in German
 // ============================================================================
 
-describe('INTENT_MESSAGES are German user-facing strings', () => {
+describe('INTENT_MESSAGE_POOLS are German user-facing strings', () => {
   it('all messages end with "..." (ellipsis pattern)', () => {
-    for (const [intent, message] of Object.entries(INTENT_MESSAGES)) {
-      expect(
-        message.endsWith('...'),
-        `INTENT_MESSAGES["${intent}"] = "${message}" should end with "..."`
-      ).toBe(true);
+    for (const [intent, pool] of Object.entries(INTENT_MESSAGE_POOLS)) {
+      for (const message of pool) {
+        expect(
+          message.endsWith('...'),
+          `INTENT_MESSAGE_POOLS["${intent}"] entry "${message}" should end with "..."`
+        ).toBe(true);
+      }
     }
   });
 
   it('no message is empty or just whitespace', () => {
-    for (const [intent, message] of Object.entries(INTENT_MESSAGES)) {
-      expect(
-        message.trim().length > 3,
-        `INTENT_MESSAGES["${intent}"] is too short: "${message}"`
-      ).toBe(true);
+    for (const [intent, pool] of Object.entries(INTENT_MESSAGE_POOLS)) {
+      for (const message of pool) {
+        expect(
+          message.trim().length > 3,
+          `INTENT_MESSAGE_POOLS["${intent}"] entry is too short: "${message}"`
+        ).toBe(true);
+      }
     }
   });
 });
@@ -265,13 +293,18 @@ describe('every SearchIntent has a handler path', () => {
     sharepic: 'handled via sharepic branch in controller (image generation variant)',
     direct: 'falls through to response generation',
     research: 'handled via search branch (intent !== direct)',
+    compare: 'handled via search branch — multi-document comparison, same path as research',
     search: 'handled via search branch (intent !== direct)',
     web: 'handled via search branch (intent !== direct)',
     examples: 'handled via search branch (intent !== direct)',
+    pressemitteilung_examples:
+      'handled via search branch — landesverbaende press release templates, same path as examples',
     summary: 'handled via summary branch in controller',
     chart: 'routes to respond, chart data handled by controller post-response',
     save_as_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
     modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
+    edit_current_doc:
+      'routes to respond, controller emits trigger_doc_edit SSE for BlockNote AI live edit',
     modify_board: 'routes to respond, then confirm_action SSE + pendingActionStore',
     share_doc: 'short-circuits before LLM — resolves group, emits confirm_action SSE',
   };
@@ -299,15 +332,17 @@ describe('action-related intents', () => {
     }
   });
 
-  it('action intents have distinct INTENT_MESSAGES', () => {
-    const messages = ACTION_INTENTS.map((i) => INTENT_MESSAGES[i]);
-    const unique = new Set(messages);
-    expect(unique.size).toBe(ACTION_INTENTS.length);
+  it('action intents have distinct INTENT_MESSAGE_POOLS', () => {
+    const allPhrases = ACTION_INTENTS.flatMap((i) => INTENT_MESSAGE_POOLS[i]);
+    const unique = new Set(allPhrases);
+    expect(unique.size, 'action-intent pools must not share a phrase').toBe(allPhrases.length);
   });
 
-  it('INTENT_MESSAGES for action intents are in German', () => {
+  it('INTENT_MESSAGE_POOLS for action intents are in German', () => {
     for (const intent of ACTION_INTENTS) {
-      expect(INTENT_MESSAGES[intent].endsWith('...')).toBe(true);
+      for (const message of INTENT_MESSAGE_POOLS[intent]) {
+        expect(message.endsWith('...')).toBe(true);
+      }
     }
   });
 });

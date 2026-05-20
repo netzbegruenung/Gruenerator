@@ -1,24 +1,10 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
-
-// ── API response shapes ────────────────────────────────────────────────
-
-interface GroupDetailsApiResponse {
-  success: boolean;
-  message?: string;
-  group?: Record<string, unknown> & {
-    join_token?: string;
-    name?: string;
-    description?: string;
-  };
-  membership?: Record<string, unknown> & { isAdmin?: boolean };
-  knowledge?: unknown[];
-}
 import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { useGroupPresence } from '../hooks/useGroupPresence';
 import { useGroups, useGroupAvatar, useGroupLinks, useGroupSharing } from '../hooks/useGroups';
@@ -57,17 +43,14 @@ const GroupDetailSection = memo(
     } = useQuery({
       queryKey: ['groupDetails', groupId],
       queryFn: async () => {
-        const response = await apiClient.get<GroupDetailsApiResponse>(
-          `/auth/groups/${groupId}/details`
-        );
-        const result = response.data;
-        if (!result.success) throw new Error(result.message ?? 'Failed to fetch group details');
+        const res = await getContractsClient().groups.getDetails({ params: { groupId } });
+        if (res.status !== 200) throw new Error('Failed to fetch group details');
         return {
-          groupInfo: result.group,
-          isAdmin: result.membership?.isAdmin ?? false,
-          membership: result.membership,
-          joinToken: result.group?.join_token,
-          knowledge: result.knowledge ?? [],
+          groupInfo: res.body.group,
+          isAdmin: res.body.membership.isAdmin,
+          membership: res.body.membership,
+          joinToken: res.body.group.join_token ?? undefined,
+          knowledge: [] as unknown[],
         };
       },
       enabled: !!groupId,
@@ -101,9 +84,38 @@ const GroupDetailSection = memo(
         [key: string]: unknown;
       }
       const allCollabDocs = (groupContent?.collaborative_documents ?? []) as CollabDoc[];
+
+      const collabDocs: CollabDoc[] = [];
+      const boards: CollabDoc[] = [];
+      const canvases: CollabDoc[] = [];
+      for (const doc of allCollabDocs) {
+        switch (doc.document_subtype) {
+          case 'boards':
+            boards.push(doc);
+            break;
+          case 'canvas':
+            canvases.push(doc);
+            break;
+          case 'blank':
+          case undefined:
+          case null:
+          case '':
+            collabDocs.push(doc);
+            break;
+          default:
+            console.warn(
+              '[GroupDetailSection] Unknown document_subtype, bucketing as Doc:',
+              doc.document_subtype,
+              doc.id
+            );
+            collabDocs.push(doc);
+        }
+      }
+
       return {
-        collabDocs: allCollabDocs.filter((d) => d.document_subtype !== 'boards'),
-        boards: allCollabDocs.filter((d) => d.document_subtype === 'boards'),
+        collabDocs,
+        boards,
+        canvases,
         documents: (groupContent?.documents ?? []) as SharedItem[],
         generators: (groupContent?.generators ?? []) as SharedItem[],
         notebooks: [
@@ -114,6 +126,7 @@ const GroupDetailSection = memo(
           }),
         ] as SharedItem[],
         texts: (groupContent?.texts ?? []) as SharedItem[],
+        canvasTemplates: (groupContent?.canvas_templates ?? []) as SharedItem[],
       };
     }, [groupContent]);
 
@@ -293,6 +306,8 @@ const GroupDetailSection = memo(
           onDeleteLink={deleteLink}
           isAddingLink={isAddingLink}
           isUpdatingLink={isUpdatingLink}
+          onSuccessMessage={onSuccessMessage}
+          onErrorMessage={onErrorMessage}
         />
       </motion.div>
     );

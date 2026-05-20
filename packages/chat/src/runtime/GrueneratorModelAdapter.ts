@@ -16,11 +16,14 @@ import type {
   StreamMetadata,
   ProgressStep,
 } from '../hooks/useChatGraphStream';
-import type { ToolKey, ThreadMode, SearchMode } from '../stores/chatStore';
+import { useAgentStore, type ToolKey, type ThreadMode, type SearchMode } from '../stores/chatStore';
+import { getSystemAgent } from '@gruenerator/shared/agents';
 import { parseAllMentions } from '../lib/mentionParser';
 import { parseSSELine } from '../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
+import { pickStageLabels } from '../lib/progressLabels';
 import { useDocumentChatStore } from '../stores/documentChatStore';
+import { streamErrorMessage } from './streamErrorMessage';
 import type { ConfirmActionData, DocumentCreatedData } from '../types/messageMetadata';
 
 export type GrueneratorMessageMetadata = {
@@ -50,6 +53,9 @@ export interface GrueneratorAdapterConfig {
   customSystemPrompt?: string | null;
   customRoleName?: string | null;
   customEnabledTools?: Record<string, boolean> | null;
+  /** Mention key of the active /skill (e.g. 'instagram'). Server appends the
+   *  skill's `skillSystemPrompt` to the agent's systemRole when set. */
+  activeSkillMention?: string | null;
 }
 
 export interface GrueneratorAdapterCallbacks {
@@ -97,21 +103,15 @@ async function* parseSSEStream(
   const currentEvent = { type: '' };
   let accumulatedText = '';
   let accumulatedReasoning = '';
+  // Themed progress labels — picked once per turn, stable for the whole stream.
+  const stageLabels = pickStageLabels();
   let currentProgress: ChatProgress = {
     stage: 'classifying',
-    message: 'Analysiere Anfrage...',
+    message: stageLabels.classifying,
   };
   const progressSteps: ProgressStep[] = [
-    { stage: 'classifying', label: 'Klassifizierung', status: 'in-progress' },
+    { stage: 'classifying', label: stageLabels.classifying, status: 'in-progress' },
   ];
-
-  const STAGE_LABELS: Record<string, string> = {
-    classifying: 'Klassifizierung',
-    searching: 'Suche',
-    summarizing: 'Zusammenfassung',
-    generating_image: 'Bildgenerierung',
-    generating: 'Generierung',
-  };
 
   function transitionStep(newStage: ProgressStage, labelOverride?: string) {
     // Mark current in-progress step as completed
@@ -122,7 +122,7 @@ async function* parseSSEStream(
       }
     }
     // Add new step if it has a label and isn't 'complete'/'error'/'idle'
-    const label = labelOverride || STAGE_LABELS[newStage];
+    const label = labelOverride || stageLabels[newStage];
     if (label && newStage !== 'complete' && newStage !== 'error' && newStage !== 'idle') {
       // Don't duplicate if the same stage already exists
       if (!progressSteps.some((s) => s.stage === newStage)) {
@@ -198,7 +198,14 @@ async function* parseSSEStream(
       }
     }
 
-    content.push({ type: 'text' as const, text: accumulatedText });
+    // Normalize [cite:N] → [N] before emitting, so CitationMarkdownText's
+    // placeholder-badge layer (citationProcessing.ts:25) renders inline-reserved
+    // boxes during streaming. Mirrors NotebookModelAdapter's buildResult and
+    // prevents the SearchGraph "[cite:N]" markers from appearing as plain text.
+    content.push({
+      type: 'text' as const,
+      text: accumulatedText.replace(/\[cite:(\d+)\]/g, '[$1]'),
+    });
 
     const custom: GrueneratorMessageMetadata = {
       progress: { ...currentProgress, steps: [...progressSteps] },
@@ -257,6 +264,10 @@ async function* parseSSEStream(
         case 'thread_created': {
           const { threadId: tid } = data as { threadId: string };
           callbacks.onThreadCreated?.(tid);
+          // Backend has now persisted any seeded initialAssistantMessage as
+          // the first row of this thread. Drop the local copy so a future
+          // new-thread creation doesn't replay a stale seed.
+          useAgentStore.getState().setPendingInitialAssistantMessage(null);
           break;
         }
 
@@ -282,7 +293,7 @@ async function* parseSSEStream(
               (subQueries && subQueries.length > 0) || (searchSources && searchSources.length > 1);
 
             if (hasMultiSearch) {
-              const queries = subQueries?.length ? subQueries : [searchQuery || message];
+              const queries = subQueries?.length ? subQueries : [searchQuery ?? ''];
               const sources =
                 searchSources?.length && searchSources.length > 1 ? searchSources : [null];
 
@@ -305,7 +316,10 @@ async function* parseSSEStream(
               }
               activeToolCall = null;
             } else {
-              const toolArgs = { query: searchQuery || message };
+              // Don't fall back to `message` (the German status copy) — that
+              // would display the status as the user's query. Empty string lets
+              // the UI hide the chip text gracefully.
+              const toolArgs = { query: searchQuery ?? '' };
               activeToolCall = {
                 type: 'tool-call',
                 toolCallId: `tc_${Date.now()}`,
@@ -328,10 +342,12 @@ async function* parseSSEStream(
         }
 
         case 'search_complete': {
-          const { message, resultCount, results } = data as {
+          const { message, resultCount, results, researchMeta, examplesResult } = data as {
             message: string;
             resultCount: number;
             results?: SearchResult[];
+            researchMeta?: unknown;
+            examplesResult?: { press?: unknown[]; social?: unknown[]; message?: string };
           };
           if (results) receivedSearchResults = results;
           // Update searching step label with result count
@@ -341,7 +357,7 @@ async function* parseSSEStream(
             searchStep.status = 'completed';
             searchStep.completedAt = Date.now();
           }
-          transitionStep('generating', 'Generiere Antwort');
+          transitionStep('generating');
           currentProgress = {
             ...currentProgress,
             stage: 'generating',
@@ -349,15 +365,35 @@ async function* parseSSEStream(
             resultCount,
           };
 
-          // Mark all pending multi-search tool calls as complete
+          // Pick the right result shape per tool:
+          // - research → researchMeta (rich orchestrator result)
+          // - gruenerator_pressemitteilung_examples → { examples: press[], results }
+          // - gruenerator_examples_search → { examples: social[], results }
+          // - everything else → { results }
+          const resultForTool = (toolName: string) => {
+            if (toolName === 'research' && researchMeta != null) {
+              return researchMeta as Record<string, unknown>;
+            }
+            if (toolName === 'gruenerator_pressemitteilung_examples' && examplesResult?.press) {
+              return { results: results || [], examples: examplesResult.press };
+            }
+            if (toolName === 'gruenerator_examples_search' && examplesResult?.social) {
+              return { results: results || [], examples: examplesResult.social };
+            }
+            return { results: results || [] };
+          };
+
           for (let i = 0; i < allToolCalls.length; i++) {
             if (!allToolCalls[i].result) {
-              allToolCalls[i] = { ...allToolCalls[i], result: { results: results || [] } };
+              allToolCalls[i] = {
+                ...allToolCalls[i],
+                result: resultForTool(allToolCalls[i].toolName),
+              };
             }
           }
           if (activeToolCall) {
             activeToolCall = Object.assign({}, activeToolCall, {
-              result: { results: results || [] },
+              result: resultForTool(activeToolCall.toolName),
             });
           }
           yield buildResult();
@@ -374,7 +410,7 @@ async function* parseSSEStream(
 
         case 'summary_complete': {
           const { message } = data as { message: string };
-          transitionStep('generating', 'Generiere Antwort');
+          transitionStep('generating');
           currentProgress = { ...currentProgress, stage: 'generating', message };
           yield buildResult();
           break;
@@ -449,7 +485,7 @@ async function* parseSSEStream(
 
         case 'response_start': {
           const { message } = data as { message: string };
-          transitionStep('generating', 'Generiere Antwort');
+          transitionStep('generating');
           currentProgress = { ...currentProgress, stage: 'generating', message };
           yield buildResult();
           break;
@@ -473,14 +509,34 @@ async function* parseSSEStream(
           const mappedToolName = DEEP_TOOL_MAP[toolName] || toolName;
 
           if (status === 'in_progress') {
-            const toolArgs = { query: (args?.query as string) || title, ...args };
-            activeToolCall = {
-              type: 'tool-call',
-              toolCallId: stepId,
-              toolName: mappedToolName,
-              args: toolArgs as Record<string, string | number | boolean | null>,
-              argsText: JSON.stringify(toolArgs),
-            };
+            // The backend heartbeat (responseStreamingService.startResponseHeartbeat)
+            // re-emits the SAME stepId every 3s. If it matches the current
+            // activeToolCall, or is already in allToolCalls, skip the
+            // archive-and-replace below — otherwise we'd render two tool-call
+            // parts with the same toolCallId and trip assistant-ui's
+            // `tapResources` with "Duplicate key toolCallId-…".
+            const isDuplicateStepId =
+              (activeToolCall !== null && activeToolCall.toolCallId === stepId) ||
+              allToolCalls.some((tc) => tc.toolCallId === stepId);
+            if (!isDuplicateStepId) {
+              // Preserve any pre-existing activeToolCall (e.g. the intent-derived
+              // gruenerator_examples_search tool-call set by the `intent` event)
+              // before overwriting with this thinking_step's tool. Otherwise the
+              // examples tool-call is orphaned and search_complete's result has
+              // nowhere to land — leaving the UI with classify/rerank chips and
+              // no examples card.
+              if (activeToolCall !== null && !allToolCalls.includes(activeToolCall)) {
+                allToolCalls.push(activeToolCall);
+              }
+              const toolArgs = { query: (args?.query as string) || title, ...args };
+              activeToolCall = {
+                type: 'tool-call',
+                toolCallId: stepId,
+                toolName: mappedToolName,
+                args: toolArgs as Record<string, string | number | boolean | null>,
+                argsText: JSON.stringify(toolArgs),
+              };
+            }
             currentProgress = { stage: 'searching', message: title };
           } else if (status === 'completed') {
             if (activeToolCall?.toolCallId === stepId) {
@@ -489,6 +545,28 @@ async function* parseSSEStream(
               activeToolCall = null;
             }
             currentProgress = { stage: 'generating', message: title };
+          }
+          yield buildResult();
+          break;
+        }
+
+        case 'progress_step': {
+          // Internal pipeline stage (classify, rerank, brief). Updates the
+          // progress indicator but MUST NOT touch activeToolCall/allToolCalls
+          // — those are reserved for user-facing tools dispatched via the
+          // `intent` event + `thinking_step`. Conflating the two is what
+          // caused the search→rerank race that orphaned the rich
+          // examples/search/web tool-cards (see PR history).
+          const { title, status } = data as {
+            stepId: string;
+            toolName: string;
+            title: string;
+            status: 'in_progress' | 'completed';
+          };
+          if (status === 'in_progress') {
+            currentProgress = { ...currentProgress, stage: 'searching', message: title };
+          } else if (status === 'completed') {
+            currentProgress = { ...currentProgress, message: title };
           }
           yield buildResult();
           break;
@@ -567,6 +645,36 @@ async function* parseSSEStream(
         case 'document_indexed': {
           const { documentId } = data as { documentId: string };
           outcome.indexedDocumentIds.push(documentId);
+          break;
+        }
+
+        case 'trigger_doc_edit': {
+          // Live document edit (docs editor surface). The chat backend has
+          // classified intent=edit_current_doc and forwards the user's prompt
+          // here so the docs frontend can dispatch into BlockNote's AIExtension.
+          // Handlers are keyed by documentId — there's exactly one docs surface
+          // per document, registered when DocsAssistantChat mounts.
+          const payload = data as {
+            targetDocumentId: string;
+            userPrompt: string;
+            useSelection: boolean;
+            referenceContent?: string;
+          };
+          const handler = useChatConfigStore
+            .getState()
+            .documentEditHandlers.get(payload.targetDocumentId);
+          if (handler) {
+            try {
+              await handler(payload);
+            } catch (err) {
+              console.warn('[ChatAdapter] documentEditHandler threw', err);
+            }
+          } else {
+            console.warn(
+              '[ChatAdapter] trigger_doc_edit received but no handler registered for doc',
+              payload.targetDocumentId
+            );
+          }
           break;
         }
 
@@ -669,6 +777,13 @@ async function* parseSSEStream(
   if (receivedMetadata && !interruptPending) {
     callbacks.onComplete?.(receivedMetadata);
   }
+}
+
+function truncateAttachmentContext(text: string, maxChars: number): string | undefined {
+  if (!text) return undefined;
+  if (text.length <= maxChars) return text;
+  const half = Math.floor((maxChars - 40) / 2);
+  return `${text.slice(0, half)}\n\n[...gekürzt...]\n\n${text.slice(-half)}`;
 }
 
 export function createGrueneratorModelAdapter(
@@ -810,9 +925,31 @@ export function createGrueneratorModelAdapter(
         return { id: m.id, role: m.role, parts };
       });
 
+      // Resolve effective mode: an agent with routeTo='search' forces 'search' mode
+      // regardless of the store's threadMode (the agent IS the mode). Legacy
+      // threadMode='search' without a search-agent collapses to 'chat' — the old
+      // Suche toggle was removed, so the only path to SearchGraph is the agent.
+      const activeAgentForRouting = config.agentId ? getSystemAgent(config.agentId) : null;
+      const storedMode = config.threadMode || 'chat';
+      const effectiveMode: ThreadMode =
+        activeAgentForRouting?.routeTo === 'search'
+          ? 'search'
+          : storedMode === 'search'
+            ? 'chat'
+            : storedMode;
+
+      // Surface tools (edit_current_doc) belong to the surface, not the agent —
+      // but if the user picks a search-route agent, SearchGraph can't run them.
+      // Strip the edit hook; keep save_as_doc, which is harmless.
+      const safeCustomEnabledTools =
+        activeAgentForRouting?.routeTo === 'search' && config.customEnabledTools
+          ? Object.fromEntries(
+              Object.entries(config.customEnabledTools).filter(([k]) => k !== 'edit_current_doc')
+            )
+          : config.customEnabledTools;
+
       // Skip attachment extraction and mention parsing for non-chat modes
-      const isChatMode =
-        !config.threadMode || config.threadMode === 'chat' || config.threadMode === 'eigener';
+      const isChatMode = effectiveMode === 'chat' || effectiveMode === 'eigener';
 
       // Extract attachments from AUI's CompleteAttachment objects on the last user message.
       // AUI stores file/image content in message.attachments[].content, NOT in message.content.
@@ -872,6 +1009,7 @@ export function createGrueneratorModelAdapter(
       let textIds: string[] = [];
       let boardIds: string[] = [];
       let docMentionIds: string[] = [];
+      let wolkeFiles: ReturnType<typeof parseAllMentions>['wolkeFiles'] = [];
       let hasDocumentChat = false;
       if (isChatMode)
         for (let i = formattedMessages.length - 1; i >= 0; i--) {
@@ -882,14 +1020,21 @@ export function createGrueneratorModelAdapter(
           );
           if (textPart) {
             const parsed = parseAllMentions(textPart.text);
-            effectiveAgentId = parsed.agentId;
-            effectiveAgentMention = parsed.agentMention;
+            // Only override the URL/store-derived agent when the user actually
+            // typed an @agent or /skill mention. parseAllMentions falls back to
+            // getDefaultAgent() (universal) when no mention exists, which would
+            // otherwise silently wipe ?agent=… deep links.
+            if (parsed.agentMention !== undefined) {
+              effectiveAgentId = parsed.agentId;
+              effectiveAgentMention = parsed.agentMention;
+            }
             notebookIds = parsed.notebookIds;
             forcedTools = parsed.forcedTools;
             documentIds = parsed.documentIds;
             textIds = parsed.textIds;
             boardIds = parsed.boardIds;
             docMentionIds = parsed.docMentionIds;
+            wolkeFiles = parsed.wolkeFiles;
             hasDocumentChat = parsed.hasDocumentChat;
             textPart.text = parsed.cleanText;
 
@@ -910,25 +1055,137 @@ export function createGrueneratorModelAdapter(
           break;
         }
 
+      // Extract doc/document mentions from the user message's attachments
+      // (the "tag" UX). Each picked doc was attached as an assistant-ui
+      // CompleteAttachment with a `data` content part carrying our metadata.
+      if (isChatMode && lastUserMsg && 'attachments' in lastUserMsg) {
+        const seenDocs = new Set(documentIds);
+        const seenTexts = new Set(textIds);
+        const seenCollab = new Set(docMentionIds);
+        const seenWolke = new Set(wolkeFiles.map((f) => `${f.shareLinkId}:${f.path}`));
+        type GruenMentionData =
+          | { kind: 'collab'; id: string; slug: string; title: string }
+          | {
+              kind: 'document';
+              documentId: string;
+              sourceType: 'notebook' | 'document' | 'text';
+            }
+          | { kind: 'wolke'; shareLinkId: string; path: string; name: string };
+        const attachments = (lastUserMsg as { attachments: readonly CompleteAttachment[] })
+          .attachments;
+        for (const att of attachments) {
+          if (!att.contentType?.startsWith('application/x-gruenerator-')) continue;
+          for (const part of att.content) {
+            if (part.type !== 'data') continue;
+            const dataPart = part as { type: 'data'; name?: string; data: GruenMentionData };
+            if (dataPart.name !== 'gruenerator-mention') continue;
+            const data = dataPart.data;
+            if (data.kind === 'collab') {
+              if (!seenCollab.has(data.id)) {
+                seenCollab.add(data.id);
+                docMentionIds.push(data.id);
+              }
+            } else if (data.kind === 'document') {
+              if (data.sourceType === 'text') {
+                if (!seenTexts.has(data.documentId)) {
+                  seenTexts.add(data.documentId);
+                  textIds.push(data.documentId);
+                }
+              } else {
+                if (!seenDocs.has(data.documentId)) {
+                  seenDocs.add(data.documentId);
+                  documentIds.push(data.documentId);
+                }
+              }
+            } else if (data.kind === 'wolke') {
+              const key = `${data.shareLinkId}:${data.path}`;
+              if (!seenWolke.has(key)) {
+                seenWolke.add(key);
+                wolkeFiles.push({
+                  shareLinkId: data.shareLinkId,
+                  path: data.path,
+                  name: data.name,
+                });
+              }
+            }
+          }
+        }
+      }
+
       // Read thread-persisted documentChatIds for follow-up messages
       const dcStore = useDocumentChatStore.getState();
       const documentChatIds = dcStore.getForThread(config.threadId);
 
-      const { fetch: configFetch, endpoints } = useChatConfigStore.getState();
-      const threadMode = config.threadMode || 'chat';
+      const { fetch: configFetch, endpoints, contextProviders } = useChatConfigStore.getState();
 
-      // Mode-aware endpoint selection
+      // Surface-injected context (e.g. docs editor markdown + selected text).
+      // Keyed by threadId, so global chat threads and the docs thread coexist.
+      let injectedDocIds: string[] = [];
+      let injectedAttachmentContext: string | undefined;
+      let injectedCurrentDocument:
+        | {
+            id: string;
+            title?: string | null;
+            markdown: string;
+            selectionText?: string | null;
+          }
+        | undefined;
+      if (config.threadId) {
+        const provider = contextProviders.get(config.threadId);
+        if (provider) {
+          try {
+            const ctx = await provider();
+            if (ctx.documentChatIds?.length) injectedDocIds = ctx.documentChatIds;
+            if (ctx.currentDocument) {
+              const cd = ctx.currentDocument;
+              injectedCurrentDocument = {
+                id: cd.id,
+                title: cd.title ?? null,
+                markdown: truncateAttachmentContext(cd.markdown, 80_000) ?? cd.markdown,
+                selectionText: cd.selectionText ?? null,
+              };
+            }
+            const parts: string[] = [];
+            if (ctx.selectionText) parts.push(`## Auswahl:\n${ctx.selectionText}`);
+            if (ctx.attachmentContext) parts.push(ctx.attachmentContext);
+            const merged = parts.join('\n\n');
+            // Cap at 80k chars to keep request bodies bounded.
+            injectedAttachmentContext = merged
+              ? truncateAttachmentContext(merged, 80_000)
+              : undefined;
+          } catch (err) {
+            console.warn(
+              '[ChatAdapter] contextProvider threw, continuing without injected context',
+              err
+            );
+          }
+        }
+      }
+
+      const mergedDocChatIds = injectedDocIds.length
+        ? Array.from(new Set([...documentChatIds, ...injectedDocIds]))
+        : documentChatIds;
+
+      // Workplace flow seeds an Antrag/PM/Social text in agent store; pass it
+      // along on the FIRST request (no threadId yet) so the backend persists
+      // it as the seed assistant message of the brand-new thread.
+      const seededInitialAssistantMessage = !config.threadId
+        ? useAgentStore.getState().pendingInitialAssistantMessage || undefined
+        : undefined;
+
+      // Mode-aware endpoint selection (uses effectiveMode so search-routed agents
+      // dispatch to SearchGraph regardless of the store's threadMode).
       const endpoint =
-        threadMode === 'search'
+        effectiveMode === 'search'
           ? endpoints.searchStream
-          : threadMode === 'notebook'
+          : effectiveMode === 'notebook'
             ? endpoints.notebookStream
             : endpoints.chatStream;
 
       // Mode-aware request body
       let requestBody: Record<string, unknown>;
 
-      if (threadMode === 'search') {
+      if (effectiveMode === 'search') {
         // Search mode: simple query + searchMode, no mentions/attachments
         const lastUserText = formattedMessages
           .filter((m) => m.role === 'user')
@@ -939,8 +1196,9 @@ export function createGrueneratorModelAdapter(
           messages: formattedMessages,
           threadId: config.threadId,
           searchMode: config.searchMode || 'web',
+          agentId: config.agentId,
         };
-      } else if (threadMode === 'notebook') {
+      } else if (effectiveMode === 'notebook') {
         // Notebook mode: query + collection scoping from selectedNotebookId
         const lastUserText = formattedMessages
           .filter((m) => m.role === 'user')
@@ -951,14 +1209,14 @@ export function createGrueneratorModelAdapter(
           notebookId: config.selectedNotebookId || 'gruenerator-notebook',
           threadId: config.threadId,
         };
-      } else if (threadMode === 'eigener') {
+      } else if (effectiveMode === 'eigener') {
         // Eigener Chat mode: like chat but with custom prompt, no stale agentId
         requestBody = {
           messages: formattedMessages,
           agentId: null,
           threadId: config.threadId,
-          enabledTools: config.customEnabledTools
-            ? { ...config.enabledTools, ...config.customEnabledTools }
+          enabledTools: safeCustomEnabledTools
+            ? { ...config.enabledTools, ...safeCustomEnabledTools }
             : config.enabledTools,
           modelId: config.modelId,
           attachments: extractedAttachments.length > 0 ? extractedAttachments : undefined,
@@ -968,11 +1226,16 @@ export function createGrueneratorModelAdapter(
           textIds: textIds.length > 0 ? textIds : undefined,
           boardIds: boardIds.length > 0 ? boardIds : undefined,
           docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
-          documentChatIds: documentChatIds.length > 0 ? documentChatIds : undefined,
-          documentChatMode: hasDocumentChat || documentChatIds.length > 0 || undefined,
+          wolkeFiles: wolkeFiles.length > 0 ? wolkeFiles : undefined,
+          documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
+          documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
+          currentDocument: injectedCurrentDocument,
+          attachmentContext: injectedAttachmentContext,
           defaultNotebookId: config.selectedNotebookId || undefined,
           customSystemPrompt: config.customSystemPrompt || undefined,
           roleName: config.customRoleName || undefined,
+          initialAssistantMessage: seededInitialAssistantMessage,
+          activeSkillMention: config.activeSkillMention || undefined,
         };
       } else {
         // Chat mode: full request with mentions, attachments, tools
@@ -980,8 +1243,8 @@ export function createGrueneratorModelAdapter(
           messages: formattedMessages,
           agentId: effectiveAgentId,
           threadId: config.threadId,
-          enabledTools: config.customEnabledTools
-            ? { ...config.enabledTools, ...config.customEnabledTools }
+          enabledTools: safeCustomEnabledTools
+            ? { ...config.enabledTools, ...safeCustomEnabledTools }
             : config.enabledTools,
           modelId: config.modelId,
           attachments: extractedAttachments.length > 0 ? extractedAttachments : undefined,
@@ -991,23 +1254,35 @@ export function createGrueneratorModelAdapter(
           textIds: textIds.length > 0 ? textIds : undefined,
           boardIds: boardIds.length > 0 ? boardIds : undefined,
           docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
-          documentChatIds: documentChatIds.length > 0 ? documentChatIds : undefined,
-          documentChatMode: hasDocumentChat || documentChatIds.length > 0 || undefined,
+          wolkeFiles: wolkeFiles.length > 0 ? wolkeFiles : undefined,
+          documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
+          documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
+          currentDocument: injectedCurrentDocument,
+          attachmentContext: injectedAttachmentContext,
           defaultNotebookId: config.selectedNotebookId || undefined,
           customSystemPrompt: config.customSystemPrompt || undefined,
+          initialAssistantMessage: seededInitialAssistantMessage,
+          activeSkillMention: config.activeSkillMention || undefined,
         };
       }
 
-      const response = await configFetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-        signal: abortSignal,
-      });
+      let response: Response;
+      try {
+        response = await configFetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+          signal: abortSignal,
+        });
+      } catch (fetchError) {
+        if (abortSignal?.aborted) return;
+        yield { content: [{ type: 'text' as const, text: streamErrorMessage(fetchError) }] };
+        return;
+      }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error((errorData as { error?: string }).error || `HTTP error ${response.status}`);
+        yield { content: [{ type: 'text' as const, text: streamErrorMessage(null, response) }] };
+        return;
       }
 
       const streamOutcome: StreamOutcome = { interrupted: false, indexedDocumentIds: [] };
@@ -1030,7 +1305,12 @@ export function createGrueneratorModelAdapter(
         ) {
           return;
         }
-        throw err;
+        // Other mid-stream errors (e.g. backend SSE `error` event) — surface
+        // as an assistant message so the user sees what went wrong in-thread,
+        // not just in the dev console.
+        if (abortSignal?.aborted) return;
+        yield { content: [{ type: 'text' as const, text: streamErrorMessage(err) }] };
+        return;
       }
 
       // Persist server-indexed document IDs to thread for follow-up messages

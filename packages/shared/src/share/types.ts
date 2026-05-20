@@ -120,6 +120,7 @@ export interface ShareStoreActions {
     visibility: 'private' | 'unlisted' | 'public'
   ) => Promise<SaveAsTemplateResponse>;
   clearCurrentShare: () => void;
+  setCurrentShare: (share: Share | null) => void;
   clearError: () => void;
   reset: () => void;
 }

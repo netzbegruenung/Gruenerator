@@ -12,10 +12,7 @@ export {
 } from './canvasEditorStore';
 
 // Store factory and provider
-export {
-  createCanvasEditorStore,
-  defaultCanvasEditorStore,
-} from './createCanvasEditorStore';
+export { createCanvasEditorStore, defaultCanvasEditorStore } from './createCanvasEditorStore';
 export type {
   CanvasEditorStoreApi,
   CanvasEditorStoreState,
@@ -35,5 +32,16 @@ export {
 export { canvasRefRegistry } from './canvasEditorRefs';
 
 // Auto-save store
-export { useAutoSaveStore } from './useAutoSaveStore';
-export type { AutoSaveStore } from './useAutoSaveStore';
+export {
+  AutoSaveStoreProvider,
+  useAutoSaveStore,
+  useAutoSaveStoreApi,
+  useAutoSaveStoreShallow,
+} from './useAutoSaveStore';
+export type {
+  AutoSaveStore,
+  AutoSaveStoreApi,
+  AutoSaveState,
+  AutoSaveActions,
+  AutoSaveStatus,
+} from './useAutoSaveStore';

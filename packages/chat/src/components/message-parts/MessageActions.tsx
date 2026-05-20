@@ -2,6 +2,7 @@
 
 import { memo, useState } from 'react';
 import { Copy, Check, Download, FileEdit, Loader2 } from 'lucide-react';
+import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useExtraActions } from '../../context/ExtraActionsContext';
 import { MessageTTSButton } from './MessageTTSButton';
@@ -102,12 +103,12 @@ export const MessageActions = memo(function MessageActions({
         body: JSON.stringify({
           content: exportContent,
           documentType: 'chat-response',
-        }),
+        } satisfies ExportToDocsBody),
       });
 
       if (!response.ok) throw new Error('Document creation failed');
 
-      const data = await response.json();
+      const data = (await response.json()) as ExportToDocsResponse;
       if (data.documentId) {
         setLinkedDocId(data.documentId);
         window.open(`${getDocsUrl()}/document/${data.documentId}`, '_blank');

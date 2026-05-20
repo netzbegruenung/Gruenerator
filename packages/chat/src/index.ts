@@ -9,6 +9,40 @@ export {
   type ExtraActionFactory,
 } from './context/ExtraActionsContext';
 
+// Chat Surface Context (per-surface agent/mode/model state)
+export {
+  ChatSurfaceProvider,
+  createChatSurfaceStore,
+  useChatSurfaceContext,
+  type ChatSurfaceDefaults,
+  type ChatSurfaceState,
+  type ChatSurfaceStore,
+} from './context/ChatSurfaceContext';
+export {
+  useScopedAgentId,
+  useScopedThreadMode,
+  useScopedSearchMode,
+  useScopedSelectedModel,
+  useScopedSelectedNotebookId,
+  useScopedCustomSystemPrompt,
+  useScopedCustomRoleName,
+  useScopedSetSelectedAgent,
+  useScopedSetThreadMode,
+  useScopedSetSearchMode,
+  useScopedSetSelectedModel,
+  useScopedSetSelectedNotebook,
+  useScopedSetCustomSystemPrompt,
+  useScopedSetCustomRoleName,
+  getScopedSnapshot,
+} from './lib/useScopedAgentState';
+export {
+  AUTO_MODEL_ID,
+  resolveAutoModel,
+  type AutoModelId,
+  type AutoResolverContext,
+  type SelectedModel,
+} from './lib/resolveAutoModel';
+
 // Context & API Client
 export {
   chatFetch,
@@ -24,10 +58,17 @@ export {
   useChatEndpoints,
   type ChatConfig,
   type ResolvedEndpoints,
+  type ChatRequestContext,
+  type ChatRequestContextProvider,
+  type DocumentEditTriggerPayload,
+  type DocumentEditTriggerHandler,
 } from './stores/chatConfigStore';
 
 // Runtime
-export { GrueneratorChatProvider } from './runtime/GrueneratorChatProvider';
+export {
+  GrueneratorChatProvider,
+  convertToThreadMessageLike,
+} from './runtime/GrueneratorChatProvider';
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {
   createGrueneratorModelAdapter,
@@ -44,6 +85,13 @@ export {
 
 // External Thread Context
 export { ExternalThreadProvider, useExternalThread } from './context/ExternalThreadContext';
+
+// Chat Collaboration (presence, typing) — surface-scoped, e.g. for docs editor
+export {
+  ChatCollaborationProvider,
+  useChatCollaborationContext,
+} from './context/ChatCollaborationContext';
+export { useChatCollaboration } from './hooks/useChatCollaboration';
 
 // Notebook Runtime
 export {
@@ -67,6 +115,8 @@ export { type CategoryFilterField } from './components/notebook/CategoryFilterDr
 
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
+export { composerToolbarButtonClass } from './lib/utils';
+export { useChatDensity, type ChatDensity } from './components/thread/chatDensityContext';
 export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
 export { FileMentionPopover } from './components/thread/FileMentionPopover';
 export { DocumentChatPicker } from './components/thread/DocumentChatPicker';
@@ -300,3 +350,4 @@ export { ModalThread, type ModalThreadProps } from './components/gruen-o-mat/Mod
 
 // Icons
 export { ChatIcon } from './components/icons/ChatIcon';
+export { default as GrueneratorHomeIconLoading } from './components/icons/GrueneratorHomeIconLoading';

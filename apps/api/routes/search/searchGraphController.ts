@@ -68,6 +68,7 @@ interface SearchStreamBody {
   threadId?: string;
   searchMode?: string;
   locale?: string;
+  agentId?: string | null;
 }
 
 const log = createLogger('SearchGraphController');
@@ -110,7 +111,17 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
   req.on('close', () => abortController.abort());
 
   try {
-    const { query, messages, threadId, searchMode = 'web', locale } = req.body as SearchStreamBody;
+    const {
+      query,
+      messages,
+      threadId,
+      searchMode = 'web',
+      locale,
+      agentId,
+    } = req.body as SearchStreamBody;
+    // Stamp the thread with the Suche agent so thread listings + ?agent= URL sync
+    // show consistent metadata. Falls back to the canonical Suche agent id.
+    const persistedAgentId = agentId || 'gruenerator-suche';
 
     if (!query && (!messages || messages.length === 0)) {
       sse.sendRaw('error', { error: 'Query or messages required' });
@@ -158,7 +169,7 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
     if (!activeThreadId) {
       const thread = await createThread(
         userId,
-        'search',
+        persistedAgentId,
         query?.substring(0, 100) || 'Suche',
         'search'
       );
@@ -281,7 +292,10 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
     // ── Step 6: Stream AI Response ──
     sse.sendRaw('response_start', { message: 'Erstelle Antwort...' });
 
-    const { model: aiModel } = resolveModel(state.agentConfig);
+    // SearchGraph uses the agent's default (Mistral) — no user model override,
+    // so the overflow alternator never fires and there's no slot to release.
+    const searchRequestId = `search_${Date.now()}`;
+    const { model: aiModel } = await resolveModel(state.agentConfig, undefined, searchRequestId);
     // Cap conversation history to last 4 messages to stay under Mistral's quality threshold (~40k tokens)
     const recentMessages = state.messages.slice(-4);
     const messagesForAI = buildMessagesForAI(state.responseText, recentMessages);
@@ -289,7 +303,7 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
     const fullText = await streamAndAccumulate({
       model: aiModel,
       messages: messagesForAI,
-      maxTokens: state.searchMode === 'deep' ? 4000 : 3000,
+      maxTokens: state.searchMode === 'deep' ? 12000 : 6000,
       temperature: 0.3,
       sse,
       logPrefix: '[SearchGraph]',
@@ -301,14 +315,39 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     // ── Step 7: Follow-Up Suggestions (parallel with persistence) ──
+    // Persist a toolCalls entry so the Deep Research / web_search card rehydrates
+    // on reload with the same shape the live SSE stream produced. Field names
+    // mirror ResearchToolResult in ChatGraph/types.ts so the same ResearchArtifactCard
+    // renders both flows.
+    const isDeep = state.searchMode === 'deep';
+    const confidence: 'high' | 'medium' | 'low' =
+      state.qualityScore >= 0.7 ? 'high' : state.qualityScore >= 0.4 ? 'medium' : 'low';
+    const toolCalls = [
+      {
+        toolCallId: `tc_${Date.now()}`,
+        toolName: isDeep ? 'research' : 'web_search',
+        args: { query: state.searchQuery ?? '' },
+        result: isDeep
+          ? {
+              answer: fullText,
+              citations: state.citations,
+              confidence,
+              searchSteps: [],
+            }
+          : { results: state.searchResults },
+      },
+    ];
+
     const [suggestResult] = await Promise.all([
       suggestFollowUpsNode(state).catch(() => ({ followUpSuggestions: [] })),
       // Persist assistant response
       createMessage(activeThreadId, 'assistant', fullText || '', {
+        intent: isDeep ? 'research' : 'web',
         searchMode: state.searchMode,
         searchResults: state.searchResults,
         citations: state.citations,
         searchedCollections: state.searchedCollections,
+        toolCalls,
       }),
     ]);
 
@@ -320,6 +359,27 @@ router.post('/stream', async (req: AuthenticatedRequest, res: Response) => {
         suggestions: state.followUpSuggestions,
       });
     }
+
+    // ── Completion (atomic text+citations swap, prevents citation flinch) ──
+    // Mirrors the NotebookModelAdapter protocol: the frontend `completion`
+    // handler swaps accumulatedText with this canonical text (rewriting
+    // [cite:N] → [N]) and replaces citations in the same render pass, so chips
+    // appear simultaneously with the final markers — no plain "[1]" frame.
+    // Citations are remapped to the notebook citation shape that
+    // GrueneratorModelAdapter's `completion` case already understands.
+    sse.send('completion', {
+      type: 'completion',
+      text: fullText ?? '',
+      citations: state.citations.map((c) => ({
+        index: String(c.id),
+        cited_text: c.snippet,
+        document_title: c.title,
+        document_id: c.documentId,
+        source_url: c.url,
+        similarity_score: c.similarityScore,
+        collection_name: c.collectionName ?? c.source,
+      })),
+    });
 
     // ── Done ──
     const totalTimeMs = Date.now() - state.startTime;

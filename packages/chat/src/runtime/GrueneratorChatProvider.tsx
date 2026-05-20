@@ -15,29 +15,35 @@ import {
   useAui,
   Tools,
   Suggestions,
-  unstable_useRemoteThreadListRuntime as useRemoteThreadListRuntime,
-  type unstable_RemoteThreadListAdapter as RemoteThreadListAdapter,
+  useRemoteThreadListRuntime,
+  type RemoteThreadListAdapter,
   type ThreadMessageLike,
   RuntimeAdapterProvider,
   ExportedMessageRepository,
 } from '@assistant-ui/react';
+import { type TextModelId } from '@gruenerator/shared/models';
+import { getSystemAgent } from '@gruenerator/shared/agents';
 import { createChatApiClient } from '../context/ChatContext';
 import { useAgentStore } from '../stores/chatStore';
+import { AUTO_MODEL_ID, resolveAutoModel } from '../lib/resolveAutoModel';
 import { useChatConfigStore, type ChatConfig } from '../stores/chatConfigStore';
 import { getDefaultAgent } from '../lib/agents';
 import { useChatCollaboration } from '../hooks/useChatCollaboration';
 import { ChatCollaborationProvider } from '../context/ChatCollaborationContext';
-import { VoxtralDictationAdapter } from '@gruenerator/voice';
+import { GrueneratorRealtimeVoiceAdapter, VoxtralDictationAdapter } from '@gruenerator/voice';
+import { handleDictationError } from '../lib/dictationErrorHandler';
 import {
   createGrueneratorModelAdapter,
   type GrueneratorAdapterConfig,
 } from './GrueneratorModelAdapter';
 import { GrueneratorAttachmentAdapter } from './GrueneratorAttachmentAdapter';
+import { AgentSwitchListener } from './AgentSwitchListener';
 import {
   createGrueneratorThreadListAdapter,
   type ExternalThreadEntry,
 } from './GrueneratorThreadListAdapter';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
+import { ModelPreferencesProvider } from '../context/ModelPreferencesContext';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
 import { chatSuggestions } from '../lib/suggestions';
 import type {
@@ -55,6 +61,7 @@ interface GrueneratorChatProviderProps {
   getExternalThreads?: () => ExternalThreadEntry[];
   onExternalThreadClick?: (externalId: string) => void;
   activePath?: string;
+  enabledModelIds?: ReadonlySet<TextModelId> | null;
 }
 
 interface PersistedToolCall {
@@ -106,7 +113,7 @@ function extractContent(content: unknown): string {
   return content;
 }
 
-function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLike[] {
+export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMessageLike[] {
   return messages.map((m) => {
     const textContent = extractContent(m.content);
 
@@ -246,6 +253,7 @@ function GrueneratorHistoryProvider({ children }: PropsWithChildren) {
 function useGrueneratorThreadRuntime() {
   const {
     selectedAgentId,
+    selectedModel,
     enabledTools,
     selectedNotebookId,
     threadMode,
@@ -253,9 +261,11 @@ function useGrueneratorThreadRuntime() {
     customSystemPrompt,
     customRoleName,
     customEnabledTools,
+    activeSkillMention,
   } = useAgentStore(
     useShallow((s) => ({
       selectedAgentId: s.selectedAgentId,
+      selectedModel: s.selectedModel,
       enabledTools: s.enabledTools,
       selectedNotebookId: s.selectedNotebookId,
       threadMode: s.threadMode,
@@ -263,6 +273,7 @@ function useGrueneratorThreadRuntime() {
       customSystemPrompt: s.customSystemPrompt,
       customRoleName: s.customRoleName,
       customEnabledTools: s.customEnabledTools,
+      activeSkillMention: s.activeSkillMention,
     }))
   );
   const incrementMessageCount = useAgentStore((s) => s.incrementMessageCount);
@@ -270,10 +281,17 @@ function useGrueneratorThreadRuntime() {
   const compactionState = useAgentStore((s) => s.compactionState);
   const triggerCompaction = useAgentStore((s) => s.triggerCompaction);
 
-  const getConfig = useCallback(
-    (): GrueneratorAdapterConfig => ({
+  const getConfig = useCallback((): GrueneratorAdapterConfig => {
+    const resolvedModelId =
+      selectedModel === AUTO_MODEL_ID
+        ? resolveAutoModel({
+            threadMode,
+            agent: selectedAgentId ? (getSystemAgent(selectedAgentId) ?? null) : null,
+          })
+        : selectedModel;
+    return {
       agentId: selectedAgentId,
-      modelId: 'litellm',
+      modelId: resolvedModelId,
       enabledTools,
       threadId: useAgentStore.getState().currentThreadId,
       selectedNotebookId,
@@ -282,18 +300,20 @@ function useGrueneratorThreadRuntime() {
       customSystemPrompt,
       customRoleName,
       customEnabledTools,
-    }),
-    [
-      selectedAgentId,
-      enabledTools,
-      selectedNotebookId,
-      threadMode,
-      searchMode,
-      customSystemPrompt,
-      customRoleName,
-      customEnabledTools,
-    ]
-  );
+      activeSkillMention,
+    };
+  }, [
+    selectedAgentId,
+    selectedModel,
+    enabledTools,
+    selectedNotebookId,
+    threadMode,
+    searchMode,
+    customSystemPrompt,
+    customRoleName,
+    customEnabledTools,
+    activeSkillMention,
+  ]);
 
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
@@ -338,11 +358,24 @@ function useGrueneratorThreadRuntime() {
     [getConfig, onThreadCreated, onComplete]
   );
 
-  const dictationAdapter = useMemo(() => new VoxtralDictationAdapter(), []);
+  const dictationAdapter = useMemo(
+    () => new VoxtralDictationAdapter({ onError: handleDictationError }),
+    []
+  );
+
+  const voiceAdapter = useMemo(
+    () =>
+      new GrueneratorRealtimeVoiceAdapter({
+        getThreadId: () => useAgentStore.getState().currentThreadId,
+        getAgentId: () => useAgentStore.getState().selectedAgentId,
+        onError: (reason, err) => console.error(`[RealtimeVoice] ${reason}:`, err),
+      }),
+    []
+  );
 
   return useLocalRuntime(modelAdapter, {
     unstable_humanToolNames: ['ask_human'],
-    adapters: { dictation: dictationAdapter },
+    adapters: { dictation: dictationAdapter, voice: voiceAdapter },
   });
 }
 
@@ -383,6 +416,7 @@ export function GrueneratorChatProvider({
   getExternalThreads,
   onExternalThreadClick,
   activePath,
+  enabledModelIds,
 }: GrueneratorChatProviderProps) {
   // Sync config store during render (before any hooks read from it).
   // useEffect runs AFTER render, which creates a race: providerApiClient
@@ -413,19 +447,25 @@ export function GrueneratorChatProvider({
   }, []);
 
   if (!userId) {
-    return <>{children}</>;
+    return (
+      <ModelPreferencesProvider enabledModelIds={enabledModelIds}>
+        {children}
+      </ModelPreferencesProvider>
+    );
   }
 
   return (
-    <GrueneratorChatRuntimeProvider
-      userId={userId}
-      userName={userName}
-      getExternalThreads={getExternalThreads}
-      onExternalThreadClick={onExternalThreadClick}
-      activePath={activePath}
-    >
-      {children}
-    </GrueneratorChatRuntimeProvider>
+    <ModelPreferencesProvider enabledModelIds={enabledModelIds}>
+      <GrueneratorChatRuntimeProvider
+        userId={userId}
+        userName={userName}
+        getExternalThreads={getExternalThreads}
+        onExternalThreadClick={onExternalThreadClick}
+        activePath={activePath}
+      >
+        {children}
+      </GrueneratorChatRuntimeProvider>
+    </ModelPreferencesProvider>
   );
 }
 
@@ -511,6 +551,7 @@ function GrueneratorChatRuntimeProvider({
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       <ExternalThreadProvider value={externalCtx}>
         <ThreadTitleEffect />
+        <AgentSwitchListener />
         <ChatCollaborationBridge userId={userId} userName={userName}>
           {children}
         </ChatCollaborationBridge>

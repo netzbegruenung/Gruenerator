@@ -10,7 +10,12 @@ export interface AccessResult {
   accessMethod: string;
 }
 
-export function checkDirectAccess(document: CollaborativeDocument, userId: string): AccessResult {
+export type DocumentAccessSubject = Pick<
+  CollaborativeDocument,
+  'id' | 'created_by' | 'permissions' | 'is_public' | 'share_mode'
+>;
+
+export function checkDirectAccess(document: DocumentAccessSubject, userId: string): AccessResult {
   const isOwner = document.created_by === userId;
   if (isOwner) return { hasAccess: true, accessMethod: 'owner' };
 
@@ -30,21 +35,25 @@ export function checkDirectAccess(document: CollaborativeDocument, userId: strin
 
 export async function checkGroupAccess(userId: string, documentId: string): Promise<AccessResult> {
   const groupAccess = (await db.query(
-    `SELECT gcs.permissions FROM group_content_shares gcs
+    `SELECT gcs.content_type, gcs.permissions FROM group_content_shares gcs
      INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
-     WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
+     WHERE gcs.content_type IN ('collaborative_documents', 'canvas_template')
+       AND gcs.content_id = $2
+     LIMIT 1`,
     [userId, documentId]
-  )) as { permissions: { read: boolean; write: boolean } | null }[];
+  )) as { content_type: string; permissions: { read: boolean; write: boolean } | null }[];
 
   if (groupAccess.length > 0 && groupAccess[0].permissions?.read !== false) {
-    return { hasAccess: true, accessMethod: 'group:read' };
+    const method =
+      groupAccess[0].content_type === 'canvas_template' ? 'group:template' : 'group:read';
+    return { hasAccess: true, accessMethod: method };
   }
 
   return { hasAccess: false, accessMethod: 'none' };
 }
 
 export async function checkDocumentAccess(
-  document: CollaborativeDocument,
+  document: DocumentAccessSubject,
   userId: string
 ): Promise<AccessResult> {
   const direct = checkDirectAccess(document, userId);
@@ -54,8 +63,9 @@ export async function checkDocumentAccess(
 }
 
 export function autoGrantSharePermission(document: CollaborativeDocument, userId: string): void {
+  const isLinkShared = document.share_mode === 'authenticated' || document.share_mode === 'public';
   if (
-    document.share_mode !== 'authenticated' ||
+    !isLinkShared ||
     document.created_by === userId ||
     (document.permissions && document.permissions[userId])
   ) {

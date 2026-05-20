@@ -8,6 +8,8 @@ import MemoriesSection from '../../../../../../components/profile/MemoriesSectio
 import { useAuthStore, type SupportedLocale } from '../../../../../../stores/authStore';
 import { cn } from '../../../../../../utils/cn';
 
+import ImageModelSettingsSection from './ImageModelSettingsSection';
+import ModelSettingsSection from './ModelSettingsSection';
 import RolesSection from './RolesSection';
 import SettingsSection from './SettingsSection';
 
@@ -200,6 +202,10 @@ const ProfileView = ({
       <RolesSection />
 
       <SettingsSection onSuccessMessage={onSuccessMessage} onErrorMessage={() => {}} />
+
+      <ModelSettingsSection onSuccessMessage={onSuccessMessage} onErrorMessage={() => {}} />
+
+      <ImageModelSettingsSection onSuccessMessage={onSuccessMessage} onErrorMessage={() => {}} />
 
       <MemoriesSection />
 

@@ -120,6 +120,9 @@ export async function enrichContext(opts: {
 
   // Fetch collaborative document context (from @doc mentions)
   if (rawDocMentionIds?.length) {
+    log.info(
+      `[ChatGraph] Resolving ${rawDocMentionIds.length} doc mention(s): ${rawDocMentionIds.join(', ')} for user ${userId}`
+    );
     try {
       const { getPostgresInstance } =
         await import('../../../database/services/PostgresService/PostgresService.js');
@@ -128,11 +131,15 @@ export async function enrichContext(opts: {
       const docResults = await dbInst.query(
         `SELECT id, title, content FROM collaborative_documents
          WHERE id = ANY($1::uuid[]) AND is_deleted = false AND document_subtype != 'boards'
-         AND (created_by = $2 OR permissions ? $2::text OR is_public = true
-              OR id IN (SELECT gcs.content_id FROM group_content_shares gcs
-                        INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2 AND gm.is_active = TRUE
+         AND (created_by = $2::uuid OR permissions ? $2::text OR is_public = true
+              OR id IN (SELECT gcs.content_id::uuid FROM group_content_shares gcs
+                        INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $2::uuid AND gm.is_active = TRUE
                         WHERE gcs.content_type = 'collaborative_documents'))`,
         [rawDocMentionIds, userId]
+      );
+
+      log.info(
+        `[ChatGraph] Doc-mention SQL returned ${docResults.length} row(s) for ${rawDocMentionIds.length} requested ID(s)`
       );
 
       if (docResults.length > 0) {
@@ -167,7 +174,18 @@ export async function enrichContext(opts: {
 
         if (docParts.length > 0) {
           initialState.documentMentionContext = docParts.join('\n\n---\n\n');
+          log.info(
+            `[ChatGraph] documentMentionContext set: ${docParts.length} doc(s), ${initialState.documentMentionContext.length} chars total`
+          );
+        } else {
+          log.warn(
+            `[ChatGraph] Doc-mention SQL returned ${docResults.length} row(s) but ALL had empty content — documentMentionContext NOT set`
+          );
         }
+      } else {
+        log.warn(
+          `[ChatGraph] Doc-mention SQL returned 0 rows — IDs ${rawDocMentionIds.join(', ')} not visible to user ${userId} (deleted, no permission, or wrong subtype)`
+        );
       }
     } catch (err) {
       log.warn(
@@ -235,7 +253,14 @@ export async function enrichContext(opts: {
 
   // Clear raw attachment text for vectorized docs only.
   // Small docs (<4K chars) keep their inline attachmentContext.
-  if (initialState.documentChatIds && initialState.documentChatIds.length > 0) {
+  // Gated on docAttachments.length: documentChatIds can arrive without any
+  // file attachments (pre-supplied references), in which case attachmentContext
+  // is the live inline content and must be preserved.
+  if (
+    docAttachments.length > 0 &&
+    initialState.documentChatIds &&
+    initialState.documentChatIds.length > 0
+  ) {
     if (largeDocAttachments.length === docAttachments.length) {
       initialState.attachmentContext = null;
     } else {

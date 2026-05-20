@@ -177,9 +177,15 @@ const WolkeSetupModal = ({ onClose, onSubmit }: WolkeSetupModalProps) => {
             </h4>
             <ol className="m-0 pl-md text-[0.8rem] max-md:text-xs text-foreground leading-relaxed">
               <li className="mb-xxs">Öffnen Sie Ihre Nextcloud-Instanz</li>
-              <li className="mb-xxs">Erstellen Sie einen neuen Ordner oder wählen Sie einen bestehenden</li>
-              <li className="mb-xxs">Klicken Sie auf "Teilen" und erstellen Sie einen öffentlichen Link</li>
-              <li className="mb-xxs">Aktivieren Sie "Hochladen erlauben" für beschreibbaren Zugriff</li>
+              <li className="mb-xxs">
+                Erstellen Sie einen neuen Ordner oder wählen Sie einen bestehenden
+              </li>
+              <li className="mb-xxs">
+                Klicken Sie auf "Teilen" und erstellen Sie einen öffentlichen Link
+              </li>
+              <li className="mb-xxs">
+                Aktivieren Sie "Hochladen erlauben" für beschreibbaren Zugriff
+              </li>
               <li className="mb-xxs">Kopieren Sie den Link hierher</li>
             </ol>
           </div>

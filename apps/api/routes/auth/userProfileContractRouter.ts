@@ -345,8 +345,6 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       const updatedProfile = await profileService.updateUserDefault(userId, generator, key, value);
       const userDefaults = profileService.getUserDefaults(updatedProfile);
 
-      log.debug(`[User Defaults Change] User ${userId}: ${generator}.${key} = ${String(value)}`);
-
       return {
         status: 200 as const,
         body: {

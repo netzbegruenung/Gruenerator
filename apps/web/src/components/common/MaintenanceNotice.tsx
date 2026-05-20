@@ -14,10 +14,7 @@ const MaintenanceNotice = ({ featureName = 'Dieser Bereich' }: MaintenanceNotice
         'border border-grey-200 dark:border-grey-700 shadow-md min-h-[300px]'
       }
     >
-      <FaTools
-        className="text-5xl max-md:text-4xl text-primary-600 mb-md"
-        aria-hidden="true"
-      />
+      <FaTools className="text-5xl max-md:text-4xl text-primary-600 mb-md" aria-hidden="true" />
       <h2 className="text-2xl max-md:text-xl font-bold text-foreground-heading mb-sm">
         {featureName} wird gerade gewartet
       </h2>

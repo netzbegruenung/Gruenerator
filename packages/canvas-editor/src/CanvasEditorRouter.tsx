@@ -4,14 +4,55 @@ import './canvas-editor.css';
 import { useYjsFormState } from './collab/useYjsFormState';
 import { CanvasEditor } from './components/CanvasEditor';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
-import { ProfilbildCanvas } from './ProfilbildCanvas';
-
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
 import type { MobileBridgeProps } from './hooks/useMobileBridge';
 import type { InitialPageDef } from './hooks/usePageManager';
 import type * as Y from 'yjs';
 
 type CanvasState = Record<string, unknown>;
+
+/**
+ * Per-template shape of the props seeded into the inner CanvasEditor.
+ *
+ * Every branch in `buildInitialProps` is `satisfies`-checked against its
+ * entry here — so dropping or mistyping a field (e.g. forgetting to thread
+ * a background URL) is a compile error rather than a silent runtime '' fallback.
+ */
+export interface CanvasInitialPropsMap {
+  zitat: { quote: string; name: string; imageSrc: string };
+  'zitat-pure': { quote: string; name: string };
+  info: { header: string; body: string };
+  veranstaltung: VeranstaltungInitialProps;
+  'veranstaltung-plakat': VeranstaltungInitialProps;
+  simple: { headline: string; subtext: string; imageSrc: string };
+  slider: { label: string; headline: string; subtext: string };
+  dreizeilen: { line1: string; line2: string; line3: string; currentImageSrc: string };
+  freeform: { backgroundMode: string; backgroundColor: string; currentImageSrc: string };
+  'pres-title': PresentationInitialProps;
+  'pres-image': PresentationInitialProps;
+  'pres-content': PresentationInitialProps;
+  presentation: PresentationInitialProps;
+  profilbild: { transparentImage: string; backgroundColor: string };
+}
+
+interface VeranstaltungInitialProps {
+  eventTitle: string;
+  beschreibung: string;
+  weekday: string;
+  date: string;
+  time: string;
+  locationName: string;
+  address: string;
+  imageSrc: string;
+}
+
+interface PresentationInitialProps {
+  title: string;
+  subtitle: string;
+  bodyText: string;
+  bodyText2: string;
+  currentImageSrc: string;
+}
 
 // Compare two values with special handling for arrays
 function valuesEqual(a: unknown, b: unknown): boolean {
@@ -68,6 +109,23 @@ export interface ControllableCanvasWrapperProps {
     ydoc: Y.Doc;
     isSynced: boolean;
   };
+  /** Host-supplied content rendered at the very left of the toolbar (in-flow). */
+  chromeLeft?: React.ReactNode;
+  /** Host-supplied content rendered absolute-centered in the toolbar (e.g. doc title, sync badge). */
+  chromeCenter?: React.ReactNode;
+  /** Host-supplied content rendered in the toolbar's right cluster (e.g. presence avatars). */
+  chromeRight?: React.ReactNode;
+  /**
+   * When provided, the share popover shows a "Personen" entry that triggers
+   * this callback. Used by collab hosts to open their invite/permissions dialog.
+   */
+  onInvitePeople?: () => void;
+  /**
+   * Seeds the per-instance AutoSaveStore so reloads update the existing
+   * gallery record instead of creating a new draft. Routes that load an
+   * existing share by token should pass it through here.
+   */
+  initialShareToken?: string | null;
 }
 
 export function ControllableCanvasWrapper({
@@ -83,6 +141,11 @@ export function ControllableCanvasWrapper({
   externalSidebar,
   externalMobileMode,
   collaborative,
+  chromeLeft,
+  chromeCenter,
+  chromeRight,
+  onInvitePeople,
+  initialShareToken,
 }: ControllableCanvasWrapperProps) {
   const isCollab = !!collaborative;
   const [internalState, setInternalState] = useState<CanvasState>(initialState);
@@ -110,6 +173,7 @@ export function ControllableCanvasWrapper({
       'zitat-pure',
       'info',
       'veranstaltung',
+      'veranstaltung-plakat',
       'simple',
       'dreizeilen',
       'slider',
@@ -118,6 +182,7 @@ export function ControllableCanvasWrapper({
       'pres-image',
       'pres-content',
       'presentation',
+      'profilbild',
     ].includes(type);
 
     // 'presentation' is an alias — load the default pres-title config
@@ -137,15 +202,14 @@ export function ControllableCanvasWrapper({
     }
   }, [type]);
 
-  // Fire onReady when config is loaded (or immediately for profilbild)
+  // Fire onReady when config is loaded
   useEffect(() => {
     if (readyFiredRef.current) return;
-    const isProfilbild = type === 'profilbild';
-    if (isProfilbild || (!configLoading && config)) {
+    if (!configLoading && config) {
       readyFiredRef.current = true;
       onReady?.();
     }
-  }, [configLoading, config, type, onReady]);
+  }, [configLoading, config, onReady]);
 
   // Only update state and key when initialState CONTENT actually changes
   // This prevents remounting when parent re-renders with same values but new object reference.
@@ -164,6 +228,10 @@ export function ControllableCanvasWrapper({
 
   const handlePartChange = useCallback(
     (change: Partial<CanvasState>) => {
+      console.log('[CanvasCollab][handlePartChange]', {
+        isCollab,
+        keys: Object.keys(change),
+      });
       if (isCollab) {
         updateFormState(change);
         return;
@@ -174,12 +242,6 @@ export function ControllableCanvasWrapper({
     },
     [internalState, onStateChange, isCollab, updateFormState]
   );
-
-  const commonProps = {
-    key: componentKey,
-    onExport,
-    onCancel,
-  };
 
   // Create callbacks object for GenericCanvas
   const createCallbacks = useCallback(
@@ -200,72 +262,81 @@ export function ControllableCanvasWrapper({
       return <div>Lädt Editor...</div>;
     }
 
-    // Build initial props based on canvas type
+    // Build initial props based on canvas type.
+    // Each branch returns an object `satisfies CanvasInitialPropsMap['<key>']` so
+    // the field set is structurally checked at compile time (see top of file).
+    const str = (v: unknown): string => (typeof v === 'string' ? v : '');
     const buildInitialProps = (): Record<string, unknown> => {
       switch (type) {
         case 'zitat':
           return {
-            quote: effectiveState.quote || '',
-            name: effectiveState.name || '',
-            imageSrc: imageSrc || '',
-          };
+            quote: str(effectiveState.quote),
+            name: str(effectiveState.name),
+            imageSrc: str(effectiveState.imageSrc) || imageSrc || '',
+          } satisfies CanvasInitialPropsMap['zitat'];
         case 'zitat-pure':
           return {
-            quote: effectiveState.quote || '',
-            name: effectiveState.name || '',
-          };
+            quote: str(effectiveState.quote),
+            name: str(effectiveState.name),
+          } satisfies CanvasInitialPropsMap['zitat-pure'];
         case 'info':
           return {
-            header: effectiveState.header || '',
-            body: effectiveState.body || '',
-          };
+            header: str(effectiveState.header),
+            body: str(effectiveState.body),
+          } satisfies CanvasInitialPropsMap['info'];
         case 'veranstaltung':
+        case 'veranstaltung-plakat':
           return {
-            eventTitle: effectiveState.eventTitle || '',
-            beschreibung: effectiveState.beschreibung || '',
-            weekday: effectiveState.weekday || '',
-            date: effectiveState.date || '',
-            time: effectiveState.time || '',
-            locationName: effectiveState.locationName || '',
-            address: effectiveState.address || '',
-            imageSrc: imageSrc || '',
-          };
+            eventTitle: str(effectiveState.eventTitle),
+            beschreibung: str(effectiveState.beschreibung),
+            weekday: str(effectiveState.weekday),
+            date: str(effectiveState.date),
+            time: str(effectiveState.time),
+            locationName: str(effectiveState.locationName),
+            address: str(effectiveState.address),
+            imageSrc: str(effectiveState.imageSrc) || imageSrc || '',
+          } satisfies CanvasInitialPropsMap['veranstaltung'];
         case 'simple':
           return {
-            headline: effectiveState.headline || '',
-            subtext: effectiveState.subtext || '',
-            imageSrc: imageSrc || '',
-          };
+            headline: str(effectiveState.headline),
+            subtext: str(effectiveState.subtext),
+            imageSrc: str(effectiveState.imageSrc) || imageSrc || '',
+          } satisfies CanvasInitialPropsMap['simple'];
         case 'slider':
           return {
-            label: effectiveState.label || '',
-            headline: effectiveState.headline || '',
-            subtext: effectiveState.subtext || '',
-          };
+            label: str(effectiveState.label),
+            headline: str(effectiveState.headline),
+            subtext: str(effectiveState.subtext),
+          } satisfies CanvasInitialPropsMap['slider'];
         case 'dreizeilen':
           return {
-            line1: effectiveState.line1 || '',
-            line2: effectiveState.line2 || '',
-            line3: effectiveState.line3 || '',
-            currentImageSrc: imageSrc || '',
-          };
+            line1: str(effectiveState.line1),
+            line2: str(effectiveState.line2),
+            line3: str(effectiveState.line3),
+            currentImageSrc: str(effectiveState.currentImageSrc) || imageSrc || '',
+          } satisfies CanvasInitialPropsMap['dreizeilen'];
         case 'freeform':
           return {
-            backgroundMode: effectiveState.backgroundMode || 'color',
-            backgroundColor: effectiveState.backgroundColor || '#005538',
-            currentImageSrc: imageSrc || '',
-          };
+            backgroundMode: str(effectiveState.backgroundMode) || 'color',
+            backgroundColor: str(effectiveState.backgroundColor) || '#005538',
+            currentImageSrc: str(effectiveState.currentImageSrc) || imageSrc || '',
+          } satisfies CanvasInitialPropsMap['freeform'];
         case 'pres-title':
         case 'pres-image':
         case 'pres-content':
         case 'presentation':
           return {
-            title: effectiveState.title || '',
-            subtitle: effectiveState.subtitle || '',
-            bodyText: effectiveState.bodyText || '',
-            bodyText2: effectiveState.bodyText2 || '',
-            currentImageSrc: imageSrc || '',
-          };
+            title: str(effectiveState.title),
+            subtitle: str(effectiveState.subtitle),
+            bodyText: str(effectiveState.bodyText),
+            bodyText2: str(effectiveState.bodyText2),
+            currentImageSrc: str(effectiveState.currentImageSrc) || imageSrc || '',
+          } satisfies PresentationInitialProps;
+        case 'profilbild':
+          return {
+            transparentImage: str(effectiveState.transparentImage) || imageSrc || '',
+            backgroundColor: str(effectiveState.backgroundColor),
+          } satisfies CanvasInitialPropsMap['profilbild'];
         default:
           return effectiveState;
       }
@@ -280,6 +351,7 @@ export function ControllableCanvasWrapper({
         case 'info':
           return createCallbacks(['header', 'body']);
         case 'veranstaltung':
+        case 'veranstaltung-plakat':
           return createCallbacks(['eventTitle', 'beschreibung']);
         case 'simple':
           return createCallbacks(['headline', 'subtext']);
@@ -305,6 +377,7 @@ export function ControllableCanvasWrapper({
       case 'zitat-pure':
       case 'info':
       case 'veranstaltung':
+      case 'veranstaltung-plakat':
       case 'simple':
       case 'slider':
       case 'dreizeilen':
@@ -313,6 +386,7 @@ export function ControllableCanvasWrapper({
       case 'pres-image':
       case 'pres-content':
       case 'presentation':
+      case 'profilbild':
         if (!config) return <div>Lädt Konfiguration...</div>;
 
         return (
@@ -329,11 +403,13 @@ export function ControllableCanvasWrapper({
             externalSidebar={externalSidebar}
             externalMobileMode={externalMobileMode}
             collaborative={collaborative}
+            chromeLeft={chromeLeft}
+            chromeCenter={chromeCenter}
+            chromeRight={chromeRight}
+            onInvitePeople={onInvitePeople}
+            initialShareToken={initialShareToken}
           />
         );
-
-      case 'profilbild':
-        return <ProfilbildCanvas {...commonProps} transparentImage={imageSrc || ''} />;
 
       default:
         return <div>Editor type &quot;{type}&quot; not found.</div>;

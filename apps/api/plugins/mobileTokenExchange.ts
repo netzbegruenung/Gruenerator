@@ -3,6 +3,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 import { env } from '../config/env.js';
 import { createLogger } from '../utils/logger.js';
+import { captureAuthIssue } from '../utils/observability/captureAuthIssue.js';
 
 import type { BetterAuthPlugin } from 'better-auth';
 
@@ -65,6 +66,11 @@ export const mobileTokenExchange = () => {
               authSource ?? 'unknown',
               (err as Error).message
             );
+            captureAuthIssue({
+              stage: 'token-exchange',
+              cause: err,
+              extras: { issuer: KC_ISSUER, authSource: authSource ?? 'unknown', path: 'idToken' },
+            });
             throw err;
           }
 
@@ -161,7 +167,19 @@ export const mobileTokenExchange = () => {
             );
             payload = verified.payload;
           } catch (err) {
-            log.warn('[TokenExchangeCode] Invalid or expired login code: %s', (err as Error).message);
+            log.warn(
+              '[TokenExchangeCode] Invalid or expired login code: %s',
+              (err as Error).message
+            );
+            // Suppression for expired/replayed codes happens inside
+            // `captureAuthIssue` via the benign-message regex; genuine
+            // tampering (bad signature, wrong audience/issuer) still
+            // surfaces.
+            captureAuthIssue({
+              stage: 'token-exchange',
+              cause: err,
+              extras: { path: 'login-code' },
+            });
             throw new Error('Login code is invalid or expired');
           }
 

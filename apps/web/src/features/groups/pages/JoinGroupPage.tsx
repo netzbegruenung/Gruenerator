@@ -1,68 +1,52 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@gruenerator/ui';
-import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 import Spinner from '../../../components/common/Spinner';
-import apiClient from '../../../components/utils/apiClient';
 import { useOptimizedAuth } from '../../../hooks/useAuth';
 import { useGroups } from '../hooks/useGroups';
+
+interface VerifyTokenResponse {
+  group: { name: string };
+  alreadyMember?: boolean;
+}
 
 const JoinGroupPage = () => {
   const { joinToken } = useParams();
   const navigate = useNavigate();
   const { user, loading: isLoading, isAuthResolved } = useOptimizedAuth();
-  const [groupName, setGroupName] = useState('');
-  const [status, setStatus] = useState<
-    'loading' | 'ready' | 'already_member' | 'success' | 'error'
-  >('loading');
+  const [postJoinStatus, setPostJoinStatus] = useState<
+    'success' | 'already_member' | 'error' | null
+  >(null);
 
   const { joinGroup, isJoiningGroup, isJoinGroupError, joinGroupError, isJoinGroupSuccess } =
     useGroups({ isActive: true });
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const verifyToken = async () => {
-      if (!joinToken || isLoading || !isAuthResolved || !user) return;
-
-      try {
-        interface VerifyTokenResponse {
-          success: boolean;
-          message?: string;
-          group: { name: string };
-          alreadyMember?: boolean;
-        }
-        const response = await apiClient.get<VerifyTokenResponse>(
-          `/auth/groups/verify-token/${joinToken}`
-        );
-        const data = response.data;
-
-        if (!data.success) {
-          throw new Error(data.message ?? 'Ungültiger Einladungslink');
-        }
-
-        if (isMounted) {
-          setGroupName(data.group.name);
-
-          if (data.alreadyMember) {
-            setStatus('already_member');
-          } else {
-            setStatus('ready');
-          }
-        }
-      } catch (error) {
-        console.error('Error verifying token:', error);
-        if (isMounted) {
-          setStatus('error');
-        }
+  const verifyQuery = useQuery<VerifyTokenResponse, Error>({
+    queryKey: ['group-verify-token', joinToken],
+    queryFn: async () => {
+      const res = await getContractsClient().groups.verifyToken({
+        params: { joinToken: joinToken ?? '' },
+      });
+      if (res.status !== 200) {
+        throw new Error('Ungültiger Einladungslink');
       }
-    };
+      return { group: { name: res.body.group.name }, alreadyMember: res.body.alreadyMember };
+    },
+    enabled: Boolean(joinToken) && !isLoading && Boolean(isAuthResolved) && Boolean(user),
+    retry: false,
+  });
 
-    void verifyToken();
-    return () => {
-      isMounted = false;
-    };
-  }, [joinToken, user, isLoading, isAuthResolved]);
+  const groupName = verifyQuery.data?.group.name ?? '';
+  const status: 'loading' | 'ready' | 'already_member' | 'success' | 'error' = (() => {
+    if (postJoinStatus) return postJoinStatus;
+    if (verifyQuery.isLoading || (!verifyQuery.data && !verifyQuery.error)) return 'loading';
+    if (verifyQuery.error) return 'error';
+    if (verifyQuery.data?.alreadyMember) return 'already_member';
+    return 'ready';
+  })();
 
   const handleJoin = () => {
     if (!joinToken || !user) return;
@@ -71,14 +55,14 @@ const JoinGroupPage = () => {
       onSuccess: (result) => {
         const { alreadyMember } = result as { alreadyMember?: boolean };
         if (alreadyMember) {
-          setStatus('already_member');
+          setPostJoinStatus('already_member');
         } else {
-          setStatus('success');
+          setPostJoinStatus('success');
           setTimeout(() => navigate('/profile'), 3000);
         }
       },
       onError: () => {
-        setStatus('error');
+        setPostJoinStatus('error');
       },
     });
   };

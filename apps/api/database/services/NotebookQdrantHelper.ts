@@ -5,12 +5,15 @@
 
 import * as crypto from 'crypto';
 
+import { generateSlugSuffix } from '@gruenerator/shared/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getSystemCollectionConfig } from '../../config/systemCollectionsConfig.js';
+import { triggerPendingDocProcessing } from '../../services/document-services/DocumentProcessingService/index.js';
 import { mistralEmbeddingService } from '../../services/mistral/index.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { getPostgresInstance } from './PostgresService.js';
 import { type QdrantService, getQdrantInstance } from './QdrantService/index.js';
 import { QdrantOperations } from './QdrantService/operations/index.js';
 
@@ -21,6 +24,40 @@ const logger = createLogger('NotebookQdrantHelper');
 // =============================================================================
 // Type Interfaces
 // =============================================================================
+
+type PublicOwnership = 'owner' | 'public_data';
+
+export type NotebookShareMode = 'private' | 'groups' | 'authenticated';
+export type NotebookEditPolicy = 'owner_only' | 'group_admins' | 'all_members';
+export type NotebookAudience = 'de-DE' | 'de-AT';
+
+const NOTEBOOK_SHARE_MODES: readonly NotebookShareMode[] = ['private', 'groups', 'authenticated'];
+const NOTEBOOK_EDIT_POLICIES: readonly NotebookEditPolicy[] = [
+  'owner_only',
+  'group_admins',
+  'all_members',
+];
+const NOTEBOOK_AUDIENCES: readonly NotebookAudience[] = ['de-DE', 'de-AT'];
+
+function normalizeShareMode(raw: unknown): NotebookShareMode {
+  return NOTEBOOK_SHARE_MODES.includes(raw as NotebookShareMode)
+    ? (raw as NotebookShareMode)
+    : 'private';
+}
+
+function normalizeEditPolicy(raw: unknown): NotebookEditPolicy {
+  return NOTEBOOK_EDIT_POLICIES.includes(raw as NotebookEditPolicy)
+    ? (raw as NotebookEditPolicy)
+    : 'owner_only';
+}
+
+// Default to 'de-DE' for unknown / legacy values. The boot-time
+// backfillAudience migration rewrites any 'all' rows to the owner's actual
+// locale, so this fallback only fires for the rare case of a row that escaped
+// the backfill (e.g. created during the same boot cycle).
+function normalizeAudience(raw: unknown): NotebookAudience {
+  return NOTEBOOK_AUDIENCES.includes(raw as NotebookAudience) ? (raw as NotebookAudience) : 'de-DE';
+}
 
 interface NotebookCollectionData {
   id?: string;
@@ -38,6 +75,27 @@ interface NotebookCollectionData {
   last_used_at?: string | null;
   created_at?: string;
   updated_at?: string;
+  is_public?: boolean;
+  public_ownership?: PublicOwnership | null;
+  share_mode?: NotebookShareMode;
+  edit_policy?: NotebookEditPolicy;
+  /**
+   * Locale audience for `share_mode='authenticated'` listings: the notebook
+   * is hidden from authenticated viewers whose `profiles.locale` doesn't
+   * match. Owners and explicit group-share recipients always bypass the
+   * filter. Defaults to the creator's locale on create.
+   */
+  audience?: NotebookAudience;
+  /**
+   * 6-char URL-safe tail used in Notion-style slugs (`my-notes-Ab3xK9`).
+   * Assigned at creation, immutable afterwards — rename rewrites the name
+   * prefix but never the suffix, so shared URLs survive renames. `null` only
+   * appears for legacy rows in the transient window before the boot-time
+   * backfill (apps/api/services/migrations/backfillNotebookSlugSuffixes.ts)
+   * has run; if such a row is edited before backfill, storeNotebookCollection
+   * mints a fresh suffix.
+   */
+  slug_suffix?: string | null;
 }
 
 interface NotebookCollection {
@@ -56,6 +114,12 @@ interface NotebookCollection {
   settings: Record<string, unknown>;
   document_count: number;
   last_used_at: string | null;
+  is_public: boolean;
+  public_ownership: PublicOwnership | null;
+  share_mode: NotebookShareMode;
+  edit_policy: NotebookEditPolicy;
+  audience: NotebookAudience;
+  slug_suffix: string | null;
   notebook_collection_documents?: CollectionDocument[];
 }
 
@@ -79,6 +143,8 @@ interface PublicAccessData {
 interface UsageLogMetadata {
   ip_address?: string | null;
   user_agent?: string | null;
+  apiKeyId?: string | null;
+  landesverband?: string | null;
 }
 
 interface BulkDeleteResult {
@@ -172,6 +238,12 @@ class NotebookQdrantHelper {
         collectionData.custom_prompt || ''
       );
 
+      // Slug suffix: keep an existing one if provided (preserves stability on
+      // rename), otherwise mint a fresh collision-free 6-char tail. The chance
+      // of a real collision at 56^6 ≈ 30 billion is negligible, but probing
+      // once is cheap and matches the share_token uniqueness pattern.
+      const slugSuffix = collectionData.slug_suffix ?? (await this.allocateFreshSlugSuffix());
+
       const point: QdrantPoint = {
         id: this.generateNumericId(collectionId),
         vector: embedding,
@@ -191,6 +263,12 @@ class NotebookQdrantHelper {
           settings: collectionData.settings || {},
           document_count: collectionData.document_count || 0,
           last_used_at: collectionData.last_used_at || null,
+          is_public: collectionData.is_public === true,
+          public_ownership: collectionData.public_ownership ?? null,
+          share_mode: normalizeShareMode(collectionData.share_mode),
+          edit_policy: normalizeEditPolicy(collectionData.edit_policy),
+          audience: normalizeAudience(collectionData.audience),
+          slug_suffix: slugSuffix,
         },
       };
 
@@ -202,6 +280,159 @@ class NotebookQdrantHelper {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`Error storing Notebook collection: ${message}`);
       throw new Error(`Failed to store Notebook collection: ${message}`);
+    }
+  }
+
+  /**
+   * Mint a slug suffix that isn't already claimed by another notebook.
+   * Retries up to 5 times — at 56^6 the loop almost never iterates twice.
+   */
+  private async allocateFreshSlugSuffix(): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = generateSlugSuffix();
+      const existing = await this.getNotebookCollectionBySlugSuffix(candidate);
+      if (!existing) return candidate;
+    }
+    // Statistically unreachable, but better than a silent dup.
+    throw new Error('Failed to allocate unique slug suffix after 5 attempts');
+  }
+
+  /**
+   * One-shot backfill: scan every notebook point and assign a fresh
+   * `slug_suffix` to anything missing one. Idempotent — re-running after a
+   * successful backfill is a no-op because matching points have a suffix.
+   *
+   * Reads payloads directly (instead of going through the public update path)
+   * to avoid re-embedding 5k notebooks. Suffixes are uniqueness-checked via
+   * the same allocateFreshSlugSuffix helper used at create time.
+   */
+  async backfillSlugSuffixes(): Promise<{ scanned: number; updated: number }> {
+    await this.ensureInitialized();
+
+    let scanned = 0;
+    let updated = 0;
+
+    // Single scroll with a large limit — notebook counts are O(thousands) per
+    // tenant, so a windowed scroll isn't needed yet. If the dataset grows
+    // beyond ~100k rows, switch to a paged scroll via the raw Qdrant client.
+    const allResults = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collections,
+      {},
+      { limit: 100_000, withPayload: true }
+    );
+
+    for (const point of allResults) {
+      scanned++;
+      const existingSuffix = point.payload.slug_suffix;
+      if (typeof existingSuffix === 'string' && existingSuffix.length > 0) continue;
+
+      const fresh = await this.allocateFreshSlugSuffix();
+      // Patch only the slug_suffix field via Qdrant's set_payload — leaves
+      // the existing semantic embedding intact. A batchUpsert here would
+      // require re-supplying the vector and silently overwrite each
+      // notebook's embedding with zeros.
+      await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
+        payload: { slug_suffix: fresh },
+        points: [point.id],
+      });
+      updated++;
+
+      if (updated > 0 && updated % 50 === 0) {
+        logger.info(`[backfillSlugSuffixes] Progress: ${updated} slugs assigned`);
+      }
+    }
+
+    logger.info(`[backfillSlugSuffixes] Done. scanned=${scanned} updated=${updated}`);
+    return { scanned, updated };
+  }
+
+  /**
+   * One-shot backfill: rewrite legacy `audience='all'` (or missing-audience)
+   * notebook rows to the owner's actual locale, looked up once per distinct
+   * user_id from `profiles.locale`. Idempotent — a row whose audience is
+   * already 'de-DE' or 'de-AT' is skipped.
+   *
+   * Patches via `setPayload` so we don't re-embed thousands of notebooks.
+   */
+  async backfillAudience(): Promise<{ scanned: number; updated: number }> {
+    await this.ensureInitialized();
+
+    let scanned = 0;
+    let updated = 0;
+
+    const allResults = await this.qdrantOps!.scrollDocuments(
+      this.qdrant.collections.notebook_collections,
+      {},
+      { limit: 100_000, withPayload: true }
+    );
+
+    const targets: Array<{ id: string | number; userId: string }> = [];
+    for (const point of allResults) {
+      scanned++;
+      const audience = point.payload.audience;
+      if (audience === 'de-DE' || audience === 'de-AT') continue;
+      const userId = point.payload.user_id;
+      if (typeof userId !== 'string' || userId.length === 0) continue;
+      targets.push({ id: point.id, userId });
+    }
+
+    if (targets.length === 0) {
+      logger.info(`[backfillAudience] Nothing to backfill. scanned=${scanned}`);
+      return { scanned, updated };
+    }
+
+    const userIds = Array.from(new Set(targets.map((t) => t.userId)));
+    const postgres = getPostgresInstance();
+    const rows = await postgres.query<{ id: string; locale: string | null }>(
+      'SELECT id::text AS id, locale FROM profiles WHERE id::text = ANY($1)',
+      [userIds]
+    );
+    const localeByUser = new Map<string, NotebookAudience>();
+    for (const row of rows) {
+      localeByUser.set(row.id, row.locale === 'de-AT' ? 'de-AT' : 'de-DE');
+    }
+
+    for (const target of targets) {
+      const newAudience: NotebookAudience = localeByUser.get(target.userId) ?? 'de-DE';
+      await this.qdrantOps!.client.setPayload(this.qdrant.collections.notebook_collections, {
+        payload: { audience: newAudience },
+        points: [target.id],
+      });
+      updated++;
+      if (updated > 0 && updated % 50 === 0) {
+        logger.info(`[backfillAudience] Progress: ${updated} rows updated`);
+      }
+    }
+
+    logger.info(`[backfillAudience] Done. scanned=${scanned} updated=${updated}`);
+    return { scanned, updated };
+  }
+
+  /**
+   * Resolve a notebook by its Notion-style slug tail (the 6-char suffix
+   * after the last `-` in URLs like `/notebooks/my-research-Ab3xK9`).
+   * Returns null when no notebook has that suffix.
+   */
+  async getNotebookCollectionBySlugSuffix(slugSuffix: string): Promise<NotebookCollection | null> {
+    await this.ensureInitialized();
+
+    try {
+      const filter: QdrantFilter = {
+        must: [{ key: 'slug_suffix', match: { value: slugSuffix } }],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collections,
+        filter,
+        { limit: 1, withPayload: true }
+      );
+
+      if (results.length === 0) return null;
+      return this.formatCollectionFromPayload(results[0].payload);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error getting Notebook collection by slug suffix: ${message}`);
+      return null;
     }
   }
 
@@ -355,7 +586,13 @@ class NotebookQdrantHelper {
   }
 
   /**
-   * Add documents to Notebook collection
+   * Add documents to a Notebook collection.
+   *
+   * Also kicks off deferred processing for any attached docs still at
+   * status='uploaded'. The SQL filter inside `triggerPendingDocProcessing`
+   * is the natural gate — already-processed docs (e.g. Wolke imports at
+   * status='completed') are a no-op. Skipped when `addedBy` is null because
+   * the processing query needs a user_id.
    */
   async addDocumentsToCollection(
     collectionId: string,
@@ -382,6 +619,16 @@ class NotebookQdrantHelper {
       );
 
       logger.info(`Added ${documentIds.length} documents to collection: ${collectionId}`);
+
+      if (addedBy && documentIds.length > 0) {
+        await triggerPendingDocProcessing({
+          documentIds,
+          userId: addedBy,
+          logScope: 'NotebookQdrantHelper.addDocumentsToCollection',
+          collectionId,
+        });
+      }
+
       return { success: true, added_count: documentIds.length };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -451,46 +698,12 @@ class NotebookQdrantHelper {
   }
 
   /**
-   * Create public access token
-   */
-  async createPublicAccess(
-    collectionId: string,
-    createdBy: string | null = null,
-    expiresAt: string | null = null
-  ): Promise<{ success: boolean; access_token: string }> {
-    await this.ensureInitialized();
-
-    try {
-      const accessToken = crypto.randomBytes(32).toString('hex');
-
-      const point: QdrantPoint = {
-        id: this.generateNumericId(accessToken),
-        vector: this.generateDummyVector(),
-        payload: {
-          collection_id: collectionId,
-          access_token: accessToken,
-          created_at: new Date().toISOString(),
-          expires_at: expiresAt,
-          created_by: createdBy,
-          is_active: true,
-          view_count: 0,
-          last_accessed_at: null,
-        },
-      };
-
-      await this.qdrantOps!.batchUpsert(this.qdrant.collections.notebook_public_access, [point]);
-
-      logger.info(`Created public access for collection: ${collectionId}`);
-      return { success: true, access_token: accessToken };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Error creating public access: ${message}`);
-      throw new Error(`Failed to create public access: ${message}`);
-    }
-  }
-
-  /**
    * Get public access by token
+   *
+   * Token creation/revocation was removed when the notebook share model moved
+   * to share_mode + edit_policy + group_content_shares. Existing tokens in the
+   * Qdrant `notebook_public_access` collection still resolve here so previously
+   * issued public links keep working until they expire or are cleaned up.
    */
   async getPublicAccess(accessToken: string): Promise<PublicAccessData | null> {
     await this.ensureInitialized();
@@ -529,28 +742,6 @@ class NotebookQdrantHelper {
   }
 
   /**
-   * Revoke public access
-   */
-  async revokePublicAccess(collectionId: string): Promise<{ success: boolean }> {
-    await this.ensureInitialized();
-
-    try {
-      const filter: QdrantFilter = {
-        must: [{ key: 'collection_id', match: { value: collectionId } }],
-      };
-
-      await this.qdrantOps!.batchDelete(this.qdrant.collections.notebook_public_access, filter);
-
-      logger.info(`Revoked public access for collection: ${collectionId}`);
-      return { success: true };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Error revoking public access: ${message}`);
-      throw new Error(`Failed to revoke public access: ${message}`);
-    }
-  }
-
-  /**
    * Log Notebook usage
    */
   async logNotebookUsage(
@@ -580,6 +771,8 @@ class NotebookQdrantHelper {
           created_at: new Date().toISOString(),
           ip_address: metadata.ip_address || null,
           user_agent: metadata.user_agent || null,
+          api_key_id: metadata.apiKeyId || null,
+          landesverband: metadata.landesverband || null,
         },
       };
 
@@ -599,6 +792,10 @@ class NotebookQdrantHelper {
    * Format collection data from Qdrant payload
    */
   formatCollectionFromPayload(payload: Record<string, unknown>): NotebookCollection {
+    const rawOwnership = payload.public_ownership;
+    const publicOwnership: PublicOwnership | null =
+      rawOwnership === 'owner' || rawOwnership === 'public_data' ? rawOwnership : null;
+
     return {
       id: payload.collection_id as string,
       user_id: payload.user_id as string,
@@ -615,7 +812,118 @@ class NotebookQdrantHelper {
       settings: (payload.settings as Record<string, unknown>) || {},
       document_count: (payload.document_count as number) || 0,
       last_used_at: payload.last_used_at as string | null,
+      is_public: payload.is_public === true,
+      public_ownership: publicOwnership,
+      share_mode: normalizeShareMode(payload.share_mode),
+      edit_policy: normalizeEditPolicy(payload.edit_policy),
+      audience: normalizeAudience(payload.audience),
+      slug_suffix:
+        typeof payload.slug_suffix === 'string' && payload.slug_suffix.length > 0
+          ? payload.slug_suffix
+          : null,
     };
+  }
+
+  /**
+   * Fetch notebook collections by an explicit list of IDs.
+   * Used by listAccessibleCollections to materialize group-shared notebooks.
+   */
+  async getNotebookCollectionsByIds(collectionIds: string[]): Promise<NotebookCollection[]> {
+    await this.ensureInitialized();
+    if (collectionIds.length === 0) return [];
+
+    try {
+      const filter: QdrantFilter = {
+        must: [{ key: 'collection_id', match: { any: collectionIds } }],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collections,
+        filter,
+        { limit: Math.max(collectionIds.length, 100), withPayload: true }
+      );
+
+      const collections = results.map((result: ScrollPoint) =>
+        this.formatCollectionFromPayload(result.payload)
+      );
+
+      for (const collection of collections) {
+        const documents = await this.getCollectionDocuments(collection.id);
+        collection.notebook_collection_documents = documents;
+        collection.document_count = documents.length;
+      }
+
+      return collections;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error fetching notebook collections by ids: ${message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Fetch notebook collections by share_mode (e.g., 'authenticated').
+   * Lets listAccessibleCollections surface notebooks readable to any logged-in
+   * user without per-id lookups.
+   */
+  async getNotebookCollectionsByShareMode(
+    shareMode: NotebookShareMode,
+    options: GetCollectionsOptions = {}
+  ): Promise<NotebookCollection[]> {
+    await this.ensureInitialized();
+
+    try {
+      const { limit = 200, offset = 0 } = options;
+
+      const filter: QdrantFilter = {
+        must: [{ key: 'share_mode', match: { value: shareMode } }],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collections,
+        filter,
+        { limit, offset, withPayload: true }
+      );
+
+      return results.map((result: ScrollPoint) => this.formatCollectionFromPayload(result.payload));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error fetching notebook collections by share_mode: ${message}`);
+      return [];
+    }
+  }
+
+  /**
+   * List all notebook collections marked is_public=true across all users.
+   * Powers the "Von der Basis" community section on /notebooks. `is_public`
+   * is a discovery flag orthogonal to `share_mode`; access is still governed
+   * by `checkNotebookAccess`, which requires share_mode='authenticated' (or
+   * group membership) for non-owner reads.
+   */
+  async getPublicNotebookCollections(
+    options: GetCollectionsOptions = {}
+  ): Promise<NotebookCollection[]> {
+    await this.ensureInitialized();
+
+    try {
+      const { limit = 200, offset = 0 } = options;
+
+      const filter: QdrantFilter = {
+        must: [{ key: 'is_public', match: { value: true } }],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collections,
+        filter,
+        { limit, offset, withPayload: true }
+      );
+
+      return results.map((result) => this.formatCollectionFromPayload(result.payload));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error listing public Notebook collections: ${message}`);
+      throw new Error(`Failed to list public Notebook collections: ${message}`);
+    }
   }
 
   /**

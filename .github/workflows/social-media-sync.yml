@@ -28,9 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -43,8 +43,8 @@ jobs:
           ARGS="--source social-media"
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
-          echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
-          npx tsx apps/api/update-all-content.ts $ARGS
+          echo "Running: pnpm --filter @gruenerator/api run update:all -- $ARGS"
+          pnpm --filter @gruenerator/api run update:all -- $ARGS
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
@@ -83,16 +83,18 @@ jobs:
 
       - name: Update content stats page
         if: always()
-        run: npx tsx apps/api/generate-content-stats.ts
+        run: pnpm --filter @gruenerator/api run stats:content
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
           QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
+          # pnpm --filter sets cwd to apps/api/; override the cwd-relative default.
+          STATS_OUTPUT_PATH: ${{ github.workspace }}/documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
 
       - name: Create PR for stats page update
         if: always()
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: 'docs: update content stats after social media sync [skip ci]'
           title: 'docs: update content stats'

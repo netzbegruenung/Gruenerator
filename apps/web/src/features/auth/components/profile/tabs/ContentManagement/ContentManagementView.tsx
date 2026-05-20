@@ -31,8 +31,10 @@ const ContentManagementView = memo(
         <div className="rounded-lg border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 p-md">
           <p className="text-sm text-yellow-800 dark:text-yellow-300 m-0">
             Diese Seite wird bald entfernt. Deine gespeicherten Texte findest du jetzt unter{' '}
-            <a href="/recherche" className="font-medium underline hover:no-underline">Recherche</a>.
-            Hochgeladene Dokumente kannst du hier noch bis Juni 2026 herunterladen.
+            <a href="/recherche" className="font-medium underline hover:no-underline">
+              Recherche
+            </a>
+            . Hochgeladene Dokumente kannst du hier noch bis Juni 2026 herunterladen.
           </p>
         </div>
         <DocumentsSection

@@ -21,19 +21,43 @@ import {
   AvatarGroupCount,
   Skeleton,
 } from '@gruenerator/ui';
-import { WolkeSaveModal, uploadToWolke } from '@gruenerator/wolke';
+import { WolkeSaveModal, uploadToWolke, useShareLinks } from '@gruenerator/wolke';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
-import { FiClock, FiCloud, FiDownload, FiShare2, FiSidebar, FiX } from 'react-icons/fi';
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  memo,
+} from 'react';
+import { createPortal } from 'react-dom';
+import {
+  FiChevronDown,
+  FiClock,
+  FiCloud,
+  FiDownload,
+  FiMessageCircle,
+  FiMessageSquare,
+  FiMoreVertical,
+  FiShare2,
+  FiSidebar,
+  FiX,
+} from 'react-icons/fi';
 import { PiSun, PiMoon } from 'react-icons/pi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { z } from 'zod';
 
 import useDarkMode from '../../components/hooks/useDarkMode';
+import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 
 import { webAppDocsAdapter } from './docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
+import { useDocsLiveWolkeSync } from './useDocsLiveWolkeSync';
 
 import type { BlockNoteEditor } from '@blocknote/core';
 
@@ -44,6 +68,9 @@ const ShareModal = lazyWithRetry(() =>
 );
 const ChatSidebar = lazyWithRetry(() =>
   import('@gruenerator/docs').then((m) => ({ default: m.ChatSidebar }))
+);
+const DocsChatPanel = lazyWithRetry(() =>
+  import('./DocsChatPanel').then((m) => ({ default: m.DocsChatPanel }))
 );
 
 const GUEST_COLORS = [
@@ -59,21 +86,23 @@ const GUEST_COLORS = [
   '#52B788',
 ];
 
-interface GuestIdentity {
-  guestId: string;
-  guestName: string;
-  guestColor: string;
-  guestAnimalIndex: number;
-}
+const guestIdentitySchema = z.object({
+  guestId: z.string(),
+  guestName: z.string(),
+  guestColor: z.string(),
+  guestAnimalIndex: z.number(),
+});
+
+type GuestIdentity = z.infer<typeof guestIdentitySchema>;
 
 function getOrCreateGuestIdentity(): GuestIdentity {
   const stored = localStorage.getItem('docs-guest-identity');
   if (stored) {
     try {
-      const parsed = JSON.parse(stored) as GuestIdentity;
-      if (parsed.guestAnimalIndex !== undefined) return parsed;
+      const parsed = guestIdentitySchema.safeParse(JSON.parse(stored));
+      if (parsed.success) return parsed.data;
     } catch {
-      /* regenerate */
+      /* malformed JSON — fall through to regenerate */
     }
   }
 
@@ -89,11 +118,14 @@ function getOrCreateGuestIdentity(): GuestIdentity {
   return identity;
 }
 
-const SIDEBAR_TABS = [
-  { label: 'Chat', value: 'chat' as const },
-  { label: 'Kommentare', value: 'comments' as const },
-  { label: 'Versionen', value: 'versions' as const },
-];
+type SidebarPanel = 'chat' | 'legacy-chat' | 'comments' | 'versions';
+
+const SIDEBAR_TITLES: Record<SidebarPanel, string> = {
+  chat: 'Chat',
+  'legacy-chat': 'Älterer Chat',
+  comments: 'Kommentare',
+  versions: 'Versionen',
+};
 
 function EditorFAB({
   showDisconnected,
@@ -126,7 +158,7 @@ function EditorContent() {
   const adapter = useDocsAdapter();
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const { user, isAuthResolved, loading: authLoading, isInitialLoad } = useAuth({ lazy: true });
-  const isGuest = isAuthResolved && !user;
+  const isGuest = Boolean(isAuthResolved) && !user;
   console.warn('[Docs] Auth debug:', {
     isAuthResolved,
     authLoading,
@@ -154,6 +186,8 @@ function EditorContent() {
     staleTime: 30_000,
   });
 
+  useDocumentTitle(docData?.title);
+
   const canEdit = useMemo(() => {
     if (!docData) return false;
     if (isGuest) return docData.share_permission !== 'viewer';
@@ -172,7 +206,6 @@ function EditorContent() {
       queryClient.setQueryData(activeKey, (old: Document | undefined) =>
         old ? { ...old, title: newTitle } : old
       );
-      document.title = newTitle;
       try {
         await apiClient.put(`/docs/${id}`, { title: newTitle });
       } catch {
@@ -184,12 +217,26 @@ function EditorContent() {
 
   const [showShareModal, setShowShareModal] = useState(false);
   const [showWolkeModal, setShowWolkeModal] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<'chat' | 'comments' | 'versions'>('chat');
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showExportSubmenu, setShowExportSubmenu] = useState(false);
+  const [activeSidebar, setActiveSidebar] = useState<SidebarPanel | null>(null);
+  // Sticky: once the chat panel is opened, DocsChatPanel stays mounted to
+  // preserve its runtime + Hocuspocus connection across close/reopen. Avoids
+  // paying the chat infra cost for users who never open the panel.
+  const [hasOpenedChat, setHasOpenedChat] = useState(false);
+  useEffect(() => {
+    if (activeSidebar === 'chat' && !hasOpenedChat) setHasOpenedChat(true);
+  }, [activeSidebar, hasOpenedChat]);
   const [editor, setEditor] = useState<BlockNoteEditor | null>(null);
 
-  const exportMenuRef = useRef<HTMLDivElement>(null);
+  const { data: shareLinks } = useShareLinks('personal', null, { enabled: !isGuest });
+  const wolkeConnected = (shareLinks?.length ?? 0) > 0;
+
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+  const actionsButtonRef = useRef<HTMLButtonElement>(null);
+  const [actionsMenuRect, setActionsMenuRect] = useState<{ top: number; right: number } | null>(
+    null
+  );
   const commentsPortalRef = useRef<HTMLDivElement>(null);
   const [commentsPortalTarget, setCommentsPortalTarget] = useState<HTMLElement | null>(null);
 
@@ -207,6 +254,20 @@ function EditorContent() {
     guestName: guestIdentity?.guestName,
   });
   const collaborators = useCollaborators(provider);
+
+  const commentCount = useSyncExternalStore(
+    useCallback(
+      (onChange) => {
+        if (!ydoc) return () => {};
+        const threads = ydoc.getMap('threads');
+        threads.observe(onChange);
+        return () => threads.unobserve(onChange);
+      },
+      [ydoc]
+    ),
+    () => (ydoc ? ydoc.getMap('threads').size : 0),
+    () => 0
+  );
 
   const { messages, sendMessage, getLocalUser, setTyping, typingUsers } = useDocumentChat({
     ydoc,
@@ -227,15 +288,18 @@ function EditorContent() {
   }, []);
 
   useEffect(() => {
-    if (!showExportMenu) return;
+    if (!showActionsMenu) {
+      setShowExportSubmenu(false);
+      return;
+    }
     const handleClickOutside = (e: MouseEvent) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
-        setShowExportMenu(false);
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(e.target as Node)) {
+        setShowActionsMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showExportMenu]);
+  }, [showActionsMenu]);
 
   const handleExport = useCallback(async () => {
     if (!docData || !editor) return;
@@ -250,12 +314,14 @@ function EditorContent() {
       link.download = `${docData.title || 'Dokument'}.docx`;
       link.click();
       window.URL.revokeObjectURL(url);
-      setShowExportMenu(false);
+      setShowActionsMenu(false);
     } catch (error) {
       console.error('Export failed:', error);
     }
   }, [docData, editor]);
 
+  // @blocknote/xl-pdf-exporter and xl-odt-exporter ship no .d.ts in this install,
+  // so dynamic-import members are typed as `any`. Scoped disable until upstream types arrive.
   const handleExportPDF = useCallback(async () => {
     if (!docData || !editor) return;
     try {
@@ -272,7 +338,7 @@ function EditorContent() {
       link.download = `${docData.title || 'Dokument'}.pdf`;
       link.click();
       window.URL.revokeObjectURL(url);
-      setShowExportMenu(false);
+      setShowActionsMenu(false);
     } catch (error) {
       console.error('PDF export failed:', error);
     }
@@ -290,14 +356,14 @@ function EditorContent() {
       link.download = `${docData.title || 'Dokument'}.odt`;
       link.click();
       window.URL.revokeObjectURL(url);
-      setShowExportMenu(false);
+      setShowActionsMenu(false);
     } catch (error) {
       console.error('ODT export failed:', error);
     }
   }, [docData, editor]);
 
   const handleSaveToWolke = useCallback(
-    async (shareLinkId: string, folderPath?: string) => {
+    async (shareLinkId: string, folderPath: string | undefined, liveSync: boolean) => {
       if (!docData || !editor) throw new Error('Editor not ready');
       const { DOCXExporter, docxDefaultSchemaMappings } =
         await import('@blocknote/xl-docx-exporter');
@@ -311,22 +377,32 @@ function EditorContent() {
       }
       const base64Content = btoa(binary);
       const filename = `${docData.title || 'Dokument'}.docx`;
-      await uploadToWolke(shareLinkId, base64Content, filename, folderPath);
+      await uploadToWolke(shareLinkId, base64Content, filename, {
+        ...(folderPath ? { folderPath } : {}),
+        documentId: docData.id,
+        enableLiveSync: liveSync,
+      });
+      await queryClient.invalidateQueries({ queryKey: ['document', id] });
     },
-    [docData, editor]
+    [docData, editor, queryClient, id]
   );
 
-  const toggleSidebar = useCallback(() => {
-    setSidebarOpen((prev) => !prev);
+  useDocsLiveWolkeSync({ editor, docData, canEdit });
+
+  const togglePanel = useCallback((panel: SidebarPanel) => {
+    setActiveSidebar((prev) => (prev === panel ? null : panel));
   }, []);
 
-  useVersionHistoryShortcut(sidebarOpen, sidebarTab, setSidebarOpen, setSidebarTab);
+  useVersionHistoryShortcut(
+    activeSidebar !== null,
+    activeSidebar ?? 'chat',
+    (open) => setActiveSidebar(open ? 'versions' : null),
+    (tab) => setActiveSidebar(tab)
+  );
 
   useEffect(() => {
-    setCommentsPortalTarget(
-      sidebarOpen && sidebarTab === 'comments' ? commentsPortalRef.current : null
-    );
-  }, [sidebarOpen, sidebarTab]);
+    setCommentsPortalTarget(activeSidebar === 'comments' ? commentsPortalRef.current : null);
+  }, [activeSidebar]);
 
   const initialContent = useMemo(() => docData?.content || '', [docData?.content]);
 
@@ -415,13 +491,21 @@ function EditorContent() {
 
   const localUser = getLocalUser();
 
+  const hasLegacyMessages = messages.length > 0;
+  const effectivePanel: SidebarPanel | null =
+    activeSidebar === 'legacy-chat' && !hasLegacyMessages
+      ? 'chat'
+      : activeSidebar === 'comments' && commentCount === 0
+        ? null
+        : activeSidebar;
+
   return (
     <div className="h-full flex flex-col relative">
       {isEmbedded ? (
         <EditorFAB
           showDisconnected={showDisconnected}
-          sidebarOpen={sidebarOpen}
-          onToggleSidebar={toggleSidebar}
+          sidebarOpen={activeSidebar !== null}
+          onToggleSidebar={() => setActiveSidebar((prev) => (prev ? null : 'chat'))}
         />
       ) : (
         <EditorTopBar
@@ -432,6 +516,27 @@ function EditorContent() {
           onTitleChange={handleTitleChange}
           rightActions={
             <>
+              {!isGuest && docData.wolke_live_sync && docData.wolke_share_link_id && (
+                <button
+                  type="button"
+                  onClick={() => setShowWolkeModal(true)}
+                  className="group relative flex items-center gap-1.5 py-1 px-2 text-[0.75rem] rounded-full text-secondary-700 dark:text-secondary-300 transition-all duration-200 ease-out hover:bg-secondary-100/80 dark:hover:bg-secondary-900/50 hover:scale-105 hover:shadow-[0_0_0_3px_rgba(34,197,94,0.15)] dark:hover:shadow-[0_0_0_3px_rgba(34,197,94,0.25)]"
+                  title={
+                    docData.wolke_file_path
+                      ? `Live mit Wolke synchronisiert: ${docData.wolke_file_path}`
+                      : 'Live mit Wolke synchronisiert'
+                  }
+                  aria-label="Wolke-Live-Sync aktiv"
+                >
+                  <span className="relative flex items-center justify-center">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-secondary-400/40 opacity-0 group-hover:opacity-100 group-hover:animate-ping" />
+                    <FiCloud className="relative h-3.5 w-3.5 transition-transform duration-200 group-hover:scale-110" />
+                  </span>
+                  <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-all duration-200 group-hover:max-w-[3rem] group-hover:opacity-100">
+                    Live
+                  </span>
+                </button>
+              )}
               {isGuest && guestIdentity && (
                 <GuestBadge
                   guestName={guestIdentity.guestName}
@@ -462,110 +567,157 @@ function EditorContent() {
                       <AvatarGroupCount>+{collaborators.length - 5}</AvatarGroupCount>
                     )}
                   </AvatarGroup>
-                  <span className="glass-divider" />
                 </>
               )}
 
-              <div ref={exportMenuRef} className="relative">
+              <button
+                className={`glass-btn ${effectivePanel === 'chat' || effectivePanel === 'legacy-chat' ? 'active' : ''}`}
+                onClick={() => togglePanel('chat')}
+                aria-label="Chat"
+                title="Chat"
+              >
+                <FiMessageSquare />
+              </button>
+
+              {!isGuest && commentCount > 0 && (
                 <button
-                  className="glass-btn"
-                  onClick={() => setShowExportMenu(!showExportMenu)}
-                  aria-label="Exportieren"
+                  className={`glass-btn ${effectivePanel === 'comments' ? 'active' : ''}`}
+                  onClick={() => togglePanel('comments')}
+                  aria-label="Kommentare"
+                  title="Kommentare"
                 >
-                  <FiDownload />
+                  <FiMessageCircle />
                 </button>
-                {showExportMenu && (
-                  <div className="absolute top-[calc(100%+0.5rem)] right-0 min-w-[180px] p-1.5 bg-white/90 dark:bg-grey-900/90 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] z-[100]">
-                    <button
-                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                      onClick={handleExport}
-                    >
-                      <FiDownload />
-                      Als Word (.docx)
-                    </button>
-                    <button
-                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                      onClick={handleExportPDF}
-                    >
-                      <FiDownload />
-                      Als PDF (.pdf)
-                    </button>
-                    <button
-                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
-                      onClick={handleExportODT}
-                    >
-                      <FiDownload />
-                      Als ODT (.odt)
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {!isGuest && (
-                <>
-                  <button
-                    className="glass-btn"
-                    onClick={() => setShowWolkeModal(true)}
-                    aria-label="In Wolke speichern"
-                    title="In Wolke speichern"
-                  >
-                    <FiCloud />
-                  </button>
-
-                  {canEdit && (
-                    <button
-                      className="glass-btn"
-                      onClick={() => setShowShareModal(true)}
-                      aria-label="Teilen"
-                    >
-                      <FiShare2 />
-                    </button>
-                  )}
-
-                  <button
-                    className={`glass-btn ${sidebarOpen && sidebarTab === 'versions' ? 'active' : ''}`}
-                    onClick={() => {
-                      if (sidebarOpen && sidebarTab === 'versions') {
-                        setSidebarOpen(false);
-                      } else {
-                        setSidebarTab('versions');
-                        setSidebarOpen(true);
-                      }
-                    }}
-                    aria-label="Versionshistorie"
-                    title="Versionshistorie"
-                  >
-                    <FiClock />
-                  </button>
-
-                  <span className="glass-divider" />
-                </>
               )}
 
               <button
+                ref={actionsButtonRef}
                 className="glass-btn"
-                onClick={toggleDarkMode}
-                aria-label={darkMode ? 'Zum hellen Modus wechseln' : 'Zum dunklen Modus wechseln'}
-                title={darkMode ? 'Heller Modus' : 'Dunkler Modus'}
+                onClick={() => {
+                  if (showActionsMenu) {
+                    setShowActionsMenu(false);
+                    return;
+                  }
+                  const rect = actionsButtonRef.current?.getBoundingClientRect();
+                  if (rect) {
+                    setActionsMenuRect({
+                      top: rect.bottom + 8,
+                      right: window.innerWidth - rect.right,
+                    });
+                  }
+                  setShowActionsMenu(true);
+                }}
+                aria-label="Mehr Aktionen"
+                title="Mehr"
               >
-                {darkMode ? <PiMoon /> : <PiSun />}
+                <FiMoreVertical />
               </button>
-
-              <button
-                className={`glass-btn ${sidebarOpen ? 'active' : ''}`}
-                onClick={toggleSidebar}
-                aria-label="Seitenleiste"
-                title="Seitenleiste ein-/ausblenden"
-              >
-                <FiSidebar />
-              </button>
+              {showActionsMenu &&
+                actionsMenuRect &&
+                createPortal(
+                  <div
+                    ref={actionsMenuRef}
+                    className="fixed min-w-[200px] p-1.5 bg-white/90 dark:bg-grey-900/90 backdrop-blur-xl border border-white/30 dark:border-white/10 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] z-[1000]"
+                    style={{ top: actionsMenuRect.top, right: actionsMenuRect.right }}
+                  >
+                    {!isGuest && (
+                      <>
+                        {canEdit && (
+                          <button
+                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            onClick={() => {
+                              setShowActionsMenu(false);
+                              setShowShareModal(true);
+                            }}
+                          >
+                            <FiShare2 />
+                            Teilen
+                          </button>
+                        )}
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          onClick={() => {
+                            setShowActionsMenu(false);
+                            togglePanel('versions');
+                          }}
+                        >
+                          <FiClock />
+                          Versionshistorie
+                        </button>
+                        {wolkeConnected && (
+                          <button
+                            className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                            onClick={() => {
+                              setShowActionsMenu(false);
+                              setShowWolkeModal(true);
+                            }}
+                            title={docData.wolke_file_path ?? undefined}
+                          >
+                            <FiCloud />
+                            <span className="flex-1">In Wolke speichern</span>
+                            {docData.wolke_live_sync && (
+                              <span className="text-[0.6875rem] text-secondary-600 dark:text-secondary-400 font-medium">
+                                Live
+                              </span>
+                            )}
+                          </button>
+                        )}
+                        <div className="my-1 h-px bg-black/5 dark:bg-white/10" />
+                      </>
+                    )}
+                    <button
+                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                      onClick={() => {
+                        setShowActionsMenu(false);
+                        toggleDarkMode();
+                      }}
+                    >
+                      {darkMode ? <PiSun /> : <PiMoon />}
+                      {darkMode ? 'Heller Modus' : 'Dunkler Modus'}
+                    </button>
+                    <button
+                      className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                      onClick={() => setShowExportSubmenu((v) => !v)}
+                      aria-expanded={showExportSubmenu}
+                    >
+                      <FiDownload />
+                      <span className="flex-1">Exportieren</span>
+                      <FiChevronDown
+                        className={`!h-3.5 !w-3.5 transition-transform ${showExportSubmenu ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+                    {showExportSubmenu && (
+                      <div className="flex flex-col pl-4">
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          onClick={handleExport}
+                        >
+                          Als Word (.docx)
+                        </button>
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          onClick={handleExportPDF}
+                        >
+                          Als PDF (.pdf)
+                        </button>
+                        <button
+                          className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
+                          onClick={handleExportODT}
+                        >
+                          Als ODT (.odt)
+                        </button>
+                      </div>
+                    )}
+                  </div>,
+                  document.body
+                )}
             </>
           }
         />
       )}
 
       <div className="flex-1 flex flex-row overflow-hidden max-md:flex-col">
-        <main className="flex-1 min-w-0 overflow-y-auto py-4 px-6 bg-grey-100 dark:bg-grey-900 max-sm:px-0 max-sm:pt-0 max-sm:pb-[var(--mobile-keyboard-offset,0px)] max-sm:bg-background dark:max-sm:bg-background">
+        <main className="flex-1 min-w-0 overflow-y-auto scrollbar-thin py-4 px-6 bg-grey-100 dark:bg-grey-900 max-sm:px-0 max-sm:pt-0 max-sm:pb-[var(--mobile-keyboard-offset,0px)] max-sm:bg-background dark:max-sm:bg-background">
           <MemoizedBlockNoteEditor
             documentId={id!}
             initialContent={initialContent}
@@ -579,57 +731,88 @@ function EditorContent() {
           />
         </main>
 
-        {sidebarOpen && (
+        {hasOpenedChat && id && (
+          // Mount the chat infra (runtime, Hocuspocus, thread query) outside
+          // the conditional so closing/reopening the panel preserves messages
+          // and in-flight streams. The aside is hidden via CSS when the chat
+          // panel isn't the active sidebar.
+          <aside
+            className={
+              effectivePanel === 'chat'
+                ? 'w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200] max-md:pb-[var(--mobile-keyboard-offset,0px)]'
+                : 'hidden'
+            }
+          >
+            <Suspense fallback={null}>
+              <DocsChatPanel
+                documentId={id}
+                userId={user ? String(user.id) : null}
+                userName={user?.display_name ?? null}
+                documentTitle={docData?.title ?? null}
+                isOpen={effectivePanel === 'chat'}
+              />
+            </Suspense>
+            <button
+              onClick={() => setActiveSidebar(null)}
+              className="hidden max-md:flex absolute top-2 right-2 z-10 h-9 w-9 items-center justify-center rounded-lg bg-background/90 dark:bg-grey-900/90 text-grey-600 hover:bg-grey-100 hover:text-foreground dark:text-grey-300 dark:hover:bg-grey-700 shadow-sm border border-grey-200 dark:border-grey-700"
+              aria-label="KI-Chat schließen"
+            >
+              <FiX size={18} />
+            </button>
+          </aside>
+        )}
+
+        {effectivePanel && effectivePanel !== 'chat' && (
           <aside className="w-80 min-w-80 max-w-80 flex flex-col border-l border-grey-200 dark:border-grey-700 bg-background dark:bg-grey-900 overflow-hidden max-md:fixed max-md:inset-0 max-md:w-full max-md:min-w-full max-md:max-w-full max-md:border-l-0 max-md:z-[200]">
-            <div className="py-2 px-3 border-b border-grey-200 dark:border-grey-700 shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="inline-flex flex-1 rounded-lg bg-grey-100 p-0.5 dark:bg-grey-800">
-                  {SIDEBAR_TABS.map((tab) => (
-                    <button
-                      key={tab.value}
-                      onClick={() => setSidebarTab(tab.value)}
-                      className={`flex-1 rounded-md px-3 py-1 text-xs font-medium transition-all ${
-                        sidebarTab === tab.value
-                          ? 'bg-background-pure text-foreground shadow-sm'
-                          : 'text-grey-500 hover:text-grey-700 dark:text-grey-400 dark:hover:text-grey-200'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
+            <div className="py-2 px-3 border-b border-grey-200 dark:border-grey-700 shrink-0 flex items-center gap-2">
+              <span className="text-sm font-medium text-foreground flex-1">
+                {SIDEBAR_TITLES[effectivePanel]}
+              </span>
+              {effectivePanel === 'legacy-chat' && (
                 <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="hidden max-md:flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-grey-500 hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-700"
-                  aria-label="Seitenleiste schließen"
+                  onClick={() => setActiveSidebar('chat')}
+                  className="text-xs text-grey-500 hover:text-foreground underline"
                 >
-                  <FiX size={18} />
+                  KI-Chat
                 </button>
-              </div>
+              )}
+              <button
+                onClick={() => setActiveSidebar(null)}
+                className="h-8 w-8 shrink-0 flex items-center justify-center rounded-lg text-grey-500 hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-700"
+                aria-label="Seitenleiste schließen"
+              >
+                <FiX size={18} />
+              </button>
             </div>
 
-            {sidebarTab === 'chat' && (
-              <Suspense fallback={null}>
-                <ChatSidebar
-                  messages={messages}
-                  currentUserId={localUser?.id ?? null}
-                  onSend={sendMessage}
-                  isConnected={isConnected}
-                  hideHeader
-                  typingUsers={typingUsers}
-                  onTypingChange={setTyping}
-                  embedded
-                />
-              </Suspense>
+            {effectivePanel === 'legacy-chat' && hasLegacyMessages && (
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <div className="bg-amber-50 dark:bg-amber-950/40 border-l-4 border-amber-400 px-3 py-2 text-sm text-amber-900 dark:text-amber-200 shrink-0">
+                  Dieser Chat wurde durch den KI-Assistenten ersetzt. Verlauf bleibt einsehbar; neue
+                  Nachrichten bitte im KI-Chat.
+                </div>
+                <Suspense fallback={null}>
+                  <ChatSidebar
+                    messages={messages}
+                    currentUserId={localUser?.id ?? null}
+                    onSend={sendMessage}
+                    isConnected={isConnected}
+                    hideHeader
+                    typingUsers={typingUsers}
+                    onTypingChange={setTyping}
+                    embedded
+                  />
+                </Suspense>
+              </div>
             )}
 
-            {sidebarTab === 'comments' && (
+            {effectivePanel === 'comments' && (
               <div className="flex-1 overflow-y-auto">
                 <div className="p-2" ref={commentsPortalRef} />
               </div>
             )}
 
-            {sidebarTab === 'versions' && id && (
+            {effectivePanel === 'versions' && id && (
               <VersionHistory
                 documentId={id}
                 apiClient={apiClient}
@@ -662,6 +845,7 @@ function EditorContent() {
           open={showWolkeModal}
           onOpenChange={setShowWolkeModal}
           onSave={handleSaveToWolke}
+          initialLiveSync={!!docData.wolke_live_sync}
         />
       )}
     </div>

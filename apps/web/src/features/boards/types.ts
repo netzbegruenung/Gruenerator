@@ -12,9 +12,16 @@ export interface Board {
 
 function parseContent(board: Board): { is_archived?: boolean; board_type?: BoardType } {
   if (!board.content) return {};
-  return typeof board.content === 'string'
-    ? (JSON.parse(board.content) as { is_archived?: boolean; board_type?: BoardType })
-    : board.content;
+  if (typeof board.content !== 'string') return board.content;
+  try {
+    return JSON.parse(board.content) as { is_archived?: boolean; board_type?: BoardType };
+  } catch {
+    // Rows in `collaborative_documents` with subtype='boards' occasionally carry
+    // non-JSON content (e.g. BlockNote XHTML "<blockgroup>…") when the docs
+    // editor wrote to a row that was previously a board. Treat malformed
+    // metadata as absent rather than crashing every consumer in render.
+    return {};
+  }
 }
 
 export function getBoardType(board: Board): BoardType {

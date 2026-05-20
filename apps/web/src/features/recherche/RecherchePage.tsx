@@ -1,3 +1,5 @@
+import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
   Dialog,
   DialogContent,
@@ -30,7 +32,6 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 import PageContainer from '../../components/common/PageContainer';
 import ToolGrid from '../../components/common/ToolGrid';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import apiClient from '../../components/utils/apiClient';
 import { getIcon, NotebookIcon } from '../../config/icons';
 import { useGroups, type GroupSummary } from '../../features/groups/hooks/useGroups';
 import { useAuthStore } from '../../stores/authStore';
@@ -50,16 +51,6 @@ import type { ToolEntry } from '../../components/common/ToolGrid';
 import type { NotebookCollection } from '../../types/notebook';
 
 import { cn } from '@/utils/cn';
-
-interface EditorSaveData {
-  id?: string;
-  name: string;
-  description?: string;
-  selectionMode?: 'documents' | 'wolke';
-  documents?: string[];
-  wolkeShareLinks?: string[];
-  labels?: string[];
-}
 
 const tools: ToolEntry[] = [
   {
@@ -109,11 +100,15 @@ const NotebookCard = memo(
 
     const handleShareToGroup = async (groupId: string) => {
       try {
-        await apiClient.post(`/auth/groups/${groupId}/share`, {
-          contentType: 'system_notebooks',
-          contentId: notebook.id,
-          permissions: { read: true, write: false, collaborative: false },
+        const res = await getContractsClient().groups.shareContent({
+          params: { groupId },
+          body: {
+            contentType: 'system_notebooks',
+            contentId: notebook.id,
+            permissions: { read: true, write: false, collaborative: false },
+          },
         });
+        if (res.status !== 200) throw new Error('share failed');
         setSharedGroupId(groupId);
         setTimeout(() => setSharedGroupId(null), 2000);
       } catch {
@@ -269,11 +264,15 @@ const EigeneNotebooks = memo(
 
     const handleShareToGroup = async (collectionId: string, groupId: string) => {
       try {
-        await apiClient.post(`/auth/groups/${groupId}/share`, {
-          contentType: 'notebook_collections',
-          contentId: collectionId,
-          permissions: { read: true, write: false, collaborative: false },
+        const res = await getContractsClient().groups.shareContent({
+          params: { groupId },
+          body: {
+            contentType: 'notebook_collections',
+            contentId: collectionId,
+            permissions: { read: true, write: false, collaborative: false },
+          },
         });
+        if (res.status !== 200) throw new Error('share failed');
         setSharedInfo(collectionId);
         setTimeout(() => setSharedInfo(null), 2000);
       } catch {
@@ -559,29 +558,28 @@ const RecherchePage = () => {
   );
 
   const handleSave = useCallback(
-    async (data: unknown) => {
-      const saveData = data as EditorSaveData;
-      if (saveData.id) {
-        await updateQACollection(saveData.id, {
-          name: saveData.name,
-          description: saveData.description,
-          selectionMode: saveData.selectionMode,
-          documents: saveData.documents,
-          wolkeShareLinks: saveData.wolkeShareLinks,
-          labels: saveData.labels,
+    async (data: NotebookEditorSavePayload) => {
+      if (data.id) {
+        await updateQACollection(data.id, {
+          name: data.name,
+          description: data.description,
+          selectionMode: data.selectionMode,
+          documents: data.documents,
+          labels: data.labels,
+          wolkeFolders: data.wolkeFolders,
         });
       } else {
         const result = await createQACollection({
-          name: saveData.name,
-          description: saveData.description,
-          selectionMode: saveData.selectionMode,
-          documents: saveData.documents,
-          wolkeShareLinks: saveData.wolkeShareLinks,
-          labels: saveData.labels,
+          name: data.name,
+          description: data.description,
+          selectionMode: data.selectionMode,
+          documents: data.documents,
+          labels: data.labels,
+          wolkeFolders: data.wolkeFolders,
         });
 
-        if (result?.id && saveData.documents?.length) {
-          startPolling(String(result.id), saveData.documents);
+        if (result?.id && data.documents.length) {
+          startPolling(String(result.id), data.documents);
         }
       }
       setShowEditor(false);
@@ -692,7 +690,7 @@ const RecherchePage = () => {
 
         <Dialog open={showEditor} onOpenChange={(open) => !open && handleCancel()}>
           <DialogContent
-            className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
+            className="sm:max-w-[700px] w-[calc(100%-1rem)] max-h-[90dvh] overflow-y-auto p-0 [&>[data-slot=dialog-close]]:hidden"
             aria-describedby={undefined}
           >
             <DialogTitle className="sr-only">

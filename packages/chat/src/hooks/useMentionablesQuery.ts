@@ -18,6 +18,7 @@ import {
   setBoardMentionables,
   setCustomAgents,
   setDocMentionables,
+  setUserNotebookMentionables,
   type CustomAgentMentionable,
   type Mentionable,
 } from '../lib/mentionables';
@@ -31,6 +32,11 @@ interface DocListItem {
   id: string;
   title: string;
   document_subtype?: string;
+}
+
+interface UserNotebookListItem {
+  id: string;
+  name: string;
 }
 
 const STALE_TIME = 60_000;
@@ -107,14 +113,111 @@ export function useDocsQuery() {
   });
 }
 
+export function useUserNotebooksQuery() {
+  const apiClient = useApiClient();
+  return useQuery<UserNotebookListItem[]>({
+    queryKey: ['mention-user-notebooks'],
+    queryFn: async () => {
+      const res = await apiClient
+        .get<{ collections?: UserNotebookListItem[] }>('/auth/notebook-collections')
+        .catch(() => ({ collections: [] }));
+      const list = Array.isArray(res?.collections) ? res.collections : [];
+      setUserNotebookMentionables(
+        list.map((n) => ({ id: n.id, title: n.name, slug: slugify(n.name) }))
+      );
+      return list;
+    },
+    staleTime: STALE_TIME,
+    retry: 1,
+  });
+}
+
+export interface ChatShareLink {
+  id: string;
+  label?: string;
+  share_link?: string;
+  is_active?: boolean;
+  baseUrl?: string;
+}
+
+export interface ChatWolkeFile {
+  name: string;
+  href: string;
+  size: number | null;
+  isDirectory?: boolean;
+  fileExtension?: string;
+  isSupported?: boolean;
+  sizeFormatted?: string;
+  lastModifiedFormatted?: string;
+}
+
+export interface ChatWolkeBrowse {
+  shareLink: { id: string; label?: string; baseUrl?: string };
+  files: ChatWolkeFile[];
+}
+
 /**
- * Convenience hook that triggers all three queries — call from the chat
- * composer so dynamic mentionables are warm by the time @-popovers open.
+ * User's connected Nextcloud share links. Used by the @wolke picker to
+ * resolve which share to browse and to render the empty-state when the user
+ * has none. The endpoint is identical to the one apps/web's wolke feature
+ * page uses — we just route it through the chat package's ChatAdapter so
+ * mobile/desktop hosts don't need to set up the web-specific apiClient.
+ */
+export function useUserShareLinksQuery(enabled = true) {
+  const apiClient = useApiClient();
+  return useQuery<ChatShareLink[]>({
+    queryKey: ['mention-wolke-share-links'],
+    queryFn: async () => {
+      const res = await apiClient.get<{ shareLinks?: ChatShareLink[] } | ChatShareLink[]>(
+        '/api/nextcloud/share-links'
+      );
+      if (Array.isArray(res)) return res.filter((l) => l.is_active !== false);
+      return (res?.shareLinks ?? []).filter((l) => l.is_active !== false);
+    },
+    // Re-fetch on every picker open: users add/remove share links via
+    // /profile/wolke between sessions, and stale caching would keep showing
+    // the "Keine Wolke verbunden" empty state after the user just connected.
+    staleTime: 0,
+    refetchOnMount: 'always',
+    enabled,
+    retry: 1,
+  });
+}
+
+/**
+ * Folder listing for a single share link + path. Disabled until both
+ * `shareLinkId` and `enabled` are truthy so we don't fire empty browses.
+ */
+export function useWolkeBrowseQuery(shareLinkId: string | null, path: string, enabled = true) {
+  const apiClient = useApiClient();
+  return useQuery<ChatWolkeBrowse>({
+    queryKey: ['mention-wolke-browse', shareLinkId, path],
+    queryFn: async () => {
+      const qs = path ? `?path=${encodeURIComponent(path)}` : '';
+      const res = await apiClient.get<ChatWolkeBrowse>(
+        `/api/documents/wolke/browse/${shareLinkId}${qs}`
+      );
+      return {
+        shareLink: res.shareLink,
+        files: Array.isArray(res.files) ? res.files : [],
+      };
+    },
+    enabled: !!shareLinkId && enabled,
+    staleTime: 15_000,
+    retry: 1,
+  });
+}
+
+/**
+ * Convenience hook that triggers all dynamic-mentionable queries — call from
+ * the chat composer so dynamic mentionables are warm by the time @-popovers
+ * open.
  */
 export function useMentionablesQuery(): void {
   useCustomAgentsQuery();
   useBoardsQuery();
   useDocsQuery();
+  useUserNotebooksQuery();
 }
 
 /**

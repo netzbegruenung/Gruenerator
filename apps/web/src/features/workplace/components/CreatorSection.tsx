@@ -1,23 +1,22 @@
 import React, { Suspense, lazy, memo, useState } from 'react';
 
-import GeneratorInner from '../../texte/components/GeneratorInner';
 import ModePillRow from '../../texte/components/ModePillRow';
-import PresseSocialInner from '../../texte/components/PresseSocialInner';
-import { DEFAULT_MODE, MODE_MAP } from '../../texte/modes';
+import { DEFAULT_MODE } from '../../texte/modes';
 
+import BilderInner from './BilderInner';
 import BoardsInner from './BoardsInner';
 import ChatInner from './ChatInner';
-import ImagineInner from './ImagineInner';
+import DocsInner from './DocsInner';
 
 const EigeneTab = lazy(() => import('../../texte/tabs/EigeneTab'));
 
 const CreatorSection: React.FC = memo(() => {
   const [mode, setMode] = useState(DEFAULT_MODE);
-  const def = MODE_MAP[mode];
   const isChat = mode === 'chat';
   const isEigene = mode === 'eigene';
   const isBoards = mode === 'boards';
-  const isImagine = mode === 'imagine';
+  const isDocs = mode === 'docs';
+  const isBilder = mode === 'bilder';
 
   return (
     <div className="w-full flex flex-col gap-md">
@@ -37,16 +36,12 @@ const CreatorSection: React.FC = memo(() => {
         >
           <EigeneTab />
         </Suspense>
-      ) : isImagine ? (
-        <ImagineInner key={mode} />
+      ) : isBilder ? (
+        <BilderInner key={mode} />
       ) : isBoards ? (
         <BoardsInner key={mode} />
-      ) : def ? (
-        def.useCustomSubmit ? (
-          <PresseSocialInner key={mode} def={def} />
-        ) : (
-          <GeneratorInner key={mode} def={def} />
-        )
+      ) : isDocs ? (
+        <DocsInner key={mode} />
       ) : null}
     </div>
   );

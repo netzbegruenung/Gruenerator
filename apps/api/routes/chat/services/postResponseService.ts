@@ -21,9 +21,12 @@ import { extractTextContent } from './messageHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
 import type { ProcessedAttachmentMeta } from './attachmentProcessingService.js';
+import type { SharepicVariant } from './sharepicVariantHelpers.js';
 import type {
   ChatGraphState,
   GeneratedImageResult,
+  ResearchToolResult,
+  SearchResult,
   SearchSource,
 } from '../../../agents/langgraph/ChatGraph/types.js';
 import type { ModelMessage } from 'ai';
@@ -35,9 +38,100 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   web: 'web_search',
   research: 'research',
   examples: 'gruenerator_examples_search',
+  pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
+  image: 'image_generate',
+  image_edit: 'image_edit',
+  sharepic: 'sharepic',
 };
 
-function buildToolCalls(classifiedState: ChatGraphState, finalState: ChatGraphState) {
+/**
+ * Result payload shape for non-research tool calls (search, web, examples).
+ * The chat UI's generic result renderers read `result.results`. The examples
+ * cards (`PressemitteilungExamplesCard`, generic `ToolCallUI`) additionally
+ * read `result.examples`, so we attach a kind-specific list when present.
+ */
+interface SearchToolCallResult {
+  results: SearchResult[];
+  examples?: unknown[];
+}
+
+interface ImageToolCallResult {
+  url: string;
+  filename: string;
+  prompt: string;
+  style: string | null;
+  generationTimeMs: number;
+}
+
+interface SharepicToolCallResult {
+  variants: SharepicVariant[];
+}
+
+type ToolCallResult =
+  | SearchToolCallResult
+  | ResearchToolResult
+  | ImageToolCallResult
+  | SharepicToolCallResult;
+
+interface PersistedToolCall {
+  toolCallId: string;
+  toolName: string;
+  args: { query: string };
+  result: ToolCallResult;
+}
+
+/**
+ * Build the result payload for a single tool call.
+ * Research intent gets the rich `ResearchToolResult` shape that
+ * `ResearchResultUI` expects (answer/citations/confidence/searchSteps).
+ * Image/sharepic intents get their respective shapes so the corresponding
+ * cards rehydrate on thread reload. All other intents get the generic
+ * `{ results }` shape.
+ */
+function buildToolCallResult(
+  toolName: string,
+  finalState: ChatGraphState,
+  generatedImage: GeneratedImageResult | null,
+  sharepicVariants: SharepicVariant[]
+): ToolCallResult {
+  if (toolName === 'research' && finalState.researchMeta) {
+    return finalState.researchMeta;
+  }
+  if ((toolName === 'image_generate' || toolName === 'image_edit') && generatedImage) {
+    return {
+      url: generatedImage.url,
+      filename: generatedImage.filename,
+      prompt: generatedImage.prompt,
+      style: generatedImage.style,
+      generationTimeMs: generatedImage.generationTimeMs,
+    };
+  }
+  if (toolName === 'sharepic') {
+    return { variants: sharepicVariants };
+  }
+  const base: SearchToolCallResult = {
+    results: finalState.searchResults?.slice(0, 10) || [],
+  };
+  // Per-kind rich list for the examples cards (PressemitteilungExamplesCard
+  // reads result.examples with {title, body, lv, url}; generic ToolCallUI
+  // reads result.examples for social posts too).
+  const ex = finalState.examplesResult;
+  if (ex) {
+    if (toolName === 'gruenerator_pressemitteilung_examples' && ex.press) {
+      base.examples = ex.press;
+    } else if (toolName === 'gruenerator_examples_search' && ex.social) {
+      base.examples = ex.social;
+    }
+  }
+  return base;
+}
+
+function buildToolCalls(
+  classifiedState: ChatGraphState,
+  finalState: ChatGraphState,
+  generatedImage: GeneratedImageResult | null,
+  sharepicVariants: SharepicVariant[]
+): PersistedToolCall[] | undefined {
   const toolName = INTENT_TO_TOOL[finalState.intent];
   if (!toolName) return undefined;
 
@@ -48,7 +142,7 @@ function buildToolCalls(classifiedState: ChatGraphState, finalState: ChatGraphSt
   if (hasMultiSearch) {
     const queries = subQueries?.length ? subQueries : [classifiedState.searchQuery || ''];
     const sources: (SearchSource | null)[] = searchSources.length > 1 ? searchSources : [null];
-    const toolCalls = [];
+    const toolCalls: PersistedToolCall[] = [];
     let idx = 0;
     for (const q of queries) {
       for (const src of sources) {
@@ -58,7 +152,7 @@ function buildToolCalls(classifiedState: ChatGraphState, finalState: ChatGraphSt
           toolCallId: `tc_${Date.now()}_${idx++}`,
           toolName: tn,
           args: { query: q },
-          result: { results: finalState.searchResults?.slice(0, 10) || [] },
+          result: buildToolCallResult(tn, finalState, generatedImage, sharepicVariants),
         });
       }
     }
@@ -70,7 +164,7 @@ function buildToolCalls(classifiedState: ChatGraphState, finalState: ChatGraphSt
       toolCallId: `tc_${Date.now()}`,
       toolName,
       args: { query: classifiedState.searchQuery || '' },
-      result: { results: finalState.searchResults?.slice(0, 10) || [] },
+      result: buildToolCallResult(toolName, finalState, generatedImage, sharepicVariants),
     },
   ];
 }
@@ -82,6 +176,7 @@ export interface PersistParams {
   finalState: ChatGraphState;
   classifiedState: ChatGraphState;
   generatedImage: GeneratedImageResult | null;
+  sharepicVariants: SharepicVariant[];
   isNewThread: boolean;
   lastUserMessage: ModelMessage;
   processedMeta: ProcessedAttachmentMeta[];
@@ -100,6 +195,7 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     finalState,
     classifiedState,
     generatedImage,
+    sharepicVariants,
     isNewThread,
     lastUserMessage,
     processedMeta,
@@ -107,10 +203,10 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
     requestId,
   } = params;
 
-  if (!threadId || (!fullText && !generatedImage)) return;
+  if (!threadId || (!fullText && !generatedImage && sharepicVariants.length === 0)) return;
 
   try {
-    const toolCalls = buildToolCalls(classifiedState, finalState);
+    const toolCalls = buildToolCalls(classifiedState, finalState, generatedImage, sharepicVariants);
     await createMessage(threadId, 'assistant', fullText || null, {
       intent: finalState.intent,
       searchCount: finalState.searchCount,
@@ -148,15 +244,9 @@ export async function persistAssistantResponse(params: PersistParams): Promise<v
         fullTextPreview: fullText?.slice(0, 100),
         imageGenerated: !!generatedImage,
       });
-      generateThreadTitle(
-        threadId,
-        userText,
-        fullText,
-        aiWorkerPool,
-        {
-          imageGenerated: !!generatedImage,
-        }
-      ).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
+      generateThreadTitle(threadId, userText, fullText, aiWorkerPool, {
+        imageGenerated: !!generatedImage,
+      }).catch((err) => log.warn('[ChatGraph] Thread title generation failed:', err));
     } else if (!isNewThread) {
       log.info(`[ChatGraph] Skipping title generation — not a new thread (threadId=${threadId})`);
     } else if (!lastUserMessage) {
@@ -242,7 +332,7 @@ export async function persistResumedResponse(params: {
   if (!threadId || !fullText) return;
 
   try {
-    const toolCalls = buildToolCalls(classifiedState, finalState);
+    const toolCalls = buildToolCalls(classifiedState, finalState, null, []);
     await createMessage(threadId, 'assistant', fullText, {
       intent: finalState.intent,
       searchCount: finalState.searchCount,

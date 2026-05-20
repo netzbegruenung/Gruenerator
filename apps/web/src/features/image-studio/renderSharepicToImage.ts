@@ -12,7 +12,11 @@ import type { CanvasConfigId } from '@gruenerator/canvas-editor';
 import type { Root } from 'react-dom/client';
 
 function cleanup(root: Root | null, container: HTMLDivElement | null) {
-  try { root?.unmount(); } catch { /* already unmounted */ }
+  try {
+    root?.unmount();
+  } catch {
+    /* already unmounted */
+  }
   container?.remove();
 }
 

@@ -11,6 +11,12 @@ import { getVideoMetadata, TUS_UPLOAD_ENDPOINT, type VideoMetadata } from '../ut
 
 import { cn } from '@/utils/cn';
 
+/**
+ * Project list item used by the selector. Field names match the wire
+ * shape (`subtitlerProjectSchema` in @gruenerator/contracts) so this
+ * stays structurally compatible without the cell-rendering helpers
+ * having to absorb the contract's wider nullable / union types.
+ */
 interface Project {
   id: string;
   title: string;

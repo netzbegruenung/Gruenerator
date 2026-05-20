@@ -8,6 +8,7 @@ import PageContainer from '../../../components/common/PageContainer';
 import ToolGrid from '../../../components/common/ToolGrid';
 import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection from '../components/GroupsCreateSection';
+import PublicGroupsSection from '../components/PublicGroupsSection';
 import { useGroups, type GroupSummary } from '../hooks/useGroups';
 
 import type { ToolEntry } from '../../../components/common/ToolGrid';
@@ -109,6 +110,7 @@ const GruppenPage = () => {
               columns={2}
             />
           )}
+          <PublicGroupsSection onSuccessMessage={showSuccess} onErrorMessage={showError} />
         </>
       )}
 

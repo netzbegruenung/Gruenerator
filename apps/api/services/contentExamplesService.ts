@@ -138,6 +138,9 @@ interface SocialMediaSearchMethodOptions {
   threshold?: number;
   locale?: Locale | null;
   country?: CountryCode | null;
+  landesverband?: string | readonly string[] | null;
+  /** Override target collection — see `SocialMediaSearchOptions.collection`. */
+  collection?: string | null;
 }
 
 interface RandomSocialMediaOptions {
@@ -145,6 +148,8 @@ interface RandomSocialMediaOptions {
   limit?: number;
   locale?: Locale | null;
   country?: CountryCode | null;
+  landesverband?: string | readonly string[] | null;
+  collection?: string | null;
 }
 
 // =============================================================================
@@ -542,13 +547,19 @@ class ContentExamplesService {
       threshold = 0.15,
       locale = null,
       country = null,
+      landesverband = null,
+      collection = null,
     } = options;
 
     const resolvedCountry = country || this.getCountryFromLocale(locale);
 
     try {
       const countryInfo = resolvedCountry ? `, country: ${resolvedCountry}` : '';
-      log.debug(`Social media search: "${query}" (platform: ${platform || 'all'}${countryInfo})`);
+      const lvInfo = landesverband ? `, lv: ${JSON.stringify(landesverband)}` : '';
+      const collectionInfo = collection ? `, collection: ${collection}` : '';
+      log.debug(
+        `Social media search: "${query}" (platform: ${platform || 'all'}${countryInfo}${lvInfo}${collectionInfo})`
+      );
 
       await mistralEmbeddingService.init();
       if (!mistralEmbeddingService.isReady() || !(await this.qdrant.isAvailable())) {
@@ -559,8 +570,10 @@ class ContentExamplesService {
       const queryEmbedding = await mistralEmbeddingService.generateEmbedding(query);
 
       const searchResult = await this.qdrant.searchSocialMediaExamples(queryEmbedding, {
-        ...(platform && { platform }),
+        ...(platform && { platform: platform as 'facebook' | 'instagram' }),
         ...(resolvedCountry && { country: resolvedCountry }),
+        ...(landesverband != null && { landesverband }),
+        ...(collection != null && { collection }),
         limit,
         threshold,
       });
@@ -584,7 +597,14 @@ class ContentExamplesService {
   async getRandomSocialMediaExamples(
     options: RandomSocialMediaOptions = {}
   ): Promise<SocialMediaResult[]> {
-    const { platform = null, limit = this.defaultLimit, locale = null, country = null } = options;
+    const {
+      platform = null,
+      limit = this.defaultLimit,
+      locale = null,
+      country = null,
+      landesverband = null,
+      collection = null,
+    } = options;
 
     const resolvedCountry = country || this.getCountryFromLocale(locale);
 
@@ -595,13 +615,17 @@ class ContentExamplesService {
       }
 
       const countryInfo = resolvedCountry ? `, country: ${resolvedCountry}` : '';
+      const lvInfo = landesverband ? `, lv: ${JSON.stringify(landesverband)}` : '';
+      const collectionInfo = collection ? `, collection: ${collection}` : '';
       log.debug(
-        `Getting ${limit} random social media examples (platform: ${platform || 'all'}${countryInfo})`
+        `Getting ${limit} random social media examples (platform: ${platform || 'all'}${countryInfo}${lvInfo}${collectionInfo})`
       );
 
       const results = await this.qdrant.getRandomSocialMediaExamples({
         ...(platform && { platform: platform as 'facebook' | 'instagram' }),
         ...(resolvedCountry && { country: resolvedCountry }),
+        ...(landesverband != null && { landesverband }),
+        ...(collection != null && { collection }),
         limit,
       });
 

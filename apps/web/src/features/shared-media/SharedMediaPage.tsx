@@ -1,7 +1,8 @@
 import { Button } from '@gruenerator/ui';
+import { useQuery } from '@tanstack/react-query';
+import { QRCodeSVG } from 'qrcode.react';
 import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { FaInstagram } from 'react-icons/fa';
-import QRCode from 'react-qr-code';
 import { useParams } from 'react-router-dom';
 
 import LoginRequired from '../../components/common/LoginRequired/LoginRequired';
@@ -42,13 +43,10 @@ interface ShareApiResponse {
 const SharedMediaPage = () => {
   const { shareToken } = useParams();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const [shareData, setShareData] = useState<ShareData | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [downloadSuccess, setDownloadSuccess] = useState<boolean>(false);
   const [downloadError, setDownloadError] = useState<string>('');
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [manualError, setManualError] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [canNativeShare, setCanNativeShare] = useState<boolean>(false);
   const [isSharing, setIsSharing] = useState<boolean>(false);
@@ -75,67 +73,37 @@ const SharedMediaPage = () => {
     void checkShareCapability();
   }, []);
 
-  useEffect(() => {
-    const fetchShareData = async () => {
-      try {
-        const response = await apiClient.get<ShareApiResponse>(`/share/${shareToken}`, {
-          skipAuthRedirect: true,
-        });
-        if (response.data.success) {
-          setShareData(response.data.share ?? null);
-          if (response.data.share?.status === 'processing') {
-            setIsProcessing(true);
-          } else if (response.data.share?.status === 'failed') {
-            setError(
-              'Das Medium konnte nicht verarbeitet werden. Bitte erstelle einen neuen Share-Link.'
-            );
-          }
-        }
-      } catch (err) {
-        const error = err as unknown;
-        if ((error as { response?: { status?: number } })?.response?.status === 410) {
-          setError('Dieser Link ist nicht mehr gültig.');
-        } else if ((error as { response?: { status?: number } })?.response?.status === 404) {
-          setError('Dieses Medium existiert nicht oder wurde gelöscht.');
-        } else {
-          setError('Fehler beim Laden des Mediums.');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
+  const shareQuery = useQuery<ShareData | null, Error>({
+    queryKey: ['share', shareToken],
+    queryFn: async () => {
+      const response = await apiClient.get<ShareApiResponse>(`/share/${shareToken}`, {
+        skipAuthRedirect: true,
+      });
+      return response.data.success ? (response.data.share ?? null) : null;
+    },
+    enabled: Boolean(shareToken),
+    retry: false,
+    refetchInterval: (query) => (query.state.data?.status === 'processing' ? 5000 : false),
+  });
 
-    void fetchShareData();
-  }, [shareToken]);
+  const shareData = shareQuery.data ?? null;
+  const loading = shareQuery.isLoading;
+  const isProcessing = shareData?.status === 'processing';
 
-  useEffect(() => {
-    if (!isProcessing) return;
+  const queryErrorMessage = (() => {
+    if (!shareQuery.error) return null;
+    const status = (shareQuery.error as { response?: { status?: number } })?.response?.status;
+    if (status === 410) return 'Dieser Link ist nicht mehr gültig.';
+    if (status === 404) return 'Dieses Medium existiert nicht oder wurde gelöscht.';
+    return 'Fehler beim Laden des Mediums.';
+  })();
 
-    const pollStatus = async () => {
-      try {
-        const response = await apiClient.get<ShareApiResponse>(`/share/${shareToken}`, {
-          skipAuthRedirect: true,
-        });
-        if (response.data.success) {
-          const newStatus = response.data.share?.status;
-          if (newStatus === 'ready') {
-            setIsProcessing(false);
-            setShareData(response.data.share ?? null);
-          } else if (newStatus === 'failed') {
-            setIsProcessing(false);
-            setError(
-              'Das Medium konnte nicht verarbeitet werden. Bitte erstelle einen neuen Share-Link.'
-            );
-          }
-        }
-      } catch (err) {
-        // Silent fail for polling
-      }
-    };
+  const failedErrorMessage =
+    shareData?.status === 'failed'
+      ? 'Das Medium konnte nicht verarbeitet werden. Bitte erstelle einen neuen Share-Link.'
+      : null;
 
-    const interval = setInterval(pollStatus, 5000);
-    return () => clearInterval(interval);
-  }, [isProcessing, shareToken]);
+  const error = manualError ?? queryErrorMessage ?? failedErrorMessage;
 
   const handleDownload = async () => {
     if (!isAuthenticated) return;
@@ -172,7 +140,7 @@ const SharedMediaPage = () => {
     } catch (err) {
       const error = err as unknown;
       if ((error as { response?: { status?: number } })?.response?.status === 410) {
-        setError('Dieser Link ist nicht mehr gültig.');
+        setManualError('Dieser Link ist nicht mehr gültig.');
       } else {
         setDownloadError('Download fehlgeschlagen. Bitte versuche es erneut.');
       }
@@ -330,7 +298,7 @@ const SharedMediaPage = () => {
           onClick={handleShare}
           title={copied ? 'Link kopiert!' : 'Klicken zum Teilen'}
         >
-          <QRCode value={window.location.href} size={64} level="M" />
+          <QRCodeSVG value={window.location.href} size={64} level="M" />
           {copied && (
             <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary-600 text-white px-sm py-xxs rounded-sm text-xs whitespace-nowrap">
               Kopiert!

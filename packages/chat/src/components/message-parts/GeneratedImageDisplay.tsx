@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Loader2, Image, Download } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Loader2, Image, Download, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import type { GeneratedImage } from '../../hooks/useChatGraphStream';
 
@@ -19,10 +19,28 @@ const styleLabels: Record<GeneratedImage['style'], string> = {
 
 export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
   const [isLoading, setIsLoading] = useState(true);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const imageSrc = image.base64 || image.url;
+
+  // ESC to close + lock body scroll while open. Native overlay (no Radix Dialog)
+  // because this is a passive image viewer, not a modal with focus-trap needs.
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsLightboxOpen(false);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isLightboxOpen]);
 
   const handleDownload = () => {
     const link = document.createElement('a');
-    link.href = image.base64 || image.url;
+    link.href = imageSrc;
     link.download = image.filename || 'generated-image.jpg';
     document.body.appendChild(link);
     link.click();
@@ -37,15 +55,22 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
             <Loader2 className="h-8 w-8 animate-spin text-foreground-muted" />
           </div>
         )}
-        <img
-          src={image.base64 || image.url}
-          alt="Generiertes Bild"
-          className={cn(
-            'max-h-[400px] w-auto rounded-lg transition-opacity',
-            isLoading ? 'opacity-0' : 'opacity-100'
-          )}
-          onLoad={() => setIsLoading(false)}
-        />
+        <button
+          type="button"
+          onClick={() => setIsLightboxOpen(true)}
+          className="block cursor-zoom-in"
+          aria-label="Bild vergrößert anzeigen"
+        >
+          <img
+            src={imageSrc}
+            alt="Generiertes Bild"
+            className={cn(
+              'max-h-[400px] w-auto rounded-lg transition-opacity',
+              isLoading ? 'opacity-0' : 'opacity-100'
+            )}
+            onLoad={() => setIsLoading(false)}
+          />
+        </button>
       </div>
 
       <div className="flex items-center justify-between">
@@ -68,6 +93,34 @@ export function GeneratedImageDisplay({ image }: GeneratedImageDisplayProps) {
           <span>Herunterladen</span>
         </button>
       </div>
+
+      {isLightboxOpen && (
+        <div
+          className="fixed inset-0 z-50 flex cursor-zoom-out items-center justify-center bg-black/90 p-4"
+          onClick={() => setIsLightboxOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Bild vergrößert"
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsLightboxOpen(false);
+            }}
+            className="absolute right-4 top-4 rounded-full bg-black/40 p-2 text-white hover:bg-black/60"
+            aria-label="Schließen"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img
+            src={imageSrc}
+            alt="Generiertes Bild (vergrößert)"
+            className="max-h-[95vh] max-w-[95vw] cursor-default rounded-md object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

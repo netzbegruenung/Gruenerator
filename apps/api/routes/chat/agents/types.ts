@@ -1,21 +1,21 @@
 /**
- * Agent configuration types for the AI chat service
+ * Agent configuration types for the AI chat service.
+ *
+ * `ToolRestrictions` is now sourced from `@gruenerator/shared/agents` so the
+ * API and the shared package can't drift. Re-exported here so existing
+ * `import { ToolRestrictions } from '.../routes/chat/agents/types'` callers
+ * keep compiling without touching their import paths.
  */
+import type { ToolRestrictions } from '@gruenerator/shared/agents';
+export type { ToolRestrictions } from '@gruenerator/shared/agents';
 
 /**
- * Tool restrictions allow per-agent customization of available search tools.
- * This enables country-specific agents (e.g., Austrian agent) to only access
- * relevant collections, enforced at the server level.
+ * Hard-pinned filters merged into tool calls (Qdrant / examples service).
+ * Invisible to the LLM — applied server-side in directSearchExecutors.
  */
-export interface ToolRestrictions {
-  /** Restrict gruenerator_search to specific collections */
-  allowedCollections?: string[] | undefined;
-  /** Default collection when not specified in query */
-  defaultCollection?: string | undefined;
-  /** Filter social media examples by country (DE = Germany, AT = Austria) */
-  examplesCountry?: 'DE' | 'AT' | undefined;
-  /** Disable person search tool (e.g., no Austrian politician DB exists) */
-  personSearchEnabled?: boolean | undefined;
+export interface AgentDefaultFilter {
+  /** Landesverband shortName(s), e.g. 'BE' or ['BE', 'BE-F']. */
+  landesverband?: readonly string[] | string | undefined;
 }
 
 export interface FewShotExample {
@@ -52,6 +52,10 @@ export interface AgentConfig {
   fewShotExamples?: FewShotExample[] | undefined;
   /** Runtime-only: set by controller, not by agent YAML files */
   userId?: string | undefined;
+  /** Backend dispatch target. 'search' routes turns to /api/search-graph/stream. */
+  routeTo?: 'chat' | 'search' | undefined;
+  /** Server-side default filter merged into tool calls (e.g. LV scoping). */
+  defaultFilter?: AgentDefaultFilter | undefined;
 }
 
 export interface Thread {

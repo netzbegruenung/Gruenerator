@@ -13,7 +13,11 @@ export interface RouteConfig {
   component: LazyExoticComponent<ComponentType<Record<string, unknown>>>;
   withForm?: boolean;
   layoutMode?: LayoutMode;
-  auth?: 'required' | 'guest';
+  // Auth model: every route requires login by default. Set `public: true` to
+  // opt out. The list of public routes is intentionally small — marketing
+  // startpage, legal pages, login UI, public shares. New routes are
+  // auth-required unless this flag is explicitly set.
+  public?: boolean;
   devOnly?: boolean;
 }
 
@@ -38,6 +42,15 @@ const LegacyNotebookIdRedirectComponent: FC<Record<string, unknown>> = () => {
 };
 const LegacyNotebookIdRedirect = lazy(() =>
   Promise.resolve({ default: LegacyNotebookIdRedirectComponent })
+);
+
+// Redirect singular /agent/:slug → canonical plural /agents/:slug
+const LegacyAgentSlugRedirectComponent: FC<Record<string, unknown>> = () => {
+  const { slug } = useParams();
+  return createElement(Navigate, { to: `/agents/${slug ?? ''}`, replace: true });
+};
+const LegacyAgentSlugRedirect = lazy(() =>
+  Promise.resolve({ default: LegacyAgentSlugRedirectComponent })
 );
 const DocumentToDocsRedirectComponent: FC<Record<string, unknown>> = () => {
   const { id } = useParams();
@@ -93,6 +106,7 @@ const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
 const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
 const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
+const IconAnimationTestPage = lazy(() => import('../features/playground/IconAnimationTestPage'));
 const CustomGeneratorPage = lazy(() => import('../features/generators/CustomGeneratorPage'));
 const CreateCustomGeneratorPage = lazy(
   () => import('../features/generators/CreateCustomGeneratorPage')
@@ -119,14 +133,20 @@ const Nutzungsbedingungen = lazy(
 const NotFound = lazy(() => import('../components/pages/NotFound'));
 const Search = lazy(() => import('../features/search/components/SearchPage'));
 const OparlPage = lazy(() => import('../features/oparl/pages/OparlPage'));
-const NotebookRootPage = lazy(() =>
-  import('../features/notebook/components/NotebookRoot').then((m) => ({
-    default: m.NotebookRoot,
-  }))
-);
+const NotebookRootPage = lazy(() => import('../features/notebook/components/NotebooksIndexPage'));
 const NotebookResolverPage = lazy(() =>
   import('../features/notebook/components/NotebookResolver').then((m) => ({
     default: m.NotebookResolver,
+  }))
+);
+const NotebookCreatePage = lazy(() =>
+  import('../features/notebook/components/NotebookEditorPage').then((m) => ({
+    default: m.NotebookCreatePage,
+  }))
+);
+const NotebookEditPage = lazy(() =>
+  import('../features/notebook/components/NotebookEditorPage').then((m) => ({
+    default: m.NotebookEditPage,
   }))
 );
 const DocumentViewPage = lazy(() => import('../features/documents/DocumentViewPage'));
@@ -159,7 +179,7 @@ const BriefingPage = lazy(() => import('../features/briefing/BriefingPage'));
 const BriefingArchivePage = lazy(() => import('../features/briefing/BriefingArchivePage'));
 const BriefingArticlePage = lazy(() => import('../features/briefing/BriefingArticlePage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
-const RecherchePage = lazy(() => import('../features/recherche/RecherchePage'));
+// const RecherchePage = lazy(() => import('../features/recherche/RecherchePage'));
 const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
 const BoardsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/docs') }));
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
@@ -168,10 +188,15 @@ const CollabCanvasStudioPage = lazy(
   () => import('../features/image-studio/CollabCanvasStudioPage')
 );
 const GruenOMatDemoPage = lazy(() => import('../features/gruen-o-mat/GruenOMatDemoPage'));
-const ResearchPage = lazy(() => import('../features/research/ResearchPage'));
 const MonitorPage = lazy(() => import('../features/monitor/MonitorPage'));
 const DocsPage = lazy(() => import('../features/docs/DocsPage'));
 const DocsEditorPage = lazy(() => import('../features/docs/DocsEditorPage'));
+const SitesHomePage = lazy(() => import('../features/sites/SitesHomePage'));
+const SitesLoginPage = lazy(() => import('../features/sites/SitesLoginPage'));
+const SitesDemoPage = lazy(() => import('../features/sites/SitesDemoPage'));
+const SitesEditPage = lazy(() => import('../features/sites/SitesEditPage'));
+const AgentBuilderPage = lazy(() => import('../features/agents/AgentBuilderPage'));
+const SkillsPage = lazy(() => import('../features/skills/SkillsPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -200,20 +225,53 @@ const standardRoutes: RouteConfig[] = [
   // Desktop app always shows DesktopHome dashboard; web redirects auth'd users to /workplace
   isDesktopApp()
     ? { path: '/', component: DesktopHome }
-    : { path: '/', component: Startseite, auth: 'guest' as const, layoutMode: 'noChrome' as const },
-  { path: '/startseite', component: Startseite, auth: 'guest', layoutMode: 'noChrome' as const },
+    : {
+        path: '/',
+        component: Startseite,
+        public: true,
+        layoutMode: 'noChrome' as const,
+      },
+  { path: '/startseite', component: Startseite, public: true, layoutMode: 'noChrome' as const },
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   { path: '/workplace', component: WorkplacePage },
+  // Agent builder/editor. Dev-only until the feature ships — gated via the
+  // existing `devOnly` filter at the bottom of this file (Vite tree-shakes the
+  // routes in prod). The list/overview lives on the unified Library page at
+  // /skills.
+  {
+    path: '/agents/new',
+    component: AgentBuilderPage,
+    devOnly: true,
+  },
+  {
+    path: '/agents/:identifier/edit',
+    component: AgentBuilderPage,
+    devOnly: true,
+  },
+  // Chat with a specific system agent at /agents/<slug>. Slug is the agent
+  // identifier with the `gruenerator-` prefix stripped (see `getAgentSlug`
+  // in @gruenerator/shared/agents). ChatPage handles both this path-based
+  // form and the legacy `/chat?agent=<slug>` query form.
+  { path: '/agents/:slug', component: ChatPage, layoutMode: 'sidebarOnly' },
   {
     path: '/desk',
     component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
   },
-  { path: '/recherche', component: RecherchePage },
+  // RecherchePage replaced by /notebooks index page; keep route as a redirect for old links
+  {
+    path: '/recherche',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
+  },
+  { path: '/skills', component: SkillsPage },
   { path: '/gruppen', component: GruppenPage },
   { path: '/gruppen/:groupId', component: GruppenPage },
   { path: '/gruen-o-mat', component: GruenOMatDemoPage },
-  { path: '/research', component: ResearchPage },
+  // ResearchPage removed; /notebooks is the canonical entry point. Keep route as redirect for old links.
+  {
+    path: '/research',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
+  },
   { path: '/monitor', component: MonitorPage },
   { path: '/briefing', component: BriefingPage },
   { path: '/briefing/:agentId/archiv', component: BriefingArchivePage },
@@ -221,7 +279,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/admin', component: AdminDashboardPage },
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/playground', component: PlaygroundPage },
-  { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe, devOnly: true },
+  { path: '/icon-test', component: IconAnimationTestPage, devOnly: true },
+  { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   {
@@ -229,6 +288,27 @@ const standardRoutes: RouteConfig[] = [
     component: GrueneratorenBundle.NotebookRoot,
     withForm: true,
     layoutMode: 'sidebarOnly',
+  },
+  // Explicit routes must come BEFORE the catch-all /notebooks/:idOrSlug so they
+  // win the match — react-router resolves by listed order for path-level conflicts.
+  {
+    path: '/notebooks/neu',
+    component: NotebookCreatePage,
+    layoutMode: 'sidebarOnly',
+  },
+  {
+    path: '/notebooks/:id/bearbeiten',
+    component: NotebookEditPage,
+    layoutMode: 'sidebarOnly',
+  },
+  // Legacy /notebooks/meine paths → fold to the new single-page surface.
+  {
+    path: '/notebooks/meine',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
+  },
+  {
+    path: '/notebooks/meine/neu',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/neu') })),
   },
   {
     path: '/notebooks/:idOrSlug',
@@ -314,30 +394,35 @@ const standardRoutes: RouteConfig[] = [
   { path: '/scanner', component: GrueneratorenBundle.Scanner },
   { path: '/transfer', component: GrueneratorenBundle.Transfer, devOnly: true },
   { path: '/transkription', component: GrueneratorenBundle.Transkription },
-  { path: '/subtitler/share/:shareToken', component: SharedVideoPage, layoutMode: 'noChrome' },
-  { path: '/share/:shareToken', component: SharedMediaPage, layoutMode: 'noChrome' },
+  {
+    path: '/subtitler/share/:shareToken',
+    component: SharedVideoPage,
+    layoutMode: 'noChrome',
+    public: true,
+  },
+  { path: '/share/:shareToken', component: SharedMediaPage, layoutMode: 'noChrome', public: true },
   { path: '/gruenerator/erstellen', component: CreateCustomGeneratorPage, withForm: true },
   { path: '/gruenerator/:slug', component: GrueneratorenBundle.CustomGenerator, withForm: true },
   // Redirects for removed pages
-  {
-    path: '/agent/:slug',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
-  },
+  // Legacy singular `/agent/:slug` URLs now route to the canonical plural
+  // `/agents/:slug` so old bookmarks open the agent's chat instead of
+  // bouncing to /workplace.
+  { path: '/agent/:slug', component: LegacyAgentSlugRedirect },
   {
     path: '/prompt/:slug',
     component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
   },
   {
     path: '/ask',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/recherche') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
   },
-  { path: '/datenschutz', component: Datenschutz },
-  { path: '/impressum', component: Impressum },
-  { path: '/support', component: Support },
-  { path: '/nutzungsbedingungen', component: Nutzungsbedingungen },
+  { path: '/datenschutz', component: Datenschutz, public: true },
+  { path: '/impressum', component: Impressum, public: true },
+  { path: '/support', component: Support, public: true },
+  { path: '/nutzungsbedingungen', component: Nutzungsbedingungen, public: true },
   // Auth-Routen (only components still used after Authentic integration)
-  { path: '/login', component: LoginPage, auth: 'guest' },
-  { path: '/register', component: RegistrationPage, auth: 'guest' },
+  { path: '/login', component: LoginPage, public: true },
+  { path: '/register', component: RegistrationPage, public: true },
   { path: '/profile', component: ProfilePage },
   { path: '/profile/:tab', component: ProfilePage },
   { path: '/profile/:tab/:subtab', component: ProfilePage },
@@ -394,9 +479,14 @@ const standardRoutes: RouteConfig[] = [
   { path: '/docs', component: DocsPage, layoutMode: 'sidebarOnly' },
   { path: '/docs/:id', component: DocsEditorPage, layoutMode: 'immersive' },
   { path: '/boards', component: BoardsListRedirect },
-  { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome' },
+  { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'noChrome' },
-  { path: '*', component: NotFound },
+  // Sites Feature Routes — embedded candidate site builder
+  { path: '/sites', component: SitesHomePage, layoutMode: 'immersive' },
+  { path: '/sites/login', component: SitesLoginPage, layoutMode: 'immersive', public: true },
+  { path: '/sites/demo', component: SitesDemoPage, layoutMode: 'immersive' },
+  { path: '/sites/edit', component: SitesEditPage, layoutMode: 'immersive' },
+  { path: '*', component: NotFound, public: true },
 ];
 
 // Mobile editor is noChrome — added as standard route
@@ -406,22 +496,11 @@ standardRoutes.push({
   layoutMode: 'noChrome',
 });
 
-const specialRoutes: RouteConfig[] = [];
-
-export interface Routes {
-  guest: RouteConfig[];
-  protected: RouteConfig[];
-  public: RouteConfig[];
-  special: RouteConfig[];
-}
-
-const enabledRoutes = standardRoutes.filter((r) => !r.devOnly || import.meta.env.DEV);
-
-export const routes: Routes = {
-  guest: enabledRoutes.filter((r) => r.auth === 'guest'),
-  protected: enabledRoutes.filter((r) => r.auth === 'required'),
-  public: enabledRoutes.filter((r) => !r.auth),
-  special: specialRoutes,
-};
+// Flat list of all enabled routes. Auth is enforced at mount time by
+// `RequireAuth`, not by bucketing routes here. A route opts out of the
+// auth gate by setting `public: true`.
+export const routes: RouteConfig[] = standardRoutes.filter(
+  (r) => !r.devOnly || import.meta.env.DEV
+);
 
 export default routes;

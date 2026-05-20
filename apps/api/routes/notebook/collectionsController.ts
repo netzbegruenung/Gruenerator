@@ -10,13 +10,10 @@
 
 import express, { type Response } from 'express';
 
-import { env } from '../../config/env.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddleware from '../../middleware/authMiddleware.js';
-import { processUploadedDocument } from '../../services/document-services/DocumentProcessingService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/DocumentSearchService/index.js';
-import { getPostgresDocumentService } from '../../services/document-services/PostgresDocumentService/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type DocumentId, type NotebookId } from '../../utils/types/branded.js';
 
@@ -30,6 +27,7 @@ import type {
   NotebookCollectionFromQdrant,
 } from './types.js';
 import type { AuthenticatedRequest } from '../../middleware/types.js';
+import type { LinkedDocRef, WolkeFolderRef } from '@gruenerator/contracts';
 
 const log = createLogger('notebookCollections');
 const { requireAuth } = authMiddleware;
@@ -142,6 +140,12 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
 
         const settings = (collection.settings as Record<string, unknown>) || {};
         const labels = Array.isArray(settings.labels) ? (settings.labels as string[]) : [];
+        const wolke_folders: WolkeFolderRef[] = Array.isArray(settings.wolke_folders)
+          ? (settings.wolke_folders as WolkeFolderRef[])
+          : [];
+        const linked_docs: LinkedDocRef[] = Array.isArray(settings.linked_docs)
+          ? (settings.linked_docs as LinkedDocRef[])
+          : [];
 
         return {
           ...collection,
@@ -154,6 +158,9 @@ router.get('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =>
           auto_sync: !!collection.auto_sync,
           remove_missing_on_sync: !!collection.remove_missing_on_sync,
           labels,
+          wolke_folders,
+          linked_docs,
+          slug_suffix: collection.slug_suffix ?? null,
         };
       })
     );
@@ -187,14 +194,18 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       auto_sync = false,
       remove_missing_on_sync = false,
       labels,
+      wolke_folders: wolkeFoldersRaw,
+      linked_docs: linkedDocsRaw,
     } = req.body as CreateCollectionBody;
+    const wolke_folders = Array.isArray(wolkeFoldersRaw) ? wolkeFoldersRaw : [];
+    const linked_docs = Array.isArray(linkedDocsRaw) ? linkedDocsRaw : [];
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Name is required' });
     }
 
-    if (Array.isArray(document_ids) && document_ids.length > 1) {
-      return res.status(400).json({ error: 'Currently limited to 1 document per notebook' });
+    if (Array.isArray(document_ids) && document_ids.length > 20) {
+      return res.status(400).json({ error: 'A notebook can contain at most 20 documents' });
     }
 
     let allDocumentIds: string[] = [];
@@ -251,11 +262,18 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       remove_missing_on_sync: selection_mode === 'wolke' ? !!remove_missing_on_sync : false,
       settings: {
         ...(Array.isArray(labels) ? { labels: labels.map((l) => l.trim()).filter(Boolean) } : {}),
+        wolke_folders,
+        linked_docs,
       },
     };
 
     const result = await notebookHelper.storeNotebookCollection(collectionData);
     const collectionId = result.collection_id;
+    // storeNotebookCollection minted (or preserved) the slug suffix; refetch to
+    // surface it back to the client so the UI can navigate straight to the
+    // pretty URL instead of falling back to the UUID path.
+    const persisted = await notebookHelper.getNotebookCollection(collectionId);
+    const slugSuffix = persisted?.slug_suffix ?? null;
 
     try {
       await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
@@ -263,30 +281,6 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
       log.error('[Notebook Collections] Error adding documents:', docError);
       await notebookHelper.deleteNotebookCollection(collectionId);
       return res.status(500).json({ error: 'Failed to add documents to collection' });
-    }
-
-    // Fire-and-forget: process any documents that are still in 'uploaded' state
-    if (selection_mode !== 'wolke' && allDocumentIds.length > 0) {
-      const pendingDocs = (await postgres.query(
-        `SELECT id FROM documents WHERE id = ANY($1) AND user_id = $2 AND status = 'uploaded'`,
-        [allDocumentIds, userId]
-      )) as Array<{ id: string }>;
-
-      if (pendingDocs.length > 0) {
-        const pgDocService = getPostgresDocumentService();
-        const qdrantDocService = getQdrantDocumentService();
-        for (const doc of pendingDocs) {
-          processUploadedDocument(pgDocService, qdrantDocService, doc.id, userId).catch((err) => {
-            log.error(
-              `[Notebook Collections] Background processing failed for doc ${doc.id}:`,
-              err
-            );
-          });
-        }
-        log.debug(
-          `[Notebook Collections] Kicked off background processing for ${pendingDocs.length} document(s)`
-        );
-      }
     }
 
     return res.status(201).json({
@@ -298,6 +292,7 @@ router.post('/', requireAuth, async (req: AuthenticatedRequest, res: Response) =
         documents_from_wolke: selection_mode === 'wolke' ? wolkeDocuments.length : 0,
         wolke_share_links: selection_mode === 'wolke' ? wolke_share_link_ids : [],
         created_at: new Date().toISOString(),
+        slug_suffix: slugSuffix,
       },
       message: `Notebook collection created successfully with ${allDocumentIds.length} document(s)`,
     });
@@ -328,14 +323,16 @@ router.put(
         auto_sync,
         remove_missing_on_sync,
         labels,
+        wolke_folders: wolkeFoldersRaw,
+        linked_docs: linkedDocsRaw,
       } = req.body as UpdateCollectionBody;
 
       if (!name || !name.trim()) {
         return res.status(400).json({ error: 'Name is required' });
       }
 
-      if (Array.isArray(document_ids) && document_ids.length > 1) {
-        return res.status(400).json({ error: 'Currently limited to 1 document per notebook' });
+      if (Array.isArray(document_ids) && document_ids.length > 20) {
+        return res.status(400).json({ error: 'A notebook can contain at most 20 documents' });
       }
 
       const existingCollection = await notebookHelper.getNotebookCollection(collectionId);
@@ -395,12 +392,23 @@ router.put(
         wolke_share_link_ids: selection_mode === 'wolke' ? wolke_share_link_ids : null,
       };
 
+      const existingSettings = (existingCollection.settings as Record<string, unknown>) || {};
+      const settingsPatch: Record<string, unknown> = { ...existingSettings };
+      let settingsChanged = false;
       if (Array.isArray(labels)) {
-        const existingSettings = (existingCollection.settings as Record<string, unknown>) || {};
-        updateData.settings = {
-          ...existingSettings,
-          labels: labels.map((l) => l.trim()).filter(Boolean),
-        };
+        settingsPatch.labels = labels.map((l) => l.trim()).filter(Boolean);
+        settingsChanged = true;
+      }
+      if (Array.isArray(wolkeFoldersRaw)) {
+        settingsPatch.wolke_folders = wolkeFoldersRaw;
+        settingsChanged = true;
+      }
+      if (Array.isArray(linkedDocsRaw)) {
+        settingsPatch.linked_docs = linkedDocsRaw;
+        settingsChanged = true;
+      }
+      if (settingsChanged) {
+        updateData.settings = settingsPatch;
       }
 
       if (selection_mode === 'wolke') {
@@ -599,69 +607,6 @@ router.delete(
     } catch (error) {
       log.error('[Notebook Collections] Error in DELETE /:id:', error);
       return res.status(500).json({ error: 'Failed to delete Notebook collection' });
-    }
-  }
-);
-
-/**
- * POST /api/notebook-collections/:id/share
- * Generate public sharing link
- */
-router.post(
-  '/:id/share',
-  requireAuth,
-  async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
-    try {
-      const userId = req.user!.id;
-      const collectionId = fromParam<NotebookId>(req.params.id);
-
-      const collection = await notebookHelper.getNotebookCollection(collectionId);
-      if (!collection || collection.user_id !== userId) {
-        return res.status(404).json({ error: 'Notebook collection not found' });
-      }
-
-      const result = await notebookHelper.createPublicAccess(collectionId, userId);
-      const publicUrl = `${env.BASE_URL}/notebook/public/${result.access_token}`;
-
-      return res.json({
-        success: true,
-        public_url: publicUrl,
-        access_token: result.access_token,
-        message: 'Public link generated successfully',
-      });
-    } catch (error) {
-      log.error('[Notebook Collections] Error in POST /:id/share:', error);
-      return res.status(500).json({ error: 'Internal server error' });
-    }
-  }
-);
-
-/**
- * DELETE /api/notebook-collections/:id/share
- * Revoke public access
- */
-router.delete(
-  '/:id/share',
-  requireAuth,
-  async (req: AuthenticatedRequest<{ id: string }>, res: Response) => {
-    try {
-      const userId = req.user!.id;
-      const collectionId = fromParam<NotebookId>(req.params.id);
-
-      const collection = await notebookHelper.getNotebookCollection(collectionId);
-      if (!collection || collection.user_id !== userId) {
-        return res.status(404).json({ error: 'Notebook collection not found' });
-      }
-
-      await notebookHelper.revokePublicAccess(collectionId);
-
-      return res.json({
-        success: true,
-        message: 'Public access revoked successfully',
-      });
-    } catch (error) {
-      log.error('[Notebook Collections] Error in DELETE /:id/share:', error);
-      return res.status(500).json({ error: 'Internal server error' });
     }
   }
 );

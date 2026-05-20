@@ -5,13 +5,24 @@ import {
   useAgentStore,
   type UserRole,
 } from '@gruenerator/chat';
-import { useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { getSystemAgent, resolveAgentSlug } from '@gruenerator/shared/agents';
+import { useCallback, useEffect } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
+import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
 import { useFirstName } from '@/hooks/useFirstName';
-import { useHydrateUserProfile } from '@/hooks/useHydrateUserProfile';
+import { useAuthStore } from '@/stores/authStore';
+
+/**
+ * AT users get this notebook when their selected agent doesn't pin its own.
+ * Keeps `@notebook` lookups and RAG aligned to gruene.at content instead of
+ * silently retaining whichever (likely DE) notebook the user picked last.
+ * DE has no equivalent single-notebook default — DE keeps its current behavior
+ * (no auto-switch when the agent has no preference).
+ */
+const AT_DEFAULT_NOTEBOOK_ID = 'oesterreich-notebook';
 
 const notebookLinks: NotebookLink[] = SYSTEM_NOTEBOOKS.map((nb) => ({
   id: nb.id,
@@ -21,10 +32,68 @@ const notebookLinks: NotebookLink[] = SYSTEM_NOTEBOOKS.map((nb) => ({
 
 function ChatPage() {
   const [searchParams] = useSearchParams();
+  const { slug } = useParams<{ slug?: string }>();
   const navigate = useNavigate();
   const chatViewMode = useAgentStore((s) => s.chatViewMode);
+  const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
-  useHydrateUserProfile();
+  const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
+  // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
+  // still wins when explicitly set so old deep links keep their behavior.
+  const agentParam = searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null);
+  const modeParam = searchParams.get('mode');
+
+  // When the URL carries an agent or mode param, jump straight into the thread —
+  // otherwise users land on the overview/role-picker first and have no idea
+  // their click on a sidebar agent entry "did anything".
+  const effectiveViewMode =
+    agentParam ||
+    (modeParam && (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener'))
+      ? 'thread'
+      : chatViewMode;
+
+  useDocumentTitle(effectiveViewMode === 'thread' ? currentThreadTitle : null);
+
+  useEffect(() => {
+    const store = useAgentStore.getState();
+    if (agentParam) {
+      if (store.selectedAgentId !== agentParam) {
+        store.setSelectedAgent(agentParam);
+        store.setChatViewMode('thread');
+      }
+      // Per-LV PR agents (and any future agent that declares a
+      // defaultNotebookId) auto-pair their notebook so RAG and @notebook
+      // lookups align with the agent's regional identity. We always re-apply
+      // on agent change — the agent IS the source of truth here, and picking
+      // a different notebook manually after the agent is selected is an
+      // unusual flow we'd revisit only if users complain.
+      const agentMeta = getSystemAgent(agentParam);
+      if (
+        agentMeta?.defaultNotebookId &&
+        store.selectedNotebookId !== agentMeta.defaultNotebookId
+      ) {
+        store.setSelectedNotebook(agentMeta.defaultNotebookId);
+      } else if (
+        !agentMeta?.defaultNotebookId &&
+        userLocale === 'de-AT' &&
+        store.selectedNotebookId !== AT_DEFAULT_NOTEBOOK_ID
+      ) {
+        // AT-first: agents without an explicit notebook pair with the
+        // Österreich notebook so RAG / @notebook queries stay in-locale.
+        store.setSelectedNotebook(AT_DEFAULT_NOTEBOOK_ID);
+      }
+    } else if (store.selectedAgentId !== null) {
+      store.setSelectedAgent(null);
+    }
+    if (
+      modeParam &&
+      (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener') &&
+      store.threadMode !== modeParam
+    ) {
+      store.setThreadMode(modeParam);
+      store.setChatViewMode('thread');
+    }
+  }, [agentParam, modeParam, userLocale]);
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
@@ -45,35 +114,25 @@ function ChatPage() {
     store.setChatViewMode('thread');
   }, []);
 
-  const agentParam = searchParams.get('agent');
-  const modeParam = searchParams.get('mode');
-  const store = useAgentStore.getState();
-  if (agentParam && store.selectedAgentId !== agentParam) {
-    store.setSelectedAgent(agentParam);
-    store.setChatViewMode('thread');
-  }
-  if (
-    modeParam &&
-    (modeParam === 'search' || modeParam === 'notebook' || modeParam === 'eigener') &&
-    store.threadMode !== modeParam
-  ) {
-    store.setThreadMode(modeParam);
-    store.setChatViewMode('thread');
-  }
-
   return (
     <div className="flex min-h-0 h-full bg-background">
       <main className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
-        {chatViewMode === 'overview' ? (
+        {effectiveViewMode === 'overview' ? (
           <ChatOverview
             firstName={firstName}
             notebooks={notebookLinks}
             onNavigate={handleNavigate}
             onSelectNotebook={handleSelectNotebook}
             onSelectRole={handleSelectRole}
+            requireProfileHydration
           />
         ) : (
-          <GrueneratorThread onNavigate={handleNavigate} firstName={firstName} />
+          <GrueneratorThread
+            onNavigate={handleNavigate}
+            firstName={firstName}
+            requireProfileHydration
+            userLocale={userLocale}
+          />
         )}
       </main>
     </div>

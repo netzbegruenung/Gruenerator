@@ -37,7 +37,19 @@ interface NotebookStartpageProps {
   recentCollectionIds: string[];
   showRecentSourceLabel?: boolean;
   showStats?: boolean;
+  showLastAdded?: boolean;
   showManualSearch?: boolean;
+  /**
+   * Suppresses the global-chat ("Chat") tab even when a `notebookMention` is set.
+   * Used by aggregate surfaces (e.g. the /notebooks index) where routing into the
+   * global chat doesn't correspond to a specific notebook the user picked.
+   */
+  hideGlobalChat?: boolean;
+  /**
+   * When set, the manual-research tab scopes search to a single user-owned notebook
+   * (ownership-checked, no facet filters). Forwarded to `NotebookManualSearch`.
+   */
+  manualSearchNotebookId?: string;
   /** Mention slug for the global-chat tab (e.g. 'berlin'). Null hides the tab. */
   notebookMention?: string | null;
   footer?: ReactNode;
@@ -77,13 +89,16 @@ export function NotebookStartpage({
   recentCollectionIds,
   showRecentSourceLabel,
   showStats = true,
+  showLastAdded = true,
   showManualSearch = true,
+  hideGlobalChat = false,
+  manualSearchNotebookId,
   notebookMention,
   footer,
 }: NotebookStartpageProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('ki');
   const manualSearchAvailable = showManualSearch && recentCollectionIds.length > 0;
-  const globalChatAvailable = !!notebookMention;
+  const globalChatAvailable = !!notebookMention && !hideGlobalChat;
   const anyExtraTabAvailable = manualSearchAvailable || globalChatAvailable;
 
   // Force-fall-through to 'ki' if the currently selected tab isn't available
@@ -167,7 +182,7 @@ export function NotebookStartpage({
             )}
           </div>
 
-          {recentCollectionIds.length > 0 && (
+          {showLastAdded && recentCollectionIds.length > 0 && (
             <LastAddedSection
               collectionIds={recentCollectionIds}
               showSourceLabel={showRecentSourceLabel}
@@ -182,7 +197,10 @@ export function NotebookStartpage({
 
       {activeView === 'recherche' && (
         <div className="mx-auto max-w-3xl">
-          <NotebookManualSearch collectionIds={recentCollectionIds} />
+          <NotebookManualSearch
+            collectionIds={recentCollectionIds}
+            notebookId={manualSearchNotebookId}
+          />
         </div>
       )}
 

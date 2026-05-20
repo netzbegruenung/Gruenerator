@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 title: 'Januar 2026: Jahr der Daten'
 ---
 
@@ -11,7 +11,7 @@ _Newsletter Januar 2026_
 
 Was hast du dir dieses Jahr vorgenommen? Mehr Sport, mehr Zeit für die Familie oder einfach weniger Stress? Für den Grünerator soll das kommende Jahr entscheidend werden. Und beginnt direkt besonders: Der Grünerator ist jetzt auch in Österreich verfügbar! Nun können knapp 200.000 Mitglieder aus zwei Ländern grüne, europäische KI verwenden. Außerdem arbeitet der Grünerator nun ausschließlich mit Anbieter\*innen aus Europa. Mit jeder Grünerierung stärkst du damit die europäische Unabhängigkeit!
 
-Doch das war es noch lange nicht. Denn 2026 wollen wir eine der größten politischen Datenbanken Europas aufbauen.
+Doch das war es noch lange nicht. Denn 2026 wollen wir eine der größten politischen Datenbanken Europas aufbauen. Das **Jahr der Daten**.
 
 ## Was heißt das?
 
@@ -19,9 +19,9 @@ KI ist nur so gut wie die Daten, mit denen sie gefüttert wird. Je besseren Kont
 
 ## Wie machen wir das?
 
-Ich will für verschiedene Organisationen sogenannte „Notebooks" erstellen. Notebooks speisen sich aus öffentlichen Daten: Ganze Webseiten von Fraktionen und Landesverbänden, Grünen Wikis, Beschlüssen etc. Jedes Notebook kann individuell durch den Grünerator abgerufen werden. Dafür habe ich ein neues Interface geschaffen, das aus den Dokumenten zitiert. Du kannst also ganz genau nachprüfen, ob das auch wirklich stimmt, was die KI erzählt. Zukünftig können wir alles Wissen unserer Partei per Klick verfügbar machen. Was haben wir auf der BDK beschlossen? Was steht im Wahlprogramm der Grünen in Schleswig-Holstein? Wie mache ich meine Heimatstadt zur Schwammstadt? Frag einfach den Grünerator.
+Ich will für verschiedene Organisationen sogenannte **„Notebooks"** erstellen. Notebooks speisen sich aus öffentlichen Daten: Ganze Webseiten von Fraktionen und Landesverbänden, Grünen Wikis, Beschlüssen etc. Jedes Notebook kann individuell durch den Grünerator abgerufen werden. Dafür habe ich ein neues Interface geschaffen, das aus den Dokumenten zitiert. Du kannst also ganz genau nachprüfen, ob das auch wirklich stimmt, was die KI erzählt. Zukünftig können wir alles Wissen unserer Partei per Klick verfügbar machen. Was haben wir auf der BDK beschlossen? Was steht im Wahlprogramm der Grünen in Schleswig-Holstein? Wie mache ich meine Heimatstadt zur Schwammstadt? Frag einfach den Grünerator.
 
-Wir schaffen dafür eine einheitliche Datenbank von maschinenlesbaren Daten aus öffentlichen Quellen unserer Partei. Diese liegen sicher bei der Netzbegrünung ab. Man kann sie dann über verschiedene Wege abrufen: Der Grünerator selbst soll im Laufe dieses Jahres Apps für alle Plattformen erhalten. Außerdem sollt ihr die Datenbank des Grünerators auch mit ChatGPT, Claude und Co verbinden können – über einen sogenannten „MCP-Server". Die Datenbank ist über die Netzbegrünung zudem öffentlich, es können also weitere Projekte auf dieser Datenbank aufbauen.
+Wir schaffen dafür eine einheitliche Datenbank von maschinenlesbaren Daten aus öffentlichen Quellen unserer Partei. Diese liegen sicher bei der Netzbegrünung ab. Man kann sie dann über verschiedene Wege abrufen: Der Grünerator selbst soll im Laufe dieses Jahres Apps für alle Plattformen erhalten. Außerdem sollt ihr die Datenbank des Grünerators auch mit ChatGPT, Claude und Co verbinden können – über einen sogenannten **„MCP-Server"**. Die Datenbank ist über die Netzbegrünung zudem öffentlich, es können also weitere Projekte auf dieser Datenbank aufbauen.
 
 ## Warum so schnell?
 

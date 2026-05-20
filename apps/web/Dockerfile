@@ -25,6 +25,8 @@ COPY packages/canvas-editor/package.json ./packages/canvas-editor/
 COPY packages/ui/package.json ./packages/ui/
 COPY packages/collab/package.json ./packages/collab/
 COPY packages/wolke/package.json ./packages/wolke/
+COPY packages/sites/package.json ./packages/sites/
+COPY packages/sites-design/package.json ./packages/sites-design/
 
 COPY apps/web/package.json ./apps/web/
 
@@ -42,6 +44,8 @@ COPY packages/canvas-editor ./packages/canvas-editor
 COPY packages/ui ./packages/ui
 COPY packages/collab ./packages/collab
 COPY packages/wolke ./packages/wolke
+COPY packages/sites ./packages/sites
+COPY packages/sites-design ./packages/sites-design
 
 COPY apps/web ./apps/web
 COPY CHANGELOG.md ./
@@ -60,7 +64,34 @@ ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN
 RUN pnpm --filter @gruenerator/web build
 
 # =============================================================================
-# Stage 2: Production nginx server
+# Stage 2: Compile ngx_brotli as a dynamic module against nginx:alpine
+# =============================================================================
+# nginx:alpine ships its own nginx binary (built from source by Docker Inc.),
+# not Alpine's `nginx` package — so Alpine's `nginx-mod-http-brotli` is ABI-
+# incompatible. The supported way to add Brotli is to fetch the matching
+# nginx source and build ngx_brotli against it, then copy the .so files
+# into the production image. The build stage is throwaway; only ~150 KB of
+# .so files land in the final image.
+FROM nginx:alpine AS brotli-builder
+# brotli-dev provides libbrotlienc / libbrotlicommon headers + static libs.
+# Recent ngx_brotli versions link against the system libs at the .so step
+# (not the bundled deps/brotli/ submodule the configure step sees), so
+# without brotli-dev the linker fails with "cannot find -lbrotlienc".
+RUN apk add --no-cache git build-base libtool automake autoconf \
+    zlib-dev pcre2-dev openssl-dev linux-headers cmake wget brotli-dev
+RUN NGINX_VERSION=$(nginx -v 2>&1 | grep -oE '[0-9.]+$') && \
+    wget -q "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" && \
+    tar -xzf "nginx-${NGINX_VERSION}.tar.gz" && \
+    git clone --recursive https://github.com/google/ngx_brotli.git && \
+    cd "nginx-${NGINX_VERSION}" && \
+    ./configure --with-compat --add-dynamic-module=../ngx_brotli && \
+    make -j"$(nproc)" modules && \
+    mkdir -p /modules && \
+    cp objs/ngx_http_brotli_filter_module.so /modules/ && \
+    cp objs/ngx_http_brotli_static_module.so /modules/
+
+# =============================================================================
+# Stage 3: Production nginx server
 # =============================================================================
 FROM nginx:alpine AS production
 
@@ -71,8 +102,16 @@ LABEL org.opencontainers.image.source="https://github.com/netzbegruenung/Gruener
 LABEL org.opencontainers.image.vendor="netzbegruenung"
 LABEL org.opencontainers.image.licenses="MIT"
 
-# Install curl for healthcheck
-RUN apk add --no-cache curl
+# Install curl for healthcheck. brotli-libs is the runtime shared library
+# the ngx_brotli .so files dlopen at nginx startup — without it nginx
+# would fail to load the module with "libbrotlienc.so.1: not found".
+RUN apk add --no-cache curl brotli-libs
+
+# Install compiled Brotli modules + load them in the main context.
+# load_module directives must appear before events/http blocks, so we
+# inject them at the top of /etc/nginx/nginx.conf right after `pid`.
+COPY --from=brotli-builder /modules/*.so /usr/lib/nginx/modules/
+RUN sed -i '/^pid /a load_module /usr/lib/nginx/modules/ngx_http_brotli_filter_module.so;\nload_module /usr/lib/nginx/modules/ngx_http_brotli_static_module.so;' /etc/nginx/nginx.conf
 
 # Remove default nginx config
 RUN rm -rf /usr/share/nginx/html/* /etc/nginx/conf.d/default.conf
@@ -85,7 +124,16 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    # Gzip compression
+    # Brotli compression. Negotiated via Accept-Encoding: br; browsers that
+    # only send gzip still hit the gzip path below. On-the-fly compression
+    # (no pre-compressed .br files) — CPU cost is small for the modest
+    # request rate, and avoids touching the Vite build pipeline.
+    brotli on;
+    brotli_comp_level 5;
+    brotli_min_length 1024;
+    brotli_types text/plain text/css application/json application/javascript text/xml application/xml text/javascript image/svg+xml font/woff2;
+
+    # Gzip compression (fallback for clients that don't send Accept-Encoding: br)
     gzip on;
     gzip_vary on;
     gzip_min_length 1024;

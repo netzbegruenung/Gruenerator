@@ -8,10 +8,12 @@ import {
   renderContentDeliveryTemplate,
   renderContentSyncTemplate,
   renderDocumentShareTemplate,
+  renderGenericNotificationTemplate,
   renderLvSyncNotificationTemplate,
   type ContentDeliveryTemplateParams,
   type ContentSyncTemplateParams,
   type DocumentShareTemplateParams,
+  type GenericNotificationTemplateParams,
   type LvSyncNotificationTemplateParams,
 } from './templates.js';
 
@@ -62,10 +64,17 @@ export interface SendEmailOptions {
   }>;
 }
 
+export function isEmailConfigured(): boolean {
+  return isConfigured();
+}
+
 export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
   const t = getTransporter();
   if (!t) {
-    log.debug('[Email] SMTP not configured, skipping email');
+    log.warn('[Email] SMTP not configured, skipping email', {
+      to: options.to,
+      subject: options.subject,
+    });
     return false;
   }
 
@@ -113,6 +122,42 @@ export async function sendDocumentShareEmail(params: DocumentShareEmailParams): 
   return sendEmail({
     to: params.recipientEmail,
     subject: `${params.senderName} hat ein Dokument mit dir geteilt`,
+    html,
+    text,
+  });
+}
+
+export interface NotificationEmailParams {
+  recipientEmail: string;
+  recipientName?: string;
+  title: string;
+  body: string | null;
+  actionUrl?: string | null;
+  actionLabel?: string;
+}
+
+export async function sendNotificationEmail(params: NotificationEmailParams): Promise<boolean> {
+  if (!isConfigured()) return false;
+
+  const resolvedActionUrl = params.actionUrl
+    ? params.actionUrl.startsWith('http')
+      ? params.actionUrl
+      : `${PRIMARY_URL}${params.actionUrl.startsWith('/') ? '' : '/'}${params.actionUrl}`
+    : null;
+
+  const templateParams: GenericNotificationTemplateParams = {
+    title: params.title,
+    body: params.body,
+    actionUrl: resolvedActionUrl,
+    ...(params.recipientName != null && { recipientName: params.recipientName }),
+    ...(params.actionLabel != null && { actionLabel: params.actionLabel }),
+  };
+
+  const { html, text } = renderGenericNotificationTemplate(templateParams);
+
+  return sendEmail({
+    to: params.recipientEmail,
+    subject: params.title,
     html,
     text,
   });

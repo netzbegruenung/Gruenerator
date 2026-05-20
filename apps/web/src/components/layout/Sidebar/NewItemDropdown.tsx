@@ -5,9 +5,21 @@ import {
   DropdownMenuTrigger,
   useIsMobile,
 } from '@gruenerator/ui';
-import { type MutableRefObject, memo, useState, useCallback } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { type MutableRefObject, memo, useCallback, useState } from 'react';
 import { HiOutlineDocumentText } from 'react-icons/hi';
-import { PiPlus, PiChatCircle, PiVideoCamera } from 'react-icons/pi';
+import {
+  PiChatCircle,
+  PiImageSquare,
+  PiKanban,
+  PiPencilLine,
+  PiPlus,
+  PiVideoCamera,
+} from 'react-icons/pi';
+import { useNavigate } from 'react-router-dom';
+
+import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
+import apiClient from '../../utils/apiClient';
 
 import { iconClass, menuLinkClass } from './sidebarStyles';
 
@@ -27,7 +39,17 @@ const NewItemDropdown = memo(function NewItemDropdown({
   onClose,
 }: NewItemDropdownProps) {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+
+  const { createBoard } = useBoardsTyped({ enabled: false });
+
+  const createEmptyDoc = useMutation({
+    mutationFn: async () => {
+      const res = await apiClient.post('/docs', { title: 'Neues Dokument' });
+      return res.data as { id: string };
+    },
+  });
 
   const handleOpenChange = useCallback(
     (isOpen: boolean) => {
@@ -36,6 +58,39 @@ const NewItemDropdown = memo(function NewItemDropdown({
     },
     [openRef]
   );
+
+  const handleCreateDoc = useCallback(() => {
+    createEmptyDoc.mutate(undefined, {
+      onSuccess: (data) => {
+        void navigate(`/docs/${data.id}`);
+        onClose();
+      },
+    });
+  }, [createEmptyDoc, navigate, onClose]);
+
+  const handleCreateBoard = useCallback(() => {
+    createBoard.mutate(
+      { title: 'Neues Board' },
+      {
+        onSuccess: (board) => {
+          void navigate(`/boards/${board.id}`);
+          onClose();
+        },
+      }
+    );
+  }, [createBoard, navigate, onClose]);
+
+  const handleCreateWhiteboard = useCallback(() => {
+    createBoard.mutate(
+      { title: 'Neues Whiteboard', boardType: 'whiteboard' },
+      {
+        onSuccess: (board) => {
+          void navigate(`/boards/${board.id}`);
+          onClose();
+        },
+      }
+    );
+  }, [createBoard, navigate, onClose]);
 
   return (
     <div className="flex flex-col gap-0.5 p-0 mt-xs">
@@ -46,7 +101,12 @@ const NewItemDropdown = memo(function NewItemDropdown({
             <span className={titleClass}>Neu</span>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent side={isMobile ? 'bottom' : 'right'} align="start" sideOffset={8}>
+        <DropdownMenuContent
+          side={isMobile ? 'bottom' : 'right'}
+          align="start"
+          sideOffset={8}
+          className="bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl"
+        >
           <DropdownMenuItem
             onClick={() => {
               onChatClick();
@@ -56,9 +116,21 @@ const NewItemDropdown = memo(function NewItemDropdown({
             <PiChatCircle />
             <span>Neuer Chat</span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onLinkClick('/docs', 'Dokumente')}>
+          <DropdownMenuItem onClick={handleCreateDoc}>
             <HiOutlineDocumentText />
             <span>Neues Dokument</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleCreateBoard}>
+            <PiKanban />
+            <span>Neues Board</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleCreateWhiteboard}>
+            <PiPencilLine />
+            <span>Neues Whiteboard</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onLinkClick('/imagine', 'Bild erstellen')}>
+            <PiImageSquare />
+            <span>Bild erstellen</span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onLinkClick('/reel', 'Reel')}>
             <PiVideoCamera />

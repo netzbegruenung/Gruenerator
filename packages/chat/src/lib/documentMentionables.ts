@@ -48,6 +48,12 @@ export interface DocumentSearchResult {
   score: number;
 }
 
+export interface CollabDocSelection {
+  id: string;
+  slug: string;
+  title: string;
+}
+
 const slugToDocumentMap = new Map<string, DocumentMention>();
 
 export function documentToSlug(title: string): string {

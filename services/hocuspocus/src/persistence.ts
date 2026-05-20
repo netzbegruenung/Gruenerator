@@ -1,10 +1,11 @@
 import { promisify } from 'util';
 import { gzip, gunzip } from 'zlib';
 
+import { escapeHtml } from '@gruenerator/shared/utils';
+import { DOCUMENT_FRAGMENT_NAME, injectHtmlIntoFragment } from '@gruenerator/shared/yjs';
 import * as Y from 'yjs';
 
 import { blockNoteXmlToHtml } from './blockNoteXmlToHtml.js';
-import { injectHtmlIntoFragment } from './htmlToYjsXml.js';
 import { createLogger } from './logger.js';
 import { TEMPLATE_CONTENT } from './templateContent.js';
 
@@ -23,6 +24,29 @@ const DEFAULT_TITLES = new Set([
   'Neuer Redaktionsplan',
   'Untitled Document',
 ]);
+
+// Subtypes whose `content` column stores a BlockNote HTML preview written by
+// this service. Boards (and any future polymorphic subtype) share the same
+// `collaborative_documents` table but store JSON metadata in `content` and
+// must never be overwritten by the preview pipeline. Kept as a readonly tuple
+// so adding/removing a subtype is a single-source change; the derived union
+// catches accidental string drift at compile time.
+//
+// Mirrors `DOCS_SUBTYPES` in apps/api/routes/workplace/recentActivityController.ts.
+// Per CLAUDE.md, the Hocuspocus service has zero cross-package deps, so the
+// constant is duplicated here intentionally rather than imported.
+const DOC_SUBTYPES = [
+  'blank',
+  'antrag',
+  'pressemitteilung',
+  'protokoll',
+  'notizen',
+  'redaktionsplan',
+  'checkliste',
+  'einladung',
+] as const;
+type DocSubtype = (typeof DOC_SUBTYPES)[number];
+const DOC_SUBTYPES_PARAM: readonly DocSubtype[] = DOC_SUBTYPES;
 
 /**
  * Extract a title from the first heading or paragraph in HTML output.
@@ -120,6 +144,20 @@ export class PostgresPersistence {
     );
 
     if (updatesResult.length === 0) {
+      // Third tier: API-seeded init_data. Live Yjs state takes precedence;
+      // this only fires on first connection after a server-side doc creation.
+      const initResult = await this.db(
+        'SELECT init_data FROM collaborative_documents_init WHERE document_id = $1',
+        [documentId]
+      );
+      if (initResult.length > 0 && initResult[0].init_data) {
+        const decompressed = await gunzipAsync(initResult[0].init_data as Buffer);
+        log.info(
+          `[Load] Document ${documentId} hydrated from init_data (${decompressed.length} bytes)`
+        );
+        return decompressed;
+      }
+
       log.info(`[Load] No stored state for ${documentId}`);
       return null;
     }
@@ -144,7 +182,7 @@ export class PostgresPersistence {
 
   async initializeWithTemplate(documentId: string, ydoc: Y.Doc): Promise<void> {
     try {
-      const fragment = ydoc.getXmlFragment('document-store');
+      const fragment = ydoc.getXmlFragment(DOCUMENT_FRAGMENT_NAME);
       if (fragment.length > 0) {
         log.warn(
           `[Template] Skipped for ${documentId} — fragment already has ${fragment.length} children`
@@ -173,9 +211,26 @@ export class PostgresPersistence {
       }
 
       injectHtmlIntoFragment(fragment, html);
-      log.info(
-        `[Template] Injected ${storedContent ? 'stored content' : `'${subtype}' template`} for ${documentId} (${fragment.length} blocks)`
-      );
+
+      // Fallback for legacy docs whose `content` is plaintext (or markup the
+      // parser doesn't recognize): wrap each paragraph as <p> and retry, so
+      // the editor isn't blank when init_data is also missing.
+      if (fragment.length === 0 && storedContent?.trim()) {
+        const escaped = escapeHtml(storedContent.trim());
+        const paragraphs = escaped.split(/\n\s*\n+/).filter(Boolean);
+        const wrapped =
+          paragraphs.length > 0
+            ? paragraphs.map((p) => `<p>${p.replace(/\n/g, ' ')}</p>`).join('')
+            : `<p>${escaped}</p>`;
+        injectHtmlIntoFragment(fragment, wrapped);
+        log.warn(
+          `[Template] HTML parse no-op for ${documentId}; recovered as ${fragment.length} plain-text block(s)`
+        );
+      } else {
+        log.info(
+          `[Template] Injected ${storedContent ? 'stored content' : `'${subtype}' template`} for ${documentId} (${fragment.length} blocks)`
+        );
+      }
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Template] Error injecting template for ${documentId}: ${err.message}`);
@@ -301,9 +356,21 @@ export class PostgresPersistence {
     }
   }
 
+  async touchUpdatedAt(documentId: string): Promise<void> {
+    try {
+      await this.db(
+        'UPDATE collaborative_documents SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+        [documentId]
+      );
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      log.debug(`[Touch] Failed to touch updated_at for ${documentId}: ${err.message}`);
+    }
+  }
+
   async updateContentPreview(documentId: string, ydoc: Y.Doc): Promise<void> {
     try {
-      const fragment = ydoc.getXmlFragment('document-store');
+      const fragment = ydoc.getXmlFragment(DOCUMENT_FRAGMENT_NAME);
       const xml = fragment.toString();
       log.debug(`[Preview] Raw XML (first 200): ${xml.slice(0, 200)}`);
 
@@ -319,8 +386,12 @@ export class PostgresPersistence {
 
       if (preview) {
         await this.db(
-          'UPDATE collaborative_documents SET content = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1',
-          [documentId, preview]
+          `UPDATE collaborative_documents
+           SET content = $2, updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1
+             AND document_subtype = ANY($3::text[])
+             AND content IS DISTINCT FROM $2`,
+          [documentId, preview, DOC_SUBTYPES_PARAM]
         );
         log.debug(`[Preview] Updated preview for ${documentId} (${preview.length} chars)`);
 
@@ -351,7 +422,7 @@ export class PostgresPersistence {
       const ydoc = new Y.Doc();
       Y.applyUpdate(ydoc, state);
 
-      const fragment = ydoc.getXmlFragment('document-store');
+      const fragment = ydoc.getXmlFragment(DOCUMENT_FRAGMENT_NAME);
       const xml = fragment.toString();
 
       // Try HTML conversion first, fall back to plain text
@@ -365,10 +436,14 @@ export class PostgresPersistence {
       }
 
       if (preview) {
-        await this.db('UPDATE collaborative_documents SET content = $2 WHERE id = $1', [
-          documentId,
-          preview,
-        ]);
+        await this.db(
+          `UPDATE collaborative_documents
+           SET content = $2
+           WHERE id = $1
+             AND document_subtype = ANY($3::text[])
+             AND content IS DISTINCT FROM $2`,
+          [documentId, preview, DOC_SUBTYPES_PARAM]
+        );
         log.debug(`[Backfill] Extracted preview for ${documentId} (${preview.length} chars)`);
       }
 

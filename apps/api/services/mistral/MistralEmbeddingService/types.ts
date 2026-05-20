@@ -46,7 +46,7 @@ export interface CacheStats {
 export interface RedisClient {
   isReady: boolean;
   get(key: string): Promise<string | null>;
-  setEx(key: string, ttl: number, value: string): Promise<"OK" | void>;
+  setEx(key: string, ttl: number, value: string): Promise<'OK' | void>;
   keys(pattern: string): Promise<string[]>;
   del(keys: string[]): Promise<number>;
   info(section: string): Promise<string>;

@@ -13,9 +13,10 @@ import {
   applyDefaultFilter,
   type SubcategoryFilters,
 } from '../../../config/systemCollectionsConfig.js';
-import { contentExamplesService } from '../../../services/contentExamplesService.js';
 import { DocumentSearchService } from '../../../services/document-services/index.js';
+import { searchExamples } from '../../../services/examples/exampleSearchService.js';
 import { withRetry } from '../../../services/search/index.js';
+import { getLinkupService } from '../../../services/search/LinkupService.js';
 import { searxngService } from '../../../services/search/SearxngService.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -67,6 +68,23 @@ export interface DirectExamplesResult {
   message?: string;
 }
 
+export interface PressemitteilungExample {
+  id: string;
+  title: string;
+  body: string;
+  lv: string;
+  sourceId?: string;
+  publishedAt?: string;
+  url?: string;
+}
+
+export interface DirectPressemitteilungExamplesResult {
+  resultsCount: number;
+  examples: PressemitteilungExample[];
+  error?: boolean;
+  message?: string;
+}
+
 export interface DirectWebSearchResult {
   query: string;
   searchType: string;
@@ -95,11 +113,18 @@ export async function executeDirectSearch(params: {
   collection?: string;
   limit?: number;
   filters?: SubcategoryFilters;
+  /**
+   * Hard-pinned LV filter from agent metadata (e.g. Berlin agent → 'BE' / ['BE','BE-F']).
+   * Merged into the Qdrant `must` clause regardless of what the LLM passes; ensures
+   * an LV-scoped agent always grounds answers in its own Landesverband sources.
+   * Only applied to collections targeting `landesverbaende_documents`.
+   */
+  agentLandesverband?: readonly string[] | string;
 }): Promise<DirectSearchResult> {
-  const { query, collection = 'deutschland', limit = 5, filters } = params;
+  const { query, collection = 'deutschland', limit = 5, filters, agentLandesverband } = params;
 
   log.info(
-    `[Direct Search] query="${query}" collection="${collection}" limit=${limit}${filters ? ` filters=${JSON.stringify(filters)}` : ''}`
+    `[Direct Search] query="${query}" collection="${collection}" limit=${limit}${filters ? ` filters=${JSON.stringify(filters)}` : ''}${agentLandesverband ? ` lv=${JSON.stringify(agentLandesverband)}` : ''}`
   );
 
   const mapping = COLLECTION_MAP[collection];
@@ -110,19 +135,34 @@ export async function executeDirectSearch(params: {
   const { qdrantCollection, systemId } = mapping || COLLECTION_MAP.deutschland;
   const searchParams = getSearchParams(systemId);
 
-  // Build filter: merge collection default filter with user-detected filters
+  // Build filter: merge (a) collection default, (b) user-detected, (c) agent LV pin
   const collectionDefault = applyDefaultFilter(systemId);
   const userFilter = buildSubcategoryFilter(filters);
-  let additionalFilter: QdrantFilter | undefined;
-
-  if (collectionDefault && userFilter) {
-    // Merge both must arrays
-    const mergedMust = [...(collectionDefault.must || []), ...(userFilter.must || [])];
-    additionalFilter = {
-      must: mergedMust as QdrantFilter['must'],
+  let agentLvFilter: QdrantFilter | undefined;
+  if (agentLandesverband && qdrantCollection === 'landesverbaende_documents') {
+    const lvList: string[] =
+      typeof agentLandesverband === 'string' ? [agentLandesverband] : [...agentLandesverband];
+    agentLvFilter = {
+      must: [
+        {
+          key: 'landesverband',
+          match: lvList.length === 1 ? { value: lvList[0] as string } : { any: lvList },
+        },
+      ],
     };
+  }
+
+  const filterParts = [collectionDefault, userFilter, agentLvFilter].filter(
+    (f): f is QdrantFilter => f !== undefined
+  );
+  let additionalFilter: QdrantFilter | undefined;
+  if (filterParts.length === 0) {
+    additionalFilter = undefined;
+  } else if (filterParts.length === 1) {
+    additionalFilter = filterParts[0];
   } else {
-    additionalFilter = userFilter || collectionDefault;
+    const mergedMust = filterParts.flatMap((f) => f.must || []);
+    additionalFilter = { must: mergedMust as QdrantFilter['must'] };
   }
 
   try {
@@ -253,78 +293,89 @@ export async function executeDirectExamplesSearch(params: {
   query: string;
   platform?: string;
   country?: 'DE' | 'AT';
+  /** Override target collection — see `SearchExamplesParams.examplesCollection`. */
+  collection?: string;
 }): Promise<DirectExamplesResult> {
-  const { query, platform, country } = params;
+  const { query, platform, country, collection } = params;
 
-  const countryInfo = country ? ` country="${country}"` : '';
-  log.info(
-    `[Direct Examples Search] query="${query}" platform="${platform || 'all'}"${countryInfo}`
-  );
+  const result = await searchExamples({
+    query,
+    kinds: ['social'],
+    ...(platform && { platform }),
+    ...(country && { country }),
+    ...(collection && { examplesCollection: collection }),
+  });
 
-  try {
-    const results = await contentExamplesService.searchSocialMediaExamples(query, {
-      platform: platform as 'facebook' | 'instagram' | null,
-      limit: 10,
-      threshold: 0.15,
-      country: country || null,
-    });
-
-    if (!results || results.length === 0) {
-      log.info(`[Direct Examples Search] No examples found, trying random examples`);
-
-      const randomResults = await contentExamplesService.getRandomSocialMediaExamples({
-        platform: platform as 'facebook' | 'instagram' | null,
-        limit: 5,
-        country: country || null,
-      });
-
-      if (!randomResults || randomResults.length === 0) {
-        return {
-          resultsCount: 0,
-          examples: [],
-          message: 'Keine Beispiele gefunden.',
-        };
-      }
-
-      const examples = randomResults.map((result) => ({
-        id: String(result.id),
-        platform: result.platform || platform || 'unknown',
-        content: truncateText(result.content || '', 500),
-        ...(result.source_account && { author: result.source_account }),
-        ...(result.created_at && { date: result.created_at }),
-      }));
-
-      log.info(`[Direct Examples Search] Found ${examples.length} random examples`);
-      return {
-        resultsCount: examples.length,
-        examples,
-      };
-    }
-
-    const examples = results.map((result) => ({
-      id: String(result.id),
-      platform: result.platform || platform || 'unknown',
-      content: truncateText(result.content || '', 500),
-      ...(result.source_account && { author: result.source_account }),
-      ...(result.created_at && { date: result.created_at }),
-    }));
-
-    log.info(`[Direct Examples Search] Found ${examples.length} examples`);
-
-    return {
-      resultsCount: examples.length,
-      examples,
-    };
-  } catch (error: unknown) {
-    const errMsg = error instanceof Error ? error.message : String(error);
-    log.error(`[Direct Examples Search] Error:`, errMsg);
+  if (result.errors.social) {
     return {
       resultsCount: 0,
       examples: [],
       error: true,
-      message: `Beispielsuche fehlgeschlagen: ${errMsg}`,
+      message: `Beispielsuche fehlgeschlagen: ${result.errors.social}`,
     };
   }
+
+  const items = result.byKind.social ?? [];
+  if (items.length === 0) {
+    return {
+      resultsCount: 0,
+      examples: [],
+      message: 'Keine Beispiele gefunden.',
+    };
+  }
+
+  const examples = items.map((e) => ({
+    id: e.id,
+    platform: e.platform ?? platform ?? 'unknown',
+    content: e.body,
+    ...(e.author && { author: e.author }),
+    ...(e.publishedAt && { date: e.publishedAt }),
+  }));
+
+  return { resultsCount: examples.length, examples };
+}
+
+/**
+ * Execute a Pressemitteilung-examples search across all Landesverbände.
+ * Thin wrapper over the unified `searchExamples` service (kinds=['press']).
+ */
+export async function executeDirectPressemitteilungExamples(params: {
+  query: string;
+  limit?: number;
+}): Promise<DirectPressemitteilungExamplesResult> {
+  const { query, limit = 6 } = params;
+
+  const result = await searchExamples({ query, kinds: ['press'], limit });
+
+  if (result.errors.press) {
+    return {
+      resultsCount: 0,
+      examples: [],
+      error: true,
+      message: `Pressemitteilung-Suche fehlgeschlagen: ${result.errors.press}`,
+    };
+  }
+
+  const items = result.byKind.press ?? [];
+  if (items.length === 0) {
+    return {
+      resultsCount: 0,
+      examples: [],
+      message: 'Keine passenden Pressemitteilungen gefunden.',
+    };
+  }
+
+  const examples: PressemitteilungExample[] = items.map((e) => ({
+    id: e.id,
+    title: e.title,
+    body: e.body,
+    lv: e.lv ?? '',
+    ...(e.sourceId && { sourceId: e.sourceId }),
+    ...(e.publishedAt && { publishedAt: e.publishedAt }),
+    ...(e.url && { url: e.url }),
+  }));
+
+  return { resultsCount: examples.length, examples };
 }
 
 /**
@@ -337,15 +388,46 @@ export async function executeDirectWebSearch(params: {
   searchType?: 'general' | 'news';
   maxResults?: number;
   timeRange?: string;
+  language?: string;
 }): Promise<DirectWebSearchResult> {
-  const { query, searchType = 'general', maxResults = 5, timeRange } = params;
+  const { query, searchType = 'general', maxResults = 5, timeRange, language = 'de-DE' } = params;
 
-  log.info(`[Direct Web Search] query="${query}" type="${searchType}" max=${maxResults}`);
+  log.info(
+    `[Direct Web Search] query="${query}" type="${searchType}" max=${maxResults} lang=${language}`
+  );
 
   try {
+    const linkup = getLinkupService();
+    if (linkup) {
+      log.info(`[Direct Web Search] Routing via Linkup (standard) for "${query}"`);
+      const fromDate = timeRange ? timeRangeToFromDate(timeRange) : undefined;
+      const linkupRes = await linkup.webSearch({
+        query,
+        maxResults: Math.min(maxResults, 10),
+        ...(fromDate ? { fromDate } : {}),
+      });
+      const linkupFormatted = linkupRes.results.slice(0, maxResults).map((r, i) => ({
+        rank: i + 1,
+        title: r.name || 'Unbekannt',
+        url: r.url,
+        snippet: truncateText(r.content || '', 300),
+        domain: extractDomain(r.url),
+        publishedDate: null as string | null,
+      }));
+      log.info(
+        `[Direct Web Search] Linkup returned ${linkupFormatted.length} results for "${query}"`
+      );
+      return {
+        query,
+        searchType,
+        resultsCount: linkupFormatted.length,
+        results: linkupFormatted,
+      };
+    }
+
     const searchOptions: SearxngSearchOptions = {
       maxResults: Math.min(maxResults, 10),
-      language: 'de-DE',
+      language,
       safesearch: 0,
       categories: searchType === 'news' ? 'news' : 'general',
       page: 1,
@@ -400,4 +482,17 @@ export async function executeDirectWebSearch(params: {
       message: `Websuche fehlgeschlagen: ${errMsg}`,
     };
   }
+}
+
+/**
+ * Map a SearXNG-style `time_range` ("day"|"week"|"month"|"year") to a Linkup
+ * `fromDate` (YYYY-MM-DD). Unknown values yield no constraint.
+ */
+function timeRangeToFromDate(timeRange: string): string | undefined {
+  const days: Record<string, number> = { day: 1, week: 7, month: 30, year: 365 };
+  const offset = days[timeRange.toLowerCase()];
+  if (!offset) return undefined;
+  const d = new Date();
+  d.setDate(d.getDate() - offset);
+  return d.toISOString().slice(0, 10);
 }

@@ -28,6 +28,7 @@ export const chatThreads = pgTable('chat_threads', {
   custom_enabled_tools: jsonb('custom_enabled_tools').$type<Record<string, unknown>>(),
   notebook_collection_id: varchar('notebook_collection_id', { length: 255 }),
   notebook_collection_ids: jsonb('notebook_collection_ids').$type<string[]>(),
+  doc_id: uuid('doc_id'),
 });
 
 export const chatMessages = pgTable('chat_messages', {

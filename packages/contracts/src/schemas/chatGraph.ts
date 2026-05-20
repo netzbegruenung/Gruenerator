@@ -9,6 +9,20 @@
  */
 import { z } from 'zod';
 
+// ── Shared sub-schemas ──────────────────────────────────────────────────────
+
+/**
+ * Reference to a single file inside a user's connected Wolke (Nextcloud)
+ * share link. Selected via the @wolke mentionable in chat; resolved
+ * server-side at send-time by downloading the file via WebDAV.
+ */
+export const wolkeFileRefSchema = z.object({
+  shareLinkId: z.string(),
+  path: z.string(),
+  name: z.string(),
+});
+export type WolkeFileRef = z.infer<typeof wolkeFileRefSchema>;
+
 // ── Request bodies ──────────────────────────────────────────────────────────
 //
 // All optional fields use `.nullish()` (= `.optional().nullable()`) so they
@@ -31,11 +45,31 @@ export const chatStreamBodySchema = z.object({
   textIds: z.array(z.string()).nullish(),
   documentChatIds: z.array(z.string()).nullish(),
   documentChatMode: z.boolean().nullish(),
+  attachmentContext: z.string().nullish(),
   defaultNotebookId: z.string().nullish(),
   boardIds: z.array(z.string()).nullish(),
   docMentionIds: z.array(z.string()).nullish(),
+  wolkeFiles: z.array(wolkeFileRefSchema).nullish(),
+  currentDocument: z
+    .object({
+      id: z.string(),
+      title: z.string().nullish(),
+      markdown: z.string(),
+      selectionText: z.string().nullish(),
+    })
+    .nullish(),
   customSystemPrompt: z.string().nullish(),
   roleName: z.string().nullish(),
+  // Seed for a brand-new thread: the generated text (Antrag, PM, Social) the
+  // user came to chat about. Backend persists it as the first assistant
+  // message of the newly created thread so it survives reloads. Ignored when
+  // threadId is set (i.e. not a new-thread request).
+  initialAssistantMessage: z.string().max(50_000).nullish(),
+  // Mention key of the currently-active skill (e.g. 'instagram', 'presse',
+  // 'twitter'). When set, the backend looks up the skill in SKILLS and
+  // appends its `skillSystemPrompt` to the agent's systemRole for this turn,
+  // so platform-specific spec only loads when the relevant skill is active.
+  activeSkillMention: z.string().nullish(),
 });
 
 export const chatResumeBodySchema = z.object({
@@ -45,13 +79,8 @@ export const chatResumeBodySchema = z.object({
 
 // ── Response schemas ────────────────────────────────────────────────────────
 
-/**
- * SSE endpoints don't return a structured JSON body on success —
- * they stream events. We model the accepted response as an opaque object
- * so ts-rest is satisfied. Actual SSE events are not validated here.
- */
-export const sseAcceptedResponseSchema = z.unknown();
-
+// SSE success responses are declared as c.noBody() in chatGraphContract.ts —
+// see that file for why. Only the error shape needs a schema.
 export const chatGraphErrorResponseSchema = z.object({
   error: z.string(),
 });

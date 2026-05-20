@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFileMentionData, registerDocumentSlug, documentToSlug } from '@gruenerator/chat';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import {
   View,
@@ -37,15 +38,13 @@ export function DocumentBrowserSheet({
   onSelect,
   onDismiss,
 }: DocumentBrowserSheetProps) {
-  const {
-    collections,
-    documents,
-    texts,
-    loadingCollections,
-    loadingContent,
-    fetchAll,
-    searchInCollection,
-  } = useFileMentionData();
+  const { collections, documents, texts, loadingCollections, loadingContent, searchInCollection } =
+    useFileMentionData(visible);
+
+  const queryClient = useQueryClient();
+  const refetchContent = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['file-mention'] });
+  }, [queryClient]);
 
   const [level, setLevel] = useState<BrowserLevel>({ type: 'root' });
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,12 +54,10 @@ export function DocumentBrowserSheet({
 
   useEffect(() => {
     if (visible) {
-      void fetchAll();
       setLevel({ type: 'root' });
       setSearchQuery('');
       setSearchResults([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchAll ref changes on every state update, causing infinite loops
   }, [visible]);
 
   const handleSearch = useCallback(
@@ -107,7 +104,7 @@ export function DocumentBrowserSheet({
       setUploading(true);
       const uploaded = await uploadDocumentToChat(doc);
       if (uploaded) {
-        await fetchAll();
+        refetchContent();
         handleDocSelect({ id: uploaded.id, title: uploaded.title, sourceType: 'document' });
       }
     } catch (err) {
@@ -115,7 +112,7 @@ export function DocumentBrowserSheet({
     } finally {
       setUploading(false);
     }
-  }, [fetchAll, handleDocSelect]);
+  }, [refetchContent, handleDocSelect]);
 
   if (!visible) return null;
 

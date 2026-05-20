@@ -1,9 +1,12 @@
+import { type notebookFilterFieldSchema } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 
 import apiClient from '../../../components/utils/apiClient';
 import { useAuthStore } from '../../../stores/authStore';
 import { type NotebookCollection } from '../../../types/notebook';
+
+import type { z } from 'zod';
 
 // ── API response shapes ────────────────────────────────────────────────────
 
@@ -22,19 +25,14 @@ interface CollectionResponse extends ApiBase {
 
 export type { NotebookCollection };
 
-export interface FilterValueItem {
-  value: string;
-  count?: number;
-}
+/**
+ * Filter-field shape on the wire. Single source of truth is
+ * `notebookFilterFieldSchema` in `@gruenerator/contracts/schemas/notebook` —
+ * deriving via `z.infer` eliminates the prior cast at the API boundary.
+ */
+export type FilterFieldConfig = z.infer<typeof notebookFilterFieldSchema>;
 
-export interface FilterFieldConfig {
-  label?: string;
-  type?: string;
-  values?: (string | FilterValueItem)[];
-  valueLabels?: Record<string, string>;
-  min?: unknown;
-  max?: unknown;
-}
+export type FilterValueItem = NonNullable<FilterFieldConfig['values']>[number];
 
 export type FilterValuesCache = Record<string, Record<string, FilterFieldConfig>>;
 export type ActiveFilters = Record<
@@ -477,7 +475,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
       const result = await client.notebook.getFilters({ params: { id: collectionId } });
 
       if (result.status === 200 && result.body.filters) {
-        const filters = result.body.filters as Record<string, FilterFieldConfig>;
+        const filters = result.body.filters;
         set((state) => ({
           filterValuesCache: {
             ...state.filterValuesCache,

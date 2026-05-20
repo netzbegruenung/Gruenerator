@@ -1,10 +1,20 @@
 import React, { useRef, useEffect, useState, useCallback, memo } from 'react';
-import { Group, Image as KonvaImage, Shape, Transformer, Text, Rect } from 'react-konva';
+import { Circle, Group, Image as KonvaImage, Line, Rect, Shape, Transformer } from 'react-konva';
+
+import { assertNever } from '../utils/shapes';
 
 import type { FrameClipType, FrameInstance } from '../utils/frameUtils';
 import type Konva from 'konva';
 import type { Context, SceneContext } from 'konva/lib/Context';
 
+/**
+ * Plot the silhouette path for the given clip-type into the canvas context.
+ * Caller (Konva.Group clipFunc, or the SVG mini-preview) wraps with fill/clip.
+ * Coordinates are in the frame's local 0..w × 0..h space.
+ *
+ * The `assertNever` default turns any new FrameClipType added without a path
+ * here into a compile error — same exhaustiveness pattern as ShapePrimitive.
+ */
 function drawFramePath(
   ctx: CanvasRenderingContext2D | Context,
   clipType: FrameClipType,
@@ -16,7 +26,7 @@ function drawFramePath(
     case 'circle': {
       const radius = Math.min(w, h) / 2;
       ctx.arc(w / 2, h / 2, radius, 0, Math.PI * 2);
-      break;
+      return;
     }
     case 'rounded-rect': {
       const r = cornerRadius;
@@ -26,29 +36,19 @@ function drawFramePath(
       ctx.arcTo(0, h, 0, 0, r);
       ctx.arcTo(0, 0, w, 0, r);
       ctx.closePath();
-      break;
+      return;
     }
     case 'square': {
       ctx.rect(0, 0, w, h);
-      break;
+      return;
     }
     case 'oval': {
       ctx.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
-      break;
+      return;
     }
     case 'hexagon': {
-      const cx = w / 2;
-      const cy = h / 2;
-      const r = Math.min(w, h) / 2;
-      for (let i = 0; i < 6; i++) {
-        const angle = (Math.PI / 3) * i - Math.PI / 2;
-        const px = cx + r * Math.cos(angle);
-        const py = cy + r * Math.sin(angle);
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      break;
+      regularPolygonPath(ctx, w, h, 6, -Math.PI / 2);
+      return;
     }
     case 'diamond': {
       ctx.moveTo(w / 2, 0);
@@ -56,7 +56,7 @@ function drawFramePath(
       ctx.lineTo(w / 2, h);
       ctx.lineTo(0, h / 2);
       ctx.closePath();
-      break;
+      return;
     }
     case 'drop': {
       const cx = w / 2;
@@ -65,16 +65,172 @@ function drawFramePath(
       ctx.arc(cx, h * 0.6, w / 2, 0, Math.PI);
       ctx.bezierCurveTo(0, h * 0.45, cx - w * 0.4, h * 0.25, cx, 0);
       ctx.closePath();
-      break;
+      return;
     }
     case 'leaf': {
       ctx.moveTo(0, h);
       ctx.bezierCurveTo(0, h * 0.3, w * 0.3, 0, w, 0);
       ctx.bezierCurveTo(w, h * 0.7, w * 0.7, h, 0, h);
       ctx.closePath();
-      break;
+      return;
     }
+    case 'triangle': {
+      ctx.moveTo(w / 2, 0);
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.closePath();
+      return;
+    }
+    case 'pentagon': {
+      regularPolygonPath(ctx, w, h, 5, -Math.PI / 2);
+      return;
+    }
+    case 'octagon': {
+      regularPolygonPath(ctx, w, h, 8, -Math.PI / 2 - Math.PI / 8);
+      return;
+    }
+    case 'star': {
+      starPath(ctx, w, h, 5);
+      return;
+    }
+    case 'heart': {
+      const top = h * 0.18;
+      ctx.moveTo(w / 2, h);
+      ctx.bezierCurveTo(-w * 0.05, h * 0.7, w * 0.1, top, w / 2, h * 0.32);
+      ctx.bezierCurveTo(w * 0.9, top, w * 1.05, h * 0.7, w / 2, h);
+      ctx.closePath();
+      return;
+    }
+    case 'cloud': {
+      ctx.moveTo(w * 0.14, h * 0.78);
+      ctx.bezierCurveTo(0, h * 0.78, 0, h * 0.45, w * 0.18, h * 0.4);
+      ctx.bezierCurveTo(w * 0.18, h * 0.1, w * 0.55, h * 0.05, w * 0.62, h * 0.32);
+      ctx.bezierCurveTo(w * 0.78, h * 0.12, w, h * 0.3, w, h * 0.55);
+      ctx.bezierCurveTo(w, h * 0.85, w * 0.78, h * 0.92, w * 0.62, h * 0.78);
+      ctx.bezierCurveTo(w * 0.5, h * 0.95, w * 0.25, h * 0.95, w * 0.14, h * 0.78);
+      ctx.closePath();
+      return;
+    }
+    case 'blob': {
+      ctx.moveTo(w * 0.5, 0);
+      ctx.bezierCurveTo(w * 0.85, h * 0.05, w, h * 0.4, w * 0.92, h * 0.6);
+      ctx.bezierCurveTo(w * 0.85, h * 0.9, w * 0.55, h, w * 0.32, h * 0.96);
+      ctx.bezierCurveTo(w * 0.05, h * 0.85, 0, h * 0.5, w * 0.08, h * 0.28);
+      ctx.bezierCurveTo(w * 0.18, h * 0.1, w * 0.32, 0, w * 0.5, 0);
+      ctx.closePath();
+      return;
+    }
+    case 'arch': {
+      const r = Math.min(w / 2, h * 0.45);
+      ctx.moveTo(0, h);
+      ctx.lineTo(0, r);
+      ctx.arc(w / 2, r, r, Math.PI, 0);
+      ctx.lineTo(w, h);
+      ctx.closePath();
+      return;
+    }
+    case 'speech-bubble': {
+      const r = Math.min(w, h) * 0.08;
+      const bodyH = h * 0.78;
+      ctx.moveTo(r, 0);
+      ctx.arcTo(w, 0, w, bodyH, r);
+      ctx.arcTo(w, bodyH, 0, bodyH, r);
+      ctx.lineTo(w * 0.42, bodyH);
+      ctx.lineTo(w * 0.22, h);
+      ctx.lineTo(w * 0.28, bodyH);
+      ctx.arcTo(0, bodyH, 0, 0, r);
+      ctx.arcTo(0, 0, w, 0, r);
+      ctx.closePath();
+      return;
+    }
+    case 'banner-tag': {
+      ctx.moveTo(0, h / 2);
+      ctx.lineTo(w * 0.22, 0);
+      ctx.lineTo(w, 0);
+      ctx.lineTo(w, h);
+      ctx.lineTo(w * 0.22, h);
+      ctx.closePath();
+      return;
+    }
+    case 'ribbon': {
+      const tail = w * 0.12;
+      ctx.moveTo(0, h * 0.25);
+      ctx.lineTo(tail, h / 2);
+      ctx.lineTo(0, h * 0.75);
+      ctx.lineTo(tail, h * 0.75);
+      ctx.lineTo(tail, h);
+      ctx.lineTo(w - tail, h);
+      ctx.lineTo(w - tail, h * 0.75);
+      ctx.lineTo(w, h * 0.75);
+      ctx.lineTo(w - tail, h / 2);
+      ctx.lineTo(w, h * 0.25);
+      ctx.lineTo(w - tail, h * 0.25);
+      ctx.lineTo(w - tail, 0);
+      ctx.lineTo(tail, 0);
+      ctx.lineTo(tail, h * 0.25);
+      ctx.closePath();
+      return;
+    }
+    case 'ring': {
+      // Annulus: outer CCW + inner CW. Konva's clipFunc fills with nonzero
+      // winding rule by default — opposite-winding subpaths produce a hole.
+      const cx = w / 2;
+      const cy = h / 2;
+      const outerR = Math.min(w, h) / 2;
+      const innerR = outerR * 0.55;
+      ctx.moveTo(cx + outerR, cy);
+      ctx.arc(cx, cy, outerR, 0, Math.PI * 2, false);
+      ctx.moveTo(cx + innerR, cy);
+      ctx.arc(cx, cy, innerR, 0, Math.PI * 2, true);
+      return;
+    }
+    default:
+      return assertNever(clipType);
   }
+}
+
+/** Inscribe a regular n-gon in 0..w × 0..h, starting at `startAngle` (radians). */
+function regularPolygonPath(
+  ctx: CanvasRenderingContext2D | Context,
+  w: number,
+  h: number,
+  sides: number,
+  startAngle: number
+) {
+  const cx = w / 2;
+  const cy = h / 2;
+  const r = Math.min(w, h) / 2;
+  for (let i = 0; i < sides; i++) {
+    const angle = startAngle + ((Math.PI * 2) / sides) * i;
+    const px = cx + r * Math.cos(angle);
+    const py = cy + r * Math.sin(angle);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+/** Plot an n-point star inscribed in 0..w × 0..h. Inner radius is ~half outer. */
+function starPath(
+  ctx: CanvasRenderingContext2D | Context,
+  w: number,
+  h: number,
+  numPoints: number
+) {
+  const cx = w / 2;
+  const cy = h / 2;
+  const outerR = Math.min(w, h) / 2;
+  const innerR = outerR * 0.45;
+  const step = Math.PI / numPoints;
+  for (let i = 0; i < numPoints * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const angle = -Math.PI / 2 + step * i;
+    const px = cx + r * Math.cos(angle);
+    const py = cy + r * Math.sin(angle);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
 }
 
 export interface FramePrimitiveProps {
@@ -114,40 +270,110 @@ function FramePrimitiveInner({
     };
   }, [frame.imageSrc]);
 
-  // Attach transformer when selected
+  // Attach transformer when selected. Deps deliberately narrow: re-running
+  // on every frame field change made Konva fire phantom transform events.
   useEffect(() => {
     if (isSelected && trRef.current && groupRef.current) {
+      console.log('[FramePrimitive] attaching Transformer', {
+        id: frame.id,
+        beforeAttach: {
+          nodeScaleX: groupRef.current.scaleX(),
+          nodeScaleY: groupRef.current.scaleY(),
+          stateWidth: frame.width,
+          stateHeight: frame.height,
+        },
+      });
       trRef.current.nodes([groupRef.current]);
       trRef.current.getLayer()?.batchDraw();
+      console.log('[FramePrimitive] attached Transformer', { id: frame.id });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSelected]);
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
+      console.log('[FramePrimitive] handleDragEnd', {
+        id: frame.id,
+        clipType: frame.clipType,
+        from: { x: frame.x, y: frame.y },
+        to: { x: e.target.x(), y: e.target.y() },
+        nodeScale: { x: e.target.scaleX(), y: e.target.scaleY() },
+        nodeSize: { w: e.target.width(), h: e.target.height() },
+        stateSize: { w: frame.width, h: frame.height },
+      });
       onChange({ x: e.target.x(), y: e.target.y() });
     },
-    [onChange]
+    [onChange, frame.id, frame.clipType, frame.x, frame.y, frame.width, frame.height]
   );
 
   const handleTransformEnd = useCallback(() => {
     const node = groupRef.current;
     if (!node) return;
 
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    const rotation = node.rotation();
+    const nodeW = node.width();
+    const nodeH = node.height();
+
+    const SCALE_EPSILON = 0.001;
+    const ROTATION_EPSILON = 0.01;
+    const isPhantom =
+      Math.abs(scaleX - 1) < SCALE_EPSILON &&
+      Math.abs(scaleY - 1) < SCALE_EPSILON &&
+      Math.abs(nodeW - frame.width) < SCALE_EPSILON &&
+      Math.abs(nodeH - frame.height) < SCALE_EPSILON &&
+      Math.abs(rotation - frame.rotation) < ROTATION_EPSILON;
+
+    // Always reset node scale to 1 — even on phantom — so the Konva node and
+    // React state stay in sync. Konva's keepRatio measures the bbox aspect
+    // (which drifts from 1:1 due to border strokes) so we enforce a single
+    // uniform scale ourselves to guarantee the frame's aspect ratio survives.
+    node.scaleX(1);
+    node.scaleY(1);
+
+    if (isPhantom) return;
+
+    const uniformScale = (scaleX + scaleY) / 2;
     onChange({
       x: node.x(),
       y: node.y(),
-      rotation: node.rotation(),
-      scaleX: node.scaleX(),
-      scaleY: node.scaleY(),
+      rotation,
+      width: Math.max(20, frame.width * uniformScale),
+      height: Math.max(20, frame.height * uniformScale),
+      scaleX: 1,
+      scaleY: 1,
     });
-  }, [onChange]);
+  }, [onChange, frame.width, frame.height, frame.rotation]);
 
   const handleSelect = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+      console.log('[FramePrimitive] handleSelect (touch/click)', {
+        id: frame.id,
+        clipType: frame.clipType,
+        wasSelected: isSelected,
+        stateSize: { w: frame.width, h: frame.height },
+        stateScale: { x: frame.scaleX, y: frame.scaleY },
+        nodeScale: groupRef.current
+          ? { x: groupRef.current.scaleX(), y: groupRef.current.scaleY() }
+          : null,
+        nodeSize: groupRef.current
+          ? { w: groupRef.current.width(), h: groupRef.current.height() }
+          : null,
+      });
       e.cancelBubble = true;
       onSelect(frame.id);
     },
-    [onSelect, frame.id]
+    [
+      onSelect,
+      frame.id,
+      frame.clipType,
+      frame.width,
+      frame.height,
+      frame.scaleX,
+      frame.scaleY,
+      isSelected,
+    ]
   );
 
   const { width: w, height: h } = frame;
@@ -181,6 +407,8 @@ function FramePrimitiveInner({
         ref={groupRef}
         x={frame.x}
         y={frame.y}
+        width={w}
+        height={h}
         rotation={frame.rotation}
         scaleX={frame.scaleX}
         scaleY={frame.scaleY}
@@ -190,7 +418,28 @@ function FramePrimitiveInner({
         draggable={draggable}
         onClick={handleSelect}
         onTap={handleSelect}
+        onDragStart={(e) => {
+          console.log('[FramePrimitive] onDragStart', {
+            id: frame.id,
+            x: e.target.x(),
+            y: e.target.y(),
+            scaleX: e.target.scaleX(),
+            scaleY: e.target.scaleY(),
+          });
+        }}
         onDragEnd={handleDragEnd}
+        onTransformStart={(e) => {
+          console.log(
+            '[FramePrimitive] onTransformStart ' +
+              JSON.stringify({
+                id: frame.id,
+                scaleX: e.target.scaleX(),
+                scaleY: e.target.scaleY(),
+                width: e.target.width(),
+                height: e.target.height(),
+              })
+          );
+        }}
         onTransformEnd={handleTransformEnd}
         name={`frame-${frame.id}`}
       >
@@ -200,18 +449,43 @@ function FramePrimitiveInner({
             <KonvaImage image={image} x={imgX} y={imgY} width={scaledW} height={scaledH} />
           ) : (
             <>
-              {/* Empty placeholder background */}
-              <Rect x={0} y={0} width={w} height={h} fill="#f0f0f0" />
-              <Text
-                text="Bild\nhinzufuegen"
-                x={0}
-                y={h / 2 - 30}
-                width={w}
-                align="center"
-                fontSize={16}
-                fill="#999999"
-                listening={false}
-              />
+              {/* Empty placeholder: soft fill + Canva-style image glyph */}
+              <Rect x={0} y={0} width={w} height={h} fill="#f3f4f6" />
+              {(() => {
+                const glyphScale = Math.min(w, h) * 0.3;
+                const cx = w / 2;
+                const cy = h / 2;
+                return (
+                  <Group x={cx} y={cy} listening={false}>
+                    {/* Mountain ridge */}
+                    <Line
+                      points={[
+                        -glyphScale,
+                        glyphScale * 0.4,
+                        -glyphScale * 0.35,
+                        -glyphScale * 0.25,
+                        glyphScale * 0.1,
+                        glyphScale * 0.15,
+                        glyphScale * 0.55,
+                        -glyphScale * 0.45,
+                        glyphScale,
+                        glyphScale * 0.4,
+                      ]}
+                      stroke="#9ca3af"
+                      strokeWidth={Math.max(2, glyphScale * 0.05)}
+                      lineJoin="round"
+                      lineCap="round"
+                    />
+                    {/* Sun */}
+                    <Circle
+                      x={-glyphScale * 0.5}
+                      y={-glyphScale * 0.45}
+                      radius={glyphScale * 0.15}
+                      fill="#9ca3af"
+                    />
+                  </Group>
+                );
+              })()}
             </>
           )}
         </Group>
@@ -249,11 +523,27 @@ function FramePrimitiveInner({
       {isSelected && (
         <Transformer
           ref={trRef}
+          enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+          keepRatio={true}
           boundBoxFunc={(oldBox, newBox) => {
-            if (newBox.width < 20 || newBox.height < 20) {
+            // Konva's keepRatio uses the bbox aspect (which includes stroke
+            // width drift), so during the live drag the frame can flash a
+            // wrong aspect ratio before we normalize on transformend. Enforce
+            // uniform scaling here: pick whichever axis the user pulled
+            // *more* (proportionally) and lock the other to it.
+            const wScale = newBox.width / oldBox.width;
+            const hScale = newBox.height / oldBox.height;
+            const masterScale = Math.abs(wScale - 1) > Math.abs(hScale - 1) ? wScale : hScale;
+            const adjustedWidth = oldBox.width * masterScale;
+            const adjustedHeight = oldBox.height * masterScale;
+            if (adjustedWidth < 20 || adjustedHeight < 20) {
               return oldBox;
             }
-            return newBox;
+            return {
+              ...newBox,
+              width: adjustedWidth,
+              height: adjustedHeight,
+            };
           }}
           anchorSize={10}
           anchorCornerRadius={5}

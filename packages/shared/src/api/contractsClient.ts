@@ -23,11 +23,18 @@ import {
   searchContract,
   boardsContract,
   notebookContract,
+  notebookCollectionsContract,
+  notebookSharingContract,
   wordpressContract,
   transferContract,
   notificationsContract,
+  emailContract,
+  modelPreferencesContract,
+  imageModelPreferenceContract,
   adminVorlagenContract,
-  authStatusContract,
+  docsContract,
+  documentsContract,
+  groupsContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 
@@ -128,11 +135,18 @@ const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
 const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
+const _notebookCollectionsClient = () => initClient(notebookCollectionsContract, CLIENT_OPTS);
+const _notebookSharingClient = () => initClient(notebookSharingContract, CLIENT_OPTS);
 const _wordpressClient = () => initClient(wordpressContract, CLIENT_OPTS);
 const _transferClient = () => initClient(transferContract, CLIENT_OPTS);
 const _notificationsClient = () => initClient(notificationsContract, CLIENT_OPTS);
+const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
+const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
+const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
-const _authStatusClient = () => initClient(authStatusContract, CLIENT_OPTS);
+const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
+const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
+const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -141,11 +155,18 @@ export interface ContractsClient {
   search: ReturnType<typeof _searchClient>;
   boards: ReturnType<typeof _boardsClient>;
   notebook: ReturnType<typeof _notebookClient>;
+  notebookCollections: ReturnType<typeof _notebookCollectionsClient>;
+  notebookSharing: ReturnType<typeof _notebookSharingClient>;
   wordpress: ReturnType<typeof _wordpressClient>;
   transfer: ReturnType<typeof _transferClient>;
   notifications: ReturnType<typeof _notificationsClient>;
+  email: ReturnType<typeof _emailClient>;
+  modelPreferences: ReturnType<typeof _modelPreferencesClient>;
+  imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
-  authStatus: ReturnType<typeof _authStatusClient>;
+  docs: ReturnType<typeof _docsClient>;
+  documents: ReturnType<typeof _documentsClient>;
+  groups: ReturnType<typeof _groupsClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -171,11 +192,18 @@ export function getContractsClient(): ContractsClient {
     search: _searchClient(),
     boards: _boardsClient(),
     notebook: _notebookClient(),
+    notebookCollections: _notebookCollectionsClient(),
+    notebookSharing: _notebookSharingClient(),
     wordpress: _wordpressClient(),
     transfer: _transferClient(),
     notifications: _notificationsClient(),
+    email: _emailClient(),
+    modelPreferences: _modelPreferencesClient(),
+    imageModelPreference: _imageModelPreferenceClient(),
     adminVorlagen: _adminVorlagenClient(),
-    authStatus: _authStatusClient(),
+    docs: _docsClient(),
+    documents: _documentsClient(),
+    groups: _groupsClient(),
   };
 
   return _client;

@@ -1,7 +1,6 @@
 import { SectionHeader } from '@gruenerator/ui';
 import { memo } from 'react';
 
-import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useFirstName } from '../../hooks/useFirstName';
@@ -13,12 +12,60 @@ import RecentlyCreatedSection from './components/RecentlyCreatedSection';
 import ReelsSection from './components/ReelsSection';
 import ToolsSection, { FavoritesSection } from './components/ToolsSection';
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
+function pickStable<T>(options: readonly T[], seed: number): T {
+  return options[seed % options.length] as T;
+}
+
+const GENERAL_DE = [
+  'Was stricken wir heute, @Vorname?',
+  'Womit machen wir die Welt heute besser, @Vorname?',
+  'Denkst du auch manchmal an Robert zurück, @Vorname?',
+  'Bereit für den Wandel, @Vorname?',
+  'Was steht heute auf der Agenda, @Vorname?',
+] as const;
+
+function pickTemplate(locale: string | null | undefined, hour: number): string {
+  const daySeed = Math.floor(Date.now() / 86_400_000);
+
+  if (locale === 'de-AT') {
+    if (hour < 6) return pickStable(['Gute Nacht', 'Schlaf guat'] as const, daySeed);
+    if (hour < 11) return pickStable(['Guten Morgen', 'Servus', 'Grüß dich'] as const, daySeed);
+    if (hour < 14)
+      return pickStable(['Grüß Gott', 'Servus', 'Habidere', 'Mahlzeit'] as const, daySeed);
+    if (hour < 18)
+      return pickStable(['Grüß dich', 'Servus', 'Schönen Nachmittag'] as const, daySeed);
+    return pickStable(
+      [
+        'Guten Abend',
+        'Schönen Abend',
+        'Servus',
+        'Das Ehrenamt schläft nie, was @Vorname?',
+      ] as const,
+      daySeed
+    );
+  }
+
   if (hour < 6) return 'Gute Nacht';
-  if (hour < 12) return 'Guten Morgen';
-  if (hour < 18) return 'Guten Tag';
-  return 'Guten Abend';
+  if (hour < 12)
+    return pickStable(
+      ['Guten Morgen', 'Moin', 'Der frühe Vogel rettet den Artenschutz, @Vorname', ...GENERAL_DE],
+      daySeed
+    );
+  if (hour < 14) return pickStable(['Guten Tag', 'Mahlzeit', ...GENERAL_DE], daySeed);
+  if (hour < 18) return pickStable(['Guten Tag', ...GENERAL_DE], daySeed);
+  return pickStable(
+    ['Guten Abend', 'Das Ehrenamt schläft nie, was @Vorname?', ...GENERAL_DE],
+    daySeed
+  );
+}
+
+function getGreeting(locale: string | null | undefined, firstName: string | null): string {
+  const template = pickTemplate(locale, new Date().getHours());
+
+  if (template.includes('@Vorname')) {
+    return template.replace('@Vorname', firstName ?? 'du');
+  }
+  return firstName ? `${template}, ${firstName}` : template;
 }
 
 const GRASS_BLADES: Array<{ x: number; h: number; lean: number }> = [];
@@ -193,7 +240,7 @@ const WorkplacePage = () => {
       <PageContainer maxWidth="lg">
         <div className="text-center mb-lg pt-md">
           <h1 className="text-4xl max-md:text-2xl font-semibold text-foreground-heading mb-xs">
-            {firstName ? `${getGreeting()}, ${firstName}` : getGreeting()}
+            {getGreeting(locale, firstName)}
           </h1>
           <p className="text-lg text-grey-500 dark:text-grey-400">
             Beschreibe dein Vorhaben und die KI erstellt es für dich.
@@ -228,6 +275,4 @@ const WorkplacePage = () => {
   );
 };
 
-export default withAuthRequired(WorkplacePage, {
-  title: 'Desk',
-});
+export default WorkplacePage;

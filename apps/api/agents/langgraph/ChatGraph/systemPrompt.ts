@@ -9,6 +9,7 @@
 
 import { localizePlaceholders } from '../../../services/localization/index.js';
 import { type Locale } from '../../../services/localization/types.js';
+import { formatGermanDate } from '../../../utils/stringUtils.js';
 
 import type { ThreadAttachment } from './types.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
@@ -57,13 +58,7 @@ export function buildDeepAgentSystemPrompt(ctx: SystemPromptContext): string {
   );
 
   // 2. Current date for temporal awareness
-  const today = new Date().toLocaleDateString('de-DE', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-  sections.push(`Heutiges Datum: ${today}`);
+  sections.push(`Heutiges Datum: ${formatGermanDate()}`);
 
   // 2b. Locale context (Austrian vs German)
   if (ctx.userLocale === 'de-AT') {

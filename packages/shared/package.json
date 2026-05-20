@@ -119,10 +119,44 @@
       "types": "./src/groups/index.ts",
       "import": "./dist/groups/index.js",
       "default": "./dist/groups/index.js"
+    },
+    "./agents": {
+      "development": "./src/agents/index.ts",
+      "types": "./src/agents/index.ts",
+      "import": "./dist/agents/index.js",
+      "default": "./dist/agents/index.js"
+    },
+    "./notebook-icons": {
+      "development": "./src/notebook-icons/index.ts",
+      "types": "./src/notebook-icons/index.ts",
+      "import": "./dist/notebook-icons/index.js",
+      "default": "./dist/notebook-icons/index.js"
+    },
+    "./chat": {
+      "development": "./src/chat/index.ts",
+      "types": "./src/chat/index.ts",
+      "import": "./dist/chat/index.js",
+      "default": "./dist/chat/index.js"
+    },
+    "./models": {
+      "development": "./src/models/index.ts",
+      "types": "./src/models/index.ts",
+      "import": "./dist/models/index.js",
+      "default": "./dist/models/index.js"
+    },
+    "./yjs": {
+      "development": "./src/yjs/index.ts",
+      "types": "./src/yjs/index.ts",
+      "import": "./dist/yjs/index.js",
+      "default": "./dist/yjs/index.js"
     }
   },
   "scripts": {
     "build": "tsc --project tsconfig.json",
+    "prebuild": "pnpm build:skills",
+    "predev": "pnpm build:skills",
+    "build:skills": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-skills.ts",
+    "watch:skills": "cross-env NODE_OPTIONS=--conditions=development tsx scripts/build-skills.ts --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
@@ -130,17 +164,24 @@
   "dependencies": {
     "@gruenerator/contracts": "workspace:*",
     "@ts-rest/core": "^3.52.1",
-    "axios": "^1.15.2",
+    "axios": "^1.16.0",
     "clsx": "^2.1.1",
+    "nanoid": "^5.1.11",
+    "react-icons": "^5.6.0",
     "tailwind-merge": "^3.5.0",
-    "zustand": "^5.0.12"
+    "yjs": "^13.6.30",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
-    "@tanstack/react-query": "^5.100.5",
+    "@tanstack/react-query": "^5.100.9",
     "@types/react": "^19.2.14",
+    "chokidar": "^3.6.0",
+    "cross-env": "^7.0.3",
     "eslint": "^9.39.4",
-    "typescript": "^5.9.3"
+    "gray-matter": "^4.0.3",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",

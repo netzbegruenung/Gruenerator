@@ -5,6 +5,7 @@ import { Library } from 'lucide-react';
 import { filterMentionables, type Mentionable } from '../../lib/mentionables';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
 import { SkillLibraryModal } from '../skills/SkillLibraryModal';
+import { MentionFloatingPanel } from './MentionFloatingPanel';
 
 interface SkillPopoverProps {
   query: string;
@@ -52,73 +53,66 @@ export function SkillPopover({
     );
   }
 
-  if (!visible || !anchorRect) return null;
-
+  const isOpen = visible && !!anchorRect;
   const showEmptyHint = allItems.length === 0 && query.length > 0;
 
   let itemIndex = 0;
 
   return (
-    <div
-      ref={listRef}
-      role="listbox"
-      className="mention-popover absolute z-50 max-h-60 w-64 overflow-y-auto rounded-xl border border-border bg-background shadow-lg"
-      style={{
-        bottom: '100%',
-        left: 0,
-        marginBottom: '0.5rem',
-      }}
-    >
-      {quickAccessAgents.length > 0 && (
-        <>
-          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            Skills
-          </div>
-          {quickAccessAgents.map((agent) => {
-            const idx = itemIndex++;
-            return (
-              <SkillItem
-                key={agent.mention}
-                mentionable={agent}
-                isSelected={idx === selectedIndex}
-                onSelect={onSelect}
-              />
-            );
-          })}
-        </>
-      )}
-      {customAgents.length > 0 && (
-        <>
-          <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
-            Meine Skills
-          </div>
-          {customAgents.map((agent) => {
-            const idx = itemIndex++;
-            return (
-              <SkillItem
-                key={agent.mention}
-                mentionable={agent}
-                isSelected={idx === selectedIndex}
-                onSelect={onSelect}
-              />
-            );
-          })}
-        </>
-      )}
-      {showEmptyHint && (
-        <div className="px-3 py-3 text-xs text-foreground-muted">Kein Skill gefunden</div>
-      )}
-      <button
-        className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-xs text-foreground-muted transition-colors hover:bg-primary/5 hover:text-foreground"
-        onMouseDown={(e) => {
-          e.preventDefault();
-          setLibraryOpen(true);
-        }}
-      >
-        <Library className="h-3.5 w-3.5" />
-        Alle Skills durchsuchen...
-      </button>
-    </div>
+    <MentionFloatingPanel open={isOpen} onDismiss={onDismiss} width="w-64" role="listbox">
+      <div ref={listRef} className="overflow-y-auto">
+        {quickAccessAgents.length > 0 && (
+          <>
+            <div className="sticky top-0 z-[1] bg-background px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+              Skills
+            </div>
+            {quickAccessAgents.map((agent) => {
+              const idx = itemIndex++;
+              return (
+                <SkillItem
+                  key={agent.mention}
+                  mentionable={agent}
+                  isSelected={idx === selectedIndex}
+                  onSelect={onSelect}
+                />
+              );
+            })}
+          </>
+        )}
+        {customAgents.length > 0 && (
+          <>
+            <div className="sticky top-0 z-[1] bg-background px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-foreground-muted/60">
+              Meine Skills
+            </div>
+            {customAgents.map((agent) => {
+              const idx = itemIndex++;
+              return (
+                <SkillItem
+                  key={agent.mention}
+                  mentionable={agent}
+                  isSelected={idx === selectedIndex}
+                  onSelect={onSelect}
+                />
+              );
+            })}
+          </>
+        )}
+        {showEmptyHint && (
+          <div className="px-3 py-3 text-xs text-foreground-muted">Kein Skill gefunden</div>
+        )}
+        <button
+          type="button"
+          className="flex w-full items-center gap-2 border-t border-border px-3 py-2 text-xs text-foreground-muted transition-colors hover:bg-primary/5 hover:text-foreground"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            setLibraryOpen(true);
+          }}
+        >
+          <Library className="h-3.5 w-3.5" />
+          Alle Skills durchsuchen...
+        </button>
+      </div>
+    </MentionFloatingPanel>
   );
 }
 
@@ -133,6 +127,7 @@ function SkillItem({
 }) {
   return (
     <button
+      type="button"
       role="option"
       aria-selected={isSelected}
       data-selected={isSelected}
@@ -144,11 +139,8 @@ function SkillItem({
         onSelect(mentionable);
       }}
     >
-      <span
-        className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-sm"
-        style={{ backgroundColor: mentionable.backgroundColor }}
-      >
-        {mentionable.avatar}
+      <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-secondary-600">
+        {mentionable.icon ? <mentionable.icon className="h-4 w-4" /> : null}
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">{mentionable.title}</p>

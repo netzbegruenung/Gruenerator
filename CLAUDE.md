@@ -10,6 +10,8 @@
 
 Grünerator: AI content creation platform for Die Grünen. pnpm monorepo (web, mobile, desktop, API). EU-hosted infrastructure.
 
+**Locale: Austria (de-AT) is a first-class audience alongside Germany (de-DE).** Default to AT-aware code, not DE-with-AT-toggle. When adding agents, tag `audience: 'de-DE' | 'de-AT' | 'all'` explicitly — leaving it undefined defaults to `'all'` for backward compat, not as a way to skip the decision. System prompts with DE-specific terminology must fork via `userLocale === 'de-AT'`; the `## LÄNDERKONTEXT: ÖSTERREICH` block in `systemPrompt.ts` is the established seam. Notebook routing falls back to `oesterreich-notebook` for AT users when an agent has no `defaultNotebookId`.
+
 ## Commands
 
 All from repo root (pnpm + Turborepo):
@@ -35,12 +37,14 @@ Single workspace: `pnpm --filter @gruenerator/api test:auth`, `pnpm --filter @gr
 
 - **`apps/web`** — React 19 + Vite 7. Feature-sliced design, 26 modules in `src/features/`. Routes: `src/config/routes.ts`.
 - **`apps/api`** — Express 5, Node.js cluster mode. AI via worker pool (`workers/aiWorkerPool.ts`). Routes in `routes/`, logic in `services/`. See `CLAUDE-routing.md`.
+  - **Chat: dual handlers, contract router is live.** `routes/chat/chatGraphContractRouter.ts` (+ `agents/langgraph/ChatGraph/` nodes: classifier → search → respond) handles `/api/chat-service/*`. `routes/chat/chatStreamController.ts` is legacy — still mounted but not the default path. **When debugging chat behavior (intent, tool calls, prompts), check the contract router & ChatGraph nodes first** — confirm via backend logs `[ChatGraph:Classifier]` / `[chatGraphContractRouter]`.
 - **`apps/docs`** — **Deprecated** collaborative editor. New docs features → `apps/web/src/features/docs/` + `packages/docs/`.
-- **`apps/sites`** — Site builder.
 - **`apps/mobile`** — Expo 55 / React Native 0.83 with Expo Router.
 - **`apps/desktop`** — Tauri 2 wrapper around web frontend.
 - **`packages/chat`** — Shared chat UI, runtime adapters (Assistant UI), stores, hooks. Consumed at `/chat`.
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, feature modules. Components in `src/components/`.
+- **`packages/sites`** — Embedded candidate-site builder (Home / Login / Demo / Edit pages, editor components, stores). Consumed by `apps/web` at `/sites/*` via `apps/web/src/features/sites/`. No standalone shell; auth/apiClient injected via `<SitesProvider>`.
+- **`packages/sites-design`** — Design tokens + presentational components for the site builder (consumed by `packages/sites` and the public candidate sites).
 - **`packages/canvas-editor`** — Config-driven react-konva editor. Per-instance Zustand stores via `CanvasStoreProvider`.
 - **`services/hocuspocus`** — Hocuspocus WebSocket server for Yjs collab. Zero cross-package deps (inline utils).
 - **`services/mcp`** — MCP server (`https://mcp.gruenerator.eu`). See `CLAUDE-mcp.md`.
@@ -102,6 +106,29 @@ Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`, `docs:`). Atomic: 
 ### TypeScript
 
 Strict mode, entire stack. `import { type Foo }` (inline style, not `import type`). Never use `undefined` — widen to `| null` or omit optional fields.
+
+**Type-safety rules** (full rationale in `~/.claude/projects/-home-morit-gruenerator/memory/feedback_typescript_advanced_patterns.md`):
+
+1. **Defaulted generics for shared infra** — stores/hooks/factories shared across heterogeneous configs use `<T extends Record<string, unknown> = Record<string, unknown>>`. Existing call sites resolve to the default unchanged; opt-in stronger typing flows via inference from typed callbacks.
+2. **Discriminated unions — never destructure** — `const { type, data } = obj` breaks narrowing. Keep `obj.type`/`obj.data` access through the if-chain so each branch auto-narrows.
+3. **Existential types via render closure** — for arrays of `Item<T1, T2, TInner>` where `TInner` varies per element, capture `TInner` inside `defineItem`'s closure and expose only a `render()` method. `Item<T1, T2>` (no third generic) sits cleanly in the array.
+4. **Boundary casts vs type holes** — a cast at a true type boundary IS the assertion (e.g. `Record<string, unknown>` → typed extraction, async heterogeneous-config loader). A cast in a flow path where a discriminated union or constraint would suffice is a hole. Don't remove the former; do remove the latter.
+5. **Documented escape hatches** — computed property keys widen to `string` (`as Partial<State>` is the workaround); Immer `Draft<T>` conditional fails for unconstrained generics (`as (typeof state.field)[number]` at the push); one localized contravariance bridge cast at hook→provider boundaries when generic flows into a default-typed slot. Always comment why.
+
+### Runtime types — Zod & Drizzle
+
+Two canonical sources of truth. **Always derive TS types from them; never hand-duplicate the shape.**
+
+- **Zod (HTTP boundaries):** define request/response schemas with `z.object({...})`. Use `validateBody(schema)` middleware on Express routes; handler receives `TypedRequest<z.infer<typeof schema>>`. Never `& AuthenticatedRequest` (collapses body to `any`); `TypedRequest<T>` already includes auth fields. For response types and cross-package contracts, prefer `z.infer<typeof schema>` over hand-written interfaces.
+- **Drizzle (database):** schemas in `apps/api/database/schema/*.ts` as `pgTable(...)`, re-exported from `database/schema/index.ts`. Derive row types via `type Row = InferSelectModel<typeof tableName>` next to the schema; never declare a row interface by hand. **Migrations are raw SQL in `apps/api/database/postgres/migrations/`, auto-run on startup via `PostgresService.init()` — NOT `drizzle-kit migrate`.** Schema files are the type source; SQL files are the runtime DDL. Keep them in sync.
+
+**Type-safety pass on bigger refactors:** Any non-trivial feature change (new endpoint, new dispatcher branch, new shared type) MUST audit the 4 layers before finishing:
+1. **Contract (`@gruenerator/contracts/contracts/*Contract.ts`)** — is the endpoint contracted via ts-rest? If yes, frontend uses `getContractsClient()` and gets typed `result.body` per status code. If no, audit whether it should be (especially user-facing endpoints triggered from typed UI).
+2. **Zod schema (`@gruenerator/contracts/schemas/*.ts`)** — is the request/response shape a Zod schema, with TS types derived via `z.infer`? Free-string fields (`z.string()`) representing a fixed set MUST be `z.enum([...])`. No hand-written response interfaces alongside a schema.
+3. **Drizzle (`apps/api/database/schema/*.ts`)** — does the table use `pgTable(...)` with `InferSelectModel`? Service layer uses the inferred row type; never re-declares a parallel interface.
+4. **ts-rest server (`*ContractRouter.ts`)** — every contract has a matching `initServer().router(contract, {...})` mounted via `createExpressEndpoints`. No silent legacy duplicate route on the same path.
+
+Symptom of a missed pass: a frontend interface that duplicates a backend schema's shape, a `z.string()` field whose values are actually a closed set, or a typed-UI button that POSTs through raw `apiClient` instead of the contracts client.
 
 ### Backend Routing & Typing
 

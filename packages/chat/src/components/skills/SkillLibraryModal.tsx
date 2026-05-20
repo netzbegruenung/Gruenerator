@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { X, Star, Search } from 'lucide-react';
+import { PiSparkle } from 'react-icons/pi';
 import { agentsList, SKILL_CATEGORY_LABELS, type SkillCategory } from '../../lib/agents';
 import {
   agentToMentionable,
@@ -77,6 +78,7 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="rounded-lg p-1.5 text-foreground-muted hover:bg-grey-100 hover:text-foreground dark:hover:bg-grey-800"
             aria-label="Schließen"
@@ -107,17 +109,16 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
               </div>
               {items.map((skill) => {
                 const isFav = favorites.includes(skill.mention.toLowerCase());
+                const Icon = skill.icon;
                 return (
                   <div key={skill.mention} className="flex items-center gap-1">
                     <button
+                      type="button"
                       className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-primary/5"
                       onClick={() => onSelect(skill)}
                     >
-                      <span
-                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-base"
-                        style={{ backgroundColor: skill.backgroundColor }}
-                      >
-                        {skill.avatar}
+                      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-secondary-600">
+                        {Icon ? <Icon className="h-5 w-5" /> : null}
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground">{skill.title}</p>
@@ -125,13 +126,14 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                       </div>
                     </button>
                     <button
+                      type="button"
                       onClick={() => toggleFavorite(skill.mention)}
                       className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
                       aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
                       title={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
                     >
                       <Star
-                        className={`h-4 w-4 ${isFav ? 'fill-yellow-400 text-yellow-400' : 'text-foreground-muted'}`}
+                        className={`h-4 w-4 ${isFav ? 'fill-secondary-600 text-secondary-600' : 'text-foreground-muted'}`}
                       />
                     </button>
                   </div>
@@ -147,17 +149,16 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
               </div>
               {customAgents.map((skill) => {
                 const isFav = favorites.includes(skill.mention.toLowerCase());
+                const Icon = skill.icon ?? PiSparkle;
                 return (
                   <div key={skill.mention} className="flex items-center gap-1">
                     <button
+                      type="button"
                       className="flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-primary/5"
                       onClick={() => onSelect(skill)}
                     >
-                      <span
-                        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-base"
-                        style={{ backgroundColor: skill.backgroundColor }}
-                      >
-                        {skill.avatar}
+                      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md text-secondary-600">
+                        <Icon className="h-5 w-5" />
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground">{skill.title}</p>
@@ -165,12 +166,13 @@ export function SkillLibraryModal({ open, onClose, onSelect }: SkillLibraryModal
                       </div>
                     </button>
                     <button
+                      type="button"
                       onClick={() => toggleFavorite(skill.mention)}
                       className="flex-shrink-0 rounded-lg p-2 transition-colors hover:bg-grey-100 dark:hover:bg-grey-800"
                       aria-label={isFav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
                     >
                       <Star
-                        className={`h-4 w-4 ${isFav ? 'fill-yellow-400 text-yellow-400' : 'text-foreground-muted'}`}
+                        className={`h-4 w-4 ${isFav ? 'fill-secondary-600 text-secondary-600' : 'text-foreground-muted'}`}
                       />
                     </button>
                   </div>

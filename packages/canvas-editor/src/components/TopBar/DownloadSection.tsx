@@ -6,11 +6,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Skeleton,
 } from '@gruenerator/ui';
 import { useState } from 'react';
 import { FaDownload } from 'react-icons/fa';
-
-import Spinner from '../../common/Spinner';
 
 export type CanvasDownloadChoice = 'png' | 'jpeg' | 'pdf' | 'pdf-print';
 
@@ -129,7 +128,7 @@ export function DownloadSection({
         disabled={isDownloading || isMultiExporting}
       >
         {isDownloading || isMultiExporting ? (
-          <Spinner size="small" />
+          <Skeleton className="size-3.5 rounded-full" />
         ) : (
           <FaDownload className="size-3.5" />
         )}

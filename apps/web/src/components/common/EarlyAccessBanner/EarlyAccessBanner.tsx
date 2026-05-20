@@ -21,12 +21,7 @@ const EarlyAccessBanner = ({
       )}
     >
       <HiBeaker className="text-2xl text-[var(--link-color)] shrink-0" />
-      <div
-        className={cn(
-          'flex-1 flex items-center gap-md',
-          'max-md:flex-col max-md:gap-sm'
-        )}
-      >
+      <div className={cn('flex-1 flex items-center gap-md', 'max-md:flex-col max-md:gap-sm')}>
         <p
           className={cn(
             'font-semibold text-sm text-foreground m-0',

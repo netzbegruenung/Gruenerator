@@ -1,16 +1,12 @@
+import { escapeHtml } from '@gruenerator/shared/utils';
+
 import { BRAND, PRIMARY_URL } from '../../config/domains.js';
 
 export const PRIMARY_COLOR = '#316049';
+export const HEADER_BG_COLOR = '#F5F1E9';
 export const LOGO_URL = `${PRIMARY_URL}/images/gruenerator_logo_gruen.svg`;
 
-export function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
+export { escapeHtml };
 
 export function baseLayout(content: string): string {
   return `<!DOCTYPE html>
@@ -27,7 +23,7 @@ export function baseLayout(content: string): string {
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:8px;overflow:hidden;">
           <!-- Header -->
           <tr>
-            <td style="background-color:${PRIMARY_COLOR};padding:24px 32px;text-align:center;">
+            <td style="background-color:${HEADER_BG_COLOR};padding:24px 32px;text-align:center;border-bottom:1px solid #e8e2d0;">
               <img src="${LOGO_URL}" alt="${escapeHtml(BRAND.name)}" width="180" style="max-width:180px;height:auto;" />
             </td>
           </tr>
@@ -108,6 +104,63 @@ ${senderName} hat das Dokument "${documentTitle}" mit dir geteilt (Berechtigung:
 Dokument öffnen: ${documentUrl}
 
 --
+${BRAND.name} — KI-Werkzeuge für Grüne
+${PRIMARY_URL}`;
+
+  return { html: baseLayout(content), text };
+}
+
+export interface GenericNotificationTemplateParams {
+  recipientName?: string;
+  title: string;
+  body: string | null;
+  actionUrl?: string | null;
+  actionLabel?: string;
+}
+
+export function renderGenericNotificationTemplate(params: GenericNotificationTemplateParams): {
+  html: string;
+  text: string;
+} {
+  const { recipientName, title, body, actionUrl, actionLabel = 'In Grünerator öffnen' } = params;
+
+  const greeting = recipientName
+    ? `<p style="margin:0 0 16px 0;font-size:15px;color:#555555;line-height:1.6;">Hallo ${escapeHtml(recipientName)},</p>`
+    : '';
+
+  const bodyBlock = body
+    ? `<p style="margin:0 0 24px 0;font-size:15px;color:#555555;line-height:1.6;">${escapeHtml(body)}</p>`
+    : '';
+
+  const ctaBlock = actionUrl
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px auto;">
+      <tr>
+        <td style="background-color:${PRIMARY_COLOR};border-radius:6px;">
+          <a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 28px;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;">
+            ${escapeHtml(actionLabel)}
+          </a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin:0;font-size:13px;color:#888888;line-height:1.5;">
+      Falls der Button nicht funktioniert, kopiere diesen Link in deinen Browser:<br>
+      <a href="${escapeHtml(actionUrl)}" style="color:${PRIMARY_COLOR};word-break:break-all;">${escapeHtml(actionUrl)}</a>
+    </p>`
+    : '';
+
+  const content = `
+    <h1 style="margin:0 0 16px 0;font-size:20px;color:#333333;">${escapeHtml(title)}</h1>
+    ${greeting}
+    ${bodyBlock}
+    ${ctaBlock}`;
+
+  const greetingText = recipientName ? `Hallo ${recipientName},\n\n` : '';
+  const bodyText = body ? `${body}\n\n` : '';
+  const ctaText = actionUrl ? `${actionLabel}: ${actionUrl}\n\n` : '';
+
+  const text = `${title}
+
+${greetingText}${bodyText}${ctaText}--
 ${BRAND.name} — KI-Werkzeuge für Grüne
 ${PRIMARY_URL}`;
 

@@ -27,7 +27,12 @@ function useDrawerRuntimeHook() {
 
   const historyAdapter = useMemo(() => {
     if (!remoteId) return undefined;
-    return createThreadHistoryAdapter(remoteId, apiClient, convertToThreadMessageLike, transformMessageLike);
+    return createThreadHistoryAdapter(
+      remoteId,
+      apiClient,
+      convertToThreadMessageLike,
+      transformMessageLike
+    );
   }, [remoteId, apiClient]);
 
   return useMobileChatRuntime(

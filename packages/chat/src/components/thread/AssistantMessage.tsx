@@ -2,9 +2,9 @@
 
 import { memo, useMemo } from 'react';
 import { MessagePrimitive, useMessage } from '@assistant-ui/react';
-import { useAgentStore } from '../../stores/chatStore';
+import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
-import { ChatIcon } from '../icons';
+import { GrueneratorHomeIconLoading } from '../icons';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
@@ -20,11 +20,19 @@ import { CitationProvider, useFetchFullText } from '../../context/CitationContex
 import { resolveCitations } from '../../lib/citationUtils';
 import { ConfirmActionCard } from '../tool-ui/ConfirmActionCard';
 import { DocumentCreatedCard } from '../tool-ui/DocumentCreatedCard';
+import { useChatDensity } from './chatDensityContext';
 import type { ChatMessageMetadata } from '../../types/messageMetadata';
 
 function AssistantMessageTextPart() {
+  const isCompact = useChatDensity() === 'compact';
   return (
-    <div className="prose prose-sm max-w-none min-w-0 break-words">
+    <div
+      className={
+        isCompact
+          ? 'prose prose-sm max-w-none min-w-0 break-words text-[13px] [&_h1]:text-base [&_h1]:mt-3 [&_h1]:mb-2 [&_h2]:text-[15px] [&_h2]:mt-3 [&_h2]:mb-1.5 [&_h3]:text-sm [&_h3]:mt-2 [&_h3]:mb-1 [&_p]:my-2 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5'
+          : 'prose prose-sm max-w-none min-w-0 break-words'
+      }
+    >
       <CitationMarkdownText />
     </div>
   );
@@ -34,7 +42,9 @@ const partComponents = { Text: AssistantMessageTextPart, Reasoning, ReasoningGro
 
 export const AssistantMessage = memo(function AssistantMessage() {
   const message = useMessage();
-  const selectedAgentId = useAgentStore((s) => s.selectedAgentId);
+  const density = useChatDensity();
+  const isCompact = density === 'compact';
+  const selectedAgentId = useScopedAgentId();
   const custom = message.metadata?.custom as ChatMessageMetadata | undefined;
 
   const messageAgent = useMemo(() => {
@@ -75,21 +85,37 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const showSearchResults = !isStreaming && citations.length > 0;
 
   return (
-    <MessagePrimitive.Root className="group mx-auto flex w-full min-w-0 max-w-3xl items-start gap-4">
+    <MessagePrimitive.Root
+      className={
+        isCompact
+          ? 'group mx-auto flex w-full min-w-0 items-start gap-2'
+          : 'group mx-auto flex w-full min-w-0 max-w-3xl items-start gap-4'
+      }
+    >
       {messageAgent ? (
         <div
-          className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm"
+          className={
+            isCompact
+              ? 'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-white'
+              : 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white'
+          }
           style={{ backgroundColor: messageAgent.backgroundColor }}
         >
-          {messageAgent.avatar}
+          <messageAgent.icon className={isCompact ? 'h-3.5 w-3.5' : 'h-4 w-4'} aria-hidden />
         </div>
       ) : (
-        <ChatIcon size={32} className="flex-shrink-0" />
+        <GrueneratorHomeIconLoading
+          loading={isStreaming}
+          width={isCompact ? 24 : 32}
+          height={isCompact ? 24 : 32}
+          className="flex-shrink-0"
+        />
       )}
       <div className="min-w-0 flex-1">
         {isNonDefaultAgent && messageAgent && (
           <SkillBadge
             avatar={messageAgent.avatar}
+            icon={messageAgent.icon}
             title={messageAgent.title}
             backgroundColor={messageAgent.backgroundColor}
           />
@@ -126,7 +152,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
         {isStreaming &&
           hasToolCall &&
           !textContent &&
-          custom?.progress?.stage === 'generating' &&
+          (custom?.progress?.stage === 'generating' || custom?.progress?.stage === 'searching') &&
           (custom?.progress?.steps ? (
             <ProgressTracker
               steps={custom.progress.steps}

@@ -51,6 +51,13 @@ export interface CanvasImageProps {
   brightness?: number;
   /** Apply grayscale filter */
   grayscale?: boolean;
+  /**
+   * When true, the source image is center-cropped to match the displayed
+   * width/height aspect ratio (CSS object-fit: cover behavior). Used for
+   * background images to preserve their natural aspect ratio inside a
+   * fixed-aspect canvas.
+   */
+  coverFit?: boolean;
 }
 
 const DEFAULT_IMAGE_ANCHORS: TransformAnchor[] = [
@@ -87,6 +94,7 @@ function CanvasImageInner({
   constrainToBounds = true,
   brightness = 0,
   grayscale = false,
+  coverFit = false,
 }: CanvasImageProps) {
   const imageRef = useRef<Konva.Image>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -253,6 +261,29 @@ function CanvasImageInner({
 
   const enabledAnchors = transformConfig?.enabledAnchors ?? DEFAULT_IMAGE_ANCHORS;
 
+  let crop: { x: number; y: number; width: number; height: number } | undefined;
+  if (coverFit && image.naturalWidth > 0 && image.naturalHeight > 0 && width > 0 && height > 0) {
+    const imgAspect = image.naturalWidth / image.naturalHeight;
+    const containerAspect = width / height;
+    if (imgAspect > containerAspect) {
+      const cropWidth = image.naturalHeight * containerAspect;
+      crop = {
+        x: (image.naturalWidth - cropWidth) / 2,
+        y: 0,
+        width: cropWidth,
+        height: image.naturalHeight,
+      };
+    } else {
+      const cropHeight = image.naturalWidth / containerAspect;
+      crop = {
+        x: 0,
+        y: (image.naturalHeight - cropHeight) / 2,
+        width: image.naturalWidth,
+        height: cropHeight,
+      };
+    }
+  }
+
   return (
     <>
       <KonvaImage
@@ -263,6 +294,7 @@ function CanvasImageInner({
         y={y}
         width={width}
         height={height}
+        crop={crop}
         opacity={opacity}
         draggable={draggable}
         dragBoundFunc={dragBoundFunc}
@@ -325,6 +357,7 @@ export const CanvasImage = memo(CanvasImageInner, (prevProps, nextProps) => {
     'color',
     'brightness',
     'grayscale',
+    'coverFit',
   ];
 
   for (const key of keysToCompare) {

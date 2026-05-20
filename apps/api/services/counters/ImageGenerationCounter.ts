@@ -1,21 +1,27 @@
 /**
  * Image Generation Counter
- * Manages Redis-based daily limits for image generation per user
+ *
+ * Tracks daily image-generation usage per user in Redis. Internally the
+ * counter stores **centi-credits** (1/100 of an image) so per-model cost
+ * multipliers (e.g. flux-klein = 0.5×, flux-max = 2×) can be represented
+ * as integers (50 / 100 / 200) — keeping Redis INCRBY arithmetic precise.
+ * Public API still speaks in image units (count / remaining / limit are
+ * fractional images).
  */
 
-import type { RedisClient, ImageGenerationStatus, ImageGenerationResult } from './types.js';
+import type { RedisIncrByClient, ImageGenerationStatus, ImageGenerationResult } from './types.js';
+
+const UNITS_PER_IMAGE = 100;
+const DEFAULT_DAILY_IMAGES = 10;
 
 export class ImageGenerationCounter {
-  private redis: RedisClient;
-  private DAILY_LIMIT = 10; // Maximum images per day per user
+  private redis: RedisIncrByClient;
+  private dailyLimitUnits = DEFAULT_DAILY_IMAGES * UNITS_PER_IMAGE;
 
-  constructor(redisClient: RedisClient) {
+  constructor(redisClient: RedisIncrByClient) {
     this.redis = redisClient;
   }
 
-  /**
-   * Get seconds until next midnight (for TTL)
-   */
   private getSecondsUntilMidnight(): number {
     const now = new Date();
     const tomorrow = new Date(now);
@@ -24,54 +30,31 @@ export class ImageGenerationCounter {
     return Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
   }
 
-  /**
-   * Get today's date string for Redis key
-   */
   private getTodayDateString(): string {
     return new Date().toISOString().split('T')[0];
   }
 
-  /**
-   * Check current count and remaining generations for user
-   */
-  async checkLimit(userId: string): Promise<ImageGenerationStatus> {
-    if (!userId) {
-      return { count: 0, remaining: 0, limit: this.DAILY_LIMIT, canGenerate: false };
-    }
-
-    try {
-      const today = this.getTodayDateString();
-      const redisKey = `image_generation:${userId}:${today}`;
-
-      const countResult = await this.redis.get(redisKey);
-      const count = typeof countResult === 'string' ? countResult : null;
-      const currentCount = parseInt(count || '0') || 0;
-      const remaining = Math.max(0, this.DAILY_LIMIT - currentCount);
-      const canGenerate = remaining > 0;
-
-      return {
-        count: currentCount,
-        remaining,
-        limit: this.DAILY_LIMIT,
-        canGenerate,
-      };
-    } catch (error) {
-      console.error('[ImageGenerationCounter] Error checking limit:', error);
-      // On error, deny generation to be safe
-      return { count: this.DAILY_LIMIT, remaining: 0, limit: this.DAILY_LIMIT, canGenerate: false };
-    }
+  private toImageUnits(centiCredits: number): number {
+    return Math.round((centiCredits / UNITS_PER_IMAGE) * 10) / 10;
   }
 
-  /**
-   * Increment counter for user and return new status
-   */
-  async incrementCount(userId: string): Promise<ImageGenerationResult> {
+  private statusFromUnits(rawUnits: number): ImageGenerationStatus {
+    const limit = this.dailyLimitUnits / UNITS_PER_IMAGE;
+    const remaining = Math.max(0, this.toImageUnits(this.dailyLimitUnits - rawUnits));
+    return {
+      count: this.toImageUnits(rawUnits),
+      remaining,
+      limit,
+      canGenerate: rawUnits < this.dailyLimitUnits,
+    };
+  }
+
+  async checkLimit(userId: string): Promise<ImageGenerationStatus> {
     if (!userId) {
       return {
-        success: false,
         count: 0,
         remaining: 0,
-        limit: this.DAILY_LIMIT,
+        limit: this.dailyLimitUnits / UNITS_PER_IMAGE,
         canGenerate: false,
       };
     }
@@ -80,20 +63,57 @@ export class ImageGenerationCounter {
       const today = this.getTodayDateString();
       const redisKey = `image_generation:${userId}:${today}`;
 
-      // Check current limit before incrementing
+      const raw = await this.redis.get(redisKey);
+      const rawUnits = parseInt(raw ?? '0') || 0;
+      return this.statusFromUnits(rawUnits);
+    } catch (error) {
+      console.error('[ImageGenerationCounter] Error checking limit:', error);
+      return {
+        count: this.dailyLimitUnits / UNITS_PER_IMAGE,
+        remaining: 0,
+        limit: this.dailyLimitUnits / UNITS_PER_IMAGE,
+        canGenerate: false,
+      };
+    }
+  }
+
+  /**
+   * Increment the user's daily counter by `costUnits` centi-credits.
+   * Default of 100 (= 1 image) preserves legacy call-sites that don't yet
+   * pass a model-specific cost.
+   */
+  async incrementCount(
+    userId: string,
+    costUnits: number = UNITS_PER_IMAGE
+  ): Promise<ImageGenerationResult> {
+    if (!userId) {
+      return {
+        success: false,
+        count: 0,
+        remaining: 0,
+        limit: this.dailyLimitUnits / UNITS_PER_IMAGE,
+        canGenerate: false,
+      };
+    }
+
+    const units = Math.max(1, Math.round(costUnits));
+
+    try {
+      const today = this.getTodayDateString();
+      const redisKey = `image_generation:${userId}:${today}`;
+
       const currentStatus = await this.checkLimit(userId);
-      if (!currentStatus.canGenerate) {
+      const currentRawUnits = Math.round(currentStatus.count * UNITS_PER_IMAGE);
+      if (currentRawUnits + units > this.dailyLimitUnits) {
         console.log(
-          `[ImageGenerationCounter] User ${userId} has reached daily limit (${currentStatus.count}/${this.DAILY_LIMIT})`
+          `[ImageGenerationCounter] User ${userId} cannot afford ${units} units (have ${this.dailyLimitUnits - currentRawUnits} left of ${this.dailyLimitUnits})`
         );
         return { success: false, ...currentStatus };
       }
 
-      // Increment counter atomically
-      const newCount = await this.redis.incr(redisKey);
+      const newRawUnits = await this.redis.incrBy(redisKey, units);
 
-      // Set TTL only on first request (when count becomes 1)
-      if (newCount === 1) {
+      if (newRawUnits === units) {
         const ttlSeconds = this.getSecondsUntilMidnight();
         await this.redis.expire(redisKey, ttlSeconds);
         console.log(
@@ -101,43 +121,29 @@ export class ImageGenerationCounter {
         );
       }
 
-      const remaining = Math.max(0, this.DAILY_LIMIT - newCount);
-      const canGenerate = remaining > 0;
-
+      const status = this.statusFromUnits(newRawUnits);
       console.log(
-        `[ImageGenerationCounter] User ${userId}: Image #${newCount}/${this.DAILY_LIMIT}, remaining: ${remaining}`
+        `[ImageGenerationCounter] User ${userId}: +${units} units (${this.toImageUnits(units)} image), total ${status.count}/${status.limit}`
       );
 
-      return {
-        success: true,
-        count: newCount,
-        remaining,
-        limit: this.DAILY_LIMIT,
-        canGenerate,
-      };
+      return { success: true, ...status };
     } catch (error) {
       console.error('[ImageGenerationCounter] Error incrementing count:', error);
       return {
         success: false,
         count: 0,
         remaining: 0,
-        limit: this.DAILY_LIMIT,
+        limit: this.dailyLimitUnits / UNITS_PER_IMAGE,
         canGenerate: false,
       };
     }
   }
 
-  /**
-   * Get remaining generations for user
-   */
   async getRemainingGenerations(userId: string): Promise<number> {
     const status = await this.checkLimit(userId);
     return status.remaining;
   }
 
-  /**
-   * Reset counter for a user (useful for testing/admin)
-   */
   async resetUserCounter(userId: string): Promise<boolean> {
     if (!userId) return false;
 
@@ -153,9 +159,6 @@ export class ImageGenerationCounter {
     }
   }
 
-  /**
-   * Get time until reset (for UI display)
-   */
   getTimeUntilReset(): string {
     const secondsUntilMidnight = this.getSecondsUntilMidnight();
     const hours = Math.floor(secondsUntilMidnight / 3600);

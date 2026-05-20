@@ -2,17 +2,14 @@ import {
   CardActionsMenu,
   CardGrid,
   cn,
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
   SectionHeader,
   Skeleton,
   VideoCard,
 } from '@gruenerator/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { memo, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Download, Share2, Trash2 } from 'lucide-react';
+import React, { memo, useCallback, useState } from 'react';
 import { FaImage, FaVideo } from 'react-icons/fa';
 import {
   FiCalendar,
@@ -26,21 +23,16 @@ import {
   FiRadio,
 } from 'react-icons/fi';
 import { HiOutlineDocumentText } from 'react-icons/hi';
-import {
-  PiImageSquare,
-  PiKanban,
-  PiPencilLine,
-  PiStar,
-  PiStarFill,
-  PiVideoCamera,
-} from 'react-icons/pi';
+import { PiKanban, PiPencilLine, PiStar, PiStarFill } from 'react-icons/pi';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
 import apiClient from '../../../components/utils/apiClient';
 import { getIcon } from '../../../config/icons';
 import { useBoardsTyped } from '../../../hooks/useBoardsTyped';
 import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 import { formatRelativeDate } from '../../../utils/dateFormatter';
+import { Lightbox } from '../../image-studio/components/Lightbox';
 
 const DocsIcon = getIcon('navigation', 'docs');
 const BoardIcon = getIcon('navigation', 'boards');
@@ -157,6 +149,111 @@ const FavouriteMenuItem = memo(({ id }: { id: string }) => {
   );
 });
 FavouriteMenuItem.displayName = 'FavouriteMenuItem';
+
+const ImageOwnerCard = memo(
+  ({
+    item,
+    cardClass,
+    cardContent,
+    onDelete,
+  }: {
+    item: RecentItem;
+    cardClass: string;
+    cardContent: React.ReactNode;
+    onDelete: (item: RecentItem) => void;
+  }) => {
+    const [open, setOpen] = useState(false);
+    const [shareOpen, setShareOpen] = useState(false);
+    const previewUrl = `/api/share/${item.id}/preview`;
+
+    const handleDownload = useCallback(async () => {
+      try {
+        const res = await apiClient.get<Blob>(`/share/${item.id}/download`, {
+          responseType: 'blob',
+        });
+        const url = window.URL.createObjectURL(res.data as Blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${(item.title || 'bild').replace(/[^a-zA-Z0-9_.-]/g, '_')}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        console.warn('[ImageOwnerCard] download failed', err);
+      }
+    }, [item.id, item.title]);
+
+    const actionBtn =
+      'inline-flex items-center gap-1.5 text-sm text-white/90 hover:text-white px-sm py-xs rounded-full hover:bg-white/10 transition-colors';
+
+    return (
+      <>
+        <div
+          role="button"
+          tabIndex={0}
+          className={cn(cardClass, 'text-left')}
+          onClick={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setOpen(true);
+            }
+          }}
+        >
+          {cardContent}
+        </div>
+        <Lightbox
+          isOpen={open}
+          onClose={() => setOpen(false)}
+          imageSrc={previewUrl}
+          altText={item.title}
+          actions={
+            <>
+              <button type="button" onClick={handleDownload} className={actionBtn}>
+                <Download className="size-4" /> Download
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setShareOpen(true);
+                }}
+                className={actionBtn}
+              >
+                <Share2 className="size-4" /> Teilen
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onDelete(item);
+                }}
+                className={cn(actionBtn, 'text-red-300 hover:text-red-200')}
+              >
+                <Trash2 className="size-4" /> Löschen
+              </button>
+            </>
+          }
+        />
+        <ShareMediaModal
+          isOpen={shareOpen}
+          onClose={() => setShareOpen(false)}
+          mediaType="image"
+          existingShare={{
+            shareToken: item.id,
+            mediaType: 'image',
+            title: item.title,
+            status: 'ready',
+            createdAt: item.date,
+            thumbnailUrl: item.thumbnailUrl,
+          }}
+        />
+      </>
+    );
+  }
+);
+ImageOwnerCard.displayName = 'ImageOwnerCard';
 
 const RecentItemCard = memo(
   ({
@@ -330,6 +427,17 @@ const RecentItemCard = memo(
       );
     }
 
+    if (item.type === 'image') {
+      return (
+        <ImageOwnerCard
+          item={item}
+          cardClass={cardClass}
+          cardContent={cardContent}
+          onDelete={onDelete}
+        />
+      );
+    }
+
     return (
       <Link to={item.href} className={cardClass}>
         {cardContent}
@@ -395,17 +503,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
     })
     .slice(0, 10);
 
-  const { createBoard, deleteBoard } = useBoardsTyped({ enabled: true });
-
-  const createEmptyDoc = useMutation({
-    mutationFn: async () => {
-      const res = await apiClient.post('/docs', { title: 'Neues Dokument' });
-      return res.data as { id: string };
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['recent-activity'] });
-    },
-  });
+  const { deleteBoard } = useBoardsTyped({ enabled: true });
 
   const handleConvertText = useCallback(
     async (textId: string) => {
@@ -482,61 +580,9 @@ const RecentlyCreatedSection: React.FC = memo(() => {
     void navigator.clipboard.writeText(`${window.location.origin}${item.href}`);
   }, []);
 
-  const handleCreateDoc = useCallback(() => {
-    createEmptyDoc.mutate(undefined, {
-      onSuccess: (data) => navigate(`/docs/${data.id}`),
-    });
-  }, [createEmptyDoc, navigate]);
-
-  const handleCreateBoard = useCallback(() => {
-    createBoard.mutate(
-      { title: 'Neues Board' },
-      { onSuccess: (board) => navigate(`/boards/${board.id}`) }
-    );
-  }, [createBoard, navigate]);
-
-  const handleCreateWhiteboard = useCallback(() => {
-    createBoard.mutate(
-      { title: 'Neues Whiteboard', boardType: 'whiteboard' },
-      { onSuccess: (board) => navigate(`/boards/${board.id}`) }
-    );
-  }, [createBoard, navigate]);
-
-  const createMenu = useCallback(
-    (trigger: React.ReactNode) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>{trigger}</DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={handleCreateDoc}>
-            <HiOutlineDocumentText />
-            Dokument
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleCreateBoard}>
-            <PiKanban />
-            Board
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleCreateWhiteboard}>
-            <PiPencilLine />
-            Whiteboard
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => navigate('/imagine')}>
-            <PiImageSquare />
-            Bild erstellen
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => navigate('/studio/video')}>
-            <PiVideoCamera />
-            Reel / Video erstellen
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
-    [handleCreateDoc, handleCreateBoard, handleCreateWhiteboard, navigate]
-  );
-
   return (
     <section className="mb-xl">
-      <SectionHeader title="Zuletzt erstellt" createLabel="Neu erstellen" createMenu={createMenu} />
+      <SectionHeader title="Zuletzt" />
 
       {isLoading ? (
         <CardGrid columns="5">

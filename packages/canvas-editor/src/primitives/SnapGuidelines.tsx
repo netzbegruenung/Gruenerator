@@ -18,11 +18,7 @@ export interface SnapGuidelinesProps {
   color?: string;
 }
 
-function SnapGuidelinesInner({
-  stageWidth,
-  stageHeight,
-  color = '#0066ff',
-}: SnapGuidelinesProps) {
+function SnapGuidelinesInner({ stageWidth, stageHeight, color = '#0066ff' }: SnapGuidelinesProps) {
   const { h: showH, v: showV } = useCanvasStoreShallow((s) => s.snapGuides);
   const snapLines = useCanvasStoreShallow((s) => s.snapLines);
 

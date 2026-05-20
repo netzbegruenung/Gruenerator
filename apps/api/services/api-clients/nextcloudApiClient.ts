@@ -33,6 +33,7 @@ export interface UploadFileResult {
   message: string;
   filename?: string;
   url?: string;
+  etag?: string;
 }
 
 export interface NextcloudFile {
@@ -422,9 +423,13 @@ class NextcloudApiClient {
       });
 
       if (response.status === 201 || response.status === 204) {
+        const rawEtag: unknown = response.headers?.etag ?? response.headers?.ETag;
+        const etag = typeof rawEtag === 'string' ? rawEtag.replace(/^"|"$/g, '') : undefined;
+
         console.log('[NextcloudApiClient] File uploaded successfully', {
           filename: safeFilename,
           status: response.status,
+          etag,
         });
 
         return {
@@ -432,6 +437,7 @@ class NextcloudApiClient {
           message: 'File uploaded successfully',
           filename: safeFilename,
           url: this.generateFileUrl(safeFilename),
+          ...(etag ? { etag } : {}),
         };
       }
 

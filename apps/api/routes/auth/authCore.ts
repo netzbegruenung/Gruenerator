@@ -1,13 +1,13 @@
 /**
  * Core authentication routes
  * Handles logout, profile, locale, health, and error pages
- * Status (/api/auth/status) is served by authStatusContractRouter
+ * Session reads are served by Better Auth's native /api/auth/v2/get-session
  * Login/callback handled by Better Auth at /api/auth/v2/*
  */
 
 import { fromNodeHeaders } from 'better-auth/node';
 import { and, eq, like } from 'drizzle-orm';
-import express, { type Router, type Response } from 'express';
+import express, { type Router, type Request, type Response } from 'express';
 
 import { auth } from '../../config/betterAuth.js';
 import { env } from '../../config/env.js';
@@ -16,6 +16,7 @@ import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
 import * as chatMemory from '../../services/chat/ChatMemoryService.js';
 import { createLogger } from '../../utils/logger.js';
+import { captureAuthIssue } from '../../utils/observability/captureAuthIssue.js';
 
 import type { AuthRequest, LocaleUpdateBody } from './types.js';
 
@@ -23,6 +24,38 @@ const log = createLogger('authCore');
 const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 
 const router: Router = express.Router();
+
+/**
+ * Sign the user out of Better Auth AND forward the cookie-clearing headers to
+ * the Express response. `auth.api.signOut({ headers, asResponse: true })`
+ * returns a Response carrying `Set-Cookie: ba.session_token=; Max-Age=0`
+ * (plus the same for `ba.session_data`, the 300s cookie cache). Without this
+ * forwarding step those headers are discarded by the Express handler, so the
+ * browser keeps both cookies — and because the cookie cache stores a signed
+ * copy of the session, subsequent `auth.api.getSession()` calls return the
+ * cached user for up to 300s even though the DB row has been deleted. That's
+ * the "logs me back in immediately after logout" bug.
+ *
+ * Pattern straight from Better Auth issue #7034 (Express/NestJS context).
+ * Multiple Set-Cookie headers must be forwarded — `res.setHeader('Set-Cookie',
+ * cookies)` with an array does this correctly.
+ */
+async function signOutAndForwardCookies(req: Request, res: Response): Promise<void> {
+  try {
+    const betterAuthResponse = await auth.api.signOut({
+      headers: fromNodeHeaders(req.headers),
+      asResponse: true,
+    });
+    const cookies: string[] = [];
+    betterAuthResponse.headers.forEach((value, key) => {
+      if (key.toLowerCase() === 'set-cookie') cookies.push(value);
+    });
+    if (cookies.length) res.setHeader('Set-Cookie', cookies);
+  } catch (err) {
+    log.warn('[Auth Logout] auth.api.signOut threw: %s', (err as Error).message);
+    captureAuthIssue({ stage: 'logout', cause: err, req });
+  }
+}
 
 // ============================================================================
 // Health & Test Routes
@@ -47,11 +80,29 @@ router.get('/test', (_req: AuthRequest, res: Response): void => {
 router.get('/error', (req: AuthRequest, res: Response): void => {
   const htmlEscape = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const errorCode = htmlEscape(String(req.query.message || 'unknown_error'));
+  const rawMessage = typeof req.query.message === 'string' ? req.query.message : null;
+  const errorCode = htmlEscape(rawMessage ?? 'unknown_error');
   const correlationId = htmlEscape(String(req.query.correlationId || 'N/A'));
   const retry = req.query.retry === 'true';
 
   log.error(`[Auth Error] Code: ${errorCode}, Correlation: ${correlationId}`);
+
+  // Capture the upstream failure with the error code as the synthetic error
+  // name so events cluster per code in GlitchTip (e.g. all `account_not_linked`
+  // failures in one issue). Skip when no `?message=` query is present — that
+  // means a user landed here directly (bookmark, browser back) with no real
+  // signal to report. Benign codes like `please_restart_the_process` are
+  // suppressed by `captureAuthIssue`'s built-in filter.
+  if (rawMessage) {
+    const synthetic = new Error(`auth-error-route: ${rawMessage}`);
+    synthetic.name = rawMessage;
+    captureAuthIssue({
+      stage: 'auth-error-route',
+      cause: synthetic,
+      req,
+      extras: { errorCode: rawMessage, correlationId, retry },
+    });
+  }
 
   if (retry) {
     res.status(401).send(`<!DOCTYPE html>
@@ -103,11 +154,7 @@ router.get('/logout', async (req: AuthRequest, res: Response): Promise<void> => 
     }
   }
 
-  try {
-    await auth.api.signOut({ headers: fromNodeHeaders(req.headers) });
-  } catch {
-    // Sign-out may fail if no session — that's fine
-  }
+  await signOutAndForwardCookies(req, res);
 
   res.status(200).json({ success: true, message: 'Logout completed', sessionCleared: true });
 });
@@ -154,12 +201,7 @@ router.post('/logout', async (req: AuthRequest, res: Response): Promise<void> =>
     }
   }
 
-  try {
-    await auth.api.signOut({ headers: fromNodeHeaders(req.headers) });
-  } catch (err) {
-    // Sign-out may fail if no session — log so we know it happened
-    log.warn('[Auth Logout] auth.api.signOut threw: %s', (err as Error).message);
-  }
+  await signOutAndForwardCookies(req, res);
 
   res.json({
     success: true,

@@ -14,6 +14,7 @@
  * - AI worker pool for draft generation
  */
 
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import {
   buildDraftPromptGrundsatz,
   buildDraftPromptGeneral,
@@ -29,6 +30,7 @@ import {
   applyDefaultFilter,
   type SubcategoryFilters,
 } from '../../config/systemCollectionsConfig.js';
+import { checkNotebookAccess } from '../../routes/notebook/notebookAccess.js';
 import { createLogger } from '../../utils/logger.js';
 import { getEnrichedPersonSearchService } from '../bundestag/index.js';
 import { DocumentSearchService } from '../document-services/index.js';
@@ -73,6 +75,19 @@ import type {
 
 const log = createLogger('NotebookQAService');
 const documentSearchService = new DocumentSearchService();
+
+interface CorpusDocSummary {
+  id: string;
+  title: string | null;
+}
+
+interface CorpusStateInspection {
+  state: 'indexing' | 'failed' | 'ready';
+  indexing: CorpusDocSummary[];
+  failed: CorpusDocSummary[];
+  ready: CorpusDocSummary[];
+  total: number;
+}
 
 export class NotebookQAService {
   /**
@@ -288,8 +303,18 @@ export class NotebookQAService {
         throw new Error('getCollectionFn and getDocumentIdsFn required for user collections');
       }
       collection = await getCollectionFn(collectionId);
-      if (!collection || (collection.user_id !== userId && collection.user_id !== 'SYSTEM')) {
+      if (!collection) {
         throw new Error('Collection not found or access denied');
+      }
+      // SYSTEM-owned rows bypass the user-scoped check (built-in collections
+      // surfaced under user-collection plumbing). Everything else goes through
+      // the canonical access predicate, which honours owner / share_mode='authenticated'
+      // (+ group memberships when applicable).
+      if (collection.user_id !== 'SYSTEM') {
+        const access = await checkNotebookAccess(collectionId, userId ?? null);
+        if (!access.canRead) {
+          throw new Error('Collection not found or access denied');
+        }
       }
       documentIds = await getDocumentIdsFn(collectionId);
       if (!documentIds || documentIds.length === 0) {
@@ -354,9 +379,12 @@ export class NotebookQAService {
     const sorted = filterAndSortResults(deduped, { threshold: 0.35, limit: 30 });
 
     if (sorted.length === 0) {
+      const corpus =
+        !isSystem && documentIds ? await this._inspectCorpusState(documentIds, userId) : null;
+      const answer = this._buildEmptyResultMessage(collection.name, corpus);
       return {
         success: true,
-        answer: `Leider konnte ich in der Sammlung "${collection.name}" keine passenden Stellen zu Ihrer Frage finden.`,
+        answer,
         citations: [],
         sources: [],
         allSources: [],
@@ -367,7 +395,8 @@ export class NotebookQAService {
           effectiveFilters,
           0,
           0,
-          fastMode
+          fastMode,
+          corpus
         ),
       };
     }
@@ -565,8 +594,18 @@ export class NotebookQAService {
         throw new Error('getCollectionFn and getDocumentIdsFn required for user collections');
       }
       collection = await getCollectionFn(collectionId);
-      if (!collection || (collection.user_id !== userId && collection.user_id !== 'SYSTEM')) {
+      if (!collection) {
         throw new Error('Collection not found or access denied');
+      }
+      // SYSTEM-owned rows bypass the user-scoped check (built-in collections
+      // surfaced under user-collection plumbing). Everything else goes through
+      // the canonical access predicate, which honours owner / share_mode='authenticated'
+      // (+ group memberships when applicable).
+      if (collection.user_id !== 'SYSTEM') {
+        const access = await checkNotebookAccess(collectionId, userId ?? null);
+        if (!access.canRead) {
+          throw new Error('Collection not found or access denied');
+        }
       }
       documentIds = await getDocumentIdsFn(collectionId);
       if (!documentIds || documentIds.length === 0) {
@@ -941,7 +980,8 @@ export class NotebookQAService {
     filters: RequestFilters,
     totalResults: number,
     citationsCount: number,
-    fastMode?: boolean
+    fastMode?: boolean,
+    corpus?: CorpusStateInspection | null
   ): SingleCollectionMetadata {
     return {
       collection_id: collectionId,
@@ -951,7 +991,96 @@ export class NotebookQAService {
       citations_count: citationsCount,
       subcategory_filters_applied: Object.keys(filters).length > 0 ? filters : null,
       fast_mode: fastMode || false,
+      ...(corpus && {
+        corpus_state: corpus.state,
+        corpus_state_detail: {
+          indexing_count: corpus.indexing.length,
+          failed_count: corpus.failed.length,
+          ready_count: corpus.ready.length,
+          total_count: corpus.total,
+        },
+      }),
     };
+  }
+
+  /**
+   * Inspect the Postgres state of the requested documents so we can tell the
+   * user *why* a search came back empty (still indexing / failed / genuine miss).
+   */
+  private async _inspectCorpusState(
+    documentIds: readonly string[],
+    userId: string
+  ): Promise<CorpusStateInspection> {
+    if (documentIds.length === 0) {
+      return { state: 'ready', indexing: [], failed: [], ready: [], total: 0 };
+    }
+
+    try {
+      const postgres = getPostgresInstance();
+      const rows = (await postgres.query(
+        `SELECT id, title, status, vector_count
+         FROM documents
+         WHERE id = ANY($1) AND user_id = $2`,
+        [documentIds, userId]
+      )) as Array<{
+        id: string;
+        title: string | null;
+        status: string;
+        vector_count: number | null;
+      }>;
+
+      const indexing: CorpusDocSummary[] = [];
+      const failed: CorpusDocSummary[] = [];
+      const ready: CorpusDocSummary[] = [];
+
+      for (const row of rows) {
+        const summary: CorpusDocSummary = { id: row.id, title: row.title };
+        if (row.status === 'uploaded' || row.status === 'processing' || row.status === 'pending') {
+          indexing.push(summary);
+        } else if (row.status === 'failed') {
+          failed.push(summary);
+        } else if (row.status === 'completed' && (row.vector_count ?? 0) > 0) {
+          ready.push(summary);
+        } else {
+          // status='completed' but vector_count=0 — treat as failed for UX purposes
+          failed.push(summary);
+        }
+      }
+
+      const state: CorpusStateInspection['state'] =
+        indexing.length > 0 ? 'indexing' : failed.length > 0 ? 'failed' : 'ready';
+
+      return { state, indexing, failed, ready, total: rows.length };
+    } catch (error) {
+      log.warn(`[QA Single] _inspectCorpusState failed: ${(error as Error).message}`);
+      return { state: 'ready', indexing: [], failed: [], ready: [], total: 0 };
+    }
+  }
+
+  private _buildEmptyResultMessage(
+    collectionName: string,
+    corpus: CorpusStateInspection | null
+  ): string {
+    if (corpus && corpus.indexing.length > 0) {
+      const total = corpus.total || corpus.indexing.length;
+      return (
+        `Die Dokumente in der Sammlung "${collectionName}" werden gerade indexiert ` +
+        `(${corpus.ready.length}/${total} bereit). ` +
+        `Bitte probier es in ein bis zwei Minuten erneut.`
+      );
+    }
+    if (corpus && corpus.failed.length > 0) {
+      const names = corpus.failed
+        .map((d) => d.title)
+        .filter((t): t is string => !!t)
+        .slice(0, 3);
+      const namePart = names.length > 0 ? ` (${names.join(', ')})` : '';
+      return (
+        `Bei der Verarbeitung von ${corpus.failed.length} Dokument(en)${namePart} ist ein Fehler aufgetreten. ` +
+        `Bitte lade die betroffenen Dateien erneut hoch.`
+      );
+    }
+    return `Leider konnte ich in der Sammlung "${collectionName}" keine passenden Stellen zu deiner Frage finden.`;
   }
 
   /**

@@ -4,6 +4,7 @@ import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
+import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import apiClient from '../../components/utils/apiClient';
@@ -58,6 +59,8 @@ function BoardContent() {
     },
     enabled: !!id,
   });
+
+  useDocumentTitle(board?.title);
 
   const deleteMutation = useMutation({
     mutationFn: async () => {

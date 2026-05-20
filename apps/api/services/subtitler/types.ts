@@ -1,65 +1,64 @@
 /**
  * Subtitler Service Types
  *
- * Type definitions for video subtitler project management
+ * The DB row shape (`SubtitlerProject`) is derived from the Drizzle schema
+ * via `InferSelectModel` — no hand-written interface drifts from the table
+ * definition. Update / list shapes come from the ts-rest contract in
+ * `@gruenerator/contracts`, so the wire format and the service signature
+ * stay in lock-step.
+ *
+ * Pre-unification (2026-04-13) this file held five hand-written interfaces
+ * that drifted from the schema and the Zod contract; in particular the
+ * `subtitles: string` field disagreed with the canonical `SubtitleSegment[]`
+ * wire shape and the controllers compensated with `as Parameters<...>` casts.
  */
 
+import { type InferSelectModel } from 'drizzle-orm';
+
+import { type subtitlerProjects } from '../../database/schema/index.js';
+
+import type { UpdateProjectBody } from '@gruenerator/contracts';
+
 /**
- * Subtitler project data stored in database
+ * Postgres row shape for `subtitler_projects`, derived directly from the
+ * Drizzle schema. The `status` enum is widened to `string` by `text()` —
+ * narrowed here for service-layer use.
  */
-export interface SubtitlerProject {
-  id: string;
+export type SubtitlerProjectRow = InferSelectModel<typeof subtitlerProjects>;
+
+export interface SubtitlerProject extends Omit<
+  SubtitlerProjectRow,
+  'user_id' | 'status' | 'subtitles'
+> {
   user_id: string;
-  title: string;
   status: 'saved' | 'exported' | 'processing';
-  video_path: string;
-  video_filename: string;
-  video_size: number;
-  video_metadata: Record<string, unknown>;
-  thumbnail_path: string | null;
-  subtitled_video_path: string | null;
   subtitles: string;
-  style_preference: string;
-  height_preference: string;
-  mode_preference: string;
-  style_settings: Record<string, unknown>;
-  created_at: Date | string;
-  updated_at: Date | string;
-  last_edited_at: Date | string;
-  export_count: number;
 }
 
 /**
- * Project list item (subset of full project data)
+ * Project list item — the subset returned by `getUserProjects()`. Field
+ * names mirror the Drizzle select projection (no subtitles blob, no
+ * video_path, no user_id, no style_settings); `status` stays wide
+ * (`string`) because the projection drops Drizzle's text() to plain string.
  */
-export interface SubtitlerProjectListItem {
-  id: string;
-  title: string;
-  status: string;
-  video_filename: string;
-  video_size: number;
-  video_metadata: Record<string, unknown>;
-  thumbnail_path: string | null;
-  subtitled_video_path: string | null;
-  style_preference: string;
-  height_preference: string;
-  mode_preference: string;
-  created_at: Date | string;
-  updated_at: Date | string;
-  last_edited_at: Date | string;
-  export_count: number;
-}
+export type SubtitlerProjectListItem = Omit<
+  SubtitlerProjectRow,
+  'subtitles' | 'video_path' | 'user_id' | 'style_settings'
+>;
 
 /**
- * Data for creating a new project
+ * Service-internal create payload. Distinct from the wire contract because
+ * the service expects `subtitles` to be the pre-stringified JSON blob
+ * (the wire takes `SubtitleSegment[]`; `projectSavingService` does the
+ * `JSON.stringify` at the boundary).
  */
 export interface CreateProjectData {
   uploadId: string;
   subtitles?: string | undefined;
   title?: string | undefined;
-  stylePreference?: string | undefined;
-  heightPreference?: string | undefined;
-  modePreference?: string | undefined;
+  stylePreference?: string | null | undefined;
+  heightPreference?: string | null | undefined;
+  modePreference?: string | null | undefined;
   videoMetadata?: Record<string, unknown> | undefined;
   videoFilename?: string | undefined;
   videoSize?: number | undefined;
@@ -67,23 +66,11 @@ export interface CreateProjectData {
 }
 
 /**
- * Data for updating an existing project
+ * Update payload — derived directly from the wire contract so any
+ * `validateBody`-typed request body flows in without a cast.
  */
-export interface UpdateProjectData {
-  title?: string | undefined;
-  subtitles?: string | undefined;
-  style_preference?: string | undefined;
-  stylePreference?: string | undefined;
-  height_preference?: string | undefined;
-  heightPreference?: string | undefined;
-  style_settings?: Record<string, unknown> | undefined;
-  styleSettings?: Record<string, unknown> | undefined;
-  status?: string | undefined;
-}
+export type UpdateProjectData = UpdateProjectBody;
 
-/**
- * Project deletion result
- */
 export interface DeleteProjectResult {
   success: boolean;
 }
