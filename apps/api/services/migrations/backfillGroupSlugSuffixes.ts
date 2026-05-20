@@ -87,9 +87,7 @@ export async function backfillGroupSlugSuffixes(): Promise<void> {
         log.warn(`[backfillGroupSlugSuffixes] Gave up assigning suffix for group ${id}`);
       }
     }
-    log.info(
-      `[backfillGroupSlugSuffixes] Completed: scanned=${rows.length} updated=${updated}`
-    );
+    log.info(`[backfillGroupSlugSuffixes] Completed: scanned=${rows.length} updated=${updated}`);
 
     await postgres.query(
       'INSERT INTO schema_migrations (filename) VALUES ($1) ON CONFLICT (filename) DO NOTHING',

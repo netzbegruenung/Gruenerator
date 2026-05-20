@@ -9,7 +9,7 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import authMiddleware from './middleware/authMiddleware.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
-import { mountGroupsContractRouter } from './routes/auth/groups/groupsContractRouter.js';
+import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
@@ -230,7 +230,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const {
     default: authRouter,
     authCoreRouter: _authCoreRouter,
-    userProfileRouter: _userProfileRouter,
     userCustomGeneratorsRouter: _userCustomGeneratorsRouter,
     contentRouter: _userContentRouter,
     templatesRouter: _userTemplatesRouter,
@@ -290,10 +289,14 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: visionRouter } = await import('./routes/vision/visionController.js');
 
   // Auth routes — authLimiter applied inside authCore.ts to login/callback only
-  // ts-rest contract router for /api/profile — mounts before legacy authRouter
-  // (ts-rest matches its own routes first; unmatched fall through). `requireAuth`
-  // is applied at the prefix because all profile routes require authentication.
-  app.use('/api/profile', requireAuth);
+  // ts-rest contract router — sole owner of /api/auth/profile/* and
+  // /api/auth/delete-account (the legacy userProfile router was removed).
+  // Mounts before authRouter so its routes register first; `requireAuth` is
+  // applied at the prefixes here because the contract router does not inherit
+  // middleware from the later `app.use('/api/auth', ...)` mount (Express
+  // middleware ordering), and every profile route requires authentication.
+  app.use('/api/auth/profile', requireAuth);
+  app.use('/api/auth/delete-account', requireAuth);
   mountUserProfileContractRouter(app);
   // ts-rest contract router for admin Vorlagen — mounts BEFORE the legacy authRouter
   // so contract-modeled routes match first; unmatched paths fall through.
