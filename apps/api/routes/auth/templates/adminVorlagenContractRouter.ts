@@ -15,6 +15,7 @@ import { adminVorlagenContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { isAdminByEmail } from '../../../utils/adminEmails.js';
 import { logContractValidationError } from '../../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../../utils/getAuthedUser.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -24,6 +25,7 @@ import type { Application } from 'express';
 const log = createLogger('adminVorlagenContractRouter');
 
 async function checkIsAdmin(userId: string, email?: string): Promise<boolean> {
+  if (isAdminByEmail(email)) return true;
   const postgres = getPostgresInstance();
   const profile = await postgres.queryOne(
     'SELECT is_admin, email FROM profiles WHERE id = $1',
