@@ -141,8 +141,14 @@ CREATE TABLE IF NOT EXISTS groups (
     settings JSONB DEFAULT '{}',
     wolke_share_links JSONB DEFAULT '[]',
     avatar_url TEXT,
-    links JSONB DEFAULT '[]'
+    links JSONB DEFAULT '[]',
+    slug_suffix TEXT
 );
+
+-- Stable 6-char tail for Notion-style group URLs (`/gruppen/<name>-<suffix>`).
+-- Assigned at creation, immutable on rename; partial unique so legacy rows
+-- can sit NULL until the boot-time backfill fills them.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_groups_slug_suffix ON groups(slug_suffix) WHERE slug_suffix IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS group_memberships (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

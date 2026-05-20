@@ -1,3 +1,5 @@
+import { buildGroupPath } from '@gruenerator/shared/groups';
+import { extractSlugSuffix } from '@gruenerator/shared/utils';
 import { SectionHeader, StatusBanner } from '@gruenerator/ui';
 import { useState, useCallback, useRef } from 'react';
 import { HiUserGroup } from 'react-icons/hi';
@@ -9,13 +11,24 @@ import ToolGrid from '../../../components/common/ToolGrid';
 import GroupDetailSection from '../components/GroupDetailSection';
 import GroupsCreateSection from '../components/GroupsCreateSection';
 import PublicGroupsSection from '../components/PublicGroupsSection';
+import { useGroupResolver } from '../hooks/useGroupResolver';
 import { useGroups, type GroupSummary } from '../hooks/useGroups';
 
 import type { ToolEntry } from '../../../components/common/ToolGrid';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const GruppenPage = () => {
   const navigate = useNavigate();
-  const { groupId } = useParams<{ groupId?: string }>();
+  const { idOrSlug } = useParams<{ idOrSlug?: string }>();
+  const isUuid = !!idOrSlug && UUID_RE.test(idOrSlug);
+  // Only hit the backend resolver for slug-shaped inputs; UUIDs render directly
+  // so legacy /gruppen/<uuid> links keep working with zero latency.
+  const groupResolver = useGroupResolver(
+    idOrSlug ?? '',
+    !!idOrSlug && !isUuid && extractSlugSuffix(idOrSlug) !== null
+  );
+  const resolvedGroupId = isUuid ? idOrSlug : (groupResolver.data?.id ?? null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -53,7 +66,7 @@ const GruppenPage = () => {
         onSuccess: (newGroup: GroupSummary) => {
           setCreateDialogOpen(false);
           showSuccess(`Gruppe "${name}" erfolgreich erstellt!`);
-          void navigate(`/gruppen/${newGroup.id}`);
+          void navigate(buildGroupPath(newGroup));
         },
         onError: (error: Error | null) => {
           showError(error?.message || 'Gruppe konnte nicht erstellt werden.');
@@ -65,7 +78,7 @@ const GruppenPage = () => {
 
   return (
     <PageContainer
-      {...(!groupId && {
+      {...(!idOrSlug && {
         title: 'Gruppen',
         subtitle: 'Verwalte deine Gruppen, Mitglieder und geteilte Inhalte.',
       })}
@@ -78,13 +91,23 @@ const GruppenPage = () => {
         </div>
       )}
 
-      {groupId ? (
-        <GroupDetailSection
-          key={groupId}
-          groupId={groupId}
-          onSuccessMessage={showSuccess}
-          onErrorMessage={showError}
-        />
+      {idOrSlug ? (
+        resolvedGroupId ? (
+          <GroupDetailSection
+            key={resolvedGroupId}
+            groupId={resolvedGroupId}
+            onSuccessMessage={showSuccess}
+            onErrorMessage={showError}
+          />
+        ) : groupResolver.isLoading ? (
+          <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
+            Gruppe wird geladen…
+          </p>
+        ) : (
+          <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
+            Gruppe „{idOrSlug}" nicht gefunden.
+          </p>
+        )
       ) : (
         <>
           <SectionHeader
@@ -103,7 +126,7 @@ const GruppenPage = () => {
                   id: g.id,
                   title: g.name,
                   description: 'Gruppe',
-                  path: `/gruppen/${g.id}`,
+                  path: buildGroupPath(g),
                   icon: HiUserGroup,
                 })
               )}

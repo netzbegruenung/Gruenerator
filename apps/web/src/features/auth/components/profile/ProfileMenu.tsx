@@ -1,3 +1,4 @@
+import { buildGroupPath } from '@gruenerator/shared/groups';
 import {
   DropdownMenuItem,
   DropdownMenuSub,
@@ -21,6 +22,7 @@ interface MenuItem {
 interface Group {
   id: string;
   name: string;
+  slug_suffix?: string | null;
 }
 
 interface ProfileMenuProps {
@@ -85,7 +87,7 @@ const ProfileMenu = ({
                   {groups.map((group) => (
                     <DropdownMenuItem
                       key={group.id}
-                      onSelect={() => void navigate(`/gruppen/${group.id}`)}
+                      onSelect={() => void navigate(buildGroupPath(group))}
                     >
                       {group.name}
                     </DropdownMenuItem>
@@ -145,7 +147,7 @@ const ProfileMenu = ({
                   {groups.map((group) => (
                     <Link
                       key={group.id}
-                      to={`/gruppen/${group.id}`}
+                      to={buildGroupPath(group)}
                       className="profile-menu-submenu-item"
                       onClick={handleClick}
                     >

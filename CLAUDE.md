@@ -54,6 +54,10 @@ Single workspace: `pnpm --filter @gruenerator/api test:auth`, `pnpm --filter @gr
 
 `layoutMode` in `routes.ts` (type `LayoutMode` in `PageLayout.tsx`): `default` (full header + `mt-lg`), `fullscreen` (header + `pt-12` + `h-dvh`), `immersive` (no header, `h-dvh`), `sidebarOnly` (SidebarToggle only), `noChrome` (bare content).
 
+### Resource URLs — Notion-style slugs, never bare UUIDs
+
+User-facing/shareable resource URLs use a Notion-style slug — `slugifyName(name)` + a stable randomized 6-char suffix — **not** a raw UUID. Helpers live in `packages/shared/src/utils/slug.ts` (`slugifyName`, `generateSlugSuffix`, `buildNotebookSlug`/`buildGroupSlug`, `extractSlugSuffix`); reuse them, don't invent a new scheme. The suffix is the stable lookup key (immutable on rename); the name prefix is cosmetic. Store it as a `slug_suffix` column/field, generate it on create, backfill existing rows at boot, and keep a raw-UUID fallback so legacy links keep resolving (extract the suffix → resolve by it; else treat as UUID). Reference impls: notebooks (`NotebookResolver` + `resolveCollection`) and groups (`useGroupResolver` + `resolveGroup`).
+
 ### Database & Migrations
 
 - **PostgreSQL**: Schema at `apps/api/database/postgres/schema.sql`. Migrations in `database/postgres/migrations/`, auto-run on startup via `PostgresService.init()`. No `BEGIN`/`COMMIT` in migrations (runner wraps in transaction).

@@ -23,6 +23,7 @@ import {
   groupLinkResponseSchema,
   groupMembersResponseSchema,
   groupOkResponseSchema,
+  groupResolveResponseSchema,
   groupSuccessResponseSchema,
   groupVisibilityResponseSchema,
   groupVorlagenResponseSchema,
@@ -166,6 +167,25 @@ export const groupsContract = c.router({
       500: groupErrorResponseSchema,
     },
     summary: 'List the groups the authenticated user belongs to',
+  },
+
+  /**
+   * GET /api/auth/groups/resolve/:slugOrId
+   * Resolve a Notion-style slug (`<name>-<suffix>`) or raw UUID to the group's
+   * canonical id. Membership is enforced downstream by /details, so this only
+   * needs auth. Distinct path segment from /:groupId so there's no collision.
+   */
+  resolveGroup: {
+    method: 'GET',
+    path: '/api/auth/groups/resolve/:slugOrId',
+    pathParams: z.object({ slugOrId: z.string() }),
+    responses: {
+      200: groupResolveResponseSchema,
+      401: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Resolve a group slug or UUID to its canonical id',
   },
 
   createGroup: {
