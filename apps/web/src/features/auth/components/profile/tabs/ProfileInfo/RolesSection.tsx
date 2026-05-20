@@ -1,4 +1,5 @@
 import { type UserRole } from '@gruenerator/chat';
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
   Button,
   SelectCard,
@@ -14,7 +15,6 @@ import {
 import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
 import { HiOutlineArrowLeft, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
 
-import apiClient from '../../../../../../components/utils/apiClient';
 import { searchMdBs } from '../../../../../../features/chat/grueneMdBs';
 import {
   useSetUserDefault,
@@ -379,7 +379,14 @@ export default function RolesSection() {
           value: nextRoles,
         });
         const prompt = generateProfilePrompt(nextRoles, isAustrian);
-        await apiClient.put('/auth/profile', { custom_prompt: prompt || null });
+        // Empty prompt clears the field: the backend converts '' -> null. The
+        // contract body types custom_prompt as string, so send '' (not null).
+        const res = await getContractsClient().userProfile.updateProfile({
+          body: { custom_prompt: prompt || '' },
+        });
+        if (res.status !== 200) {
+          throw new Error(`Profil-Update fehlgeschlagen (HTTP ${res.status})`);
+        }
         return { ok: true };
       } catch (error) {
         const detail = error instanceof Error ? error.message : 'Unbekannter Fehler';

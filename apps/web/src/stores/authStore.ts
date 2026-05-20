@@ -1,5 +1,6 @@
 import { useUserProfileStore } from '@gruenerator/chat';
 import { type UserProfile } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
 
 import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
@@ -38,14 +39,6 @@ export interface DeleteAccountConfirmation {
   confirm?: string;
   password?: string;
   confirmation?: string;
-}
-
-export interface ApiResponse<T = unknown> {
-  success: boolean;
-  message?: string;
-  error?: string;
-  data?: T;
-  [key: string]: unknown;
 }
 
 export interface AuthStore {
@@ -226,56 +219,64 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     });
   },
 
-  // Profile management via Backend API
+  // Profile management via typed contracts client
   updateProfile: async (profileData: ProfileData): Promise<ProfileData> => {
-    const response = await apiClient.put('/auth/profile', profileData);
-    const result = response.data as ApiResponse<ProfileData> & { profile?: ProfileData };
+    // ProfileData is loosely typed (index signature); pick the fields the
+    // contract body declares, guarding the `unknown`-typed values.
+    const body: {
+      display_name?: string;
+      username?: string;
+      email?: string;
+      custom_prompt?: string;
+    } = {};
+    if (typeof profileData.display_name === 'string') body.display_name = profileData.display_name;
+    if (typeof profileData.username === 'string') body.username = profileData.username;
+    if (typeof profileData.email === 'string') body.email = profileData.email;
+    if (typeof profileData.custom_prompt === 'string')
+      body.custom_prompt = profileData.custom_prompt;
 
-    if (!result.success) {
-      throw new Error(result.message || 'Profil-Update fehlgeschlagen');
+    const res = await getContractsClient().userProfile.updateProfile({ body });
+    if (res.status !== 200) {
+      throw new Error(`Profil-Update fehlgeschlagen (HTTP ${res.status})`);
     }
 
     // Update user in store with new profile data
     set((state) => ({
-      user: state.user ? { ...state.user, ...result.profile } : null,
+      user: state.user ? { ...state.user, ...res.body.profile } : null,
     }));
 
-    return result.profile as ProfileData;
+    return res.body.profile;
   },
 
-  // Avatar update via Backend API
+  // Avatar update via typed contracts client
   updateAvatar: async (avatarRobotId: string): Promise<ProfileData> => {
-    const response = await apiClient.patch('/auth/profile/avatar', {
-      avatar_robot_id: avatarRobotId,
+    const res = await getContractsClient().userProfile.updateAvatar({
+      body: { avatar_robot_id: Number(avatarRobotId) },
     });
-    const result = response.data as ApiResponse<ProfileData> & { profile?: ProfileData };
-
-    if (!result.success) {
-      throw new Error(result.message || 'Avatar-Update fehlgeschlagen');
+    if (res.status !== 200) {
+      throw new Error(`Avatar-Update fehlgeschlagen (HTTP ${res.status})`);
     }
 
     // Update user in store with new avatar
     set((state) => ({
-      user: state.user ? { ...state.user, ...result.profile } : null,
+      user: state.user ? { ...state.user, ...res.body.profile } : null,
     }));
 
-    return result.profile as ProfileData;
+    return res.body.profile;
   },
 
-  // Message color management via Backend API
+  // Message color management via typed contracts client
   updateMessageColor: async (color: string): Promise<string> => {
     // Optimistic update
     set({ selectedMessageColor: color });
 
     try {
-      const response = await apiClient.patch('/auth/profile/message-color', { color });
-      const result = response.data as ApiResponse & { messageColor?: string };
-
-      if (!result.success) {
-        throw new Error(result.message || 'Message Color Update fehlgeschlagen');
+      const res = await getContractsClient().userProfile.updateMessageColor({ body: { color } });
+      if (res.status !== 200) {
+        throw new Error(`Message Color Update fehlgeschlagen (HTTP ${res.status})`);
       }
 
-      return result.messageColor as string;
+      return res.body.messageColor;
     } catch (error: unknown) {
       // Revert optimistic update on failure
       const state = get();
@@ -446,22 +447,21 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     confirmationData?: DeleteAccountConfirmation
   ): Promise<{ success: boolean; message: string }> => {
     try {
-      // Primary attempt: JSON body
-      const response = await apiClient.delete('/auth/delete-account', {
-        data: confirmationData || {},
-        headers: {
-          Accept: 'application/json',
-        },
+      // Primary attempt: JSON body via typed contracts client
+      const res = await getContractsClient().userProfile.deleteAccount({
+        body: confirmationData || {},
       });
 
-      const data = response.data as { message?: string } | undefined;
+      if (res.status !== 200) {
+        throw new Error(`Konto-Löschung fehlgeschlagen (HTTP ${res.status})`);
+      }
 
       // Clear local auth state
       get().clearAuth();
 
       return {
         success: true,
-        message: data?.message || 'Konto erfolgreich gelöscht',
+        message: res.body.message || 'Konto erfolgreich gelöscht',
       };
     } catch (error: unknown) {
       // Try fallback with query param if the first attempt failed
