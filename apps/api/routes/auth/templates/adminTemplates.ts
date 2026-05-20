@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
+import { isAdminByEmail } from '../../../utils/adminEmails.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { AuthRequest } from '../types.js';
@@ -18,6 +19,7 @@ const rejectSchema = z.object({
 });
 
 async function verifyAdmin(req: AuthRequest, res: Response): Promise<boolean> {
+  if (isAdminByEmail(req.user?.email)) return true;
   const postgres = getPostgresInstance();
   const profile = await postgres.queryOne(
     'SELECT is_admin, email FROM profiles WHERE id = $1',
