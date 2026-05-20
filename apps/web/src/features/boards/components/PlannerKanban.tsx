@@ -71,6 +71,7 @@ interface ColumnBoardProps {
   onColorChange: (groupId: string, color: string) => void;
   handleAddCard: (groupId: string, name: string) => void;
   onCardClick: (row: Row) => void;
+  onRenameCard: (rowId: string, title: string) => void;
   fields: Field[];
 }
 
@@ -85,6 +86,7 @@ const ColumnBoard = memo(function ColumnBoard({
   onColorChange,
   handleAddCard,
   onCardClick,
+  onRenameCard,
   fields,
 }: ColumnBoardProps) {
   const onRename = useCallback(
@@ -123,7 +125,12 @@ const ColumnBoard = memo(function ColumnBoard({
       <KanbanCards<KanbanItem> id={groupId}>
         {(item) => (
           <KanbanCard<KanbanItem> key={item.id} {...item}>
-            <CardContent row={item.row} fields={fields} onCardClick={onCardClick} />
+            <CardContent
+              row={item.row}
+              fields={fields}
+              onCardClick={onCardClick}
+              onRenameCard={onRenameCard}
+            />
           </KanbanCard>
         )}
       </KanbanCards>
@@ -212,6 +219,11 @@ export function PlannerKanban({
       broadcastActivity({ selectedCardId: row.id });
     },
     [broadcastActivity]
+  );
+
+  const handleRenameCard = useCallback(
+    (rowId: string, title: string) => updateRowCell(rowId, FIELD_IDS.TITLE, title),
+    [updateRowCell]
   );
 
   const handleDetailClose = useCallback(
@@ -451,6 +463,7 @@ export function PlannerKanban({
               onColorChange={handleColorChange}
               handleAddCard={handleAddCard}
               onCardClick={handleCardClick}
+              onRenameCard={handleRenameCard}
               fields={fields}
             />
           )}

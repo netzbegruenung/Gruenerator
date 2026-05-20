@@ -10,6 +10,7 @@ interface EditableTitleProps {
   ariaLabel?: string;
   placeholder?: string;
   as?: 'h1' | 'h2' | 'h3' | 'span' | 'div';
+  activateOn?: 'click' | 'doubleClick';
 }
 
 export const EditableTitle = ({
@@ -22,6 +23,7 @@ export const EditableTitle = ({
   ariaLabel = 'Titel bearbeiten',
   placeholder = 'Unbenannt',
   as = 'h1',
+  activateOn = 'click',
 }: EditableTitleProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(title);
@@ -47,7 +49,6 @@ export const EditableTitle = ({
     const newTitle = trimmed || placeholder;
     const currentTitle = title || placeholder;
     if (newTitle !== currentTitle) {
-      console.log('[title-rename] commitEdit: "%s" → "%s"', currentTitle, newTitle);
       onTitleChange?.(newTitle);
     }
   }, [editValue, title, onTitleChange, placeholder]);
@@ -72,6 +73,11 @@ export const EditableTitle = ({
 
   const canEditTitle = editable && !!onTitleChange;
 
+  const startEdit = useCallback(() => {
+    committedRef.current = false;
+    setIsEditing(true);
+  }, []);
+
   if (isEditing) {
     return (
       <input
@@ -81,6 +87,9 @@ export const EditableTitle = ({
         onChange={(e) => setEditValue(e.target.value)}
         onBlur={commitEdit}
         onKeyDown={handleKeyDown}
+        // Stop the input's own pointer events from reaching a parent drag handler
+        // (e.g. a dnd-kit kanban card) so text can be selected while editing.
+        onPointerDown={(e) => e.stopPropagation()}
         aria-label={ariaLabel}
       />
     );
@@ -92,18 +101,32 @@ export const EditableTitle = ({
       ? `${className ?? ''} ${editableClassName}`.trim()
       : className;
 
+  // In doubleClick mode the title owns its clicks: a single click is swallowed
+  // so it never reaches a parent handler (e.g. a card's open-detail onClick),
+  // and a double click enters edit mode.
+  const activationHandlers = !canEditTitle
+    ? {}
+    : activateOn === 'doubleClick'
+      ? {
+          onClick: (e: React.MouseEvent) => e.stopPropagation(),
+          onDoubleClick: (e: React.MouseEvent) => {
+            e.stopPropagation();
+            startEdit();
+          },
+        }
+      : { onClick: startEdit };
+
   return (
     <Tag
       className={idleClassName}
-      onClick={
+      {...activationHandlers}
+      title={
         canEditTitle
-          ? () => {
-              committedRef.current = false;
-              setIsEditing(true);
-            }
+          ? activateOn === 'doubleClick'
+            ? 'Doppelklicken zum Umbenennen'
+            : 'Klicken zum Umbenennen'
           : undefined
       }
-      title={canEditTitle ? 'Klicken zum Umbenennen' : undefined}
     >
       {title || placeholder}
     </Tag>
