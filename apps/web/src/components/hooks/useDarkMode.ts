@@ -1,71 +1,75 @@
 import { useState, useEffect } from 'react';
 
 const STORAGE_KEY = 'darkMode';
-const USER_PREFERENCE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+const LEGACY_KEY = 'theme';
+const USER_PREFERENCE_EXPIRY = 7 * 24 * 60 * 60 * 1000;
 
-const isMobile = (): boolean => {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-};
-
-const useDarkMode = (): [boolean, () => void] => {
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    if (isMobile()) {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    }
-
-    const savedMode = localStorage.getItem(STORAGE_KEY);
-    if (savedMode) {
-      const { value, timestamp } = JSON.parse(savedMode) as { value: boolean; timestamp: number };
-      const now = new Date().getTime();
-      if (now - timestamp < USER_PREFERENCE_EXPIRY) {
+const readSavedPreference = (): boolean | null => {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      const { value, timestamp } = JSON.parse(saved) as { value: boolean; timestamp: number };
+      if (Date.now() - timestamp < USER_PREFERENCE_EXPIRY) {
         return value;
       }
+    } catch {
+      // fall through to legacy key
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
+  }
+  const legacy = localStorage.getItem(LEGACY_KEY);
+  if (legacy === 'dark' || legacy === 'light') {
+    return legacy === 'dark';
+  }
+  return null;
+};
+
+const getInitialDarkMode = (): boolean => {
+  const saved = readSavedPreference();
+  if (saved !== null) return saved;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+};
+
+const listeners = new Set<(value: boolean) => void>();
+
+const useDarkMode = (): [boolean, () => void] => {
+  const [darkMode, setDarkMode] = useState<boolean>(getInitialDarkMode);
+
+  useEffect(() => {
+    listeners.add(setDarkMode);
+    const onStorage = (e: StorageEvent): void => {
+      if (e.key !== STORAGE_KEY && e.key !== LEGACY_KEY) return;
+      const next = readSavedPreference();
+      if (next !== null) setDarkMode(next);
+    };
+    window.addEventListener('storage', onStorage);
+    return () => {
+      listeners.delete(setDarkMode);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     const handleChange = (e: MediaQueryListEvent): void => {
-      if (isMobile()) {
-        setDarkMode(e.matches);
-        return;
-      }
-
-      const savedMode = localStorage.getItem(STORAGE_KEY);
-      if (
-        !savedMode ||
-        (JSON.parse(savedMode) as { timestamp: number }).timestamp + USER_PREFERENCE_EXPIRY <
-          new Date().getTime()
-      ) {
+      if (readSavedPreference() === null) {
         setDarkMode(e.matches);
       }
     };
-
-    mediaQuery.addListener(handleChange);
-    return () => mediaQuery.removeListener(handleChange);
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
   useEffect(() => {
-    if (!isMobile()) {
-      const data = JSON.stringify({
-        value: darkMode,
-        timestamp: new Date().getTime(),
-      });
-      localStorage.setItem(STORAGE_KEY, data);
-    }
-
-    if (darkMode) {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    } else {
-      document.documentElement.setAttribute('data-theme', 'light');
-    }
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ value: darkMode, timestamp: Date.now() }));
+    localStorage.removeItem(LEGACY_KEY);
+    listeners.forEach((cb) => {
+      if (cb !== setDarkMode) cb(darkMode);
+    });
   }, [darkMode]);
 
   const toggleDarkMode = (): void => {
-    if (!isMobile()) {
-      setDarkMode((prevMode) => !prevMode);
-    }
+    setDarkMode((prev) => !prev);
   };
 
   return [darkMode, toggleDarkMode];

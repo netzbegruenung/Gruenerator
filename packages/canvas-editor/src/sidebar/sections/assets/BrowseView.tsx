@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo, useDeferredValue } from 'react';
 import { PiArrowLeft } from 'react-icons/pi';
 
-import { IconButton } from '@gruenerator/ui';
-
 import useDebounce from '../../../hooks/useDebounce';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { ALL_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
@@ -19,7 +17,12 @@ import { IconsSection } from '../IconsSection';
 import { IllustrationenSection } from '../IllustrationenSection';
 import { RahmenSection } from '../RahmenSection';
 
-import { CATEGORY_CARDS, PREVIEW_COMPONENTS, type AssetView, type CategoryCardDef } from './constants';
+import {
+  CATEGORY_CARDS,
+  PREVIEW_COMPONENTS,
+  type AssetView,
+  type CategoryCardDef,
+} from './constants';
 import { SearchInput, SearchResultsGrid } from './SearchResultsGrid';
 
 import type { ExtendedAssetsSectionProps } from './AssetsSection';
@@ -38,8 +41,59 @@ import { cn } from '../../../utils/cn';
 // --- Sub-components ---
 
 function CategoryIconButton({ card, onClick }: { card: CategoryCardDef; onClick: () => void }) {
-  const { Icon, label } = card;
-  return <IconButton size="sm" icon={<Icon />} label={label} onClick={onClick} />;
+  const { Icon, IconComponent, image, maskImage, label, iconColor, hoverShadow, ring } = card;
+  const usesIconColor = !image && !maskImage && !IconComponent;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'group flex flex-col items-center gap-sm cursor-pointer bg-transparent border-none p-0 rounded-lg',
+        'focus-visible:outline-none focus-visible:ring-2',
+        ring
+      )}
+    >
+      <div
+        className={cn(
+          'flex items-center justify-center size-20 rounded-full bg-transparent',
+          'transition-[box-shadow] duration-200 ease-out',
+          hoverShadow
+        )}
+      >
+        <span
+          className={cn(
+            'inline-flex items-center justify-center transition-transform duration-200 ease-out group-hover:scale-[1.04]',
+            usesIconColor && 'text-3xl',
+            usesIconColor && iconColor
+          )}
+        >
+          {image ? (
+            <img src={image} alt="" className="size-12 object-contain" />
+          ) : maskImage ? (
+            <span
+              aria-hidden
+              className="block size-12 bg-secondary-600 dark:bg-secondary-300"
+              style={{
+                WebkitMaskImage: `url(${maskImage})`,
+                maskImage: `url(${maskImage})`,
+                WebkitMaskSize: 'contain',
+                maskSize: 'contain',
+                WebkitMaskRepeat: 'no-repeat',
+                maskRepeat: 'no-repeat',
+                WebkitMaskPosition: 'center',
+                maskPosition: 'center',
+              }}
+            />
+          ) : IconComponent ? (
+            <IconComponent size={48} />
+          ) : (
+            <Icon />
+          )}
+        </span>
+      </div>
+      <span className="text-xs text-foreground text-center leading-tight max-w-20">{label}</span>
+    </button>
+  );
 }
 
 interface RecentItem {
@@ -108,7 +162,8 @@ function RecentlyUsedGrid({
 
   const handleClick = (item: RecentItem) => {
     if (item.type === 'asset' && onAddAsset) onAddAsset(item.id);
-    else if (item.type === 'shape' && onAddShape && item.shapeType) onAddShape(item.shapeType as ShapeType);
+    else if (item.type === 'shape' && onAddShape && item.shapeType)
+      onAddShape(item.shapeType as ShapeType);
     else if (item.type === 'illustration' && onAddIllustration) onAddIllustration(item.id);
   };
 
@@ -159,11 +214,7 @@ function AssetGrid({
           type="button"
           title={`${asset.label} hinzufügen`}
         >
-          <img
-            src={asset.src}
-            alt={asset.label}
-            className="w-10 h-10 object-contain shrink-0"
-          />
+          <img src={asset.src} alt={asset.label} className="w-10 h-10 object-contain shrink-0" />
           <span className="text-xs text-foreground truncate">{asset.label}</span>
         </button>
       ))}
@@ -197,10 +248,7 @@ export function BrowseView(props: BrowseViewProps) {
   const hasAssetsFeature = sectionProps.onAddAsset !== undefined;
   const hasIconsFeature =
     sectionProps.selectedIcons !== undefined && sectionProps.onIconToggle !== undefined;
-  const hasBadgesFeature =
-    sectionProps.onAddPillBadge !== undefined ||
-    sectionProps.onAddCircleBadge !== undefined ||
-    sectionProps.onAddBalken !== undefined;
+  const hasBalkenFeature = sectionProps.onAddBalken !== undefined;
   const hasShapesFeature = sectionProps.onAddShape !== undefined;
   const hasIllustrationsFeature = sectionProps.onAddIllustration !== undefined;
   const hasFramesFeature = sectionProps.onAddFrame !== undefined;
@@ -213,7 +261,7 @@ export function BrowseView(props: BrowseViewProps) {
   const availableCategories = useMemo(() => {
     const featureMap: Record<string, boolean> = {
       grafiken: hasAssetsFeature,
-      extras: hasBadgesFeature,
+      extras: hasBalkenFeature,
       formen: hasShapesFeature,
       rahmen: hasFramesFeature,
       illustrationen: hasIllustrationsFeature,
@@ -222,7 +270,7 @@ export function BrowseView(props: BrowseViewProps) {
     return CATEGORY_CARDS.filter((card) => featureMap[card.id]);
   }, [
     hasAssetsFeature,
-    hasBadgesFeature,
+    hasBalkenFeature,
     hasShapesFeature,
     hasFramesFeature,
     hasIllustrationsFeature,
@@ -272,7 +320,11 @@ export function BrowseView(props: BrowseViewProps) {
       }
     }
     return items;
-  }, [sectionProps.assetInstances, sectionProps.shapeInstances, sectionProps.illustrationInstances]);
+  }, [
+    sectionProps.assetInstances,
+    sectionProps.shapeInstances,
+    sectionProps.illustrationInstances,
+  ]);
 
   if (activeView !== 'browse') {
     return renderDrillDown();
@@ -333,8 +385,7 @@ export function BrowseView(props: BrowseViewProps) {
 
             {availableCategories.length > 0 && (
               <div>
-                <h4 className={cn(SECTION_LABEL, 'mb-2')}>Kategorien durchsuchen</h4>
-                <div className="grid grid-cols-3 gap-x-2 gap-y-3 justify-items-center">
+                <div className="grid grid-cols-2 gap-x-2 gap-y-3 justify-items-center">
                   {availableCategories.map((card) => (
                     <CategoryIconButton
                       key={card.id}
@@ -357,7 +408,7 @@ export function BrowseView(props: BrowseViewProps) {
     const categoryLabel = CATEGORY_CARDS.find((c) => c.id === activeView)?.label ?? '';
 
     return (
-      <div className="flex flex-col gap-2 w-full min-w-[260px]">
+      <div className="flex flex-col gap-2 w-full min-w-0">
         <DrillDownHeader label={categoryLabel} onBack={() => setActiveView('browse')} />
 
         {activeView !== 'extras' && (
@@ -376,12 +427,8 @@ export function BrowseView(props: BrowseViewProps) {
           />
         )}
 
-        {activeView === 'extras' && hasBadgesFeature && (
-          <BadgeSection
-            onAddPillBadge={sectionProps.onAddPillBadge}
-            onAddCircleBadge={sectionProps.onAddCircleBadge}
-            onAddBalken={sectionProps.onAddBalken}
-          />
+        {activeView === 'extras' && hasBalkenFeature && (
+          <BadgeSection onAddBalken={sectionProps.onAddBalken} />
         )}
 
         {activeView === 'formen' && hasShapesFeature && (
@@ -400,6 +447,7 @@ export function BrowseView(props: BrowseViewProps) {
               null
             }
             onSetFrameImage={sectionProps.onSetFrameImage}
+            onUpdateFrame={sectionProps.onUpdateFrame}
             onRemoveFrame={sectionProps.onRemoveFrame}
             searchQuery={debouncedDrillDownQuery}
           />

@@ -1,12 +1,12 @@
-import { HiArrowUpTray, HiChatBubbleLeftRight } from 'react-icons/hi2';
+import { HiArrowUpTray, HiChatBubbleLeftRight, HiWrenchScrewdriver } from 'react-icons/hi2';
 
 import { applyOperation, type CanvasAiActionsBase } from '../ai/applyOperation';
-import { ChatSection, UploadsSection } from '../sidebar/sections';
+import { ChatSection, ToolsSection, UploadsSection } from '../sidebar/sections';
 import { buildSharepicText } from './buildSharepicText';
 
 import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
 import type { TemplateAiCapabilities } from '../ai/types';
-import type { ChatSectionProps, UploadsSectionProps } from '../sidebar/sections';
+import type { ChatSectionProps, ToolsSectionProps, UploadsSectionProps } from '../sidebar/sections';
 import type { SidebarTab } from '../sidebar/types';
 
 export const uploadsTab: SidebarTab = {
@@ -28,12 +28,42 @@ export const uploadsSectionEntry = {
   },
 };
 
+export const toolsTab: SidebarTab = {
+  id: 'tools',
+  icon: HiWrenchScrewdriver,
+  label: 'Tools',
+  ariaLabel: 'KI-Bildwerkzeuge',
+};
+
+export const toolsSectionEntry = {
+  component: ToolsSection as unknown as React.ComponentType<Record<string, unknown>>,
+  propsFactory: (_state: unknown, _actions: unknown): ToolsSectionProps => ({}),
+};
+
 export const chatTab: SidebarTab = {
   id: 'chat',
   icon: HiChatBubbleLeftRight,
   label: 'Chat',
   ariaLabel: 'KI-Chat zum aktuellen Sharepic öffnen',
 };
+
+/**
+ * Bundles the three universally-shared section entries (tools, uploads, chat).
+ *
+ * Every config that uses all three gets the same 3-line spread; using this
+ * helper centralizes the wiring so adding a new common section (e.g. a
+ * future `share` or `assets` registry entry) only requires editing this file.
+ */
+export function createCommonSectionEntries<TState, TActions extends CanvasAiActionsBase>(
+  canvasType: string,
+  capabilities?: TemplateAiCapabilities<TState, TActions>
+) {
+  return {
+    tools: toolsSectionEntry,
+    uploads: uploadsSectionEntry,
+    chat: createChatSection(canvasType, capabilities),
+  };
+}
 
 /**
  * Creates a section entry for the in-canvas chat. The chat UI itself is

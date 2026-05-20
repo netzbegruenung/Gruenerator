@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
 import { PRIMARY_DOMAIN } from '../../utils/domainUtils.js';
+import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 import { sanitizeFilename as sanitizeFilenameCentral } from '../../utils/validation/index.js';
 
@@ -74,7 +75,10 @@ function getRoleLabel(role: 'user' | 'assistant'): string {
 router.post(
   '/',
   validateBody(chatMessageExportSchema),
-  async (req: TypedRequest<z.infer<typeof chatMessageExportSchema>>, res: Response<Buffer | { success: boolean; error?: string }>) => {
+  async (
+    req: TypedRequest<z.infer<typeof chatMessageExportSchema>>,
+    res: Response<Buffer | { success: boolean; error?: string }>
+  ) => {
     try {
       const { content, role, timestamp, metadata } = req.body;
 
@@ -298,7 +302,7 @@ router.post(
         'Content-Type',
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       );
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      setContentDisposition(res, filename);
       return res.status(200).send(buffer);
     } catch (err) {
       const error = err as Error;

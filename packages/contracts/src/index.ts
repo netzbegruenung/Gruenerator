@@ -11,6 +11,11 @@
  * and frontend form validation.
  */
 
+// ── ts-rest core utilities re-exported for frontend client construction ─────
+// Frontends import `initClient` from here instead of taking a direct
+// `@ts-rest/core` dependency. The contracts package already has it.
+export { initClient, type ClientInferRequest, type ClientInferResponses } from '@ts-rest/core';
+
 // ── Contracts ───────────────────────────────────────────────────────────────
 export {
   threadsContract,
@@ -23,6 +28,7 @@ export {
   userProfileContract,
   notebookContract,
   notebookCollectionsContract,
+  notebookSharingContract,
   docsContract,
   documentsContract,
   subtitlerContract,
@@ -35,9 +41,12 @@ export {
   transferContract,
   unsplashContract,
   notificationsContract,
+  emailContract,
+  modelPreferencesContract,
+  imageModelPreferenceContract,
   adminVorlagenContract,
-  authStatusContract,
   canvasAiContract,
+  groupsContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -51,6 +60,7 @@ export * from './schemas/shares.js';
 export * from './schemas/userProfile.js';
 export * from './schemas/notebook.js';
 export * from './schemas/notebookCollections.js';
+export * from './schemas/notebookSharing.js';
 export * from './schemas/docs.js';
 export * from './schemas/documents.js';
 export * from './schemas/subtitler.js';
@@ -63,6 +73,10 @@ export * from './schemas/wordpress.js';
 export * from './schemas/transfer.js';
 export * from './schemas/unsplash.js';
 export * from './schemas/notifications.js';
+export * from './schemas/email.js';
+export * from './schemas/modelPreferences.js';
+export * from './schemas/imageModelPreference.js';
 export * from './schemas/adminVorlagen.js';
-export * from './schemas/authStatus.js';
 export * from './schemas/canvasAi.js';
+export * from './schemas/skill.js';
+export * from './schemas/groups.js';

@@ -14,14 +14,6 @@ export interface CanvasState {
   backgroundColor: string;
 }
 
-export interface ProfilbildCanvasProps {
-  transparentImage: string;
-  backgroundColor?: string;
-  canvasSize?: number;
-  onExport: (base64: string) => void;
-  onCancel: () => void;
-}
-
 // =============================================================================
 // LAYER TYPES
 // =============================================================================
@@ -152,11 +144,11 @@ export interface CanvasEditorConfig {
 // HISTORY TYPES
 // =============================================================================
 
-export interface CanvasHistoryEntry {
+export interface CanvasHistoryEntry<TComponentState = Record<string, unknown>> {
   layers: Layer[];
   selectedLayerIds: string[];
   timestamp: number;
-  componentState?: Record<string, unknown>;
+  componentState?: TComponentState;
 }
 
 // =============================================================================

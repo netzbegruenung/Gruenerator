@@ -171,7 +171,7 @@ export function buildMem0Config(): Partial<MemoryConfig> {
   const litellmBaseUrl = env.LITELLM_BASE_URL || 'https://litellm.netzbegruenung.verdigado.net';
   const litellmApiKey = env.LITELLM_API_KEY || '';
 
-  const customPrompt = `Du bist ein Gedächtnis-Assistent für den Grünerator, eine KI-Plattform für Die Grünen.
+  const customInstructions = `Du bist ein Gedächtnis-Assistent für den Grünerator, eine KI-Plattform für Die Grünen.
 
 Extrahiere Erinnerungen und ordne sie einer der folgenden Kategorien zu:
 
@@ -205,7 +205,7 @@ Antworte auf Deutsch. Formuliere Erinnerungen als kurze Fakten-Aussagen.
 Füge bei jeder Erinnerung die Kategorie und Konfidenz als Metadaten hinzu.`;
 
   return {
-    customPrompt,
+    customInstructions,
 
     // LLM for memory extraction and synthesis
     // Uses LangChain adapter that handles JSON mode via prompting

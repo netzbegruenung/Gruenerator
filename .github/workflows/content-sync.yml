@@ -93,9 +93,9 @@ jobs:
         lv: ${{ fromJSON(needs.setup.outputs.lv_matrix) }}
       fail-fast: false
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -108,8 +108,8 @@ jobs:
           ARGS="--landesverband ${{ matrix.lv }}"
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
-          echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
-          npx tsx apps/api/update-all-content.ts $ARGS
+          echo "Running: pnpm --filter @gruenerator/api run update:all -- $ARGS"
+          pnpm --filter @gruenerator/api run update:all -- $ARGS
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
@@ -129,7 +129,7 @@ jobs:
 
       - name: Upload summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sync-summary-lv-${{ matrix.lv }}
           path: sync-summary-lv-${{ matrix.lv }}.json
@@ -152,9 +152,9 @@ jobs:
         source: ${{ fromJSON(needs.setup.outputs.source_matrix) }}
       fail-fast: false
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -167,8 +167,8 @@ jobs:
           ARGS="--source ${{ matrix.source }} --no-email"
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
-          echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
-          npx tsx apps/api/update-all-content.ts $ARGS
+          echo "Running: pnpm --filter @gruenerator/api run update:all -- $ARGS"
+          pnpm --filter @gruenerator/api run update:all -- $ARGS
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
@@ -186,7 +186,7 @@ jobs:
 
       - name: Upload summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sync-summary-source-${{ matrix.source }}
           path: sync-summary-source-${{ matrix.source }}.json
@@ -204,23 +204,24 @@ jobs:
     if: always() && (needs.setup.outputs.lv_matrix != '[]' || needs.setup.outputs.source_matrix != '[]')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
 
       - name: Download all summaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: summaries/
           pattern: sync-summary-*
           merge-multiple: true
 
       - name: Aggregate summaries
-        run: npx tsx apps/api/aggregate-sync-summaries.ts --dir summaries/
+        # pnpm --filter sets cwd to apps/api/, so pass an absolute path.
+        run: pnpm --filter @gruenerator/api run sync:aggregate -- --dir "${{ github.workspace }}/summaries/"
         env:
           BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
           BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
@@ -315,16 +316,18 @@ jobs:
 
       - name: Update content stats page
         if: always()
-        run: npx tsx apps/api/generate-content-stats.ts
+        run: pnpm --filter @gruenerator/api run stats:content
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
           QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
+          # pnpm --filter sets cwd to apps/api/; override the cwd-relative default.
+          STATS_OUTPUT_PATH: ${{ github.workspace }}/documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
 
       - name: Create PR for stats page update
         if: always()
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: 'docs: update content stats [skip ci]'
           title: 'docs: update content stats'
@@ -342,9 +345,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -378,8 +381,8 @@ jobs:
           ARGS="$FLAG $VAL"
           if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
           if [ "${{ inputs.force }}" = "true" ]; then ARGS="$ARGS --force"; fi
-          echo "Running: npx tsx apps/api/update-all-content.ts $ARGS"
-          npx tsx apps/api/update-all-content.ts $ARGS
+          echo "Running: pnpm --filter @gruenerator/api run update:all -- $ARGS"
+          pnpm --filter @gruenerator/api run update:all -- $ARGS
 
       - name: Generate job summary
         if: always()
@@ -412,16 +415,18 @@ jobs:
 
       - name: Update content stats page
         if: always()
-        run: npx tsx apps/api/generate-content-stats.ts
+        run: pnpm --filter @gruenerator/api run stats:content
         env:
           QDRANT_URL: ${{ secrets.QDRANT_URL }}
           QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
           QDRANT_BASIC_AUTH_USERNAME: ${{ secrets.QDRANT_BASIC_AUTH_USERNAME }}
           QDRANT_BASIC_AUTH_PASSWORD: ${{ secrets.QDRANT_BASIC_AUTH_PASSWORD }}
+          # pnpm --filter sets cwd to apps/api/; override the cwd-relative default.
+          STATS_OUTPUT_PATH: ${{ github.workspace }}/documentation/docs/ueber-den-gruenerator/inhaltsdatenbank.md
 
       - name: Create PR for stats page update
         if: always()
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           commit-message: 'docs: update content stats [skip ci]'
           title: 'docs: update content stats'

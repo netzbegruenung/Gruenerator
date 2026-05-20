@@ -21,6 +21,11 @@ vi.mock('../../../../config/vectorConfig.js', () => ({
       mergeOverfetch: 16,
       webScoreCeiling: 0.8,
     })),
+    // BaseSearchService's constructor calls this at module-load time via the
+    // exampleSearchService → DocumentSearchService import chain, so the mock
+    // has to satisfy the API even though no test here inspects the return.
+    getCacheConfig: vi.fn(() => ({ maxSize: 100, ttl: 60_000 })),
+    isVerboseMode: vi.fn(() => false),
   },
 }));
 

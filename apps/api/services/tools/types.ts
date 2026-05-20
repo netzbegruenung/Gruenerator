@@ -122,5 +122,5 @@ export interface AIResponseWithTools {
   raw_content_blocks?: ContentBlock[] | undefined;
   tool_calls?: ToolCall[] | undefined;
   error?: string | undefined;
-  metadata?: ToolUsageMetadata & Record<string, unknown> | undefined;
+  metadata?: (ToolUsageMetadata & Record<string, unknown>) | undefined;
 }

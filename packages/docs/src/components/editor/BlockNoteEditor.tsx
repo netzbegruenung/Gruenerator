@@ -33,6 +33,7 @@ import {
   AIExtension,
   AIMenuController,
   AIToolbarButton,
+  aiDocumentFormats,
   getAISlashMenuItems,
 } from '@blocknote/xl-ai';
 import { de as aiDe } from '@blocknote/xl-ai/locales';
@@ -53,6 +54,7 @@ import { useIsTouchDevice, useMobileKeyboardOffset } from '@gruenerator/shared/h
 import { useEditorPreferencesStore } from '../../stores/editorPreferencesStore';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Mention } from './Mention';
+import { EditorDictationButton } from './EditorDictationButton';
 import './BlockNoteEditor.css';
 
 export interface BlockNoteEditorProps {
@@ -240,6 +242,14 @@ const BlockNoteEditorInner = ({
           api: aiApiUrl,
           credentials: 'include',
         }),
+        // Markdown format avoids xl-ai's HTML rebase-tool throw on docs that
+        // contain inline color/background spans — those don't round-trip
+        // through blocksToHTMLLossy/tryParseHTMLToBlocks but they DO round-trip
+        // through markdown (lossy by design, the offending spans drop out).
+        // See `_experimental_markdown` in @blocknote/xl-ai for the format
+        // definition; backend `aiController.ts` uses the matching system prompt.
+        streamToolsProvider: aiDocumentFormats._experimental_markdown.getStreamToolsProvider(),
+        documentStateBuilder: aiDocumentFormats._experimental_markdown.defaultDocumentStateBuilder,
       }),
     ];
 
@@ -393,9 +403,10 @@ const BlockNoteEditorInner = ({
   return (
     <div
       ref={wrapperRef}
-      className={`blocknote-wrapper${staticToolbar ? ' blocknote-static-toolbar' : ''}`}
+      className={`blocknote-wrapper relative${staticToolbar ? ' blocknote-static-toolbar' : ''}`}
     >
       <ErrorBoundary>
+        {editable && <EditorDictationButton editor={editor} />}
         <BlockNoteView
           editor={editor}
           theme={theme}
@@ -431,7 +442,15 @@ const BlockNoteEditorInner = ({
           {commentsPortalTarget &&
             showComments &&
             threadStore &&
-            createPortal(<ThreadsSidebar filter="all" />, commentsPortalTarget)}
+            createPortal(
+              <ErrorBoundary
+                fallback={null}
+                onError={(err) => console.warn('[Comments] sidebar render failed:', err)}
+              >
+                <ThreadsSidebar filter="all" />
+              </ErrorBoundary>,
+              commentsPortalTarget
+            )}
         </BlockNoteView>
       </ErrorBoundary>
     </div>

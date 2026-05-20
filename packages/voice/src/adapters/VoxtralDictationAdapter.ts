@@ -1,77 +1,38 @@
 import { type DictationAdapter } from '@assistant-ui/react';
+import {
+  PCM_DOWNSAMPLE_PROCESSOR_NAME,
+  TARGET_SAMPLE_RATE,
+  installPcmDownsampleWorklet,
+} from '../lib/pcmDownsampleWorklet';
+import { resolveVoiceWsUrl } from '../lib/resolveVoiceWsUrl';
 
 type Unsubscribe = () => void;
 
-const TARGET_SAMPLE_RATE = 16000;
 const INACTIVITY_TIMEOUT_MS = 30_000;
 
-const WORKLET_PROCESSOR_CODE = `
-class PCMDownsampleProcessor extends AudioWorkletProcessor {
-  constructor() {
-    super();
-    this._buffer = new Float32Array(16384);
-    this._writePos = 0;
-  }
-
-  process(inputs) {
-    const input = inputs[0];
-    if (!input || !input[0]) return true;
-
-    const channelData = input[0];
-    const len = channelData.length;
-
-    if (this._writePos + len > this._buffer.length) {
-      const newBuf = new Float32Array(Math.max(this._buffer.length * 2, this._writePos + len));
-      newBuf.set(this._buffer.subarray(0, this._writePos));
-      this._buffer = newBuf;
-    }
-    this._buffer.set(channelData, this._writePos);
-    this._writePos += len;
-
-    const ratio = sampleRate / ${TARGET_SAMPLE_RATE};
-    const targetChunkSize = 480;
-    const sourceChunkSize = Math.ceil(targetChunkSize * ratio);
-    let readPos = 0;
-
-    while (this._writePos - readPos >= sourceChunkSize) {
-      const downsampled = new Int16Array(targetChunkSize);
-      for (let i = 0; i < targetChunkSize; i++) {
-        const srcIndex = readPos + Math.min(Math.floor(i * ratio), sourceChunkSize - 1);
-        const clamped = Math.max(-1, Math.min(1, this._buffer[srcIndex]));
-        downsampled[i] = clamped * 0x7fff;
-      }
-      this.port.postMessage(downsampled.buffer, [downsampled.buffer]);
-      readPos += sourceChunkSize;
-    }
-
-    if (readPos > 0) {
-      const remaining = this._writePos - readPos;
-      if (remaining > 0) {
-        this._buffer.copyWithin(0, readPos, this._writePos);
-      }
-      this._writePos = remaining;
-    }
-
-    return true;
-  }
-}
-
-registerProcessor('pcm-downsample-processor', PCMDownsampleProcessor);
-`;
+export type VoxtralErrorReason =
+  | 'mic-permission-denied'
+  | 'mic-unavailable'
+  | 'audio-context-failed'
+  | 'worklet-failed'
+  | 'websocket-failed'
+  | 'session-handshake-failed'
+  | 'server-error'
+  | 'unknown';
 
 interface VoxtralDictationConfig {
   apiBaseUrl?: string;
   language?: string;
+  onError?: (reason: VoxtralErrorReason, error: unknown) => void;
 }
 
 export class VoxtralDictationAdapter implements DictationAdapter {
   private _wsUrl: string;
+  private _onError?: (reason: VoxtralErrorReason, error: unknown) => void;
 
   constructor(config: VoxtralDictationConfig = {}) {
-    const base = config.apiBaseUrl ?? '';
-    const protocol = base.startsWith('https') ? 'wss' : 'ws';
-    const host = base.replace(/^https?:\/\//, '') || window.location.host;
-    this._wsUrl = `${protocol}://${host}/api/voice/realtime`;
+    this._wsUrl = resolveVoiceWsUrl(config.apiBaseUrl, '/api/voice/realtime');
+    this._onError = config.onError;
   }
 
   listen(): DictationAdapter.Session {
@@ -181,6 +142,13 @@ export class VoxtralDictationAdapter implements DictationAdapter {
       for (const cb of speechEndCallbacks) cb({ transcript: fullText });
     };
 
+    const fail = (reason: VoxtralErrorReason, err: unknown) => {
+      console.error(`[VoxtralDictation] ${reason}:`, err);
+      this._onError?.(reason, err);
+      cleanup();
+      emitEnd('error');
+    };
+
     const cleanup = () => {
       stopAudioCapture();
       if (ws && ws.readyState === WebSocket.OPEN) {
@@ -190,36 +158,36 @@ export class VoxtralDictationAdapter implements DictationAdapter {
     };
 
     const startSession = async () => {
+      // Step 1: Microphone permission first (uses the user-gesture from the click).
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia({
           audio: { sampleRate: { ideal: TARGET_SAMPLE_RATE }, channelCount: 1 },
         });
+      } catch (err) {
+        const reason: VoxtralErrorReason =
+          err instanceof DOMException && err.name === 'NotAllowedError'
+            ? 'mic-permission-denied'
+            : 'mic-unavailable';
+        fail(reason, err);
+        return;
+      }
 
-        if (stopping) {
-          mediaStream.getTracks().forEach((t) => t.stop());
-          return;
-        }
+      if (stopping) {
+        mediaStream.getTracks().forEach((t) => t.stop());
+        return;
+      }
 
-        audioContext = new AudioContext();
-        const blob = new Blob([WORKLET_PROCESSOR_CODE], { type: 'application/javascript' });
-        const workletUrl = URL.createObjectURL(blob);
-        await audioContext.audioWorklet.addModule(workletUrl);
-        URL.revokeObjectURL(workletUrl);
-
-        const source = audioContext.createMediaStreamSource(mediaStream);
-        workletNode = new AudioWorkletNode(audioContext, 'pcm-downsample-processor');
-
-        workletNode.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(e.data);
-          }
-        };
-
-        source.connect(workletNode);
-        workletNode.connect(audioContext.destination);
-
+      // Step 2: Open WebSocket and await server handshake BEFORE wiring audio.
+      // This eliminates the dropped-audio window and ensures setup failures
+      // (server unreachable, auth, etc.) surface before the UI shows "recording".
+      try {
         ws = new WebSocket(this._wsUrl);
+      } catch (err) {
+        fail('websocket-failed', err);
+        return;
+      }
 
+      try {
         await new Promise<void>((resolve, reject) => {
           const timeout = setTimeout(
             () => reject(new Error('WebSocket connection timeout')),
@@ -248,43 +216,80 @@ export class VoxtralDictationAdapter implements DictationAdapter {
             reject(new Error('WebSocket closed before session ready'));
           };
         });
-
-        if (stopping) return;
-
-        ws.onmessage = (e) => {
-          try {
-            const msg = JSON.parse(e.data as string) as { type: string; text?: string };
-            if (msg.type === 'text.delta' && msg.text) {
-              fullText += msg.text;
-              for (const cb of speechCallbacks) cb({ transcript: fullText, isFinal: false });
-              resetInactivityTimer();
-            } else if (msg.type === 'done') {
-              for (const cb of speechCallbacks) cb({ transcript: fullText, isFinal: true });
-              if (doneResolve) {
-                doneResolve();
-                doneResolve = null;
-              }
-            }
-          } catch {
-            // Ignore parse errors
-          }
-        };
-
-        ws.onclose = () => {
-          ws = null;
-          if (!stopping) {
-            emitEnd('stopped');
-          }
-        };
-
-        session.status = { type: 'running' };
-        for (const cb of speechStartCallbacks) cb();
-        resetInactivityTimer();
       } catch (err) {
-        console.error('[VoxtralDictation] Realtime setup failed:', err);
-        cleanup();
-        emitEnd('error');
+        fail('session-handshake-failed', err);
+        return;
       }
+
+      if (stopping) {
+        cleanup();
+        return;
+      }
+
+      // Step 3: Build AudioContext + worklet now that the server is ready to receive.
+      try {
+        audioContext = new AudioContext();
+        // Browsers may create the context in 'suspended' state under autoplay policy.
+        // Resuming is a no-op if already running.
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume();
+        }
+
+        await installPcmDownsampleWorklet(audioContext);
+
+        const source = audioContext.createMediaStreamSource(mediaStream);
+        workletNode = new AudioWorkletNode(audioContext, PCM_DOWNSAMPLE_PROCESSOR_NAME);
+
+        workletNode.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(e.data);
+          }
+        };
+
+        source.connect(workletNode);
+        // Connecting to destination keeps the worklet's process() loop scheduled
+        // without producing audible output (the worklet has no audio output, only
+        // postMessage). Required on some browsers to keep the graph alive.
+        workletNode.connect(audioContext.destination);
+      } catch (err) {
+        fail(err instanceof DOMException ? 'worklet-failed' : 'audio-context-failed', err);
+        return;
+      }
+
+      // Step 4: Wire ongoing message + close handlers, then announce 'running'.
+      ws!.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data as string) as { type: string; text?: string };
+          if (msg.type === 'text.delta' && msg.text) {
+            fullText += msg.text;
+            for (const cb of speechCallbacks) cb({ transcript: fullText, isFinal: false });
+            resetInactivityTimer();
+          } else if (msg.type === 'done') {
+            for (const cb of speechCallbacks) cb({ transcript: fullText, isFinal: true });
+            if (doneResolve) {
+              doneResolve();
+              doneResolve = null;
+            }
+          } else if (msg.type === 'error') {
+            fail('server-error', (msg as { message?: string }).message ?? 'Server error');
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      };
+
+      ws!.onerror = () => {
+        if (!stopping) fail('websocket-failed', new Error('WebSocket error during session'));
+      };
+
+      ws!.onclose = () => {
+        ws = null;
+        if (!stopping) emitEnd('stopped');
+      };
+
+      session.status = { type: 'running' };
+      for (const cb of speechStartCallbacks) cb();
+      resetInactivityTimer();
     };
 
     startSession();

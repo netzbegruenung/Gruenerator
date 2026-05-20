@@ -205,6 +205,20 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     indexes: [
       { field: 'platform', type: 'keywordTenant' },
       { field: 'country', type: 'keyword' },
+      { field: 'landesverband', type: 'keyword' },
+    ],
+    handleRaceCondition: true,
+  },
+  // Per-person tweet collection. Mirrors social_media_examples schema but lives
+  // in its own collection so the agent-only `ricarda-lang-notebook` stays isolated.
+  ricarda_lang_tweets: {
+    name: 'ricarda_lang_tweets',
+    optimizer: 'large',
+    hnsw: 'enhanced',
+    indexes: [
+      { field: 'platform', type: 'keyword' },
+      { field: 'source_account', type: 'keyword' },
+      { field: 'published_at', type: 'datetime' },
     ],
     handleRaceCondition: true,
   },

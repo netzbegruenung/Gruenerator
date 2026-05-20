@@ -28,3 +28,17 @@ export function sanitizeSlug(slug: string): string {
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
 }
+
+/**
+ * Format a date in long German style (e.g. "Sonntag, 9. Mai 2026").
+ * Used in composer prompts so the model can date-stamp generated content.
+ * @example formatGermanDate() -> "Sonntag, 9. Mai 2026"
+ */
+export function formatGermanDate(date: Date = new Date()): string {
+  return date.toLocaleDateString('de-DE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}

@@ -5,9 +5,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  FeatureToggle,
 } from '@gruenerator/ui';
 import { useCallback, useState } from 'react';
-import { FiAlertCircle, FiCheck, FiFolder } from 'react-icons/fi';
+import { FiAlertCircle, FiCheck, FiFolder, FiRefreshCw } from 'react-icons/fi';
 
 import { uploadToWolke } from '../api/wolkeApiClient';
 import { useShareLinks } from '../hooks/useWolke';
@@ -17,47 +18,71 @@ import WolkeFolderBrowser from './WolkeFolderBrowser';
 interface WolkeSaveModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (shareLinkId: string, folderPath?: string) => Promise<void>;
+  onSave: (shareLinkId: string, folderPath: string | undefined, liveSync: boolean) => Promise<void>;
+  initialLiveSync?: boolean;
 }
 
-export const WolkeSaveModal = ({ open, onOpenChange, onSave }: WolkeSaveModalProps) => {
+export const WolkeSaveModal = ({
+  open,
+  onOpenChange,
+  onSave,
+  initialLiveSync = false,
+}: WolkeSaveModalProps) => {
   const { data: shareLinks = [], isLoading: isLoadingLinks } = useShareLinks(undefined, undefined, {
     enabled: open,
   });
   const [selectedShareLinkId, setSelectedShareLinkId] = useState<string | null>(null);
   const [selectedFolderPath, setSelectedFolderPath] = useState<string | undefined>(undefined);
   const [isUploading, setIsUploading] = useState(false);
+  const [liveSync, setLiveSync] = useState(initialLiveSync);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null
   );
 
   const activeShareLinks = shareLinks.filter((l) => l.is_active);
-  const selectedShareLink = activeShareLinks.find((l) => l.id === selectedShareLinkId);
+  const effectiveShareLinkId =
+    selectedShareLinkId ??
+    (activeShareLinks.length === 1 ? (activeShareLinks[0]?.id ?? null) : null);
+  const selectedShareLink = activeShareLinks.find((l) => l.id === effectiveShareLinkId);
+  const canSwitchShareLink = activeShareLinks.length > 1;
 
   const handleSave = useCallback(async () => {
-    if (!selectedShareLinkId) return;
+    if (!effectiveShareLinkId) return;
     setIsUploading(true);
     setFeedback(null);
     try {
-      await onSave(selectedShareLinkId, selectedFolderPath);
-      setFeedback({ type: 'success', message: 'Dokument wurde in der Wolke gespeichert.' });
+      await onSave(effectiveShareLinkId, selectedFolderPath, liveSync);
+      setFeedback({
+        type: 'success',
+        message: liveSync
+          ? 'Dokument gespeichert. Live-Synchronisierung aktiv.'
+          : 'Dokument wurde in der Wolke gespeichert.',
+      });
+      setTimeout(() => {
+        onOpenChange(false);
+        setSelectedShareLinkId(null);
+        setSelectedFolderPath(undefined);
+        setFeedback(null);
+        setLiveSync(initialLiveSync);
+      }, 1200);
     } catch {
       setFeedback({ type: 'error', message: 'Speichern fehlgeschlagen. Bitte erneut versuchen.' });
     } finally {
       setIsUploading(false);
     }
-  }, [selectedShareLinkId, selectedFolderPath, onSave]);
+  }, [effectiveShareLinkId, selectedFolderPath, liveSync, onSave, onOpenChange, initialLiveSync]);
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
       if (!next) {
         setSelectedShareLinkId(null);
         setSelectedFolderPath(undefined);
+        setLiveSync(initialLiveSync);
         setFeedback(null);
       }
       onOpenChange(next);
     },
-    [onOpenChange]
+    [onOpenChange, initialLiveSync]
   );
 
   return (
@@ -99,7 +124,7 @@ export const WolkeSaveModal = ({ open, onOpenChange, onSave }: WolkeSaveModalPro
                 Richte eine Verbindung in den Einstellungen ein.
               </span>
             </div>
-          ) : !selectedShareLinkId ? (
+          ) : !effectiveShareLinkId ? (
             <div className="flex flex-col gap-1">
               <span className="text-sm text-grey-500">Wolke-Verbindung auswählen:</span>
               {activeShareLinks.map((link) => (
@@ -127,21 +152,23 @@ export const WolkeSaveModal = ({ open, onOpenChange, onSave }: WolkeSaveModalPro
                 <span className="text-sm font-medium text-foreground">
                   {selectedShareLink?.label || 'Wolke'}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedShareLinkId(null);
-                    setSelectedFolderPath(undefined);
-                  }}
-                  className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400"
-                >
-                  Andere Verbindung
-                </button>
+                {canSwitchShareLink && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedShareLinkId(null);
+                      setSelectedFolderPath(undefined);
+                    }}
+                    className="text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400"
+                  >
+                    Andere Verbindung
+                  </button>
+                )}
               </div>
 
               <div className="max-h-[300px] overflow-y-auto rounded-lg border border-grey-200 p-2 dark:border-grey-700">
                 <WolkeFolderBrowser
-                  shareLinkId={selectedShareLinkId}
+                  shareLinkId={effectiveShareLinkId}
                   shareLinkUrl={selectedShareLink?.share_link}
                   onFolderSelect={(path) => setSelectedFolderPath(path)}
                 />
@@ -154,19 +181,28 @@ export const WolkeSaveModal = ({ open, onOpenChange, onSave }: WolkeSaveModalPro
           )}
         </div>
 
-        {selectedShareLinkId && (
-          <DialogFooter>
-            <Button variant="outline" onClick={() => handleOpenChange(false)}>
-              Abbrechen
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={isUploading}
-              className="bg-primary-600 text-white hover:bg-primary-700"
-            >
-              {isUploading ? 'Speichert...' : 'Hier speichern'}
-            </Button>
-          </DialogFooter>
+        {effectiveShareLinkId && (
+          <>
+            <FeatureToggle
+              isActive={liveSync}
+              onToggle={setLiveSync}
+              icon={FiRefreshCw}
+              label="Live mit Wolke synchronisieren"
+              description="Änderungen werden beim Verlassen des Editors oder mit ⌘S/Strg+S erneut hochgeladen."
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                Abbrechen
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={isUploading}
+                className="bg-primary-600 text-white hover:bg-primary-700"
+              >
+                {isUploading ? 'Speichert...' : 'Hier speichern'}
+              </Button>
+            </DialogFooter>
+          </>
         )}
       </DialogContent>
     </Dialog>

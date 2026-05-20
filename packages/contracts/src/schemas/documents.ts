@@ -71,6 +71,60 @@ export const syncStatusErrorSchema = z.object({
   message: z.unknown(),
 });
 
+// ── document statuses (used during notebook creation progress polling) ─────
+
+/**
+ * Five-state lifecycle observed across the codebase:
+ *   - 'pending'    DB default for newly-inserted rows
+ *   - 'uploaded'   manualController sets this after the file is on disk
+ *   - 'processing' processUploadedDocument flips this while extracting + embedding
+ *   - 'completed'  final success state
+ *   - 'failed'     final error state (actual error stays in server logs; no error_message column)
+ */
+export const documentStatusValueSchema = z.enum([
+  'pending',
+  'uploaded',
+  'processing',
+  'completed',
+  'failed',
+]);
+
+/**
+ * Sub-stages within `status='processing'`. Written to documents.metadata by the
+ * deferred processing pipeline (extract → chunk → upsert vectors). Surfaced
+ * here so the notebook-creation UI can show "Wird gescannt / zerlegt / indexiert"
+ * instead of a single generic "Wird verarbeitet…".
+ */
+export const documentProcessingStageSchema = z.enum(['extracting', 'chunking', 'upserting']);
+
+export const documentProcessingProgressSchema = z.object({
+  stage: documentProcessingStageSchema,
+  current: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
+export const documentStatusesRequestSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(50),
+});
+
+export const documentStatusesResponseSchema = z.object({
+  success: z.boolean(),
+  statuses: z.array(
+    z.object({
+      id: z.string(),
+      status: documentStatusValueSchema,
+      stage: documentProcessingStageSchema.nullable().optional(),
+      progress: documentProcessingProgressSchema.nullable().optional(),
+    })
+  ),
+});
+
+export type DocumentStatusValue = z.infer<typeof documentStatusValueSchema>;
+export type DocumentProcessingStage = z.infer<typeof documentProcessingStageSchema>;
+export type DocumentProcessingProgress = z.infer<typeof documentProcessingProgressSchema>;
+export type DocumentStatusesRequest = z.infer<typeof documentStatusesRequestSchema>;
+export type DocumentStatusesResponse = z.infer<typeof documentStatusesResponseSchema>;
+
 // ── Shared error schema ──────────────────────────────────────────────────────
 
 export const documentsAuthErrorSchema = z.object({ error: z.string() });

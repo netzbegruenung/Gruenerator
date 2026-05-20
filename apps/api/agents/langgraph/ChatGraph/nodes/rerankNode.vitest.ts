@@ -49,7 +49,9 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     searchQuery: 'Klimapolitik',
     hasTemporal: false,
     researchBrief: null,
+    researchMeta: null,
     notebookCollectionIds: [],
+    notebookDocumentIds: [],
     ...overrides,
   } as unknown as ChatGraphState;
 }

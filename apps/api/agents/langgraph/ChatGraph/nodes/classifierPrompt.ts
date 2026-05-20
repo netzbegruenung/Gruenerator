@@ -14,6 +14,7 @@ export const CLASSIFIER_PROMPT = `Du analysierst Benutzeranfragen und entscheide
 
 VERFÜGBARE TOOLS:
 - image: Bildgenerierung - "erstelle Bild", "generiere Bild", "visualisiere", "zeichne", "male"
+- image_edit: Bildbearbeitung eines angehängten Bildes - "bearbeite das Bild", "ändere dieses Foto", "mach mehr Bäume rein", "editiere", "transformiere das Bild". Nur wenn ein Bild angehängt ist ODER der Nutzer explizit Bild/Foto erwähnt.
 - research: NUR bei EXPLIZITER Recherche-Anforderung ("recherchiere", "finde Fakten zu", "belege für")
 - search: NUR bei expliziten FRAGEN zu Grünen Parteiprogrammen, Positionen, Beschlüssen
 - web: Aktuelle Nachrichten, externe Fakten, EXPLIZITE Web-Suche ("suche im netz")
@@ -58,6 +59,7 @@ RECHERCHE NUR WENN:
 
 SCHRITT 3 - TOOL WÄHLEN:
 1. Bildgenerierung? → image
+1b. Bildbearbeitung (Bearbeitungsverb + Bild/Foto-Bezug oder Bild-Anhang)? → image_edit
 2. EXPLIZITE Web-Suche ("suche im netz")? → web
 3. Zusammenfassung eines angehängten/referenzierten Dokuments? → summary
 4. Als Dokument speichern? → save_as_doc
@@ -75,6 +77,8 @@ Wenn intent search/research/web/examples ist, erstelle eine optimierte Suchquery
 - Beispiel: "Schreib eine Pressemitteilung über die Klimapolitik der Grünen" → "Klimapolitik der Grünen"
 - Beispiel: "Erstelle mir Argumente zur Energiewende" → "Energiewende Argumente"
 - Beispiel: "Was sagen die Grünen zum Kohleausstieg?" → "Grüne Kohleausstieg Position"
+- ANAPHER AUFLÖSEN: Wenn die Nachricht sich auf das geöffnete Dokument bezieht ("dieses/diesem Dokument", "hier", "das hier", "dazu") UND ein THEMENKONTEXT mitgeliefert wird, löse die Referenz auf das tatsächliche Thema des Dokuments auf (aus dem Themenkontext) und baue searchQuery + optimizedSearchQuery aus diesem Thema. Suche NIE nach der wörtlichen Meta-Frage.
+- Beispiel: "wie ist unsere position zu diesem dokument" + Themenkontext (Dokument über kommunalen Klimaschutz) → optimizedSearchQuery: "Grüne Position kommunaler Klimaschutz"
 
 SCHRITT 5 - KOMPLEXE ANFRAGEN ZERLEGEN:
 Wenn die Anfrage MEHRERE VERSCHIEDENE Themen vergleicht, kombiniert, ODER verschiedene Aufgaben enthält die verschiedene Themen betreffen:
@@ -149,7 +153,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "image" | "research" | "search" | "web" | "examples" | "summary" | "chart" | "save_as_doc" | "modify_doc" | "modify_board" | "share_doc" | "direct",
+  "intent": "image" | "image_edit" | "research" | "search" | "web" | "examples" | "summary" | "chart" | "save_as_doc" | "modify_doc" | "modify_board" | "share_doc" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
@@ -171,7 +175,7 @@ Antworte NUR mit JSON:
   "reasoning": "..."
 }
 
-Bei "direct" und "image" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[].
+Bei "direct", "image" und "image_edit" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[].
 Bei "save_as_doc" setze documentSubtype auf den passenden Dokumenttyp:
 - "checkliste" für Aufgabenlisten, Todo-Listen, Checklisten, Aufgaben zum Abhaken
 - "protokoll" für Sitzungsprotokolle, Versammlungsprotokolle

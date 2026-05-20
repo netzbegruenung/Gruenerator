@@ -22,6 +22,10 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "verbatimModuleSyntax": false
+    "verbatimModuleSyntax": false,
+
+    "types": ["node"],
+    "noUncheckedSideEffectImports": false,
+    "ignoreDeprecations": "6.0"
   }
 }

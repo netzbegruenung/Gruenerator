@@ -21,6 +21,8 @@ import {
   syncStatusErrorSchema,
   documentsAuthErrorSchema,
   documentsValidationErrorSchema,
+  documentStatusesRequestSchema,
+  documentStatusesResponseSchema,
 } from '../schemas/documents.js';
 
 const c = initContract();
@@ -74,6 +76,26 @@ export const documentsContract = c.router(
         500: syncStatusErrorSchema,
       },
       summary: 'Get Wolke sync status for the current user',
+    },
+
+    /**
+     * POST /api/documents/statuses
+     * Look up the current `status` of multiple documents in one call.
+     * Used by the notebook-creation dialog to poll progress while the
+     * backend processes uploads in the background. POST (not GET) because
+     * the IDs list can be long and Zod-validating a body is simpler than
+     * a comma-separated querystring.
+     */
+    getDocumentStatuses: {
+      method: 'POST',
+      path: '/api/documents/statuses',
+      body: documentStatusesRequestSchema,
+      responses: {
+        200: documentStatusesResponseSchema,
+        401: documentsAuthErrorSchema,
+        500: documentsValidationErrorSchema,
+      },
+      summary: 'Get status of multiple documents for progress polling',
     },
   },
   { pathPrefix: '' }

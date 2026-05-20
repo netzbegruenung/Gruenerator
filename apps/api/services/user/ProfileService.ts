@@ -33,11 +33,7 @@ class ProfileService {
   async getProfileById(userId: string): Promise<UserProfile | null> {
     try {
       const db = getDrizzleInstance();
-      const rows = await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.id, userId))
-        .limit(1);
+      const rows = await db.select().from(profiles).where(eq(profiles.id, userId)).limit(1);
       const row = rows[0];
       return row ? toUserProfile(row) : null;
     } catch (error: unknown) {
@@ -71,11 +67,7 @@ class ProfileService {
   async getProfileByEmail(email: string): Promise<UserProfile | null> {
     try {
       const db = getDrizzleInstance();
-      const rows = await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.email, email))
-        .limit(1);
+      const rows = await db.select().from(profiles).where(eq(profiles.email, email)).limit(1);
       const row = rows[0];
       return row ? toUserProfile(row) : null;
     } catch (error: unknown) {
@@ -135,20 +127,44 @@ class ProfileService {
       if (updateData.email !== undefined) setValues.email = updateData.email;
       if (updateData.username !== undefined) setValues.username = updateData.username;
       if (updateData.display_name !== undefined) setValues.display_name = updateData.display_name;
-      if (updateData.avatar_robot_id !== undefined) setValues.avatar_robot_id = updateData.avatar_robot_id;
+      if (updateData.avatar_robot_id !== undefined)
+        setValues.avatar_robot_id = updateData.avatar_robot_id;
       if (updateData.chat_color !== undefined) setValues.chat_color = updateData.chat_color;
-      if (updateData.beta_features !== undefined) setValues.beta_features = updateData.beta_features;
-      if (updateData.user_defaults !== undefined) setValues.user_defaults = updateData.user_defaults;
+      if (updateData.beta_features !== undefined)
+        setValues.beta_features = updateData.beta_features;
+      if (updateData.user_defaults !== undefined)
+        setValues.user_defaults = updateData.user_defaults;
 
       // Handle the dynamic keys from ProfileUpdateData's index signature
       // These correspond to feature flag columns (boolean) and other columns
       const knownBooleanColumns = [
-        'groups_enabled', 'custom_generators', 'database_access', 'collab', 'notebook',
-        'sharepic', 'anweisungen', 'labor_enabled', 'sites_enabled', 'chat',
-        'interactive_antrag_enabled', 'vorlagen', 'video_editor', 'scanner', 'prompts',
-        'docs', 'boards', 'bundestag_api_enabled', 'memory_enabled', 'wordpress_enabled',
-        'deutschlandmodus', 'is_admin', 'content_management', 'sites', 'website',
-        'ai_sharepic', 'groups',
+        'groups_enabled',
+        'custom_generators',
+        'database_access',
+        'collab',
+        'notebook',
+        'sharepic',
+        'anweisungen',
+        'labor_enabled',
+        'sites_enabled',
+        'chat',
+        'interactive_antrag_enabled',
+        'vorlagen',
+        'video_editor',
+        'scanner',
+        'prompts',
+        'docs',
+        'boards',
+        'bundestag_api_enabled',
+        'memory_enabled',
+        'wordpress_enabled',
+        'deutschlandmodus',
+        'is_admin',
+        'content_management',
+        'sites',
+        'website',
+        'ai_sharepic',
+        'groups',
       ] as const;
 
       for (const col of knownBooleanColumns) {
@@ -158,8 +174,12 @@ class ProfileService {
       }
 
       const knownTextColumns = [
-        'locale', 'custom_prompt', 'presseabbinder', 'custom_antrag_gliederung',
-        'auth_source', 'document_mode',
+        'locale',
+        'custom_prompt',
+        'presseabbinder',
+        'custom_antrag_gliederung',
+        'auth_source',
+        'document_mode',
       ] as const;
 
       for (const col of knownTextColumns) {
@@ -396,11 +416,7 @@ class ProfileService {
       }
       defaults[generator][key] = value;
 
-      const result = await this.updateProfile(userId, { user_defaults: defaults });
-      console.log(
-        `[ProfileService] User default updated: ${generator}.${key} = ${value} for user ${userId}`
-      );
-      return result;
+      return await this.updateProfile(userId, { user_defaults: defaults });
     } catch (error: unknown) {
       console.error('[ProfileService] Error updating user default:', error);
       throw error;
@@ -630,7 +646,10 @@ class ProfileService {
   async healthCheck(): Promise<HealthCheckResult> {
     try {
       const db = getDrizzleInstance();
-      const result = await db.select({ count: sql<number>`COUNT(*)` }).from(profiles).limit(1);
+      const result = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(profiles)
+        .limit(1);
       return {
         status: 'healthy',
         database: 'postgresql',

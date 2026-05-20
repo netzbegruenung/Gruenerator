@@ -1,6 +1,7 @@
 import { ApifyClient } from 'apify-client';
 
 import { env } from '../../../config/env.js';
+import { LV_SOCIAL_ACCOUNTS } from '../../../config/landesverbaendeSocialAccounts.js';
 import { getQdrantInstance } from '../../../database/services/QdrantService/index.js';
 import { createLogger } from '../../../utils/logger.js';
 import { mistralEmbeddingService } from '../../mistral/index.js';
@@ -10,7 +11,7 @@ const log = createLogger('SocialMediaExamplesScraper');
 const INSTAGRAM_ACTOR = 'apify/instagram-post-scraper';
 const FACEBOOK_ACTOR = 'apify/facebook-posts-scraper';
 const DEFAULT_WAIT_SECS = 180;
-const MAX_POSTS_PER_ACCOUNT = 50;
+const DEFAULT_MAX_POSTS_PER_ACCOUNT = 50;
 
 type Platform = 'instagram' | 'facebook';
 type CountryCode = 'DE' | 'AT';
@@ -19,6 +20,8 @@ interface AccountConfig {
   handle: string;
   platform: Platform;
   country: CountryCode;
+  /** Set for per-LV accounts; absent for federal/AT accounts. */
+  landesverband?: string;
 }
 
 interface ScrapeResult {
@@ -36,7 +39,7 @@ interface RawPost {
   sourceAccount: string;
 }
 
-const ACCOUNTS: AccountConfig[] = [
+const FEDERAL_ACCOUNTS: AccountConfig[] = [
   // DE — Bündnis 90/Die Grünen (Bundesverband)
   { handle: 'die_gruenen', platform: 'instagram', country: 'DE' },
   { handle: 'B90DieGruenen', platform: 'facebook', country: 'DE' },
@@ -44,6 +47,26 @@ const ACCOUNTS: AccountConfig[] = [
   { handle: 'diegruenen', platform: 'instagram', country: 'AT' },
   { handle: 'diegruenen.at', platform: 'facebook', country: 'AT' },
 ];
+
+/**
+ * Union of federal accounts (no `landesverband`) + per-LV accounts (from
+ * `landesverbaendeSocialAccounts.ts`). Optional `landesverband` filter
+ * narrows to a single LV for targeted re-scrapes — federal accounts are
+ * excluded when the filter is active because they have no LV ownership.
+ */
+function getScrapeTargets(opts: { landesverband?: string } = {}): AccountConfig[] {
+  const lvTargets: AccountConfig[] = LV_SOCIAL_ACCOUNTS.map((acc) => ({
+    handle: acc.handle,
+    platform: acc.platform,
+    country: acc.country,
+    landesverband: acc.lv,
+  }));
+  const all = [...FEDERAL_ACCOUNTS, ...lvTargets];
+  if (opts.landesverband !== undefined) {
+    return all.filter((t) => t.landesverband === opts.landesverband);
+  }
+  return all;
+}
 
 function getClient(): ApifyClient | null {
   const token = env.APIFY_TOKEN;
@@ -121,14 +144,28 @@ async function fetchFacebookPosts(
   return posts;
 }
 
-async function scrapeAccount(client: ApifyClient, account: AccountConfig): Promise<RawPost[]> {
+async function scrapeAccount(
+  client: ApifyClient,
+  account: AccountConfig,
+  maxPosts: number
+): Promise<RawPost[]> {
   const fetcher = account.platform === 'instagram' ? fetchInstagramPosts : fetchFacebookPosts;
-  return fetcher(client, account.handle, MAX_POSTS_PER_ACCOUNT);
+  return fetcher(client, account.handle, maxPosts);
 }
 
 export async function scrapeAndIndexSocialMedia(
-  _options: {
+  options: {
     forceUpdate?: boolean;
+    /** Restrict scrape to a single Landesverband short code (e.g. 'BE'). */
+    landesverband?: string;
+    /** Override max posts fetched per account (default 50). */
+    maxPostsPerAccount?: number;
+    /**
+     * Restrict scrape to specific platforms. Use when an account's FB page
+     * is private (Apify returns an `error: "not_available"` row) so re-runs
+     * don't burn quota on guaranteed-empty fetches. Omit to scrape both.
+     */
+    platforms?: readonly Platform[];
   } = {}
 ): Promise<ScrapeResult> {
   const result: ScrapeResult = { stored: 0, updated: 0, skipped: 0, fetchErrors: 0, errors: 0 };
@@ -153,15 +190,42 @@ export async function scrapeAndIndexSocialMedia(
     return result;
   }
 
-  log.info(`Starting social media examples sync for ${ACCOUNTS.length} accounts`);
+  const allTargets = getScrapeTargets({
+    ...(options.landesverband !== undefined && { landesverband: options.landesverband }),
+  });
+  const targets =
+    options.platforms !== undefined && options.platforms.length > 0
+      ? allTargets.filter((t) => options.platforms!.includes(t.platform))
+      : allTargets;
+  const scopeLabel = [
+    options.landesverband ? `landesverband=${options.landesverband}` : null,
+    options.platforms ? `platforms=${options.platforms.join(',')}` : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  log.info(
+    `Starting social media examples sync for ${targets.length} accounts${scopeLabel ? ` (${scopeLabel})` : ''}`
+  );
 
-  for (const account of ACCOUNTS) {
-    const label = `${account.platform}:${account.handle} (${account.country})`;
+  if (targets.length === 0 && options.landesverband !== undefined) {
+    log.warn(
+      `No accounts configured for landesverband=${options.landesverband} — check LV_SOCIAL_ACCOUNTS roster`
+    );
+    return result;
+  }
+
+  for (const account of targets) {
+    const lvTag = account.landesverband ? ` [lv=${account.landesverband}]` : '';
+    const label = `${account.platform}:${account.handle} (${account.country})${lvTag}`;
 
     let posts: RawPost[];
     try {
       log.info(`Scraping ${label}...`);
-      posts = await scrapeAccount(client, account);
+      posts = await scrapeAccount(
+        client,
+        account,
+        options.maxPostsPerAccount ?? DEFAULT_MAX_POSTS_PER_ACCOUNT
+      );
       log.info(`Fetched ${posts.length} posts from ${label}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -177,6 +241,7 @@ export async function scrapeAndIndexSocialMedia(
         await qdrant.indexSocialMediaExample(post.url, embedding, post.content, account.platform, {
           country: account.country,
           source_account: post.sourceAccount,
+          ...(account.landesverband && { landesverband: account.landesverband }),
         });
 
         result.stored++;

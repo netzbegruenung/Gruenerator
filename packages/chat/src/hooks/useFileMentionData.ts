@@ -1,4 +1,5 @@
-import { useState, useCallback, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import type {
   NotebookCollectionItem,
@@ -7,69 +8,43 @@ import type {
   UserTextItem,
 } from '../lib/documentMentionables';
 
-interface FileMentionDataState {
-  collections: NotebookCollectionItem[];
-  documents: UserDocumentItem[];
-  texts: UserTextItem[];
-  loadingCollections: boolean;
-  loadingContent: boolean;
-  error: string | null;
-  lastFetchedCollections: number;
-  lastFetchedContent: number;
+const STALE_TIME = 5 * 60 * 1000;
+
+interface RawDocument {
+  id: string;
+  title?: string;
+  name?: string;
+  page_count?: number;
+  pageCount?: number;
+  source_type?: string;
+  sourceType?: string;
+}
+interface RawCollection {
+  id: string;
+  name: string;
+  description?: string | null;
+  document_count?: number;
+  documentCount?: number;
+  documents?: RawDocument[];
 }
 
-const STALE_MS = 5 * 60 * 1000; // 5 minutes
+function useConfigFetch() {
+  return useChatConfigStore((s) => s.fetch);
+}
 
-export function useFileMentionData() {
-  const [state, setState] = useState<FileMentionDataState>({
-    collections: [],
-    documents: [],
-    texts: [],
-    loadingCollections: false,
-    loadingContent: false,
-    error: null,
-    lastFetchedCollections: 0,
-    lastFetchedContent: 0,
-  });
-
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  const fetchCollections = useCallback(async () => {
-    const now = Date.now();
-    if (state.collections.length > 0 && now - state.lastFetchedCollections < STALE_MS) {
-      return;
-    }
-
-    setState((prev) => ({ ...prev, loadingCollections: true, error: null }));
-
-    try {
-      const { fetch: configFetch } = useChatConfigStore.getState();
+export function useNotebookCollectionsQuery(enabled: boolean) {
+  const configFetch = useConfigFetch();
+  return useQuery<NotebookCollectionItem[]>({
+    queryKey: ['file-mention', 'notebook-collections'],
+    enabled,
+    staleTime: STALE_TIME,
+    retry: 1,
+    queryFn: async () => {
       const response = await configFetch('/api/auth/notebook-collections');
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      interface RawDocument {
-        id: string;
-        title?: string;
-        name?: string;
-        page_count?: number;
-        pageCount?: number;
-        source_type?: string;
-        sourceType?: string;
-      }
-      interface RawCollection {
-        id: string;
-        name: string;
-        description?: string | null;
-        document_count?: number;
-        documentCount?: number;
-        documents?: RawDocument[];
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const json = (await response.json()) as RawCollection[] | { collections: RawCollection[] };
       const data: RawCollection[] = Array.isArray(json) ? json : json.collections || [];
-      const collections: NotebookCollectionItem[] = data.map((c) => ({
+      return data.map<NotebookCollectionItem>((c) => ({
         id: c.id,
         name: c.name,
         description: c.description || null,
@@ -81,42 +56,25 @@ export function useFileMentionData() {
           sourceType: d.source_type ?? d.sourceType,
         })),
       }));
+    },
+  });
+}
 
-      setState((prev) => ({
-        ...prev,
-        collections,
-        loadingCollections: false,
-        error: null,
-        lastFetchedCollections: Date.now(),
-      }));
-    } catch (err) {
-      setState((prev) => ({
-        ...prev,
-        loadingCollections: false,
-        error: err instanceof Error ? err.message : 'Fehler beim Laden',
-      }));
-    }
-  }, [state.collections.length, state.lastFetchedCollections]);
+interface CombinedContent {
+  documents: UserDocumentItem[];
+  texts: UserTextItem[];
+}
 
-  const fetchCombinedContent = useCallback(async () => {
-    const now = Date.now();
-    if (
-      (state.documents.length > 0 || state.texts.length > 0) &&
-      now - state.lastFetchedContent < STALE_MS
-    ) {
-      return;
-    }
-
-    setState((prev) => ({ ...prev, loadingContent: true }));
-
-    try {
-      const { fetch: configFetch } = useChatConfigStore.getState();
+export function useCombinedContentQuery(enabled: boolean) {
+  const configFetch = useConfigFetch();
+  return useQuery<CombinedContent>({
+    queryKey: ['file-mention', 'combined-content'],
+    enabled,
+    staleTime: STALE_TIME,
+    retry: 1,
+    queryFn: async () => {
       const response = await configFetch('/api/auth/documents/combined-content');
-
-      if (!response.ok) {
-        setState((prev) => ({ ...prev, loadingContent: false }));
-        return;
-      }
+      if (!response.ok) return { documents: [], texts: [] };
 
       interface RawDocItem {
         id: string;
@@ -143,8 +101,8 @@ export function useFileMentionData() {
         data?: { documents?: RawDocItem[]; texts?: RawTextItem[] };
       }
       const json = (await response.json()) as CombinedContentResponse;
-      const rawDocs: RawDocItem[] = json.data?.documents || [];
-      const rawTexts: RawTextItem[] = json.data?.texts || [];
+      const rawDocs = json.data?.documents || [];
+      const rawTexts = json.data?.texts || [];
 
       const documents: UserDocumentItem[] = rawDocs.map((d) => ({
         id: d.id,
@@ -163,62 +121,57 @@ export function useFileMentionData() {
         createdAt: t.created_at ?? t.createdAt ?? '',
       }));
 
-      setState((prev) => ({
-        ...prev,
-        documents,
-        texts,
-        loadingContent: false,
-        lastFetchedContent: Date.now(),
-      }));
-    } catch {
-      setState((prev) => ({ ...prev, loadingContent: false }));
-    }
-  }, [state.documents.length, state.texts.length, state.lastFetchedContent]);
+      return { documents, texts };
+    },
+  });
+}
 
-  const fetchAll = useCallback(async () => {
-    await Promise.all([fetchCollections(), fetchCombinedContent()]);
-  }, [fetchCollections, fetchCombinedContent]);
-
-  const searchInCollection = useCallback(
-    (collectionId: string, query: string): Promise<DocumentSearchResult[]> => {
-      return new Promise((resolve) => {
-        if (searchTimerRef.current) {
-          clearTimeout(searchTimerRef.current);
-        }
-
-        searchTimerRef.current = setTimeout(async () => {
-          try {
-            const { fetch: configFetch } = useChatConfigStore.getState();
+export function useCollectionSearch() {
+  const configFetch = useConfigFetch();
+  const queryClient = useQueryClient();
+  return useCallback(
+    async (collectionId: string, query: string): Promise<DocumentSearchResult[]> => {
+      if (!query.trim()) return [];
+      try {
+        return await queryClient.fetchQuery<DocumentSearchResult[]>({
+          queryKey: ['file-mention', 'search', collectionId, query],
+          staleTime: 30_000,
+          queryFn: async () => {
             const response = await configFetch(
               `/api/auth/notebook-collections/${collectionId}/search?q=${encodeURIComponent(query)}`
             );
-
-            if (!response.ok) {
-              resolve([]);
-              return;
-            }
-
-            const results = (await response.json()) as DocumentSearchResult[];
-            resolve(results);
-          } catch {
-            resolve([]);
-          }
-        }, 300);
-      });
+            if (!response.ok) return [];
+            return (await response.json()) as DocumentSearchResult[];
+          },
+        });
+      } catch {
+        return [];
+      }
     },
-    []
+    [configFetch, queryClient]
   );
+}
 
-  return {
-    collections: state.collections,
-    documents: state.documents,
-    texts: state.texts,
-    loadingCollections: state.loadingCollections,
-    loadingContent: state.loadingContent,
-    error: state.error,
-    fetchCollections,
-    fetchCombinedContent,
-    fetchAll,
-    searchInCollection,
-  };
+export function useFileMentionData(enabled: boolean) {
+  const collectionsQuery = useNotebookCollectionsQuery(enabled);
+  const contentQuery = useCombinedContentQuery(enabled);
+  const searchInCollection = useCollectionSearch();
+
+  return useMemo(
+    () => ({
+      collections: collectionsQuery.data ?? [],
+      documents: contentQuery.data?.documents ?? [],
+      texts: contentQuery.data?.texts ?? [],
+      loadingCollections: collectionsQuery.isLoading,
+      loadingContent: contentQuery.isLoading,
+      searchInCollection,
+    }),
+    [
+      collectionsQuery.data,
+      collectionsQuery.isLoading,
+      contentQuery.data,
+      contentQuery.isLoading,
+      searchInCollection,
+    ]
+  );
 }

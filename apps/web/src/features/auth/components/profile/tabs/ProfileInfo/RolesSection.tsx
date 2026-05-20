@@ -1,3 +1,4 @@
+import { type UserRole } from '@gruenerator/chat';
 import {
   Button,
   SelectCard,
@@ -10,25 +11,18 @@ import {
   SmartInput,
   type SmartInputOption,
 } from '@gruenerator/ui';
-import { useState, useCallback, useMemo, memo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
 import { HiOutlineArrowLeft, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
 
 import apiClient from '../../../../../../components/utils/apiClient';
 import { searchMdBs } from '../../../../../../features/chat/grueneMdBs';
+import {
+  useSetUserDefault,
+  useUserDefault,
+} from '../../../../../../features/user-defaults/userDefaultsQueries';
 import { useAuthStore } from '../../../../../../stores/authStore';
-import { useUserDefaultsStore } from '../../../../../../stores/userDefaultsStore';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-interface UserRole {
-  ebene: string;
-  rolle: string;
-  bundesland?: string;
-  gliederung?: string;
-  abgeordnete?: string;
-  instructions?: string;
-  systemPrompt?: string;
-}
 
 interface EbeneConfig {
   id: string;
@@ -251,8 +245,8 @@ type WizardStep = 'ebene' | 'bundesland' | 'gliederung' | 'rolle' | 'instruction
 export default function RolesSection() {
   const locale = useAuthStore((s) => s.locale);
   const isAustrian = locale === 'de-AT';
-  const getDefault = useUserDefaultsStore((s) => s.getDefault);
-  const setDefault = useUserDefaultsStore((s) => s.setDefault);
+  const { value: serverRoles } = useUserDefault('profile', 'roles');
+  const setRolesMutation = useSetUserDefault<'profile', 'roles'>();
 
   const ebenen = isAustrian ? AT_EBENEN : DE_EBENEN;
   const rollenMap = isAustrian ? AT_ROLLEN : DE_ROLLEN;
@@ -268,9 +262,14 @@ export default function RolesSection() {
     [bundeslaender]
   );
 
-  const [roles, setRoles] = useState<UserRole[]>(
-    () => getDefault<UserRole[]>('profile', 'roles') || []
-  );
+  const [roles, setRoles] = useState<UserRole[]>(serverRoles ?? []);
+  const seededRef = useRef(serverRoles !== undefined);
+  useEffect(() => {
+    if (!seededRef.current && serverRoles !== undefined) {
+      setRoles(serverRoles);
+      seededRef.current = true;
+    }
+  }, [serverRoles]);
 
   // Wizard state for adding a new role
   const [addingRole, setAddingRole] = useState(false);
@@ -286,6 +285,7 @@ export default function RolesSection() {
 
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [generating, setGenerating] = useState(false);
 
@@ -370,13 +370,43 @@ export default function RolesSection() {
     return true;
   }, [wizRolle, wizCustomRolle, wizAbgeordnete]);
 
+  const persistRoles = useCallback(
+    async (nextRoles: UserRole[]): Promise<{ ok: true } | { ok: false; detail: string }> => {
+      try {
+        await setRolesMutation.mutateAsync({
+          generator: 'profile',
+          key: 'roles',
+          value: nextRoles,
+        });
+        const prompt = generateProfilePrompt(nextRoles, isAustrian);
+        await apiClient.put('/auth/profile', { custom_prompt: prompt || null });
+        return { ok: true };
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : 'Unbekannter Fehler';
+        return { ok: false, detail };
+      }
+    },
+    [isAustrian, setRolesMutation]
+  );
+
   const handleAddRole = useCallback(async () => {
     if (!canAddRole || !wizEbene) return;
 
     const ebeneLabel = ebenen.find((e) => e.id === wizEbene)?.label || '';
     const rolle = wizRolle === 'custom' ? wizCustomRolle.trim() : wizRolle!;
 
-    // Build description for AI prompt generation
+    // Build the role first — never lose it to a downstream fetch failure.
+    const newRole: UserRole = {
+      ebene: wizEbene,
+      rolle,
+    };
+    if (wizBundesland) newRole.bundesland = wizBundesland;
+    if (wizGliederung.trim()) newRole.gliederung = wizGliederung.trim();
+    if (wizAbgeordnete.trim()) newRole.abgeordnete = wizAbgeordnete.trim();
+    if (wizInstructions.trim()) newRole.instructions = wizInstructions.trim();
+
+    // System-prompt enrichment is best-effort. If the chat-service endpoint is
+    // down, the role still gets added and saved without a custom prompt.
     const lines = [`Ebene: ${ebeneLabel}`, `Rolle: ${rolle}`];
     if (wizBundesland) lines.push(`Bundesland: ${wizBundesland}`);
     if (wizGliederung.trim()) lines.push(`${ebeneLabel}: ${wizGliederung.trim()}`);
@@ -385,6 +415,8 @@ export default function RolesSection() {
     if (wizInstructions.trim()) lines.push(`Zusätzliche Anweisungen: ${wizInstructions.trim()}`);
 
     setGenerating(true);
+    setErrorMessage(null);
+    let promptGenFailed = false;
 
     try {
       const response = await fetch('/api/chat-service/generate-system-prompt', {
@@ -393,27 +425,35 @@ export default function RolesSection() {
         credentials: 'include',
         body: JSON.stringify({ description: lines.join('\n') }),
       });
-
-      const newRole: UserRole = {
-        ebene: wizEbene,
-        rolle,
-      };
-      if (wizBundesland) newRole.bundesland = wizBundesland;
-      if (wizGliederung.trim()) newRole.gliederung = wizGliederung.trim();
-      if (wizAbgeordnete.trim()) newRole.abgeordnete = wizAbgeordnete.trim();
-      if (wizInstructions.trim()) newRole.instructions = wizInstructions.trim();
-
       if (response.ok) {
         const data = (await response.json()) as { systemPrompt?: string };
         if (data.systemPrompt) newRole.systemPrompt = data.systemPrompt;
+      } else {
+        promptGenFailed = true;
       }
+    } catch {
+      promptGenFailed = true;
+    }
 
-      setRoles((prev) => [...prev, newRole]);
-      setAddingRole(false);
-    } catch (error) {
-      console.error('Failed to generate system prompt:', error);
-    } finally {
-      setGenerating(false);
+    const nextRoles = [...roles, newRole];
+    setRoles(nextRoles);
+    setAddingRole(false);
+    setGenerating(false);
+
+    // Auto-persist immediately so the user can never end up with an unsaved
+    // role that disappears on reload.
+    const result = await persistRoles(nextRoles);
+    if (result.ok) {
+      setSuccessMessage(
+        promptGenFailed
+          ? 'Rolle gespeichert (System-Prompt-Generierung fehlgeschlagen)'
+          : 'Rolle gespeichert'
+      );
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } else {
+      setErrorMessage(
+        `Rolle wurde hinzugefügt, aber Speichern fehlgeschlagen: ${result.detail}. Bitte „Speichern" klicken.`
+      );
     }
   }, [
     canAddRole,
@@ -426,30 +466,40 @@ export default function RolesSection() {
     wizInstructions,
     isAustrian,
     ebenen,
+    roles,
+    persistRoles,
   ]);
 
-  const handleDeleteRole = useCallback((index: number) => {
-    setRoles((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+  const handleDeleteRole = useCallback(
+    async (index: number) => {
+      const nextRoles = roles.filter((_, i) => i !== index);
+      setRoles(nextRoles);
+      setErrorMessage(null);
+      const result = await persistRoles(nextRoles);
+      if (result.ok) {
+        setSuccessMessage('Rolle entfernt');
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setErrorMessage(`Löschen konnte nicht gespeichert werden: ${result.detail}`);
+      }
+    },
+    [roles, persistRoles]
+  );
 
   // ─── Save ─────────────────────────────────────────────────────────────────
 
   const handleSave = useCallback(async () => {
     setSaving(true);
-    try {
-      void setDefault('profile', 'roles', roles);
-
-      const prompt = generateProfilePrompt(roles, isAustrian);
-      await apiClient.put('/auth/profile', { custom_prompt: prompt || null });
-
+    setErrorMessage(null);
+    const result = await persistRoles(roles);
+    if (result.ok) {
       setSuccessMessage('Profil gespeichert');
       setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (error) {
-      console.error('Failed to save profile:', error);
-    } finally {
-      setSaving(false);
+    } else {
+      setErrorMessage(`Speichern fehlgeschlagen: ${result.detail}`);
     }
-  }, [roles, isAustrian, setDefault]);
+    setSaving(false);
+  }, [roles, persistRoles]);
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -469,6 +519,12 @@ export default function RolesSection() {
       {successMessage && (
         <div className="rounded-lg border border-green-200 bg-green-50 px-lg py-md text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">
           {successMessage}
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-lg py-md text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          {errorMessage}
         </div>
       )}
 
@@ -626,7 +682,7 @@ export default function RolesSection() {
             />
             <div className="flex items-center gap-sm">
               <Button onClick={handleAddRole} disabled={generating}>
-                Rolle hinzufügen
+                {generating ? 'Speichert…' : 'Rolle speichern'}
               </Button>
               <Button
                 variant="ghost"
@@ -674,7 +730,9 @@ export default function RolesSection() {
                       key={`${role.ebene}-${role.rolle}-${i}`}
                       role={role}
                       ebenen={ebenen}
-                      onDelete={() => handleDeleteRole(i)}
+                      onDelete={() => {
+                        void handleDeleteRole(i);
+                      }}
                     />
                   ))}
                 </div>

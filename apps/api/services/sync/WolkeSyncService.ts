@@ -24,6 +24,7 @@ import { mistralEmbeddingService } from '../mistral/index.js';
 import { ocrService } from '../OcrService/index.js';
 
 import type { NextcloudFile, FileProcessResult, SyncResult } from './types.js';
+import type { NextcloudShareLink } from '../../utils/integrations/nextcloud/types.js';
 
 type WolkeSyncRow = typeof wolkeSyncStatus.$inferSelect;
 
@@ -156,12 +157,12 @@ export class WolkeSyncService {
   }
 
   /**
-   * Get share link by ID
+   * Get share link by ID. Throws if not found or not active.
    */
-  async getShareLink(userId: string, shareLinkId: string): Promise<unknown> {
+  async getShareLink(userId: string, shareLinkId: string): Promise<NextcloudShareLink> {
     try {
       const shareLinks = await NextcloudShareManager.getShareLinks(userId);
-      const shareLink = shareLinks.find((link: { id: string }) => link.id === shareLinkId);
+      const shareLink = shareLinks.find((link) => link.id === shareLinkId);
 
       if (!shareLink) {
         throw new Error('Share link not found');
@@ -182,11 +183,11 @@ export class WolkeSyncService {
    * List files in a Nextcloud folder
    */
   async listFolderContents(
-    shareLink: { id: string; url: string; token?: string; share_link?: string },
+    shareLink: NextcloudShareLink,
     _folderPath: string = ''
   ): Promise<NextcloudFile[]> {
     try {
-      const client = await NextcloudApiClient.create(shareLink.share_link || shareLink.url);
+      const client = await NextcloudApiClient.create(shareLink.share_link);
       const shareInfo = await client.getShareInfo();
 
       if (!shareInfo.success) {
@@ -309,7 +310,7 @@ export class WolkeSyncService {
     userId: string,
     shareLinkId: string,
     file: NextcloudFile,
-    shareLink: { id: string; url: string; token?: string; share_link?: string }
+    shareLink: NextcloudShareLink
   ): Promise<FileProcessResult> {
     try {
       console.log(`[WolkeSyncService] Processing file: ${file.name}`);
@@ -355,7 +356,7 @@ export class WolkeSyncService {
       }
 
       // Download file from Nextcloud
-      const client = await NextcloudApiClient.create(shareLink.share_link || shareLink.url);
+      const client = await NextcloudApiClient.create(shareLink.share_link);
       console.log(`[WolkeSyncService] Downloading file: ${file.name}`);
       const fileData = await client.downloadFile(file.href);
 
@@ -539,15 +540,7 @@ export class WolkeSyncService {
       });
 
       try {
-        // Get share link
-        const shareLink = (await this.getShareLink(userId, shareLinkId)) as {
-          id: string;
-          url: string;
-          token?: string;
-          share_link?: string;
-        };
-
-        // List folder contents
+        const shareLink = await this.getShareLink(userId, shareLinkId);
         const files = await this.listFolderContents(shareLink, folderPath);
 
         let processedCount = 0;

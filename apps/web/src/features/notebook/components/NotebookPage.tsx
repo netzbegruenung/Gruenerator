@@ -8,13 +8,13 @@ import {
   NotebookComposer,
   UserMessage,
   notebookMentionables,
+  useAgentStore,
   type CategoryFilterConfig,
   type CategoryFilterField,
   type ChatMessageMetadata,
   type ExtraAction,
   type NotebookMessageMetadata,
 } from '@gruenerator/chat';
-import { PanelLeft } from 'lucide-react';
 import React, { useState, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { FaFileWord } from 'react-icons/fa';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
@@ -25,13 +25,13 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { useExportStore } from '../../../stores/core/exportStore';
 import { getNotebookConfig } from '../config/notebookPagesConfig';
+import { getNotebookById } from '../config/notebooksConfig';
 import { useNotebookChatBridge } from '../hooks/useNotebookChatBridge';
+import { useNotebookCollection } from '../hooks/useNotebookCollection';
 import useNotebookStore from '../stores/notebookStore';
 
-import { DocumentBrowserPanel } from './DocumentBrowserPanel';
+import { NotebookAccessError } from './NotebookAccessError';
 import { NotebookStartpage } from './NotebookStartpage';
-
-import type { NotebookCollection as FullNotebookCollection } from '../../../types/notebook';
 
 interface NotebookCollection {
   id: string;
@@ -83,8 +83,23 @@ interface NotebookPageContentProps {
   startpageFooter?: ReactNode;
   /** Disable the Statistiken section (e.g. for small dynamic user notebooks). Defaults to true. */
   showStats?: boolean;
+  /** Disable the built-in "Zuletzt hinzugefügt" section (caller renders its own). Defaults to true. */
+  showLastAdded?: boolean;
+  /** Disable the example-question chip grid below the composer. Defaults to true. */
+  showExamples?: boolean;
   /** Disable the manual research tab (dynamic user notebooks have no system collection scope). Defaults to true. */
   showManualSearch?: boolean;
+  /**
+   * Suppress the global-chat ("Chat") tab even when a notebook mention is available.
+   * Used by aggregate surfaces (e.g. the /notebooks index) where the chat tab
+   * doesn't correspond to a specific notebook the user picked. Defaults to false.
+   */
+  hideGlobalChat?: boolean;
+  /**
+   * When set, the manual research tab scopes to a single user-owned notebook
+   * (ownership-checked, no facet filter UI). Forwarded to `NotebookManualSearch`.
+   */
+  manualSearchNotebookId?: string;
 }
 
 interface NotebookPageProps {
@@ -127,7 +142,11 @@ export const NotebookPageContent = ({
   threadId: threadIdProp,
   startpageFooter,
   showStats = true,
+  showLastAdded = true,
+  showExamples = true,
   showManualSearch = true,
+  hideGlobalChat = false,
+  manualSearchNotebookId,
 }: NotebookPageContentProps): React.ReactElement => {
   const isMulti = config.collectionType === 'multi';
   const isSingleSystem = !isMulti && config.collections[0]?.id.endsWith('-system');
@@ -161,9 +180,10 @@ export const NotebookPageContent = ({
   }, []);
 
   const location = useLocation();
-  const navState = location.state as
-    | { freshConversation?: boolean; resumeNotebookChat?: boolean }
-    | null;
+  const navState = location.state as {
+    freshConversation?: boolean;
+    resumeNotebookChat?: boolean;
+  } | null;
   const freshConversation = navState?.freshConversation;
   const resumeFromCache = navState?.resumeNotebookChat ?? false;
 
@@ -334,7 +354,7 @@ export const NotebookPageContent = ({
                   subtitle={config.infoPanelDescription}
                   sources={config.sources}
                   placeholder={config.placeholder}
-                  exampleQuestions={config.exampleQuestions ?? []}
+                  exampleQuestions={showExamples ? (config.exampleQuestions ?? []) : []}
                   composerSourceFilters={sourceFilters}
                   composerCategoryFilters={categoryFilters}
                   mode={mode}
@@ -342,7 +362,10 @@ export const NotebookPageContent = ({
                   recentCollectionIds={recentCollectionIds}
                   showRecentSourceLabel={isMulti}
                   showStats={showStats}
+                  showLastAdded={showLastAdded}
                   showManualSearch={showManualSearch}
+                  hideGlobalChat={hideGlobalChat}
+                  manualSearchNotebookId={manualSearchNotebookId}
                   notebookMention={notebookMention}
                   footer={startpageFooter}
                 />
@@ -386,6 +409,18 @@ export const NotebookPageContent = ({
 
 const NotebookPage = ({ configId }: NotebookPageProps): React.ReactElement => {
   const config = getNotebookConfig(configId) as NotebookConfig;
+  // Pre-select the LV-tuned agent in the global chat store when entering an LV
+  // notebook. Effect runs only when `configId` changes — does NOT override
+  // manual agent picks made later inside the chat. Notebook chat itself runs
+  // on NotebookChatProvider and is unaffected; this is a warm-up for users who
+  // navigate from the notebook into /chat afterwards.
+  const setSelectedAgent = useAgentStore((s) => s.setSelectedAgent);
+  useEffect(() => {
+    const entry = getNotebookById(configId);
+    if (entry?.defaultAgent) {
+      setSelectedAgent(entry.defaultAgent);
+    }
+  }, [configId, setSelectedAgent]);
   return <NotebookPageContent config={config} />;
 };
 
@@ -395,45 +430,36 @@ export const createNotebookPage = (configId: string) => {
   return withAuthRequired(Page, { title: config.authTitle });
 };
 
-export const DynamicNotebookPage = () => {
-  const { id } = useParams<{ id: string }>();
-  const user = useAuthStore((s) => s.user);
-  const {
-    getQACollection,
-    fetchQACollections,
-    qaCollections,
-    loading: storeLoading,
-    initDocumentSelection,
-    getSelectedDocumentIds,
-  } = useNotebookStore();
-  const [collection, setCollection] = useState<FullNotebookCollection | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+interface DynamicNotebookPageProps {
+  /**
+   * Optional explicit collection id. When omitted, falls back to the
+   * `:id` route param. The /notebooks/:idOrSlug route uses a different
+   * param name and routes through NotebookResolver, which must pass the
+   * resolved id in via this prop.
+   */
+  id?: string;
+}
 
+export const DynamicNotebookPage = ({ id: idProp }: DynamicNotebookPageProps = {}) => {
+  const { id: idFromParams } = useParams<{ id: string }>();
+  const id = idProp ?? idFromParams;
+
+  // Reset agent to the default (universal). NotebookPage warms a system
+  // notebook's agent into the persisted store; without a counterpart here,
+  // a stale öffentlichkeitsarbeit-* selection bleeds into user notebooks.
+  const setSelectedAgent = useAgentStore((s) => s.setSelectedAgent);
   useEffect(() => {
-    const loadCollection = async () => {
-      if (!id) return;
-      setLoading(true);
-      let found = getQACollection(id);
-      if (!found) {
-        await fetchQACollections();
-        found = getQACollection(id);
-      }
-      if (found) {
-        const docIds = (found.documents || [])
-          .filter((d) => d.status === 'completed')
-          .map((d) => d.id);
-        initDocumentSelection(found.id, docIds);
-      }
-      setCollection(found || null);
-      setLoading(false);
-    };
-    if (id && user) void loadCollection();
-  }, [id, getQACollection, fetchQACollections, user, qaCollections, initDocumentSelection]);
+    setSelectedAgent(null);
+  }, [id, setSelectedAgent]);
 
-  const selectedDocumentIds = collection ? getSelectedDocumentIds(collection.id) : [];
+  // Single-collection fetch gated by checkNotebookAccess — works for direct
+  // URL access to a `share_mode='authenticated'` notebook regardless of the
+  // viewer's locale (audience is a discovery-listing hint, not an access wall).
+  const { data, isLoading, refetch } = useNotebookCollection(id);
+  const collection = data?.collection ?? null;
+  const fetchError = data?.error ?? null;
 
-  if (loading)
+  if (isLoading)
     return (
       <div className="flex flex-1 items-center justify-center p-md text-foreground-muted">
         <p>Notebook wird geladen...</p>
@@ -441,18 +467,8 @@ export const DynamicNotebookPage = () => {
     );
 
   if (!collection) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-sm p-md text-foreground-muted">
-        <p>Notebook nicht gefunden oder keine Berechtigung.</p>
-        <p className="text-xs">
-          Collection ID: {id} · User ID: {user?.id} · Store Loading: {storeLoading ? 'Yes' : 'No'} ·
-          Collections: {qaCollections?.length || 0}
-        </p>
-      </div>
-    );
+    return <NotebookAccessError variant={fetchError ?? 'unknown'} onRetry={() => void refetch()} />;
   }
-
-  const hasDocuments = (collection.documents || []).length > 0;
 
   const config: NotebookConfig = {
     id: collection.id,
@@ -460,42 +476,24 @@ export const DynamicNotebookPage = () => {
     authTitle: 'Q&A Notebook',
     collectionType: 'single',
     collections: [{ id: collection.id, name: collection.name }],
-    startPageTitle: `Fragen zu "${collection.name || 'Notebook'}"`,
+    startPageTitle: collection.name || 'Notebook',
     placeholder: 'Stellen Sie eine Frage zu den Dokumenten...',
-    infoPanelDescription: `Durchsuche die Dokumente in "${collection.name}" mit KI-gestützten Fragen.`,
+    infoPanelDescription:
+      collection.description ||
+      `Durchsuche die Dokumente in "${collection.name}" mit KI-gestützten Fragen.`,
     headerIcon: () => null,
     exampleQuestions: [],
     persistMessages: true,
   };
 
-  if (!hasDocuments) {
-    return <NotebookPageContent config={config} showStats={false} showManualSearch={false} />;
-  }
-
   return (
-    <div className="flex h-full min-h-0">
-      {sidebarOpen && (
-        <div className="hidden w-72 shrink-0 lg:block">
-          <DocumentBrowserPanel collection={collection} />
-        </div>
-      )}
-      <div className="relative flex min-w-0 flex-1 flex-col">
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute left-2 top-2 z-10 hidden rounded-md p-1.5 text-foreground-muted transition-colors hover:bg-background-alt hover:text-foreground lg:block"
-          aria-label={sidebarOpen ? 'Dokumente ausblenden' : 'Dokumente einblenden'}
-          title={sidebarOpen ? 'Dokumente ausblenden' : 'Dokumente einblenden'}
-        >
-          <PanelLeft className="h-4 w-4" />
-        </button>
-        <NotebookPageContent
-          config={config}
-          documentIds={selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined}
-          showStats={false}
-          showManualSearch={false}
-        />
-      </div>
-    </div>
+    <NotebookPageContent
+      config={config}
+      showStats={false}
+      showLastAdded={false}
+      showManualSearch
+      manualSearchNotebookId={collection.id}
+    />
   );
 };
 

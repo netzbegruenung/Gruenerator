@@ -1,21 +1,31 @@
+import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import {
-  PiMagnifyingGlass,
-  PiBooks,
-  PiBank,
-  PiCompass,
-  PiMapPin,
-  PiTree,
-  PiGlobe,
-  PiFlag,
-  PiScales,
-  PiLightbulb,
-  PiNewspaper,
-  PiFlowerLight,
+  PiGlobeHemisphereWest,
+  PiFlask,
+  PiFiles,
+  PiChatCircleDots,
+  PiNote,
+  PiPaintBrush,
+  PiTreeEvergreen,
+  PiImage,
+  PiImagesSquare,
+  PiClipboardText,
+  PiFileText,
+  PiPaperclip,
+  PiSparkle,
+  PiCloud,
+  PiNotePencil,
 } from 'react-icons/pi';
-import { MdDiversity1 } from 'react-icons/md';
 import { agentsList, type AgentListItem } from './agents';
 
-export type MentionableType = 'agent' | 'notebook' | 'tool' | 'document' | 'board' | 'doc';
+export type MentionableType =
+  | 'agent'
+  | 'notebook'
+  | 'tool'
+  | 'document'
+  | 'board'
+  | 'doc'
+  | 'wolke';
 export type MentionableCategory = 'skill' | 'function';
 
 export interface Mentionable {
@@ -28,7 +38,6 @@ export interface Mentionable {
   avatar: string;
   backgroundColor: string;
   mention: string;
-  contextPrefix?: string;
   skillCategory?: import('./agents').SkillCategory;
   promptTemplate?: string;
   isSystemDefault?: boolean;
@@ -42,7 +51,28 @@ export interface CustomAgentMentionable {
   description?: string;
 }
 
+// Per-LV icon overrides for the Öffentlichkeitsarbeit-<lv> agents and their
+// /presse-<lv>, /social-<lv> skills. Mirrors the icons used on the matching
+// notebook entries in `apps/web/src/features/notebook/config/notebooksConfig.ts`
+// so the visual identity stays consistent between notebook gallery, sidebar,
+// "Alle Agents" modal, and the /-mention picker.
+const AGENT_ICON_OVERRIDES: Record<string, React.ComponentType<{ className?: string }>> = {
+  'gruenerator-oeffentlichkeitsarbeit-berlin': NOTEBOOK_ICONS['berlin-notebook'],
+  'gruenerator-oeffentlichkeitsarbeit-hamburg': NOTEBOOK_ICONS['hamburg-notebook'],
+  'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern':
+    NOTEBOOK_ICONS['mecklenburg-vorpommern-notebook'],
+  'gruenerator-oeffentlichkeitsarbeit-thueringen': NOTEBOOK_ICONS['thueringen-notebook'],
+  'gruenerator-oeffentlichkeitsarbeit-brandenburg': NOTEBOOK_ICONS['brandenburg-notebook'],
+  'gruenerator-oeffentlichkeitsarbeit-schleswig-holstein':
+    NOTEBOOK_ICONS['schleswig-holstein-notebook'],
+  'gruenerator-oeffentlichkeitsarbeit-bayern': NOTEBOOK_ICONS['bayern-notebook'],
+};
+
 export function agentToMentionable(agent: AgentListItem): Mentionable {
+  // Per-skill `agent.icon` wins over the legacy identifier-keyed override map
+  // so PM-<LV> and Social-<LV> variants can carry distinct icons even though
+  // they share an agent identifier.
+  const icon = agent.icon ?? AGENT_ICON_OVERRIDES[agent.identifier];
   return {
     type: 'agent',
     category: 'skill',
@@ -53,10 +83,10 @@ export function agentToMentionable(agent: AgentListItem): Mentionable {
     avatar: agent.avatar,
     backgroundColor: agent.backgroundColor,
     mention: agent.mention,
-    contextPrefix: agent.contextPrefix,
     skillCategory: agent.skillCategory,
     promptTemplate: agent.promptTemplate,
     isSystemDefault: agent.isSystemDefault,
+    ...(icon ? { icon } : {}),
   };
 }
 
@@ -96,7 +126,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Alle Quellen',
     description: 'Durchsucht mehrere Quellen parallel',
     avatar: '🔍',
-    icon: PiMagnifyingGlass,
+    icon: NOTEBOOK_ICONS['gruenerator-notebook'],
     backgroundColor: '#316049',
     mention: 'alle',
   },
@@ -108,7 +138,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grundsatzprogramm',
     description: 'Grundsatzprogramme von Bündnis 90/Die Grünen',
     avatar: '📗',
-    icon: PiBooks,
+    icon: NOTEBOOK_ICONS['gruene-notebook'],
     backgroundColor: '#316049',
     mention: 'grundsatz',
   },
@@ -120,7 +150,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Bundestagsfraktion',
     description: 'Inhalte von gruene-bundestag.de',
     avatar: '🏛️',
-    icon: PiBank,
+    icon: NOTEBOOK_ICONS['bundestagsfraktion-notebook'],
     backgroundColor: '#316049',
     mention: 'bundestag',
   },
@@ -132,7 +162,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Hamburg',
     description: 'Beschlüsse und Presse der Grünen Hamburg',
     avatar: '⚓',
-    icon: PiCompass,
+    icon: NOTEBOOK_ICONS['hamburg-notebook'],
     backgroundColor: '#316049',
     mention: 'hamburg',
   },
@@ -144,7 +174,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Schleswig-Holstein',
     description: 'Wahlprogramm Schleswig-Holstein',
     avatar: '🌊',
-    icon: PiMapPin,
+    icon: NOTEBOOK_ICONS['schleswig-holstein-notebook'],
     backgroundColor: '#316049',
     mention: 'sh',
   },
@@ -156,7 +186,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Thüringen',
     description: 'Beschlüsse und Wahlprogramme Thüringen',
     avatar: '🏔️',
-    icon: PiTree,
+    icon: NOTEBOOK_ICONS['thueringen-notebook'],
     backgroundColor: '#316049',
     mention: 'thüringen',
   },
@@ -168,7 +198,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Österreich',
     description: 'Programme von Die Grünen Österreich',
     avatar: '🇦🇹',
-    icon: PiGlobe,
+    icon: NOTEBOOK_ICONS['oesterreich-notebook'],
     backgroundColor: '#88B04B',
     mention: 'at',
   },
@@ -180,7 +210,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Bayern',
     description: 'Regierungsprogramm Bayern',
     avatar: '🦁',
-    icon: PiMapPin,
+    icon: NOTEBOOK_ICONS['bayern-notebook'],
     backgroundColor: '#316049',
     mention: 'bayern',
   },
@@ -192,7 +222,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Berlin',
     description: 'Wahlprogramm 2026, Pressemitteilungen und Beschlüsse Berlin',
     avatar: '🐻',
-    icon: MdDiversity1,
+    icon: NOTEBOOK_ICONS['berlin-notebook'],
     backgroundColor: '#316049',
     mention: 'berlin',
   },
@@ -204,7 +234,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Mecklenburg-Vorpommern',
     description: 'Presse und Parteitagsbeschlüsse MV',
     avatar: '🦅',
-    icon: PiFlag,
+    icon: NOTEBOOK_ICONS['mecklenburg-vorpommern-notebook'],
     backgroundColor: '#316049',
     mention: 'mv',
   },
@@ -216,7 +246,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grüne Brandenburg',
     description: 'Presse, Beschlüsse und Landtagswahlprogramm 2024 Brandenburg',
     avatar: '🦅',
-    icon: PiFlowerLight,
+    icon: NOTEBOOK_ICONS['brandenburg-notebook'],
     backgroundColor: '#316049',
     mention: 'brandenburg',
   },
@@ -228,7 +258,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'KommunalWiki',
     description: 'Fachwissen zur Kommunalpolitik',
     avatar: '📚',
-    icon: PiScales,
+    icon: NOTEBOOK_ICONS['kommunalwiki-notebook'],
     backgroundColor: '#316049',
     mention: 'kommunalwiki',
   },
@@ -240,7 +270,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Heinrich-Böll-Stiftung',
     description: 'Analysen und Dossiers der Böll-Stiftung',
     avatar: '📖',
-    icon: PiLightbulb,
+    icon: NOTEBOOK_ICONS['boell-stiftung-notebook'],
     backgroundColor: '#316049',
     mention: 'böll',
   },
@@ -252,7 +282,7 @@ export const notebookMentionables: Mentionable[] = [
     title: 'Grünblog',
     description: 'Onlinemagazin der Grünen',
     avatar: '📰',
-    icon: PiNewspaper,
+    icon: NOTEBOOK_ICONS['gruenblog-notebook'],
     backgroundColor: '#316049',
     mention: 'gruenblog',
   },
@@ -267,6 +297,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Websuche',
     description: 'Aktuelle Infos aus dem Web',
     avatar: '🌐',
+    icon: PiGlobeHemisphereWest,
     backgroundColor: '#2563EB',
     mention: 'websearch',
   },
@@ -278,6 +309,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Recherche',
     description: 'Tiefgehende Multi-Quellen-Recherche',
     avatar: '🔬',
+    icon: PiFlask,
     backgroundColor: '#7C3AED',
     mention: 'recherche',
   },
@@ -289,6 +321,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Dokumente',
     description: 'Parteiprogramme & Beschlüsse durchsuchen',
     avatar: '📄',
+    icon: PiFiles,
     backgroundColor: '#316049',
     mention: 'dokumente',
   },
@@ -300,6 +333,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Dokument-Chat',
     description: 'Mit ausgewählten Dokumenten chatten',
     avatar: '💬',
+    icon: PiChatCircleDots,
     backgroundColor: '#6366F1',
     mention: 'dokumentchat',
   },
@@ -311,6 +345,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Zusammenfassung',
     description: 'Dokument(e) zusammenfassen',
     avatar: '📝',
+    icon: PiNote,
     backgroundColor: '#0891B2',
     mention: 'zusammenfassung',
   },
@@ -322,6 +357,7 @@ export const toolMentionables: Mentionable[] = [
     title: 'Bildgenerierung',
     description: 'Bild mit KI generieren (Flux)',
     avatar: '🎨',
+    icon: PiPaintBrush,
     backgroundColor: '#D97706',
     mention: 'bildgenerieren',
   },
@@ -333,8 +369,21 @@ export const toolMentionables: Mentionable[] = [
     title: 'Stadt begrünen',
     description: 'Stadtbild mit Grün transformieren',
     avatar: '🌳',
+    icon: PiTreeEvergreen,
     backgroundColor: '#059669',
     mention: 'stadtbegruenen',
+  },
+  {
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'image_edit_universal',
+    title: 'Bild bearbeiten',
+    description: 'Angehängtes Bild frei bearbeiten (z.B. "jünger machen", "mehr Grün")',
+    avatar: '🖼️',
+    icon: PiImage,
+    backgroundColor: '#059669',
+    mention: 'bildbearbeiten',
   },
   ...(typeof document !== 'undefined' && process.env.NODE_ENV !== 'production'
     ? [
@@ -346,6 +395,7 @@ export const toolMentionables: Mentionable[] = [
           title: 'Sharepic',
           description: 'Drei Sharepic-Varianten erstellen (Dreizeiler, Zitat, Info)',
           avatar: '🖼️',
+          icon: PiImagesSquare,
           backgroundColor: '#46962b',
           mention: 'sharepic',
         },
@@ -368,6 +418,7 @@ export const boardToolMentionables: Mentionable[] = [
     title: 'Board erstellen',
     description: 'Erstellt ein Board aus dem Chatverlauf',
     avatar: '✨',
+    icon: PiSparkle,
     backgroundColor: '#7C3AED',
     mention: 'board-erstellen',
   },
@@ -384,6 +435,7 @@ export function setBoardMentionables(boards: BoardMentionable[]): void {
     title: b.title,
     description: `Board: ${b.title}`,
     avatar: '📋',
+    icon: PiClipboardText,
     backgroundColor: '#316049',
     mention: b.slug,
   }));
@@ -403,6 +455,7 @@ export const docToolMentionables: Mentionable[] = [
     title: 'Dokument erstellen',
     description: 'Erstellt ein Dokument aus dem Chatverlauf',
     avatar: '📝',
+    icon: PiNote,
     backgroundColor: '#0891B2',
     mention: 'dokument-erstellen',
   },
@@ -414,6 +467,7 @@ export const docToolMentionables: Mentionable[] = [
     title: 'Dokument einfuegen',
     description: 'Kollaboratives Dokument als Kontext hinzufuegen',
     avatar: '📄',
+    icon: PiFileText,
     backgroundColor: '#0891B2',
     mention: 'docs',
   },
@@ -436,6 +490,7 @@ export function setDocMentionables(docs: DocMentionable[]): void {
     title: d.title,
     description: d.title,
     avatar: '📝',
+    icon: PiFileText,
     backgroundColor: '#0891B2',
     mention: d.slug,
   }));
@@ -444,6 +499,34 @@ export function setDocMentionables(docs: DocMentionable[]): void {
 
 export function getDocMentionables(): Mentionable[] {
   return [...docToolMentionables, ...dynamicDocMentionables];
+}
+
+export interface UserNotebookMentionable {
+  id: string;
+  title: string;
+  slug: string;
+}
+
+let dynamicUserNotebookMentionables: Mentionable[] = [];
+
+export function setUserNotebookMentionables(notebooks: UserNotebookMentionable[]): void {
+  dynamicUserNotebookMentionables = notebooks.map((n) => ({
+    type: 'notebook' as const,
+    category: 'function' as const,
+    trigger: '@' as const,
+    identifier: n.id,
+    title: n.title,
+    description: `Mein Notizbuch: ${n.title}`,
+    avatar: '📓',
+    icon: PiNotePencil,
+    backgroundColor: '#316049',
+    mention: n.slug,
+  }));
+  rebuildMentionableMap();
+}
+
+export function getUserNotebookMentionables(): Mentionable[] {
+  return dynamicUserNotebookMentionables;
 }
 
 export const documentMentionables: Mentionable[] = [
@@ -455,15 +538,91 @@ export const documentMentionables: Mentionable[] = [
     title: 'Datei auswählen',
     description: 'Dokument aus einem Notizbuch referenzieren',
     avatar: '📎',
+    icon: PiPaperclip,
     backgroundColor: '#6366F1',
     mention: 'datei',
   },
 ];
 
+// @wolke opens a sub-popover that lets the user pick files from their
+// connected Nextcloud share link(s). Selected files are inserted into the
+// text as opaque `@wolke:<base64>` tokens which the parser decodes back into
+// {shareLinkId, path, name} refs sent in the request body.
+export const wolkeMentionables: Mentionable[] = [
+  {
+    type: 'wolke',
+    category: 'function',
+    trigger: '@',
+    identifier: 'wolke-trigger',
+    title: 'Wolke',
+    description: 'Eigene Wolke-Dateien einfügen',
+    avatar: '☁️',
+    icon: PiCloud,
+    backgroundColor: '#0EA5E9',
+    mention: 'wolke',
+  },
+];
+
+export interface WolkeFileToken {
+  shareLinkId: string;
+  path: string;
+  name: string;
+}
+
+// Base64-url encoding so the resulting token has no spaces, '/', or '+'
+// characters that would break the `(\S+)` mention regex.
+function toBase64Url(input: string): string {
+  if (typeof globalThis.btoa === 'function') {
+    return globalThis
+      .btoa(unescape(encodeURIComponent(input)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  }
+  return Buffer.from(input, 'utf-8')
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+function fromBase64Url(input: string): string {
+  const padded = input.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = padded.length % 4 === 0 ? '' : '='.repeat(4 - (padded.length % 4));
+  const full = padded + pad;
+  if (typeof globalThis.atob === 'function') {
+    return decodeURIComponent(escape(globalThis.atob(full)));
+  }
+  return Buffer.from(full, 'base64').toString('utf-8');
+}
+
+export function encodeWolkeToken(ref: WolkeFileToken): string {
+  return `@wolke:${toBase64Url(JSON.stringify(ref))}`;
+}
+
+export function decodeWolkeToken(token: string): WolkeFileToken | null {
+  try {
+    const parsed = JSON.parse(fromBase64Url(token)) as unknown;
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof (parsed as Record<string, unknown>).shareLinkId === 'string' &&
+      typeof (parsed as Record<string, unknown>).path === 'string' &&
+      typeof (parsed as Record<string, unknown>).name === 'string'
+    ) {
+      return parsed as WolkeFileToken;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function getAllMentionables(): Mentionable[] {
   return [
     ...agentMentionables,
     ...customAgentMentionables,
+    ...dynamicUserNotebookMentionables,
     ...notebookMentionables,
     ...toolMentionables,
     ...boardToolMentionables,
@@ -471,6 +630,7 @@ export function getAllMentionables(): Mentionable[] {
     ...docToolMentionables,
     ...dynamicDocMentionables,
     ...documentMentionables,
+    ...wolkeMentionables,
   ];
 }
 
@@ -481,6 +641,7 @@ function rebuildMentionableMap(): void {
   const orderedSources = [
     agentMentionables,
     customAgentMentionables,
+    dynamicUserNotebookMentionables,
     notebookMentionables,
     toolMentionables,
     boardToolMentionables,
@@ -488,6 +649,7 @@ function rebuildMentionableMap(): void {
     docToolMentionables,
     dynamicDocMentionables,
     documentMentionables,
+    wolkeMentionables,
   ];
   for (const source of orderedSources) {
     for (const m of source) {
@@ -510,10 +672,12 @@ export function filterMentionables(query: string): {
   agents: Mentionable[];
   customAgents: Mentionable[];
   notebooks: Mentionable[];
+  userNotebooks: Mentionable[];
   tools: Mentionable[];
   boards: Mentionable[];
   docs: Mentionable[];
   documents: Mentionable[];
+  wolke: Mentionable[];
 } {
   const allBoards = [...boardToolMentionables, ...dynamicBoardMentionables];
   const allDocs = [...docToolMentionables, ...dynamicDocMentionables];
@@ -522,10 +686,12 @@ export function filterMentionables(query: string): {
       agents: agentMentionables,
       customAgents: customAgentMentionables,
       notebooks: notebookMentionables,
+      userNotebooks: dynamicUserNotebookMentionables,
       tools: toolMentionables,
       boards: allBoards,
       docs: allDocs,
       documents: documentMentionables,
+      wolke: wolkeMentionables,
     };
   }
   const q = query.toLowerCase();
@@ -534,14 +700,28 @@ export function filterMentionables(query: string): {
     m.title.toLowerCase().includes(q) ||
     m.identifier.toLowerCase().includes(q);
 
+  const isNotebookCategoryQuery =
+    'notebook'.startsWith(q) ||
+    q.startsWith('notebook') ||
+    'notizbuch'.startsWith(q) ||
+    q.startsWith('notizbuch') ||
+    'notiz'.startsWith(q) ||
+    q.startsWith('notiz');
+
   return {
     agents: agentMentionables.filter(matchFn),
     customAgents: customAgentMentionables.filter(matchFn),
-    notebooks: notebookMentionables.filter(matchFn),
+    notebooks: isNotebookCategoryQuery
+      ? notebookMentionables
+      : notebookMentionables.filter(matchFn),
+    userNotebooks: isNotebookCategoryQuery
+      ? dynamicUserNotebookMentionables
+      : dynamicUserNotebookMentionables.filter(matchFn),
     tools: toolMentionables.filter(matchFn),
     boards: 'board'.startsWith(q) || q.startsWith('board') ? allBoards : allBoards.filter(matchFn),
     docs: 'dok'.startsWith(q) || q.startsWith('dok') ? allDocs : allDocs.filter(matchFn),
     documents: documentMentionables.filter(matchFn),
+    wolke: wolkeMentionables.filter(matchFn),
   };
 }
 
@@ -553,5 +733,13 @@ export function filterMentionablesByCategory(
   if (category === 'skill') {
     return [...all.agents, ...all.customAgents];
   }
-  return [...all.tools, ...all.boards, ...all.docs, ...all.documents, ...all.notebooks];
+  return [
+    ...all.tools,
+    ...all.boards,
+    ...all.docs,
+    ...all.documents,
+    ...all.wolke,
+    ...all.userNotebooks,
+    ...all.notebooks,
+  ];
 }

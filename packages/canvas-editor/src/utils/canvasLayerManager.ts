@@ -1,4 +1,12 @@
-import type { FullCanvasConfig } from '../configs/types';
+import type { AdditionalText, CanvasElementConfig, FullCanvasConfig } from '../configs/types';
+import type { BalkenInstance } from '../primitives/BalkenGroup';
+import type { CircleBadgeInstance } from '../utils/circleBadgeUtils';
+import type { AssetInstance } from './canvasAssets';
+import type { FrameInstance } from './frameUtils';
+import type { IllustrationInstance } from './illustrations/types';
+import type { PillBadgeInstance } from './pillBadgeUtils';
+import type { ShapeInstance } from './shapes';
+import type { UserImageInstance } from './userImageUtils';
 
 /**
  * Canvas Layer Manager - Utilities for managing layer ordering
@@ -7,34 +15,30 @@ import type { FullCanvasConfig } from '../configs/types';
  * Elements are rendered in order: config elements → balkens → icons → shapes → texts → illustrations
  */
 
-export interface CanvasItem {
-  id: string;
-  type:
-    | 'element'
-    | 'balken'
-    | 'icon'
-    | 'shape'
-    | 'frame'
-    | 'additional-text'
-    | 'illustration'
-    | 'asset'
-    | 'circle-badge'
-    | 'pill-badge'
-    | 'user-image';
-  data?: Record<string, unknown>;
-}
+export type CanvasItem =
+  | { id: string; type: 'element'; data: CanvasElementConfig }
+  | { id: string; type: 'balken'; data: BalkenInstance }
+  | { id: string; type: 'icon' }
+  | { id: string; type: 'shape'; data: ShapeInstance }
+  | { id: string; type: 'frame'; data: FrameInstance }
+  | { id: string; type: 'additional-text'; data: AdditionalText }
+  | { id: string; type: 'illustration'; data: IllustrationInstance }
+  | { id: string; type: 'asset'; data: AssetInstance }
+  | { id: string; type: 'circle-badge'; data: CircleBadgeInstance }
+  | { id: string; type: 'pill-badge'; data: PillBadgeInstance }
+  | { id: string; type: 'user-image'; data: UserImageInstance };
 
 interface StateWithFeatures {
-  balkenInstances?: Array<Record<string, unknown>>;
+  balkenInstances?: BalkenInstance[];
   selectedIcons?: string[];
-  shapeInstances?: Array<Record<string, unknown>>;
-  additionalTexts?: Array<Record<string, unknown>>;
-  illustrationInstances?: Array<Record<string, unknown>>;
-  assetInstances?: Array<Record<string, unknown>>;
-  frameInstances?: Array<Record<string, unknown>>;
-  circleBadgeInstances?: Array<Record<string, unknown>>;
-  pillBadgeInstances?: Array<Record<string, unknown>>;
-  userImageInstances?: Array<Record<string, unknown>>;
+  shapeInstances?: ShapeInstance[];
+  additionalTexts?: AdditionalText[];
+  illustrationInstances?: IllustrationInstance[];
+  assetInstances?: AssetInstance[];
+  frameInstances?: FrameInstance[];
+  circleBadgeInstances?: CircleBadgeInstance[];
+  pillBadgeInstances?: PillBadgeInstance[];
+  userImageInstances?: UserImageInstance[];
 }
 
 /**
@@ -57,68 +61,67 @@ export function buildCanvasItems<
 
   // 1. Config Elements (sorted by order property)
   const sortedConfigElements = [...config.elements].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  // Widen TState parameter for the union: CanvasElementConfig<TState> is invariant
+  // in TState, but the consumer (memo'd GenericCanvasElement) re-infers TState from
+  // the state prop, so widening here is safe.
   sortedConfigElements.forEach((el) =>
-    items.push({ id: el.id, type: 'element', data: el as unknown as Record<string, unknown> })
+    items.push({ id: el.id, type: 'element', data: el as CanvasElementConfig })
   );
 
   // 2. Balkens
   if (state.balkenInstances) {
-    state.balkenInstances.forEach((b) => items.push({ id: String(b.id), type: 'balken', data: b }));
+    state.balkenInstances.forEach((b) => items.push({ id: b.id, type: 'balken', data: b }));
   }
 
   // 3. Icons
   if (state.selectedIcons) {
-    state.selectedIcons.forEach((id: string) => items.push({ id, type: 'icon' }));
+    state.selectedIcons.forEach((id) => items.push({ id, type: 'icon' }));
   }
 
   // 4. Shapes
   if (state.shapeInstances) {
-    state.shapeInstances.forEach((s) => items.push({ id: String(s.id), type: 'shape', data: s }));
+    state.shapeInstances.forEach((s) => items.push({ id: s.id, type: 'shape', data: s }));
   }
 
   // 4.5. Frames
   if (state.frameInstances) {
-    state.frameInstances.forEach((f) => items.push({ id: String(f.id), type: 'frame', data: f }));
+    state.frameInstances.forEach((f) => items.push({ id: f.id, type: 'frame', data: f }));
   }
 
   // 5. Additional Texts
   if (state.additionalTexts) {
     state.additionalTexts.forEach((t) =>
-      items.push({ id: String(t.id), type: 'additional-text', data: t })
+      items.push({ id: t.id, type: 'additional-text', data: t })
     );
   }
 
   // 6. Illustrations
   if (state.illustrationInstances) {
     state.illustrationInstances.forEach((i) =>
-      items.push({ id: String(i.id), type: 'illustration', data: i })
+      items.push({ id: i.id, type: 'illustration', data: i })
     );
   }
 
   // 7. Assets (decorative elements)
   if (state.assetInstances) {
-    state.assetInstances.forEach((a) => items.push({ id: String(a.id), type: 'asset', data: a }));
+    state.assetInstances.forEach((a) => items.push({ id: a.id, type: 'asset', data: a }));
   }
 
   // 8. Circle Badges (e.g., date circles)
   if (state.circleBadgeInstances) {
     state.circleBadgeInstances.forEach((c) =>
-      items.push({ id: String(c.id), type: 'circle-badge', data: c })
+      items.push({ id: c.id, type: 'circle-badge', data: c })
     );
   }
 
   // 9. Pill Badges (e.g., "Wusstest du?" labels)
   if (state.pillBadgeInstances) {
-    state.pillBadgeInstances.forEach((p) =>
-      items.push({ id: String(p.id), type: 'pill-badge', data: p })
-    );
+    state.pillBadgeInstances.forEach((p) => items.push({ id: p.id, type: 'pill-badge', data: p }));
   }
 
   // 10. User-uploaded images
   if (state.userImageInstances) {
-    state.userImageInstances.forEach((u) =>
-      items.push({ id: String(u.id), type: 'user-image', data: u })
-    );
+    state.userImageInstances.forEach((u) => items.push({ id: u.id, type: 'user-image', data: u }));
   }
 
   return items;

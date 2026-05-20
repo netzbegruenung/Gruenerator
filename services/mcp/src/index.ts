@@ -29,6 +29,10 @@ import { compareTool } from './tools/compare.ts';
 import { examplesSearchTool } from './tools/examples-search.ts';
 import { filtersTool } from './tools/filters.ts';
 import { notebookAskTool } from './tools/notebook-ask.ts';
+import { notebooksAskTool } from './tools/notebooks-ask.ts';
+import { notebooksGetFiltersTool } from './tools/notebooks-get-filters.ts';
+import { notebooksListTool } from './tools/notebooks-list.ts';
+import { notebooksSearchTool } from './tools/notebooks-search.ts';
 // DISABLED: Person search removed — DIP API integration non-functional
 // import { personSearchTool } from './tools/person-search.ts';
 import { searchTool, cacheStatsTool } from './tools/search.ts';
@@ -54,7 +58,7 @@ app.use(
   cors({
     origin: '*',
     methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'mcp-session-id'],
+    allowedHeaders: ['Content-Type', 'mcp-session-id', 'Authorization'],
     exposedHeaders: ['Mcp-Session-Id'],
   })
 );
@@ -90,8 +94,15 @@ function wrapToolHandler(
   };
 }
 
+function extractBearerKey(req: express.Request): string | null {
+  const auth = req.headers.authorization;
+  if (typeof auth !== 'string') return null;
+  const match = /^Bearer\s+(.+)$/i.exec(auth.trim());
+  return match?.[1]?.trim() ?? null;
+}
+
 // MCP Server Factory
-function createMcpServer(baseUrl: string) {
+function createMcpServer(baseUrl: string, apiKey: string | null) {
   const server = new McpServer({
     name: 'gruenerator-mcp',
     version: '1.0.0',
@@ -284,7 +295,7 @@ function createMcpServer(baseUrl: string) {
     return result;
   });
 
-  // Notebook Ask Tool (proxy to main API)
+  // Notebook Ask Tool (legacy, share-token based — DEPRECATED for programmatic use)
   server.tool(
     notebookAskTool.name,
     notebookAskTool.inputSchema,
@@ -292,6 +303,41 @@ function createMcpServer(baseUrl: string) {
       notebookAskTool.handler(params as Parameters<typeof notebookAskTool.handler>[0])
     )
   );
+
+  // Authenticated notebook tools — only registered when caller forwarded a
+  // Bearer API key. Without a key, these are not advertised in tools/list,
+  // and the MCP server stays anonymous-callable for the existing public tools.
+  if (apiKey) {
+    server.tool(
+      notebooksListTool.name,
+      notebooksListTool.inputSchema,
+      wrapToolHandler('NotebooksList', (p) => notebooksListTool.handler(p, apiKey))
+    );
+    server.tool(
+      notebooksAskTool.name,
+      notebooksAskTool.inputSchema,
+      wrapToolHandler('NotebooksAsk', (p) =>
+        notebooksAskTool.handler(p as Parameters<typeof notebooksAskTool.handler>[0], apiKey)
+      )
+    );
+    server.tool(
+      notebooksSearchTool.name,
+      notebooksSearchTool.inputSchema,
+      wrapToolHandler('NotebooksSearch', (p) =>
+        notebooksSearchTool.handler(p as Parameters<typeof notebooksSearchTool.handler>[0], apiKey)
+      )
+    );
+    server.tool(
+      notebooksGetFiltersTool.name,
+      notebooksGetFiltersTool.inputSchema,
+      wrapToolHandler('NotebooksGetFilters', (p) =>
+        notebooksGetFiltersTool.handler(
+          p as Parameters<typeof notebooksGetFiltersTool.handler>[0],
+          apiKey
+        )
+      )
+    );
+  }
 
   // Compare Tool (cross-source comparison)
   server.tool(
@@ -577,7 +623,8 @@ app.post('/mcp', async (req, res) => {
     };
 
     const baseUrl = getBaseUrl(req);
-    const server = createMcpServer(baseUrl);
+    const apiKey = extractBearerKey(req);
+    const server = createMcpServer(baseUrl, apiKey);
     await server.connect(transport);
   } else {
     res.status(400).json({

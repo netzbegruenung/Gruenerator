@@ -92,7 +92,7 @@ router.get('/', async (req, res) => {
       // Extract metadata from tool_results if it's an object (not array)
       // tool_results can be either:
       // - Array: MCP tool invocation results [{toolCallId, result}, ...]
-      // - Object: Search metadata {intent, searchCount, citations, searchResults}
+      // - Object: Search metadata {intent, searchCount, citations, searchResults, toolCalls?}
       let metadata:
         | {
             intent?: string;
@@ -100,9 +100,20 @@ router.get('/', async (req, res) => {
             citations?: unknown[];
             searchResults?: unknown[];
             roleName?: string;
+            generatedImage?: Record<string, unknown>;
           }
         | undefined;
       let resultsMap = new Map<string, unknown>();
+      // ChatGraph/SearchGraph persist toolCalls inline inside the metadata object
+      // (with result already attached per entry). When present, this takes precedence
+      // over the legacy tool_calls column + result-map reconstruction path.
+      type EmbeddedToolCall = {
+        toolCallId?: string;
+        toolName?: string;
+        args?: Record<string, unknown>;
+        result?: unknown;
+      };
+      let embeddedToolCalls: EmbeddedToolCall[] | null = null;
 
       if (parsedToolResults && typeof parsedToolResults === 'object') {
         if (Array.isArray(parsedToolResults)) {
@@ -117,29 +128,48 @@ router.get('/', async (req, res) => {
             ...(Array.isArray(meta.citations) && { citations: meta.citations }),
             ...(Array.isArray(meta.searchResults) && { searchResults: meta.searchResults }),
             ...(typeof meta.roleName === 'string' && { roleName: meta.roleName }),
+            ...(meta.generatedImage && typeof meta.generatedImage === 'object'
+              ? { generatedImage: meta.generatedImage as Record<string, unknown> }
+              : {}),
           };
+          if (Array.isArray(meta.toolCalls)) {
+            embeddedToolCalls = meta.toolCalls as EmbeddedToolCall[];
+          }
         }
       }
 
-      // Build tool invocations array
-      const toolInvocations = Array.isArray(parsedToolCalls)
-        ? parsedToolCalls.map((tc: unknown, index: number) => {
-            const toolCall = tc as {
-              toolCallId?: string;
-              toolName?: string;
-              args?: Record<string, unknown>;
-            };
-            const callId = toolCall.toolCallId || `tool-${index}`;
-            const result = resultsMap.get(callId);
+      // Build tool invocations array. Prefer embedded toolCalls from the metadata
+      // object (inline {toolCallId, toolName, args, result}); fall back to the
+      // legacy split-column path (tool_calls + tool_results-as-array).
+      const toolInvocations = embeddedToolCalls
+        ? embeddedToolCalls.map((tc, index) => {
+            const callId = tc.toolCallId || `tool-${index}`;
             return {
               toolCallId: callId,
-              toolName: toolCall.toolName || 'unknown',
-              args: toolCall.args || {},
-              state: result !== undefined ? 'result' : 'call',
-              result: result,
+              toolName: tc.toolName || 'unknown',
+              args: tc.args || {},
+              state: tc.result !== undefined ? 'result' : 'call',
+              result: tc.result,
             };
           })
-        : undefined;
+        : Array.isArray(parsedToolCalls)
+          ? parsedToolCalls.map((tc: unknown, index: number) => {
+              const toolCall = tc as {
+                toolCallId?: string;
+                toolName?: string;
+                args?: Record<string, unknown>;
+              };
+              const callId = toolCall.toolCallId || `tool-${index}`;
+              const result = resultsMap.get(callId);
+              return {
+                toolCallId: callId,
+                toolName: toolCall.toolName || 'unknown',
+                args: toolCall.args || {},
+                state: result !== undefined ? 'result' : 'call',
+                result: result,
+              };
+            })
+          : undefined;
 
       // Build parts array for AI SDK v4.2+ compatibility
       // This ensures messages work with both legacy content field and new parts array
@@ -172,6 +202,7 @@ router.get('/', async (req, res) => {
         toolInvocations,
         metadata: {
           ...metadata,
+          ...(embeddedToolCalls ? { toolCalls: embeddedToolCalls } : {}),
           ...(msg.user_id ? { senderId: msg.user_id, senderName: msg.sender_name || null } : {}),
         },
       };

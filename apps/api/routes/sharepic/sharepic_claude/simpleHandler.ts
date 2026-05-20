@@ -119,7 +119,7 @@ export async function handleSimpleRequest(req: SharepicRequest, res: Response): 
   const systemRole = config.systemRole;
   const requestOptions = singleItem
     ? config.options
-    : config.alternativesOptions ?? config.options;
+    : (config.alternativesOptions ?? config.options);
 
   const requestTemplate = replaceTemplate(
     singleItem ? config.singleItemTemplate : config.requestTemplate,

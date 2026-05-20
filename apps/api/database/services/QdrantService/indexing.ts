@@ -59,6 +59,10 @@ export interface SocialMediaIndexMetadata {
   country?: 'DE' | 'AT';
   source_account?: string;
   engagement?: number;
+  // Landesverband short code (e.g. 'BE', 'HH'). Set when the post comes
+  // from a per-LV account; absent for federal/AT accounts. Used by the
+  // per-LV PR agents' lvScope filter on search.
+  landesverband?: string;
 }
 
 /**
@@ -385,6 +389,9 @@ export async function indexSocialMediaExample(
     }
     if (metadata.engagement) {
       payload.engagement = metadata.engagement;
+    }
+    if (metadata.landesverband) {
+      payload.landesverband = metadata.landesverband;
     }
 
     const point = {

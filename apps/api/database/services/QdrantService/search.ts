@@ -50,6 +50,8 @@ interface ContentExampleSearchOptions extends BaseSearchOptions {
 interface SocialMediaSearchOptions extends BaseSearchOptions {
   platform?: string;
   country?: string;
+  landesverband?: string | readonly string[];
+  collection?: string;
 }
 
 // Search result interfaces
@@ -175,6 +177,13 @@ export function buildSocialMediaFilter(
   }
   if (options.country) {
     must.push({ key: 'country', match: { value: options.country } });
+  }
+  if (options.landesverband !== undefined) {
+    const lv = options.landesverband;
+    must.push({
+      key: 'landesverband',
+      match: typeof lv === 'string' ? { value: lv } : { any: [...lv] },
+    });
   }
 
   return must.length > 0 ? { must } : undefined;

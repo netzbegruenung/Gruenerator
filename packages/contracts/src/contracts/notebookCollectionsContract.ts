@@ -19,14 +19,44 @@ import {
   syncCollectionResponseSchema,
   searchResultItemSchema,
   simpleSuccessMessageSchema,
-  shareCollectionResponseSchema,
   bulkDeleteResponseSchema,
+  likeCollectionResponseSchema,
+  unlikeCollectionResponseSchema,
+  listMyLikedCollectionsResponseSchema,
+  resolveCollectionResponseSchema,
+  getCollectionResponseSchema,
 } from '../schemas/notebookCollections.js';
 
 const c = initContract();
 
 export const notebookCollectionsContract = c.router(
   {
+    /**
+     * GET /api/auth/notebook-collections/resolve/:slugOrId
+     * Resolve a notebook URL fragment (Notion-style slug or UUID) to its
+     * canonical ID. Used by NotebookResolver on the frontend to translate
+     * pretty URLs into the UUID downstream components already consume.
+     *
+     * IMPORTANT: this entry must appear BEFORE listCollections in the router
+     * object — ts-rest preserves declaration order when building the Express
+     * matcher, and the parameterised `/resolve/:slugOrId` path otherwise gets
+     * shadowed by other `/:id` routes at the same depth (e.g. /likes,
+     * /public). Adding it first means `/resolve/...` always matches first.
+     */
+    resolveCollection: {
+      method: 'GET',
+      path: '/api/auth/notebook-collections/resolve/:slugOrId',
+      pathParams: z.object({ slugOrId: z.string() }),
+      responses: {
+        200: resolveCollectionResponseSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Resolve a notebook slug or UUID to its canonical ID',
+    },
+
     /**
      * GET /api/auth/notebook-collections
      * List the authenticated user's notebook collections.
@@ -40,6 +70,22 @@ export const notebookCollectionsContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'List user notebook collections',
+    },
+
+    /**
+     * GET /api/auth/notebook-collections/public
+     * List all notebook collections marked is_public=true across all users.
+     * Powers the "Von der Basis" section on /notebooks.
+     */
+    listPublicCollections: {
+      method: 'GET',
+      path: '/api/auth/notebook-collections/public',
+      responses: {
+        200: collectionsListResponseSchema,
+        401: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'List publicly published notebook collections',
     },
 
     /**
@@ -132,46 +178,11 @@ export const notebookCollectionsContract = c.router(
       responses: {
         200: simpleSuccessMessageSchema,
         401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
         404: notebookErrorResponseSchema,
         500: notebookErrorResponseSchema,
       },
       summary: 'Delete a notebook collection',
-    },
-
-    /**
-     * POST /api/auth/notebook-collections/:id/share
-     * Generate a public sharing link for a notebook collection.
-     */
-    shareCollection: {
-      method: 'POST',
-      path: '/api/auth/notebook-collections/:id/share',
-      pathParams: z.object({ id: z.string() }),
-      body: c.noBody(),
-      responses: {
-        200: shareCollectionResponseSchema,
-        401: notebookErrorResponseSchema,
-        404: notebookErrorResponseSchema,
-        500: notebookErrorResponseSchema,
-      },
-      summary: 'Generate a public sharing link for a notebook collection',
-    },
-
-    /**
-     * DELETE /api/auth/notebook-collections/:id/share
-     * Revoke public access to a notebook collection.
-     */
-    revokeShare: {
-      method: 'DELETE',
-      path: '/api/auth/notebook-collections/:id/share',
-      pathParams: z.object({ id: z.string() }),
-      body: c.noBody(),
-      responses: {
-        200: simpleSuccessMessageSchema,
-        401: notebookErrorResponseSchema,
-        404: notebookErrorResponseSchema,
-        500: notebookErrorResponseSchema,
-      },
-      summary: 'Revoke public access to a notebook collection',
     },
 
     /**
@@ -207,6 +218,86 @@ export const notebookCollectionsContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'Bulk delete notebook collections',
+    },
+
+    /**
+     * GET /api/auth/notebook-collections/likes
+     * Return the IDs of public notebooks the authenticated user has liked.
+     * Kept separate from listPublicCollections so the public listing stays
+     * user-agnostic and cacheable.
+     */
+    listMyLikedCollections: {
+      method: 'GET',
+      path: '/api/auth/notebook-collections/likes',
+      responses: {
+        200: listMyLikedCollectionsResponseSchema,
+        401: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: "List the authenticated user's liked notebook IDs",
+    },
+
+    /**
+     * POST /api/auth/notebook-collections/:id/like
+     * Like a public notebook collection. Idempotent; only fresh likes
+     * trigger a notification to the notebook owner (and never if owner === self).
+     */
+    likeCollection: {
+      method: 'POST',
+      path: '/api/auth/notebook-collections/:id/like',
+      pathParams: z.object({ id: z.string() }),
+      body: c.noBody(),
+      responses: {
+        200: likeCollectionResponseSchema,
+        401: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Like a public notebook collection',
+    },
+
+    /**
+     * DELETE /api/auth/notebook-collections/:id/like
+     * Remove the authenticated user's like from a notebook collection.
+     */
+    unlikeCollection: {
+      method: 'DELETE',
+      path: '/api/auth/notebook-collections/:id/like',
+      pathParams: z.object({ id: z.string() }),
+      body: c.noBody(),
+      responses: {
+        200: unlikeCollectionResponseSchema,
+        401: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Unlike a notebook collection',
+    },
+
+    /**
+     * GET /api/auth/notebook-collections/:slugOrId
+     * Fetch a single collection by UUID or slug-with-suffix, gated by
+     * checkNotebookAccess. Used by DynamicNotebookPage so direct URL access
+     * to a notebook shared with `share_mode='authenticated'` works regardless
+     * of the audience filter that gates listCollections (audience is a
+     * discovery-curation hint, not an access wall).
+     *
+     * Declared LAST among GET routes on this prefix so literal-segment paths
+     * (`/public`, `/likes`, `/resolve/...`) keep matching first; the
+     * `:slugOrId` pattern would otherwise capture them.
+     */
+    getCollection: {
+      method: 'GET',
+      path: '/api/auth/notebook-collections/:slugOrId',
+      pathParams: z.object({ slugOrId: z.string() }),
+      responses: {
+        200: getCollectionResponseSchema,
+        401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
+        404: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Fetch a single notebook collection by UUID or slug',
     },
   },
   { pathPrefix: '' }

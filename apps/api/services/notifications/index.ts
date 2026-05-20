@@ -9,7 +9,7 @@ export {
   deleteOldNotifications,
 } from './NotificationService.js';
 
-export { notifyGroupMembers } from './groupNotifications.js';
+export { notifyGroupMembers, notifyGroupAdmins } from './groupNotifications.js';
 
 export {
   subscribeToUserNotifications,

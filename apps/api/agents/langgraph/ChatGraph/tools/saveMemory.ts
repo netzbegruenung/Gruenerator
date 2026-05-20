@@ -16,20 +16,22 @@ import type { ToolDependencies } from './registry.js';
 const log = createLogger('Tool:SaveMemory');
 
 export function createSaveMemoryTool(deps: ToolDependencies): DynamicStructuredTool {
-    // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
+  // @ts-expect-error - Zod schema type compatibility with LangChain ToolInputSchemaBase
   return new DynamicStructuredTool({
     name: 'save_memory',
     description:
       'Speichere wichtige Informationen über den Nutzer für zukünftige Gespräche. ' +
       'Nutze dieses Tool wenn der Nutzer persönliche Informationen teilt die er erinnert haben möchte ' +
       '(z.B. "ich bin Stadtrat in Freiburg", "merke dir: ...").',
-    schema: z.object({
-      content: z.string().describe('Die zu speichernde Information'),
-      category: z
-        .enum(['personal', 'preference', 'context', 'task'])
-        .optional()
-        .describe('Kategorie der Erinnerung'),
-    }).describe('Erinnerung speichern'),
+    schema: z
+      .object({
+        content: z.string().describe('Die zu speichernde Information'),
+        category: z
+          .enum(['personal', 'preference', 'context', 'task'])
+          .optional()
+          .describe('Kategorie der Erinnerung'),
+      })
+      .describe('Erinnerung speichern'),
     func: async (input: { content: string; category?: string }) => {
       const { content, category } = input;
       const mem0 = getMem0Instance();

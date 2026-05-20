@@ -1,8 +1,0 @@
-# Don't copy local build artifacts
-dist/
-node_modules/
-
-# Development files
-.env
-.env.local
-*.log

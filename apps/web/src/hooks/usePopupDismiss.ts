@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react';
 
+import {
+  useSetUserDefault,
+  useUserDefaultsQuery,
+} from '../features/user-defaults/userDefaultsQueries';
 import { useAuthStore } from '../stores/authStore';
-import { useUserDefaultsStore } from '../stores/userDefaultsStore';
 
-const POPUP_GENERATOR = 'popups';
+const POPUP_GENERATOR = 'popups' as const;
 
 /**
  * Registry of all popup storageKeys that participate in cross-device sync.
@@ -29,12 +32,16 @@ export const usePopupDismiss = (storageKey: string): UsePopupDismissReturn => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const prevAuthRef = useRef(isAuthenticated);
 
-  const { defaults, isHydrated, hydrate, setDefault, getDefault } = useUserDefaultsStore();
+  const query = useUserDefaultsQuery();
+  const mutation = useSetUserDefault<typeof POPUP_GENERATOR, string>();
+
+  const popups = query.data?.[POPUP_GENERATOR];
+  const isHydratedForAuth = isAuthenticated ? query.isSuccess : true;
 
   const localDismissed =
     typeof window !== 'undefined' && localStorage.getItem(storageKey) === 'true';
   const serverDismissed =
-    isAuthenticated && isHydrated ? getDefault<boolean>(POPUP_GENERATOR, storageKey, false) : false;
+    isAuthenticated && query.isSuccess ? Boolean(popups?.[storageKey]) : false;
 
   const isDismissed = localDismissed || serverDismissed;
 
@@ -42,39 +49,35 @@ export const usePopupDismiss = (storageKey: string): UsePopupDismissReturn => {
     localStorage.setItem(storageKey, 'true');
 
     if (isAuthenticated) {
-      setDefault(POPUP_GENERATOR, storageKey, true).catch(() => {
-        // Non-critical: localStorage already has the value
+      mutation.mutate({
+        generator: POPUP_GENERATOR,
+        key: storageKey,
+        value: true,
       });
     }
-  }, [storageKey, isAuthenticated, setDefault]);
+  }, [storageKey, isAuthenticated, mutation]);
 
-  // Hydrate user defaults when authenticated
-  useEffect(() => {
-    if (isAuthenticated && !isHydrated) {
-      void hydrate();
-    }
-  }, [isAuthenticated, isHydrated, hydrate]);
-
-  // Sync localStorage dismissals to server on login transition
   useEffect(() => {
     const wasAuthenticated = prevAuthRef.current;
     prevAuthRef.current = isAuthenticated;
 
-    if (!wasAuthenticated && isAuthenticated && isHydrated) {
+    if (!wasAuthenticated && isAuthenticated && query.isSuccess) {
       for (const key of POPUP_KEYS) {
         const localValue = localStorage.getItem(key);
-        const serverValue = getDefault<boolean>(POPUP_GENERATOR, key, false);
+        const serverValue = Boolean(popups?.[key]);
 
         if (localValue === 'true' && !serverValue) {
-          setDefault(POPUP_GENERATOR, key, true).catch(() => {
-            // Non-critical
+          mutation.mutate({
+            generator: POPUP_GENERATOR,
+            key,
+            value: true,
           });
         }
       }
     }
-  }, [isAuthenticated, isHydrated, defaults, getDefault, setDefault]);
+  }, [isAuthenticated, query.isSuccess, popups, mutation]);
 
-  return { isDismissed, dismiss, isHydrated: !isAuthenticated || isHydrated };
+  return { isDismissed, dismiss, isHydrated: isHydratedForAuth };
 };
 
 export default usePopupDismiss;

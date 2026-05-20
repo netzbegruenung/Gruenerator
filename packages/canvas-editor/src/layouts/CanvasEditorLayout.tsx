@@ -28,6 +28,8 @@ export interface CanvasEditorLayoutProps {
   templateCreator?: string | null;
   /** Toolbar rendered at layout level, above the canvas content */
   toolbar?: ReactNode;
+  /** Optional sticky-bottom region (page navigator, zoom/meta bar) pinned to viewport bottom */
+  bottomBar?: ReactNode;
   /** When true, removes mobile bottom padding and sidebar chrome (native handles these) */
   hideMobileChrome?: boolean;
   /** When true, the tab bar is rendered externally (web app sidebar) — panel still renders here */
@@ -42,6 +44,7 @@ export function CanvasEditorLayout({
   subsectionBar,
   templateCreator,
   toolbar,
+  bottomBar,
   hideMobileChrome,
   externalSidebar,
 }: CanvasEditorLayoutProps) {
@@ -87,6 +90,17 @@ export function CanvasEditorLayout({
           {children}
         </div>
       </div>
+      {bottomBar && (
+        <div
+          className={cn(
+            'canvas-editor-layout__bottom-bar fixed bottom-0 right-0 z-[140] left-0 max-canvas-mobile:hidden',
+            hasSidebar && 'left-[var(--image-studio-tab-bar-width)]',
+            externalSidebar && '!left-0'
+          )}
+        >
+          {bottomBar}
+        </div>
+      )}
     </div>
   );
 }

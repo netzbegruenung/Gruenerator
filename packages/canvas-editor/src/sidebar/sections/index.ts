@@ -32,6 +32,8 @@ export { BalkenSection } from './BalkenSection';
 export type { BalkenSectionProps } from './BalkenSection';
 export { BalkenSettingsSection } from './BalkenSettingsSection';
 export type { BalkenSettingsSectionProps } from './BalkenSettingsSection';
+export { FrameSettingsSection } from './FrameSettingsSection';
+export type { FrameSettingsSectionProps } from './FrameSettingsSection';
 export { FormenSection } from './FormenSection';
 export type { FormenSectionProps } from './FormenSection';
 export * from './dreizeilen';
@@ -66,3 +68,8 @@ export const UploadsSection = lazy(() =>
   import('./UploadsSection').then((m) => ({ default: m.UploadsSection }))
 );
 export type { UploadsSectionProps } from './UploadsSection';
+
+export const ToolsSection = lazy(() =>
+  import('./tools').then((m) => ({ default: m.ToolsSection }))
+);
+export type { ToolsSectionProps } from './tools';

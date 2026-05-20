@@ -1,4 +1,4 @@
-import { useShareStore, getShareUrl } from '@gruenerator/shared';
+import { useShareStore, getShareUrl, type Share } from '@gruenerator/shared';
 import {
   Button,
   Dialog,
@@ -7,8 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@gruenerator/ui';
+import { QRCodeSVG } from 'qrcode.react';
 import { useState, useEffect } from 'react';
-import QRCode from 'react-qr-code';
 
 import { cn } from '../../../utils/cn';
 import { canShare, shareContent } from '../../../utils/shareUtils';
@@ -37,6 +37,8 @@ interface ShareMediaModalProps {
   defaultTitle?: string;
   onShareCreated?: (share?: ShareData) => void;
   getOriginalImage?: () => Promise<string | undefined> | string | undefined;
+  /** When provided, skip the create flow and render the share-link view for this existing share. */
+  existingShare?: Share;
 }
 
 const ShareMediaModal = ({
@@ -49,6 +51,7 @@ const ShareMediaModal = ({
   defaultTitle,
   onShareCreated,
   getOriginalImage,
+  existingShare,
 }: ShareMediaModalProps): JSX.Element => {
   const [shareTitle, setShareTitle] = useState(defaultTitle || '');
   const [copied, setCopied] = useState(false);
@@ -63,16 +66,21 @@ const ShareMediaModal = ({
     errorCode,
     clearError,
     clearCurrentShare,
+    setCurrentShare,
   } = useShareStore();
 
   useEffect(() => {
     if (isOpen) {
-      clearCurrentShare();
+      if (existingShare) {
+        setCurrentShare(existingShare);
+      } else {
+        clearCurrentShare();
+      }
       clearError();
-      setShareTitle(defaultTitle || '');
+      setShareTitle(defaultTitle || existingShare?.title || '');
       setCopied(false);
     }
-  }, [isOpen, defaultTitle, clearCurrentShare, clearError]);
+  }, [isOpen, defaultTitle, existingShare, clearCurrentShare, setCurrentShare, clearError]);
 
   const handleCreateShare = async () => {
     try {
@@ -221,22 +229,24 @@ const ShareMediaModal = ({
             <div className="flex items-center gap-lg max-[600px]:flex-col max-[600px]:items-center">
               <div className="flex flex-1 flex-col items-center justify-center max-[600px]:w-full">
                 <div className="flex items-center justify-center rounded-sm bg-white p-md">
-                  <QRCode value={getShareUrl(currentShare.shareToken)} size={160} level="M" />
+                  <QRCodeSVG value={getShareUrl(currentShare.shareToken)} size={160} level="M" />
                 </div>
               </div>
 
               <div className="flex flex-[2] flex-col justify-center max-[600px]:w-full">
                 <label className="text-sm font-medium text-foreground mb-xs">Link kopieren</label>
-                <div className="flex gap-sm mb-md max-[480px]:flex-col">
+                <div className="flex gap-sm mb-md max-[480px]:flex-col min-w-0">
                   <input
                     type="text"
                     readOnly
                     value={getShareUrl(currentShare.shareToken)}
-                    className="flex-1 rounded-sm border border-grey-200 dark:border-grey-700 bg-[var(--input-background)] px-md py-sm text-foreground text-sm font-mono min-h-[var(--form-element-min-height)]"
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="flex-1 min-w-0 rounded-sm border border-grey-200 dark:border-grey-700 bg-[var(--input-background)] px-md py-sm text-foreground text-sm font-mono min-h-[var(--form-element-min-height)]"
                   />
                   <button
-                    className="flex items-center justify-center rounded-sm border-none bg-primary-600 px-md py-sm text-white cursor-pointer transition-colors duration-200 hover:bg-primary-700"
+                    className="shrink-0 flex items-center justify-center rounded-sm border-none bg-primary-600 px-md py-sm text-white cursor-pointer transition-colors duration-200 hover:bg-primary-700"
                     onClick={handleCopyLink}
+                    aria-label="Link kopieren"
                   >
                     {copied ? (
                       <svg
@@ -265,8 +275,9 @@ const ShareMediaModal = ({
                   </button>
                   {canShare() && (
                     <button
-                      className="flex items-center justify-center rounded-sm border-none bg-primary-600 px-md py-sm text-white cursor-pointer transition-colors duration-200 hover:bg-primary-700"
+                      className="shrink-0 flex items-center justify-center rounded-sm border-none bg-primary-600 px-md py-sm text-white cursor-pointer transition-colors duration-200 hover:bg-primary-700"
                       onClick={handleNativeShare}
+                      aria-label="Teilen"
                     >
                       <svg
                         width="20"

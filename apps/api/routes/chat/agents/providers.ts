@@ -10,6 +10,10 @@ import { env } from '../../../config/env.js';
 import { litellmFetchWithThinkingDisabled } from '../../../services/ai/litellmThinkingFetch.js';
 import { isVisionCapable } from '../../../services/ai/modelDiscovery.js';
 import { regoloFetchWithThinkingDisabled } from '../../../services/ai/regoloThinkingFetch.js';
+import {
+  tryAcquireVerdigadoSlot,
+  releaseVerdigadoSlot,
+} from '../../../services/providers/verdigadoSlot.js';
 
 import type { AgentConfig } from './types.js';
 import type { LanguageModel } from 'ai';
@@ -27,72 +31,115 @@ export { isVisionCapable };
 
 /**
  * Available models that can be selected by the user.
- * Maps user-facing model IDs to provider/model configurations.
- * contextWindow is in tokens — used by downstream context management to adapt budgets.
+ *
+ * `single` — pinned to one provider/model.
+ * `overflow` — Verdigado-preferred with Regolo overflow when Verdigado's
+ * single inference slot is busy. The unchosen sibling becomes the
+ * first-token-timeout fallback for the chosen side.
+ *
+ * Chinese-trained models (Qwen) intentionally have NO fallback. The user
+ * sees an explicit warning before selecting them; auto-routing in or out
+ * would break that informed-consent boundary.
  */
-export interface ModelConfig {
-  provider: 'mistral' | 'litellm' | 'regolo';
+export type Provider = 'mistral' | 'litellm' | 'regolo';
+
+export interface ModelConfigSingle {
+  kind: 'single';
+  provider: Provider;
   model: string;
   contextWindow: number;
   /**
-   * User-facing model ID to fall back to when this model fails to produce
-   * output (first-token timeout, empty completion, or upstream HTTP error).
-   *
-   * Chinese-trained models (Qwen) intentionally have NO fallback. The user
-   * sees an explicit "Chinesisches Modell"-warning before selecting them
-   * (informed-consent boundary in chatStore.ts MODEL_OPTIONS); auto-routing
-   * either INTO or OUT OF Qwen would break that contract. Qwen failures must
-   * surface as errors so the user can choose to retry or switch manually.
+   * Optional first-token-timeout fallback (single-step). For Mistral lanes
+   * this is typically a Gemma/GPT-OSS overflow lane so a hung Mistral
+   * upstream still produces an answer for the user. Qwen entries
+   * intentionally have NO fallback — the "Chinese-only-when-selected"
+   * informed-consent boundary forbids auto-routing IN or OUT.
    */
   fallback?: string;
 }
 
+export interface ModelConfigOverflow {
+  kind: 'overflow';
+  primary: { provider: 'litellm'; model: string };
+  overflow: { provider: 'regolo'; model: string };
+  contextWindow: number;
+}
+
+export type ModelConfig = ModelConfigSingle | ModelConfigOverflow;
+
+const GPT_OSS_OVERFLOW: ModelConfigOverflow = {
+  kind: 'overflow',
+  primary: { provider: 'litellm', model: 'gpt-oss:120b' },
+  overflow: { provider: 'regolo', model: 'gpt-oss-120b' },
+  contextWindow: 32768,
+};
+
+const GEMMA_4_OVERFLOW: ModelConfigOverflow = {
+  kind: 'overflow',
+  primary: { provider: 'litellm', model: 'gemma' },
+  overflow: { provider: 'regolo', model: 'gemma4-31b' },
+  contextWindow: 32768,
+};
+
 export const AVAILABLE_MODELS: Record<string, ModelConfig> = {
   // 'mistral' is intentionally absent — it uses agent defaults (like 'auto')
   'mistral-medium-3.5': {
+    kind: 'single',
     provider: 'mistral',
     model: 'mistral-medium-2604',
     contextWindow: 128000,
-    fallback: 'gemma-litellm',
+    fallback: 'gemma-4',
   },
   // Legacy IDs — repointed to current Mistral generation (Medium 3.5)
-  'mistral-large': { provider: 'mistral', model: 'mistral-medium-2604', contextWindow: 128000 },
-  'mistral-medium': { provider: 'mistral', model: 'mistral-medium-2604', contextWindow: 128000 },
-  'pixtral-large': { provider: 'mistral', model: 'pixtral-large-latest', contextWindow: 128000 },
-  litellm: {
-    provider: 'litellm',
-    model: 'gpt-oss:120b',
-    contextWindow: 16384,
-    fallback: 'gpt-oss-regolo',
+  'mistral-large': {
+    kind: 'single',
+    provider: 'mistral',
+    model: 'mistral-medium-2604',
+    contextWindow: 128000,
+  },
+  'mistral-medium': {
+    kind: 'single',
+    provider: 'mistral',
+    model: 'mistral-medium-2604',
+    contextWindow: 128000,
+  },
+  'pixtral-large': {
+    kind: 'single',
+    provider: 'mistral',
+    model: 'pixtral-large-latest',
+    contextWindow: 128000,
   },
   regolo: {
+    kind: 'single',
     provider: 'regolo',
     model: env.REGOLO_DEFAULT_MODEL || 'qwen3.5-122b',
     contextWindow: 32768,
   },
-  'gpt-oss-regolo': {
+  'qwen-regolo': {
+    kind: 'single',
     provider: 'regolo',
-    model: 'gpt-oss-120b',
+    model: 'qwen3.5-122b',
     contextWindow: 32768,
-    fallback: 'gemma-litellm',
   },
-  // Chinese-trained models — no `fallback` field by design. See ModelConfig.
-  'qwen-regolo': { provider: 'regolo', model: 'qwen3.5-122b', contextWindow: 32768 },
-  'qwen3.6-regolo': { provider: 'regolo', model: 'qwen3.6-27b', contextWindow: 32768 },
+  'qwen3.6-regolo': {
+    kind: 'single',
+    provider: 'regolo',
+    model: 'qwen3.6-27b',
+    contextWindow: 32768,
+  },
+
+  // Overflow lanes — Verdigado primary, Regolo on overflow when slot is busy.
+  'gpt-oss': GPT_OSS_OVERFLOW,
+  'gemma-4': GEMMA_4_OVERFLOW,
 };
 
-const GEMMA_LITELLM: ModelConfig = {
-  provider: 'litellm',
-  model: 'gpt-oss:120b',
-  contextWindow: 32768,
-  fallback: 'gpt-oss-regolo',
-};
-AVAILABLE_MODELS['gemma-litellm'] = GEMMA_LITELLM;
-// Legacy ID — old persisted client state may still send 'gemma-regolo'.
-// Aliased to the LiteLLM-served gemma so requests don't hit Regolo's broken
-// gemma4-31b endpoint. ChatStore migration upgrades the persisted ID on next
-// page load.
-AVAILABLE_MODELS['gemma-regolo'] = GEMMA_LITELLM;
+// Legacy IDs from persisted client state and DB. All point to the new overflow
+// lanes so existing users get LB behavior automatically. Drop after one
+// release cycle once chatStore migration v8 has propagated.
+AVAILABLE_MODELS['litellm'] = GPT_OSS_OVERFLOW;
+AVAILABLE_MODELS['gpt-oss-regolo'] = GPT_OSS_OVERFLOW;
+AVAILABLE_MODELS['gemma-litellm'] = GEMMA_4_OVERFLOW;
+AVAILABLE_MODELS['gemma-regolo'] = GEMMA_4_OVERFLOW;
 
 /**
  * Get model configuration by user-facing model ID.
@@ -100,6 +147,73 @@ AVAILABLE_MODELS['gemma-regolo'] = GEMMA_LITELLM;
  */
 export function getModelConfig(modelId: string): ModelConfig | null {
   return AVAILABLE_MODELS[modelId] || null;
+}
+
+/**
+ * Resolved tuple ready to feed into getModel() + streaming. For overflow
+ * configs the chosen side depends on whether the Verdigado slot was free at
+ * resolution time; the unchosen sibling is exposed for single-step fallback.
+ */
+export interface ResolvedModelTuple {
+  provider: Provider;
+  model: string;
+  contextWindow: number;
+  /** Single-step first-token-timeout fallback target. */
+  sibling?: { provider: Provider; model: string };
+  /** Set when this resolution acquired the Verdigado slot. MUST be invoked
+   *  after the stream finishes (success, failure, or abort). Idempotent. */
+  releaseSlot?: () => Promise<void>;
+}
+
+/**
+ * Resolve a user-facing modelId to a concrete provider/model tuple, acquiring
+ * the Verdigado slot for overflow lanes when free.
+ */
+export async function resolveModelTuple(
+  modelId: string,
+  requestId: string
+): Promise<ResolvedModelTuple | null> {
+  const config = AVAILABLE_MODELS[modelId];
+  if (!config) return null;
+
+  if (config.kind === 'single') {
+    const result: ResolvedModelTuple = {
+      provider: config.provider,
+      model: config.model,
+      contextWindow: config.contextWindow,
+    };
+    // Honor configured fallback (e.g. mistral-medium-3.5 → gemma-4). For
+    // overflow-lane fallbacks we deterministically use the overflow (Regolo)
+    // side — we don't acquire the Verdigado slot from a fallback path,
+    // since the slot would have to be held across the primary's failure
+    // window and that risks deadlock on slot release ordering.
+    if (config.fallback) {
+      const sib = AVAILABLE_MODELS[config.fallback];
+      if (sib?.kind === 'single') {
+        result.sibling = { provider: sib.provider, model: sib.model };
+      } else if (sib?.kind === 'overflow') {
+        result.sibling = { provider: sib.overflow.provider, model: sib.overflow.model };
+      }
+    }
+    return result;
+  }
+
+  const acquired = await tryAcquireVerdigadoSlot(requestId);
+  if (acquired) {
+    return {
+      provider: config.primary.provider,
+      model: config.primary.model,
+      contextWindow: config.contextWindow,
+      sibling: { provider: config.overflow.provider, model: config.overflow.model },
+      releaseSlot: () => releaseVerdigadoSlot(requestId),
+    };
+  }
+  return {
+    provider: config.overflow.provider,
+    model: config.overflow.model,
+    contextWindow: config.contextWindow,
+    sibling: { provider: config.primary.provider, model: config.primary.model },
+  };
 }
 
 /**
@@ -245,7 +359,7 @@ export function getProviderName(provider: AgentConfig['provider']): string {
     case 'mistral':
       return 'Mistral AI';
     case 'litellm':
-      return 'LiteLLM (GPT-OSS)';
+      return 'Verdigado';
     case 'regolo':
       return 'Regolo AI';
     case 'anthropic':

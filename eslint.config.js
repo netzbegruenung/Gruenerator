@@ -3,14 +3,14 @@ import reactConfig from './packages/eslint-config/react.js';
 import nodeConfig from './packages/eslint-config/node.js';
 
 export default [
-  // React apps: web, sites, mobile, desktop
+  // React apps: web, mobile, desktop
   {
     files: [
       'apps/web/**/*.{ts,tsx,js,jsx}',
-      'apps/sites/**/*.{ts,tsx,js,jsx}',
       'apps/mobile/**/*.{ts,tsx,js,jsx}',
       'apps/desktop/**/*.{ts,tsx,js,jsx}',
       'apps/gruen-o-mat/**/*.{ts,tsx,js,jsx}',
+      'packages/sites/**/*.{ts,tsx,js,jsx}',
     ],
     ...reactConfig[0],
   },
@@ -18,26 +18,12 @@ export default [
     ...config,
     files: [
       'apps/web/**/*.{ts,tsx,js,jsx}',
-      'apps/sites/**/*.{ts,tsx,js,jsx}',
       'apps/mobile/**/*.{ts,tsx,js,jsx}',
       'apps/desktop/**/*.{ts,tsx,js,jsx}',
       'apps/gruen-o-mat/**/*.{ts,tsx,js,jsx}',
+      'packages/sites/**/*.{ts,tsx,js,jsx}',
     ],
   })),
-
-  // apps/sites: no-unsafe-* debt deferred (see apps/sites/eslint.config.js TODO).
-  // Mirrors the downgrade there so lint-staged (runs from repo root) matches
-  // `pnpm --filter @gruenerator/sites lint` (runs from apps/sites/).
-  {
-    files: ['apps/sites/**/*.{ts,tsx,js,jsx}'],
-    rules: {
-      '@typescript-eslint/no-unsafe-return': 'warn',
-      '@typescript-eslint/no-unsafe-member-access': 'warn',
-      '@typescript-eslint/no-unsafe-assignment': 'warn',
-      '@typescript-eslint/no-unsafe-call': 'warn',
-      '@typescript-eslint/no-unsafe-argument': 'warn',
-    },
-  },
 
   // Node apps: api, services
   {
@@ -88,6 +74,7 @@ export default [
       'pnpm-lock.yaml',
       'apps/wordpress/**',
       'apps/api/scripts/**',
+      'packages/shared/scripts/**',
     ],
   },
 ];

@@ -1,17 +1,12 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 
-import { useUserDefaultsStore } from '../stores/userDefaultsStore';
-
-// Types for user defaults store
-interface UserDefaultsState {
-  defaults: Record<string, Record<string, unknown>>;
-  isHydrated: boolean;
-  isLoading: boolean;
-  getDefault: <T = unknown>(generator: string, key: string, defaultValue?: T) => T;
-  setDefault: (generator: string, key: string, value: unknown) => Promise<void>;
-  hydrate: () => Promise<void>;
-  reset: () => void;
-}
+import {
+  useSetUserDefault,
+  useUserDefaultsQuery,
+  type UserDefaultsGenerator,
+  type UserDefaultsKey,
+  type UserDefaultsValue,
+} from '../features/user-defaults/userDefaultsQueries';
 
 interface UseUserDefaultsReturn<T = unknown> {
   get: (key: string, defaultValue?: T) => T;
@@ -21,49 +16,41 @@ interface UseUserDefaultsReturn<T = unknown> {
 }
 
 /**
- * Hook for accessing generator-specific user defaults
- *
- * @param generator - The generator type (e.g., 'antrag', 'pressemitteilung')
- * @returns { get, set, isLoading, isHydrated }
- *
- * @example
- * const { get, set } = useUserDefaults('antrag');
- * const interactiveMode = get('interactiveMode', true);
- * set('interactiveMode', false);
+ * Generic generator-scoped wrapper. Prefer the typed `useUserDefault(generator, key)`
+ * for new call sites; this wrapper exists for legacy consumers that use dynamic keys
+ * (notifications, boards, popups).
  */
-export const useUserDefaults = <T = unknown>(generator: string): UseUserDefaultsReturn<T> => {
-  const getDefault = useUserDefaultsStore((state: UserDefaultsState) => state.getDefault);
-  const setDefault = useUserDefaultsStore((state: UserDefaultsState) => state.setDefault);
-  const hydrate = useUserDefaultsStore((state: UserDefaultsState) => state.hydrate);
-  const isHydrated = useUserDefaultsStore((state: UserDefaultsState) => state.isHydrated);
-  const isLoading = useUserDefaultsStore((state: UserDefaultsState) => state.isLoading);
-
-  // Hydrate on first use
-  useEffect(() => {
-    if (!isHydrated) {
-      void hydrate();
-    }
-  }, [isHydrated, hydrate]);
+export const useUserDefaults = <T = unknown>(
+  generator: UserDefaultsGenerator
+): UseUserDefaultsReturn<T> => {
+  const query = useUserDefaultsQuery();
+  const mutation = useSetUserDefault();
 
   const get = useCallback(
     (key: string, defaultValue?: T): T => {
-      return getDefault<T>(generator, key, defaultValue);
+      const data = query.data as Record<string, Record<string, unknown> | undefined> | undefined;
+      const value = data?.[generator]?.[key];
+      return (value ?? defaultValue) as T;
     },
-    [generator, getDefault]
+    [query.data, generator]
   );
 
   const set = useCallback(
     async (key: string, value: T): Promise<void> => {
-      return setDefault(generator, key, value);
+      await mutation.mutateAsync({
+        generator,
+        key: key as UserDefaultsKey<typeof generator>,
+        value: value as UserDefaultsValue<typeof generator, UserDefaultsKey<typeof generator>>,
+      });
     },
-    [generator, setDefault]
+    [generator, mutation]
   );
 
   return {
     get,
     set,
-    isLoading,
-    isHydrated,
+    isLoading: query.isPending,
+    isHydrated: query.isSuccess,
   };
 };
 

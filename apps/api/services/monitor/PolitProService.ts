@@ -193,13 +193,11 @@ async function scrapeInstitutePolls(parliament: string): Promise<PollResult[]> {
     if (polls.length > 0) {
       log.info(
         `[scrapeInstitutePolls] First 2 polls:`,
-        polls
-          .slice(0, 2)
-          .map((p) => ({
-            institute: p.institute,
-            date: p.date,
-            partyCount: Object.keys(p.parties).length,
-          }))
+        polls.slice(0, 2).map((p) => ({
+          institute: p.institute,
+          date: p.date,
+          partyCount: Object.keys(p.parties).length,
+        }))
       );
     } else {
       log.warn(

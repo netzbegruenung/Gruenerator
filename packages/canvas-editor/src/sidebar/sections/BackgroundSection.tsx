@@ -8,7 +8,6 @@ import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
 
 import type { StockImage } from '../../common/imageSourceTypes';
-import { SidebarHint } from '../components/SidebarHint';
 import { SidebarSlider } from '../components/SidebarSlider';
 import {
   CARD_CHECK_SMALL,
@@ -91,12 +90,6 @@ function ColorSubsection({
           />
         </div>
       )}
-
-      <SidebarHint>
-        Wähle eine passende Hintergrundfarbe für dein Design. Die Farbe sollte gut mit dem Text
-        harmonieren und für ausreichend Kontrast sorgen. Sand (hell) eignet sich für dunkle Texte,
-        grüne Töne für helle Texte.
-      </SidebarHint>
     </div>
   );
 }
@@ -446,9 +439,6 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
           >
             Suche nach Bildern auf Unsplash
           </p>
-          <SidebarHint>
-            Tipp: Verwende Begriffe wie "Natur", "Umwelt", "Politik", "Menschen"
-          </SidebarHint>
         </div>
       )}
 
@@ -465,10 +455,6 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
           </p>
         </div>
       )}
-
-      <SidebarHint style={{ marginTop: 'var(--spacing-medium)' }}>
-        Bilder von Unsplash. Wird automatisch mit Fotografennennung versehen.
-      </SidebarHint>
     </div>
   );
 }

@@ -27,7 +27,12 @@ import {
   rerankNode,
   buildCitations,
 } from '../../agents/langgraph/ChatGraph/index.js';
-import { isKnownNotebook } from '../../config/notebookCollectionMap.js';
+import {
+  isKnownNotebook,
+  isUserNotebookId,
+  resolveUserNotebookDocumentIds,
+} from '../../config/notebookCollectionMap.js';
+import { isRegoloReasoningModel } from '../../services/ai/regoloReasoningStream.js';
 import {
   getMem0Instance,
   normalizeCategory,
@@ -36,6 +41,7 @@ import {
 import { getCachedPersona } from '../../services/mem0/personaService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
+import { NextcloudShareManager } from '../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../utils/logger.js';
 import { ThreadId, UserId } from '../../utils/types/branded.js';
 
@@ -65,7 +71,8 @@ import {
 import {
   resolveModel,
   buildMessagesForAI,
-  streamAndAccumulate,
+  streamForResolution,
+  streamWithFallback,
 } from './services/responseStreamingService.js';
 import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
 import { canAccessThread } from './services/threadAccessService.js';
@@ -104,11 +111,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         textIds: rawTextIds,
         documentChatIds: rawDocumentChatIds,
         documentChatMode,
+        attachmentContext: rawClientAttachmentContext,
         defaultNotebookId: rawDefaultNotebookId,
         boardIds: rawBoardIds,
         docMentionIds: rawDocMentionIds,
+        wolkeFiles: rawWolkeFiles,
+        currentDocument: rawCurrentDocument,
         customSystemPrompt: rawCustomSystemPrompt,
         roleName: rawRoleName,
+        initialAssistantMessage: rawInitialAssistantMessage,
+        activeSkillMention: rawActiveSkillMention,
       } = args.body;
 
       // === Validate ===
@@ -116,7 +128,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (!user?.id) {
         sse.send('error', { error: PROGRESS_MESSAGES.unauthorized });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       const userId = user.id;
@@ -125,24 +137,55 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (!aiWorkerPool) {
         sse.send('error', { error: PROGRESS_MESSAGES.aiUnavailable });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       if ((clientMessages as unknown[]).length === 0) {
         sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
-      const notebookIds = rawNotebookIds?.filter(isKnownNotebook) ?? [];
+      const systemNotebookIds = rawNotebookIds?.filter(isKnownNotebook) ?? [];
+      const userNotebookUuids = rawNotebookIds?.filter(isUserNotebookId) ?? [];
+      const { documentIds: notebookDocumentIds, resolvedUserNotebookIds } =
+        userNotebookUuids.length > 0
+          ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
+          : { documentIds: [], resolvedUserNotebookIds: [] };
+      const notebookIds = [...systemNotebookIds, ...resolvedUserNotebookIds];
       const defaultNotebookId =
         rawDefaultNotebookId && isKnownNotebook(rawDefaultNotebookId)
           ? rawDefaultNotebookId
           : undefined;
 
+      // Filter wolkeFiles to refs whose shareLinkId is still owned + active for this user.
+      // Stale refs (deleted/deactivated share link) are dropped silently so the chat still works.
+      let wolkeFiles: typeof rawWolkeFiles = undefined;
+      if (rawWolkeFiles?.length) {
+        try {
+          const userShareLinks = await NextcloudShareManager.getShareLinks(userId);
+          const allowedIds = new Set(userShareLinks.filter((l) => l.is_active).map((l) => l.id));
+          const filtered = rawWolkeFiles.filter((f) => allowedIds.has(f.shareLinkId));
+          wolkeFiles = filtered.length > 0 ? filtered : undefined;
+          if (filtered.length < rawWolkeFiles.length) {
+            log.warn(
+              `[ChatGraph] Dropped ${rawWolkeFiles.length - filtered.length} stale wolkeFiles ref(s) for user ${userId}`
+            );
+          }
+        } catch (err) {
+          log.warn(`[ChatGraph] wolkeFiles ownership check failed; ignoring refs`, err);
+          wolkeFiles = undefined;
+        }
+      }
+
       log.info(`[ChatGraph] Processing request for user ${userId}, agent ${agentId ?? 'default'}`);
       if (notebookIds.length > 0) {
         log.info(`[ChatGraph] Notebook scoping: ${notebookIds.join(', ')}`);
+      }
+      if (resolvedUserNotebookIds.length > 0) {
+        log.info(
+          `[ChatGraph] User-notebook scoping: ${resolvedUserNotebookIds.length} notebook(s) → ${notebookDocumentIds.length} document(s)`
+        );
       }
 
       // === Convert messages ===
@@ -155,13 +198,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.error('[ChatGraph] Error converting messages:', convertError);
         sse.send('error', { error: 'Failed to process messages' });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       if (!modelMessages || !Array.isArray(modelMessages)) {
         sse.send('error', { error: 'Failed to process messages' });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       const validMessages = filterEmptyAssistantMessages(
@@ -195,10 +238,27 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         if (!isNewThread) {
           if (!(await canAccessThread(ThreadId(actualThreadId), UserId(userId)))) {
             sse.send('error', { error: 'Thread not found' });
-            res.end();
-            return { status: 200 as const, body: null };
+            sse.end();
+            return { status: 200 as const, body: undefined };
           }
         }
+
+        // Seed message (Antrag / PM / Social text) — persisted BEFORE the user
+        // message so order is seed → user → assistant-reply. New threads only.
+        if (
+          isNewThread &&
+          typeof rawInitialAssistantMessage === 'string' &&
+          rawInitialAssistantMessage
+        ) {
+          await createMessage(
+            actualThreadId,
+            'assistant',
+            rawInitialAssistantMessage,
+            { seed: true },
+            userId
+          );
+        }
+
         const userText = extractTextContent(lastUserMessage.content);
         await createMessage(
           actualThreadId,
@@ -209,11 +269,32 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         );
       }
 
+      // Light progress ping so the UI shows "Verstehe Anfrage…" immediately,
+      // instead of looking frozen during attachment processing + memory fetch
+      // + classification (collectively 1–8s on a cold path).
+      const classifyStepId = `classify_${Date.now()}`;
+      sse.send('progress_step', {
+        stepId: classifyStepId,
+        toolName: 'classify',
+        title: 'Verstehe Anfrage…',
+        status: 'in_progress',
+      });
+
       // === Process attachments ===
-      const { attachmentContext, imageAttachments, processedMeta } = await processAttachments(
-        attachments as ProcessedAttachment[] | undefined,
-        requestId
-      );
+      const {
+        attachmentContext: derivedAttachmentContext,
+        imageAttachments,
+        processedMeta,
+      } = await processAttachments(attachments as ProcessedAttachment[] | undefined, requestId);
+
+      // Merge any client-injected context (e.g. docs editor markdown + selection)
+      // with what processAttachments derived from uploaded files.
+      const clientAttachmentContext =
+        (rawClientAttachmentContext as string | null | undefined)?.trim() || undefined;
+      const attachmentContext =
+        clientAttachmentContext && derivedAttachmentContext
+          ? `${clientAttachmentContext}\n\n---\n\n${derivedAttachmentContext}`
+          : clientAttachmentContext || derivedAttachmentContext;
 
       const docAttachments =
         (attachments as ProcessedAttachment[] | undefined)?.filter((a) => !a.isImage) ?? [];
@@ -287,6 +368,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
         threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
         notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
+        notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
         defaultNotebookId,
         documentIds: rawDocumentIds?.length ? rawDocumentIds : undefined,
         documentChatIds: rawDocumentChatIds?.length
@@ -295,9 +377,27 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             ? []
             : undefined,
         boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
-        docMentionIds: rawDocMentionIds?.length ? rawDocMentionIds : undefined,
+        wolkeFiles,
+        // When the docs editor sends a currentDocument, also surface its id as a
+        // doc-mention so the existing modify_doc / summary intent paths activate
+        // (they key off `hasDocMentions`). Explicit @doc mentions always take
+        // precedence — we only fall back to currentDocument.id otherwise.
+        docMentionIds: rawDocMentionIds?.length
+          ? rawDocMentionIds
+          : rawCurrentDocument?.id
+            ? [rawCurrentDocument.id]
+            : undefined,
+        currentDocument: rawCurrentDocument
+          ? {
+              id: rawCurrentDocument.id,
+              title: rawCurrentDocument.title ?? null,
+              markdown: rawCurrentDocument.markdown,
+              selectionText: rawCurrentDocument.selectionText ?? null,
+            }
+          : undefined,
         userLocale: user.locale ?? 'de-DE',
         customSystemPrompt: rawCustomSystemPrompt ?? undefined,
+        activeSkillMention: rawActiveSkillMention ?? undefined,
         userInstructions,
         contextWindowTokens,
       });
@@ -369,6 +469,16 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         });
       }
 
+      // @bildbearbeiten is an alias for image_edit intent with explicit universal
+      // style — distinct identifier so @stadtbegruenen can keep its green-edit
+      // branding while @bildbearbeiten signals free-form editing.
+      const universalEditForced = !!forcedTools?.includes('image_edit_universal');
+      if (universalEditForced) {
+        classifiedState.intent = 'image_edit';
+        forcedTool = true;
+        log.info('[ChatGraph] Intent forced to "image_edit" via @bildbearbeiten mention');
+      }
+
       if (forcedTools && forcedTools.length > 0) {
         const searchClassTools = ['research', 'web', 'search'];
         const hasSearchTool = forcedTools.some((t) => searchClassTools.includes(t));
@@ -387,12 +497,52 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               ] as const);
 
         const forced = TOOL_PRIORITY.find((t) => forcedTools.includes(t));
-        if (forced) {
+        if (forced && !universalEditForced) {
           classifiedState.intent = forced;
           forcedTool = true;
           log.info(`[ChatGraph] Intent forced to "${forced}" via @tool mention`);
+
+          // When the classifier returned a non-search intent (e.g. 'direct')
+          // and the @-mention forces a search intent, the classifier never
+          // populated searchQuery — the orchestrator would then run on an
+          // empty question and the planner LLM hallucinates topics from
+          // context. Pull the user's last message text in as the query.
+          const FORCED_SEARCH_INTENTS = new Set(['research', 'web', 'search']);
+          if (
+            FORCED_SEARCH_INTENTS.has(forced) &&
+            (!classifiedState.searchQuery || !classifiedState.searchQuery.trim()) &&
+            lastUserMessage
+          ) {
+            const userText = extractTextContent(lastUserMessage.content).trim();
+            if (userText) {
+              classifiedState.searchQuery = userText;
+              log.info(
+                `[ChatGraph] searchQuery populated from last user message for forced ${forced}: "${userText.slice(0, 60)}"`
+              );
+            }
+          }
         }
       }
+
+      // Resolve which FLUX edit-prompt builder imageEditNode should use.
+      // @stadtbegruenen (forcedTools includes 'image_edit') → green-urban branded;
+      // @bildbearbeiten (forcedTools includes 'image_edit_universal') → universal;
+      // auto-detected image_edit from heuristics → universal.
+      if (classifiedState.intent === 'image_edit') {
+        const greenEditMentionForced =
+          !!forcedTools?.includes('image_edit') && !universalEditForced;
+        classifiedState.imageEditStyle = greenEditMentionForced ? 'green-edit' : 'universal';
+        log.info(
+          `[ChatGraph] image_edit style resolved to "${classifiedState.imageEditStyle}" (greenEditForced=${greenEditMentionForced}, universalForced=${universalEditForced})`
+        );
+      }
+
+      sse.send('progress_step', {
+        stepId: classifyStepId,
+        toolName: 'classify',
+        title: 'Verstehe Anfrage…',
+        status: 'completed',
+      });
 
       sse.send('intent', {
         intent: classifiedState.intent,
@@ -497,7 +647,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           },
         });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       // === Handle @board-erstellen tool ===
@@ -511,7 +661,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ...(actualThreadId != null && { actualThreadId }),
           userId,
         });
-        if (created) return { status: 200 as const, body: null };
+        if (created) return { status: 200 as const, body: undefined };
       }
 
       // === Handle @dokument-erstellen tool ===
@@ -527,7 +677,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           userContent: lastUserText as string,
           intent: 'direct',
         });
-        if (created) return { status: 200 as const, body: null };
+        if (created) return { status: 200 as const, body: undefined };
       }
 
       // === Handle share_doc intent ===
@@ -541,11 +691,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           ...(rawDocMentionIds != null && { rawDocMentionIds }),
           ...(rawDocumentChatIds != null && { rawDocumentChatIds }),
         });
-        if (handled) return { status: 200 as const, body: null };
+        if (handled) return { status: 200 as const, body: undefined };
       }
 
       // === Stage 2: Search or Image Generation ===
-      const { finalState, generatedImage } = await executeIntentPipeline({
+      const { finalState, generatedImage, sharepicVariants } = await executeIntentPipeline({
         classifiedState,
         sse,
         forcedTool,
@@ -565,9 +715,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           defaultModel: finalState.agentConfig.defaultModel,
         }),
       };
-      const { model: aiModel } = resolveModel(agentConfigForResolve, modelId ?? undefined, {
-        hasImages: imageAttachments.length > 0,
-      });
+      const resolution = await resolveModel(
+        agentConfigForResolve,
+        modelId ?? undefined,
+        requestId,
+        {
+          hasImages: imageAttachments.length > 0,
+          intent: finalState.intent,
+        }
+      );
 
       const prunedValidMessages = pruneMessages(
         validMessages as Parameters<typeof pruneMessages>[0]
@@ -585,21 +741,43 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         finalSystemMessage,
         prunedValidMessages as Parameters<typeof buildMessagesForAI>[1]
       );
-      messagesForAI = injectImageAttachments(
-        messagesForAI as Parameters<typeof injectImageAttachments>[0],
-        imageAttachments,
-        requestId
-      );
+      // image_edit narrates from BILDVERGLEICH text descriptions; the raw image
+      // would put bytes in front of a non-vision model (since we no longer
+      // force-switch above) and create a redundant grounding source for vision
+      // models — skip injection so the descriptions are the single source.
+      if (finalState.intent !== 'image_edit') {
+        messagesForAI = injectImageAttachments(
+          messagesForAI as Parameters<typeof injectImageAttachments>[0],
+          imageAttachments,
+          requestId
+        );
+      }
 
-      const fullText = await streamAndAccumulate({
-        model: aiModel,
-        messages: messagesForAI as Parameters<typeof streamAndAccumulate>[0]['messages'],
-        maxTokens: finalState.agentConfig.params.max_tokens,
-        temperature: finalState.agentConfig.params.temperature,
-        sse,
-      });
+      const baseMaxTokens = finalState.agentConfig.params.max_tokens;
 
-      if (fullText === null) return { status: 200 as const, body: null };
+      let fullText: string | null;
+      try {
+        fullText = await streamWithFallback({
+          primary: resolution,
+          sse,
+          logPrefix: '[ChatGraph]',
+          buildStream: async (r) => {
+            const isReasoning = isRegoloReasoningModel(r.provider, r.modelName);
+            return streamForResolution({
+              resolution: r,
+              messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
+              maxTokens: isReasoning ? Math.max(baseMaxTokens, 9000) : baseMaxTokens,
+              temperature: finalState.agentConfig.params.temperature,
+              sse,
+              logPrefix: '[ChatGraph]',
+            });
+          },
+        });
+      } finally {
+        if (resolution.releaseSlot) await resolution.releaseSlot();
+      }
+
+      if (fullText === null) return { status: 200 as const, body: undefined };
 
       // === Stage 3b: Extract chart data from response (if chart intent) ===
       if (finalState.intent === 'chart') {
@@ -612,6 +790,49 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         }
       }
 
+      // === Stage 3c: Live document edit trigger (docs editor surface only) ===
+      // For edit_current_doc intent, emit a `trigger_doc_edit` SSE event with
+      // the user's prompt + selection flag. The docs-editor frontend dispatches
+      // this into BlockNote's AIExtension.invokeAI(), which runs the existing
+      // /api/docs/ai pipeline (tool calls → applyDocumentOperations → Yjs sync).
+      // ChatGraph never edits the doc itself — it just classifies and forwards.
+      //
+      // Reference content channel: short referential commands like "füge dies
+      // ein" or "im dokument einfügen" point at the previous assistant turn
+      // (the rewritten Antrag the chat produced earlier). BlockNote AI sees
+      // only the document — not chat history. We forward the prior substantive
+      // assistant message as a SEPARATE `referenceContent` field; it lands in
+      // the docs-AI route's *system prompt* as labeled instructional context,
+      // never concatenated into userPrompt (an earlier attempt did that and
+      // the model inserted the wrapper text verbatim into the document).
+      //
+      // "Substantive" = ≥200 chars, which skips the brief edit-confirmation
+      // ("Ich passe das Dokument an…") that respondNode itself just emitted
+      // and lands on the earlier turn that actually contains the content.
+      if (finalState.intent === 'edit_current_doc' && rawCurrentDocument?.id) {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const lastUserIdx = lastUserMessage ? validMessages.indexOf(lastUserMessage) : -1;
+        const priorMessages = lastUserIdx > 0 ? validMessages.slice(0, lastUserIdx) : [];
+        const SUBSTANTIVE_THRESHOLD = 200;
+        const prevAssistantText =
+          [...priorMessages]
+            .reverse()
+            .map((m) => (m.role === 'assistant' ? extractTextContent(m.content) : ''))
+            .find((t) => t.trim().length >= SUBSTANTIVE_THRESHOLD) ?? '';
+        const cappedPrev =
+          prevAssistantText.length > 8000 ? prevAssistantText.slice(0, 8000) : prevAssistantText;
+        const hasSelection = !!rawCurrentDocument.selectionText;
+        sse.send('trigger_doc_edit', {
+          targetDocumentId: rawCurrentDocument.id,
+          userPrompt: lastUserText,
+          useSelection: hasSelection,
+          ...(cappedPrev.trim() ? { referenceContent: cappedPrev } : {}),
+        });
+        log.info(
+          `[ChatGraph] Emitted trigger_doc_edit for doc ${rawCurrentDocument.id} (selection: ${hasSelection}, refContentChars: ${cappedPrev.length})`
+        );
+      }
+
       // === Stage 4: Persist & complete ===
       await persistAssistantResponse({
         threadId: actualThreadId!,
@@ -620,6 +841,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         finalState,
         classifiedState,
         generatedImage,
+        sharepicVariants,
         isNewThread,
         lastUserMessage: lastUserMessage as ModelMessage,
         processedMeta,
@@ -688,11 +910,15 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
 
       log.info(`[ChatGraph] Complete: ${fullText.length} chars in ${totalTimeMs}ms`);
       sse.end();
-      return { status: 200 as const, body: null };
+      return { status: 200 as const, body: undefined };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
-      log.error(`[ChatGraph] Controller error: ${errorMessage}`);
+      const { agentId, threadId, modelId } = args.body;
+      log.error(
+        `[ChatGraph] Controller error: ${errorMessage} ` +
+          `(agentId=${agentId ?? 'default'}, threadId=${threadId ?? 'new'}, modelId=${modelId ?? 'default'})`
+      );
       if (errorStack) log.error(`[ChatGraph] Stack: ${errorStack}`);
       if (!(error instanceof Error))
         log.error(`[ChatGraph] Raw error: ${JSON.stringify(error)?.slice(0, 500)}`);
@@ -700,7 +926,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         sse.send('error', { error: PROGRESS_MESSAGES.internalError });
         sse.end();
       }
-      return { status: 200 as const, body: null };
+      return { status: 200 as const, body: undefined };
     }
   },
 
@@ -717,7 +943,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (!user?.id) {
         sse.send('error', { error: PROGRESS_MESSAGES.unauthorized });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       const stored = await pipelineStateStore.get(threadId);
@@ -726,7 +952,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           error: 'Pipeline-Status abgelaufen. Bitte sende deine Nachricht erneut.',
         });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
       await pipelineStateStore.delete(threadId);
 
@@ -735,14 +961,14 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       if (requestContext.userId !== user.id) {
         sse.send('error', { error: PROGRESS_MESSAGES.unauthorized });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       const aiWorkerPool = getAIWorkerPool(req);
       if (!aiWorkerPool) {
         sse.send('error', { error: PROGRESS_MESSAGES.aiUnavailable });
         sse.end();
-        return { status: 200 as const, body: null };
+        return { status: 200 as const, body: undefined };
       }
 
       log.info(`[ChatGraph:Resume] Thread ${threadId}, answer: "${userAnswer.slice(0, 80)}"`);
@@ -816,6 +1042,11 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
                 if (r.relevance != null) result.relevance = r.relevance;
                 return result;
               }) ?? [],
+            ...((classifiedState.intent === 'examples' ||
+              classifiedState.intent === 'pressemitteilung_examples') &&
+            finalState.examplesResult
+              ? { examplesResult: finalState.examplesResult }
+              : {}),
           });
         }
       }
@@ -832,24 +1063,40 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           defaultModel: finalState.agentConfig.defaultModel,
         }),
       };
-      const { model: aiModel } = resolveModel(agentConfigForResolve2, modelId, {
+      const resumeRequestId = `resume_contract_${Date.now()}`;
+      const resolution2 = await resolveModel(agentConfigForResolve2, modelId, resumeRequestId, {
         hasImages: resumeImageAttachments.length > 0,
+        intent: finalState.intent,
       });
-
       const validMessages = requestContext.validMessages;
       const prunedValidMessages = pruneMessages(validMessages);
       const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);
 
-      const fullText = await streamAndAccumulate({
-        model: aiModel,
-        messages: messagesForAI,
-        maxTokens: finalState.agentConfig.params.max_tokens,
-        temperature: finalState.agentConfig.params.temperature,
-        sse,
-        logPrefix: '[ChatGraph:Resume]',
-      });
+      const baseMaxTokens = finalState.agentConfig.params.max_tokens;
 
-      if (fullText === null) return { status: 200 as const, body: null };
+      let fullText: string | null;
+      try {
+        fullText = await streamWithFallback({
+          primary: resolution2,
+          sse,
+          logPrefix: '[ChatGraph:Resume]',
+          buildStream: async (r) => {
+            const isReasoning = isRegoloReasoningModel(r.provider, r.modelName);
+            return streamForResolution({
+              resolution: r,
+              messages: messagesForAI,
+              maxTokens: isReasoning ? Math.max(baseMaxTokens, 9000) : baseMaxTokens,
+              temperature: finalState.agentConfig.params.temperature,
+              sse,
+              logPrefix: '[ChatGraph:Resume]',
+            });
+          },
+        });
+      } finally {
+        if (resolution2.releaseSlot) await resolution2.releaseSlot();
+      }
+
+      if (fullText === null) return { status: 200 as const, body: undefined };
 
       // === Persist & complete ===
       await persistResumedResponse({
@@ -876,7 +1123,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
 
       log.info(`[ChatGraph:Resume] Complete: ${fullText.length} chars in ${totalTimeMs}ms`);
       sse.end();
-      return { status: 200 as const, body: null };
+      return { status: 200 as const, body: undefined };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       const errorStack = error instanceof Error ? error.stack : undefined;
@@ -886,7 +1133,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         sse.send('error', { error: PROGRESS_MESSAGES.internalError });
         sse.end();
       }
-      return { status: 200 as const, body: null };
+      return { status: 200 as const, body: undefined };
     }
   },
 });

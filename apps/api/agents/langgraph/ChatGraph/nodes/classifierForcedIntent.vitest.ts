@@ -52,6 +52,7 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
     threadAttachments: [],
     notebookIds: [],
     notebookCollectionIds: [],
+    notebookDocumentIds: [],
     defaultNotebookCollectionIds: [],
     documentIds: [],
     documentChatIds: [],
@@ -59,6 +60,7 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
     boardContext: null,
     docMentionIds: [],
     documentMentionContext: null,
+    currentDocument: null,
     customSystemPrompt: null,
     userInstructions: null,
     memoryContext: null,
@@ -76,11 +78,13 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
     complexity: 'moderate' as const,
     contentType: null,
     documentSubtype: null,
+    platform: null,
     needsClarification: false,
     clarificationQuestion: null,
     clarificationOptions: null,
     detectedFilters: null,
     researchBrief: null,
+    researchMeta: null,
     searchResults: [],
     citations: [],
     searchCount: 0,
@@ -89,6 +93,7 @@ function buildState(overrides: Partial<ChatGraphState> & { userMessage: string }
     qualityAssessmentTimeMs: 0,
     imagePrompt: null,
     imageStyle: null,
+    imageEditStyle: null,
     generatedImage: null,
     imageTimeMs: 0,
     summaryContext: null,
@@ -172,6 +177,89 @@ describe('Tier 1 — mutation intents (resource + keywords)', () => {
     });
     const result = await classifierNode(state);
     expect(result.intent).toBe('modify_doc');
+  });
+
+  it('doc + "ersetz" → modify_doc', async () => {
+    const state = buildState({
+      userMessage: 'ersetze den ersten Absatz durch eine Einleitung',
+      docMentionIds: ['doc-ersetz'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('modify_doc');
+  });
+
+  it('doc + umlaut "ändere" → modify_doc (umlaut handled)', async () => {
+    const state = buildState({
+      userMessage: 'ändere den Titel auf "Mobilitätswende"',
+      docMentionIds: ['doc-umlaut'],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('modify_doc');
+  });
+});
+
+// ── TIER 1: edit_current_doc (open document in editor + mutation keywords) ──
+
+const STUB_CURRENT_DOC = {
+  id: 'doc-open-1',
+  title: 'Antrag',
+  markdown: '# Antrag\n\nText.',
+  selectionText: null,
+};
+
+describe('Tier 1 — edit_current_doc (currentDocument + edit verb)', () => {
+  it('currentDocument + "füge … ein" → edit_current_doc (regression: user-reported phrasing)', async () => {
+    const state = buildState({
+      userMessage: 'füge dies im dokument ein',
+      currentDocument: STUB_CURRENT_DOC,
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('edit_current_doc');
+  });
+
+  it('currentDocument + "ersetze" → edit_current_doc', async () => {
+    const state = buildState({
+      userMessage: 'ersetze den ersten Absatz durch eine schärfere Einleitung',
+      currentDocument: STUB_CURRENT_DOC,
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('edit_current_doc');
+  });
+
+  it('currentDocument + umlaut "ändere" → edit_current_doc (umlaut handled)', async () => {
+    const state = buildState({
+      userMessage: 'ändere den Titel',
+      currentDocument: STUB_CURRENT_DOC,
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('edit_current_doc');
+  });
+
+  it('currentDocument + "verbessere" → edit_current_doc', async () => {
+    const state = buildState({
+      userMessage: 'verbessere die Begründung',
+      currentDocument: STUB_CURRENT_DOC,
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('edit_current_doc');
+  });
+
+  it('currentDocument + "füge … hinzu" → edit_current_doc (existing phrasing still works)', async () => {
+    const state = buildState({
+      userMessage: 'füge einen Absatz zur Verkehrswende hinzu',
+      currentDocument: STUB_CURRENT_DOC,
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('edit_current_doc');
+  });
+
+  it('currentDocument + plain question (no edit verb) → NOT edit_current_doc', async () => {
+    const state = buildState({
+      userMessage: 'was steht im dokument?',
+      currentDocument: STUB_CURRENT_DOC,
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('edit_current_doc');
   });
 });
 
@@ -318,6 +406,62 @@ describe('Edge cases — multiple resource types combined', () => {
     const result = await classifierNode(state);
     // "kuerz" matches docModifyPattern but NOT boardModifyPattern → board tier 1 skipped → doc tier 1 fires
     expect(result.intent).toBe('modify_doc');
+  });
+});
+
+// ── TIER 2: image_edit ───────────────────────────────────────────────────
+
+describe('Tier 2 — image_edit (edit verb + image signal)', () => {
+  it('image attached + "bearbeite" → image_edit', async () => {
+    const state = buildState({
+      userMessage: 'bearbeite dieses Bild und mach mehr Bäume rein',
+      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('image_edit');
+  });
+
+  it('image attached + "ändere" → image_edit', async () => {
+    const state = buildState({
+      userMessage: 'ändere die Farbe der Tür',
+      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('image_edit');
+  });
+
+  it('image attached + "transformiere" → image_edit', async () => {
+    const state = buildState({
+      userMessage: 'transformiere das in Aquarell',
+      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('image_edit');
+  });
+
+  it('no attachment but verb + "Foto" → image_edit (node will ask for attachment)', async () => {
+    const state = buildState({
+      userMessage: 'bearbeite mein Foto',
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('image_edit');
+  });
+
+  it('image attached + plain question (no edit verb) → direct (vision Q&A preserved)', async () => {
+    const state = buildState({
+      userMessage: 'was siehst du auf diesem Bild?',
+      imageAttachments: [{ url: 'data:image/png;base64,...', mimeType: 'image/png' }],
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).toBe('direct');
+  });
+
+  it('"bearbeite den Text" without image attachment or noun → NOT image_edit', async () => {
+    const state = buildState({
+      userMessage: 'bearbeite den Text und mach ihn kürzer',
+    });
+    const result = await classifierNode(state);
+    expect(result.intent).not.toBe('image_edit');
   });
 });
 

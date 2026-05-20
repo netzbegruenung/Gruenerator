@@ -10,10 +10,14 @@ import {
   Sparkles,
   MessageCircle,
 } from 'lucide-react';
-import { useState, memo, useMemo, Fragment } from 'react';
+import { useState, memo, useMemo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { CitationList } from './tool-ui/citation';
 import type { SerializableCitation } from './tool-ui/citation/schema';
 import { LinkPreview } from './tool-ui/link-preview';
+import { makeCitationComponents } from '../lib/citationMarkdownComponents';
+import { escapeCitationMarkers } from '../lib/citationProcessing';
 
 interface ToolCallUIProps {
   toolName: string;
@@ -68,7 +72,16 @@ export const ToolCallUI = memo(function ToolCallUI({
     if (toolName !== 'research' || !result || state !== 'result') return null;
     const confidence = getString(result, 'confidence');
     const searchSteps = getArray(result, 'searchSteps');
-    return { confidence, searchStepsCount: searchSteps?.length ?? 0 };
+    const stepsList: Array<{ tool: string; query: string; resultsCount: number }> = [];
+    if (searchSteps) {
+      for (const s of searchSteps) {
+        const tool = getString(s, 'tool') ?? '';
+        const stepQuery = getString(s, 'query') ?? '';
+        const resultsCount = getNumber(s, 'resultsCount') ?? 0;
+        if (stepQuery) stepsList.push({ tool, query: stepQuery, resultsCount });
+      }
+    }
+    return { confidence, searchStepsCount: stepsList.length, stepsList };
   }, [toolName, result, state]);
 
   return (
@@ -135,6 +148,16 @@ export const ToolCallUI = memo(function ToolCallUI({
 
       {isExpanded && state === 'result' && result != null && (
         <div className="mt-2 ml-2 border-l-2 border-primary/20 pl-3">
+          {researchMeta && researchMeta.stepsList.length > 0 && (
+            <div className="mb-2 space-y-0.5">
+              {researchMeta.stepsList.map((step, i) => (
+                <div key={i} className="text-foreground-muted text-xs">
+                  <span aria-hidden>{step.tool === 'web_search' ? '🌐' : '📄'}</span> &bdquo;
+                  {step.query}&ldquo; &middot; {step.resultsCount} Quellen
+                </div>
+              ))}
+            </div>
+          )}
           <ToolResultRenderer toolName={toolName} args={args} result={result} />
         </div>
       )}
@@ -384,6 +407,8 @@ interface Citation {
   snippet: string;
 }
 
+const remarkPlugins = [remarkGfm];
+
 const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: unknown }) {
   const [showAllSources, setShowAllSources] = useState(false);
 
@@ -393,36 +418,32 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
   const confidence = getString(result, 'confidence');
   const searchSteps = getArray(result, 'searchSteps');
 
+  // Build a citation map for inline [N] chips inside the markdown render.
+  // Massage the local research-Citation shape into the streaming-Citation shape
+  // (adds required `source`); only id/title/url/domain are read by the renderer.
+  const citationMap = useMemo(
+    () =>
+      new Map(
+        (citations ?? []).map((c) => [
+          c.id,
+          {
+            id: c.id,
+            title: c.title,
+            url: c.url,
+            snippet: c.snippet,
+            domain: c.domain,
+            source: 'research',
+          },
+        ])
+      ),
+    [citations]
+  );
+  const markdownComponents = useMemo(() => makeCitationComponents(citationMap), [citationMap]);
+  const escapedAnswer = useMemo(() => (answer ? escapeCitationMarkers(answer) : ''), [answer]);
+
   if (!answer && (!citations || citations.length === 0)) {
     return <p className="text-xs text-foreground-muted">Keine Recherche-Ergebnisse</p>;
   }
-
-  const renderAnswerWithCitations = (text: string) => {
-    if (!text) return null;
-    const parts = text.split(/(\[\d+\])/g);
-    return parts.map((part, idx) => {
-      const match = part.match(/^\[(\d+)\]$/);
-      if (match) {
-        const citationId = parseInt(match[1], 10);
-        const citation = citations?.find((c) => c.id === citationId);
-        if (citation) {
-          return (
-            <a
-              key={idx}
-              href={citation.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center w-4 h-4 text-[10px] font-medium bg-badge-citation-bg text-badge-citation rounded hover:bg-badge-citation-hover mx-0.5 align-super"
-              title={`${citation.title} (${citation.domain})`}
-            >
-              {citationId}
-            </a>
-          );
-        }
-      }
-      return <Fragment key={idx}>{part}</Fragment>;
-    });
-  };
 
   const confidenceColors = {
     high: 'text-status-green',
@@ -455,8 +476,10 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
       </div>
 
       {answer && (
-        <div className="text-xs leading-relaxed text-foreground whitespace-pre-wrap">
-          {renderAnswerWithCitations(answer)}
+        <div className="text-sm leading-relaxed text-foreground">
+          <ReactMarkdown remarkPlugins={remarkPlugins} components={markdownComponents}>
+            {escapedAnswer}
+          </ReactMarkdown>
         </div>
       )}
 

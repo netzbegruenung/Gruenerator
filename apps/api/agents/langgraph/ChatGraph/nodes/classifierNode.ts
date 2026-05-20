@@ -15,13 +15,22 @@ import { analyzeTemporality } from '../../../../services/search/TemporalAnalyzer
 import { createLogger } from '../../../../utils/logger.js';
 import { INTERMEDIATE_MODEL } from '../llmConfig.js';
 
+import { getActiveAnchors } from './anchorContext.js';
+import {
+  buildDocumentSources,
+  hasCompareVerbs,
+  pickSynthesisMode,
+} from './buildDocumentSources.js';
 import { heuristicExtractFilters } from './classifierFilters.js';
 import {
   heuristicClassify,
   extractSearchTopic,
   extractMessageText,
   formatConversationHistory,
+  hasImageEditVerb,
+  mentionsImageNoun,
   looksMultiTopic,
+  DOC_MODIFY_PATTERN,
   HEURISTIC_CONFIDENCE_THRESHOLD,
 } from './classifierHeuristics.js';
 import {
@@ -30,17 +39,79 @@ import {
   detectSearchSources,
 } from './classifierParsing.js';
 import { CLASSIFIER_PROMPT, NON_SEARCH_INTENTS } from './classifierPrompt.js';
+import { classifyDocsIntentTiebreak } from './docsIntentTiebreak.js';
 
-import type { ChatGraphState, GatherSource } from '../types.js';
+import type { ChatGraphState, GatherSource, SearchIntent } from '../types.js';
 
 const log = createLogger('ChatGraph:Classifier');
 
+// Content-creation agent (öffentlichkeitsarbeit) routing heuristics.
+// Module-scope so V8 doesn't recompile per classification call. Hoisted out
+// of the override block where they were originally inlined.
+const PM_NOUN_PATTERN =
+  /\b(pressemitteilung|pressemeldung|pm|presseaussendung|presse[-\s]?statement)\b/i;
+const SOCIAL_NOUN_PATTERN =
+  /\b(post|tweet|tweete|tweeten|posting|reel|tiktok|instagram|facebook|linkedin|twitter|social[-\s]?media)\b/i;
+const INSTAGRAM_PATTERN = /\b(instagram|insta|reel|story)\b/i;
+const FACEBOOK_PATTERN = /\b(facebook|\bfb\b|fb-?post|fb-?beitrag)\b/i;
+
 /**
- * Classifier node implementation.
+ * Public classifier node — wraps the inner implementation with multi-document
+ * normalization. Builds documentSources and picks synthesisMode based on the
+ * classified intent + doc count, and upgrades search/research → 'compare' when
+ * the user explicitly asks for a comparison and ≥2 doc sources are referenced.
+ *
+ * Kept as a wrapper so the inner classifier's many return paths stay focused
+ * on intent/query/filters and don't each have to remember the doc-source plumbing.
+ */
+export async function classifierNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
+  const result = await classifierNodeImpl(state);
+
+  const documentSources = buildDocumentSources({
+    documentIds: state.documentIds ?? [],
+    documentChatIds: state.documentChatIds ?? [],
+    docMentionIds: state.docMentionIds ?? [],
+    notebookIds: state.notebookIds ?? [],
+    wolkeFiles: state.wolkeFiles ?? [],
+    threadAttachments: state.threadAttachments ?? [],
+    currentDocument: state.currentDocument ?? null,
+  });
+
+  // Upgrade search/research → 'compare' when the user explicitly asks for a
+  // comparison and ≥2 doc sources are in play. Other intents (image, summary,
+  // modify_doc, ...) are user-driven and shouldn't be silently rerouted.
+  const lastUserMessage = state.messages.filter((m) => m.role === 'user').pop();
+  const userText = extractMessageText(lastUserMessage?.content);
+  const COMPARE_UPGRADEABLE: ReadonlySet<SearchIntent> = new Set(['search', 'research']);
+  let intent = result.intent ?? state.intent;
+  if (
+    intent &&
+    COMPARE_UPGRADEABLE.has(intent) &&
+    documentSources.length >= 2 &&
+    hasCompareVerbs(userText)
+  ) {
+    log.info(
+      `[Classifier] Compare upgrade: ${intent} → compare (${documentSources.length} doc sources, compare verbs detected)`
+    );
+    intent = 'compare';
+  }
+
+  const synthesisMode = pickSynthesisMode(intent ?? 'direct', documentSources.length);
+
+  return {
+    ...result,
+    intent: intent ?? result.intent,
+    documentSources,
+    synthesisMode,
+  };
+}
+
+/**
+ * Inner classifier node implementation.
  * Uses heuristics-first approach: high-confidence patterns skip LLM entirely.
  * Falls back to LLM for ambiguous queries where heuristics are uncertain.
  */
-export async function classifierNode(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
+async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGraphState>> {
   const startTime = Date.now();
   log.info('[Classifier] Starting intent classification');
 
@@ -54,6 +125,11 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     // Format prior conversation as context for the classifier LLM
     const conversationContext = formatConversationHistory(messages);
 
+    // Topical hints from state anchors (open doc, doc-mentions, board,
+    // attachments, images) so the query optimizer can resolve anaphoric
+    // references like "dazu", "dies", "darüber" to a concrete subject.
+    const topicalContext = formatTopicalContext(state);
+
     // Analyze temporality and complexity (used by all paths)
     const temporal = analyzeTemporality(userContent);
     const complexity = detectComplexity(userContent);
@@ -62,11 +138,25 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     const hasNotebooks = state.notebookIds && state.notebookIds.length > 0;
     const hasDocuments = state.documentIds && state.documentIds.length > 0;
     const hasDocumentChat = state.documentChatIds && state.documentChatIds.length > 0;
+    const hasWolkeFiles = state.wolkeFiles && state.wolkeFiles.length > 0;
     const hasBoards = state.boardIds && state.boardIds.length > 0;
-    const hasDocMentions = state.docMentionIds && state.docMentionIds.length > 0;
+    // Open document in the docs-editor is primary context, not retrieval scope.
+    // Distinct from documentChatIds — we do NOT force-route to search for it.
+    const hasCurrentDocument = !!state.currentDocument;
+    // Strip the open document from docMentionIds — when both are set for the
+    // same doc, they convey the same fact. Counting the doc twice causes the
+    // "Collaborative document mention → direct intent" branch below to win
+    // over the "currentDocument → edit_current_doc" branch, which silently
+    // drops the user's edit request. The docs-editor surface is authoritative
+    // for the open doc; @-mentions of OTHER docs still flow through normally.
+    const dedupedDocMentionIds = state.currentDocument?.id
+      ? (state.docMentionIds ?? []).filter((id) => id !== state.currentDocument!.id)
+      : (state.docMentionIds ?? []);
+    const hasDocMentions = dedupedDocMentionIds.length > 0;
     const hasAttachmentContext = !!state.attachmentContext;
     const hasImageAttachments = state.imageAttachments && state.imageAttachments.length > 0;
-    const hasAnyDocuments = hasDocumentChat || hasDocuments || hasAttachmentContext;
+    const hasAnyDocuments =
+      hasDocumentChat || hasDocuments || hasAttachmentContext || hasCurrentDocument;
 
     // ── TIER 1: Mutation intents (resource + action keywords) ──
     // These are the most specific signals — a user explicitly requesting a change
@@ -74,8 +164,7 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
     // otherwise an image attachment or OCR text would shadow the mutation intent.
     const boardModifyPattern =
       /\b(fuege?\s+(aufgabe|karte|eintrag)|neue\s+(karte|aufgabe)|aktualisiere\s+board|erstelle\s+aufgabe|aender|ergaenz|ueberarbeit|vereinfach|strukturier|umstrukturier|loesch|entfern|verschieb|sortier)/i;
-    const docModifyPattern =
-      /\b(aender|ergaenz|aktualisier|ueberarbeit|fuege?\s+hinzu|vereinfach|umschreib|kuerz|erweiter)/i;
+    const docModifyPattern = DOC_MODIFY_PATTERN;
 
     if (hasBoards && userContent.length > 0 && boardModifyPattern.test(userContent)) {
       const classificationTimeMs = Date.now() - startTime;
@@ -92,6 +181,62 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
         complexity,
         classificationTimeMs,
       };
+    }
+
+    // Open document in docs editor + modification keywords → live edit via
+    // BlockNote AI. This MUST fire before the modify_doc branch below: a docs
+    // editor surface always has currentDocument, and we want the live-edit path
+    // (Yjs-synced, undoable in-place) instead of /chat's modify_doc HITL flow
+    // (DB-only update, breaks Yjs).
+    // Honor the docs-sidebar "AI may edit document" toggle: when the client
+    // explicitly disables `edit_current_doc`, fall through to normal intent
+    // classification so the assistant answers conversationally instead of
+    // patching the open document.
+    const editCurrentDocAllowed = state.enabledTools?.edit_current_doc !== false;
+
+    if (hasCurrentDocument && editCurrentDocAllowed && userContent.length > 0) {
+      // Layer 1: fast-path regex. Covers the common explicit-edit verbs
+      // (bearbeit, verbesser, kürz, erweiter, …) with zero latency.
+      if (docModifyPattern.test(userContent)) {
+        const classificationTimeMs = Date.now() - startTime;
+        log.info(`[Classifier] Live document edit (regex fast-path) → edit_current_doc`);
+        return {
+          intent: 'edit_current_doc',
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'currentDocument + modification keywords → edit_current_doc',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs,
+        };
+      }
+
+      // Layer 2: LLM tiebreak. Catches indirect/colloquial/multilingual
+      // phrasings the regex can't ("mach das knackiger", "polish this",
+      // "kannst du das anders?", "ja, mach das" as a follow-up). Hard 800ms
+      // timeout, fail-safe to chat path. See docsIntentTiebreak.ts.
+      const tiebreak = await classifyDocsIntentTiebreak({
+        userContent,
+        conversationContext,
+        aiWorkerPool,
+      });
+      if (tiebreak === 'edit') {
+        const classificationTimeMs = Date.now() - startTime;
+        log.info(`[Classifier] Live document edit (LLM tiebreak) → edit_current_doc`);
+        return {
+          intent: 'edit_current_doc',
+          searchSources: [],
+          searchQuery: null,
+          detectedFilters: null,
+          reasoning: 'currentDocument + LLM tiebreak ruled edit → edit_current_doc',
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs,
+        };
+      }
+      // tiebreak === 'question' or null → fall through to chat-path
+      // classification (existing behavior).
     }
 
     if (hasDocMentions && userContent.length > 0 && docModifyPattern.test(userContent)) {
@@ -140,88 +285,45 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
         aiWorkerPool,
         userContent,
         conversationContext,
+        topicalContext,
         temporal,
         complexity,
         startTime,
       });
     }
 
-    // If file attachments were uploaded (OCR-extracted), force direct intent —
-    // the respondNode already formats attachmentContext into the system message.
-    if (hasAttachmentContext && userContent.length > 0) {
+    // Image edit detection — generation intent, exclusive. Must beat the
+    // search-capable branches below so "bearbeite das Bild + @berlin" still
+    // routes to imageEditNode rather than RAG.
+    //
+    // Two trigger patterns:
+    //  1. Image attached + edit verb → image_edit (the natural-attach flow).
+    //  2. No attachment but verb + image noun ("bearbeite das Foto") →
+    //     image_edit anyway; the node returns the German "please attach an
+    //     image" error from imageEditNode.ts:64-72.
+    const editVerb = userContent.length > 0 && hasImageEditVerb(userContent);
+    if (editVerb && (hasImageAttachments || mentionsImageNoun(userContent))) {
       log.info(
-        `[Classifier] File attachment detected (${state.attachmentContext!.length} chars), forcing direct intent`
+        `[Classifier] Image edit detected (attached=${hasImageAttachments}, noun=${mentionsImageNoun(userContent)}), forcing image_edit intent`
       );
       return {
-        intent: 'direct',
+        intent: 'image_edit',
         searchSources: [],
         searchQuery: null,
         detectedFilters: null,
-        reasoning: 'File attachment present — respondNode will use attachmentContext',
+        reasoning: hasImageAttachments
+          ? 'Image attachment + edit verb → image_edit'
+          : 'Edit verb + image noun without attachment → image_edit (node will ask for attachment)',
         hasTemporal: temporal.hasTemporal,
         complexity,
         classificationTimeMs: Date.now() - startTime,
       };
     }
 
-    // If image attachments are present, force direct intent —
-    // the vision model will interpret the image directly in the respond step.
-    if (hasImageAttachments) {
-      log.info(
-        `[Classifier] Image attachment detected (${state.imageAttachments.length} images), forcing direct intent`
-      );
-      return {
-        intent: 'direct',
-        searchSources: [],
-        searchQuery: null,
-        detectedFilters: null,
-        reasoning: 'Image attachment present — vision model will interpret the image',
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs: Date.now() - startTime,
-      };
-    }
+    // Search-capable mentions take precedence over context-only branches.
+    // Co-present anchors (boards / doc-mentions / files / images) still inject
+    // into the system prompt via respondNode regardless of intent.
 
-    // If boards are mentioned (no mutation keywords — those were caught in Tier 1),
-    // force direct intent so respondNode uses the board context.
-    if (hasBoards && userContent.length > 0) {
-      const classificationTimeMs = Date.now() - startTime;
-      log.info(
-        `[Classifier] Board mention detected (${state.boardIds.length} board(s)), forcing direct intent`
-      );
-      return {
-        intent: 'direct',
-        searchSources: [],
-        searchQuery: null,
-        detectedFilters: null,
-        reasoning: 'Board mention forces direct intent — board context injected by controller',
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs,
-      };
-    }
-
-    // If collaborative documents are mentioned (no mutation keywords — caught in Tier 1),
-    // force direct intent so respondNode uses the document context.
-    if (hasDocMentions && userContent.length > 0) {
-      const classificationTimeMs = Date.now() - startTime;
-      log.info(
-        `[Classifier] Collaborative document mention detected (${state.docMentionIds.length} doc(s)), forcing direct intent`
-      );
-      return {
-        intent: 'direct',
-        searchSources: [],
-        searchQuery: null,
-        detectedFilters: null,
-        reasoning:
-          'Collaborative document mention forces direct intent — content injected by controller',
-        hasTemporal: temporal.hasTemporal,
-        complexity,
-        classificationTimeMs,
-      };
-    }
-
-    // If documents are mentioned, force search intent with LLM query optimization
     if (hasDocuments && userContent.length > 0) {
       return classifyWithForcedSearch({
         reason: 'Document',
@@ -229,6 +331,23 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
         aiWorkerPool,
         userContent,
         conversationContext,
+        topicalContext,
+        temporal,
+        complexity,
+        startTime,
+      });
+    }
+
+    // @wolke selections force search intent — the wolke file content must reach
+    // respondNode via perSourceResults, and that only happens inside the search path.
+    if (hasWolkeFiles && userContent.length > 0) {
+      return classifyWithForcedSearch({
+        reason: 'Wolke',
+        docCount: state.wolkeFiles.length,
+        aiWorkerPool,
+        userContent,
+        conversationContext,
+        topicalContext,
         temporal,
         complexity,
         startTime,
@@ -271,11 +390,135 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
         aiWorkerPool,
         userContent,
         conversationContext,
+        topicalContext,
         temporal,
         complexity,
         startTime,
         gatherSources,
       });
+    }
+
+    // Context-only fallback branches — fire only when no search-capable
+    // mention above already routed the request.
+
+    if (hasAttachmentContext && userContent.length > 0) {
+      log.info(
+        `[Classifier] File attachment detected (${state.attachmentContext!.length} chars), forcing direct intent`
+      );
+      return {
+        intent: 'direct',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'File attachment present — respondNode will use attachmentContext',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // Image attachments (no edit verb above) — vision model interprets in respond.
+    if (hasImageAttachments) {
+      log.info(
+        `[Classifier] Image attachment detected (${state.imageAttachments.length} images), forcing direct intent`
+      );
+      return {
+        intent: 'direct',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Image attachment present — vision model will interpret the image',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs: Date.now() - startTime,
+      };
+    }
+
+    // Board mentions (no mutation, no co-present search source).
+    if (hasBoards && userContent.length > 0) {
+      const classificationTimeMs = Date.now() - startTime;
+      log.info(
+        `[Classifier] Board mention detected (${state.boardIds.length} board(s)), forcing direct intent`
+      );
+      return {
+        intent: 'direct',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'Board mention forces direct intent — board context injected by controller',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs,
+      };
+    }
+
+    // Collaborative document mentions (no mutation, no co-present search source).
+    if (hasDocMentions && userContent.length > 0) {
+      const classificationTimeMs = Date.now() - startTime;
+      log.info(
+        `[Classifier] Collaborative document mention detected (${state.docMentionIds.length} doc(s)), forcing direct intent`
+      );
+      return {
+        intent: 'direct',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning:
+          'Collaborative document mention forces direct intent — content injected by controller',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs,
+      };
+    }
+
+    // Content-creation agents (e.g. öffentlichkeitsarbeit) instruct the model
+    // to ground every PM / social post on real LV examples. The default
+    // classifier rule routes "Schreib eine Pressemitteilung..." to `direct`,
+    // which skips the search node entirely and contradicts the agent's
+    // systemRole ("Nutze IMMER ..."). Force `examples` intent here so the
+    // search node fires before respondNode.
+    const agentWantsExamples =
+      Array.isArray(state.agentConfig.enabledTools) &&
+      (state.agentConfig.enabledTools.includes('examples') ||
+        state.agentConfig.enabledTools.includes('pressemitteilung_examples')) &&
+      /Nutze IMMER/i.test(state.agentConfig.systemRole);
+    // For content-creation agents, the noun alone is enough — typical prompts
+    // are bare noun-phrases like "PM zu X" or "Tweet zur Verkehrswende"
+    // without an explicit creation verb. PMs and social-media posts live in
+    // different Qdrant collections, so split them into two intents and use
+    // secondaryIntent for mixed prompts ("Tweet UND PM zu X") so the search
+    // node can fan out.
+    if (agentWantsExamples && userContent.length > 0) {
+      const wantsPm = PM_NOUN_PATTERN.test(userContent);
+      const wantsSocial = SOCIAL_NOUN_PATTERN.test(userContent);
+      if (wantsPm || wantsSocial) {
+        const primary: SearchIntent = wantsPm ? 'pressemitteilung_examples' : 'examples';
+        const secondary: SearchIntent | null = wantsPm && wantsSocial ? 'examples' : null;
+        // Platform hint for the social composer: Insta vs FB. Heuristic-only;
+        // the social_media_examples Qdrant collection contains exactly these
+        // two platforms, so detecting more would be misleading. Null when
+        // unspecified → composer falls back to the combined rubric.
+        const platform: 'instagram' | 'facebook' | null = INSTAGRAM_PATTERN.test(userContent)
+          ? 'instagram'
+          : FACEBOOK_PATTERN.test(userContent)
+            ? 'facebook'
+            : null;
+        log.info(
+          `[Classifier] Content-creation agent (${state.agentConfig.identifier}) → primary=${primary}${secondary ? `, secondary=${secondary}` : ''}${platform ? `, platform=${platform}` : ''}`
+        );
+        return {
+          intent: primary,
+          secondaryIntent: secondary,
+          platform,
+          searchSources: [],
+          searchQuery: extractSearchTopic(userContent) || userContent,
+          detectedFilters: null,
+          reasoning: `Agent ${state.agentConfig.identifier} requires ${primary}${secondary ? ` + ${secondary}` : ''} grounding for content creation`,
+          hasTemporal: temporal.hasTemporal,
+          complexity,
+          classificationTimeMs: Date.now() - startTime,
+        };
+      }
     }
 
     // ── TIER 3: Heuristic pre-check ──
@@ -444,6 +687,59 @@ export async function classifierNode(state: ChatGraphState): Promise<Partial<Cha
 }
 
 /**
+ * Compact topic hint from the open document so the query optimizer can resolve
+ * anaphora like "dieses Dokument" to a concrete subject. Heuristic only (no LLM)
+ * — the classifier path is latency-sensitive. Caps the excerpt so it stays a
+ * hint, not a full document dump.
+ */
+function extractDocumentTopicHint(
+  currentDocument: NonNullable<ChatGraphState['currentDocument']>
+): string {
+  const excerpt = currentDocument.markdown
+    .replace(/```[\s\S]*?```/g, ' ') // fenced code blocks
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1') // links/images → label text
+    .replace(/[#>*_`~|-]/g, ' ') // markdown punctuation
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 280);
+  const title = currentDocument.title?.trim();
+  if (title) return `"${title}" — ${excerpt}`;
+  return excerpt || 'das geöffnete Dokument';
+}
+
+/**
+ * Compact topical hint for the query optimizer so anaphoric pronouns
+ * ("dazu", "dies", "darüber", "dieses Dokument") can resolve to a concrete
+ * subject. Skips `documentChat` — that anchor lives in its own classifier
+ * branch above.
+ */
+function formatTopicalContext(state: ChatGraphState): string | null {
+  const lines = getActiveAnchors(state).flatMap((a): string[] => {
+    switch (a.kind) {
+      case 'currentDocument':
+        return state.currentDocument
+          ? [
+              `- Aktuell geöffnetes Dokument — Inhalt: "${extractDocumentTopicHint(state.currentDocument)}"`,
+            ]
+          : [];
+      case 'documentMention':
+        return [`- Referenzierte Dokumente: ${a.titles.map((t) => `"${t}"`).join(', ')}`];
+      case 'board':
+        return ['- Ein Board ist referenziert (siehe Boardkontext im Gespräch).'];
+      case 'attachment':
+        return ['- Hochgeladene Datei(en) liegen vor.'];
+      case 'image':
+        return [`- Bilder angehängt: ${a.names.join(', ')}`];
+      case 'documentChat':
+        return [];
+    }
+  });
+
+  if (lines.length === 0) return null;
+  return `Themenkontext (zur Auflösung von "dazu", "dies" etc.):\n${lines.join('\n')}`;
+}
+
+/**
  * Helper for the 3 near-identical "force search intent with LLM query optimization" blocks.
  * Used by document chat, document mention, and notebook mention paths.
  */
@@ -453,6 +749,7 @@ async function classifyWithForcedSearch(opts: {
   aiWorkerPool: ChatGraphState['aiWorkerPool'];
   userContent: string;
   conversationContext: string | null;
+  topicalContext: string | null;
   temporal: { hasTemporal: boolean };
   complexity: 'simple' | 'moderate' | 'complex';
   startTime: number;
@@ -464,6 +761,7 @@ async function classifyWithForcedSearch(opts: {
     aiWorkerPool,
     userContent,
     conversationContext,
+    topicalContext,
     temporal,
     complexity,
     startTime,
@@ -471,10 +769,18 @@ async function classifyWithForcedSearch(opts: {
   } = opts;
 
   log.info(
-    `[Classifier] ${reason} detected (${docCount} item(s)), forcing search intent with LLM query optimization`
+    `[Classifier] ${reason} detected (${docCount} item(s)), forcing search intent with LLM query optimization${topicalContext ? ' + topical context' : ''}`
   );
 
   try {
+    const userMessageContent = [
+      topicalContext,
+      conversationContext,
+      `Aktuelle Nachricht: "${userContent}"`,
+    ]
+      .filter((p): p is string => !!p)
+      .join('\n\n');
+
     const response = await aiWorkerPool.processRequest(
       {
         type: 'chat_intent_classification',
@@ -483,9 +789,7 @@ async function classifyWithForcedSearch(opts: {
         messages: [
           {
             role: 'user',
-            content: conversationContext
-              ? `${conversationContext}\n\nAktuelle Nachricht: "${userContent}"`
-              : `Analysiere: "${userContent}"`,
+            content: userMessageContent || `Analysiere: "${userContent}"`,
           },
         ],
         options: {

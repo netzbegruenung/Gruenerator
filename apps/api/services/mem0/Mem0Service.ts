@@ -185,8 +185,8 @@ export class Mem0Service {
       log.info(`[Mem0] Searching memories for user ${userId}: "${query.slice(0, 50)}..."`);
 
       const response: SearchResult = await this.memory.search(query, {
-        userId,
-        limit,
+        filters: { user_id: userId },
+        topK: limit,
       });
 
       const allMemories = (response?.results || []).map(toMem0Memory);
@@ -231,7 +231,7 @@ export class Mem0Service {
 
       log.info(`[Mem0] Getting all memories for user ${userId}`);
 
-      const response: SearchResult = await this.memory.getAll({ userId });
+      const response: SearchResult = await this.memory.getAll({ filters: { user_id: userId } });
       const memories = (response?.results || []).map(toMem0Memory);
 
       log.info(`[Mem0] Retrieved ${memories.length} memories for user ${userId}`);

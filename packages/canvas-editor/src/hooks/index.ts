@@ -70,6 +70,8 @@ export type { UsePresentationExportReturn } from './usePresentationExport';
 export { usePageManager } from './usePageManager';
 export type { InitialPageDef, UsePageManagerOptions, UsePageManagerReturn } from './usePageManager';
 
+export { usePageThumbnails } from './usePageThumbnails';
+
 export { useMobileBridge } from './useMobileBridge';
 export type { MobileBridgeCallbacks, MobileBridgeProps } from './useMobileBridge';
 

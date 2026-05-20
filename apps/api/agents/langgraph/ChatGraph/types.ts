@@ -13,7 +13,10 @@
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
+import type { WolkeFileRef } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
+
+export type { WolkeFileRef };
 
 /**
  * Search source backends that can be queried in parallel.
@@ -34,17 +37,20 @@ export type UserLocale = 'de-DE' | 'de-AT';
  */
 export type SearchIntent =
   | 'research' // Complex multi-source research ("recherchiere", "finde heraus")
+  | 'compare' // Multi-document comparison (≥2 doc sources + compare verbs)
   | 'search' // Gruenerator document search (party programs, positions)
   // | 'person' // DISABLED: Person search not production ready (only searches 80 cached MPs)
   | 'web' // Web search (current events, external facts)
   | 'examples' // Social media examples/templates
+  | 'pressemitteilung_examples' // Real LV press releases as templates (landesverbaende_documents, content_type=presse)
   | 'image' // Image generation ("erstelle bild", "generiere", "visualisiere")
   | 'image_edit' // Image editing ("stadt begrünen", green urban transformation)
   | 'sharepic' // Sharepic creation ("erstelle sharepic", "@sharepic")
   | 'summary' // Document summarization ("fasse zusammen", "zusammenfassung")
   | 'chart' // Data visualization ("erstelle Diagramm", "Balkendiagramm")
   | 'save_as_doc' // Save response as document ("speichere als Dokument")
-  | 'modify_doc' // Modify mentioned document ("ändere", "ergänze" with @doc)
+  | 'modify_doc' // Modify mentioned document ("ändere", "ergänze" with @doc) — for /chat surface
+  | 'edit_current_doc' // Live-edit the open document via BlockNote AI — for docs editor surface
   | 'modify_board' // Modify mentioned board ("füge Aufgabe hinzu" with @board)
   | 'share_doc' // Share document with group ("teile mit Gruppe", "share mit AG")
   | 'direct'; // No search needed (greetings, creative tasks without fact needs)
@@ -52,7 +58,14 @@ export type SearchIntent =
 /**
  * Image style for generation.
  */
-export type ImageStyle = 'illustration' | 'realistic' | 'pixel' | 'green-edit';
+export type ImageStyle = 'illustration' | 'realistic' | 'pixel' | 'green-edit' | 'universal';
+
+/**
+ * FLUX edit-prompt builder selector for `image_edit` intent.
+ * `green-edit` preserves the @stadtbegruenen branded behaviour;
+ * `universal` feeds the user's instruction to FLUX as-is.
+ */
+export type ImageEditStyle = 'green-edit' | 'universal';
 
 /**
  * Processed file attachment from the frontend.
@@ -98,6 +111,7 @@ export const SOURCE_PREFIX = {
   RESEARCH_SYNTHESIS: 'research_synthesis',
   DOCUMENT: 'document',
   DOCUMENT_CHAT: 'documentchat:',
+  WOLKE: 'wolke:',
 } as const;
 
 /**
@@ -136,6 +150,100 @@ export interface Citation {
   chunkIndex?: number | undefined;
   similarityScore?: number | undefined;
   collectionId?: string | undefined;
+  // Set when this citation came from a fan-out per-document retrieval
+  // (multi-document chat). Lets the UI group source cards by referenced doc.
+  documentSourceId?: string | undefined;
+}
+
+/**
+ * Kind of document reference the user provided this turn.
+ * Drives how the search node retrieves evidence for that source.
+ */
+export type DocumentSourceKind =
+  | 'document' // documentIds (datei mention)
+  | 'document_chat' // documentChatIds (@dokumentchat multi-select)
+  | 'doc_mention' // docMentionIds (collab @doc)
+  | 'notebook' // notebookIds (collection scope)
+  | 'attachment' // threadAttachments (uploaded file context)
+  | 'current_doc' // currentDocument (open in docs editor)
+  | 'wolke'; // wolkeFiles (@wolke mentionable — Nextcloud file picker)
+
+/**
+ * Normalized reference to a single document the user is working with this turn.
+ * Built once at the top of classification (buildDocumentSources) and used by
+ * searchNode (per-source retrieval), rerankNode (per-source budget), and
+ * respondNode (labeled per-doc context blocks).
+ */
+export interface DocumentSource {
+  kind: DocumentSourceKind;
+  id: string;
+  label: string;
+  // For `notebook` kind: Qdrant collection keys for this notebook (a single
+  // notebook can span multiple collections). Empty for non-notebook kinds.
+  collectionIds?: string[] | undefined;
+  // For `wolke` kind: the original share-link + path so searchNode can fetch
+  // the file content via WebDAV at retrieval time.
+  wolke?: WolkeFileRef | undefined;
+}
+
+/**
+ * How respondNode should structure the answer when multiple documents are in play.
+ * Picked at classification time from intent + doc count + complexity.
+ *  - `table`              → markdown comparison table + short synthesis
+ *  - `per_doc_bullets`    → per-doc bullets, then Unterschiede / Gemeinsamkeiten
+ *  - `grounded_prose`     → narrative, but mandatory ≥1 citation per source
+ *  - `null`               → unchanged single-doc / no-doc behaviour
+ */
+export type SynthesisMode = 'table' | 'per_doc_bullets' | 'grounded_prose' | null;
+
+/**
+ * Research tool result shape persisted into `chat_messages.tool_calls[].result`.
+ * Mirrors the contract that `ResearchResultUI` reads in the chat package
+ * (`packages/chat/src/components/ToolCallUI.tsx#ResearchResultUI`).
+ *
+ * `citations` here uses the enriched `Citation` shape (not `ResearchCitation`)
+ * because the search node has already run citation enrichment on the results.
+ */
+export interface ResearchToolResult {
+  answer: string;
+  citations: Citation[];
+  confidence: 'high' | 'medium' | 'low';
+  searchSteps: Array<{ tool: string; query: string; resultsCount: number }>;
+  followUpQuestions: string[];
+}
+
+/**
+ * Rich examples result shape — preserves kind-specific metadata
+ * (PressemitteilungExample fields for press, social-post fields for social) so
+ * the chat UI's per-kind tool renderers can read the data they were designed
+ * for. Persisted by `postResponseService` as the tool-call `result.examples`.
+ *
+ * Mirrors `DirectExamplesResult.examples` and `PressemitteilungExample` shapes
+ * the existing UI cards (`PressemitteilungExamplesCard`, `ToolCallUI`) read.
+ */
+export interface PressExampleItem {
+  id: string;
+  title: string;
+  body: string;
+  lv: string;
+  sourceId?: string;
+  publishedAt?: string;
+  url?: string;
+}
+
+export interface SocialExampleItem {
+  id: string;
+  platform: string;
+  content: string;
+  imageUrl?: string;
+  author?: string;
+  date?: string;
+}
+
+export interface ExamplesToolResult {
+  press?: PressExampleItem[];
+  social?: SocialExampleItem[];
+  message?: string;
 }
 
 /**
@@ -157,6 +265,19 @@ export interface ThreadAttachment {
  * NOTE: Does not include req/res - HTTP streaming is handled by the controller
  * using the @ai-sdk/langchain adapter.
  */
+/**
+ * Open document the user is currently editing — primary conversation context for
+ * the docs-editor surface. Distinct from `documentChatIds` (explicit @dokumentchat
+ * retrieval scope) and `attachmentContext` (uploaded files): this IS the document
+ * being talked about.
+ */
+export interface CurrentDocument {
+  id: string;
+  title: string | null;
+  markdown: string;
+  selectionText: string | null;
+}
+
 export interface ChatGraphInput {
   messages: ModelMessage[];
   threadId?: string | undefined;
@@ -167,14 +288,23 @@ export interface ChatGraphInput {
   imageAttachments?: ImageAttachment[] | undefined;
   threadAttachments?: ThreadAttachment[] | undefined;
   notebookIds?: string[] | undefined;
+  /**
+   * Document IDs already resolved from user-owned notebook UUIDs. The controller
+   * resolves UUID notebook mentions to their backing document IDs (ownership
+   * enforced there) so the graph can stay synchronous in init.
+   */
+  notebookDocumentIds?: string[] | undefined;
   defaultNotebookId?: string | undefined;
   documentIds?: string[] | undefined;
   textIds?: string[] | undefined;
   documentChatIds?: string[] | undefined;
   boardIds?: string[] | undefined;
   docMentionIds?: string[] | undefined;
+  wolkeFiles?: WolkeFileRef[] | undefined;
+  currentDocument?: CurrentDocument | undefined;
   userLocale?: UserLocale | undefined;
   customSystemPrompt?: string | undefined;
+  activeSkillMention?: string | undefined;
   userInstructions?: string | undefined;
   contextWindowTokens?: number | undefined;
 }
@@ -195,6 +325,11 @@ export interface ChatGraphState {
   aiWorkerPool: AIWorkerPool;
   userLocale: UserLocale;
 
+  // Optional progress sink. Set by the controller for tools that produce
+  // multi-phase progress (deep research). Pure callback — graph stays
+  // HTTP-decoupled (no Response object on state).
+  onResearchProgress?: ((message: string) => void) | undefined;
+
   // Attachment context
   attachmentContext: string | null;
   imageAttachments: ImageAttachment[];
@@ -203,6 +338,12 @@ export interface ChatGraphState {
   // Notebook scoping (from @notebook mentions)
   notebookIds: string[];
   notebookCollectionIds: string[];
+  /**
+   * Document IDs scoped from user-owned notebook (UUID) mentions. Used by
+   * searchNode to filter Qdrant hits to documents inside the mentioned
+   * personal notebook(s). Ownership is verified upstream in the controller.
+   */
+  notebookDocumentIds: string[];
 
   // Default notebook scoping (from persistent UI selection)
   defaultNotebookCollectionIds: string[];
@@ -221,8 +362,20 @@ export interface ChatGraphState {
   docMentionIds: string[];
   documentMentionContext: string | null;
 
+  // Wolke (Nextcloud) file refs selected via @wolke mentionable.
+  // Downloaded + parsed inline at searchNode time; never persisted.
+  wolkeFiles: WolkeFileRef[];
+
+  // Current open document in the docs editor (primary context, not retrieval scope).
+  // Set when chat is embedded in a document editor surface.
+  currentDocument: CurrentDocument | null;
+
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;
+
+  // Mention key of the active skill (e.g. 'instagram'). When set, respondNode
+  // appends the skill's `skillSystemPrompt` as an additive section.
+  activeSkillMention: string | null;
 
   // User profile instructions (from profiles.custom_prompt, additive to all modes)
   userInstructions: string | null;
@@ -238,6 +391,20 @@ export interface ChatGraphState {
   isCompound: boolean;
   gatherSources: GatherSource[];
 
+  // Multi-document chat: every document the user is referencing this turn,
+  // normalized from documentIds | documentChatIds | docMentionIds | notebookIds |
+  // threadAttachments | currentDocument. Source-of-truth for per-doc retrieval.
+  documentSources: DocumentSource[];
+
+  // Per-source retrieval results, keyed by DocumentSource.id. Populated by
+  // searchNode when documentSources.length >= 1; consumed by rerankNode (group
+  // rerank with per-source budget) and respondNode (labeled context blocks).
+  perSourceResults: Record<string, SearchResult[]>;
+
+  // How respondNode should structure the answer for multi-doc cases.
+  // Null when single-doc / no-doc — preserves existing behaviour.
+  synthesisMode: SynthesisMode;
+
   // Classification output
   intent: SearchIntent;
   secondaryIntent: SearchIntent | null;
@@ -250,6 +417,12 @@ export interface ChatGraphState {
   targetGroupName: string | null;
   hasTemporal: boolean;
   complexity: 'simple' | 'moderate' | 'complex';
+
+  // Platform hint for `examples` intent (Instagram vs Facebook). Set by the
+  // classifier's content-creation override branch when the user prompt names a
+  // platform; null otherwise. Consumed by searchNode to filter social examples
+  // and by socialMediaComposerNode to pick the platform-specific rubric.
+  platform: 'instagram' | 'facebook' | null;
 
   // Clarification (HITL interrupt)
   needsClarification: boolean;
@@ -268,9 +441,21 @@ export interface ChatGraphState {
   // Research brief (compressed research intent for complex queries)
   researchBrief: string | null;
 
+  // Full research metadata (set by search node when intent === 'research').
+  // Persisted into the `research` tool-call result so the UI can render
+  // confidence, search steps, and follow-up questions.
+  researchMeta: ResearchToolResult | null;
+
+  // Rich examples result, kind-segmented (set by search node for examples /
+  // pressemitteilung_examples intents). Persisted into the matching tool-call
+  // `result.examples` so PressemitteilungExamplesCard can render title/body/lv
+  // /url; the generic ToolCallUI also reads `examples`.
+  examplesResult: ExamplesToolResult | null;
+
   // Quality gate (iterative search)
   qualityScore: number;
   qualityAssessmentTimeMs: number;
+  topRerankScore: number | null;
 
   // Reliability flags & structured error log
   searchErrors: { source: string; message: string }[];
@@ -280,8 +465,10 @@ export interface ChatGraphState {
   // Image generation
   imagePrompt: string | null;
   imageStyle: ImageStyle | null;
+  imageEditStyle: ImageEditStyle | null;
   generatedImage: GeneratedImageResult | null;
   imageTimeMs: number;
+  imageEditDescriptions: { original: string | null; edited: string | null } | null;
 
   // Document summarization
   summaryContext: string | null;

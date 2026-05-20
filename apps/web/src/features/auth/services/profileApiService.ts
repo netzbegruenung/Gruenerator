@@ -479,6 +479,19 @@ export const profileApiService = {
       auto_sync: selectionMode === 'wolke' ? !!collectionData.auto_sync : false,
       remove_missing_on_sync:
         selectionMode === 'wolke' ? !!collectionData.remove_missing_on_sync : false,
+      ...(Array.isArray(collectionData.labels) ? { labels: collectionData.labels } : {}),
+      ...(typeof collectionData.is_public === 'boolean'
+        ? { is_public: collectionData.is_public }
+        : {}),
+      ...(collectionData.public_ownership
+        ? { public_ownership: collectionData.public_ownership }
+        : {}),
+      ...(Array.isArray(collectionData.wolkeFolders)
+        ? { wolke_folders: collectionData.wolkeFolders }
+        : {}),
+      ...(Array.isArray(collectionData.linkedDocs)
+        ? { linked_docs: collectionData.linkedDocs }
+        : {}),
     };
 
     const response = await apiClient.post<NotebookCollectionMutationResponse>(
@@ -513,6 +526,19 @@ export const profileApiService = {
       auto_sync: selectionMode === 'wolke' ? !!collectionData.auto_sync : undefined,
       remove_missing_on_sync:
         selectionMode === 'wolke' ? !!collectionData.remove_missing_on_sync : undefined,
+      ...(Array.isArray(collectionData.labels) ? { labels: collectionData.labels } : {}),
+      ...(typeof collectionData.is_public === 'boolean'
+        ? { is_public: collectionData.is_public }
+        : {}),
+      ...(collectionData.public_ownership
+        ? { public_ownership: collectionData.public_ownership }
+        : {}),
+      ...(Array.isArray(collectionData.wolkeFolders)
+        ? { wolke_folders: collectionData.wolkeFolders }
+        : {}),
+      ...(Array.isArray(collectionData.linkedDocs)
+        ? { linked_docs: collectionData.linkedDocs }
+        : {}),
     };
 
     const response = await apiClient.put<NotebookCollectionUpdateResponse>(

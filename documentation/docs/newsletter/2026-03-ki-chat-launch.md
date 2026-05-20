@@ -1,5 +1,5 @@
 ---
-sidebar_position: 1
+sidebar_position: 2
 title: 'März 2026: Grünerator Chat'
 ---
 
@@ -23,7 +23,7 @@ Hunderte Mitarbeitende bei Google DeepMind und OpenAI haben in offenen Briefen d
 
 ## Darf ich vorstellen? Chat!
 
-Deshalb veröffentliche ich heute den Grünerator Chat. Ein vollständiger KI-Chat — vergleichbar mit ChatGPT oder Claude — aber ausschließlich auf unseren europäischen Servern, ohne militärische Verträge, ohne Überwachung, ohne dass deine Daten zum Training verwendet werden.
+Deshalb veröffentliche ich heute den **Grünerator Chat**. Ein vollständiger KI-Chat — vergleichbar mit ChatGPT oder Claude — aber ausschließlich auf unseren europäischen Servern, ohne militärische Verträge, ohne Überwachung, ohne dass deine Daten zum Training verwendet werden.
 
 Was kann der Chat?
 

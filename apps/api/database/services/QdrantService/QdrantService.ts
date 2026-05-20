@@ -420,6 +420,13 @@ export class QdrantService {
     if (options.country) {
       filter.must!.push({ key: 'country', match: { value: options.country } });
     }
+    if (options.landesverband !== undefined) {
+      const lv = options.landesverband;
+      filter.must!.push({
+        key: 'landesverband',
+        match: typeof lv === 'string' ? { value: lv } : { any: [...lv] },
+      });
+    }
 
     return filter.must!.length > 0 ? filter : {};
   }
@@ -709,17 +716,13 @@ export class QdrantService {
     await this.ensureConnected();
 
     const filter = this._buildSocialMediaFilter(options);
+    const collection: string = options.collection ?? this.collections.social_media_examples;
 
-    const results = await this.operations!.searchWithQuality(
-      this.collections.social_media_examples,
-      queryVector,
-      filter,
-      {
-        limit: options.limit || 10,
-        threshold: options.threshold || 0.3,
-        withPayload: true,
-      }
-    );
+    const results = await this.operations!.searchWithQuality(collection, queryVector, filter, {
+      limit: options.limit || 10,
+      threshold: options.threshold || 0.3,
+      withPayload: true,
+    });
 
     return this._formatSearchResults(results, 'social') as SearchResponse<SocialMediaResult>;
   }
@@ -837,7 +840,7 @@ export class QdrantService {
     await this.ensureConnected();
     return getRandomSocial(
       this.client!,
-      this.collections.social_media_examples,
+      options.collection ?? this.collections.social_media_examples,
       options,
       buildSocialMediaFilter
     );

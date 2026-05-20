@@ -3,7 +3,7 @@
  * Handles custom generator CRUD, document linking, and saved generators
  */
 
-import express, { type Router, type Response, type NextFunction } from 'express';
+import express, { type Router, type Response } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../middleware/authMiddleware.js';
@@ -16,12 +16,6 @@ const { requireAuth: ensureAuthenticated } = authMiddlewareModule;
 const postgres = getPostgresInstance();
 
 const router: Router = express.Router();
-
-// Debug middleware for all custom generators routes
-router.use((req: AuthRequest, _res: Response, next: NextFunction): void => {
-  log.debug(`[User Custom Generators] ${req.method} ${req.originalUrl} - User ID: ${req.user?.id}`);
-  next();
-});
 
 // ============================================================================
 // Helper Functions

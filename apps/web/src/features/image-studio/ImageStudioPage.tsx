@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useCallback, useMemo, useState, useRef, lazy, Suspense } from 'react';
 import { HiArrowLeft } from 'react-icons/hi';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 
@@ -36,7 +36,11 @@ import useImageStudioStore from '../../stores/imageStudioStore';
 
 import ImageStudioCategorySelector from './components/ImageStudioCategorySelector';
 import ImageStudioTypeSelector from './components/ImageStudioTypeSelector';
-import TemplateStudioFlow from './flows/TemplateStudioFlow';
+// Lazy-loaded: TemplateStudioFlow transitively imports @gruenerator/canvas-editor,
+// whose side-effect CSS (canvas-editor.css) would otherwise land in the entry
+// chunk and render-block the landing page even for guests who never open the
+// image studio.
+const TemplateStudioFlow = lazy(() => import('./flows/TemplateStudioFlow'));
 import { useImageGeneration } from './hooks/useImageGeneration';
 import { useTemplateClone } from './hooks/useTemplateClone';
 import { type FormErrors, type UrlTypeMapKey } from './types/componentTypes';
@@ -107,6 +111,16 @@ const ImageStudioPageContent: React.FC = () => {
   const [_formErrors, setFormErrors] = useState<FormErrors>({});
   const cloneInitiatedRef = useRef(false);
 
+  // When opening a saved sharepic (gallery edit) or a cloned template, the
+  // store's currentStep is INPUT until loadGalleryEditData() resolves and
+  // flips it to CANVAS_EDIT. Without a gate, the InputStep paints for one
+  // frame before being replaced by the canvas — a visible flash. The lazy
+  // initializer ensures the spinner is rendered in the very first commit.
+  const [isHydratingExisting, setIsHydratingExisting] = useState<boolean>(() => {
+    const state = location.state as (GalleryEditLocationState & TemplateLocationState) | null;
+    return Boolean(state?.galleryEditMode || state?.templateMode);
+  });
+
   const typeConfig = useMemo(() => getTypeConfig(type || ''), [type]);
 
   useEffect(() => {
@@ -173,10 +187,13 @@ const ImageStudioPageContent: React.FC = () => {
         title: state.title,
       };
 
-      await loadGalleryEditData(editData);
-
-      // Clear location state to prevent reloading on refresh
-      window.history.replaceState({}, document.title);
+      try {
+        await loadGalleryEditData(editData);
+        // Clear location state to prevent reloading on refresh
+        window.history.replaceState({}, document.title);
+      } finally {
+        setIsHydratingExisting(false);
+      }
     };
 
     void loadGalleryEdit();
@@ -197,14 +214,18 @@ const ImageStudioPageContent: React.FC = () => {
         styling: state.styling,
       };
 
-      await loadGalleryEditData(editData);
+      try {
+        await loadGalleryEditData(editData);
 
-      // Store templateCreator for display in canvas editor
-      if (state.templateCreator) {
-        updateFormData({ templateCreator: state.templateCreator });
+        // Store templateCreator for display in canvas editor
+        if (state.templateCreator) {
+          updateFormData({ templateCreator: state.templateCreator });
+        }
+
+        window.history.replaceState({}, document.title);
+      } finally {
+        setIsHydratingExisting(false);
       }
-
-      window.history.replaceState({}, document.title);
     };
 
     void loadTemplateData();
@@ -590,6 +611,27 @@ const ImageStudioPageContent: React.FC = () => {
     );
   }
 
+  // Show loading state while hydrating an existing sharepic (gallery edit
+  // or template clone). Without this guard, InputStep paints for one frame
+  // before loadGalleryEditData() flips currentStep to CANVAS_EDIT.
+  if (isHydratingExisting) {
+    return (
+      <div
+        className="container"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '50vh',
+          gap: 'var(--spacing-medium)',
+        }}
+      >
+        <Spinner size="medium" />
+      </div>
+    );
+  }
+
   // Show error if template cloning failed (only when there's actually a template param)
   const hasTemplateParam = searchParams.get('template');
   if (cloneError && hasTemplateParam) {
@@ -616,7 +658,11 @@ const ImageStudioPageContent: React.FC = () => {
   const renderCurrentStep = () => {
     // Route all types (KI, templates with text gen, and pure canvas templates) through unified TemplateStudioFlow
     if (typeConfig?.usesFluxApi || typeConfig?.hasTextGeneration || typeConfig?.endpoints?.canvas) {
-      return <TemplateStudioFlow onBack={handleBack} />;
+      return (
+        <Suspense fallback={<Spinner />}>
+          <TemplateStudioFlow onBack={handleBack} />
+        </Suspense>
+      );
     }
 
     // Fallback for unsupported types

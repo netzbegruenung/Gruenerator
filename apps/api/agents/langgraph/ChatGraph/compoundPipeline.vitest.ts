@@ -65,7 +65,6 @@ function makeAgentConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
     systemRole: 'Du schreibst Pressemitteilungen für die Grünen.',
     model: 'mistral-small-latest',
     params: { max_tokens: 2048, temperature: 0.7 },
-    contextPrefix: '[Plattform: Pressemitteilung]',
     ...overrides,
   } as AgentConfig;
 }
@@ -97,6 +96,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     threadAttachments: [],
     notebookIds: ['hamburg-notebook'],
     notebookCollectionIds: ['hamburg'],
+    notebookDocumentIds: [],
     defaultNotebookCollectionIds: [],
     documentIds: [],
     documentChatIds: [],
@@ -104,6 +104,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     boardContext: null,
     docMentionIds: [],
     documentMentionContext: null,
+    currentDocument: null,
     customSystemPrompt: null,
     userInstructions: null,
     memoryContext: null,
@@ -120,6 +121,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     documentSubtype: null,
     hasTemporal: false,
     complexity: 'moderate' as const,
+    platform: null,
     needsClarification: false,
     clarificationQuestion: null,
     clarificationOptions: null,
@@ -129,6 +131,7 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     searchCount: 0,
     maxSearches: 2,
     researchBrief: null,
+    researchMeta: null,
     qualityScore: 0,
     qualityAssessmentTimeMs: 0,
     imagePrompt: null,
@@ -276,6 +279,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
     it('searches only in notebook-scoped collections', async () => {
       const state = makeState({
         notebookCollectionIds: ['hamburg'],
+        notebookDocumentIds: [],
         searchQuery: 'Klimapolitik',
         intent: 'search',
       });
@@ -289,6 +293,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
     it('returns results from the scoped collection', async () => {
       const state = makeState({
         notebookCollectionIds: ['hamburg'],
+        notebookDocumentIds: [],
         searchQuery: 'Klimapolitik',
         intent: 'search',
       });
@@ -334,6 +339,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         ],
         notebookIds: ['hamburg-notebook'],
         notebookCollectionIds: ['hamburg'],
+        notebookDocumentIds: [],
         agentConfig: makeAgentConfig(),
         aiWorkerPool,
       });
@@ -379,7 +385,6 @@ describe('Compound Pipeline: @notebook + @skill', () => {
 
       // Step 7: Verify agent config is preserved for response phase
       expect(searchedState.agentConfig.identifier).toBe('gruenerator-oeffentlichkeitsarbeit');
-      expect(searchedState.agentConfig.contextPrefix).toBe('[Plattform: Pressemitteilung]');
     });
 
     it('handles empty user text (@hamburg @presse with no topic)', async () => {
@@ -391,6 +396,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         messages: [{ role: 'user' as const, content: '' }],
         notebookIds: ['hamburg-notebook'],
         notebookCollectionIds: ['hamburg'],
+        notebookDocumentIds: [],
         agentConfig: makeAgentConfig(),
         aiWorkerPool,
         searchQuery: null,
@@ -426,6 +432,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         messages: [{ role: 'user' as const, content: 'Klimapolitik Hamburg' }],
         notebookIds: ['hamburg-notebook'],
         notebookCollectionIds: ['hamburg'],
+        notebookDocumentIds: [],
         agentConfig: makeUniversalAgentConfig(),
         aiWorkerPool: {
           processRequest: vi.fn().mockResolvedValue({
@@ -451,6 +458,7 @@ describe('Compound Pipeline: @notebook + @skill', () => {
         ],
         notebookIds: [],
         notebookCollectionIds: [],
+        notebookDocumentIds: [],
         agentConfig: makeAgentConfig(),
         aiWorkerPool: {
           processRequest: vi.fn().mockResolvedValue({

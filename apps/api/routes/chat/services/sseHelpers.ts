@@ -33,12 +33,14 @@ export type SSEEventType =
   | 'sharepic_complete'
   | 'response_start'
   | 'thinking_step'
+  | 'progress_step'
   | 'text_delta'
   | 'reasoning_delta'
   | 'fallback'
   | 'interrupt'
   | 'document_indexed'
   | 'document_created'
+  | 'trigger_doc_edit'
   | 'confirm_action'
   | 'chart_data'
   | 'memory_context'
@@ -84,6 +86,20 @@ export interface ThinkingStepPayload {
 }
 
 /**
+ * Payload for internal pipeline-progress events (classify, rerank, brief).
+ *
+ * Shape mirrors ThinkingStepPayload but the *semantics* differ:
+ * `thinking_step` is a user-facing tool call (search_examples, ask_human, …)
+ * that renders a tool-card and persists in `allToolCalls`.
+ * `progress_step` is a transient internal stage that drives ONLY the
+ * progress indicator — it must NOT mutate the active/persisted tool-call
+ * stream, or it clobbers the intent-derived tool-call between `intent`
+ * and `search_complete` (the race that made every search→rerank flow
+ * silently drop its rich tool-card).
+ */
+export type ProgressStepPayload = ThinkingStepPayload;
+
+/**
  * SSE event payloads by type.
  */
 export interface SSEEventPayloads {
@@ -107,6 +123,20 @@ export interface SSEEventPayloads {
     message: string;
     resultCount: number;
     results?: SearchResultPayload[];
+    /**
+     * For deep research: the rich orchestrator result (answer, citations,
+     * confidence, searchSteps, followUpQuestions). Frontend stamps this onto
+     * the research toolCall so ResearchArtifactCard renders during streaming
+     * without waiting for persistence reload.
+     */
+    researchMeta?: unknown;
+    /**
+     * For examples / pressemitteilung_examples: kind-segmented rich items
+     * matching the shapes the per-kind UI cards (PressemitteilungExamplesCard,
+     * generic ToolCallUI) read. Frontend stamps the appropriate kind list
+     * onto the tool-call's `result.examples` so the card renders mid-stream.
+     */
+    examplesResult?: { press?: unknown[]; social?: unknown[]; message?: string };
   };
   summary_start: { message: string; documentCount: number };
   summary_complete: { message: string; summaryLength: number; timeMs: number };
@@ -123,6 +153,7 @@ export interface SSEEventPayloads {
   };
   response_start: { message: string };
   thinking_step: ThinkingStepPayload;
+  progress_step: ProgressStepPayload;
   text_delta: { text: string };
   reasoning_delta: { text: string };
   fallback: {
@@ -132,6 +163,7 @@ export interface SSEEventPayloads {
   };
   document_indexed: { documentId: string; title: string };
   document_created: { documentId: string; title: string; subtype: string; url: string };
+  trigger_doc_edit: { targetDocumentId: string; userPrompt: string; useSelection: boolean };
   interrupt: {
     interruptType: 'clarification';
     question: string;
@@ -159,10 +191,15 @@ export interface SSEEventPayloads {
     chart: ChartData;
   };
   completion: {
-    answer: string;
+    type?: 'completion';
+    // Notebook flow emits `answer`; SearchGraph reuses this event with `text`.
+    // Both are read by the frontend GrueneratorModelAdapter / NotebookModelAdapter
+    // as the canonical, citation-renumbered final answer.
+    answer?: string;
+    text?: string;
     citations: unknown[];
-    sources: unknown[];
-    allSources: unknown[];
+    sources?: unknown[];
+    allSources?: unknown[];
     sourcesByCollection?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
   };
@@ -189,24 +226,38 @@ export interface SSEEventPayloads {
 }
 
 /**
- * German status messages for each intent type.
+ * Picks a random element — used to vary user-facing status copy per chat turn.
  */
-export const INTENT_MESSAGES: Record<SearchIntent, string> = {
-  research: 'Recherchiere im Web und in Dokumenten...',
-  search: 'Durchsuche Grüne Positionen und Programme...',
+function pickOne<T>(pool: readonly T[]): T {
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/**
+ * German status messages for each intent type. Each intent has a small pool of
+ * playful, on-brand phrases; `getIntentMessage` picks one per turn so the same
+ * intent feels fresh across messages. Register is mixed — cheeky for the
+ * fast/creative intents, calmer for research and document edits. Entries keep
+ * the trailing "..." progressive-action convention.
+ */
+export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
+  research: ['Recherchiere...', 'Grabe...', 'Sammle...'],
+  compare: ['Vergleiche...', 'Stelle gegenüber...', 'Prüfe...'],
+  search: ['Durchsuche...', 'Stöbere...', 'Wälze...'],
   // person: 'Suche Informationen zur Person...', // DISABLED: Person search not production ready
-  web: 'Suche aktuelle Informationen im Web...',
-  examples: 'Suche Social-Media-Beispiele...',
-  image: 'Generiere Bild...',
-  image_edit: 'Bearbeite Bild...',
-  sharepic: 'Erstelle Sharepic...',
-  summary: 'Fasse Dokument(e) zusammen...',
-  chart: 'Erstelle Diagramm...',
-  save_as_doc: 'Erstelle Dokument aus Antwort...',
-  modify_doc: 'Bearbeite Dokument...',
-  modify_board: 'Aktualisiere Board...',
-  share_doc: 'Teile Dokument mit Gruppe...',
-  direct: 'Beantworte direkt...',
+  web: ['Surfe...', 'Suche im Netz...', 'Recherchiere online...'],
+  examples: ['Krame...', 'Hole Beispiele...', 'Suche Inspiration...'],
+  pressemitteilung_examples: ['Suche Pressemitteilungen...', 'Blättere...', 'Hole Vorlagen...'],
+  image: ['Generiere...', 'Male...', 'Zeichne...'],
+  image_edit: ['Bearbeite...', 'Pinsele...', 'Retuschiere...'],
+  sharepic: ['Gestalte...', 'Baue...', 'Erstelle...'],
+  summary: ['Fasse zusammen...', 'Verdichte...', 'Bündele...'],
+  chart: ['Zeichne...', 'Plotte...', 'Erstelle...'],
+  save_as_doc: ['Speichere...', 'Sichere...', 'Archiviere...'],
+  modify_doc: ['Bearbeite...', 'Ändere...', 'Überarbeite...'],
+  edit_current_doc: ['Passe an...', 'Bearbeite...', 'Ändere...'],
+  modify_board: ['Aktualisiere...', 'Ergänze...', 'Pflege...'],
+  share_doc: ['Teile...', 'Sende...', 'Reiche weiter...'],
+  direct: ['Antworte...', 'Schreibe...', 'Formuliere...'],
 };
 
 /**
@@ -287,6 +338,13 @@ export class SSEWriter {
     if (this.ended) return;
     this.ended = true;
     this.res.end();
+    // @ts-rest/express's mainReqHandler unconditionally calls
+    // res.status(...).json(...) after our handler resolves, which throws
+    // ERR_HTTP_HEADERS_SENT once SSE headers are already flushed. Neutralise
+    // the response writers so the wrapper's trailing call is a no-op.
+    const noop = (): Response => this.res;
+    this.res.json = noop;
+    this.res.send = noop;
   }
 
   /**
@@ -298,10 +356,11 @@ export class SSEWriter {
 }
 
 /**
- * Get the German status message for an intent.
+ * Get a German status message for an intent — one phrase picked at random from
+ * the intent's pool, so the copy varies from one chat turn to the next.
  */
 export function getIntentMessage(intent: SearchIntent): string {
-  return INTENT_MESSAGES[intent] || 'Verarbeite Anfrage...';
+  return pickOne(INTENT_MESSAGE_POOLS[intent] ?? ['Verarbeite Anfrage...']);
 }
 
 /**

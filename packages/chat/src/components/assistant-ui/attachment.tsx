@@ -1,7 +1,7 @@
 'use client';
 
 import { PropsWithChildren, useEffect, useState, type FC } from 'react';
-import { XIcon, PlusIcon, FileText } from 'lucide-react';
+import { XIcon, PlusIcon, FileText, FileSearch, Cloud } from 'lucide-react';
 import {
   AttachmentPrimitive,
   ComposerPrimitive,
@@ -121,11 +121,57 @@ const AttachmentThumb: FC = () => {
   );
 };
 
+const GruenAttachmentChip: FC = () => {
+  const aui = useAui();
+  const isComposer = aui.attachment.source === 'composer';
+  const { name, contentType } = useAuiState(
+    useShallow((s) => ({
+      name: s.attachment.name,
+      contentType: s.attachment.contentType,
+    }))
+  );
+
+  const isCollab = contentType === 'application/x-gruenerator-collab-doc';
+  const isWolke = contentType === 'application/x-gruenerator-wolke';
+  const Icon = isWolke ? Cloud : isCollab ? FileText : FileSearch;
+  const variant = isWolke
+    ? 'bg-sky-500/10 text-sky-900 border-sky-500/30 dark:text-sky-100'
+    : isCollab
+      ? 'bg-cyan-500/10 text-cyan-900 border-cyan-500/30 dark:text-cyan-100'
+      : 'bg-primary/5 text-foreground border-primary/20';
+
+  return (
+    <AttachmentPrimitive.Root
+      className={cn(
+        'aui-attachment-root relative inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium max-w-[18rem]',
+        variant
+      )}
+    >
+      <Icon className="h-3 w-3 flex-shrink-0" />
+      <span className="truncate">{name}</span>
+      {isComposer && (
+        <AttachmentPrimitive.Remove asChild>
+          <button
+            type="button"
+            aria-label={`Erwähnung ${name} entfernen`}
+            className="flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center rounded-full opacity-60 transition-opacity hover:opacity-100"
+          >
+            <XIcon className="h-3 w-3" />
+          </button>
+        </AttachmentPrimitive.Remove>
+      )}
+    </AttachmentPrimitive.Root>
+  );
+};
+
 const AttachmentUI: FC = () => {
   const aui = useAui();
   const isComposer = aui.attachment.source === 'composer';
 
   const isImage = useAuiState((s) => s.attachment.type === 'image');
+  const isGruenMention = useAuiState((s) =>
+    (s.attachment.contentType ?? '').startsWith('application/x-gruenerator-')
+  );
   const typeLabel = useAuiState((s) => {
     const type = s.attachment.type;
     switch (type) {
@@ -139,6 +185,8 @@ const AttachmentUI: FC = () => {
         return 'File';
     }
   });
+
+  if (isGruenMention) return <GruenAttachmentChip />;
 
   return (
     <Tooltip>
@@ -196,7 +244,7 @@ export const UserMessageAttachments: FC = () => {
 
 export const ComposerAttachments: FC = () => {
   return (
-    <div className="aui-composer-attachments mb-2 flex w-full flex-row items-center gap-2 overflow-x-auto px-1.5 pt-0.5 pb-1 empty:hidden">
+    <div className="aui-composer-attachments mx-4 mt-3 mb-1 flex flex-row items-center gap-2 overflow-x-auto empty:hidden">
       <ComposerPrimitive.Attachments components={{ Attachment: AttachmentUI }} />
     </div>
   );

@@ -1,32 +1,29 @@
 /**
  * Simple Full Canvas Configuration
- * "Text auf Bild" - Headline + Subtext on background image
+ * "Text auf Bild" — headline + subtext on background image.
  *
- * Uses createImageTwoTextCanvas factory for shared infrastructure.
+ * Uses createImageTwoTextCanvas factory + Phase A/B helpers.
  */
 
-import { HiSparkles } from 'react-icons/hi';
-
-import { buildAssetCapability } from '../ai/assetCapability';
-import { createAiSectionRegistration } from '../ai/createAiSectionRegistration';
-import { createChatSection } from './commonSections';
-import { buildIllustrationCapability } from '../ai/illustrationCapability';
 import { SIMPLE_CONFIG, calculateSimpleLayout } from '../utils/simpleLayout';
 
-import { createImageTwoTextCanvas, type ImageTwoTextActions } from './factory';
+import {
+  createAiCapabilities,
+  createImageTwoTextCanvas,
+  createPrimaryText,
+  createSecondaryText,
+  wrapWithAi,
+  type ImageTwoTextActions,
+  type ImageTwoTextState,
+} from './factory';
 
-import type { TemplateAiCapabilities } from '../ai/types';
-import type { ImageTwoTextState } from './factory';
-import type { LayoutResult, TextElementConfig, RectElementConfig } from './types';
-import type { CanvasAiSnapshot } from '@gruenerator/contracts';
+import type { LayoutResult } from './types';
 
-// ============================================================================
-// LAYOUT CALCULATOR
-// ============================================================================
+type SimpleState = ImageTwoTextState<'headline' | 'subtext'>;
 
-const calculateLayout = (state: ImageTwoTextState): LayoutResult => {
-  const headline = (state.headline as string) || '';
-  const subtext = (state.subtext as string) || '';
+const calculateLayout = (state: SimpleState): LayoutResult => {
+  const headline = state.headline || '';
+  const subtext = state.subtext || '';
   const customHeadlineFontSize = state.customPrimaryFontSize ?? undefined;
   const customSubtextFontSize = state.customSecondaryFontSize ?? undefined;
 
@@ -53,172 +50,77 @@ const calculateLayout = (state: ImageTwoTextState): LayoutResult => {
   };
 };
 
-// ============================================================================
-// CUSTOM ELEMENTS
-// ============================================================================
-
-const headlineElement: TextElementConfig<ImageTwoTextState> = {
+const headlineElement = createPrimaryText<SimpleState>({
   id: 'headline-text',
-  type: 'text',
-  x: (_s, l) => (l['headline-text'] as { x?: number })?.x ?? SIMPLE_CONFIG.headline.x,
-  y: (_s, l) => (l['headline-text'] as { y?: number })?.y ?? SIMPLE_CONFIG.headline.y,
-  order: 2,
   textKey: 'headline',
+  order: 2,
   width: SIMPLE_CONFIG.headline.maxWidth,
-  fontSize: (_s, l) =>
-    (l['headline-text'] as { fontSize?: number })?.fontSize ?? SIMPLE_CONFIG.headline.fontSize,
-  fontFamily: `${SIMPLE_CONFIG.headline.fontFamily}, Arial, sans-serif`,
+  fontFamily: SIMPLE_CONFIG.headline.fontFamily,
   fontStyle: SIMPLE_CONFIG.headline.fontStyle,
-  align: 'left',
   lineHeight: SIMPLE_CONFIG.headline.lineHeightRatio,
-  wrap: 'word',
-  editable: true,
-  draggable: true,
-  fontSizeStateKey: 'customPrimaryFontSize',
-  opacityStateKey: 'primaryOpacity',
-  fill: (state) => (state.primaryColor as string) ?? SIMPLE_CONFIG.headline.color,
-  fillStateKey: 'primaryColor',
-};
+  defaultColor: SIMPLE_CONFIG.headline.color,
+  layoutFallback: {
+    x: SIMPLE_CONFIG.headline.x,
+    y: SIMPLE_CONFIG.headline.y,
+    fontSize: SIMPLE_CONFIG.headline.fontSize,
+  },
+});
 
-const subtextElement: TextElementConfig<ImageTwoTextState> = {
+const subtextElement = createSecondaryText<SimpleState>({
   id: 'subtext-text',
-  type: 'text',
-  x: (_s, l) => (l['subtext-text'] as { x?: number })?.x ?? SIMPLE_CONFIG.subtext.x,
-  y: (_s, l) => (l['subtext-text'] as { y?: number })?.y ?? 200,
-  order: 3,
   textKey: 'subtext',
+  order: 3,
   width: SIMPLE_CONFIG.subtext.maxWidth,
-  fontSize: (_s, l) =>
-    (l['subtext-text'] as { fontSize?: number })?.fontSize ?? SIMPLE_CONFIG.subtext.fontSize,
-  fontFamily: `${SIMPLE_CONFIG.subtext.fontFamily}, Arial, sans-serif`,
+  fontFamily: SIMPLE_CONFIG.subtext.fontFamily,
   fontStyle: SIMPLE_CONFIG.subtext.fontStyle,
-  align: 'left',
   lineHeight: SIMPLE_CONFIG.subtext.lineHeightRatio,
-  wrap: 'word',
-  editable: true,
-  draggable: true,
-  fontSizeStateKey: 'customSecondaryFontSize',
-  opacityStateKey: 'secondaryOpacity',
-  fill: (state) => (state.secondaryColor as string) ?? SIMPLE_CONFIG.subtext.color,
-  fillStateKey: 'secondaryColor',
-};
-
-const gradientOverlay: RectElementConfig<ImageTwoTextState> = {
-  id: 'gradient-overlay',
-  type: 'rect',
-  x: 0,
-  y: 0,
-  order: 1,
-  width: SIMPLE_CONFIG.canvas.width,
-  height: SIMPLE_CONFIG.canvas.height,
-  fill: 'rgba(0,0,0,0.3)',
-  listening: false,
-};
-
-// ============================================================================
-// CONFIG EXPORT
-// ============================================================================
+  defaultColor: SIMPLE_CONFIG.subtext.color,
+  layoutFallback: {
+    x: SIMPLE_CONFIG.subtext.x,
+    y: 200,
+    fontSize: SIMPLE_CONFIG.subtext.fontSize,
+  },
+});
 
 const baseSimpleConfig = createImageTwoTextCanvas({
   id: 'simple',
-
   canvas: {
     width: SIMPLE_CONFIG.canvas.width,
     height: SIMPLE_CONFIG.canvas.height,
   },
-
-  primaryField: {
-    key: 'headline',
-    label: 'Überschrift',
-  },
-
-  secondaryField: {
-    key: 'subtext',
-    label: 'Unterzeile',
-  },
-
+  primaryField: { key: 'headline', label: 'Überschrift' },
+  secondaryField: { key: 'subtext', label: 'Unterzeile' },
   calculateLayout,
-
-  elements: [gradientOverlay, headlineElement, subtextElement],
-
-  features: {
-    icons: true,
-    shapes: true,
-    illustrations: true,
-  },
-
+  elements: [headlineElement, subtextElement],
+  features: { icons: true, shapes: true, illustrations: true },
+  gradientOpacity: 0.3,
   getCanvasText: (state) => {
-    const headline = (state.headline as string) || '';
-    const subtext = (state.subtext as string) || '';
+    const headline = state.headline || '';
+    const subtext = state.subtext || '';
     return `${headline}\n${subtext}`.trim();
   },
 });
 
-// ============================================================================
-// AI CAPABILITY
-// ============================================================================
-
-const simpleAiCapabilities: TemplateAiCapabilities<ImageTwoTextState, ImageTwoTextActions> = {
-  supportedOperations: [
-    'set-text',
-    'add-illustration',
-    'add-asset',
-    'update-element',
-    'remove-element',
-  ],
-
-  illustrations: buildIllustrationCapability(),
-  assets: buildAssetCapability('simple'),
-
-  describeForAi: (state): CanvasAiSnapshot => ({
-    template: 'simple',
-    textFields: [
-      { field: 'headline', label: 'Überschrift', value: (state.headline as string) || '' },
-      { field: 'subtext', label: 'Unterzeile', value: (state.subtext as string) || '' },
-    ],
-    elementsSummary: [],
-  }),
-
-  applyOverrides: {
-    'set-text': (op, actions) => {
-      // Simple's two text fields go through setPrimary/setSecondary on the
-      // factory-built actions. Default applier handles this, but we override
-      // so we can validate the field name explicitly.
-      if (op.field === 'headline') {
-        actions.setPrimary?.(op.value);
-        return;
-      }
-      if (op.field === 'subtext') {
-        actions.setSecondary?.(op.value);
-        return;
-      }
-      throw new Error(`Simple template hat kein Feld "${op.field}"`);
+const simpleAiCapabilities = createAiCapabilities<SimpleState, ImageTwoTextActions>({
+  id: 'simple',
+  errorLabel: 'Simple',
+  fields: [
+    {
+      field: 'headline',
+      label: 'Überschrift',
+      read: (s) => s.headline || '',
+      setter: (a) => a.setPrimary,
     },
-  },
-};
-
-// ============================================================================
-// FINAL CONFIG (factory result + AI overlay)
-// ============================================================================
-
-export const simpleFullConfig = {
-  ...baseSimpleConfig,
-  ai: simpleAiCapabilities,
-  tabs: [
-    ...baseSimpleConfig.tabs,
-    { id: 'ai' as const, icon: HiSparkles, label: 'KI', ariaLabel: 'KI-Vorschläge' },
+    {
+      field: 'subtext',
+      label: 'Unterzeile',
+      read: (s) => s.subtext || '',
+      setter: (a) => a.setSecondary,
+    },
   ],
-  // 'ai' tab kept registered but hidden — Chat tab now drives canvas-AI suggestions.
-  getVisibleTabs: (state: ImageTwoTextState, context?: { selectedElement?: string | null }) => {
-    return baseSimpleConfig.getVisibleTabs?.(state, context) ?? [];
-  },
-  sections: {
-    ...baseSimpleConfig.sections,
-    ai: createAiSectionRegistration('simple', simpleAiCapabilities),
-    chat: createChatSection('simple', simpleAiCapabilities),
-  },
-};
+});
 
-// Re-export types for backward compatibility
-export type SimpleFullState = ImageTwoTextState;
+export const simpleFullConfig = wrapWithAi(baseSimpleConfig, 'simple', simpleAiCapabilities);
+
+export type SimpleFullState = SimpleState;
 export type { ImageTwoTextActions as SimpleFullActions } from './factory';

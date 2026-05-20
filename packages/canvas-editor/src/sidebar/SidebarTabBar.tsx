@@ -118,7 +118,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
   return (
     <div
       className={cn(
-        'sidebar-tab-bar flex flex-col items-center justify-center gap-sm shrink-0 w-16 h-full bg-background shadow-[4px_0_12px_rgba(0,0,0,0.08)]',
+        'sidebar-tab-bar flex flex-col items-center justify-center gap-sm shrink-0 w-16 h-full bg-background',
         isHorizontal && 'flex-row'
       )}
     >

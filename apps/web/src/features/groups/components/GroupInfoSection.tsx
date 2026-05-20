@@ -1,3 +1,5 @@
+import { type GroupContentType } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { getRobotAvatarPath, validateRobotId } from '@gruenerator/shared/avatar';
 import {
   Badge,
@@ -27,18 +29,28 @@ import {
   HiOutlineLink,
   HiOutlinePhotograph,
   HiOutlineTrash,
+  HiOutlineUserGroup,
+  HiOutlineGlobeAlt,
   HiPencil,
   HiCheck,
   HiX,
 } from 'react-icons/hi';
 import { PiSquaresFour } from 'react-icons/pi';
+import { useNavigate } from 'react-router-dom';
 
-import apiClient from '../../../components/utils/apiClient';
-import { useGroupMembers, getGroupInitials, type GroupLink } from '../hooks/useGroups';
+import { type GroupAudience } from '../hooks/useGroupRequests';
+import {
+  useCloneCanvasTemplate,
+  useGroupMembers,
+  getGroupInitials,
+  type GroupLink,
+} from '../hooks/useGroups';
 
 import AddContentToGroupModal from './AddContentToGroupModal';
+import GroupJoinRequestsSection from './GroupJoinRequestsSection';
 import GroupLinksSection from './GroupLinksSection';
 import GroupMembersList from './GroupMembersList';
+import GroupVisibilityDialog from './GroupVisibilityDialog';
 
 export interface GroupInfo {
   id?: string;
@@ -47,6 +59,8 @@ export interface GroupInfo {
   created_by?: string;
   avatar_url?: string | null;
   links?: GroupLink[];
+  is_public?: boolean;
+  audience?: GroupAudience;
 }
 
 export interface GroupData {
@@ -68,15 +82,18 @@ export interface SharedItem {
   shared_at?: string;
   shared_by_name?: string;
   contentType?: string;
+  thumbnail_url?: string | null;
 }
 
 export interface SharedContent {
   collabDocs: SharedItem[];
   boards: SharedItem[];
+  canvases: SharedItem[];
   documents: SharedItem[];
   generators: SharedItem[];
   notebooks: SharedItem[];
   texts: SharedItem[];
+  canvasTemplates: SharedItem[];
 }
 
 interface GroupInfoSectionProps {
@@ -114,6 +131,8 @@ interface GroupInfoSectionProps {
   onDeleteLink?: (linkId: string) => void;
   isAddingLink?: boolean;
   isUpdatingLink?: boolean;
+  onSuccessMessage?: (msg: string) => void;
+  onErrorMessage?: (msg: string) => void;
 }
 
 const GroupInfoSection = memo(
@@ -152,10 +171,31 @@ const GroupInfoSection = memo(
     onDeleteLink,
     isAddingLink,
     isUpdatingLink,
+    onSuccessMessage,
+    onErrorMessage,
   }: GroupInfoSectionProps) => {
+    const navigate = useNavigate();
     const { members, isLoadingMembers } = useGroupMembers(groupId, { isActive: true });
     const [membersPopoverOpen, setMembersPopoverOpen] = useState(false);
+    const [membersDialogOpen, setMembersDialogOpen] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showVisibilityDialog, setShowVisibilityDialog] = useState(false);
+    const cloneTemplate = useCloneCanvasTemplate();
+
+    const handleCloneTemplate = useCallback(
+      (templateId: string) => {
+        if (cloneTemplate.isPending) return;
+        cloneTemplate.mutate(templateId, {
+          onSuccess: ({ newCanvasId }) => {
+            if (newCanvasId) void navigate(`/studio/canvas/${newCanvasId}`);
+          },
+          onError: (err) => {
+            console.error('[GroupInfoSection] Failed to clone Vorlage:', err);
+          },
+        });
+      },
+      [cloneTemplate, navigate]
+    );
     const [showAddContent, setShowAddContent] = useState(false);
     const popoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const memberActionOpenRef = useRef(false);
@@ -245,11 +285,15 @@ const GroupInfoSection = memo(
           targetGroupId: string;
         }
       ) => {
-        await apiClient.post(`/auth/groups/${options.targetGroupId}/share`, {
-          contentType,
-          contentId: itemId,
-          permissions: options.permissions,
+        const res = await getContractsClient().groups.shareContent({
+          params: { groupId: options.targetGroupId },
+          body: {
+            contentType: contentType as GroupContentType,
+            contentId: String(itemId),
+            permissions: options.permissions,
+          },
         });
+        if (res.status !== 200) throw new Error('share failed');
       },
       []
     );
@@ -261,7 +305,7 @@ const GroupInfoSection = memo(
             <Popover open={membersPopoverOpen} onOpenChange={handleMembersPopoverOpenChange}>
               <PopoverTrigger asChild>
                 <button
-                  className="inline-flex items-center -space-x-1.5 cursor-pointer"
+                  className="hidden sm:inline-flex items-center -space-x-1.5 cursor-pointer"
                   onMouseEnter={handleMembersMouseEnter}
                   onMouseLeave={handleMembersMouseLeave}
                 >
@@ -337,6 +381,10 @@ const GroupInfoSection = memo(
                       {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem onClick={() => setShowVisibilityDialog(true)}>
+                    <HiOutlineGlobeAlt className="size-4 mr-xs" />
+                    {data?.groupInfo?.is_public ? 'Öffentlich (verwalten)' : 'Öffentlich machen'}
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => setShowDeleteConfirm(true)}
@@ -453,10 +501,31 @@ const GroupInfoSection = memo(
                       ? 'Verwalte Mitglieder und geteilte Inhalte.'
                       : 'Du bist Mitglied dieser Gruppe.')}
                 </p>
+                {!isLoadingMembers && (
+                  <button
+                    type="button"
+                    onClick={() => setMembersDialogOpen(true)}
+                    className="sm:hidden mt-sm self-start inline-flex items-center gap-1.5 rounded-full bg-grey-100 dark:bg-grey-800 px-sm py-xs text-xs font-medium text-foreground hover:bg-grey-200 dark:hover:bg-grey-700 transition-colors"
+                  >
+                    <HiOutlineUserGroup className="size-3.5" aria-hidden="true" />
+                    <span>
+                      {memberCount} {memberCount === 1 ? 'Mitglied' : 'Mitglieder'}
+                    </span>
+                  </button>
+                )}
               </div>
             )}
           </div>
         </div>
+
+        {data?.isAdmin && (
+          <GroupJoinRequestsSection
+            groupId={groupId}
+            isAdmin={!!data?.isAdmin}
+            onSuccessMessage={onSuccessMessage ?? (() => {})}
+            onErrorMessage={onErrorMessage ?? (() => {})}
+          />
+        )}
 
         <div>
           <SectionHeader
@@ -471,6 +540,8 @@ const GroupInfoSection = memo(
               contentType: string;
               icon: typeof HiOutlineDocumentText;
               getLink?: (item: SharedItem) => string;
+              variant?: 'thumbnail';
+              cloneOnOpen?: boolean;
             }[] = [
               {
                 label: 'Docs',
@@ -485,6 +556,22 @@ const GroupInfoSection = memo(
                 contentType: 'collaborative_documents',
                 icon: PiSquaresFour,
                 getLink: (item) => `/boards/${item.id}`,
+              },
+              {
+                label: 'Sharepics',
+                items: sharedContent.canvases,
+                contentType: 'collaborative_documents',
+                icon: HiOutlinePhotograph,
+                getLink: (item) => `/studio/canvas/${item.id}`,
+                variant: 'thumbnail',
+              },
+              {
+                label: 'Sharepic-Vorlagen',
+                items: sharedContent.canvasTemplates,
+                contentType: 'canvas_template',
+                icon: HiOutlinePhotograph,
+                variant: 'thumbnail',
+                cloneOnOpen: true,
               },
               {
                 label: 'Grüneratoren',
@@ -546,6 +633,7 @@ const GroupInfoSection = memo(
                 {sections.map((section) => {
                   if (section.items.length === 0) return null;
                   const ContentIcon = section.icon;
+                  const isThumbnailVariant = section.variant === 'thumbnail';
                   return (
                     <div key={section.label}>
                       <SectionHeader size="sm" title={section.label} />
@@ -553,6 +641,86 @@ const GroupInfoSection = memo(
                         {section.items.map((item) => {
                           const title = item.title || item.name || 'Ohne Titel';
                           const href = section.getLink?.(item);
+
+                          if (isThumbnailVariant) {
+                            const thumbnailUrl = item.thumbnail_url ?? null;
+                            const isCloningThis =
+                              cloneTemplate.isPending &&
+                              cloneTemplate.variables === String(item.id);
+                            const isCloning = isCloningThis;
+                            const cardInner = (
+                              <>
+                                <div className="aspect-[4/3] bg-grey-100 dark:bg-grey-800 flex items-center justify-center overflow-hidden">
+                                  {thumbnailUrl ? (
+                                    <img
+                                      src={thumbnailUrl}
+                                      alt={title}
+                                      loading="lazy"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <ContentIcon className="size-8 text-grey-400" />
+                                  )}
+                                </div>
+                                <div className="p-sm">
+                                  <p className="text-sm font-medium text-foreground truncate m-0">
+                                    {title}
+                                  </p>
+                                  {item.shared_by_name && (
+                                    <p className="text-xs text-grey-500 truncate mt-xxs m-0">
+                                      Geteilt von {item.shared_by_name}
+                                    </p>
+                                  )}
+                                  {section.cloneOnOpen && (
+                                    <p className="text-[10px] text-primary-600 mt-xxs m-0">
+                                      {isCloning
+                                        ? 'Vorlage wird geöffnet...'
+                                        : 'Klicken um Kopie zu erstellen'}
+                                    </p>
+                                  )}
+                                </div>
+                              </>
+                            );
+                            return (
+                              <div
+                                key={item.id}
+                                className="group relative flex flex-col rounded-md border border-grey-200 dark:border-grey-700 bg-background overflow-hidden transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-grey-300 dark:hover:border-grey-600"
+                              >
+                                {section.cloneOnOpen ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCloneTemplate(String(item.id))}
+                                    disabled={cloneTemplate.isPending}
+                                    className="flex flex-col text-left bg-transparent border-none p-0 m-0 cursor-pointer text-foreground disabled:opacity-60 disabled:cursor-wait"
+                                  >
+                                    {cardInner}
+                                  </button>
+                                ) : href ? (
+                                  <a
+                                    href={href}
+                                    className="flex flex-col no-underline text-foreground"
+                                  >
+                                    {cardInner}
+                                  </a>
+                                ) : (
+                                  <div className="flex flex-col">{cardInner}</div>
+                                )}
+                                {data?.isAdmin && onUnshareContent && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onUnshareContent(String(item.id), section.contentType)
+                                    }
+                                    className="absolute top-1 right-1 p-1 text-grey-400 hover:text-red-500 bg-background/80 dark:bg-background/80 backdrop-blur-sm transition-colors border-none cursor-pointer rounded opacity-0 group-hover:opacity-100"
+                                    aria-label="Aus Gruppe entfernen"
+                                  >
+                                    <HiOutlineTrash size={16} />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          }
+
                           const content = (
                             <>
                               <ContentIcon className="size-5 text-primary-600 dark:text-primary-400 shrink-0" />
@@ -624,6 +792,18 @@ const GroupInfoSection = memo(
           />
         )}
 
+        {data?.isAdmin && (
+          <GroupVisibilityDialog
+            groupId={groupId}
+            isOpen={showVisibilityDialog}
+            onClose={() => setShowVisibilityDialog(false)}
+            currentIsPublic={data?.groupInfo?.is_public ?? false}
+            currentAudience={(data?.groupInfo?.audience as GroupAudience) ?? 'all'}
+            onSuccessMessage={onSuccessMessage ?? (() => {})}
+            onErrorMessage={onErrorMessage ?? (() => {})}
+          />
+        )}
+
         <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
           <DialogContent className="sm:max-w-[24rem]">
             <DialogHeader>
@@ -648,6 +828,24 @@ const GroupInfoSection = memo(
                 Endgültig löschen
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={membersDialogOpen} onOpenChange={setMembersDialogOpen}>
+          <DialogContent className="max-w-md p-md">
+            <DialogHeader>
+              <DialogTitle>Mitglieder{!isLoadingMembers ? ` (${memberCount})` : ''}</DialogTitle>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto">
+              <GroupMembersList
+                groupId={groupId}
+                isActive={membersDialogOpen}
+                hideHeader
+                isCurrentUserAdmin={data?.isAdmin}
+                currentUserId={currentUserId}
+                createdBy={data?.groupInfo?.created_by}
+              />
+            </div>
           </DialogContent>
         </Dialog>
       </>

@@ -2,6 +2,13 @@ import { createApiClient, setGlobalApiClient } from '@gruenerator/shared/api';
 import { type AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 import axios from 'axios';
 
+import {
+  ALL_AUTH_LOCAL_KEYS,
+  INSTANT_AUTH_CACHE,
+  LOGOUT_TIMESTAMP,
+  REDIRECT_TIMESTAMPS,
+} from '../../features/auth/storageKeys';
+import { captureAuthIssue } from '../../lib/observability/captureAuthIssue';
 import { buildLoginUrl, isPublicPage } from '../../utils/authRedirect';
 import { getDesktopToken } from '../../utils/desktopAuth';
 import { isDesktopApp } from '../../utils/platform';
@@ -81,15 +88,16 @@ async function isSessionStillAlive(): Promise<boolean> {
 
   probeInFlight = (async (): Promise<boolean> => {
     try {
-      // Use raw axios — going through `apiClient` would re-enter the
-      // interceptor and infinite-loop. `skipAuthRedirect` wouldn't
-      // help here because the probe IS the redirect check.
-      const response = await axios.get(`${baseURL}/auth/status`, {
+      // Hit Better Auth's native session endpoint directly. Going through
+      // `apiClient` would re-enter the interceptor and infinite-loop;
+      // `authClient.getSession()` is a peer of `apiClient` so it doesn't
+      // share the interceptor chain.
+      const response = await axios.get(`${baseURL}/auth/v2/get-session`, {
         withCredentials: useCredentials,
         timeout: 10_000,
       });
-      const data = response.data as { isAuthenticated?: boolean } | undefined;
-      const alive = data?.isAuthenticated === true;
+      const data = response.data as { user?: unknown } | null | undefined;
+      const alive = data != null && data.user != null;
       lastProbe = { timestamp: Date.now(), isAuthenticated: alive };
       return alive;
     } catch {
@@ -118,7 +126,154 @@ async function shouldRedirectOn401(): Promise<boolean> {
   return !alive;
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Dead-session cache reconciliation + anti-loop circuit breaker
+// ─────────────────────────────────────────────────────────────────────
+//
+// Background: backend-detected dead sessions used to leave the frontend's
+// `localStorage['authState']` instant-auth cache claiming the user was
+// authenticated. After `performLoginRedirect()` triggered a full-page
+// navigation to /login, the next mount read that stale cache and `GuestRoute`
+// bounced the user straight back to /workplace — where the next API call
+// 401'd again. Infinite loop.
+//
+// Two defenses are applied here, in order:
+//   1. Before redirecting, wipe the caches AND set `LOGOUT_TIMESTAMP` so
+//      `isRecentlyLoggedOut()` in useAuth.ts kicks in on the next mount.
+//      Mirrors what `authStore.clearAuth()` does, but without importing
+//      authStore (circular dep — apiClient is imported by authStore).
+//   2. Circuit breaker: if we somehow redirect 3+ times within 10 seconds
+//      (any future regression that bypasses #1), force-clear ALL auth state
+//      and replace the URL with a bare /login — no redirectTo, so the user
+//      can't get bounced back. Counter lives in sessionStorage so it
+//      survives the full-page reload that the redirect triggers.
+
+const CIRCUIT_BREAKER_WINDOW_MS = 10_000;
+const CIRCUIT_BREAKER_THRESHOLD = 3;
+
+function readRedirectTimestamps(): number[] {
+  try {
+    const raw = sessionStorage.getItem(REDIRECT_TIMESTAMPS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((n): n is number => typeof n === 'number');
+  } catch {
+    return [];
+  }
+}
+
+function writeRedirectTimestamps(timestamps: number[]): void {
+  try {
+    sessionStorage.setItem(REDIRECT_TIMESTAMPS, JSON.stringify(timestamps));
+  } catch {
+    // Quota exceeded or sessionStorage disabled — non-fatal.
+  }
+}
+
+function clearRedirectTimestamps(): void {
+  try {
+    sessionStorage.removeItem(REDIRECT_TIMESTAMPS);
+  } catch {
+    // Non-fatal.
+  }
+}
+
+/**
+ * Called by useAuth when `/auth/status` confirms authentication. Resets the
+ * circuit-breaker counter so a future *legitimate* session expiry doesn't
+ * trip the breaker because of an old loop's leftover timestamps. Without
+ * this, a user who recovered from one bad day could find the breaker
+ * pre-armed the next time their cookie expires.
+ */
+export const notifyAuthConfirmed = (): void => {
+  clearRedirectTimestamps();
+};
+
+/**
+ * Wipe every localStorage key that could hint at "user is authenticated"
+ * plus the React Query authStatus entry. Used before any backend-driven
+ * redirect to /login so the next page load can't re-seed a stale true.
+ */
+function wipeAllAuthCaches(): void {
+  for (const key of ALL_AUTH_LOCAL_KEYS) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // Non-fatal — quota or storage-disabled.
+    }
+  }
+  // Bust the React Query authStatus cache if a queryClient was pinned on
+  // window (see App bootstrap). Avoids importing the QueryClient instance
+  // directly, which would create a layering tangle.
+  const win = window as typeof window & {
+    queryClient?: { removeQueries: (opts: { queryKey: string[] }) => void };
+  };
+  try {
+    win.queryClient?.removeQueries({ queryKey: ['authStatus'] });
+  } catch {
+    // Non-fatal.
+  }
+}
+
+/**
+ * Pre-redirect cache reconciliation for the BACKEND-DETECTED dead-session
+ * path. Mirrors authStore.clearAuth() side effects without the circular
+ * import. Specifically:
+ *   - Removes the instant-auth cache so useInstantAuth can't synchronously
+ *     re-seed isAuthenticated:true on the next mount.
+ *   - Sets LOGOUT_TIMESTAMP so isRecentlyLoggedOut() returns true on the
+ *     next page load — useAuth then takes its already-tested "recently
+ *     logged out" branch and skips the auto-reauth machinery.
+ */
+function markBackendDeadSession(): void {
+  try {
+    localStorage.removeItem(INSTANT_AUTH_CACHE);
+  } catch {
+    // Non-fatal.
+  }
+  try {
+    localStorage.setItem(LOGOUT_TIMESTAMP, Date.now().toString());
+  } catch {
+    // Non-fatal.
+  }
+}
+
 function performLoginRedirect(): void {
+  const now = Date.now();
+  const recent = readRedirectTimestamps()
+    .filter((ts) => now - ts < CIRCUIT_BREAKER_WINDOW_MS)
+    .concat(now);
+  writeRedirectTimestamps(recent);
+
+  // Always wipe the instant-auth cache + set the cooldown marker before
+  // navigating. This is the load-bearing fix: without it, the next /login
+  // mount reads stale "isAuthenticated:true" from cache and bounces back.
+  markBackendDeadSession();
+
+  if (recent.length >= CIRCUIT_BREAKER_THRESHOLD) {
+    // We've redirected three or more times in 10s — something downstream
+    // is still treating the user as authenticated. Last-resort defense:
+    // nuke EVERYTHING auth-related and land on a clean /login with no
+    // redirectTo, so even if the store is still confused it can't bounce
+    // the user anywhere else. Reset the counter so a future legitimate
+    // redirect isn't pre-tripped.
+    console.warn(
+      '[apiClient] Auth-redirect circuit breaker tripped — wiping all auth state and forcing clean /login'
+    );
+    captureAuthIssue({
+      stage: 'redirect-loop',
+      cause: new Error(
+        `Auth-redirect circuit breaker tripped: ${recent.length} redirects in ${CIRCUIT_BREAKER_WINDOW_MS}ms`
+      ),
+      extras: { redirectCount: recent.length, windowMs: CIRCUIT_BREAKER_WINDOW_MS },
+    });
+    wipeAllAuthCaches();
+    clearRedirectTimestamps();
+    window.location.replace('/login');
+    return;
+  }
+
   const currentPath = window.location.pathname + window.location.search;
   window.location.href = buildLoginUrl(currentPath);
 }

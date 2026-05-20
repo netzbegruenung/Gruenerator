@@ -91,7 +91,4 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 // because expo's internal module resolution needs to walk up from
 // node_modules/expo/ to find sibling packages at the monorepo root.
 
-// NOTE: Do NOT wrap with withSentryConfig() — it breaks 'use dom' components.
-// Sentry's resolver wrapper drops the 4th parameter (oldMetroModuleName) when calling
-// context.resolveRequest(), which breaks Expo's DOM path calculation.
 module.exports = config;

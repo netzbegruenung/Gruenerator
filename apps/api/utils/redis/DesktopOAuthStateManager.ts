@@ -9,11 +9,14 @@ import * as dotenv from 'dotenv';
 import * as redis from 'redis';
 
 import { env } from '../../config/env.js';
+import { createLogger } from '../logger.js';
 
 import type { DesktopOAuthStateData } from './types.js';
 import type { RedisClientType } from 'redis';
 
 dotenv.config({ quiet: true });
+
+const log = createLogger('DesktopOAuth');
 
 const DEFAULT_TTL_SECONDS = 600; // 10 minutes
 
@@ -23,6 +26,7 @@ const DEFAULT_TTL_SECONDS = 600; // 10 minutes
 class DesktopOAuthStateManager {
   private client: RedisClientType | null = null;
   private isConnected: boolean = false;
+  private hasEverConnected: boolean = false;
   private initPromise: Promise<void>;
 
   constructor() {
@@ -32,9 +36,7 @@ class DesktopOAuthStateManager {
   private async init(): Promise<void> {
     try {
       if (!env.REDIS_URL) {
-        console.warn(
-          '[Redis DesktopOAuth] No REDIS_URL configured - Desktop OAuth state will fail'
-        );
+        log.warn('No REDIS_URL configured - Desktop OAuth state will fail');
         return;
       }
 
@@ -43,7 +45,7 @@ class DesktopOAuthStateManager {
         socket: {
           reconnectStrategy: (retries: number) => {
             if (retries > 10) {
-              console.error('[Redis DesktopOAuth] Too many retry attempts');
+              log.error('Too many retry attempts');
               return new Error('Too many retry attempts');
             }
             return Math.min(retries * 100, 3000);
@@ -52,28 +54,35 @@ class DesktopOAuthStateManager {
       });
 
       this.client.on('error', (err: Error) => {
-        console.error('[Redis DesktopOAuth] Connection error:', err.message);
+        // Initial connect race: error fires before reconnectStrategy succeeds.
+        // Only surface as error after we've actually been connected at least once.
+        if (this.hasEverConnected) {
+          log.error('Connection error:', err.message);
+        } else {
+          log.debug(`Initial connect attempt failed (will retry): ${err.message}`);
+        }
         this.isConnected = false;
       });
 
       this.client.on('connect', () => {
-        console.log('[Redis DesktopOAuth] Connected to Redis server');
+        log.debug('Connected to Redis server');
         this.isConnected = true;
+        this.hasEverConnected = true;
       });
 
       this.client.on('ready', () => {
-        console.log('[Redis DesktopOAuth] Redis client ready');
+        log.debug('Redis client ready');
         this.isConnected = true;
       });
 
       this.client.on('end', () => {
-        console.log('[Redis DesktopOAuth] Redis connection ended');
+        log.debug('Redis connection ended');
         this.isConnected = false;
       });
 
       await this.client.connect();
     } catch (error) {
-      console.error('[Redis DesktopOAuth] Failed to initialize Redis:', (error as Error).message);
+      log.error('Failed to initialize Redis:', (error as Error).message);
       this.isConnected = false;
     }
   }
@@ -111,7 +120,7 @@ class DesktopOAuthStateManager {
       await this.initPromise;
 
       if (!this.isConnected || !this.client) {
-        console.warn('[Redis DesktopOAuth] Redis not available for storing state');
+        log.warn('Redis not available for storing state');
         return false;
       }
 
@@ -128,7 +137,7 @@ class DesktopOAuthStateManager {
 
       await this.client.setEx(key, ttlSeconds, JSON.stringify(stateData));
 
-      console.log('[Redis DesktopOAuth] PKCE state stored', {
+      log.debug('PKCE state stored', {
         stateId: stateId.substring(0, 12) + '...',
         challengePrefix: codeChallenge.substring(0, 8) + '...',
         ttl: ttlSeconds,
@@ -136,7 +145,7 @@ class DesktopOAuthStateManager {
 
       return true;
     } catch (error) {
-      console.error('[Redis DesktopOAuth] Error storing PKCE state:', (error as Error).message);
+      log.error('Error storing PKCE state:', (error as Error).message);
       return false;
     }
   }
@@ -151,7 +160,7 @@ class DesktopOAuthStateManager {
       await this.initPromise;
 
       if (!this.isConnected || !this.client) {
-        console.warn('[Redis DesktopOAuth] Redis not available for retrieving state');
+        log.warn('Redis not available for retrieving state');
         return null;
       }
 
@@ -159,7 +168,7 @@ class DesktopOAuthStateManager {
       const dataString = await this.client.get(key);
 
       if (!dataString || typeof dataString !== 'string') {
-        console.log('[Redis DesktopOAuth] PKCE state not found', {
+        log.debug('PKCE state not found', {
           stateId: stateId.substring(0, 12) + '...',
         });
         return null;
@@ -168,7 +177,7 @@ class DesktopOAuthStateManager {
       const data = JSON.parse(dataString) as DesktopOAuthStateData;
 
       if (Date.now() > data.expires_at) {
-        console.log('[Redis DesktopOAuth] PKCE state expired', {
+        log.debug('PKCE state expired', {
           stateId: stateId.substring(0, 12) + '...',
         });
         await this.client.del(key);
@@ -177,7 +186,7 @@ class DesktopOAuthStateManager {
 
       return data;
     } catch (error) {
-      console.error('[Redis DesktopOAuth] Error retrieving PKCE state:', (error as Error).message);
+      log.error('Error retrieving PKCE state:', (error as Error).message);
       return null;
     }
   }
@@ -193,7 +202,7 @@ class DesktopOAuthStateManager {
       await this.initPromise;
 
       if (!this.isConnected || !this.client) {
-        console.warn('[Redis DesktopOAuth] Redis not available for consuming state');
+        log.warn('Redis not available for consuming state');
         return null;
       }
 
@@ -203,7 +212,7 @@ class DesktopOAuthStateManager {
       const dataString = await this.client.getDel(key);
 
       if (!dataString) {
-        console.log('[Redis DesktopOAuth] PKCE state not found for consumption', {
+        log.debug('PKCE state not found for consumption', {
           stateId: stateId.substring(0, 12) + '...',
         });
         return null;
@@ -212,20 +221,20 @@ class DesktopOAuthStateManager {
       const data = JSON.parse(dataString) as DesktopOAuthStateData;
 
       if (Date.now() > data.expires_at) {
-        console.log('[Redis DesktopOAuth] PKCE state expired during consumption', {
+        log.debug('PKCE state expired during consumption', {
           stateId: stateId.substring(0, 12) + '...',
         });
         return null;
       }
 
-      console.log('[Redis DesktopOAuth] PKCE state consumed', {
+      log.debug('PKCE state consumed', {
         stateId: stateId.substring(0, 12) + '...',
         age: Math.round((Date.now() - data.created_at) / 1000) + 's',
       });
 
       return data;
     } catch (error) {
-      console.error('[Redis DesktopOAuth] Error consuming PKCE state:', (error as Error).message);
+      log.error('Error consuming PKCE state:', (error as Error).message);
       return null;
     }
   }
@@ -246,7 +255,7 @@ class DesktopOAuthStateManager {
       await this.client.del(key);
       return true;
     } catch (error) {
-      console.error('[Redis DesktopOAuth] Error deleting PKCE state:', (error as Error).message);
+      log.error('Error deleting PKCE state:', (error as Error).message);
       return false;
     }
   }
@@ -283,7 +292,7 @@ class DesktopOAuthStateManager {
         connected: this.isConnected,
       };
     } catch (error) {
-      console.error('[Redis DesktopOAuth] Error getting stats:', (error as Error).message);
+      log.error('Error getting stats:', (error as Error).message);
       return { available: false, count: 0, error: (error as Error).message };
     }
   }
@@ -295,13 +304,10 @@ class DesktopOAuthStateManager {
     try {
       if (this.client) {
         await this.client.quit();
-        console.log('[Redis DesktopOAuth] Redis connection closed');
+        log.debug('Redis connection closed');
       }
     } catch (error) {
-      console.error(
-        '[Redis DesktopOAuth] Error closing Redis connection:',
-        (error as Error).message
-      );
+      log.error('Error closing Redis connection:', (error as Error).message);
     }
   }
 }

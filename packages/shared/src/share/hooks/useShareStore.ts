@@ -278,6 +278,14 @@ export const useShareStore = create<ShareStoreState & ShareStoreActions>((set, g
   },
 
   /**
+   * Manually seed the current share (e.g., to open the share dialog for an
+   * already-created share without re-creating it).
+   */
+  setCurrentShare: (share: Share | null) => {
+    set({ currentShare: share });
+  },
+
+  /**
    * Clear any error state
    */
   clearError: () => {

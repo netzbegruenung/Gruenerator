@@ -13,6 +13,12 @@ import { z } from 'zod';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
+import {
+  getLikedEntityIdsForUser,
+  likeEntity,
+  unlikeEntity,
+} from '../../../services/entityLikes/EntityLikesService.js';
+import { setContentDisposition } from '../../../utils/http/contentDisposition.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import type { AuthRequest } from '../types.js';
@@ -171,7 +177,10 @@ router.post(
   '/examples/similar',
   ensureAuthenticated,
   validateBody(similarBodySchema),
-  async (req: TypedRequest<{ query: string; type?: string; limit?: number }>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<{ query: string; type?: string; limit?: number }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { query, type, limit = 5 } = req.body;
@@ -630,7 +639,7 @@ router.get(
       }
 
       // Set content disposition for download
-      res.setHeader('Content-Disposition', `attachment; filename="${decodedFileName}"`);
+      setContentDisposition(res, decodedFileName);
 
       // Set content type based on file extension
       const ext = path.extname(decodedFileName).toLowerCase();
@@ -665,21 +674,9 @@ router.get(
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user!.id;
-
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      const likes = await postgres.query(
-        'SELECT template_id, template_type, created_at FROM template_likes WHERE user_id = $1 ORDER BY created_at DESC',
-        [userId],
-        { table: 'template_likes' }
-      );
-
-      res.json({
-        success: true,
-        likes: likes || [],
-        count: (likes || []).length,
-      });
+      const ids = await getLikedEntityIdsForUser({ userId, entityType: 'template' });
+      const likes = ids.map((id) => ({ template_id: id }));
+      res.json({ success: true, likes, count: likes.length });
     } catch (error) {
       const err = error as Error;
       log.error('[Template Likes] GET error:', err);
@@ -693,28 +690,20 @@ router.post(
   '/vorlagen/:templateId/like',
   ensureAuthenticated,
   validateBody(likeBodySchema),
-  async (req: TypedRequest<{ templateType?: string }, { templateId: string }>, res: Response): Promise<void> => {
+  async (
+    req: TypedRequest<{ templateType?: string }, { templateId: string }>,
+    res: Response
+  ): Promise<void> => {
     try {
       const userId = req.user!.id;
       const { templateId } = req.params;
-      const { templateType = 'system' } = req.body;
 
       if (!templateId) {
         res.status(400).json({ success: false, message: 'Template ID erforderlich' });
         return;
       }
 
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      await postgres.query(
-        `INSERT INTO template_likes (user_id, template_id, template_type)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (user_id, template_id) DO NOTHING`,
-        [userId, templateId, templateType],
-        { table: 'template_likes' }
-      );
-
+      await likeEntity({ userId, entityType: 'template', entityId: templateId });
       log.info(`[Template Likes] User ${userId} liked template ${templateId}`);
       res.json({ success: true, liked: true });
     } catch (error) {
@@ -739,15 +728,7 @@ router.delete(
         return;
       }
 
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      await postgres.query(
-        'DELETE FROM template_likes WHERE user_id = $1 AND template_id = $2',
-        [userId, templateId],
-        { table: 'template_likes' }
-      );
-
+      await unlikeEntity({ userId, entityType: 'template', entityId: templateId });
       log.info(`[Template Likes] User ${userId} unliked template ${templateId}`);
       res.json({ success: true, liked: false });
     } catch (error) {

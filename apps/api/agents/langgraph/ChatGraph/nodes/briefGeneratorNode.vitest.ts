@@ -35,11 +35,13 @@ function makeState(overrides: Partial<ChatGraphState> = {}): ChatGraphState {
     locale: 'de-DE',
     systemCollectionId: null,
     hasTemporal: false,
+    platform: null,
     qualityScore: 0,
     qualityAssessmentTimeMs: 0,
     searchSources: [],
     notebookIds: [],
     notebookCollectionIds: [],
+    notebookDocumentIds: [],
     ...overrides,
   } as unknown as ChatGraphState;
 }
@@ -150,9 +152,7 @@ describe('briefGeneratorNode', () => {
     const result = await briefGeneratorNode(state);
     expect(result.briefGenerationFailed).toBe(true);
     expect(result.researchBrief).toBeUndefined();
-    expect(result.searchErrors).toEqual([
-      { source: 'briefGenerator', message: 'LLM timeout' },
-    ]);
+    expect(result.searchErrors).toEqual([{ source: 'briefGenerator', message: 'LLM timeout' }]);
   });
 
   it('truncates generated brief to MAX_BRIEF_LENGTH (500)', async () => {

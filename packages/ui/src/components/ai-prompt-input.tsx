@@ -26,6 +26,10 @@ export interface AIPromptInputProps {
   rows?: number;
   transparent?: boolean;
   className?: string;
+  /** Replaces the textarea region (e.g. for file-upload sub-modes). */
+  inputAreaOverride?: ReactNode;
+  /** When defined, overrides the default `text.length >= 3` gate for the submit button. */
+  canSubmit?: boolean;
 }
 
 function ActionButton({
@@ -34,12 +38,16 @@ function ActionButton({
   isLoading,
   onDictate,
   onSubmit,
+  noTextInput,
+  canSubmitOverride,
 }: {
   isEmpty: boolean;
   isDictating: boolean;
   isLoading: boolean;
   onDictate: () => void;
   onSubmit: () => void;
+  noTextInput: boolean;
+  canSubmitOverride: boolean | undefined;
 }) {
   const base =
     'flex items-center justify-center size-7 shrink-0 rounded-full border-none cursor-pointer transition-all';
@@ -48,6 +56,26 @@ function ActionButton({
     return (
       <button disabled className={cn(base, 'bg-primary text-primary-foreground cursor-default')}>
         <span className="size-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+      </button>
+    );
+  }
+
+  if (noTextInput) {
+    const allowed = canSubmitOverride === true;
+    return (
+      <button
+        type="button"
+        onClick={allowed ? onSubmit : undefined}
+        disabled={!allowed}
+        className={cn(
+          base,
+          allowed
+            ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+            : 'bg-grey-200 text-grey-400 cursor-not-allowed dark:bg-grey-800 dark:text-grey-600'
+        )}
+        aria-label="Absenden"
+      >
+        <ArrowRight className="size-3.5" />
       </button>
     );
   }
@@ -110,6 +138,8 @@ export const AIPromptInput = React.memo(function AIPromptInput({
   rows = 2,
   transparent = false,
   className,
+  inputAreaOverride,
+  canSubmit,
 }: AIPromptInputProps) {
   const { isDictating, toggle: toggleDictation } = useVoxtralDictation({
     onTranscript: (text) => onChange(text),
@@ -125,8 +155,10 @@ export const AIPromptInput = React.memo(function AIPromptInput({
     [onSubmit]
   );
 
+  const noTextInput = !!inputAreaOverride;
   const isEmpty = value.trim().length < 3;
-  const showInlineExamples = isEmpty && !isLoading && examples && examples.length > 0;
+  const showInlineExamples =
+    !noTextInput && isEmpty && !isLoading && examples && examples.length > 0;
 
   return (
     <div className={cn('w-full max-w-[680px] mx-auto', className)}>
@@ -138,15 +170,19 @@ export const AIPromptInput = React.memo(function AIPromptInput({
         )}
       >
         <div className="px-4 pt-3 pb-1">
-          <textarea
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            rows={rows}
-            disabled={disabled || isLoading}
-            className="w-full min-w-0 text-[15px] outline-none resize-none placeholder:text-grey-400 leading-relaxed bg-transparent border-none p-0"
-          />
+          {noTextInput ? (
+            inputAreaOverride
+          ) : (
+            <textarea
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              rows={rows}
+              disabled={disabled || isLoading}
+              className="w-full min-w-0 text-[15px] outline-none resize-none placeholder:text-grey-400 leading-relaxed bg-transparent border-none p-0"
+            />
+          )}
         </div>
 
         <div className="flex items-center gap-1.5 px-3 pb-2.5">
@@ -171,6 +207,8 @@ export const AIPromptInput = React.memo(function AIPromptInput({
             isLoading={isLoading}
             onDictate={toggleDictation}
             onSubmit={onSubmit}
+            noTextInput={noTextInput}
+            canSubmitOverride={canSubmit}
           />
         </div>
       </div>

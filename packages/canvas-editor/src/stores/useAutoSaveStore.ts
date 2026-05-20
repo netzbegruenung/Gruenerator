@@ -1,36 +1,24 @@
-import { create } from 'zustand';
+/**
+ * Re-exports the per-instance auto-save store hooks from {@link AutoSaveStoreProvider}.
+ *
+ * Existing call-sites that use `useAutoSaveStore((s) => s.foo)` keep working
+ * unchanged as selector hooks. Call-sites that previously used static methods
+ * (`useAutoSaveStore.getState()`, `useAutoSaveStore.subscribe(...)`) must
+ * migrate to `useAutoSaveStoreApi().getState()` / `useAutoSaveStoreApi().subscribe(...)`
+ * because the per-instance store cannot be reached from a function with no React
+ * context. See `AutoSaveStoreProvider.tsx`.
+ */
 
-type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error';
-
-interface AutoSaveState {
-  autoSaveStatus: AutoSaveStatus;
-  autoSavedShareToken: string | null;
-  lastAutoSavedImageSrc: string | null;
-}
-
-interface AutoSaveActions {
-  setAutoSaveStatus: (status: AutoSaveStatus) => void;
-  setAutoSavedShareToken: (token: string | null) => void;
-  setLastAutoSavedImageSrc: (src: string | null) => void;
-  clearAutoSaveState: () => void;
-}
-
-export type AutoSaveStore = AutoSaveState & AutoSaveActions;
-
-export const useAutoSaveStore = create<AutoSaveStore>((set) => ({
-  autoSaveStatus: 'idle',
-  autoSavedShareToken: null,
-  lastAutoSavedImageSrc: null,
-
-  setAutoSaveStatus: (status) => set({ autoSaveStatus: status }),
-  setAutoSavedShareToken: (token) => set({ autoSavedShareToken: token }),
-  setLastAutoSavedImageSrc: (src) => set({ lastAutoSavedImageSrc: src }),
-  clearAutoSaveState: () =>
-    set({
-      autoSaveStatus: 'idle',
-      autoSavedShareToken: null,
-      lastAutoSavedImageSrc: null,
-    }),
-}));
-
-export default useAutoSaveStore;
+export {
+  AutoSaveStoreProvider,
+  useAutoSaveStore,
+  useAutoSaveStoreApi,
+  useAutoSaveStoreShallow,
+} from './AutoSaveStoreProvider';
+export type {
+  AutoSaveStore,
+  AutoSaveStoreApi,
+  AutoSaveState,
+  AutoSaveActions,
+  AutoSaveStatus,
+} from './createAutoSaveStore';

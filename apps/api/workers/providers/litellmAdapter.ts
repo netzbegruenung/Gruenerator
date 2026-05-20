@@ -18,21 +18,20 @@ import type { AIRequestData, AIWorkerResult, ToolCall, ContentBlock } from '../t
 function convertMessages(
   messages: AIRequestData['messages'],
   systemPrompt?: string
-): ModelMessage[] {
+): { system: string | undefined; messages: ModelMessage[] } {
+  const systemParts: string[] = [];
+  if (systemPrompt) systemParts.push(systemPrompt);
+
   const modelMessages: ModelMessage[] = [];
 
-  if (systemPrompt) {
-    modelMessages.push({ role: 'system', content: systemPrompt });
+  if (!messages) {
+    return {
+      system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
+      messages: modelMessages,
+    };
   }
 
-  if (!messages) return modelMessages;
-
   for (const msg of messages) {
-    if (msg.role === 'system' && systemPrompt) {
-      continue;
-    }
-
-    // Handle array content (flatten to string for LiteLLM)
     let content: string;
     if (typeof msg.content === 'string') {
       content = msg.content;
@@ -47,13 +46,21 @@ function convertMessages(
       content = String(msg.content);
     }
 
+    if (msg.role === 'system') {
+      systemParts.push(content);
+      continue;
+    }
+
     modelMessages.push({
-      role: msg.role as 'user' | 'assistant' | 'system',
+      role: msg.role as 'user' | 'assistant',
       content,
     });
   }
 
-  return modelMessages;
+  return {
+    system: systemParts.length > 0 ? systemParts.join('\n\n') : undefined,
+    messages: modelMessages,
+  };
 }
 
 /**
@@ -98,7 +105,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   const model = 'gpt-oss:120b';
 
   // Convert messages to Vercel AI SDK format
-  const modelMessages = convertMessages(messages, systemPrompt);
+  const { system, messages: modelMessages } = convertMessages(messages, systemPrompt);
 
   // Prepare tools - only include options that are not null/undefined
   const toolsPayload = ToolHandler.prepareToolsPayload(
@@ -131,6 +138,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
   try {
     const result = await generateText({
       model: aiModel,
+      ...(system != null && { system }),
       messages: modelMessages,
       maxOutputTokens: options.max_tokens || 4096,
       temperature: options.temperature || 0.7,
@@ -200,7 +208,7 @@ async function execute(requestId: string, data: AIRequestData): Promise<AIWorker
             prompt_tokens: result.usage.inputTokens,
             completion_tokens: result.usage.outputTokens,
             total_tokens: result.usage.totalTokens,
-          }
+          },
         }),
       }),
     };

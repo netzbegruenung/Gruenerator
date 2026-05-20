@@ -13,6 +13,8 @@ import {
 import type { ConnectionStatus } from '../lib/connectionsApi';
 import type { IconType } from 'react-icons';
 
+import { DismissableBanner } from '@gruenerator/ui';
+
 import { cn } from '@/utils/cn';
 
 const NANGO_PUBLIC_URL =
@@ -164,11 +166,20 @@ const ConnectedAccountsSection = memo(({ onSuccess, onError }: ConnectedAccounts
 
   return (
     <div className="mt-xl">
+      <DismissableBanner
+        storageKey="connections-experimental-warning"
+        variant="warning"
+        className="mb-md"
+      >
+        <strong>Experimentelles Feature</strong> — Die Verbindungen zu externen Diensten (Google,
+        Microsoft, Jira, Confluence) sind noch in der Erprobung. Verbindungen können sich ändern
+        oder unerwartet abbrechen. Bitte melde Probleme dem Team.
+      </DismissableBanner>
       <div className="flex items-center gap-sm mb-md">
         <FiLink className="w-6 h-6 text-foreground-heading" />
         <h2 className="text-xl font-semibold text-foreground-heading m-0">Verbundene Konten</h2>
         <span className="text-xs bg-secondary-100 text-secondary-700 px-sm py-0.5 rounded-full font-medium">
-          Dev
+          Experimentell
         </span>
       </div>
 

@@ -15,6 +15,7 @@ export type {
   GenerateFromPromptOptions,
   GenerateResult,
   GenerateFromImageOptions,
+  OutpaintOptions,
 } from './FluxImageService.js';
 
 export {
@@ -39,3 +40,6 @@ export type {
   BuildFluxPromptResult,
   VariantInfo,
 } from './FluxPromptBuilder.js';
+
+export { buildGreenEditPrompt } from './greenEditPrompt.js';
+export { buildUniversalPrompt } from './universalEditPrompt.js';

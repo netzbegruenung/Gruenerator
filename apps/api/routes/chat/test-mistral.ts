@@ -30,7 +30,12 @@ const tools = {
       reason: z.string().optional().describe('Optional: why no search was needed'),
     }),
     execute: async ({ content, reason }) => {
-      console.log('[Tool] direct_response called, content length:', content?.length, 'reason:', reason);
+      console.log(
+        '[Tool] direct_response called, content length:',
+        content?.length,
+        'reason:',
+        reason
+      );
       return { type: 'direct', content, reason };
     },
   }),
@@ -72,7 +77,6 @@ async function testMistral() {
     }
 
     console.log('\n[Test 3] Done');
-
   } catch (error) {
     console.error('\n[ERROR]', error);
     if (error instanceof Error) {

@@ -27,6 +27,7 @@ export function parseClassifierResponse(
   // Valid intents (person removed - feature disabled)
   const validIntents = [
     'research',
+    'compare',
     'search',
     'web',
     'examples',

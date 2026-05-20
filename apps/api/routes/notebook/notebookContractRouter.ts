@@ -27,11 +27,13 @@ import {
 } from '../../config/systemCollectionsConfig.js';
 import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelper.js';
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
+import { getQdrantDocumentService } from '../../services/document-services/index.js';
 import { notebookQAService } from '../../services/notebook/index.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type NotebookId } from '../../utils/types/branded.js';
+import { highlightSnippet, truncateSnippet } from '../research/researchController.js';
 
 import type { PublicAccessRecord } from './types.js';
 import type { UserProfile } from '../../services/user/types.js';
@@ -39,6 +41,12 @@ import type { Application, Request } from 'express';
 
 const log = createLogger('notebookContractRouter');
 const notebookHelper = new NotebookQdrantHelper();
+
+const MODE_WEIGHTS: Record<'hybrid' | 'vector' | 'text', readonly [number, number]> = {
+  hybrid: [0.7, 0.3],
+  vector: [1.0, 0.0],
+  text: [0.0, 1.0],
+};
 
 /**
  * Extract the authenticated user id or return a 401 contract response.
@@ -250,6 +258,147 @@ export const notebookContractRouter = s.router(notebookContract, {
         status: 500 as const,
         body: { error: err.message || 'Internal server error' },
       };
+    }
+  },
+
+  researchSearch: async (args) => {
+    const startTime = Date.now();
+    try {
+      const auth = requireAuthUser(args.req);
+      if (!auth.ok) return auth.response;
+      const userId = auth.userId;
+
+      const collectionId = fromParam<NotebookId>(args.params.id);
+      const { query, limit, mode, sortBy } = args.body;
+      const trimmed = (query || '').trim();
+      if (trimmed.length < 2) {
+        return { status: 400 as const, body: { error: 'Query must be at least 2 characters.' } };
+      }
+
+      if (getSystemCollectionConfig(collectionId)) {
+        return {
+          status: 400 as const,
+          body: { error: 'Use /research/search for system collections.' },
+        };
+      }
+
+      const collection = await notebookHelper.getNotebookCollection(collectionId);
+      if (!collection) {
+        return { status: 404 as const, body: { error: 'Notebook not found' } };
+      }
+      if (collection.user_id !== userId && collection.user_id !== 'SYSTEM') {
+        return { status: 403 as const, body: { error: 'Forbidden' } };
+      }
+
+      // Resolve notebook → document IDs via the n:m join collection. Chunks
+      // in the `documents` Qdrant collection are NOT tagged with collection_id
+      // (membership lives in `notebook_collection_documents`), so filtering on
+      // a `collection_id` payload field on chunks returns zero results.
+      const collectionDocs = await notebookHelper.getCollectionDocuments(collectionId);
+      const documentIds = collectionDocs.map((d) => d.document_id);
+
+      if (documentIds.length === 0) {
+        return {
+          status: 200 as const,
+          body: {
+            results: [],
+            metadata: {
+              totalResults: 0,
+              collections: [collectionId as string],
+              timeMs: Date.now() - startTime,
+            },
+          },
+        };
+      }
+
+      const effectiveLimit = Math.min(Math.max(limit ?? 30, 1), 100);
+      const effectiveMode = mode ?? 'hybrid';
+      const effectiveSort = sortBy ?? 'relevance';
+      const [vectorWeight, textWeight] = MODE_WEIGHTS[effectiveMode];
+
+      const documentSearchService = getQdrantDocumentService();
+      const resp = await documentSearchService.search({
+        query: trimmed,
+        userId,
+        options: {
+          limit: 60,
+          mode: effectiveMode === 'text' ? 'text' : 'hybrid',
+          vectorWeight,
+          textWeight,
+          threshold: 0.2,
+          searchCollection: 'documents',
+        },
+        filters: { documentIds },
+      });
+
+      const tagged = (resp.results ?? []).map((doc) => ({
+        ...doc,
+        collection_id: collectionId,
+        collection_name: collection.name,
+        published_at: doc.published_at ?? null,
+      }));
+
+      const dedupMap = new Map<string, (typeof tagged)[number]>();
+      for (const r of tagged) {
+        const key = r.source_url || r.document_id;
+        const existing = dedupMap.get(key);
+        if (!existing || r.similarity_score > existing.similarity_score) {
+          dedupMap.set(key, r);
+        }
+      }
+
+      let deduped = Array.from(dedupMap.values()).filter((r) => r.similarity_score >= 0.3);
+
+      if (effectiveSort === 'date_desc') {
+        deduped.sort((a, b) => {
+          const dateA = a.published_at || '';
+          const dateB = b.published_at || '';
+          if (dateB !== dateA) return dateB.localeCompare(dateA);
+          return b.similarity_score - a.similarity_score;
+        });
+      } else if (effectiveSort === 'date_asc') {
+        deduped.sort((a, b) => {
+          const dateA = a.published_at || '';
+          const dateB = b.published_at || '';
+          if (dateA !== dateB) return dateA.localeCompare(dateB);
+          return b.similarity_score - a.similarity_score;
+        });
+      } else {
+        deduped.sort((a, b) => b.similarity_score - a.similarity_score);
+      }
+      deduped = deduped.slice(0, effectiveLimit);
+
+      const truncated = deduped.map((r) => ({
+        document_id: r.document_id,
+        title: r.title ?? 'Unbekanntes Dokument',
+        source_url: r.source_url ?? null,
+        relevant_content: highlightSnippet(r.relevant_content, trimmed),
+        similarity_score: r.similarity_score,
+        chunk_count: r.chunk_count,
+        top_chunks: (r.top_chunks ?? []).map((c) => ({
+          preview: truncateSnippet(c.preview, 200),
+          chunk_index: c.chunk_index,
+          page_number: c.page_number ?? null,
+        })),
+        collection_id: r.collection_id,
+        collection_name: r.collection_name,
+        published_at: r.published_at ?? null,
+      }));
+
+      return {
+        status: 200 as const,
+        body: {
+          results: truncated,
+          metadata: {
+            totalResults: truncated.length,
+            collections: [collectionId as string],
+            timeMs: Date.now() - startTime,
+          },
+        },
+      };
+    } catch (error) {
+      log.error('[notebookContract.researchSearch] Error:', error);
+      return { status: 500 as const, body: { error: 'Search failed. Please try again.' } };
     }
   },
 

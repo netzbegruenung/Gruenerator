@@ -66,7 +66,7 @@ const Tab: React.FC<TabProps> = ({
         'desktop-tab group flex items-center gap-2 h-9 min-w-[80px] max-w-[280px] w-[200px] px-3 pl-3.5 bg-transparent border-none rounded-[10px] cursor-pointer transition-all duration-[0.18s] ease-in-out relative select-none shrink',
         'hover:bg-grey-100 dark:hover:bg-grey-800',
         isActive && 'bg-background dark:bg-grey-900 rounded-b-none -mb-px pb-px',
-        isDragging && 'opacity-60 scale-[0.98]',
+        isDragging && 'opacity-60 scale-[0.98]'
       )}
       role="tab"
       aria-selected={isActive}
@@ -108,7 +108,7 @@ const Tab: React.FC<TabProps> = ({
             'flex items-center justify-center w-5 h-5 border-none bg-transparent rounded-md cursor-pointer opacity-0 transition-all duration-150 ease-in-out text-grey-400 dark:text-grey-500 shrink-0 p-0 -ml-1',
             'hover:bg-grey-200 hover:text-grey-700 dark:hover:bg-grey-700 dark:hover:text-grey-200 active:scale-[0.92]',
             'group-hover:opacity-100',
-            (isActive) && 'opacity-100'
+            isActive && 'opacity-100'
           )}
           onClick={handleClose}
           aria-label={`Tab "${tab.title}" schließen`}

@@ -33,6 +33,12 @@ export interface ChatConfig {
     canvasType: string,
     initialProps: Record<string, unknown>
   ) => Promise<string | null>;
+  /**
+   * URL the @wolke picker links to when the user hasn't connected any
+   * Nextcloud share link yet. Platform-specific (web: `/wolke`, native: a deep
+   * link). Omit to hide the CTA — only the warning copy renders.
+   */
+  wolkeConnectUrl?: string;
 }
 
 export interface ResolvedEndpoints {
@@ -55,6 +61,50 @@ interface ResolvedChatConfig {
   docsBaseUrl?: string;
 }
 
+/**
+ * Per-message context a chat surface (e.g. the docs editor) can inject into
+ * outgoing requests without owning the model adapter. Keyed by threadId in
+ * `contextProviders` so multiple surfaces coexist without clobbering each other.
+ */
+export interface ChatRequestContext {
+  documentChatIds?: string[];
+  attachmentContext?: string;
+  selectionText?: string;
+  /**
+   * The document the user is currently editing — primary conversation context
+   * when chat is embedded in a document editor. Distinct from `documentChatIds`
+   * (explicit @dokumentchat retrieval scope): this IS the conversation subject.
+   */
+  currentDocument?: {
+    id: string;
+    title?: string | null;
+    markdown: string;
+    selectionText?: string | null;
+  };
+}
+
+export type ChatRequestContextProvider = () => Promise<ChatRequestContext> | ChatRequestContext;
+
+/**
+ * Handler the docs-editor surface registers to receive `trigger_doc_edit` SSE
+ * events from the chat backend. The handler dispatches the prompt into
+ * BlockNote's AIExtension, which runs the existing /api/docs/ai pipeline and
+ * applies operations to the editor with Yjs sync.
+ */
+export interface DocumentEditTriggerPayload {
+  targetDocumentId: string;
+  userPrompt: string;
+  useSelection: boolean;
+  // Prior chat assistant content the user references with "dies"/"das"/
+  // "im dokument einfügen". Forwarded to BlockNote AI as system-prompt
+  // context — never concatenated into userPrompt.
+  referenceContent?: string;
+}
+
+export type DocumentEditTriggerHandler = (
+  payload: DocumentEditTriggerPayload
+) => void | Promise<void>;
+
 interface ChatConfigStore extends ResolvedChatConfig {
   configure: (config?: ChatConfig) => void;
   getDocsUrl: () => string;
@@ -68,6 +118,19 @@ interface ChatConfigStore extends ResolvedChatConfig {
     canvasType: string,
     initialProps: Record<string, unknown>
   ) => Promise<string | null>;
+  /** URL the @wolke empty-state CTA opens (new tab). Hidden when unset. */
+  wolkeConnectUrl?: string;
+  /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
+  contextProviders: Map<string, ChatRequestContextProvider>;
+  /** Register a context provider for a thread. Returns the unregister function. */
+  registerContextProvider: (threadId: string, provider: ChatRequestContextProvider) => () => void;
+  /** threadId → live-edit dispatcher (docs editor surface only). */
+  documentEditHandlers: Map<string, DocumentEditTriggerHandler>;
+  /** Register a live-edit handler for a thread. Returns the unregister function. */
+  registerDocumentEditHandler: (
+    threadId: string,
+    handler: DocumentEditTriggerHandler
+  ) => () => void;
 }
 
 const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
@@ -122,6 +185,9 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   endpoints: DEFAULT_ENDPOINTS,
   docsBaseUrl: undefined,
   onEditInDocs: undefined,
+  wolkeConnectUrl: undefined,
+  contextProviders: new Map(),
+  documentEditHandlers: new Map(),
 
   configure: (config?: ChatConfig) => {
     set({
@@ -132,7 +198,34 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       onEditInDocs: config?.onEditInDocs,
       onEditSharepic: config?.onEditSharepic,
       renderSharepic: config?.renderSharepic,
+      wolkeConnectUrl: config?.wolkeConnectUrl,
     });
+  },
+
+  registerContextProvider: (threadId, provider) => {
+    const next = new Map(get().contextProviders);
+    next.set(threadId, provider);
+    set({ contextProviders: next });
+    return () => {
+      const after = new Map(get().contextProviders);
+      if (after.get(threadId) === provider) {
+        after.delete(threadId);
+        set({ contextProviders: after });
+      }
+    };
+  },
+
+  registerDocumentEditHandler: (threadId, handler) => {
+    const next = new Map(get().documentEditHandlers);
+    next.set(threadId, handler);
+    set({ documentEditHandlers: next });
+    return () => {
+      const after = new Map(get().documentEditHandlers);
+      if (after.get(threadId) === handler) {
+        after.delete(threadId);
+        set({ documentEditHandlers: after });
+      }
+    };
   },
 
   getDocsUrl: () => resolveDocsUrl(get().docsBaseUrl),

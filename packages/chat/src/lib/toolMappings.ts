@@ -7,6 +7,7 @@ export const INTENT_TO_TOOL: Record<string, string> = {
   web: 'web_search',
   research: 'research',
   examples: 'gruenerator_examples_search',
+  pressemitteilung_examples: 'gruenerator_pressemitteilung_examples',
 };
 
 /**
@@ -22,4 +23,6 @@ export const DEEP_TOOL_MAP: Record<string, string> = {
   recall_memory: 'recall_memory',
   save_memory: 'save_memory',
   search_user_content: 'search_user_content',
+  draft_structured: 'draft_structured',
+  self_review: 'self_review',
 };
