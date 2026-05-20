@@ -48,7 +48,7 @@ export async function listUserTemplates(
   params: { kind?: TemplateKind } = {}
 ): Promise<UserTemplateSummary[]> {
   const query = params.kind ? `?template_type=${encodeURIComponent(params.kind)}` : '';
-  const response = await apiRequest<ListResponse>('get', `/user-templates${query}`);
+  const response = await apiRequest<ListResponse>('get', `/auth/user-templates${query}`);
   return response.data ?? [];
 }
 
@@ -78,7 +78,7 @@ export async function instantiateUserTemplate(args: {
 }): Promise<InstantiateResponse['data']> {
   const response = await apiRequest<InstantiateResponse>(
     'post',
-    `/user-templates/${args.templateId}/instantiate`,
+    `/auth/user-templates/${args.templateId}/instantiate`,
     { title: args.title }
   );
   return response.data;
