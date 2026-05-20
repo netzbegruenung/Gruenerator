@@ -1,3 +1,4 @@
+import { buildGroupPath } from '@gruenerator/shared/groups';
 import { SectionHeader } from '@gruenerator/ui';
 import React, { memo, useCallback, useMemo } from 'react';
 import { HiUserGroup } from 'react-icons/hi';
@@ -19,7 +20,7 @@ const GroupsSection: React.FC = memo(() => {
           id: g.id,
           title: g.name,
           description: 'Gruppe',
-          path: `/gruppen/${g.id}`,
+          path: buildGroupPath(g),
           icon: HiUserGroup,
           ...(g.avatar_url ? { imageUrl: `/api/auth/groups/${g.id}/avatar` } : {}),
         };
@@ -30,13 +31,20 @@ const GroupsSection: React.FC = memo(() => {
 
   const handleCreate = useCallback(() => {
     createGroup('Neue Gruppe', {
-      onSuccess: (group) => navigate(`/gruppen/${group.id}`),
+      onSuccess: (group) => navigate(buildGroupPath(group)),
     });
   }, [createGroup, navigate]);
 
-  const handleShare = useCallback((id: string) => {
-    void navigator.clipboard.writeText(`${window.location.origin}/gruppen/${id}`);
-  }, []);
+  const handleShare = useCallback(
+    (id: string) => {
+      // ToolGrid passes only the id; recover the group to build the pretty
+      // slug, falling back to the UUID path (still resolves) if not found.
+      const group = (userGroups || []).find((g) => g.id === id);
+      const path = group ? buildGroupPath(group) : `/gruppen/${id}`;
+      void navigator.clipboard.writeText(`${window.location.origin}${path}`);
+    },
+    [userGroups]
+  );
 
   return (
     <section className="mb-xl">
