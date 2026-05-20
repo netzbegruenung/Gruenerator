@@ -265,7 +265,7 @@ const standardRoutes: RouteConfig[] = [
   },
   { path: '/skills', component: SkillsPage },
   { path: '/gruppen', component: GruppenPage },
-  { path: '/gruppen/:groupId', component: GruppenPage },
+  { path: '/gruppen/:idOrSlug', component: GruppenPage },
   { path: '/gruen-o-mat', component: GruenOMatDemoPage },
   // ResearchPage removed; /notebooks is the canonical entry point. Keep route as redirect for old links.
   {
