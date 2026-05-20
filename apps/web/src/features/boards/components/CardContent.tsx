@@ -1,4 +1,5 @@
 import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
+import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { Badge } from '@gruenerator/ui';
 import { memo, useCallback, useMemo } from 'react';
 import { FiFileText, FiMessageSquare } from 'react-icons/fi';
@@ -14,12 +15,14 @@ interface CardContentProps {
   row: Row;
   fields: Field[];
   onCardClick: (row: Row) => void;
+  onRenameCard: (rowId: string, title: string) => void;
 }
 
 export const CardContent = memo(function CardContent({
   row,
   fields,
   onCardClick,
+  onRenameCard,
 }: CardContentProps) {
   const handleClick = useCallback(() => onCardClick(row), [onCardClick, row]);
   const handleKeyDown = useCallback(
@@ -145,7 +148,16 @@ export const CardContent = memo(function CardContent({
 
       <p className="text-sm text-foreground m-0 leading-snug font-medium">
         {row.icon && <span className="mr-1">{row.icon}</span>}
-        {title}
+        <EditableTitle
+          as="span"
+          title={title}
+          editable
+          activateOn="doubleClick"
+          onTitleChange={(newTitle) => onRenameCard(row.id, newTitle)}
+          className="text-sm text-foreground font-medium"
+          inputClassName="w-full p-0 text-sm text-foreground font-medium bg-transparent border-none outline-none"
+          editableClassName="cursor-pointer"
+        />
       </p>
 
       {description && (
