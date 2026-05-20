@@ -82,10 +82,24 @@ function BoardContent() {
     },
   });
 
+  const renameMutation = useMutation({
+    mutationFn: async (title: string) => {
+      await apiClient.put(`/boards/${id}`, { title });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['boards'] });
+      void queryClient.invalidateQueries({ queryKey: ['boards', id] });
+    },
+  });
+
   const handleDelete = useCallback(() => deleteMutation.mutate(), [deleteMutation]);
   const handleArchiveToggle = useCallback(
     () => archiveMutation.mutate(!board || !isBoardArchived(board)),
     [archiveMutation, board]
+  );
+  const handleRename = useCallback(
+    (title: string) => renameMutation.mutate(title),
+    [renameMutation]
   );
 
   const { ydoc, provider, isConnected, isSynced } = useBoardCollaboration(id || '');
@@ -132,6 +146,7 @@ function BoardContent() {
         onDelete={handleDelete}
         onArchiveToggle={handleArchiveToggle}
         onExpertModeToggle={handleExpertModeToggle}
+        onRename={handleRename}
         compact={isWhiteboard}
       />
       {isWhiteboard ? (

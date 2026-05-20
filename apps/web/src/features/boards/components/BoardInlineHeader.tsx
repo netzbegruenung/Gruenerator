@@ -1,4 +1,5 @@
 import { useCollaborators } from '@gruenerator/collab';
+import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { memo } from 'react';
 import { FiArrowLeft } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
@@ -19,6 +20,7 @@ interface BoardInlineHeaderProps {
   onDelete: () => void;
   onArchiveToggle: () => void;
   onExpertModeToggle: () => void;
+  onRename: (title: string) => void;
   compact?: boolean;
 }
 
@@ -33,6 +35,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
   onDelete,
   onArchiveToggle,
   onExpertModeToggle,
+  onRename,
   compact,
 }: BoardInlineHeaderProps) {
   const navigate = useNavigate();
@@ -53,11 +56,16 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
         >
           <FiArrowLeft size={compact ? 16 : 18} />
         </button>
-        <h1
+        <EditableTitle
+          as="h1"
+          title={title}
+          editable
+          activateOn="doubleClick"
+          onTitleChange={onRename}
           className={`${compact ? 'text-sm' : 'text-xl sm:text-2xl'} font-bold tracking-tight text-foreground-heading m-0 truncate`}
-        >
-          {title}
-        </h1>
+          inputClassName={`${compact ? 'text-sm' : 'text-xl sm:text-2xl'} font-bold tracking-tight text-foreground-heading m-0 bg-transparent border-none outline-none`}
+          editableClassName="cursor-pointer"
+        />
         {showStatusDot && <div className={`w-2 h-2 rounded-full shrink-0 ${statusClass}`} />}
       </div>
 
