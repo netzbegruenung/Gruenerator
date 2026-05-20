@@ -248,6 +248,25 @@ export class WolkeSyncService {
   }
 
   /**
+   * List the supported files in a SPECIFIC folder of a share (honours
+   * folderPath, unlike listFolderContents which only sees the share root).
+   * Uses the same `client.listFolder(folderPath)` the manual import path uses,
+   * so `file.href` — the dedup key stored as documents.wolke_file_path — is
+   * identical between detection and import. Reuses the shared supportedFileTypes
+   * filter (no duplicated extension list).
+   */
+  async listSupportedFilesInFolder(
+    shareLink: NextcloudShareLink,
+    folderPath: string = ''
+  ): Promise<NextcloudFile[]> {
+    const client = await NextcloudApiClient.create(shareLink.share_link);
+    const files = await client.listFolder(folderPath || undefined);
+    return files.filter((file) =>
+      this.supportedFileTypes.includes(path.extname(file.name.toLowerCase()))
+    ) as NextcloudFile[];
+  }
+
+  /**
    * Multi-tier change detection for files
    * Uses ETags (primary), lastModified dates (secondary), and always sync if no existing data
    */
