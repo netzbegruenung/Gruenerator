@@ -9,7 +9,7 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import authMiddleware from './middleware/authMiddleware.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
-import { mountGroupsContractRouter } from './routes/auth/groups/groupsContractRouter.js';
+import { mountGroupsContractRouter } from './routes/auth/groups/groupsContract/index.js';
 import { mountImageModelPreferenceContractRouter } from './routes/auth/imageModelPreferenceContractRouter.js';
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
