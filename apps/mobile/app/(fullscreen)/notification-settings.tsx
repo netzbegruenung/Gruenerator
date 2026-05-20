@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { getGlobalApiClient } from '@gruenerator/shared/api';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -103,11 +103,10 @@ export default function NotificationSettingsScreen() {
   useEffect(() => {
     void (async () => {
       try {
-        const client = getGlobalApiClient();
-        const res = await client.get<{ preferences?: Record<string, ChannelPreferences> }>(
-          '/auth/profile/notification-preferences'
-        );
-        setPreferences(res.data?.preferences ?? {});
+        const res = await getContractsClient().notifications.getPreferences();
+        if (res.status === 200) {
+          setPreferences(res.body.preferences);
+        }
       } catch {
         // fall back to empty — toggles will default to on
       } finally {
@@ -123,11 +122,16 @@ export default function NotificationSettingsScreen() {
     }));
 
     try {
-      const client = getGlobalApiClient();
-      await client.patch('/auth/profile/notification-preferences', {
-        category,
-        channels: { [channel]: value },
+      const res = await getContractsClient().notifications.updatePreferences({
+        body: {
+          category,
+          // Computed key widens to `string`; cast to the typed partial channels shape.
+          channels: { [channel]: value } as Partial<Record<Channel, boolean>>,
+        },
       });
+      if (res.status !== 200) {
+        throw new Error(`Failed to update notification preferences (HTTP ${res.status})`);
+      }
     } catch {
       setPreferences((prev) => ({
         ...prev,
