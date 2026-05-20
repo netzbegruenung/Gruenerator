@@ -19,7 +19,7 @@ import {
  * widens the body to `unknown` for non-2xx (undeclared) statuses, so we extract
  * defensively rather than asserting the error-schema shape.
  */
-function errMessage(body: unknown, fallback = 'Aktion fehlgeschlagen.'): string {
+export function errMessage(body: unknown, fallback = 'Aktion fehlgeschlagen.'): string {
   if (body && typeof body === 'object' && 'message' in body) {
     const m = (body as { message?: unknown }).message;
     if (typeof m === 'string') return m;
@@ -240,7 +240,8 @@ export const useDeleteGroupLink = (groupId: string) => {
   return useMutation({
     mutationFn: async (linkId: string) => {
       const res = await getContractsClient().groups.deleteLink({ params: { groupId, linkId } });
-      if (res.status !== 200) throw new Error('Fehler beim Löschen des Links.');
+      if (res.status !== 200)
+        throw new Error(errMessage(res.body, 'Fehler beim Löschen des Links.'));
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });

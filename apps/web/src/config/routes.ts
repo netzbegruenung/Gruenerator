@@ -279,7 +279,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, devOnly: true },
-  { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe, devOnly: true },
+  { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   {
