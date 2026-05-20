@@ -38,6 +38,7 @@ import {
 import { PiSquaresFour } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
+import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { type GroupAudience } from '../hooks/useGroupRequests';
 import {
   useCloneCanvasTemplate,
@@ -539,6 +540,7 @@ const GroupInfoSection = memo(
               items: SharedItem[];
               contentType: string;
               icon: typeof HiOutlineDocumentText;
+              getIcon?: (item: SharedItem) => typeof HiOutlineDocumentText;
               getLink?: (item: SharedItem) => string;
               variant?: 'thumbnail';
               cloneOnOpen?: boolean;
@@ -585,6 +587,7 @@ const GroupInfoSection = memo(
                 items: sharedContent.notebooks,
                 contentType: 'notebook_collections',
                 icon: HiOutlineDocumentText,
+                getIcon: (item) => getNotebookById(String(item.id))?.icon ?? HiOutlineDocumentText,
                 getLink: (item) => `/notebook/${item.id}`,
               },
               {
@@ -641,6 +644,7 @@ const GroupInfoSection = memo(
                         {section.items.map((item) => {
                           const title = item.title || item.name || 'Ohne Titel';
                           const href = section.getLink?.(item);
+                          const ItemIcon = section.getIcon?.(item) ?? ContentIcon;
 
                           if (isThumbnailVariant) {
                             const thumbnailUrl = item.thumbnail_url ?? null;
@@ -723,7 +727,7 @@ const GroupInfoSection = memo(
 
                           const content = (
                             <>
-                              <ContentIcon className="size-5 text-primary-600 dark:text-primary-400 shrink-0" />
+                              <ItemIcon className="size-5 text-primary-600 dark:text-primary-400 shrink-0" />
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-medium text-foreground truncate m-0">
                                   {title}
