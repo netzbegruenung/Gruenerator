@@ -26,7 +26,8 @@ const SUFFIX_RE = new RegExp(`-([${SUFFIX_ALPHABET}]{${SUFFIX_LENGTH}})$`);
  * stripped via NFD because there's no single-locale transliteration that
  * makes sense for everything. Non-alphanumerics become `-`, repeats
  * collapsed, length capped at 40 chars. Empty results (e.g. all-emoji
- * titles) fall back to "notebook".
+ * titles) fall back to `fallback` (default "notebook"; pass "gruppe" etc.
+ * for other resource types).
  */
 const GERMAN_TRANSLITERATIONS: Array<[RegExp, string]> = [
   [/ä/g, 'ae'],
@@ -38,7 +39,7 @@ const GERMAN_TRANSLITERATIONS: Array<[RegExp, string]> = [
   [/ß/g, 'ss'],
 ];
 
-export function slugifyName(name: string): string {
+export function slugifyName(name: string, fallback = 'notebook'): string {
   let transliterated = name;
   for (const [pattern, replacement] of GERMAN_TRANSLITERATIONS) {
     transliterated = transliterated.replace(pattern, replacement);
@@ -51,7 +52,7 @@ export function slugifyName(name: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 40)
     .replace(/-+$/g, '');
-  return normalized || 'notebook';
+  return normalized || fallback;
 }
 
 /**
@@ -68,6 +69,15 @@ export function generateSlugSuffix(): string {
  */
 export function buildNotebookSlug(name: string, suffix: string): string {
   return `${slugifyName(name)}-${suffix}`;
+}
+
+/**
+ * Group variant of {@link buildNotebookSlug}: `<slugified-name>-<suffix>`
+ * with a "gruppe" fallback for empty names. Resolution reuses the shared
+ * {@link extractSlugSuffix} (the suffix shape is identical across resources).
+ */
+export function buildGroupSlug(name: string, suffix: string): string {
+  return `${slugifyName(name, 'gruppe')}-${suffix}`;
 }
 
 /**

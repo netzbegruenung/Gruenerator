@@ -2,6 +2,7 @@ export {
   ALLOWED_LINK_ICONS,
   GROUPS_QUERY_KEY,
   buildGroupInviteUrl,
+  buildGroupPath,
   getGroupInitials,
   groupDetailsKey,
   groupMembersKey,

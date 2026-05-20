@@ -153,6 +153,8 @@ export const groupSummarySchema = z.object({
   isAdmin: z.boolean(),
   member_count: z.number().nullish(),
   content_count: z.number().nullish(),
+  // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
+  slug_suffix: z.string().nullish(),
 });
 export type GroupSummaryDto = z.infer<typeof groupSummarySchema>;
 
@@ -168,6 +170,8 @@ export const groupDetailSchema = z.object({
   links: z.array(groupLinkSchema).nullish(),
   is_public: z.boolean().nullish(),
   audience: groupAudienceSchema.nullish(),
+  // Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`.
+  slug_suffix: z.string().nullish(),
 });
 export type GroupDetailDto = z.infer<typeof groupDetailSchema>;
 
@@ -251,6 +255,12 @@ export const groupDetailsResponseSchema = z.object({
   success: z.literal(true),
   group: groupDetailSchema,
   membership: groupMembershipSchema,
+});
+
+/** Maps a pretty slug or raw UUID to the group's canonical id. */
+export const groupResolveResponseSchema = z.object({
+  success: z.literal(true),
+  id: z.string(),
 });
 
 export const groupMembersResponseSchema = z.object({

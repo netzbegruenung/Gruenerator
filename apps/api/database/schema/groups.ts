@@ -24,6 +24,9 @@ export const groups = pgTable('groups', {
   // Discoverability. TEXT column (no enum DDL) narrowed to a closed union in TS.
   is_public: boolean('is_public').notNull().default(false),
   audience: text('audience').$type<GroupAudience>().notNull().default('all'),
+  // Stable 6-char tail for Notion-style URLs (`/gruppen/<name>-<suffix>`).
+  // Nullable until the boot-time backfill fills legacy rows.
+  slug_suffix: text('slug_suffix'),
 });
 
 export const group_memberships = pgTable('group_memberships', {
