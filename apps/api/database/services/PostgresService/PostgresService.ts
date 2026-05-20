@@ -110,6 +110,17 @@ export class PostgresService {
       }
 
       try {
+        const { backfillGroupSlugSuffixes } =
+          await import('../../../services/migrations/backfillGroupSlugSuffixes.js');
+        await backfillGroupSlugSuffixes();
+      } catch (error) {
+        console.warn(
+          '[PostgresService] ⚠️ Group slug backfill skipped:',
+          (error as Error).message
+        );
+      }
+
+      try {
         const { backfillNotebookAudience } =
           await import('../../../services/migrations/backfillNotebookAudience.js');
         await backfillNotebookAudience();

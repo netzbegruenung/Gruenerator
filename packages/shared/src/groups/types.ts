@@ -1,3 +1,5 @@
+import { buildGroupSlug } from '../utils/slug.js';
+
 export const ALLOWED_LINK_ICONS = [
   'globe',
   'link',
@@ -56,6 +58,8 @@ export interface GroupSummary {
   join_token?: string;
   links?: GroupLink[] | null;
   settings?: Record<string, unknown> | null;
+  /** Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`. */
+  slug_suffix?: string | null;
   [key: string]: unknown;
 }
 
@@ -80,6 +84,8 @@ export interface GroupDetail {
   created_by?: string;
   links?: GroupLink[];
   settings?: Record<string, unknown> | null;
+  /** Stable 6-char tail for the Notion-style URL `/gruppen/<name>-<suffix>`. */
+  slug_suffix?: string | null;
 }
 
 export interface GroupMembership {
@@ -106,3 +112,15 @@ export const getGroupInitials = (name: string | null | undefined): string => {
 
 export const buildGroupInviteUrl = (joinToken: string): string =>
   `https://gruenerator.eu/join-group/${joinToken}`;
+
+/**
+ * Path to a group's page. Uses the Notion-style slug when the suffix is known,
+ * falling back to the raw UUID (still resolved by the backend) for legacy or
+ * not-yet-backfilled groups.
+ */
+export const buildGroupPath = (group: {
+  id: string;
+  name: string;
+  slug_suffix?: string | null;
+}): string =>
+  `/gruppen/${group.slug_suffix ? buildGroupSlug(group.name, group.slug_suffix) : group.id}`;
