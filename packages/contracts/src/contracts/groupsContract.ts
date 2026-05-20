@@ -11,8 +11,11 @@ import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
 
 import {
+  contentPermissionsBodySchema,
   createGroupBodySchema,
+  deleteContentBodySchema,
   discoverGroupsResponseSchema,
+  groupContentResponseSchema,
   groupCreateResponseSchema,
   groupDetailsResponseSchema,
   groupErrorResponseSchema,
@@ -23,6 +26,7 @@ import {
   groupResolveResponseSchema,
   groupSuccessResponseSchema,
   groupVisibilityResponseSchema,
+  groupVorlagenResponseSchema,
   joinByTokenBodySchema,
   joinGroupResponseSchema,
   joinRequestsResponseSchema,
@@ -30,6 +34,8 @@ import {
   memberRoleBodySchema,
   requestToJoinResponseSchema,
   setGroupVisibilityBodySchema,
+  shareContentBodySchema,
+  unshareContentBodySchema,
   updateGroupInfoBodySchema,
   updateGroupNameBodySchema,
   verifyTokenResponseSchema,
@@ -362,5 +368,94 @@ export const groupsContract = c.router({
       500: groupErrorResponseSchema,
     },
     summary: 'Delete a group link (admin)',
+  },
+
+  // ── Content sharing (migrated from legacy groupContent.ts) ──────────────────
+
+  shareContent: {
+    method: 'POST',
+    path: '/api/auth/groups/:groupId/share',
+    pathParams: z.object({ groupId: z.string() }),
+    body: shareContentBodySchema,
+    responses: {
+      200: groupSuccessResponseSchema,
+      400: groupErrorResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Share content with a group',
+  },
+
+  unshareContent: {
+    method: 'DELETE',
+    path: '/api/auth/groups/:groupId/share',
+    pathParams: z.object({ groupId: z.string() }),
+    body: unshareContentBodySchema,
+    responses: {
+      200: groupSuccessResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Unshare content shared by the caller',
+  },
+
+  listGroupContent: {
+    method: 'GET',
+    path: '/api/auth/groups/:groupId/content',
+    pathParams: z.object({ groupId: z.string() }),
+    responses: {
+      200: groupContentResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'List all content shared with a group',
+  },
+
+  updateContentPermissions: {
+    method: 'PUT',
+    path: '/api/auth/groups/:groupId/content/:contentId/permissions',
+    pathParams: z.object({ groupId: z.string(), contentId: z.string() }),
+    body: contentPermissionsBodySchema,
+    responses: {
+      200: groupSuccessResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Update permissions on shared content (admin or sharer)',
+  },
+
+  removeGroupContent: {
+    method: 'DELETE',
+    path: '/api/auth/groups/:groupId/content/:contentId',
+    pathParams: z.object({ groupId: z.string(), contentId: z.string() }),
+    body: deleteContentBodySchema,
+    responses: {
+      200: groupSuccessResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Remove content from a group (admin)',
+  },
+
+  listGroupVorlagen: {
+    method: 'GET',
+    path: '/api/auth/groups/:groupId/vorlagen',
+    pathParams: z.object({ groupId: z.string() }),
+    responses: {
+      200: groupVorlagenResponseSchema,
+      401: groupErrorResponseSchema,
+      403: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'List tag-matched templates for a group',
   },
 });

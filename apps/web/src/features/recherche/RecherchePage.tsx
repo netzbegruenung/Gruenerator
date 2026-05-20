@@ -1,4 +1,5 @@
 import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
   Dialog,
   DialogContent,
@@ -31,7 +32,6 @@ import withAuthRequired from '../../components/common/LoginRequired/withAuthRequ
 import PageContainer from '../../components/common/PageContainer';
 import ToolGrid from '../../components/common/ToolGrid';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import apiClient from '../../components/utils/apiClient';
 import { getIcon, NotebookIcon } from '../../config/icons';
 import { useGroups, type GroupSummary } from '../../features/groups/hooks/useGroups';
 import { useAuthStore } from '../../stores/authStore';
@@ -100,11 +100,15 @@ const NotebookCard = memo(
 
     const handleShareToGroup = async (groupId: string) => {
       try {
-        await apiClient.post(`/auth/groups/${groupId}/share`, {
-          contentType: 'system_notebooks',
-          contentId: notebook.id,
-          permissions: { read: true, write: false, collaborative: false },
+        const res = await getContractsClient().groups.shareContent({
+          params: { groupId },
+          body: {
+            contentType: 'system_notebooks',
+            contentId: notebook.id,
+            permissions: { read: true, write: false, collaborative: false },
+          },
         });
+        if (res.status !== 200) throw new Error('share failed');
         setSharedGroupId(groupId);
         setTimeout(() => setSharedGroupId(null), 2000);
       } catch {
@@ -260,11 +264,15 @@ const EigeneNotebooks = memo(
 
     const handleShareToGroup = async (collectionId: string, groupId: string) => {
       try {
-        await apiClient.post(`/auth/groups/${groupId}/share`, {
-          contentType: 'notebook_collections',
-          contentId: collectionId,
-          permissions: { read: true, write: false, collaborative: false },
+        const res = await getContractsClient().groups.shareContent({
+          params: { groupId },
+          body: {
+            contentType: 'notebook_collections',
+            contentId: collectionId,
+            permissions: { read: true, write: false, collaborative: false },
+          },
         });
+        if (res.status !== 200) throw new Error('share failed');
         setSharedInfo(collectionId);
         setTimeout(() => setSharedInfo(null), 2000);
       } catch {

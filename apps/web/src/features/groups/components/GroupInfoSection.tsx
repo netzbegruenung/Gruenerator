@@ -1,3 +1,5 @@
+import { type GroupContentType } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { getRobotAvatarPath, validateRobotId } from '@gruenerator/shared/avatar';
 import {
   Badge,
@@ -36,7 +38,7 @@ import {
 import { PiSquaresFour } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
-import apiClient from '../../../components/utils/apiClient';
+
 import { type GroupAudience } from '../hooks/useGroupRequests';
 import {
   useCloneCanvasTemplate,
@@ -284,11 +286,15 @@ const GroupInfoSection = memo(
           targetGroupId: string;
         }
       ) => {
-        await apiClient.post(`/auth/groups/${options.targetGroupId}/share`, {
-          contentType,
-          contentId: itemId,
-          permissions: options.permissions,
+        const res = await getContractsClient().groups.shareContent({
+          params: { groupId: options.targetGroupId },
+          body: {
+            contentType: contentType as GroupContentType,
+            contentId: String(itemId),
+            permissions: options.permissions,
+          },
         });
+        if (res.status !== 200) throw new Error('share failed');
       },
       []
     );
