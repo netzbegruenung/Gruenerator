@@ -79,16 +79,6 @@ export const userProfileContractRouter = s.router(userProfileContract, {
       const profileService = getProfileService();
       const { display_name, username, avatar_robot_id, email, custom_prompt } = args.body;
 
-      if (avatar_robot_id !== undefined && (avatar_robot_id < 1 || avatar_robot_id > 9)) {
-        return {
-          status: 400 as const,
-          body: {
-            success: false as const,
-            message: 'Avatar Robot ID muss zwischen 1 und 9 liegen.',
-          },
-        };
-      }
-
       const updateData: Record<string, string | number | null | undefined> = {};
       if (display_name !== undefined) updateData.display_name = display_name || null;
       if (username !== undefined) updateData.username = username || null;
@@ -361,115 +351,6 @@ export const userProfileContractRouter = s.router(userProfileContract, {
         body: {
           success: false as const,
           message: err.message || 'Fehler beim Speichern der Einstellung.',
-        },
-      };
-    }
-  },
-
-  getNotificationPreferences: async (args) => {
-    try {
-      const userId = getUserId(args.req);
-      const { getPreferencesForUser, getDefaultPreferences } =
-        await import('../../services/notifications/notificationPreferences.js');
-      const preferences = await getPreferencesForUser(userId);
-      const defaults = getDefaultPreferences();
-
-      return {
-        status: 200 as const,
-        body: { success: true as const, preferences, defaults },
-      };
-    } catch (error) {
-      const err = error as Error;
-      log.error('[Profile Contract GET /profile/notification-preferences] Error:', err);
-      return {
-        status: 500 as const,
-        body: {
-          success: false as const,
-          message: err.message || 'Fehler beim Laden der Benachrichtigungseinstellungen.',
-        },
-      };
-    }
-  },
-
-  updateNotificationPreferences: async (args) => {
-    try {
-      const userId = getUserId(args.req);
-      const { category, channels } = args.body;
-
-      const { ALL_NOTIFICATION_TYPES } = await import('../../services/notifications/types.js');
-      if (!(ALL_NOTIFICATION_TYPES as readonly string[]).includes(category)) {
-        return {
-          status: 400 as const,
-          body: {
-            success: false as const,
-            message: `Unbekannter Benachrichtigungstyp: ${category}`,
-          },
-        };
-      }
-
-      const profileService = getProfileService();
-      const profile = await profileService.getProfileById(userId);
-      const currentNotifications = profile?.user_defaults?.notifications ?? {};
-      const { getDefaultPreferences } =
-        await import('../../services/notifications/notificationPreferences.js');
-      const defaults = getDefaultPreferences();
-      const currentChannels = currentNotifications[category];
-
-      let base: { email: boolean; push: boolean; in_app: boolean };
-      if (
-        currentChannels &&
-        typeof currentChannels === 'object' &&
-        !Array.isArray(currentChannels)
-      ) {
-        base = currentChannels as { email: boolean; push: boolean; in_app: boolean };
-      } else if (typeof currentChannels === 'boolean') {
-        base = {
-          email: currentChannels,
-          push: defaults[category as keyof typeof defaults]?.push ?? true,
-          in_app: defaults[category as keyof typeof defaults]?.in_app ?? true,
-        };
-      } else {
-        base = {
-          ...(defaults[category as keyof typeof defaults] ?? {
-            email: true,
-            push: true,
-            in_app: true,
-          }),
-        };
-      }
-
-      const merged = {
-        email: typeof channels.email === 'boolean' ? channels.email : base.email,
-        push: typeof channels.push === 'boolean' ? channels.push : base.push,
-        in_app: typeof channels.in_app === 'boolean' ? channels.in_app : base.in_app,
-      };
-
-      await profileService.updateUserDefault(userId, 'notifications', category, merged);
-
-      const { getPreferencesForUser } =
-        await import('../../services/notifications/notificationPreferences.js');
-      const preferences = await getPreferencesForUser(userId);
-
-      log.debug(
-        `[Notification Preferences] User ${userId}: ${category} = ${JSON.stringify(merged)}`
-      );
-
-      return {
-        status: 200 as const,
-        body: {
-          success: true as const,
-          preferences,
-          message: 'Benachrichtigungseinstellung gespeichert.',
-        },
-      };
-    } catch (error) {
-      const err = error as Error;
-      log.error('[Profile Contract PATCH /profile/notification-preferences] Error:', err);
-      return {
-        status: 500 as const,
-        body: {
-          success: false as const,
-          message: err.message || 'Fehler beim Speichern der Benachrichtigungseinstellung.',
         },
       };
     }
