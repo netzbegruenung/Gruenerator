@@ -179,7 +179,6 @@ const BriefingPage = lazy(() => import('../features/briefing/BriefingPage'));
 const BriefingArchivePage = lazy(() => import('../features/briefing/BriefingArchivePage'));
 const BriefingArticlePage = lazy(() => import('../features/briefing/BriefingArticlePage'));
 const WorkplacePage = lazy(() => import('../features/workplace/WorkplacePage'));
-// const RecherchePage = lazy(() => import('../features/recherche/RecherchePage'));
 const GruppenPage = lazy(() => import('../features/groups/pages/GruppenPage'));
 const BoardsListRedirect = lazy(() => Promise.resolve({ default: createRedirect('/docs') }));
 const BoardPage = lazy(() => import('../features/boards/BoardPage'));
@@ -258,7 +257,7 @@ const standardRoutes: RouteConfig[] = [
     path: '/desk',
     component: lazy(() => Promise.resolve({ default: createRedirect('/workplace') })),
   },
-  // RecherchePage replaced by /notebooks index page; keep route as a redirect for old links
+  // Former /recherche page removed; /notebooks is the canonical entry point. Keep route as redirect for old links.
   {
     path: '/recherche',
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
@@ -280,7 +279,7 @@ const standardRoutes: RouteConfig[] = [
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, devOnly: true },
-  { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe, devOnly: true },
+  { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   {

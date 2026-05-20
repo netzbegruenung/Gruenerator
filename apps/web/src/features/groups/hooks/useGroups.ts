@@ -1,6 +1,7 @@
 import { type GroupContentType } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import {
+  errMessage,
   useAddGroupLink,
   useCreateGroup,
   useDeleteGroup,
@@ -32,16 +33,6 @@ import { useAuthStore } from '../../../stores/authStore';
 export { getGroupInitials, type GroupLink, type GroupMember, type GroupSummary };
 
 export const useGroupDetails = useGroupDetailsShared;
-
-// ts-rest widens the body to `unknown` for non-2xx statuses; read `message`
-// defensively rather than asserting the error-schema shape.
-function errMessage(body: unknown, fallback = 'Aktion fehlgeschlagen.'): string {
-  if (body && typeof body === 'object' && 'message' in body) {
-    const m = (body as { message?: unknown }).message;
-    if (typeof m === 'string') return m;
-  }
-  return fallback;
-}
 
 interface MutationOptions<T = unknown> {
   onSuccess?: (result: T) => void;
@@ -320,7 +311,7 @@ export const useUpdateGroupSettings = (groupId: string | null) => {
       return res.body;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['groupDetails'] });
+      void queryClient.invalidateQueries({ queryKey: groupDetailsKey(groupId ?? '') });
       void queryClient.invalidateQueries({ queryKey: ['groupVorlagen', groupId] });
     },
   });

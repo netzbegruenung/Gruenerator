@@ -114,10 +114,7 @@ export class PostgresService {
           await import('../../../services/migrations/backfillGroupSlugSuffixes.js');
         await backfillGroupSlugSuffixes();
       } catch (error) {
-        console.warn(
-          '[PostgresService] ⚠️ Group slug backfill skipped:',
-          (error as Error).message
-        );
+        console.warn('[PostgresService] ⚠️ Group slug backfill skipped:', (error as Error).message);
       }
 
       try {

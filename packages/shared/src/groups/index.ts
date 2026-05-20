@@ -16,6 +16,7 @@ export {
 } from './types.js';
 
 export {
+  errMessage,
   useAddGroupLink,
   useCreateGroup,
   useDeleteGroup,

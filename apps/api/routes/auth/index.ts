@@ -13,14 +13,12 @@ import mobileAuthRouter from './mobileAuth.js';
 import templatesRouter from './templates/index.js';
 import userCustomGeneratorsRouter from './userCustomGenerators.js';
 import userCustomPromptsRouter from './userCustomPrompts.js';
-import userProfileRouter from './userProfile.js';
 
 const router: Router = express.Router();
 
 router.use(appLoginRouter);
 router.use(mobileAuthRouter);
 router.use(authCoreRouter);
-router.use(userProfileRouter);
 router.use(userCustomGeneratorsRouter);
 router.use(userCustomPromptsRouter);
 
@@ -34,7 +32,6 @@ export {
   appLoginRouter,
   authCoreRouter,
   mobileAuthRouter,
-  userProfileRouter,
   userCustomGeneratorsRouter,
   userCustomPromptsRouter,
   contentRouter,
