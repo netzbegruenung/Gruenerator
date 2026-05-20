@@ -1,4 +1,5 @@
 import {
+  CloudDownload,
   FileText,
   Heart,
   LayoutDashboard,
@@ -94,6 +95,13 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     label: 'Notizbuch-Likes',
     description: 'Wenn andere dein öffentliches Notizbuch mögen',
     icon: Heart,
+    group: 'system',
+    actions: (ctx) => [openLinkAction('Notizbuch öffnen')(ctx)],
+  },
+  wolke_new_files: {
+    label: 'Neue Wolke-Dateien',
+    description: 'Wenn in den Wolke-Ordnern deiner Notizbücher neue Dateien gefunden werden',
+    icon: CloudDownload,
     group: 'system',
     actions: (ctx) => [openLinkAction('Notizbuch öffnen')(ctx)],
   },

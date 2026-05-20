@@ -36,6 +36,7 @@ export const notificationTypeSchema = z.enum([
   'group_join_denied',
   'transfer_downloaded',
   'notebook_liked',
+  'wolke_new_files',
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 

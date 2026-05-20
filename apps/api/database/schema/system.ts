@@ -33,6 +33,38 @@ export const wolkeSyncStatus = pgTable(
   ]
 );
 
+/**
+ * Wolke folder watcher: files detected in an `auto_sync` notebook's Wolke
+ * folders that are not yet imported, awaiting the user's "Hinzufügen" click.
+ * The unique (collection_id, file_path) index makes hourly detection
+ * idempotent — re-runs insert with ON CONFLICT DO NOTHING.
+ */
+export const wolkePendingFiles = pgTable(
+  'wolke_pending_files',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    collectionId: uuid('collection_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    shareLinkId: text('share_link_id').notNull(),
+    folderPath: text('folder_path').notNull().default(''),
+    filePath: text('file_path').notNull(),
+    fileName: text('file_name').notNull(),
+    etag: text('etag'),
+    size: bigint('size', { mode: 'number' }),
+    mimeType: text('mime_type'),
+    status: text('status').notNull().default('pending'),
+    detectedAt: timestamp('detected_at', { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  },
+  (t) => [
+    unique('uq_wolke_pending_collection_file').on(t.collectionId, t.filePath),
+    index('idx_wolke_pending_collection_status').on(t.collectionId, t.status),
+    index('idx_wolke_pending_user_status').on(t.userId, t.status),
+  ]
+);
+export type WolkePendingFileRow = typeof wolkePendingFiles.$inferSelect;
+export type WolkePendingFileInsert = typeof wolkePendingFiles.$inferInsert;
+
 export const routeUsageStats = pgTable(
   'route_usage_stats',
   {
