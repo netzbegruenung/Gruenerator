@@ -2,7 +2,7 @@
  * Group membership helper + (now-empty) legacy core router.
  *
  * All group CRUD / join / leave / members / role / link routes were migrated to
- * the ts-rest contract router (`groupsContractRouter.ts`). This module retains
+ * the ts-rest contract router (`groupsContract/`). This module retains
  * only the shared membership-check helper — used by the contract router, the
  * content router, and the avatar router — and an empty Express router that is
  * kept mounted for composition compatibility (`groups/index.ts`).

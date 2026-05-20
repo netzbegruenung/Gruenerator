@@ -3,7 +3,7 @@
  *
  * All content-sharing endpoints (share/unshare, list content, permissions,
  * remove, vorlagen) were moved to the ts-rest contract router
- * (`groupsContractRouter.ts`). This module now exports only an empty Express
+ * (`groupsContract/`). This module now exports only an empty Express
  * router, kept mounted for composition compatibility (`groups/index.ts`).
  */
 
