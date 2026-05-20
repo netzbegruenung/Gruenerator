@@ -38,7 +38,6 @@ import {
 import { PiSquaresFour } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
-
 import { type GroupAudience } from '../hooks/useGroupRequests';
 import {
   useCloneCanvasTemplate,

@@ -117,6 +117,26 @@ function isPermissionError(err: unknown): boolean {
   return msg.includes('Mitglied') || msg.includes('Berechtigung') || msg.includes('Admin');
 }
 
+/**
+ * Shared error tail for membership-gated handlers: a permission throw becomes a
+ * 403 (with the thrown message), anything else is logged and becomes a 500.
+ * Every gated route declares both 403 and 500 with `groupErrorResponseSchema`,
+ * so this union is assignable in each handler.
+ */
+function groupErrorResponse(
+  handler: string,
+  message500: string,
+  error: unknown
+):
+  | { status: 403; body: { success: false; message: string } }
+  | { status: 500; body: { success: false; message: string } } {
+  if (isPermissionError(error)) {
+    return { status: 403, body: { success: false, message: (error as Error).message } };
+  }
+  log.error(`[groupsContract.${handler}] Error:`, error);
+  return { status: 500, body: { success: false, message: message500 } };
+}
+
 function toIsoOrNull(value: unknown): string | null {
   if (value == null) return null;
   if (value instanceof Date) return value.toISOString();
@@ -241,11 +261,7 @@ export const groupsContractRouter = s.router(groupsContract, {
         body: { success: true as const, is_public: updated.is_public, audience: updated.audience },
       };
     } catch (error) {
-      log.warn('[groupsContract.setVisibility] Denied/failed:', (error as Error).message);
-      return {
-        status: 403 as const,
-        body: { success: false as const, message: 'Keine Berechtigung für diese Aktion.' },
-      };
+      return groupErrorResponse('setVisibility', 'Interner Fehler.', error);
     }
   },
 
@@ -357,11 +373,7 @@ export const groupsContractRouter = s.router(groupsContract, {
         })),
       };
     } catch (error) {
-      log.warn('[groupsContract.listJoinRequests] Denied/failed:', (error as Error).message);
-      return {
-        status: 403 as const,
-        body: { success: false as const, message: 'Keine Berechtigung für diese Aktion.' },
-      };
+      return groupErrorResponse('listJoinRequests', 'Interner Fehler.', error);
     }
   },
 
@@ -908,17 +920,11 @@ export const groupsContractRouter = s.router(groupsContract, {
         body: { success: true as const, message: 'Gruppenname erfolgreich aktualisiert.' },
       };
     } catch (error) {
-      if (isPermissionError(error)) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: (error as Error).message },
-        };
-      }
-      log.error('[groupsContract.updateName] Error:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Aktualisieren des Gruppennamens.' },
-      };
+      return groupErrorResponse(
+        'updateName',
+        'Fehler beim Aktualisieren des Gruppennamens.',
+        error
+      );
     }
   },
 
@@ -1145,17 +1151,7 @@ export const groupsContractRouter = s.router(groupsContract, {
         },
       };
     } catch (error) {
-      if (isPermissionError(error)) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: (error as Error).message },
-        };
-      }
-      log.error('[groupsContract.listMembers] Error:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Laden der Gruppenmitglieder.' },
-      };
+      return groupErrorResponse('listMembers', 'Fehler beim Laden der Gruppenmitglieder.', error);
     }
   },
 
@@ -1221,17 +1217,7 @@ export const groupsContractRouter = s.router(groupsContract, {
         body: { success: true as const, message: 'Rolle erfolgreich aktualisiert.' },
       };
     } catch (error) {
-      if (isPermissionError(error)) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: (error as Error).message },
-        };
-      }
-      log.error('[groupsContract.updateMemberRole] Error:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Aktualisieren der Rolle.' },
-      };
+      return groupErrorResponse('updateMemberRole', 'Fehler beim Aktualisieren der Rolle.', error);
     }
   },
 
@@ -1271,17 +1257,7 @@ export const groupsContractRouter = s.router(groupsContract, {
 
       return { status: 200 as const, body: { success: true as const, link: newLink } };
     } catch (error) {
-      if (isPermissionError(error)) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: (error as Error).message },
-        };
-      }
-      log.error('[groupsContract.addLink] Error:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Hinzufügen des Links.' },
-      };
+      return groupErrorResponse('addLink', 'Fehler beim Hinzufügen des Links.', error);
     }
   },
 
@@ -1321,17 +1297,7 @@ export const groupsContractRouter = s.router(groupsContract, {
 
       return { status: 200 as const, body: { success: true as const, link: links[idx] } };
     } catch (error) {
-      if (isPermissionError(error)) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: (error as Error).message },
-        };
-      }
-      log.error('[groupsContract.updateLink] Error:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Aktualisieren des Links.' },
-      };
+      return groupErrorResponse('updateLink', 'Fehler beim Aktualisieren des Links.', error);
     }
   },
 
@@ -1354,17 +1320,7 @@ export const groupsContractRouter = s.router(groupsContract, {
 
       return { status: 200 as const, body: { success: true as const } };
     } catch (error) {
-      if (isPermissionError(error)) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: (error as Error).message },
-        };
-      }
-      log.error('[groupsContract.deleteLink] Error:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Löschen des Links.' },
-      };
+      return groupErrorResponse('deleteLink', 'Fehler beim Löschen des Links.', error);
     }
   },
 
@@ -1491,17 +1447,7 @@ export const groupsContractRouter = s.router(groupsContract, {
         body: { success: true as const, message: 'Inhalt erfolgreich mit der Gruppe geteilt.' },
       };
     } catch (error) {
-      if (isPermissionError(error)) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: (error as Error).message },
-        };
-      }
-      log.error('[groupsContract.shareContent] Error:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Teilen des Inhalts.' },
-      };
+      return groupErrorResponse('shareContent', 'Fehler beim Teilen des Inhalts.', error);
     }
   },
 
@@ -1547,20 +1493,11 @@ export const groupsContractRouter = s.router(groupsContract, {
         },
       };
     } catch (error) {
-      if (isPermissionError(error)) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: (error as Error).message },
-        };
-      }
-      log.error('[groupsContract.unshareContent] Error:', error);
-      return {
-        status: 500 as const,
-        body: {
-          success: false as const,
-          message: 'Fehler beim Entfernen des Inhalts aus der Gruppe.',
-        },
-      };
+      return groupErrorResponse(
+        'unshareContent',
+        'Fehler beim Entfernen des Inhalts aus der Gruppe.',
+        error
+      );
     }
   },
 
@@ -1828,17 +1765,7 @@ export const groupsContractRouter = s.router(groupsContract, {
 
       return { status: 200 as const, body: { success: true as const, content: groupContent } };
     } catch (error) {
-      if (isPermissionError(error)) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: (error as Error).message },
-        };
-      }
-      log.error('[groupsContract.listGroupContent] Error:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Laden der Gruppeninhalte.' },
-      };
+      return groupErrorResponse('listGroupContent', 'Fehler beim Laden der Gruppeninhalte.', error);
     }
   },
 
@@ -1884,17 +1811,11 @@ export const groupsContractRouter = s.router(groupsContract, {
         body: { success: true as const, message: 'Berechtigungen erfolgreich aktualisiert.' },
       };
     } catch (error) {
-      if (isPermissionError(error)) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: (error as Error).message },
-        };
-      }
-      log.error('[groupsContract.updateContentPermissions] Error:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Aktualisieren der Berechtigungen.' },
-      };
+      return groupErrorResponse(
+        'updateContentPermissions',
+        'Fehler beim Aktualisieren der Berechtigungen.',
+        error
+      );
     }
   },
 
@@ -1938,17 +1859,11 @@ export const groupsContractRouter = s.router(groupsContract, {
         body: { success: true as const, message: 'Inhalt erfolgreich aus der Gruppe entfernt.' },
       };
     } catch (error) {
-      if (isPermissionError(error)) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: (error as Error).message },
-        };
-      }
-      log.error('[groupsContract.removeGroupContent] Error:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Entfernen des geteilten Inhalts.' },
-      };
+      return groupErrorResponse(
+        'removeGroupContent',
+        'Fehler beim Entfernen des geteilten Inhalts.',
+        error
+      );
     }
   },
 
@@ -2027,17 +1942,7 @@ export const groupsContractRouter = s.router(groupsContract, {
         body: { success: true as const, vorlagen, tags: templateTags },
       };
     } catch (error) {
-      if (isPermissionError(error)) {
-        return {
-          status: 403 as const,
-          body: { success: false as const, message: (error as Error).message },
-        };
-      }
-      log.error('[groupsContract.listGroupVorlagen] Error:', error);
-      return {
-        status: 500 as const,
-        body: { success: false as const, message: 'Fehler beim Laden der Vorlagen.' },
-      };
+      return groupErrorResponse('listGroupVorlagen', 'Fehler beim Laden der Vorlagen.', error);
     }
   },
 });
