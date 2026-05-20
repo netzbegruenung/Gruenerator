@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
   getRobotAvatarPath,
   validateRobotId,
@@ -246,12 +247,6 @@ interface BundleResponse {
   memories?: Memory[] | null;
 }
 
-interface ProfileMutationResponse {
-  success: boolean;
-  message?: string;
-  profile: Profile;
-}
-
 interface AnweisungenResponse {
   presseabbinder?: string;
   knowledge?: KnowledgeEntry[];
@@ -384,32 +379,40 @@ export const profileApiService = {
   },
 
   async updateProfile(profileData: ProfileUpdateData): Promise<Profile> {
-    const response = await apiClient.put<ProfileMutationResponse>('/auth/profile', profileData);
-    const result = response.data;
+    // The contract body types clearable fields as string|undefined, but
+    // ProfileUpdateData uses `null` to clear. Map null -> '' (the backend
+    // converts '' -> null), preserving clear semantics under the contract.
+    const body: {
+      display_name?: string;
+      username?: string;
+      email?: string;
+      custom_prompt?: string;
+    } = {};
+    if (profileData.display_name !== undefined) body.display_name = profileData.display_name;
+    if (profileData.username !== undefined) body.username = profileData.username ?? '';
+    if (profileData.email !== undefined) body.email = profileData.email ?? '';
+    if (profileData.custom_prompt !== undefined)
+      body.custom_prompt = profileData.custom_prompt ?? '';
 
-    if (!result.success) {
-      throw new Error(result.message ?? 'Profil-Update fehlgeschlagen');
+    const res = await getContractsClient().userProfile.updateProfile({ body });
+    if (res.status !== 200) {
+      throw new Error(`Profil-Update fehlgeschlagen (HTTP ${res.status})`);
     }
 
-    return result.profile;
+    return res.body.profile;
   },
 
   async updateAvatar(avatarRobotId: string | number): Promise<Profile> {
     try {
-      const response = await apiClient.patch<ProfileMutationResponse>('/auth/profile/avatar', {
-        avatar_robot_id: avatarRobotId,
+      const res = await getContractsClient().userProfile.updateAvatar({
+        body: { avatar_robot_id: Number(avatarRobotId) },
       });
-      const result = response.data;
 
-      if (!result.success) {
-        throw new Error(result.message ?? 'Avatar-Update fehlgeschlagen');
+      if (res.status !== 200) {
+        throw new Error(`Avatar-Update fehlgeschlagen (HTTP ${res.status})`);
       }
 
-      if (!result.profile) {
-        throw new Error('Server returned success but no profile data');
-      }
-
-      return result.profile;
+      return res.body.profile;
     } catch (error) {
       console.error(`[ProfileAPI] Avatar update failed for robot ID ${avatarRobotId}:`, error);
       throw error;
