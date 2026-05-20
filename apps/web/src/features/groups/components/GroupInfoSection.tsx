@@ -38,7 +38,6 @@ import {
 import { PiSquaresFour } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
-
 import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { type GroupAudience } from '../hooks/useGroupRequests';
 import {
@@ -588,8 +587,7 @@ const GroupInfoSection = memo(
                 items: sharedContent.notebooks,
                 contentType: 'notebook_collections',
                 icon: HiOutlineDocumentText,
-                getIcon: (item) =>
-                  getNotebookById(String(item.id))?.icon ?? HiOutlineDocumentText,
+                getIcon: (item) => getNotebookById(String(item.id))?.icon ?? HiOutlineDocumentText,
                 getLink: (item) => `/notebook/${item.id}`,
               },
               {
