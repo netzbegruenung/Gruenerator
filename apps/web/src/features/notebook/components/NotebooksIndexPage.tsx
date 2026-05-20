@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { buildNotebookSlug } from '@gruenerator/shared/utils';
 import {
   DropdownMenu,
@@ -17,7 +18,6 @@ import { PiStar, PiStarFill } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
 import withAuthRequired from '../../../components/common/LoginRequired/withAuthRequired';
-import apiClient from '../../../components/utils/apiClient';
 import { NotebookIcon } from '../../../config/icons';
 import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
@@ -55,11 +55,15 @@ const NotebookCard = memo(
 
     const handleShareToGroup = async (groupId: string) => {
       try {
-        await apiClient.post(`/auth/groups/${groupId}/share`, {
-          contentType: 'system_notebooks',
-          contentId: notebook.id,
-          permissions: { read: true, write: false, collaborative: false },
+        const res = await getContractsClient().groups.shareContent({
+          params: { groupId },
+          body: {
+            contentType: 'system_notebooks',
+            contentId: notebook.id,
+            permissions: { read: true, write: false, collaborative: false },
+          },
         });
+        if (res.status !== 200) throw new Error('share failed');
         setSharedGroupId(groupId);
         setTimeout(() => setSharedGroupId(null), 2000);
       } catch {
@@ -215,11 +219,15 @@ const EigeneNotebooks = memo(
 
     const handleShareToGroup = async (collectionId: string, groupId: string) => {
       try {
-        await apiClient.post(`/auth/groups/${groupId}/share`, {
-          contentType: 'notebook_collections',
-          contentId: collectionId,
-          permissions: { read: true, write: false, collaborative: false },
+        const res = await getContractsClient().groups.shareContent({
+          params: { groupId },
+          body: {
+            contentType: 'notebook_collections',
+            contentId: collectionId,
+            permissions: { read: true, write: false, collaborative: false },
+          },
         });
+        if (res.status !== 200) throw new Error('share failed');
         setSharedInfo(collectionId);
         setTimeout(() => setSharedInfo(null), 2000);
       } catch {
