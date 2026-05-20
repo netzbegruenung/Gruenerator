@@ -9,6 +9,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { groupsContract } from '@gruenerator/contracts';
+import { extractSlugSuffix, generateSlugSuffix } from '@gruenerator/shared/utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import { getPostgresInstance } from '../../../../database/services/PostgresService.js';
@@ -31,6 +32,8 @@ import {
 import type { UserProfile } from '../../../../services/user/types.js';
 import type { GroupLinkBody } from '@gruenerator/contracts';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const coreRoutes = {
   listUserGroups: s.route(groupsContract.listUserGroups, async (args) => {
     try {
@@ -50,7 +53,7 @@ export const coreRoutes = {
 
       const groupIds = memberships.map((m) => m.group_id);
       const groupsData = (await postgres.query(
-        'SELECT id, name, description, created_at, created_by, join_token, settings, avatar_url, links FROM groups WHERE id = ANY($1)',
+        'SELECT id, name, description, created_at, created_by, join_token, settings, avatar_url, links, slug_suffix FROM groups WHERE id = ANY($1)',
         [groupIds],
         { table: 'groups' }
       )) as Array<{
@@ -63,6 +66,7 @@ export const coreRoutes = {
         settings: Record<string, unknown> | null;
         avatar_url: string | null;
         links: StoredGroupLink[] | null;
+        slug_suffix: string | null;
       }>;
 
       const byId = new Map(memberships.map((m) => [m.group_id, m]));
@@ -82,6 +86,7 @@ export const coreRoutes = {
           role,
           joined_at: toIsoOrNull(m?.joined_at),
           isAdmin: group.created_by === userId || role === 'admin',
+          slug_suffix: group.slug_suffix ?? null,
         };
       });
 
@@ -95,22 +100,64 @@ export const coreRoutes = {
     }
   }),
 
+  resolveGroup: s.route(groupsContract.resolveGroup, async (args) => {
+    try {
+      const input = args.params.slugOrId;
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      const suffix = extractSlugSuffix(input);
+      // Without a suffix the input can only be a raw UUID; reject anything else
+      // before the query, where a non-UUID would crash the id cast.
+      if (!suffix && !UUID_RE.test(input)) {
+        return {
+          status: 404 as const,
+          body: { success: false as const, message: 'Gruppe nicht gefunden.' },
+        };
+      }
+
+      const row = (await postgres.queryOne(
+        suffix
+          ? 'SELECT id FROM groups WHERE slug_suffix = $1'
+          : 'SELECT id FROM groups WHERE id = $1',
+        [suffix ?? input],
+        { table: 'groups' }
+      )) as { id: string } | null;
+
+      if (!row) {
+        return {
+          status: 404 as const,
+          body: { success: false as const, message: 'Gruppe nicht gefunden.' },
+        };
+      }
+
+      return { status: 200 as const, body: { success: true as const, id: row.id } };
+    } catch (error) {
+      log.error('[groupsContract.resolveGroup] Error:', error);
+      return {
+        status: 500 as const,
+        body: { success: false as const, message: 'Fehler beim Auflösen der Gruppe.' },
+      };
+    }
+  }),
+
   createGroup: s.route(groupsContract.createGroup, async (args) => {
     try {
       const userId = getUserId(args.req);
       const name = args.body.name.trim();
       const joinToken = crypto.randomBytes(16).toString('hex');
       const groupId = uuidv4();
+      const slugSuffix = generateSlugSuffix();
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
       const newGroup = await postgres.transaction(async (client) => {
         const group = (await postgres.transactionQueryOne(
           client,
-          `INSERT INTO groups (id, name, created_by, join_token, description)
-             VALUES ($1, $2, $3, $4, $5)
-           RETURNING id, name, description, created_at, created_by, join_token`,
-          [groupId, name, userId, joinToken, null]
+          `INSERT INTO groups (id, name, created_by, join_token, description, slug_suffix)
+             VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING id, name, description, created_at, created_by, join_token, slug_suffix`,
+          [groupId, name, userId, joinToken, null, slugSuffix]
         )) as {
           id: string;
           name: string;
@@ -118,6 +165,7 @@ export const coreRoutes = {
           created_at: string | Date | null;
           created_by: string | null;
           join_token: string | null;
+          slug_suffix: string | null;
         } | null;
 
         if (!group) throw new Error('Failed to create group');
@@ -145,6 +193,7 @@ export const coreRoutes = {
             role: 'admin',
             isAdmin: true,
             joined_at: new Date().toISOString(),
+            slug_suffix: newGroup.slug_suffix ?? null,
           },
         },
       };
@@ -253,7 +302,7 @@ export const coreRoutes = {
       const row = (await postgres.queryOne(
         `SELECT gm.role, gm.joined_at,
                 g.id, g.name, g.description, g.created_at, g.created_by, g.join_token,
-                g.settings, g.avatar_url, g.links, g.is_public, g.audience
+                g.settings, g.avatar_url, g.links, g.is_public, g.audience, g.slug_suffix
            FROM group_memberships gm
            JOIN groups g ON g.id = gm.group_id
           WHERE gm.group_id = $1 AND gm.user_id = $2`,
@@ -273,6 +322,7 @@ export const coreRoutes = {
         links: StoredGroupLink[] | null;
         is_public: boolean | null;
         audience: 'de-DE' | 'de-AT' | 'all' | null;
+        slug_suffix: string | null;
       } | null;
 
       if (!row) {
@@ -300,6 +350,7 @@ export const coreRoutes = {
             links: row.links ?? [],
             is_public: row.is_public ?? false,
             audience: row.audience ?? 'all',
+            slug_suffix: row.slug_suffix ?? null,
           },
           membership: {
             role: row.role,
