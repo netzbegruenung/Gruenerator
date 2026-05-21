@@ -1,6 +1,9 @@
 import { useCollaborators } from '@gruenerator/collab';
-import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
-import { memo } from 'react';
+import {
+  EditableTitle,
+  type EditableTitleHandle,
+} from '@gruenerator/shared/components/EditableTitle';
+import { memo, useRef } from 'react';
 import { FiArrowLeft } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
@@ -40,6 +43,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
 }: BoardInlineHeaderProps) {
   const navigate = useNavigate();
   const collaborators = useCollaborators(provider);
+  const titleRef = useRef<EditableTitleHandle>(null);
 
   const showStatusDot = !isConnected || !isSynced;
   const statusClass = !isConnected ? 'bg-red-500' : 'bg-yellow-500';
@@ -57,6 +61,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
           <FiArrowLeft size={compact ? 16 : 18} />
         </button>
         <EditableTitle
+          ref={titleRef}
           as="h1"
           title={title}
           editable
@@ -80,6 +85,7 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
           onDelete={onDelete}
           onArchiveToggle={onArchiveToggle}
           onExpertModeToggle={onExpertModeToggle}
+          onRequestRename={() => titleRef.current?.startEdit()}
         />
       </div>
     </div>
