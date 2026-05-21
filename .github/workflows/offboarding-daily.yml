@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Preview without processing'
+        description: 'Preview without processing (uncheck to run a real offboarding)'
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
@@ -45,18 +45,27 @@ jobs:
         id: offboard
         continue-on-error: true
         run: |
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
-            echo "Running dry-run..."
-            RESULT=$(curl -sf -X POST "$API_URL/api/internal/offboarding/dry-run" \
-              -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              -d '{"limit": 50}')
+          # Scheduled runs are dry-run "for now": report how many users would be
+          # processed without deleting/anonymizing anything. A real run requires a
+          # manual dispatch with the dry_run input unchecked.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            DRY=true
           else
-            echo "Running offboarding..."
-            RESULT=$(curl -sf -X POST "$API_URL/api/internal/offboarding/run-sync" \
-              -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
-              --max-time 1800)
+            DRY="${{ inputs.dry_run }}"
           fi
+          echo "dry=$DRY" >> "$GITHUB_OUTPUT"
+
+          if [ "$DRY" = "true" ]; then
+            echo "Running offboarding dry run (no changes will be made)..."
+          else
+            echo "Running LIVE offboarding (will delete/anonymize users)..."
+          fi
+
+          RESULT=$(curl -sf -X POST "$API_URL/api/internal/offboarding/run-sync" \
+            -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"dryRun\": $DRY}" \
+            --max-time 1800)
 
           echo "$RESULT" | jq .
           echo "result<<EOF" >> "$GITHUB_OUTPUT"
@@ -78,22 +87,25 @@ jobs:
             exit 0
           fi
 
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
-            COUNT=$(echo "$RESULT" | jq -r '.results | length')
-            WOULD_PROCESS=$(echo "$RESULT" | jq -r '[.results[] | select(.action == "would_be_processed")] | length')
-            NOT_FOUND=$(echo "$RESULT" | jq -r '[.results[] | select(.action == "not_found")] | length')
+          if [ "${{ steps.offboard.outputs.dry }}" = "true" ]; then
+            WOULD_PROCESS=$(echo "$RESULT" | jq -r '.wouldProcess')
+            NOT_FOUND=$(echo "$RESULT" | jq -r '.notFound')
+            FAILED=$(echo "$RESULT" | jq -r '.failed')
+            DURATION=$(echo "$RESULT" | jq -r '.durationMs')
+            DURATION_S=$(( DURATION / 1000 ))
 
             {
-              echo "## :mag: Offboarding Dry Run"
+              echo "## :mag: Offboarding Dry Run (no changes made)"
               echo ""
               echo "**Date:** $(date -u '+%d.%m.%Y %H:%M UTC')"
+              echo "**Duration:** ${DURATION_S}s"
               echo "**Run:** [${{ github.run_id }}]($RUN_URL)"
               echo ""
               echo "| Metric | Count |"
               echo "|--------|------:|"
-              echo "| Users checked | $COUNT |"
               echo "| Would be processed | $WOULD_PROCESS |"
               echo "| Not found in DB | $NOT_FOUND |"
+              echo "| Lookup errors | $FAILED |"
             } >> "$GITHUB_STEP_SUMMARY"
           else
             SUCCESS=$(echo "$RESULT" | jq -r '.success')
