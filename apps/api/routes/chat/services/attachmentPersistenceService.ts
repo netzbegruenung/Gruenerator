@@ -15,6 +15,7 @@ import { generateText } from 'ai';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
+import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 import { getIntermediateModel } from '../agents/providers.js';
 
 const log = createLogger('AttachmentPersistenceService');
@@ -65,7 +66,7 @@ export async function saveThreadAttachment(params: SaveAttachmentParams): Promis
 
   if (extractedText && extractedText.length > 100 && !isImage) {
     generateAttachmentSummary(attachmentId, extractedText).catch((err) => {
-      log.error(`[AttachmentPersistence] Failed to generate summary for ${attachmentId}:`, err);
+      reportBackgroundError(err, { job: 'attachment-summary', attachmentId });
     });
   }
 

@@ -1,7 +1,8 @@
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import { createLogger } from '../../../utils/logger.js';
-import { getPostgresDocumentService } from '../PostgresDocumentService/index.js';
+import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 import { getQdrantDocumentService } from '../DocumentSearchService/index.js';
+import { getPostgresDocumentService } from '../PostgresDocumentService/index.js';
 
 import { processUploadedDocument } from './fileProcessing.js';
 
@@ -46,10 +47,9 @@ export async function triggerPendingDocProcessing({
   const qdrantDocService = getQdrantDocumentService();
   for (const doc of pendingDocs) {
     processUploadedDocument(pgDocService, qdrantDocService, doc.id, userId).catch((err) => {
-      log.error(
-        `[${logScope}] Background processing failed for doc ${doc.id}${collectionSuffix}:`,
-        err
-      );
+      // Without reporting, a failed upload sits in "pending" forever and the
+      // user never learns why — surface it.
+      reportBackgroundError(err, { job: 'document-processing', docId: doc.id, logScope, userId });
     });
   }
 
