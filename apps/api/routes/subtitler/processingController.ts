@@ -59,6 +59,7 @@ import { getVideoMetadata } from '../../services/subtitler/videoUploadService.js
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
 import { createLogger } from '../../utils/logger.js';
 import { redisClient } from '../../utils/redis/index.js';
+import { reportBackgroundError } from '../../utils/reportBackgroundError.js';
 
 import type { AuthenticatedRequest } from '../../middleware/types.js';
 import type { ParamsDictionary } from 'express-serve-static-core';
@@ -154,6 +155,7 @@ router.post(
           });
         })
         .catch(async (error: Error) => {
+          reportBackgroundError(error, { job: 'subtitler-transcription', uploadId });
           void scheduleImmediateCleanup(uploadId, 'transcription error');
           await redisClient.set(jobKey, JSON.stringify({ status: 'error', data: error.message }), {
             EX: 86400,
@@ -576,7 +578,9 @@ router.post(
         projectId,
         userId,
         textOverlays: toAssTextOverlays(textOverlays),
-      }).catch((e: Error) => log.error(`Background export failed: ${e.message}`));
+      }).catch((e: Error) =>
+        reportBackgroundError(e, { job: 'subtitler-export', exportToken, uploadId: uploadId || '' })
+      );
     } catch (e: unknown) {
       if (!res.headersSent)
         res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
@@ -722,7 +726,7 @@ router.post(
             { EX: 3600 }
           );
         })
-        .catch((e: Error) => log.error(`Auto-process failed: ${e.message}`));
+        .catch((e: Error) => reportBackgroundError(e, { job: 'subtitler-auto-process', uploadId }));
     } catch (e: unknown) {
       if (!res.headersSent)
         res.status(500).json({ error: e instanceof Error ? e.message : String(e) });
