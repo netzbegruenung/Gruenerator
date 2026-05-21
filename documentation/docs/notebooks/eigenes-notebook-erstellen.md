@@ -15,7 +15,7 @@ Ein angemeldetes Grünerator-Konto und ein paar Dokumente, die du zusammenfassen
 
 ### Schritt 1: Zur Notebook-Übersicht
 
-Öffne in der Navigation **Notebooks → Meine Notebooks** (`/notebooks/meine`). Dort siehst du eine Liste deiner eigenen Notebooks — beim ersten Mal ist sie leer, mit einem Hinweis und einem grünen Button **„Eigenes Notebook erstellen"**. Klicke auf den Button, oder oben rechts auf **„Neues Notebook"**.
+Öffne in der Navigation **Notebooks** (`/notebooks`). Auf dieser Seite sind alle Notebooks an einem Ort gebündelt; deine eigenen findest du im Abschnitt **„Eigene"**. Beim ersten Mal ist er leer, mit dem Hinweis **„Noch keine eigenen Notebooks."**. Klicke neben der Überschrift **„Eigene"** auf das **Plus-Symbol** (➕), um den Editor zu öffnen.
 
 ### Schritt 2: Dateien hochladen
 
@@ -61,17 +61,11 @@ Klicke unten rechts auf **„Erstellen"**. Der Button bleibt deaktiviert, solang
 
 ## Dein Notebook nach der Erstellung
 
-Auf **Meine Notebooks** findest du jede deiner Sammlungen als Karte. Dort hast du folgende Möglichkeiten:
+Im Abschnitt **„Eigene"** erscheint jedes deiner Notebooks als Eintrag in einer Liste. Ein **Klick** auf den Eintrag öffnet die Notebook-Detailseite, von der aus du chatten und durchsuchen kannst. Über das **Drei-Punkte-Menü** (erscheint, wenn du mit der Maus über den Eintrag fährst) erreichst du weitere Aktionen:
 
-- **Öffnen** — bringt dich zur Notebook-Detailseite, von der aus du chatten und durchsuchen kannst.
-- **Umbenennen** — schnelle Namens- und Beschreibungsänderung im Dialog.
 - **Bearbeiten** — öffnet wieder den Editor mit allen Optionen (Dokumente, Labels, Wolke, öffentlich).
 - **Link kopieren** — kopiert die URL des Notebooks in die Zwischenablage.
 - **Löschen** — entfernt das Notebook unwiderruflich. **Wichtig:** Die enthaltenen Dokumente bleiben in deiner persönlichen Bibliothek erhalten und können in andere Notebooks aufgenommen werden.
-
-### Dateien per Drag &amp; Drop hinzufügen
-
-Du kannst Dateien direkt aus deinem Dateibrowser auf eine Notebook-Karte ziehen, ohne den Editor zu öffnen. Während des Ziehens hebt sich die Karte hervor, und ein Hinweis bestätigt, in welches Notebook die Datei fließt. Ist das Notebook voll (100 Dokumente erreicht), erscheint stattdessen ein roter Hinweis und der Drop wird abgelehnt.
 
 ## Häufige Fragen
 
