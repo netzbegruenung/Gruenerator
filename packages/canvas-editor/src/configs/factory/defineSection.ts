@@ -33,12 +33,18 @@ import type { SectionConfig, SectionContext } from '../types';
  *
  * If `BackgroundSection`'s prop type is later renamed, `propsFactory` here
  * fails to compile — instead of silently passing the wrong shape at runtime.
+ *
+ * This is also the *only* sanctioned producer of a branded `SectionConfig`
+ * (see the brand in `configs/types.ts`). The cast below is the assertion that
+ * the checked input satisfies the brand — a true type-boundary cast, not a
+ * hole: `SectionConfig` is a structural subtype of the input shape, so the
+ * only thing the cast adds is the phantom brand.
  */
 export function makeSectionDefiner<TState, TActions>() {
   return function defineSection<TProps>(config: {
     component: React.ComponentType<TProps>;
     propsFactory: (state: TState, actions: TActions, context?: SectionContext) => NoInfer<TProps>;
   }): SectionConfig<TState, TActions, TProps> {
-    return config;
+    return config as SectionConfig<TState, TActions, TProps>;
   };
 }
