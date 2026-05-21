@@ -341,6 +341,7 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
 
       // ENTER — open file picker for selected frame
       if (e.key === 'Enter' && currentActions.setFrameImage) {
+        const setFrameImage = currentActions.setFrameImage;
         const frame = currentState.frameInstances?.find((f) => f.id === selectedElement);
         if (frame) {
           e.preventDefault();
@@ -351,7 +352,7 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
             const file = input.files?.[0];
             if (file) {
               const objectUrl = URL.createObjectURL(file);
-              currentActions.setFrameImage!(selectedElement, file, objectUrl);
+              setFrameImage(selectedElement, file, objectUrl);
             }
             input.remove();
           });
