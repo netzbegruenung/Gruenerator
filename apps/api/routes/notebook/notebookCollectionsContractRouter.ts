@@ -337,7 +337,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
     }
   },
 
-  listPublicCollections: async () => {
+  listPublicCollections: async (args) => {
     try {
       type NotebookCollectionFromQdrantRaw = {
         id: string;
@@ -355,11 +355,17 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         notebook_collection_documents?: Array<{ document_id: string }>;
         is_public?: boolean;
         public_ownership?: 'owner' | 'public_data' | null;
+        audience?: 'de-DE' | 'de-AT';
       };
 
       const postgres = getPostgresInstance();
-      const collections =
-        (await notebookHelper.getPublicNotebookCollections()) as NotebookCollectionFromQdrantRaw[];
+      // Audience-filter the public listing so a DE-targeted notebook never
+      // surfaces in an AT viewer's "Von der Basis" (and vice versa) — same
+      // exact-match rule the authenticated-share listing uses above.
+      const viewerLocale = getUserLocale(args.req);
+      const collections = (
+        (await notebookHelper.getPublicNotebookCollections()) as NotebookCollectionFromQdrantRaw[]
+      ).filter((c) => c.audience === viewerLocale);
 
       const likeCounts = await getLikeCountsForEntities(
         'notebook',
