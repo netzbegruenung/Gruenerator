@@ -30,6 +30,7 @@ if (sentryDsn) {
       'Thread not found', // @assistant-ui race condition on thread delete/switch — handled gracefully
       /feature named `.+` was not found/, // DuckDuckGo browser internal privacy feature errors
       'invalid origin', // DuckDuckGo iOS WKWebView internal error
+      'Invalid call to runtime.sendMessage', // DuckDuckGo iOS content-script messaging — no extension tab in WKWebView
     ],
   });
 } else {
