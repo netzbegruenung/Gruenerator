@@ -24,8 +24,16 @@ export interface RetryOptions {
 export function isRecoverableError(error: Error): boolean {
   const msg = error.message.toLowerCase();
 
-  // Timeouts are always recoverable
-  if (msg.includes('timeout') || msg.includes('timed out') || msg.includes('etimedout')) {
+  // Timeouts are always recoverable. AbortError surfaces as "This operation
+  // was aborted" / "aborted due to timeout" (e.g. Linkup's deep-research
+  // deadline), so treat aborts as the timeouts they are — otherwise they fall
+  // through to the non-recoverable default and never retry or fall back.
+  if (
+    msg.includes('timeout') ||
+    msg.includes('timed out') ||
+    msg.includes('etimedout') ||
+    msg.includes('abort')
+  ) {
     return true;
   }
 
