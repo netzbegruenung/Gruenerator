@@ -40,12 +40,14 @@ import {
   rateLimitRouter,
   grueneApiTestRouter,
   contentSyncRouter,
+  wolkeWatchRouter,
 } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
 import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
 import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
 import { mountNotebookSharingContractRouter } from './routes/notebook/notebookSharingContractRouter.js';
+import { mountWolkePendingContractRouter } from './routes/notebook/wolkePendingContractRouter.js';
 import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
@@ -324,6 +326,9 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Sharing endpoints (share mode, edit policy, group shares) — mounted BEFORE
   // the CRUD router so :id/share doesn't fall through to the legacy router.
   mountNotebookSharingContractRouter(app);
+  // Wolke pending-files endpoints (:id/pending-files/...) — mounted BEFORE the
+  // CRUD router so they don't fall through to the legacy collectionsController.
+  mountWolkePendingContractRouter(app);
   mountNotebookCollectionsContractRouter(app);
   app.use('/api/auth/notebook-collections', authenticatedReadLimiter, notebookCollectionsRouter);
   // Mixed-auth contract: `optionalAuth` populates req.user without rejecting,
@@ -635,6 +640,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     app.use('/api/internal', snapshottingRouter);
   }
   app.use('/api/internal/offboarding', offboardingRouter);
+  app.use('/api/internal/wolke-watch', wolkeWatchRouter);
   app.use('/api/internal/gruene-api', grueneApiTestRouter);
   app.use('/api/internal/monitor', monitorInternalRouter);
   app.use('/api/internal/notebook', internalNotebookRouter);

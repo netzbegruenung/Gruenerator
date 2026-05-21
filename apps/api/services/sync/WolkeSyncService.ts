@@ -210,41 +210,22 @@ export class WolkeSyncService {
   }
 
   /**
-   * Download file to temporary location
+   * List the supported files in a SPECIFIC folder of a share (honours
+   * folderPath, unlike listFolderContents which only sees the share root).
+   * Uses the same `client.listFolder(folderPath)` the manual import path uses,
+   * so `file.href` — the dedup key stored as documents.wolke_file_path — is
+   * identical between detection and import. Reuses the shared supportedFileTypes
+   * filter (no duplicated extension list).
    */
-  async downloadFileToTemp(
-    shareLink: { id: string; url: string; token?: string; share_link?: string },
-    file: NextcloudFile
-  ): Promise<{
-    tempPath: string;
-    cleanup: () => Promise<void>;
-  }> {
-    try {
-      await NextcloudApiClient.create(shareLink.share_link || shareLink.url);
-      const tempDir = os.tmpdir();
-      const tempFileName = `wolke_${Date.now()}_${file.name}`;
-      const tempFilePath = path.join(tempDir, tempFileName);
-
-      // This is a simplified implementation - in real use you'd need to
-      // implement file download functionality in NextcloudApiClient
-      console.log(`[WolkeSyncService] Would download ${file.name} to ${tempFilePath}`);
-
-      // For now, return a mock path - this would be implemented when
-      // NextcloudApiClient supports file downloads
-      return {
-        tempPath: tempFilePath,
-        cleanup: async () => {
-          try {
-            await fs.unlink(tempFilePath);
-          } catch {
-            console.warn(`Failed to cleanup temp file: ${tempFilePath}`);
-          }
-        },
-      };
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error downloading file to temp:', error);
-      throw error;
-    }
+  async listSupportedFilesInFolder(
+    shareLink: NextcloudShareLink,
+    folderPath: string = ''
+  ): Promise<NextcloudFile[]> {
+    const client = await NextcloudApiClient.create(shareLink.share_link);
+    const files = await client.listFolder(folderPath || undefined);
+    return files.filter((file) =>
+      this.supportedFileTypes.includes(path.extname(file.name.toLowerCase()))
+    ) as NextcloudFile[];
   }
 
   /**
