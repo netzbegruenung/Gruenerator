@@ -210,44 +210,6 @@ export class WolkeSyncService {
   }
 
   /**
-   * Download file to temporary location
-   */
-  async downloadFileToTemp(
-    shareLink: { id: string; url: string; token?: string; share_link?: string },
-    file: NextcloudFile
-  ): Promise<{
-    tempPath: string;
-    cleanup: () => Promise<void>;
-  }> {
-    try {
-      await NextcloudApiClient.create(shareLink.share_link || shareLink.url);
-      const tempDir = os.tmpdir();
-      const tempFileName = `wolke_${Date.now()}_${file.name}`;
-      const tempFilePath = path.join(tempDir, tempFileName);
-
-      // This is a simplified implementation - in real use you'd need to
-      // implement file download functionality in NextcloudApiClient
-      console.log(`[WolkeSyncService] Would download ${file.name} to ${tempFilePath}`);
-
-      // For now, return a mock path - this would be implemented when
-      // NextcloudApiClient supports file downloads
-      return {
-        tempPath: tempFilePath,
-        cleanup: async () => {
-          try {
-            await fs.unlink(tempFilePath);
-          } catch {
-            console.warn(`Failed to cleanup temp file: ${tempFilePath}`);
-          }
-        },
-      };
-    } catch (error: unknown) {
-      console.error('[WolkeSyncService] Error downloading file to temp:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Multi-tier change detection for files
    * Uses ETags (primary), lastModified dates (secondary), and always sync if no existing data
    */
