@@ -208,7 +208,7 @@ export const notebookMentionables: Mentionable[] = [
     trigger: '@',
     identifier: 'bayern-notebook',
     title: 'Grüne Bayern',
-    description: 'Regierungsprogramm Bayern',
+    description: 'Pressemitteilungen, Beschlüsse und Regierungsprogramm Bayern',
     avatar: '🦁',
     icon: NOTEBOOK_ICONS['bayern-notebook'],
     backgroundColor: '#316049',
