@@ -64,7 +64,7 @@ export interface BalkenGroupProps {
   /** Called with snap lines */
   onSnapLinesChange: (lines: unknown[]) => void;
   /** Get snap targets excluding this element */
-  getSnapTargets: (excludeId: string) => unknown[];
+  getSnapTargets: (excludeId: string) => SnapTarget[];
   /** Called when text is edited inline */
   onTextChange?: (index: number, text: string) => void;
   /** Canvas dimensions */
@@ -337,7 +337,7 @@ function BalkenGroupInner({
         currentAbsY,
         contentWidth,
         contentHeight,
-        getSnapTargets('balken-group') as unknown as SnapTarget[],
+        getSnapTargets('balken-group'),
         stageWidth,
         stageHeight,
         snap.hysteresis
