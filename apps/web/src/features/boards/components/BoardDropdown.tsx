@@ -19,6 +19,7 @@ import {
   FiShare2,
   FiSliders,
   FiCheck,
+  FiEdit2,
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
@@ -31,6 +32,7 @@ interface BoardDropdownProps {
   onDelete: () => void;
   onArchiveToggle: () => void;
   onExpertModeToggle: () => void;
+  onRequestRename: () => void;
 }
 
 export const BoardDropdown = memo(function BoardDropdown({
@@ -40,6 +42,7 @@ export const BoardDropdown = memo(function BoardDropdown({
   onDelete,
   onArchiveToggle,
   onExpertModeToggle,
+  onRequestRename,
 }: BoardDropdownProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -55,7 +58,11 @@ export const BoardDropdown = memo(function BoardDropdown({
             <FiMoreHorizontal size={16} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
+          <DropdownMenuItem onClick={onRequestRename}>
+            <FiEdit2 className="mr-2" size={14} />
+            Umbenennen
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={onExpertModeToggle}>
             <FiSliders className="mr-2" size={14} />
             Expert*innenmodus
