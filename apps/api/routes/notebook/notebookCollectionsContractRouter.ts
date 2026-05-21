@@ -736,7 +736,11 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         if (typeof remove_missing_on_sync === 'boolean')
           updateData.remove_missing_on_sync = remove_missing_on_sync;
       } else {
-        updateData.auto_sync = false;
+        // wolke_folders model: auto_sync is the hourly-watch toggle, set via the
+        // dedicated /auto-sync endpoint. Only honour an explicit value here and
+        // otherwise leave it untouched — don't clobber the watch flag on an
+        // unrelated edit (rename, label change, etc.).
+        if (typeof auto_sync === 'boolean') updateData.auto_sync = auto_sync;
         updateData.remove_missing_on_sync = false;
       }
 

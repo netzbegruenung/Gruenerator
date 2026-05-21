@@ -1,0 +1,72 @@
+name: Hourly Wolke Watch
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Hourly, on the hour (UTC)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wolke-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Run Wolke Watch
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      API_URL: ${{ vars.WOLKE_WATCH_API_URL || 'https://gruenerator.eu' }}
+    steps:
+      - name: Run wolke watch
+        id: watch
+        continue-on-error: true
+        run: |
+          echo "Scanning auto_sync notebooks for new Wolke files at $API_URL..."
+          RESULT=$(curl -sf -X POST "$API_URL/api/internal/wolke-watch/run" \
+            -H "x-admin-token: ${{ secrets.ADMIN_TOKEN }}" \
+            --max-time 600)
+          echo "$RESULT" | jq .
+          echo "result<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$RESULT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Generate summary
+        if: always()
+        run: |
+          RESULT='${{ steps.watch.outputs.result }}'
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          if [ -z "$RESULT" ]; then
+            {
+              echo "## :x: Wolke Watch — No Result"
+              echo ""
+              echo "The wolke-watch endpoint returned nothing. Check the [workflow logs]($RUN_URL)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          SCANNED=$(echo "$RESULT" | jq -r '.scannedCollections // "?"')
+          WITH_NEW=$(echo "$RESULT" | jq -r '.collectionsWithNewFiles // "?"')
+          NEW_FILES=$(echo "$RESULT" | jq -r '.totalNewFiles // "?"')
+          NOTIFIED=$(echo "$RESULT" | jq -r '.notificationsSent // "?"')
+
+          {
+            echo "## :cloud: Wolke Watch"
+            echo ""
+            echo "**Date:** $(date -u '+%d.%m.%Y %H:%M UTC')"
+            echo "**Run:** [${{ github.run_id }}]($RUN_URL)"
+            echo ""
+            echo "| Metric | Count |"
+            echo "|--------|------:|"
+            echo "| Notebooks scanned | $SCANNED |"
+            echo "| With new files | $WITH_NEW |"
+            echo "| New files detected | $NEW_FILES |"
+            echo "| Notifications sent | $NOTIFIED |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if watch run errored
+        if: steps.watch.outcome == 'failure'
+        run: exit 1

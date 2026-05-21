@@ -4,3 +4,4 @@ export { default as rateLimitRouter } from './rateLimitController.js';
 export { default as offboardingRouter } from './offboardingController.js';
 export { default as grueneApiTestRouter } from './grueneApiTestController.js';
 export { contentSyncRouter } from './contentSyncController.js';
+export { default as wolkeWatchRouter } from './wolkeWatchController.js';
