@@ -11,6 +11,7 @@ import {
   getTokenStats,
 } from '../../../services/counters/TokenCounter.js';
 import { createLogger } from '../../../utils/logger.js';
+import { reportBackgroundError } from '../../../utils/reportBackgroundError.js';
 
 import {
   getCompactionState,
@@ -98,7 +99,7 @@ export async function applyCompaction(
       const threadMessages = await getThreadMessages(threadId);
       generateCompactionSummary(threadId, threadMessages, contextWindowTokens)
         .then(() => lastCompactionTime.set(threadId, Date.now()))
-        .catch((err) => log.error('[Compaction] Background compaction failed:', err))
+        .catch((err) => reportBackgroundError(err, { job: 'context-compaction', threadId }))
         .finally(() => compactionInProgress.delete(threadId));
     }
 
