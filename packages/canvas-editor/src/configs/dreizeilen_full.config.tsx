@@ -35,6 +35,7 @@ import {
   createBalkenActions,
   createFrameActions,
 } from './factory/commonActions';
+import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
 import { createShareSection } from './shareSection';
@@ -209,6 +210,8 @@ const dreizeilenAiCapabilities: TemplateAiCapabilities<DreizeilenFullState, Drei
     },
   };
 
+const section = makeSectionDefiner<DreizeilenFullState, DreizeilenFullActions>();
+
 export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, DreizeilenFullActions> = {
   id: 'dreizeilen',
 
@@ -278,7 +281,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
   },
 
   sections: {
-    settings: {
+    settings: section({
       component: BalkenSettingsSection,
       propsFactory: (state, actions, context) => {
         const selectedId = context?.selectedElement ?? null;
@@ -294,9 +297,9 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           isPrimary: (selectedId ?? 'dreizeilen-balken') === 'dreizeilen-balken',
         };
       },
-    },
+    }),
 
-    'frame-settings': {
+    'frame-settings': section({
       component: FrameSettingsSection,
       propsFactory: (state, actions, context) => {
         const selectedId = context?.selectedElement ?? null;
@@ -310,9 +313,9 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
           onRemoveFrame: actions.removeFrame,
         };
       },
-    },
+    }),
 
-    'image-background': {
+    'image-background': section({
       component: ImageBackgroundSection,
       propsFactory: (state, actions) => ({
         currentImageSrc: state.currentImageSrc,
@@ -325,11 +328,10 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         },
         scale: state.imageScale,
         onScaleChange: actions.setImageScale,
-        imageAttribution: state.imageAttribution,
       }),
-    },
+    }),
 
-    text: {
+    text: section({
       component: CombinedTextSection,
       propsFactory: (state, actions) => ({
         additionalTexts: state.additionalTexts,
@@ -339,9 +341,9 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         onUpdateText: actions.updateAdditionalText,
         onRemoveText: actions.removeAdditionalText,
       }),
-    },
+    }),
 
-    assets: {
+    assets: section({
       component: AssetsSection,
       propsFactory: (state, actions, context) => ({
         // Asset instance props
@@ -351,7 +353,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
         // Auto-inject all feature props (icons, shapes, illustrations, balken)
         ...injectFeatureProps(state, actions, context),
       }),
-    },
+    }),
 
     ai: createAiSectionRegistration('dreizeilen', dreizeilenAiCapabilities),
 

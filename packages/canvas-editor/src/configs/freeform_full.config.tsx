@@ -8,6 +8,7 @@
  * balkens, badges, frames — all features the config system offers.
  */
 
+import { CANVAS_COLORS } from '@gruenerator/shared/canvas-editor';
 import { HiPhotograph, HiSparkles } from 'react-icons/hi';
 import { PiFrameCornersFill, PiSquaresFourFill, PiTextAa } from 'react-icons/pi';
 
@@ -22,6 +23,7 @@ import { CANVAS_RECOMMENDED_ASSETS } from '../utils/canvasAssets';
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/commonActions';
+import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
 
@@ -32,6 +34,7 @@ import type {
   ColorBackgroundState,
 } from './factory/baseTypes';
 import type { FullCanvasConfig, LayoutResult, AdditionalText } from './types';
+import type { BackgroundColorOption } from '../sidebar/types';
 import type { StockImageAttribution } from '../common/imageSourceTypes';
 import type { CanvasAiSnapshot } from '@gruenerator/contracts';
 
@@ -124,6 +127,22 @@ const freeformAiCapabilities: TemplateAiCapabilities<FreeformState, FreeformActi
 };
 
 // ============================================================================
+// SECTIONS
+// ============================================================================
+
+const BACKGROUND_COLORS: BackgroundColorOption[] = [
+  { id: 'tanne', label: 'Tanne', color: CANVAS_COLORS.TANNE },
+  { id: 'klee', label: 'Klee', color: CANVAS_COLORS.KLEE },
+  { id: 'sonne', label: 'Sonne', color: CANVAS_COLORS.SONNE },
+  { id: 'himmel', label: 'Himmel', color: CANVAS_COLORS.HIMMEL },
+  { id: 'sand', label: 'Sand', color: CANVAS_COLORS.SAND },
+  { id: 'weiss', label: 'Weiß', color: CANVAS_COLORS.WHITE },
+  { id: 'schwarz', label: 'Schwarz', color: CANVAS_COLORS.BLACK },
+];
+
+const section = makeSectionDefiner<FreeformState, FreeformActions>();
+
+// ============================================================================
 // FULL CONFIG
 // ============================================================================
 
@@ -203,17 +222,19 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
   },
 
   sections: {
-    background: {
-      component: BackgroundSection as unknown as React.ComponentType<Record<string, unknown>>,
+    // BackgroundSection drives both color (palette) and image (Unsplash search)
+    // via its own internal subsection tabs; mode-switching happens inside the
+    // callbacks below. Image scale/offset are edited on-canvas (the
+    // `background-image` element is `transformable`), so no scale props here.
+    background: section({
+      component: BackgroundSection,
       propsFactory: (state, actions) => ({
-        backgroundColor: state.backgroundMode === 'color' ? state.backgroundColor : '#005538',
+        colors: BACKGROUND_COLORS,
+        currentColor: state.backgroundMode === 'color' ? state.backgroundColor : '#005538',
         onColorChange: (color: string) => {
           actions.setBackgroundColor(color);
           if (state.backgroundMode !== 'color') actions.setBackgroundMode('color');
         },
-        // Image background support
-        backgroundMode: state.backgroundMode,
-        onBackgroundModeChange: actions.setBackgroundMode,
         currentImageSrc: state.currentImageSrc,
         onImageChange: (
           file: File | null,
@@ -223,13 +244,10 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
           actions.setCurrentImageSrc(file, objectUrl, attribution);
           if (file) actions.setBackgroundMode('image');
         },
-        imageScale: state.imageScale,
-        onScaleChange: actions.setImageScale,
-        imageAttribution: state.imageAttribution,
       }),
-    },
+    }),
 
-    text: {
+    text: section({
       component: CombinedTextSection,
       propsFactory: (state, actions) => ({
         additionalTexts: state.additionalTexts,
@@ -239,18 +257,18 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
         onUpdateText: actions.updateAdditionalText,
         onRemoveText: actions.removeAdditionalText,
       }),
-    },
+    }),
 
-    elements: {
+    elements: section({
       component: AssetsSection,
       propsFactory: (state, actions, context) => ({
         onAddAsset: actions.addAsset,
         recommendedAssetIds: CANVAS_RECOMMENDED_ASSETS['dreizeilen'],
         ...injectFeatureProps(state, actions, context),
       }),
-    },
+    }),
 
-    'frame-settings': {
+    'frame-settings': section({
       component: FrameSettingsSection,
       propsFactory: (state, actions, context) => {
         const selectedId = context?.selectedElement ?? null;
@@ -264,7 +282,7 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
           onRemoveFrame: actions.removeFrame,
         };
       },
-    },
+    }),
 
     ...createCommonSectionEntries('freeform', freeformAiCapabilities),
 
