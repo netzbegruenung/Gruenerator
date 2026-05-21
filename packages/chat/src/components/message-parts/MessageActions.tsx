@@ -121,7 +121,7 @@ export const MessageActions = memo(function MessageActions({
   };
 
   return (
-    <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+    <div className="mt-2 flex items-center gap-1">
       <button
         onClick={handleCopy}
         className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
