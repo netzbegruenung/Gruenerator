@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -11,11 +12,6 @@ interface DocsFromExportResponse {
 
 interface TodoListResponse {
   content?: string;
-}
-
-interface BoardGenerateResponse {
-  board?: { id: string };
-  generatedStructure?: unknown;
 }
 
 interface UseContentActionsOptions {
@@ -69,20 +65,21 @@ export function useContentActions({ getContent, getTitle }: UseContentActionsOpt
     setActionLoading('board');
     try {
       const content = getContent();
-      const title = getTitle();
-      const res = await apiClient.post<BoardGenerateResponse>('/boards/generate', {
-        description: `Erstelle ein Aufgaben-Board aus folgendem Text. Extrahiere alle Aufgaben, Beschlüsse und Action Items:\n\n${content.slice(0, 6000)}`,
-        title,
+      const client = getContractsClient();
+      const result = await client.boards.generateBoard({
+        body: {
+          description: `Erstelle ein Aufgaben-Board aus folgendem Text. Extrahiere alle Aufgaben, Beschlüsse und Action Items:\n\n${content.slice(0, 6000)}`,
+        },
       });
-      if (res.data?.board?.id) {
-        void navigate(`/boards/${res.data.board.id}`, {
-          state: { generatedStructure: res.data.generatedStructure },
+      if (result.status === 201) {
+        void navigate(`/boards/${result.body.board.id}`, {
+          state: { generatedStructure: result.body.generatedStructure },
         });
       }
     } finally {
       setActionLoading(null);
     }
-  }, [getContent, getTitle, navigate]);
+  }, [getContent, navigate]);
 
   const handleDownloadTxt = useCallback(() => {
     const content = getContent();

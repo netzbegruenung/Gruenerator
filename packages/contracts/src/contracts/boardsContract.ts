@@ -1,8 +1,8 @@
 /**
- * ts-rest contract for /api/boards
+ * ts-rest contract for /api/boards (authenticated endpoints).
  *
- * Covers the validateBody-guarded endpoints in boardsController.ts.
- * Read-only endpoints (GET) are left in the legacy Express router.
+ * The public, unauthenticated GET /api/boards/public/:id lives in its own
+ * publicBoardsContract because it must be mounted before the requireAuth gate.
  */
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
@@ -17,6 +17,9 @@ import {
   listBoardsResponseSchema,
   deleteBoardResponseSchema,
   boardErrorResponseSchema,
+  boardDocumentSchema,
+  boardStateResponseSchema,
+  assignableMembersResponseSchema,
 } from '../schemas/boards.js';
 
 const c = initContract();
@@ -36,6 +39,58 @@ export const boardsContract = c.router(
         500: boardErrorResponseSchema,
       },
       summary: 'List all accessible boards',
+    },
+
+    /**
+     * GET /api/boards/:id
+     * Fetch a single board's metadata document.
+     */
+    getBoard: {
+      method: 'GET',
+      path: '/api/boards/:id',
+      pathParams: z.object({ id: z.string() }),
+      responses: {
+        200: boardDocumentSchema,
+        401: boardErrorResponseSchema,
+        403: boardErrorResponseSchema,
+        404: boardErrorResponseSchema,
+        500: boardErrorResponseSchema,
+      },
+      summary: 'Fetch a board document',
+    },
+
+    /**
+     * GET /api/boards/:id/state
+     * Fetch the materialized board state (kanban fields/rows/views or whiteboard texts).
+     */
+    getBoardState: {
+      method: 'GET',
+      path: '/api/boards/:id/state',
+      pathParams: z.object({ id: z.string() }),
+      responses: {
+        200: boardStateResponseSchema,
+        401: boardErrorResponseSchema,
+        404: boardErrorResponseSchema,
+        500: boardErrorResponseSchema,
+      },
+      summary: 'Fetch board state',
+    },
+
+    /**
+     * GET /api/boards/:id/assignable-members
+     * List members that can be assigned to cards (owner + direct + group shares).
+     */
+    getAssignableMembers: {
+      method: 'GET',
+      path: '/api/boards/:id/assignable-members',
+      pathParams: z.object({ id: z.string() }),
+      responses: {
+        200: assignableMembersResponseSchema,
+        401: boardErrorResponseSchema,
+        403: boardErrorResponseSchema,
+        500: boardErrorResponseSchema,
+      },
+      summary: 'List assignable members',
     },
 
     /**

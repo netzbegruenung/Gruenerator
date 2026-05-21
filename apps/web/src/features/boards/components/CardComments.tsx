@@ -1,50 +1,21 @@
+import {
+  type BoardCommentReply,
+  type CommentBlock,
+  type CommentReaction,
+} from '@gruenerator/contracts';
 import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { Button } from '@gruenerator/ui';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { memo, useCallback, useRef, useState } from 'react';
 import { FiSend, FiCornerDownRight, FiMessageSquare } from 'react-icons/fi';
 import { useParams } from 'react-router-dom';
 
-import apiClient from '../../../components/utils/apiClient';
+import { useBoardComments } from '../hooks/useBoardComments';
 
 import { UserMentionPopover, type MentionUser } from './UserMentionPopover';
 
 import type { ReactNode } from 'react';
-
-// ── Types ────────────────────────────────────────────────────────────────
-
-interface CommentBlock {
-  type: 'text' | 'mention' | 'link' | 'code';
-  text?: string;
-  userId?: string;
-  displayName?: string;
-}
-
-interface Reaction {
-  id: string;
-  comment_id: string;
-  user_id: string;
-  emoji: string;
-}
-
-interface Comment {
-  id: string;
-  board_id: string;
-  card_id: string;
-  parent_id: string | null;
-  user_id: string;
-  content: string | null;
-  blocks: CommentBlock[];
-  is_edited: boolean;
-  created_at: string;
-  author_name: string | null;
-  author_avatar_robot_id: number | null;
-  reply_count: number;
-  reactions: Reaction[];
-  replies: Comment[];
-}
 
 // ── Tracked mention (position in text) ──────────────────────────────────
 
@@ -118,7 +89,7 @@ function detectMentionQuery(
 
 // ── Reaction summary ────────────────────────────────────────────────────
 
-function groupReactions(reactions: Reaction[]): Map<string, string[]> {
+function groupReactions(reactions: CommentReaction[]): Map<string, string[]> {
   const map = new Map<string, string[]>();
   for (const r of reactions) {
     const arr = map.get(r.emoji) ?? [];
@@ -131,7 +102,7 @@ function groupReactions(reactions: Reaction[]): Map<string, string[]> {
 // ── Single comment ──────────────────────────────────────────────────────
 
 interface CommentItemProps {
-  comment: Comment;
+  comment: BoardCommentReply;
   currentUserId: string;
   currentUserAvatarRobotId: number;
   boardId: string;
@@ -257,7 +228,6 @@ export const CardComments = memo(function CardComments({
   currentUserAvatarRobotId,
 }: CardCommentsProps) {
   const { id: boardId } = useParams<{ id: string }>();
-  const queryClient = useQueryClient();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useMobileKeyboardOffset(textareaRef);
 
@@ -270,70 +240,12 @@ export const CardComments = memo(function CardComments({
   const [mentionAnchor, setMentionAnchor] = useState<{ x: number; y: number } | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
 
-  const queryKey = ['board-comments', boardId, cardId];
-
-  const { data: comments = [], isLoading } = useQuery({
-    queryKey,
-    queryFn: async () => {
-      if (!boardId) return [];
-      const res = await apiClient.get<Comment[]>(
-        `/board-comments/${boardId}/cards/${cardId}/comments`
-      );
-      return res.data;
-    },
-    enabled: !!boardId && !!cardId,
-    staleTime: 30_000,
-  });
-
-  const addMutation = useMutation({
-    mutationFn: async ({ blocks, parentId }: { blocks: CommentBlock[]; parentId?: string }) => {
-      const res = await apiClient.post<Comment>(
-        `/board-comments/${boardId}/cards/${cardId}/comments`,
-        { blocks, parentId }
-      );
-      return res.data;
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey });
-      setCommentText('');
-      setReplyToId(null);
-      setTrackedMentions([]);
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (commentId: string) => {
-      await apiClient.delete(`/board-comments/${boardId}/comments/${commentId}`);
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey });
-    },
-  });
-
-  const reactionMutation = useMutation({
-    mutationFn: async ({
-      commentId,
-      emoji,
-      remove,
-    }: {
-      commentId: string;
-      emoji: string;
-      remove: boolean;
-    }) => {
-      if (remove) {
-        await apiClient.delete(
-          `/board-comments/${boardId}/comments/${commentId}/reactions/${encodeURIComponent(emoji)}`
-        );
-      } else {
-        await apiClient.post(`/board-comments/${boardId}/comments/${commentId}/reactions`, {
-          emoji,
-        });
-      }
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey });
-    },
-  });
+  const { commentsQuery, addComment, deleteComment, toggleReaction } = useBoardComments(
+    boardId,
+    cardId
+  );
+  const comments = commentsQuery.data ?? [];
+  const isLoading = commentsQuery.isLoading;
 
   // ── Mention handling ────────────────────────────────────────────────
 
@@ -439,8 +351,17 @@ export const CardComments = memo(function CardComments({
     const trimmed = commentText.trim();
     if (!trimmed) return;
     const blocks = parseTextToBlocks(trimmed, trackedMentions);
-    addMutation.mutate({ blocks, parentId: replyToId ?? undefined });
-  }, [commentText, trackedMentions, replyToId, addMutation]);
+    addComment.mutate(
+      { blocks, parentId: replyToId ?? undefined },
+      {
+        onSuccess: () => {
+          setCommentText('');
+          setReplyToId(null);
+          setTrackedMentions([]);
+        },
+      }
+    );
+  }, [commentText, trackedMentions, replyToId, addComment]);
 
   const handleToggleReaction = useCallback(
     (commentId: string, emoji: string) => {
@@ -449,9 +370,9 @@ export const CardComments = memo(function CardComments({
       const hasOwn = comment?.reactions.some(
         (r) => r.user_id === currentUserId && r.emoji === emoji
       );
-      reactionMutation.mutate({ commentId, emoji, remove: !!hasOwn });
+      toggleReaction.mutate({ commentId, emoji, remove: !!hasOwn });
     },
-    [comments, currentUserId, reactionMutation]
+    [comments, currentUserId, toggleReaction]
   );
 
   const totalCount = comments.reduce((sum, c) => sum + 1 + c.replies.length, 0);
@@ -481,7 +402,7 @@ export const CardComments = memo(function CardComments({
                 currentUserAvatarRobotId={currentUserAvatarRobotId}
                 boardId={boardId!}
                 onReply={setReplyToId}
-                onDelete={(id) => deleteMutation.mutate(id)}
+                onDelete={(id) => deleteComment.mutate(id)}
                 onToggleReaction={handleToggleReaction}
               />
               {comment.replies.length > 0 && (
@@ -494,7 +415,7 @@ export const CardComments = memo(function CardComments({
                       currentUserAvatarRobotId={currentUserAvatarRobotId}
                       boardId={boardId!}
                       isReply
-                      onDelete={(id) => deleteMutation.mutate(id)}
+                      onDelete={(id) => deleteComment.mutate(id)}
                       onToggleReaction={handleToggleReaction}
                     />
                   ))}
@@ -549,7 +470,7 @@ export const CardComments = memo(function CardComments({
                 size="sm"
                 className="h-7 text-xs"
                 onClick={handleSubmit}
-                disabled={addMutation.isPending}
+                disabled={addComment.isPending}
               >
                 <FiSend className="mr-1" size={11} />
                 {replyToId ? 'Antworten' : 'Senden'}
