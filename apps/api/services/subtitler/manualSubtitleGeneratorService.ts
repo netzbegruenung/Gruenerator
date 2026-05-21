@@ -117,32 +117,52 @@ function formatTime(timeInSeconds: number): string {
   return `${minutes}:${wholeSeconds.toString().padStart(2, '0')}.${fractionalSecond}`;
 }
 
-function validateWordTimestamps(words: WordTimestamp[]): void {
+const MIN_CUE_DURATION = 0.05;
+
+/**
+ * Repair degenerate word timings from transcription providers instead of
+ * aborting. faster-whisper / Voxtral routinely emit a leading cue with
+ * start=0,end=0 (a zero-duration token at audio onset), which the old strict
+ * validation rejected — killing the whole job even though the grouping below
+ * already clamps each cue to minDuration and to the next word's start.
+ *
+ * Drops only structurally unusable entries (non-string word, non-finite
+ * timing); throws only when nothing usable remains (genuinely silent/empty
+ * audio).
+ */
+function sanitizeWordTimestamps(words: WordTimestamp[]): WordTimestamp[] {
   if (!Array.isArray(words)) {
     throw new Error('Word timestamps must be an array');
   }
 
-  if (words.length === 0) {
-    throw new Error('Word timestamps array cannot be empty');
-  }
+  const cleaned: WordTimestamp[] = [];
+  let prevStart = 0;
 
-  for (let i = 0; i < Math.min(3, words.length); i++) {
-    const word = words[i];
+  for (const word of words) {
     if (
       !word ||
       typeof word.word !== 'string' ||
-      typeof word.start !== 'number' ||
-      typeof word.end !== 'number'
+      !Number.isFinite(word.start) ||
+      !Number.isFinite(word.end)
     ) {
-      throw new Error(
-        `Invalid word timestamp structure at index ${i}. Expected: {word: string, start: number, end: number}`
-      );
+      continue;
     }
 
-    if (word.start < 0 || word.end < 0 || word.start >= word.end) {
-      throw new Error(`Invalid timing at index ${i}: start=${word.start}, end=${word.end}`);
-    }
+    // Clamp negatives and keep starts monotonically non-decreasing.
+    const start = Math.max(0, word.start, prevStart);
+    // Repair zero/negative-duration cues with a small floor; the grouping step
+    // re-clamps the end to the next word's start, so the exact value is moot.
+    const end = word.end > start ? word.end : start + MIN_CUE_DURATION;
+
+    cleaned.push({ word: word.word, start, end });
+    prevStart = start;
   }
+
+  if (cleaned.length === 0) {
+    throw new Error('No usable word timestamps after sanitization (empty or silent audio?)');
+  }
+
+  return cleaned;
 }
 
 function findSmartBreakPoint(
@@ -227,10 +247,10 @@ function applyElasticTiming(segments: ManualSegmentCandidate[]): ManualSegmentCa
 }
 
 function groupWordsIntoSegments(
-  words: WordTimestamp[],
+  rawWords: WordTimestamp[],
   fullText: string
 ): ManualSegmentCandidate[] {
-  validateWordTimestamps(words);
+  const words = sanitizeWordTimestamps(rawWords);
 
   const segments: ManualSegmentCandidate[] = [];
   let currentSegment: CurrentSegment = {
@@ -457,7 +477,7 @@ export {
   formatTime,
   groupWordsIntoSegments,
   formatSegmentsToSubtitleText,
-  validateWordTimestamps,
+  sanitizeWordTimestamps,
   findSmartBreakPoint,
   applyElasticTiming,
 };
