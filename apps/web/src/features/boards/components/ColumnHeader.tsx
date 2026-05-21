@@ -1,10 +1,14 @@
 import {
+  EditableTitle,
+  type EditableTitleHandle,
+} from '@gruenerator/shared/components/EditableTitle';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
-import { memo, useState } from 'react';
+import { memo, useRef } from 'react';
 import { FiMoreVertical, FiTrash2, FiEdit2, FiEyeOff } from 'react-icons/fi';
 
 import { useColumnActivity } from '../context/BoardAwarenessContext';
@@ -36,16 +40,7 @@ export const ColumnHeader = memo(function ColumnHeader({
   onColorChange,
 }: ColumnHeaderProps) {
   const columnActivity = useColumnActivity(columnId);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editValue, setEditValue] = useState(column.name);
-
-  const handleSubmit = () => {
-    const trimmed = editValue.trim();
-    if (trimmed && trimmed !== column.name) {
-      onRename(trimmed);
-    }
-    setIsEditing(false);
-  };
+  const titleRef = useRef<EditableTitleHandle>(null);
 
   return (
     <div className="flex items-center gap-xs px-3 py-2">
@@ -56,21 +51,17 @@ export const ColumnHeader = memo(function ColumnHeader({
         />
       )}
 
-      {isEditing ? (
-        <input
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={handleSubmit}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSubmit();
-            if (e.key === 'Escape') setIsEditing(false);
-          }}
-          autoFocus
-          className="flex-1 text-sm font-semibold bg-transparent border-none outline-none text-foreground"
-        />
-      ) : (
-        <span className="flex-1 text-sm font-semibold text-foreground truncate">{column.name}</span>
-      )}
+      <EditableTitle
+        ref={titleRef}
+        as="span"
+        title={column.name}
+        editable
+        activateOn="doubleClick"
+        onTitleChange={onRename}
+        className="flex-1 text-sm font-semibold text-foreground truncate"
+        inputClassName="flex-1 text-sm font-semibold bg-transparent border-none outline-none text-foreground"
+        editableClassName="cursor-pointer"
+      />
 
       <span className="text-xs text-grey-400 tabular-nums">{cardCount}</span>
 
@@ -93,13 +84,8 @@ export const ColumnHeader = memo(function ColumnHeader({
             <FiMoreVertical size={14} />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onClick={() => {
-              setEditValue(column.name);
-              setIsEditing(true);
-            }}
-          >
+        <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
+          <DropdownMenuItem onClick={() => titleRef.current?.startEdit()}>
             <FiEdit2 className="mr-2" size={14} />
             Umbenennen
           </DropdownMenuItem>
