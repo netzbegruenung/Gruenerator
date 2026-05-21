@@ -98,14 +98,15 @@ export class LinkExtractor {
           $(contentPath.paginationLinkSelector).each((_, el) => {
             if (nextPageUrl) return; // already found
             const text = $(el).text().trim();
-            // Match common "next" indicators: > › » "Next" "Weiter"
+            // Match common "next" indicators: > › » "Next" "Weiter" "Vor"
             if (
               text === '>' ||
               text === '›' ||
               text === '»' ||
               text === '→' ||
               text.toLowerCase() === 'next' ||
-              text.toLowerCase() === 'weiter'
+              text.toLowerCase() === 'weiter' ||
+              text.toLowerCase() === 'vor'
             ) {
               const href = $(el).attr('href');
               if (href) {
