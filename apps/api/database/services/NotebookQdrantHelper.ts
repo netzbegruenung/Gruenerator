@@ -507,6 +507,41 @@ class NotebookQdrantHelper {
   }
 
   /**
+   * List every collection with `auto_sync=true`, across all users. Used by the
+   * hourly Wolke folder watcher (WolkeWatchService) to find notebooks to scan.
+   *
+   * Deliberately skips the per-collection document-association lookup that
+   * getUserNotebookCollections does — the watcher only needs the share-link IDs,
+   * and the hourly scan should stay cheap. `document_count` is left as the
+   * stored payload value (unused by the watcher).
+   */
+  async getNotebookCollectionsByAutoSync(
+    options: GetCollectionsOptions = {}
+  ): Promise<NotebookCollection[]> {
+    await this.ensureInitialized();
+
+    try {
+      const { limit = 1000, offset = 0 } = options;
+
+      const filter: QdrantFilter = {
+        must: [{ key: 'auto_sync', match: { value: true } }],
+      };
+
+      const results = await this.qdrantOps!.scrollDocuments(
+        this.qdrant.collections.notebook_collections,
+        filter,
+        { limit, offset, withPayload: true }
+      );
+
+      return results.map((result: ScrollPoint) => this.formatCollectionFromPayload(result.payload));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error(`Error getting auto_sync Notebook collections: ${message}`);
+      throw new Error(`Failed to get auto_sync Notebook collections: ${message}`);
+    }
+  }
+
+  /**
    * Update Notebook collection
    */
   async updateNotebookCollection(

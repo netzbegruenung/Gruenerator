@@ -1,5 +1,6 @@
 import { type NotebookEditorSavePayload } from '@gruenerator/contracts';
 import { DocsProvider } from '@gruenerator/docs';
+import { buildNotebookSlug, extractSlugSuffix } from '@gruenerator/shared/utils';
 import {
   Button,
   Empty,
@@ -9,7 +10,6 @@ import {
   EmptyTitle,
   toast,
 } from '@gruenerator/ui';
-import { buildNotebookSlug, extractSlugSuffix } from '@gruenerator/shared/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { HiArrowLeft, HiRefresh, HiShare } from 'react-icons/hi';
@@ -21,11 +21,12 @@ import ErrorBoundary from '../../../components/ErrorBoundary';
 import { useAuthStore } from '../../../stores/authStore';
 import { useDocumentsStore } from '../../../stores/documentsStore';
 import { cn } from '../../../utils/cn';
-import { webAppDocsAdapter } from '../../docs/docsAdapter';
 import { useNotebookCollections } from '../../auth/hooks/useProfileData';
+import { webAppDocsAdapter } from '../../docs/docsAdapter';
 
 import NotebookEditor from './NotebookEditor';
 import { NotebookFullSyncModal } from './NotebookFullSyncModal';
+import NotebookPendingFilesPanel from './NotebookPendingFilesPanel';
 import { NotebookShareModal } from './NotebookShareModal';
 
 import type { NotebookCollection } from '../../../types/notebook';
@@ -275,6 +276,19 @@ function NotebookEditorPageInner({ mode }: NotebookEditorPageProps) {
                   </p>
                 </button>
               )}
+            </div>
+          ) : null}
+
+          {mode === 'edit' &&
+          editingCollection &&
+          currentUserId &&
+          editingCollection.user_id === currentUserId ? (
+            <div className="mb-xl">
+              <NotebookPendingFilesPanel
+                collectionId={editingCollection.id}
+                wolkeFolders={editingCollection.wolke_folders ?? []}
+                autoSync={editingCollection.auto_sync ?? false}
+              />
             </div>
           ) : null}
 
