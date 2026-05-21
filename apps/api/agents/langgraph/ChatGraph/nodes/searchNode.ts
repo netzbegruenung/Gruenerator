@@ -24,6 +24,7 @@ import {
 import { expandQuery } from '../../../../services/search/QueryExpansionService.js';
 import { DEFAULT_RELEVANCE } from '../../../../services/search/rerankPipeline.js';
 import { createLogger } from '../../../../utils/logger.js';
+import { reportBackgroundError } from '../../../../utils/reportBackgroundError.js';
 import { type AIWorkerPool } from '../../../../workers/types.js';
 import {
   SOURCE_PREFIX,
@@ -1143,7 +1144,10 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
     };
   } catch (error: unknown) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    log.error(`[Search] Error during ${intent} search:`, errMsg);
+    // Search failure degrades silently to empty results, so surface it: the old
+    // `log.error(msg, errMsg)` passed a bare string as winston's 2nd arg, which
+    // got spread into `{"0":"T","1":"h",...}` and was invisible in Glitchtip.
+    reportBackgroundError(error, { job: 'chatgraph-search', intent });
 
     return {
       searchResults: [],
