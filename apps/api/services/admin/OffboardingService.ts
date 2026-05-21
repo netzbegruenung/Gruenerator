@@ -112,9 +112,16 @@ export class OffboardingService {
 
   /**
    * Run the complete offboarding process
-   * @returns True if successful, false otherwise
+   * @param options.dryRun - When true, no users are deleted/anonymized and nothing is
+   *   reported upstream; the result reports how many users *would* be processed.
    */
-  async runOffboarding(): Promise<OffboardingResult> {
+  async runOffboarding(options: { dryRun?: boolean } = {}): Promise<OffboardingResult> {
+    const { dryRun = false } = options;
+
+    if (dryRun) {
+      return this.dryRunOffboarding();
+    }
+
     const startTime = Date.now();
     const counts = { deleted: 0, anonymized: 0, not_found: 0, failed: 0 };
     let retriesProcessed = 0;
@@ -159,7 +166,9 @@ export class OffboardingService {
 
     const result: OffboardingResult = {
       success,
+      dryRun: false,
       processed: counts.deleted + counts.anonymized + counts.not_found + counts.failed,
+      wouldProcess: 0,
       deleted: counts.deleted,
       anonymized: counts.anonymized,
       notFound: counts.not_found,
@@ -172,6 +181,58 @@ export class OffboardingService {
     log.info(
       `Offboarding completed in ${result.durationMs}ms: ${result.processed} processed ` +
         `(${result.deleted} deleted, ${result.anonymized} anonymized, ${result.notFound} not found, ${result.failed} failed)`
+    );
+
+    return result;
+  }
+
+  /**
+   * Walk the full offboarding set without mutating anything, counting how many users
+   * would be processed. Delete-vs-anonymize cannot be predicted (deletion is attempted
+   * first with anonymization as fallback), so we only distinguish found vs not-found.
+   */
+  private async dryRunOffboarding(): Promise<OffboardingResult> {
+    const startTime = Date.now();
+    let wouldProcess = 0;
+    let notFound = 0;
+    let failed = 0;
+
+    log.info('Starting Grünerator offboarding DRY RUN (no changes will be made)');
+
+    for await (const user of this.fetchOffboardingUsers()) {
+      try {
+        const grueneratorUser = await this.grueneratorOffboarding.findUserInGruenerator(user);
+        if (grueneratorUser) {
+          wouldProcess += 1;
+        } else {
+          notFound += 1;
+        }
+      } catch (error: unknown) {
+        failed += 1;
+        log.warn(
+          `Dry-run lookup failed for ${user.username}:`,
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+    }
+
+    const result: OffboardingResult = {
+      success: true,
+      dryRun: true,
+      processed: wouldProcess + notFound + failed,
+      wouldProcess,
+      deleted: 0,
+      anonymized: 0,
+      notFound,
+      failed,
+      retriesProcessed: 0,
+      durationMs: Date.now() - startTime,
+      timestamp: new Date().toISOString(),
+    };
+
+    log.info(
+      `Offboarding dry run completed in ${result.durationMs}ms: ${wouldProcess} would be processed, ` +
+        `${notFound} not found in DB, ${failed} lookup errors`
     );
 
     return result;
