@@ -12,6 +12,8 @@ import { env } from '../../config/env.js';
 import { createQdrantClient } from '../../database/services/QdrantService/connection.js';
 import { extractJsonObject, extractLastJsonObject } from '../../utils/jsonParser.js';
 import { createLogger } from '../../utils/logger.js';
+import { INTERMEDIATE_MODEL, REGOLO_BASE_URL } from '../ai/providers.js';
+import { regoloFetchWithThinkingDisabled } from '../ai/regoloThinkingFetch.js';
 import { MistralEmbeddingService } from '../mistral/MistralEmbeddingService/MistralEmbeddingService.js';
 
 import type { MemoryConfig } from 'mem0ai/oss';
@@ -60,8 +62,8 @@ class LiteLLMAdapter {
   public model: string;
   public modelId: string;
 
-  constructor(baseURL: string, apiKey: string, model: string) {
-    this.client = new OpenAI({ baseURL, apiKey });
+  constructor(baseURL: string, apiKey: string, model: string, fetchImpl?: typeof fetch) {
+    this.client = new OpenAI({ baseURL, apiKey, ...(fetchImpl ? { fetch: fetchImpl } : {}) });
     this.model = model;
     this.modelId = model;
   }
@@ -107,11 +109,11 @@ class LiteLLMAdapter {
 
     const raw = response.choices[0]?.message?.content || '';
 
-    // GPT-OSS often outputs chain-of-thought reasoning before JSON,
-    // sometimes with literal `...` ellipsis tokens in arrays.
-    // extractLastJsonObject tries all JSON blocks last-to-first with ellipsis repair.
-    // Pass silent:true so parse failures don't emit ERROR logs — failure is expected
-    // for this model; mem0ai gets a safe fallback below.
+    // Defensive parse: reasoning models can still wrap JSON in chain-of-thought
+    // (sometimes with literal `...` ellipsis tokens in arrays) despite thinking
+    // being disabled. extractLastJsonObject tries all JSON blocks last-to-first
+    // with ellipsis repair. Pass silent:true so parse failures don't emit ERROR
+    // logs — mem0ai gets a safe fallback below.
     let parsed = extractJsonObject(raw, { silent: true });
 
     if (!parsed) {
@@ -168,9 +170,6 @@ export function buildMem0Config(): Partial<MemoryConfig> {
   // Disable mem0ai's built-in PostHog telemetry to avoid HTTP/2 GOAWAY errors
   process.env.MEM0_TELEMETRY = 'false';
 
-  const litellmBaseUrl = env.LITELLM_BASE_URL || 'https://litellm.netzbegruenung.verdigado.net';
-  const litellmApiKey = env.LITELLM_API_KEY || '';
-
   const customInstructions = `Du bist ein Gedächtnis-Assistent für den Grünerator, eine KI-Plattform für Die Grünen.
 
 Extrahiere Erinnerungen und ordne sie einer der folgenden Kategorien zu:
@@ -207,12 +206,20 @@ Füge bei jeder Erinnerung die Kategorie und Konfidenz als Metadaten hinzu.`;
   return {
     customInstructions,
 
-    // LLM for memory extraction and synthesis
-    // Uses LangChain adapter that handles JSON mode via prompting
+    // LLM for memory extraction and synthesis.
+    // Regolo's mistral-small (the same model the gatekeeper uses via
+    // INTERMEDIATE_MODEL) with thinking disabled — it returns clean JSON,
+    // unlike gpt-oss:120b via Verdigado which emitted chain-of-thought preamble
+    // and routinely failed the JSON parse, dropping all extracted memories.
     llm: {
       provider: 'langchain',
       config: {
-        model: new LiteLLMAdapter(`${litellmBaseUrl}/v1`, litellmApiKey, 'gpt-oss:120b'),
+        model: new LiteLLMAdapter(
+          REGOLO_BASE_URL,
+          env.REGOLO_API_KEY || '',
+          INTERMEDIATE_MODEL.model,
+          regoloFetchWithThinkingDisabled
+        ),
       },
     },
 
