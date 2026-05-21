@@ -1,11 +1,12 @@
 'use client';
 
 import { memo, useState } from 'react';
-import { Copy, Check, Download, FileEdit, Loader2 } from 'lucide-react';
+import { Copy, Check, Download, Loader2 } from 'lucide-react';
+import { HiOutlineDocumentText } from 'react-icons/hi';
 import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useExtraActions } from '../../context/ExtraActionsContext';
-import { MessageTTSButton } from './MessageTTSButton';
+// import { MessageTTSButton } from './MessageTTSButton';
 import { formatSourcesMarkdown } from '../../lib/formatSourcesMarkdown';
 import type { ChatMessage } from '../../hooks/useChatGraphStream';
 
@@ -121,7 +122,7 @@ export const MessageActions = memo(function MessageActions({
   };
 
   return (
-    <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+    <div className="mt-2 flex items-center gap-1">
       <button
         onClick={handleCopy}
         className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground"
@@ -129,12 +130,12 @@ export const MessageActions = memo(function MessageActions({
       >
         {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
       </button>
-      <MessageTTSButton content={content} />
+      {/* <MessageTTSButton content={content} /> */}
       <button
         onClick={handleExportDocx}
         disabled={isExporting}
         className="rounded-lg p-1.5 text-foreground-muted hover:bg-primary/10 hover:text-foreground disabled:opacity-50"
-        aria-label="Als Word-Dokument exportieren"
+        aria-label="Herunterladen"
       >
         {isExporting ? (
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -151,7 +152,7 @@ export const MessageActions = memo(function MessageActions({
         {isCreatingDoc ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <FileEdit className="h-4 w-4" />
+          <HiOutlineDocumentText className="h-4 w-4" />
         )}
       </button>
       {extraActions?.map((action) => (
