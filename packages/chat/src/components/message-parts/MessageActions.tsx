@@ -1,8 +1,8 @@
 'use client';
 
 import { memo, useState } from 'react';
-import { Copy, Check, Download, Loader2 } from 'lucide-react';
-import { HiOutlineDocumentText } from 'react-icons/hi';
+import { Copy, Check, Loader2 } from 'lucide-react';
+import { HiOutlineDocumentText, HiOutlineDownload } from 'react-icons/hi';
 import type { ExportToDocsBody, ExportToDocsResponse } from '@gruenerator/contracts';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useExtraActions } from '../../context/ExtraActionsContext';
@@ -140,7 +140,7 @@ export const MessageActions = memo(function MessageActions({
         {isExporting ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <Download className="h-4 w-4" />
+          <HiOutlineDownload className="h-4 w-4" />
         )}
       </button>
       <button
