@@ -69,13 +69,15 @@ router.post('/run', requireAdmin, async (req: AdminRequest, res: Response): Prom
  * POST /internal/offboarding/run-sync
  * Trigger offboarding and wait for completion. Returns anonymized counts only.
  * Used by GitHub Actions daily cron for protocol/summary.
+ * Pass { dryRun: true } to count how many users would be processed without changing anything.
  */
 router.post('/run-sync', requireAdmin, async (req: AdminRequest, res: Response): Promise<void> => {
   try {
     OffboardingService.validateConfig();
 
+    const { dryRun = false } = (req.body ?? {}) as { dryRun?: boolean };
     const service = new OffboardingService();
-    const result = await service.runOffboarding();
+    const result = await service.runOffboarding({ dryRun });
 
     res.json(result);
   } catch (error) {
