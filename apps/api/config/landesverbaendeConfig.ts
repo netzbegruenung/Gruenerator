@@ -304,6 +304,115 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
     },
 
     // ═══════════════════════════════════════════════════════════════════
+    // BAYERN
+    // ═══════════════════════════════════════════════════════════════════
+    {
+      id: 'bayern-lv-beschluesse',
+      name: 'Grüne Bayern Beschlüsse',
+      shortName: 'BY',
+      type: 'landesverband',
+      baseUrl: 'https://www.gruene-bayern.de',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          // gruene-bayern.de runs WordPress (jkb theme) with German /kategorie/
+          // permalinks but ROOT post permalinks (/<slug>/). The /kategorie/beschluesse/
+          // listing is a virtual index, so its article links don't share the listing
+          // path — the off-path filter would drop every result. Discover via the WP
+          // REST API instead (category 5 = Beschlüsse), which yields canonical URLs and
+          // auto-disables the off-path filter.
+          type: 'beschluss',
+          path: '/kategorie/beschluesse/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 5 },
+        },
+      ],
+      contentSelectors: {
+        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
+        date: ['time[datetime]', '.entry-date', 'meta[property="article:published_time"]'],
+        content: ['.entry-content', '.wp-block-post-content', 'article .content', 'main article'],
+        categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
+        author: ['.author-name', '.byline', '.entry-author'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-content/', '/wp-admin/', '#', 'javascript:'],
+    },
+    {
+      id: 'bayern-lv-presse',
+      name: 'Grüne Bayern Presse',
+      shortName: 'BY',
+      type: 'landesverband',
+      baseUrl: 'https://www.gruene-bayern.de',
+      cms: 'wordpress',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          // WP REST API, category 29 = Presse (focused press releases, not the
+          // broader /archiv/ Aktuelles listing which mixes blog + member news).
+          type: 'presse',
+          path: '/kategorie/presse/',
+          listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
+          wpApi: { categoryId: 29 },
+        },
+      ],
+      contentSelectors: {
+        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
+        date: ['time[datetime]', '.entry-date', 'meta[property="article:published_time"]'],
+        content: ['.entry-content', '.wp-block-post-content', 'article .content', 'main article'],
+        categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
+        author: ['.author-name', '.byline', '.entry-author'],
+      },
+      excludePatterns: ['/tag/', '/author/', '/wp-content/', '/wp-admin/', '#', 'javascript:'],
+    },
+    {
+      id: 'bayern-fraktion-presse',
+      name: 'Grüne Fraktion Bayern Presse',
+      shortName: 'BY-F',
+      type: 'fraktion',
+      baseUrl: 'https://www.gruene-fraktion-bayern.de',
+      cms: 'typo3',
+      maxAgeYears: 5,
+      contentPaths: [
+        {
+          // TYPO3 (tx_wwt3list). Press-release teasers link to canonical article URLs
+          // under /themen/<topic>/<slug>/ (NOT /presse/pressemitteilungen/, which only
+          // hosts the listing + its pagination). Target the teaser title links directly;
+          // disableOffPathFilter is required because the article path (/themen/) differs
+          // from the listing path (/presse/pressemitteilungen/). Pagination traversal
+          // follows the rendered "vor" (next) link, whose cHash can't be reconstructed.
+          type: 'presse',
+          path: '/presse/pressemitteilungen/',
+          listSelector: '.press-teaser__title a',
+          disableOffPathFilter: true,
+          paginationLinkSelector: '.page-navigation__next a',
+          // ~3.75 listing pages/month; 230 pages reaches back ~5 years to match the
+          // maxAgeYears window. Articles past the 5-year cutoff are dropped at processing.
+          maxPages: 230,
+        },
+      ],
+      contentSelectors: {
+        // Detail pages use `.document-title` / `.document-content__main`. The date is a
+        // bare <p> with no markup — ContentExtractor's TYPO3 German-long-form date
+        // fallback handles it (no usable date selector exists here).
+        title: ['h1.document-title', 'h1', 'meta[property="og:title"]'],
+        date: ['time[datetime]', 'meta[property="article:published_time"]'],
+        content: ['.document-content__main', '.news-text-wrap', 'article', 'main'],
+        categories: ['.news-category a', '.categories a'],
+        author: ['.author', '.byline'],
+      },
+      excludePatterns: [
+        '/fileadmin/',
+        '/typo3/',
+        'tx_wwt3list',
+        '#',
+        'javascript:',
+        '.pdf',
+        '.jpg',
+        '.png',
+      ],
+    },
+
+    // ═══════════════════════════════════════════════════════════════════
     // BERLIN
     // ═══════════════════════════════════════════════════════════════════
     {

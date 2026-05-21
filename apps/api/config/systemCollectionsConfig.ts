@@ -304,16 +304,16 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     id: 'bayern-system',
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Bayern',
-    description: 'Regierungsprogramm der Grünen Bayern zur Landtagswahl',
+    description:
+      'Pressemitteilungen, Beschlüsse und Regierungsprogramm der Grünen Bayern (Landesverband & Fraktion)',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
       LV_CONTENT_TYPE_FIELD,
-      { field: 'primary_category', label: 'Programm', type: 'keyword' },
-      { field: 'subcategories', label: 'Unterkategorien', type: 'keyword' },
+      LV_SOURCE_TYPE_FIELD,
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
-    defaultFilter: { field: 'landesverband', value: 'BY' },
+    defaultFilter: { field: 'landesverband', value: ['BY', 'BY-F'] },
   },
   'berlin-system': {
     id: 'berlin-system',
