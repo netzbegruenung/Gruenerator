@@ -40,6 +40,7 @@ const DEFAULT_CHANNEL_PREFERENCES: Record<NotificationType, ChannelPreferences> 
   group_join_denied: { email: false, push: true, in_app: true },
   transfer_downloaded: { email: false, push: true, in_app: true },
   notebook_liked: { email: false, push: false, in_app: true },
+  wolke_new_files: { email: true, push: true, in_app: true },
 };
 
 /**
