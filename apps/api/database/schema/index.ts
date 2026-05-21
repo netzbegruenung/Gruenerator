@@ -13,6 +13,7 @@ export * from './entityLikes.js';
 export * from './media.js';
 export * from './notebooks.js';
 export * from './collaborative.js';
+export * from './boards.js';
 export * from './yjs.js';
 export * from './sites.js';
 export * from './apiKeys.js';
