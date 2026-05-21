@@ -79,7 +79,11 @@ export interface UserProfile {
  */
 export interface OffboardingResult {
   success: boolean;
+  /** True when no changes were made — counts reflect what *would* happen. */
+  dryRun: boolean;
   processed: number;
+  /** Dry-run only: users found in Grünerator that would be deleted/anonymized. 0 on real runs. */
+  wouldProcess: number;
   deleted: number;
   anonymized: number;
   notFound: number;
