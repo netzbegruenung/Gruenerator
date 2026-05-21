@@ -58,7 +58,7 @@ export interface CircleBadgeProps {
   onTextLineChange?: (lineIndex: number, text: string) => void;
   onSnapChange: (snapH: boolean, snapV: boolean) => void;
   onSnapLinesChange: (lines: unknown[]) => void;
-  getSnapTargets: (excludeId: string) => unknown[];
+  getSnapTargets: (excludeId: string) => SnapTarget[];
   stageWidth: number;
   stageHeight: number;
 }
@@ -124,7 +124,7 @@ function CircleBadgeInner({
         currentAbsY,
         contentWidth,
         contentHeight,
-        getSnapTargets(id) as unknown as SnapTarget[],
+        getSnapTargets(id),
         stageWidth,
         stageHeight,
         snap.hysteresis
