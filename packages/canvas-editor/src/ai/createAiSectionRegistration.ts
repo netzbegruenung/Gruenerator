@@ -1,36 +1,33 @@
 /**
- * Helper that produces a sidebar-section registration object from a
+ * Helper that produces a sidebar-section registration from a
  * TemplateAiCapabilities declaration.
  *
- * Returns a fully-typed `SectionConfig` — the consumer
- * (FullCanvasConfig.sections) accepts strongly-typed section configs
- * via its documented `any` slot for component props (per the eslint-disable
- * comment in configs/types.ts). No `as unknown` casts needed.
+ * Built via `makeSectionDefiner`, so the `AiSection` component and the
+ * `propsFactory` return are checked against each other at compile time and
+ * the result carries the `SectionConfig` brand required by
+ * `FullCanvasConfig.sections`.
  */
 import { AiSection, type AiSectionProps } from '../sidebar/sections/AiSection';
 
+import { makeSectionDefiner } from '../configs/factory/defineSection';
+
 import type { CanvasAiActionsBase } from './applyOperation';
 import type { TemplateAiCapabilities } from './types';
-import type { SectionConfig, SectionContext } from '../configs/types';
+import type { SectionConfig } from '../configs/types';
 
 export function createAiSectionRegistration<TState, TActions extends CanvasAiActionsBase>(
   canvasType: string,
   capabilities: TemplateAiCapabilities<TState, TActions>
 ): SectionConfig<TState, TActions, AiSectionProps<TState, TActions>> {
-  const propsFactory = (
-    state: TState,
-    actions: TActions,
-    _context?: SectionContext
-  ): AiSectionProps<TState, TActions> => ({
-    canvasType,
-    capabilities,
-    actions,
-    // State at apply-time is fresh enough — propsFactory re-runs every render.
-    getState: () => state,
-  });
-
-  return {
+  const section = makeSectionDefiner<TState, TActions>();
+  return section({
     component: AiSection<TState, TActions>,
-    propsFactory,
-  };
+    propsFactory: (state, actions) => ({
+      canvasType,
+      capabilities,
+      actions,
+      // State at apply-time is fresh enough — propsFactory re-runs every render.
+      getState: () => state,
+    }),
+  });
 }

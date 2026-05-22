@@ -16,7 +16,9 @@ import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferen
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountUserTemplatesContractRouter } from './routes/auth/templates/userTemplatesContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
+import { mountBoardCommentsContractRouter } from './routes/boards/boardCommentsContractRouter.js';
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
+import { mountPublicBoardsContractRouter } from './routes/boards/publicBoardsContractRouter.js';
 import { mountCanvasAiContractRouter } from './routes/canvas/aiSuggestRoute.js';
 import canvasChatEditRouter from './routes/canvas/canvasChatEditController.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
@@ -277,10 +279,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: publicDocRouter } = await import('./routes/docs/publicDocController.js');
   const { default: docResolveRouter } = await import('./routes/docs/resolveController.js');
   const { default: ogDocsRouter } = await import('./routes/docs/ogController.js');
-  const { default: boardsRouter } = await import('./routes/boards/boardsController.js');
-  const { default: boardCommentsRouter } =
-    await import('./routes/boards/boardCommentsController.js');
-  const { default: publicBoardRouter } = await import('./routes/boards/publicBoardController.js');
   const { default: usersRouter } = await import('./routes/users/userController.js');
   const { default: smartTexteRouter } = await import('./routes/texte/smart.js');
   const { default: playgroundRouter } = await import('./routes/texte/playground.js');
@@ -599,15 +597,17 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountDocsContractRouter(app);
   app.use('/api/docs', authenticatedReadLimiter, docsRouter);
 
-  app.use('/api/boards/public', publicReadLimiter, publicBoardRouter);
-  // ts-rest contract router — mount before legacy boardsRouter.
-  // `requireAuth` is applied at the prefix so the contract router inherits
-  // protection. The /api/boards/public router above is registered first, so
-  // public board requests match and terminate before this middleware runs.
-  app.use('/api/boards', requireAuth);
+  // Public board lookup (no auth). Registered first so requests terminate here
+  // before the requireAuth gate below ever runs.
+  app.use('/api/boards/public', publicReadLimiter);
+  mountPublicBoardsContractRouter(app);
+  // All authenticated board + comment endpoints are contracted via ts-rest.
+  // requireAuth + the read limiter apply at the prefix; the contract routers
+  // register their own routes after, so the middleware runs first.
+  app.use('/api/boards', requireAuth, authenticatedReadLimiter);
+  app.use('/api/board-comments', requireAuth, authenticatedReadLimiter);
   mountBoardsContractRouter(app);
-  app.use('/api/boards', authenticatedReadLimiter, boardsRouter);
-  app.use('/api/board-comments', requireAuth, authenticatedReadLimiter, boardCommentsRouter);
+  mountBoardCommentsContractRouter(app);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
   // ts-rest contract router — mount before legacy voiceController router
   mountVoiceContractRouter(app);

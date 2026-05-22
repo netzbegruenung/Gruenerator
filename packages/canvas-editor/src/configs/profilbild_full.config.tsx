@@ -18,6 +18,7 @@ import {
 import { HiPaintBrush } from 'react-icons/hi2';
 
 import { createBaseActions } from './factory/commonActions';
+import { makeSectionDefiner } from './factory/defineSection';
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { BackgroundSection } from '../sidebar/sections';
 
@@ -189,6 +190,8 @@ const profilbildAiCapabilities: TemplateAiCapabilities<ProfilbildFullState, Prof
 // CONFIG EXPORT
 // ============================================================================
 
+const section = makeSectionDefiner<ProfilbildFullState, ProfilbildFullActions>();
+
 export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, ProfilbildFullActions> = {
   id: 'profilbild',
 
@@ -206,14 +209,14 @@ export const profilbildFullConfig: FullCanvasConfig<ProfilbildFullState, Profilb
   getVisibleTabs: () => ['background', 'tools', 'uploads', 'chat'],
 
   sections: {
-    background: {
+    background: section({
       component: BackgroundSection,
       propsFactory: (state, actions) => ({
         colors: BACKGROUND_COLORS,
         currentColor: state.backgroundColor,
         onColorChange: actions.setBackgroundColor,
       }),
-    },
+    }),
     ...createCommonSectionEntries('profilbild', profilbildAiCapabilities),
   },
 
