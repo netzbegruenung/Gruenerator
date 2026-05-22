@@ -33,6 +33,7 @@ import {
   modelPreferencesContract,
   imageModelPreferenceContract,
   adminVorlagenContract,
+  userTemplatesContract,
   docsContract,
   documentsContract,
   groupsContract,
@@ -147,6 +148,7 @@ const _emailClient = () => initClient(emailContract, CLIENT_OPTS);
 const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIENT_OPTS);
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
+const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS);
 const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
 const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
@@ -169,6 +171,7 @@ export interface ContractsClient {
   modelPreferences: ReturnType<typeof _modelPreferencesClient>;
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
+  userTemplates: ReturnType<typeof _userTemplatesClient>;
   docs: ReturnType<typeof _docsClient>;
   documents: ReturnType<typeof _documentsClient>;
   groups: ReturnType<typeof _groupsClient>;
@@ -208,6 +211,7 @@ export function getContractsClient(): ContractsClient {
     modelPreferences: _modelPreferencesClient(),
     imageModelPreference: _imageModelPreferenceClient(),
     adminVorlagen: _adminVorlagenClient(),
+    userTemplates: _userTemplatesClient(),
     docs: _docsClient(),
     documents: _documentsClient(),
     groups: _groupsClient(),
