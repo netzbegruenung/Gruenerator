@@ -22,6 +22,8 @@ import {
   recentValuesContract,
   searchContract,
   boardsContract,
+  boardCommentsContract,
+  publicBoardsContract,
   notebookContract,
   notebookCollectionsContract,
   wolkePendingContract,
@@ -137,6 +139,8 @@ const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
+const _boardCommentsClient = () => initClient(boardCommentsContract, CLIENT_OPTS);
+const _publicBoardsClient = () => initClient(publicBoardsContract, CLIENT_OPTS);
 const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
 const _notebookCollectionsClient = () => initClient(notebookCollectionsContract, CLIENT_OPTS);
 const _wolkePendingClient = () => initClient(wolkePendingContract, CLIENT_OPTS);
@@ -160,6 +164,8 @@ export interface ContractsClient {
   recentValues: ReturnType<typeof _recentValuesClient>;
   search: ReturnType<typeof _searchClient>;
   boards: ReturnType<typeof _boardsClient>;
+  boardComments: ReturnType<typeof _boardCommentsClient>;
+  publicBoards: ReturnType<typeof _publicBoardsClient>;
   notebook: ReturnType<typeof _notebookClient>;
   notebookCollections: ReturnType<typeof _notebookCollectionsClient>;
   wolkePending: ReturnType<typeof _wolkePendingClient>;
@@ -200,6 +206,8 @@ export function getContractsClient(): ContractsClient {
     recentValues: _recentValuesClient(),
     search: _searchClient(),
     boards: _boardsClient(),
+    boardComments: _boardCommentsClient(),
+    publicBoards: _publicBoardsClient(),
     notebook: _notebookClient(),
     notebookCollections: _notebookCollectionsClient(),
     wolkePending: _wolkePendingClient(),

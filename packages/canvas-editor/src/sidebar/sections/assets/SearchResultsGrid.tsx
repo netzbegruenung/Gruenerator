@@ -223,17 +223,18 @@ export function SearchResultsGrid({
         }
 
         if (result.type === 'frame' && result.frameClipType && onAddFrame) {
+          const frameClipType = result.frameClipType;
           return (
             <button
               key={`frame-${result.id}`}
               className={SELECTABLE_CARD}
-              onClick={() => onAddFrame(result.frameClipType!)}
+              onClick={() => onAddFrame(frameClipType)}
               type="button"
               title={result.name}
             >
               <div className="flex items-center justify-center w-full h-full relative">
                 {(() => {
-                  const Icon = FRAME_ICON_MAP[result.frameClipType!];
+                  const Icon = FRAME_ICON_MAP[frameClipType];
                   return <Icon size={24} />;
                 })()}
               </div>

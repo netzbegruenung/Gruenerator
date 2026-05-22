@@ -8,6 +8,8 @@ export { recentValuesContract } from './recentValuesContract.js';
 export { searchContract } from './searchContract.js';
 export { chatGraphContract } from './chatGraphContract.js';
 export { boardsContract } from './boardsContract.js';
+export { boardCommentsContract } from './boardCommentsContract.js';
+export { publicBoardsContract } from './publicBoardsContract.js';
 export { sharesContract } from './sharesContract.js';
 export { userProfileContract } from './userProfileContract.js';
 export { notebookContract } from './notebookContract.js';
