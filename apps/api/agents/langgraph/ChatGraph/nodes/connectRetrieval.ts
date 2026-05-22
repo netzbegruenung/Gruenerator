@@ -58,9 +58,11 @@ function htmlToText(html: string): string {
   return html
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
+    // Decode &amp; last so an escaped entity like &amp;lt; survives intact
+    // instead of being double-unescaped into '<'.
+    .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ')
     .trim();
 }
