@@ -17,7 +17,10 @@ export interface ConnectionDetail {
 
 export class ConnectionService {
   static async listConnections(userId: string): Promise<ConnectionStatus[]> {
-    const result = await getNango().listConnections({ connectionId: userId });
+    // Connections are created via createConnectSession with end_user.id = userId, so Nango
+    // files them under that end-user id and assigns its own random connection_id. Filter by
+    // userId (→ ?endUserId=), NOT connectionId (which never equals userId).
+    const result = await getNango().listConnections({ userId });
 
     return Object.entries(NANGO_PROVIDERS).map(([key, config]) => {
       const connection = result.connections.find((c) => c.provider_config_key === key);
@@ -32,11 +35,26 @@ export class ConnectionService {
     });
   }
 
+  // getConnection/deleteConnection need Nango's real connection_id, not the end-user id —
+  // resolve it from the end-user id first.
+  private static async resolveConnectionId(
+    userId: string,
+    providerKey: NangoProviderKey
+  ): Promise<string | null> {
+    const result = await getNango().listConnections({ userId, integrationId: providerKey });
+    const connection = result.connections.find((c) => c.provider_config_key === providerKey);
+    return connection ? connection.connection_id : null;
+  }
+
   static async getConnection(
     userId: string,
     providerKey: NangoProviderKey
   ): Promise<ConnectionDetail> {
-    const connection = await getNango().getConnection(providerKey, userId);
+    const connectionId = await this.resolveConnectionId(userId, providerKey);
+    if (!connectionId) {
+      throw new Error(`No ${providerKey} connection found for user`);
+    }
+    const connection = await getNango().getConnection(providerKey, connectionId);
     const credentials = connection.credentials as { access_token?: string };
     if (!credentials.access_token) {
       throw new Error(`No access token available for ${providerKey}`);
@@ -44,12 +62,16 @@ export class ConnectionService {
     return {
       provider: providerKey,
       accessToken: credentials.access_token,
-      connectionId: userId,
+      connectionId,
     };
   }
 
   static async deleteConnection(userId: string, providerKey: NangoProviderKey): Promise<void> {
-    await getNango().deleteConnection(providerKey, userId);
+    const connectionId = await this.resolveConnectionId(userId, providerKey);
+    if (!connectionId) {
+      return;
+    }
+    await getNango().deleteConnection(providerKey, connectionId);
   }
 
   static async createSessionToken(userId: string): Promise<string> {
