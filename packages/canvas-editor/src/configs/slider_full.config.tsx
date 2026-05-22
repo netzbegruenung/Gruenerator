@@ -24,6 +24,7 @@ import { SLIDER_CONFIG, calculateSliderLayout, getSliderColors } from '../utils/
 
 import { chatTab, createCommonSectionEntries, toolsTab, uploadsTab } from './commonSections';
 import { createBaseActions } from './factory/commonActions';
+import { makeSectionDefiner } from './factory/defineSection';
 import { fromLayout } from './factory/layoutAccessors';
 import { injectFeatureProps } from './featureInjector';
 import { createShareSection } from './shareSection';
@@ -409,6 +410,8 @@ const sliderAiCapabilities: TemplateAiCapabilities<SliderState, SliderActions> =
   },
 };
 
+const section = makeSectionDefiner<SliderState, SliderActions>();
+
 export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
   id: 'slider',
 
@@ -492,7 +495,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
   },
 
   sections: {
-    background: {
+    background: section({
       component: BackgroundSection,
       propsFactory: (state, actions) => ({
         currentColor: state.backgroundColor,
@@ -502,8 +505,8 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
           actions.setColorScheme(scheme);
         },
       }),
-    },
-    text: {
+    }),
+    text: section({
       component: CombinedTextSection,
       propsFactory: (state, actions) => ({
         additionalTexts: state.additionalTexts,
@@ -512,8 +515,8 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         onUpdateText: actions.updateAdditionalText,
         onRemoveText: actions.removeAdditionalText,
       }),
-    },
-    assets: {
+    }),
+    assets: section({
       component: AssetsSection,
       propsFactory: (state, actions, context) => ({
         assetInstances: state.assetInstances,
@@ -523,8 +526,8 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
         onAddPillBadge: actions.addPillBadge,
         ...injectFeatureProps(state, actions, context),
       }),
-    },
-    'frame-settings': {
+    }),
+    'frame-settings': section({
       component: FrameSettingsSection,
       propsFactory: (state, actions, context) => {
         const selectedId = context?.selectedElement ?? null;
@@ -538,7 +541,7 @@ export const sliderFullConfig: FullCanvasConfig<SliderState, SliderActions> = {
           onRemoveFrame: actions.removeFrame,
         };
       },
-    },
+    }),
     ...createCommonSectionEntries('slider', sliderAiCapabilities),
     share: createShareSection<SliderState, SliderActions>('slider', (state) => {
       const label = state.label || '';

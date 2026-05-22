@@ -25,6 +25,7 @@ import type {
   SvgDef,
   KawaiiInstance,
 } from '../utils/illustrations/types';
+import type { SnapTarget } from '../utils/snapping';
 import type Konva from 'konva';
 import type { KawaiiProps } from 'react-kawaii';
 
@@ -53,7 +54,7 @@ export interface IllustrationPrimitiveProps {
   onTransformEnd: (x: number, y: number, scale: number, rotation: number) => void;
   onSnapChange?: (h: boolean, v: boolean) => void;
   onSnapLinesChange?: (lines: unknown[]) => void;
-  getSnapTargets?: (id: string) => unknown[];
+  getSnapTargets?: (id: string) => SnapTarget[];
   stageWidth?: number;
   stageHeight?: number;
   draggable?: boolean;

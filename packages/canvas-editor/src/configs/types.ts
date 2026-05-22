@@ -253,6 +253,8 @@ export interface SectionContext {
   onCaptureCanvas?: () => void;
   /** Returns the current page's canvas as a PNG data URL (or null if not ready). */
   captureCanvasImage?: () => Promise<string | null>;
+  /** Higher-fidelity capture variant used to feed canvas images to the AI. */
+  captureCanvasImageForAi?: () => Promise<string | null>;
   onDownload?: () => void;
   onNavigateToGallery?: () => void;
   /** Font color from layout meta (for text elements) */
@@ -260,6 +262,15 @@ export interface SectionContext {
   /** Additional metadata from layout calculations */
   [key: string]: unknown;
 }
+
+/**
+ * Phantom brand. A genuine `SectionConfig` can only be produced by
+ * `makeSectionDefiner()`, which checks the component↔propsFactory contract.
+ * Raw object literals lack this brand, so `FullCanvasConfig.sections` rejects
+ * them — a mistyped section can no longer slip through the Record's `any`
+ * props slot (see `factory/defineSection.ts`).
+ */
+declare const sectionConfigBrand: unique symbol;
 
 export interface SectionConfig<
   TState = Record<string, unknown>,
@@ -270,6 +281,8 @@ export interface SectionConfig<
   component: React.ComponentType<TSectionProps>;
   /** Function to map canvas state and handlers to section props */
   propsFactory: (state: TState, actions: TActions, context?: SectionContext) => TSectionProps;
+  /** @internal Brand — only `makeSectionDefiner()` may produce this. */
+  readonly [sectionConfigBrand]: true;
 }
 
 // ============================================================================
