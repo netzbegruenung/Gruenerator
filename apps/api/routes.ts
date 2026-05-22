@@ -14,6 +14,7 @@ import { mountImageModelPreferenceContractRouter } from './routes/auth/imageMode
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
+import { mountUserTemplatesContractRouter } from './routes/auth/templates/userTemplatesContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
 import { mountCanvasAiContractRouter } from './routes/canvas/aiSuggestRoute.js';
@@ -309,6 +310,13 @@ export async function setupRoutes(app: Application): Promise<void> {
   // enforced per-handler via `checkIsAdmin` inside the contract).
   app.use('/api/auth/admin/vorlagen', requireAuth);
   mountAdminVorlagenContractRouter(app);
+  // ts-rest contract router for user templates (Vorlagen CRUD) — replaces the
+  // legacy userTemplatesRouter. Mounts BEFORE authRouter so contract routes
+  // match first. requireAuth is applied at the prefix because every route
+  // requires authentication and the contract router does not inherit the
+  // later `app.use('/api/auth', ...)` middleware.
+  app.use('/api/auth/user-templates', requireAuth);
+  mountUserTemplatesContractRouter(app);
   app.use('/api/auth', authenticatedReadLimiter, authRouter);
   // ts-rest contract router for notebook collections — mounts BEFORE the
   // legacy router so contract-modeled routes match first. requireAuth is

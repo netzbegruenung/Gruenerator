@@ -1,3 +1,5 @@
+import { type UserTemplatePreview } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
   Button,
   Dialog,
@@ -21,18 +23,11 @@ const READ_ONLY_PERMISSIONS = { read: true, write: false, collaborative: false }
 const INPUT_CLASS =
   'w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-background px-md py-md text-base focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-500 disabled:opacity-50 transition-colors';
 
-interface PreviewData {
-  title?: string;
-  thumbnail_url?: string;
-  description?: string;
-  [key: string]: unknown;
-}
-
-interface ApiResponse {
+// Binary file uploads go through the (non-contracted, multipart) media
+// endpoint, which returns a shareable URL we then store on the template.
+interface MediaUploadResponse {
   success: boolean;
-  message?: string;
-  preview?: PreviewData;
-  data?: { id: string };
+  data: { shareUrl: string };
 }
 
 interface AddTemplateModalProps {
@@ -122,7 +117,7 @@ const AddTemplateModal = ({
 
   const [templateUrl, setTemplateUrl] = useState('');
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
-  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [previewData, setPreviewData] = useState<Partial<UserTemplatePreview> | null>(null);
 
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadPreviewUrl, setUploadPreviewUrl] = useState<string | null>(null);
@@ -187,14 +182,12 @@ const AddTemplateModal = ({
   const fetchCanvaPreview = useCallback(async (url: string, fallbackTitle?: string) => {
     setIsLoadingPreview(true);
     try {
-      const response = await apiClient.post<ApiResponse>('/auth/user-templates/from-url', {
-        url: url.trim(),
-        preview: true,
+      const result = await getContractsClient().userTemplates.fromUrl({
+        body: { url: url.trim(), preview: true },
       });
-      const data = response.data;
-      if (data.preview) {
-        setPreviewData(data.preview);
-        const preview = data.preview;
+      if (result.status === 200) {
+        const preview = result.body.preview;
+        setPreviewData(preview);
 
         const crawledTitle = preview.title || fallbackTitle || '';
         setTitle(crawledTitle);
@@ -241,50 +234,61 @@ const AddTemplateModal = ({
 
       let templateId: string | undefined;
 
+      const metadata = {
+        author_name: authorName.trim() || null,
+        contact_email: contactEmail.trim() || null,
+      };
+      const client = getContractsClient();
+
       if (showFileUpload && uploadedFile) {
+        // Binary uploads go through the media library first (the template
+        // create endpoint is JSON-only); we then store the returned URL.
         const formData = new FormData();
         formData.append('file', uploadedFile);
-        formData.append('title', title.trim());
-        formData.append('description', description.trim());
-        formData.append('template_type', 'sharepic');
-        formData.append(
-          'metadata',
-          JSON.stringify({
-            author_name: authorName.trim() || null,
-            contact_email: contactEmail.trim() || null,
-          })
-        );
-        const response = await apiClient.post<ApiResponse>('/auth/user-templates', formData, {
+        formData.append('uploadSource', 'template-upload');
+        const upload = await apiClient.post<MediaUploadResponse>('/media/upload', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
-        if (!response.data.success) throw new Error(response.data.message || 'Fehler');
-        templateId = response.data.data?.id;
+        const shareUrl = upload.data?.data?.shareUrl;
+        if (!shareUrl) throw new Error('Datei konnte nicht hochgeladen werden.');
+
+        const result = await client.userTemplates.create({
+          body: {
+            title: title.trim(),
+            description: description.trim(),
+            template_type: 'sharepic',
+            external_url: shareUrl,
+            preview_image_url: shareUrl,
+            is_private: false,
+            metadata,
+          },
+        });
+        if (result.status !== 201) throw new Error('Fehler beim Erstellen der Vorlage.');
+        templateId = result.body.data.id;
       } else if (previewData) {
-        const response = await apiClient.post<ApiResponse>('/auth/user-templates/from-url', {
-          url: templateUrl.trim(),
-          title: title.trim(),
-          description: description.trim(),
-          metadata: {
-            author_name: authorName.trim() || null,
-            contact_email: contactEmail.trim() || null,
+        const result = await client.userTemplates.fromUrl({
+          body: {
+            url: templateUrl.trim(),
+            title: title.trim(),
+            description: description.trim(),
+            metadata,
           },
         });
-        if (!response.data.success) throw new Error(response.data.message || 'Fehler');
-        templateId = response.data.data?.id;
+        if (result.status !== 201) throw new Error('Fehler beim Einreichen der Vorlage.');
+        templateId = result.body.data.id;
       } else {
-        const response = await apiClient.post<ApiResponse>('/auth/user-templates', {
-          title: title.trim(),
-          description: description.trim(),
-          external_url: templateUrl.trim() || null,
-          template_type: showFileUpload ? 'sharepic' : 'canva',
-          is_private: false,
-          metadata: {
-            author_name: authorName.trim() || null,
-            contact_email: contactEmail.trim() || null,
+        const result = await client.userTemplates.create({
+          body: {
+            title: title.trim(),
+            description: description.trim(),
+            external_url: templateUrl.trim() || null,
+            template_type: 'canva',
+            is_private: false,
+            metadata,
           },
         });
-        if (!response.data.success) throw new Error(response.data.message || 'Fehler');
-        templateId = response.data.data?.id;
+        if (result.status !== 201) throw new Error('Fehler beim Erstellen der Vorlage.');
+        templateId = result.body.data.id;
       }
 
       if (groupId && onShareContent && templateId) {
