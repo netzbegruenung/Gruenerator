@@ -1,13 +1,12 @@
 import { DocsProvider } from '@gruenerator/docs';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
-import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import apiClient from '../../components/utils/apiClient';
+import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
+import { useBoardsTyped } from '../../hooks/useBoardsTyped';
 import useUserDefaults from '../../hooks/useUserDefaults';
 import { useAuthStore } from '../../stores/authStore';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
@@ -22,12 +21,13 @@ import { PlannerKanban } from './components/PlannerKanban';
 import { ViewSwitcher } from './components/ViewSwitcher';
 import { ViewToolbar } from './components/ViewToolbar';
 import { useBoardCollaboration } from './hooks/useBoardCollaboration';
+import { useBoardDetail } from './hooks/useBoardDetail';
 import { useBoardState } from './hooks/useBoardState';
 import { useViewData } from './hooks/useViewData';
 import { FIELD_IDS, getBoardType, isBoardArchived } from './types';
 
 import type { BoardInitialStructure } from './hooks/useBoardState';
-import type { Board, Row, ViewLayout } from './types';
+import type { Row, ViewLayout } from './types';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type { Doc } from 'yjs';
 
@@ -40,7 +40,6 @@ function BoardContent() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient();
   const { get: getBoardsDefault, set: setBoardsDefault } = useUserDefaults<boolean>('boards');
   const expertMode = getBoardsDefault('expertMode', false);
   const handleExpertModeToggle = useCallback(() => {
@@ -51,55 +50,28 @@ function BoardContent() {
     (location.state as { generatedStructure?: BoardInitialStructure } | null)?.generatedStructure ??
     null;
 
-  const { data: board, isLoading } = useQuery<Board>({
-    queryKey: ['boards', id],
-    queryFn: async () => {
-      const res = await apiClient.get<Board>(`/boards/${id}`);
-      return res.data;
-    },
-    enabled: !!id,
-  });
+  const { data: board, isLoading } = useBoardDetail(id);
 
   useDocumentTitle(board?.title);
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => {
-      await apiClient.delete(`/boards/${id}`);
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['boards'] });
-      void navigate('/workplace');
-    },
-  });
+  // useBoardsTyped mutations invalidate ['boards'], which prefix-matches and refreshes
+  // this board's detail query (['boards', id]) too.
+  const { deleteBoard, updateBoard } = useBoardsTyped();
 
-  const archiveMutation = useMutation({
-    mutationFn: async (isArchived: boolean) => {
-      await apiClient.put(`/boards/${id}`, { is_archived: isArchived });
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['boards'] });
-      void queryClient.invalidateQueries({ queryKey: ['boards', id] });
-    },
-  });
-
-  const renameMutation = useMutation({
-    mutationFn: async (title: string) => {
-      await apiClient.put(`/boards/${id}`, { title });
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['boards'] });
-      void queryClient.invalidateQueries({ queryKey: ['boards', id] });
-    },
-  });
-
-  const handleDelete = useCallback(() => deleteMutation.mutate(), [deleteMutation]);
-  const handleArchiveToggle = useCallback(
-    () => archiveMutation.mutate(!board || !isBoardArchived(board)),
-    [archiveMutation, board]
-  );
+  const handleDelete = useCallback(() => {
+    if (!id) return;
+    deleteBoard.mutate(id, { onSuccess: () => void navigate('/workplace') });
+  }, [deleteBoard, id, navigate]);
+  const handleArchiveToggle = useCallback(() => {
+    if (!id) return;
+    updateBoard.mutate({ id, is_archived: !board || !isBoardArchived(board) });
+  }, [updateBoard, id, board]);
   const handleRename = useCallback(
-    (title: string) => renameMutation.mutate(title),
-    [renameMutation]
+    (title: string) => {
+      if (!id) return;
+      updateBoard.mutate({ id, title });
+    },
+    [updateBoard, id]
   );
 
   const { ydoc, provider, isConnected, isSynced } = useBoardCollaboration(id || '');

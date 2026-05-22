@@ -24,6 +24,8 @@ export {
   searchContract,
   chatGraphContract,
   boardsContract,
+  boardCommentsContract,
+  publicBoardsContract,
   sharesContract,
   userProfileContract,
   notebookContract,
@@ -57,6 +59,7 @@ export * from './schemas/recentValues.js';
 export * from './schemas/search.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/boards.js';
+export * from './schemas/boardComments.js';
 export * from './schemas/shares.js';
 export * from './schemas/userProfile.js';
 export * from './schemas/notebook.js';
