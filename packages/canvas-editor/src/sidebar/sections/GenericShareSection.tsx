@@ -182,7 +182,7 @@ function DownloadShareSubsection({
 
     setIsSharing(true);
     try {
-      const blob = await (await fetch(exportedImage!)).blob();
+      const blob = await (await fetch(imageToShare)).blob();
       const file = new File([blob], 'gruenerator.png', { type: 'image/png' });
 
       if (navigator.canShare?.({ files: [file] })) {

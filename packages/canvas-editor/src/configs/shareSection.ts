@@ -2,7 +2,9 @@ import { FaShare } from 'react-icons/fa';
 
 import { GenericShareSection, type GenericShareSectionProps } from '../sidebar';
 
-import type { SectionConfig, SectionContext } from './types';
+import { makeSectionDefiner } from './factory/defineSection';
+
+import type { SectionConfig } from './types';
 
 export const shareTab = {
   id: 'share' as const,
@@ -15,13 +17,10 @@ export function createShareSection<TState, TActions = unknown>(
   canvasType: string,
   getCanvasText: (state: TState) => string
 ): SectionConfig<TState, TActions, GenericShareSectionProps> {
-  return {
+  const section = makeSectionDefiner<TState, TActions>();
+  return section({
     component: GenericShareSection,
-    propsFactory: (
-      state: TState,
-      _actions: TActions,
-      context?: SectionContext
-    ): GenericShareSectionProps => {
+    propsFactory: (state, _actions, context) => {
       const canvasText = getCanvasText(state);
 
       // Note: autoSaveStatus removed - DownloadSubsection reads directly from useAutoSaveStore
@@ -40,5 +39,5 @@ export function createShareSection<TState, TActions = unknown>(
         exportProgress: context?.exportProgress as { current: number; total: number } | undefined,
       };
     },
-  };
+  });
 }
