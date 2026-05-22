@@ -1,3 +1,4 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import {
   Badge,
   Button,
@@ -23,7 +24,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HiDocumentText, HiCollection, HiLink } from 'react-icons/hi';
 import { PiSquaresFour } from 'react-icons/pi';
 
-import apiClient from '../../../components/utils/apiClient';
 import { ICONS } from '../../../config/icons';
 import { profileApiService } from '../../auth/services/profileApiService';
 import { SYSTEM_NOTEBOOKS } from '../../notebook/config/notebooksConfig';
@@ -171,16 +171,16 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
       {
         queryKey: ['add-to-group', 'collabDocs'],
         queryFn: async (): Promise<ContentItem[]> => {
-          const r = await apiClient.get<ContentItem[]>('/docs');
-          return Array.isArray(r.data) ? r.data : [];
+          const result = await getContractsClient().docs.listDocuments({ query: {} });
+          return result.status === 200 ? result.body : [];
         },
         enabled: isOpen,
       },
       {
         queryKey: ['add-to-group', 'boards'],
         queryFn: async (): Promise<ContentItem[]> => {
-          const r = await apiClient.get<ContentItem[]>('/boards');
-          return Array.isArray(r.data) ? r.data : [];
+          const result = await getContractsClient().boards.listBoards();
+          return result.status === 200 ? result.body : [];
         },
         enabled: isOpen,
       },
