@@ -15,8 +15,8 @@ import type { Agent } from './types.js';
 // Schleswig-Holstein's notebook is currently disabled in the frontend; its
 // agent stays defined here so the wiring is ready when SH is re-enabled.
 // LVs WITHOUT a corpus-derived hand-tuned agent above. Adding Berlin / Hamburg /
-// MV / Thüringen / Brandenburg back here re-introduces an identifier collision
-// that silently shadows the hand-tuned version — don't.
+// MV / Thüringen / Brandenburg / Bayern back here re-introduces an identifier
+// collision that silently shadows the hand-tuned version — don't.
 export const LV_PR_SPECS = [
   {
     lv: 'schleswig-holstein',
@@ -25,14 +25,6 @@ export const LV_PR_SPECS = [
     notebook: 'schleswig-holstein-notebook',
     themes:
       'Energiewende (Windkraft Nord, Wasserstoff), Küstenschutz, Tourismus, Landwirtschaft, dänische Minderheit',
-  },
-  {
-    lv: 'bayern',
-    title: 'Bayern',
-    codes: 'BY',
-    notebook: 'bayern-notebook',
-    themes:
-      'Oppositionsrolle gegen CSU/Freie Wähler, Verkehrswende Süd, Alpen- & Naturschutz, ÖPNV im ländlichen Raum, Wohnungsnot in Ballungs­räumen',
   },
 ] as const satisfies ReadonlyArray<{
   lv: string;

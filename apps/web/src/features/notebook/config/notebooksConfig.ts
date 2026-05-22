@@ -145,6 +145,19 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
     defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
   },
   {
+    id: 'bayern-notebook',
+    path: '/notebooks/bayern',
+    title: 'Bayern',
+    description:
+      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Regierungsprogramm der Grünen Bayern.',
+    meta: 'Archiv',
+    tags: ['Bayern', 'Presse', 'Beschlüsse', 'Regierungsprogramm'],
+    icon: NOTEBOOK_ICONS['bayern-notebook'],
+    order: 10,
+    category: 'landesebene',
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-bayern',
+  },
+  {
     id: 'oesterreich-notebook',
     path: '/notebooks/oesterreich',
     title: 'Die Grünen Österreich',
@@ -182,18 +195,6 @@ const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
 ];
 
 const DEV_ONLY_NOTEBOOKS: NotebookConfigEntry[] = [
-  {
-    id: 'bayern-notebook',
-    path: '/notebooks/bayern',
-    title: 'Bayern',
-    description: 'Durchsuchbar ist das Regierungsprogramm der Grünen Bayern zur Landtagswahl.',
-    meta: '1 Programm',
-    tags: ['Bayern', 'Regierungsprogramm'],
-    icon: NOTEBOOK_ICONS['bayern-notebook'],
-    order: 6,
-    category: 'landesebene',
-    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-bayern',
-  },
   {
     id: 'boell-stiftung-notebook',
     path: '/notebooks/boell-stiftung',

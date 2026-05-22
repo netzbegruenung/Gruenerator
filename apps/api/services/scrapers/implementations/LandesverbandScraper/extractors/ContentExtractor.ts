@@ -192,6 +192,18 @@ export class ContentExtractor {
       }
     }
 
+    // Fallback: some TYPO3 detail pages render the date as a bare <p> with no
+    // <time>/datetime/class (e.g. gruene-fraktion-bayern.de). Scan the main
+    // content region for the first German long-form date PATTERN — matching the
+    // pattern (not a <p> position) skips figure captions and other prose.
+    if (!publishedAt) {
+      const scanText = $('main, article, .document-content__main, .news-text-wrap').first().text();
+      const m = scanText.match(
+        /\b(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})\b/i
+      );
+      if (m) publishedAt = m[0];
+    }
+
     // Normalize German date formats to ISO
     if (publishedAt) {
       publishedAt = ContentExtractor.normalizeGermanDate(publishedAt);
@@ -243,6 +255,33 @@ export class ContentExtractor {
    */
   static normalizeGermanDate(dateStr: string): string {
     const trimmed = dateStr.trim();
+
+    // German long-form text month (e.g., "21. Mai 2026"). Some TYPO3 sites
+    // (gruene-fraktion-bayern.de) render the publish date this way with no
+    // <time>/datetime markup.
+    const textMonthMatch = trimmed.match(
+      /(\d{1,2})\.\s*(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})/i
+    );
+    if (textMonthMatch) {
+      const months: Record<string, string> = {
+        januar: '01',
+        februar: '02',
+        märz: '03',
+        april: '04',
+        mai: '05',
+        juni: '06',
+        juli: '07',
+        august: '08',
+        september: '09',
+        oktober: '10',
+        november: '11',
+        dezember: '12',
+      };
+      const day = textMonthMatch[1].padStart(2, '0');
+      const month = months[textMonthMatch[2].toLowerCase()];
+      const year = textMonthMatch[3];
+      if (month) return `${year}-${month}-${day}`;
+    }
 
     // DD.MM.YYYY (e.g., "19.02.2026"). Try the 4-digit year first so that
     // "02.04.2026" doesn't get partially matched as DD.MM.YY ("02.04.20").
