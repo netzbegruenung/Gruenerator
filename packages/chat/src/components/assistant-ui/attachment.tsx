@@ -1,7 +1,7 @@
 'use client';
 
 import { PropsWithChildren, useEffect, useState, type FC } from 'react';
-import { XIcon, PlusIcon, FileText, FileSearch, Cloud } from 'lucide-react';
+import { XIcon, PlusIcon, FileText, FileSearch, Cloud, Plug } from 'lucide-react';
 import {
   AttachmentPrimitive,
   ComposerPrimitive,
@@ -133,12 +133,15 @@ const GruenAttachmentChip: FC = () => {
 
   const isCollab = contentType === 'application/x-gruenerator-collab-doc';
   const isWolke = contentType === 'application/x-gruenerator-wolke';
-  const Icon = isWolke ? Cloud : isCollab ? FileText : FileSearch;
-  const variant = isWolke
-    ? 'bg-sky-500/10 text-sky-900 border-sky-500/30 dark:text-sky-100'
-    : isCollab
-      ? 'bg-cyan-500/10 text-cyan-900 border-cyan-500/30 dark:text-cyan-100'
-      : 'bg-primary/5 text-foreground border-primary/20';
+  const isConnect = contentType === 'application/x-gruenerator-connect';
+  const Icon = isConnect ? Plug : isWolke ? Cloud : isCollab ? FileText : FileSearch;
+  const variant = isConnect
+    ? 'bg-violet-500/10 text-violet-900 border-violet-500/30 dark:text-violet-100'
+    : isWolke
+      ? 'bg-sky-500/10 text-sky-900 border-sky-500/30 dark:text-sky-100'
+      : isCollab
+        ? 'bg-cyan-500/10 text-cyan-900 border-cyan-500/30 dark:text-cyan-100'
+        : 'bg-primary/5 text-foreground border-primary/20';
 
   return (
     <AttachmentPrimitive.Root

@@ -23,6 +23,21 @@ export const wolkeFileRefSchema = z.object({
 });
 export type WolkeFileRef = z.infer<typeof wolkeFileRefSchema>;
 
+/**
+ * Reference to a single file inside a user's Nango-connected provider account
+ * (Microsoft / Google / Jira / Confluence). Selected via the @connect
+ * mentionable in chat; resolved server-side at send-time by downloading the
+ * file content via the matching provider API client. No DB / Qdrant
+ * persistence — transient per-turn context, mirroring wolkeFileRefSchema.
+ */
+export const connectFileRefSchema = z.object({
+  provider: z.string(),
+  fileId: z.string(),
+  name: z.string(),
+  mimeType: z.string().nullish(),
+});
+export type ConnectFileRef = z.infer<typeof connectFileRefSchema>;
+
 // ── Request bodies ──────────────────────────────────────────────────────────
 //
 // All optional fields use `.nullish()` (= `.optional().nullable()`) so they
@@ -50,6 +65,7 @@ export const chatStreamBodySchema = z.object({
   boardIds: z.array(z.string()).nullish(),
   docMentionIds: z.array(z.string()).nullish(),
   wolkeFiles: z.array(wolkeFileRefSchema).nullish(),
+  connectFiles: z.array(connectFileRefSchema).nullish(),
   currentDocument: z
     .object({
       id: z.string(),

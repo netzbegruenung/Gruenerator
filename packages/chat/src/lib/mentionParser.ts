@@ -1,6 +1,12 @@
 import { getDefaultAgent } from './agents';
 import { resolveDocumentSlug } from './documentMentionables';
-import { decodeWolkeToken, resolveMentionable, type WolkeFileToken } from './mentionables';
+import {
+  decodeWolkeToken,
+  decodeConnectToken,
+  resolveMentionable,
+  type WolkeFileToken,
+  type ConnectFileToken,
+} from './mentionables';
 
 export interface MentionResult {
   agentId: string;
@@ -19,6 +25,7 @@ export interface ParsedMentions {
   boardIds: string[];
   docMentionIds: string[];
   wolkeFiles: WolkeFileToken[];
+  connectFiles: ConnectFileToken[];
   unresolvedMentions: string[];
   cleanText: string;
 }
@@ -56,6 +63,7 @@ export function parseAllMentions(text: string): ParsedMentions {
   const boardIds: string[] = [];
   const docMentionIds: string[] = [];
   const wolkeFiles: WolkeFileToken[] = [];
+  const connectFiles: ConnectFileToken[] = [];
   const seenNotebooks = new Set<string>();
   const seenTools = new Set<string>();
   const seenDocuments = new Set<string>();
@@ -63,6 +71,7 @@ export function parseAllMentions(text: string): ParsedMentions {
   const seenBoards = new Set<string>();
   const seenDocMentions = new Set<string>();
   const seenWolke = new Set<string>();
+  const seenConnect = new Set<string>();
   const unresolvedMentions: string[] = [];
   const mentionSpans: [number, number][] = [];
 
@@ -122,6 +131,29 @@ export function parseAllMentions(text: string): ParsedMentions {
 
     // Handle bare @wolke trigger (popover hint — strip, no payload)
     if (trigger === '@' && alias === 'wolke') {
+      const triggerIndex = match.index + match[0].indexOf('@');
+      mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
+      continue;
+    }
+
+    // Handle @connect:<base64-token> — decoded into connectFiles
+    if (trigger === '@' && alias.startsWith('connect:')) {
+      const token = alias.slice(8);
+      const ref = decodeConnectToken(token);
+      if (ref) {
+        const key = `${ref.provider}:${ref.fileId}`;
+        if (!seenConnect.has(key)) {
+          seenConnect.add(key);
+          connectFiles.push(ref);
+        }
+      }
+      const triggerIndex = match.index + match[0].indexOf('@');
+      mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
+      continue;
+    }
+
+    // Handle bare @connect trigger (popover hint — strip, no payload)
+    if (trigger === '@' && alias === 'connect') {
       const triggerIndex = match.index + match[0].indexOf('@');
       mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
       continue;
@@ -192,6 +224,7 @@ export function parseAllMentions(text: string): ParsedMentions {
     boardIds,
     docMentionIds,
     wolkeFiles,
+    connectFiles,
     unresolvedMentions,
     cleanText,
   };
@@ -205,6 +238,7 @@ export type MentionPreviewKind =
   | 'notebook'
   | 'board'
   | 'wolke'
+  | 'connect'
   | 'unresolved';
 
 export interface MentionPreview {
@@ -238,7 +272,34 @@ export function extractMentionPreviews(text: string): MentionPreview[] {
     // types and shouldn't render chips (especially red unresolved ones).
     if (end === text.length) continue;
 
-    if (trigger === '@' && (alias === 'datei' || alias === 'dokumentchat' || alias === 'wolke')) {
+    if (
+      trigger === '@' &&
+      (alias === 'datei' || alias === 'dokumentchat' || alias === 'wolke' || alias === 'connect')
+    ) {
+      continue;
+    }
+
+    if (trigger === '@' && alias.startsWith('connect:')) {
+      const token = alias.slice(8);
+      const ref = decodeConnectToken(token);
+      if (ref) {
+        previews.push({
+          kind: 'connect',
+          match: literal,
+          start: triggerIndex,
+          end,
+          title: ref.name,
+          avatar: '🔌',
+        });
+      } else {
+        previews.push({
+          kind: 'unresolved',
+          match: literal,
+          start: triggerIndex,
+          end,
+          title: alias,
+        });
+      }
       continue;
     }
 
