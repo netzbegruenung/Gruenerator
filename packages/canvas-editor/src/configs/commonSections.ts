@@ -3,6 +3,7 @@ import { HiArrowUpTray, HiChatBubbleLeftRight, HiWrenchScrewdriver } from 'react
 import { applyOperation, type CanvasAiActionsBase } from '../ai/applyOperation';
 import { ChatSection, ToolsSection, UploadsSection } from '../sidebar/sections';
 import { buildSharepicText } from './buildSharepicText';
+import { makeSectionDefiner } from './factory/defineSection';
 
 import type { CanvasAiEditBridge } from '../CanvasEditorProvider';
 import type { TemplateAiCapabilities } from '../ai/types';
@@ -20,13 +21,23 @@ interface ActionsWithUploads {
   addUserImageFromUrl?: (url: string, fileName: string) => void;
 }
 
-export const uploadsSectionEntry = {
-  component: UploadsSection as unknown as React.ComponentType<Record<string, unknown>>,
-  propsFactory: (_state: unknown, actions: unknown): UploadsSectionProps => {
+/**
+ * The tools/uploads entries are config-agnostic (shared verbatim across every
+ * template), so they bind their definer to `unknown` state/actions. The
+ * resulting `SectionConfig<unknown, unknown, …>` still slots into a template's
+ * `Record<string, SectionConfig<TState, TActions, …>>` via function-param
+ * contravariance — a factory accepting `unknown` is assignable where one
+ * accepting the template's `TState` is expected.
+ */
+const defineCommonSection = makeSectionDefiner<unknown, unknown>();
+
+export const uploadsSectionEntry = defineCommonSection({
+  component: UploadsSection,
+  propsFactory: (_state, actions): UploadsSectionProps => {
     const a = actions as ActionsWithUploads;
     return a.addUserImageFromUrl ? { onPlaceFromUrl: a.addUserImageFromUrl } : {};
   },
-};
+});
 
 export const toolsTab: SidebarTab = {
   id: 'tools',
@@ -35,10 +46,10 @@ export const toolsTab: SidebarTab = {
   ariaLabel: 'KI-Bildwerkzeuge',
 };
 
-export const toolsSectionEntry = {
-  component: ToolsSection as unknown as React.ComponentType<Record<string, unknown>>,
-  propsFactory: (_state: unknown, _actions: unknown): ToolsSectionProps => ({}),
-};
+export const toolsSectionEntry = defineCommonSection({
+  component: ToolsSection,
+  propsFactory: (): ToolsSectionProps => ({}),
+});
 
 export const chatTab: SidebarTab = {
   id: 'chat',
@@ -78,16 +89,10 @@ export function createChatSection<TState, TActions extends CanvasAiActionsBase>(
   canvasType: string,
   capabilities?: TemplateAiCapabilities<TState, TActions>
 ) {
-  return {
-    component: ChatSection as unknown as React.ComponentType<Record<string, unknown>>,
-    propsFactory: (
-      state: TState,
-      actions: TActions,
-      context?: {
-        captureCanvasImage?: () => Promise<string | null>;
-        captureCanvasImageForAi?: () => Promise<string | null>;
-      }
-    ): ChatSectionProps => {
+  const defineSection = makeSectionDefiner<TState, TActions>();
+  return defineSection({
+    component: ChatSection,
+    propsFactory: (state, actions, context): ChatSectionProps => {
       const aiEdit: CanvasAiEditBridge | undefined = capabilities
         ? {
             capabilityList: {
@@ -109,5 +114,5 @@ export function createChatSection<TState, TActions extends CanvasAiActionsBase>(
         aiEdit,
       };
     },
-  };
+  });
 }
