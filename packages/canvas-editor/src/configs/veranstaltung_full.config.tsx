@@ -24,6 +24,7 @@ import {
   createFrameActions,
   createUserImageActions,
 } from './factory/commonActions';
+import { makeSectionDefiner } from './factory/defineSection';
 import { injectFeatureProps } from './featureInjector';
 import { PLACEHOLDER_TEXT } from './placeholders';
 import { createShareSection } from './shareSection';
@@ -304,6 +305,8 @@ const veranstaltungAiCapabilities: TemplateAiCapabilities<
   },
 };
 
+const section = makeSectionDefiner<VeranstaltungFullState, VeranstaltungFullActions>();
+
 export const veranstaltungFullConfig: FullCanvasConfig<
   VeranstaltungFullState,
   VeranstaltungFullActions
@@ -360,7 +363,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
     selectedElement?.startsWith('frame-') ? 'frame-settings' : null,
 
   sections: {
-    image: {
+    image: section({
       component: ImageBackgroundSection,
       propsFactory: (state, actions) => ({
         currentImageSrc: state.currentImageSrc,
@@ -377,8 +380,8 @@ export const veranstaltungFullConfig: FullCanvasConfig<
         isLocked: state.isBackgroundLocked,
         onToggleLock: actions.toggleBackgroundLock,
       }),
-    },
-    text: {
+    }),
+    text: section({
       component: CombinedTextSection,
       propsFactory: (state, actions) => ({
         additionalTexts: state.additionalTexts,
@@ -388,8 +391,8 @@ export const veranstaltungFullConfig: FullCanvasConfig<
         onUpdateText: actions.updateAdditionalText,
         onRemoveText: actions.removeAdditionalText,
       }),
-    },
-    assets: {
+    }),
+    assets: section({
       component: AssetsSection,
       propsFactory: (state, actions, context) => ({
         // Asset instance props
@@ -399,8 +402,8 @@ export const veranstaltungFullConfig: FullCanvasConfig<
         // Auto-inject all feature props (icons, shapes, illustrations, balken)
         ...injectFeatureProps(state, actions, context),
       }),
-    },
-    'frame-settings': {
+    }),
+    'frame-settings': section({
       component: FrameSettingsSection,
       propsFactory: (state, actions, context) => {
         const selectedId = context?.selectedElement ?? null;
@@ -414,7 +417,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
           onRemoveFrame: actions.removeFrame,
         };
       },
-    },
+    }),
     ...createCommonSectionEntries('veranstaltung', veranstaltungAiCapabilities),
     share: createShareSection<VeranstaltungFullState>('veranstaltung', (state) =>
       `${state.eventTitle}\n${state.beschreibung}\n${state.weekday} ${state.date} ${state.time}\n${state.locationName}`.trim()
