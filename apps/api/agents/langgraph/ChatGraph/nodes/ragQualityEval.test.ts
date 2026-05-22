@@ -238,6 +238,7 @@ async function evaluateBudgetAllocation() {
     docMentionIds: [],
     documentMentionContext: null,
     wolkeFiles: [],
+    connectFiles: [],
     currentDocument: null,
     searchSources: [],
     intent: 'search',

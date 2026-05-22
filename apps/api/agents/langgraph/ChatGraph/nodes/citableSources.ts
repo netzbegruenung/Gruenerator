@@ -105,6 +105,10 @@ export function docKindToCitableKind(kind: DocumentSourceKind): CitableSourceKin
       return 'attachment';
     case 'current_doc':
       return 'document';
+    case 'connect':
+      // Connect (Nango) file sources have no public URL; group as 'other',
+      // matching inferSourceKind's fallback for the `connect:` source prefix.
+      return 'other';
     default:
       return 'other';
   }
