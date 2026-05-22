@@ -2,7 +2,6 @@
 
 import { memo, useMemo } from 'react';
 import { MessagePrimitive, useMessage } from '@assistant-ui/react';
-import { useScopedAgentId } from '../../lib/useScopedAgentState';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
 import { GrueneratorHomeIconLoading } from '../icons';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
@@ -44,15 +43,19 @@ export const AssistantMessage = memo(function AssistantMessage() {
   const message = useMessage();
   const density = useChatDensity();
   const isCompact = density === 'compact';
-  const selectedAgentId = useScopedAgentId();
   const custom = message.metadata?.custom as ChatMessageMetadata | undefined;
 
+  // Resolve the agent that PRODUCED this message from its own metadata only.
+  // The chat adapter sets `custom.agentId`/`agentMention` on every frame when an
+  // agent is active, so this covers normal agent chats. Surfaces with no agent
+  // (notebook QA, eigener chat) leave it unset → no agent avatar/badge. We do
+  // NOT fall back to the currently-selected agent: selection is ambient UI state,
+  // not message provenance, and leaks the wrong agent into notebook answers.
   const messageAgent = useMemo(() => {
     if (custom?.agentMention) return agentsList.find((a) => a.mention === custom.agentMention);
     if (custom?.agentId) return agentsList.find((a) => a.identifier === custom.agentId);
-    if (selectedAgentId) return agentsList.find((a) => a.identifier === selectedAgentId);
     return undefined;
-  }, [custom?.agentMention, custom?.agentId, selectedAgentId]);
+  }, [custom?.agentMention, custom?.agentId]);
 
   const isNonDefaultAgent = messageAgent != null && messageAgent.identifier !== getDefaultAgent();
   const fetchFullText = useFetchFullText();
