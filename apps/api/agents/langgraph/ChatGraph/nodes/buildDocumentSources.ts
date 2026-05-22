@@ -19,6 +19,7 @@ import type {
   SearchIntent,
   SynthesisMode,
   WolkeFileRef,
+  ConnectFileRef,
 } from '../types.js';
 
 const COMPARE_VERB_PATTERN =
@@ -55,6 +56,7 @@ interface BuildOpts {
   docMentionIds: string[];
   notebookIds: string[];
   wolkeFiles: WolkeFileRef[];
+  connectFiles: ConnectFileRef[];
   threadAttachments: ChatGraphState['threadAttachments'];
   currentDocument: ChatGraphState['currentDocument'];
 }
@@ -102,6 +104,15 @@ export function buildDocumentSources(opts: BuildOpts): DocumentSource[] {
       id: `wolke:${ref.shareLinkId}:${ref.path}`,
       label: ref.name,
       wolke: ref,
+    });
+  }
+
+  for (const ref of opts.connectFiles) {
+    sources.push({
+      kind: 'connect',
+      id: `connect:${ref.provider}:${ref.fileId}`,
+      label: ref.name,
+      connect: ref,
     });
   }
 

@@ -116,6 +116,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         boardIds: rawBoardIds,
         docMentionIds: rawDocMentionIds,
         wolkeFiles: rawWolkeFiles,
+        connectFiles: rawConnectFiles,
         currentDocument: rawCurrentDocument,
         customSystemPrompt: rawCustomSystemPrompt,
         roleName: rawRoleName,
@@ -177,6 +178,20 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           wolkeFiles = undefined;
         }
       }
+
+      // @connect file refs need no per-ref ownership pre-check: the Nango
+      // connection (resolved per-file at retrieval time via
+      // ConnectionService.getConnection(userId, provider)) IS the ownership
+      // boundary, and a revoked/expired token fails safe to an empty result.
+      // Normalize null mimeType → omit so downstream types stay clean.
+      const connectFiles = rawConnectFiles?.length
+        ? rawConnectFiles.map((f) => ({
+            provider: f.provider,
+            fileId: f.fileId,
+            name: f.name,
+            ...(f.mimeType ? { mimeType: f.mimeType } : {}),
+          }))
+        : undefined;
 
       log.info(`[ChatGraph] Processing request for user ${userId}, agent ${agentId ?? 'default'}`);
       if (notebookIds.length > 0) {
@@ -378,6 +393,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             : undefined,
         boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
         wolkeFiles,
+        connectFiles,
         // When the docs editor sends a currentDocument, also surface its id as a
         // doc-mention so the existing modify_doc / summary intent paths activate
         // (they key off `hasDocMentions`). Explicit @doc mentions always take
