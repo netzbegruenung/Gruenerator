@@ -208,6 +208,103 @@ export function useWolkeBrowseQuery(shareLinkId: string | null, path: string, en
   });
 }
 
+// ── @connect (Nango-connected provider files) ────────────────────────────────
+//
+// Mirrors the @wolke hooks above, but talks to /api/connections/* instead of
+// the Nextcloud share-link endpoints. Used by the @connect picker to (1) list
+// which providers the user has actually connected and (2) browse their files.
+
+export interface ChatConnectProvider {
+  provider: string;
+  label: string;
+  services: readonly string[];
+  connected: boolean;
+}
+
+export interface ChatConnectFile {
+  id: string;
+  name: string;
+  mimeType?: string;
+  isDirectory?: boolean;
+  sizeFormatted?: string;
+}
+
+/**
+ * The user's Nango connection status, filtered to connected providers. Used by
+ * the @connect picker to render the provider list and an empty-state when the
+ * user hasn't connected anything yet. Re-fetches on open (users connect/
+ * disconnect via /profile between sessions).
+ */
+export function useConnectProvidersQuery(enabled = true) {
+  const apiClient = useApiClient();
+  return useQuery<ChatConnectProvider[]>({
+    queryKey: ['mention-connect-providers'],
+    queryFn: async () => {
+      const res = await apiClient.get<{ providers?: ChatConnectProvider[] }>(
+        '/api/connections/status'
+      );
+      return (res?.providers ?? []).filter((p) => p.connected);
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    enabled,
+    retry: 1,
+  });
+}
+
+/**
+ * File/folder listing for a single connected provider. The /files endpoint
+ * returns a provider-specific shape (Google `{files}`, Microsoft `{items}`,
+ * Jira `{projects}`, Confluence `{spaces}`) — normalize each into a flat
+ * ChatConnectFile[] so the picker stays provider-agnostic. Disabled until both
+ * `provider` and `enabled` are truthy.
+ */
+export function useConnectBrowseQuery(
+  provider: string | null,
+  folderId: string | null,
+  enabled = true
+) {
+  const apiClient = useApiClient();
+  return useQuery<ChatConnectFile[]>({
+    queryKey: ['mention-connect-browse', provider, folderId],
+    queryFn: async () => {
+      const qs = folderId ? `?folderId=${encodeURIComponent(folderId)}` : '';
+      const res = await apiClient.get<{
+        files?: Array<{ id: string; name: string; mimeType?: string }>;
+        items?: Array<{ id: string; name: string; size?: number; file?: unknown; folder?: unknown }>;
+        projects?: Array<{ id: string; key: string; name: string }>;
+        spaces?: Array<{ id: string; key: string; name: string }>;
+      }>(`/api/connections/${provider}/files${qs}`);
+
+      if (Array.isArray(res?.files)) {
+        return res.files.map((f) => ({
+          id: f.id,
+          name: f.name,
+          ...(f.mimeType ? { mimeType: f.mimeType } : {}),
+          isDirectory: f.mimeType === 'application/vnd.google-apps.folder',
+        }));
+      }
+      if (Array.isArray(res?.items)) {
+        return res.items.map((i) => ({
+          id: i.id,
+          name: i.name,
+          isDirectory: !!i.folder,
+        }));
+      }
+      if (Array.isArray(res?.projects)) {
+        return res.projects.map((p) => ({ id: p.key, name: p.name }));
+      }
+      if (Array.isArray(res?.spaces)) {
+        return res.spaces.map((s) => ({ id: s.id, name: s.name }));
+      }
+      return [];
+    },
+    enabled: !!provider && enabled,
+    staleTime: 15_000,
+    retry: 1,
+  });
+}
+
 /**
  * Convenience hook that triggers all dynamic-mentionable queries — call from
  * the chat composer so dynamic mentionables are warm by the time @-popovers

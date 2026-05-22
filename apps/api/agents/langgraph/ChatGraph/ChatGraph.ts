@@ -48,6 +48,7 @@ import type {
   DocumentSource,
   SynthesisMode,
   WolkeFileRef,
+  ConnectFileRef,
 } from './types.js';
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
@@ -128,6 +129,10 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   // Wolke (Nextcloud) file refs selected via @wolke mentionable.
   wolkeFiles: Annotation<WolkeFileRef[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
+  // Connected-account (Nango) file refs selected via @connect mentionable.
+  connectFiles: Annotation<ConnectFileRef[]>({
     reducer: (x, y) => y ?? x ?? [],
   }),
   // Current open document in the docs editor (primary context for docs surface)
@@ -673,6 +678,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
 
     // Wolke (Nextcloud) file refs (from @wolke mentionable, validated by controller)
     wolkeFiles: input.wolkeFiles || [],
+
+    // Connected-account (Nango) file refs (from @connect mentionable)
+    connectFiles: input.connectFiles || [],
 
     // Current open document (docs editor surface)
     currentDocument: input.currentDocument || null,

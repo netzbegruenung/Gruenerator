@@ -29,7 +29,7 @@ export function MentionPopover({
   anchorRect,
 }: MentionPopoverProps) {
   const listRef = useRef<HTMLDivElement>(null);
-  const { notebooks, userNotebooks, tools, boards, docs, documents, wolke } =
+  const { notebooks, userNotebooks, tools, boards, docs, documents, wolke, connect } =
     filterMentionables(query);
 
   const sections: MentionSection[] = useMemo(() => {
@@ -47,6 +47,7 @@ export function MentionPopover({
       { kind: 'flat', label: 'Dokumente', items: docs },
       { kind: 'flat', label: 'Dateien', items: documents },
       { kind: 'flat', label: 'Wolke', items: wolke },
+      { kind: 'flat', label: 'Verbundene Accounts', items: connect },
       ...(notebookGroups.length > 0
         ? [{ kind: 'grouped' as const, label: 'Notizbücher', groups: notebookGroups }]
         : []),
@@ -55,7 +56,7 @@ export function MentionPopover({
     return all.filter((s) =>
       s.kind === 'flat' ? s.items.length > 0 : s.groups.some((g) => g.items.length > 0)
     );
-  }, [tools, boards, docs, documents, wolke, notebooks, userNotebooks]);
+  }, [tools, boards, docs, documents, wolke, connect, notebooks, userNotebooks]);
 
   const totalItems = sections.reduce(
     (sum, s) =>

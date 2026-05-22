@@ -1010,6 +1010,7 @@ export function createGrueneratorModelAdapter(
       let boardIds: string[] = [];
       let docMentionIds: string[] = [];
       let wolkeFiles: ReturnType<typeof parseAllMentions>['wolkeFiles'] = [];
+      let connectFiles: ReturnType<typeof parseAllMentions>['connectFiles'] = [];
       let hasDocumentChat = false;
       if (isChatMode)
         for (let i = formattedMessages.length - 1; i >= 0; i--) {
@@ -1035,6 +1036,7 @@ export function createGrueneratorModelAdapter(
             boardIds = parsed.boardIds;
             docMentionIds = parsed.docMentionIds;
             wolkeFiles = parsed.wolkeFiles;
+            connectFiles = parsed.connectFiles;
             hasDocumentChat = parsed.hasDocumentChat;
             textPart.text = parsed.cleanText;
 
@@ -1063,6 +1065,7 @@ export function createGrueneratorModelAdapter(
         const seenTexts = new Set(textIds);
         const seenCollab = new Set(docMentionIds);
         const seenWolke = new Set(wolkeFiles.map((f) => `${f.shareLinkId}:${f.path}`));
+        const seenConnect = new Set(connectFiles.map((f) => `${f.provider}:${f.fileId}`));
         type GruenMentionData =
           | { kind: 'collab'; id: string; slug: string; title: string }
           | {
@@ -1070,7 +1073,8 @@ export function createGrueneratorModelAdapter(
               documentId: string;
               sourceType: 'notebook' | 'document' | 'text';
             }
-          | { kind: 'wolke'; shareLinkId: string; path: string; name: string };
+          | { kind: 'wolke'; shareLinkId: string; path: string; name: string }
+          | { kind: 'connect'; provider: string; fileId: string; name: string; mimeType?: string };
         const attachments = (lastUserMsg as { attachments: readonly CompleteAttachment[] })
           .attachments;
         for (const att of attachments) {
@@ -1105,6 +1109,17 @@ export function createGrueneratorModelAdapter(
                   shareLinkId: data.shareLinkId,
                   path: data.path,
                   name: data.name,
+                });
+              }
+            } else if (data.kind === 'connect') {
+              const key = `${data.provider}:${data.fileId}`;
+              if (!seenConnect.has(key)) {
+                seenConnect.add(key);
+                connectFiles.push({
+                  provider: data.provider,
+                  fileId: data.fileId,
+                  name: data.name,
+                  ...(data.mimeType ? { mimeType: data.mimeType } : {}),
                 });
               }
             }
@@ -1227,6 +1242,7 @@ export function createGrueneratorModelAdapter(
           boardIds: boardIds.length > 0 ? boardIds : undefined,
           docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
           wolkeFiles: wolkeFiles.length > 0 ? wolkeFiles : undefined,
+          connectFiles: connectFiles.length > 0 ? connectFiles : undefined,
           documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
           documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
           currentDocument: injectedCurrentDocument,
@@ -1255,6 +1271,7 @@ export function createGrueneratorModelAdapter(
           boardIds: boardIds.length > 0 ? boardIds : undefined,
           docMentionIds: docMentionIds.length > 0 ? docMentionIds : undefined,
           wolkeFiles: wolkeFiles.length > 0 ? wolkeFiles : undefined,
+          connectFiles: connectFiles.length > 0 ? connectFiles : undefined,
           documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
           documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
           currentDocument: injectedCurrentDocument,

@@ -15,6 +15,7 @@ import {
   PiSparkle,
   PiCloud,
   PiNotePencil,
+  PiPlugsConnected,
 } from 'react-icons/pi';
 import { agentsList, type AgentListItem } from './agents';
 
@@ -25,7 +26,8 @@ export type MentionableType =
   | 'document'
   | 'board'
   | 'doc'
-  | 'wolke';
+  | 'wolke'
+  | 'connect';
 export type MentionableCategory = 'skill' | 'function';
 
 export interface Mentionable {
@@ -618,6 +620,55 @@ export function decodeWolkeToken(token: string): WolkeFileToken | null {
   }
 }
 
+// @connect opens a sub-popover that lets the user pick files from their
+// Nango-connected provider accounts (Microsoft / Google / Jira / Confluence).
+// Selected files are inserted into the text as opaque `@connect:<base64>`
+// tokens which the parser decodes back into {provider, fileId, name, mimeType}
+// refs sent in the request body. Mirrors the @wolke pipeline (Nextcloud).
+export const connectMentionables: Mentionable[] = [
+  {
+    type: 'connect',
+    category: 'function',
+    trigger: '@',
+    identifier: 'connect-trigger',
+    title: 'Verbundene Accounts',
+    description: 'Dateien aus verbundenen Diensten einfügen',
+    avatar: '🔌',
+    icon: PiPlugsConnected,
+    backgroundColor: '#7C3AED',
+    mention: 'connect',
+  },
+];
+
+export interface ConnectFileToken {
+  provider: string;
+  fileId: string;
+  name: string;
+  mimeType?: string;
+}
+
+export function encodeConnectToken(ref: ConnectFileToken): string {
+  return `@connect:${toBase64Url(JSON.stringify(ref))}`;
+}
+
+export function decodeConnectToken(token: string): ConnectFileToken | null {
+  try {
+    const parsed = JSON.parse(fromBase64Url(token)) as unknown;
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof (parsed as Record<string, unknown>).provider === 'string' &&
+      typeof (parsed as Record<string, unknown>).fileId === 'string' &&
+      typeof (parsed as Record<string, unknown>).name === 'string'
+    ) {
+      return parsed as ConnectFileToken;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function getAllMentionables(): Mentionable[] {
   return [
     ...agentMentionables,
@@ -631,6 +682,7 @@ export function getAllMentionables(): Mentionable[] {
     ...dynamicDocMentionables,
     ...documentMentionables,
     ...wolkeMentionables,
+    ...connectMentionables,
   ];
 }
 
@@ -650,6 +702,7 @@ function rebuildMentionableMap(): void {
     dynamicDocMentionables,
     documentMentionables,
     wolkeMentionables,
+    connectMentionables,
   ];
   for (const source of orderedSources) {
     for (const m of source) {
@@ -678,6 +731,7 @@ export function filterMentionables(query: string): {
   docs: Mentionable[];
   documents: Mentionable[];
   wolke: Mentionable[];
+  connect: Mentionable[];
 } {
   const allBoards = [...boardToolMentionables, ...dynamicBoardMentionables];
   const allDocs = [...docToolMentionables, ...dynamicDocMentionables];
@@ -692,6 +746,7 @@ export function filterMentionables(query: string): {
       docs: allDocs,
       documents: documentMentionables,
       wolke: wolkeMentionables,
+      connect: connectMentionables,
     };
   }
   const q = query.toLowerCase();
@@ -722,6 +777,7 @@ export function filterMentionables(query: string): {
     docs: 'dok'.startsWith(q) || q.startsWith('dok') ? allDocs : allDocs.filter(matchFn),
     documents: documentMentionables.filter(matchFn),
     wolke: wolkeMentionables.filter(matchFn),
+    connect: connectMentionables.filter(matchFn),
   };
 }
 
@@ -739,6 +795,7 @@ export function filterMentionablesByCategory(
     ...all.docs,
     ...all.documents,
     ...all.wolke,
+    ...all.connect,
     ...all.userNotebooks,
     ...all.notebooks,
   ];
