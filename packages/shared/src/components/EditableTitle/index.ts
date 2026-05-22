@@ -1,1 +1,1 @@
-export { EditableTitle } from './EditableTitle';
+export { EditableTitle, type EditableTitleHandle } from './EditableTitle';

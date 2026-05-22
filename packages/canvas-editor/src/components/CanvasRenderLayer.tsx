@@ -244,7 +244,7 @@ function CanvasRenderLayerInner<
               }
               onSnapChange={handleSnapChange}
               onSnapLinesChange={(lines) => setSnapLines(lines as SnapLine[])}
-              getSnapTargets={(id) => getSnapTargets(id) as unknown[]}
+              getSnapTargets={getSnapTargets}
               stageWidth={stageWidth}
               stageHeight={stageHeight}
               opacity={balken.opacity ?? 1}
@@ -336,7 +336,7 @@ function CanvasRenderLayerInner<
               }
               onSnapChange={handleSnapChange}
               onSnapLinesChange={(lines) => setSnapLines(lines as SnapLine[])}
-              getSnapTargets={(id) => getSnapTargets(id) as unknown[]}
+              getSnapTargets={getSnapTargets}
               stageWidth={stageWidth}
               stageHeight={stageHeight}
             />
@@ -387,7 +387,7 @@ function CanvasRenderLayerInner<
               }
               onSnapChange={handleSnapChange}
               onSnapLinesChange={(lines) => setSnapLines(lines as SnapLine[])}
-              getSnapTargets={(id) => getSnapTargets(id) as unknown[]}
+              getSnapTargets={getSnapTargets}
               stageWidth={stageWidth}
               stageHeight={stageHeight}
             />
@@ -424,7 +424,7 @@ function CanvasRenderLayerInner<
               }
               onSnapChange={handleSnapChange}
               onSnapLinesChange={(lines) => setSnapLines(lines as SnapLine[])}
-              getSnapTargets={(id) => getSnapTargets(id) as SnapTarget[]}
+              getSnapTargets={getSnapTargets}
               stageWidth={stageWidth}
               stageHeight={stageHeight}
               isFontAvailable={isFontAvailable}

@@ -19,6 +19,7 @@ import {
   type ContentPath,
   type LandesverbandSource,
 } from '../../../../config/landesverbaendeConfig.js';
+import { env } from '../../../../config/env.js';
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
 import {
   scrollDocuments,
@@ -571,20 +572,24 @@ export class LandesverbandScraper extends BaseScraper {
       }
     }
 
-    // Send per-LV email notifications for sources with new articles
+    // Send per-LV email notifications for sources with new articles.
+    // Falls back to the admin CONTENT_SYNC_EMAIL when a source has no
+    // dedicated LV contact, so every Landesverband is covered until
+    // per-LV recipients are configured.
     const syncDate = new Date().toISOString();
     for (const outcome of outcomes) {
       if (!outcome.result || outcome.result.stored === 0) continue;
       const source = sources.find((s: { id: string }) => s.id === outcome.sourceId);
-      if (!source?.notificationEmail) continue;
+      const notificationEmail = source?.notificationEmail ?? env.CONTENT_SYNC_EMAIL;
+      if (!source || !notificationEmail) continue;
 
       try {
-        await sendLvSyncNotificationEmail(source.notificationEmail, {
+        await sendLvSyncNotificationEmail(notificationEmail, {
           lvName: source.name,
           newArticles: outcome.result.newArticles,
           syncDate,
         });
-        this.log(`Email sent to ${source.notificationEmail} for ${source.name}`);
+        this.log(`Email sent to ${notificationEmail} for ${source.name}`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[Landesverband] Email notification failed for ${source.name}: ${msg}`);
