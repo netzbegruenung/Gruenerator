@@ -1,16 +1,54 @@
-export type BoardType = 'kanban' | 'whiteboard';
+/**
+ * Board domain types.
+ *
+ * The field/row/view model and the board document shape are derived from the
+ * ts-rest contract schemas (`@gruenerator/contracts`) so the frontend and backend
+ * share one source of truth. Names are aliased to the established frontend vocabulary
+ * (Board/Field/Row). Only client-only types (RowGroup, MemberPicker helpers) and the
+ * content-parsing helpers live here.
+ */
+import {
+  type BoardContent,
+  type BoardDocument,
+  type BoardField,
+  type BoardRow,
+  type BoardState,
+  type BoardType,
+  type BoardView,
+  type CellValue,
+  type FieldSetting,
+  type FieldType,
+  type FilterRule,
+  type SelectOption,
+  type SortRule,
+  type ViewLayout,
+} from '@gruenerator/contracts';
 
-export interface Board {
-  id: string;
-  title: string;
-  created_by: string;
-  creator_name?: string;
-  created_at: string;
-  updated_at: string;
-  content?: string | { is_archived?: boolean; board_type?: BoardType } | null;
-}
+export type Board = BoardDocument;
+export type Field = BoardField;
+export type Row = BoardRow;
 
-function parseContent(board: Board): { is_archived?: boolean; board_type?: BoardType } {
+export type {
+  BoardState,
+  BoardType,
+  BoardView,
+  CellValue,
+  FieldSetting,
+  FieldType,
+  FilterRule,
+  SelectOption,
+  SortRule,
+  ViewLayout,
+};
+
+// Accepts any board-ish object that carries `content` (full board document or the
+// trimmed public-board payload), since that's all these helpers read.
+type BoardContentHolder = { content?: BoardContent | null };
+
+function parseContent(board: BoardContentHolder): {
+  is_archived?: boolean;
+  board_type?: BoardType;
+} {
   if (!board.content) return {};
   if (typeof board.content !== 'string') return board.content;
   try {
@@ -24,95 +62,16 @@ function parseContent(board: Board): { is_archived?: boolean; board_type?: Board
   }
 }
 
-export function getBoardType(board: Board): BoardType {
+export function getBoardType(board: BoardContentHolder): BoardType {
   return parseContent(board).board_type ?? 'kanban';
 }
 
-export function isBoardArchived(board: Board): boolean {
+export function isBoardArchived(board: BoardContentHolder): boolean {
   return !!parseContent(board).is_archived;
 }
 
 // ---------------------------------------------------------------------------
-// Field system
-// ---------------------------------------------------------------------------
-
-export type FieldType =
-  | 'text'
-  | 'number'
-  | 'singleSelect'
-  | 'multiSelect'
-  | 'date'
-  | 'checkbox'
-  | 'url'
-  | 'checklist';
-
-export interface SelectOption {
-  id: string;
-  name: string;
-  color: string;
-}
-
-export interface Field {
-  id: string;
-  name: string;
-  type: FieldType;
-  typeOptions: Record<string, unknown>;
-  order: number;
-}
-
-// ---------------------------------------------------------------------------
-// Row (replaces BoardCard)
-// ---------------------------------------------------------------------------
-
-export type CellValue = string | number | boolean | string[] | null;
-
-export interface Row {
-  id: string;
-  cells: Record<string, CellValue>;
-  createdBy: string;
-  createdAt: string;
-  icon?: string;
-  coverColor?: string;
-}
-
-// ---------------------------------------------------------------------------
-// View system
-// ---------------------------------------------------------------------------
-
-export type ViewLayout = 'kanban' | 'table' | 'list' | 'calendar' | 'gantt';
-
-export interface FilterRule {
-  fieldId: string;
-  operator: string;
-  value: unknown;
-}
-
-export interface SortRule {
-  fieldId: string;
-  direction: 'asc' | 'desc';
-}
-
-export interface FieldSetting {
-  fieldId: string;
-  visible: boolean;
-  width?: number;
-}
-
-export interface BoardView {
-  id: string;
-  name: string;
-  layout: ViewLayout;
-  groupByFieldId?: string;
-  dateFieldId?: string;
-  endDateFieldId?: string;
-  hiddenGroupIds?: string[];
-  filters: FilterRule[];
-  sorts: SortRule[];
-  fieldSettings: FieldSetting[];
-}
-
-// ---------------------------------------------------------------------------
-// Grouped data (output of useViewData)
+// Grouped data (output of useViewData) — client-only
 // ---------------------------------------------------------------------------
 
 export interface RowGroup {
@@ -123,11 +82,7 @@ export interface RowGroup {
 }
 
 // ---------------------------------------------------------------------------
-// Well-known field IDs (created with every new board)
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Legacy types (used by MemberPicker, kept for compatibility)
+// Legacy types (used by MemberPicker, kept for compatibility) — client-only
 // ---------------------------------------------------------------------------
 
 export interface CardAssignee {
@@ -147,10 +102,6 @@ export interface LinkedDoc {
   title: string;
 }
 
-// ---------------------------------------------------------------------------
-// Well-known field IDs (created with every new board)
-// ---------------------------------------------------------------------------
-
 export interface CardComment {
   id: string;
   text: string;
@@ -159,6 +110,10 @@ export interface CardComment {
   authorAvatarRobotId: number;
   createdAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// Well-known field IDs (created with every new board)
+// ---------------------------------------------------------------------------
 
 export const FIELD_IDS = {
   TITLE: 'field-title',

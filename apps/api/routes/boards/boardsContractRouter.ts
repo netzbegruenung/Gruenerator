@@ -1,26 +1,28 @@
 /**
- * ts-rest contract router for /api/boards (write endpoints only)
+ * ts-rest contract router for /api/boards (all authenticated board endpoints).
  *
- * Covers the three validateBody-guarded routes from boardsController.ts:
- *   POST /api/boards/generate
- *   POST /api/boards
- *   PUT  /api/boards/:id
- *
- * Mount this BEFORE the legacy boardsRouter in routes.ts so ts-rest
- * matches first; unmatched GET routes fall through to the legacy router.
+ * Covers list/create/update/delete/generate plus the read endpoints
+ * (GET /:id, /:id/state, /:id/assignable-members). The public, unauthenticated
+ * board lookup lives in publicBoardsContractRouter (mounted before requireAuth).
  *
  * Usage in routes.ts:
  *   const { mountBoardsContractRouter } = await import('./routes/boards/boardsContractRouter.js');
  *   mountBoardsContractRouter(app);
  */
 
-import { boardsContract } from '@gruenerator/contracts';
+import {
+  boardsContract,
+  type AssignableMember,
+  type BoardDocument,
+  type BoardState,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import {
   BOARD_GENERATION_PROMPT,
   createBoardDocument,
+  loadBoardState,
   parseBoardStructure,
   postProcessBoardStructure,
 } from '../../services/boards/BoardService.js';
@@ -29,25 +31,12 @@ import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
 
+import { checkBoardAccess } from './boardAccess.js';
+
 import type { Application } from 'express';
 
 const log = createLogger('boardsContract');
 const BOARDS_SUBTYPE = 'boards';
-
-interface BoardDocument {
-  id: string;
-  title: string;
-  created_by: string;
-  last_edited_by: string;
-  document_subtype: string;
-  permissions: Record<string, { level: string; granted_at: string }> | null;
-  is_public: boolean;
-  is_deleted: boolean;
-  created_at: string;
-  updated_at: string;
-  creator_name?: string;
-  [key: string]: unknown;
-}
 
 const db = getPostgresInstance();
 
@@ -90,6 +79,141 @@ export const boardsContractRouter = s.router(boardsContract, {
         status: 500 as const,
         body: {
           error: 'Failed to list boards',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  },
+
+  getBoard: async (args) => {
+    try {
+      const { id } = args.params;
+      const userId = getAuthedUser(args.req).id;
+
+      const result = (await db.query(
+        `SELECT cd.*, p.display_name as creator_name
+         FROM collaborative_documents cd
+         LEFT JOIN profiles p ON cd.created_by = p.id
+         WHERE cd.id = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false`,
+        [id, BOARDS_SUBTYPE]
+      )) as BoardDocument[];
+
+      if (result.length === 0) {
+        return { status: 404 as const, body: { error: 'Board not found' } };
+      }
+
+      const board = result[0];
+      let hasAccess =
+        board.created_by === userId ||
+        board.is_public ||
+        (board.permissions !== null && board.permissions[userId] !== undefined);
+
+      if (!hasAccess) {
+        const groupAccess = (await db.query(
+          `SELECT 1 FROM group_content_shares gcs
+           INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+           WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2 LIMIT 1`,
+          [userId, id]
+        )) as unknown[];
+        hasAccess = groupAccess.length > 0;
+      }
+
+      if (!hasAccess) {
+        return { status: 403 as const, body: { error: 'Access denied' } };
+      }
+
+      return { status: 200 as const, body: board };
+    } catch (error) {
+      log.error('[Boards Contract] Error fetching board:', error);
+      return {
+        status: 500 as const,
+        body: {
+          error: 'Failed to fetch board',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  },
+
+  getBoardState: async (args) => {
+    try {
+      const { id } = args.params;
+      const userId = getAuthedUser(args.req).id;
+
+      const state = await loadBoardState(id, userId);
+      if (!state) {
+        return { status: 404 as const, body: { error: 'Board not found or access denied' } };
+      }
+
+      // loadBoardState casts loose Yjs toJSON() output; the contract type is the
+      // canonical strict shape. This is the boundary assertion (no response validation runs).
+      return { status: 200 as const, body: state as BoardState };
+    } catch (error) {
+      log.error('[Boards Contract] Error fetching board state:', error);
+      return {
+        status: 500 as const,
+        body: {
+          error: 'Failed to fetch board state',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  },
+
+  getAssignableMembers: async (args) => {
+    try {
+      const { id } = args.params;
+      const userId = getAuthedUser(args.req).id;
+
+      const { hasAccess } = await checkBoardAccess(id, userId);
+      if (!hasAccess) {
+        return { status: 403 as const, body: { error: 'Access denied' } };
+      }
+
+      const members = await db.query<AssignableMember>(
+        `WITH assignable AS (
+             SELECT cd.created_by AS user_id, 'owner'::text AS source
+             FROM collaborative_documents cd
+             WHERE cd.id = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false
+
+             UNION
+
+             SELECT perm_key::uuid AS user_id, 'direct'::text AS source
+             FROM collaborative_documents cd,
+                  LATERAL jsonb_object_keys(COALESCE(cd.permissions, '{}'::jsonb)) AS perm_key
+             WHERE cd.id = $1 AND cd.document_subtype = $2 AND cd.is_deleted = false
+               AND perm_key ~ '^[0-9a-f-]{36}$'
+
+             UNION
+
+             SELECT gm.user_id, 'group'::text AS source
+             FROM group_content_shares gcs
+             INNER JOIN group_memberships gm
+               ON gm.group_id = gcs.group_id
+              AND gm.is_active = TRUE
+             WHERE gcs.content_type = 'collaborative_documents'
+               AND gcs.content_id = $1::text
+           )
+           SELECT DISTINCT ON (a.user_id)
+             a.user_id,
+             a.source,
+             p.first_name,
+             p.display_name,
+             COALESCE(p.avatar_robot_id, 1) AS avatar_robot_id
+           FROM assignable a
+           INNER JOIN profiles p ON p.id = a.user_id
+           ORDER BY a.user_id,
+                    CASE a.source WHEN 'owner' THEN 0 WHEN 'direct' THEN 1 ELSE 2 END`,
+        [id, BOARDS_SUBTYPE]
+      );
+
+      return { status: 200 as const, body: members };
+    } catch (error) {
+      log.error('[Boards Contract] Error listing assignable members:', error);
+      return {
+        status: 500 as const,
+        body: {
+          error: 'Failed to list assignable members',
           details: error instanceof Error ? error.message : String(error),
         },
       };
