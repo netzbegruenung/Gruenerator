@@ -1,20 +1,18 @@
 import { DocsProvider } from '@gruenerator/docs';
-import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import apiClient from '../../components/utils/apiClient';
 import { webAppDocsAdapter } from '../docs/docsAdapter';
 
 import { PlannerKanban } from './components/PlannerKanban';
 import { useBoardCollaboration } from './hooks/useBoardCollaboration';
 import { useBoardState } from './hooks/useBoardState';
+import { usePublicBoard } from './hooks/usePublicBoard';
 import { useViewData } from './hooks/useViewData';
 import { getBoardType } from './types';
 
-import type { Board } from './types';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 import type { Doc } from 'yjs';
 
@@ -26,21 +24,7 @@ function PublicBoardContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const {
-    data: board,
-    isLoading,
-    error,
-  } = useQuery<Board & { share_mode?: string; share_permission?: string }>({
-    queryKey: ['boards-public', id],
-    queryFn: async () => {
-      const res = await apiClient.get<Board & { share_mode?: string; share_permission?: string }>(
-        `/boards/public/${id}`
-      );
-      return res.data;
-    },
-    enabled: !!id,
-    retry: false,
-  });
+  const { data: board, isLoading, error } = usePublicBoard(id);
 
   const { ydoc, provider, isSynced } = useBoardCollaboration(id || '');
 
