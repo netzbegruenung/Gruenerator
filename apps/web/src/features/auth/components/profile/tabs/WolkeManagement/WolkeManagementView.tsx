@@ -232,9 +232,7 @@ const WolkeManagementView = memo(
           </div>
         </CloudCard>
         {import.meta.env.DEV && <WordPressSection />}
-        {import.meta.env.DEV && (
-          <ConnectedAccountsSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
-        )}
+        <ConnectedAccountsSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
       </motion.div>
     );
   }
