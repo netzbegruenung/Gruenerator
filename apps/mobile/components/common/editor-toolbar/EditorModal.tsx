@@ -4,7 +4,7 @@
  * Used by image-studio and subtitle-editor for consistent modal behavior
  */
 
-import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetScrollView } from '@expo/ui/community/bottom-sheet';
 import {
   useMemo,
   useRef,
@@ -17,8 +17,6 @@ import { StyleSheet, useColorScheme, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { spacing, lightTheme, darkTheme } from '../../../theme';
-
-import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 
 export interface EditorModalRef {
   open: () => void;
@@ -69,18 +67,6 @@ export const EditorModal = forwardRef<EditorModalRef, EditorModalProps>(function
     },
   }));
 
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        pressBehavior="close"
-      />
-    ),
-    []
-  );
-
   const handleSheetChange = useCallback(
     (index: number) => {
       if (index === -1) {
@@ -96,7 +82,6 @@ export const EditorModal = forwardRef<EditorModalRef, EditorModalProps>(function
       index={-1}
       snapPoints={snapPoints}
       enablePanDownToClose={enablePanDownToClose}
-      backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: theme.background }}
       handleIndicatorStyle={{ backgroundColor: theme.border }}
       keyboardBehavior={keyboardBehavior}
