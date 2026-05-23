@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
@@ -14,7 +14,7 @@ interface ChipGroupProps<T extends string> {
   selected: T | T[];
   onSelect: (value: T | T[]) => void;
   multiSelect?: boolean;
-  icons?: Record<string, keyof typeof Ionicons.glyphMap>;
+  icons?: Record<string, IoniconsIconName>;
 }
 
 export function ChipGroup<T extends string>({

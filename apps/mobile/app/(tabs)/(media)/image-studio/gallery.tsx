@@ -3,8 +3,8 @@
  * Displays saved sharepics with edit and share actions
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { useShareStore, type Share } from '@gruenerator/shared/share';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {

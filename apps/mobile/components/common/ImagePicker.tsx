@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as ExpoImagePicker from 'expo-image-picker';
 import { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator } from 'react-native';

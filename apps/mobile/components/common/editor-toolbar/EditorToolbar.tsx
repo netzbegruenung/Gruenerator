@@ -3,7 +3,7 @@
  * Unified toolbar with expandable panels for editor tools
  */
 
-import { type Ionicons } from '@expo/vector-icons';
+import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useState, useCallback, type ReactNode } from 'react';
 import { View, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +16,7 @@ import { ToolPill, type ToolType } from './ToolPill';
 export interface ToolConfig {
   id: ToolType;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   badge?: number;
   hasPanel?: boolean;
   renderPanel?: () => ReactNode;

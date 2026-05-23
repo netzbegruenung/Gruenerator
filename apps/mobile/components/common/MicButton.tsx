@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { Pressable, StyleSheet, useColorScheme, ActivityIndicator } from 'react-native';
 
 import { colors, lightTheme, darkTheme } from '../../theme';
@@ -11,7 +11,7 @@ interface MicButtonProps {
   loading?: boolean;
   disabled?: boolean;
   size?: number;
-  submitIcon?: keyof typeof Ionicons.glyphMap;
+  submitIcon?: IoniconsIconName;
 }
 
 export function MicButton({

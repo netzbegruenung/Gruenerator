@@ -3,7 +3,7 @@
  * Generic tappable pill button for editor toolbars
  */
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { Pressable, Text, StyleSheet, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -21,7 +21,7 @@ export type ToolType = string;
 export interface ToolPillProps {
   id: ToolType;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   isActive: boolean;
   onPress: () => void;
   badge?: number;

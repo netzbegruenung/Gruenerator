@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useAuth } from '@gruenerator/shared/hooks';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -52,7 +52,7 @@ interface ToolDef {
   id: string;
   title: string;
   description: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   route: AppRoute;
 }
 
