@@ -142,8 +142,8 @@ export function ConnectMentionPopover({
             <div className="flex flex-col items-start gap-2 px-3 py-4">
               <p className="text-sm font-medium text-foreground">Keine Accounts verbunden</p>
               <p className="text-xs text-foreground-muted">
-                Verbinde zuerst einen Dienst (Microsoft, Google, Jira, Confluence) unter Einstellungen,
-                damit du Dateien per @connect einfügen kannst.
+                Verbinde zuerst einen Dienst (Microsoft, Google, Jira, Confluence) unter
+                Einstellungen, damit du Dateien per @connect einfügen kannst.
               </p>
             </div>
           ) : !activeProvider ? (
