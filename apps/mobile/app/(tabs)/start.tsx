@@ -16,8 +16,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatSettingsSheet } from '../../components/chat/ChatSettingsSheet';
-import { ComposerCard, ProfileAvatar } from '../../components/common';
-import { useUnreadCount } from '../../hooks/useNotifications';
+import { ComposerCard } from '../../components/common';
+import { ProfileMenu } from '../../components/navigation/ProfileMenu';
+import { SidebarMenuButton } from '../../components/navigation/SidebarMenuButton';
 import { useRecentThreads } from '../../hooks/useRecentThreads';
 import { colors, spacing, lightTheme, darkTheme, borderRadius } from '../../theme';
 import { routeWithParams, type AppRoute } from '../../types/routes';
@@ -107,7 +108,6 @@ export default function StartScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const firstName = user?.display_name?.split(' ')[0] || 'Grüner';
-  const { count: unreadCount } = useUnreadCount();
   const { threads: recentThreads } = useRecentThreads(5);
 
   const [settingsVisible, setSettingsVisible] = useState(false);
@@ -165,24 +165,13 @@ export default function StartScreen() {
         end={{ x: 0, y: 0.4 }}
       />
       <View style={styles.header}>
+        <View style={styles.headerSide}>
+          <SidebarMenuButton color={theme.text} size={24} />
+        </View>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Grünerator</Text>
-        <Pressable
-          onPress={() => router.push('/(fullscreen)/notifications' as Href)}
-          onLongPress={() => router.push('/profile')}
-          style={styles.profileButton}
-        >
-          <ProfileAvatar
-            avatarRobotId={user?.avatar_robot_id}
-            displayName={user?.display_name}
-            email={user?.email}
-            size="small"
-          />
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-            </View>
-          )}
-        </Pressable>
+        <View style={[styles.headerSide, styles.headerSideRight]}>
+          <ProfileMenu />
+        </View>
       </View>
 
       <ScrollView
@@ -360,35 +349,22 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,
   },
+  headerSide: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerSideRight: {
+    justifyContent: 'flex-end',
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-  },
-  profileButton: {
-    padding: spacing.xsmall,
-    position: 'relative',
-  },
-  badge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: colors.error[500],
-    borderRadius: 9,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  badgeText: {
-    color: 'white',
-    fontSize: 9,
-    fontWeight: '700',
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,

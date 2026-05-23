@@ -1,5 +1,5 @@
 import { type AutoProgress, type ExportProgress } from '@gruenerator/contracts';
-import { Paths, File as ExpoFile } from 'expo-file-system';
+import { Paths, File as ExpoFile, DownloadTask } from 'expo-file-system';
 import * as tus from 'tus-js-client';
 
 import { secureStorage } from './storage';
@@ -130,19 +130,40 @@ export async function getAutoProgress(uploadId: string): Promise<AutoProgressRes
  * GET /api/subtitler/auto-download/:uploadId
  * Returns local file URI
  */
-export async function downloadVideo(uploadId: string): Promise<string> {
+export async function downloadVideo(
+  uploadId: string,
+  onProgress?: (percent: number) => void
+): Promise<string> {
   const token = await secureStorage.getToken();
   const destination = new ExpoFile(Paths.cache, `reel_${uploadId}.mp4`);
 
-  const file = await ExpoFile.downloadFileAsync(
+  // DownloadTask rejects if the destination already exists (no idempotent flag);
+  // clear a stale cache file from a previous attempt first.
+  if (destination.exists) {
+    destination.delete();
+  }
+
+  // Use the resumable DownloadTask (SDK 56) instead of the fire-and-forget
+  // File.downloadFileAsync so we can report progress for these large reel videos.
+  const task = new DownloadTask(
     `${API_BASE_URL}/subtitler/auto-download/${uploadId}`,
     destination,
     {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      idempotent: true,
+      onProgress: onProgress
+        ? ({ bytesWritten, totalBytes }) => {
+            if (totalBytes > 0) {
+              onProgress(Math.min(100, Math.round((bytesWritten / totalBytes) * 100)));
+            }
+          }
+        : undefined,
     }
   );
 
+  const file = await task.downloadAsync();
+  if (!file) {
+    throw new Error('Download was interrupted');
+  }
   return file.uri;
 }
 

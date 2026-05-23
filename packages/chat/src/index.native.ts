@@ -111,10 +111,12 @@ export { chatSuggestions } from './lib/suggestions';
 export {
   agentsList,
   getDefaultAgent,
+  getPinnedAgents,
   resolveAgentMention,
   SKILL_CATEGORY_LABELS,
   type AgentConfig,
   type AgentListItem,
+  type PinnedAgent,
   type SkillCategory,
 } from './lib/agents';
 export {
@@ -161,7 +163,7 @@ export {
   transformMessageLike,
   type ConvertedMessage,
 } from './adapters/messageTransform.native';
-export { extractContent } from './adapters/messageTransform';
+export { extractContent } from './adapters/messageConversion';
 export {
   registerDocumentSlug,
   resolveDocumentSlug,

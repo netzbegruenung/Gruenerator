@@ -1,4 +1,4 @@
-import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetScrollView } from '@expo/ui/community/bottom-sheet';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking, ActivityIndicator } from 'react-native';
@@ -6,7 +6,6 @@ import { View, Text, Pressable, StyleSheet, Linking, ActivityIndicator } from 'r
 import { colors, spacing, borderRadius } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
-import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import type { Citation } from '@gruenerator/chat';
 
 interface Props {
@@ -24,13 +23,6 @@ export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }:
   const [fullText, setFullText] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.4} />
-    ),
-    []
-  );
 
   const handleLoadFullText = useCallback(async () => {
     if (!fetchFullText || !citation?.url || !citation?.collectionId) return;
@@ -64,7 +56,6 @@ export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }:
       snapPoints={snapPoints}
       onClose={onClose}
       enablePanDownToClose
-      backdropComponent={renderBackdrop}
       backgroundStyle={{ backgroundColor: theme.surface }}
       handleIndicatorStyle={{ backgroundColor: theme.textSecondary }}
     >
