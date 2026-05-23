@@ -13,6 +13,18 @@ export interface ManualResultResponse {
   data: string | null;
 }
 
+/** Read a local `file://` URI into a file-backed Blob via XHR (see uploadVideo note). */
+function readLocalFileAsBlob(uri: string, type: string): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.responseType = 'blob';
+    xhr.onload = () => resolve(xhr.response as Blob);
+    xhr.onerror = () => reject(new Error(`Failed to read local file: ${uri}`));
+    xhr.open('GET', uri, true);
+    xhr.send(null);
+  });
+}
+
 /**
  * Upload video using TUS resumable upload protocol
  * Reuses backend TUS endpoint at /api/subtitler/upload (500MB max)
@@ -25,8 +37,11 @@ export async function uploadVideo(
 
   const fileName = fileUri.split('/').pop() || 'video.mp4';
 
-  const response = await fetch(fileUri);
-  const blob = await response.blob();
+  // Read the local file via XMLHttpRequest, not fetch: SDK 56 makes the global
+  // `fetch` use expo/fetch, which is http(s)-only and rejects `file://` URIs.
+  // XHR still handles file:// and returns a file-backed Blob (no full-file heap
+  // copy), which matters for videos up to the 500MB backend cap.
+  const blob = await readLocalFileAsBlob(fileUri, 'video/mp4');
 
   return new Promise((resolve, reject) => {
     const upload = new tus.Upload(blob, {
