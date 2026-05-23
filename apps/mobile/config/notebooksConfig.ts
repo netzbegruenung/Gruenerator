@@ -1,3 +1,8 @@
+import {
+  NOTEBOOK_REGISTRY,
+  type NotebookCategory,
+  type NotebookId,
+} from '@gruenerator/shared/notebooks';
 import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 
 export interface NotebookCollection {
@@ -21,7 +26,7 @@ export interface NotebookConfig {
   color: string;
 }
 
-export type NotebookCategory = 'bundesebene' | 'landesebene' | 'weitere';
+export type { NotebookCategory };
 
 export interface MobileNotebookEntry {
   id: string;
@@ -33,137 +38,67 @@ export interface MobileNotebookEntry {
   category: NotebookCategory;
 }
 
-const PRODUCTION_NOTEBOOKS: MobileNotebookEntry[] = [
-  {
-    id: 'gruenerator-notebook',
-    title: 'Grünerator',
-    description: 'Durchsucht automatisch mehrere Quellen parallel und kombiniert die Ergebnisse.',
-    meta: 'Mehrere Quellen',
-    icon: 'search',
-    order: 0,
-    category: 'bundesebene',
-  },
-  {
-    id: 'gruene-notebook',
-    title: 'Bundesverband',
-    description: 'Durchsuchbar sind die offiziellen Grundsatzprogramme von Bündnis 90/Die Grünen.',
-    meta: '3 Programme',
-    icon: 'book',
-    order: 1,
-    category: 'bundesebene',
-  },
-  {
-    id: 'bundestagsfraktion-notebook',
-    title: 'Bundestagsfraktion',
-    description:
-      'Durchsuchbar sind die offiziellen Inhalte von gruene-bundestag.de – Fachtexte, politische Ziele und einfache Erklärungen.',
-    meta: '542 Artikel',
-    icon: 'business',
-    order: 2,
-    category: 'bundesebene',
-  },
-  {
-    id: 'oesterreich-notebook',
-    title: 'Die Grünen Österreich',
-    description:
-      'Durchsuchbar sind die offiziellen Programme von Die Grünen – Die Grüne Alternative Österreich.',
-    meta: '3 Programme',
-    icon: 'globe',
-    order: 3,
-    category: 'bundesebene',
-  },
-  {
-    id: 'hamburg-notebook',
-    title: 'Hamburg',
-    description: 'Durchsuchbar sind Beschlüsse und Pressemitteilungen der Grünen Hamburg.',
-    meta: 'Archiv',
-    icon: 'compass',
-    order: 4,
-    category: 'landesebene',
-  },
-  {
-    id: 'schleswig-holstein-notebook',
-    title: 'Schleswig-Holstein',
-    description:
-      'Durchsuchbar ist das Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl.',
-    meta: '1 Programm',
-    icon: 'location',
-    order: 5,
-    category: 'landesebene',
-  },
-  {
-    id: 'thueringen-notebook',
-    title: 'Thüringen',
-    description:
-      'Durchsuchbar sind Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen.',
-    meta: 'Archiv',
-    icon: 'leaf',
-    order: 6,
-    category: 'landesebene',
-  },
-  {
-    id: 'berlin-notebook',
-    title: 'Berlin',
-    description: 'Durchsuchbar sind Pressemitteilungen und Beschlüsse der Grünen Berlin.',
-    meta: 'Archiv',
-    icon: 'business',
-    order: 7,
-    category: 'landesebene',
-  },
-  {
-    id: 'mecklenburg-vorpommern-notebook',
-    title: 'Mecklenburg-Vorpommern',
-    description:
-      'Durchsuchbar sind Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern.',
-    meta: 'Archiv',
-    icon: 'flag',
-    order: 8,
-    category: 'landesebene',
-  },
-  {
-    id: 'brandenburg-notebook',
-    title: 'Brandenburg',
-    description:
-      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und Wahlprogramme der Grünen Brandenburg.',
-    meta: 'Archiv',
-    icon: 'leaf',
-    order: 9,
-    category: 'landesebene',
-  },
-  {
-    id: 'kommunalwiki-notebook',
-    title: 'KommunalWiki',
-    description:
-      'Fachwissen zur Kommunalpolitik – durchsuchbar über das KommunalWiki der Heinrich-Böll-Stiftung.',
-    meta: 'Wiki',
-    icon: 'scale',
-    order: 10,
-    category: 'weitere',
-  },
-  {
-    id: 'gruenblog-notebook',
-    title: 'Grünblog',
-    description: 'Durchsuchbar sind die Artikel des Grünblogs – dem Onlinemagazin der Grünen.',
-    meta: 'Magazin',
-    icon: 'newspaper',
-    order: 11,
-    category: 'weitere',
-  },
-];
+/**
+ * Mobile's only per-notebook maintenance: the Ionicons name for each notebook (RN can't
+ * render the react-icons SVGs the web/chat side use). `satisfies Record<NotebookId, …>`
+ * forces an icon for every notebook in the shared registry, so adding one there fails the
+ * mobile build until an icon is supplied.
+ */
+const NOTEBOOK_IONICONS = {
+  'gruenerator-notebook': 'search',
+  'gruene-notebook': 'book',
+  'bundestagsfraktion-notebook': 'business',
+  'hamburg-notebook': 'compass',
+  'schleswig-holstein-notebook': 'location',
+  'thueringen-notebook': 'leaf',
+  'berlin-notebook': 'business',
+  'mecklenburg-vorpommern-notebook': 'flag',
+  'brandenburg-notebook': 'leaf',
+  'bayern-notebook': 'location',
+  'oesterreich-notebook': 'globe',
+  'kommunalwiki-notebook': 'scale',
+  'gruenblog-notebook': 'newspaper',
+  'boell-stiftung-notebook': 'bulb',
+} satisfies Record<NotebookId, IoniconsIconName>;
 
-export const MOBILE_SYSTEM_NOTEBOOKS: MobileNotebookEntry[] = [...PRODUCTION_NOTEBOOKS].sort(
-  (a, b) => a.order - b.order
-);
+/**
+ * Mobile gallery notebooks, derived from the shared registry. Excludes dev-only and
+ * disabled (`enabled: false`) notebooks, then resolves the Ionicons name by id.
+ */
+export const MOBILE_SYSTEM_NOTEBOOKS: MobileNotebookEntry[] = NOTEBOOK_REGISTRY.filter(
+  (nb) => !nb.devOnly && nb.enabled !== false
+)
+  .map((nb) => ({
+    id: nb.id,
+    title: nb.title,
+    description: nb.description,
+    meta: nb.meta,
+    icon: NOTEBOOK_IONICONS[nb.id],
+    order: nb.order,
+    category: nb.category,
+  }))
+  .sort((a, b) => a.order - b.order);
 
 export const HIDDEN_NOTEBOOK_IDS = ['gruenerator-notebook', 'gruenblog-notebook'];
 
-export const getVisibleNotebooks = (): MobileNotebookEntry[] =>
-  MOBILE_SYSTEM_NOTEBOOKS.filter((nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id));
+const audienceOf = (id: string): 'de-DE' | 'de-AT' | 'all' =>
+  NOTEBOOK_REGISTRY.find((nb) => nb.id === id)?.audience ?? 'all';
 
-export const getMobileNotebooksByCategory = (category: NotebookCategory): MobileNotebookEntry[] =>
+const isVisibleForLocale = (nb: MobileNotebookEntry, locale: 'de-DE' | 'de-AT'): boolean => {
+  const audience = audienceOf(nb.id);
+  return audience === 'all' || audience === locale;
+};
+
+/** Gallery-visible notebooks for the user's locale (mirrors the web German/Austrian split). */
+export const getVisibleNotebooks = (locale: 'de-DE' | 'de-AT'): MobileNotebookEntry[] =>
   MOBILE_SYSTEM_NOTEBOOKS.filter(
-    (nb) => nb.category === category && !HIDDEN_NOTEBOOK_IDS.includes(nb.id)
+    (nb) => !HIDDEN_NOTEBOOK_IDS.includes(nb.id) && isVisibleForLocale(nb, locale)
   );
+
+export const getMobileNotebooksByCategory = (
+  category: NotebookCategory,
+  locale: 'de-DE' | 'de-AT'
+): MobileNotebookEntry[] => getVisibleNotebooks(locale).filter((nb) => nb.category === category);
 
 const SYSTEM_USER_ID = '00000000-0000-0000-0000-000000000000';
 
