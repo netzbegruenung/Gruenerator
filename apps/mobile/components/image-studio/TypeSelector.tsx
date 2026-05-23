@@ -344,12 +344,12 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   fallbackContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
   gradientOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
   cardContent: {
