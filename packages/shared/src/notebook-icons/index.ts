@@ -14,6 +14,8 @@ import {
   PiTree,
 } from 'react-icons/pi';
 
+import { type NotebookId } from '../notebooks';
+
 import type { IconType } from 'react-icons';
 
 /**
@@ -28,8 +30,10 @@ import type { IconType } from 'react-icons';
  * deliberately never re-exported from the package barrel or `./agents`, so the
  * backend (which imports `@gruenerator/shared`) never pulls in `react-icons`.
  *
- * Typed as a plain const (with `satisfies`) rather than `Record<string, IconType>`
- * so consumers indexing by a literal id get `IconType`, not `IconType | undefined`.
+ * Typed as a plain const (with `satisfies Record<NotebookId, IconType>`): the `NotebookId`
+ * union from `../notebooks` forces this map to cover *exactly* every registered notebook —
+ * adding a notebook to the registry without an icon here is a compile error — while literal
+ * indexing still yields `IconType`, not `IconType | undefined`.
  */
 export const NOTEBOOK_ICONS = {
   'gruenerator-notebook': PiMagnifyingGlass,
@@ -46,6 +50,6 @@ export const NOTEBOOK_ICONS = {
   'gruenblog-notebook': PiNewspaper,
   'bayern-notebook': PiMapPin,
   'boell-stiftung-notebook': PiLightbulb,
-} satisfies Record<string, IconType>;
+} satisfies Record<NotebookId, IconType>;
 
 export type NotebookIconId = keyof typeof NOTEBOOK_ICONS;
