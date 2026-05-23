@@ -132,6 +132,12 @@
       "import": "./dist/notebook-icons/index.js",
       "default": "./dist/notebook-icons/index.js"
     },
+    "./notebooks": {
+      "development": "./src/notebooks/index.ts",
+      "types": "./src/notebooks/index.ts",
+      "import": "./dist/notebooks/index.js",
+      "default": "./dist/notebooks/index.js"
+    },
     "./chat": {
       "development": "./src/chat/index.ts",
       "types": "./src/chat/index.ts",
