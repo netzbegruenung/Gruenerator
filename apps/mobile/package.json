@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "main": "expo-router/entry",
   "private": true,
+  "expo": {
+    "install": {
+      "exclude": [
+        "react",
+        "react-dom"
+      ]
+    }
+  },
   "scripts": {
     "start": "expo start",
     "start:wsl": "./start-expo-wsl.sh",
@@ -34,7 +42,6 @@
     "@gruenerator/shared": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/slider": "5.2.0",
-    "@react-navigation/drawer": "^7.9.9",
     "@tanstack/react-query": "^5.100.9",
     "axios": "^1.16.0",
     "expo": "~56.0.3",

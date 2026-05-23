@@ -7,11 +7,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "gruenerator",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#005538"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "de.gruenerator.app",
@@ -95,7 +90,14 @@
       "expo-sharing",
       "expo-web-browser",
       "expo-audio",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#005538"
+        }
+      ],
       "expo-status-bar",
       "@react-native-vector-icons/ionicons"
     ],
