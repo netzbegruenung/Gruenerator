@@ -161,7 +161,7 @@ export {
   transformMessageLike,
   type ConvertedMessage,
 } from './adapters/messageTransform.native';
-export { extractContent } from './adapters/messageTransform';
+export { extractContent } from './adapters/messageConversion';
 export {
   registerDocumentSlug,
   resolveDocumentSlug,
