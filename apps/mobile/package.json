@@ -75,6 +75,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.85.3",
+    "react-native-drawer-layout": "^4.2.2",
     "react-native-gesture-handler": "^2.31.2",
     "react-native-keyboard-controller": "1.21.6",
     "react-native-markdown-display": "^7.0.2",
