@@ -2,7 +2,6 @@ import { useAui, useAuiState } from '@assistant-ui/react-native';
 import { useAgentStore, MODEL_OPTIONS } from '@gruenerator/chat';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { useNavigation } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme, ScrollView } from 'react-native';
 import { useShallow } from 'zustand/shallow';
@@ -11,9 +10,8 @@ import { AssistantThread } from '../../../components/chat/AssistantThread';
 import { ChatDrawerHeader } from '../../../components/chat/ChatDrawerHeader';
 import { ChatSettingsSheet } from '../../../components/chat/ChatSettingsSheet';
 import { ComposerCard } from '../../../components/common';
+import { useDrawerStore } from '../../../hooks/useDrawerStore';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
-
-import type { DrawerNavigationProp } from '../../../types/navigation';
 
 const CHAT_EXAMPLES = [
   { label: 'Pressemitteilung', text: 'Schreibe eine Pressemitteilung zum Thema Klimaschutz' },
@@ -85,7 +83,7 @@ function SettingsBar({ onOpen }: { onOpen: () => void }) {
 export default function ChatScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const navigation = useNavigation<DrawerNavigationProp<Record<string, object>>>();
+  const openDrawer = useDrawerStore((s) => s.openDrawer);
   const { user } = useAuth();
 
   const aui = useAui();
@@ -117,7 +115,7 @@ export default function ChatScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <ChatDrawerHeader onOpenDrawer={() => navigation.openDrawer()} theme={theme} />
+      <ChatDrawerHeader onOpenDrawer={openDrawer} theme={theme} />
       {showThread ? (
         <AssistantThread theme={theme} />
       ) : (
