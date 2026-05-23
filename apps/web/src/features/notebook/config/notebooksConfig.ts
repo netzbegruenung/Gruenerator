@@ -1,9 +1,16 @@
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
+import {
+  NOTEBOOK_REGISTRY,
+  type NotebookCategory,
+  type NotebookDefinition,
+  type NotebookId,
+} from '@gruenerator/shared/notebooks';
 
 import type { SystemAgentId } from '@gruenerator/shared/agents';
 import type { IconType } from 'react-icons';
 
-export type NotebookCategory = 'bundesebene' | 'landesebene' | 'weitere' | 'oesterreich';
+// Re-export so existing consumers can keep importing the category union from here.
+export type { NotebookCategory };
 
 export interface NotebookConfigEntry {
   id: string;
@@ -31,187 +38,51 @@ export interface NotebookConfigEntry {
   defaultAgent?: SystemAgentId;
 }
 
-const PRODUCTION_NOTEBOOKS: NotebookConfigEntry[] = [
-  {
-    id: 'gruenerator-notebook',
-    path: '/notebooks',
-    title: 'Grünerator',
-    description: 'Durchsucht automatisch mehrere Quellen parallel und kombiniert die Ergebnisse.',
-    meta: 'Mehrere Quellen',
-    tags: ['Multi-Suche', 'Empfohlen'],
-    icon: NOTEBOOK_ICONS['gruenerator-notebook'],
-    order: 0,
-    category: 'bundesebene',
-  },
-  {
-    id: 'gruene-notebook',
-    path: '/notebooks/grundsatz',
-    title: 'Bundesverband',
-    description: 'Durchsuchbar sind die offiziellen Grundsatzprogramme von Bündnis 90/Die Grünen.',
-    meta: '3 Programme',
-    tags: ['Grundsatzprogramm', 'EU-Wahl', 'Regierung'],
-    icon: NOTEBOOK_ICONS['gruene-notebook'],
-    order: 1,
-    category: 'bundesebene',
-  },
-  {
-    id: 'bundestagsfraktion-notebook',
-    path: '/notebooks/bundestagsfraktion',
-    title: 'Bundestagsfraktion',
-    description:
-      'Durchsuchbar sind die offiziellen Inhalte von gruene-bundestag.de – Fachtexte, politische Ziele und einfache Erklärungen.',
-    meta: '542 Artikel',
-    tags: ['Fachtexte', 'Ziele', 'Einfach erklärt'],
-    icon: NOTEBOOK_ICONS['bundestagsfraktion-notebook'],
-    order: 2,
-    category: 'bundesebene',
-  },
-  {
-    id: 'hamburg-notebook',
-    path: '/notebooks/hamburg',
-    title: 'Hamburg',
-    description: 'Durchsuchbar sind Beschlüsse und Pressemitteilungen der Grünen Hamburg.',
-    meta: 'Archiv',
-    tags: ['Test', 'Hamburg', 'Beschlüsse', 'Presse'],
-    icon: NOTEBOOK_ICONS['hamburg-notebook'],
-    order: 4,
-    category: 'landesebene',
-    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
-  },
-  {
-    id: 'schleswig-holstein-notebook',
-    path: '/notebooks/schleswig-holstein',
-    title: 'Schleswig-Holstein',
-    description:
-      'Durchsuchbar ist das Wahlprogramm der Grünen Schleswig-Holstein zur Landtagswahl.',
-    meta: '1 Programm',
-    tags: ['Test', 'Schleswig-Holstein', 'Wahlprogramm'],
-    icon: NOTEBOOK_ICONS['schleswig-holstein-notebook'],
-    order: 5,
-    category: 'landesebene',
-    enabled: false,
-    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-schleswig-holstein',
-  },
-  {
-    id: 'thueringen-notebook',
-    path: '/notebooks/thueringen',
-    title: 'Thüringen',
-    description:
-      'Durchsuchbar sind Beschlüsse, Wahlprogramme und Pressemitteilungen der Grünen Thüringen.',
-    meta: 'Archiv',
-    tags: ['Offiziell', 'Thüringen', 'Beschlüsse', 'Wahlprogramme', 'Presse'],
-    icon: NOTEBOOK_ICONS['thueringen-notebook'],
-    order: 6,
-    category: 'landesebene',
-    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
-  },
-  {
-    id: 'berlin-notebook',
-    path: '/notebooks/berlin',
-    title: 'Berlin',
-    description:
-      'Durchsuchbar sind Wahlprogramm 2026, Pressemitteilungen und Beschlüsse der Grünen Berlin.',
-    meta: 'Archiv',
-    tags: ['Berlin', 'Wahlprogramm', 'Beschlüsse', 'Presse'],
-    icon: NOTEBOOK_ICONS['berlin-notebook'],
-    order: 7,
-    category: 'landesebene',
-    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-berlin',
-  },
-  {
-    id: 'mecklenburg-vorpommern-notebook',
-    path: '/notebooks/mecklenburg-vorpommern',
-    title: 'Mecklenburg-Vorpommern',
-    description:
-      'Durchsuchbar sind Pressemitteilungen und Parteitagsbeschlüsse der Grünen Mecklenburg-Vorpommern.',
-    meta: 'Archiv',
-    tags: ['Mecklenburg-Vorpommern', 'Beschlüsse', 'Presse'],
-    icon: NOTEBOOK_ICONS['mecklenburg-vorpommern-notebook'],
-    order: 8,
-    category: 'landesebene',
-    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
-  },
-  {
-    id: 'brandenburg-notebook',
-    path: '/notebooks/brandenburg',
-    title: 'Brandenburg',
-    description:
-      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Landtagswahlprogramm 2024 der Brandenburger Bündnisgrünen.',
-    meta: 'Archiv',
-    tags: ['Brandenburg', 'Beschlüsse', 'Presse', 'Wahlprogramm'],
-    icon: NOTEBOOK_ICONS['brandenburg-notebook'],
-    order: 9,
-    category: 'landesebene',
-    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
-  },
-  {
-    id: 'bayern-notebook',
-    path: '/notebooks/bayern',
-    title: 'Bayern',
-    description:
-      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Regierungsprogramm der Grünen Bayern.',
-    meta: 'Archiv',
-    tags: ['Bayern', 'Presse', 'Beschlüsse', 'Regierungsprogramm'],
-    icon: NOTEBOOK_ICONS['bayern-notebook'],
-    order: 10,
-    category: 'landesebene',
-    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-bayern',
-  },
-  {
-    id: 'oesterreich-notebook',
-    path: '/notebooks/oesterreich',
-    title: 'Die Grünen Österreich',
-    description:
-      'Durchsuchbar sind die offiziellen Programme von Die Grünen – Die Grüne Alternative Österreich.',
-    meta: '3 Programme',
-    tags: ['Österreich', 'Grundsatzprogramm', 'Nationalrat'],
-    icon: NOTEBOOK_ICONS['oesterreich-notebook'],
-    order: 3,
-    category: 'oesterreich',
-  },
-  {
-    id: 'kommunalwiki-notebook',
-    path: '/notebooks/kommunalwiki',
-    title: 'KommunalWiki',
-    description:
-      'Fachwissen zur Kommunalpolitik – durchsuchbar über das KommunalWiki der Heinrich-Böll-Stiftung.',
-    meta: 'Wiki',
-    tags: ['Kommunalpolitik', 'Böll-Stiftung'],
-    icon: NOTEBOOK_ICONS['kommunalwiki-notebook'],
-    order: 6,
-    category: 'weitere',
-  },
-  {
-    id: 'gruenblog-notebook',
-    path: '/notebooks/gruenblog',
-    title: 'Grünblog',
-    description: 'Durchsuchbar sind die Artikel des Grünblogs – dem Onlinemagazin der Grünen.',
-    meta: 'Magazin',
-    tags: ['Grünblog', 'Magazin', 'Wissen', 'Meinen', 'Machen'],
-    icon: NOTEBOOK_ICONS['gruenblog-notebook'],
-    order: 7,
-    category: 'weitere',
-  },
-];
+/**
+ * Web-only routing paths. Kept here (not in the shared registry) because they're a web
+ * concern and irregular — `gruenerator → /notebooks`, `gruene → /notebooks/grundsatz` —
+ * so they can't be derived from the id. `satisfies Record<NotebookId, string>` forces a
+ * path for every registered notebook.
+ */
+const NOTEBOOK_PATHS = {
+  'gruenerator-notebook': '/notebooks',
+  'gruene-notebook': '/notebooks/grundsatz',
+  'bundestagsfraktion-notebook': '/notebooks/bundestagsfraktion',
+  'hamburg-notebook': '/notebooks/hamburg',
+  'schleswig-holstein-notebook': '/notebooks/schleswig-holstein',
+  'thueringen-notebook': '/notebooks/thueringen',
+  'berlin-notebook': '/notebooks/berlin',
+  'mecklenburg-vorpommern-notebook': '/notebooks/mecklenburg-vorpommern',
+  'brandenburg-notebook': '/notebooks/brandenburg',
+  'bayern-notebook': '/notebooks/bayern',
+  'oesterreich-notebook': '/notebooks/oesterreich',
+  'kommunalwiki-notebook': '/notebooks/kommunalwiki',
+  'gruenblog-notebook': '/notebooks/gruenblog',
+  'boell-stiftung-notebook': '/notebooks/boell-stiftung',
+} satisfies Record<NotebookId, string>;
 
-const DEV_ONLY_NOTEBOOKS: NotebookConfigEntry[] = [
-  {
-    id: 'boell-stiftung-notebook',
-    path: '/notebooks/boell-stiftung',
-    title: 'Heinrich-Böll-Stiftung',
-    description: 'Durchsuchbar sind Analysen, Dossiers und Atlanten der Heinrich-Böll-Stiftung.',
-    meta: 'Publikationen',
-    tags: ['Analysen', 'Dossiers', 'Atlanten'],
-    icon: NOTEBOOK_ICONS['boell-stiftung-notebook'],
-    order: 7,
-    category: 'weitere',
-  },
-];
+const toEntry = (nb: NotebookDefinition): NotebookConfigEntry => ({
+  id: nb.id,
+  path: NOTEBOOK_PATHS[nb.id],
+  title: nb.title,
+  description: nb.description,
+  meta: nb.meta,
+  tags: nb.tags,
+  icon: NOTEBOOK_ICONS[nb.id],
+  order: nb.order,
+  category: nb.category,
+  ...(nb.enabled === false ? { enabled: false } : {}),
+  ...(nb.defaultAgent ? { defaultAgent: nb.defaultAgent as SystemAgentId } : {}),
+});
 
-export const SYSTEM_NOTEBOOKS: NotebookConfigEntry[] = [
-  ...PRODUCTION_NOTEBOOKS,
-  ...(import.meta.env.DEV ? DEV_ONLY_NOTEBOOKS : []),
-];
+/**
+ * Derived from the shared notebook registry (`@gruenerator/shared/notebooks`) so the web
+ * gallery, mobile gallery, and chat mention picker stay in sync. `devOnly` notebooks are
+ * included only in dev builds, matching the previous DEV_ONLY_NOTEBOOKS behaviour.
+ */
+export const SYSTEM_NOTEBOOKS: NotebookConfigEntry[] = NOTEBOOK_REGISTRY.filter(
+  (nb) => import.meta.env.DEV || !nb.devOnly
+).map(toEntry);
 
 const isNotebookEnabled = (nb: NotebookConfigEntry): boolean => nb.enabled !== false;
 
