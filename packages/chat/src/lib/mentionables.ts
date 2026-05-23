@@ -43,6 +43,7 @@ export interface Mentionable {
   skillCategory?: import('./agents').SkillCategory;
   promptTemplate?: string;
   isSystemDefault?: boolean;
+  iconKey?: string;
   icon?: React.ComponentType<{ className?: string }>;
 }
 
@@ -88,6 +89,7 @@ export function agentToMentionable(agent: AgentListItem): Mentionable {
     skillCategory: agent.skillCategory,
     promptTemplate: agent.promptTemplate,
     isSystemDefault: agent.isSystemDefault,
+    ...(agent.iconKey ? { iconKey: agent.iconKey } : {}),
     ...(icon ? { icon } : {}),
   };
 }

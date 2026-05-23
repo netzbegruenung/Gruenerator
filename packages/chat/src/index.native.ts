@@ -111,10 +111,12 @@ export { chatSuggestions } from './lib/suggestions';
 export {
   agentsList,
   getDefaultAgent,
+  getPinnedAgents,
   resolveAgentMention,
   SKILL_CATEGORY_LABELS,
   type AgentConfig,
   type AgentListItem,
+  type PinnedAgent,
   type SkillCategory,
 } from './lib/agents';
 export {
