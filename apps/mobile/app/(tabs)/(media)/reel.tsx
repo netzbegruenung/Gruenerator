@@ -44,6 +44,7 @@ export default function ReelScreen() {
     stageName,
     stageProgress,
     overallProgress,
+    downloadProgress,
     uploadId,
     videoUri,
     savedToGallery,
@@ -291,7 +292,7 @@ export default function ReelScreen() {
         return (
           <PulseLoader
             title="Video wird heruntergeladen..."
-            subtitle="Fast fertig!"
+            subtitle={downloadProgress > 0 ? `${downloadProgress}%` : 'Fast fertig!'}
             icon="cloud-download-outline"
           />
         );
