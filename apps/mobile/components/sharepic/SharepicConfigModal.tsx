@@ -1,9 +1,9 @@
-import { Ionicons } from '@expo/vector-icons';
 import {
   type SharepicType,
   sharepicTypeRequiresAuthor,
   sharepicTypeSupportsImage,
 } from '@gruenerator/shared/sharepic';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Modal, View, Text, StyleSheet, ScrollView, useColorScheme, Pressable } from 'react-native';
 
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';

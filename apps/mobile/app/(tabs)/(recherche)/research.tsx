@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View,
@@ -164,7 +164,7 @@ function FilterChip({
   label: string;
   active: boolean;
   onPress: () => void;
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IoniconsIconName;
   theme: Theme;
 }) {
   return (

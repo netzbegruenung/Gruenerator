@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useGeneratedTextStore, extractEditableText } from '@gruenerator/shared/generators';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { BlurView } from 'expo-blur';
 import * as Clipboard from 'expo-clipboard';
 import * as FileSystem from 'expo-file-system/legacy';

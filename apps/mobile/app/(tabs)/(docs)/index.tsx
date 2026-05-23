@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
 import { templates, type DocumentTemplate } from '@gruenerator/docs/templates';
 import { useAuth } from '@gruenerator/shared/hooks';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useCallback, useState, useMemo } from 'react';

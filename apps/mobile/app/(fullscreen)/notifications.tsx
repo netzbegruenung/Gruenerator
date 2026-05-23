@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import {
@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNotifications, type AppNotification } from '../../hooks/useNotifications';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
 
-const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+const TYPE_ICONS: Record<string, IoniconsIconName> = {
   document_shared: 'document-text-outline',
   document_permission_changed: 'shield-outline',
   document_access_revoked: 'lock-closed-outline',

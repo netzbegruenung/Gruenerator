@@ -1,10 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import {
   useUnsplashSearch,
   searchUnsplashImages,
   trackUnsplashDownloadLive,
 } from '@gruenerator/shared/image-studio';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useState, useCallback, useMemo } from 'react';
 import {

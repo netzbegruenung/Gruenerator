@@ -1,6 +1,6 @@
 import { ThreadPrimitive, useAui } from '@assistant-ui/react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { chatSuggestions } from '@gruenerator/chat';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, type TextInput, StyleSheet } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';

@@ -5,7 +5,7 @@ import {
   BranchPickerPrimitive,
   useAuiState,
 } from '@assistant-ui/react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Markdown from 'react-native-markdown-display';

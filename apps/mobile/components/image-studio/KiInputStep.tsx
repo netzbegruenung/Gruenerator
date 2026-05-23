@@ -3,8 +3,8 @@
  * Input form for KI image generation (pure-create, green-edit, universal-edit)
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { getKiTypeConfig } from '@gruenerator/shared/image-studio';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { View, Text, TextInput, StyleSheet, useColorScheme, Image } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 

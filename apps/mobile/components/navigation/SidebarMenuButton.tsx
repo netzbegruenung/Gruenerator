@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useNavigation } from 'expo-router';
 import { DrawerActions } from 'expo-router/react-navigation';
 import { Pressable } from 'react-native';

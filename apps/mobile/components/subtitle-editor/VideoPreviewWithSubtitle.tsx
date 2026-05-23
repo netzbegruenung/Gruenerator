@@ -3,7 +3,7 @@
  * Video player with subtitle overlay
  */
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useEvent } from 'expo';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useMemo, useEffect, useState } from 'react';

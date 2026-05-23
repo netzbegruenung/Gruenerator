@@ -1,7 +1,7 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
-import { Ionicons } from '@expo/vector-icons';
 import { type Project, getVideoUrl, useProjectsStore } from '@gruenerator/shared';
 import { kiTypeRequiresImage, typeHasTextGeneration } from '@gruenerator/shared/image-studio';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { router } from 'expo-router';
 import { useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, useColorScheme, Pressable } from 'react-native';

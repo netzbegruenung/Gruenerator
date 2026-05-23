@@ -3,8 +3,8 @@
  * Orchestrates all image modification controls with debounced preview regeneration
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { MODIFICATION_LABELS, getTypeConfig } from '@gruenerator/shared/image-studio';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useEffect, useRef } from 'react';
 import {
