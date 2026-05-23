@@ -19,7 +19,7 @@ import { NewChatSheet } from '../chat/NewChatSheet';
 import { ProfileAvatar } from '../common';
 
 import type { Theme } from '../../theme/colors';
-import type { DrawerContentComponentProps } from '@react-navigation/drawer';
+import type { DrawerContentComponentProps } from '../../types/navigation';
 
 interface NavItem {
   key: string;

@@ -3,13 +3,6 @@
   "version": "0.1.0",
   "main": "expo-router/entry",
   "private": true,
-  "expo": {
-    "install": {
-      "exclude": [
-        "@react-navigation/native"
-      ]
-    }
-  },
   "scripts": {
     "start": "expo start",
     "start:wsl": "./start-expo-wsl.sh",
@@ -42,8 +35,6 @@
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/slider": "5.2.0",
     "@react-navigation/drawer": "^7.9.9",
-    "@react-navigation/material-top-tabs": "^7.4.24",
-    "@react-navigation/native": "^7.2.2",
     "@tanstack/react-query": "^5.100.9",
     "axios": "^1.16.0",
     "expo": "~56.0.3",

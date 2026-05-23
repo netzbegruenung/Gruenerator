@@ -13,7 +13,7 @@ import { ChatSettingsSheet } from '../../../components/chat/ChatSettingsSheet';
 import { ComposerCard } from '../../../components/common';
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
 
-import type { DrawerNavigationProp } from '@react-navigation/drawer';
+import type { DrawerNavigationProp } from '../../../types/navigation';
 
 const CHAT_EXAMPLES = [
   { label: 'Pressemitteilung', text: 'Schreibe eine Pressemitteilung zum Thema Klimaschutz' },
