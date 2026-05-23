@@ -21,6 +21,7 @@ export interface ReelProcessingState {
   stageName: string;
   stageProgress: number;
   overallProgress: number;
+  downloadProgress: number;
   uploadId: string | null;
   videoUri: string | null;
   savedToGallery: boolean;
@@ -51,6 +52,7 @@ const initialState: ReelProcessingState = {
   stageName: PROCESSING_STAGES[1].name,
   stageProgress: 0,
   overallProgress: 0,
+  downloadProgress: 0,
   uploadId: null,
   videoUri: null,
   savedToGallery: false,
@@ -144,10 +146,14 @@ export function useReelProcessing() {
             pollingRef.current = null;
           }
 
-          updateState({ status: 'downloading' });
+          updateState({ status: 'downloading', downloadProgress: 0 });
 
           try {
-            const localVideoUri = await reelApi.downloadVideo(uploadId);
+            const localVideoUri = await reelApi.downloadVideo(uploadId, (percent) => {
+              if (isMountedRef.current) {
+                updateState({ downloadProgress: percent });
+              }
+            });
 
             if (!isMountedRef.current) return;
 

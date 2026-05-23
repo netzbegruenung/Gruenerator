@@ -1,4 +1,4 @@
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetView } from '@expo/ui/community/bottom-sheet';
 import { useCallback, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 

@@ -271,7 +271,13 @@ export function useConnectBrowseQuery(
       const qs = folderId ? `?folderId=${encodeURIComponent(folderId)}` : '';
       const res = await apiClient.get<{
         files?: Array<{ id: string; name: string; mimeType?: string }>;
-        items?: Array<{ id: string; name: string; size?: number; file?: unknown; folder?: unknown }>;
+        items?: Array<{
+          id: string;
+          name: string;
+          size?: number;
+          file?: unknown;
+          folder?: unknown;
+        }>;
         projects?: Array<{ id: string; key: string; name: string }>;
         spaces?: Array<{ id: string; key: string; name: string }>;
       }>(`/api/connections/${provider}/files${qs}`);
