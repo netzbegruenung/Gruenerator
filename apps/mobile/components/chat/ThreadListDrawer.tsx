@@ -16,7 +16,7 @@ import { colors, spacing, borderRadius } from '../../theme';
 import { NewChatSheet } from './NewChatSheet';
 
 import type { Theme } from '../../theme/colors';
-import type { DrawerContentComponentProps } from '@react-navigation/drawer';
+import type { DrawerContentComponentProps } from '../../types/navigation';
 
 interface Props extends DrawerContentComponentProps {
   theme?: Theme;
