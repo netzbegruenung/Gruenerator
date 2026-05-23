@@ -1,6 +1,22 @@
 import { type UserRole } from '@gruenerator/chat';
 import { getContractsClient } from '@gruenerator/shared/api';
 import {
+  type EbeneConfig,
+  DE_EBENEN,
+  AT_EBENEN,
+  DE_ROLLEN,
+  AT_ROLLEN,
+  DE_BUNDESLAENDER,
+  AT_BUNDESLAENDER,
+  NEEDS_BUNDESLAND,
+  NEEDS_LOCAL_NAME,
+  LOCAL_NAME_LABELS,
+  LOCAL_NAME_PLACEHOLDERS,
+  needsAbgeordneteName,
+  generateProfilePrompt,
+  searchMdBs,
+} from '@gruenerator/shared/roles';
+import {
   Button,
   SelectCard,
   Input,
@@ -15,160 +31,11 @@ import {
 import { useState, useCallback, useEffect, useMemo, useRef, memo } from 'react';
 import { HiOutlineArrowLeft, HiOutlineTrash, HiPlus } from 'react-icons/hi2';
 
-import { searchMdBs } from '../../../../../../features/chat/grueneMdBs';
 import {
   useSetUserDefault,
   useUserDefault,
 } from '../../../../../../features/user-defaults/userDefaultsQueries';
 import { useAuthStore } from '../../../../../../stores/authStore';
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-interface EbeneConfig {
-  id: string;
-  label: string;
-  icon: string;
-}
-
-interface BundeslandConfig {
-  label: string;
-  notebookId?: string;
-}
-
-// ─── Config Data ─────────────────────────────────────────────────────────────
-
-const DE_EBENEN: EbeneConfig[] = [
-  { id: 'europa', label: 'Europa', icon: '🇪🇺' },
-  { id: 'bund', label: 'Bund', icon: '🏛️' },
-  { id: 'land', label: 'Land', icon: '🏠' },
-  { id: 'kreisverband', label: 'Kreisverband', icon: '📍' },
-  { id: 'ortsverband', label: 'Ortsverband', icon: '🏘️' },
-];
-
-const AT_EBENEN: EbeneConfig[] = [
-  { id: 'europa', label: 'Europa', icon: '🇪🇺' },
-  { id: 'bund', label: 'Bund', icon: '🏛️' },
-  { id: 'land', label: 'Land', icon: '🏠' },
-  { id: 'bezirk', label: 'Bezirk', icon: '📍' },
-  { id: 'gemeinde', label: 'Gemeinde', icon: '🏘️' },
-];
-
-const DE_ROLLEN: Record<string, string[]> = {
-  europa: ['EU-Abgeordnete*r', 'Mitarbeiter*in EU-Abgeordnete*r', 'Mitarbeiter*in Europagruppe'],
-  bund: [
-    'Mitarbeiter*in Bundesgeschäftsstelle',
-    'Mitarbeiter*in Bundestagsfraktion',
-    'Mitarbeiter*in MdB-Büro',
-  ],
-  land: [
-    'Mitarbeiter*in Landesgeschäftsstelle',
-    'Mitarbeiter*in Landtagsfraktion',
-    'Mitarbeiter*in MdL-Büro',
-  ],
-  kreisverband: [
-    'Mitarbeiter*in Kreisverband',
-    'Mitarbeiter*in Kreistagsfraktion',
-    'Ratsmitglied',
-    'Presse & Social-Media',
-  ],
-  ortsverband: [
-    'Mitarbeiter*in Ortsverband',
-    'Mitarbeiter*in Ratsfraktion',
-    'Ratsmitglied',
-    'Presse & Social-Media',
-  ],
-};
-
-const AT_ROLLEN: Record<string, string[]> = {
-  europa: ['EU-Abgeordnete*r', 'Mitarbeiter*in EU-Abgeordnete*r', 'Mitarbeiter*in Europagruppe'],
-  bund: [
-    'Mitarbeiter*in Bundespartei',
-    'Mitarbeiter*in Grüner Klub (Nationalrat)',
-    'Mitarbeiter*in NR-Abgeordnetenbüro',
-  ],
-  land: [
-    'Mitarbeiter*in Landesorganisation',
-    'Mitarbeiter*in Landtagsklub',
-    'Mitarbeiter*in LT-Abgeordnetenbüro',
-  ],
-  bezirk: ['Mitarbeiter*in Bezirksorganisation', 'Bezirksrät*in', 'Presse & Social-Media'],
-  gemeinde: ['Mitarbeiter*in Gemeindegruppe', 'Gemeinderät*in', 'Presse & Social-Media'],
-};
-
-const DE_BUNDESLAENDER: BundeslandConfig[] = [
-  { label: 'Baden-Württemberg' },
-  { label: 'Bayern', notebookId: 'bayern-notebook' },
-  { label: 'Berlin', notebookId: 'berlin-notebook' },
-  { label: 'Brandenburg', notebookId: 'brandenburg-notebook' },
-  { label: 'Bremen' },
-  { label: 'Hamburg', notebookId: 'hamburg-notebook' },
-  { label: 'Hessen' },
-  { label: 'Mecklenburg-Vorpommern', notebookId: 'mecklenburg-vorpommern-notebook' },
-  { label: 'Niedersachsen' },
-  { label: 'Nordrhein-Westfalen' },
-  { label: 'Rheinland-Pfalz' },
-  { label: 'Saarland' },
-  { label: 'Sachsen' },
-  { label: 'Sachsen-Anhalt' },
-  { label: 'Schleswig-Holstein', notebookId: 'schleswig-holstein-notebook' },
-  { label: 'Thüringen', notebookId: 'thueringen-notebook' },
-];
-
-const AT_BUNDESLAENDER: BundeslandConfig[] = [
-  { label: 'Wien' },
-  { label: 'Niederösterreich' },
-  { label: 'Oberösterreich' },
-  { label: 'Steiermark' },
-  { label: 'Kärnten' },
-  { label: 'Salzburg' },
-  { label: 'Tirol' },
-  { label: 'Vorarlberg' },
-  { label: 'Burgenland' },
-];
-
-const NEEDS_BUNDESLAND = new Set(['land', 'kreisverband', 'ortsverband', 'bezirk', 'gemeinde']);
-const NEEDS_LOCAL_NAME = new Set(['kreisverband', 'ortsverband', 'bezirk', 'gemeinde']);
-
-const LOCAL_NAME_LABELS: Record<string, string> = {
-  kreisverband: 'Name des Kreisverbands',
-  ortsverband: 'Name des Ortsverbands',
-  bezirk: 'Name des Bezirks',
-  gemeinde: 'Name der Gemeinde',
-};
-
-const LOCAL_NAME_PLACEHOLDERS: Record<string, string> = {
-  kreisverband: 'z.B. KV Köln',
-  ortsverband: 'z.B. OV Ehrenfeld',
-  bezirk: 'z.B. Innsbruck-Land',
-  gemeinde: 'z.B. Innsbruck',
-};
-
-function needsAbgeordneteName(rolle: string) {
-  const lower = rolle.toLowerCase();
-  return (
-    lower.includes('abgeordnete') || lower.includes('mdb-büro') || lower.includes('nr-abgeordneten')
-  );
-}
-
-// ─── Prompt Generation ───────────────────────────────────────────────────────
-
-function generateProfilePrompt(roles: UserRole[], isAustrian: boolean): string {
-  if (roles.length === 0) return '';
-
-  const partyName = isAustrian ? 'Die Grünen – Die Grüne Alternative' : 'Bündnis 90/Die Grünen';
-
-  const roleLines = roles.map((r) => {
-    const parts = [r.rolle];
-    if (r.gliederung) parts.push(r.gliederung);
-    if (r.bundesland) parts.push(r.bundesland);
-    if (r.abgeordnete) parts.push(`(${r.abgeordnete})`);
-    let line = `- ${parts.join(', ')}`;
-    if (r.instructions) line += `\n  Hinweis: ${r.instructions}`;
-    return line;
-  });
-
-  return `Du unterstützt eine*n Mitarbeiter*in von ${partyName} mit folgenden Rollen:\n\n${roleLines.join('\n')}\n\nPasse deine Antworten an die jeweils relevante Rolle an. Berücksichtige die Zuständigkeiten und die Ebene bei Stil, Detailtiefe und Zielgruppe.`;
-}
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 

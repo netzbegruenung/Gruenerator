@@ -78,6 +78,12 @@
       "import": "./dist/avatar/index.js",
       "default": "./dist/avatar/index.js"
     },
+    "./roles": {
+      "development": "./src/roles/index.ts",
+      "types": "./src/roles/index.ts",
+      "import": "./dist/roles/index.js",
+      "default": "./dist/roles/index.js"
+    },
     "./sharepic": {
       "development": "./src/sharepic/index.ts",
       "types": "./src/sharepic/index.ts",
