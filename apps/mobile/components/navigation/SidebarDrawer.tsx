@@ -4,9 +4,9 @@ import {
   ThreadListItemByIndexProvider,
   useAui,
 } from '@assistant-ui/react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAgentStore, type Mentionable } from '@gruenerator/chat';
 import { useAuth } from '@gruenerator/shared/hooks';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { usePathname, useRouter, type Href } from 'expo-router';
 import { type ReactElement, memo, useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
@@ -19,13 +19,13 @@ import { NewChatSheet } from '../chat/NewChatSheet';
 import { ProfileAvatar } from '../common';
 
 import type { Theme } from '../../theme/colors';
-import type { DrawerContentComponentProps } from '@react-navigation/drawer';
+import type { DrawerContentComponentProps } from '../../types/navigation';
 
 interface NavItem {
   key: string;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  activeIcon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
+  activeIcon: IoniconsIconName;
   screen: string;
   pathPrefix: string;
 }

@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
-import { DrawerActions } from '@react-navigation/native';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useNavigation } from 'expo-router';
+import { DrawerActions } from 'expo-router/react-navigation';
 import { Pressable } from 'react-native';
 
 interface Props {

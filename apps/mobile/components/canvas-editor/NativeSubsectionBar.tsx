@@ -1,10 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useCallback } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { useCanvasEditorBridgeStore } from '../../stores/canvasEditorBridgeStore';
 
-const SUBSECTION_ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
+const SUBSECTION_ICON_MAP: Record<string, IoniconsIconName> = {
   text: 'text-outline',
   suche: 'search-outline',
   grafiken: 'extension-puzzle-outline',

@@ -7,7 +7,7 @@
  * This editor subscribes to modifications and auto-regenerates on changes.
  */
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { router } from 'expo-router';
 import { useCallback, useRef, useState, useEffect } from 'react';
 import {
@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.large,
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',

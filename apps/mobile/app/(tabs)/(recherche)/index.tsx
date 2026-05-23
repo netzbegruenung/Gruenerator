@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter, type Href } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -31,7 +31,7 @@ function NotebookCard({
   onLongPress,
   isProcessing,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   title: string;
   onPress: () => void;
   onLongPress?: () => void;
@@ -103,7 +103,7 @@ function ToolCard({
   description,
   onPress,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   title: string;
   description: string;
   onPress: () => void;

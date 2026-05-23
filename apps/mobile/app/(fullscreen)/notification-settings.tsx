@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { getContractsClient } from '@gruenerator/shared/api';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -26,7 +26,7 @@ type Channel = 'in_app' | 'email' | 'push';
 
 const CHANNEL_ORDER: Channel[] = ['in_app', 'email', 'push'];
 
-const CHANNEL_META: Record<Channel, { label: string; icon: keyof typeof Ionicons.glyphMap }> = {
+const CHANNEL_META: Record<Channel, { label: string; icon: IoniconsIconName }> = {
   in_app: { label: 'App', icon: 'notifications-outline' },
   email: { label: 'Mail', icon: 'mail-outline' },
   push: { label: 'Push', icon: 'phone-portrait-outline' },
@@ -34,7 +34,7 @@ const CHANNEL_META: Record<Channel, { label: string; icon: keyof typeof Ionicons
 
 const NOTIFICATION_TYPES: Record<
   string,
-  { label: string; description: string; icon: keyof typeof Ionicons.glyphMap }
+  { label: string; description: string; icon: IoniconsIconName }
 > = {
   document_shared: {
     label: 'Geteilte Dokumente',

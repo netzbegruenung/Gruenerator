@@ -6,7 +6,7 @@
  * Note: Controls passed as children handle their own state via Zustand selectors
  */
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { type ReactNode } from 'react';
 import { View, Pressable, StyleSheet, useColorScheme, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

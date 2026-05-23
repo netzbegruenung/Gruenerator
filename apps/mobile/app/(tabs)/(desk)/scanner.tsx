@@ -1,7 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
 import { formatFileSize } from '@gruenerator/chat';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useGeneratedTextStore } from '@gruenerator/shared/stores';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';

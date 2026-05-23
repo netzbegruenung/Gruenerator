@@ -3,8 +3,8 @@
  * Multi-select chips for green-edit infrastructure options
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { INFRASTRUCTURE_OPTIONS } from '@gruenerator/shared/image-studio';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
@@ -16,7 +16,7 @@ interface InfrastructureSelectorProps {
   onToggle: (option: GreenEditInfrastructure) => void;
 }
 
-const INFRASTRUCTURE_ICONS: Record<GreenEditInfrastructure, keyof typeof Ionicons.glyphMap> = {
+const INFRASTRUCTURE_ICONS: Record<GreenEditInfrastructure, IoniconsIconName> = {
   trees: 'leaf-outline',
   flowers: 'flower-outline',
   'bike-lanes': 'bicycle-outline',

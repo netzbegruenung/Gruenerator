@@ -4,8 +4,8 @@ import {
   ThreadListItemByIndexProvider,
   useAui,
 } from '@assistant-ui/react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAgentStore, type Mentionable } from '@gruenerator/chat';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { type ReactElement, memo, useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,7 +16,7 @@ import { colors, spacing, borderRadius } from '../../theme';
 import { NewChatSheet } from './NewChatSheet';
 
 import type { Theme } from '../../theme/colors';
-import type { DrawerContentComponentProps } from '@react-navigation/drawer';
+import type { DrawerContentComponentProps } from '../../types/navigation';
 
 interface Props extends DrawerContentComponentProps {
   theme?: Theme;
