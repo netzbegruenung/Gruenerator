@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   loadingContainer: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.black,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   playOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },

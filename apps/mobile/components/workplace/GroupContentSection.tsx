@@ -52,7 +52,10 @@ export const GroupContentSection = memo(function GroupContentSection({
           router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: item.id } });
           return;
         case 'board':
-          router.push({ pathname: '/(fullscreen)/board-viewer', params: { id: item.id } });
+          router.push({
+            pathname: '/(fullscreen)/web-viewer',
+            params: { path: `/boards/${item.id}`, title: item.title },
+          });
           return;
         case 'generator': {
           const slugOrId = item.slug ?? item.id;

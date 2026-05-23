@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.large,
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
