@@ -4,8 +4,8 @@
  * Uses CategoryBar + InlineBar pattern for performant editing
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { getVideoUrl, getProject } from '@gruenerator/shared';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useVideoPlayer } from 'expo-video';
 import { useRef, useEffect, useCallback, useState, lazy, Suspense } from 'react';

@@ -3,8 +3,8 @@
  * Unified grid of image-based cards for KI type + variant selection
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { IMAGE_STUDIO_TYPE_CONFIGS, STYLE_VARIANTS } from '@gruenerator/shared/image-studio';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { Image, type ImageSource } from 'expo-image';
 import { useState } from 'react';
 import {
@@ -40,7 +40,7 @@ interface CardItem {
   variant?: KiStyleVariant;
   kiType?: ImageStudioKiType;
   templateType?: ImageStudioTemplateType;
-  fallbackIcon?: keyof typeof Ionicons.glyphMap;
+  fallbackIcon?: IoniconsIconName;
 }
 
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -69,7 +69,7 @@ const TEMPLATE_IMAGES: Partial<Record<ImageStudioTemplateType, ImageSource>> = {
   simple: require('../../images/imagine/templates/simple-preview.webp') as ImageSource,
 };
 
-const TEMPLATE_ICONS: Partial<Record<ImageStudioTemplateType, keyof typeof Ionicons.glyphMap>> = {
+const TEMPLATE_ICONS: Partial<Record<ImageStudioTemplateType, IoniconsIconName>> = {
   dreizeilen: 'text-outline',
   zitat: 'chatbox-outline',
   'zitat-pure': 'chatbox-outline',

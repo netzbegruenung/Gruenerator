@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { memo, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, useColorScheme } from 'react-native';
@@ -24,7 +24,7 @@ interface SectionConfig {
     'docs' | 'boards' | 'generators' | 'notebooks' | 'texts' | 'templates' | 'documents'
   >;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
 }
 
 const SECTIONS: SectionConfig[] = [
@@ -175,7 +175,7 @@ function ContentRow({
   onPress,
 }: {
   item: GroupContentItem;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   theme: Theme;
   onPress: () => void;
 }) {

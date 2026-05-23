@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,

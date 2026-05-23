@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 
 import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
@@ -9,7 +9,7 @@ interface Mode {
   id: ReelMode;
   title: string;
   description: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
 }
 
 const modes: Mode[] = [

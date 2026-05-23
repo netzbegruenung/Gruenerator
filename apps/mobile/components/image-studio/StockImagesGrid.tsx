@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { STOCK_CATEGORY_LABELS, fetchStockImages } from '@gruenerator/shared/image-studio';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useState, useEffect, useCallback } from 'react';
 import {

@@ -96,7 +96,8 @@
       "expo-web-browser",
       "expo-audio",
       "expo-splash-screen",
-      "expo-status-bar"
+      "expo-status-bar",
+      "@react-native-vector-icons/ionicons"
     ],
     "experiments": {
       "typedRoutes": true

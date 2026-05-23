@@ -1,4 +1,4 @@
-import { type Ionicons } from '@expo/vector-icons';
+import { type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 
 export interface NotebookCollection {
   id: string;
@@ -28,7 +28,7 @@ export interface MobileNotebookEntry {
   title: string;
   description: string;
   meta: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   order: number;
   category: NotebookCategory;
 }

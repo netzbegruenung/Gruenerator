@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking, ActivityIndicator } from 'react-native';
 

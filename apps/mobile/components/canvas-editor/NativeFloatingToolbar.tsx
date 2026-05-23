@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useCallback, useState } from 'react';
 import { View, Pressable, StyleSheet, Text } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInUp, SlideOutUp } from 'react-native-reanimated';
@@ -17,7 +17,7 @@ function ToolbarButton({
   label,
   color,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   onPress: () => void;
   disabled?: boolean;
   label: string;

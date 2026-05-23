@@ -1,6 +1,6 @@
 import { useAui, useAuiState, ComposerPrimitive } from '@assistant-ui/react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { detectMention, computeMentionInsertion, type Mentionable } from '@gruenerator/chat';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback, useRef, useState } from 'react';
 import { View, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 
@@ -75,7 +75,6 @@ export function AssistantComposer({
     []
   );
 
-  /* eslint-disable react-hooks/preserve-manual-memoization -- inputRef is stable (ref identity) */
   const handleMentionSelect = useCallback(
     (mentionable: Mentionable) => {
       if (!mention) return;
@@ -95,7 +94,6 @@ export function AssistantComposer({
     },
     [aui, mention]
   );
-  /* eslint-enable react-hooks/preserve-manual-memoization */
 
   const handlePickFile = useCallback(async () => {
     const doc = await pickDocument();

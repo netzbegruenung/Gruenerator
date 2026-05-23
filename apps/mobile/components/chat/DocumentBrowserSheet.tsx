@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useFileMentionData, registerDocumentSlug, documentToSlug } from '@gruenerator/chat';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useState } from 'react';
 import {

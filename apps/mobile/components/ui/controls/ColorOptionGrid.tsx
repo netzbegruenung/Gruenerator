@@ -3,7 +3,7 @@
  * Reusable component for selecting from color presets
  */
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';

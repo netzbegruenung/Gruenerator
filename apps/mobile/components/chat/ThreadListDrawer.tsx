@@ -4,8 +4,8 @@ import {
   ThreadListItemByIndexProvider,
   useAui,
 } from '@assistant-ui/react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAgentStore, type Mentionable } from '@gruenerator/chat';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { type ReactElement, memo, useCallback, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

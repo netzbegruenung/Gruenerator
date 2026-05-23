@@ -1,5 +1,4 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
-import { Ionicons } from '@expo/vector-icons';
 import {
   useProjectsStore,
   formatDuration,
@@ -8,6 +7,7 @@ import {
   getThumbnailUrl,
 } from '@gruenerator/shared';
 import { useAuthStore } from '@gruenerator/shared/stores';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useEffect, useState, useCallback } from 'react';
 import {
   View,

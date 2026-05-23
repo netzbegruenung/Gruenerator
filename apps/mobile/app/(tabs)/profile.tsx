@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { useAuthStore } from '@gruenerator/shared/stores';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { router, type Href } from 'expo-router';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
@@ -39,7 +39,7 @@ const PROFILE_SECTIONS = [
   { id: 'einstellungen' as const, label: 'Einstellungen' },
 ];
 
-const SECTION_ICONS: Record<SectionId, keyof typeof Ionicons.glyphMap> = {
+const SECTION_ICONS: Record<SectionId, IoniconsIconName> = {
   inhalte: 'folder-outline',
   anweisungen: 'chatbox-ellipses-outline',
   einstellungen: 'person-outline',

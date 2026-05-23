@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as DocumentPicker from 'expo-document-picker';
 import { useFocusEffect } from 'expo-router';
 import { useState, useCallback, useRef } from 'react';

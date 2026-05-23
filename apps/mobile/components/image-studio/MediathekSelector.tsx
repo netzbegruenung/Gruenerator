@@ -3,8 +3,8 @@
  * Modal for selecting images from user's saved media library
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { useShareStore, type Share } from '@gruenerator/shared/share';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,

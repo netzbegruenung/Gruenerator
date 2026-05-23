@@ -1,7 +1,7 @@
 import { useAui, useAuiState } from '@assistant-ui/react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAgentStore, MODEL_OPTIONS } from '@gruenerator/chat';
 import { useAuth } from '@gruenerator/shared/hooks';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useNavigation } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme, ScrollView } from 'react-native';
@@ -28,7 +28,7 @@ const MODE_LABELS: Record<string, string> = {
   eigener: 'Eigener Chat',
 };
 
-const MODE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+const MODE_ICONS: Record<string, IoniconsIconName> = {
   chat: 'chatbubble-outline',
   notebook: 'book-outline',
   search: 'search-outline',

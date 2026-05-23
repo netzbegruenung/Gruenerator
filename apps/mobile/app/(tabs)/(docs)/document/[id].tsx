@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@gruenerator/shared/stores';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';

@@ -3,7 +3,7 @@
  * 2D directional control for X/Y positioning
  */
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
@@ -74,13 +74,7 @@ export function CrossControl({
     right: offset[0] < maxX,
   };
 
-  const ArrowButton = ({
-    direction,
-    icon,
-  }: {
-    direction: Direction;
-    icon: keyof typeof Ionicons.glyphMap;
-  }) => {
+  const ArrowButton = ({ direction, icon }: { direction: Direction; icon: IoniconsIconName }) => {
     const isDisabled = disabled || !canMove[direction];
 
     return (

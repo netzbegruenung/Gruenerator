@@ -3,8 +3,8 @@
  * Style variant chips for pure-create KI generation
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { STYLE_VARIANTS } from '@gruenerator/shared/image-studio';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
@@ -16,7 +16,7 @@ interface VariantSelectorProps {
   onSelect: (variant: KiStyleVariant) => void;
 }
 
-const VARIANT_ICONS: Record<KiStyleVariant, keyof typeof Ionicons.glyphMap> = {
+const VARIANT_ICONS: Record<KiStyleVariant, IoniconsIconName> = {
   'illustration-pure': 'brush-outline',
   'realistic-pure': 'camera-outline',
   'pixel-pure': 'grid-outline',

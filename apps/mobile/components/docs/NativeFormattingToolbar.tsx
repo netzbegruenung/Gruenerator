@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { memo } from 'react';
 import { View, ScrollView, Pressable, Text, StyleSheet, useColorScheme } from 'react-native';
 
@@ -7,7 +7,7 @@ import { lightTheme, darkTheme, colors } from '../../theme';
 
 interface ToolbarButton {
   id: string;
-  icon?: keyof typeof Ionicons.glyphMap;
+  icon?: IoniconsIconName;
   label?: string;
   action: () => void;
   isActive: boolean;

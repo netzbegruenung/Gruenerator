@@ -1,10 +1,10 @@
-import { Ionicons } from '@expo/vector-icons';
 import {
   notebookMentionables,
   agentMentionables,
   toolMentionables,
   type Mentionable,
 } from '@gruenerator/chat';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';

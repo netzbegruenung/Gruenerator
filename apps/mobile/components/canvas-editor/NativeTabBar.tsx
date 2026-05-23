@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,7 +7,7 @@ import { useCanvasEditorBridgeStore } from '../../stores/canvasEditorBridgeStore
 
 import type { SidebarTabId } from './types';
 
-const TAB_ICON_MAP: Record<string, keyof typeof Ionicons.glyphMap> = {
+const TAB_ICON_MAP: Record<string, IoniconsIconName> = {
   background: 'image-outline',
   text: 'text-outline',
   elements: 'grid-outline',
