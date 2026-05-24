@@ -28,7 +28,7 @@ config.watcher = {
 config.resolver.blockList = [
   ...(config.resolver.blockList || []),
   /_tmp_\d+/,
-  /[/\\]\.claude[/\\]worktrees[/\\]/,
+  /[/\\]\.claude([/\\]|$)/,
 ];
 
 // Handle pnpm's symlinked node_modules structure
