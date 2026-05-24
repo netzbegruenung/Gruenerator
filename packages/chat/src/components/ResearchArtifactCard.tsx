@@ -16,19 +16,21 @@ import remarkGfm from 'remark-gfm';
 import { useChatConfigStore } from '../stores/chatConfigStore';
 import { makeCitationComponents } from '../lib/citationMarkdownComponents';
 import { escapeCitationMarkers } from '../lib/citationProcessing';
+import {
+  getString,
+  getArray,
+  extractHeadings,
+  extractFirstParagraph,
+  buildExportMarkdown,
+  researchCitationToSerializable,
+  type ResearchCitation,
+} from '../lib/toolResults';
 
 import { CitationList } from './tool-ui/citation';
-import type { SerializableCitation } from './tool-ui/citation/schema';
 
 const remarkPlugins = [remarkGfm];
 
-interface Citation {
-  id: number;
-  title: string;
-  url: string;
-  domain: string;
-  snippet: string;
-}
+type Citation = ResearchCitation;
 
 interface ResearchArtifactCardProps {
   query: string;
@@ -245,7 +247,7 @@ export const ResearchArtifactCard = memo(function ResearchArtifactCard({
             <div className="min-w-0 px-3 pb-3 [&_*]:text-[11px]">
               <CitationList
                 id="research-citations"
-                citations={citations.map((c) => toSerializableCitation(c))}
+                citations={citations.map((c) => researchCitationToSerializable(c))}
                 variant="default"
               />
             </div>
@@ -255,79 +257,3 @@ export const ResearchArtifactCard = memo(function ResearchArtifactCard({
     </div>
   );
 });
-
-function extractHeadings(markdown: string): string[] {
-  if (!markdown) return [];
-  const out: string[] = [];
-  for (const line of markdown.split('\n')) {
-    const m = line.match(/^##\s+(.+?)\s*$/);
-    if (m) out.push(m[1].trim());
-    if (out.length >= 6) break;
-  }
-  return out;
-}
-
-function extractFirstParagraph(markdown: string): string {
-  if (!markdown) return '';
-  // Skip leading headings / blank lines, return first non-heading paragraph.
-  const lines = markdown.split('\n');
-  const buf: string[] = [];
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      if (buf.length > 0) break;
-      continue;
-    }
-    if (trimmed.startsWith('#')) {
-      if (buf.length > 0) break;
-      continue;
-    }
-    buf.push(trimmed);
-    if (buf.join(' ').length > 240) break;
-  }
-  const para = buf.join(' ');
-  return para.length > 280 ? para.slice(0, 280) + '…' : para;
-}
-
-function buildExportMarkdown(query: string, answer: string, citations: Citation[]): string {
-  const lines: string[] = [];
-  if (query) {
-    lines.push(`# Recherche: ${query}`, '');
-  }
-  lines.push(answer);
-  if (citations.length > 0) {
-    lines.push('', '## Quellen', '');
-    for (const c of citations) {
-      lines.push(`- [${c.id}] [${c.title}](${c.url}) — ${c.domain}`);
-    }
-  }
-  return lines.join('\n');
-}
-
-function toSerializableCitation(c: Citation): SerializableCitation {
-  return {
-    type: 'document',
-    id: String(c.id),
-    title: c.title,
-    href: c.url,
-    ...(c.snippet ? { snippet: c.snippet } : {}),
-    ...(c.domain ? { domain: c.domain } : {}),
-    ...(c.domain ? { favicon: `https://www.google.com/s2/favicons?domain=${c.domain}&sz=32` } : {}),
-  };
-}
-
-function getString(obj: unknown, key: string): string | null {
-  if (obj && typeof obj === 'object' && key in obj) {
-    const val = (obj as Record<string, unknown>)[key];
-    return typeof val === 'string' ? val : null;
-  }
-  return null;
-}
-
-function getArray(obj: unknown, key: string): unknown[] | null {
-  if (obj && typeof obj === 'object' && key in obj) {
-    const val = (obj as Record<string, unknown>)[key];
-    return Array.isArray(val) ? val : null;
-  }
-  return null;
-}
