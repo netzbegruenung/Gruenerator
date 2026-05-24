@@ -131,6 +131,31 @@ export async function handleAuthCallback(
   return promise;
 }
 
+/**
+ * The Better Auth session / token-exchange payload only carries auth identity
+ * (id, email, name). Profile fields like `display_name`, `avatar_robot_id` and
+ * `locale` live in the `profiles` table and are served by GET /auth/profile.
+ * Fetch that and merge it into the stored user so UI reading `user.display_name`
+ * (e.g. the start-screen greeting) shows the real name instead of the
+ * "Grüner" fallback.
+ */
+async function hydrateProfile(): Promise<void> {
+  try {
+    const apiClient = getGlobalApiClient();
+    const response = await apiClient.get<{ success: boolean; user?: User }>(
+      API_ENDPOINTS.AUTH_PROFILE
+    );
+    const profile = response.data?.user;
+    if (profile) {
+      const merged = { ...useAuthStore.getState().user, ...profile } as User;
+      await secureStorage.setUser(JSON.stringify(merged));
+      useAuthStore.getState().setAuthState({ user: merged });
+    }
+  } catch (error: unknown) {
+    console.warn('[Auth] Profile hydration failed:', getErrorMessage(error));
+  }
+}
+
 async function exchangeCodeForTokens(code: string): Promise<{ success: boolean; error?: string }> {
   try {
     const apiClient = getGlobalApiClient();
@@ -147,6 +172,7 @@ async function exchangeCodeForTokens(code: string): Promise<{ success: boolean; 
       useAuthStore.getState().setAuthState({
         user: response.data.user,
       });
+      await hydrateProfile();
 
       console.log('[Auth] Login successful for:', response.data.user.email);
       return { success: true };
@@ -179,6 +205,7 @@ export async function checkAuthStatus(): Promise<boolean> {
 
     if (response.data && response.data.user) {
       useAuthStore.getState().setAuthState({ user: response.data.user });
+      await hydrateProfile();
       return true;
     }
 

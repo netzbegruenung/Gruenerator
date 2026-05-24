@@ -48,6 +48,8 @@ export interface ModalRouteParams {
     threadId: string;
     initialMessage?: string;
     notebookId?: string;
+    agentId?: string;
+    initialComposerText?: string;
   };
   '/(fullscreen)/subtitle-editor': {
     projectId: string;
