@@ -4,6 +4,7 @@ import { useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { lightTheme, darkTheme, colors } from '../../theme';
+import { GrueneratorLoadingIcon } from '../chat/GrueneratorLoadingIcon';
 
 export function ClassicTabLayout() {
   const colorScheme = useColorScheme();
@@ -37,7 +38,9 @@ export function ClassicTabLayout() {
         options={{
           title: 'Start',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => (
+            <GrueneratorLoadingIcon size={size} color={color} loading={false} />
+          ),
         }}
       />
       <Tabs.Screen name="(chat)" options={{ href: null, headerShown: false }} />

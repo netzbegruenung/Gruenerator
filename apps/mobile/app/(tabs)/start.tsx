@@ -19,7 +19,7 @@ import { ChatSettingsSheet } from '../../components/chat/ChatSettingsSheet';
 import { ComposerCard } from '../../components/common';
 import { ProfileMenu } from '../../components/navigation/ProfileMenu';
 import { SidebarMenuButton } from '../../components/navigation/SidebarMenuButton';
-import { useRecentThreads } from '../../hooks/useRecentThreads';
+import { RecentlyCreatedSection } from '../../components/start/RecentlyCreatedSection';
 import { colors, spacing, lightTheme, darkTheme, borderRadius } from '../../theme';
 import { routeWithParams, type AppRoute } from '../../types/routes';
 
@@ -59,13 +59,6 @@ interface ToolDef {
 
 const TOOLS: ToolDef[] = [
   {
-    id: 'medien',
-    title: 'Medien',
-    description: 'Reels & Bilder',
-    icon: 'videocam',
-    route: '/(tabs)/(media)',
-  },
-  {
     id: 'scanner',
     title: 'Scanner',
     description: 'Dokumente digitalisieren',
@@ -78,20 +71,6 @@ const TOOLS: ToolDef[] = [
     description: 'Audio transkribieren',
     icon: 'mic',
     route: '/(tabs)/(desk)/transkription',
-  },
-  {
-    id: 'gruppen',
-    title: 'Gruppen',
-    description: 'Teams verwalten',
-    icon: 'people',
-    route: '/(tabs)/(desk)/gruppen',
-  },
-  {
-    id: 'recherche',
-    title: 'Recherche',
-    description: 'Notebooks & Suche',
-    icon: 'search',
-    route: '/(tabs)/(recherche)',
   },
   {
     id: 'websuche',
@@ -108,7 +87,6 @@ export default function StartScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const firstName = user?.display_name?.split(' ')[0] || 'Grüner';
-  const { threads: recentThreads } = useRecentThreads(5);
 
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [boards, setBoards] = useState<Board[]>([]);
@@ -158,11 +136,11 @@ export default function StartScreen() {
         colors={
           colorScheme === 'dark'
             ? [colors.grey[950], colors.grey[950]]
-            : [colors.secondary[50], colors.white]
+            : [colors.white, 'rgba(95, 133, 117, 0.05)']
         }
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 0.4 }}
+        end={{ x: 0, y: 1 }}
       />
       <View style={styles.header}>
         <View style={styles.headerSide}>
@@ -196,59 +174,9 @@ export default function StartScreen() {
           <Text style={[styles.inputHint, { color: theme.textSecondary }]}>
             z.B. „{EXAMPLE_PROMPTS[0].label}" oder „{EXAMPLE_PROMPTS[1].label}"
           </Text>
-
-          {recentThreads.length > 0 && (
-            <View style={styles.threadSection}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.threadChips}
-              >
-                {recentThreads.map((thread) => (
-                  <Pressable
-                    key={thread.id}
-                    onPress={() =>
-                      router.push(
-                        routeWithParams('/(focused)/chat-conversation', {
-                          threadId: thread.id,
-                        })
-                      )
-                    }
-                    style={({ pressed }) => [
-                      styles.threadChip,
-                      {
-                        borderColor: colorScheme === 'dark' ? colors.grey[600] : colors.grey[300],
-                        backgroundColor: pressed
-                          ? colorScheme === 'dark'
-                            ? colors.grey[700]
-                            : colors.grey[100]
-                          : colorScheme === 'dark'
-                            ? colors.grey[800]
-                            : colors.white,
-                      },
-                    ]}
-                  >
-                    <Ionicons name="chatbubble-outline" size={12} color={theme.textSecondary} />
-                    <Text style={[styles.threadChipText, { color: theme.text }]} numberOfLines={1}>
-                      {thread.title || 'Neue Unterhaltung'}
-                    </Text>
-                  </Pressable>
-                ))}
-                <Pressable
-                  onPress={() => router.push('/(fullscreen)/all-threads' as Href)}
-                  style={[
-                    styles.threadChip,
-                    { borderColor: colorScheme === 'dark' ? colors.grey[700] : colors.grey[300] },
-                  ]}
-                >
-                  <Text style={{ fontSize: 12, color: colors.primary[600], fontWeight: '500' }}>
-                    Alle ›
-                  </Text>
-                </Pressable>
-              </ScrollView>
-            </View>
-          )}
         </View>
+
+        <RecentlyCreatedSection theme={theme} />
 
         {/* Boards — only shown when boards exist */}
         {!boardsLoading && boards.length > 0 && (
@@ -327,8 +255,17 @@ export default function StartScreen() {
                 onPress={() => router.push(tool.route as Href)}
                 style={({ pressed }) => [styles.toolItem, { opacity: pressed ? 0.6 : 1 }]}
               >
-                <View style={[styles.toolCircle, { backgroundColor: colors.primary[600] }]}>
-                  <Ionicons name={tool.icon} size={22} color={colors.white} />
+                <View
+                  style={[
+                    styles.toolCircle,
+                    colorScheme === 'dark' ? styles.toolCircleDark : styles.toolCircleLight,
+                  ]}
+                >
+                  <Ionicons
+                    name={tool.icon}
+                    size={24}
+                    color={colorScheme === 'dark' ? colors.grey[200] : colors.secondary[600]}
+                  />
                 </View>
                 <Text style={[styles.toolLabel, { color: theme.text }]} numberOfLines={1}>
                   {tool.title}
@@ -393,9 +330,6 @@ const styles = StyleSheet.create({
   inputHint: {
     fontSize: 12,
     marginTop: spacing.xsmall,
-  },
-  threadSection: {
-    marginTop: spacing.small,
   },
   section: {
     paddingTop: spacing.xlarge,
@@ -462,23 +396,6 @@ const styles = StyleSheet.create({
   boardMeta: {
     fontSize: 11,
   },
-  threadChips: {
-    gap: spacing.xsmall,
-  },
-  threadChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxsmall,
-    borderWidth: 1,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.xxsmall + 2,
-    maxWidth: 180,
-  },
-  threadChipText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
   toolGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -490,15 +407,26 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.small,
   },
   toolCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xxsmall,
+    marginBottom: spacing.xsmall,
+  },
+  toolCircleLight: {
+    backgroundColor: colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  toolCircleDark: {
+    backgroundColor: colors.grey[700],
   },
   toolLabel: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
   },
