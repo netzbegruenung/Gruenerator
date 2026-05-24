@@ -3,7 +3,7 @@
  * 1D increment/decrement control for numerical values
  */
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
@@ -53,7 +53,7 @@ export function IncrementControl({
     canPress,
   }: {
     direction: -1 | 1;
-    icon: keyof typeof Ionicons.glyphMap;
+    icon: IoniconsIconName;
     canPress: boolean;
   }) => {
     const isDisabled = disabled || !canPress;

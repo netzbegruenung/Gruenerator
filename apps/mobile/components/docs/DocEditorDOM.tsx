@@ -227,6 +227,7 @@ interface DocEditorDOMProps {
   apiBaseUrl: string;
   colorScheme: 'light' | 'dark';
   onConnectionStatusChange: (status: string) => Promise<void>;
+  onAuthError?: (reason: string) => Promise<void>;
   onTitleChange: (title: string) => Promise<void>;
   onCanEditChange: (canEdit: boolean) => Promise<void>;
   onDocumentLoaded: (doc: { title: string; canEdit: boolean }) => Promise<void>;
@@ -251,6 +252,7 @@ function EditorContent({
   userEmail,
   colorScheme,
   onConnectionStatusChange,
+  onAuthError,
   onChatMessagesChange,
   onLocalUserIdChange,
   onTypingUsersChange,
@@ -262,6 +264,7 @@ function EditorContent({
   userEmail: string;
   colorScheme: 'light' | 'dark';
   onConnectionStatusChange: (status: string) => Promise<void>;
+  onAuthError: (reason: string) => Promise<void>;
   onChatMessagesChange: (messagesJson: string) => Promise<void>;
   onLocalUserIdChange: (userId: string) => Promise<void>;
   onTypingUsersChange: (usersJson: string) => Promise<void>;
@@ -280,7 +283,7 @@ function EditorContent({
     }),
     [adapter]
   );
-  const { ydoc, provider, isConnected, isSynced } = useCollaboration({
+  const { ydoc, provider, isConnected, isSynced, authError } = useCollaboration({
     documentId,
     user,
     config: collabConfig,
@@ -305,6 +308,8 @@ function EditorContent({
   onLocalUserIdChangeRef.current = onLocalUserIdChange;
   const onConnectionStatusChangeRef = useRef(onConnectionStatusChange);
   onConnectionStatusChangeRef.current = onConnectionStatusChange;
+  const onAuthErrorRef = useRef(onAuthError);
+  onAuthErrorRef.current = onAuthError;
   const onTypingUsersChangeRef = useRef(onTypingUsersChange);
   onTypingUsersChangeRef.current = onTypingUsersChange;
   const onActiveStylesChangeRef = useRef(onActiveStylesChange);
@@ -421,6 +426,12 @@ function EditorContent({
     const status = !isConnected ? 'disconnected' : !isSynced ? 'syncing' : 'connected';
     void onConnectionStatusChangeRef.current(status);
   }, [isConnected, isSynced]);
+
+  // Surface the server's auth/access failure reason to native (otherwise a
+  // failed handshake is just a silent red dot + a non-editable editor).
+  useEffect(() => {
+    if (authError) void onAuthErrorRef.current(authError);
+  }, [authError]);
 
   // Set theme attribute for CSS variables
   useEffect(() => {
@@ -543,6 +554,11 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
     [props.onConnectionStatusChange]
   );
 
+  const handleAuthError = useCallback(
+    (reason: string) => props.onAuthError?.(reason) ?? Promise.resolve(),
+    [props.onAuthError]
+  );
+
   const handleChatMessagesChange = useCallback(
     (messagesJson: string) => props.onChatMessagesChange(messagesJson),
     [props.onChatMessagesChange]
@@ -576,6 +592,7 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
         userEmail={props.userEmail}
         colorScheme={props.colorScheme}
         onConnectionStatusChange={handleConnectionStatusChange}
+        onAuthError={handleAuthError}
         onChatMessagesChange={handleChatMessagesChange}
         onLocalUserIdChange={handleLocalUserIdChange}
         onTypingUsersChange={handleTypingUsersChange}

@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -45,11 +45,11 @@ const ICON_CHOICES = [
   { key: 'video', ion: 'videocam-outline' },
   { key: 'phone', ion: 'call-outline' },
   { key: 'drive', ion: 'cloud-outline' },
-] as const satisfies ReadonlyArray<{ key: string; ion: keyof typeof Ionicons.glyphMap }>;
+] as const satisfies ReadonlyArray<{ key: string; ion: IoniconsIconName }>;
 
 type IconKey = (typeof ICON_CHOICES)[number]['key'];
 
-function iconForKey(key: string): keyof typeof Ionicons.glyphMap {
+function iconForKey(key: string): IoniconsIconName {
   return ICON_CHOICES.find((c) => c.key === key)?.ion ?? 'link';
 }
 

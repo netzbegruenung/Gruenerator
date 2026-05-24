@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { ScrollView, Pressable, Text, StyleSheet, useColorScheme } from 'react-native';
 
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
@@ -8,7 +8,7 @@ import type { ImageSourceTab } from '@gruenerator/shared/image-studio';
 interface TabConfig {
   key: ImageSourceTab;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
 }
 
 const TABS: TabConfig[] = [

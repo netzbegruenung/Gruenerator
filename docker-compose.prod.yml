@@ -169,10 +169,17 @@ services:
   ocr:
     image: quay.io/docling-project/docling-serve-cpu:latest
     restart: unless-stopped
+    # Hard memory ceiling. docling-serve has no internal cap; a large multi-page OCR
+    # job can balloon to tens of GB. With vm.overcommit_memory=1 the kernel never
+    # refuses the allocation, so an uncapped container OOM-kills the whole host.
+    # mem_limit scopes the OOM kill to this container -> it dies and restarts.
+    mem_limit: 8g
+    mem_reservation: 2g
     environment:
       - DOCLING_SERVE_MAX_NUM_PAGES=1000
       - DOCLING_SERVE_MAX_FILE_SIZE=104857600
-      - DOCLING_NUM_THREADS=4
+      # Fewer parallel page pipelines = lower peak RAM.
+      - DOCLING_NUM_THREADS=2
       - DOCLING_SERVE_LOAD_MODELS_AT_BOOT=true
       - DOCLING_SERVE_MAX_SYNC_WAIT=300
     networks:

@@ -4,7 +4,7 @@
  * Collapsible section with BalkenOffset, BalkenGruppe, and Sonnenblumen controls
  */
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 

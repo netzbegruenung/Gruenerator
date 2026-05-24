@@ -22,7 +22,14 @@ config.watcher = {
   ...config.watcher,
   additionalExts: config.watcher?.additionalExts || [],
 };
-config.resolver.blockList = [...(config.resolver.blockList || []), /_tmp_\d+/];
+// Exclude .claude/worktrees (sibling git worktrees, multi-GB with their own
+// node_modules) — watching them blows past metro-file-map's 240s watch-start
+// timeout ("Failed to start watch mode") on large checkouts.
+config.resolver.blockList = [
+  ...(config.resolver.blockList || []),
+  /_tmp_\d+/,
+  /[/\\]\.claude([/\\]|$)/,
+];
 
 // Handle pnpm's symlinked node_modules structure
 config.resolver.nodeModulesPaths = [

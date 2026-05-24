@@ -106,15 +106,61 @@ export { parseSSELine, type SSECurrentEvent, type SSEParseResult } from './lib/s
 // URL Utilities
 export { extractDomain, getFaviconUrl, getHostname, faviconFromHostname } from './lib/urlUtils';
 
+// Tool-result parsing & metadata (platform-agnostic; web + mobile share these)
+export {
+  getString,
+  getArray,
+  getObject,
+  getNumber,
+  getBoolean,
+  getToolMeta,
+  getToolQuery,
+  toSerializableCitation,
+  parseSearchCitations,
+  parseExampleCitations,
+  parseWebCitations,
+  parseResearchResult,
+  researchCitationToSerializable,
+  extractHeadings,
+  extractFirstParagraph,
+  buildExportMarkdown,
+  CONFIDENCE_LABELS,
+  parsePersonResult,
+  parseExamples,
+  parseScrapeResult,
+  parsePressemitteilungExamples,
+  pressemitteilungLvLabel,
+  formatGermanDate,
+  type ToolIconKey,
+  type ToolMeta,
+  type ResearchCitation,
+  type ResearchConfidence,
+  type ResearchSearchStep,
+  type ParsedResearchResult,
+  type ParsedPersonResult,
+  type ExampleSnippet,
+  type ScrapedPage,
+  type PressemitteilungExample,
+  type ParsedPressemitteilungExamples,
+} from './lib/toolResults';
+
+// SerializableCitation type (Zod-derived, JSON-safe — RN-safe as a type)
+export { type SerializableCitation } from './components/tool-ui/citation/schema';
+
+// Grünerator loading-icon geometry (shared shapes; each platform animates them)
+export * as grueneratorHomeIconGeometry from './components/icons/grueneratorHomeIconGeometry';
+
 // Lib
 export { chatSuggestions } from './lib/suggestions';
 export {
   agentsList,
   getDefaultAgent,
+  getPinnedAgents,
   resolveAgentMention,
   SKILL_CATEGORY_LABELS,
   type AgentConfig,
   type AgentListItem,
+  type PinnedAgent,
   type SkillCategory,
 } from './lib/agents';
 export {
@@ -161,7 +207,7 @@ export {
   transformMessageLike,
   type ConvertedMessage,
 } from './adapters/messageTransform.native';
-export { extractContent } from './adapters/messageTransform';
+export { extractContent } from './adapters/messageConversion';
 export {
   registerDocumentSlug,
   resolveDocumentSlug,

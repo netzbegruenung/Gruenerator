@@ -1,5 +1,5 @@
 import { useAuiState, AttachmentPrimitive } from '@assistant-ui/react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { View, Text, StyleSheet } from 'react-native';
 
@@ -73,8 +73,9 @@ export function MessageAttachmentUI() {
   );
 }
 
-function getFileIcon(filename: string): keyof typeof Ionicons.glyphMap {
+function getFileIcon(filename: string): IoniconsIconName {
   const ext = filename.split('.').pop()?.toLowerCase();
+  if (!ext) return 'attach-outline';
   switch (ext) {
     case 'pdf':
       return 'document-text-outline';

@@ -3,7 +3,7 @@
  * Reusable component for adjusting X/Y offset values
  */
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, StyleSheet, useColorScheme } from 'react-native';
 
 import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../../theme';
@@ -57,13 +57,7 @@ export function CrossPad({
     onChange(newOffset);
   };
 
-  const ArrowButton = ({
-    direction,
-    icon,
-  }: {
-    direction: Direction;
-    icon: keyof typeof Ionicons.glyphMap;
-  }) => (
+  const ArrowButton = ({ direction, icon }: { direction: Direction; icon: IoniconsIconName }) => (
     <Pressable
       onPress={() => handleMove(direction)}
       disabled={disabled}

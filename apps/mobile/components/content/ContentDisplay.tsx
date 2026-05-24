@@ -1,8 +1,8 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useGeneratedTextStore, extractEditableText } from '@gruenerator/shared/generators';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { BlurView } from 'expo-blur';
 import * as Clipboard from 'expo-clipboard';
-import * as FileSystem from 'expo-file-system/legacy';
+import { File, Paths } from 'expo-file-system';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -100,7 +100,6 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
     try {
       const token = await secureStorage.getToken();
       const filename = `gruenerator_${Date.now()}.docx`;
-      const fileUri = `${FileSystem.cacheDirectory}${filename}`;
 
       const response = await fetch(`${API_BASE_URL}/exports/docx`, {
         method: 'POST',
@@ -115,27 +114,15 @@ export function ContentDisplay({ componentName, onNewGeneration }: ContentDispla
         throw new Error('Download fehlgeschlagen');
       }
 
-      const blob = await response.blob();
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          resolve(result.split(',')[1]);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
+      const file = new File(Paths.cache, filename);
+      file.write(new Uint8Array(await response.arrayBuffer()));
 
-      await FileSystem.writeAsStringAsync(fileUri, base64, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-
-      await Sharing.shareAsync(fileUri, {
+      await Sharing.shareAsync(file.uri, {
         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         dialogTitle: 'Word-Datei teilen',
       });
 
-      await FileSystem.deleteAsync(fileUri, { idempotent: true });
+      file.delete();
     } catch (error) {
       console.error('[DOCX Download] Error:', error);
       Alert.alert('Fehler', 'Word-Export fehlgeschlagen. Bitte versuche es erneut.');

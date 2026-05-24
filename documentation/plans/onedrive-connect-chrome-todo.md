@@ -2,7 +2,7 @@
 
 **Goal:** make the Microsoft 365 connector reach **"Verbunden"** with a personal Microsoft account (`outlook.com` / `hotmail.com` / `live.com`).
 
-The OAuth chain is already correct — reaching Microsoft's *"Eine Anmeldung mit einem persönlichen Konto ist hier nicht möglich"* page proves the Nango integration, environment, and redirect URI all work. The **only** blocker is two settings: the Azure app is single-tenant (rejects personal accounts) and it requests two scopes that don't exist for personal accounts.
+The OAuth chain is already correct — reaching Microsoft's _"Eine Anmeldung mit einem persönlichen Konto ist hier nicht möglich"_ page proves the Nango integration, environment, and redirect URI all work. The **only** blocker is two settings: the Azure app is single-tenant (rejects personal accounts) and it requests two scopes that don't exist for personal accounts.
 
 Two browser surfaces: **(A)** Azure/Entra portal, **(B)** the Nango dashboard.
 
@@ -16,7 +16,7 @@ Two browser surfaces: **(A)** Azure/Entra portal, **(B)** the Nango dashboard.
    > **"Accounts in any organizational directory (Any Microsoft Entra ID tenant – Multitenant) and personal Microsoft accounts (e.g. Skype, Xbox)"**
 4. **Save.**
 
-Why: single-tenant and plain multitenant both *exclude* consumer Microsoft accounts. Only the "…and personal Microsoft accounts" option lets an `outlook.com` account sign in — that's the exact error you hit.
+Why: single-tenant and plain multitenant both _exclude_ consumer Microsoft accounts. Only the "…and personal Microsoft accounts" option lets an `outlook.com` account sign in — that's the exact error you hit.
 
 ---
 
@@ -49,6 +49,7 @@ Why: `Sites.Read.All` (SharePoint) and `Team.ReadBasic.All` (Teams) don't exist 
 ## ⚠️ This is a test-only configuration
 
 Personal OneDrive validates the OAuth pipe but **not** the production scope set (no SharePoint/Teams). When you move to org/work accounts:
+
 - Restore `Sites.Read.All` + `Team.ReadBasic.All` to the Nango `microsoft` integration.
 - Decide whether to keep the app multitenant+personal or switch back to org-only.
 

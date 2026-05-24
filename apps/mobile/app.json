@@ -7,11 +7,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "gruenerator",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#005538"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "de.gruenerator.app",
@@ -82,16 +77,31 @@
       [
         "expo-build-properties",
         {
+          "ios": {
+            "deploymentTarget": "16.4",
+            "usePrecompiledModules": true
+          },
           "android": {
             "compileSdkVersion": 36,
-            "targetSdkVersion": 36
+            "targetSdkVersion": 36,
+            "usePrecompiledHeaders": true
           }
         }
       ],
       "expo-image",
       "expo-sharing",
       "expo-web-browser",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#005538"
+        }
+      ],
+      "expo-status-bar",
+      "@react-native-vector-icons/ionicons"
     ],
     "experiments": {
       "typedRoutes": true

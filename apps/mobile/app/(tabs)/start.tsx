@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useAuth } from '@gruenerator/shared/hooks';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
@@ -16,9 +16,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatSettingsSheet } from '../../components/chat/ChatSettingsSheet';
-import { ComposerCard, ProfileAvatar } from '../../components/common';
-import { useUnreadCount } from '../../hooks/useNotifications';
-import { useRecentThreads } from '../../hooks/useRecentThreads';
+import { ComposerCard } from '../../components/common';
+import { ProfileMenu } from '../../components/navigation/ProfileMenu';
+import { SidebarMenuButton } from '../../components/navigation/SidebarMenuButton';
+import { RecentlyCreatedSection } from '../../components/start/RecentlyCreatedSection';
 import { colors, spacing, lightTheme, darkTheme, borderRadius } from '../../theme';
 import { routeWithParams, type AppRoute } from '../../types/routes';
 
@@ -52,18 +53,11 @@ interface ToolDef {
   id: string;
   title: string;
   description: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   route: AppRoute;
 }
 
 const TOOLS: ToolDef[] = [
-  {
-    id: 'medien',
-    title: 'Medien',
-    description: 'Reels & Bilder',
-    icon: 'videocam',
-    route: '/(tabs)/(media)',
-  },
   {
     id: 'scanner',
     title: 'Scanner',
@@ -77,20 +71,6 @@ const TOOLS: ToolDef[] = [
     description: 'Audio transkribieren',
     icon: 'mic',
     route: '/(tabs)/(desk)/transkription',
-  },
-  {
-    id: 'gruppen',
-    title: 'Gruppen',
-    description: 'Teams verwalten',
-    icon: 'people',
-    route: '/(tabs)/(desk)/gruppen',
-  },
-  {
-    id: 'recherche',
-    title: 'Recherche',
-    description: 'Notebooks & Suche',
-    icon: 'search',
-    route: '/(tabs)/(recherche)',
   },
   {
     id: 'websuche',
@@ -107,8 +87,6 @@ export default function StartScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const firstName = user?.display_name?.split(' ')[0] || 'Grüner';
-  const { count: unreadCount } = useUnreadCount();
-  const { threads: recentThreads } = useRecentThreads(5);
 
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [boards, setBoards] = useState<Board[]>([]);
@@ -158,31 +136,20 @@ export default function StartScreen() {
         colors={
           colorScheme === 'dark'
             ? [colors.grey[950], colors.grey[950]]
-            : [colors.secondary[50], colors.white]
+            : [colors.white, 'rgba(95, 133, 117, 0.05)']
         }
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 0.4 }}
+        end={{ x: 0, y: 1 }}
       />
       <View style={styles.header}>
+        <View style={styles.headerSide}>
+          <SidebarMenuButton color={theme.text} size={24} />
+        </View>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Grünerator</Text>
-        <Pressable
-          onPress={() => router.push('/(fullscreen)/notifications' as Href)}
-          onLongPress={() => router.push('/profile')}
-          style={styles.profileButton}
-        >
-          <ProfileAvatar
-            avatarRobotId={user?.avatar_robot_id}
-            displayName={user?.display_name}
-            email={user?.email}
-            size="small"
-          />
-          {unreadCount > 0 && (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-            </View>
-          )}
-        </Pressable>
+        <View style={[styles.headerSide, styles.headerSideRight]}>
+          <ProfileMenu />
+        </View>
       </View>
 
       <ScrollView
@@ -207,59 +174,9 @@ export default function StartScreen() {
           <Text style={[styles.inputHint, { color: theme.textSecondary }]}>
             z.B. „{EXAMPLE_PROMPTS[0].label}" oder „{EXAMPLE_PROMPTS[1].label}"
           </Text>
-
-          {recentThreads.length > 0 && (
-            <View style={styles.threadSection}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.threadChips}
-              >
-                {recentThreads.map((thread) => (
-                  <Pressable
-                    key={thread.id}
-                    onPress={() =>
-                      router.push(
-                        routeWithParams('/(focused)/chat-conversation', {
-                          threadId: thread.id,
-                        })
-                      )
-                    }
-                    style={({ pressed }) => [
-                      styles.threadChip,
-                      {
-                        borderColor: colorScheme === 'dark' ? colors.grey[600] : colors.grey[300],
-                        backgroundColor: pressed
-                          ? colorScheme === 'dark'
-                            ? colors.grey[700]
-                            : colors.grey[100]
-                          : colorScheme === 'dark'
-                            ? colors.grey[800]
-                            : colors.white,
-                      },
-                    ]}
-                  >
-                    <Ionicons name="chatbubble-outline" size={12} color={theme.textSecondary} />
-                    <Text style={[styles.threadChipText, { color: theme.text }]} numberOfLines={1}>
-                      {thread.title || 'Neue Unterhaltung'}
-                    </Text>
-                  </Pressable>
-                ))}
-                <Pressable
-                  onPress={() => router.push('/(fullscreen)/all-threads' as Href)}
-                  style={[
-                    styles.threadChip,
-                    { borderColor: colorScheme === 'dark' ? colors.grey[700] : colors.grey[300] },
-                  ]}
-                >
-                  <Text style={{ fontSize: 12, color: colors.primary[600], fontWeight: '500' }}>
-                    Alle ›
-                  </Text>
-                </Pressable>
-              </ScrollView>
-            </View>
-          )}
         </View>
+
+        <RecentlyCreatedSection theme={theme} />
 
         {/* Boards — only shown when boards exist */}
         {!boardsLoading && boards.length > 0 && (
@@ -338,8 +255,17 @@ export default function StartScreen() {
                 onPress={() => router.push(tool.route as Href)}
                 style={({ pressed }) => [styles.toolItem, { opacity: pressed ? 0.6 : 1 }]}
               >
-                <View style={[styles.toolCircle, { backgroundColor: colors.primary[600] }]}>
-                  <Ionicons name={tool.icon} size={22} color={colors.white} />
+                <View
+                  style={[
+                    styles.toolCircle,
+                    colorScheme === 'dark' ? styles.toolCircleDark : styles.toolCircleLight,
+                  ]}
+                >
+                  <Ionicons
+                    name={tool.icon}
+                    size={24}
+                    color={colorScheme === 'dark' ? colors.grey[200] : colors.secondary[600]}
+                  />
                 </View>
                 <Text style={[styles.toolLabel, { color: theme.text }]} numberOfLines={1}>
                   {tool.title}
@@ -360,35 +286,22 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: spacing.medium,
     paddingVertical: spacing.small,
   },
+  headerSide: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerSideRight: {
+    justifyContent: 'flex-end',
+  },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-  },
-  profileButton: {
-    padding: spacing.xsmall,
-    position: 'relative',
-  },
-  badge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    backgroundColor: colors.error[500],
-    borderRadius: 9,
-    minWidth: 16,
-    height: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-  },
-  badgeText: {
-    color: 'white',
-    fontSize: 9,
-    fontWeight: '700',
+    textAlign: 'center',
   },
   scrollView: {
     flex: 1,
@@ -417,9 +330,6 @@ const styles = StyleSheet.create({
   inputHint: {
     fontSize: 12,
     marginTop: spacing.xsmall,
-  },
-  threadSection: {
-    marginTop: spacing.small,
   },
   section: {
     paddingTop: spacing.xlarge,
@@ -486,23 +396,6 @@ const styles = StyleSheet.create({
   boardMeta: {
     fontSize: 11,
   },
-  threadChips: {
-    gap: spacing.xsmall,
-  },
-  threadChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xxsmall,
-    borderWidth: 1,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.xxsmall + 2,
-    maxWidth: 180,
-  },
-  threadChipText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
   toolGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -514,15 +407,26 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.small,
   },
   toolCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xxsmall,
+    marginBottom: spacing.xsmall,
+  },
+  toolCircleLight: {
+    backgroundColor: colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  toolCircleDark: {
+    backgroundColor: colors.grey[700],
   },
   toolLabel: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '500',
     textAlign: 'center',
   },

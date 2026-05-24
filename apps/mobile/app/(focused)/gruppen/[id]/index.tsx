@@ -1,6 +1,6 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
-import { Ionicons } from '@expo/vector-icons';
 import { buildGroupInviteUrl } from '@gruenerator/shared/groups';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback } from 'react';
@@ -427,7 +427,7 @@ function Header({
 }: {
   onBack: () => void;
   theme: ThemeColors;
-  rightIcon?: keyof typeof Ionicons.glyphMap;
+  rightIcon?: IoniconsIconName;
   onRightPress?: () => void;
 }) {
   return (

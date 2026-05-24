@@ -5,8 +5,8 @@ import {
   generateId,
 } from '@assistant-ui/react-native/internal';
 
-export { convertToThreadMessageLike } from './messageTransform';
-export { type LoadedMessage, type ConvertedMessage } from './messageTransform';
+export { convertToThreadMessageLike } from './messageConversion';
+export { type LoadedMessage, type ConvertedMessage } from './messageConversion';
 
 export function transformMessageLike(msg: ThreadMessageLike): ThreadMessage {
   return fromThreadMessageLike(

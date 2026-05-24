@@ -3,8 +3,8 @@
  * Modal for sharing sharepic images with native share, gallery save, and link sharing
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { getShareUrl, useShareStore } from '@gruenerator/shared';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState, useEffect } from 'react';
 import {
   View,

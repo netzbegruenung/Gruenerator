@@ -4,7 +4,7 @@
  * Shared between image-studio and subtitle-editor
  */
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, ScrollView, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,7 +23,7 @@ import type { ReactNode } from 'react';
 export interface CategoryConfig<T extends string = string> {
   id: T;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
 }
 
 export interface CategoryBarProps<T extends string = string> {
