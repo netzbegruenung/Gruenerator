@@ -37,6 +37,7 @@ export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTo
       })
       .describe('Bildbearbeitung Tool'),
     func: async (input: { instruction: string }) => {
+      const startTime = Date.now();
       const { instruction } = input;
       const userId = deps.agentConfig.userId;
 
@@ -82,7 +83,7 @@ export function createEditImageTool(deps: ToolDependencies): DynamicStructuredTo
           filename: stored.filename,
           prompt,
           style: 'green-edit',
-          generationTimeMs: 0,
+          generationTimeMs: Date.now() - startTime,
         };
 
         deps._generatedImage = imageResult;

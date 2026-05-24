@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
 
+import { saveImageToGallery } from '../../services/imageStudio';
 import { colors, spacing, borderRadius } from '../../theme';
 
 import type { Theme } from '../../theme/colors';
@@ -23,9 +24,23 @@ const STYLE_LABELS: Record<GeneratedImage['style'], string> = {
 
 export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage; theme: Theme }) {
   const [zoomed, setZoomed] = useState(false);
+  const [saving, setSaving] = useState(false);
   const src = image.base64 || image.url;
 
   if (!src) return null;
+
+  // saveImageToGallery handles permissions, the base64→file write, the
+  // MediaLibrary save and its own success/error alerts. base64 is the
+  // self-contained source (url is a relative API path).
+  const handleSave = async () => {
+    if (!image.base64 || saving) return;
+    setSaving(true);
+    try {
+      await saveImageToGallery(image.base64);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <View style={styles.wrap}>
@@ -38,16 +53,31 @@ export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage;
       </Pressable>
 
       <View style={styles.meta}>
-        <View style={[styles.badge, { backgroundColor: colors.primary[100] }]}>
-          <Ionicons name="image-outline" size={11} color={colors.primary[700]} />
-          <Text style={[styles.badgeText, { color: colors.primary[700] }]}>
-            {STYLE_LABELS[image.style] ?? image.style}
-          </Text>
+        <View style={styles.metaLeft}>
+          <View style={[styles.badge, { backgroundColor: colors.primary[100] }]}>
+            <Ionicons name="image-outline" size={11} color={colors.primary[700]} />
+            <Text style={[styles.badgeText, { color: colors.primary[700] }]}>
+              {STYLE_LABELS[image.style] ?? image.style}
+            </Text>
+          </View>
+          {typeof image.generationTimeMs === 'number' && image.generationTimeMs > 0 && (
+            <Text style={[styles.time, { color: theme.textSecondary }]}>
+              {(image.generationTimeMs / 1000).toFixed(1)}s
+            </Text>
+          )}
         </View>
-        {typeof image.generationTimeMs === 'number' && (
-          <Text style={[styles.time, { color: theme.textSecondary }]}>
-            {(image.generationTimeMs / 1000).toFixed(1)}s
-          </Text>
+
+        {image.base64 && (
+          <Pressable onPress={handleSave} disabled={saving} style={styles.save} hitSlop={8}>
+            <Ionicons
+              name={saving ? 'hourglass-outline' : 'download-outline'}
+              size={14}
+              color={theme.textSecondary}
+            />
+            <Text style={[styles.saveText, { color: theme.textSecondary }]}>
+              {saving ? 'Speichern…' : 'Speichern'}
+            </Text>
+          </Pressable>
         )}
       </View>
 
@@ -83,7 +113,22 @@ const styles = StyleSheet.create({
   meta: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  metaLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.xsmall,
+  },
+  save: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xxsmall,
+    paddingVertical: 2,
+  },
+  saveText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   badge: {
     flexDirection: 'row',
