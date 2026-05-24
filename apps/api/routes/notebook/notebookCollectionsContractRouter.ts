@@ -620,6 +620,10 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       } = args.body;
 
       const selection_mode = selectionModeRaw ?? 'documents';
+      // Distinguish a metadata-only edit (document_ids omitted) from an explicit
+      // document-set replace (document_ids provided as an array). undefined/null
+      // means "leave the existing documents untouched" — see replaceDocuments below.
+      const documentsProvided = documentIdsRaw != null;
       const document_ids = documentIdsRaw ?? [];
       const wolke_share_link_ids = wolkeLinkIdsRaw ?? [];
 
@@ -684,7 +688,7 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
             },
           };
         }
-      } else {
+      } else if (documentsProvided) {
         if (document_ids.length === 0) {
           return {
             status: 400 as const,
@@ -707,14 +711,21 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         allDocumentIds = document_ids;
       }
 
+      // Replace document membership only when the caller resolved a concrete set:
+      // a Wolke sync, or a documents-mode edit that explicitly sent document_ids.
+      // A metadata-only edit (rename, description) leaves the existing docs intact.
+      const replaceDocuments = selection_mode === 'wolke' || documentsProvided;
+
       const updateData: Record<string, unknown> = {
         name: name.trim(),
         description: description?.trim() ?? null,
         custom_prompt: custom_prompt?.trim() ?? null,
         selection_mode,
-        document_count: allDocumentIds.length,
         wolke_share_link_ids: selection_mode === 'wolke' ? wolke_share_link_ids : null,
       };
+      if (replaceDocuments) {
+        updateData.document_count = allDocumentIds.length;
+      }
 
       const existingSettings = (existingCollection.settings as Record<string, unknown>) || {};
       const existingWolkeFoldersCount = Array.isArray(existingSettings.wolke_folders)
@@ -757,20 +768,24 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
 
       await notebookHelper.updateNotebookCollection(collectionId, updateData);
 
-      const existingDocuments = await notebookHelper.getCollectionDocuments(collectionId);
-      const existingDocIds = existingDocuments.map((doc) => doc.document_id);
+      if (replaceDocuments) {
+        const existingDocuments = await notebookHelper.getCollectionDocuments(collectionId);
+        const existingDocIds = existingDocuments.map((doc) => doc.document_id);
 
-      if (existingDocIds.length > 0) {
-        await notebookHelper.removeDocumentsFromCollection(collectionId, existingDocIds);
+        if (existingDocIds.length > 0) {
+          await notebookHelper.removeDocumentsFromCollection(collectionId, existingDocIds);
+        }
+
+        await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
       }
-
-      await notebookHelper.addDocumentsToCollection(collectionId, allDocumentIds, userId);
 
       return {
         status: 200 as const,
         body: {
           success: true,
-          message: `Notebook collection updated successfully with ${allDocumentIds.length} document(s)`,
+          message: replaceDocuments
+            ? `Notebook collection updated successfully with ${allDocumentIds.length} document(s)`
+            : 'Notebook collection updated successfully',
           documents_from_wolke: selection_mode === 'wolke' ? wolkeDocuments.length : 0,
           wolke_share_links: selection_mode === 'wolke' ? wolke_share_link_ids : [],
         },
