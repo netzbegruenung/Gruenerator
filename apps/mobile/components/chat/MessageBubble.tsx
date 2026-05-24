@@ -24,6 +24,7 @@ import { colors, spacing, borderRadius } from '../../theme';
 
 import { MessageAttachmentUI } from './AttachmentUI';
 import { CitationsFooter } from './CitationsFooter';
+import { GeneratedImageDisplay } from './GeneratedImageDisplay';
 import { getMarkdownStyles } from './markdownStyles';
 import { MessageActionsSheet } from './MessageActionsSheet';
 import { AskHumanCard } from './tool-ui/AskHumanCard';
@@ -243,6 +244,7 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
   const metadata = ((message.metadata as Record<string, unknown>)?.custom ??
     {}) as ChatMessageMetadata;
   const citations = metadata.citations;
+  const generatedImage = metadata.generatedImage;
   const [actionsVisible, setActionsVisible] = useState(false);
 
   const messageText = useMemo(() => {
@@ -272,6 +274,7 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
         <Pressable onLongPress={handleOpenActions}>
           <View style={[styles.bubble, styles.assistantBubble, { backgroundColor: theme.surface }]}>
             <MessagePrimitive.Parts components={partsComponents} />
+            {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
             {citations && citations.length > 0 && (
               <CitationsFooter citations={citations} theme={theme} />
             )}
