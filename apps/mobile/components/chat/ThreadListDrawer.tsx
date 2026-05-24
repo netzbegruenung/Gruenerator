@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius } from '../../theme';
-import { route, type AppRoute } from '../../types/routes';
+import { route, routeWithParams, type AppRoute } from '../../types/routes';
 import { ProfileAvatar } from '../common';
 
 import { NewChatSheet } from './NewChatSheet';
@@ -224,7 +224,6 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [sheetVisible, setSheetVisible] = useState(false);
-  const aui = useAui();
   const { locale } = useAuth();
   const closeDrawer = useDrawerStore((s) => s.closeDrawer);
   const activeThreadId = useAuiState((s) => s.threadListItem.id);
@@ -238,42 +237,44 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
     [closeDrawer, router]
   );
 
+  // The drawer is a pure navigator (mirrors web's Sidebar): it pushes to the
+  // focused chat-conversation screen with a fresh thread, and that screen owns
+  // the agent/notebook store writes. The drawer's own `aui` runtime is NOT the
+  // focused conversation's runtime (MobileChatProvider creates its own), so
+  // manipulating composer/threads here would target the wrong surface.
+  const openNewConversation = useCallback(
+    (params: { agentId?: string; notebookId?: string; initialComposerText?: string }) => {
+      setSheetVisible(false);
+      closeDrawer();
+      router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new', ...params }));
+    },
+    [closeDrawer, router]
+  );
+
   const handleNewChat = useCallback(() => {
-    setSheetVisible(false);
-    aui.threads().switchToNewThread();
-    closeDrawer();
-  }, [aui, closeDrawer]);
+    openNewConversation({});
+  }, [openNewConversation]);
 
   const handleSelectNotebook = useCallback(
     (notebookId: string) => {
-      setSheetVisible(false);
-      useAgentStore.getState().setSelectedNotebook(notebookId);
-      aui.threads().switchToNewThread();
-      closeDrawer();
+      openNewConversation({ notebookId });
     },
-    [aui, closeDrawer]
+    [openNewConversation]
   );
 
   const handleSelectAgent = useCallback(
     (agentId: string) => {
-      setSheetVisible(false);
-      useAgentStore.getState().setSelectedAgent(agentId);
-      aui.threads().switchToNewThread();
-      closeDrawer();
+      openNewConversation({ agentId });
     },
-    [aui, closeDrawer]
+    [openNewConversation]
   );
 
   const handleInsertMention = useCallback(
     (mentionable: Mentionable) => {
-      setSheetVisible(false);
       const trigger = mentionable.category === 'skill' ? '/' : '@';
-      const text = `${trigger}${mentionable.mention} `;
-      aui.composer().setText(text);
-      aui.threads().switchToNewThread();
-      closeDrawer();
+      openNewConversation({ initialComposerText: `${trigger}${mentionable.mention} ` });
     },
-    [aui, closeDrawer]
+    [openNewConversation]
   );
 
   const renderItem = useCallback(
