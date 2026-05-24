@@ -1,4 +1,5 @@
 import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
+import { NOTEBOOK_REGISTRY } from '@gruenerator/shared/notebooks';
 import {
   PiGlobeHemisphereWest,
   PiFlask,
@@ -15,6 +16,7 @@ import {
   PiSparkle,
   PiCloud,
   PiNotePencil,
+  PiPlugsConnected,
 } from 'react-icons/pi';
 import { agentsList, type AgentListItem } from './agents';
 
@@ -25,7 +27,8 @@ export type MentionableType =
   | 'document'
   | 'board'
   | 'doc'
-  | 'wolke';
+  | 'wolke'
+  | 'connect';
 export type MentionableCategory = 'skill' | 'function';
 
 export interface Mentionable {
@@ -41,6 +44,7 @@ export interface Mentionable {
   skillCategory?: import('./agents').SkillCategory;
   promptTemplate?: string;
   isSystemDefault?: boolean;
+  iconKey?: string;
   icon?: React.ComponentType<{ className?: string }>;
 }
 
@@ -86,6 +90,7 @@ export function agentToMentionable(agent: AgentListItem): Mentionable {
     skillCategory: agent.skillCategory,
     promptTemplate: agent.promptTemplate,
     isSystemDefault: agent.isSystemDefault,
+    ...(agent.iconKey ? { iconKey: agent.iconKey } : {}),
     ...(icon ? { icon } : {}),
   };
 }
@@ -117,176 +122,21 @@ export function getCustomAgentMentionables(): Mentionable[] {
   return customAgentMentionables;
 }
 
-export const notebookMentionables: Mentionable[] = [
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'gruenerator-notebook',
-    title: 'Alle Quellen',
-    description: 'Durchsucht mehrere Quellen parallel',
-    avatar: '🔍',
-    icon: NOTEBOOK_ICONS['gruenerator-notebook'],
-    backgroundColor: '#316049',
-    mention: 'alle',
-  },
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'gruene-notebook',
-    title: 'Grundsatzprogramm',
-    description: 'Grundsatzprogramme von Bündnis 90/Die Grünen',
-    avatar: '📗',
-    icon: NOTEBOOK_ICONS['gruene-notebook'],
-    backgroundColor: '#316049',
-    mention: 'grundsatz',
-  },
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'bundestagsfraktion-notebook',
-    title: 'Bundestagsfraktion',
-    description: 'Inhalte von gruene-bundestag.de',
-    avatar: '🏛️',
-    icon: NOTEBOOK_ICONS['bundestagsfraktion-notebook'],
-    backgroundColor: '#316049',
-    mention: 'bundestag',
-  },
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'hamburg-notebook',
-    title: 'Grüne Hamburg',
-    description: 'Beschlüsse und Presse der Grünen Hamburg',
-    avatar: '⚓',
-    icon: NOTEBOOK_ICONS['hamburg-notebook'],
-    backgroundColor: '#316049',
-    mention: 'hamburg',
-  },
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'schleswig-holstein-notebook',
-    title: 'Grüne Schleswig-Holstein',
-    description: 'Wahlprogramm Schleswig-Holstein',
-    avatar: '🌊',
-    icon: NOTEBOOK_ICONS['schleswig-holstein-notebook'],
-    backgroundColor: '#316049',
-    mention: 'sh',
-  },
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'thueringen-notebook',
-    title: 'Grüne Thüringen',
-    description: 'Beschlüsse und Wahlprogramme Thüringen',
-    avatar: '🏔️',
-    icon: NOTEBOOK_ICONS['thueringen-notebook'],
-    backgroundColor: '#316049',
-    mention: 'thüringen',
-  },
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'oesterreich-notebook',
-    title: 'Grüne Österreich',
-    description: 'Programme von Die Grünen Österreich',
-    avatar: '🇦🇹',
-    icon: NOTEBOOK_ICONS['oesterreich-notebook'],
-    backgroundColor: '#88B04B',
-    mention: 'at',
-  },
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'bayern-notebook',
-    title: 'Grüne Bayern',
-    description: 'Pressemitteilungen, Beschlüsse und Regierungsprogramm Bayern',
-    avatar: '🦁',
-    icon: NOTEBOOK_ICONS['bayern-notebook'],
-    backgroundColor: '#316049',
-    mention: 'bayern',
-  },
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'berlin-notebook',
-    title: 'Grüne Berlin',
-    description: 'Wahlprogramm 2026, Pressemitteilungen und Beschlüsse Berlin',
-    avatar: '🐻',
-    icon: NOTEBOOK_ICONS['berlin-notebook'],
-    backgroundColor: '#316049',
-    mention: 'berlin',
-  },
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'mecklenburg-vorpommern-notebook',
-    title: 'Grüne Mecklenburg-Vorpommern',
-    description: 'Presse und Parteitagsbeschlüsse MV',
-    avatar: '🦅',
-    icon: NOTEBOOK_ICONS['mecklenburg-vorpommern-notebook'],
-    backgroundColor: '#316049',
-    mention: 'mv',
-  },
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'brandenburg-notebook',
-    title: 'Grüne Brandenburg',
-    description: 'Presse, Beschlüsse und Landtagswahlprogramm 2024 Brandenburg',
-    avatar: '🦅',
-    icon: NOTEBOOK_ICONS['brandenburg-notebook'],
-    backgroundColor: '#316049',
-    mention: 'brandenburg',
-  },
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'kommunalwiki-notebook',
-    title: 'KommunalWiki',
-    description: 'Fachwissen zur Kommunalpolitik',
-    avatar: '📚',
-    icon: NOTEBOOK_ICONS['kommunalwiki-notebook'],
-    backgroundColor: '#316049',
-    mention: 'kommunalwiki',
-  },
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'boell-stiftung-notebook',
-    title: 'Heinrich-Böll-Stiftung',
-    description: 'Analysen und Dossiers der Böll-Stiftung',
-    avatar: '📖',
-    icon: NOTEBOOK_ICONS['boell-stiftung-notebook'],
-    backgroundColor: '#316049',
-    mention: 'böll',
-  },
-  {
-    type: 'notebook',
-    category: 'function',
-    trigger: '@',
-    identifier: 'gruenblog-notebook',
-    title: 'Grünblog',
-    description: 'Onlinemagazin der Grünen',
-    avatar: '📰',
-    icon: NOTEBOOK_ICONS['gruenblog-notebook'],
-    backgroundColor: '#316049',
-    mention: 'gruenblog',
-  },
-];
+// Derived from the shared notebook registry so the @-mention picker always matches the
+// web/mobile galleries. Adding a notebook to `@gruenerator/shared/notebooks` surfaces it
+// here automatically; the icon is resolved by id from the shared NOTEBOOK_ICONS map.
+export const notebookMentionables: Mentionable[] = NOTEBOOK_REGISTRY.map((nb) => ({
+  type: 'notebook',
+  category: 'function',
+  trigger: '@',
+  identifier: nb.id,
+  title: nb.mention.title,
+  description: nb.mention.description,
+  avatar: nb.mention.avatar,
+  icon: NOTEBOOK_ICONS[nb.id],
+  backgroundColor: nb.mention.backgroundColor,
+  mention: nb.mention.alias,
+}));
 
 export const toolMentionables: Mentionable[] = [
   {
@@ -618,6 +468,55 @@ export function decodeWolkeToken(token: string): WolkeFileToken | null {
   }
 }
 
+// @connect opens a sub-popover that lets the user pick files from their
+// Nango-connected provider accounts (Microsoft / Google / Jira / Confluence).
+// Selected files are inserted into the text as opaque `@connect:<base64>`
+// tokens which the parser decodes back into {provider, fileId, name, mimeType}
+// refs sent in the request body. Mirrors the @wolke pipeline (Nextcloud).
+export const connectMentionables: Mentionable[] = [
+  {
+    type: 'connect',
+    category: 'function',
+    trigger: '@',
+    identifier: 'connect-trigger',
+    title: 'Verbundene Accounts',
+    description: 'Dateien aus verbundenen Diensten einfügen',
+    avatar: '🔌',
+    icon: PiPlugsConnected,
+    backgroundColor: '#7C3AED',
+    mention: 'connect',
+  },
+];
+
+export interface ConnectFileToken {
+  provider: string;
+  fileId: string;
+  name: string;
+  mimeType?: string;
+}
+
+export function encodeConnectToken(ref: ConnectFileToken): string {
+  return `@connect:${toBase64Url(JSON.stringify(ref))}`;
+}
+
+export function decodeConnectToken(token: string): ConnectFileToken | null {
+  try {
+    const parsed = JSON.parse(fromBase64Url(token)) as unknown;
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      typeof (parsed as Record<string, unknown>).provider === 'string' &&
+      typeof (parsed as Record<string, unknown>).fileId === 'string' &&
+      typeof (parsed as Record<string, unknown>).name === 'string'
+    ) {
+      return parsed as ConnectFileToken;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function getAllMentionables(): Mentionable[] {
   return [
     ...agentMentionables,
@@ -631,6 +530,7 @@ export function getAllMentionables(): Mentionable[] {
     ...dynamicDocMentionables,
     ...documentMentionables,
     ...wolkeMentionables,
+    ...connectMentionables,
   ];
 }
 
@@ -650,6 +550,7 @@ function rebuildMentionableMap(): void {
     dynamicDocMentionables,
     documentMentionables,
     wolkeMentionables,
+    connectMentionables,
   ];
   for (const source of orderedSources) {
     for (const m of source) {
@@ -678,6 +579,7 @@ export function filterMentionables(query: string): {
   docs: Mentionable[];
   documents: Mentionable[];
   wolke: Mentionable[];
+  connect: Mentionable[];
 } {
   const allBoards = [...boardToolMentionables, ...dynamicBoardMentionables];
   const allDocs = [...docToolMentionables, ...dynamicDocMentionables];
@@ -692,6 +594,7 @@ export function filterMentionables(query: string): {
       docs: allDocs,
       documents: documentMentionables,
       wolke: wolkeMentionables,
+      connect: connectMentionables,
     };
   }
   const q = query.toLowerCase();
@@ -722,6 +625,7 @@ export function filterMentionables(query: string): {
     docs: 'dok'.startsWith(q) || q.startsWith('dok') ? allDocs : allDocs.filter(matchFn),
     documents: documentMentionables.filter(matchFn),
     wolke: wolkeMentionables.filter(matchFn),
+    connect: connectMentionables.filter(matchFn),
   };
 }
 
@@ -739,6 +643,7 @@ export function filterMentionablesByCategory(
     ...all.docs,
     ...all.documents,
     ...all.wolke,
+    ...all.connect,
     ...all.userNotebooks,
     ...all.notebooks,
   ];

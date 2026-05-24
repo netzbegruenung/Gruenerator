@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,

@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@gruenerator/shared/stores';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -54,6 +54,12 @@ export default function DocumentScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chromeVisible, setChromeVisible] = useState(false);
+  // Connection diagnostics: the Hocuspocus handshake can fail for auth/access
+  // reasons (surfaced via onAuthError) or just never connect (network). Both
+  // were previously invisible — only a tiny red dot. Surface a real reason + retry.
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [connTimedOut, setConnTimedOut] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const store = useDocsEditorBridgeStore;
   const connectionStatus = store((s) => s.connectionStatus);
@@ -107,6 +113,31 @@ export default function DocumentScreen() {
   const handleConnectionStatusChange = useCallback(async (status: string) => {
     store.getState().setConnectionStatus(status as 'connected' | 'syncing' | 'disconnected');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAuthError = useCallback(async (reason: string) => {
+    setAuthError(reason || 'Authentifizierung fehlgeschlagen');
+  }, []);
+
+  const handleRetry = useCallback(() => {
+    setAuthError(null);
+    setConnTimedOut(false);
+    setReloadKey((k) => k + 1); // remount the editor → fresh Hocuspocus connection
+  }, []);
+
+  // If the socket hasn't connected within 15s (and no explicit auth error),
+  // assume a network/server-reachability problem rather than leaving a bare dot.
+  useEffect(() => {
+    if (connectionStatus === 'connected') {
+      setConnTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (useDocsEditorBridgeStore.getState().connectionStatus !== 'connected') {
+        setConnTimedOut(true);
+      }
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, [connectionStatus, reloadKey]);
 
   const handleTitleChange = useCallback(
     async (title: string) => {
@@ -332,6 +363,7 @@ export default function DocumentScreen() {
 
       <View style={styles.editorContainer}>
         <DocEditorDOM
+          key={reloadKey}
           documentId={id!}
           authToken={token}
           userId={user.id}
@@ -342,6 +374,7 @@ export default function DocumentScreen() {
           apiBaseUrl={API_BASE_URL}
           colorScheme={colorScheme === 'dark' ? 'dark' : 'light'}
           onConnectionStatusChange={handleConnectionStatusChange}
+          onAuthError={handleAuthError}
           onTitleChange={handleTitleChange}
           onCanEditChange={handleCanEditChange}
           onDocumentLoaded={handleDocumentLoaded}
@@ -369,8 +402,27 @@ export default function DocumentScreen() {
         isOwner={true}
       />
 
-      {/* Connection status overlay — only when not connected */}
-      {connectionStatus !== 'connected' && (
+      {/* Connection failure banner — auth/access denied or never connected.
+          Replaces the silent red dot with the actual server reason + retry. */}
+      {(authError || connTimedOut) && (
+        <View style={[styles.errorBanner, { top: insets.top + 8, backgroundColor: theme.card }]}>
+          <Ionicons name="cloud-offline-outline" size={18} color={colors.error[500]} />
+          <Text style={[styles.errorBannerText, { color: theme.text }]} numberOfLines={2}>
+            {authError
+              ? `Dokument konnte nicht geladen werden: ${authError}`
+              : 'Keine Verbindung zum Dokumentenserver.'}
+          </Text>
+          <Pressable
+            onPress={handleRetry}
+            style={[styles.retryButton, { backgroundColor: colors.primary[600] }]}
+          >
+            <Text style={styles.retryButtonText}>Erneut</Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* Transient connection status dot — only while (re)connecting/syncing */}
+      {connectionStatus !== 'connected' && !authError && !connTimedOut && (
         <View style={[styles.statusOverlay, { top: insets.top + 8 }]}>
           <View
             style={[
@@ -420,6 +472,38 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16,
     zIndex: 10,
+  },
+  errorBanner: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    zIndex: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  retryButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '600',
   },
   statusDot: {
     width: 10,

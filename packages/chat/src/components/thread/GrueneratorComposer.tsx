@@ -25,8 +25,9 @@ import { getFilteredForMode } from '../../lib/mentionDetection';
 import { computeMentionInsertion } from '../../lib/mentionInsertion';
 import { FileMentionPopover } from './FileMentionPopover';
 import { WolkeMentionPopover } from './WolkeMentionPopover';
+import { ConnectMentionPopover } from './ConnectMentionPopover';
 import type { CollabDocSelection } from '../../lib/documentMentionables';
-import type { WolkeFileToken } from '../../lib/mentionables';
+import type { WolkeFileToken, ConnectFileToken } from '../../lib/mentionables';
 import { PlusMenu } from './PlusMenu';
 import { ModelPicker } from './ModelPicker';
 import { getCaretCoords } from '../../lib/caretPosition';
@@ -196,7 +197,7 @@ function ComposerButtons({
 
 interface MentionState {
   visible: boolean;
-  mode: 'functions' | 'skills' | 'datei' | 'wolke';
+  mode: 'functions' | 'skills' | 'datei' | 'wolke' | 'connect';
   query: string;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
@@ -282,6 +283,24 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           });
         }
         setMention((prev) => ({ ...prev, mode: 'wolke', visible: true, mentionStart: -1 }));
+        return;
+      }
+
+      // When user selects the @connect trigger, swap to the connected-account picker
+      if (mentionable.type === 'connect') {
+        // Strip the in-progress "@conn…" trigger from the textarea — the picker
+        // inserts one @connect:<token> per chosen file via handleConnectSelect.
+        if (mention.mentionStart >= 0) {
+          const currentText = composerRuntime.getState().text;
+          const before = currentText.slice(0, mention.mentionStart);
+          const after = currentText.slice(textarea.selectionStart);
+          composerRuntime.setText(`${before}${after}`);
+          requestAnimationFrame(() => {
+            const pos = before.length;
+            textarea.setSelectionRange(pos, pos);
+          });
+        }
+        setMention((prev) => ({ ...prev, mode: 'connect', visible: true, mentionStart: -1 }));
         return;
       }
 
@@ -406,10 +425,41 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [composerRuntime, dismissPopover]
   );
 
+  const handleConnectSelect = useCallback(
+    (files: ConnectFileToken[]) => {
+      if (files.length === 0) return;
+      for (const f of files) {
+        void composerRuntime.addAttachment({
+          id: `gruenerator-connect-${f.provider}:${f.fileId}`,
+          type: 'document',
+          name: f.name,
+          contentType: 'application/x-gruenerator-connect',
+          content: [
+            {
+              type: 'data',
+              name: 'gruenerator-mention',
+              data: {
+                kind: 'connect',
+                provider: f.provider,
+                fileId: f.fileId,
+                name: f.name,
+                ...(f.mimeType ? { mimeType: f.mimeType } : {}),
+              },
+            },
+          ],
+        });
+      }
+      dismissPopover();
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    },
+    [composerRuntime, dismissPopover]
+  );
+
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      // Don't interfere when file/doc browser or wolke picker is open
-      if (mention.mode === 'datei' || mention.mode === 'wolke') return;
+      // Don't interfere when file/doc browser, wolke, or connect picker is open
+      if (mention.mode === 'datei' || mention.mode === 'wolke' || mention.mode === 'connect')
+        return;
 
       const textarea = e.target;
       const text = textarea.value;
@@ -441,7 +491,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
       // In datei/docs mode, only handle Escape (cmdk handles arrow keys internally).
       // Enter is swallowed so the textarea doesn't submit the form while the picker
       // is open — the user must select via the picker or dismiss with Escape first.
-      if (mention.mode === 'datei' || mention.mode === 'wolke') {
+      if (mention.mode === 'datei' || mention.mode === 'wolke' || mention.mode === 'connect') {
         if (e.key === 'Escape') {
           e.preventDefault();
           dismissPopover();
@@ -537,6 +587,12 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             <WolkeMentionPopover
               visible={mention.visible}
               onSelect={handleWolkeSelect}
+              onDismiss={dismissPopover}
+            />
+          ) : mention.mode === 'connect' ? (
+            <ConnectMentionPopover
+              visible={mention.visible}
+              onSelect={handleConnectSelect}
               onDismiss={dismissPopover}
             />
           ) : mention.mode === 'skills' ? (

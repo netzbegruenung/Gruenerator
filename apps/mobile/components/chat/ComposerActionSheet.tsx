@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useAgentStore, MODEL_OPTIONS, type ToolKey } from '@gruenerator/chat';
 import { QWEN_WARNING } from '@gruenerator/shared/models';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback } from 'react';
 import { View, Text, Pressable, Switch, ScrollView, StyleSheet } from 'react-native';
 import { useShallow } from 'zustand/shallow';
@@ -9,7 +9,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
-const TOOL_LABELS: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap }> = {
+const TOOL_LABELS: Record<string, { label: string; icon: IoniconsIconName }> = {
   search: { label: 'Dokumentensuche', icon: 'document-text-outline' },
   web: { label: 'Websuche', icon: 'globe-outline' },
   examples: { label: 'Beispiele', icon: 'bulb-outline' },

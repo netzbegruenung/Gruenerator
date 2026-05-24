@@ -3,11 +3,11 @@
  * Dynamic input form for canvas editor template text generation
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import {
   IMAGE_STUDIO_TYPE_CONFIGS,
   TEMPLATE_FIELD_CONFIGS,
 } from '@gruenerator/shared/image-studio';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { View, Text, TextInput, StyleSheet, useColorScheme } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
@@ -29,7 +29,7 @@ interface TemplateInputStepProps {
   onBack: () => void;
 }
 
-const TEMPLATE_ICONS: Partial<Record<ImageStudioTemplateType, keyof typeof Ionicons.glyphMap>> = {
+const TEMPLATE_ICONS: Partial<Record<ImageStudioTemplateType, IoniconsIconName>> = {
   dreizeilen: 'text-outline',
   zitat: 'chatbox-outline',
   'zitat-pure': 'chatbox-outline',

@@ -20,7 +20,7 @@ Surface: **https://entra.microsoft.com** (Identity → Applications → App regi
 
 1. **New registration.**
    - Name: `Grünerator – Connectors`
-   - Supported account types: **"Accounts in this organizational directory only" (single tenant)** for the first working setup — you're admin, consent is one click. (Switch to *multitenant* later when other Grüne orgs need it; that's a dropdown change + each tenant's admin consenting.)
+   - Supported account types: **"Accounts in this organizational directory only" (single tenant)** for the first working setup — you're admin, consent is one click. (Switch to _multitenant_ later when other Grüne orgs need it; that's a dropdown change + each tenant's admin consenting.)
    - Redirect URI: platform **Web**, value `https://nango.gruenerator.eu/oauth/callback`
    - Register.
 2. From the **Overview** page, copy the **Application (client) ID** — you'll paste it into Nango. (Also note the **Directory (tenant) ID** in case Nango asks.)
@@ -30,7 +30,7 @@ Surface: **https://entra.microsoft.com** (Identity → Applications → App regi
    - `Sites.Read.All`
    - `Team.ReadBasic.All`
    - `offline_access`
-4. **Grant admin consent for <tenant>** (button at the top of API permissions). Confirm the *Status* column turns into green "Granted" check marks.
+4. **Grant admin consent for <tenant>** (button at the top of API permissions). Confirm the _Status_ column turns into green "Granted" check marks.
    - Why: `Sites.Read.All` and `Team.ReadBasic.All` are admin-consent-required. Without this, login works but those scopes are silently denied and SharePoint/Teams listing fails.
    - Do **not** add `ChannelMessage.Read.All` or any message-content scope — that's a deliberate DSGVO exclusion (files only).
 5. **Certificates & secrets → New client secret.**

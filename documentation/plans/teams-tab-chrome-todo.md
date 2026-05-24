@@ -20,6 +20,7 @@ Canonical engineering plan: `documentation/plans/teams-tab-integration.md`. **No
 ## Assets you need before starting
 
 The Developer Portal requires two icons. Ask the human for, or locate:
+
 - **Color icon** — 192×192 px PNG, full-color Grünerator logo.
 - **Outline icon** — 32×32 px PNG, transparent background, single-color (white) glyph.
 
@@ -69,11 +70,11 @@ If "Preview in Teams" didn't already install it:
 
 ## Verification
 
-| Check | Expected (code deployed) | Expected (code NOT yet deployed) |
-|-------|--------------------------|----------------------------------|
-| Tab loads | Grünerator UI renders inside Teams | **Blank / "refused to connect"** iframe → this is the blocking dependency, not your error |
-| Login | Click login → popup → Keycloak → popup closes → tab is logged in | Popup may open but session won't stick (cookie `SameSite` not yet set) |
-| Regression | `https://gruenerator.eu` in a normal browser still logs in via redirect | unaffected |
+| Check      | Expected (code deployed)                                                | Expected (code NOT yet deployed)                                                          |
+| ---------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Tab loads  | Grünerator UI renders inside Teams                                      | **Blank / "refused to connect"** iframe → this is the blocking dependency, not your error |
+| Login      | Click login → popup → Keycloak → popup closes → tab is logged in        | Popup may open but session won't stick (cookie `SameSite` not yet set)                    |
+| Regression | `https://gruenerator.eu` in a normal browser still logs in via redirect | unaffected                                                                                |
 
 If the tab is blank, capture the browser devtools **Console + Network** errors (look for `X-Frame-Options` / `frame-ancestors` / CSP messages) and report them — that confirms the code phase is the next step.
 

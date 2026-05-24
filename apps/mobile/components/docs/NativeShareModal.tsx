@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import * as Clipboard from 'expo-clipboard';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -33,7 +33,7 @@ const DOCS_BASE_URL = 'https://gruenerator.eu';
 
 const SHARE_MODE_CONFIG: Array<{
   mode: ShareMode;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   label: string;
   desc: string;
 }> = [
@@ -68,7 +68,7 @@ function QuickAction({
   onPress,
   theme,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   label: string;
   onPress: () => void;
   theme: Theme;

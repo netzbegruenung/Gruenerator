@@ -1,3 +1,6 @@
+// Static list of Grüne Bundestagsabgeordnete for the role wizard's "Abgeordnete*r"
+// autocomplete (DE only). Shared between web and mobile.
+
 export interface MdB {
   name: string;
   bundesland: string;

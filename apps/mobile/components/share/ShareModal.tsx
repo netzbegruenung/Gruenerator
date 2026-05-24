@@ -3,8 +3,8 @@
  * Modal for sharing videos with QR code and share link
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { useShareStore, getShareUrl } from '@gruenerator/shared';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useState, useEffect } from 'react';
 import {
   View,

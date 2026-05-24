@@ -2,6 +2,7 @@
 
 import { BookOpen, Loader2 } from 'lucide-react';
 import { ResearchArtifactCard } from '../ResearchArtifactCard';
+import { getToolQuery } from '../../lib/toolResults';
 
 interface ResearchToolRenderProps {
   args: Record<string, unknown>;
@@ -22,7 +23,7 @@ interface ResearchToolRenderProps {
  * toolCall transitions from `call` to `result`.
  */
 export function ResearchToolRender({ args, result }: ResearchToolRenderProps) {
-  const query = getString(args, 'query') || getString(args, 'question') || '';
+  const query = getToolQuery(args) || '';
 
   if (result != null) {
     return <ResearchArtifactCard query={query} result={result} />;
@@ -54,12 +55,4 @@ function ResearchLoadingCard({ query }: ResearchLoadingCardProps) {
       </div>
     </div>
   );
-}
-
-function getString(obj: unknown, key: string): string | null {
-  if (obj && typeof obj === 'object' && key in obj) {
-    const val = (obj as Record<string, unknown>)[key];
-    return typeof val === 'string' ? val : null;
-  }
-  return null;
 }

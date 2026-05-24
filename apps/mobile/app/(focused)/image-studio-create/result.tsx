@@ -1,5 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useKiImageGeneration } from '@gruenerator/shared/image-studio';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useCallback, useRef } from 'react';

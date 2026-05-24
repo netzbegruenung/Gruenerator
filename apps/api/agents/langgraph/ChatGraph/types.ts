@@ -13,17 +13,17 @@
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
-import type { WolkeFileRef } from '@gruenerator/contracts';
+import type { WolkeFileRef, ConnectFileRef } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
-export type { WolkeFileRef };
+export type { WolkeFileRef, ConnectFileRef };
 
 /**
  * Search source backends that can be queried in parallel.
  * When multiple sources are specified, the search node runs them concurrently
  * and merges/deduplicates the results before reranking.
  */
-export type SearchSource = 'documents' | 'web' | 'examples' | 'chat_history' | 'wolke';
+export type SearchSource = 'documents' | 'web' | 'examples' | 'chat_history' | 'wolke' | 'connect';
 
 /**
  * Supported user locales for locale-aware collection routing.
@@ -112,6 +112,7 @@ export const SOURCE_PREFIX = {
   DOCUMENT: 'document',
   DOCUMENT_CHAT: 'documentchat:',
   WOLKE: 'wolke:',
+  CONNECT: 'connect:',
 } as const;
 
 /**
@@ -166,7 +167,8 @@ export type DocumentSourceKind =
   | 'notebook' // notebookIds (collection scope)
   | 'attachment' // threadAttachments (uploaded file context)
   | 'current_doc' // currentDocument (open in docs editor)
-  | 'wolke'; // wolkeFiles (@wolke mentionable — Nextcloud file picker)
+  | 'wolke' // wolkeFiles (@wolke mentionable — Nextcloud file picker)
+  | 'connect'; // connectFiles (@connect mentionable — Nango-connected provider file picker)
 
 /**
  * Normalized reference to a single document the user is working with this turn.
@@ -184,6 +186,9 @@ export interface DocumentSource {
   // For `wolke` kind: the original share-link + path so searchNode can fetch
   // the file content via WebDAV at retrieval time.
   wolke?: WolkeFileRef | undefined;
+  // For `connect` kind: the provider + fileId so searchNode can fetch the file
+  // content via the matching Nango provider API client at retrieval time.
+  connect?: ConnectFileRef | undefined;
 }
 
 /**
@@ -301,6 +306,7 @@ export interface ChatGraphInput {
   boardIds?: string[] | undefined;
   docMentionIds?: string[] | undefined;
   wolkeFiles?: WolkeFileRef[] | undefined;
+  connectFiles?: ConnectFileRef[] | undefined;
   currentDocument?: CurrentDocument | undefined;
   userLocale?: UserLocale | undefined;
   customSystemPrompt?: string | undefined;
@@ -365,6 +371,10 @@ export interface ChatGraphState {
   // Wolke (Nextcloud) file refs selected via @wolke mentionable.
   // Downloaded + parsed inline at searchNode time; never persisted.
   wolkeFiles: WolkeFileRef[];
+
+  // Connected-account (Nango) file refs selected via @connect mentionable.
+  // Downloaded + parsed inline at searchNode time; never persisted.
+  connectFiles: ConnectFileRef[];
 
   // Current open document in the docs editor (primary context, not retrieval scope).
   // Set when chat is embedded in a document editor surface.

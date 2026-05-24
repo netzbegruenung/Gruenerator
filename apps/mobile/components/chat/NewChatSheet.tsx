@@ -1,15 +1,17 @@
-import { Ionicons } from '@expo/vector-icons';
 import {
   notebookMentionables,
   agentMentionables,
   toolMentionables,
   type Mentionable,
 } from '@gruenerator/chat';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
+
+import { agentIcon, toolIcon, NOTEBOOK_ICON } from './sidebarIcons';
 
 interface NewChatSheetProps {
   visible: boolean;
@@ -75,8 +77,8 @@ export function NewChatSheet({
                   onSelectAgent(agent.identifier);
                 }}
               >
-                <View style={[styles.iconCircle, { backgroundColor: agent.backgroundColor }]}>
-                  <Text style={styles.emoji}>{agent.avatar}</Text>
+                <View style={styles.iconGhost}>
+                  <Ionicons name={agentIcon(agent.iconKey)} size={24} color={colors.eucalyptus} />
                 </View>
                 <View style={styles.rowText}>
                   <Text style={[styles.rowTitle, { color: theme.text }]}>{agent.title}</Text>
@@ -108,8 +110,8 @@ export function NewChatSheet({
                   onInsertMention(tool);
                 }}
               >
-                <View style={[styles.iconCircle, { backgroundColor: tool.backgroundColor }]}>
-                  <Text style={styles.emoji}>{tool.avatar}</Text>
+                <View style={styles.iconGhost}>
+                  <Ionicons name={toolIcon(tool.identifier)} size={24} color={colors.eucalyptus} />
                 </View>
                 <View style={styles.rowText}>
                   <Text style={[styles.rowTitle, { color: theme.text }]}>{tool.title}</Text>
@@ -139,8 +141,8 @@ export function NewChatSheet({
               onSelectNotebook(nb.identifier);
             }}
           >
-            <View style={[styles.iconCircle, { backgroundColor: nb.backgroundColor }]}>
-              <Text style={styles.emoji}>{nb.avatar}</Text>
+            <View style={styles.iconGhost}>
+              <Ionicons name={NOTEBOOK_ICON} size={24} color={colors.eucalyptus} />
             </View>
             <View style={styles.rowText}>
               <Text style={[styles.rowTitle, { color: theme.text }]}>{nb.title}</Text>
@@ -173,8 +175,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emoji: {
-    fontSize: 22,
+  iconGhost: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   rowText: {
     flex: 1,

@@ -282,8 +282,11 @@ updates:
         update-types: ['version-update:semver-major']
       - dependency-name: 'react-native'
         update-types: ['version-update:semver-major']
+      # react/react-dom are pinned to the EXACT version the Expo SDK ships
+      # (RN's bundled renderer requires an exact match). Never let Dependabot
+      # drift them — they move only via `npx expo install` on an SDK upgrade.
       - dependency-name: 'react'
-        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-dom'
 
   # =============================================================================
   # SHARED PACKAGE (packages/shared)

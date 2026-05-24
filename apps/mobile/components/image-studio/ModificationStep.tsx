@@ -3,8 +3,8 @@
  * Orchestrates all image modification controls with debounced preview regeneration
  */
 
-import { Ionicons } from '@expo/vector-icons';
 import { MODIFICATION_LABELS, getTypeConfig } from '@gruenerator/shared/image-studio';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useEffect, useRef } from 'react';
 import {
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.medium,
   },
   loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: borderRadius.medium,
     alignItems: 'center',

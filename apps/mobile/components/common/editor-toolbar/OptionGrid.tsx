@@ -3,7 +3,7 @@
  * Generic grid selector for choosing from predefined options
  */
 
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { type ReactNode } from 'react';
 import { View, Text, StyleSheet, Pressable, useColorScheme } from 'react-native';
 

@@ -1,22 +1,20 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
 import {
   View,
   Text,
   FlatList,
+  Pressable,
   StyleSheet,
-  useColorScheme,
-  TouchableOpacity,
-  RefreshControl,
   ActivityIndicator,
+  useColorScheme,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useNotifications, type AppNotification } from '../../hooks/useNotifications';
-import { colors, spacing, borderRadius, lightTheme, darkTheme } from '../../theme';
+import { colors, spacing, lightTheme, darkTheme } from '../../theme';
 
-const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+const TYPE_ICONS: Record<string, IoniconsIconName> = {
   document_shared: 'document-text-outline',
   document_permission_changed: 'shield-outline',
   document_access_revoked: 'lock-closed-outline',
@@ -40,9 +38,15 @@ function formatTimeAgo(dateString: string): string {
   return new Date(dateString).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' });
 }
 
-export default function NotificationsScreen() {
+interface Props {
+  /** Called before navigating away (e.g. to close the containing dropdown). */
+  onNavigate?: () => void;
+}
+
+export function NotificationList({ onNavigate }: Props) {
   const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const isDark = colorScheme === 'dark';
+  const theme = isDark ? darkTheme : lightTheme;
   const router = useRouter();
 
   const {
@@ -61,6 +65,7 @@ export default function NotificationsScreen() {
     (notification: AppNotification) => {
       if (!notification.is_read) void markAsRead(notification.id);
       if (notification.action_url) {
+        onNavigate?.();
         try {
           router.push(notification.action_url as never);
         } catch {
@@ -68,35 +73,36 @@ export default function NotificationsScreen() {
         }
       }
     },
-    [markAsRead, router]
+    [markAsRead, router, onNavigate]
   );
 
   const renderItem = useCallback(
     ({ item }: { item: AppNotification }) => {
       const icon = TYPE_ICONS[item.type] || 'notifications-outline';
       return (
-        <TouchableOpacity
-          style={[
+        <Pressable
+          style={({ pressed }) => [
             styles.item,
             {
               backgroundColor: item.is_read
-                ? 'transparent'
-                : colorScheme === 'dark'
+                ? pressed
+                  ? theme.surface
+                  : 'transparent'
+                : isDark
                   ? colors.primary[900] + '30'
                   : colors.primary[50],
               borderBottomColor: theme.border,
             },
           ]}
           onPress={() => handlePress(item)}
-          activeOpacity={0.6}
         >
           <View
             style={[
               styles.iconCircle,
-              { backgroundColor: colorScheme === 'dark' ? colors.grey[800] : colors.grey[100] },
+              { backgroundColor: isDark ? colors.grey[800] : colors.grey[100] },
             ]}
           >
-            <Ionicons name={icon} size={18} color={colors.primary[600]} />
+            <Ionicons name={icon} size={16} color={colors.primary[600]} />
           </View>
           <View style={styles.itemContent}>
             <Text style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
@@ -111,101 +117,112 @@ export default function NotificationsScreen() {
               {formatTimeAgo(item.created_at)}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => dismiss(item.id)} hitSlop={8} style={styles.dismissBtn}>
-            <Ionicons name="close" size={16} color={theme.textSecondary} />
-          </TouchableOpacity>
-        </TouchableOpacity>
+          <Pressable onPress={() => dismiss(item.id)} hitSlop={8} style={styles.dismissBtn}>
+            <Ionicons name="close" size={15} color={theme.textSecondary} />
+          </Pressable>
+        </Pressable>
       );
     },
-    [colorScheme, theme, handlePress, dismiss]
+    [isDark, theme, handlePress, dismiss]
   );
 
   const hasUnread = notifications.some((n) => !n.is_read);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Benachrichtigungen</Text>
-        {hasUnread ? (
-          <TouchableOpacity onPress={markAllAsRead} hitSlop={8}>
-            <Text style={[styles.readAllText, { color: colors.primary[600] }]}>Alle gelesen</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 80 }} />
+    <View style={styles.container}>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          Benachrichtigungen
+        </Text>
+        {hasUnread && (
+          <Pressable onPress={markAllAsRead} hitSlop={8}>
+            <Text style={[styles.readAll, { color: colors.primary[600] }]}>Alle gelesen</Text>
+          </Pressable>
         )}
       </View>
 
-      <FlatList
-        data={notifications}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl
-            refreshing={isLoading}
-            onRefresh={refresh}
-            tintColor={colors.primary[600]}
-          />
-        }
-        onEndReached={hasMore ? loadMore : undefined}
-        onEndReachedThreshold={0.3}
-        ListFooterComponent={
-          isLoadingMore ? (
-            <View style={styles.footer}>
-              <ActivityIndicator size="small" color={colors.primary[600]} />
-            </View>
-          ) : null
-        }
-        ListEmptyComponent={
-          !isLoading ? (
-            <View style={styles.empty}>
-              <Ionicons name="notifications-off-outline" size={48} color={theme.textSecondary} />
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                Keine Benachrichtigungen
-              </Text>
-            </View>
-          ) : null
-        }
-      />
-    </SafeAreaView>
+      {isLoading && notifications.length === 0 ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="small" color={colors.primary[600]} />
+        </View>
+      ) : notifications.length === 0 ? (
+        <View style={styles.centered}>
+          <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+            Keine Benachrichtigungen
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={notifications}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          onRefresh={refresh}
+          refreshing={isLoading}
+          onEndReached={hasMore ? loadMore : undefined}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            isLoadingMore ? (
+              <View style={styles.footer}>
+                <ActivityIndicator size="small" color={colors.primary[600]} />
+              </View>
+            ) : null
+          }
+          keyboardShouldPersistTaps="handled"
+        />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
+  container: {
+    flexShrink: 1,
+  },
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
+    paddingTop: spacing.xsmall,
+    paddingBottom: spacing.xxsmall,
   },
-  headerTitle: { fontSize: 18, fontWeight: '700' },
-  readAllText: { fontSize: 14, fontWeight: '600' },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  readAll: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  centered: {
+    paddingVertical: spacing.large,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 13,
+  },
   item: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small + 2,
+    paddingVertical: spacing.small,
     borderBottomWidth: StyleSheet.hairlineWidth,
     gap: spacing.small,
   },
   iconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
   },
   itemContent: { flex: 1, gap: 2 },
-  itemTitle: { fontSize: 14, fontWeight: '600' },
-  itemBody: { fontSize: 13, lineHeight: 18 },
-  itemTime: { fontSize: 11, marginTop: 2 },
+  itemTitle: { fontSize: 13, fontWeight: '600' },
+  itemBody: { fontSize: 12, lineHeight: 17 },
+  itemTime: { fontSize: 10, marginTop: 2 },
   dismissBtn: { paddingTop: 4 },
-  footer: { paddingVertical: spacing.large, alignItems: 'center' },
-  empty: { paddingTop: 80, alignItems: 'center', gap: spacing.small },
-  emptyText: { fontSize: 15 },
+  footer: { paddingVertical: spacing.medium, alignItems: 'center' },
 });

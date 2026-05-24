@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Image } from 'expo-image';
 import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, useColorScheme, Alert, ScrollView } from 'react-native';
@@ -171,7 +171,9 @@ export function ImageUploadStep({
         return <StockImagesGrid onImageSelected={handleStockOrUnsplashSelect} />;
       case 'unsplash':
         return <UnsplashSearchTab onImageSelected={handleStockOrUnsplashSelect} />;
-      default:
+      case 'mediathek':
+        // The mediathek tab opens a modal (see handleTabChange); activeTab never
+        // becomes 'mediathek' here, so fall back to the device tab content.
         return renderDeviceTab();
     }
   };

@@ -1,4 +1,5 @@
-import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@gruenerator/shared/hooks';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter, type Href } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import {
@@ -31,7 +32,7 @@ function NotebookCard({
   onLongPress,
   isProcessing,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   title: string;
   onPress: () => void;
   onLongPress?: () => void;
@@ -103,7 +104,7 @@ function ToolCard({
   description,
   onPress,
 }: {
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: IoniconsIconName;
   title: string;
   description: string;
   onPress: () => void;
@@ -143,20 +144,23 @@ export default function NotebooksScreen() {
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
   const [creatorVisible, setCreatorVisible] = useState(false);
+  const { user } = useAuth();
+  const locale: 'de-DE' | 'de-AT' = user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
   const { collections, isLoading, processingIds, createCollection, deleteCollection } =
     useNotebookCollections();
 
-  const bundesebene = useMemo(() => getMobileNotebooksByCategory('bundesebene'), []);
-  const landesebene = useMemo(() => getMobileNotebooksByCategory('landesebene'), []);
-  const weitere = useMemo(() => getMobileNotebooksByCategory('weitere'), []);
+  const bundesebene = useMemo(() => getMobileNotebooksByCategory('bundesebene', locale), [locale]);
+  const landesebene = useMemo(() => getMobileNotebooksByCategory('landesebene', locale), [locale]);
+  const weitere = useMemo(() => getMobileNotebooksByCategory('weitere', locale), [locale]);
+  const oesterreich = useMemo(() => getMobileNotebooksByCategory('oesterreich', locale), [locale]);
 
   const filteredResults = useMemo(() => {
     if (!searchQuery) return null;
     const q = searchQuery.toLowerCase();
-    return getVisibleNotebooks().filter(
+    return getVisibleNotebooks(locale).filter(
       (nb) => nb.title.toLowerCase().includes(q) || nb.description.toLowerCase().includes(q)
     );
-  }, [searchQuery]);
+  }, [searchQuery, locale]);
 
   const filteredCollections = useMemo(() => {
     if (!searchQuery) return collections;
@@ -279,6 +283,11 @@ export default function NotebooksScreen() {
             <NotebookSection
               title="Weitere"
               notebooks={weitere}
+              onNotebookPress={handleNotebookPress}
+            />
+            <NotebookSection
+              title="Österreich"
+              notebooks={oesterreich}
               onNotebookPress={handleNotebookPress}
             />
 

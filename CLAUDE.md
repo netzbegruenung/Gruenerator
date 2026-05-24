@@ -39,7 +39,7 @@ Single workspace: `pnpm --filter @gruenerator/api test:auth`, `pnpm --filter @gr
 - **`apps/api`** — Express 5, Node.js cluster mode. AI via worker pool (`workers/aiWorkerPool.ts`). Routes in `routes/`, logic in `services/`. See `CLAUDE-routing.md`.
   - **Chat: dual handlers, contract router is live.** `routes/chat/chatGraphContractRouter.ts` (+ `agents/langgraph/ChatGraph/` nodes: classifier → search → respond) handles `/api/chat-service/*`. `routes/chat/chatStreamController.ts` is legacy — still mounted but not the default path. **When debugging chat behavior (intent, tool calls, prompts), check the contract router & ChatGraph nodes first** — confirm via backend logs `[ChatGraph:Classifier]` / `[chatGraphContractRouter]`.
 - **`apps/docs`** — **Deprecated** collaborative editor. New docs features → `apps/web/src/features/docs/` + `packages/docs/`.
-- **`apps/mobile`** — Expo 55 / React Native 0.83 with Expo Router.
+- **`apps/mobile`** — Expo 56 / React Native 0.85 with Expo Router.
 - **`apps/desktop`** — Tauri 2 wrapper around web frontend.
 - **`packages/chat`** — Shared chat UI, runtime adapters (Assistant UI), stores, hooks. Consumed at `/chat`.
 - **`packages/shared`** — Shared stores (Zustand), hooks, API clients, feature modules. Components in `src/components/`.
@@ -94,6 +94,11 @@ Mistral AI (primary, EU), Anthropic Claude via Bedrock (Ultra, EU), GPT-OSS via 
 ### Expo Apps
 
 Load Expo skills for `apps/mobile` or `apps/docs-expo`. Use `npx expo install` (not `pnpm add`). See `CLAUDE-expo.md`. Always use `expo-image` (not RN `Image`) — RN can't render SVGs.
+
+**React version is decoupled between web and mobile — never use a single global override.** RN bundles `react-native-renderer` pinned to one EXACT React version; React's runtime check rejects any mismatch (symptoms: `Incompatible React versions`, then cascading `Maximum call stack size exceeded` / `Cannot read property 'ErrorBoundary' of undefined` / phantom "missing default export" route warnings). So:
+- `apps/mobile` pins `react`/`react-dom` to the **exact** version the Expo SDK ships. Bump it **only** via `npx expo install react react-dom` during an SDK upgrade — never independently. Dependabot ignores react/react-dom for `/apps/mobile` entirely (`.github/dependabot.yml`).
+- Web/api/gruen-o-mat track their own react (`^`/latest) — separate Vite/Metro bundles never share a React runtime, so they need not match mobile.
+- Do **not** add `react`/`react-dom` to root `pnpm.overrides`: a global override forces mobile to web's version and breaks RN. Shared `packages/*` declare react as `peerDependency: ^19.0.0`, so they inherit each consumer's react — no override needed for dedup.
 
 ### Styling & UI
 
