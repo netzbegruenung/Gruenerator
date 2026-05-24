@@ -9,15 +9,28 @@ import {
   BookOpen,
   Sparkles,
   MessageCircle,
+  FileText,
 } from 'lucide-react';
 import { useState, memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CitationList } from './tool-ui/citation';
-import type { SerializableCitation } from './tool-ui/citation/schema';
 import { LinkPreview } from './tool-ui/link-preview';
 import { makeCitationComponents } from '../lib/citationMarkdownComponents';
 import { escapeCitationMarkers } from '../lib/citationProcessing';
+import {
+  getString,
+  getArray,
+  getObject,
+  getNumber,
+  getBoolean,
+  getToolMeta,
+  getToolQuery,
+  toSerializableCitation,
+  parseResearchResult,
+  extractDomain,
+  type ToolIconKey,
+} from '../lib/toolResults';
 
 interface ToolCallUIProps {
   toolName: string;
@@ -26,17 +39,31 @@ interface ToolCallUIProps {
   result?: unknown;
 }
 
-const TOOL_CONFIG: Record<string, { icon: typeof Search; label: string; color: string }> = {
-  search_sources: { icon: Search, label: 'Quellen', color: 'text-primary-500' },
-  gruenerator_search: { icon: Search, label: 'Dokumente', color: 'text-primary-500' },
-  gruenerator_person_search: { icon: User, label: 'Person', color: 'text-secondary-600' },
-  gruenerator_examples_search: { icon: Image, label: 'Beispiele', color: 'text-secondary-600' },
-  web_search: { icon: Globe, label: 'Websuche', color: 'text-secondary-700' },
-  research: { icon: BookOpen, label: 'Deep Research', color: 'text-secondary-700' },
-  generate_image: { icon: Sparkles, label: 'Bild', color: 'text-primary-400' },
-  scrape_url: { icon: ExternalLink, label: 'URL', color: 'text-secondary-700' },
-  recall_memory: { icon: MessageCircle, label: 'Erinnerung', color: 'text-primary-400' },
-  save_memory: { icon: MessageCircle, label: 'Speichern', color: 'text-primary-400' },
+// Presentation only: map the platform-neutral iconKey → lucide component, and
+// keep the per-tool accent color (the shared metadata carries label + iconKey).
+const ICON_BY_KEY: Record<ToolIconKey, typeof Search> = {
+  search: Search,
+  globe: Globe,
+  book: BookOpen,
+  sparkles: Sparkles,
+  user: User,
+  image: Image,
+  'external-link': ExternalLink,
+  'message-circle': MessageCircle,
+  file: FileText,
+};
+
+const TOOL_COLOR: Record<string, string> = {
+  search_sources: 'text-primary-500',
+  gruenerator_search: 'text-primary-500',
+  gruenerator_person_search: 'text-secondary-600',
+  gruenerator_examples_search: 'text-secondary-600',
+  web_search: 'text-secondary-700',
+  research: 'text-secondary-700',
+  generate_image: 'text-primary-400',
+  scrape_url: 'text-secondary-700',
+  recall_memory: 'text-primary-400',
+  save_memory: 'text-primary-400',
 };
 
 export const ToolCallUI = memo(function ToolCallUI({
@@ -47,11 +74,12 @@ export const ToolCallUI = memo(function ToolCallUI({
 }: ToolCallUIProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isLoading = state === 'call' || state === 'partial-call';
-  const config = TOOL_CONFIG[toolName] || { icon: Search, label: toolName, color: 'text-grey-600' };
-  const Icon = config.icon;
+  const meta = getToolMeta(toolName);
+  const Icon = ICON_BY_KEY[meta.iconKey];
+  const config = { label: meta.label, color: TOOL_COLOR[toolName] ?? 'text-grey-600' };
 
   const query = useMemo(() => {
-    const q = getString(args, 'query') || getString(args, 'question');
+    const q = getToolQuery(args);
     return q ? (q.length > 60 ? q.slice(0, 60) + '...' : q) : null;
   }, [args]);
 
@@ -70,18 +98,12 @@ export const ToolCallUI = memo(function ToolCallUI({
 
   const researchMeta = useMemo(() => {
     if (toolName !== 'research' || !result || state !== 'result') return null;
-    const confidence = getString(result, 'confidence');
-    const searchSteps = getArray(result, 'searchSteps');
-    const stepsList: Array<{ tool: string; query: string; resultsCount: number }> = [];
-    if (searchSteps) {
-      for (const s of searchSteps) {
-        const tool = getString(s, 'tool') ?? '';
-        const stepQuery = getString(s, 'query') ?? '';
-        const resultsCount = getNumber(s, 'resultsCount') ?? 0;
-        if (stepQuery) stepsList.push({ tool, query: stepQuery, resultsCount });
-      }
-    }
-    return { confidence, searchStepsCount: stepsList.length, stepsList };
+    const parsed = parseResearchResult(result);
+    return {
+      confidence: parsed.confidence,
+      searchStepsCount: parsed.stepsList.length,
+      stepsList: parsed.stepsList,
+    };
   }, [toolName, result, state]);
 
   return (
@@ -165,78 +187,6 @@ export const ToolCallUI = memo(function ToolCallUI({
   );
 });
 
-function getString(obj: unknown, key: string): string | null {
-  if (obj && typeof obj === 'object' && key in obj) {
-    const val = (obj as Record<string, unknown>)[key];
-    return typeof val === 'string' ? val : null;
-  }
-  return null;
-}
-
-function getArray(obj: unknown, key: string): unknown[] | null {
-  if (obj && typeof obj === 'object' && key in obj) {
-    const val = (obj as Record<string, unknown>)[key];
-    return Array.isArray(val) ? val : null;
-  }
-  return null;
-}
-
-function getObject(obj: unknown, key: string): Record<string, unknown> | null {
-  if (obj && typeof obj === 'object' && key in obj) {
-    const val = (obj as Record<string, unknown>)[key];
-    return val && typeof val === 'object' && !Array.isArray(val)
-      ? (val as Record<string, unknown>)
-      : null;
-  }
-  return null;
-}
-
-function getNumber(obj: unknown, key: string): number | null {
-  if (obj && typeof obj === 'object' && key in obj) {
-    const val = (obj as Record<string, unknown>)[key];
-    return typeof val === 'number' ? val : null;
-  }
-  return null;
-}
-
-function getBoolean(obj: unknown, key: string): boolean {
-  if (obj && typeof obj === 'object' && key in obj) {
-    return !!(obj as Record<string, unknown>)[key];
-  }
-  return false;
-}
-
-function extractDomain(url: string | null): string | null {
-  if (!url) return null;
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return null;
-  }
-}
-
-function toRegistryCitationProps(
-  item: unknown,
-  index: number,
-  typeHint: 'document' | 'webpage' = 'webpage'
-): SerializableCitation {
-  const url = getString(item, 'url') || '';
-  const domain = getString(item, 'domain') || extractDomain(url) || undefined;
-  return {
-    id: `tc-citation-${index}`,
-    href: url,
-    title: getString(item, 'title') || getString(item, 'source') || 'Quelle',
-    snippet:
-      getString(item, 'snippet') ||
-      getString(item, 'content') ||
-      getString(item, 'excerpt') ||
-      undefined,
-    domain,
-    favicon: domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : undefined,
-    type: typeHint,
-  };
-}
-
 const ToolResultRenderer = memo(function ToolResultRenderer({
   toolName,
   args,
@@ -304,7 +254,7 @@ const CompactSearchResults = memo(function CompactSearchResults({
 
   const citations = results
     .slice(0, 5)
-    .map((item, i) => toRegistryCitationProps(item, i, 'document'));
+    .map((item, i) => toSerializableCitation(item, i, 'document'));
 
   return <CitationList id="search-results" citations={citations} variant="default" />;
 });
@@ -368,7 +318,7 @@ const CompactWebResults = memo(function CompactWebResults({ result }: { result: 
 
   if (!items.length) return <p className="text-xs text-foreground-muted">Keine Ergebnisse</p>;
 
-  const citations = items.slice(0, 5).map((item, i) => toRegistryCitationProps(item, i, 'webpage'));
+  const citations = items.slice(0, 5).map((item, i) => toSerializableCitation(item, i, 'webpage'));
 
   return <CitationList id="web-results" citations={citations} variant="default" />;
 });
@@ -499,7 +449,7 @@ const ResearchResultUI = memo(function ResearchResultUI({ result }: { result: un
             <div className="mt-2">
               <CitationList
                 id="research-sources"
-                citations={citations.map((c) => toRegistryCitationProps(c, c.id, 'document'))}
+                citations={citations.map((c) => toSerializableCitation(c, c.id, 'document'))}
                 variant="default"
               />
             </div>

@@ -24,7 +24,15 @@ import { colors, spacing, borderRadius } from '../../theme';
 
 import { MessageAttachmentUI } from './AttachmentUI';
 import { CitationsFooter } from './CitationsFooter';
+import { getMarkdownStyles } from './markdownStyles';
 import { MessageActionsSheet } from './MessageActionsSheet';
+import { AskHumanCard } from './tool-ui/AskHumanCard';
+import { ExampleResultsCard } from './tool-ui/ExampleResultsCard';
+import { PersonResultCard } from './tool-ui/PersonResultCard';
+import { PressemitteilungExamplesCard } from './tool-ui/PressemitteilungExamplesCard';
+import { ResearchArtifactCard } from './tool-ui/ResearchArtifactCard';
+import { ScrapeUrlCard } from './tool-ui/ScrapeUrlCard';
+import { ToolResultCard } from './tool-ui/ToolResultCard';
 import { ToolCallProgress } from './ToolCallProgress';
 
 import type { Theme } from '../../theme/colors';
@@ -190,9 +198,38 @@ function AssistantToolCallPart(props: {
   toolName: string;
   args: Record<string, unknown>;
   result?: unknown;
+  addResult: (result: string) => void;
 }) {
   const theme = useTheme();
-  return <ToolCallProgress part={props} theme={theme} />;
+  const { toolName, args, result, addResult } = props;
+
+  // Interactive: asks a clarifying question and submits the answer back into the
+  // run (handles both the awaiting-input and the answered states itself).
+  if (toolName === 'ask_human') {
+    return <AskHumanCard args={args} result={result} addResult={addResult} theme={theme} />;
+  }
+  // Research has its own rich card that handles both loading and result states.
+  if (toolName === 'research') {
+    return <ResearchArtifactCard part={props} theme={theme} />;
+  }
+  // Still running: a compact progress pill.
+  if (result === undefined) {
+    return <ToolCallProgress part={props} theme={theme} />;
+  }
+  // Completed — pick the renderer matching the tool's result shape.
+  switch (toolName) {
+    case 'gruenerator_person_search':
+      return <PersonResultCard result={result} theme={theme} />;
+    case 'gruenerator_examples_search':
+      return <ExampleResultsCard part={props} theme={theme} />;
+    case 'scrape_url':
+      return <ScrapeUrlCard part={props} theme={theme} />;
+    case 'gruenerator_pressemitteilung_examples':
+      return <PressemitteilungExamplesCard part={props} theme={theme} />;
+    default:
+      // search / web / sources / user-content → compact citation pill.
+      return <ToolResultCard part={props} theme={theme} />;
+  }
 }
 
 function AssistantReasoningPart(props: { text: string }) {
@@ -311,69 +348,6 @@ export const MessageBubble = memo(function MessageBubble() {
     </>
   );
 });
-
-function getMarkdownStyles(theme: Theme) {
-  return {
-    body: {
-      color: theme.text,
-      fontSize: 15,
-      lineHeight: 22,
-    },
-    heading1: {
-      color: theme.text,
-      fontSize: 20,
-      fontWeight: '700' as const,
-      marginBottom: spacing.xsmall,
-    },
-    heading2: {
-      color: theme.text,
-      fontSize: 18,
-      fontWeight: '600' as const,
-      marginBottom: spacing.xsmall,
-    },
-    heading3: {
-      color: theme.text,
-      fontSize: 16,
-      fontWeight: '600' as const,
-      marginBottom: spacing.xxsmall,
-    },
-    paragraph: {
-      marginTop: 0,
-      marginBottom: spacing.xsmall,
-    },
-    link: {
-      color: theme.link,
-    },
-    blockquote: {
-      backgroundColor: theme.surface,
-      borderLeftColor: colors.primary[600],
-      borderLeftWidth: 3,
-      paddingHorizontal: spacing.small,
-      paddingVertical: spacing.xsmall,
-    },
-    code_inline: {
-      backgroundColor: theme.surface,
-      color: theme.text,
-      fontSize: 13,
-      paddingHorizontal: 4,
-      paddingVertical: 1,
-      borderRadius: 4,
-    },
-    fence: {
-      backgroundColor: theme.surface,
-      color: theme.text,
-      fontSize: 13,
-      padding: spacing.small,
-      borderRadius: borderRadius.medium,
-    },
-    list_item: {
-      marginBottom: spacing.xxsmall,
-    },
-    strong: {
-      fontWeight: '600' as const,
-    },
-  };
-}
 
 const styles = StyleSheet.create({
   messageRow: {
