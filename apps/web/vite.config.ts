@@ -264,7 +264,14 @@ export default defineConfig(({ command }) => ({
                     test: /[\\/]node_modules[\\/](@hocuspocus|yjs|y-protocols|y-indexeddb|lib0)[\\/]/,
                   }, // ~450 KB
                   { name: 'vendor-imgly', test: /[\\/]node_modules[\\/]@imgly[\\/]/ }, // 167 KB
-                  { name: 'pkg-canvas-editor', test: /[\\/]packages[\\/]canvas-editor[\\/]/ }, // 1.4 MB
+                  // NOTE: do NOT add `pkg-canvas-editor` (or any other workspace
+                  // package) back here. canvas-editor ships React Providers/hooks
+                  // and imports react-konva (already split into `vendor-konva`),
+                  // so splitting it forms a cross-chunk init cycle: the
+                  // canvas-editor chunk renders while its `react` import binding is
+                  // still null → "Cannot read properties of null (reading
+                  // 'useEffect')". This crashed prod on master (commit e49af52ea).
+                  // Per the strategy comment above, only leaf libraries are split.
                 ],
               },
             }),
