@@ -158,6 +158,13 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         rawDefaultNotebookId && isKnownNotebook(rawDefaultNotebookId)
           ? rawDefaultNotebookId
           : undefined;
+      // An agent can bind a user-owned notebook (UUID) as its default knowledge
+      // base. Resolve it to document IDs (ownership-checked) so search can scope
+      // to it — mirrors the mention path, but as a default rather than explicit.
+      const { documentIds: defaultNotebookDocumentIds } =
+        rawDefaultNotebookId && !defaultNotebookId && isUserNotebookId(rawDefaultNotebookId)
+          ? await resolveUserNotebookDocumentIds(userId, [rawDefaultNotebookId])
+          : { documentIds: [] };
 
       // Filter wolkeFiles to refs whose shareLinkId is still owned + active for this user.
       // Stale refs (deleted/deactivated share link) are dropped silently so the chat still works.
@@ -385,6 +392,8 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
         notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
         defaultNotebookId,
+        defaultNotebookDocumentIds:
+          defaultNotebookDocumentIds.length > 0 ? defaultNotebookDocumentIds : undefined,
         documentIds: rawDocumentIds?.length ? rawDocumentIds : undefined,
         documentChatIds: rawDocumentChatIds?.length
           ? rawDocumentChatIds

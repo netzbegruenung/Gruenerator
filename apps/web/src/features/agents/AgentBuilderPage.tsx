@@ -8,6 +8,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useCreateUserAgent, useUpdateUserAgent, useUserAgent, type UserAgentInput } from './api';
 
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
+import { useNotebookCollections } from '@/features/auth/hooks/useProfileData';
 import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
 
 type Locale = 'de-DE' | 'de-AT';
@@ -108,6 +109,9 @@ function AgentBuilderPage() {
     () => SKILLS.map((s) => ({ mention: s.mention, title: s.title })),
     []
   );
+
+  const { query: notebooksQuery } = useNotebookCollections({ isActive: true });
+  const userNotebooks = notebooksQuery.data ?? [];
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -321,11 +325,22 @@ function AgentBuilderPage() {
                 onChange={(e) => set('defaultNotebookId', e.target.value)}
               >
                 <option value="">Kein Standard-Notizbuch</option>
-                {SYSTEM_NOTEBOOKS.map((nb) => (
-                  <option key={nb.id} value={nb.id}>
-                    {nb.title}
-                  </option>
-                ))}
+                <optgroup label="Grünerator-Notizbücher">
+                  {SYSTEM_NOTEBOOKS.map((nb) => (
+                    <option key={nb.id} value={nb.id}>
+                      {nb.title}
+                    </option>
+                  ))}
+                </optgroup>
+                {userNotebooks.length > 0 && (
+                  <optgroup label="Meine Notizbücher">
+                    {userNotebooks.map((nb) => (
+                      <option key={String(nb.id)} value={String(nb.id)}>
+                        {nb.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
               <span className="text-xs text-foreground-muted">
                 Wird beim Öffnen der Agent*in automatisch als Wissensquelle ausgewählt.
