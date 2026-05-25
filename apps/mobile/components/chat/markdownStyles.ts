@@ -8,30 +8,30 @@ export function getMarkdownStyles(theme: Theme) {
   return {
     body: {
       color: theme.text,
-      fontSize: 15,
-      lineHeight: 22,
+      fontSize: 16,
+      lineHeight: 25,
     },
     heading1: {
       color: theme.text,
-      fontSize: 20,
+      fontSize: 22,
       fontWeight: '700' as const,
       marginBottom: spacing.xsmall,
     },
     heading2: {
       color: theme.text,
-      fontSize: 18,
+      fontSize: 19,
       fontWeight: '600' as const,
       marginBottom: spacing.xsmall,
     },
     heading3: {
       color: theme.text,
-      fontSize: 16,
+      fontSize: 17,
       fontWeight: '600' as const,
       marginBottom: spacing.xxsmall,
     },
     paragraph: {
       marginTop: 0,
-      marginBottom: spacing.xsmall,
+      marginBottom: spacing.small,
     },
     link: {
       color: theme.link,
