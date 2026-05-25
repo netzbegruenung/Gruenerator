@@ -21,8 +21,10 @@ export const userAgents = pgTable(
     opening_questions: jsonb('opening_questions').$type<string[]>().notNull().default([]),
     locale: text('locale').notNull().default('de-DE'),
     author: text('author').notNull(),
+    default_notebook_id: text('default_notebook_id'),
     plugins: jsonb('plugins').$type<string[]>(),
     enabled_tools: jsonb('enabled_tools').$type<string[]>(),
+    skill_mentions: jsonb('skill_mentions').$type<string[]>(),
     few_shot_examples:
       jsonb('few_shot_examples').$type<
         Array<{ input: string; output: string; reasoning?: string }>
