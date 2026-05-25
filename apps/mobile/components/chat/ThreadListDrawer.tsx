@@ -48,23 +48,32 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Boards', icon: 'grid-outline', path: '/(tabs)/(desk)/boards' },
 ];
 
-const ThreadItem = memo(function ThreadItem({
-  index,
+// The body must read `aui` from *inside* ThreadListItemByIndexProvider so that
+// `aui.threadListItem()` resolves to this row's thread. Calling useAui() above the
+// provider (as the outer ThreadItem does) yields the ambient "new" thread instead —
+// no remoteId — which silently breaks tap-to-open and delete.
+const ThreadItemBody = memo(function ThreadItemBody({
   theme,
   onSelect,
   isActive,
 }: {
-  index: number;
   theme: Theme;
   onSelect: () => void;
   isActive: boolean;
 }) {
   const aui = useAui();
+  const router = useRouter();
 
   const handlePress = useCallback(() => {
-    aui.threadListItem().switchTo();
+    const { remoteId } = aui.threadListItem().getState();
+    // Push first, THEN close the drawer: the conversation mounts behind the open
+    // drawer, so closing it reveals the conversation directly instead of briefly
+    // flashing the screen underneath (looks like a double navigation otherwise).
+    if (remoteId) {
+      router.push(routeWithParams('/(focused)/chat-conversation', { threadId: remoteId }));
+    }
     onSelect();
-  }, [aui, onSelect]);
+  }, [aui, onSelect, router]);
 
   const handleDelete = useCallback(() => {
     const title = aui.threadListItem().getState().title;
@@ -79,23 +88,39 @@ const ThreadItem = memo(function ThreadItem({
   }, [aui]);
 
   return (
+    <ThreadListItemPrimitive.Root style={styles.itemRoot}>
+      <Pressable
+        onPress={handlePress}
+        onLongPress={handleDelete}
+        delayLongPress={350}
+        style={({ pressed }) => [
+          styles.itemTrigger,
+          { backgroundColor: pressed ? theme.surface : 'transparent' },
+        ]}
+      >
+        <Text style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
+          <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
+        </Text>
+      </Pressable>
+      {isActive && <View style={[styles.activeDot, { backgroundColor: colors.primary[500] }]} />}
+    </ThreadListItemPrimitive.Root>
+  );
+});
+
+const ThreadItem = memo(function ThreadItem({
+  index,
+  theme,
+  onSelect,
+  isActive,
+}: {
+  index: number;
+  theme: Theme;
+  onSelect: () => void;
+  isActive: boolean;
+}) {
+  return (
     <ThreadListItemByIndexProvider index={index} archived={false}>
-      <ThreadListItemPrimitive.Root style={styles.itemRoot}>
-        <Pressable
-          onPress={handlePress}
-          onLongPress={handleDelete}
-          delayLongPress={350}
-          style={({ pressed }) => [
-            styles.itemTrigger,
-            { backgroundColor: pressed ? theme.surface : 'transparent' },
-          ]}
-        >
-          <Text style={[styles.itemTitle, { color: theme.text }]} numberOfLines={1}>
-            <ThreadListItemPrimitive.Title fallback="Neue Unterhaltung" />
-          </Text>
-        </Pressable>
-        {isActive && <View style={[styles.activeDot, { backgroundColor: colors.primary[500] }]} />}
-      </ThreadListItemPrimitive.Root>
+      <ThreadItemBody theme={theme} onSelect={onSelect} isActive={isActive} />
     </ThreadListItemByIndexProvider>
   );
 });
@@ -245,8 +270,10 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
   const openNewConversation = useCallback(
     (params: { agentId?: string; notebookId?: string; initialComposerText?: string }) => {
       setSheetVisible(false);
-      closeDrawer();
+      // Push before closing the drawer to avoid flashing the screen underneath
+      // (see handlePress).
       router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new', ...params }));
+      closeDrawer();
     },
     [closeDrawer, router]
   );
@@ -307,7 +334,7 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
       <View style={[styles.header, { paddingTop: insets.top + spacing.small }]}>
         <Text style={[styles.headerTitle, { color: theme.text }]}>Grünerator</Text>
         <ThreadListPrimitive.New style={styles.newButton}>
-          <Ionicons name="create-outline" size={22} color={colors.primary[600]} />
+          <Ionicons name="add-circle-outline" size={26} color={colors.primary[600]} />
         </ThreadListPrimitive.New>
       </View>
 
