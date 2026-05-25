@@ -1,3 +1,4 @@
+// React Native docs chat panel (mobile counterpart of packages/docs/src/components/chat/ChatSidebar.tsx). NOT the chat-package thread sidebar.
 import { getSystemAgent, localizeAgent } from '@gruenerator/shared/agents';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
