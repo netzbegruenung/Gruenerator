@@ -47,24 +47,20 @@ export class OffboardingService {
   async *fetchOffboardingUsers(): AsyncGenerator<OffboardingUser> {
     let after: string | null = null;
 
+    // A fetch failure must NOT be swallowed: silently breaking here makes a failed
+    // Grüne API call indistinguishable from an empty offboarding queue, so the run
+    // reports success with zero users processed. Let the error propagate (the client
+    // already logs it) so runOffboarding/dryRunOffboarding fail loudly instead.
     while (true) {
-      try {
-        const response = await this.apiClient.findUsersToOffboard(this.config.REQUEST_LIMIT, after);
-        const users = response.data || [];
+      const response = await this.apiClient.findUsersToOffboard(this.config.REQUEST_LIMIT, after);
+      const users = response.data || [];
 
-        for (const user of users) {
-          yield user;
-        }
+      for (const user of users) {
+        yield user;
+      }
 
-        after = response.meta?.cursorNext || null;
-        if (!after) {
-          break;
-        }
-      } catch (error: unknown) {
-        log.error(
-          'Failed to fetch users from API:',
-          error instanceof Error ? error.message : String(error)
-        );
+      after = response.meta?.cursorNext || null;
+      if (!after) {
         break;
       }
     }
