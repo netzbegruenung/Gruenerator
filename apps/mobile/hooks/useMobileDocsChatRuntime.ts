@@ -1,6 +1,6 @@
 import { useLocalRuntime, type LocalRuntimeOptions } from '@assistant-ui/react-native';
 import { createGrueneratorModelAdapter, type GrueneratorAdapterConfig } from '@gruenerator/chat';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 
 /**
  * Runtime for the in-document AI assistant. Deliberately does NOT read from the
@@ -15,6 +15,14 @@ export function useMobileDocsChatRuntime() {
   // Track the server-created thread id locally (not in useAgentStore). null until
   // the first message creates a thread.
   const [threadId, setThreadId] = useState<string | null>(null);
+  // Read the thread id lazily inside getConfig (via ref) so getConfig — and thus
+  // the model adapter and the runtime — stay STABLE across thread creation.
+  // Listing threadId as a getConfig dep rebuilds the runtime on the first reply,
+  // which makes AssistantRuntimeProvider's binder setState during render
+  // ("Cannot update _RuntimeBinder while rendering MobileDocsChatProvider").
+  // Mirrors the main chat hook's `useAgentStore.getState().currentThreadId`.
+  const threadIdRef = useRef(threadId);
+  threadIdRef.current = threadId;
 
   const getConfig = useCallback(
     (): GrueneratorAdapterConfig => ({
@@ -27,13 +35,13 @@ export function useMobileDocsChatRuntime() {
         pressemitteilung_examples: false,
         research: true,
       },
-      threadId,
+      threadId: threadIdRef.current,
       threadMode: 'chat',
       searchMode: 'web',
       // Phase 1: Q&A only — no document editing.
       customEnabledTools: { edit_current_doc: false },
     }),
-    [threadId]
+    []
   );
 
   const onThreadCreated = useCallback((newThreadId: string) => {
