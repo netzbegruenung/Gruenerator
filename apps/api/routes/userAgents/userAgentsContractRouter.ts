@@ -1,0 +1,279 @@
+/**
+ * ts-rest contract router for user-created agent CRUD.
+ *
+ * Replaces the legacy Express router in userAgents.ts. Covers:
+ *   - GET    /api/user-agents
+ *   - POST   /api/user-agents
+ *   - POST   /api/user-agents/convert-cg/:slug
+ *   - GET    /api/user-agents/:identifier
+ *   - PATCH  /api/user-agents/:identifier
+ *   - DELETE /api/user-agents/:identifier
+ *
+ * requireAuth is applied at the /api/user-agents prefix in routes.ts. System
+ * agents stay static (the registry); these rows merge in via
+ * `agentLoader.getAgentForUser()`.
+ */
+
+import { userAgentsContract, type AgentFewShotExample } from '@gruenerator/contracts';
+import { isUserSelectableTool } from '@gruenerator/shared/agents';
+import { createExpressEndpoints, initServer } from '@ts-rest/express';
+
+import {
+  createUserAgent,
+  CUSTOM_GENERATOR_AGENT_PREFIX,
+  customGeneratorToUserAgentInput,
+  deleteUserAgent,
+  getCustomGeneratorRow,
+  getUserAgent,
+  listUserAgents,
+  updateUserAgent,
+  type UserAgentInput,
+  type UserAgentPatch,
+} from '../../services/userAgents/userAgentsRepository.js';
+import { logContractValidationError } from '../../utils/contractValidationLogger.js';
+import { getAuthedUser } from '../../utils/getAuthedUser.js';
+import { createLogger } from '../../utils/logger.js';
+
+import type { Application } from 'express';
+
+const log = createLogger('userAgentsContractRouter');
+
+/** Tool keys not in the user-selectable catalog (closed set lives in shared). */
+function invalidTools(tools: readonly string[] | null | undefined): string[] {
+  if (!tools) return [];
+  return tools.filter((t) => !isUserSelectableTool(t));
+}
+
+/**
+ * Normalize few-shot examples at the boundary: Zod's `.optional()` infers
+ * `reasoning?: string | undefined`, but the repository type is `reasoning?:
+ * string` (exactOptionalPropertyTypes). Omit `reasoning` when absent rather
+ * than forwarding an explicit `undefined`.
+ */
+function toFewShot(
+  list: readonly AgentFewShotExample[]
+): Array<{ input: string; output: string; reasoning?: string }> {
+  return list.map((e) => ({
+    input: e.input,
+    output: e.output,
+    ...(e.reasoning != null ? { reasoning: e.reasoning } : {}),
+  }));
+}
+
+const s = initServer();
+
+export const userAgentsContractRouter = s.router(userAgentsContract, {
+  list: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const agents = await listUserAgents(userId);
+      return { status: 200 as const, body: { success: true, agents } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userAgentsContract.list] Error:', err);
+      return { status: 500 as const, body: { success: false, message: err.message } };
+    }
+  },
+
+  create: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const body = args.body;
+
+      if (body.identifier.startsWith('gruenerator-')) {
+        return {
+          status: 400 as const,
+          body: { success: false, message: 'Bezeichner darf nicht mit "gruenerator-" beginnen.' },
+        };
+      }
+
+      const bad = invalidTools(body.enabledTools);
+      if (bad.length > 0) {
+        return {
+          status: 400 as const,
+          body: { success: false, message: `Unbekannte Tools: ${bad.join(', ')}` },
+        };
+      }
+
+      const input: UserAgentInput = {
+        identifier: body.identifier,
+        title: body.title,
+        description: body.description,
+        systemRole: body.systemRole,
+        avatar: body.avatar,
+        backgroundColor: body.backgroundColor,
+        tags: body.tags,
+        model: body.model,
+        provider: body.provider,
+        params: body.params,
+        openingMessage: body.openingMessage,
+        openingQuestions: body.openingQuestions,
+        locale: body.locale,
+        author: body.author,
+        ...(body.defaultModel != null ? { defaultModel: body.defaultModel } : {}),
+        ...(body.defaultNotebookId != null ? { defaultNotebookId: body.defaultNotebookId } : {}),
+        ...(body.plugins != null ? { plugins: body.plugins } : {}),
+        ...(body.enabledTools != null ? { enabledTools: body.enabledTools } : {}),
+        ...(body.skillMentions != null ? { skillMentions: body.skillMentions } : {}),
+        ...(body.fewShotExamples != null
+          ? { fewShotExamples: toFewShot(body.fewShotExamples) }
+          : {}),
+      };
+
+      const agent = await createUserAgent(userId, input);
+      return { status: 201 as const, body: { success: true, agent } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userAgentsContract.create] Error:', err);
+      if (err.message.includes('unique')) {
+        return {
+          status: 409 as const,
+          body: {
+            success: false,
+            message: 'Es existiert bereits eine Agent*in mit diesem Bezeichner.',
+          },
+        };
+      }
+      return { status: 500 as const, body: { success: false, message: err.message } };
+    }
+  },
+
+  convertCg: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const cgRow = await getCustomGeneratorRow(userId, args.params.slug);
+      if (!cgRow) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Custom Grünerator nicht gefunden.' },
+        };
+      }
+
+      const targetIdentifier = `${CUSTOM_GENERATOR_AGENT_PREFIX}${cgRow.slug}`;
+      const existing = await getUserAgent(userId, targetIdentifier);
+      if (existing) {
+        return {
+          status: 409 as const,
+          body: {
+            success: false,
+            message: 'Dieser Grünerator wurde bereits konvertiert.',
+            agent: existing,
+          },
+        };
+      }
+
+      const input = customGeneratorToUserAgentInput(cgRow);
+      const agent = await createUserAgent(userId, input);
+      return { status: 201 as const, body: { success: true, agent } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userAgentsContract.convertCg] Error:', err);
+      if (err.message.includes('unique')) {
+        return {
+          status: 409 as const,
+          body: { success: false, message: 'Dieser Grünerator wurde bereits konvertiert.' },
+        };
+      }
+      return { status: 500 as const, body: { success: false, message: err.message } };
+    }
+  },
+
+  get: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const agent = await getUserAgent(userId, args.params.identifier);
+      if (!agent) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Agent*in nicht gefunden.' },
+        };
+      }
+      return { status: 200 as const, body: { success: true, agent } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userAgentsContract.get] Error:', err);
+      return { status: 500 as const, body: { success: false, message: err.message } };
+    }
+  },
+
+  update: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const b = args.body;
+
+      const bad = invalidTools(b.enabledTools);
+      if (bad.length > 0) {
+        return {
+          status: 400 as const,
+          body: { success: false, message: `Unbekannte Tools: ${bad.join(', ')}` },
+        };
+      }
+
+      // Build the patch field-by-field: only keys present on the body mutate a
+      // column. `defaultNotebookId`/`defaultModel` may be `null` (clear), so
+      // they're forwarded on `!== undefined`; the array fields treat `null` as
+      // "leave unchanged" (`!= null`).
+      const patch: UserAgentPatch = {};
+      if (b.title !== undefined) patch.title = b.title;
+      if (b.description !== undefined) patch.description = b.description;
+      if (b.systemRole !== undefined) patch.systemRole = b.systemRole;
+      if (b.avatar !== undefined) patch.avatar = b.avatar;
+      if (b.backgroundColor !== undefined) patch.backgroundColor = b.backgroundColor;
+      if (b.tags !== undefined) patch.tags = b.tags;
+      if (b.model !== undefined) patch.model = b.model;
+      if (b.defaultModel !== undefined) patch.defaultModel = b.defaultModel;
+      if (b.provider !== undefined) patch.provider = b.provider;
+      if (b.params !== undefined) patch.params = b.params;
+      if (b.openingMessage !== undefined) patch.openingMessage = b.openingMessage;
+      if (b.openingQuestions !== undefined) patch.openingQuestions = b.openingQuestions;
+      if (b.locale !== undefined) patch.locale = b.locale;
+      if (b.author !== undefined) patch.author = b.author;
+      if (b.defaultNotebookId !== undefined) patch.defaultNotebookId = b.defaultNotebookId;
+      if (b.plugins != null) patch.plugins = b.plugins;
+      if (b.enabledTools != null) patch.enabledTools = b.enabledTools;
+      if (b.skillMentions != null) patch.skillMentions = b.skillMentions;
+      if (b.fewShotExamples != null) patch.fewShotExamples = toFewShot(b.fewShotExamples);
+
+      const agent = await updateUserAgent(userId, args.params.identifier, patch);
+      if (!agent) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Agent*in nicht gefunden.' },
+        };
+      }
+      return { status: 200 as const, body: { success: true, agent } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userAgentsContract.update] Error:', err);
+      return { status: 500 as const, body: { success: false, message: err.message } };
+    }
+  },
+
+  remove: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const ok = await deleteUserAgent(userId, args.params.identifier);
+      if (!ok) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Agent*in nicht gefunden.' },
+        };
+      }
+      return { status: 200 as const, body: { success: true } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userAgentsContract.remove] Error:', err);
+      return { status: 500 as const, body: { success: false, message: err.message } };
+    }
+  },
+});
+
+/**
+ * Mount the ts-rest user-agents contract router. Call from routes.ts. requireAuth
+ * is applied at the /api/user-agents prefix.
+ */
+export function mountUserAgentsContractRouter(app: Application): void {
+  createExpressEndpoints(userAgentsContract, userAgentsContractRouter, app, {
+    requestValidationErrorHandler: logContractValidationError(log, 'userAgentsContract'),
+  });
+}
