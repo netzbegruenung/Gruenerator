@@ -91,7 +91,6 @@ export default function DocumentsScreen() {
       );
       console.log('[Docs] Created doc:', doc?.id);
       if (doc) {
-        console.log('[Docs] Navigating to:', `/(tabs)/(docs)/document/${doc.id}`);
         router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: doc.id } });
       }
     } catch {

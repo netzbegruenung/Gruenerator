@@ -1,4 +1,5 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
   View,
@@ -7,6 +8,7 @@ import {
   TouchableOpacity,
   Pressable,
   Modal,
+  Platform,
   StyleSheet,
   useColorScheme,
 } from 'react-native';
@@ -16,8 +18,10 @@ import { useSpeechToText } from '../../hooks/useSpeechToText';
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
 import { lightTheme, darkTheme, colors } from '../../theme';
 
+// Only "problem"/in-progress states get a dot. 'connecting' (initial load) and
+// 'connected' show nothing — the skeleton covers the load, so a red/amber dot on
+// open would just be noise.
 const STATUS_COLORS = {
-  connected: '#22c55e',
   syncing: '#f59e0b',
   disconnected: '#ef4444',
 } as const;
@@ -26,20 +30,27 @@ export function NativeDocTopBar() {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const router = useRouter();
   const titleRef = useRef<TextInput>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const connectionStatus = useDocsEditorBridgeStore((s) => s.connectionStatus);
   const documentTitle = useDocsEditorBridgeStore((s) => s.documentTitle);
   const canEdit = useDocsEditorBridgeStore((s) => s.canEdit);
+  const collaborators = useDocsEditorBridgeStore((s) => s.collaborators);
   const dispatchAction = useDocsEditorBridgeStore((s) => s.dispatchAction);
   const toggleFullscreen = useDocsEditorBridgeStore((s) => s.toggleFullscreen);
+  const setVersionsOpen = useDocsEditorBridgeStore((s) => s.setVersionsOpen);
 
   // Native dictation: the OS recognizer (final transcript) feeds the editor via
   // the insert-text bridge — the in-editor web mic can't run in the WebView.
   const { isListening, toggle: toggleDictation } = useSpeechToText();
   const handleDictate = () =>
     void toggleDictation((transcript) => dispatchAction({ type: 'insert-text', text: transcript }));
+
+  // Awareness can report multiple connections for one person (e.g. two tabs) and
+  // occasionally a partial user object — dedup by id so avatars/counts reflect people.
+  const uniqueCollaborators = Array.from(new Map(collaborators.map((c) => [c.id, c])).values());
 
   return (
     <View
@@ -53,9 +64,9 @@ export function NativeDocTopBar() {
       ]}
     >
       <View style={styles.titleRow}>
-        {/* Problem-only indicator: green "connected" is noise, so the dot shows
-            only while syncing (amber) or disconnected (red). */}
-        {connectionStatus !== 'connected' && (
+        {/* Dot only while syncing (amber) or after a real disconnect (red).
+            'connecting'/'connected' show nothing. */}
+        {(connectionStatus === 'syncing' || connectionStatus === 'disconnected') && (
           <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[connectionStatus] }]} />
         )}
         <TextInput
@@ -74,6 +85,43 @@ export function NativeDocTopBar() {
           returnKeyType="done"
         />
       </View>
+
+      {/* Presence: who else is in the document (from Yjs awareness). */}
+      {uniqueCollaborators.length > 0 && (
+        <View style={styles.avatarRow}>
+          {uniqueCollaborators.slice(0, 3).map((c, i) => (
+            <View
+              key={c.id}
+              style={[
+                styles.avatar,
+                {
+                  backgroundColor: c.color || colors.primary[500],
+                  borderColor: theme.background,
+                  marginLeft: i === 0 ? 0 : -8,
+                },
+              ]}
+            >
+              <Text style={styles.avatarText}>
+                {(c.name ?? '').trim().slice(0, 2).toUpperCase() || '?'}
+              </Text>
+            </View>
+          ))}
+          {uniqueCollaborators.length > 3 && (
+            <View
+              style={[
+                styles.avatar,
+                {
+                  backgroundColor: colors.grey[400],
+                  borderColor: theme.background,
+                  marginLeft: -8,
+                },
+              ]}
+            >
+              <Text style={styles.avatarText}>+{uniqueCollaborators.length - 3}</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {canEdit && (
         <TouchableOpacity
@@ -97,7 +145,7 @@ export function NativeDocTopBar() {
         <Ionicons name="ellipsis-vertical" size={22} color={theme.text} />
       </TouchableOpacity>
 
-      {/* Overflow menu: share + fullscreen */}
+      {/* Overflow menu: back (iOS) + share + version history + fullscreen */}
       <Modal
         visible={menuOpen}
         transparent
@@ -111,6 +159,21 @@ export function NativeDocTopBar() {
               { top: insets.top + 44, backgroundColor: theme.card, borderColor: theme.border },
             ]}
           >
+            {/* iOS lacks a reliable system back gesture into the tab stack here, so
+                expose an explicit "Zurück" item (Android keeps its system back). */}
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuOpen(false);
+                  if (router.canGoBack()) router.back();
+                  else router.replace('/(tabs)/(docs)');
+                }}
+              >
+                <Ionicons name="arrow-back" size={20} color={theme.text} />
+                <Text style={[styles.menuItemText, { color: theme.text }]}>Zurück</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
@@ -120,6 +183,16 @@ export function NativeDocTopBar() {
             >
               <Ionicons name="share-social-outline" size={20} color={theme.text} />
               <Text style={[styles.menuItemText, { color: theme.text }]}>Teilen</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuOpen(false);
+                setVersionsOpen(true);
+              }}
+            >
+              <Ionicons name="time-outline" size={20} color={theme.text} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>Versionsverlauf</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.menuItem}
@@ -164,6 +237,24 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     marginRight: 8,
+  },
+  avatarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 4,
+  },
+  avatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.white,
   },
   titleInput: {
     flex: 1,
