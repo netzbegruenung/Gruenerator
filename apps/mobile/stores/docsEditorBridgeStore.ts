@@ -31,7 +31,9 @@ export type DocEditorAction =
   | { type: 'setBlockType'; blockType: string; props?: Record<string, unknown> }
   | { type: 'setAlignment'; alignment: 'left' | 'center' | 'right' }
   | { type: 'insert-text'; text: string }
-  | { type: 'invoke-ai'; prompt: string; useSelection: boolean };
+  | { type: 'invoke-ai'; prompt: string; useSelection: boolean }
+  | { type: 'accept-ai' }
+  | { type: 'reject-ai' };
 
 interface DocsEditorBridgeState {
   // DOM → Native
@@ -50,6 +52,9 @@ interface DocsEditorBridgeState {
 
   // DOM → Native formatting state
   activeFormatting: ActiveFormattingState;
+
+  // DOM → Native AI review state (true while an AI suggestion awaits accept/reject)
+  aiReviewPending: boolean;
 
   // Native-only UI state
   sidebarOpen: boolean;
@@ -70,6 +75,7 @@ interface DocsEditorBridgeState {
   setTypingUsers: (users: string[]) => void;
   setDocSnapshot: (markdown: string, selectionText: string | null) => void;
   setActiveFormatting: (formatting: ActiveFormattingState) => void;
+  setAiReviewPending: (v: boolean) => void;
   toggleSidebar: () => void;
   markChatRead: () => void;
 
@@ -90,6 +96,7 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
   docMarkdown: '',
   docSelectionText: null,
   activeFormatting: { hasSelection: false, blockType: 'paragraph', blockProps: {} },
+  aiReviewPending: false,
   sidebarOpen: false,
   lastSeenMessageCount: 0,
   pendingAction: null,
@@ -131,6 +138,7 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
         return s;
       return { activeFormatting: formatting };
     }),
+  setAiReviewPending: (v) => set((s) => (s.aiReviewPending === v ? s : { aiReviewPending: v })),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   markChatRead: () => set((s) => ({ lastSeenMessageCount: s.chatMessages.length })),
   dispatchAction: (action) =>

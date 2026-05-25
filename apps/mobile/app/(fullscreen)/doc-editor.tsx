@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Pressable, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DocAiReviewBar } from '../../components/docs/DocAiReviewBar';
 import DocEditorDOM from '../../components/docs/DocEditorDOM';
 import { GuestBanner } from '../../components/docs/GuestBanner';
 import { NativeChatSidebar } from '../../components/docs/NativeChatSidebar';
@@ -65,6 +66,7 @@ export default function DocumentScreen() {
   const connectionStatus = store((s) => s.connectionStatus);
   const pendingAction = store((s) => s.pendingAction);
   const actionCounter = store((s) => s.actionCounter);
+  const aiReviewPending = store((s) => s.aiReviewPending);
 
   // Load token (fast) — mounts editor immediately
   useEffect(() => {
@@ -357,6 +359,7 @@ export default function DocumentScreen() {
         <>
           <NativeDocTopBar />
           <NativeFormattingToolbar />
+          {aiReviewPending && <DocAiReviewBar />}
           <GuestBanner />
         </>
       )}
@@ -385,6 +388,7 @@ export default function DocumentScreen() {
           onDocSnapshotChange={(markdown, selectionText) =>
             store.getState().setDocSnapshot(markdown, selectionText)
           }
+          onAiReviewPendingChange={(p) => store.getState().setAiReviewPending(p)}
           proxyFetch={handleProxyFetch}
           wsOpen={handleWsOpen}
           wsSend={handleWsSend}

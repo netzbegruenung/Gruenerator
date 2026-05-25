@@ -8,6 +8,8 @@ import {
   useDocumentChat,
   useDocsAdapter,
   invokeDocumentAI,
+  acceptDocumentAI,
+  rejectDocumentAI,
   type DocsAdapter,
 } from '@gruenerator/docs';
 import { type DOMProps } from 'expo/dom';
@@ -237,6 +239,7 @@ interface DocEditorDOMProps {
   onTypingUsersChange: (usersJson: string) => Promise<void>;
   onActiveStylesChange?: (stylesJson: string) => Promise<void>;
   onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
+  onAiReviewPendingChange?: (pending: boolean) => void;
   proxyFetch?: (url: string, options?: string) => Promise<string>;
   wsOpen?: (url: string, protocols?: string) => Promise<string>;
   wsSend?: (b64: string) => Promise<void>;
@@ -556,6 +559,8 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
   wsReceiveRef.current = props.wsReceive;
   const wsCloseRef = useRef(props.wsClose);
   wsCloseRef.current = props.wsClose;
+  const onAiReviewPendingChangeRef = useRef(props.onAiReviewPendingChange);
+  onAiReviewPendingChangeRef.current = props.onAiReviewPendingChange;
 
   const hasWsBridge = !!(props.wsOpen && props.wsSend && props.wsReceive && props.wsClose);
 
@@ -625,7 +630,24 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
         prompt: string;
         useSelection: boolean;
       };
-      void invokeDocumentAI({ documentId: props.documentId, userPrompt: prompt, useSelection });
+      // On success the diff is applied as ProseMirror suggestions; signal the
+      // native review bar to appear (the web AI popover is suppressed on mobile).
+      void invokeDocumentAI({
+        documentId: props.documentId,
+        userPrompt: prompt,
+        useSelection,
+      }).then((ok) => {
+        if (ok) onAiReviewPendingChangeRef.current?.(true);
+      });
+    } else if (props.pendingAction.type === 'accept-ai') {
+      // NOTE: since the AI menu is never opened, the doc stays editable during
+      // review (xl-ai normally locks isEditable via openAIMenuAtBlock). Accepted
+      // as-is for now — no native editable-locking.
+      acceptDocumentAI(props.documentId);
+      onAiReviewPendingChangeRef.current?.(false);
+    } else if (props.pendingAction.type === 'reject-ai') {
+      rejectDocumentAI(props.documentId);
+      onAiReviewPendingChangeRef.current?.(false);
     }
   }, [props.pendingAction, props.actionCounter]);
 
