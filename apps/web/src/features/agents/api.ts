@@ -1,3 +1,4 @@
+import { type CreateUserAgentBody, type UpdateUserAgentBody } from '@gruenerator/contracts';
 import { SYSTEM_AGENTS, type Agent } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -5,34 +6,35 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../components/utils/apiClient';
 import { useGroups, type GroupSummary } from '../groups/hooks/useGroups';
 
-export interface UserAgentInput {
-  identifier: string;
-  title: string;
-  description: string;
-  systemRole: string;
-  avatar: string;
-  backgroundColor: string;
-  tags: string[];
-  model: string;
-  provider: 'mistral' | 'anthropic' | 'litellm' | 'regolo';
-  params: { max_tokens: number; temperature: number };
-  openingMessage: string;
-  openingQuestions: string[];
-  locale: string;
-  author: string;
-  enabledTools?: string[];
-}
-
-export type UserAgentPatch = Partial<Omit<UserAgentInput, 'identifier'>>;
+// Derived from the ts-rest contract schemas — the single source of truth for
+// the /api/user-agents request shapes.
+export type UserAgentInput = CreateUserAgentBody;
+export type UserAgentPatch = UpdateUserAgentBody;
 
 const KEY = ['user-agents'] as const;
+
+/**
+ * Read an error response body defensively. ts-rest's client response union
+ * includes an `{ status: number; body: unknown }` fallback for undeclared
+ * statuses, so in an error branch `res.body` collapses to `unknown`. One
+ * boundary cast extracts the known error shape (message + optional conflict
+ * agent).
+ */
+function readError(body: unknown): { message: string; agent: Agent | null } {
+  const obj = (body ?? {}) as { message?: unknown; agent?: Agent };
+  return {
+    message: typeof obj.message === 'string' ? obj.message : 'Aktion fehlgeschlagen.',
+    agent: obj.agent ?? null,
+  };
+}
 
 export function useUserAgents() {
   return useQuery({
     queryKey: KEY,
     queryFn: async (): Promise<Agent[]> => {
-      const { data } = await apiClient.get<{ success: boolean; agents: Agent[] }>('/user-agents');
-      return data.agents ?? [];
+      const res = await getContractsClient().userAgents.list();
+      if (res.status === 200) return res.body.agents;
+      throw new Error('Agent*innen konnten nicht geladen werden.');
     },
   });
 }
@@ -43,10 +45,10 @@ export function useUserAgent(identifier: string | undefined) {
     enabled: !!identifier,
     queryFn: async (): Promise<Agent | null> => {
       if (!identifier) return null;
-      const { data } = await apiClient.get<{ success: boolean; agent: Agent }>(
-        `/user-agents/${identifier}`
-      );
-      return data.agent ?? null;
+      const res = await getContractsClient().userAgents.get({ params: { identifier } });
+      if (res.status === 200) return res.body.agent;
+      if (res.status === 404) return null;
+      throw new Error('Agent*in konnte nicht geladen werden.');
     },
   });
 }
@@ -55,11 +57,9 @@ export function useCreateUserAgent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: UserAgentInput): Promise<Agent> => {
-      const { data } = await apiClient.post<{ success: boolean; agent: Agent }>(
-        '/user-agents',
-        input
-      );
-      return data.agent;
+      const res = await getContractsClient().userAgents.create({ body: input });
+      if (res.status === 201) return res.body.agent;
+      throw new Error(readError(res.body).message);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });
@@ -71,11 +71,12 @@ export function useUpdateUserAgent(identifier: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (patch: UserAgentPatch): Promise<Agent> => {
-      const { data } = await apiClient.patch<{ success: boolean; agent: Agent }>(
-        `/user-agents/${identifier}`,
-        patch
-      );
-      return data.agent;
+      const res = await getContractsClient().userAgents.update({
+        params: { identifier },
+        body: patch,
+      });
+      if (res.status === 200) return res.body.agent;
+      throw new Error(readError(res.body).message);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });
@@ -92,18 +93,11 @@ export function useConvertCustomGenerator() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (slug: string): Promise<{ agent: Agent; conflict: boolean }> => {
-      try {
-        const { data } = await apiClient.post<{ success: boolean; agent: Agent }>(
-          `/user-agents/convert-cg/${encodeURIComponent(slug)}`
-        );
-        return { agent: data.agent, conflict: false };
-      } catch (err) {
-        const e = err as { response?: { status?: number; data?: { agent?: Agent } } };
-        if (e.response?.status === 409 && e.response.data?.agent) {
-          return { agent: e.response.data.agent, conflict: true };
-        }
-        throw err;
-      }
+      const res = await getContractsClient().userAgents.convertCg({ params: { slug }, body: {} });
+      if (res.status === 201) return { agent: res.body.agent, conflict: false };
+      const err = readError(res.body);
+      if (res.status === 409 && err.agent) return { agent: err.agent, conflict: true };
+      throw new Error(err.message);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });
@@ -182,7 +176,8 @@ export function useDeleteUserAgent() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (identifier: string): Promise<void> => {
-      await apiClient.delete(`/user-agents/${identifier}`);
+      const res = await getContractsClient().userAgents.remove({ params: { identifier } });
+      if (res.status !== 200) throw new Error('Löschen fehlgeschlagen.');
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });
