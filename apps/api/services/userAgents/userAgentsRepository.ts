@@ -72,8 +72,10 @@ export interface UserAgentInput {
   openingQuestions: string[];
   locale: string;
   author: string;
+  defaultNotebookId?: string | null;
   plugins?: string[];
   enabledTools?: string[];
+  skillMentions?: string[];
   fewShotExamples?: Array<{ input: string; output: string; reasoning?: string }>;
 }
 
@@ -83,7 +85,7 @@ export type UserAgentPatch = Partial<UserAgentInput>;
 // at runtime; Drizzle gives us $type<…> hints but TS treats them as nullable
 // by default for jsonb without a default.
 function rowToAgent(row: UserAgentRow): Agent {
-  const agent: Agent = {
+  return {
     identifier: row.identifier,
     title: row.title,
     description: row.description,
@@ -98,20 +100,11 @@ function rowToAgent(row: UserAgentRow): Agent {
     openingQuestions: row.opening_questions,
     locale: row.locale,
     author: row.author,
-  };
-  if (row.default_model) {
-    return {
-      ...agent,
-      defaultModel: row.default_model,
-      ...(row.plugins ? { plugins: row.plugins } : {}),
-      ...(row.enabled_tools ? { enabledTools: row.enabled_tools } : {}),
-      ...(row.few_shot_examples ? { fewShotExamples: row.few_shot_examples } : {}),
-    };
-  }
-  return {
-    ...agent,
+    ...(row.default_model ? { defaultModel: row.default_model } : {}),
+    ...(row.default_notebook_id ? { defaultNotebookId: row.default_notebook_id } : {}),
     ...(row.plugins ? { plugins: row.plugins } : {}),
     ...(row.enabled_tools ? { enabledTools: row.enabled_tools } : {}),
+    ...(row.skill_mentions ? { skillMentions: row.skill_mentions } : {}),
     ...(row.few_shot_examples ? { fewShotExamples: row.few_shot_examples } : {}),
   };
 }
@@ -134,8 +127,10 @@ function inputToInsertValues(userId: string, input: UserAgentInput) {
     opening_questions: input.openingQuestions,
     locale: input.locale,
     author: input.author,
+    default_notebook_id: input.defaultNotebookId ?? null,
     plugins: input.plugins ?? null,
     enabled_tools: input.enabledTools ?? null,
+    skill_mentions: input.skillMentions ?? null,
     few_shot_examples: input.fewShotExamples ?? null,
   };
 }
@@ -156,8 +151,10 @@ function patchToUpdateValues(patch: UserAgentPatch): Record<string, unknown> {
   if (patch.openingQuestions !== undefined) out.opening_questions = patch.openingQuestions;
   if (patch.locale !== undefined) out.locale = patch.locale;
   if (patch.author !== undefined) out.author = patch.author;
+  if (patch.defaultNotebookId !== undefined) out.default_notebook_id = patch.defaultNotebookId;
   if (patch.plugins !== undefined) out.plugins = patch.plugins;
   if (patch.enabledTools !== undefined) out.enabled_tools = patch.enabledTools;
+  if (patch.skillMentions !== undefined) out.skill_mentions = patch.skillMentions;
   if (patch.fewShotExamples !== undefined) out.few_shot_examples = patch.fewShotExamples;
   return out;
 }

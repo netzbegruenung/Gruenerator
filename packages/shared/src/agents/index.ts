@@ -30,6 +30,14 @@ export {
 
 export { SKILLS, resolveSkillMention } from './skills/index.js';
 
+export {
+  USER_SELECTABLE_TOOLS,
+  USER_SELECTABLE_TOOL_KEYS,
+  DEFAULT_USER_AGENT_TOOLS,
+  isUserSelectableTool,
+  type UserSelectableTool,
+} from './userTools.js';
+
 export { getAgentSlug, resolveAgentSlug } from './slug.js';
 
 export {

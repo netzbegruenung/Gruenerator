@@ -138,6 +138,14 @@ export interface Agent {
    */
   autoRoutingHint?: 'creative' | 'research';
   /**
+   * System skill `mention` strings (e.g. `'presse'`, `'antrag'`) surfaced as
+   * clickable quick-starts on this agent's chat landing. Each resolves via
+   * `resolveSkillMention` to the skill's `promptTemplate`, which is inserted
+   * into the composer on click. Set by the agent creator / builder; absent on
+   * hand-written system entries (which use `openingQuestions` instead).
+   */
+  skillMentions?: readonly string[];
+  /**
    * Frontend icon registry key. Maps to a `react-icons` component in
    * `apps/web/src/components/layout/Sidebar/sidebarAgentConfig.ts::ICON_REGISTRY`.
    * Per-LV `gruenerator-oeffentlichkeitsarbeit-*` agents inherit the megaphone

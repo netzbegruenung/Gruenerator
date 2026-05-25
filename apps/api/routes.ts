@@ -103,6 +103,7 @@ import { mountTransferContractRouter } from './routes/transfer/transferContractR
 import { mountUnsplashContractRouter } from './routes/unsplash/unsplashContractRouter.js';
 import { recentValuesRouter } from './routes/user/index.js';
 import { mountRecentValuesContractRouter } from './routes/user/recentValuesContractRouter.js';
+import { mountUserAgentsContractRouter } from './routes/userAgents/userAgentsContractRouter.js';
 import v1NotebooksRouter from './routes/v1/notebooksRouter.js';
 import { mountVideoContractRouter } from './routes/video/videoContractRouter.js';
 import ttsRouter from './routes/voice/ttsController.js';
@@ -250,7 +251,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: generatorConfiguratorRoute } =
     await import('./routes/custom_generators/generator_configurator.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
-  const { userAgentsRouter } = await import('./routes/userAgents/index.js');
   const {
     collectionsRouter: notebookCollectionsRouter,
     interactionRouter: notebookInteractionRouter,
@@ -543,7 +543,12 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/generate_generator_config', aiGenerationLimiter, generatorConfiguratorRoute);
   app.use('/api/custom_prompt', aiGenerationLimiter, customPromptRoute);
   app.use('/api/auth/custom_prompt', aiGenerationLimiter, customPromptRoute);
-  app.use('/api/user-agents', userAgentsRouter);
+  // ts-rest contract router for user-created agents — replaces the legacy
+  // userAgentsRouter. requireAuth runs before the contract mount because
+  // createExpressEndpoints registers handlers directly on the app, bypassing
+  // any later prefix middleware.
+  app.use('/api/user-agents', requireAuth);
+  mountUserAgentsContractRouter(app);
   app.use('/api/claude/generate-short-subtitles', aiGenerationLimiter, claudeSubtitlesRoute);
   // requireAuth must run before the contract mount — createExpressEndpoints
   // registers handlers directly on the app, bypassing the legacy prefix
