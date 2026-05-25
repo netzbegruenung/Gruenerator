@@ -1,18 +1,8 @@
-import { getGlobalApiClient } from '@gruenerator/shared/api';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  useColorScheme,
-  Pressable,
-  ScrollView,
-  Linking,
-} from 'react-native';
+import { View, Text, StyleSheet, useColorScheme, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatSettingsSheet } from '../../components/chat/ChatSettingsSheet';
@@ -20,65 +10,17 @@ import { ComposerCard } from '../../components/common';
 import { ProfileMenu } from '../../components/navigation/ProfileMenu';
 import { SidebarMenuButton } from '../../components/navigation/SidebarMenuButton';
 import { RecentlyCreatedSection } from '../../components/start/RecentlyCreatedSection';
-import { colors, spacing, lightTheme, darkTheme, borderRadius } from '../../theme';
-import { routeWithParams, type AppRoute } from '../../types/routes';
+import { ToolGrid } from '../../components/tools/ToolGrid';
+import { TOOLS } from '../../components/tools/toolsConfig';
+import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
+import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+import { routeWithParams } from '../../types/routes';
 
 const EXAMPLE_PROMPTS = [
   { label: 'Pressemitteilung', text: 'Schreibe eine Pressemitteilung über ' },
   { label: 'Antrag', text: 'Erstelle einen Antrag zum Thema ' },
   { label: 'Instagram-Post', text: 'Schreibe einen Instagram-Post zum Thema ' },
   { label: 'Rede', text: 'Schreibe eine Rede über ' },
-];
-
-interface Board {
-  id: string;
-  title: string;
-  creator_name?: string;
-  updated_at: string;
-  content?: string | { is_archived?: boolean; board_type?: string };
-}
-
-const BOARDS_URL = 'https://gruenerator.eu/boards';
-const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
-
-function getBoardType(board: Board): string {
-  const content: { board_type?: string; is_archived?: boolean } | undefined =
-    typeof board.content === 'string'
-      ? (JSON.parse(board.content) as { board_type?: string; is_archived?: boolean })
-      : board.content;
-  return content?.board_type ?? 'kanban';
-}
-
-interface ToolDef {
-  id: string;
-  title: string;
-  description: string;
-  icon: IoniconsIconName;
-  route: AppRoute;
-}
-
-const TOOLS: ToolDef[] = [
-  {
-    id: 'scanner',
-    title: 'Scanner',
-    description: 'Dokumente digitalisieren',
-    icon: 'scan',
-    route: '/(tabs)/(desk)/scanner',
-  },
-  {
-    id: 'transkription',
-    title: 'Transkription',
-    description: 'Audio transkribieren',
-    icon: 'mic',
-    route: '/(tabs)/(desk)/transkription',
-  },
-  {
-    id: 'websuche',
-    title: 'Websuche',
-    description: 'KI-Suche im Web',
-    icon: 'globe',
-    route: '/(tabs)/(recherche)/suche',
-  },
 ];
 
 export default function StartScreen() {
@@ -89,34 +31,8 @@ export default function StartScreen() {
   const firstName = user?.display_name?.split(' ')[0] || 'Grüner';
 
   const [settingsVisible, setSettingsVisible] = useState(false);
-  const [boards, setBoards] = useState<Board[]>([]);
-  const [boardsLoading, setBoardsLoading] = useState(true);
-
-  const fetchBoards = useCallback(async () => {
-    try {
-      const apiClient = getGlobalApiClient();
-      const response = await apiClient.get<Board[]>('/boards');
-      const all: Board[] = response.data || [];
-      const active = all.filter((b) => {
-        const content: { is_archived?: boolean } | undefined =
-          typeof b.content === 'string'
-            ? (JSON.parse(b.content) as { is_archived?: boolean })
-            : b.content;
-        return !content?.is_archived;
-      });
-      setBoards(active);
-    } catch {
-      setBoards([]);
-    } finally {
-      setBoardsLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      void fetchBoards();
-    }, [fetchBoards])
-  );
+  const favorites = useToolFavoritesStore((s) => s.favorites);
+  const favoriteTools = TOOLS.filter((tool) => favorites.includes(tool.id));
 
   const handleSend = useCallback(
     (text: string) => {
@@ -178,101 +94,16 @@ export default function StartScreen() {
 
         <RecentlyCreatedSection theme={theme} />
 
-        {/* Boards — only shown when boards exist */}
-        {!boardsLoading && boards.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Boards</Text>
-              <Pressable onPress={() => Linking.openURL(BOARDS_URL)} hitSlop={8}>
-                <Ionicons name="open-outline" size={16} color={theme.textSecondary} />
-              </Pressable>
-            </View>
-
-            <View style={styles.boardGrid}>
-              {boards.map((board) => {
-                const isWhiteboard = getBoardType(board) === 'whiteboard';
-                return (
-                  <Pressable
-                    key={board.id}
-                    onPress={() => Linking.openURL(`${BOARDS_URL}/${board.id}`)}
-                    style={({ pressed }) => [
-                      styles.boardCard,
-                      {
-                        backgroundColor: pressed ? theme.surface : theme.card,
-                        borderColor: theme.cardBorder,
-                      },
-                    ]}
-                  >
-                    <View style={styles.boardCardHeader}>
-                      <Ionicons
-                        name={isWhiteboard ? 'pencil-outline' : 'grid-outline'}
-                        size={18}
-                        color={colors.primary[600]}
-                      />
-                      <View
-                        style={[
-                          styles.typeBadge,
-                          {
-                            backgroundColor: isWhiteboard
-                              ? colors.secondary[100]
-                              : colors.primary[100],
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.typeBadgeText,
-                            {
-                              color: isWhiteboard ? colors.secondary[700] : colors.primary[700],
-                            },
-                          ]}
-                        >
-                          {isWhiteboard ? 'Whiteboard' : 'Kanban'}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={[styles.boardTitle, { color: theme.text }]} numberOfLines={2}>
-                      {board.title}
-                    </Text>
-                    <Text style={[styles.boardMeta, { color: theme.textSecondary }]}>
-                      {board.creator_name && `${board.creator_name} · `}
-                      {new Date(board.updated_at).toLocaleDateString('de-DE', dateFormat)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {/* Tools */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Werkzeuge</Text>
-          <View style={styles.toolGrid}>
-            {TOOLS.map((tool) => (
-              <Pressable
-                key={tool.id}
-                onPress={() => router.push(tool.route as Href)}
-                style={({ pressed }) => [styles.toolItem, { opacity: pressed ? 0.6 : 1 }]}
-              >
-                <View
-                  style={[
-                    styles.toolCircle,
-                    colorScheme === 'dark' ? styles.toolCircleDark : styles.toolCircleLight,
-                  ]}
-                >
-                  <Ionicons
-                    name={tool.icon}
-                    size={24}
-                    color={colorScheme === 'dark' ? colors.grey[200] : colors.secondary[600]}
-                  />
-                </View>
-                <Text style={[styles.toolLabel, { color: theme.text }]} numberOfLines={1}>
-                  {tool.title}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          {favoriteTools.length > 0 ? (
+            <ToolGrid tools={favoriteTools} />
+          ) : (
+            <Text style={[styles.werkzeugeHint, { color: theme.textSecondary }]}>
+              Markiere im Tools-Tab deine Lieblingswerkzeuge – halte ein Werkzeug gedrückt, um es
+              hier anzuheften.
+            </Text>
+          )}
         </View>
       </ScrollView>
       <ChatSettingsSheet visible={settingsVisible} onDismiss={() => setSettingsVisible(false)} />
@@ -336,98 +167,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.medium,
     gap: spacing.small,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
   },
-  loadingRow: {
-    paddingVertical: spacing.large,
-    alignItems: 'center',
-  },
-  emptyCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xsmall,
-    padding: spacing.xlarge,
-    borderRadius: borderRadius.large,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-  },
-  emptyText: {
+  werkzeugeHint: {
     fontSize: 13,
-  },
-  boardGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.small,
-  },
-  boardCard: {
-    width: '48%',
-    flexGrow: 1,
-    padding: spacing.medium,
-    borderRadius: borderRadius.large,
-    borderWidth: 1,
-    gap: spacing.xxsmall,
-  },
-  boardCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xxsmall,
-  },
-  typeBadge: {
-    paddingHorizontal: spacing.xsmall,
-    paddingVertical: 2,
-    borderRadius: borderRadius.small,
-  },
-  typeBadgeText: {
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  boardTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  boardMeta: {
-    fontSize: 11,
-  },
-  toolGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-evenly',
-  },
-  toolItem: {
-    width: '33%',
-    alignItems: 'center',
-    paddingVertical: spacing.small,
-  },
-  toolCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xsmall,
-  },
-  toolCircleLight: {
-    backgroundColor: colors.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  toolCircleDark: {
-    backgroundColor: colors.grey[700],
-  },
-  toolLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'center',
+    lineHeight: 18,
   },
 });

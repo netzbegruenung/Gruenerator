@@ -57,7 +57,7 @@ export default function TemplateInputScreen() {
   };
 
   if (!type) {
-    router.replace(route('/(tabs)/(media)/image-studio'));
+    router.replace(route('/(tabs)/(tools)/image-studio'));
     return null;
   }
 

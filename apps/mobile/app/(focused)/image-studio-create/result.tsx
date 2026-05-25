@@ -90,7 +90,7 @@ export default function ResultScreen() {
 
   const handleNewGeneration = () => {
     reset();
-    router.replace(route('/(tabs)/(media)/image-studio'));
+    router.replace(route('/(tabs)/(tools)/image-studio'));
   };
 
   const handleRetry = () => {
@@ -100,7 +100,7 @@ export default function ResultScreen() {
 
   useEffect(() => {
     if (!kiType) {
-      router.replace(route('/(tabs)/(media)/image-studio'));
+      router.replace(route('/(tabs)/(tools)/image-studio'));
     }
   }, [kiType]);
 

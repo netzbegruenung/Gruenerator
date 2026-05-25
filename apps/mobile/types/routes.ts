@@ -13,15 +13,13 @@ export type AppRoute =
   | '/'
   | '/start'
   | '/profile'
-  // Media routes
-  | '/(tabs)/(media)'
-  | '/(tabs)/(media)/reel'
-  | '/(tabs)/(media)/image-studio'
-  // Desk routes
-  | '/(tabs)/(desk)/scanner'
-  | '/(tabs)/(desk)/transkription'
-  | '/(tabs)/(desk)/gruppen'
-  | '/(tabs)/(desk)/boards'
+  // Tools routes
+  | '/(tabs)/(tools)'
+  | '/(tabs)/(tools)/reel'
+  | '/(tabs)/(tools)/ki-bildgenerierung'
+  | '/(tabs)/(tools)/image-studio'
+  | '/(tabs)/(tools)/scanner'
+  | '/(tabs)/(tools)/transkription'
   // Recherche routes
   | '/(tabs)/(recherche)'
   | '/(tabs)/(recherche)/suche'
@@ -31,6 +29,8 @@ export type AppRoute =
   | '/auth/callback'
   // Focused routes
   | '/(focused)/chat-conversation'
+  | '/(focused)/notebook-detail'
+  | '/(focused)/gruppen'
   | '/(focused)/image-studio-create/image'
   | '/(focused)/image-studio-create/ki-input'
   | '/(focused)/image-studio-create/template-input'
@@ -50,6 +50,11 @@ export interface ModalRouteParams {
     notebookId?: string;
     agentId?: string;
     initialComposerText?: string;
+  };
+  '/(focused)/notebook-detail': {
+    notebookId: string;
+    title?: string;
+    kind: 'system' | 'user';
   };
   '/(fullscreen)/subtitle-editor': {
     projectId: string;
