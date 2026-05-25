@@ -20,16 +20,16 @@
     "@gruenerator/shared": "workspace:*",
     "@gruenerator/sites-design": "workspace:*",
     "@mdxeditor/editor": "^3.55.0",
-    "axios": "^1.16.0",
+    "axios": "^1.16.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "react-icons": "^5.6.0",
-    "tailwind-merge": "^3.5.0",
+    "tailwind-merge": "^3.6.0",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
-    "@types/react": "^19.2.14",
+    "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.4",
     "typescript": "^6.0.3"
