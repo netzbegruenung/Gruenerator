@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, useColorScheme } from 'react-native';
 
+import { DocAiReviewBar } from '../../../../components/docs/DocAiReviewBar';
 import DocEditorDOM from '../../../../components/docs/DocEditorDOM';
 import { GuestBanner } from '../../../../components/docs/GuestBanner';
 import { NativeChatSidebar } from '../../../../components/docs/NativeChatSidebar';
@@ -57,6 +58,7 @@ export default function DocumentScreen() {
   const store = useDocsEditorBridgeStore;
   const pendingAction = store((s) => s.pendingAction);
   const actionCounter = store((s) => s.actionCounter);
+  const aiReviewPending = store((s) => s.aiReviewPending);
 
   // Load token (fast) — mounts editor immediately
   useEffect(() => {
@@ -312,6 +314,7 @@ export default function DocumentScreen() {
 
       <NativeDocTopBar />
       <NativeFormattingToolbar />
+      {aiReviewPending && <DocAiReviewBar />}
       <GuestBanner />
 
       <View style={styles.editorContainer}>
@@ -333,6 +336,7 @@ export default function DocumentScreen() {
           onLocalUserIdChange={handleLocalUserIdChange}
           onTypingUsersChange={handleTypingUsersChange}
           onActiveStylesChange={handleActiveStylesChange}
+          onAiReviewPendingChange={(p) => store.getState().setAiReviewPending(p)}
           proxyFetch={handleProxyFetch}
           wsOpen={handleWsOpen}
           wsSend={handleWsSend}
