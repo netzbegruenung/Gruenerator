@@ -18,6 +18,8 @@ import { userAgentsContract, type AgentFewShotExample } from '@gruenerator/contr
 import { isUserSelectableTool } from '@gruenerator/shared/agents';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
+import { draftAgentSpec } from '../../services/userAgents/agentDraftService.js';
 import {
   createUserAgent,
   CUSTOM_GENERATOR_AGENT_PREFIX,
@@ -135,6 +137,57 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
         };
       }
       return { status: 500 as const, body: { success: false, message: err.message } };
+    }
+  },
+
+  draft: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const { threadId } = args.body;
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      const threads = await postgres.query<{ user_id: string }>(
+        `SELECT user_id FROM chat_threads WHERE id = $1 LIMIT 1`,
+        [threadId]
+      );
+      if (threads.length === 0) {
+        return {
+          status: 404 as const,
+          body: { success: false, message: 'Thread nicht gefunden.' },
+        };
+      }
+      if (threads[0].user_id !== userId) {
+        return { status: 403 as const, body: { success: false, message: 'Keine Berechtigung.' } };
+      }
+
+      const rows = await postgres.query<{ role: string; content: unknown }>(
+        `SELECT role, content FROM chat_messages
+         WHERE thread_id = $1 AND role IN ('user', 'assistant')
+         ORDER BY created_at ASC
+         LIMIT 60`,
+        [threadId]
+      );
+      const messages = rows
+        .map((r) => ({ role: r.role, content: String(r.content ?? '').trim() }))
+        .filter((m) => m.content.length > 0);
+
+      if (messages.length === 0) {
+        return {
+          status: 400 as const,
+          body: { success: false, message: 'Noch keine Unterhaltung zum Auswerten vorhanden.' },
+        };
+      }
+
+      const spec = await draftAgentSpec(messages);
+      return { status: 200 as const, body: { success: true, spec } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[userAgentsContract.draft] Error:', err);
+      return {
+        status: 500 as const,
+        body: { success: false, message: 'Entwurf konnte nicht erstellt werden.' },
+      };
     }
   },
 

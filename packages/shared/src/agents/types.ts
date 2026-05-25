@@ -134,9 +134,10 @@ export interface Agent {
    * Routing hint for the "Automatisch" model picker. Read by the frontend
    * resolver (`resolveAutoModel`) to map this agent to a context-appropriate
    * model without hand-curating ID lists. `'creative'` → Gemma 4 today;
-   * `'research'` is reserved for a future bucket.
+   * `'precise'` → Mistral (strong instruction-following, e.g. the agent
+   * creator); `'research'` is reserved for a future bucket.
    */
-  autoRoutingHint?: 'creative' | 'research';
+  autoRoutingHint?: 'creative' | 'precise' | 'research';
   /**
    * System skill `mention` strings (e.g. `'presse'`, `'antrag'`) surfaced as
    * clickable quick-starts on this agent's chat landing. Each resolves via
