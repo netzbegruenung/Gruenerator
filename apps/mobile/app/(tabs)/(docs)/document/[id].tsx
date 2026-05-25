@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, useColorScheme } from 'react-native';
 
+import { ChatEdgeSwipe } from '../../../../components/docs/ChatEdgeSwipe';
 import { DocAiReviewBar } from '../../../../components/docs/DocAiReviewBar';
 import DocEditorDOM from '../../../../components/docs/DocEditorDOM';
 import { GuestBanner } from '../../../../components/docs/GuestBanner';
@@ -348,6 +349,7 @@ export default function DocumentScreen() {
         />
       </View>
 
+      <ChatEdgeSwipe />
       <NativeChatSidebar documentId={id!} />
       <NativeShareModal
         visible={shareModalVisible}
