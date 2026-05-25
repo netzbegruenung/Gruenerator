@@ -24,6 +24,7 @@ import { DocPreview } from '../../../components/common/DocPreview';
 import { AIDocumentCreatorSheet } from '../../../components/docs/AIDocumentCreatorSheet';
 import { NativeShareModal } from '../../../components/docs/NativeShareModal';
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
+import { useIsTablet } from '../../../hooks/useIsTablet';
 import { useDocsStore } from '../../../stores/docsStore';
 import { lightTheme, darkTheme, colors } from '../../../theme';
 
@@ -44,6 +45,7 @@ export default function DocumentsScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const { user } = useAuth();
+  const gridCols = useIsTablet() ? 3 : 2;
 
   const {
     documents,
@@ -352,11 +354,11 @@ export default function DocumentsScreen() {
         </View>
       ) : viewMode === 'grid' ? (
         <FlatList
-          key="grid"
+          key={`grid-${gridCols}`}
           data={filteredDocuments}
           keyExtractor={(item) => item.id}
           renderItem={renderDocument}
-          numColumns={2}
+          numColumns={gridCols}
           columnWrapperStyle={styles.gridRow}
           contentContainerStyle={[
             styles.gridContent,
