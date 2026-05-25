@@ -6,6 +6,8 @@ import type { QueryClient } from '@tanstack/react-query';
 declare global {
   interface ImportMetaEnv {
     readonly VITE_BACKEND_URL: string;
+    // Opt-in flag to expose the agent creator on a non-dev deploy.
+    readonly VITE_SHOW_AGENT_CREATOR?: string;
   }
 
   // Umami analytics
