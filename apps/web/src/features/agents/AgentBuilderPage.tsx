@@ -1,5 +1,9 @@
 import { type UpdateUserAgentBody } from '@gruenerator/contracts';
-import { SKILLS, USER_SELECTABLE_TOOLS } from '@gruenerator/shared/agents';
+import {
+  DEFAULT_USER_AGENT_TOOLS,
+  SKILLS,
+  USER_SELECTABLE_TOOLS,
+} from '@gruenerator/shared/agents';
 import { generateSlugSuffix, slugifyName } from '@gruenerator/shared/utils';
 import { MultiStepForm } from '@gruenerator/ui';
 import { useMemo, useState, type FormEvent } from 'react';
@@ -91,7 +95,9 @@ function AgentBuilderPage() {
       locale: existing.locale === 'de-AT' ? 'de-AT' : 'de-DE',
       openingMessage: existing.openingMessage,
       openingQuestions: existing.openingQuestions.join('\n'),
-      enabledTools: [...(existing.enabledTools ?? [])],
+      // Fall back to defaults (not []) so editing a legacy agent that had no
+      // enabledTools doesn't silently narrow it to zero tools.
+      enabledTools: [...(existing.enabledTools ?? DEFAULT_USER_AGENT_TOOLS)],
       skillMentions: [...(existing.skillMentions ?? [])],
       defaultNotebookId: existing.defaultNotebookId ?? '',
       tags: existing.tags.join(', '),
@@ -149,7 +155,9 @@ function AgentBuilderPage() {
       } else {
         const slug = slugifyName(form.title, 'agent');
         const payload: UserAgentInput = {
-          identifier: `${slug}-${generateSlugSuffix()}`,
+          // Suffix lowercased to satisfy the identifier regex `^[a-z0-9-]+$`
+          // (generateSlugSuffix's alphabet includes uppercase letters).
+          identifier: `${slug}-${generateSlugSuffix().toLowerCase()}`,
           title: form.title.trim(),
           description: form.description.trim(),
           systemRole: form.systemRole.trim(),
@@ -177,6 +185,9 @@ function AgentBuilderPage() {
 
   const canProceed = step < STEP_COUNT - 1;
   const titleValid = form.title.trim().length > 0;
+  const descValid = form.description.trim().length > 0;
+  const avatarValid = form.avatar.trim().length > 0;
+  const basicsValid = titleValid && descValid && avatarValid;
   const roleValid = form.systemRole.trim().length >= 10;
 
   return (
@@ -437,7 +448,7 @@ function AgentBuilderPage() {
             <button
               type="button"
               className="rounded bg-primary-600 px-md py-sm text-white hover:bg-primary-700 disabled:opacity-50"
-              disabled={(step === 0 && !titleValid) || (step === 1 && !roleValid)}
+              disabled={(step === 0 && !basicsValid) || (step === 1 && !roleValid)}
               onClick={() => setStep((s) => Math.min(STEP_COUNT - 1, s + 1))}
             >
               Weiter
@@ -446,7 +457,7 @@ function AgentBuilderPage() {
             <button
               type="submit"
               className="rounded bg-primary-600 px-md py-sm text-white hover:bg-primary-700 disabled:opacity-50"
-              disabled={!titleValid || !roleValid || createMut.isPending || updateMut.isPending}
+              disabled={!basicsValid || !roleValid || createMut.isPending || updateMut.isPending}
             >
               {isEdit ? 'Speichern' : 'Erstellen'}
             </button>

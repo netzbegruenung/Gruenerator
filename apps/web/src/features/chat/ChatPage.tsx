@@ -6,7 +6,7 @@ import {
   type UserRole,
 } from '@gruenerator/chat';
 import { getSystemAgent, resolveAgentSlug } from '@gruenerator/shared/agents';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
@@ -40,6 +40,10 @@ function ChatPage() {
   const firstName = useFirstName();
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
   const { data: userAgents } = useUserAgents();
+  // The agent we've already auto-applied a default notebook for. Prevents the
+  // effect from re-applying (and clobbering a manual notebook pick) when the
+  // `userAgents` query reference changes on an unrelated cache invalidation.
+  const notebookAppliedForRef = useRef<string | null>(null);
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
   const agentParam = searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null);
@@ -63,32 +67,40 @@ function ChatPage() {
         store.setSelectedAgent(agentParam);
         store.setChatViewMode('thread');
       }
-      // Per-LV PR agents (and any future agent that declares a
-      // defaultNotebookId) auto-pair their notebook so RAG and @notebook
-      // lookups align with the agent's regional identity. We always re-apply
-      // on agent change — the agent IS the source of truth here, and picking
-      // a different notebook manually after the agent is selected is an
-      // unusual flow we'd revisit only if users complain.
-      const agentMeta = getSystemAgent(agentParam);
-      // User-created agents aren't in the system registry — resolve their
-      // notebook binding from the user-agents list (a system notebook id).
-      const userAgentNotebook = agentMeta
-        ? undefined
-        : userAgents?.find((a) => a.identifier === agentParam)?.defaultNotebookId;
-      const boundNotebookId = agentMeta?.defaultNotebookId ?? userAgentNotebook;
-      if (boundNotebookId && store.selectedNotebookId !== boundNotebookId) {
-        store.setSelectedNotebook(boundNotebookId);
-      } else if (
-        !boundNotebookId &&
-        userLocale === 'de-AT' &&
-        store.selectedNotebookId !== AT_DEFAULT_NOTEBOOK_ID
-      ) {
-        // AT-first: agents without an explicit notebook pair with the
-        // Österreich notebook so RAG / @notebook queries stay in-locale.
-        store.setSelectedNotebook(AT_DEFAULT_NOTEBOOK_ID);
+      // Auto-pair the agent's default notebook — but only ONCE per agent, not
+      // on every effect run. System agents (per-LV PR agents etc.) resolve
+      // synchronously; user-created agents resolve from the user-agents list
+      // (which may load late), so we wait until it's available before marking
+      // this agent handled. Applying once avoids clobbering a manual notebook
+      // pick when the user-agents query reference changes later.
+      if (notebookAppliedForRef.current !== agentParam) {
+        const agentMeta = getSystemAgent(agentParam);
+        const userAgentNotebook = agentMeta
+          ? undefined
+          : userAgents?.find((a) => a.identifier === agentParam)?.defaultNotebookId;
+        const boundNotebookId = agentMeta?.defaultNotebookId ?? userAgentNotebook;
+        // "Resolved" = a system agent (sync) or the user-agents list has loaded.
+        const resolved = !!agentMeta || userAgents !== undefined;
+        if (boundNotebookId) {
+          if (store.selectedNotebookId !== boundNotebookId) {
+            store.setSelectedNotebook(boundNotebookId);
+          }
+          notebookAppliedForRef.current = agentParam;
+        } else if (resolved) {
+          // AT-first: agents without an explicit notebook pair with the
+          // Österreich notebook so RAG / @notebook queries stay in-locale.
+          if (userLocale === 'de-AT' && store.selectedNotebookId !== AT_DEFAULT_NOTEBOOK_ID) {
+            store.setSelectedNotebook(AT_DEFAULT_NOTEBOOK_ID);
+          }
+          notebookAppliedForRef.current = agentParam;
+        }
+        // else: user agent whose data hasn't loaded yet — wait for the next run.
       }
-    } else if (store.selectedAgentId !== null) {
-      store.setSelectedAgent(null);
+    } else {
+      notebookAppliedForRef.current = null;
+      if (store.selectedAgentId !== null) {
+        store.setSelectedAgent(null);
+      }
     }
     if (
       modeParam &&
