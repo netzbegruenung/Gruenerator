@@ -27,8 +27,6 @@ Es gibt zwei Sorten von Landesverband-Agents:
 Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben beiden Agent-Typen (Agent `/agents/gruene-oesterreich`, Wissensdatenbank `/notebooks/oesterreich` · `@at`). Diese Agents verwenden österreichisches Vokabular (Nationalrat, Klubobfrau\*Klubobmann, Klimaticket) und erscheinen nur für Nutzer\*innen mit österreichischer Einstellung.
 :::
 
-Bei Schleswig-Holstein ist die Wissensdatenbank aktuell noch nicht freigeschaltet; der Öffentlichkeitsarbeit-Agent ist deshalb noch nicht voll einsatzbereit. Die Bürger\*innenanfragen-Funktion funktioniert bereits.
-
 ## Pressemitteilungen & Social Media schreiben
 
 Du erreichst einen Öffentlichkeitsarbeit-Agent auf zwei Wegen:
@@ -55,19 +53,6 @@ Für Bayern und Schleswig-Holstein gibt es (noch) keine eigenen Skill-Abkürzung
 Unabhängig vom Landesverband gibt es allgemeine Skills für jede Plattform: `/presse`, `/instagram`, `/facebook`, `/twitter`, `/linkedin` und `/reel`. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Skills oben sind die Spezialversion mit eingebautem Regional-Stil.
 :::
 
-### Was die LV-Agents besonders macht
-
-Jeder hand-getunte LV-Agent kennt die Eigenheiten seines Landesverbands. Ein paar Beispiele:
-
-- **Berlin** — ein einziger langer Lead-Satz, gefolgt von einem Block-Zitat; pointierte Wegner-Kritik; Kiez- und Clubkultur-Bezug.
-- **Hamburg** — koalitionsfreundlicher Rot-Grün-Ton, Bürgerschafts-Bezug, hanseatischer Weg; zitiert die Fraktion, nie Senator\*innen.
-- **Mecklenburg-Vorpommern** — kämpferische Tonalität, Ostsee- und Offshore-Frame, Erneuerbare als Wirtschaftsthema.
-- **Thüringen** — außerparlamentarische Oppositionsstimme gegen die „Brombeer-Regierung", „Vorreiter verspielt"-Narrativ.
-- **Brandenburg** — durchgehend „Bündnisgrüne" statt „Grüne", Strukturwandel- und Lausitz-Frame, nüchterner Ton.
-- **Bayern** — Doppelspitzen-Zitat, „Freiheitsenergie"-Frame, Söder-/Aiwanger-Opposition.
-
-Die Agents erfinden **keine Zitate oder Fakten** — sie recherchieren erst in der LV-Wissensdatenbank und im Web und schreiben dann auf dieser Basis.
-
 ## Bürger\*innenanfragen beantworten
 
 Die Bürger\*innenanfragen-Agents helfen dir, eingehende E-Mails von Bürger\*innen zu beantworten. Du fügst die Anfrage ein, der Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine **versandfertige Antwort-E-Mail** nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links.
@@ -84,7 +69,3 @@ Du kannst dasselbe Notebook auch direkt nutzen:
 - **Im Chat als Quelle einbinden:** tippe die `@`-Erwähnung, z. B. `@berlin`, `@hamburg`, `@mv`, `@thüringen`, `@brandenburg` oder `@bayern`. Der Chat zieht dann seine Antworten aus diesem Notebook.
 
 Mehr zu Notebooks allgemein findest du unter [Notebooks](/docs/notebooks/eigenes-notebook-erstellen).
-
-:::info Technischer Hintergrund
-Der Stil jedes hand-getunten LV-Agents stammt aus einer Korpusanalyse von echten Pressemitteilungen des jeweiligen Landesverbands. Die Analysen liegen im internen Bereich unter **Landesverband-Korpusanalyse** und richten sich an die Personen, die die Agents pflegen.
-:::
