@@ -51,6 +51,12 @@ export interface ApiConfig {
   baseURL: string;
   getAuthToken?: () => Promise<string | null>;
   onUnauthorized?: () => void | Promise<boolean>;
+  /**
+   * Called when a response carries a refreshed bearer token (Better Auth's
+   * `set-auth-token` header). Persist it so the stored token tracks the server
+   * session and never drifts. Bearer/mobile only — omitted on web (cookie mode).
+   */
+  onTokenRefresh?: (token: string) => void | Promise<void>;
 }
 
 /**
