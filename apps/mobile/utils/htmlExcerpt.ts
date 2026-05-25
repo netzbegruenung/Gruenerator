@@ -10,11 +10,12 @@ export function htmlToExcerpt(html: string, max = 180): string {
   const text = html
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&#39;|&apos;/g, "'")
     .replace(/&quot;/g, '"')
+    // Decode &amp; LAST so e.g. "&amp;lt;" stays literal "&lt;" (avoids double-unescaping).
+    .replace(/&amp;/g, '&')
     .replace(/\s+/g, ' ')
     .trim();
   return text.length > max ? `${text.slice(0, max)}…` : text;
