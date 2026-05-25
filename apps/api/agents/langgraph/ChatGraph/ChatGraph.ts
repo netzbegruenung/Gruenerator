@@ -107,6 +107,10 @@ const ChatStateAnnotation = Annotation.Root({
   defaultNotebookCollectionIds: Annotation<string[]>({
     reducer: (x, y) => y ?? x ?? [],
   }),
+  // Default-notebook document scope when the agent binds a user-owned notebook.
+  defaultNotebookDocumentIds: Annotation<string[]>({
+    reducer: (x, y) => y ?? x ?? [],
+  }),
   documentIds: Annotation<string[]>({
     reducer: (x, y) => y ?? x ?? [],
   }),
@@ -661,6 +665,7 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
     defaultNotebookCollectionIds: input.defaultNotebookId
       ? resolveNotebookCollections([input.defaultNotebookId])
       : [],
+    defaultNotebookDocumentIds: input.defaultNotebookDocumentIds ?? [],
 
     // Document scoping (from @datei mentions)
     documentIds: input.documentIds || [],

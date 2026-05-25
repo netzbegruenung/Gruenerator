@@ -190,6 +190,7 @@ async function testExpandedContextWindow() {
     notebookCollectionIds: [],
     notebookDocumentIds: [],
     defaultNotebookCollectionIds: [],
+    defaultNotebookDocumentIds: [],
     documentIds: [],
     documentChatIds: [],
     boardIds: [],

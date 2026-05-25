@@ -43,8 +43,8 @@ import {
   extractDomain,
   resolveCollectionName,
 } from './citationUtils.js';
-import { retrieveWolkeFile } from './wolkeRetrieval.js';
 import { retrieveConnectFile } from './connectRetrieval.js';
+import { retrieveWolkeFile } from './wolkeRetrieval.js';
 
 import type { SubcategoryFilters } from '../../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../../routes/chat/agents/types.js';
@@ -771,10 +771,22 @@ export async function searchNode(state: ChatGraphState): Promise<Partial<ChatGra
         // set of @datei picks.
         const explicitDocIds = state.documentIds ?? [];
         const userNotebookDocIds = state.notebookDocumentIds ?? [];
-        const scopeDocIds = [...new Set([...explicitDocIds, ...userNotebookDocIds])];
+        // The agent's bound user-notebook docs apply only when the user hasn't
+        // explicitly scoped this turn (no @datei, no @notebook, no system notebook).
+        const hasExplicitScope =
+          explicitDocIds.length > 0 ||
+          userNotebookDocIds.length > 0 ||
+          (state.notebookCollectionIds?.length ?? 0) > 0;
+        const defaultNotebookDocIds = hasExplicitScope
+          ? []
+          : (state.defaultNotebookDocumentIds ?? []);
+        const scopeDocIds = [
+          ...new Set([...explicitDocIds, ...userNotebookDocIds, ...defaultNotebookDocIds]),
+        ];
 
         if (scopeDocIds.length > 0) {
-          const fromUserNotebook = userNotebookDocIds.length > 0;
+          const fromUserNotebook =
+            userNotebookDocIds.length > 0 || defaultNotebookDocIds.length > 0;
           log.info(
             `[Search] Using document-scoped search: ${scopeDocIds.length} doc(s)${
               fromUserNotebook ? ` (incl. ${userNotebookDocIds.length} from user notebook)` : ''
