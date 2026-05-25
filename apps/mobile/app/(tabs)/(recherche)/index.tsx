@@ -1,7 +1,10 @@
+import { useActionSheet } from '@expo/react-native-action-sheet';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { useRouter, type Href } from 'expo-router';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
+import * as Clipboard from 'expo-clipboard';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,129 +14,34 @@ import {
   Pressable,
   TextInput,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ProfileMenu } from '../../../components/navigation/ProfileMenu';
+import { SidebarMenuButton } from '../../../components/navigation/SidebarMenuButton';
+import { CommunityNotebooksSection } from '../../../components/notebook/CommunityNotebooksSection';
+import { NotebookCard } from '../../../components/notebook/NotebookCard';
 import { NotebookCreator } from '../../../components/notebook/NotebookCreator';
+import { NotebookSection } from '../../../components/notebook/NotebookSection';
+import { NotebooksHero } from '../../../components/notebook/NotebooksHero';
 import {
   getMobileNotebooksByCategory,
   getVisibleNotebooks,
   type MobileNotebookEntry,
 } from '../../../config/notebooksConfig';
-import { useNotebookCollections } from '../../../hooks/useNotebookCollections';
+import { useNotebookSharing } from '../../../hooks/notebook/useNotebookSharing';
+import {
+  useNotebookCollections,
+  type MobileNotebookCollection,
+} from '../../../hooks/useNotebookCollections';
+import { useFavoritesStore } from '../../../stores/favoritesStore';
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
 import { routeWithParams } from '../../../types/routes';
 
-function NotebookCard({
-  icon,
-  title,
-  onPress,
-  onLongPress,
-  isProcessing,
-}: {
-  icon: IoniconsIconName;
-  title: string;
-  onPress: () => void;
-  onLongPress?: () => void;
-  isProcessing?: boolean;
-}) {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      style={({ pressed }) => [
-        styles.card,
-        {
-          backgroundColor: pressed ? theme.surface : theme.card,
-          borderColor: theme.cardBorder,
-        },
-      ]}
-    >
-      <Ionicons name={icon} size={18} color={colors.primary[600]} />
-      <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={1}>
-        {title}
-      </Text>
-      {isProcessing ? (
-        <ActivityIndicator size="small" color={colors.primary[600]} />
-      ) : (
-        <Ionicons name="chevron-forward" size={16} color={theme.textSecondary} />
-      )}
-    </Pressable>
-  );
-}
-
-function NotebookSection({
-  title,
-  notebooks,
-  onNotebookPress,
-}: {
-  title: string;
-  notebooks: MobileNotebookEntry[];
-  onNotebookPress: (notebook: MobileNotebookEntry) => void;
-}) {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-
-  if (notebooks.length === 0) return null;
-
-  return (
-    <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
-      <View style={styles.grid}>
-        {notebooks.map((notebook) => (
-          <View key={notebook.id} style={styles.gridItem}>
-            <NotebookCard
-              icon={notebook.icon}
-              title={notebook.title}
-              onPress={() => onNotebookPress(notebook)}
-            />
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
-
-function ToolCard({
-  icon,
-  title,
-  description,
-  onPress,
-}: {
-  icon: IoniconsIconName;
-  title: string;
-  description: string;
-  onPress: () => void;
-}) {
-  const colorScheme = useColorScheme();
-  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.toolCard,
-        {
-          backgroundColor: pressed ? theme.surface : theme.card,
-          borderColor: theme.cardBorder,
-        },
-      ]}
-    >
-      <View style={[styles.toolIcon, { backgroundColor: colors.primary[600] + '15' }]}>
-        <Ionicons name={icon} size={18} color={colors.primary[600]} />
-      </View>
-      <View style={styles.toolContent}>
-        <Text style={[styles.toolTitle, { color: theme.text }]}>{title}</Text>
-        <Text style={[styles.toolDescription, { color: theme.textSecondary }]} numberOfLines={1}>
-          {description}
-        </Text>
-      </View>
-    </Pressable>
-  );
+/** "12 Dokumente · Beschreibung" line for a user's own notebook card. */
+function collectionSubtitle(c: MobileNotebookCollection): string {
+  const docs = `${c.document_count} Dokument${c.document_count === 1 ? '' : 'e'}`;
+  return c.description ? `${docs} · ${c.description}` : docs;
 }
 
 export default function NotebooksScreen() {
@@ -148,11 +56,23 @@ export default function NotebooksScreen() {
   const locale: 'de-DE' | 'de-AT' = user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
   const { collections, isLoading, processingIds, createCollection, deleteCollection } =
     useNotebookCollections();
+  const { showActionSheetWithOptions } = useActionSheet();
+  const { listGroups, shareToGroup, getShareUrl } = useNotebookSharing();
+  const { favouriteIds, load: loadFavourites, toggle: toggleFavourite } = useFavoritesStore();
+
+  useEffect(() => {
+    void loadFavourites();
+  }, [loadFavourites]);
 
   const bundesebene = useMemo(() => getMobileNotebooksByCategory('bundesebene', locale), [locale]);
   const landesebene = useMemo(() => getMobileNotebooksByCategory('landesebene', locale), [locale]);
   const weitere = useMemo(() => getMobileNotebooksByCategory('weitere', locale), [locale]);
   const oesterreich = useMemo(() => getMobileNotebooksByCategory('oesterreich', locale), [locale]);
+
+  const favouriteNotebooks = useMemo(
+    () => getVisibleNotebooks(locale).filter((nb) => favouriteIds.includes(nb.id)),
+    [locale, favouriteIds]
+  );
 
   const filteredResults = useMemo(() => {
     if (!searchQuery) return null;
@@ -168,23 +88,48 @@ export default function NotebooksScreen() {
     return collections.filter((c) => c.name.toLowerCase().includes(q));
   }, [searchQuery, collections]);
 
-  const handleNotebookPress = (notebook: MobileNotebookEntry) => {
-    router.push(
-      routeWithParams('/(focused)/chat-conversation', {
-        threadId: 'new',
-        notebookId: notebook.id,
-      })
-    );
-  };
+  const handleNotebookPress = useCallback(
+    (notebook: MobileNotebookEntry) => {
+      router.push(
+        routeWithParams('/(focused)/notebook-detail', {
+          notebookId: notebook.id,
+          title: notebook.title,
+          kind: 'system',
+        })
+      );
+    },
+    [router]
+  );
 
-  const handleCollectionPress = (collectionId: string) => {
-    router.push(
-      routeWithParams('/(focused)/chat-conversation', {
-        threadId: 'new',
-        notebookId: collectionId,
-      })
-    );
-  };
+  const handleCollectionPress = useCallback(
+    (collectionId: string, name: string) => {
+      router.push(
+        routeWithParams('/(focused)/notebook-detail', {
+          notebookId: collectionId,
+          title: name,
+          kind: 'user',
+        })
+      );
+    },
+    [router]
+  );
+
+  // The hero composer starts a notebook-scoped chat (chat-conversation already
+  // scopes to `notebookId` and auto-sends `initialMessage`). Route Austrian users
+  // to their aggregate — Austria is a first-class locale.
+  const handleHeroSend = useCallback(
+    (text: string) => {
+      const aggregateId = locale === 'de-AT' ? 'oesterreich-notebook' : 'gruenerator-notebook';
+      router.push(
+        routeWithParams('/(focused)/chat-conversation', {
+          threadId: 'new',
+          notebookId: aggregateId,
+          initialMessage: text,
+        })
+      );
+    },
+    [router, locale]
+  );
 
   const toggleSearch = useCallback(() => {
     if (searchOpen) {
@@ -210,8 +155,76 @@ export default function NotebooksScreen() {
     [deleteCollection]
   );
 
+  const handleShareCollection = useCallback(
+    async (c: MobileNotebookCollection) => {
+      const groups = await listGroups();
+      const options = ['Link kopieren', ...groups.map((g) => `An „${g.name}" teilen`), 'Abbrechen'];
+      showActionSheetWithOptions(
+        { title: 'Teilen', options, cancelButtonIndex: options.length - 1 },
+        async (i) => {
+          if (i == null || i === options.length - 1) return;
+          if (i === 0) {
+            const url = await getShareUrl(c.id, c.name);
+            if (url) {
+              await Clipboard.setStringAsync(url);
+              Alert.alert('Link kopiert', url);
+            } else {
+              Alert.alert('Fehler', 'Link konnte nicht erstellt werden.');
+            }
+            return;
+          }
+          const ok = await shareToGroup(c.id, groups[i - 1].id);
+          Alert.alert(
+            ok ? 'Geteilt' : 'Fehler',
+            ok ? `„${c.name}" wurde geteilt.` : 'Teilen fehlgeschlagen.'
+          );
+        }
+      );
+    },
+    [listGroups, shareToGroup, getShareUrl, showActionSheetWithOptions]
+  );
+
+  const handleCollectionActions = useCallback(
+    (c: MobileNotebookCollection) => {
+      const options = ['Öffnen', 'Teilen', 'Löschen', 'Abbrechen'];
+      showActionSheetWithOptions(
+        { title: c.name, options, destructiveButtonIndex: 2, cancelButtonIndex: 3 },
+        (i) => {
+          if (i === 0) handleCollectionPress(c.id, c.name);
+          else if (i === 1) void handleShareCollection(c);
+          else if (i === 2) handleDeleteCollection(c.id, c.name);
+        }
+      );
+    },
+    [
+      showActionSheetWithOptions,
+      handleCollectionPress,
+      handleShareCollection,
+      handleDeleteCollection,
+    ]
+  );
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <LinearGradient
+        colors={
+          colorScheme === 'dark'
+            ? [colors.grey[950], colors.grey[950]]
+            : [colors.white, 'rgba(95, 133, 117, 0.05)']
+        }
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+      <View style={styles.header}>
+        <View style={styles.headerSide}>
+          <SidebarMenuButton color={theme.text} size={24} />
+        </View>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Notebooks</Text>
+        <View style={[styles.headerSide, styles.headerSideRight]}>
+          <ProfileMenu />
+        </View>
+      </View>
       {searchOpen && (
         <View
           style={[
@@ -256,7 +269,9 @@ export default function NotebooksScreen() {
                     key={c.id}
                     icon="book"
                     title={c.name}
-                    onPress={() => handleCollectionPress(c.id)}
+                    subtitle={collectionSubtitle(c)}
+                    onPress={() => handleCollectionPress(c.id, c.name)}
+                    onLongPress={() => handleCollectionActions(c)}
                     isProcessing={processingIds.has(c.id)}
                   />
                 ))}
@@ -270,25 +285,37 @@ export default function NotebooksScreen() {
           </View>
         ) : (
           <View>
+            <NotebooksHero onSend={handleHeroSend} />
+
+            <NotebookSection
+              title="Favoriten"
+              notebooks={favouriteNotebooks}
+              onNotebookPress={handleNotebookPress}
+              onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
+            />
             <NotebookSection
               title="Bundesebene"
               notebooks={bundesebene}
               onNotebookPress={handleNotebookPress}
+              onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
             />
             <NotebookSection
               title="Landesebene"
               notebooks={landesebene}
               onNotebookPress={handleNotebookPress}
+              onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
             />
             <NotebookSection
               title="Weitere"
               notebooks={weitere}
               onNotebookPress={handleNotebookPress}
+              onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
             />
             <NotebookSection
               title="Österreich"
               notebooks={oesterreich}
               onNotebookPress={handleNotebookPress}
+              onNotebookLongPress={(nb) => toggleFavourite(nb.id)}
             />
 
             <View style={styles.section}>
@@ -324,37 +351,18 @@ export default function NotebooksScreen() {
                     key={c.id}
                     icon="book"
                     title={c.name}
-                    onPress={() => handleCollectionPress(c.id)}
-                    onLongPress={() => handleDeleteCollection(c.id, c.name)}
+                    subtitle={collectionSubtitle(c)}
+                    onPress={() => handleCollectionPress(c.id, c.name)}
+                    onLongPress={() => handleCollectionActions(c)}
                     isProcessing={processingIds.has(c.id)}
                   />
                 ))
               )}
             </View>
+
+            <CommunityNotebooksSection enabled={!!user} onOpen={handleCollectionPress} />
           </View>
         )}
-
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Tools</Text>
-          <View style={styles.toolGrid}>
-            <View style={styles.gridItem}>
-              <ToolCard
-                icon="search"
-                title="Suche"
-                description="Webrecherche mit KI"
-                onPress={() => router.push('/(tabs)/(recherche)/suche' as Href)}
-              />
-            </View>
-            <View style={styles.gridItem}>
-              <ToolCard
-                icon="document-text"
-                title="Recherche"
-                description="Dokumentensuche"
-                onPress={() => router.push('/(tabs)/(recherche)/research' as Href)}
-              />
-            </View>
-          </View>
-        </View>
 
         <NotebookCreator
           visible={creatorVisible}
@@ -377,6 +385,25 @@ export default function NotebooksScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.medium,
+    paddingVertical: spacing.small,
+  },
+  headerSide: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerSideRight: {
+    justifyContent: 'flex-end',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   scrollContent: {
     padding: spacing.medium,
@@ -430,30 +457,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xsmall,
-  },
-  gridItem: {
-    width: '48.5%',
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.small,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
-    gap: spacing.xsmall,
-    marginBottom: spacing.xxsmall,
-  },
-  cardTitle: {
-    ...typography.body,
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
-  },
   emptyText: {
     ...typography.bodySmall,
     textAlign: 'center',
@@ -466,32 +469,5 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: borderRadius.medium,
     borderWidth: 1,
-  },
-  toolGrid: {
-    flexDirection: 'row',
-    gap: spacing.xsmall,
-  },
-  toolCard: {
-    padding: spacing.medium,
-    borderRadius: borderRadius.medium,
-    borderWidth: 1,
-    gap: spacing.small,
-  },
-  toolIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.medium,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toolContent: {
-    gap: 2,
-  },
-  toolTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  toolDescription: {
-    fontSize: 11,
   },
 });
