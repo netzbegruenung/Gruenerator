@@ -177,8 +177,8 @@ export async function saveImageToGallery(base64Data: string): Promise<boolean> {
     // Create temp file
     const fileUri = await base64ToFileUri(base64Data);
 
-    // Save to gallery
-    await MediaLibrary.saveToLibraryAsync(fileUri);
+    // Save to gallery (SDK 56 class-based API — saveToLibraryAsync now throws)
+    await MediaLibrary.Asset.create(fileUri);
 
     // Clean up temp file
     const file = new File(Paths.cache, fileUri.split('/').pop() || '');

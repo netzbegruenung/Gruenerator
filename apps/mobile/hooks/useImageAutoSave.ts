@@ -6,6 +6,7 @@
 import { useShareStore } from '@gruenerator/shared/share';
 import { useEffect, useCallback } from 'react';
 
+import { writeImageToShareCache } from '../services/sharedMediaCache';
 import { useImageStudioStore } from '../stores/imageStudioStore';
 
 interface AutoSaveResult {
@@ -105,6 +106,9 @@ export function useImageAutoSave(): AutoSaveResult {
       });
 
       if (share?.shareToken) {
+        // Persist the just-created image to the local share cache, keyed by its
+        // share token, so the in-app viewer shows it instantly without a download.
+        writeImageToShareCache(share.shareToken, generatedImage);
         setAutoSavedShareToken(share.shareToken);
         setLastAutoSavedImageSrc(generatedImage);
         setAutoSaveStatus('saved');

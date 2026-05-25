@@ -5,6 +5,7 @@ import {
 } from '@gruenerator/shared/sharepic';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Modal, View, Text, StyleSheet, ScrollView, useColorScheme, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 import { TextInput, Button, ImagePicker } from '../common';
@@ -35,6 +36,7 @@ export function SharepicConfigModal({
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const isDark = colorScheme === 'dark';
+  const insets = useSafeAreaInsets();
 
   const showAuthorInput = sharepicTypeRequiresAuthor(type);
   const showImagePicker = sharepicTypeSupportsImage(type);
@@ -66,7 +68,13 @@ export function SharepicConfigModal({
           </Pressable>
         </View>
 
-        <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={[
+            styles.contentContainer,
+            { paddingBottom: insets.bottom + spacing.large },
+          ]}
+        >
           <SharepicTypeSelector selected={type} onSelect={onTypeChange} />
 
           {showAuthorInput && (

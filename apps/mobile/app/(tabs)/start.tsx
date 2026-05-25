@@ -1,19 +1,16 @@
 import { useAuth } from '@gruenerator/shared/hooks';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, useColorScheme, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatSettingsSheet } from '../../components/chat/ChatSettingsSheet';
 import { ComposerCard } from '../../components/common';
-import { ProfileMenu } from '../../components/navigation/ProfileMenu';
-import { SidebarMenuButton } from '../../components/navigation/SidebarMenuButton';
+import { ScreenScaffold } from '../../components/navigation/ScreenScaffold';
 import { RecentlyCreatedSection } from '../../components/start/RecentlyCreatedSection';
 import { ToolGrid } from '../../components/tools/ToolGrid';
 import { TOOLS } from '../../components/tools/toolsConfig';
 import { useToolFavoritesStore } from '../../stores/toolFavoritesStore';
-import { colors, spacing, lightTheme, darkTheme } from '../../theme';
+import { spacing, lightTheme, darkTheme } from '../../theme';
 import { routeWithParams } from '../../types/routes';
 
 const EXAMPLE_PROMPTS = [
@@ -47,27 +44,7 @@ export default function StartScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <LinearGradient
-        colors={
-          colorScheme === 'dark'
-            ? [colors.grey[950], colors.grey[950]]
-            : [colors.white, 'rgba(95, 133, 117, 0.05)']
-        }
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
-      <View style={styles.header}>
-        <View style={styles.headerSide}>
-          <SidebarMenuButton color={theme.text} size={24} />
-        </View>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Grünerator</Text>
-        <View style={[styles.headerSide, styles.headerSideRight]}>
-          <ProfileMenu />
-        </View>
-      </View>
-
+    <ScreenScaffold title="Grünerator">
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -94,46 +71,19 @@ export default function StartScreen() {
 
         <RecentlyCreatedSection theme={theme} />
 
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Werkzeuge</Text>
-          {favoriteTools.length > 0 ? (
+        {favoriteTools.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Werkzeuge</Text>
             <ToolGrid tools={favoriteTools} />
-          ) : (
-            <Text style={[styles.werkzeugeHint, { color: theme.textSecondary }]}>
-              Markiere im Tools-Tab deine Lieblingswerkzeuge – halte ein Werkzeug gedrückt, um es
-              hier anzuheften.
-            </Text>
-          )}
-        </View>
+          </View>
+        )}
       </ScrollView>
       <ChatSettingsSheet visible={settingsVisible} onDismiss={() => setSettingsVisible(false)} />
-    </SafeAreaView>
+    </ScreenScaffold>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-  },
-  headerSide: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerSideRight: {
-    justifyContent: 'flex-end',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
   scrollView: {
     flex: 1,
   },
@@ -146,12 +96,12 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.small,
   },
   welcomeText: {
+    fontFamily: 'Raleway_700Bold',
     fontSize: 28,
-    fontWeight: '700',
   },
   welcomeSubtitle: {
+    fontFamily: 'Raleway_700Bold',
     fontSize: 28,
-    fontWeight: '700',
     marginTop: 2,
   },
   inputSection: {
@@ -168,11 +118,7 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   sectionTitle: {
+    fontFamily: 'Raleway_700Bold',
     fontSize: 16,
-    fontWeight: '700',
-  },
-  werkzeugeHint: {
-    fontSize: 13,
-    lineHeight: 18,
   },
 });

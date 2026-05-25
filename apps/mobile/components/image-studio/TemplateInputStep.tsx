@@ -68,6 +68,7 @@ export function TemplateInputStep({
       style={styles.scrollView}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
+      bottomOffset={spacing.xlarge}
     >
       <View style={styles.header}>
         <View style={styles.headerRow}>

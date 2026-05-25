@@ -19,6 +19,7 @@ export default function ImageStudioCreateLayout() {
       }}
     >
       <Stack.Screen name="image" />
+      <Stack.Screen name="style" />
       <Stack.Screen name="ki-input" />
       <Stack.Screen name="template-input" />
       <Stack.Screen

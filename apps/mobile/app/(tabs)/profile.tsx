@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, ProfileAvatar } from '../../components/common';
 import { BottomSheet } from '../../components/common/BottomSheet';
+import { AppSettingsSection } from '../../components/profile/AppSettingsSection';
 import { RolesSection } from '../../components/profile/RolesSection';
 import { logout } from '../../services/auth';
 import { lightTheme, darkTheme, typography, spacing, colors, borderRadius } from '../../theme';
@@ -145,6 +146,23 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        {/* Top bar — logout */}
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={() => void logout()}
+            disabled={isLoggingOut}
+            hitSlop={8}
+            accessibilityLabel="Abmelden"
+            style={styles.logoutIcon}
+          >
+            {isLoggingOut ? (
+              <ActivityIndicator size="small" color={theme.textSecondary} />
+            ) : (
+              <Ionicons name="log-out-outline" size={24} color={theme.textSecondary} />
+            )}
+          </Pressable>
+        </View>
+
         {/* Identity header */}
         <View style={styles.header}>
           <Pressable onPress={() => setAvatarSheetVisible(true)} style={styles.avatarWrap}>
@@ -208,12 +226,8 @@ export default function ProfileScreen() {
         {/* Rollen */}
         <RolesSection />
 
-        {/* Logout */}
-        <View style={styles.logoutSection}>
-          <Button variant="outline" onPress={() => void logout()} loading={isLoggingOut}>
-            Abmelden
-          </Button>
-        </View>
+        {/* App-Einstellungen */}
+        <AppSettingsSection />
       </ScrollView>
 
       <AvatarPickerSheet
@@ -326,7 +340,13 @@ const styles = StyleSheet.create({
     height: 58,
     borderRadius: 29,
   },
-  logoutSection: {
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
     paddingHorizontal: spacing.medium,
+    marginBottom: -spacing.small,
+  },
+  logoutIcon: {
+    padding: spacing.xxsmall,
   },
 });

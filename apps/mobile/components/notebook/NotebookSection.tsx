@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
 import { type MobileNotebookEntry } from '../../config/notebooksConfig';
-import { spacing, typography, lightTheme, darkTheme } from '../../theme';
+import { spacing, lightTheme, darkTheme } from '../../theme';
 
 import { NotebookCard } from './NotebookCard';
 
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.large,
   },
   sectionTitle: {
-    ...typography.bodyBold,
+    fontFamily: 'Raleway_700Bold',
     fontSize: 17,
     marginBottom: spacing.small,
   },

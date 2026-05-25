@@ -5,7 +5,7 @@
  */
 
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { File, Directory, Paths } from 'expo-file-system';
+import { File } from 'expo-file-system';
 import * as MediaLibrary from 'expo-media-library';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -22,6 +22,7 @@ import {
 
 import { Button } from '../../components/common/Button';
 import { shareFile } from '../../services/share';
+import { getCachedShareFile } from '../../services/sharedMediaCache';
 import { secureStorage } from '../../services/storage';
 import { colors, spacing, borderRadius, typography, lightTheme, darkTheme } from '../../theme';
 
@@ -30,9 +31,14 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://gruenerator.eu/
 type LoadingState = 'loading' | 'ready' | 'error' | 'expired';
 
 export default function PushedContentScreen() {
-  const { shareToken, mediaType } = useLocalSearchParams<{
+  const {
+    shareToken,
+    mediaType,
+    title: titleParam,
+  } = useLocalSearchParams<{
     shareToken: string;
     mediaType: string;
+    title?: string;
   }>();
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -40,7 +46,7 @@ export default function PushedContentScreen() {
 
   const [state, setState] = useState<LoadingState>('loading');
   const [localUri, setLocalUri] = useState<string | null>(null);
-  const [title, setTitle] = useState<string>('');
+  const [title, setTitle] = useState<string>(titleParam ?? '');
   const [savedToGallery, setSavedToGallery] = useState(false);
 
   const isVideo = mediaType === 'video';
@@ -49,17 +55,29 @@ export default function PushedContentScreen() {
     p.loop = true;
   });
 
-  // Download content on mount
+  // Load content on mount — cache-first, download only on a miss.
   useEffect(() => {
-    async function downloadContent() {
+    async function loadContent() {
       if (!shareToken) {
         setState('error');
         return;
       }
 
+      const target = getCachedShareFile(shareToken, isVideo ? 'mp4' : 'png');
+
+      // Cache-first: a share's content is immutable for its token, so once the file
+      // is on disk (downloaded here, or written at creation time for in-app content)
+      // we reuse it instead of re-fetching on every open.
+      if (target.exists) {
+        setLocalUri(target.uri);
+        setState('ready');
+        return;
+      }
+
       try {
-        // Fetch share metadata
         const token = await secureStorage.getToken();
+
+        // Fetch share metadata (title + availability/expiry check)
         const infoRes = await fetch(`${API_BASE_URL}/share/${shareToken}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
@@ -70,16 +88,14 @@ export default function PushedContentScreen() {
         }
 
         const info = (await infoRes.json()) as { share?: { title?: string }; title?: string };
-        setTitle(info.share?.title ?? info.title ?? '');
-
-        // Download the file using new expo-file-system API
-        const ext = isVideo ? 'mp4' : 'png';
-        const destination = new Directory(Paths.cache, 'pushed-content');
-        destination.create({ idempotent: true });
+        const resolvedTitle = info.share?.title ?? info.title;
+        if (resolvedTitle) {
+          setTitle(resolvedTitle);
+        }
 
         const downloadedFile = await File.downloadFileAsync(
           `${API_BASE_URL}/share/${shareToken}/download`,
-          new File(destination, `pushed_${shareToken}.${ext}`),
+          target,
           {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             idempotent: true,
@@ -94,19 +110,19 @@ export default function PushedContentScreen() {
         setLocalUri(downloadedFile.uri);
         setState('ready');
       } catch (error) {
-        console.error('[PushedContent] Download failed:', error);
+        console.error('[PushedContent] Load failed:', error);
         setState('error');
       }
     }
 
-    void downloadContent();
+    void loadContent();
   }, [shareToken, isVideo]);
 
   const handleSaveToGallery = useCallback(async () => {
     if (!localUri) return;
     const { status } = await MediaLibrary.requestPermissionsAsync();
     if (status !== 'granted') return;
-    await MediaLibrary.saveToLibraryAsync(localUri);
+    await MediaLibrary.Asset.create(localUri);
     setSavedToGallery(true);
   }, [localUri]);
 

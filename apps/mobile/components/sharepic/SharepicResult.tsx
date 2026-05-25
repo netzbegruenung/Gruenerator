@@ -62,7 +62,7 @@ export function SharepicResult({ sharepics, onNewGeneration }: SharepicResultPro
       }
       file.write(bytes);
 
-      await MediaLibrary.saveToLibraryAsync(file.uri);
+      await MediaLibrary.Asset.create(file.uri);
 
       setSavedIndices((prev) => new Set(prev).add(currentIndex));
       Alert.alert('Gespeichert', 'Sharepic wurde in der Galerie gespeichert.');

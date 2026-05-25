@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, Redirect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useRef, useState } from 'react';
 import { View, StyleSheet, useColorScheme, ActivityIndicator, Animated, Text } from 'react-native';
@@ -11,6 +11,7 @@ import CanvasEditorDOM from '../../components/dom/CanvasEditorDOM';
 import { useCanvasEditorBridgeStore } from '../../stores/canvasEditorBridgeStore';
 import { useImageStudioStore } from '../../stores/imageStudioStore';
 import { lightTheme, darkTheme } from '../../theme';
+import { route } from '../../types/routes';
 
 import type {
   HistoryState,
@@ -97,9 +98,11 @@ export default function WebViewEditorScreen() {
     ...modifications,
   } as Record<string, unknown>;
 
+  // Declarative redirect — navigation-safe, unlike router.back() during render
+  // (which mutates the navigation container mid-render and triggers
+  // "Cannot update NavigationContainerInner while rendering WebViewEditorScreen").
   if (!type) {
-    router.back();
-    return null;
+    return <Redirect href={route('/(tabs)/(tools)/image-studio')} />;
   }
 
   return (
