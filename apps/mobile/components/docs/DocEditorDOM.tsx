@@ -7,6 +7,7 @@ import {
   BlockNoteEditor,
   useDocumentChat,
   useDocsAdapter,
+  invokeDocumentAI,
   type DocsAdapter,
 } from '@gruenerator/docs';
 import { type DOMProps } from 'expo/dom';
@@ -618,6 +619,13 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
     } else if (props.pendingAction.type === 'insert-text') {
       const text = (props.pendingAction as { type: string; text: string }).text;
       window.dispatchEvent(new CustomEvent('insert-text', { detail: { text } }));
+    } else if (props.pendingAction.type === 'invoke-ai') {
+      const { prompt, useSelection } = props.pendingAction as {
+        type: string;
+        prompt: string;
+        useSelection: boolean;
+      };
+      void invokeDocumentAI({ documentId: props.documentId, userPrompt: prompt, useSelection });
     }
   }, [props.pendingAction, props.actionCounter]);
 
