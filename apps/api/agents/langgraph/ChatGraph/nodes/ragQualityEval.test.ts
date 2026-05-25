@@ -231,6 +231,7 @@ async function evaluateBudgetAllocation() {
     notebookCollectionIds: [],
     notebookDocumentIds: [],
     defaultNotebookCollectionIds: [],
+    defaultNotebookDocumentIds: [],
     documentIds: [],
     documentChatIds: [],
     boardIds: [],
