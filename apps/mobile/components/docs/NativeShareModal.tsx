@@ -6,6 +6,7 @@ import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   useColorScheme,
@@ -364,11 +365,16 @@ export function NativeShareModal({
   const isDark = colorScheme === 'dark';
   const theme = isDark ? darkTheme : lightTheme;
   const documentTitle = useDocsEditorBridgeStore((s) => s.documentTitle) || 'Dokument';
+  const canEdit = useDocsEditorBridgeStore((s) => s.canEdit);
 
   const [copiedLink, setCopiedLink] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null);
   const [showPermissions, setShowPermissions] = useState(false);
   const [showDownload, setShowDownload] = useState(false);
+  const [showTemplate, setShowTemplate] = useState(false);
+  const [templateTitle, setTemplateTitle] = useState('');
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateSaved, setTemplateSaved] = useState(false);
 
   const shareUrl = `${DOCS_BASE_URL}/docs/${documentId}`;
 
@@ -435,6 +441,27 @@ export function NativeShareModal({
     [documentId, documentTitle, exportingFormat]
   );
 
+  const openTemplate = useCallback(() => {
+    setTemplateTitle(documentTitle === 'Dokument' ? '' : documentTitle);
+    setTemplateSaved(false);
+    setShowTemplate(true);
+  }, [documentTitle]);
+
+  const handleSaveTemplate = useCallback(async () => {
+    const title = templateTitle.trim();
+    if (!title || savingTemplate) return;
+    setSavingTemplate(true);
+    try {
+      await docsShareApi.saveAsTemplate(documentId, title);
+      setTemplateSaved(true);
+      setTimeout(() => setShowTemplate(false), 1200);
+    } catch {
+      /* silent */
+    } finally {
+      setSavingTemplate(false);
+    }
+  }, [documentId, templateTitle, savingTemplate]);
+
   return (
     <>
       {/* Main share modal */}
@@ -466,6 +493,14 @@ export function NativeShareModal({
             onPress={() => setShowDownload(true)}
             theme={theme}
           />
+          {canEdit && (
+            <QuickAction
+              icon="bookmark-outline"
+              label="Als Vorlage"
+              onPress={openTemplate}
+              theme={theme}
+            />
+          )}
           {onDelete && (
             <QuickAction
               icon="trash-outline"
@@ -553,6 +588,54 @@ export function NativeShareModal({
           </View>
           <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
         </TouchableOpacity>
+      </BottomSheet>
+
+      {/* Save-as-template sub-modal */}
+      <BottomSheet visible={showTemplate} onClose={() => setShowTemplate(false)} keyboardAvoiding>
+        <View style={styles.titleRow}>
+          <TouchableOpacity onPress={() => setShowTemplate(false)} hitSlop={8}>
+            <Ionicons name="arrow-back" size={22} color={theme.text} />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: theme.text }]}>Als Vorlage speichern</Text>
+          <View style={{ width: 22 }} />
+        </View>
+        <View style={styles.templateBody}>
+          <Text style={[styles.templateLabel, { color: theme.textSecondary }]}>Titel</Text>
+          <TextInput
+            style={[
+              styles.templateInput,
+              {
+                color: theme.text,
+                borderColor: isDark ? colors.grey[700] : colors.grey[300],
+                backgroundColor: isDark ? colors.grey[800] : colors.grey[50],
+              },
+            ]}
+            value={templateTitle}
+            onChangeText={setTemplateTitle}
+            placeholder="Name der Vorlage"
+            placeholderTextColor={theme.textSecondary}
+            autoFocus
+            returnKeyType="done"
+            onSubmitEditing={handleSaveTemplate}
+          />
+          <TouchableOpacity
+            style={[
+              styles.templateSaveBtn,
+              { backgroundColor: colors.primary[600], opacity: templateTitle.trim() ? 1 : 0.5 },
+            ]}
+            onPress={handleSaveTemplate}
+            activeOpacity={0.8}
+            disabled={!templateTitle.trim() || savingTemplate}
+          >
+            {savingTemplate ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <Text style={styles.templateSaveBtnText}>
+                {templateSaved ? 'Gespeichert ✓' : 'Speichern'}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </BottomSheet>
     </>
   );
@@ -657,4 +740,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   addChipText: { fontSize: 12, color: colors.primary[600] },
+
+  templateBody: { paddingHorizontal: 20, paddingBottom: 12, gap: 8 },
+  templateLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  templateInput: {
+    fontSize: 15,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  templateSaveBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginTop: 4,
+  },
+  templateSaveBtnText: { fontSize: 15, fontWeight: '600', color: colors.white },
 });

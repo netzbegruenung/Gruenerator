@@ -1,7 +1,7 @@
 'use dom';
 
 import '@gruenerator/docs/styles';
-import { useCollaboration, type CollaborationConfig } from '@gruenerator/collab';
+import { useCollaboration, useCollaborators, type CollaborationConfig } from '@gruenerator/collab';
 import {
   DocsProvider,
   BlockNoteEditor,
@@ -237,6 +237,7 @@ interface DocEditorDOMProps {
   onChatMessagesChange: (messagesJson: string) => Promise<void>;
   onLocalUserIdChange: (userId: string) => Promise<void>;
   onTypingUsersChange: (usersJson: string) => Promise<void>;
+  onCollaboratorsChange?: (collaboratorsJson: string) => Promise<void>;
   onActiveStylesChange?: (stylesJson: string) => Promise<void>;
   onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
   onSlashChange?: (json: string) => void;
@@ -262,6 +263,7 @@ function EditorContent({
   onChatMessagesChange,
   onLocalUserIdChange,
   onTypingUsersChange,
+  onCollaboratorsChange,
   onActiveStylesChange,
   onDocSnapshotChange,
   onSlashChange,
@@ -276,6 +278,7 @@ function EditorContent({
   onChatMessagesChange: (messagesJson: string) => Promise<void>;
   onLocalUserIdChange: (userId: string) => Promise<void>;
   onTypingUsersChange: (usersJson: string) => Promise<void>;
+  onCollaboratorsChange?: (collaboratorsJson: string) => Promise<void>;
   onActiveStylesChange?: (stylesJson: string) => Promise<void>;
   onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
   onSlashChange?: (json: string) => void;
@@ -303,6 +306,8 @@ function EditorContent({
     provider,
     isSynced,
   });
+  // Remote collaborators from Yjs awareness — bridged to native for presence avatars.
+  const collaborators = useCollaborators(provider);
 
   // Editor instance ref for formatting operations
   const editorRef = useRef<unknown>(null);
@@ -322,6 +327,8 @@ function EditorContent({
   onAuthErrorRef.current = onAuthError;
   const onTypingUsersChangeRef = useRef(onTypingUsersChange);
   onTypingUsersChangeRef.current = onTypingUsersChange;
+  const onCollaboratorsChangeRef = useRef(onCollaboratorsChange);
+  onCollaboratorsChangeRef.current = onCollaboratorsChange;
   const onActiveStylesChangeRef = useRef(onActiveStylesChange);
   onActiveStylesChangeRef.current = onActiveStylesChange;
   const onDocSnapshotChangeRef = useRef(onDocSnapshotChange);
@@ -527,6 +534,11 @@ function EditorContent({
     void onTypingUsersChangeRef.current(JSON.stringify(typingUsers));
   }, [typingUsers]);
 
+  // Bridge remote collaborators (awareness) to native for presence avatars
+  useEffect(() => {
+    void onCollaboratorsChangeRef.current?.(JSON.stringify(collaborators));
+  }, [collaborators]);
+
   // Bridge local user ID to native
   useEffect(() => {
     const localUser = getLocalUser();
@@ -535,9 +547,20 @@ function EditorContent({
     }
   }, [getLocalUser, isSynced]);
 
-  // Report connection status back to native
+  // Report connection status back to native. Distinguish the initial-load window
+  // ('connecting' — neutral, no red dot) from a genuine drop after having connected
+  // ('disconnected' — red). Without this latch, both are just !isConnected and the
+  // load flashes a red dot for 2-5s.
+  const hasConnectedRef = useRef(false);
   useEffect(() => {
-    const status = !isConnected ? 'disconnected' : !isSynced ? 'syncing' : 'connected';
+    if (isConnected) hasConnectedRef.current = true;
+    const status = isConnected
+      ? isSynced
+        ? 'connected'
+        : 'syncing'
+      : hasConnectedRef.current
+        ? 'disconnected'
+        : 'connecting';
     void onConnectionStatusChangeRef.current(status);
   }, [isConnected, isSynced]);
 
@@ -727,6 +750,15 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
     [props.onTypingUsersChange]
   );
 
+  const handleCollaboratorsChange = useCallback(
+    async (collaboratorsJson: string) => {
+      if (props.onCollaboratorsChange) {
+        await props.onCollaboratorsChange(collaboratorsJson);
+      }
+    },
+    [props.onCollaboratorsChange]
+  );
+
   const handleActiveStylesChange = useCallback(
     async (stylesJson: string) => {
       if (props.onActiveStylesChange) {
@@ -756,6 +788,7 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
         onChatMessagesChange={handleChatMessagesChange}
         onLocalUserIdChange={handleLocalUserIdChange}
         onTypingUsersChange={handleTypingUsersChange}
+        onCollaboratorsChange={handleCollaboratorsChange}
         onActiveStylesChange={handleActiveStylesChange}
         onDocSnapshotChange={handleDocSnapshotChange}
         onSlashChange={props.onSlashChange}
