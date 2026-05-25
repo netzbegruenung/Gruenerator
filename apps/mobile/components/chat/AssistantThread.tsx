@@ -15,11 +15,56 @@ import { MessageBubble } from './MessageBubble';
 
 import type { Theme } from '../../theme/colors';
 
-interface Props {
-  theme?: Theme;
+/**
+ * Agent identity for the empty state. When omitted, the generic "Neue
+ * Unterhaltung" + chatSuggestions screen is shown (main chat). When provided
+ * (docs sidebar), the active agent's icon/title/description + opening questions
+ * are surfaced — mirroring web's WelcomeScreen for `gruenerator-docs-editor`.
+ */
+export interface ThreadWelcome {
+  title: string;
+  subtitle?: string;
+  suggestions: readonly string[];
 }
 
-const EmptyState = memo(function EmptyState({ theme }: { theme: Theme }) {
+interface Props {
+  theme?: Theme;
+  welcome?: ThreadWelcome;
+}
+
+const EmptyState = memo(function EmptyState({
+  theme,
+  welcome,
+}: {
+  theme: Theme;
+  welcome?: ThreadWelcome;
+}) {
+  if (welcome) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="sparkles" size={44} color={theme.textSecondary} />
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>{welcome.title}</Text>
+        {welcome.subtitle ? (
+          <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+            {welcome.subtitle}
+          </Text>
+        ) : null}
+        <View style={styles.suggestionsGrid}>
+          {welcome.suggestions.map((prompt, i) => (
+            <ThreadPrimitive.Suggestion
+              key={i}
+              prompt={prompt}
+              send={false}
+              style={[styles.suggestionChip, { borderColor: theme.border }]}
+            >
+              <Text style={[styles.suggestionTitle, { color: theme.text }]}>{prompt}</Text>
+            </ThreadPrimitive.Suggestion>
+          ))}
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.emptyContainer}>
       <Ionicons name="chatbubble-ellipses-outline" size={48} color={theme.textSecondary} />
@@ -46,7 +91,7 @@ const EmptyState = memo(function EmptyState({ theme }: { theme: Theme }) {
 
 const messagesContentStyle = { paddingTop: spacing.small };
 
-export const AssistantThread = memo(function AssistantThread({ theme: themeProp }: Props) {
+export const AssistantThread = memo(function AssistantThread({ theme: themeProp, welcome }: Props) {
   const resolvedTheme = useTheme();
   const theme: Theme = themeProp ?? resolvedTheme;
   const insets = useSafeAreaInsets();
@@ -75,7 +120,7 @@ export const AssistantThread = memo(function AssistantThread({ theme: themeProp 
     <KeyboardAvoidingView behavior="padding" style={styles.container}>
       <ThreadPrimitive.Root style={[styles.container, { backgroundColor: theme.background }]}>
         <ThreadPrimitive.Empty>
-          <EmptyState theme={theme} />
+          <EmptyState theme={theme} welcome={welcome} />
         </ThreadPrimitive.Empty>
         <ThreadPrimitive.Messages
           components={messageComponents}

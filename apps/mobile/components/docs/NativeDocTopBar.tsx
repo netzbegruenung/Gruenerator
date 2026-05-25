@@ -1,7 +1,6 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useRouter } from 'expo-router';
 import { useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSpeechToText } from '../../hooks/useSpeechToText';
@@ -15,7 +14,6 @@ const STATUS_COLORS = {
 } as const;
 
 export function NativeDocTopBar() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -24,8 +22,6 @@ export function NativeDocTopBar() {
   const connectionStatus = useDocsEditorBridgeStore((s) => s.connectionStatus);
   const documentTitle = useDocsEditorBridgeStore((s) => s.documentTitle);
   const canEdit = useDocsEditorBridgeStore((s) => s.canEdit);
-  const chatMessageCount = useDocsEditorBridgeStore((s) => s.chatMessages.length);
-  const lastSeenMessageCount = useDocsEditorBridgeStore((s) => s.lastSeenMessageCount);
   const dispatchAction = useDocsEditorBridgeStore((s) => s.dispatchAction);
   const toggleSidebar = useDocsEditorBridgeStore((s) => s.toggleSidebar);
 
@@ -34,8 +30,6 @@ export function NativeDocTopBar() {
   const { isListening, toggle: toggleDictation } = useSpeechToText();
   const handleDictate = () =>
     void toggleDictation((transcript) => dispatchAction({ type: 'insert-text', text: transcript }));
-
-  const unreadCount = chatMessageCount - lastSeenMessageCount;
 
   return (
     <View
@@ -48,16 +42,12 @@ export function NativeDocTopBar() {
         },
       ]}
     >
-      <TouchableOpacity
-        onPress={() => router.back()}
-        style={styles.iconButton}
-        accessibilityLabel="Zurück"
-      >
-        <Ionicons name="arrow-back" size={24} color={theme.text} />
-      </TouchableOpacity>
-
       <View style={styles.titleRow}>
-        <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[connectionStatus] }]} />
+        {/* Problem-only indicator: green "connected" is noise, so the dot shows
+            only while syncing (amber) or disconnected (red). */}
+        {connectionStatus !== 'connected' && (
+          <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[connectionStatus] }]} />
+        )}
         <TextInput
           ref={titleRef}
           style={[styles.titleInput, { color: theme.text }]}
@@ -89,13 +79,12 @@ export function NativeDocTopBar() {
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity onPress={toggleSidebar} style={styles.iconButton} accessibilityLabel="Chat">
-        <Ionicons name="chatbubble-ellipses-outline" size={22} color={theme.text} />
-        {unreadCount > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-          </View>
-        )}
+      <TouchableOpacity
+        onPress={toggleSidebar}
+        style={styles.iconButton}
+        accessibilityLabel="KI-Assistent"
+      >
+        <Ionicons name="sparkles-outline" size={22} color={theme.text} />
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -141,22 +130,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     paddingVertical: 4,
-  },
-  badge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#ef4444',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: '700',
   },
 });
