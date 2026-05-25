@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useSpeechToText } from '../../hooks/useSpeechToText';
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
 import { lightTheme, darkTheme, colors } from '../../theme';
 
@@ -27,6 +28,12 @@ export function NativeDocTopBar() {
   const lastSeenMessageCount = useDocsEditorBridgeStore((s) => s.lastSeenMessageCount);
   const dispatchAction = useDocsEditorBridgeStore((s) => s.dispatchAction);
   const toggleSidebar = useDocsEditorBridgeStore((s) => s.toggleSidebar);
+
+  // Native dictation: the OS recognizer (final transcript) feeds the editor via
+  // the insert-text bridge — the in-editor web mic can't run in the WebView.
+  const { isListening, toggle: toggleDictation } = useSpeechToText();
+  const handleDictate = () =>
+    void toggleDictation((transcript) => dispatchAction({ type: 'insert-text', text: transcript }));
 
   const unreadCount = chatMessageCount - lastSeenMessageCount;
 
@@ -67,6 +74,20 @@ export function NativeDocTopBar() {
           returnKeyType="done"
         />
       </View>
+
+      {canEdit && (
+        <TouchableOpacity
+          onPress={handleDictate}
+          style={styles.iconButton}
+          accessibilityLabel={isListening ? 'Diktat stoppen' : 'Diktieren'}
+        >
+          <Ionicons
+            name={isListening ? 'stop-circle' : 'mic-outline'}
+            size={22}
+            color={isListening ? colors.error[500] : theme.text}
+          />
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity onPress={toggleSidebar} style={styles.iconButton} accessibilityLabel="Chat">
         <Ionicons name="chatbubble-ellipses-outline" size={22} color={theme.text} />

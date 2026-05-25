@@ -235,6 +235,7 @@ interface DocEditorDOMProps {
   onLocalUserIdChange: (userId: string) => Promise<void>;
   onTypingUsersChange: (usersJson: string) => Promise<void>;
   onActiveStylesChange?: (stylesJson: string) => Promise<void>;
+  onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
   proxyFetch?: (url: string, options?: string) => Promise<string>;
   wsOpen?: (url: string, protocols?: string) => Promise<string>;
   wsSend?: (b64: string) => Promise<void>;
@@ -257,6 +258,7 @@ function EditorContent({
   onLocalUserIdChange,
   onTypingUsersChange,
   onActiveStylesChange,
+  onDocSnapshotChange,
 }: {
   documentId: string;
   userId: string;
@@ -269,6 +271,7 @@ function EditorContent({
   onLocalUserIdChange: (userId: string) => Promise<void>;
   onTypingUsersChange: (usersJson: string) => Promise<void>;
   onActiveStylesChange?: (stylesJson: string) => Promise<void>;
+  onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
 }) {
   const user = useMemo(
     () => ({ id: userId, display_name: userName, email: userEmail }),
@@ -314,6 +317,8 @@ function EditorContent({
   onTypingUsersChangeRef.current = onTypingUsersChange;
   const onActiveStylesChangeRef = useRef(onActiveStylesChange);
   onActiveStylesChangeRef.current = onActiveStylesChange;
+  const onDocSnapshotChangeRef = useRef(onDocSnapshotChange);
+  onDocSnapshotChangeRef.current = onDocSnapshotChange;
 
   // Subscribe to editor selection changes → send active styles to native
   useEffect(() => {
@@ -347,6 +352,53 @@ function EditorContent({
     });
 
     return onSelectionChange;
+  }, [isSynced]);
+
+  // Snapshot the document markdown + current selection to native (for the AI
+  // assistant context). Debounced ~600ms; fires on both content edits
+  // (editor.onChange) and selection moves (editor.onSelectionChange).
+  useEffect(() => {
+    const editor = editorRef.current as {
+      onChange?: (cb: () => void) => (() => void) | void;
+      onSelectionChange?: (cb: () => void) => () => void;
+      document: unknown;
+      blocksToMarkdownLossy: (blocks: unknown) => string | Promise<string>;
+      getSelectedText?: () => string;
+    } | null;
+    if (!editor || !onDocSnapshotChangeRef.current) return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const emit = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        const ed = editorRef.current as {
+          document: unknown;
+          blocksToMarkdownLossy: (blocks: unknown) => string | Promise<string>;
+          getSelectedText?: () => string;
+        } | null;
+        if (!ed) return;
+        // blocksToMarkdownLossy is sync (string) in this BlockNote version but
+        // async in others — Promise.resolve normalizes both so `.then` is safe.
+        void Promise.resolve(ed.blocksToMarkdownLossy(ed.document))
+          .then((md) => {
+            const sel = ed.getSelectedText?.() ?? '';
+            onDocSnapshotChangeRef.current?.(md, sel);
+          })
+          .catch(() => {
+            // editor not ready
+          });
+      }, 600);
+    };
+
+    const unsubChange = editor.onChange?.(emit);
+    const unsubSelection = editor.onSelectionChange?.(emit);
+    emit();
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      if (typeof unsubChange === 'function') unsubChange();
+      if (unsubSelection) unsubSelection();
+    };
   }, [isSynced]);
 
   // Listen for formatting actions from native
@@ -393,13 +445,29 @@ function EditorContent({
       }
     };
 
+    const handleInsertText = (e: Event) => {
+      const text = (e as CustomEvent<{ text: string }>).detail?.text;
+      if (typeof text !== 'string' || !text) return;
+      const ed = editorRef.current as {
+        insertInlineContent: (content: string) => void;
+      } | null;
+      try {
+        // Trailing space keeps successive dictated sentences from running together.
+        ed?.insertInlineContent(`${text} `);
+      } catch {
+        // editor not ready
+      }
+    };
+
     window.addEventListener('send-chat', handleSendChat);
     window.addEventListener('set-typing', handleSetTyping);
     window.addEventListener('format-action', handleFormatAction);
+    window.addEventListener('insert-text', handleInsertText);
     return () => {
       window.removeEventListener('send-chat', handleSendChat);
       window.removeEventListener('set-typing', handleSetTyping);
       window.removeEventListener('format-action', handleFormatAction);
+      window.removeEventListener('insert-text', handleInsertText);
     };
   }, [sendMessage, setTyping]);
 
@@ -465,6 +533,7 @@ function EditorContent({
           showComments={false}
           useStaticFormattingToolbar={false}
           hideFormattingToolbar={true}
+          showDictationButton={false}
           onEditorReady={handleEditorReady}
         />
       </div>
@@ -546,6 +615,9 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
       window.dispatchEvent(
         new CustomEvent('format-action', { detail: { action: 'setAlignment', alignment } })
       );
+    } else if (props.pendingAction.type === 'insert-text') {
+      const text = (props.pendingAction as { type: string; text: string }).text;
+      window.dispatchEvent(new CustomEvent('insert-text', { detail: { text } }));
     }
   }, [props.pendingAction, props.actionCounter]);
 
@@ -583,6 +655,13 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
     [props.onActiveStylesChange]
   );
 
+  const handleDocSnapshotChange = useCallback(
+    (markdown: string, selectionText: string) => {
+      props.onDocSnapshotChange?.(markdown, selectionText);
+    },
+    [props.onDocSnapshotChange]
+  );
+
   return (
     <DocsProvider adapter={adapter}>
       <EditorContent
@@ -597,6 +676,7 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
         onLocalUserIdChange={handleLocalUserIdChange}
         onTypingUsersChange={handleTypingUsersChange}
         onActiveStylesChange={handleActiveStylesChange}
+        onDocSnapshotChange={handleDocSnapshotChange}
       />
     </DocsProvider>
   );

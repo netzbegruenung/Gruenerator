@@ -29,7 +29,8 @@ export type DocEditorAction =
   | { type: 'set-typing'; isTyping: boolean }
   | { type: 'format'; style: FormatStyle }
   | { type: 'setBlockType'; blockType: string; props?: Record<string, unknown> }
-  | { type: 'setAlignment'; alignment: 'left' | 'center' | 'right' };
+  | { type: 'setAlignment'; alignment: 'left' | 'center' | 'right' }
+  | { type: 'insert-text'; text: string };
 
 interface DocsEditorBridgeState {
   // DOM → Native
@@ -41,6 +42,10 @@ interface DocsEditorBridgeState {
   chatMessages: ChatMessage[];
   localUserId: string | null;
   typingUsers: string[];
+
+  // DOM → Native document snapshot (for the AI assistant context)
+  docMarkdown: string;
+  docSelectionText: string | null;
 
   // DOM → Native formatting state
   activeFormatting: ActiveFormattingState;
@@ -62,6 +67,7 @@ interface DocsEditorBridgeState {
   setChatMessages: (messages: ChatMessage[]) => void;
   setLocalUserId: (userId: string | null) => void;
   setTypingUsers: (users: string[]) => void;
+  setDocSnapshot: (markdown: string, selectionText: string | null) => void;
   setActiveFormatting: (formatting: ActiveFormattingState) => void;
   toggleSidebar: () => void;
   markChatRead: () => void;
@@ -80,6 +86,8 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
   chatMessages: [],
   localUserId: null,
   typingUsers: [],
+  docMarkdown: '',
+  docSelectionText: null,
   activeFormatting: { hasSelection: false, blockType: 'paragraph', blockProps: {} },
   sidebarOpen: false,
   lastSeenMessageCount: 0,
@@ -102,6 +110,12 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
   setLocalUserId: (userId) => set((s) => (s.localUserId === userId ? s : { localUserId: userId })),
   setTypingUsers: (users) =>
     set((s) => (s.typingUsers.join() === users.join() ? s : { typingUsers: users })),
+  setDocSnapshot: (markdown, selectionText) =>
+    set((s) =>
+      s.docMarkdown === markdown && s.docSelectionText === selectionText
+        ? s
+        : { docMarkdown: markdown, docSelectionText: selectionText }
+    ),
   setActiveFormatting: (formatting) =>
     set((s) => {
       const prev = s.activeFormatting;

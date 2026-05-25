@@ -53,7 +53,7 @@ export default function DocumentScreen() {
   const [initialTitle, setInitialTitle] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [chromeVisible, setChromeVisible] = useState(false);
+  const [chromeVisible, setChromeVisible] = useState(true);
   // Connection diagnostics: the Hocuspocus handshake can fail for auth/access
   // reasons (surfaced via onAuthError) or just never connect (network). Both
   // were previously invisible — only a tiny red dot. Surface a real reason + retry.
@@ -382,6 +382,9 @@ export default function DocumentScreen() {
           onLocalUserIdChange={handleLocalUserIdChange}
           onTypingUsersChange={handleTypingUsersChange}
           onActiveStylesChange={handleActiveStylesChange}
+          onDocSnapshotChange={(markdown, selectionText) =>
+            store.getState().setDocSnapshot(markdown, selectionText)
+          }
           proxyFetch={handleProxyFetch}
           wsOpen={handleWsOpen}
           wsSend={handleWsSend}
@@ -393,7 +396,7 @@ export default function DocumentScreen() {
         />
       </View>
 
-      <NativeChatSidebar />
+      <NativeChatSidebar documentId={id!} />
       <NativeShareModal
         visible={shareModalVisible}
         onClose={() => setShareModalVisible(false)}
