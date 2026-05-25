@@ -36,34 +36,16 @@ export async function invokeDocumentAI(opts: {
           useSelection?: boolean;
           chatRequestOptions?: { body?: object };
         }) => Promise<void>;
-        openAIMenuAtBlock: (blockId: string) => void;
       } | null;
     }
   ).getExtension?.(AIExtension);
   if (!ext) return false;
 
-  // Open the AI menu at an anchor block BEFORE invoking. This sets
-  // `aiMenuState !== "closed"` so AIMenuController renders the popover that
-  // hosts the Accept/Reject buttons once invokeAI transitions the status to
-  // "user-reviewing". Without this call the same diff overlay still appears
-  // (BlockNote applies edits as ProseMirror suggestions either way), but the
-  // review buttons stay invisible — that's the asymmetry vs. the slash-menu
-  // path, which calls openAIMenuAtBlock first.
-  //
-  // Anchor: cursor block if focused, else last block of the document (where
-  // appended content lands). Mirrors the slash-menu's `cursor.block.id`
-  // pattern when the user IS focused; degrades sensibly when they aren't.
-  const editorTyped = editor as unknown as {
-    getTextCursorPosition?: () => { block?: { id?: string } } | null;
-    document?: ReadonlyArray<{ id?: string }>;
-  };
-  const cursorBlockId = editorTyped.getTextCursorPosition?.()?.block?.id;
-  const lastBlockId = editorTyped.document?.[editorTyped.document.length - 1]?.id;
-  const anchorBlockId = cursorBlockId ?? lastBlockId;
-  if (anchorBlockId) {
-    ext.openAIMenuAtBlock(anchorBlockId);
-  }
-
+  // NOTE: we deliberately do NOT call `openAIMenuAtBlock`. On mobile the web AI
+  // popover (which hosts the Accept/Reject buttons) is suppressed entirely; the
+  // review UX is rendered natively (DocAiReviewBar → accept/rejectDocumentAI).
+  // `invokeAI` still applies the diff as ProseMirror suggestions regardless of
+  // menu state — the suggestion plugin is independent of the menu.
   await ext.invokeAI({
     userPrompt: opts.userPrompt,
     useSelection: opts.useSelection ?? false,
