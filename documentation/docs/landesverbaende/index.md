@@ -21,7 +21,6 @@ Es gibt zwei Sorten von Landesverband-Agents:
 | Thüringen              | ✅ `/agents/gruene-thueringen`  | ✅                    | `/notebooks/thueringen` · `@thüringen`      |
 | Brandenburg            | ✅ `/agents/gruene-brandenburg` | ✅                    | `/notebooks/brandenburg` · `@brandenburg`   |
 | Bayern                 | ✅ `/agents/gruene-bayern`      | ✅                    | `/notebooks/bayern` · `@bayern`             |
-| Schleswig-Holstein     | 🛠️ in Vorbereitung              | ✅                    | 🛠️ noch nicht freigeschaltet                |
 
 :::note Österreich
 Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben beiden Agent-Typen (Agent `/agents/gruene-oesterreich`, Wissensdatenbank `/notebooks/oesterreich` · `@at`). Diese Agents verwenden österreichisches Vokabular (Nationalrat, Klubobfrau\*Klubobmann, Klimaticket) und erscheinen nur für Nutzer\*innen mit österreichischer Einstellung.
@@ -46,8 +45,7 @@ Für diese Landesverbände gibt es eigene Skill-Abkürzungen für **Pressemittei
 | Mecklenburg-Vorpommern | `/presse-mv`          | `/insta-mv`          |
 | Thüringen              | `/presse-thueringen`  | `/insta-thueringen`  |
 | Brandenburg            | `/presse-brandenburg` | `/insta-brandenburg` |
-
-Für Bayern und Schleswig-Holstein gibt es (noch) keine eigenen Skill-Abkürzungen — nutze dort den Agent direkt über die Agent-Auswahl bzw. `/agents/gruene-bayern`.
+| Bayern                 | `/presse-bayern`      | `/insta-bayern`      |
 
 :::tip Allgemeine Skills für alle Kanäle
 Unabhängig vom Landesverband gibt es allgemeine Skills für jede Plattform: `/presse`, `/instagram`, `/facebook`, `/twitter`, `/linkedin` und `/reel`. Sie greifen auf Beispiele aus allen Landesverbänden zurück. Die LV-Skills oben sind die Spezialversion mit eingebautem Regional-Stil.
