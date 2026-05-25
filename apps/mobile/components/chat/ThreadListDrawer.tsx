@@ -12,11 +12,10 @@ import {
   type PinnedAgent,
 } from '@gruenerator/chat';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { type ReactElement, memo, useCallback, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
-import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useDrawerStore } from '../../hooks/useDrawerStore';
@@ -33,20 +32,6 @@ import type { Theme } from '../../theme/colors';
 interface Props {
   theme?: Theme;
 }
-
-interface NavItem {
-  label: string;
-  icon: IoniconsIconName;
-  path: AppRoute;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Recherche', icon: 'search-outline', path: '/(tabs)/(recherche)' },
-  { label: 'Websuche', icon: 'globe-outline', path: '/(tabs)/(recherche)/suche' },
-  { label: 'Medien', icon: 'images-outline', path: '/(tabs)/(media)' },
-  { label: 'Gruppen', icon: 'people-outline', path: '/(tabs)/(desk)/gruppen' },
-  { label: 'Boards', icon: 'grid-outline', path: '/(tabs)/(desk)/boards' },
-];
 
 // The body must read `aui` from *inside* ThreadListItemByIndexProvider so that
 // `aui.threadListItem()` resolves to this row's thread. Calling useAui() above the
@@ -128,58 +113,42 @@ const ThreadItem = memo(function ThreadItem({
 function DrawerSections({
   theme,
   agents,
-  onNavigate,
   onSelectAgent,
   onOpenSources,
 }: {
   theme: Theme;
   agents: PinnedAgent[];
-  onNavigate: (path: AppRoute) => void;
   onSelectAgent: (agentId: string) => void;
   onOpenSources: () => void;
 }) {
   return (
     <View>
-      {NAV_ITEMS.map((item) => (
+      <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Schnellstart</Text>
+      {agents.map((agent) => (
         <Pressable
-          key={item.path}
-          onPress={() => onNavigate(item.path)}
+          key={agent.identifier}
+          onPress={() => onSelectAgent(agent.identifier)}
           style={({ pressed }) => [
             styles.navRow,
             { backgroundColor: pressed ? theme.surface : 'transparent' },
           ]}
         >
-          <Ionicons name={item.icon} size={20} color={theme.text} />
-          <Text style={[styles.navLabel, { color: theme.text }]}>{item.label}</Text>
+          <Ionicons name={agentIcon(agent.iconKey)} size={20} color={theme.text} />
+          <Text style={[styles.navLabel, { color: theme.text }]} numberOfLines={1}>
+            {agent.title}
+          </Text>
         </Pressable>
       ))}
-
-      <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Schnellstart</Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.agentRow}
+      <Pressable
+        onPress={onOpenSources}
+        style={({ pressed }) => [
+          styles.navRow,
+          { backgroundColor: pressed ? theme.surface : 'transparent' },
+        ]}
       >
-        {agents.map((agent) => (
-          <Pressable
-            key={agent.identifier}
-            onPress={() => onSelectAgent(agent.identifier)}
-            style={({ pressed }) => [styles.agentChip, { opacity: pressed ? 0.6 : 1 }]}
-          >
-            <Ionicons name={agentIcon(agent.iconKey)} size={26} color={colors.eucalyptus} />
-            <Text style={[styles.agentTitle, { color: theme.text }]} numberOfLines={2}>
-              {agent.title}
-            </Text>
-          </Pressable>
-        ))}
-        <Pressable
-          onPress={onOpenSources}
-          style={({ pressed }) => [styles.agentChip, { opacity: pressed ? 0.6 : 1 }]}
-        >
-          <Ionicons name="ellipsis-horizontal" size={26} color={colors.eucalyptus} />
-          <Text style={[styles.agentTitle, { color: theme.text }]}>Mehr</Text>
-        </Pressable>
-      </ScrollView>
+        <Ionicons name="ellipsis-horizontal" size={20} color={theme.text} />
+        <Text style={[styles.navLabel, { color: theme.text }]}>Mehr</Text>
+      </Pressable>
 
       <Text style={[styles.sectionLabel, { color: theme.textSecondary }]}>Letzte</Text>
     </View>
@@ -321,12 +290,11 @@ export const ThreadListDrawer = memo(function ThreadListDrawer({ theme: themePro
       <DrawerSections
         theme={theme}
         agents={pinnedAgents}
-        onNavigate={handleNavigate}
         onSelectAgent={handleSelectAgent}
         onOpenSources={() => setSheetVisible(true)}
       />
     ),
-    [theme, pinnedAgents, handleNavigate, handleSelectAgent]
+    [theme, pinnedAgents, handleSelectAgent]
   );
 
   return (
@@ -404,27 +372,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.medium,
     marginTop: spacing.medium,
     marginBottom: spacing.xsmall,
-  },
-  agentRow: {
-    flexDirection: 'row',
-    gap: spacing.small,
-    paddingHorizontal: spacing.small,
-    paddingVertical: spacing.xxsmall,
-  },
-  agentChip: {
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: spacing.xsmall,
-    width: 76,
-    minHeight: 76,
-    paddingVertical: spacing.xsmall,
-    paddingHorizontal: spacing.xxsmall,
-    borderRadius: borderRadius.medium,
-  },
-  agentTitle: {
-    fontSize: 11,
-    fontWeight: '500',
-    textAlign: 'center',
   },
   list: {
     flex: 1,

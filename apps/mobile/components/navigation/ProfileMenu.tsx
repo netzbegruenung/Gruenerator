@@ -26,7 +26,7 @@ interface MenuItem {
 }
 
 const MENU_ITEMS: MenuItem[] = [
-  { key: 'gruppen', label: 'Gruppen', icon: 'people-outline', href: '/(tabs)/(desk)/gruppen' },
+  { key: 'gruppen', label: 'Gruppen', icon: 'people-outline', href: '/(focused)/gruppen' },
   {
     key: 'inhalte',
     label: 'Dateien',
