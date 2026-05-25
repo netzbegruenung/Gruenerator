@@ -27,18 +27,8 @@ interface MenuItem {
 
 const MENU_ITEMS: MenuItem[] = [
   { key: 'gruppen', label: 'Gruppen', icon: 'people-outline', href: '/(focused)/gruppen' },
-  {
-    key: 'inhalte',
-    label: 'Dateien',
-    icon: 'folder-outline',
-    href: { pathname: '/profile', params: { section: 'inhalte' } },
-  },
-  {
-    key: 'einstellungen',
-    label: 'Einstellungen',
-    icon: 'settings-outline',
-    href: { pathname: '/profile', params: { section: 'einstellungen' } },
-  },
+  { key: 'inhalte', label: 'Dateien', icon: 'folder-outline', href: '/(tabs)/(docs)' },
+  { key: 'einstellungen', label: 'Einstellungen', icon: 'settings-outline', href: '/profile' },
 ];
 
 const getPossessiveForm = (name: string | undefined): string => {
