@@ -11,6 +11,15 @@ export interface ChatMessage {
 
 export type FormatStyle = 'bold' | 'italic' | 'underline' | 'strike' | 'code';
 
+// Mirror of @gruenerator/collab's CollaborationUser, redeclared here so the native
+// bundle doesn't pull in the web-only collab package (the real type lives in the DOM).
+export interface DocCollaborator {
+  id: string;
+  name: string;
+  color: string;
+  avatarRobotId?: number;
+}
+
 export interface ActiveFormattingState {
   hasSelection: boolean;
   bold?: boolean;
@@ -37,9 +46,15 @@ export type DocEditorAction =
   // Native slash menu picked a block type — clears the typed "/" and converts.
   | { type: 'slash-select'; blockType: string; props?: Record<string, unknown> };
 
+// 'connecting' = initial, before the first successful connect (neutral — no red dot).
+// 'syncing' = connected, awaiting the Yjs initial sync. 'disconnected' = a real drop AFTER
+// having connected (red). Keeping these distinct is what lets the load show a skeleton
+// instead of a jarring red dot.
+export type ConnectionStatus = 'connecting' | 'connected' | 'syncing' | 'disconnected';
+
 interface DocsEditorBridgeState {
   // DOM → Native
-  connectionStatus: 'connected' | 'syncing' | 'disconnected';
+  connectionStatus: ConnectionStatus;
   documentTitle: string;
   canEdit: boolean;
   isGuest: boolean;
@@ -47,6 +62,9 @@ interface DocsEditorBridgeState {
   chatMessages: ChatMessage[];
   localUserId: string | null;
   typingUsers: string[];
+  // Remote collaborators currently in the document (from Yjs awareness), bridged
+  // from the DOM editor; rendered as presence avatars in the native top bar.
+  collaborators: DocCollaborator[];
 
   // DOM → Native document snapshot (for the AI assistant context)
   docMarkdown: string;
@@ -72,13 +90,20 @@ interface DocsEditorBridgeState {
   // toolbar and the slash menu's AI item can open it (the toolbar unmounts
   // without a selection, so the sheet lives at screen level).
   aiEditOpen: boolean;
+  // Version history sheet — opened from the top-bar overflow menu, rendered at
+  // screen level (same store-flag pattern as aiEditOpen).
+  versionsOpen: boolean;
+  // Bumped after a version restore to remount the editor: the restore writes a
+  // new Yjs update server-side that the live Hocuspocus doc won't pick up while
+  // connected, so we force a reconnect (mirrors web's "Bitte Seite neu laden").
+  editorEpoch: number;
 
   // Native → DOM (action dispatch)
   pendingAction: DocEditorAction | null;
   actionCounter: number;
 
   // Setters
-  setConnectionStatus: (status: 'connected' | 'syncing' | 'disconnected') => void;
+  setConnectionStatus: (status: ConnectionStatus) => void;
   setDocumentTitle: (title: string) => void;
   setCanEdit: (canEdit: boolean) => void;
   setDocumentMeta: (title: string, canEdit: boolean) => void;
@@ -86,6 +111,7 @@ interface DocsEditorBridgeState {
   setChatMessages: (messages: ChatMessage[]) => void;
   setLocalUserId: (userId: string | null) => void;
   setTypingUsers: (users: string[]) => void;
+  setCollaborators: (collaborators: DocCollaborator[]) => void;
   setDocSnapshot: (markdown: string, selectionText: string | null) => void;
   setActiveFormatting: (formatting: ActiveFormattingState) => void;
   setAiReviewPending: (v: boolean) => void;
@@ -94,6 +120,8 @@ interface DocsEditorBridgeState {
   setFullscreen: (v: boolean) => void;
   setSlashMenu: (open: boolean, query: string) => void;
   setAiEditOpen: (v: boolean) => void;
+  setVersionsOpen: (v: boolean) => void;
+  bumpEditorEpoch: () => void;
   markChatRead: () => void;
 
   // Action dispatch
@@ -102,7 +130,7 @@ interface DocsEditorBridgeState {
 }
 
 export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => ({
-  connectionStatus: 'disconnected',
+  connectionStatus: 'connecting',
   documentTitle: '',
   canEdit: false,
   isGuest: false,
@@ -110,6 +138,7 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
   chatMessages: [],
   localUserId: null,
   typingUsers: [],
+  collaborators: [],
   docMarkdown: '',
   docSelectionText: null,
   activeFormatting: { hasSelection: false, blockType: 'paragraph', blockProps: {} },
@@ -120,6 +149,8 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
   slashMenuOpen: false,
   slashQuery: '',
   aiEditOpen: false,
+  versionsOpen: false,
+  editorEpoch: 0,
   pendingAction: null,
   actionCounter: 0,
 
@@ -139,6 +170,12 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
   setLocalUserId: (userId) => set((s) => (s.localUserId === userId ? s : { localUserId: userId })),
   setTypingUsers: (users) =>
     set((s) => (s.typingUsers.join() === users.join() ? s : { typingUsers: users })),
+  setCollaborators: (collaborators) =>
+    set((s) =>
+      s.collaborators.map((c) => c.id).join() === collaborators.map((c) => c.id).join()
+        ? s
+        : { collaborators }
+    ),
   setDocSnapshot: (markdown, selectionText) =>
     set((s) =>
       s.docMarkdown === markdown && s.docSelectionText === selectionText
@@ -170,6 +207,8 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
         : { slashMenuOpen: open, slashQuery: query }
     ),
   setAiEditOpen: (v) => set((s) => (s.aiEditOpen === v ? s : { aiEditOpen: v })),
+  setVersionsOpen: (v) => set((s) => (s.versionsOpen === v ? s : { versionsOpen: v })),
+  bumpEditorEpoch: () => set((s) => ({ editorEpoch: s.editorEpoch + 1 })),
   markChatRead: () => set((s) => ({ lastSeenMessageCount: s.chatMessages.length })),
   dispatchAction: (action) =>
     set((s) => ({ pendingAction: action, actionCounter: s.actionCounter + 1 })),

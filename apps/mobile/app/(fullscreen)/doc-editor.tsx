@@ -9,12 +9,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DocAiEditSheet } from '../../components/docs/DocAiEditSheet';
 import { DocAiReviewBar } from '../../components/docs/DocAiReviewBar';
 import DocEditorDOM from '../../components/docs/DocEditorDOM';
+import { DocEditorSkeleton } from '../../components/docs/DocEditorSkeleton';
 import { GuestBanner } from '../../components/docs/GuestBanner';
 import { NativeChatSidebar } from '../../components/docs/NativeChatSidebar';
 import { NativeDocTopBar } from '../../components/docs/NativeDocTopBar';
 import { NativeFormattingToolbar } from '../../components/docs/NativeFormattingToolbar';
 import { NativeShareModal } from '../../components/docs/NativeShareModal';
 import { NativeSlashMenu } from '../../components/docs/NativeSlashMenu';
+import { NativeVersionHistorySheet } from '../../components/docs/NativeVersionHistorySheet';
 import { docsService } from '../../services/docs/docsApi';
 import { trackDocumentOpen } from '../../services/docs/recentDocs';
 import { secureStorage } from '../../services/storage';
@@ -22,6 +24,8 @@ import {
   useDocsEditorBridgeStore,
   type ChatMessage,
   type ActiveFormattingState,
+  type DocCollaborator,
+  type ConnectionStatus,
 } from '../../stores/docsEditorBridgeStore';
 import { useDocsStore } from '../../stores/docsStore';
 import { lightTheme, darkTheme, colors } from '../../theme';
@@ -62,6 +66,9 @@ export default function DocumentScreen() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [connTimedOut, setConnTimedOut] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  // Once the doc has synced at least once, stop showing the load skeleton (a later
+  // transient reconnect shows the dot, not the skeleton, since content is already there).
+  const [hasSyncedOnce, setHasSyncedOnce] = useState(false);
 
   const store = useDocsEditorBridgeStore;
   const connectionStatus = store((s) => s.connectionStatus);
@@ -72,10 +79,14 @@ export default function DocumentScreen() {
   const setFullscreen = store((s) => s.setFullscreen);
   const toggleSidebar = store((s) => s.toggleSidebar);
   const aiEditOpen = store((s) => s.aiEditOpen);
+  const versionsOpen = store((s) => s.versionsOpen);
+  const canEdit = store((s) => s.canEdit);
+  const editorEpoch = store((s) => s.editorEpoch);
   const chromeVisible = !fullscreen;
 
   // Load token (fast) — mounts editor immediately
   useEffect(() => {
+    setHasSyncedOnce(false); // new document → show the skeleton until it syncs
     if (!id) {
       setError('Keine Dokument-ID angegeben');
       setIsLoading(false);
@@ -119,7 +130,7 @@ export default function DocumentScreen() {
 
   // Bridge callbacks: DOM → Native
   const handleConnectionStatusChange = useCallback(async (status: string) => {
-    store.getState().setConnectionStatus(status as 'connected' | 'syncing' | 'disconnected');
+    store.getState().setConnectionStatus(status as ConnectionStatus);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAuthError = useCallback(async (reason: string) => {
@@ -129,8 +140,20 @@ export default function DocumentScreen() {
   const handleRetry = useCallback(() => {
     setAuthError(null);
     setConnTimedOut(false);
+    setHasSyncedOnce(false); // remounting → show the skeleton again until it re-syncs
     setReloadKey((k) => k + 1); // remount the editor → fresh Hocuspocus connection
   }, []);
+
+  // First successful sync hides the load skeleton.
+  useEffect(() => {
+    if (connectionStatus === 'connected') setHasSyncedOnce(true);
+  }, [connectionStatus]);
+
+  // A version restore bumps editorEpoch → the editor remounts and reconnects.
+  // Show the skeleton again over that reconnect (mirrors the initial-load behaviour).
+  useEffect(() => {
+    if (editorEpoch > 0) setHasSyncedOnce(false);
+  }, [editorEpoch]);
 
   // If the socket hasn't connected within 15s (and no explicit auth error),
   // assume a network/server-reachability problem rather than leaving a bare dot.
@@ -188,6 +211,14 @@ export default function DocumentScreen() {
   const handleTypingUsersChange = useCallback(async (usersJson: string) => {
     try {
       store.getState().setTypingUsers(JSON.parse(usersJson) as string[]);
+    } catch {
+      // Ignore parse errors
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCollaboratorsChange = useCallback(async (collaboratorsJson: string) => {
+    try {
+      store.getState().setCollaborators(JSON.parse(collaboratorsJson) as DocCollaborator[]);
     } catch {
       // Ignore parse errors
     }
@@ -336,7 +367,11 @@ export default function DocumentScreen() {
   }, []);
 
   if (isLoading) {
-    return <View style={[styles.container, { backgroundColor: theme.background }]} />;
+    return (
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <DocEditorSkeleton />
+      </View>
+    );
   }
 
   if (error || !token || !user) {
@@ -372,7 +407,7 @@ export default function DocumentScreen() {
 
       <View style={styles.editorContainer}>
         <DocEditorDOM
-          key={reloadKey}
+          key={`${reloadKey}-${editorEpoch}`}
           documentId={id!}
           authToken={token}
           userId={user.id}
@@ -390,6 +425,7 @@ export default function DocumentScreen() {
           onChatMessagesChange={handleChatMessagesChange}
           onLocalUserIdChange={handleLocalUserIdChange}
           onTypingUsersChange={handleTypingUsersChange}
+          onCollaboratorsChange={handleCollaboratorsChange}
           onActiveStylesChange={handleActiveStylesChange}
           onDocSnapshotChange={(markdown, selectionText) =>
             store.getState().setDocSnapshot(markdown, selectionText)
@@ -412,6 +448,9 @@ export default function DocumentScreen() {
           actionCounter={actionCounter}
           dom={{ scrollEnabled: false }}
         />
+        {/* Cover the editor while it connects + does its first Yjs sync. The editor
+            stays mounted underneath so it can connect; the skeleton lifts on sync. */}
+        {!hasSyncedOnce && <DocEditorSkeleton />}
       </View>
 
       {!fullscreen && <NativeSlashMenu />}
@@ -434,6 +473,12 @@ export default function DocumentScreen() {
         userDisplayName={user?.display_name ?? undefined}
         isOwner={true}
       />
+      <NativeVersionHistorySheet
+        visible={versionsOpen}
+        onClose={() => store.getState().setVersionsOpen(false)}
+        documentId={id!}
+        canEdit={canEdit}
+      />
 
       {/* Connection failure banner — auth/access denied or never connected.
           Replaces the silent red dot with the actual server reason + retry. */}
@@ -454,17 +499,21 @@ export default function DocumentScreen() {
         </View>
       )}
 
-      {/* Transient connection status dot — only while (re)connecting/syncing */}
-      {connectionStatus !== 'connected' && !authError && !connTimedOut && (
-        <View style={[styles.statusOverlay, { top: insets.top + 8 }]}>
-          <View
-            style={[
-              styles.statusDot,
-              { backgroundColor: connectionStatus === 'syncing' ? '#f59e0b' : '#ef4444' },
-            ]}
-          />
-        </View>
-      )}
+      {/* Transient connection dot — only AFTER the first sync (the skeleton owns the
+          initial load) and never for 'connecting'. Amber = re-syncing, red = dropped. */}
+      {hasSyncedOnce &&
+        (connectionStatus === 'syncing' || connectionStatus === 'disconnected') &&
+        !authError &&
+        !connTimedOut && (
+          <View style={[styles.statusOverlay, { top: insets.top + 8 }]}>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: connectionStatus === 'syncing' ? '#f59e0b' : '#ef4444' },
+              ]}
+            />
+          </View>
+        )}
 
       {/* Bottom-right action: AI assistant normally, exit-fullscreen while in
           fullscreen (the top bar — and its menu — are hidden then). */}
