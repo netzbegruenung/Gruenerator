@@ -49,6 +49,7 @@ export {
   imageModelPreferenceContract,
   adminVorlagenContract,
   userTemplatesContract,
+  userAgentsContract,
   canvasAiContract,
   groupsContract,
 } from './contracts/index.js';
@@ -84,6 +85,7 @@ export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
+export * from './schemas/userAgents.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/skill.js';
 export * from './schemas/groups.js';

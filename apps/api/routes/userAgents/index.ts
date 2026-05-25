@@ -1,1 +1,4 @@
-export { default as userAgentsRouter } from './userAgents.js';
+export {
+  mountUserAgentsContractRouter,
+  userAgentsContractRouter,
+} from './userAgentsContractRouter.js';
