@@ -203,33 +203,42 @@ export default defineConfig(({ command }) => ({
           }
           return 'assets/[name].[hash][extname]';
         },
-        // Code-splitting strategy — leaf libraries only.
+        // Code-splitting is DISABLED by default. Do not re-enable it without
+        // a runtime smoke test (see below) — it has crashed prod three times.
         //
-        // History: commit 298ebe2f1 set `codeSplitting: false` after
-        // Rolldown's auto-chunker produced chunks with module-init order
-        // cycles, crashing prod with "TypeError: s is not a function"
-        // (react-markdown chunk) and "Cannot read properties of undefined
-        // (reading 'displayName')" (radix-ui Primitive chunk). The pre-298ebe2f1
-        // config nested `groups` directly under `codeSplitting`, which Rolldown
-        // silently dropped (the boolean|schema union accepted the object but
-        // the schema requires `groups` under `advancedChunks`, not under
-        // `codeSplitting`). Result: no manual chunking ever applied.
+        // History:
+        //  - pre-298ebe2f1: groups nested under `codeSplitting` (wrong schema
+        //    key) were silently dropped, so Rolldown's auto-chunker ran. It
+        //    produced module-init order cycles: "TypeError: s is not a function"
+        //    (react-markdown) and "Cannot read properties of undefined
+        //    (reading 'displayName')" (radix Primitive).
+        //  - 298ebe2f1: `codeSplitting: false` → crashes stopped.
+        //  - e49af52ea: re-enabled "leaf-only" `advancedChunks.groups`. Crashed
+        //    again: React was null inside the `pkg-canvas-editor` chunk.
+        //  - removing `pkg-canvas-editor` (#1062): the SAME crash reappeared in
+        //    the react-query (`useBaseQuery`) chunk, with React-DOM's reconciler
+        //    living inside `vendor-blocknote-export`.
         //
-        // This config uses `output.advancedChunks.groups` (the correct
-        // location) to name chunks for heavy LEAF libraries only — libs
-        // that export no Providers, hold no shared singletons, and are
-        // imported only inside lazy route components. Therefore none can participate in a
-        // cross-chunk init cycle: no other chunk reads from them at
-        // module-init time. React, Radix, react-markdown, and the workspace
-        // packages (`@gruenerator/ui`, `@gruenerator/chat`, etc.) are
-        // deliberately NOT split — they stay in the entry chunk where they
-        // are today, eliminating the original failure mode.
+        // Why "leaf-only" is NOT enough: `advancedChunks.groups` only NAMES a
+        // few chunks; everything else (React, React-DOM, react-query, …) is
+        // still AUTO-split by Rolldown. The auto-splitter scatters React/
+        // React-DOM across chunks and forms a cross-chunk init cycle — any
+        // chunk that imports React but initializes before the chunk holding
+        // React-DOM's module body sees `React === null` →
+        // "Cannot read properties of null (reading 'useEffect')". The bug is
+        // the splitter, not any single package, which is why whack-a-mole on
+        // individual groups doesn't help.
         //
-        // Set `VITE_SINGLE_BUNDLE=1` in the environment for a one-redeploy
-        // revert to the pre-splitting single-bundle build with no code
-        // change. Each named chunk's size comment is the source-byte size
-        // measured from the analyzer; gzip is roughly ÷4.
-        ...(process.env.VITE_SINGLE_BUNDLE === '1'
+        // CI cannot catch this: the build compiles green; the cycle only
+        // throws at runtime in the browser. Re-enabling splitting therefore
+        // requires a runtime smoke test (load the app, assert no console
+        // error) BEFORE it ships — that gate does not exist yet.
+        //
+        // To experiment with splitting locally, set `VITE_EXPERIMENTAL_SPLIT=1`.
+        // The `advancedChunks.groups` below are kept for that experiment; each
+        // size comment is the source-byte size (gzip ≈ ÷4). Until a smoke test
+        // exists, the default ships a single bundle.
+        ...(process.env.VITE_EXPERIMENTAL_SPLIT !== '1'
           ? { codeSplitting: false }
           : {
               advancedChunks: {
