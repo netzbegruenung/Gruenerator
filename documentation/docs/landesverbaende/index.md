@@ -2,6 +2,8 @@
 sidebar_position: 1
 ---
 
+import AgentTiles from '@site/src/components/AgentTiles';
+
 # Landesverband-Agents
 
 Der Grünerator hat für mehrere Landesverbände **eigene, regional getunte KI-Agents**. Sie schreiben nicht generisch-grün, sondern im konkreten Stil des jeweiligen Landesverbands — mit den richtigen Sprecher\*innen, den lokalen Themen und der typischen Tonalität. Im Hintergrund recherchieren sie automatisch in der Wissensdatenbank des Landesverbands (Pressemitteilungen, Beschlüsse, Wahlprogramme) und im Web.
@@ -13,14 +15,9 @@ Es gibt zwei Sorten von Landesverband-Agents:
 
 ## Abgedeckte Landesverbände
 
-| Landesverband          | Öffentlichkeitsarbeit           | Bürger\*innenanfragen | Wissensdatenbank                            |
-| ---------------------- | ------------------------------- | --------------------- | ------------------------------------------- |
-| Berlin                 | ✅ `/agents/gruene-berlin`      | ✅                    | `/notebooks/berlin` · `@berlin`             |
-| Hamburg                | ✅ `/agents/gruene-hamburg`     | ✅                    | `/notebooks/hamburg` · `@hamburg`           |
-| Mecklenburg-Vorpommern | ✅ `/agents/gruene-mv`          | ✅                    | `/notebooks/mecklenburg-vorpommern` · `@mv` |
-| Thüringen              | ✅ `/agents/gruene-thueringen`  | ✅                    | `/notebooks/thueringen` · `@thüringen`      |
-| Brandenburg            | ✅ `/agents/gruene-brandenburg` | ✅                    | `/notebooks/brandenburg` · `@brandenburg`   |
-| Bayern                 | ✅ `/agents/gruene-bayern`      | ✅                    | `/notebooks/bayern` · `@bayern`             |
+<AgentTiles />
+
+Jede Kachel verlinkt auf den Öffentlichkeitsarbeit-Agent des Landesverbands; darunter stehen seine Skill-Abkürzungen und ein Link zur Wissensdatenbank (Notebook). Jeder Landesverband hat außerdem einen **Bürger\*innenanfragen**-Agent (siehe unten).
 
 :::note Österreich
 Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben beiden Agent-Typen (Agent `/agents/gruene-oesterreich`, Wissensdatenbank `/notebooks/oesterreich` · `@at`). Diese Agents verwenden österreichisches Vokabular (Nationalrat, Klubobfrau\*Klubobmann, Klimaticket) und erscheinen nur für Nutzer\*innen mit österreichischer Einstellung.
