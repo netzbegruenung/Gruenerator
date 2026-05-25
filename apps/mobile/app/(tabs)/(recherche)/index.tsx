@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { NotebookCreator } from '../../../components/notebook/NotebookCreator';
+import { NotebookShareSheet } from '../../../components/notebook/NotebookShareSheet';
 import {
   getMobileNotebooksByCategory,
   getVisibleNotebooks,
@@ -144,6 +145,7 @@ export default function NotebooksScreen() {
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
   const [creatorVisible, setCreatorVisible] = useState(false);
+  const [shareTarget, setShareTarget] = useState<{ id: string; name: string } | null>(null);
   const { user } = useAuth();
   const locale: 'de-DE' | 'de-AT' = user?.locale === 'de-AT' ? 'de-AT' : 'de-DE';
   const { collections, isLoading, processingIds, createCollection, deleteCollection } =
@@ -208,6 +210,17 @@ export default function NotebooksScreen() {
       ]);
     },
     [deleteCollection]
+  );
+
+  const handleCollectionLongPress = useCallback(
+    (id: string, name: string) => {
+      Alert.alert(name, undefined, [
+        { text: 'Teilen', onPress: () => setShareTarget({ id, name }) },
+        { text: 'Löschen', style: 'destructive', onPress: () => handleDeleteCollection(id, name) },
+        { text: 'Abbrechen', style: 'cancel' },
+      ]);
+    },
+    [handleDeleteCollection]
   );
 
   return (
@@ -325,7 +338,7 @@ export default function NotebooksScreen() {
                     icon="book"
                     title={c.name}
                     onPress={() => handleCollectionPress(c.id)}
-                    onLongPress={() => handleDeleteCollection(c.id, c.name)}
+                    onLongPress={() => handleCollectionLongPress(c.id, c.name)}
                     isProcessing={processingIds.has(c.id)}
                   />
                 ))
@@ -361,6 +374,16 @@ export default function NotebooksScreen() {
           onClose={() => setCreatorVisible(false)}
           createCollection={createCollection}
         />
+
+        {shareTarget && (
+          <NotebookShareSheet
+            notebookId={shareTarget.id}
+            notebookName={shareTarget.name}
+            visible={!!shareTarget}
+            onClose={() => setShareTarget(null)}
+            theme={theme}
+          />
+        )}
       </ScrollView>
       {!searchOpen && (
         <Pressable
