@@ -30,6 +30,7 @@ export const NativeFormattingToolbar = memo(function NativeFormattingToolbar() {
   const activeFormatting = useDocsEditorBridgeStore((s) => s.activeFormatting);
   const canEdit = useDocsEditorBridgeStore((s) => s.canEdit);
   const dispatchAction = useDocsEditorBridgeStore((s) => s.dispatchAction);
+  const setAiEditOpen = useDocsEditorBridgeStore((s) => s.setAiEditOpen);
 
   if (!activeFormatting.hasSelection) return null;
 
@@ -143,6 +144,14 @@ export const NativeFormattingToolbar = memo(function NativeFormattingToolbar() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        <Pressable
+          onPress={() => setAiEditOpen(true)}
+          style={styles.button}
+          accessibilityLabel="Mit KI bearbeiten"
+        >
+          <Ionicons name="sparkles" size={18} color={colors.secondary[600]} />
+        </Pressable>
+        <View style={[styles.divider, { backgroundColor: theme.border }]} />
         {items.map((item) => {
           if (isDivider(item)) {
             return (

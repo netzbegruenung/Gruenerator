@@ -3,14 +3,17 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, useColorScheme } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Pressable, useColorScheme } from 'react-native';
 
+import { DocAiEditSheet } from '../../../../components/docs/DocAiEditSheet';
+import { DocAiReviewBar } from '../../../../components/docs/DocAiReviewBar';
 import DocEditorDOM from '../../../../components/docs/DocEditorDOM';
 import { GuestBanner } from '../../../../components/docs/GuestBanner';
 import { NativeChatSidebar } from '../../../../components/docs/NativeChatSidebar';
 import { NativeDocTopBar } from '../../../../components/docs/NativeDocTopBar';
 import { NativeFormattingToolbar } from '../../../../components/docs/NativeFormattingToolbar';
 import { NativeShareModal } from '../../../../components/docs/NativeShareModal';
+import { NativeSlashMenu } from '../../../../components/docs/NativeSlashMenu';
 import { docsService } from '../../../../services/docs/docsApi';
 import { trackDocumentOpen } from '../../../../services/docs/recentDocs';
 import { secureStorage } from '../../../../services/storage';
@@ -57,6 +60,11 @@ export default function DocumentScreen() {
   const store = useDocsEditorBridgeStore;
   const pendingAction = store((s) => s.pendingAction);
   const actionCounter = store((s) => s.actionCounter);
+  const aiReviewPending = store((s) => s.aiReviewPending);
+  const fullscreen = store((s) => s.fullscreen);
+  const setFullscreen = store((s) => s.setFullscreen);
+  const toggleSidebar = store((s) => s.toggleSidebar);
+  const aiEditOpen = store((s) => s.aiEditOpen);
 
   // Load token (fast) — mounts editor immediately
   useEffect(() => {
@@ -308,11 +316,16 @@ export default function DocumentScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} hidden={fullscreen} />
 
-      <NativeDocTopBar />
-      <NativeFormattingToolbar />
-      <GuestBanner />
+      {!fullscreen && (
+        <>
+          <NativeDocTopBar />
+          <NativeFormattingToolbar />
+          {aiReviewPending && <DocAiReviewBar />}
+          <GuestBanner />
+        </>
+      )}
 
       <View style={styles.editorContainer}>
         <DocEditorDOM
@@ -333,6 +346,18 @@ export default function DocumentScreen() {
           onLocalUserIdChange={handleLocalUserIdChange}
           onTypingUsersChange={handleTypingUsersChange}
           onActiveStylesChange={handleActiveStylesChange}
+          onDocSnapshotChange={(markdown, selectionText) =>
+            store.getState().setDocSnapshot(markdown, selectionText)
+          }
+          onSlashChange={(json) => {
+            try {
+              const { open, query } = JSON.parse(json) as { open: boolean; query: string };
+              store.getState().setSlashMenu(open, query);
+            } catch {
+              // ignore malformed payload
+            }
+          }}
+          onAiReviewPendingChange={(p) => store.getState().setAiReviewPending(p)}
           proxyFetch={handleProxyFetch}
           wsOpen={handleWsOpen}
           wsSend={handleWsSend}
@@ -344,7 +369,38 @@ export default function DocumentScreen() {
         />
       </View>
 
-      <NativeChatSidebar />
+      {/* Bottom-right action: AI assistant normally, exit-fullscreen in fullscreen. */}
+      {fullscreen ? (
+        <Pressable
+          onPress={() => setFullscreen(false)}
+          style={[styles.fab, { backgroundColor: theme.card, borderColor: theme.border }]}
+          accessibilityLabel="Vollbild beenden"
+        >
+          <Ionicons name="contract-outline" size={20} color={theme.textSecondary} />
+        </Pressable>
+      ) : (
+        <Pressable
+          onPress={toggleSidebar}
+          style={[styles.fabPrimary, { backgroundColor: theme.card, borderColor: theme.border }]}
+          accessibilityLabel="KI-Assistent"
+        >
+          <Ionicons name="sparkles" size={20} color={colors.primary[600]} />
+        </Pressable>
+      )}
+
+      {!fullscreen && <NativeSlashMenu />}
+      <DocAiEditSheet
+        visible={aiEditOpen}
+        onClose={() => store.getState().setAiEditOpen(false)}
+        onSubmit={(prompt) =>
+          store.getState().dispatchAction({
+            type: 'invoke-ai',
+            prompt,
+            useSelection: store.getState().activeFormatting.hasSelection,
+          })
+        }
+      />
+      <NativeChatSidebar documentId={id!} />
       <NativeShareModal
         visible={shareModalVisible}
         onClose={() => setShareModalVisible(false)}
@@ -361,6 +417,38 @@ const styles = StyleSheet.create({
   },
   editorContainer: {
     flex: 1,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  fabPrimary: {
+    position: 'absolute',
+    bottom: 24,
+    right: 16,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
   },
   centerContainer: {
     flex: 1,

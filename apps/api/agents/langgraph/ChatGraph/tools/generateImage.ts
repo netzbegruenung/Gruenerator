@@ -70,6 +70,7 @@ export function createGenerateImageTool(deps: ToolDependencies): DynamicStructur
       description: string;
       style?: 'illustration' | 'realistic' | 'pixel';
     }) => {
+      const startTime = Date.now();
       const { description, style: requestedStyle } = input;
       const userId = deps.agentConfig.userId;
 
@@ -112,7 +113,7 @@ export function createGenerateImageTool(deps: ToolDependencies): DynamicStructur
           filename: stored.filename,
           prompt,
           style: imageStyle,
-          generationTimeMs: 0,
+          generationTimeMs: Date.now() - startTime,
         };
 
         deps._generatedImage = imageResult;

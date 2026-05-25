@@ -6,12 +6,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Pressable, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DocAiEditSheet } from '../../components/docs/DocAiEditSheet';
+import { DocAiReviewBar } from '../../components/docs/DocAiReviewBar';
 import DocEditorDOM from '../../components/docs/DocEditorDOM';
 import { GuestBanner } from '../../components/docs/GuestBanner';
 import { NativeChatSidebar } from '../../components/docs/NativeChatSidebar';
 import { NativeDocTopBar } from '../../components/docs/NativeDocTopBar';
 import { NativeFormattingToolbar } from '../../components/docs/NativeFormattingToolbar';
 import { NativeShareModal } from '../../components/docs/NativeShareModal';
+import { NativeSlashMenu } from '../../components/docs/NativeSlashMenu';
 import { docsService } from '../../services/docs/docsApi';
 import { trackDocumentOpen } from '../../services/docs/recentDocs';
 import { secureStorage } from '../../services/storage';
@@ -53,7 +56,6 @@ export default function DocumentScreen() {
   const [initialTitle, setInitialTitle] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [chromeVisible, setChromeVisible] = useState(false);
   // Connection diagnostics: the Hocuspocus handshake can fail for auth/access
   // reasons (surfaced via onAuthError) or just never connect (network). Both
   // were previously invisible — only a tiny red dot. Surface a real reason + retry.
@@ -65,6 +67,12 @@ export default function DocumentScreen() {
   const connectionStatus = store((s) => s.connectionStatus);
   const pendingAction = store((s) => s.pendingAction);
   const actionCounter = store((s) => s.actionCounter);
+  const aiReviewPending = store((s) => s.aiReviewPending);
+  const fullscreen = store((s) => s.fullscreen);
+  const setFullscreen = store((s) => s.setFullscreen);
+  const toggleSidebar = store((s) => s.toggleSidebar);
+  const aiEditOpen = store((s) => s.aiEditOpen);
+  const chromeVisible = !fullscreen;
 
   // Load token (fast) — mounts editor immediately
   useEffect(() => {
@@ -357,6 +365,7 @@ export default function DocumentScreen() {
         <>
           <NativeDocTopBar />
           <NativeFormattingToolbar />
+          {aiReviewPending && <DocAiReviewBar />}
           <GuestBanner />
         </>
       )}
@@ -382,6 +391,18 @@ export default function DocumentScreen() {
           onLocalUserIdChange={handleLocalUserIdChange}
           onTypingUsersChange={handleTypingUsersChange}
           onActiveStylesChange={handleActiveStylesChange}
+          onDocSnapshotChange={(markdown, selectionText) =>
+            store.getState().setDocSnapshot(markdown, selectionText)
+          }
+          onSlashChange={(json) => {
+            try {
+              const { open, query } = JSON.parse(json) as { open: boolean; query: string };
+              store.getState().setSlashMenu(open, query);
+            } catch {
+              // ignore malformed payload
+            }
+          }}
+          onAiReviewPendingChange={(p) => store.getState().setAiReviewPending(p)}
           proxyFetch={handleProxyFetch}
           wsOpen={handleWsOpen}
           wsSend={handleWsSend}
@@ -393,7 +414,19 @@ export default function DocumentScreen() {
         />
       </View>
 
-      <NativeChatSidebar />
+      {!fullscreen && <NativeSlashMenu />}
+      <DocAiEditSheet
+        visible={aiEditOpen}
+        onClose={() => store.getState().setAiEditOpen(false)}
+        onSubmit={(prompt) =>
+          store.getState().dispatchAction({
+            type: 'invoke-ai',
+            prompt,
+            useSelection: store.getState().activeFormatting.hasSelection,
+          })
+        }
+      />
+      <NativeChatSidebar documentId={id!} />
       <NativeShareModal
         visible={shareModalVisible}
         onClose={() => setShareModalVisible(false)}
@@ -433,17 +466,25 @@ export default function DocumentScreen() {
         </View>
       )}
 
-      {/* Fullscreen toggle */}
-      <Pressable
-        onPress={() => setChromeVisible((v) => !v)}
-        style={[styles.fab, { backgroundColor: theme.card, borderColor: theme.border }]}
-      >
-        <Ionicons
-          name={chromeVisible ? 'contract-outline' : 'expand-outline'}
-          size={20}
-          color={theme.textSecondary}
-        />
-      </Pressable>
+      {/* Bottom-right action: AI assistant normally, exit-fullscreen while in
+          fullscreen (the top bar — and its menu — are hidden then). */}
+      {fullscreen ? (
+        <Pressable
+          onPress={() => setFullscreen(false)}
+          style={[styles.fab, { backgroundColor: theme.card, borderColor: theme.border }]}
+          accessibilityLabel="Vollbild beenden"
+        >
+          <Ionicons name="contract-outline" size={20} color={theme.textSecondary} />
+        </Pressable>
+      ) : (
+        <Pressable
+          onPress={toggleSidebar}
+          style={[styles.fabPrimary, { backgroundColor: theme.card, borderColor: theme.border }]}
+          accessibilityLabel="KI-Assistent"
+        >
+          <Ionicons name="sparkles" size={20} color={colors.primary[600]} />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -525,6 +566,22 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
+  },
+  fabPrimary: {
+    position: 'absolute',
+    bottom: 24,
+    right: 16,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
   },
   backButton: {
     flexDirection: 'row',

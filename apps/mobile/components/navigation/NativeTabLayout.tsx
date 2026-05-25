@@ -23,17 +23,6 @@ export function NativeTabLayout() {
         <NativeTabs.Trigger.Label>Start</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(chat)" hidden />
-      <NativeTabs.Trigger name="(media)">
-        {Platform.select({
-          ios: <NativeTabs.Trigger.Icon sf={{ default: 'video', selected: 'video.fill' }} />,
-          android: (
-            <NativeTabs.Trigger.Icon
-              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="videocam" />}
-            />
-          ),
-        })}
-        <NativeTabs.Trigger.Label>Medien</NativeTabs.Trigger.Label>
-      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(docs)">
         {Platform.select({
           ios: <NativeTabs.Trigger.Icon sf={{ default: 'doc.text', selected: 'doc.text.fill' }} />,
@@ -45,21 +34,31 @@ export function NativeTabLayout() {
         })}
         <NativeTabs.Trigger.Label>Docs</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="(desk)" hidden />
-      <NativeTabs.Trigger name="(recherche)">
+      <NativeTabs.Trigger name="(tools)">
         {Platform.select({
           ios: (
             <NativeTabs.Trigger.Icon
-              sf={{ default: 'magnifyingglass', selected: 'magnifyingglass' }}
+              sf={{ default: 'wrench.and.screwdriver', selected: 'wrench.and.screwdriver.fill' }}
             />
           ),
           android: (
             <NativeTabs.Trigger.Icon
-              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="search" />}
+              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="construct" />}
             />
           ),
         })}
-        <NativeTabs.Trigger.Label>Recherche</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Tools</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="(recherche)">
+        {Platform.select({
+          ios: <NativeTabs.Trigger.Icon sf={{ default: 'note.text', selected: 'note.text' }} />,
+          android: (
+            <NativeTabs.Trigger.Icon
+              src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="journal-outline" />}
+            />
+          ),
+        })}
+        <NativeTabs.Trigger.Label>Notebooks</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile" hidden />
     </NativeTabs>

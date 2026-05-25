@@ -2,14 +2,17 @@ import { useAui } from '@assistant-ui/react-native';
 import { useAgentStore } from '@gruenerator/chat';
 import { getSystemAgent } from '@gruenerator/shared/agents';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect } from 'react';
 import { StyleSheet, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AssistantThread } from '../../components/chat';
+import { ChatDrawerHeader } from '../../components/chat/ChatDrawerHeader';
+import { useDrawerStore } from '../../hooks/useDrawerStore';
 import { MobileChatProvider } from '../../providers/MobileChatProvider';
 import { lightTheme, darkTheme } from '../../theme';
+import { routeWithParams } from '../../types/routes';
 
 const AT_DEFAULT_NOTEBOOK_ID = 'oesterreich-notebook';
 
@@ -56,6 +59,12 @@ export default function ChatConversationScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const { locale } = useAuth();
+  const router = useRouter();
+  const openDrawer = useDrawerStore((s) => s.openDrawer);
+
+  const handleNewChat = useCallback(() => {
+    router.push(routeWithParams('/(focused)/chat-conversation', { threadId: 'new' }));
+  }, [router]);
 
   // Mirror web's ChatPage: the route param is the source of truth, this screen
   // writes the global agent store (which `useMobileChatRuntime` reads to build
@@ -86,9 +95,10 @@ export default function ChatConversationScreen() {
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: theme.background }]}
-      edges={['top', 'bottom']}
+      edges={['bottom']}
     >
       <MobileChatProvider threadId={isNewChat ? null : threadId}>
+        <ChatDrawerHeader onOpenDrawer={openDrawer} onNewChat={handleNewChat} theme={theme} />
         <AssistantThread theme={theme} />
         {isNewChat && initialMessage && <InitialMessageSender message={initialMessage} />}
         {isNewChat && initialComposerText && <ComposerPrefiller text={initialComposerText} />}

@@ -81,6 +81,47 @@ export const MOBILE_SYSTEM_NOTEBOOKS: MobileNotebookEntry[] = NOTEBOOK_REGISTRY.
 
 export const HIDDEN_NOTEBOOK_IDS = ['gruenerator-notebook', 'gruenblog-notebook'];
 
+/**
+ * Maps each gallery notebook to the `*-system` collection id(s) the research backend
+ * (`/research/search`, `/research/filters`) expects. The backend keeps the canonical
+ * `notebook → collection` map (`apps/api/config/notebookCollectionMap.ts`) but in a
+ * different id namespace (`bayern` vs `bayern-system`) and never ships it to the client,
+ * so the notebook-detail Recherche needs this small client-side table to scope a search.
+ *
+ * `satisfies Record<NotebookId, …>` forces an entry for every notebook in the shared
+ * registry — adding one there fails the mobile build until its research collection is
+ * supplied, the same safety the `NOTEBOOK_IONICONS` map relies on.
+ */
+const NOTEBOOK_RESEARCH_COLLECTIONS = {
+  'gruenerator-notebook': [
+    'grundsatz-system',
+    'bundestagsfraktion-system',
+    'gruene-de-system',
+    'kommunalwiki-system',
+    'gruenblog-system',
+  ],
+  'gruene-notebook': ['grundsatz-system'],
+  'bundestagsfraktion-notebook': ['bundestagsfraktion-system'],
+  'hamburg-notebook': ['hamburg-system'],
+  'schleswig-holstein-notebook': ['schleswig-holstein-system'],
+  'thueringen-notebook': ['thueringen-system'],
+  'berlin-notebook': ['berlin-system'],
+  'mecklenburg-vorpommern-notebook': ['mecklenburg-vorpommern-system'],
+  'brandenburg-notebook': ['brandenburg-system'],
+  'bayern-notebook': ['bayern-system'],
+  'oesterreich-notebook': ['oesterreich-gruene-system'],
+  'kommunalwiki-notebook': ['kommunalwiki-system'],
+  'gruenblog-notebook': ['gruenblog-system'],
+  'boell-stiftung-notebook': ['boell-stiftung-system'],
+} satisfies Record<NotebookId, string[]>;
+
+/**
+ * Research collection ids for a system notebook, or `[]` for user notebooks (UUIDs) which
+ * scope research through the per-notebook contract endpoint instead.
+ */
+export const getResearchCollectionIds = (notebookId: string): string[] =>
+  (NOTEBOOK_RESEARCH_COLLECTIONS as Record<string, string[]>)[notebookId] ?? [];
+
 const audienceOf = (id: string): 'de-DE' | 'de-AT' | 'all' =>
   NOTEBOOK_REGISTRY.find((nb) => nb.id === id)?.audience ?? 'all';
 

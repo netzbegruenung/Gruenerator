@@ -24,6 +24,7 @@ import { colors, spacing, borderRadius } from '../../theme';
 
 import { MessageAttachmentUI } from './AttachmentUI';
 import { CitationsFooter } from './CitationsFooter';
+import { GeneratedImageDisplay } from './GeneratedImageDisplay';
 import { getMarkdownStyles } from './markdownStyles';
 import { MessageActionsSheet } from './MessageActionsSheet';
 import { AskHumanCard } from './tool-ui/AskHumanCard';
@@ -243,6 +244,7 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
   const metadata = ((message.metadata as Record<string, unknown>)?.custom ??
     {}) as ChatMessageMetadata;
   const citations = metadata.citations;
+  const generatedImage = metadata.generatedImage;
   const [actionsVisible, setActionsVisible] = useState(false);
 
   const messageText = useMemo(() => {
@@ -269,9 +271,10 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
   return (
     <>
       <MessagePrimitive.Root style={[styles.messageRow, styles.assistantRow]}>
-        <Pressable onLongPress={handleOpenActions}>
-          <View style={[styles.bubble, styles.assistantBubble, { backgroundColor: theme.surface }]}>
+        <Pressable onLongPress={handleOpenActions} style={styles.assistantContent}>
+          <View style={styles.assistantContent}>
             <MessagePrimitive.Parts components={partsComponents} />
+            {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
             {citations && citations.length > 0 && (
               <CitationsFooter citations={citations} theme={theme} />
             )}
@@ -352,13 +355,14 @@ export const MessageBubble = memo(function MessageBubble() {
 const styles = StyleSheet.create({
   messageRow: {
     paddingHorizontal: spacing.medium,
-    marginVertical: spacing.xxsmall,
+    marginVertical: spacing.xsmall,
   },
   userRow: {
     alignItems: 'flex-end',
   },
   assistantRow: {
     alignItems: 'flex-start',
+    marginTop: spacing.xxsmall,
   },
   bubble: {
     paddingHorizontal: spacing.medium,
@@ -369,16 +373,16 @@ const styles = StyleSheet.create({
     maxWidth: '85%',
   },
   userBubble: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.eucalyptus,
     borderBottomRightRadius: borderRadius.small,
   },
-  assistantBubble: {
-    borderBottomLeftRadius: borderRadius.small,
+  assistantContent: {
+    width: '100%',
   },
   userText: {
     color: colors.white,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 24,
   },
   actionBar: {
     flexDirection: 'row',

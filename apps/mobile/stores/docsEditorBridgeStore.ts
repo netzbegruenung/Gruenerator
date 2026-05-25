@@ -29,7 +29,13 @@ export type DocEditorAction =
   | { type: 'set-typing'; isTyping: boolean }
   | { type: 'format'; style: FormatStyle }
   | { type: 'setBlockType'; blockType: string; props?: Record<string, unknown> }
-  | { type: 'setAlignment'; alignment: 'left' | 'center' | 'right' };
+  | { type: 'setAlignment'; alignment: 'left' | 'center' | 'right' }
+  | { type: 'insert-text'; text: string }
+  | { type: 'invoke-ai'; prompt: string; useSelection: boolean }
+  | { type: 'accept-ai' }
+  | { type: 'reject-ai' }
+  // Native slash menu picked a block type — clears the typed "/" and converts.
+  | { type: 'slash-select'; blockType: string; props?: Record<string, unknown> };
 
 interface DocsEditorBridgeState {
   // DOM → Native
@@ -42,12 +48,30 @@ interface DocsEditorBridgeState {
   localUserId: string | null;
   typingUsers: string[];
 
+  // DOM → Native document snapshot (for the AI assistant context)
+  docMarkdown: string;
+  docSelectionText: string | null;
+
   // DOM → Native formatting state
   activeFormatting: ActiveFormattingState;
+
+  // DOM → Native AI review state (true while an AI suggestion awaits accept/reject)
+  aiReviewPending: boolean;
 
   // Native-only UI state
   sidebarOpen: boolean;
   lastSeenMessageCount: number;
+  // Fullscreen = chrome (top bar / toolbar) hidden. Lifted to the store so the
+  // top-bar 3-dot menu can enter it and the bottom-right FAB can exit it.
+  fullscreen: boolean;
+  // Native slash menu: open while the current block text starts with "/" (the
+  // DOM editor detects it and pushes the query); the RN menu renders the items.
+  slashMenuOpen: boolean;
+  slashQuery: string;
+  // "Mit KI bearbeiten" sheet — lifted to the store so both the formatting
+  // toolbar and the slash menu's AI item can open it (the toolbar unmounts
+  // without a selection, so the sheet lives at screen level).
+  aiEditOpen: boolean;
 
   // Native → DOM (action dispatch)
   pendingAction: DocEditorAction | null;
@@ -62,8 +86,14 @@ interface DocsEditorBridgeState {
   setChatMessages: (messages: ChatMessage[]) => void;
   setLocalUserId: (userId: string | null) => void;
   setTypingUsers: (users: string[]) => void;
+  setDocSnapshot: (markdown: string, selectionText: string | null) => void;
   setActiveFormatting: (formatting: ActiveFormattingState) => void;
+  setAiReviewPending: (v: boolean) => void;
   toggleSidebar: () => void;
+  toggleFullscreen: () => void;
+  setFullscreen: (v: boolean) => void;
+  setSlashMenu: (open: boolean, query: string) => void;
+  setAiEditOpen: (v: boolean) => void;
   markChatRead: () => void;
 
   // Action dispatch
@@ -80,9 +110,16 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
   chatMessages: [],
   localUserId: null,
   typingUsers: [],
+  docMarkdown: '',
+  docSelectionText: null,
   activeFormatting: { hasSelection: false, blockType: 'paragraph', blockProps: {} },
+  aiReviewPending: false,
   sidebarOpen: false,
   lastSeenMessageCount: 0,
+  fullscreen: false,
+  slashMenuOpen: false,
+  slashQuery: '',
+  aiEditOpen: false,
   pendingAction: null,
   actionCounter: 0,
 
@@ -102,6 +139,12 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
   setLocalUserId: (userId) => set((s) => (s.localUserId === userId ? s : { localUserId: userId })),
   setTypingUsers: (users) =>
     set((s) => (s.typingUsers.join() === users.join() ? s : { typingUsers: users })),
+  setDocSnapshot: (markdown, selectionText) =>
+    set((s) =>
+      s.docMarkdown === markdown && s.docSelectionText === selectionText
+        ? s
+        : { docMarkdown: markdown, docSelectionText: selectionText }
+    ),
   setActiveFormatting: (formatting) =>
     set((s) => {
       const prev = s.activeFormatting;
@@ -116,7 +159,17 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
         return s;
       return { activeFormatting: formatting };
     }),
+  setAiReviewPending: (v) => set((s) => (s.aiReviewPending === v ? s : { aiReviewPending: v })),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  toggleFullscreen: () => set((s) => ({ fullscreen: !s.fullscreen })),
+  setFullscreen: (v) => set((s) => (s.fullscreen === v ? s : { fullscreen: v })),
+  setSlashMenu: (open, query) =>
+    set((s) =>
+      s.slashMenuOpen === open && s.slashQuery === query
+        ? s
+        : { slashMenuOpen: open, slashQuery: query }
+    ),
+  setAiEditOpen: (v) => set((s) => (s.aiEditOpen === v ? s : { aiEditOpen: v })),
   markChatRead: () => set((s) => ({ lastSeenMessageCount: s.chatMessages.length })),
   dispatchAction: (action) =>
     set((s) => ({ pendingAction: action, actionCounter: s.actionCounter + 1 })),

@@ -187,7 +187,7 @@ export function ResultDisplay({
 
         {autoSaveStatus === 'saved' && shareToken && (
           <Pressable
-            onPress={() => router.push('/(tabs)/(media)/image-studio/gallery')}
+            onPress={() => router.push('/(tabs)/(tools)/image-studio/gallery')}
             style={({ pressed }) => [
               styles.iconButton,
               { backgroundColor: theme.surface, opacity: pressed ? 0.7 : 1 },

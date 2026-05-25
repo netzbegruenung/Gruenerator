@@ -1,13 +1,6 @@
 import { type ReactNode } from 'react';
-import {
-  View,
-  Modal,
-  Pressable,
-  StyleSheet,
-  useColorScheme,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
+import { View, Modal, Pressable, StyleSheet, useColorScheme } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { lightTheme, darkTheme, colors } from '../../theme';
@@ -63,10 +56,7 @@ export function BottomSheet({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       {keyboardAvoiding ? (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.container}
-        >
+        <KeyboardAvoidingView behavior="padding" style={styles.container}>
           {content}
         </KeyboardAvoidingView>
       ) : (

@@ -29,6 +29,7 @@
     "theme/**/*.tsx",
     "utils/**/*.ts",
     "utils/**/*.tsx",
+    "types/**/*.ts",
     "types/**/*.d.ts",
     "config/**/*.ts",
     ".expo/types/**/*.ts",
