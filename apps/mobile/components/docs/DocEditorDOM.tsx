@@ -239,6 +239,7 @@ interface DocEditorDOMProps {
   onTypingUsersChange: (usersJson: string) => Promise<void>;
   onActiveStylesChange?: (stylesJson: string) => Promise<void>;
   onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
+  onSlashChange?: (json: string) => void;
   onAiReviewPendingChange?: (pending: boolean) => void;
   proxyFetch?: (url: string, options?: string) => Promise<string>;
   wsOpen?: (url: string, protocols?: string) => Promise<string>;
@@ -263,6 +264,7 @@ function EditorContent({
   onTypingUsersChange,
   onActiveStylesChange,
   onDocSnapshotChange,
+  onSlashChange,
 }: {
   documentId: string;
   userId: string;
@@ -276,6 +278,7 @@ function EditorContent({
   onTypingUsersChange: (usersJson: string) => Promise<void>;
   onActiveStylesChange?: (stylesJson: string) => Promise<void>;
   onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
+  onSlashChange?: (json: string) => void;
 }) {
   const user = useMemo(
     () => ({ id: userId, display_name: userName, email: userEmail }),
@@ -323,6 +326,8 @@ function EditorContent({
   onActiveStylesChangeRef.current = onActiveStylesChange;
   const onDocSnapshotChangeRef = useRef(onDocSnapshotChange);
   onDocSnapshotChangeRef.current = onDocSnapshotChange;
+  const onSlashChangeRef = useRef(onSlashChange);
+  onSlashChangeRef.current = onSlashChange;
 
   // Subscribe to editor selection changes → send active styles to native
   useEffect(() => {
@@ -334,7 +339,13 @@ function EditorContent({
     ).onSelectionChange(() => {
       const ed = editorRef.current as {
         getActiveStyles: () => Record<string, boolean | string>;
-        getTextCursorPosition: () => { block: { type: string; props: Record<string, unknown> } };
+        getTextCursorPosition: () => {
+          block: {
+            type: string;
+            props: Record<string, unknown>;
+            content?: Array<{ type?: string; text?: string }>;
+          };
+        };
         getSelectedText: () => string;
       } | null;
       if (!ed) return;
@@ -350,6 +361,17 @@ function EditorContent({
             blockProps: cursor?.block?.props || {},
           })
         );
+        // Native slash menu: open while the current block's text is "/" + a
+        // space-free query (mirrors BlockNote's "/" trigger). The RN menu renders
+        // the items; selection converts the block via the slash-select action.
+        if (onSlashChangeRef.current) {
+          const content = cursor?.block?.content;
+          const blockText = Array.isArray(content)
+            ? content.map((c) => (typeof c?.text === 'string' ? c.text : '')).join('')
+            : '';
+          const match = selectedText.length === 0 ? /^\/(\S*)$/.exec(blockText) : null;
+          onSlashChangeRef.current(JSON.stringify({ open: !!match, query: match ? match[1] : '' }));
+        }
       } catch {
         // editor not ready
       }
@@ -463,15 +485,35 @@ function EditorContent({
       }
     };
 
+    const handleSlashSelect = (e: Event) => {
+      const detail = (e as CustomEvent<{ blockType: string; props?: Record<string, unknown> }>)
+        .detail;
+      const ed = editorRef.current as {
+        updateBlock: (block: unknown, update: Record<string, unknown>) => void;
+        getTextCursorPosition: () => { block: unknown };
+      } | null;
+      if (!ed) return;
+      try {
+        const block = ed.getTextCursorPosition()?.block;
+        // content: [] clears the typed "/" + query; then convert to the picked type.
+        if (block)
+          ed.updateBlock(block, { type: detail.blockType, props: detail.props, content: [] });
+      } catch {
+        // editor not ready
+      }
+    };
+
     window.addEventListener('send-chat', handleSendChat);
     window.addEventListener('set-typing', handleSetTyping);
     window.addEventListener('format-action', handleFormatAction);
     window.addEventListener('insert-text', handleInsertText);
+    window.addEventListener('slash-select', handleSlashSelect);
     return () => {
       window.removeEventListener('send-chat', handleSendChat);
       window.removeEventListener('set-typing', handleSetTyping);
       window.removeEventListener('format-action', handleFormatAction);
       window.removeEventListener('insert-text', handleInsertText);
+      window.removeEventListener('slash-select', handleSlashSelect);
     };
   }, [sendMessage, setTyping]);
 
@@ -648,6 +690,15 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
     } else if (props.pendingAction.type === 'reject-ai') {
       rejectDocumentAI(props.documentId);
       onAiReviewPendingChangeRef.current?.(false);
+    } else if (props.pendingAction.type === 'slash-select') {
+      const { blockType, props: blockProps } = props.pendingAction as {
+        type: string;
+        blockType: string;
+        props?: Record<string, unknown>;
+      };
+      window.dispatchEvent(
+        new CustomEvent('slash-select', { detail: { blockType, props: blockProps } })
+      );
     }
   }, [props.pendingAction, props.actionCounter]);
 
@@ -707,6 +758,7 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
         onTypingUsersChange={handleTypingUsersChange}
         onActiveStylesChange={handleActiveStylesChange}
         onDocSnapshotChange={handleDocSnapshotChange}
+        onSlashChange={props.onSlashChange}
       />
     </DocsProvider>
   );

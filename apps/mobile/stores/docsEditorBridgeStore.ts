@@ -33,7 +33,9 @@ export type DocEditorAction =
   | { type: 'insert-text'; text: string }
   | { type: 'invoke-ai'; prompt: string; useSelection: boolean }
   | { type: 'accept-ai' }
-  | { type: 'reject-ai' };
+  | { type: 'reject-ai' }
+  // Native slash menu picked a block type — clears the typed "/" and converts.
+  | { type: 'slash-select'; blockType: string; props?: Record<string, unknown> };
 
 interface DocsEditorBridgeState {
   // DOM → Native
@@ -62,6 +64,14 @@ interface DocsEditorBridgeState {
   // Fullscreen = chrome (top bar / toolbar) hidden. Lifted to the store so the
   // top-bar 3-dot menu can enter it and the bottom-right FAB can exit it.
   fullscreen: boolean;
+  // Native slash menu: open while the current block text starts with "/" (the
+  // DOM editor detects it and pushes the query); the RN menu renders the items.
+  slashMenuOpen: boolean;
+  slashQuery: string;
+  // "Mit KI bearbeiten" sheet — lifted to the store so both the formatting
+  // toolbar and the slash menu's AI item can open it (the toolbar unmounts
+  // without a selection, so the sheet lives at screen level).
+  aiEditOpen: boolean;
 
   // Native → DOM (action dispatch)
   pendingAction: DocEditorAction | null;
@@ -82,6 +92,8 @@ interface DocsEditorBridgeState {
   toggleSidebar: () => void;
   toggleFullscreen: () => void;
   setFullscreen: (v: boolean) => void;
+  setSlashMenu: (open: boolean, query: string) => void;
+  setAiEditOpen: (v: boolean) => void;
   markChatRead: () => void;
 
   // Action dispatch
@@ -105,6 +117,9 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
   sidebarOpen: false,
   lastSeenMessageCount: 0,
   fullscreen: false,
+  slashMenuOpen: false,
+  slashQuery: '',
+  aiEditOpen: false,
   pendingAction: null,
   actionCounter: 0,
 
@@ -148,6 +163,13 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   toggleFullscreen: () => set((s) => ({ fullscreen: !s.fullscreen })),
   setFullscreen: (v) => set((s) => (s.fullscreen === v ? s : { fullscreen: v })),
+  setSlashMenu: (open, query) =>
+    set((s) =>
+      s.slashMenuOpen === open && s.slashQuery === query
+        ? s
+        : { slashMenuOpen: open, slashQuery: query }
+    ),
+  setAiEditOpen: (v) => set((s) => (s.aiEditOpen === v ? s : { aiEditOpen: v })),
   markChatRead: () => set((s) => ({ lastSeenMessageCount: s.chatMessages.length })),
   dispatchAction: (action) =>
     set((s) => ({ pendingAction: action, actionCounter: s.actionCounter + 1 })),
