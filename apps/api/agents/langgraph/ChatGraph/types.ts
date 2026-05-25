@@ -300,6 +300,12 @@ export interface ChatGraphInput {
    */
   notebookDocumentIds?: string[] | undefined;
   defaultNotebookId?: string | undefined;
+  /**
+   * Document IDs from a user-owned notebook bound to the agent as its default
+   * knowledge base (`defaultNotebookId` resolved to a UUID). Scopes search only
+   * when the user hasn't explicitly picked/mentioned a notebook this turn.
+   */
+  defaultNotebookDocumentIds?: string[] | undefined;
   documentIds?: string[] | undefined;
   textIds?: string[] | undefined;
   documentChatIds?: string[] | undefined;
@@ -353,6 +359,8 @@ export interface ChatGraphState {
 
   // Default notebook scoping (from persistent UI selection)
   defaultNotebookCollectionIds: string[];
+  // Document IDs from a user-owned notebook bound to the agent as its default.
+  defaultNotebookDocumentIds: string[];
 
   // Document scoping (from @datei mentions)
   documentIds: string[];
