@@ -45,7 +45,7 @@ export function DocAiEditSheet({ visible, onClose, onSubmit, isLoading }: Props)
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <BottomSheet visible={visible} onClose={onClose} keyboardAvoiding>
       <Text style={[styles.title, { color: theme.text }]}>Mit KI bearbeiten</Text>
       <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
         Beschreibe, wie der markierte Text bearbeitet werden soll.

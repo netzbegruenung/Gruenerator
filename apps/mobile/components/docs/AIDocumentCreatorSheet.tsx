@@ -44,7 +44,7 @@ export function AIDocumentCreatorSheet({ visible, onClose, onGenerate, isLoading
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <BottomSheet visible={visible} onClose={onClose} keyboardAvoiding>
       <Text style={[styles.title, { color: theme.text }]}>Mit KI erstellen</Text>
       <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
         Beschreibe, welches Dokument du erstellen möchtest.
