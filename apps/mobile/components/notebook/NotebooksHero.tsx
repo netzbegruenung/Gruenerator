@@ -30,8 +30,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.large,
   },
   title: {
+    fontFamily: 'Raleway_700Bold',
     fontSize: 28,
-    fontWeight: '700',
   },
   subtitle: {
     fontSize: 14,

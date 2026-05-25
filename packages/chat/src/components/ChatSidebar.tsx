@@ -1,10 +1,9 @@
 'use client';
 
-// Chat conversation sidebar — thread list + theme/account footer. NOT the docs chat panel (packages/docs/src/components/chat/ChatSidebar.tsx).
 import { useState } from 'react';
 import { cn } from '../lib/utils';
-import { Sun, Moon, Monitor, LogOut, MoreVertical } from 'lucide-react';
-import { useTheme, type Theme } from './ThemeProvider';
+import { Sun, Moon, LogOut, MoreVertical } from 'lucide-react';
+import { useTheme } from './ThemeProvider';
 import { ChatThreadList } from './ChatThreadList';
 
 interface SidebarProps {
@@ -33,45 +32,34 @@ export function ChatSidebar({ isOpen, onToggle, userId, onLogout, onNavigate }: 
       >
         <ChatThreadList />
 
-        <SidebarFooter theme={theme} onThemeChange={setTheme} onLogout={onLogout} />
+        <SidebarFooter
+          theme={theme}
+          onThemeToggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          onLogout={onLogout}
+        />
       </aside>
     </>
   );
 }
 
 interface SidebarFooterProps {
-  theme: Theme;
-  onThemeChange: (theme: Theme) => void;
+  theme: string;
+  onThemeToggle: () => void;
   onLogout?: () => void;
 }
 
-const THEME_OPTIONS: { value: Theme; Icon: typeof Sun; label: string }[] = [
-  { value: 'light', Icon: Sun, label: 'Helles Design' },
-  { value: 'dark', Icon: Moon, label: 'Dunkles Design' },
-  { value: 'system', Icon: Monitor, label: 'Automatisches Design' },
-];
-
-function SidebarFooter({ theme, onThemeChange, onLogout }: SidebarFooterProps) {
+function SidebarFooter({ theme, onThemeToggle, onLogout }: SidebarFooterProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div className="chat-sidebar-footer">
-      <div className="sidebar-theme-switch" role="group" aria-label="Erscheinungsbild">
-        {THEME_OPTIONS.map(({ value, Icon, label }) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => onThemeChange(value)}
-            className="sidebar-icon-button"
-            data-active={theme === value}
-            aria-pressed={theme === value}
-            aria-label={label}
-            title={label}
-          >
-            <Icon className="h-4 w-4" />
-          </button>
-        ))}
-      </div>
+      <button
+        onClick={onThemeToggle}
+        className="sidebar-icon-button"
+        aria-label={theme === 'dark' ? 'Zum hellen Modus wechseln' : 'Zum dunklen Modus wechseln'}
+      >
+        {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </button>
 
       {onLogout && (
         <div className="menu-dropdown">

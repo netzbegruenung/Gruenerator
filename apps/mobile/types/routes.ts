@@ -32,6 +32,7 @@ export type AppRoute =
   | '/(focused)/notebook-detail'
   | '/(focused)/gruppen'
   | '/(focused)/image-studio-create/image'
+  | '/(focused)/image-studio-create/style'
   | '/(focused)/image-studio-create/ki-input'
   | '/(focused)/image-studio-create/template-input'
   | '/(focused)/image-studio-create/result'

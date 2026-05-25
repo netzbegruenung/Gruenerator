@@ -1,6 +1,6 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useEffect } from 'react';
-import { View, Text, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, useColorScheme, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -28,6 +28,9 @@ interface PulseLoaderProps {
   ringColor?: string;
   dotColor?: string;
   iconColor?: string;
+  /** When provided, renders a text button below the subtitle to stop the operation. */
+  onCancel?: () => void;
+  cancelLabel?: string;
 }
 
 function PulsingRing({ delay, color }: { delay: number; color: string }) {
@@ -129,6 +132,8 @@ export function PulseLoader({
   ringColor: ringColorProp,
   dotColor: dotColorProp,
   iconColor: iconColorProp,
+  onCancel,
+  cancelLabel = 'Abbrechen',
 }: PulseLoaderProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -186,6 +191,15 @@ export function PulseLoader({
       {subtitle && (
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
       )}
+      {onCancel && (
+        <Pressable
+          onPress={onCancel}
+          hitSlop={8}
+          style={({ pressed }) => [styles.cancelButton, pressed && styles.cancelButtonPressed]}
+        >
+          <Text style={[styles.cancelLabel, { color: theme.textSecondary }]}>{cancelLabel}</Text>
+        </Pressable>
+      )}
     </Animated.View>
   );
 }
@@ -230,5 +244,17 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     ...typography.body,
+  },
+  cancelButton: {
+    marginTop: spacing.xlarge,
+    paddingVertical: spacing.small,
+    paddingHorizontal: spacing.large,
+  },
+  cancelButtonPressed: {
+    opacity: 0.6,
+  },
+  cancelLabel: {
+    ...typography.body,
+    textDecorationLine: 'underline',
   },
 });

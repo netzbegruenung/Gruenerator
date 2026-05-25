@@ -2,7 +2,6 @@ import { useActionSheet } from '@expo/react-native-action-sheet';
 import { useAuth } from '@gruenerator/shared/hooks';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import * as Clipboard from 'expo-clipboard';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -15,10 +14,8 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ProfileMenu } from '../../../components/navigation/ProfileMenu';
-import { SidebarMenuButton } from '../../../components/navigation/SidebarMenuButton';
+import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { CommunityNotebooksSection } from '../../../components/notebook/CommunityNotebooksSection';
 import { NotebookCard } from '../../../components/notebook/NotebookCard';
 import { NotebookCreator } from '../../../components/notebook/NotebookCreator';
@@ -205,26 +202,7 @@ export default function NotebooksScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <LinearGradient
-        colors={
-          colorScheme === 'dark'
-            ? [colors.grey[950], colors.grey[950]]
-            : [colors.white, 'rgba(95, 133, 117, 0.05)']
-        }
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
-      <View style={styles.header}>
-        <View style={styles.headerSide}>
-          <SidebarMenuButton color={theme.text} size={24} />
-        </View>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Notebooks</Text>
-        <View style={[styles.headerSide, styles.headerSideRight]}>
-          <ProfileMenu />
-        </View>
-      </View>
+    <ScreenScaffold title="Notebooks">
       {searchOpen && (
         <View
           style={[
@@ -378,32 +356,13 @@ export default function NotebooksScreen() {
           <Ionicons name="search" size={22} color={colors.white} />
         </Pressable>
       )}
-    </SafeAreaView>
+    </ScreenScaffold>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.medium,
-    paddingVertical: spacing.small,
-  },
-  headerSide: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerSideRight: {
-    justifyContent: 'flex-end',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center',
   },
   scrollContent: {
     padding: spacing.medium,
@@ -446,7 +405,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sectionTitle: {
-    ...typography.bodyBold,
+    fontFamily: 'Raleway_700Bold',
     fontSize: 17,
     marginBottom: spacing.small,
   },

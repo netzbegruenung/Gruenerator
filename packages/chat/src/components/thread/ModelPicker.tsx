@@ -21,19 +21,15 @@ import {
   useScopedThreadMode,
 } from '../../lib/useScopedAgentState';
 import { useModelPreferencesContext } from '../../context/ModelPreferencesContext';
-import { AUTO_MODEL_ID, resolveAutoModel, type SelectedModel } from '../../lib/resolveAutoModel';
+import {
+  AUTO_MODEL_ID,
+  AUTO_MODEL_OPTION,
+  resolveAutoModel,
+  type SelectedModel,
+} from '../../lib/resolveAutoModel';
 
-interface AutoOption {
-  id: typeof AUTO_MODEL_ID;
-  name: string;
-  description: string;
-}
-
-const AUTO_OPTION: AutoOption = {
-  id: AUTO_MODEL_ID,
-  name: 'Automatisch',
-  description: 'Modell passend zum Kontext',
-};
+// Shared definition (see resolveAutoModel) — aliased to keep call sites terse.
+const AUTO_OPTION = AUTO_MODEL_OPTION;
 
 interface ModelPickerProps {
   /** When the picker is mounted on a non-/chat surface that lacks a

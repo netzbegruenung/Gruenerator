@@ -1,114 +1,78 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+const STORAGE_KEY = 'darkMode';
+const LEGACY_KEY = 'theme';
+const USER_PREFERENCE_EXPIRY = 7 * 24 * 60 * 60 * 1000;
 
-const STORAGE_KEY = 'themeMode';
-const LEGACY_DARKMODE_KEY = 'darkMode';
-const LEGACY_THEME_KEY = 'theme';
-
-const prefersDark = (): boolean => window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-const readStoredMode = (): ThemeMode => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === 'light' || stored === 'dark' || stored === 'system') {
-    return stored;
-  }
-  // One-time migration from the legacy boolean/string preference.
-  const legacyDark = localStorage.getItem(LEGACY_DARKMODE_KEY);
-  if (legacyDark) {
+const readSavedPreference = (): boolean | null => {
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
     try {
-      const { value } = JSON.parse(legacyDark) as { value: boolean };
-      return value ? 'dark' : 'light';
+      const { value, timestamp } = JSON.parse(saved) as { value: boolean; timestamp: number };
+      if (Date.now() - timestamp < USER_PREFERENCE_EXPIRY) {
+        return value;
+      }
     } catch {
-      // fall through
+      // fall through to legacy key
     }
   }
-  const legacyTheme = localStorage.getItem(LEGACY_THEME_KEY);
-  if (legacyTheme === 'dark' || legacyTheme === 'light') {
-    return legacyTheme;
+  const legacy = localStorage.getItem(LEGACY_KEY);
+  if (legacy === 'dark' || legacy === 'light') {
+    return legacy === 'dark';
   }
-  return 'system';
+  return null;
 };
 
-const resolveIsDark = (mode: ThemeMode): boolean =>
-  mode === 'system' ? prefersDark() : mode === 'dark';
-
-// Single shared source of truth, mirrored across all hook instances.
-let currentMode: ThemeMode = readStoredMode();
-const modeListeners = new Set<(mode: ThemeMode) => void>();
-
-const applyTheme = (mode: ThemeMode): void => {
-  document.documentElement.setAttribute('data-theme', resolveIsDark(mode) ? 'dark' : 'light');
+const getInitialDarkMode = (): boolean => {
+  const saved = readSavedPreference();
+  if (saved !== null) return saved;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
 };
 
-// Apply immediately on module load so there's no flash before a hook mounts.
-applyTheme(currentMode);
+const listeners = new Set<(value: boolean) => void>();
 
-// Re-apply live when the OS theme changes while in 'system' mode.
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-  if (currentMode === 'system') applyTheme(currentMode);
-});
-
-const setMode = (mode: ThemeMode): void => {
-  currentMode = mode;
-  localStorage.setItem(STORAGE_KEY, mode);
-  localStorage.removeItem(LEGACY_DARKMODE_KEY);
-  localStorage.removeItem(LEGACY_THEME_KEY);
-  applyTheme(mode);
-  modeListeners.forEach((cb) => cb(mode));
-};
-
-/**
- * Explicit three-state theme control. Consumed by the settings UI so the user
- * can pick light / dark / system. `setThemeMode('system')` live-follows the OS.
- */
-export const useThemeMode = (): [ThemeMode, (mode: ThemeMode) => void] => {
-  const [mode, setLocalMode] = useState<ThemeMode>(currentMode);
+const useDarkMode = (): [boolean, () => void] => {
+  const [darkMode, setDarkMode] = useState<boolean>(getInitialDarkMode);
 
   useEffect(() => {
-    modeListeners.add(setLocalMode);
+    listeners.add(setDarkMode);
     const onStorage = (e: StorageEvent): void => {
-      if (e.key !== STORAGE_KEY) return;
-      const next = readStoredMode();
-      currentMode = next;
-      applyTheme(next);
-      setLocalMode(next);
+      if (e.key !== STORAGE_KEY && e.key !== LEGACY_KEY) return;
+      const next = readSavedPreference();
+      if (next !== null) setDarkMode(next);
     };
     window.addEventListener('storage', onStorage);
     return () => {
-      modeListeners.delete(setLocalMode);
+      listeners.delete(setDarkMode);
       window.removeEventListener('storage', onStorage);
     };
   }, []);
 
-  return [mode, setMode];
-};
-
-/**
- * Backward-compatible boolean view of the theme. The boolean is the *resolved*
- * dark state; toggling commits an explicit 'light'/'dark' choice (never 'system').
- */
-const useDarkMode = (): [boolean, () => void] => {
-  const [mode, setLocalMode] = useState<ThemeMode>(currentMode);
-
   useEffect(() => {
-    modeListeners.add(setLocalMode);
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const onSystemChange = (): void => {
-      if (currentMode === 'system') setLocalMode('system');
+    const handleChange = (e: MediaQueryListEvent): void => {
+      if (readSavedPreference() === null) {
+        setDarkMode(e.matches);
+      }
     };
-    mediaQuery.addEventListener('change', onSystemChange);
-    return () => {
-      modeListeners.delete(setLocalMode);
-      mediaQuery.removeEventListener('change', onSystemChange);
-    };
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ value: darkMode, timestamp: Date.now() }));
+    localStorage.removeItem(LEGACY_KEY);
+    listeners.forEach((cb) => {
+      if (cb !== setDarkMode) cb(darkMode);
+    });
+  }, [darkMode]);
+
   const toggleDarkMode = (): void => {
-    setMode(resolveIsDark(currentMode) ? 'light' : 'dark');
+    setDarkMode((prev) => !prev);
   };
 
-  return [resolveIsDark(mode), toggleDarkMode];
+  return [darkMode, toggleDarkMode];
 };
 
 export default useDarkMode;

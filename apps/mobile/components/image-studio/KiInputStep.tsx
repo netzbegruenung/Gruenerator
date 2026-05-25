@@ -82,6 +82,7 @@ export function KiInputStep({
       style={styles.scrollView}
       contentContainerStyle={isPureCreate ? styles.scrollContentCentered : styles.scrollContent}
       keyboardShouldPersistTaps="handled"
+      bottomOffset={spacing.xlarge}
     >
       <View style={[styles.header, isPureCreate && styles.headerCentered]}>
         {isPureCreate ? (
@@ -185,8 +186,6 @@ export function KiInputStep({
               onMicPress={() =>
                 toggleSpeech((t) => onInstructionChange(appendTranscript(instruction, t)))
               }
-              hasText={isValid}
-              onSubmit={onNext}
             />
             {!isPureCreate && (
               <Text

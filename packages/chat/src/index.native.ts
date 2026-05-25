@@ -80,6 +80,19 @@ export {
   type SearchMode,
 } from './stores/chatStore';
 
+// Model auto-selection (shared with web index.ts — keep both in sync)
+export {
+  AUTO_MODEL_ID,
+  AUTO_MODEL_OPTION,
+  resolveAutoModel,
+  type AutoModelId,
+  type AutoResolverContext,
+  type SelectedModel,
+} from './lib/resolveAutoModel';
+
+// Composer controls — shared source of truth for the chat composer's modes/labels/icons
+export { COMPOSER_MODES, type ComposerModeDef, type ComposerIconKey } from './lib/composerControls';
+
 export { useDocumentChatStore } from './stores/documentChatStore';
 export { useSkillFavoritesStore } from './stores/skillFavoritesStore';
 
