@@ -1,3 +1,4 @@
+// Collaborative-document chat panel — messages + composer for the docs editor. NOT the chat-package thread sidebar (packages/chat/src/components/ChatSidebar.tsx).
 import { cn } from '@gruenerator/ui';
 import { useRef, useEffect, useCallback } from 'react';
 import { FiX, FiMessageCircle } from 'react-icons/fi';

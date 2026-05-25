@@ -1,4 +1,5 @@
 import { Button } from '@gruenerator/ui';
+import { LogOut } from 'lucide-react';
 import { motion } from 'motion/react';
 import React, { type FormEvent } from 'react';
 
@@ -8,6 +9,7 @@ import MemoriesSection from '../../../../../../components/profile/MemoriesSectio
 import { useAuthStore, type SupportedLocale } from '../../../../../../stores/authStore';
 import { cn } from '../../../../../../utils/cn';
 
+import AppSettingsSection from './AppSettingsSection';
 import ImageModelSettingsSection from './ImageModelSettingsSection';
 import ModelSettingsSection from './ModelSettingsSection';
 import RolesSection from './RolesSection';
@@ -101,7 +103,7 @@ const ProfileView = ({
   onDeleteAccountSubmit,
   onSuccessMessage,
 }: ProfileViewProps) => {
-  const { locale, updateLocale } = useAuthStore();
+  const { locale, updateLocale, logout, isLoggingOut } = useAuthStore();
 
   const handleLocaleChange = (newLocale: SupportedLocale) => {
     void updateLocale(newLocale);
@@ -195,11 +197,33 @@ const ProfileView = ({
               🇦🇹
             </button>
           </div>
+
+          <div className="w-px h-5 bg-grey-200 dark:bg-grey-700" />
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!isLoggingOut) void logout();
+            }}
+            disabled={isLoggingOut}
+            className={cn(
+              'flex items-center justify-center size-8 rounded-md transition-colors',
+              isLoggingOut
+                ? 'opacity-50 cursor-not-allowed text-grey-400'
+                : 'text-grey-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600'
+            )}
+            aria-label={isLoggingOut ? 'Wird abgemeldet...' : 'Abmelden'}
+            title="Abmelden"
+          >
+            <LogOut className="size-4" />
+          </button>
         </div>
       </div>
 
       {/* Dein Grünerator — inline role management */}
       <RolesSection />
+
+      <AppSettingsSection />
 
       <SettingsSection onSuccessMessage={onSuccessMessage} onErrorMessage={() => {}} />
 
