@@ -271,8 +271,8 @@ export const AssistantMessageComponent = memo(function AssistantMessageComponent
   return (
     <>
       <MessagePrimitive.Root style={[styles.messageRow, styles.assistantRow]}>
-        <Pressable onLongPress={handleOpenActions}>
-          <View style={[styles.bubble, styles.assistantBubble, { backgroundColor: theme.surface }]}>
+        <Pressable onLongPress={handleOpenActions} style={styles.assistantContent}>
+          <View style={styles.assistantContent}>
             <MessagePrimitive.Parts components={partsComponents} />
             {generatedImage && <GeneratedImageDisplay image={generatedImage} theme={theme} />}
             {citations && citations.length > 0 && (
@@ -355,13 +355,14 @@ export const MessageBubble = memo(function MessageBubble() {
 const styles = StyleSheet.create({
   messageRow: {
     paddingHorizontal: spacing.medium,
-    marginVertical: spacing.xxsmall,
+    marginVertical: spacing.xsmall,
   },
   userRow: {
     alignItems: 'flex-end',
   },
   assistantRow: {
     alignItems: 'flex-start',
+    marginTop: spacing.xxsmall,
   },
   bubble: {
     paddingHorizontal: spacing.medium,
@@ -372,16 +373,16 @@ const styles = StyleSheet.create({
     maxWidth: '85%',
   },
   userBubble: {
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.eucalyptus,
     borderBottomRightRadius: borderRadius.small,
   },
-  assistantBubble: {
-    borderBottomLeftRadius: borderRadius.small,
+  assistantContent: {
+    width: '100%',
   },
   userText: {
     color: colors.white,
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: 16,
+    lineHeight: 24,
   },
   actionBar: {
     flexDirection: 'row',
