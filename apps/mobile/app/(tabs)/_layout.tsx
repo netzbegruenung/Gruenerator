@@ -1,9 +1,9 @@
 import { Platform } from 'react-native';
 
-import { AppDrawer, ClassicTabLayout, NativeTabLayout } from '../../components/navigation';
+import { ClassicTabLayout, NativeTabLayout } from '../../components/navigation';
 
+// AppDrawer (thread-list) is mounted once at the root layout so it wraps every
+// screen, not just the tabs. Here we render only the tab navigator.
 export default function TabLayout() {
-  return (
-    <AppDrawer>{Platform.OS === 'ios' ? <NativeTabLayout /> : <ClassicTabLayout />}</AppDrawer>
-  );
+  return Platform.OS === 'ios' ? <NativeTabLayout /> : <ClassicTabLayout />;
 }
