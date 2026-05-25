@@ -14,8 +14,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { MobileDocsChatProvider } from '../../providers/MobileDocsChatProvider';
 import { useDocsEditorBridgeStore, type ChatMessage } from '../../stores/docsEditorBridgeStore';
 import { lightTheme, darkTheme, colors } from '../../theme';
+import { AssistantThread } from '../chat/AssistantThread';
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -61,7 +63,9 @@ function MessageBubble({
   );
 }
 
-export function NativeChatSidebar() {
+type SidebarMode = 'ai' | 'team';
+
+export function NativeChatSidebar({ documentId }: { documentId: string }) {
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -74,7 +78,9 @@ export function NativeChatSidebar() {
   const toggleSidebar = useDocsEditorBridgeStore((s) => s.toggleSidebar);
   const markChatRead = useDocsEditorBridgeStore((s) => s.markChatRead);
   const dispatchAction = useDocsEditorBridgeStore((s) => s.dispatchAction);
+  const documentTitle = useDocsEditorBridgeStore((s) => s.documentTitle);
 
+  const [mode, setMode] = useState<SidebarMode>('ai');
   const [text, setText] = useState('');
   const inputRef = useRef<TextInput>(null);
   const flatListRef = useRef<FlatList>(null);
@@ -136,84 +142,127 @@ export function NativeChatSidebar() {
           >
             <Ionicons name="close" size={24} color={theme.text} />
           </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Chat</Text>
+          <View style={[styles.segment, { backgroundColor: isDark ? '#1f2937' : '#f3f4f6' }]}>
+            {(['ai', 'team'] as const).map((m) => (
+              <TouchableOpacity
+                key={m}
+                onPress={() => setMode(m)}
+                style={[styles.segmentItem, mode === m && { backgroundColor: theme.background }]}
+                accessibilityLabel={m === 'ai' ? 'KI-Assistent' : 'Team-Chat'}
+              >
+                <Ionicons
+                  name={m === 'ai' ? 'sparkles' : 'people'}
+                  size={14}
+                  color={mode === m ? colors.primary[600] : theme.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.segmentText,
+                    { color: mode === m ? theme.text : theme.textSecondary },
+                  ]}
+                >
+                  {m === 'ai' ? 'KI' : 'Team'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
           <View style={styles.closeButton} />
         </View>
 
-        {/* Messages */}
-        {chatMessages.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="chatbubble-outline" size={32} color={theme.textSecondary} />
-            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-              Noch keine Nachrichten
-            </Text>
-          </View>
+        {mode === 'ai' ? (
+          <MobileDocsChatProvider documentId={documentId} documentTitle={documentTitle}>
+            <AssistantThread theme={theme} />
+          </MobileDocsChatProvider>
         ) : (
-          <FlatList<ChatMessage>
-            ref={flatListRef}
-            data={chatMessages}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <MessageBubble message={item} isOwn={item.userId === localUserId} isDark={isDark} />
+          <>
+            {/* Messages */}
+            {chatMessages.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="chatbubble-outline" size={32} color={theme.textSecondary} />
+                <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+                  Noch keine Nachrichten
+                </Text>
+              </View>
+            ) : (
+              <FlatList<ChatMessage>
+                ref={flatListRef}
+                data={chatMessages}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <MessageBubble
+                    message={item}
+                    isOwn={item.userId === localUserId}
+                    isDark={isDark}
+                  />
+                )}
+                contentContainerStyle={styles.messageList}
+                onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+              />
             )}
-            contentContainerStyle={styles.messageList}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          />
-        )}
 
-        {/* Typing indicator */}
-        {typingUsers.length > 0 && (
-          <View style={styles.typingBar}>
-            <Text style={[styles.typingText, { color: theme.textSecondary }]}>
-              {typingUsers.length === 1
-                ? `${typingUsers[0]} tippt...`
-                : `${typingUsers.join(' und ')} tippen...`}
-            </Text>
-          </View>
-        )}
+            {/* Typing indicator */}
+            {typingUsers.length > 0 && (
+              <View style={styles.typingBar}>
+                <Text style={[styles.typingText, { color: theme.textSecondary }]}>
+                  {typingUsers.length === 1
+                    ? `${typingUsers[0]} tippt...`
+                    : `${typingUsers.join(' und ')} tippen...`}
+                </Text>
+              </View>
+            )}
 
-        {/* Composer */}
-        <View
-          style={[
-            styles.composer,
-            {
-              paddingBottom: insets.bottom || 12,
-              backgroundColor: theme.background,
-              borderTopColor: theme.border,
-            },
-          ]}
-        >
-          <TextInput
-            ref={inputRef}
-            style={[
-              styles.input,
-              {
-                color: theme.text,
-                backgroundColor: isDark ? '#1f2937' : '#f3f4f6',
-              },
-            ]}
-            placeholder="Nachricht..."
-            placeholderTextColor={theme.textSecondary}
-            multiline
-            maxLength={2000}
-            onChangeText={handleTextChange}
-            onSubmitEditing={handleSend}
-            blurOnSubmit={false}
-          />
-          <TouchableOpacity
-            onPress={handleSend}
-            disabled={!text.trim()}
-            style={[
-              styles.sendButton,
-              {
-                backgroundColor: text.trim() ? colors.primary[600] : isDark ? '#374151' : '#e5e7eb',
-              },
-            ]}
-            accessibilityLabel="Senden"
-          >
-            <Ionicons name="send" size={18} color={text.trim() ? 'white' : theme.textSecondary} />
-          </TouchableOpacity>
-        </View>
+            {/* Composer */}
+            <View
+              style={[
+                styles.composer,
+                {
+                  paddingBottom: insets.bottom || 12,
+                  backgroundColor: theme.background,
+                  borderTopColor: theme.border,
+                },
+              ]}
+            >
+              <TextInput
+                ref={inputRef}
+                style={[
+                  styles.input,
+                  {
+                    color: theme.text,
+                    backgroundColor: isDark ? '#1f2937' : '#f3f4f6',
+                  },
+                ]}
+                placeholder="Nachricht..."
+                placeholderTextColor={theme.textSecondary}
+                multiline
+                maxLength={2000}
+                onChangeText={handleTextChange}
+                onSubmitEditing={handleSend}
+                blurOnSubmit={false}
+              />
+              <TouchableOpacity
+                onPress={handleSend}
+                disabled={!text.trim()}
+                style={[
+                  styles.sendButton,
+                  {
+                    backgroundColor: text.trim()
+                      ? colors.primary[600]
+                      : isDark
+                        ? '#374151'
+                        : '#e5e7eb',
+                  },
+                ]}
+                accessibilityLabel="Senden"
+              >
+                <Ionicons
+                  name="send"
+                  size={18}
+                  color={text.trim() ? 'white' : theme.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
       </KeyboardAvoidingView>
     </Modal>
   );
@@ -236,10 +285,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
+  segment: {
     flex: 1,
-    textAlign: 'center',
-    fontSize: 17,
+    flexDirection: 'row',
+    alignSelf: 'center',
+    borderRadius: 18,
+    padding: 2,
+  },
+  segmentItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  segmentText: {
+    fontSize: 13,
     fontWeight: '600',
   },
   emptyContainer: {

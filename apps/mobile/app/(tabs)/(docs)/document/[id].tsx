@@ -344,7 +344,7 @@ export default function DocumentScreen() {
         />
       </View>
 
-      <NativeChatSidebar />
+      <NativeChatSidebar documentId={id!} />
       <NativeShareModal
         visible={shareModalVisible}
         onClose={() => setShareModalVisible(false)}

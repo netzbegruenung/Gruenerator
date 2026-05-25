@@ -12,6 +12,7 @@ interface DocsState {
   fetchDocuments: () => Promise<void>;
   fetchDocument: (id: string) => Promise<Document | null>;
   createDocument: (title: string, documentSubtype?: string) => Promise<Document | null>;
+  generateDocument: (description: string) => Promise<Document | null>;
   updateDocument: (id: string, payload: UpdateDocumentPayload) => Promise<Document | null>;
   deleteDocument: (id: string) => Promise<boolean>;
   getCachedDoc: (id: string) => Document | undefined;
@@ -82,6 +83,26 @@ export const useDocsStore = create<DocsState>((set, get) => ({
     } catch (error) {
       console.error('[DocsStore] Failed to create document:', error);
       set({ error: 'Dokument konnte nicht erstellt werden', isLoading: false });
+      return null;
+    }
+  },
+
+  generateDocument: async (description: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const document = await docsService.generateDocument(description);
+      if (document) {
+        set((state) => ({
+          documents: [document, ...state.documents],
+          isLoading: false,
+        }));
+      } else {
+        set({ isLoading: false });
+      }
+      return document;
+    } catch (error) {
+      console.error('[DocsStore] Failed to generate document:', error);
+      set({ error: 'Dokument konnte nicht generiert werden', isLoading: false });
       return null;
     }
   },
