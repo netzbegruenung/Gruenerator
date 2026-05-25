@@ -22,7 +22,9 @@ const TOOL_LABELS = new Map(USER_SELECTABLE_TOOLS.map((t) => [t.key, t.label]));
  *  them); the notebook can be added later via the editor. */
 function specToInput(spec: DraftedAgentSpec): UserAgentInput {
   return {
-    identifier: `${slugifyName(spec.title, 'agent')}-${generateSlugSuffix()}`,
+    // Suffix lowercased: the create schema's identifier is `^[a-z0-9-]+$`, but
+    // generateSlugSuffix()'s alphabet includes uppercase letters.
+    identifier: `${slugifyName(spec.title, 'agent')}-${generateSlugSuffix().toLowerCase()}`,
     title: spec.title,
     description: spec.description,
     systemRole: spec.systemRole,

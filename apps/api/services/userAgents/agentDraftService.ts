@@ -34,15 +34,23 @@ const SKILL_CATALOG = SKILLS.map((s) => `- ${s.mention}: ${s.title}`).join('\n')
 // LLM output schema. `enabledTools`/`skillMentions` are free arrays here and
 // filtered against the catalogs after generation — strict enums would make the
 // call fail on a single near-miss value.
+// Min/max here mirror the create contract (createUserAgentBodySchema) so a
+// synthesized spec can always be persisted — otherwise a thin conversation
+// could 200 on /draft but 400 on create.
 const DraftSchema = z.object({
-  title: z.string().describe('Kurzer Anzeigename, z.B. "Pressestelle Kreisverband"'),
-  description: z.string().describe('Ein bis zwei Sätze: was der*die Agent*in tut'),
+  title: z
+    .string()
+    .min(1)
+    .max(100)
+    .describe('Kurzer Anzeigename, z.B. "Pressestelle Kreisverband"'),
+  description: z.string().min(1).max(500).describe('Ein bis zwei Sätze: was der*die Agent*in tut'),
   systemRole: z
     .string()
+    .min(20)
     .describe(
       'Ausführlicher System-Prompt für den*die Agent*in: Rolle, Aufgabe, Ton, Arbeitsweise. Du-Form, Genderstern (*innen).'
     ),
-  avatar: z.string().describe('Ein einzelnes passendes Emoji'),
+  avatar: z.string().min(1).describe('Ein einzelnes passendes Emoji'),
   backgroundColor: z.string().describe('Hex-Farbe wie #316049'),
   enabledTools: z.array(z.string()).describe('Werkzeug-Schlüssel, ausschließlich aus dem Katalog'),
   skillMentions: z
