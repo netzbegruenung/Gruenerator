@@ -11,11 +11,13 @@ import type { Theme } from '../../theme/colors';
 
 interface Props {
   onOpenDrawer: () => void;
+  onNewChat?: () => void;
   theme?: Theme;
 }
 
 export const ChatDrawerHeader = memo(function ChatDrawerHeader({
   onOpenDrawer,
+  onNewChat,
   theme: themeProp,
 }: Props) {
   const resolvedTheme = useTheme();
@@ -36,7 +38,17 @@ export const ChatDrawerHeader = memo(function ChatDrawerHeader({
       <Text style={[styles.title, { color: theme.text }]}>Chat</Text>
 
       <View style={styles.rightSlot}>
-        {isRunning && <ActivityIndicator size="small" color={colors.primary[600]} />}
+        {onNewChat ? (
+          <Pressable
+            onPress={onNewChat}
+            style={styles.menuButton}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="add-circle-outline" size={26} color={theme.text} />
+          </Pressable>
+        ) : (
+          isRunning && <ActivityIndicator size="small" color={colors.primary[600]} />
+        )}
       </View>
     </View>
   );

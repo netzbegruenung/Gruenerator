@@ -38,7 +38,7 @@ export default function JoinGroupScreen() {
         if (result.group?.id) {
           router.replace(`/(focused)/gruppen/${result.group.id}`);
         } else {
-          router.replace('/(tabs)/(desk)/gruppen');
+          router.replace('/(focused)/gruppen');
         }
       },
       onError: (err) => {
@@ -71,7 +71,7 @@ export default function JoinGroupScreen() {
                 : 'Der Link ist nicht mehr gültig.'}
             </Text>
             <Pressable
-              onPress={() => router.replace('/(tabs)/(desk)/gruppen')}
+              onPress={() => router.replace('/(focused)/gruppen')}
               style={({ pressed }) => [
                 styles.primaryButton,
                 { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
@@ -107,7 +107,7 @@ export default function JoinGroupScreen() {
             <Pressable
               onPress={() => {
                 if (router.canGoBack()) router.back();
-                else router.replace('/(tabs)/(desk)/gruppen');
+                else router.replace('/(focused)/gruppen');
               }}
               hitSlop={10}
             >

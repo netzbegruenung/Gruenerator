@@ -1,6 +1,6 @@
 import { templates, type DocumentTemplate } from '@gruenerator/docs/templates';
 import { useAuth } from '@gruenerator/shared/hooks';
-import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useCallback, useState, useMemo } from 'react';
@@ -20,9 +20,22 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomSheet } from '../../../components/common/BottomSheet';
+import { AIDocumentCreatorSheet } from '../../../components/docs/AIDocumentCreatorSheet';
 import { NativeShareModal } from '../../../components/docs/NativeShareModal';
 import { useDocsStore } from '../../../stores/docsStore';
 import { lightTheme, darkTheme, colors } from '../../../theme';
+
+const TEMPLATE_ICONS: Record<string, IoniconsIconName> = {
+  blank: 'document-outline',
+  antrag: 'clipboard-outline',
+  pressemitteilung: 'newspaper-outline',
+  protokoll: 'create-outline',
+  notizen: 'bulb-outline',
+  redaktionsplan: 'calendar-outline',
+  checkliste: 'checkbox-outline',
+  einladung: 'mail-outline',
+  tabelle: 'grid-outline',
+};
 
 export default function DocumentsScreen() {
   const router = useRouter();
@@ -30,9 +43,17 @@ export default function DocumentsScreen() {
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const { user } = useAuth();
 
-  const { documents, isLoading, error, fetchDocuments, createDocument, deleteDocument } =
-    useDocsStore();
+  const {
+    documents,
+    isLoading,
+    error,
+    fetchDocuments,
+    createDocument,
+    generateDocument,
+    deleteDocument,
+  } = useDocsStore();
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showAICreator, setShowAICreator] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -73,6 +94,22 @@ export default function DocumentsScreen() {
       }
     } catch {
       Alert.alert('Fehler', 'Dokument konnte nicht erstellt werden.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleGenerate = async (description: string) => {
+    if (isCreating) return;
+    setIsCreating(true);
+    setShowAICreator(false);
+    try {
+      const doc = await generateDocument(description);
+      if (doc) {
+        router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: doc.id } });
+      }
+    } catch {
+      Alert.alert('Fehler', 'Dokument konnte nicht generiert werden.');
     } finally {
       setIsCreating(false);
     }
@@ -370,6 +407,30 @@ export default function DocumentsScreen() {
       {/* Template selection bottom sheet */}
       <BottomSheet visible={showTemplates} onClose={() => setShowTemplates(false)}>
         <Text style={[styles.bottomSheetTitle, { color: theme.text }]}>Neues Dokument</Text>
+        <TouchableOpacity
+          style={[styles.templateRow, { borderBottomColor: theme.border }]}
+          onPress={() => {
+            setShowTemplates(false);
+            setShowAICreator(true);
+          }}
+          activeOpacity={0.7}
+        >
+          <View
+            style={[
+              styles.templateIconTile,
+              { backgroundColor: theme.card, borderColor: theme.cardBorder },
+            ]}
+          >
+            <Ionicons name="sparkles-outline" size={20} color={colors.secondary[600]} />
+          </View>
+          <View style={styles.templateInfo}>
+            <Text style={[styles.templateName, { color: theme.text }]}>Mit KI erstellen</Text>
+            <Text style={[styles.templateDescription, { color: theme.textSecondary }]}>
+              Aus einer Beschreibung generieren
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+        </TouchableOpacity>
         {templates.map((template) => (
           <TouchableOpacity
             key={template.id}
@@ -377,7 +438,18 @@ export default function DocumentsScreen() {
             onPress={() => handleSelectTemplate(template)}
             activeOpacity={0.7}
           >
-            <Text style={styles.templateIcon}>{template.icon}</Text>
+            <View
+              style={[
+                styles.templateIconTile,
+                { backgroundColor: theme.card, borderColor: theme.cardBorder },
+              ]}
+            >
+              <Ionicons
+                name={TEMPLATE_ICONS[template.id] ?? 'document-outline'}
+                size={20}
+                color={colors.secondary[600]}
+              />
+            </View>
             <View style={styles.templateInfo}>
               <Text style={[styles.templateName, { color: theme.text }]}>{template.name}</Text>
               <Text style={[styles.templateDescription, { color: theme.textSecondary }]}>
@@ -388,6 +460,14 @@ export default function DocumentsScreen() {
           </TouchableOpacity>
         ))}
       </BottomSheet>
+
+      {/* AI document generation sheet */}
+      <AIDocumentCreatorSheet
+        visible={showAICreator}
+        onClose={() => setShowAICreator(false)}
+        onGenerate={handleGenerate}
+        isLoading={isCreating}
+      />
 
       {/* Document share/actions modal — reuses the same share modal as the editor */}
       {activeDoc && (
@@ -622,9 +702,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  templateIcon: {
-    fontSize: 28,
+  templateIconTile: {
     width: 40,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   templateInfo: {
     flex: 1,

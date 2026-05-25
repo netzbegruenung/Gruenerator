@@ -31,6 +31,7 @@ const ENDPOINTS = {
   LIST: '/docs',
   GET: (id: string) => `/docs/${id}`,
   CREATE: '/docs',
+  GENERATE: '/docs/generate',
   UPDATE: (id: string) => `/docs/${id}`,
   DELETE: (id: string) => `/docs/${id}`,
 } as const;
@@ -111,6 +112,13 @@ export const docsService = {
 
   async createDocument(payload: CreateDocumentPayload): Promise<Document | null> {
     const response = await apiRequest<Document>('post', ENDPOINTS.CREATE, payload);
+    return response || null;
+  },
+
+  // Synchronous AI generation: the backend runs the model and returns a finished
+  // document (id + content), which the caller then opens in the editor.
+  async generateDocument(description: string): Promise<Document | null> {
+    const response = await apiRequest<Document>('post', ENDPOINTS.GENERATE, { description });
     return response || null;
   },
 

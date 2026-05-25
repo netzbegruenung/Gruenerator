@@ -524,7 +524,12 @@ export const profileApiService = {
       description: collectionData.description,
       custom_prompt: collectionData.custom_prompt,
       selection_mode: selectionMode,
-      document_ids: selectionMode === 'documents' ? collectionData.documents || [] : [],
+      // Only send document_ids for a documents-mode edit that actually carries a
+      // document set. Omitting it signals a metadata-only edit (e.g. inline rename)
+      // so the backend leaves existing documents untouched instead of 400-ing on [].
+      ...(selectionMode === 'documents' && Array.isArray(collectionData.documents)
+        ? { document_ids: collectionData.documents }
+        : {}),
       wolke_share_link_ids: selectionMode === 'wolke' ? collectionData.wolkeShareLinks || [] : [],
       auto_sync: selectionMode === 'wolke' ? !!collectionData.auto_sync : undefined,
       remove_missing_on_sync:

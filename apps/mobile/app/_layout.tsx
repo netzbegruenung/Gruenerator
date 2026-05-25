@@ -18,6 +18,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import { AppDrawer } from '../components/navigation';
 import { useAppInitialization } from '../hooks/useAppInitialization';
 import { queryClient } from '../services/queryClient';
 import { lightTheme, darkTheme } from '../theme';
@@ -69,65 +70,73 @@ function RootLayout() {
     return <Redirect href="/(auth)/login" />;
   }
 
+  const appContent = (
+    <View style={{ flex: 1 }}>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: theme.background,
+          },
+          headerTintColor: theme.text,
+          headerTitleStyle: {
+            fontWeight: '600',
+          },
+          contentStyle: {
+            backgroundColor: theme.background,
+          },
+        }}
+      >
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="(auth)/login"
+          options={{
+            title: 'Anmelden',
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="(modals)"
+          options={{
+            headerShown: false,
+            presentation: 'modal',
+          }}
+        />
+        <Stack.Screen
+          name="(focused)"
+          options={{
+            headerShown: false,
+            animation: 'slide_from_right',
+          }}
+        />
+        <Stack.Screen
+          name="(fullscreen)"
+          options={{
+            headerShown: false,
+            presentation: 'fullScreenModal',
+            animation: 'fade',
+          }}
+        />
+      </Stack>
+    </View>
+  );
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <KeyboardProvider>
           <ActionSheetProvider>
             <ErrorBoundary>
-              <View style={{ flex: 1 }}>
-                <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-                <Stack
-                  screenOptions={{
-                    headerStyle: {
-                      backgroundColor: theme.background,
-                    },
-                    headerTintColor: theme.text,
-                    headerTitleStyle: {
-                      fontWeight: '600',
-                    },
-                    contentStyle: {
-                      backgroundColor: theme.background,
-                    },
-                  }}
-                >
-                  <Stack.Screen
-                    name="(tabs)"
-                    options={{
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="(auth)/login"
-                    options={{
-                      title: 'Anmelden',
-                      presentation: 'modal',
-                    }}
-                  />
-                  <Stack.Screen
-                    name="(modals)"
-                    options={{
-                      headerShown: false,
-                      presentation: 'modal',
-                    }}
-                  />
-                  <Stack.Screen
-                    name="(focused)"
-                    options={{
-                      headerShown: false,
-                      animation: 'slide_from_right',
-                    }}
-                  />
-                  <Stack.Screen
-                    name="(fullscreen)"
-                    options={{
-                      headerShown: false,
-                      presentation: 'fullScreenModal',
-                      animation: 'fade',
-                    }}
-                  />
-                </Stack>
-              </View>
+              {/* AppDrawer (thread-list) wraps the whole Stack so threads/new-chat
+                  are reachable from any screen — incl. the pushed (focused)
+                  conversation. Gated on `user` to avoid an unauthenticated
+                  thread-list fetch during the login flow. */}
+              {user ? <AppDrawer>{appContent}</AppDrawer> : appContent}
             </ErrorBoundary>
           </ActionSheetProvider>
         </KeyboardProvider>

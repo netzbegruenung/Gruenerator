@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { lightTheme, darkTheme, colors } from '../../theme';
 import { GrueneratorLoadingIcon } from '../chat/GrueneratorLoadingIcon';
+import { NotebookIcon } from '../icons/WebMirrorIcons';
 
 export function ClassicTabLayout() {
   const colorScheme = useColorScheme();
@@ -45,14 +46,6 @@ export function ClassicTabLayout() {
       />
       <Tabs.Screen name="(chat)" options={{ href: null, headerShown: false }} />
       <Tabs.Screen
-        name="(media)"
-        options={{
-          title: 'Medien',
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => <Ionicons name="videocam" size={size} color={color} />,
-        }}
-      />
-      <Tabs.Screen
         name="(docs)"
         options={{
           title: 'Docs',
@@ -62,13 +55,20 @@ export function ClassicTabLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="(desk)" options={{ href: null, headerShown: false }} />
+      <Tabs.Screen
+        name="(tools)"
+        options={{
+          title: 'Tools',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => <Ionicons name="construct" size={size} color={color} />,
+        }}
+      />
       <Tabs.Screen
         name="(recherche)"
         options={{
-          title: 'Recherche',
+          title: 'Notebooks',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => <Ionicons name="search" size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <NotebookIcon color={color} size={size} />,
         }}
       />
       <Tabs.Screen

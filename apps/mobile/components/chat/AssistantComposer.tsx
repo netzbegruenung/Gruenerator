@@ -127,7 +127,11 @@ export function AssistantComposer({
         <ComposerPrimitive.Attachments components={{ Attachment: ComposerAttachmentUI }} />
       </View>
       <View
-        style={[styles.inputRow, { backgroundColor: theme.surface }, styles.inputRowWithActions]}
+        style={[
+          styles.inputRow,
+          { backgroundColor: theme.surface, borderColor: theme.border },
+          styles.inputRowWithActions,
+        ]}
       >
         <Pressable
           onPress={() => setActionSheetVisible(true)}
@@ -186,10 +190,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     borderRadius: borderRadius.pill,
+    borderWidth: StyleSheet.hairlineWidth,
     paddingLeft: spacing.medium,
     paddingRight: spacing.xsmall,
     paddingVertical: 6,
-    minHeight: 42,
+    minHeight: 44,
   },
   inputRowWithActions: {
     paddingLeft: spacing.xsmall,
@@ -202,7 +207,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     maxHeight: 120,
     paddingVertical: 5,
   },
@@ -210,7 +215,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: colors.primary[600],
+    backgroundColor: colors.eucalyptus,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: spacing.xsmall,

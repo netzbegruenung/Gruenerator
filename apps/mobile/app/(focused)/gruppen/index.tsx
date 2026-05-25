@@ -1,7 +1,7 @@
 import { useActionSheet } from '@expo/react-native-action-sheet';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { Stack, useRouter } from 'expo-router';
-import { useCallback } from 'react';
+import { useRouter } from 'expo-router';
+import { useCallback, type ReactNode } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Pressable,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useUserGroups, type GroupSummary } from '../../../hooks/useGroups';
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../../theme';
@@ -31,6 +32,14 @@ export default function GruppenScreen() {
     [router]
   );
 
+  // (focused) has no tab bar, so a bare router.back() strands the user when this
+  // screen is the stack root — e.g. reached via gruppen-join's router.replace on a
+  // cold deep link. Fall back to a tab, mirroring gruppen-join's own guard.
+  const handleBack = useCallback(() => {
+    if (router.canGoBack()) router.back();
+    else router.replace('/start');
+  }, [router]);
+
   const showAddMenu = useCallback(() => {
     const options = ['Neue Gruppe erstellen', 'Einladung einlösen', 'Abbrechen'];
     showActionSheetWithOptions(
@@ -46,19 +55,6 @@ export default function GruppenScreen() {
     );
   }, [router, showActionSheetWithOptions]);
 
-  const headerRight = useCallback(
-    () => (
-      <Pressable
-        onPress={showAddMenu}
-        hitSlop={10}
-        style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: spacing.xsmall })}
-      >
-        <Ionicons name="add" size={26} color={theme.text} />
-      </Pressable>
-    ),
-    [showAddMenu, theme.text]
-  );
-
   const roleLabel = (role: string) => {
     switch (role) {
       case 'owner':
@@ -72,76 +68,61 @@ export default function GruppenScreen() {
     }
   };
 
+  let body: ReactNode;
   if (isPending) {
-    return (
-      <>
-        <Stack.Screen options={{ headerRight }} />
-        <View style={[styles.centered, { backgroundColor: theme.background }]}>
-          <ActivityIndicator size="large" color={colors.primary[600]} />
-          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Gruppen laden...</Text>
-        </View>
-      </>
+    body = (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.primary[600]} />
+        <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Gruppen laden...</Text>
+      </View>
     );
-  }
-
-  if (error) {
-    return (
-      <>
-        <Stack.Screen options={{ headerRight }} />
-        <View style={[styles.centered, { backgroundColor: theme.background }]}>
-          <Ionicons name="alert-circle" size={48} color={colors.semantic.error} />
-          <Text style={[styles.errorText, { color: colors.semantic.error }]}>
-            {error instanceof Error ? error.message : 'Gruppen konnten nicht geladen werden'}
-          </Text>
-          <Pressable
-            onPress={() => void refetch()}
-            style={({ pressed }) => [
-              styles.retryButton,
-              { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
-            ]}
-          >
-            <Text style={styles.retryButtonText}>Erneut versuchen</Text>
-          </Pressable>
-        </View>
-      </>
-    );
-  }
-
-  if (groups.length === 0) {
-    return (
-      <>
-        <Stack.Screen options={{ headerRight }} />
-        <ScrollView
-          style={[styles.container, { backgroundColor: theme.background }]}
-          contentContainerStyle={styles.centered}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
-          }
+  } else if (error) {
+    body = (
+      <View style={styles.centered}>
+        <Ionicons name="alert-circle" size={48} color={colors.semantic.error} />
+        <Text style={[styles.errorText, { color: colors.semantic.error }]}>
+          {error instanceof Error ? error.message : 'Gruppen konnten nicht geladen werden'}
+        </Text>
+        <Pressable
+          onPress={() => void refetch()}
+          style={({ pressed }) => [
+            styles.retryButton,
+            { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
+          ]}
         >
-          <Ionicons name="people-outline" size={48} color={theme.textSecondary} />
-          <Text style={[styles.emptyTitle, { color: theme.text }]}>Keine Gruppen</Text>
-          <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
-            Erstelle eine Gruppe oder löse{'\n'}eine Einladung ein.
-          </Text>
-          <Pressable
-            onPress={showAddMenu}
-            style={({ pressed }) => [
-              styles.retryButton,
-              { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
-            ]}
-          >
-            <Text style={styles.retryButtonText}>Gruppe hinzufügen</Text>
-          </Pressable>
-        </ScrollView>
-      </>
+          <Text style={styles.retryButtonText}>Erneut versuchen</Text>
+        </Pressable>
+      </View>
     );
-  }
-
-  return (
-    <>
-      <Stack.Screen options={{ headerRight }} />
+  } else if (groups.length === 0) {
+    body = (
       <ScrollView
-        style={[styles.container, { backgroundColor: theme.background }]}
+        style={styles.container}
+        contentContainerStyle={styles.centered}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
+        }
+      >
+        <Ionicons name="people-outline" size={48} color={theme.textSecondary} />
+        <Text style={[styles.emptyTitle, { color: theme.text }]}>Keine Gruppen</Text>
+        <Text style={[styles.emptySubtitle, { color: theme.textSecondary }]}>
+          Erstelle eine Gruppe oder löse{'\n'}eine Einladung ein.
+        </Text>
+        <Pressable
+          onPress={showAddMenu}
+          style={({ pressed }) => [
+            styles.retryButton,
+            { backgroundColor: pressed ? colors.primary[700] : colors.primary[600] },
+          ]}
+        >
+          <Text style={styles.retryButtonText}>Gruppe hinzufügen</Text>
+        </Pressable>
+      </ScrollView>
+    );
+  } else {
+    body = (
+      <ScrollView
+        style={styles.container}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
@@ -189,12 +170,44 @@ export default function GruppenScreen() {
           </Pressable>
         ))}
       </ScrollView>
-    </>
+    );
+  }
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+      <View style={[styles.header, { borderBottomColor: theme.border }]}>
+        <Pressable
+          onPress={handleBack}
+          hitSlop={10}
+          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+        >
+          <Ionicons name="chevron-back" size={28} color={theme.text} />
+        </Pressable>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Gruppen</Text>
+        <Pressable
+          onPress={showAddMenu}
+          hitSlop={10}
+          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}
+        >
+          <Ionicons name="add" size={26} color={theme.text} />
+        </Pressable>
+      </View>
+      {body}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  header: {
+    height: 52,
+    paddingHorizontal: spacing.medium,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.small,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerTitle: { ...typography.bodyBold, flex: 1, fontSize: 17 },
   scrollContent: { padding: spacing.medium, paddingBottom: spacing.xxlarge, gap: spacing.small },
   centered: {
     flex: 1,

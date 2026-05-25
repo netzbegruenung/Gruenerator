@@ -70,6 +70,12 @@ export interface BlockNoteEditorProps {
   onEditorReady?: (editor: BlockNoteEditorCore) => void;
   useStaticFormattingToolbar?: boolean;
   hideFormattingToolbar?: boolean;
+  /**
+   * The in-editor dictation button uses getUserMedia/AudioWorklet, which don't
+   * work inside the mobile DOM-component WebView. Native hosts set this false
+   * and drive dictation via the OS recognizer + an insert-text bridge instead.
+   */
+  showDictationButton?: boolean;
 }
 
 interface CollaborationUser {
@@ -129,6 +135,7 @@ const BlockNoteEditorInner = ({
   onEditorReady,
   useStaticFormattingToolbar = false,
   hideFormattingToolbar = false,
+  showDictationButton = true,
 }: BlockNoteEditorProps) => {
   const { setEditor: setEditorInStore, removeEditor } = useEditorStore();
   const adapter = useDocsAdapter();
@@ -241,6 +248,10 @@ const BlockNoteEditorInner = ({
         transport: new DefaultChatTransport({
           api: aiApiUrl,
           credentials: 'include',
+          // Route through the DocsAdapter's fetch so the mobile DOM WebView reaches
+          // the API via the native proxy (CORS/auth). On web this is platformFetch
+          // — identical to the default — so web behavior is unchanged.
+          fetch: (input, init) => adapter.fetch(String(input), init),
         }),
         // Markdown format avoids xl-ai's HTML rebase-tool throw on docs that
         // contain inline color/background spans — those don't round-trip
@@ -406,7 +417,7 @@ const BlockNoteEditorInner = ({
       className={`blocknote-wrapper relative${staticToolbar ? ' blocknote-static-toolbar' : ''}`}
     >
       <ErrorBoundary>
-        {editable && <EditorDictationButton editor={editor} />}
+        {editable && showDictationButton && <EditorDictationButton editor={editor} />}
         <BlockNoteView
           editor={editor}
           theme={theme}
@@ -417,7 +428,7 @@ const BlockNoteEditorInner = ({
           sideMenu={false}
           tableHandles={false}
         >
-          <AIMenuController />
+          {hideFormattingToolbar ? null : <AIMenuController />}
           {hideFormattingToolbar ? null : staticToolbar ? (
             <FormattingToolbar>
               {toolbarItems}
@@ -426,15 +437,20 @@ const BlockNoteEditorInner = ({
           ) : (
             <FormattingToolbarController formattingToolbar={formattingToolbar} />
           )}
-          <SuggestionMenuController
-            triggerCharacter="/"
-            getItems={async (query) =>
-              filterSuggestionItems(
-                [...getDefaultReactSlashMenuItems(editor), ...getAISlashMenuItems(editor)],
-                query
-              )
-            }
-          />
+          {/* On mobile (hideFormattingToolbar) the web slash menu renders
+              unstyled inside the WebView, so it is suppressed in favor of a
+              native RN slash menu driven over the bridge. */}
+          {hideFormattingToolbar ? null : (
+            <SuggestionMenuController
+              triggerCharacter="/"
+              getItems={async (query) =>
+                filterSuggestionItems(
+                  [...getDefaultReactSlashMenuItems(editor), ...getAISlashMenuItems(editor)],
+                  query
+                )
+              }
+            />
+          )}
           <SuggestionMenuController
             triggerCharacter="@"
             getItems={async (query) => getMentionMenuItems(editor, query)}

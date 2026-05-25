@@ -431,6 +431,18 @@
   color: var(--color-foreground);
 }
 
+.sidebar-theme-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  margin-right: auto;
+}
+
+.sidebar-icon-button[data-active='true'] {
+  background-color: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+}
+
 /* Mention popover animation */
 @keyframes mention-popover-in {
   from {

@@ -1,9 +1,18 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useRouter } from 'expo-router';
-import { useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Pressable,
+  Modal,
+  StyleSheet,
+  useColorScheme,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useSpeechToText } from '../../hooks/useSpeechToText';
 import { useDocsEditorBridgeStore } from '../../stores/docsEditorBridgeStore';
 import { lightTheme, darkTheme, colors } from '../../theme';
 
@@ -14,21 +23,23 @@ const STATUS_COLORS = {
 } as const;
 
 export function NativeDocTopBar() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const titleRef = useRef<TextInput>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const connectionStatus = useDocsEditorBridgeStore((s) => s.connectionStatus);
   const documentTitle = useDocsEditorBridgeStore((s) => s.documentTitle);
   const canEdit = useDocsEditorBridgeStore((s) => s.canEdit);
-  const chatMessageCount = useDocsEditorBridgeStore((s) => s.chatMessages.length);
-  const lastSeenMessageCount = useDocsEditorBridgeStore((s) => s.lastSeenMessageCount);
   const dispatchAction = useDocsEditorBridgeStore((s) => s.dispatchAction);
-  const toggleSidebar = useDocsEditorBridgeStore((s) => s.toggleSidebar);
+  const toggleFullscreen = useDocsEditorBridgeStore((s) => s.toggleFullscreen);
 
-  const unreadCount = chatMessageCount - lastSeenMessageCount;
+  // Native dictation: the OS recognizer (final transcript) feeds the editor via
+  // the insert-text bridge — the in-editor web mic can't run in the WebView.
+  const { isListening, toggle: toggleDictation } = useSpeechToText();
+  const handleDictate = () =>
+    void toggleDictation((transcript) => dispatchAction({ type: 'insert-text', text: transcript }));
 
   return (
     <View
@@ -41,16 +52,12 @@ export function NativeDocTopBar() {
         },
       ]}
     >
-      <TouchableOpacity
-        onPress={() => router.back()}
-        style={styles.iconButton}
-        accessibilityLabel="Zurück"
-      >
-        <Ionicons name="arrow-back" size={24} color={theme.text} />
-      </TouchableOpacity>
-
       <View style={styles.titleRow}>
-        <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[connectionStatus] }]} />
+        {/* Problem-only indicator: green "connected" is noise, so the dot shows
+            only while syncing (amber) or disconnected (red). */}
+        {connectionStatus !== 'connected' && (
+          <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[connectionStatus] }]} />
+        )}
         <TextInput
           ref={titleRef}
           style={[styles.titleInput, { color: theme.text }]}
@@ -68,22 +75,65 @@ export function NativeDocTopBar() {
         />
       </View>
 
-      <TouchableOpacity onPress={toggleSidebar} style={styles.iconButton} accessibilityLabel="Chat">
-        <Ionicons name="chatbubble-ellipses-outline" size={22} color={theme.text} />
-        {unreadCount > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+      {canEdit && (
+        <TouchableOpacity
+          onPress={handleDictate}
+          style={styles.iconButton}
+          accessibilityLabel={isListening ? 'Diktat stoppen' : 'Diktieren'}
+        >
+          <Ionicons
+            name={isListening ? 'stop-circle' : 'mic-outline'}
+            size={22}
+            color={isListening ? colors.error[500] : theme.text}
+          />
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
-        onPress={() => dispatchAction({ type: 'openShare' })}
+        onPress={() => setMenuOpen(true)}
         style={styles.iconButton}
-        accessibilityLabel="Teilen"
+        accessibilityLabel="Mehr"
       >
-        <Ionicons name="share-social-outline" size={22} color={theme.text} />
+        <Ionicons name="ellipsis-vertical" size={22} color={theme.text} />
       </TouchableOpacity>
+
+      {/* Overflow menu: share + fullscreen */}
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpen(false)}
+      >
+        <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+          <View
+            style={[
+              styles.menuCard,
+              { top: insets.top + 44, backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuOpen(false);
+                dispatchAction({ type: 'openShare' });
+              }}
+            >
+              <Ionicons name="share-social-outline" size={20} color={theme.text} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>Teilen</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuOpen(false);
+                toggleFullscreen();
+              }}
+            >
+              <Ionicons name="expand-outline" size={20} color={theme.text} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>Vollbild</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -121,21 +171,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     paddingVertical: 4,
   },
-  badge: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: '#ef4444',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
+  menuBackdrop: {
+    flex: 1,
   },
-  badgeText: {
-    color: 'white',
-    fontSize: 10,
-    fontWeight: '700',
+  menuCard: {
+    position: 'absolute',
+    right: 8,
+    minWidth: 180,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 6,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  menuItemText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
 });

@@ -55,6 +55,9 @@ export function ToolResultCard({ part, theme }: { part: ToolCallPart; theme: The
   );
   const count = citations.length;
   const canExpand = count > 0 && !error;
+  // String-returning tools with no citations (e.g. recall_memory / save_memory)
+  // surface their text result directly instead of a bare pill.
+  const textResult = typeof part.result === 'string' ? part.result.trim() : null;
 
   return (
     <View style={styles.wrap}>
@@ -82,6 +85,12 @@ export function ToolResultCard({ part, theme }: { part: ToolCallPart; theme: The
       </Pressable>
 
       {error && <Text style={[styles.error, { color: colors.error[500] }]}>{error}</Text>}
+
+      {!canExpand && !error && textResult ? (
+        <Text style={[styles.note, { color: theme.textSecondary }]} numberOfLines={4}>
+          {textResult}
+        </Text>
+      ) : null}
 
       {expanded && canExpand && (
         <View style={[styles.results, { borderLeftColor: theme.border }]}>
@@ -121,6 +130,12 @@ const styles = StyleSheet.create({
   },
   error: {
     fontSize: 12,
+    marginTop: spacing.xxsmall,
+    marginLeft: spacing.xsmall,
+  },
+  note: {
+    fontSize: 13,
+    lineHeight: 18,
     marginTop: spacing.xxsmall,
     marginLeft: spacing.xsmall,
   },

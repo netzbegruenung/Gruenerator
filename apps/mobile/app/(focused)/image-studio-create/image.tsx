@@ -25,7 +25,7 @@ export default function ImageScreen() {
 
   useEffect(() => {
     if (!kiType && !type) {
-      router.replace(route('/(tabs)/(media)/image-studio'));
+      router.replace(route('/(tabs)/(tools)/image-studio'));
     }
   }, [kiType, type]);
 
