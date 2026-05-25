@@ -3,8 +3,10 @@ import {
   setGlobalApiClient,
   getGlobalApiClient,
   apiRequest,
+  type AuthRequestConfig,
 } from '@gruenerator/shared/api';
 import { useAuthStore } from '@gruenerator/shared/stores';
+import { isAxiosError } from 'axios';
 
 import { secureStorage } from './storage';
 
@@ -17,14 +19,41 @@ export function initializeApiClient(): void {
     getAuthToken: async () => {
       return secureStorage.getToken();
     },
-    // Better Auth sessions auto-extend on each request via `updateAge`.
-    // A 401 means the session is actually gone (rotated, revoked, or
-    // expired past the rolling window), so there's nothing to refresh —
-    // wipe local state and let the UI route back to login.
+    // A 401 isn't always a dead session — a flaky non-auth endpoint or a
+    // momentary server blip can return one, and wiping on the first 401 would
+    // log out a user whose session is actually fine. So re-probe the session
+    // endpoint ONCE before destroying local auth. `skipAuthRefresh` exempts the
+    // probe from this very interceptor so it can't recurse.
     onUnauthorized: async (): Promise<boolean> => {
+      try {
+        const client = getGlobalApiClient();
+        const probeConfig: AuthRequestConfig = { skipAuthRefresh: true };
+        const probe = await client.get<{ user?: unknown } | null>(
+          API_ENDPOINTS.AUTH_GET_SESSION,
+          probeConfig
+        );
+        if (probe.data?.user) {
+          // Session is alive — the original 401 was a fluke. Returning true
+          // tells the interceptor to retry the original request once.
+          return true;
+        }
+        // 2xx with no user → session really is gone → fall through to wipe.
+      } catch (error: unknown) {
+        // Only a definitive 401/403 on the probe confirms a dead session.
+        // Network / timeout / 5xx is indeterminate → keep the session.
+        const status = isAxiosError(error) ? error.response?.status : undefined;
+        if (status !== 401 && status !== 403) {
+          return false;
+        }
+      }
       await secureStorage.clearAll();
       useAuthStore.getState().clearAuth();
       return false;
+    },
+    // Persist a rotated bearer token (Better Auth `set-auth-token` header) so
+    // the stored token never drifts out of sync with the server session.
+    onTokenRefresh: async (token: string): Promise<void> => {
+      await secureStorage.setToken(token);
     },
     timeout: 120000,
   });

@@ -1,8 +1,20 @@
-import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  type AxiosInstance,
+  type AxiosError,
+  type AxiosRequestConfig,
+  type InternalAxiosRequestConfig,
+} from 'axios';
 
 import type { ApiConfig } from '../types/auth.js';
 
 export type AuthMode = 'cookie' | 'bearer';
+
+/**
+ * Per-request config extension. Set `skipAuthRefresh: true` to exempt a request
+ * from the global 401 handler — used by the session re-probe inside
+ * `onUnauthorized` so the probe can't re-enter the interceptor and recurse.
+ */
+export type AuthRequestConfig = AxiosRequestConfig & { skipAuthRefresh?: boolean };
 
 export interface CreateApiClientOptions extends ApiConfig {
   authMode: AuthMode;
@@ -16,7 +28,14 @@ export interface CreateApiClientOptions extends ApiConfig {
  * Mobile: Uses Bearer token auth
  */
 export function createApiClient(options: CreateApiClientOptions): AxiosInstance {
-  const { baseURL, authMode, getAuthToken, onUnauthorized, timeout = 900000 } = options;
+  const {
+    baseURL,
+    authMode,
+    getAuthToken,
+    onUnauthorized,
+    onTokenRefresh,
+    timeout = 900000,
+  } = options;
 
   const client = axios.create({
     baseURL,
@@ -40,16 +59,30 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
 
   // Response interceptor - handle 401 errors with retry after token refresh
   client.interceptors.response.use(
-    (response) => response,
+    (response) => {
+      // Better Auth's bearer() plugin can return a refreshed session token via
+      // the `set-auth-token` response header. Persist it so the stored token
+      // never drifts from the server session. No-op on web (no handler passed).
+      if (onTokenRefresh) {
+        const refreshedToken: unknown = response.headers['set-auth-token'];
+        if (typeof refreshedToken === 'string' && refreshedToken.length > 0) {
+          void onTokenRefresh(refreshedToken);
+        }
+      }
+      return response;
+    },
     async (error: AxiosError) => {
-      const originalRequest = error.config;
+      const originalRequest = error.config as
+        | (InternalAxiosRequestConfig & { _retried?: boolean; skipAuthRefresh?: boolean })
+        | undefined;
       if (
         error.response?.status === 401 &&
         onUnauthorized &&
         originalRequest &&
-        !(originalRequest as InternalAxiosRequestConfig & { _retried?: boolean })._retried
+        !originalRequest._retried &&
+        !originalRequest.skipAuthRefresh
       ) {
-        (originalRequest as InternalAxiosRequestConfig & { _retried?: boolean })._retried = true;
+        originalRequest._retried = true;
         const refreshed = await onUnauthorized();
         if (refreshed) {
           if (authMode === 'bearer' && getAuthToken) {
