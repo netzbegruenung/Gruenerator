@@ -33,7 +33,7 @@ import { createAIService, type AIService } from './services/ai/aiService.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
-import { tusServer } from './services/subtitler/tusService.js';
+import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
 import { createLogger } from './utils/logger.js';
 import redisClient, { ensureConnected, checkRedisHealth } from './utils/redis/client.js';
@@ -287,6 +287,13 @@ async function startWorker(): Promise<void> {
   });
   app.all(audioUploadPath + '/*splat', (req: Request, res: Response) => {
     void tusServer.handle(req, res);
+  });
+
+  // Plain binary upload for non-TUS clients (mobile uses expo-file-system's
+  // native uploader). Registered here — before compression and the body
+  // parsers — so `req` stays the raw byte stream and writes straight to disk.
+  app.post('/api/subtitler/upload-binary', (req: Request, res: Response) => {
+    void handleBinaryUpload(req, res);
   });
 
   // Compression middleware
