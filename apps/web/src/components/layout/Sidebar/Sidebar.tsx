@@ -581,25 +581,17 @@ const SidebarAgents = memo(function SidebarAgents({
             </li>
           )}
 
-          {/*
-            "Neue*r Agent*in" sidebar CTA — disabled until the agent-builder
-            feature ships. Route + SkillsPage CTA remain dev-only via Vite
-            (`devOnly` flag in routes.ts; `import.meta.env.DEV` in SkillsPage).
-          {showCreateAgentCta && (
-            <li>
-              <button
-                type="button"
-                onClick={() => onLinkClick('/agents/new', 'Neue*r Agent*in')}
-                className={cn(menuLinkClass(false), 'text-primary-600 dark:text-primary-300')}
-              >
-                <span className="shrink-0 w-6 h-6 flex items-center justify-center text-base">
-                  +
-                </span>
-                <span className={titleClass}>Neue*r Agent*in</span>
-              </button>
-            </li>
-          )}
-          */}
+          {/* Entry point to the conversational agent creator (/agents/new). */}
+          <li>
+            <button
+              type="button"
+              onClick={() => onLinkClick('/agents/new', 'Neue*r Agent*in')}
+              className={cn(menuLinkClass(false), 'text-primary-600 dark:text-primary-300')}
+            >
+              <span className="shrink-0 w-6 h-6 flex items-center justify-center text-base">+</span>
+              <span className={titleClass}>Neue*r Agent*in</span>
+            </button>
+          </li>
         </ul>
       )}
     </div>
