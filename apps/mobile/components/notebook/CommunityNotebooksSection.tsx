@@ -12,9 +12,10 @@ import {
 
 import { useNotebookLikes } from '../../hooks/notebook/useNotebookLikes';
 import { usePublicNotebookCollections } from '../../hooks/notebook/usePublicNotebookCollections';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../theme';
 
-import { NotebookCard } from './NotebookCard';
+import { NotebookCard, notebookGridStyles } from './NotebookCard';
 
 /**
  * "Von der Basis" — public community notebooks (web's VonDerBasisSection). Reuses
@@ -30,6 +31,7 @@ export function CommunityNotebooksSection({
 }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const isTablet = useIsTablet();
   const [query, setQuery] = useState('');
   const { publicNotebooks, isLoading } = usePublicNotebookCollections(enabled);
   const { isLiked, toggleLike } = useNotebookLikes(enabled);
@@ -70,30 +72,33 @@ export function CommunityNotebooksSection({
           Keine Treffer für &ldquo;{query}&rdquo;
         </Text>
       ) : (
-        filtered.map((n) => {
-          const liked = isLiked(n.id);
-          return (
-            <NotebookCard
-              key={n.id}
-              icon="people-outline"
-              title={n.name}
-              subtitle={n.creator_name ? `von ${n.creator_name}` : undefined}
-              onPress={() => onOpen(n.id, n.name)}
-              trailing={
-                <Pressable onPress={() => toggleLike(n.id)} hitSlop={8} style={styles.likeButton}>
-                  <Ionicons
-                    name={liked ? 'heart' : 'heart-outline'}
-                    size={16}
-                    color={liked ? colors.primary[600] : theme.textSecondary}
-                  />
-                  <Text style={[styles.likeCount, { color: theme.textSecondary }]}>
-                    {n.likes_count ?? 0}
-                  </Text>
-                </Pressable>
-              }
-            />
-          );
-        })
+        <View style={isTablet ? notebookGridStyles.grid : undefined}>
+          {filtered.map((n) => {
+            const liked = isLiked(n.id);
+            return (
+              <NotebookCard
+                key={n.id}
+                icon="people-outline"
+                title={n.name}
+                subtitle={n.creator_name ? `von ${n.creator_name}` : undefined}
+                onPress={() => onOpen(n.id, n.name)}
+                style={isTablet ? notebookGridStyles.item : undefined}
+                trailing={
+                  <Pressable onPress={() => toggleLike(n.id)} hitSlop={8} style={styles.likeButton}>
+                    <Ionicons
+                      name={liked ? 'heart' : 'heart-outline'}
+                      size={16}
+                      color={liked ? colors.primary[600] : theme.textSecondary}
+                    />
+                    <Text style={[styles.likeCount, { color: theme.textSecondary }]}>
+                      {n.likes_count ?? 0}
+                    </Text>
+                  </Pressable>
+                }
+              />
+            );
+          })}
+        </View>
       )}
     </View>
   );
