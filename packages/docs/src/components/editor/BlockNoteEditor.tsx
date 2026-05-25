@@ -437,21 +437,20 @@ const BlockNoteEditorInner = ({
           ) : (
             <FormattingToolbarController formattingToolbar={formattingToolbar} />
           )}
-          <SuggestionMenuController
-            triggerCharacter="/"
-            getItems={async (query) =>
-              filterSuggestionItems(
-                [
-                  ...getDefaultReactSlashMenuItems(editor),
-                  // On mobile (hideFormattingToolbar) the web AI popover is
-                  // suppressed in favor of the native review UX; omit the
-                  // slash-menu AI item so it can't open that popover.
-                  ...(hideFormattingToolbar ? [] : getAISlashMenuItems(editor)),
-                ],
-                query
-              )
-            }
-          />
+          {/* On mobile (hideFormattingToolbar) the web slash menu renders
+              unstyled inside the WebView, so it is suppressed in favor of a
+              native RN slash menu driven over the bridge. */}
+          {hideFormattingToolbar ? null : (
+            <SuggestionMenuController
+              triggerCharacter="/"
+              getItems={async (query) =>
+                filterSuggestionItems(
+                  [...getDefaultReactSlashMenuItems(editor), ...getAISlashMenuItems(editor)],
+                  query
+                )
+              }
+            />
+          )}
           <SuggestionMenuController
             triggerCharacter="@"
             getItems={async (query) => getMentionMenuItems(editor, query)}

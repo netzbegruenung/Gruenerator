@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Pressable, useColorScheme } from 'react-native';
 
+import { DocAiEditSheet } from '../../../../components/docs/DocAiEditSheet';
 import { DocAiReviewBar } from '../../../../components/docs/DocAiReviewBar';
 import DocEditorDOM from '../../../../components/docs/DocEditorDOM';
 import { GuestBanner } from '../../../../components/docs/GuestBanner';
@@ -12,6 +13,7 @@ import { NativeChatSidebar } from '../../../../components/docs/NativeChatSidebar
 import { NativeDocTopBar } from '../../../../components/docs/NativeDocTopBar';
 import { NativeFormattingToolbar } from '../../../../components/docs/NativeFormattingToolbar';
 import { NativeShareModal } from '../../../../components/docs/NativeShareModal';
+import { NativeSlashMenu } from '../../../../components/docs/NativeSlashMenu';
 import { docsService } from '../../../../services/docs/docsApi';
 import { trackDocumentOpen } from '../../../../services/docs/recentDocs';
 import { secureStorage } from '../../../../services/storage';
@@ -62,6 +64,7 @@ export default function DocumentScreen() {
   const fullscreen = store((s) => s.fullscreen);
   const setFullscreen = store((s) => s.setFullscreen);
   const toggleSidebar = store((s) => s.toggleSidebar);
+  const aiEditOpen = store((s) => s.aiEditOpen);
 
   // Load token (fast) — mounts editor immediately
   useEffect(() => {
@@ -346,6 +349,14 @@ export default function DocumentScreen() {
           onDocSnapshotChange={(markdown, selectionText) =>
             store.getState().setDocSnapshot(markdown, selectionText)
           }
+          onSlashChange={(json) => {
+            try {
+              const { open, query } = JSON.parse(json) as { open: boolean; query: string };
+              store.getState().setSlashMenu(open, query);
+            } catch {
+              // ignore malformed payload
+            }
+          }}
           onAiReviewPendingChange={(p) => store.getState().setAiReviewPending(p)}
           proxyFetch={handleProxyFetch}
           wsOpen={handleWsOpen}
@@ -377,6 +388,18 @@ export default function DocumentScreen() {
         </Pressable>
       )}
 
+      {!fullscreen && <NativeSlashMenu />}
+      <DocAiEditSheet
+        visible={aiEditOpen}
+        onClose={() => store.getState().setAiEditOpen(false)}
+        onSubmit={(prompt) =>
+          store.getState().dispatchAction({
+            type: 'invoke-ai',
+            prompt,
+            useSelection: store.getState().activeFormatting.hasSelection,
+          })
+        }
+      />
       <NativeChatSidebar documentId={id!} />
       <NativeShareModal
         visible={shareModalVisible}
