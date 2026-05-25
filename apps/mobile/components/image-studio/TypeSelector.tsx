@@ -1,174 +1,72 @@
 /**
  * TypeSelector Component
- * Unified grid of image-based cards for KI type + variant selection
+ * First step of KI image generation: pick the top-level intent —
+ * transform (green-edit), create a new image, or edit an existing one.
+ * Style variants live one step deeper, behind "Bild erstellen" (see StyleSelector).
  */
 
-import { IMAGE_STUDIO_TYPE_CONFIGS, STYLE_VARIANTS } from '@gruenerator/shared/image-studio';
-import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { Image, type ImageSource } from 'expo-image';
-import { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  useColorScheme,
-  ScrollView,
-  Dimensions,
-} from 'react-native';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { type ImageSource } from 'expo-image';
+import { View, Text, StyleSheet, useColorScheme, ScrollView } from 'react-native';
 
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 
-import type {
-  ImageStudioKiType,
-  ImageStudioTemplateType,
-  KiStyleVariant,
-} from '@gruenerator/shared/image-studio';
+import { ImageCardGrid, type ImageCard } from './ImageCardGrid';
+
+import type { ImageStudioKiType } from '@gruenerator/shared/image-studio';
 
 interface TypeSelectorProps {
-  onSelectVariant: (variant: KiStyleVariant) => void;
   onSelectEdit: (type: ImageStudioKiType) => void;
-  onSelectTemplate: (type: ImageStudioTemplateType) => void;
+  onSelectCreate: () => void;
 }
 
-interface CardItem {
-  key: string;
-  label: string;
-  description: string;
-  image: ImageSource;
-  type: 'variant' | 'edit' | 'template';
-  variant?: KiStyleVariant;
-  kiType?: ImageStudioKiType;
-  templateType?: ImageStudioTemplateType;
-  fallbackIcon?: IoniconsIconName;
-}
+type IntentCard = ImageCard &
+  ({ action: 'edit'; kiType: ImageStudioKiType } | { action: 'create' });
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 // Image assets loaded via require() — Expo Metro provides typed module references
-const VARIANT_IMAGES: Record<KiStyleVariant, ImageSource> = {
-  'illustration-pure':
-    require('../../images/imagine/variants-pure/soft-illustration.webp') as ImageSource,
-  'realistic-pure':
-    require('../../images/imagine/variants-pure/realistic-photo.webp') as ImageSource,
-  'pixel-pure': require('../../images/imagine/variants-pure/pixel-art.webp') as ImageSource,
-  'editorial-pure': require('../../images/imagine/variants-pure/editorial.webp') as ImageSource,
-};
-
-const EDIT_IMAGES: Record<string, ImageSource> = {
-  'green-edit': require('../../images/imagine/green-street-example.webp') as ImageSource,
-  'universal-edit': require('../../images/imagine/universal-edit.webp') as ImageSource,
-};
-
-const TEMPLATE_IMAGES: Partial<Record<ImageStudioTemplateType, ImageSource>> = {
-  dreizeilen: require('../../images/imagine/templates/dreizeilen-preview.webp') as ImageSource,
-  zitat: require('../../images/imagine/templates/zitat-preview.webp') as ImageSource,
-  'zitat-pure': require('../../images/imagine/templates/zitat-pure-preview.webp') as ImageSource,
-  info: require('../../images/imagine/templates/info-preview.webp') as ImageSource,
-  veranstaltung:
-    require('../../images/imagine/templates/veranstaltung-preview.webp') as ImageSource,
-  simple: require('../../images/imagine/templates/simple-preview.webp') as ImageSource,
-};
-
-const TEMPLATE_ICONS: Partial<Record<ImageStudioTemplateType, IoniconsIconName>> = {
-  dreizeilen: 'text-outline',
-  zitat: 'chatbox-outline',
-  'zitat-pure': 'chatbox-outline',
-  info: 'information-circle-outline',
-  veranstaltung: 'calendar-outline',
-  simple: 'image-outline',
-};
-
-const TEMPLATE_ORDER: ImageStudioTemplateType[] = [
-  'dreizeilen',
-  'zitat',
-  'zitat-pure',
-  'info',
-  'veranstaltung',
-  'simple',
-];
-
-function buildCardItems(): CardItem[] {
-  const items: CardItem[] = [];
-
-  items.push({
+const INTENT_ITEMS: IntentCard[] = [
+  {
     key: 'green-edit',
     label: 'Grün verwandeln',
     description: 'Straßen in grüne Räume verwandeln',
-    image: EDIT_IMAGES['green-edit'],
-    type: 'edit',
+    image: require('../../images/imagine/green-street-example.webp') as ImageSource,
+    fallbackIcon: 'leaf-outline',
+    action: 'edit',
     kiType: 'green-edit',
-  });
-
-  for (const v of STYLE_VARIANTS) {
-    items.push({
-      key: v.id,
-      label: v.label,
-      description: v.description,
-      image: VARIANT_IMAGES[v.id],
-      type: 'variant',
-      variant: v.id,
-    });
-  }
-
-  items.push({
+  },
+  {
+    key: 'create',
+    label: 'Bild erstellen',
+    description: 'Neues KI-Bild aus einer Beschreibung',
+    image: require('../../images/imagine/variants-pure/soft-illustration.webp') as ImageSource,
+    fallbackIcon: 'color-wand-outline',
+    action: 'create',
+  },
+  {
     key: 'universal-edit',
     label: 'Bild bearbeiten',
     description: 'Bild mit KI-Anweisungen bearbeiten',
-    image: EDIT_IMAGES['universal-edit'],
-    type: 'edit',
+    image: require('../../images/imagine/universal-edit.webp') as ImageSource,
+    fallbackIcon: 'brush-outline',
+    action: 'edit',
     kiType: 'universal-edit',
-  });
+  },
+];
+/* eslint-enable @typescript-eslint/no-require-imports */
 
-  return items;
-}
-
-const CARD_ITEMS = buildCardItems();
-
-function buildTemplateItems(): CardItem[] {
-  return TEMPLATE_ORDER.map((id) => {
-    const config = IMAGE_STUDIO_TYPE_CONFIGS[id];
-    return {
-      key: `template-${id}`,
-      label: config.label,
-      description: config.description,
-      image: TEMPLATE_IMAGES[id] ?? {},
-      type: 'template' as const,
-      templateType: id,
-      fallbackIcon: TEMPLATE_ICONS[id],
-    };
-  });
-}
-
-const TEMPLATE_ITEMS = buildTemplateItems();
-
-export function TypeSelector({
-  onSelectVariant,
-  onSelectEdit,
-  onSelectTemplate,
-}: TypeSelectorProps) {
+export function TypeSelector({ onSelectEdit, onSelectCreate }: TypeSelectorProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const isDark = colorScheme === 'dark';
-  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
-  const screenWidth = Dimensions.get('window').width;
-  const gridPadding = spacing.medium * 2;
-  const gap = spacing.small;
-  const cardWidth = (screenWidth - gridPadding - gap) / 2;
-  const cardHeight = (cardWidth * 4) / 3;
-
-  const handlePress = (item: CardItem) => {
-    if (item.type === 'variant' && item.variant) {
-      onSelectVariant(item.variant);
-    } else if (item.type === 'edit' && item.kiType) {
+  // Discriminated union — access through item.action so each branch narrows.
+  const handlePress = (item: IntentCard) => {
+    if (item.action === 'edit') {
       onSelectEdit(item.kiType);
-    } else if (item.type === 'template' && item.templateType) {
-      onSelectTemplate(item.templateType);
+    } else {
+      onSelectCreate();
     }
-  };
-
-  const handleImageError = (key: string) => {
-    setFailedImages((prev) => new Set(prev).add(key));
   };
 
   return (
@@ -179,114 +77,7 @@ export function TypeSelector({
           Erstelle oder bearbeite Bilder mit KI
         </Text>
 
-        <View style={styles.grid}>
-          {CARD_ITEMS.map((item) => (
-            <Pressable
-              key={item.key}
-              onPress={() => handlePress(item)}
-              style={({ pressed }) => [
-                styles.card,
-                {
-                  width: cardWidth,
-                  height: cardHeight,
-                  opacity: pressed ? 0.9 : 1,
-                  transform: [{ scale: pressed ? 0.97 : 1 }],
-                },
-              ]}
-            >
-              {failedImages.has(item.key) ? (
-                <View
-                  style={[
-                    styles.fallbackContainer,
-                    { backgroundColor: isDark ? colors.grey[800] : colors.grey[200] },
-                  ]}
-                >
-                  <Ionicons
-                    name={item.type === 'variant' ? 'color-wand-outline' : 'brush-outline'}
-                    size={32}
-                    color={colors.primary[500]}
-                  />
-                </View>
-              ) : (
-                <Image
-                  source={item.image}
-                  style={styles.cardImage}
-                  contentFit="cover"
-                  onError={() => handleImageError(item.key)}
-                />
-              )}
-
-              <View style={styles.gradientOverlay} />
-
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle} numberOfLines={1}>
-                  {item.label}
-                </Text>
-                <Text style={styles.cardDescription} numberOfLines={2}>
-                  {item.description}
-                </Text>
-              </View>
-            </Pressable>
-          ))}
-        </View>
-
-        {/* Sharepic-Vorlagen temporarily hidden
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Sharepic-Vorlagen</Text>
-        <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
-          Gestalte Sharepics mit dem Canvas-Editor
-        </Text>
-
-        <View style={styles.grid}>
-          {TEMPLATE_ITEMS.map((item) => (
-            <Pressable
-              key={item.key}
-              onPress={() => handlePress(item)}
-              style={({ pressed }) => [
-                styles.card,
-                {
-                  width: cardWidth,
-                  height: cardHeight,
-                  opacity: pressed ? 0.9 : 1,
-                  transform: [{ scale: pressed ? 0.97 : 1 }],
-                },
-              ]}
-            >
-              {failedImages.has(item.key) ? (
-                <View
-                  style={[
-                    styles.fallbackContainer,
-                    { backgroundColor: isDark ? colors.grey[800] : colors.grey[200] },
-                  ]}
-                >
-                  <Ionicons
-                    name={item.fallbackIcon ?? 'document-outline'}
-                    size={32}
-                    color={colors.primary[500]}
-                  />
-                </View>
-              ) : (
-                <Image
-                  source={item.image}
-                  style={styles.cardImage}
-                  contentFit="cover"
-                  onError={() => handleImageError(item.key)}
-                />
-              )}
-
-              <View style={styles.gradientOverlay} />
-
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle} numberOfLines={1}>
-                  {item.label}
-                </Text>
-                <Text style={styles.cardDescription} numberOfLines={2}>
-                  {item.description}
-                </Text>
-              </View>
-            </Pressable>
-          ))}
-        </View>
-        */}
+        <ImageCardGrid items={INTENT_ITEMS} onPress={handlePress} />
 
         <View
           style={[
@@ -320,69 +111,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xsmall,
   },
   subtitle: {
-    ...typography.body,
-    marginBottom: spacing.large,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.small,
-    justifyContent: 'space-between',
-    marginBottom: spacing.medium,
-  },
-  card: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#1a1a1a',
-  },
-  cardImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  fallbackContainer: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gradientOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  cardContent: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: spacing.medium,
-  },
-  cardTitle: {
-    ...typography.label,
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 2,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  cardDescription: {
-    ...typography.caption,
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 12,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  sectionTitle: {
-    ...typography.h3,
-    marginTop: spacing.medium,
-    marginBottom: spacing.xsmall,
-  },
-  sectionSubtitle: {
     ...typography.body,
     marginBottom: spacing.large,
   },

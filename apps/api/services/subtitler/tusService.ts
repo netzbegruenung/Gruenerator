@@ -4,12 +4,17 @@
  * Resumable file uploads using TUS protocol with intelligent cleanup.
  */
 
+import { randomBytes } from 'crypto';
+import { createWriteStream } from 'fs';
 import fs from 'fs/promises';
 import path, { dirname } from 'path';
+import { Transform } from 'stream';
+import { pipeline } from 'stream/promises';
 import { fileURLToPath } from 'url';
 
 import { FileStore } from '@tus/file-store';
 import { Server } from '@tus/server';
+import { type Request, type Response } from 'express';
 
 import { createLogger } from '../../utils/logger.js';
 
@@ -354,6 +359,80 @@ async function getOriginalFilename(uploadId: string): Promise<string> {
   return status.metadata?.metadata?.filename || `video_${uploadId}.mp4`;
 }
 
+const MAX_UPLOAD_SIZE = 500 * 1024 * 1024;
+
+/**
+ * Plain binary upload endpoint for clients that can't speak the TUS protocol.
+ * The mobile app streams the picked video natively via expo-file-system, which
+ * only supports binary/multipart uploads — not TUS's create + PATCH-offset loop.
+ * The bytes land at the same `tus-temp/<uploadId>` path the rest of the subtitler
+ * pipeline (process-auto / projects / export) already reads, alongside a
+ * TUS-compatible `.json` sidecar so `getUploadStatus` and cleanup treat it like
+ * any other upload (it reads `offset`/`size`/`metadata.filename`, and considers
+ * `offset >= size` complete). Mounted before the body parsers so `req` is the
+ * raw byte stream; the file streams straight to disk (no full-file buffering).
+ */
+async function handleBinaryUpload(req: Request, res: Response): Promise<void> {
+  const declaredSize = Number(req.headers['content-length'] ?? 0);
+  if (declaredSize > MAX_UPLOAD_SIZE) {
+    res.status(413).json({ error: 'Video ist zu groß. Maximal 500MB erlaubt.' });
+    return;
+  }
+
+  const uploadId = randomBytes(16).toString('hex');
+  const filenameHeader = req.headers['x-filename'];
+  const filename =
+    typeof filenameHeader === 'string' && filenameHeader.length > 0
+      ? filenameHeader
+      : `video_${uploadId}.mp4`;
+  const videoPath = getFilePathFromUploadId(uploadId);
+
+  let bytesWritten = 0;
+  const counter = new Transform({
+    transform(chunk: Buffer, _encoding, callback) {
+      bytesWritten += chunk.length;
+      if (bytesWritten > MAX_UPLOAD_SIZE) {
+        callback(new Error('UPLOAD_TOO_LARGE'));
+        return;
+      }
+      callback(null, chunk);
+    },
+  });
+
+  try {
+    await pipeline(req, counter, createWriteStream(videoPath));
+  } catch (err: unknown) {
+    await fs.unlink(videoPath).catch(() => {});
+    if (err instanceof Error && err.message === 'UPLOAD_TOO_LARGE') {
+      if (!res.headersSent) {
+        res.status(413).json({ error: 'Video ist zu groß. Maximal 500MB erlaubt.' });
+      }
+      return;
+    }
+    log.error(
+      `Binary upload failed for ${uploadId}: ${err instanceof Error ? err.message : String(err)}`
+    );
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Upload fehlgeschlagen' });
+    }
+    return;
+  }
+
+  const sidecar = {
+    id: uploadId,
+    size: bytesWritten,
+    offset: bytesWritten,
+    metadata: { filename, filetype: 'video/mp4' },
+    creation_date: new Date().toISOString(),
+    storage: { type: 'file', path: uploadId },
+  };
+  await fs.writeFile(`${videoPath}.json`, JSON.stringify(sidecar), 'utf8');
+
+  activeUploads.add(uploadId);
+  log.debug(`Binary upload complete: ${uploadId} (${bytesWritten} bytes)`);
+  res.status(201).json({ uploadId });
+}
+
 if (!isInitialized) {
   void intelligentCleanup();
 
@@ -382,6 +461,7 @@ if (!isInitialized) {
 
 export {
   tusServer,
+  handleBinaryUpload,
   getFilePathFromUploadId,
   checkFileExists,
   cleanupTusUploads,

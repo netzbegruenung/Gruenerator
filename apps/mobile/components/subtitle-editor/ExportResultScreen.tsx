@@ -131,7 +131,7 @@ export function ExportScreen({
     if (!videoUri) return;
     const { status: permStatus } = await MediaLibrary.requestPermissionsAsync();
     if (permStatus !== 'granted') return;
-    await MediaLibrary.saveToLibraryAsync(videoUri);
+    await MediaLibrary.Asset.create(videoUri);
     setSavedToGallery(true);
   }, [videoUri]);
 

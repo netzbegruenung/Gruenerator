@@ -3,10 +3,11 @@ import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ioni
 import { useQuery } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Linking } from 'react-native';
 
 import { colors, spacing, borderRadius, type Theme } from '../../theme';
+import { DocPreview } from '../common/DocPreview';
 
 const WEB_ORIGIN = 'https://gruenerator.eu';
 const dateFormat: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
@@ -20,6 +21,7 @@ interface RecentItem {
   type: RecentItemType;
   href: string;
   thumbnailUrl?: string;
+  content?: string;
   documentType?: string;
   creatorName?: string;
   accessType?: string;
@@ -52,6 +54,7 @@ const fetchRecentActivity = async (): Promise<RecentItem[]> => {
 
 export const RecentlyCreatedSection = memo(({ theme }: { theme: Theme }) => {
   const router = useRouter();
+  const [failedThumbs, setFailedThumbs] = useState<Set<string>>(new Set());
 
   const { data: allItems = [], isLoading } = useQuery({
     queryKey: ['recent-activity'],
@@ -62,12 +65,22 @@ export const RecentlyCreatedSection = memo(({ theme }: { theme: Theme }) => {
   // Boards have their own section on the start page; text items aren't openable here.
   const items = allItems
     .filter((item) => item.type !== 'text' && item.type !== 'board')
-    .slice(0, 10);
+    .slice(0, 6);
 
   const handleOpen = useCallback(
     (item: RecentItem) => {
       if (item.type === 'doc') {
         router.push({ pathname: '/(fullscreen)/doc-editor', params: { id: item.id } } as Href);
+        return;
+      }
+      // Image shares (item.id is the share_token) open in the in-app viewer, which
+      // downloads the media, previews it, and offers save-to-gallery + native share —
+      // rather than bouncing to the web share link in an external browser.
+      if (item.type === 'image') {
+        router.push({
+          pathname: '/(fullscreen)/pushed-content',
+          params: { shareToken: item.id, mediaType: 'image', title: item.title },
+        } as Href);
         return;
       }
       void Linking.openURL(`${WEB_ORIGIN}${item.href}`);
@@ -95,10 +108,23 @@ export const RecentlyCreatedSection = memo(({ theme }: { theme: Theme }) => {
       <Text style={[styles.sectionTitle, { color: theme.text }]}>Zuletzt</Text>
       <View style={styles.grid}>
         {items.map((item) => {
-          const hasThumb = !!item.thumbnailUrl && (item.type === 'image' || item.type === 'video');
+          const key = `${item.type}-${item.id}`;
+          // Backend returns an origin-relative thumbnail path (e.g.
+          // /api/share/<token>/thumbnail). That resolves against the origin on web,
+          // but mobile has no base origin — prefix WEB_ORIGIN so <Image> can load it.
+          const thumbUri = item.thumbnailUrl
+            ? item.thumbnailUrl.startsWith('http')
+              ? item.thumbnailUrl
+              : `${WEB_ORIGIN}${item.thumbnailUrl}`
+            : null;
+          const hasThumb =
+            !!thumbUri &&
+            (item.type === 'image' || item.type === 'video') &&
+            !failedThumbs.has(key);
+          const docContent = item.type === 'doc' && item.content ? item.content : null;
           return (
             <Pressable
-              key={`${item.type}-${item.id}`}
+              key={key}
               onPress={() => handleOpen(item)}
               style={({ pressed }) => [
                 styles.card,
@@ -108,12 +134,15 @@ export const RecentlyCreatedSection = memo(({ theme }: { theme: Theme }) => {
                 },
               ]}
             >
-              {hasThumb ? (
+              {hasThumb && thumbUri ? (
                 <Image
-                  source={{ uri: item.thumbnailUrl }}
+                  source={{ uri: thumbUri }}
                   style={styles.thumb}
                   contentFit="cover"
+                  onError={() => setFailedThumbs((prev) => new Set(prev).add(key))}
                 />
+              ) : docContent ? (
+                <DocPreview content={docContent} style={styles.thumb} />
               ) : (
                 <View
                   style={[

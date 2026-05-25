@@ -19,6 +19,7 @@ import {
   type TextStyle,
 } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { shareService } from '../../services/share';
 import { colors, spacing, borderRadius, typography } from '../../theme';
@@ -46,6 +47,7 @@ export function ShareModal({
   projectId,
   defaultTitle = 'Mein Reel',
 }: ShareModalProps) {
+  const insets = useSafeAreaInsets();
   const [shareTitle, setShareTitle] = useState(defaultTitle);
   const [step, setStep] = useState<ShareStep>('input');
   const [copied, setCopied] = useState(false);
@@ -236,7 +238,10 @@ export function ShareModal({
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: spacing.large + insets.bottom }]}
+          keyboardShouldPersistTaps="handled"
+        >
           {renderContent()}
         </ScrollView>
       </KeyboardAvoidingView>

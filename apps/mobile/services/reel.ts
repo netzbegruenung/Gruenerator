@@ -1,6 +1,5 @@
 import { type AutoProgress, type ExportProgress } from '@gruenerator/contracts';
-import { Paths, File as ExpoFile, DownloadTask } from 'expo-file-system';
-import * as tus from 'tus-js-client';
+import { Paths, File as ExpoFile, DownloadTask, UploadType } from 'expo-file-system';
 
 import { secureStorage } from './storage';
 
@@ -13,67 +12,65 @@ export interface ManualResultResponse {
   data: string | null;
 }
 
-/** Read a local `file://` URI into a file-backed Blob via XHR (see uploadVideo note). */
-function readLocalFileAsBlob(uri: string, type: string): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.responseType = 'blob';
-    xhr.onload = () => resolve(xhr.response as Blob);
-    xhr.onerror = () => reject(new Error(`Failed to read local file: ${uri}`));
-    xhr.open('GET', uri, true);
-    xhr.send(null);
-  });
-}
-
 /**
- * Upload video using TUS resumable upload protocol
- * Reuses backend TUS endpoint at /api/subtitler/upload (500MB max)
+ * Upload a video to the backend's plain-binary endpoint (POST /subtitler/upload-binary),
+ * which writes it to the same tus-temp store the processing pipeline reads.
+ *
+ * Uses expo-file-system's native uploader rather than a JS upload library: it
+ * streams the file straight from disk to the socket on the native side. This
+ * sidesteps the React-Native traps that broke the old tus-client path under
+ * SDK 56 — reading `file://` via XMLHttpRequest fails on the new architecture,
+ * `File.slice()` loads the whole file into the JS heap (OOM on large videos),
+ * and accumulating stream chunks in JS is quadratic. Native streaming has none
+ * of those costs and no base64 inflation. Pass `signal` to cancel mid-upload.
  */
 export async function uploadVideo(
   fileUri: string,
-  onProgress: (progress: number) => void
+  onProgress: (progress: number) => void,
+  signal?: AbortSignal
 ): Promise<string> {
   const token = await secureStorage.getToken();
-
   const fileName = fileUri.split('/').pop() || 'video.mp4';
 
-  // Read the local file via XMLHttpRequest, not fetch: SDK 56 makes the global
-  // `fetch` use expo/fetch, which is http(s)-only and rejects `file://` URIs.
-  // XHR still handles file:// and returns a file-backed Blob (no full-file heap
-  // copy), which matters for videos up to the 500MB backend cap.
-  const blob = await readLocalFileAsBlob(fileUri, 'video/mp4');
-
-  return new Promise((resolve, reject) => {
-    const upload = new tus.Upload(blob, {
-      endpoint: `${API_BASE_URL}/subtitler/upload`,
-      retryDelays: [0, 1000, 3000, 5000, 10000],
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      metadata: {
-        filename: fileName,
-        filetype: 'video/mp4',
-        filesize: String(blob.size),
-      },
-      chunkSize: 5 * 1024 * 1024, // 5MB chunks
-      onProgress: (bytesUploaded: number, bytesTotal: number) => {
-        const percentage = (bytesUploaded / bytesTotal) * 100;
-        onProgress(percentage);
-      },
-      onSuccess: () => {
-        const uploadId = upload.url?.split('/').pop();
-        if (uploadId) {
-          resolve(uploadId);
-        } else {
-          reject(new Error('Upload succeeded but no upload ID returned'));
-        }
-      },
-      onError: (error: Error) => {
-        console.error('[ReelService] TUS upload error:', error);
-        reject(error);
-      },
-    });
-
-    upload.start();
+  const file = new ExpoFile(fileUri);
+  const task = file.createUploadTask(`${API_BASE_URL}/subtitler/upload-binary`, {
+    uploadType: UploadType.BINARY_CONTENT,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      'Content-Type': 'video/mp4',
+      'X-Filename': fileName,
+    },
+    onProgress: ({ bytesSent, totalBytes }) => {
+      if (totalBytes > 0) {
+        onProgress((bytesSent / totalBytes) * 100);
+      }
+    },
+    ...(signal ? { signal } : {}),
   });
+
+  const result = await task.uploadAsync();
+  if (result.status < 200 || result.status >= 300) {
+    throw new Error(`Upload fehlgeschlagen: ${result.status} - ${result.body}`);
+  }
+
+  const parsed = JSON.parse(result.body) as { uploadId?: string };
+  if (!parsed.uploadId) {
+    throw new Error('Upload succeeded but no upload ID returned');
+  }
+  return parsed.uploadId;
+}
+
+/**
+ * Cancel an upload/processing job: tells the backend to flag it cancelled and
+ * clean up its temp files. POST /api/subtitler/cleanup/:uploadId. Best-effort —
+ * the local abort is what stops the in-flight transfer; this frees server state.
+ */
+export async function cancelUpload(uploadId: string): Promise<void> {
+  const token = await secureStorage.getToken();
+  await fetch(`${API_BASE_URL}/subtitler/cleanup/${uploadId}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  }).catch(() => {});
 }
 
 /**
@@ -309,6 +306,7 @@ export async function downloadExportedVideo(exportToken: string): Promise<string
 
 export const reelApi = {
   uploadVideo,
+  cancelUpload,
   startAutoProcess,
   getAutoProgress,
   downloadVideo,

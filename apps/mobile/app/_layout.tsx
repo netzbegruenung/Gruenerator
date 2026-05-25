@@ -21,6 +21,7 @@ import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { AppDrawer } from '../components/navigation';
 import { useAppInitialization } from '../hooks/useAppInitialization';
 import { queryClient } from '../services/queryClient';
+import { useOnboardingStore } from '../stores/onboardingStore';
 import { lightTheme, darkTheme } from '../theme';
 
 void SplashScreen.preventAutoHideAsync();
@@ -31,6 +32,8 @@ function RootLayout() {
   const segments = useSegments();
   const router = useRouter();
   const { user, isLoading } = useAuthStore();
+  const hasCompletedOnboarding = useOnboardingStore((s) => s.hasCompletedOnboarding);
+  const hasHydratedOnboarding = useOnboardingStore((s) => s.hasHydrated);
   useAppInitialization();
 
   // Handle notification taps → navigate to pushed content screen
@@ -55,19 +58,21 @@ function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded && !isLoading) {
+    if (fontsLoaded && !isLoading && hasHydratedOnboarding) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, isLoading]);
+  }, [fontsLoaded, isLoading, hasHydratedOnboarding]);
 
-  if (!fontsLoaded || isLoading) {
+  // Wait for the persisted onboarding flag too — deciding the redirect before it
+  // rehydrates would flash the carousel at a returning user (defaults to false).
+  if (!fontsLoaded || isLoading || !hasHydratedOnboarding) {
     return null;
   }
 
   const isInAuthFlow = segments[0] === '(auth)' || segments[0] === 'auth';
 
   if (!user && !isInAuthFlow) {
-    return <Redirect href="/(auth)/login" />;
+    return <Redirect href={hasCompletedOnboarding ? '/(auth)/login' : '/(auth)/onboarding'} />;
   }
 
   const appContent = (
@@ -89,6 +94,12 @@ function RootLayout() {
       >
         <Stack.Screen
           name="(tabs)"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="(auth)/onboarding"
           options={{
             headerShown: false,
           }}

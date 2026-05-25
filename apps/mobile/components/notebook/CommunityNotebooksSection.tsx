@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.large,
   },
   sectionTitle: {
-    ...typography.bodyBold,
+    fontFamily: 'Raleway_700Bold',
     fontSize: 17,
     marginBottom: spacing.small,
   },
