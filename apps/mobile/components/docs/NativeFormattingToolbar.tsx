@@ -1,9 +1,11 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { View, ScrollView, Pressable, Text, StyleSheet, useColorScheme } from 'react-native';
 
 import { useDocsEditorBridgeStore, type FormatStyle } from '../../stores/docsEditorBridgeStore';
 import { lightTheme, darkTheme, colors } from '../../theme';
+
+import { DocAiEditSheet } from './DocAiEditSheet';
 
 interface ToolbarButton {
   id: string;
@@ -30,6 +32,7 @@ export const NativeFormattingToolbar = memo(function NativeFormattingToolbar() {
   const activeFormatting = useDocsEditorBridgeStore((s) => s.activeFormatting);
   const canEdit = useDocsEditorBridgeStore((s) => s.canEdit);
   const dispatchAction = useDocsEditorBridgeStore((s) => s.dispatchAction);
+  const [aiSheetVisible, setAiSheetVisible] = useState(false);
 
   if (!activeFormatting.hasSelection) return null;
 
@@ -143,6 +146,14 @@ export const NativeFormattingToolbar = memo(function NativeFormattingToolbar() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        <Pressable
+          onPress={() => setAiSheetVisible(true)}
+          style={styles.button}
+          accessibilityLabel="Mit KI bearbeiten"
+        >
+          <Ionicons name="sparkles" size={18} color={colors.secondary[600]} />
+        </Pressable>
+        <View style={[styles.divider, { backgroundColor: theme.border }]} />
         {items.map((item) => {
           if (isDivider(item)) {
             return (
@@ -180,6 +191,12 @@ export const NativeFormattingToolbar = memo(function NativeFormattingToolbar() {
           );
         })}
       </ScrollView>
+
+      <DocAiEditSheet
+        visible={aiSheetVisible}
+        onClose={() => setAiSheetVisible(false)}
+        onSubmit={(prompt) => dispatchAction({ type: 'invoke-ai', prompt, useSelection: true })}
+      />
     </View>
   );
 });

@@ -30,7 +30,8 @@ export type DocEditorAction =
   | { type: 'format'; style: FormatStyle }
   | { type: 'setBlockType'; blockType: string; props?: Record<string, unknown> }
   | { type: 'setAlignment'; alignment: 'left' | 'center' | 'right' }
-  | { type: 'insert-text'; text: string };
+  | { type: 'insert-text'; text: string }
+  | { type: 'invoke-ai'; prompt: string; useSelection: boolean };
 
 interface DocsEditorBridgeState {
   // DOM → Native
