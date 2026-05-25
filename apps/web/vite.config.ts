@@ -120,7 +120,17 @@ export default defineConfig(({ command }) => ({
       //    from packages/shared/src/api/contractsClient.ts"
       '@gruenerator/contracts': path.resolve(__dirname, '../../packages/contracts/src'),
     },
-    dedupe: ['d3-path'],
+    // React MUST be deduped to a single physical copy. pnpm installs several
+    // react versions (root 19.2.6, plus 19.2.3/19.2.4 nested under deps like
+    // @tanstack/react-query); without dedupe, Rolldown links TWO Reacts into
+    // the bundle. The second copy's dispatcher (ReactCurrentDispatcher.current)
+    // is null, so the first hook call from a component that imported it —
+    // QueryClientProvider's useEffect — throws "Cannot read properties of null
+    // (reading 'useEffect')" and white-screens the whole app.
+    // We CANNOT pin react via root pnpm.overrides (that forces mobile off its
+    // Expo-locked react and breaks the RN renderer — see CLAUDE.md), so the
+    // web bundle dedupes here instead.
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'd3-path'],
   },
   optimizeDeps: {
     include: [
