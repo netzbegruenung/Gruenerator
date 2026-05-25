@@ -11,6 +11,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
+import { useUserAgents } from '@/features/agents/api';
 import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
 import { useFirstName } from '@/hooks/useFirstName';
 import { useAuthStore } from '@/stores/authStore';
@@ -38,6 +39,7 @@ function ChatPage() {
   const currentThreadTitle = useAgentStore((s) => s.currentThreadTitle);
   const firstName = useFirstName();
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
+  const { data: userAgents } = useUserAgents();
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
   const agentParam = searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null);
@@ -68,13 +70,16 @@ function ChatPage() {
       // a different notebook manually after the agent is selected is an
       // unusual flow we'd revisit only if users complain.
       const agentMeta = getSystemAgent(agentParam);
-      if (
-        agentMeta?.defaultNotebookId &&
-        store.selectedNotebookId !== agentMeta.defaultNotebookId
-      ) {
-        store.setSelectedNotebook(agentMeta.defaultNotebookId);
+      // User-created agents aren't in the system registry — resolve their
+      // notebook binding from the user-agents list (a system notebook id).
+      const userAgentNotebook = agentMeta
+        ? undefined
+        : userAgents?.find((a) => a.identifier === agentParam)?.defaultNotebookId;
+      const boundNotebookId = agentMeta?.defaultNotebookId ?? userAgentNotebook;
+      if (boundNotebookId && store.selectedNotebookId !== boundNotebookId) {
+        store.setSelectedNotebook(boundNotebookId);
       } else if (
-        !agentMeta?.defaultNotebookId &&
+        !boundNotebookId &&
         userLocale === 'de-AT' &&
         store.selectedNotebookId !== AT_DEFAULT_NOTEBOOK_ID
       ) {
@@ -93,7 +98,7 @@ function ChatPage() {
       store.setThreadMode(modeParam);
       store.setChatViewMode('thread');
     }
-  }, [agentParam, modeParam, userLocale]);
+  }, [agentParam, modeParam, userLocale, userAgents]);
 
   const handleNavigate = useCallback((path: string) => navigate(path), [navigate]);
 
