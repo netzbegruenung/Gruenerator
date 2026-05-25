@@ -33,6 +33,7 @@ import NewItemDropdown from './NewItemDropdown';
 import { getDefaultAgentEntries, getPinnedAgentIds, getAgentIcon } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
 
+import { SHOW_AGENT_CREATOR } from '@/config/featureFlags';
 import { cn } from '@/utils/cn';
 import '../../../assets/styles/components/layout/sidebar.css';
 
@@ -581,17 +582,22 @@ const SidebarAgents = memo(function SidebarAgents({
             </li>
           )}
 
-          {/* Entry point to the conversational agent creator (/agents/new). */}
-          <li>
-            <button
-              type="button"
-              onClick={() => onLinkClick('/agents/new', 'Neue*r Agent*in')}
-              className={cn(menuLinkClass(false), 'text-primary-600 dark:text-primary-300')}
-            >
-              <span className="shrink-0 w-6 h-6 flex items-center justify-center text-base">+</span>
-              <span className={titleClass}>Neue*r Agent*in</span>
-            </button>
-          </li>
+          {/* Entry point to the conversational agent creator (/agents/new),
+              gated behind SHOW_AGENT_CREATOR (dev or VITE_SHOW_AGENT_CREATOR). */}
+          {SHOW_AGENT_CREATOR && (
+            <li>
+              <button
+                type="button"
+                onClick={() => onLinkClick('/agents/new', 'Neue*r Agent*in')}
+                className={cn(menuLinkClass(false), 'text-primary-600 dark:text-primary-300')}
+              >
+                <span className="shrink-0 w-6 h-6 flex items-center justify-center text-base">
+                  +
+                </span>
+                <span className={titleClass}>Neue*r Agent*in</span>
+              </button>
+            </li>
+          )}
         </ul>
       )}
     </div>

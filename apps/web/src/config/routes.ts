@@ -3,6 +3,8 @@ import { Navigate, useLocation, useParams } from 'react-router-dom';
 
 import { isDesktopApp } from '../utils/platform';
 
+import { SHOW_AGENT_CREATOR } from './featureFlags';
+
 /**
  * Route configuration interface
  */
@@ -235,21 +237,16 @@ const standardRoutes: RouteConfig[] = [
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   { path: '/workplace', component: WorkplacePage },
-  // Conversational agent creator (default entry) + form editor. The list/
-  // overview lives on the unified Library page at /skills.
-  {
-    path: '/agents/new',
-    component: AgentCreatorPage,
-    layoutMode: 'sidebarOnly',
-  },
-  {
-    path: '/agents/new/manual',
-    component: AgentBuilderPage,
-  },
-  {
-    path: '/agents/:identifier/edit',
-    component: AgentBuilderPage,
-  },
+  // Conversational agent creator (default entry) + form editor. Gated behind
+  // SHOW_AGENT_CREATOR (dev, or a deploy with VITE_SHOW_AGENT_CREATOR=true);
+  // `/agents/:slug` below stays available so existing agents remain usable.
+  ...(SHOW_AGENT_CREATOR
+    ? ([
+        { path: '/agents/new', component: AgentCreatorPage, layoutMode: 'sidebarOnly' },
+        { path: '/agents/new/manual', component: AgentBuilderPage },
+        { path: '/agents/:identifier/edit', component: AgentBuilderPage },
+      ] satisfies RouteConfig[])
+    : []),
   // Chat with a specific system agent at /agents/<slug>. Slug is the agent
   // identifier with the `gruenerator-` prefix stripped (see `getAgentSlug`
   // in @gruenerator/shared/agents). ChatPage handles both this path-based
