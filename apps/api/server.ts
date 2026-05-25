@@ -292,7 +292,19 @@ async function startWorker(): Promise<void> {
   // Plain binary upload for non-TUS clients (mobile uses expo-file-system's
   // native uploader). Registered here — before compression and the body
   // parsers — so `req` stays the raw byte stream and writes straight to disk.
-  app.post('/api/subtitler/upload-binary', (req: Request, res: Response) => {
+  // IP-rate-limited: the handler writes the request body straight to disk, so cap
+  // upload attempts per window as defense against abuse.
+  const uploadBinaryLimiter =
+    process.env.DISABLE_RATE_LIMITS === 'true'
+      ? (_req: Request, _res: Response, next: NextFunction) => next()
+      : rateLimit({
+          windowMs: 15 * 60 * 1000,
+          max: 60,
+          standardHeaders: true,
+          legacyHeaders: false,
+          message: { error: 'Zu viele Uploads. Bitte versuche es später erneut.' },
+        });
+  app.post('/api/subtitler/upload-binary', uploadBinaryLimiter, (req: Request, res: Response) => {
     void handleBinaryUpload(req, res);
   });
 
