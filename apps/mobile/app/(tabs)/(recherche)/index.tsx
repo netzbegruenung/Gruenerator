@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { NotebookCreator } from '../../../components/notebook/NotebookCreator';
+import { VonDerBasisSection } from '../../../components/notebook/VonDerBasisSection';
 import {
   getMobileNotebooksByCategory,
   getVisibleNotebooks,
@@ -331,6 +332,8 @@ export default function NotebooksScreen() {
                 ))
               )}
             </View>
+
+            <VonDerBasisSection locale={locale} theme={theme} onOpen={handleCollectionPress} />
           </View>
         )}
 
