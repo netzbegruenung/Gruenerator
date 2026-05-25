@@ -1,4 +1,8 @@
-import { type CreateUserAgentBody, type UpdateUserAgentBody } from '@gruenerator/contracts';
+import {
+  type CreateUserAgentBody,
+  type UpdateUserAgentBody,
+  type DraftedAgentSpec,
+} from '@gruenerator/contracts';
 import { SYSTEM_AGENTS, type Agent } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -63,6 +67,21 @@ export function useCreateUserAgent() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });
+    },
+  });
+}
+
+/**
+ * Synthesize an agent spec from the creator conversation (the thread the user
+ * is chatting in). The backend loads the thread's messages and runs a Mistral
+ * structured-generation pass; we return the validated spec for the draft panel.
+ */
+export function useDraftAgent() {
+  return useMutation({
+    mutationFn: async (threadId: string): Promise<DraftedAgentSpec> => {
+      const res = await getContractsClient().userAgents.draft({ body: { threadId } });
+      if (res.status === 200) return res.body.spec;
+      throw new Error(readError(res.body).message);
     },
   });
 }

@@ -195,6 +195,7 @@ const SitesLoginPage = lazy(() => import('../features/sites/SitesLoginPage'));
 const SitesDemoPage = lazy(() => import('../features/sites/SitesDemoPage'));
 const SitesEditPage = lazy(() => import('../features/sites/SitesEditPage'));
 const AgentBuilderPage = lazy(() => import('../features/agents/AgentBuilderPage'));
+const AgentCreatorPage = lazy(() => import('../features/agents/AgentCreatorPage'));
 const SkillsPage = lazy(() => import('../features/skills/SkillsPage'));
 
 /**
@@ -234,19 +235,16 @@ const standardRoutes: RouteConfig[] = [
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   { path: '/workplace', component: WorkplacePage },
-  // Agent builder/editor. Dev-only until the feature ships — gated via the
-  // existing `devOnly` filter at the bottom of this file (Vite tree-shakes the
-  // routes in prod). The list/overview lives on the unified Library page at
-  // /skills.
+  // Conversational agent creator (default entry) + form editor. The list/
+  // overview lives on the unified Library page at /skills.
   {
     path: '/agents/new',
-    component: AgentBuilderPage,
-    devOnly: true,
+    component: AgentCreatorPage,
+    layoutMode: 'sidebarOnly',
   },
   {
     path: '/agents/:identifier/edit',
     component: AgentBuilderPage,
-    devOnly: true,
   },
   // Chat with a specific system agent at /agents/<slug>. Slug is the agent
   // identifier with the `gruenerator-` prefix stripped (see `getAgentSlug`
