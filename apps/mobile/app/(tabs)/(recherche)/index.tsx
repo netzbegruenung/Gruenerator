@@ -170,18 +170,20 @@ export default function NotebooksScreen() {
 
   const handleNotebookPress = (notebook: MobileNotebookEntry) => {
     router.push(
-      routeWithParams('/(focused)/chat-conversation', {
-        threadId: 'new',
+      routeWithParams('/(focused)/notebook-detail', {
         notebookId: notebook.id,
+        title: notebook.title,
+        kind: 'system',
       })
     );
   };
 
-  const handleCollectionPress = (collectionId: string) => {
+  const handleCollectionPress = (collectionId: string, name: string) => {
     router.push(
-      routeWithParams('/(focused)/chat-conversation', {
-        threadId: 'new',
+      routeWithParams('/(focused)/notebook-detail', {
         notebookId: collectionId,
+        title: name,
+        kind: 'user',
       })
     );
   };
@@ -256,7 +258,7 @@ export default function NotebooksScreen() {
                     key={c.id}
                     icon="book"
                     title={c.name}
-                    onPress={() => handleCollectionPress(c.id)}
+                    onPress={() => handleCollectionPress(c.id, c.name)}
                     isProcessing={processingIds.has(c.id)}
                   />
                 ))}
@@ -324,7 +326,7 @@ export default function NotebooksScreen() {
                     key={c.id}
                     icon="book"
                     title={c.name}
-                    onPress={() => handleCollectionPress(c.id)}
+                    onPress={() => handleCollectionPress(c.id, c.name)}
                     onLongPress={() => handleDeleteCollection(c.id, c.name)}
                     isProcessing={processingIds.has(c.id)}
                   />
