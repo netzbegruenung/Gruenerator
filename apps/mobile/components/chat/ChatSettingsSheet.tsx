@@ -1,38 +1,29 @@
 import {
   useAgentStore,
   MODEL_OPTIONS,
+  AUTO_MODEL_ID,
+  AUTO_MODEL_OPTION,
   notebookMentionables,
-  type ToolKey,
+  COMPOSER_MODES,
+  type ComposerIconKey,
   type ThreadMode,
 } from '@gruenerator/chat';
-import { QWEN_WARNING } from '@gruenerator/shared/models';
+import { isModelEnabledByDefault } from '@gruenerator/shared/models';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback } from 'react';
-import { View, Text, Pressable, Switch, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useShallow } from 'zustand/shallow';
 
 import { useTheme } from '../../hooks/useTheme';
 import { colors, spacing, borderRadius } from '../../theme';
 import { BottomSheet } from '../common/BottomSheet';
 
-const TOOL_LABELS: Record<string, { label: string; icon: IoniconsIconName }> = {
-  search: { label: 'Dokumentensuche', icon: 'document-text-outline' },
-  web: { label: 'Websuche', icon: 'globe-outline' },
-  examples: { label: 'Beispiele', icon: 'bulb-outline' },
-  research: { label: 'Recherche', icon: 'flask-outline' },
+// Maps the shared, renderer-agnostic icon keys (COMPOSER_MODES) to Ionicons.
+const MODE_ICONS: Record<ComposerIconKey, IoniconsIconName> = {
+  chat: 'chatbubble-outline',
+  notebook: 'book-outline',
+  custom: 'settings-outline',
 };
-
-const TOOL_KEYS: ToolKey[] = ['search', 'web', 'examples', 'research'];
-
-const MODE_OPTIONS: Array<{
-  mode: ThreadMode;
-  label: string;
-  icon: IoniconsIconName;
-}> = [
-  { mode: 'chat', label: 'Chat', icon: 'chatbubble-outline' },
-  { mode: 'notebook', label: 'Notebook', icon: 'book-outline' },
-  { mode: 'eigener', label: 'Eigener Chat', icon: 'settings-outline' },
-];
 
 interface Props {
   visible: boolean;
@@ -42,17 +33,15 @@ interface Props {
 export const ChatSettingsSheet = memo(function ChatSettingsSheet({ visible, onDismiss }: Props) {
   const theme = useTheme();
 
-  const { threadMode, enabledTools, selectedModel, selectedNotebookId } = useAgentStore(
+  const { threadMode, selectedModel, selectedNotebookId } = useAgentStore(
     useShallow((s) => ({
       threadMode: s.threadMode,
-      enabledTools: s.enabledTools,
       selectedModel: s.selectedModel,
       selectedNotebookId: s.selectedNotebookId,
     }))
   );
 
   const setThreadMode = useAgentStore((s) => s.setThreadMode);
-  const toggleTool = useAgentStore((s) => s.toggleTool);
   const setSelectedModel = useAgentStore((s) => s.setSelectedModel);
   const setSelectedNotebook = useAgentStore((s) => s.setSelectedNotebook);
 
@@ -71,7 +60,7 @@ export const ChatSettingsSheet = memo(function ChatSettingsSheet({ visible, onDi
         {/* Mode */}
         <Text style={[styles.sectionTitle, { color: theme.text }]}>Modus</Text>
         <View style={styles.chipRow}>
-          {MODE_OPTIONS.map((opt) => {
+          {COMPOSER_MODES.map((opt) => {
             const active = threadMode === opt.mode;
             return (
               <Pressable
@@ -86,7 +75,7 @@ export const ChatSettingsSheet = memo(function ChatSettingsSheet({ visible, onDi
                 ]}
               >
                 <Ionicons
-                  name={opt.icon}
+                  name={MODE_ICONS[opt.icon]}
                   size={16}
                   color={active ? colors.white : theme.textSecondary}
                 />
@@ -138,72 +127,62 @@ export const ChatSettingsSheet = memo(function ChatSettingsSheet({ visible, onDi
           </View>
         )}
 
-        {/* Tools */}
-        <Text style={[styles.sectionTitle, { color: theme.text, marginTop: spacing.large }]}>
-          Werkzeuge
-        </Text>
-        {TOOL_KEYS.map((key) => {
-          const tool = TOOL_LABELS[key];
-          return (
-            <View key={key} style={[styles.toolRow, { borderBottomColor: theme.border }]}>
-              <View style={styles.toolLabel}>
-                <Ionicons name={tool.icon} size={18} color={theme.textSecondary} />
-                <Text style={[styles.toolText, { color: theme.text }]}>{tool.label}</Text>
-              </View>
-              <Switch
-                value={enabledTools[key] !== false}
-                onValueChange={() => toggleTool(key)}
-                trackColor={{ false: theme.border, true: colors.primary[400] }}
-                thumbColor={enabledTools[key] !== false ? colors.primary[600] : theme.surface}
-              />
-            </View>
-          );
-        })}
-
         {/* Model */}
         <Text style={[styles.sectionTitle, { color: theme.text, marginTop: spacing.large }]}>
           Modell
         </Text>
-        <View style={styles.chipRow}>
-          {MODEL_OPTIONS.map((model) => {
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.modelRow}
+        >
+          {/* Auto — context-aware default, matching web's ModelPicker */}
+          <Pressable
+            key={AUTO_MODEL_OPTION.id}
+            onPress={() => setSelectedModel(AUTO_MODEL_ID)}
+            style={[
+              styles.modelPill,
+              {
+                backgroundColor:
+                  selectedModel === AUTO_MODEL_ID ? colors.primary[600] : theme.surface,
+                borderColor: selectedModel === AUTO_MODEL_ID ? colors.primary[600] : theme.border,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.modelPillName,
+                { color: selectedModel === AUTO_MODEL_ID ? colors.white : theme.text },
+              ]}
+              numberOfLines={1}
+            >
+              {AUTO_MODEL_OPTION.name}
+            </Text>
+          </Pressable>
+          {MODEL_OPTIONS.filter((model) => isModelEnabledByDefault(model.id)).map((model) => {
             const active = selectedModel === model.id;
             return (
               <Pressable
                 key={model.id}
                 onPress={() => setSelectedModel(model.id)}
                 style={[
-                  styles.modelChip,
+                  styles.modelPill,
                   {
                     backgroundColor: active ? colors.primary[600] : theme.surface,
                     borderColor: active ? colors.primary[600] : theme.border,
                   },
                 ]}
               >
-                <Text style={[styles.modelChipText, { color: active ? colors.white : theme.text }]}>
+                <Text
+                  style={[styles.modelPillName, { color: active ? colors.white : theme.text }]}
+                  numberOfLines={1}
+                >
                   {model.name}
                 </Text>
-                <Text
-                  style={[
-                    styles.modelChipDesc,
-                    { color: active ? colors.primary[200] : theme.textSecondary },
-                  ]}
-                >
-                  {model.description}
-                </Text>
-                {model.region === 'cn' && (
-                  <Text
-                    style={[
-                      styles.modelChipWarningText,
-                      { color: active ? colors.white : colors.warning },
-                    ]}
-                  >
-                    {QWEN_WARNING}
-                  </Text>
-                )}
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
       </ScrollView>
     </BottomSheet>
   );
@@ -261,38 +240,19 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     maxWidth: 120,
   },
-  toolRow: {
+  modelRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: spacing.xsmall,
+    paddingRight: spacing.medium,
   },
-  toolLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.small,
-  },
-  toolText: {
-    fontSize: 14,
-  },
-  modelChip: {
-    paddingHorizontal: spacing.small,
+  modelPill: {
     paddingVertical: 8,
-    borderRadius: borderRadius.large,
+    paddingHorizontal: spacing.medium,
+    borderRadius: borderRadius.full,
     borderWidth: 1,
-    gap: 2,
   },
-  modelChipText: {
+  modelPillName: {
     fontSize: 13,
     fontWeight: '600',
-  },
-  modelChipDesc: {
-    fontSize: 11,
-  },
-  modelChipWarningText: {
-    fontSize: 11,
-    lineHeight: 14,
-    marginTop: 2,
   },
 });

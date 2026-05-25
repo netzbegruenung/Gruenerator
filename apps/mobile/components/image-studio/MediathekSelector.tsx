@@ -18,6 +18,7 @@ import {
   useColorScheme,
   Dimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetchMediathekImage } from '../../services/imageStudio';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
@@ -36,6 +37,7 @@ interface MediathekSelectorProps {
 export function MediathekSelector({ visible, onClose, onImageSelect }: MediathekSelectorProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const insets = useSafeAreaInsets();
 
   const { shares, isLoading, fetchUserShares } = useShareStore();
   const [selectedToken, setSelectedToken] = useState<string | null>(null);
@@ -159,7 +161,10 @@ export function MediathekSelector({ visible, onClose, onImageSelect }: Mediathek
             renderItem={renderItem}
             keyExtractor={(item) => item.shareToken}
             numColumns={NUM_COLUMNS}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[
+              styles.listContent,
+              { paddingBottom: insets.bottom + spacing.large },
+            ]}
             columnWrapperStyle={styles.columnWrapper}
             ListEmptyComponent={renderEmpty}
           />

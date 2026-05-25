@@ -63,6 +63,8 @@ const initialState: ReelProcessingState = {
 export function useReelProcessing() {
   const [state, setState] = useState<ReelProcessingState>(initialState);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
+  const uploadIdRef = useRef<string | null>(null);
   const isMountedRef = useRef(true);
   const { user } = useAuthStore();
 
@@ -110,7 +112,7 @@ export function useReelProcessing() {
           return false;
         }
 
-        await MediaLibrary.saveToLibraryAsync(videoUri);
+        await MediaLibrary.Asset.create(videoUri);
         updateState({ savedToGallery: true });
         return true;
       } catch (error: unknown) {
@@ -198,16 +200,24 @@ export function useReelProcessing() {
   const startProcessing = useCallback(
     async (fileUri: string) => {
       reset();
+      uploadIdRef.current = null;
+      const controller = new AbortController();
+      uploadAbortRef.current = controller;
       updateState({ status: 'uploading' });
 
       try {
-        const uploadId = await reelApi.uploadVideo(fileUri, (progress) => {
-          if (isMountedRef.current) {
-            updateState({ uploadProgress: progress });
-          }
-        });
+        const uploadId = await reelApi.uploadVideo(
+          fileUri,
+          (progress) => {
+            if (isMountedRef.current) {
+              updateState({ uploadProgress: progress });
+            }
+          },
+          controller.signal
+        );
 
         if (!isMountedRef.current) return;
+        uploadIdRef.current = uploadId;
 
         updateState({
           status: 'processing',
@@ -219,6 +229,8 @@ export function useReelProcessing() {
 
         startPolling(uploadId);
       } catch (error: unknown) {
+        // cancelProcessing aborts the signal and already reset state — stay quiet.
+        if (controller.signal.aborted) return;
         console.error('[ReelProcessing] Start processing error:', getErrorMessage(error));
         handleError('upload_failed', getErrorMessage(error));
       }
@@ -227,9 +239,16 @@ export function useReelProcessing() {
   );
 
   const cancelProcessing = useCallback(() => {
+    uploadAbortRef.current?.abort();
+    uploadAbortRef.current = null;
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
+    }
+    const uploadId = uploadIdRef.current;
+    if (uploadId) {
+      void reelApi.cancelUpload(uploadId);
+      uploadIdRef.current = null;
     }
     reset();
   }, [reset]);
@@ -283,16 +302,24 @@ export function useReelProcessing() {
   const startManualProcessing = useCallback(
     async (fileUri: string) => {
       reset();
+      uploadIdRef.current = null;
+      const controller = new AbortController();
+      uploadAbortRef.current = controller;
       updateState({ status: 'uploading' });
 
       try {
-        const uploadId = await reelApi.uploadVideo(fileUri, (progress) => {
-          if (isMountedRef.current) {
-            updateState({ uploadProgress: progress });
-          }
-        });
+        const uploadId = await reelApi.uploadVideo(
+          fileUri,
+          (progress) => {
+            if (isMountedRef.current) {
+              updateState({ uploadProgress: progress });
+            }
+          },
+          controller.signal
+        );
 
         if (!isMountedRef.current) return;
+        uploadIdRef.current = uploadId;
 
         updateState({
           status: 'transcribing',
@@ -305,6 +332,8 @@ export function useReelProcessing() {
 
         startManualPolling(uploadId);
       } catch (error: unknown) {
+        // cancelProcessing aborts the signal and already reset state — stay quiet.
+        if (controller.signal.aborted) return;
         console.error('[ReelProcessing] Start manual processing error:', getErrorMessage(error));
         handleError('upload_failed', getErrorMessage(error));
       }

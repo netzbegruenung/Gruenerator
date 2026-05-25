@@ -20,8 +20,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BottomSheet } from '../../../components/common/BottomSheet';
+import { DocPreview } from '../../../components/common/DocPreview';
 import { AIDocumentCreatorSheet } from '../../../components/docs/AIDocumentCreatorSheet';
 import { NativeShareModal } from '../../../components/docs/NativeShareModal';
+import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { useDocsStore } from '../../../stores/docsStore';
 import { lightTheme, darkTheme, colors } from '../../../theme';
 
@@ -143,7 +145,7 @@ export default function DocumentsScreen() {
   const renderDocument = ({
     item,
   }: {
-    item: { id: string; title: string; updated_at: string };
+    item: { id: string; title: string; updated_at: string; content?: string };
   }) => (
     <TouchableOpacity
       style={[styles.gridCard, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
@@ -153,9 +155,13 @@ export default function DocumentsScreen() {
       }}
       activeOpacity={0.7}
     >
-      <View style={[styles.cardThumbnail, { backgroundColor: theme.surface }]}>
-        <Ionicons name="document-text" size={36} color={colors.grey[300]} />
-      </View>
+      {item.content ? (
+        <DocPreview content={item.content} style={styles.cardThumbnailDoc} />
+      ) : (
+        <View style={[styles.cardThumbnail, { backgroundColor: theme.surface }]}>
+          <Ionicons name="document-text" size={36} color={colors.grey[300]} />
+        </View>
+      )}
       <View style={styles.cardInfoRow}>
         <Text style={[styles.cardTitle, { color: theme.text }]} numberOfLines={2}>
           {item.title || 'Unbenannt'}
@@ -234,7 +240,7 @@ export default function DocumentsScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+    <ScreenScaffold title="Dokumente">
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
 
       {/* Top Bar */}
@@ -480,7 +486,7 @@ export default function DocumentsScreen() {
           onDelete={() => handleDelete(activeDoc.id, activeDoc.title)}
         />
       )}
-    </SafeAreaView>
+    </ScreenScaffold>
   );
 }
 
@@ -566,6 +572,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cardThumbnailDoc: {
+    aspectRatio: 3 / 2,
+  },
   cardInfoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -629,8 +638,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyTitle: {
+    fontFamily: 'Raleway_600SemiBold',
     fontSize: 18,
-    fontWeight: '600',
     marginTop: 16,
   },
   emptySubtitle: {
@@ -650,8 +659,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   errorTitle: {
+    fontFamily: 'Raleway_600SemiBold',
     fontSize: 18,
-    fontWeight: '600',
     marginTop: 16,
     marginBottom: 24,
   },
@@ -690,8 +699,8 @@ const styles = StyleSheet.create({
   },
 
   bottomSheetTitle: {
+    fontFamily: 'Raleway_700Bold',
     fontSize: 20,
-    fontWeight: '700',
     paddingHorizontal: 20,
     paddingBottom: 12,
   },

@@ -6,8 +6,10 @@ import { colors, lightTheme, darkTheme } from '../../theme';
 interface MicButtonProps {
   isListening: boolean;
   onMicPress: () => void;
-  hasText: boolean;
-  onSubmit: () => void;
+  /** Pass `hasText` + `onSubmit` to let the mic double as a submit affordance once
+   * there's text. Omit both for a mic-only button (the default). */
+  hasText?: boolean;
+  onSubmit?: () => void;
   loading?: boolean;
   disabled?: boolean;
   size?: number;
@@ -27,7 +29,7 @@ export function MicButton({
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
-  const showSubmit = hasText && !isListening;
+  const showSubmit = !!onSubmit && !!hasText && !isListening;
 
   if (loading) {
     return (

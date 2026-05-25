@@ -2,6 +2,7 @@ import BottomSheet, { BottomSheetScrollView } from '@expo/ui/community/bottom-sh
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Linking, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, spacing, borderRadius } from '../../theme';
 
@@ -19,6 +20,7 @@ const MAX_DISPLAY_LENGTH = 50_000;
 
 export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }: Props) {
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const insets = useSafeAreaInsets();
   const snapPoints = useMemo(() => ['50%', '85%'], []);
   const [fullText, setFullText] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -59,7 +61,13 @@ export function CitationDetailSheet({ citation, theme, onClose, fetchFullText }:
       backgroundStyle={{ backgroundColor: theme.surface }}
       handleIndicatorStyle={{ backgroundColor: theme.textSecondary }}
     >
-      <BottomSheetScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+      <BottomSheetScrollView
+        style={styles.content}
+        contentContainerStyle={[
+          styles.contentContainer,
+          { paddingBottom: insets.bottom + spacing.large },
+        ]}
+      >
         <Text style={[styles.title, { color: theme.text }]} numberOfLines={3}>
           {citation.title || citation.url}
         </Text>

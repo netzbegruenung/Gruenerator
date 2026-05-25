@@ -1,6 +1,7 @@
 import BottomSheet, { BottomSheetView } from '@expo/ui/community/bottom-sheet';
 import { useCallback, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Brand colors duplicated from packages/canvas-editor/src/utils/shapes.ts
 // Static arrays that rarely change — avoids cross-package web dependency
@@ -40,6 +41,7 @@ export function NativeColorPicker({
   mode = 'brand',
 }: NativeColorPickerProps) {
   const bottomSheetRef = useRef<BottomSheet>(null);
+  const insets = useSafeAreaInsets();
   const colors = mode === 'font' ? FONT_COLORS : BRAND_COLORS;
 
   const handleSelect = useCallback(
@@ -61,7 +63,7 @@ export function NativeColorPicker({
       backgroundStyle={styles.sheetBackground}
       handleIndicatorStyle={styles.handleIndicator}
     >
-      <BottomSheetView style={styles.content}>
+      <BottomSheetView style={[styles.content, { paddingBottom: insets.bottom + 20 }]}>
         <Text style={styles.title}>Farbe wählen</Text>
         <View style={styles.grid}>
           {colors.map((color) => {

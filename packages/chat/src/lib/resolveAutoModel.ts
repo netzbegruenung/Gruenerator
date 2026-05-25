@@ -5,6 +5,17 @@ import type { ThreadMode } from '../stores/chatStore';
 export const AUTO_MODEL_ID = 'auto' as const;
 export type AutoModelId = typeof AUTO_MODEL_ID;
 
+/**
+ * The "Automatisch" model option, shared so web and mobile present it identically.
+ * Selecting it defers the model choice to `resolveAutoModel` (context-aware); it is the
+ * default selection on both platforms.
+ */
+export const AUTO_MODEL_OPTION = {
+  id: AUTO_MODEL_ID,
+  name: 'Automatisch',
+  description: 'Modell passend zum Kontext',
+} as const;
+
 export type SelectedModel = TextModelId | AutoModelId;
 
 export interface AutoResolverContext {

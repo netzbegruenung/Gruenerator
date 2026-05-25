@@ -14,60 +14,44 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PulseLoader } from '../../../components/common';
-import {
-  VideoUploader,
-  ProcessingProgress,
-  VideoResult,
-  ProjectList,
-  ModeSelector,
-} from '../../../components/reel';
+import { VideoUploader, ProjectList } from '../../../components/reel';
 import { useReelProcessing } from '../../../hooks/useReelProcessing';
 import { shareService } from '../../../services/share';
 import { lightTheme, darkTheme, colors, spacing } from '../../../theme';
 
-import type { ReelMode } from '../../../components/reel/ModeSelector';
-
-type ScreenMode = 'projects' | 'creating' | 'mode-select' | 'processing' | 'transcribing';
+type ScreenMode = 'projects' | 'creating' | 'transcribing';
 
 export default function ReelScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   const [screenMode, setScreenMode] = useState<ScreenMode>('projects');
-  const [pendingVideoUri, setPendingVideoUri] = useState<string | null>(null);
   const [isSavingProject, setIsSavingProject] = useState(false);
 
   const {
     status,
     uploadProgress,
-    processingStage,
     stageName,
-    stageProgress,
-    overallProgress,
-    downloadProgress,
     uploadId,
-    videoUri,
-    savedToGallery,
     error,
     transcribedSubtitles,
-    startProcessing,
     startManualProcessing,
     cancelProcessing,
     reset,
-    saveToGallery,
   } = useReelProcessing();
 
   const handleNewReel = useCallback(() => {
     reset();
-    setPendingVideoUri(null);
     setScreenMode('creating');
   }, [reset]);
 
+  // Returning to the list also stops any in-flight upload/transcription
+  // (aborts the native upload + clears the server temp files), so backing
+  // out is a real cancel rather than just hiding the progress screen.
   const handleBackToProjects = useCallback(() => {
-    reset();
-    setPendingVideoUri(null);
+    cancelProcessing();
     setScreenMode('projects');
-  }, [reset]);
+  }, [cancelProcessing]);
 
   const handleEditProject = useCallback((project: Project) => {
     router.push({
@@ -84,30 +68,16 @@ export default function ReelScreen() {
     await shareService.shareUrl(videoUrl, project.title, 'Schau dir dieses Reel an!');
   }, []);
 
-  const handleVideoSelected = useCallback((fileUri: string) => {
-    setPendingVideoUri(fileUri);
-    setScreenMode('mode-select');
-  }, []);
-
-  const handleModeSelect = useCallback(
-    (mode: ReelMode) => {
-      if (!pendingVideoUri) return;
-
-      if (mode === 'auto') {
-        setScreenMode('processing');
-        void startProcessing(pendingVideoUri);
-      } else if (mode === 'subtitle') {
-        setScreenMode('transcribing');
-        void startManualProcessing(pendingVideoUri);
-      }
+  // Create-first: picking a video immediately uploads + transcribes, then the
+  // effect below auto-saves the project and opens the editor. The user always
+  // lands on a persistent, editable reel — no upfront mode choice, no dead-end.
+  const handleVideoSelected = useCallback(
+    (fileUri: string) => {
+      setScreenMode('transcribing');
+      void startManualProcessing(fileUri);
     },
-    [pendingVideoUri, startProcessing, startManualProcessing]
+    [startManualProcessing]
   );
-
-  const handleBackFromModeSelect = useCallback(() => {
-    setPendingVideoUri(null);
-    setScreenMode('creating');
-  }, []);
 
   useEffect(() => {
     if (
@@ -190,10 +160,6 @@ export default function ReelScreen() {
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
-        if (screenMode === 'mode-select') {
-          handleBackFromModeSelect();
-          return true;
-        }
         if (screenMode !== 'projects') {
           handleBackToProjects();
           return true;
@@ -203,7 +169,7 @@ export default function ReelScreen() {
 
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
       return () => subscription.remove();
-    }, [screenMode, handleBackToProjects, handleBackFromModeSelect])
+    }, [screenMode, handleBackToProjects])
   );
 
   const renderContent = () => {
@@ -231,12 +197,7 @@ export default function ReelScreen() {
       );
     }
 
-    // Show mode selector after video is selected
-    if (screenMode === 'mode-select') {
-      return <ModeSelector onSelect={handleModeSelect} onBack={handleBackFromModeSelect} />;
-    }
-
-    // Show transcribing state (manual mode)
+    // Create-first: upload the video, transcribe, then auto-save + open editor.
     if (screenMode === 'transcribing') {
       if (status === 'uploading') {
         return (
@@ -244,6 +205,7 @@ export default function ReelScreen() {
             onVideoSelected={handleVideoSelected}
             uploadProgress={uploadProgress}
             isUploading={true}
+            onBack={handleBackToProjects}
           />
         );
       }
@@ -257,58 +219,9 @@ export default function ReelScreen() {
           }
           subtitle={isSavingProject ? 'Fast fertig!' : 'Dies kann einige Minuten dauern'}
           icon="text-outline"
+          onCancel={isSavingProject ? undefined : handleBackToProjects}
         />
       );
-    }
-
-    // Show processing or processing-related states (auto mode)
-    if (screenMode === 'processing' || status === 'processing' || status === 'uploading') {
-      if (status === 'uploading') {
-        return (
-          <VideoUploader
-            onVideoSelected={handleVideoSelected}
-            uploadProgress={uploadProgress}
-            isUploading={true}
-          />
-        );
-      }
-
-      if (status === 'processing') {
-        return (
-          <ProcessingProgress
-            currentStage={processingStage}
-            stageName={stageName}
-            stageProgress={stageProgress}
-            overallProgress={overallProgress}
-            onCancel={() => {
-              cancelProcessing();
-              handleBackToProjects();
-            }}
-          />
-        );
-      }
-
-      if (status === 'downloading') {
-        return (
-          <PulseLoader
-            title="Video wird heruntergeladen..."
-            subtitle={downloadProgress > 0 ? `${downloadProgress}%` : 'Fast fertig!'}
-            icon="cloud-download-outline"
-          />
-        );
-      }
-
-      if (status === 'complete' && videoUri) {
-        return (
-          <VideoResult
-            videoUri={videoUri}
-            savedToGallery={savedToGallery}
-            uploadId={uploadId || undefined}
-            onNewVideo={handleBackToProjects}
-            onSaveToGallery={!savedToGallery ? () => saveToGallery(videoUri) : undefined}
-          />
-        );
-      }
     }
 
     // Fallback to project list

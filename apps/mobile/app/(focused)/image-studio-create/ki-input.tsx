@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, Redirect } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -27,9 +27,10 @@ export default function KiInputScreen() {
     router.push(route('/(focused)/image-studio-create/result'));
   };
 
+  // Declarative redirect — navigation-safe, unlike router.replace() during render
+  // (which mutates the navigation container mid-render → NavigationContainerInner warning).
   if (!kiType) {
-    router.replace(route('/(tabs)/(tools)/image-studio'));
-    return null;
+    return <Redirect href={route('/(tabs)/(tools)/image-studio')} />;
   }
 
   return (

@@ -1,9 +1,9 @@
 /**
  * Type Selection Screen
- * Entry point for Image Studio - select KI type or style variant
+ * Entry point for Image Studio - select the top-level intent (create / transform / edit)
  */
 
-import { kiTypeRequiresImage, typeHasTextGeneration } from '@gruenerator/shared/image-studio';
+import { kiTypeRequiresImage } from '@gruenerator/shared/image-studio';
 import { router } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,22 +13,15 @@ import { useImageStudioStore } from '../../../../stores/imageStudioStore';
 import { lightTheme, darkTheme } from '../../../../theme';
 import { route } from '../../../../types/routes';
 
-import type {
-  ImageStudioKiType,
-  ImageStudioTemplateType,
-  KiStyleVariant,
-} from '@gruenerator/shared/image-studio';
+import type { ImageStudioKiType } from '@gruenerator/shared/image-studio';
 
 export default function TypeSelectionScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
-  const { setKiType, setKiVariant, setType, reset } = useImageStudioStore();
+  const { setKiType, reset } = useImageStudioStore();
 
-  const handleVariantSelect = (variant: KiStyleVariant) => {
-    reset();
-    setKiType('pure-create');
-    setKiVariant(variant, true);
-    router.push(route('/(focused)/image-studio-create/ki-input'));
+  const handleCreateSelect = () => {
+    router.push(route('/(focused)/image-studio-create/style'));
   };
 
   const handleEditSelect = (type: ImageStudioKiType) => {
@@ -42,23 +35,9 @@ export default function TypeSelectionScreen() {
     }
   };
 
-  const handleTemplateSelect = (templateType: ImageStudioTemplateType) => {
-    reset();
-    setType(templateType);
-    if (!typeHasTextGeneration(templateType)) {
-      router.push(route('/(focused)/image-studio-create/image'));
-    } else {
-      router.push(route('/(focused)/image-studio-create/template-input'));
-    }
-  };
-
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['bottom']}>
-      <TypeSelector
-        onSelectVariant={handleVariantSelect}
-        onSelectEdit={handleEditSelect}
-        onSelectTemplate={handleTemplateSelect}
-      />
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }} edges={['top', 'bottom']}>
+      <TypeSelector onSelectCreate={handleCreateSelect} onSelectEdit={handleEditSelect} />
     </SafeAreaView>
   );
 }

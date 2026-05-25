@@ -1,3 +1,5 @@
+import { Image as BrandImage } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -11,6 +13,7 @@ import {
   Linking,
   type ImageSourcePropType,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { login, type AuthSource } from '../../services/auth';
 import { lightTheme, darkTheme, typography, spacing, colors, borderRadius } from '../../theme';
@@ -24,6 +27,8 @@ interface LoginProvider {
 }
 
 /* eslint-disable @typescript-eslint/no-require-imports */
+const BRAND_LOGO = require('../../assets/images/sonnenblume.png') as ImageSourcePropType;
+
 const LOGIN_PROVIDERS: Record<string, LoginProvider> = {
   gruenesNetz: {
     enabled: true,
@@ -127,7 +132,18 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <LinearGradient
+        colors={
+          colorScheme === 'dark'
+            ? [colors.grey[950], colors.grey[950]]
+            : [colors.white, 'rgba(95, 133, 117, 0.05)']
+        }
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+      <BrandImage source={BRAND_LOGO} style={styles.brandLogo} contentFit="contain" />
       <Text style={[styles.title, { color: theme.text }]}>Willkommen!</Text>
       <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
         Melde dich an, um die App zu nutzen
@@ -156,7 +172,7 @@ export default function LoginScreen() {
       <Pressable style={styles.cancelButton} onPress={handleClose} disabled={isLoading}>
         <Text style={[styles.cancelButtonText, { color: theme.textSecondary }]}>Abbrechen</Text>
       </Pressable>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -167,8 +183,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: spacing.large,
   },
+  brandLogo: {
+    width: 72,
+    height: 72,
+    marginBottom: spacing.medium,
+  },
   title: {
-    ...typography.h2,
+    fontFamily: 'Raleway_700Bold',
+    fontSize: 28,
     marginBottom: spacing.small,
     textAlign: 'center',
   },

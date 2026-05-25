@@ -33,7 +33,7 @@ import { createAIService, type AIService } from './services/ai/aiService.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
-import { tusServer } from './services/subtitler/tusService.js';
+import { tusServer, handleBinaryUpload } from './services/subtitler/tusService.js';
 import { getCorsOrigins, PRIMARY_DOMAIN } from './utils/domainUtils.js';
 import { createLogger } from './utils/logger.js';
 import redisClient, { ensureConnected, checkRedisHealth } from './utils/redis/client.js';
@@ -287,6 +287,25 @@ async function startWorker(): Promise<void> {
   });
   app.all(audioUploadPath + '/*splat', (req: Request, res: Response) => {
     void tusServer.handle(req, res);
+  });
+
+  // Plain binary upload for non-TUS clients (mobile uses expo-file-system's
+  // native uploader). Registered here — before compression and the body
+  // parsers — so `req` stays the raw byte stream and writes straight to disk.
+  // IP-rate-limited: the handler writes the request body straight to disk, so cap
+  // upload attempts per window as defense against abuse.
+  const uploadBinaryLimiter =
+    process.env.DISABLE_RATE_LIMITS === 'true'
+      ? (_req: Request, _res: Response, next: NextFunction) => next()
+      : rateLimit({
+          windowMs: 15 * 60 * 1000,
+          max: 60,
+          standardHeaders: true,
+          legacyHeaders: false,
+          message: { error: 'Zu viele Uploads. Bitte versuche es später erneut.' },
+        });
+  app.post('/api/subtitler/upload-binary', uploadBinaryLimiter, (req: Request, res: Response) => {
+    void handleBinaryUpload(req, res);
   });
 
   // Compression middleware
