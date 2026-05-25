@@ -63,12 +63,12 @@ export const OEFFENTLICHKEITSARBEIT_AGENTS = [
     ],
   },
   // ─── Per-Landesverband Öffentlichkeitsarbeit ───
-  // 5 LV-tuned variants of `gruenerator-oeffentlichkeitsarbeit`. SystemRole carries
-  // the LV-specific voice derived from a 20-PM corpus analysis (see
-  // docs/landesverbaende/<lv>-landesverband.md). `defaultFilter.landesverband`
-  // hard-pins search_documents and pressemitteilung_examples to LV sources, so
-  // the LLM never has to remember to filter — and never accidentally cites the
-  // wrong LV. Skills `/presse-<lv>` and `/social-<lv>` route to these agents.
+  // 6 LV-tuned variants of `gruenerator-oeffentlichkeitsarbeit`. SystemRole carries
+  // the LV-specific voice derived from a 20-PM corpus analysis per Landesverband.
+  // `defaultFilter.landesverband` hard-pins search_documents and
+  // pressemitteilung_examples to LV sources, so the LLM never has to remember to
+  // filter — and never accidentally cites the wrong LV. Skills `/presse-<lv>` and
+  // `/insta-<lv>` route to these agents.
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
     autoRoutingHint: 'creative',
