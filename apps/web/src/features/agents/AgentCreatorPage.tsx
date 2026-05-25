@@ -185,7 +185,14 @@ function AgentCreatorPage() {
         <div className="border-t border-grey-200 bg-background p-sm dark:border-grey-700">
           <div className="mx-auto flex max-w-2xl items-center justify-between gap-sm">
             <p className="text-xs text-foreground-muted">
-              Wenn ihr genug besprochen habt, erstelle ich daraus einen Entwurf.
+              Wenn ihr genug besprochen habt, erstelle ich daraus einen Entwurf.{' '}
+              <button
+                type="button"
+                onClick={() => void navigate('/agents/new/manual')}
+                className="text-primary-600 hover:underline dark:text-primary-300"
+              >
+                Lieber manuell?
+              </button>
             </p>
             <div className="flex flex-col items-end gap-1">
               <button

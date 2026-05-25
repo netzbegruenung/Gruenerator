@@ -243,6 +243,10 @@ const standardRoutes: RouteConfig[] = [
     layoutMode: 'sidebarOnly',
   },
   {
+    path: '/agents/new/manual',
+    component: AgentBuilderPage,
+  },
+  {
     path: '/agents/:identifier/edit',
     component: AgentBuilderPage,
   },
