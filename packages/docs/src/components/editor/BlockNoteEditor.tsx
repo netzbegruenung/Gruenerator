@@ -428,7 +428,7 @@ const BlockNoteEditorInner = ({
           sideMenu={false}
           tableHandles={false}
         >
-          <AIMenuController />
+          {hideFormattingToolbar ? null : <AIMenuController />}
           {hideFormattingToolbar ? null : staticToolbar ? (
             <FormattingToolbar>
               {toolbarItems}
@@ -441,7 +441,13 @@ const BlockNoteEditorInner = ({
             triggerCharacter="/"
             getItems={async (query) =>
               filterSuggestionItems(
-                [...getDefaultReactSlashMenuItems(editor), ...getAISlashMenuItems(editor)],
+                [
+                  ...getDefaultReactSlashMenuItems(editor),
+                  // On mobile (hideFormattingToolbar) the web AI popover is
+                  // suppressed in favor of the native review UX; omit the
+                  // slash-menu AI item so it can't open that popover.
+                  ...(hideFormattingToolbar ? [] : getAISlashMenuItems(editor)),
+                ],
                 query
               )
             }
