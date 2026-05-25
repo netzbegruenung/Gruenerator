@@ -1,5 +1,7 @@
 import { AssistantRuntimeProvider } from '@assistant-ui/react-native';
 import { useChatConfigStore, type ChatRequestContext } from '@gruenerator/chat';
+import { getContractsClient } from '@gruenerator/shared/api';
+import { useQuery } from '@tanstack/react-query';
 import { type ReactNode, useEffect, useRef } from 'react';
 
 import { useMobileDocsChatRuntime } from '../hooks/useMobileDocsChatRuntime';
@@ -19,13 +21,11 @@ interface MobileDocsChatProviderProps {
  *
  * Keying: GrueneratorModelAdapter only consults the provider when config.threadId
  * is truthy (`if (config.threadId) contextProviders.get(config.threadId)`), and the
- * docs runtime's config emits exactly this threadId. So we register under the real
- * thread id once useMobileDocsChatRuntime surfaces it; doc context is then attached
- * to every follow-up request. KNOWN LIMITATION (Phase 1): the very first message is
- * sent with threadId === null, so the adapter skips provider lookup and that message
- * carries no document context — the assistant gets the doc from the second turn on.
- * Fixing the first turn would require the shared adapter to also consult a null/'new'
- * fallback key; intentionally not changed here.
+ * docs runtime's config emits exactly this threadId. To make the VERY FIRST message
+ * carry document context, we resolve the per-document thread eagerly (get-or-create,
+ * GET /api/docs/:id/chat-thread) — mirroring web's DocsChatProvider — and seed it
+ * into the runtime. The provider is then registered under that stable id, so doc
+ * context attaches from message #1.
  */
 export function MobileDocsChatProvider({
   documentId,
@@ -38,7 +38,18 @@ export function MobileDocsChatProvider({
     configuredRef.current = true;
   }
 
-  const { runtime, threadId } = useMobileDocsChatRuntime();
+  // Eagerly resolve the stable per-document thread id (mirrors web).
+  const { data: docThreadId = null } = useQuery({
+    queryKey: ['docs', documentId, 'chat-thread'],
+    queryFn: async () => {
+      const result = await getContractsClient().docs.getChatThread({ params: { id: documentId } });
+      if (result.status !== 200) throw new Error(`Chat thread lookup failed: ${result.status}`);
+      return result.body.threadId;
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const { runtime, threadId } = useMobileDocsChatRuntime(docThreadId);
 
   const documentIdRef = useRef(documentId);
   documentIdRef.current = documentId;
@@ -46,6 +57,7 @@ export function MobileDocsChatProvider({
   documentTitleRef.current = documentTitle;
 
   useEffect(() => {
+    if (!threadId) return;
     const provider = async (): Promise<ChatRequestContext> => ({
       currentDocument: {
         id: documentIdRef.current,
@@ -54,7 +66,7 @@ export function MobileDocsChatProvider({
         selectionText: useDocsEditorBridgeStore.getState().docSelectionText,
       },
     });
-    return useChatConfigStore.getState().registerContextProvider(threadId ?? 'new', provider);
+    return useChatConfigStore.getState().registerContextProvider(threadId, provider);
   }, [threadId]);
 
   return <AssistantRuntimeProvider runtime={runtime}>{children}</AssistantRuntimeProvider>;

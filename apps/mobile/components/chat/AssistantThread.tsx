@@ -54,7 +54,7 @@ const EmptyState = memo(function EmptyState({
             <ThreadPrimitive.Suggestion
               key={i}
               prompt={prompt}
-              send={false}
+              send
               style={[styles.suggestionChip, { borderColor: theme.border }]}
             >
               <Text style={[styles.suggestionTitle, { color: theme.text }]}>{prompt}</Text>

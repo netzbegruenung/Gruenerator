@@ -1,6 +1,15 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useRef } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Pressable,
+  Modal,
+  StyleSheet,
+  useColorScheme,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useSpeechToText } from '../../hooks/useSpeechToText';
@@ -18,12 +27,13 @@ export function NativeDocTopBar() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const titleRef = useRef<TextInput>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const connectionStatus = useDocsEditorBridgeStore((s) => s.connectionStatus);
   const documentTitle = useDocsEditorBridgeStore((s) => s.documentTitle);
   const canEdit = useDocsEditorBridgeStore((s) => s.canEdit);
   const dispatchAction = useDocsEditorBridgeStore((s) => s.dispatchAction);
-  const toggleSidebar = useDocsEditorBridgeStore((s) => s.toggleSidebar);
+  const toggleFullscreen = useDocsEditorBridgeStore((s) => s.toggleFullscreen);
 
   // Native dictation: the OS recognizer (final transcript) feeds the editor via
   // the insert-text bridge — the in-editor web mic can't run in the WebView.
@@ -80,20 +90,50 @@ export function NativeDocTopBar() {
       )}
 
       <TouchableOpacity
-        onPress={toggleSidebar}
+        onPress={() => setMenuOpen(true)}
         style={styles.iconButton}
-        accessibilityLabel="KI-Assistent"
+        accessibilityLabel="Mehr"
       >
-        <Ionicons name="sparkles-outline" size={22} color={theme.text} />
+        <Ionicons name="ellipsis-vertical" size={22} color={theme.text} />
       </TouchableOpacity>
 
-      <TouchableOpacity
-        onPress={() => dispatchAction({ type: 'openShare' })}
-        style={styles.iconButton}
-        accessibilityLabel="Teilen"
+      {/* Overflow menu: share + fullscreen */}
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpen(false)}
       >
-        <Ionicons name="share-social-outline" size={22} color={theme.text} />
-      </TouchableOpacity>
+        <Pressable style={styles.menuBackdrop} onPress={() => setMenuOpen(false)}>
+          <View
+            style={[
+              styles.menuCard,
+              { top: insets.top + 44, backgroundColor: theme.card, borderColor: theme.border },
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuOpen(false);
+                dispatchAction({ type: 'openShare' });
+              }}
+            >
+              <Ionicons name="share-social-outline" size={20} color={theme.text} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>Teilen</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuOpen(false);
+                toggleFullscreen();
+              }}
+            >
+              <Ionicons name="expand-outline" size={20} color={theme.text} />
+              <Text style={[styles.menuItemText, { color: theme.text }]}>Vollbild</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -130,5 +170,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     paddingVertical: 4,
+  },
+  menuBackdrop: {
+    flex: 1,
+  },
+  menuCard: {
+    position: 'absolute',
+    right: 8,
+    minWidth: 180,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 6,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  menuItemText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
 });

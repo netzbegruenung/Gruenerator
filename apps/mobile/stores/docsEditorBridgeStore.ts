@@ -59,6 +59,9 @@ interface DocsEditorBridgeState {
   // Native-only UI state
   sidebarOpen: boolean;
   lastSeenMessageCount: number;
+  // Fullscreen = chrome (top bar / toolbar) hidden. Lifted to the store so the
+  // top-bar 3-dot menu can enter it and the bottom-right FAB can exit it.
+  fullscreen: boolean;
 
   // Native → DOM (action dispatch)
   pendingAction: DocEditorAction | null;
@@ -77,6 +80,8 @@ interface DocsEditorBridgeState {
   setActiveFormatting: (formatting: ActiveFormattingState) => void;
   setAiReviewPending: (v: boolean) => void;
   toggleSidebar: () => void;
+  toggleFullscreen: () => void;
+  setFullscreen: (v: boolean) => void;
   markChatRead: () => void;
 
   // Action dispatch
@@ -99,6 +104,7 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
   aiReviewPending: false,
   sidebarOpen: false,
   lastSeenMessageCount: 0,
+  fullscreen: false,
   pendingAction: null,
   actionCounter: 0,
 
@@ -140,6 +146,8 @@ export const useDocsEditorBridgeStore = create<DocsEditorBridgeState>((set) => (
     }),
   setAiReviewPending: (v) => set((s) => (s.aiReviewPending === v ? s : { aiReviewPending: v })),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  toggleFullscreen: () => set((s) => ({ fullscreen: !s.fullscreen })),
+  setFullscreen: (v) => set((s) => (s.fullscreen === v ? s : { fullscreen: v })),
   markChatRead: () => set((s) => ({ lastSeenMessageCount: s.chatMessages.length })),
   dispatchAction: (action) =>
     set((s) => ({ pendingAction: action, actionCounter: s.actionCounter + 1 })),

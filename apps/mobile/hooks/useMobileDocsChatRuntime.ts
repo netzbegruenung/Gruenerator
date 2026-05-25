@@ -11,16 +11,20 @@ import { useCallback, useMemo, useRef, useState } from 'react';
  * document's id/title/markdown are injected separately via a context provider
  * registered by MobileDocsChatProvider, keyed off the returned threadId.
  */
-export function useMobileDocsChatRuntime() {
-  // Track the server-created thread id locally (not in useAgentStore). null until
-  // the first message creates a thread.
-  const [threadId, setThreadId] = useState<string | null>(null);
+export function useMobileDocsChatRuntime(docThreadId: string | null) {
+  // The thread id is resolved EAGERLY (per-document, get-or-create) and passed
+  // in as `docThreadId` — mirroring web's DocsChatProvider, which blocks the
+  // chat until a thread exists. This is what lets the very first message carry
+  // document context: the adapter only consults the context provider when
+  // config.threadId is truthy, and the provider map is keyed by that id. If the
+  // server later reports a different created id we prefer it.
+  const [createdThreadId, setCreatedThreadId] = useState<string | null>(null);
+  const threadId = createdThreadId ?? docThreadId;
   // Read the thread id lazily inside getConfig (via ref) so getConfig — and thus
   // the model adapter and the runtime — stay STABLE across thread creation.
   // Listing threadId as a getConfig dep rebuilds the runtime on the first reply,
   // which makes AssistantRuntimeProvider's binder setState during render
   // ("Cannot update _RuntimeBinder while rendering MobileDocsChatProvider").
-  // Mirrors the main chat hook's `useAgentStore.getState().currentThreadId`.
   const threadIdRef = useRef(threadId);
   threadIdRef.current = threadId;
 
@@ -45,7 +49,7 @@ export function useMobileDocsChatRuntime() {
   );
 
   const onThreadCreated = useCallback((newThreadId: string) => {
-    setThreadId(newThreadId);
+    setCreatedThreadId(newThreadId);
   }, []);
 
   const callbacks = useMemo(() => ({ onThreadCreated }), [onThreadCreated]);
