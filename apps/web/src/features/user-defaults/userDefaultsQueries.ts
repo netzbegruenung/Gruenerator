@@ -42,7 +42,12 @@ export function useUserDefault<G extends UserDefaultsGenerator, K extends UserDe
   key: K
 ) {
   const query = useUserDefaultsQuery();
-  const value = query.data?.[generator]?.[key] as UserDefaultsValue<G, K> | undefined;
+  // Indexing query.data?.[generator] distributes UserDefaultsBlob over the
+  // generator union, so K (valid only for this G) can't index the result
+  // directly. Narrow the bucket to a string-indexable record at the boundary,
+  // then re-assert the precise value type — K is a string by construction.
+  const bucket = query.data?.[generator] as Record<string, unknown> | undefined;
+  const value = bucket?.[key] as UserDefaultsValue<G, K> | undefined;
   return {
     value,
     isPending: query.isPending,
