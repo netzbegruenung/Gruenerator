@@ -1,4 +1,5 @@
 import { useAuthStore, setAuthStoreConfig } from '@gruenerator/shared/stores';
+import { isAxiosError } from 'axios';
 import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -168,6 +169,9 @@ async function exchangeCodeForTokens(code: string): Promise<{ success: boolean; 
     if (response.data.token && response.data.user) {
       await secureStorage.setToken(response.data.token);
       await secureStorage.setUser(JSON.stringify(response.data.user));
+      if (response.data.expiresAt) {
+        await secureStorage.setExpiresAt(response.data.expiresAt);
+      }
 
       useAuthStore.getState().setAuthState({
         user: response.data.user,
@@ -186,18 +190,51 @@ async function exchangeCodeForTokens(code: string): Promise<{ success: boolean; 
 }
 
 /**
- * Probe the Better Auth session for the stored bearer token. The bearer()
- * plugin lets /auth/v2/get-session accept `Authorization: Bearer <token>`
- * the same way it accepts a cookie on web.
+ * Restore the session on app launch. The bearer() plugin lets
+ * /auth/v2/get-session accept `Authorization: Bearer <token>` the same way it
+ * accepts a cookie on web.
+ *
+ * Persistence is optimistic and failure-aware: a stored token first restores
+ * the cached user so the UI is authenticated immediately (works offline, never
+ * flashes login on a slow start). The server probe then runs in the background
+ * and only logs the user out on a *definitive* "session gone" signal (a 2xx
+ * with no user, or a 401/403). A network/timeout/5xx is treated as "couldn't
+ * verify" — the session is kept, not destroyed.
  */
 export async function checkAuthStatus(): Promise<boolean> {
-  try {
-    const token = await secureStorage.getToken();
-    if (!token) {
-      useAuthStore.getState().setLoading(false);
+  const token = await secureStorage.getToken();
+  if (!token) {
+    useAuthStore.getState().setLoading(false);
+    return false;
+  }
+
+  // If we know the session is past its hard expiry, skip the optimistic restore
+  // and go straight to a clean login instead of flashing the authenticated UI.
+  const expiresAt = await secureStorage.getExpiresAt();
+  if (expiresAt) {
+    const expiresMs = Date.parse(expiresAt);
+    if (!Number.isNaN(expiresMs) && Date.now() > expiresMs) {
+      await secureStorage.clearAll();
+      useAuthStore.getState().clearAuth();
       return false;
     }
+  }
 
+  // Optimistic restore: show authenticated UI from the cached user immediately.
+  let restoredOptimistically = false;
+  const cachedUserJson = await secureStorage.getUser();
+  if (cachedUserJson) {
+    try {
+      const cachedUser = JSON.parse(cachedUserJson) as User;
+      useAuthStore.getState().setAuthState({ user: cachedUser });
+      restoredOptimistically = true;
+    } catch (error: unknown) {
+      console.warn('[Auth] Cached user parse failed:', getErrorMessage(error));
+    }
+  }
+
+  // Background verification against the server.
+  try {
     const apiClient = getGlobalApiClient();
     const response = await apiClient.get<{ user?: User; session?: unknown } | null>(
       API_ENDPOINTS.AUTH_GET_SESSION
@@ -209,13 +246,28 @@ export async function checkAuthStatus(): Promise<boolean> {
       return true;
     }
 
+    // 2xx with no user → session is definitively gone.
     await secureStorage.clearAll();
     useAuthStore.getState().clearAuth();
     return false;
   } catch (error: unknown) {
-    console.error('[Auth] Status check error:', error);
-    useAuthStore.getState().setLoading(false);
-    return false;
+    const status = isAxiosError(error) ? error.response?.status : undefined;
+    if (status === 401 || status === 403) {
+      // Server explicitly rejected the token → genuine logout.
+      await secureStorage.clearAll();
+      useAuthStore.getState().clearAuth();
+      return false;
+    }
+    // Network / timeout / 5xx → indeterminate. Keep the optimistically restored
+    // session; the user stays logged in on their cached identity.
+    console.error(
+      '[Auth] Could not verify session (keeping cached login):',
+      getErrorMessage(error)
+    );
+    if (!restoredOptimistically) {
+      useAuthStore.getState().setLoading(false);
+    }
+    return restoredOptimistically;
   }
 }
 
