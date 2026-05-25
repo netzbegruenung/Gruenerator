@@ -21,6 +21,7 @@ export {
   useChatEndpoints,
   type ChatConfig,
   type ResolvedEndpoints,
+  type ChatRequestContext,
 } from './stores/chatConfigStore';
 
 // Runtime Adapters (platform-agnostic — no web deps)
