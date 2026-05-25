@@ -15,9 +15,11 @@ import { z } from 'zod';
 import {
   createUserAgentBodySchema,
   updateUserAgentBodySchema,
+  draftAgentBodySchema,
   userAgentsListResponseSchema,
   userAgentItemResponseSchema,
   userAgentDeleteResponseSchema,
+  userAgentDraftResponseSchema,
   userAgentErrorResponseSchema,
 } from '../schemas/userAgents.js';
 
@@ -50,6 +52,22 @@ export const userAgentsContract = c.router(
         500: userAgentErrorResponseSchema,
       },
       summary: 'Create a user agent',
+    },
+
+    /** POST /api/user-agents/draft — synthesize an agent spec from a creator conversation. */
+    draft: {
+      method: 'POST',
+      path: '/api/user-agents/draft',
+      body: draftAgentBodySchema,
+      responses: {
+        200: userAgentDraftResponseSchema,
+        400: userAgentErrorResponseSchema,
+        401: userAgentErrorResponseSchema,
+        403: userAgentErrorResponseSchema,
+        404: userAgentErrorResponseSchema,
+        500: userAgentErrorResponseSchema,
+      },
+      summary: 'Draft an agent spec from the creator conversation',
     },
 
     /** POST /api/user-agents/convert-cg/:slug — persist a virtualized custom generator. */

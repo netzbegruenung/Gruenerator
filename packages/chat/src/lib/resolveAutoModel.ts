@@ -25,6 +25,9 @@ export interface AutoResolverContext {
 
 export function resolveAutoModel(ctx: AutoResolverContext): TextModelId {
   if (ctx.threadMode === 'notebook') return 'mistral-medium-3.5';
+  // Mistral for instruction-heavy agents (e.g. the agent creator) so "auto"
+  // lands on a strong instruction-follower rather than the GPT-OSS default.
+  if (ctx.agent?.autoRoutingHint === 'precise') return 'mistral-medium-3.5';
   if (ctx.agent?.autoRoutingHint === 'creative') return 'gemma-litellm';
   return 'litellm';
 }

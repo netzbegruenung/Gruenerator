@@ -135,3 +135,40 @@ export const userAgentErrorResponseSchema = z.object({
   message: z.string(),
   agent: userAgentSchema.optional(),
 });
+
+// ── Conversational draft (creator) ────────────────────────────────────────────
+
+/**
+ * POST /api/user-agents/draft — synthesize a spec from a creator conversation.
+ * The server loads the thread's messages (ownership-checked) rather than
+ * trusting a client-supplied transcript.
+ */
+export const draftAgentBodySchema = z.object({
+  threadId: z.string().min(1),
+});
+
+/**
+ * The agent spec the creator synthesizes from the conversation. A subset of the
+ * create body — `identifier`, `model`/`provider`/`params`, and the notebook
+ * binding are filled in by the frontend (slug derivation, defaults, the
+ * notebook picker), not the LLM.
+ */
+export const draftedAgentSpecSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  systemRole: z.string(),
+  avatar: z.string(),
+  backgroundColor: z.string(),
+  enabledTools: z.array(z.string()),
+  skillMentions: z.array(z.string()),
+  locale: z.string(),
+  openingMessage: z.string(),
+  openingQuestions: z.array(z.string()),
+});
+
+export type DraftedAgentSpec = z.infer<typeof draftedAgentSpecSchema>;
+
+export const userAgentDraftResponseSchema = z.object({
+  success: z.boolean(),
+  spec: draftedAgentSpecSchema,
+});
