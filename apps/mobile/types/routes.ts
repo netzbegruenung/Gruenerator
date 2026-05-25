@@ -31,6 +31,7 @@ export type AppRoute =
   | '/auth/callback'
   // Focused routes
   | '/(focused)/chat-conversation'
+  | '/(focused)/notebook-detail'
   | '/(focused)/image-studio-create/image'
   | '/(focused)/image-studio-create/ki-input'
   | '/(focused)/image-studio-create/template-input'
@@ -50,6 +51,11 @@ export interface ModalRouteParams {
     notebookId?: string;
     agentId?: string;
     initialComposerText?: string;
+  };
+  '/(focused)/notebook-detail': {
+    notebookId: string;
+    title?: string;
+    kind: 'system' | 'user';
   };
   '/(fullscreen)/subtitle-editor': {
     projectId: string;
