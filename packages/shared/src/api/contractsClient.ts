@@ -21,6 +21,7 @@ import {
   exportsContract,
   recentValuesContract,
   searchContract,
+  researchContract,
   boardsContract,
   boardCommentsContract,
   publicBoardsContract,
@@ -139,6 +140,7 @@ const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
+const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
 const _boardCommentsClient = () => initClient(boardCommentsContract, CLIENT_OPTS);
 const _publicBoardsClient = () => initClient(publicBoardsContract, CLIENT_OPTS);
@@ -165,6 +167,7 @@ export interface ContractsClient {
   exports: ReturnType<typeof _exportsClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
   search: ReturnType<typeof _searchClient>;
+  research: ReturnType<typeof _researchClient>;
   boards: ReturnType<typeof _boardsClient>;
   boardComments: ReturnType<typeof _boardCommentsClient>;
   publicBoards: ReturnType<typeof _publicBoardsClient>;
@@ -208,6 +211,7 @@ export function getContractsClient(): ContractsClient {
     exports: _exportsClient(),
     recentValues: _recentValuesClient(),
     search: _searchClient(),
+    research: _researchClient(),
     boards: _boardsClient(),
     boardComments: _boardCommentsClient(),
     publicBoards: _publicBoardsClient(),
