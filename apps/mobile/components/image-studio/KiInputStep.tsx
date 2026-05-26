@@ -5,7 +5,8 @@
 
 import { getKiTypeConfig } from '@gruenerator/shared/image-studio';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { View, Text, TextInput, StyleSheet, useColorScheme, Image } from 'react-native';
+import { Image } from 'expo-image';
+import { View, Text, TextInput, StyleSheet, useColorScheme } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { useSpeechToText, appendTranscript } from '../../hooks/useSpeechToText';
@@ -133,7 +134,7 @@ export function KiInputStep({
           <Image
             source={{ uri: uploadedImageUri }}
             style={styles.previewImage}
-            resizeMode="cover"
+            contentFit="cover"
           />
           <View
             style={[
