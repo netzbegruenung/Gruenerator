@@ -58,10 +58,9 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           // Hidden until ready — remove entries to re-enable in the sidebar.
-          // landesverbaende: dev-only LV-Korpus analysis pages.
           // monitor: Themen-Monitor not online yet.
           // briefings: Briefing-Archiv hidden for now.
-          exclude: ['landesverbaende/**', 'monitor/**', 'briefings/**'],
+          exclude: ['monitor/**', 'briefings/**'],
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
