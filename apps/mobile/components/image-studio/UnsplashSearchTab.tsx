@@ -16,7 +16,7 @@ import {
   Pressable,
   ActivityIndicator,
   useColorScheme,
-  Dimensions,
+  useWindowDimensions,
   Alert,
 } from 'react-native';
 
@@ -28,10 +28,8 @@ import { UnsplashAttribution } from './UnsplashAttribution';
 
 import type { StockImage } from '@gruenerator/shared/image-studio';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const NUM_COLUMNS = 3;
 const ITEM_GAP = spacing.xsmall;
-const ITEM_SIZE = (SCREEN_WIDTH - spacing.medium * 2 - ITEM_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
 
 interface UnsplashSearchTabProps {
   onImageSelected: (uri: string, base64: string) => void;
@@ -41,6 +39,8 @@ export function UnsplashSearchTab({ onImageSelected }: UnsplashSearchTabProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const isDark = colorScheme === 'dark';
+  const { width } = useWindowDimensions();
+  const itemSize = (width - spacing.medium * 2 - ITEM_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
 
   const searchFn = useMemo(
     () => (q: string, p: number, pp: number) =>
@@ -101,7 +101,11 @@ export function UnsplashSearchTab({ onImageSelected }: UnsplashSearchTabProps) {
 
       return (
         <Pressable
-          style={[styles.imageItem, isSelected && styles.imageItemSelected]}
+          style={[
+            styles.imageItem,
+            { width: itemSize, height: itemSize },
+            isSelected && styles.imageItemSelected,
+          ]}
           onPress={() => void handleImagePress(item)}
           disabled={loadingImage !== null}
         >
@@ -115,7 +119,7 @@ export function UnsplashSearchTab({ onImageSelected }: UnsplashSearchTabProps) {
         </Pressable>
       );
     },
-    [loadingImage, handleImagePress]
+    [loadingImage, handleImagePress, itemSize]
   );
 
   const renderFooter = () => {
@@ -232,8 +236,6 @@ const styles = StyleSheet.create({
     marginBottom: ITEM_GAP,
   },
   imageItem: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
     borderRadius: borderRadius.medium,
     overflow: 'hidden',
   },

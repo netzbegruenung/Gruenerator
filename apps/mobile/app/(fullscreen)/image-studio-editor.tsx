@@ -8,15 +8,15 @@
  */
 
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useCallback, useRef, useState, useEffect } from 'react';
 import {
   View,
-  Image,
   Pressable,
   StyleSheet,
   useColorScheme,
-  Dimensions,
+  useWindowDimensions,
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,12 +40,12 @@ import { getImageDataUri } from '../../services/imageStudio';
 import { useImageStudioStore } from '../../stores/imageStudioStore';
 import { lightTheme, darkTheme, colors, spacing, borderRadius } from '../../theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 export default function FullscreenImageStudioEditor() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const imageWidth = width - spacing.medium * 2;
   const categoryModalRef = useRef<EditCategoryModalRef>(null);
 
   const [selectedCategory, setSelectedCategory] = useState<EditCategory | null>(null);
@@ -124,7 +124,11 @@ export default function FullscreenImageStudioEditor() {
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={styles.imageContainer}>
-        <Image source={{ uri: imageUri }} style={styles.image} resizeMode="contain" />
+        <Image
+          source={{ uri: imageUri }}
+          style={[styles.image, { width: imageWidth, maxWidth: imageWidth }]}
+          contentFit="contain"
+        />
         {isRegenerating && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color={colors.white} />
@@ -171,9 +175,7 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   image: {
-    width: SCREEN_WIDTH - spacing.medium * 2,
     aspectRatio: 1,
-    maxWidth: SCREEN_WIDTH - spacing.medium * 2,
     borderRadius: borderRadius.large,
   },
   loadingOverlay: {

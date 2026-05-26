@@ -9,7 +9,6 @@ import {
   Pressable,
   useColorScheme,
   ActivityIndicator,
-  Image,
   Linking,
   type ImageSourcePropType,
 } from 'react-native';
@@ -114,7 +113,9 @@ export default function LoginScreen() {
         onPress={() => handleLogin(provider.source)}
         disabled={isLoading}
       >
-        {provider.logo && <Image source={provider.logo} style={styles.loginLogo} />}
+        {provider.logo && (
+          <BrandImage source={provider.logo} style={styles.loginLogo} contentFit="contain" />
+        )}
         <View style={styles.loginTextContent}>
           {isButtonLoading ? (
             <ActivityIndicator color={theme.text} />
@@ -227,7 +228,6 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     marginRight: spacing.medium,
-    resizeMode: 'contain',
   },
   loginTextContent: {
     flex: 1,

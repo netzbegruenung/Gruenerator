@@ -5,6 +5,7 @@
 
 import { useShareStore, type Share } from '@gruenerator/shared/share';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
@@ -12,13 +13,12 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  Image,
   Pressable,
   ActivityIndicator,
   useColorScheme,
+  useWindowDimensions,
   RefreshControl,
   Alert,
-  Dimensions,
 } from 'react-native';
 
 import { shareImage } from '../../../../services/imageStudio';
@@ -31,15 +31,15 @@ import {
   typography,
 } from '../../../../theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const NUM_COLUMNS = 2;
 const ITEM_GAP = spacing.small;
-const ITEM_SIZE = (SCREEN_WIDTH - spacing.medium * 2 - ITEM_GAP) / NUM_COLUMNS;
 
 export default function GalleryScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const { width } = useWindowDimensions();
+  const numColumns = width >= 700 ? 3 : 2;
+  const itemSize = (width - spacing.medium * 2 - ITEM_GAP * (numColumns - 1)) / numColumns;
 
   const { shares, isLoading, fetchUserShares, deleteShare } = useShareStore();
   const [refreshing, setRefreshing] = useState(false);
@@ -119,12 +119,16 @@ export default function GalleryScreen() {
         item.thumbnailUrl || `https://gruenerator.eu/share/${item.shareToken}/thumbnail`;
 
       return (
-        <View style={styles.itemContainer}>
+        <View style={[styles.itemContainer, { width: itemSize }]}>
           <Pressable
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
             onPress={() => void handleShare(item)}
           >
-            <Image source={{ uri: imageUrl }} style={styles.itemImage} resizeMode="cover" />
+            <Image
+              source={{ uri: imageUrl }}
+              style={[styles.itemImage, { width: itemSize, height: itemSize }]}
+              contentFit="cover"
+            />
             <View style={styles.itemOverlay}>
               <Text style={styles.itemTitle} numberOfLines={1}>
                 {item.title || 'Sharepic'}
@@ -145,7 +149,7 @@ export default function GalleryScreen() {
         </View>
       );
     },
-    [handleShare, handleDelete]
+    [handleShare, handleDelete, itemSize]
   );
 
   const getEmptyStateContent = () => {
@@ -231,10 +235,11 @@ export default function GalleryScreen() {
       </View>
 
       <FlatList
+        key={numColumns}
         data={filteredShares}
         renderItem={renderItem}
         keyExtractor={(item) => item.shareToken}
-        numColumns={NUM_COLUMNS}
+        numColumns={numColumns}
         contentContainerStyle={styles.listContent}
         columnWrapperStyle={styles.columnWrapper}
         ListEmptyComponent={renderEmpty}
@@ -308,9 +313,7 @@ const styles = StyleSheet.create({
     gap: ITEM_GAP,
     marginBottom: ITEM_GAP,
   },
-  itemContainer: {
-    width: ITEM_SIZE,
-  },
+  itemContainer: {},
   item: {
     borderRadius: borderRadius.medium,
     overflow: 'hidden',
@@ -319,10 +322,7 @@ const styles = StyleSheet.create({
   itemPressed: {
     opacity: 0.8,
   },
-  itemImage: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
-  },
+  itemImage: {},
   itemOverlay: {
     position: 'absolute',
     bottom: 0,
