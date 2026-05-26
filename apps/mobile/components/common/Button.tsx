@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { type ReactNode } from 'react';
 import {
   Pressable,
@@ -34,6 +35,12 @@ export function Button({
 }: ButtonProps) {
   const isDisabled = disabled || loading;
 
+  const handlePress = () => {
+    if (isDisabled) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onPress();
+  };
+
   const getButtonStyle = (): ViewStyle => {
     switch (variant) {
       case 'primary':
@@ -64,15 +71,19 @@ export function Button({
     switch (variant) {
       case 'primary':
         return colors.white;
-      default:
+      case 'secondary':
+      case 'outline':
+      case 'ghost':
         return colors.primary[600];
     }
   };
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled }}
       style={({ pressed }) => [
         styles.button,
         getButtonStyle(),
