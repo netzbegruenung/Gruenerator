@@ -55,11 +55,11 @@ const categories: CategoryCard[] = [
     title: 'Grünerieren',
     icon: '✨',
     description: 'Erstelle grüne Inhalte: Texte, Sharepics, Untertitel und mehr.',
-    link: '/docs/gruenerieren/pro-modus',
+    link: '/docs/gruenerieren/ki-modelle',
     topPages: [
-      { title: 'Pro-Modus', link: '/docs/gruenerieren/pro-modus' },
+      { title: 'KI-Modelle', link: '/docs/gruenerieren/ki-modelle' },
       { title: 'Websuche', link: '/docs/gruenerieren/websuche' },
-      { title: 'Privacy-Mode', link: '/docs/gruenerieren/privacy-mode' },
+      { title: 'Dateien hinzufügen', link: '/docs/gruenerieren/dateien-hinzufuegen' },
     ],
   },
   {
