@@ -120,7 +120,17 @@ export default defineConfig(({ command }) => ({
       //    from packages/shared/src/api/contractsClient.ts"
       '@gruenerator/contracts': path.resolve(__dirname, '../../packages/contracts/src'),
     },
-    dedupe: ['d3-path'],
+    // React MUST be deduped to a single physical copy. pnpm installs several
+    // react versions (root 19.2.6, plus 19.2.3/19.2.4 nested under deps like
+    // @tanstack/react-query); without dedupe, Rolldown links TWO Reacts into
+    // the bundle. The second copy's dispatcher (ReactCurrentDispatcher.current)
+    // is null, so the first hook call from a component that imported it —
+    // QueryClientProvider's useEffect — throws "Cannot read properties of null
+    // (reading 'useEffect')" and white-screens the whole app.
+    // We CANNOT pin react via root pnpm.overrides (that forces mobile off its
+    // Expo-locked react and breaks the RN renderer — see CLAUDE.md), so the
+    // web bundle dedupes here instead.
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'd3-path'],
   },
   optimizeDeps: {
     include: [
@@ -203,32 +213,38 @@ export default defineConfig(({ command }) => ({
           }
           return 'assets/[name].[hash][extname]';
         },
-        // Code-splitting strategy — leaf libraries only.
+        // Code-splitting strategy — heavy LEAF libraries only.
         //
-        // History: commit 298ebe2f1 set `codeSplitting: false` after
-        // Rolldown's auto-chunker produced chunks with module-init order
-        // cycles, crashing prod with "TypeError: s is not a function"
-        // (react-markdown chunk) and "Cannot read properties of undefined
-        // (reading 'displayName')" (radix-ui Primitive chunk). The pre-298ebe2f1
-        // config nested `groups` directly under `codeSplitting`, which Rolldown
-        // silently dropped (the boolean|schema union accepted the object but
-        // the schema requires `groups` under `advancedChunks`, not under
-        // `codeSplitting`). Result: no manual chunking ever applied.
+        // History (the long version): splitting was disabled in #1063 after a
+        // site-wide "Cannot read properties of null (reading 'useEffect')"
+        // whitescreen that appeared to follow the chunk config. That diagnosis
+        // was WRONG. The real root cause (found via the deployed sourcemap, PR
+        // #1064) was DUPLICATE REACT: pnpm nested `react@19.2.3` under
+        // @tanstack/react-query while the app used `react@19.2.6`, so two React
+        // copies linked into the bundle and react-query's QueryClientProvider
+        // imported the one whose dispatcher was null. It reproduced in a SINGLE
+        // bundle too — proof that splitting was never the cause. The fix is
+        // `resolve.dedupe` above (react family → one physical copy).
         //
-        // This config uses `output.advancedChunks.groups` (the correct
-        // location) to name chunks for heavy LEAF libraries only — libs
-        // that export no Providers, hold no shared singletons, and are
-        // imported only inside lazy route components. Therefore none can participate in a
-        // cross-chunk init cycle: no other chunk reads from them at
-        // module-init time. React, Radix, react-markdown, and the workspace
-        // packages (`@gruenerator/ui`, `@gruenerator/chat`, etc.) are
-        // deliberately NOT split — they stay in the entry chunk where they
-        // are today, eliminating the original failure mode.
+        // With React deduped, splitting is safe again, so it is ON by default.
+        // Two invariants keep it safe; preserve them when editing groups:
+        //  1. `resolve.dedupe` must keep react/react-dom collapsed to ONE copy
+        //     (verify: only one `react/cjs/react.production.js` across all chunk
+        //     sourcemaps' `sources[]`).
+        //  2. Split heavy LEAF libs only — libs that export no Providers and
+        //     hold no shared singletons. React, Radix, react-markdown, and the
+        //     workspace packages (`@gruenerator/ui`, `@gruenerator/chat`,
+        //     canvas-editor, …) stay in the entry chunk. Do NOT add a
+        //     `pkg-canvas-editor` group: it ships Providers/hooks and pulls
+        //     react-konva, which historically tangled the init order.
         //
-        // Set `VITE_SINGLE_BUNDLE=1` in the environment for a one-redeploy
-        // revert to the pre-splitting single-bundle build with no code
-        // change. Each named chunk's size comment is the source-byte size
-        // measured from the analyzer; gzip is roughly ÷4.
+        // Note CI cannot catch a React-init regression — the build compiles
+        // green; such bugs only throw at runtime in the browser. Smoke-test a
+        // production build in a browser after touching this block.
+        //
+        // Escape hatch: set `VITE_SINGLE_BUNDLE=1` for a one-redeploy revert to
+        // a single bundle with no code change. Each group's size comment is the
+        // source-byte size (gzip ≈ ÷4).
         ...(process.env.VITE_SINGLE_BUNDLE === '1'
           ? { codeSplitting: false }
           : {
@@ -264,7 +280,14 @@ export default defineConfig(({ command }) => ({
                     test: /[\\/]node_modules[\\/](@hocuspocus|yjs|y-protocols|y-indexeddb|lib0)[\\/]/,
                   }, // ~450 KB
                   { name: 'vendor-imgly', test: /[\\/]node_modules[\\/]@imgly[\\/]/ }, // 167 KB
-                  { name: 'pkg-canvas-editor', test: /[\\/]packages[\\/]canvas-editor[\\/]/ }, // 1.4 MB
+                  // NOTE: do NOT add `pkg-canvas-editor` (or any other workspace
+                  // package) back here. canvas-editor ships React Providers/hooks
+                  // and imports react-konva (already split into `vendor-konva`),
+                  // so splitting it forms a cross-chunk init cycle: the
+                  // canvas-editor chunk renders while its `react` import binding is
+                  // still null → "Cannot read properties of null (reading
+                  // 'useEffect')". This crashed prod on master (commit e49af52ea).
+                  // Per the strategy comment above, only leaf libraries are split.
                 ],
               },
             }),
