@@ -25,23 +25,8 @@ Wenn du Dateien hochlädst:
 
 Das Dateien-Symbol (📎) findest du bei der Texterstellung. Klicke darauf und wähle deine Dateien aus. Der Grünerator zeigt dir:
 
-- **Seitenanzahl** bei PDFs (z.B. "dokument.pdf (5S.)")
 - **Validierungsstatus** der hochgeladenen Dateien
 - **Kompatibilitätswarnungen** falls nötig
-
-## Privacy Mode Besonderheiten
-
-Im Privacy Mode gelten besondere Regeln für den Datenschutz:
-
-**PDF-Limit**: Maximal 10 Seiten pro PDF-Datei
-
-**Keine Bilder**: Bilder werden im Privacy Mode nicht verarbeitet
-
-**Lokale Verarbeitung**: Texte werden lokal extrahiert, bevor sie an die KI gesendet werden
-
-:::tip Warum diese Einschränkungen?
-Im Privacy Mode werden datenschutzfreundliche KI-Anbieter verwendet, die bestimmte Beschränkungen haben. Dies gewährleistet den Schutz deiner sensiblen Daten.
-:::
 
 ## Praktische Anwendung
 
@@ -62,8 +47,6 @@ Im Privacy Mode werden datenschutzfreundliche KI-Anbieter verwendet, die bestimm
 ## Fehlerbehebung
 
 **Datei wird nicht akzeptiert**: Überprüfe das Dateiformat und die Größe
-
-**Privacy Mode Konflikt**: Reduziere PDF-Seiten oder wechsle in den Standardmodus
 
 **Verarbeitung dauert lange**: Große Dateien benötigen mehr Zeit für die Analyse
 
