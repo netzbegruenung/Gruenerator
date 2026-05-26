@@ -72,8 +72,10 @@ export function useMobileKeyboardOffset<T extends HTMLElement>(
     let lastKnownKeyboardHeight = 0;
 
     const update = () => {
-      const layoutHeight = document.documentElement.clientHeight;
-      const keyboardHeight = layoutHeight - vp.height - vp.offsetTop;
+      // `window.innerHeight` stays the full layout-viewport height when the iOS
+      // keyboard opens; `documentElement.clientHeight` can collapse to the
+      // shrunken visual viewport, yielding ~0 and a bar that never lifts.
+      const keyboardHeight = window.innerHeight - vp.height - vp.offsetTop;
       if (keyboardHeight > 50) lastKnownKeyboardHeight = keyboardHeight;
       setOffset(keyboardHeight);
     };
