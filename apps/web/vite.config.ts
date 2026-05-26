@@ -213,42 +213,39 @@ export default defineConfig(({ command }) => ({
           }
           return 'assets/[name].[hash][extname]';
         },
-        // Code-splitting is DISABLED by default. Do not re-enable it without
-        // a runtime smoke test (see below) — it has crashed prod three times.
+        // Code-splitting strategy — heavy LEAF libraries only.
         //
-        // History:
-        //  - pre-298ebe2f1: groups nested under `codeSplitting` (wrong schema
-        //    key) were silently dropped, so Rolldown's auto-chunker ran. It
-        //    produced module-init order cycles: "TypeError: s is not a function"
-        //    (react-markdown) and "Cannot read properties of undefined
-        //    (reading 'displayName')" (radix Primitive).
-        //  - 298ebe2f1: `codeSplitting: false` → crashes stopped.
-        //  - e49af52ea: re-enabled "leaf-only" `advancedChunks.groups`. Crashed
-        //    again: React was null inside the `pkg-canvas-editor` chunk.
-        //  - removing `pkg-canvas-editor` (#1062): the SAME crash reappeared in
-        //    the react-query (`useBaseQuery`) chunk, with React-DOM's reconciler
-        //    living inside `vendor-blocknote-export`.
+        // History (the long version): splitting was disabled in #1063 after a
+        // site-wide "Cannot read properties of null (reading 'useEffect')"
+        // whitescreen that appeared to follow the chunk config. That diagnosis
+        // was WRONG. The real root cause (found via the deployed sourcemap, PR
+        // #1064) was DUPLICATE REACT: pnpm nested `react@19.2.3` under
+        // @tanstack/react-query while the app used `react@19.2.6`, so two React
+        // copies linked into the bundle and react-query's QueryClientProvider
+        // imported the one whose dispatcher was null. It reproduced in a SINGLE
+        // bundle too — proof that splitting was never the cause. The fix is
+        // `resolve.dedupe` above (react family → one physical copy).
         //
-        // Why "leaf-only" is NOT enough: `advancedChunks.groups` only NAMES a
-        // few chunks; everything else (React, React-DOM, react-query, …) is
-        // still AUTO-split by Rolldown. The auto-splitter scatters React/
-        // React-DOM across chunks and forms a cross-chunk init cycle — any
-        // chunk that imports React but initializes before the chunk holding
-        // React-DOM's module body sees `React === null` →
-        // "Cannot read properties of null (reading 'useEffect')". The bug is
-        // the splitter, not any single package, which is why whack-a-mole on
-        // individual groups doesn't help.
+        // With React deduped, splitting is safe again, so it is ON by default.
+        // Two invariants keep it safe; preserve them when editing groups:
+        //  1. `resolve.dedupe` must keep react/react-dom collapsed to ONE copy
+        //     (verify: only one `react/cjs/react.production.js` across all chunk
+        //     sourcemaps' `sources[]`).
+        //  2. Split heavy LEAF libs only — libs that export no Providers and
+        //     hold no shared singletons. React, Radix, react-markdown, and the
+        //     workspace packages (`@gruenerator/ui`, `@gruenerator/chat`,
+        //     canvas-editor, …) stay in the entry chunk. Do NOT add a
+        //     `pkg-canvas-editor` group: it ships Providers/hooks and pulls
+        //     react-konva, which historically tangled the init order.
         //
-        // CI cannot catch this: the build compiles green; the cycle only
-        // throws at runtime in the browser. Re-enabling splitting therefore
-        // requires a runtime smoke test (load the app, assert no console
-        // error) BEFORE it ships — that gate does not exist yet.
+        // Note CI cannot catch a React-init regression — the build compiles
+        // green; such bugs only throw at runtime in the browser. Smoke-test a
+        // production build in a browser after touching this block.
         //
-        // To experiment with splitting locally, set `VITE_EXPERIMENTAL_SPLIT=1`.
-        // The `advancedChunks.groups` below are kept for that experiment; each
-        // size comment is the source-byte size (gzip ≈ ÷4). Until a smoke test
-        // exists, the default ships a single bundle.
-        ...(process.env.VITE_EXPERIMENTAL_SPLIT !== '1'
+        // Escape hatch: set `VITE_SINGLE_BUNDLE=1` for a one-redeploy revert to
+        // a single bundle with no code change. Each group's size comment is the
+        // source-byte size (gzip ≈ ÷4).
+        ...(process.env.VITE_SINGLE_BUNDLE === '1'
           ? { codeSplitting: false }
           : {
               advancedChunks: {
