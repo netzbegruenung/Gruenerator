@@ -186,7 +186,10 @@ export default defineConfig(({ command }) => ({
       resolveDependencies: (_filename, deps) =>
         deps.filter((d) => {
           const base = d.split('/').pop() ?? '';
-          return !/^(vendor-|pkg-canvas-editor)/.test(base);
+          // Drop heavy lazy vendor chunks from preload, but KEEP vendor-react:
+          // it's a static import of the entry (on the critical path), so
+          // preloading it avoids a startup waterfall.
+          return !/^(vendor-(?!react\.)|pkg-canvas-editor)/.test(base);
         }),
     },
     cssMinify: true,
@@ -227,12 +230,16 @@ export default defineConfig(({ command }) => ({
         // `resolve.dedupe` above (react family → one physical copy).
         //
         // With React deduped, splitting is safe again, so it is ON by default.
-        // Two invariants keep it safe; preserve them when editing groups:
+        // Three invariants keep it safe; preserve them when editing groups:
         //  1. `resolve.dedupe` must keep react/react-dom collapsed to ONE copy
         //     (verify: only one `react/cjs/react.production.js` across all chunk
         //     sourcemaps' `sources[]`).
-        //  2. Split heavy LEAF libs only — libs that export no Providers and
-        //     hold no shared singletons. React, Radix, react-markdown, and the
+        //  2. The `vendor-react` group below pins react + react-dom + scheduler
+        //     into ONE shared chunk (verify: react.production.js AND
+        //     react-dom-client.production.js both resolve to vendor-react.*.js).
+        //     Without it Rolldown scatters them into unrelated lazy chunks.
+        //  3. Split heavy LEAF libs only — libs that export no Providers and
+        //     hold no shared singletons. Radix, react-markdown, and the
         //     workspace packages (`@gruenerator/ui`, `@gruenerator/chat`,
         //     canvas-editor, …) stay in the entry chunk. Do NOT add a
         //     `pkg-canvas-editor` group: it ships Providers/hooks and pulls
@@ -250,6 +257,20 @@ export default defineConfig(({ command }) => ({
           : {
               advancedChunks: {
                 groups: [
+                  // React runtime — PINNED into one shared chunk, highest
+                  // priority. Without this, Rolldown's auto-chunker scatters
+                  // react and react-dom into unrelated lazy vendor chunks (it
+                  // put react in vendor-excalidraw and react-dom in
+                  // vendor-blocknote-export), since neither matches a group
+                  // test. Pinning them together keeps the React runtime in a
+                  // single chunk every other chunk depends on, so React and
+                  // React-DOM always initialize together and first. The trailing
+                  // [\\/] keeps `react/` from matching react-dom/react-konva/etc.
+                  {
+                    name: 'vendor-react',
+                    test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-sync-external-store)[\\/]/,
+                    priority: 100,
+                  },
                   // Heavy leaf libs (sorted by source size, largest first)
                   { name: 'vendor-excalidraw', test: /[\\/]node_modules[\\/]@excalidraw[\\/]/ }, // 4.7 MB
                   { name: 'vendor-mermaid', test: /[\\/]node_modules[\\/]mermaid[\\/]/ }, // 3.3 MB
