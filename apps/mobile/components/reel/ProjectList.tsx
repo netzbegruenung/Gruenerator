@@ -8,13 +8,13 @@ import {
 } from '@gruenerator/shared';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Image } from 'expo-image';
 import { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
-  Image,
   StyleSheet,
   useColorScheme,
   ActivityIndicator,
@@ -152,7 +152,7 @@ export function ProjectList({
                   headers: { Authorization: `Bearer ${authToken}` },
                 }}
                 style={styles.thumbnail}
-                resizeMode="cover"
+                contentFit="cover"
               />
             ) : (
               <View style={[styles.thumbnailPlaceholder, { backgroundColor: theme.border }]}>

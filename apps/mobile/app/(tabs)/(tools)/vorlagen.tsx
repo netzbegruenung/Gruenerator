@@ -1,16 +1,16 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Image } from 'expo-image';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
-  Image,
   Pressable,
   ActivityIndicator,
   useColorScheme,
+  useWindowDimensions,
   RefreshControl,
-  Dimensions,
   Linking,
   Alert,
 } from 'react-native';
@@ -26,14 +26,14 @@ import {
 } from '../../../services/vorlagen';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../../theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const NUM_COLUMNS = 2;
 const ITEM_GAP = spacing.small;
-const ITEM_SIZE = (SCREEN_WIDTH - spacing.medium * 2 - ITEM_GAP) / NUM_COLUMNS;
 
 export default function VorlagenScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const { width } = useWindowDimensions();
+  const numColumns = width >= 700 ? 3 : 2;
+  const itemSize = (width - spacing.medium * 2 - ITEM_GAP * (numColumns - 1)) / numColumns;
 
   const [templates, setTemplates] = useState<Template[]>([]);
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
@@ -158,15 +158,25 @@ export default function VorlagenScreen() {
       const isLiked = likedTemplates.has(item.id);
 
       return (
-        <View style={styles.itemContainer}>
+        <View style={[styles.itemContainer, { width: itemSize }]}>
           <Pressable
             style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
             onPress={() => void handleTemplatePress(item)}
           >
             {imageUrl ? (
-              <Image source={{ uri: imageUrl }} style={styles.itemImage} resizeMode="cover" />
+              <Image
+                source={{ uri: imageUrl }}
+                style={[styles.itemImage, { width: itemSize, height: itemSize * 0.75 }]}
+                contentFit="cover"
+              />
             ) : (
-              <View style={[styles.itemImage, styles.itemImagePlaceholder]}>
+              <View
+                style={[
+                  styles.itemImage,
+                  styles.itemImagePlaceholder,
+                  { width: itemSize, height: itemSize * 0.75 },
+                ]}
+              >
                 <Ionicons name="image-outline" size={32} color={colors.grey[400]} />
               </View>
             )}
@@ -204,7 +214,7 @@ export default function VorlagenScreen() {
         </View>
       );
     },
-    [handleTemplatePress, handleLikeToggle, likedTemplates, theme.textSecondary]
+    [handleTemplatePress, handleLikeToggle, likedTemplates, theme.textSecondary, itemSize]
   );
 
   const renderEmpty = () => (
@@ -248,10 +258,11 @@ export default function VorlagenScreen() {
       )}
 
       <FlatList
+        key={numColumns}
         data={filteredTemplates}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        numColumns={NUM_COLUMNS}
+        numColumns={numColumns}
         contentContainerStyle={styles.listContent}
         columnWrapperStyle={styles.columnWrapper}
         ListEmptyComponent={renderEmpty}
@@ -311,9 +322,7 @@ const styles = StyleSheet.create({
     gap: ITEM_GAP,
     marginBottom: ITEM_GAP,
   },
-  itemContainer: {
-    width: ITEM_SIZE,
-  },
+  itemContainer: {},
   item: {
     borderRadius: borderRadius.medium,
     overflow: 'hidden',
@@ -322,10 +331,7 @@ const styles = StyleSheet.create({
   itemPressed: {
     opacity: 0.8,
   },
-  itemImage: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE * 0.75,
-  },
+  itemImage: {},
   itemImagePlaceholder: {
     justifyContent: 'center',
     alignItems: 'center',
