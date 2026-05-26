@@ -43,12 +43,8 @@ export function VideoUploader({
   const pickVideo = useCallback(async () => {
     setError(null);
 
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      setError('Zugriff auf die Galerie wurde verweigert');
-      return;
-    }
-
+    // No permission request: launchImageLibraryAsync uses the Android Photo
+    // Picker, which needs no runtime permission (Google Play media policy).
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['videos'],
       allowsEditing: false,

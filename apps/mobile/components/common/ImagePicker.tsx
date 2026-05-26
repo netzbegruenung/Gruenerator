@@ -28,13 +28,8 @@ export function ImagePicker({
     setLoading(true);
 
     try {
-      const permissionResult = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        onError('Zugriff auf die Galerie wurde verweigert');
-        setLoading(false);
-        return;
-      }
-
+      // No permission request: launchImageLibraryAsync uses the Android Photo
+      // Picker, which needs no runtime permission (Google Play media policy).
       const result = await ExpoImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,

@@ -106,7 +106,9 @@ export function useReelProcessing() {
   const saveToGallery = useCallback(
     async (videoUri: string): Promise<boolean> => {
       try {
-        const { status } = await MediaLibrary.requestPermissionsAsync();
+        // Write-only: we only save to the gallery, never read it (Google Play
+        // media-permission policy — avoids requesting READ_MEDIA_IMAGES/VIDEO).
+        const { status } = await MediaLibrary.requestPermissionsAsync(true);
         if (status !== 'granted') {
           handleError('permission_denied');
           return false;
