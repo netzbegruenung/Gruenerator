@@ -17,7 +17,7 @@ import {
 
 import { ScreenScaffold } from '../../../components/navigation/ScreenScaffold';
 import { CommunityNotebooksSection } from '../../../components/notebook/CommunityNotebooksSection';
-import { NotebookCard } from '../../../components/notebook/NotebookCard';
+import { NotebookCard, notebookGridStyles } from '../../../components/notebook/NotebookCard';
 import { NotebookCreator } from '../../../components/notebook/NotebookCreator';
 import { NotebookSection } from '../../../components/notebook/NotebookSection';
 import { NotebooksHero } from '../../../components/notebook/NotebooksHero';
@@ -27,6 +27,7 @@ import {
   type MobileNotebookEntry,
 } from '../../../config/notebooksConfig';
 import { useNotebookSharing } from '../../../hooks/notebook/useNotebookSharing';
+import { useIsTablet } from '../../../hooks/useIsTablet';
 import {
   useNotebookCollections,
   type MobileNotebookCollection,
@@ -45,6 +46,7 @@ export default function NotebooksScreen() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const router = useRouter();
+  const isTablet = useIsTablet();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
@@ -242,17 +244,20 @@ export default function NotebooksScreen() {
             {filteredCollections.length > 0 && (
               <View style={styles.section}>
                 <Text style={[styles.sectionTitle, { color: theme.text }]}>Meine Notebooks</Text>
-                {filteredCollections.map((c) => (
-                  <NotebookCard
-                    key={c.id}
-                    icon="book"
-                    title={c.name}
-                    subtitle={collectionSubtitle(c)}
-                    onPress={() => handleCollectionPress(c.id, c.name)}
-                    onLongPress={() => handleCollectionActions(c)}
-                    isProcessing={processingIds.has(c.id)}
-                  />
-                ))}
+                <View style={isTablet ? notebookGridStyles.grid : undefined}>
+                  {filteredCollections.map((c) => (
+                    <NotebookCard
+                      key={c.id}
+                      icon="book"
+                      title={c.name}
+                      subtitle={collectionSubtitle(c)}
+                      onPress={() => handleCollectionPress(c.id, c.name)}
+                      onLongPress={() => handleCollectionActions(c)}
+                      isProcessing={processingIds.has(c.id)}
+                      style={isTablet ? notebookGridStyles.item : undefined}
+                    />
+                  ))}
+                </View>
               </View>
             )}
             {filteredResults.length === 0 && filteredCollections.length === 0 && (
@@ -324,17 +329,20 @@ export default function NotebooksScreen() {
                   Noch keine eigenen Notebooks.
                 </Text>
               ) : (
-                collections.map((c) => (
-                  <NotebookCard
-                    key={c.id}
-                    icon="book"
-                    title={c.name}
-                    subtitle={collectionSubtitle(c)}
-                    onPress={() => handleCollectionPress(c.id, c.name)}
-                    onLongPress={() => handleCollectionActions(c)}
-                    isProcessing={processingIds.has(c.id)}
-                  />
-                ))
+                <View style={isTablet ? notebookGridStyles.grid : undefined}>
+                  {collections.map((c) => (
+                    <NotebookCard
+                      key={c.id}
+                      icon="book"
+                      title={c.name}
+                      subtitle={collectionSubtitle(c)}
+                      onPress={() => handleCollectionPress(c.id, c.name)}
+                      onLongPress={() => handleCollectionActions(c)}
+                      isProcessing={processingIds.has(c.id)}
+                      style={isTablet ? notebookGridStyles.item : undefined}
+                    />
+                  ))}
+                </View>
               )}
             </View>
 

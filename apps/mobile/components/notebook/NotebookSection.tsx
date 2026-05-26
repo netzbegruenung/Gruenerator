@@ -1,11 +1,12 @@
 import { View, Text, StyleSheet, useColorScheme } from 'react-native';
 
 import { type MobileNotebookEntry } from '../../config/notebooksConfig';
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { spacing, lightTheme, darkTheme } from '../../theme';
 
-import { NotebookCard } from './NotebookCard';
+import { NotebookCard, notebookGridStyles } from './NotebookCard';
 
-/** A titled 2-column grid of system notebooks. Renders nothing when empty. */
+/** A titled list of system notebooks (2 columns on tablet). Renders nothing when empty. */
 export function NotebookSection({
   title,
   notebooks,
@@ -19,22 +20,26 @@ export function NotebookSection({
 }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  const isTablet = useIsTablet();
 
   if (notebooks.length === 0) return null;
 
   return (
     <View style={styles.section}>
       <Text style={[styles.sectionTitle, { color: theme.text }]}>{title}</Text>
-      {notebooks.map((notebook) => (
-        <NotebookCard
-          key={notebook.id}
-          icon={notebook.icon}
-          title={notebook.title}
-          meta={notebook.meta}
-          onPress={() => onNotebookPress(notebook)}
-          onLongPress={onNotebookLongPress ? () => onNotebookLongPress(notebook) : undefined}
-        />
-      ))}
+      <View style={isTablet ? notebookGridStyles.grid : undefined}>
+        {notebooks.map((notebook) => (
+          <NotebookCard
+            key={notebook.id}
+            icon={notebook.icon}
+            title={notebook.title}
+            meta={notebook.meta}
+            onPress={() => onNotebookPress(notebook)}
+            onLongPress={onNotebookLongPress ? () => onNotebookLongPress(notebook) : undefined}
+            style={isTablet ? notebookGridStyles.item : undefined}
+          />
+        ))}
+      </View>
     </View>
   );
 }

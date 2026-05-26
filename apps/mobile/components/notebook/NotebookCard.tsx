@@ -1,6 +1,15 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { type ReactNode } from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator, useColorScheme } from 'react-native';
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+  useColorScheme,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 
 import { colors, spacing, typography, borderRadius, lightTheme, darkTheme } from '../../theme';
 
@@ -18,6 +27,7 @@ export function NotebookCard({
   onLongPress,
   isProcessing,
   trailing,
+  style,
 }: {
   icon: IoniconsIconName;
   title: string;
@@ -29,6 +39,8 @@ export function NotebookCard({
   /** Replaces the default chevron (e.g. a like button). A nested Pressable here
    *  captures the touch, so tapping it won't also fire the card's onPress. */
   trailing?: ReactNode;
+  /** Extra root style — e.g. a width for laying cards out in a tablet grid. */
+  style?: StyleProp<ViewStyle>;
 }) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -40,6 +52,7 @@ export function NotebookCard({
       onLongPress={onLongPress}
       style={({ pressed }) => [
         styles.card,
+        style,
         {
           backgroundColor: pressed ? theme.surface : theme.card,
           borderColor: theme.cardBorder,
@@ -88,5 +101,21 @@ const styles = StyleSheet.create({
   cardMeta: {
     fontSize: 11,
     marginTop: 1,
+  },
+});
+
+/**
+ * Shared layout for rendering NotebookCards in a 2-column grid on tablets. Apply
+ * `grid` to the wrapping container and pass `item` as each card's `style`. On phones
+ * pass nothing — cards keep their default full-width stacked layout.
+ */
+export const notebookGridStyles = StyleSheet.create({
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xsmall,
+  },
+  item: {
+    width: '48%',
   },
 });
