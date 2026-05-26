@@ -117,7 +117,13 @@ export function NotificationList({ onNavigate }: Props) {
               {formatTimeAgo(item.created_at)}
             </Text>
           </View>
-          <Pressable onPress={() => dismiss(item.id)} hitSlop={8} style={styles.dismissBtn}>
+          <Pressable
+            onPress={() => dismiss(item.id)}
+            hitSlop={8}
+            style={styles.dismissBtn}
+            accessibilityLabel="Benachrichtigung schließen"
+            accessibilityRole="button"
+          >
             <Ionicons name="close" size={15} color={theme.textSecondary} />
           </Pressable>
         </Pressable>
