@@ -1,34 +1,16 @@
+import {
+  type ResearchResult as ContractResearchResult,
+  type ResearchSearchResponse,
+} from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useState, useCallback } from 'react';
-
-import apiClient from '../../../components/utils/apiClient';
 
 import { type SearchMode, type SortOption } from './useResearchFilters';
 
-export interface ResearchResult {
-  document_id: string;
-  title: string;
-  source_url: string | null;
-  relevant_content: string;
-  similarity_score: number;
-  chunk_count: number;
-  top_chunks: Array<{
-    preview: string;
-    chunk_index: number;
-    page_number: number | null;
-  }>;
-  collection_id?: string;
-  collection_name?: string;
-  published_at?: string | null;
-}
+/** Single research hit — derived from the ts-rest research contract. */
+export type ResearchResult = ContractResearchResult;
 
-interface ResearchResponse {
-  results: ResearchResult[];
-  metadata: {
-    totalResults: number;
-    collections: string[];
-    timeMs: number;
-  };
-}
+type ResearchMetadata = ResearchSearchResponse['metadata'];
 
 export interface SearchParams {
   query: string;
@@ -40,17 +22,17 @@ export interface SearchParams {
 
 export interface UseResearchOptions {
   /**
-   * When set, POSTs to /auth/notebook/:id/research-search (user-owned notebook,
-   * chunk-level Qdrant search scoped by ownership) instead of /research/search
-   * (system-collection endpoint). `collectionIds` and `filters` in SearchParams
-   * are ignored in this mode — the path UUID is the scope.
+   * When set, calls the per-notebook research-search contract route
+   * (ownership-scoped chunk-level Qdrant search) instead of the
+   * system-collection `/research/search` route. `collectionIds` and `filters`
+   * in SearchParams are ignored in this mode — the notebook id is the scope.
    */
   notebookId?: string;
 }
 
 interface UseResearchReturn {
   results: ResearchResult[];
-  metadata: ResearchResponse['metadata'] | null;
+  metadata: ResearchMetadata | null;
   isLoading: boolean;
   error: string | null;
   search: (params: SearchParams) => Promise<void>;
@@ -59,7 +41,7 @@ interface UseResearchReturn {
 
 export function useResearch(opts: UseResearchOptions = {}): UseResearchReturn {
   const [results, setResults] = useState<ResearchResult[]>([]);
-  const [metadata, setMetadata] = useState<ResearchResponse['metadata'] | null>(null);
+  const [metadata, setMetadata] = useState<ResearchMetadata | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,27 +56,43 @@ export function useResearch(opts: UseResearchOptions = {}): UseResearchReturn {
       setError(null);
 
       try {
-        const body: Record<string, unknown> = { query: query.trim() };
-        if (mode && mode !== 'hybrid') body.mode = mode;
-        if (sortBy && sortBy !== 'relevance') body.sortBy = sortBy;
+        const client = getContractsClient();
+        const trimmed = query.trim();
 
-        let url: string;
         if (notebookId) {
-          url = `/auth/notebook/${notebookId}/research-search`;
+          const result = await client.notebook.researchSearch({
+            params: { id: notebookId },
+            body: {
+              query: trimmed,
+              limit: null,
+              mode: mode ?? null,
+              sortBy: sortBy ?? null,
+            },
+          });
+          if (result.status !== 200) {
+            throw new Error(`Suche fehlgeschlagen (HTTP ${result.status})`);
+          }
+          setResults(result.body.results);
+          setMetadata(result.body.metadata);
         } else {
-          url = '/research/search';
-          if (collectionIds?.length) body.collectionIds = collectionIds;
-          if (filters) body.filters = filters;
+          const result = await client.research.search({
+            body: {
+              query: trimmed,
+              collectionIds: collectionIds ?? null,
+              limit: null,
+              filters: filters ?? null,
+              mode: mode ?? null,
+              sortBy: sortBy ?? null,
+            },
+          });
+          if (result.status !== 200) {
+            throw new Error(`Suche fehlgeschlagen (HTTP ${result.status})`);
+          }
+          setResults(result.body.results);
+          setMetadata(result.body.metadata);
         }
-
-        const response = await apiClient.post<ResearchResponse>(url, body);
-
-        setResults(response.data.results);
-        setMetadata(response.data.metadata);
-      } catch (err: unknown) {
-        const errResp = (err as { response?: { data?: { error?: string } } }).response;
-        const message = errResp?.data?.error ?? 'Suche fehlgeschlagen. Bitte erneut versuchen.';
-        setError(message);
+      } catch {
+        setError('Suche fehlgeschlagen. Bitte erneut versuchen.');
         setResults([]);
         setMetadata(null);
       } finally {
@@ -109,17 +107,17 @@ export function useResearch(opts: UseResearchOptions = {}): UseResearchReturn {
     setError(null);
 
     try {
-      const response = await apiClient.post<ResearchResponse>('/research/similar', {
-        sourceUrl,
-        collectionId,
+      const client = getContractsClient();
+      const result = await client.research.similar({
+        body: { sourceUrl, collectionId, limit: null },
       });
-
-      setResults(response.data.results);
-      setMetadata(response.data.metadata);
-    } catch (err: unknown) {
-      const errResp = (err as { response?: { data?: { error?: string } } }).response;
-      const message = errResp?.data?.error ?? 'Ähnliche Dokumente konnten nicht geladen werden.';
-      setError(message);
+      if (result.status !== 200) {
+        throw new Error(`Ähnliche Dokumente konnten nicht geladen werden (HTTP ${result.status})`);
+      }
+      setResults(result.body.results);
+      setMetadata(result.body.metadata);
+    } catch {
+      setError('Ähnliche Dokumente konnten nicht geladen werden.');
       setResults([]);
       setMetadata(null);
     } finally {
