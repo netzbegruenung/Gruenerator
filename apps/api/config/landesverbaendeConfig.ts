@@ -451,7 +451,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       contentSelectors: {
         title: ['h1', 'meta[property="og:title"]'],
         date: ['time[datetime]', '.tx_xblog_pi1 .date', 'meta[property="article:published_time"]'],
-        content: ['.tx_xblog_pi1', '.bodytext', 'article', 'main .content'],
+        // gruene.berlin (TYPO3 xBlog) renders the page body in .ce-bodytext inside
+        // the single-view .xBlog.single — NOT .tx_xblog_pi1 (empty in the rendered
+        // DOM) or .bodytext (wrong class). Targeting the body element avoids the
+        // $('body') fallback that swallowed header/nav/footer + the related-items
+        // sidebar. Verified across Beschlüsse, Wahlprogramm chapters and Presse —
+        // all share this template.
+        content: ['.xBlog.single .ce-bodytext', '.ce-bodytext', '.xBlog.single', 'article', 'main .content'],
         categories: ['.tx_xblog_pi1 .tags a', '.categories a'],
         author: ['.author', '.byline'],
       },
@@ -491,7 +497,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       contentSelectors: {
         title: ['h1', 'meta[property="og:title"]'],
         date: ['time[datetime]', '.tx_xblog_pi1 .date', 'meta[property="article:published_time"]'],
-        content: ['.tx_xblog_pi1', '.bodytext', 'article', 'main .content'],
+        // gruene.berlin (TYPO3 xBlog) renders the page body in .ce-bodytext inside
+        // the single-view .xBlog.single — NOT .tx_xblog_pi1 (empty in the rendered
+        // DOM) or .bodytext (wrong class). Targeting the body element avoids the
+        // $('body') fallback that swallowed header/nav/footer + the related-items
+        // sidebar. Verified across Beschlüsse, Wahlprogramm chapters and Presse —
+        // all share this template.
+        content: ['.xBlog.single .ce-bodytext', '.ce-bodytext', '.xBlog.single', 'article', 'main .content'],
         categories: ['.tx_xblog_pi1 .tags a', '.categories a'],
         author: ['.author', '.byline'],
       },
