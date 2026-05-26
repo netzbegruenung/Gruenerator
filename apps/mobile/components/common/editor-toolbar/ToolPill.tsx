@@ -79,6 +79,8 @@ export function ToolPill({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
     >
       <Ionicons name={icon} size={18} color={isActive ? colors.primary[700] : colors.grey[600]} />
       <Text style={[styles.label, { color: isActive ? colors.primary[700] : colors.grey[600] }]}>

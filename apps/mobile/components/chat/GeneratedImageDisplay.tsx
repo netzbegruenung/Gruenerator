@@ -49,6 +49,7 @@ export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage;
           source={{ uri: src }}
           style={[styles.image, { backgroundColor: theme.surface, borderColor: theme.border }]}
           contentFit="cover"
+          accessibilityLabel="Generiertes Bild"
         />
       </Pressable>
 
@@ -89,7 +90,11 @@ export function GeneratedImageDisplay({ image, theme }: { image: GeneratedImage;
       >
         <Pressable style={styles.lightbox} onPress={() => setZoomed(false)}>
           <Image source={{ uri: src }} style={styles.lightboxImage} contentFit="contain" />
-          <View style={styles.closeButton}>
+          <View
+            style={styles.closeButton}
+            accessibilityLabel="Schließen"
+            accessibilityRole="button"
+          >
             <Ionicons name="close" size={24} color={colors.white} />
           </View>
         </Pressable>
