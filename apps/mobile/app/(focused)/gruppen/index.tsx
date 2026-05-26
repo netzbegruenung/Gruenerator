@@ -7,6 +7,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   useColorScheme,
   ActivityIndicator,
   Pressable,
@@ -121,16 +122,16 @@ export default function GruppenScreen() {
     );
   } else {
     body = (
-      <ScrollView
+      <FlatList
         style={styles.container}
+        data={groups}
+        keyExtractor={(group: GroupSummary) => group.id}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={isRefetching} onRefresh={() => void refetch()} />
         }
-      >
-        {groups.map((group: GroupSummary) => (
+        renderItem={({ item: group }: { item: GroupSummary }) => (
           <Pressable
-            key={group.id}
             onPress={() => openGroup(group.id)}
             style={({ pressed }) => [
               styles.groupCard,
@@ -168,8 +169,8 @@ export default function GruppenScreen() {
               </Text>
             ) : null}
           </Pressable>
-        ))}
-      </ScrollView>
+        )}
+      />
     );
   }
 

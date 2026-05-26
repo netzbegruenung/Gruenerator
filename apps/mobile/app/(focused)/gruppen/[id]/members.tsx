@@ -6,7 +6,7 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   Pressable,
   ActivityIndicator,
   useColorScheme,
@@ -107,7 +107,9 @@ export default function GroupMembersScreen() {
           </Text>
         </View>
       ) : (
-        <ScrollView
+        <FlatList
+          data={members}
+          keyExtractor={(member) => member.user_id}
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl
@@ -115,13 +117,11 @@ export default function GroupMembersScreen() {
               onRefresh={() => void membersQuery.refetch()}
             />
           }
-        >
-          {members.map((member) => {
+          renderItem={({ item: member }) => {
             const isCreator = String(member.user_id) === String(createdBy);
             const canChange = isAdmin && !isCreator;
             return (
               <Pressable
-                key={member.user_id}
                 onPress={() => openMemberMenu(member)}
                 disabled={!canChange}
                 style={({ pressed }) => [
@@ -148,8 +148,8 @@ export default function GroupMembersScreen() {
                 ) : null}
               </Pressable>
             );
-          })}
-        </ScrollView>
+          }}
+        />
       )}
     </SafeAreaView>
   );

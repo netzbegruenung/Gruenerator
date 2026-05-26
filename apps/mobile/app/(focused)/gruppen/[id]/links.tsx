@@ -6,6 +6,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   Pressable,
   TextInput,
   Modal,
@@ -140,10 +141,12 @@ export default function GroupLinksScreen() {
           ) : null}
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.list}>
-          {links.map((link) => (
+        <FlatList
+          data={links}
+          keyExtractor={(link) => link.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item: link }) => (
             <Pressable
-              key={link.id}
               onPress={() => void openLink(link.url)}
               onLongPress={isAdmin ? () => setEditing(link) : undefined}
               style={({ pressed }) => [
@@ -179,13 +182,15 @@ export default function GroupLinksScreen() {
                 </Pressable>
               ) : null}
             </Pressable>
-          ))}
-          {isAdmin ? (
-            <Text style={[styles.hint, { color: theme.textSecondary }]}>
-              Lange tippen zum Bearbeiten.
-            </Text>
-          ) : null}
-        </ScrollView>
+          )}
+          ListFooterComponent={
+            isAdmin ? (
+              <Text style={[styles.hint, { color: theme.textSecondary }]}>
+                Lange tippen zum Bearbeiten.
+              </Text>
+            ) : null
+          }
+        />
       )}
 
       <LinkEditor
