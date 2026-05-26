@@ -16,6 +16,7 @@ import { useEffect } from 'react';
 import { View, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context';
 
 import { ErrorBoundary } from '../components/common/ErrorBoundary';
 import { AppDrawer } from '../components/navigation';
@@ -139,19 +140,21 @@ function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <KeyboardProvider>
-          <ActionSheetProvider>
-            <ErrorBoundary>
-              {/* AppDrawer (thread-list) wraps the whole Stack so threads/new-chat
-                  are reachable from any screen — incl. the pushed (focused)
-                  conversation. Gated on `user` to avoid an unauthenticated
-                  thread-list fetch during the login flow. */}
-              {user ? <AppDrawer>{appContent}</AppDrawer> : appContent}
-            </ErrorBoundary>
-          </ActionSheetProvider>
-        </KeyboardProvider>
-      </QueryClientProvider>
+      <SafeAreaProvider initialWindowMetrics={initialWindowMetrics}>
+        <QueryClientProvider client={queryClient}>
+          <KeyboardProvider>
+            <ActionSheetProvider>
+              <ErrorBoundary>
+                {/* AppDrawer (thread-list) wraps the whole Stack so threads/new-chat
+                    are reachable from any screen — incl. the pushed (focused)
+                    conversation. Gated on `user` to avoid an unauthenticated
+                    thread-list fetch during the login flow. */}
+                {user ? <AppDrawer>{appContent}</AppDrawer> : appContent}
+              </ErrorBoundary>
+            </ActionSheetProvider>
+          </KeyboardProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
