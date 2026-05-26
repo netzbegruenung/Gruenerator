@@ -6,6 +6,7 @@ export { threadsContract } from './threadsContract.js';
 export { exportsContract } from './exportsContract.js';
 export { recentValuesContract } from './recentValuesContract.js';
 export { searchContract } from './searchContract.js';
+export { researchContract } from './researchContract.js';
 export { chatGraphContract } from './chatGraphContract.js';
 export { boardsContract } from './boardsContract.js';
 export { boardCommentsContract } from './boardCommentsContract.js';
