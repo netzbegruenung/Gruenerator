@@ -54,7 +54,13 @@ export function BottomSheet({
   );
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+      accessibilityViewIsModal={true}
+    >
       {keyboardAvoiding ? (
         <KeyboardAvoidingView behavior="padding" style={styles.container}>
           {content}

@@ -6,19 +6,12 @@
 
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { File } from 'expo-file-system';
+import { Image } from 'expo-image';
 import * as MediaLibrary from 'expo-media-library';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  Pressable,
-  ActivityIndicator,
-  useColorScheme,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, useColorScheme } from 'react-native';
 
 import { Button } from '../../components/common/Button';
 import { shareFile } from '../../services/share';
@@ -120,7 +113,7 @@ export default function PushedContentScreen() {
 
   const handleSaveToGallery = useCallback(async () => {
     if (!localUri) return;
-    const { status } = await MediaLibrary.requestPermissionsAsync();
+    const { status } = await MediaLibrary.requestPermissionsAsync(true);
     if (status !== 'granted') return;
     await MediaLibrary.Asset.create(localUri);
     setSavedToGallery(true);
@@ -197,7 +190,7 @@ export default function PushedContentScreen() {
         {isVideo && localUri ? (
           <VideoView player={player} style={styles.preview} contentFit="contain" nativeControls />
         ) : localUri ? (
-          <Image source={{ uri: localUri }} style={styles.preview} resizeMode="contain" />
+          <Image source={{ uri: localUri }} style={styles.preview} contentFit="contain" />
         ) : null}
       </View>
 

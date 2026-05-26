@@ -8,7 +8,14 @@
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { Image, type ImageSource } from 'expo-image';
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, useColorScheme, Dimensions } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  useColorScheme,
+  useWindowDimensions,
+} from 'react-native';
 
 import { colors, spacing, lightTheme, darkTheme, typography } from '../../theme';
 
@@ -30,7 +37,7 @@ export function ImageCardGrid<T extends ImageCard>({ items, onPress }: ImageCard
   const isDark = colorScheme === 'dark';
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
-  const screenWidth = Dimensions.get('window').width;
+  const { width: screenWidth } = useWindowDimensions();
   const gridPadding = spacing.medium * 2;
   const gap = spacing.small;
   const cardWidth = (screenWidth - gridPadding - gap) / 2;

@@ -55,7 +55,7 @@ import notificationsRouter from './routes/notifications/index.js';
 import { mountNotificationsContractRouter } from './routes/notifications/notificationsContractRouter.js';
 import protokollRouter from './routes/protokoll/index.js';
 import { releasesRouter } from './routes/releases/index.js';
-import researchRouter from './routes/research/researchController.js';
+import { mountResearchContractRouter } from './routes/research/researchContractRouter.js';
 import scannerRouter from './routes/scanner/index.js';
 import {
   searchController as searchRouter,
@@ -631,7 +631,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountUnsplashContractRouter(app);
   app.use('/api/unsplash', publicReadLimiter, unsplashRouter);
   app.use('/api/web-search', publicReadLimiter, webSearchRouter);
-  app.use('/api/research', requireAuth, standardMutationLimiter, researchRouter);
+  // Apply auth + rate limiting on the prefix BEFORE mounting the ts-rest
+  // router (createExpressEndpoints registers routes directly on `app`, so the
+  // prefix middleware must be in place first to gate them).
+  app.use('/api/research', requireAuth, standardMutationLimiter);
+  mountResearchContractRouter(app);
   app.use('/api/image-generation', aiGenerationLimiter, imageGenerationRouter);
   app.use('/api/rate-limit', publicReadLimiter, rateLimitRouter);
 

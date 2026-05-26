@@ -85,7 +85,14 @@ export function ProfileMenu() {
 
   return (
     <>
-      <Pressable ref={triggerRef} onPress={handleOpen} style={styles.trigger} hitSlop={8}>
+      <Pressable
+        ref={triggerRef}
+        onPress={handleOpen}
+        style={styles.trigger}
+        hitSlop={8}
+        accessibilityLabel="Profilmenü öffnen"
+        accessibilityRole="button"
+      >
         <ProfileAvatar
           avatarRobotId={user?.avatar_robot_id}
           displayName={user?.display_name}

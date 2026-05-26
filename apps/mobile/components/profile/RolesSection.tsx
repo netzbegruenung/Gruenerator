@@ -81,6 +81,8 @@ export function RolesSection() {
             onPress={() => router.push('/(modals)/role-add' as Href)}
             hitSlop={8}
             style={styles.addIconButton}
+            accessibilityLabel="Rolle hinzufügen"
+            accessibilityRole="button"
           >
             <Ionicons name="add" size={24} color={colors.primary[600]} />
           </Pressable>
@@ -137,7 +139,13 @@ export function RolesSection() {
                     </Text>
                   ) : null}
                 </View>
-                <Pressable onPress={() => handleDelete(i)} hitSlop={8} style={styles.deleteButton}>
+                <Pressable
+                  onPress={() => handleDelete(i)}
+                  hitSlop={8}
+                  style={styles.deleteButton}
+                  accessibilityLabel="Rolle entfernen"
+                  accessibilityRole="button"
+                >
                   <Ionicons name="trash-outline" size={18} color={colors.error[500]} />
                 </Pressable>
               </View>
