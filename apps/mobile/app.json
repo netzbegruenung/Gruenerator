@@ -13,6 +13,8 @@
       "infoPlist": {
         "CFBundleAllowMixedLocalizations": true,
         "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "Grünerator braucht das Mikrofon, um deine Spracheingabe in Text umzuwandeln.",
+        "NSSpeechRecognitionUsageDescription": "Grünerator nutzt die Spracherkennung, um deine gesprochenen Eingaben in Text umzuwandeln.",
         "UISupportedInterfaceOrientations~ipad": [
           "UIInterfaceOrientationPortrait",
           "UIInterfaceOrientationPortraitUpsideDown",
