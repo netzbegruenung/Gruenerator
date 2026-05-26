@@ -45,7 +45,7 @@ export function SharepicResult({ sharepics, onNewGeneration }: SharepicResultPro
 
     setSaving(true);
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync(true);
       if (status !== 'granted') {
         Alert.alert('Berechtigung erforderlich', 'Bitte erlaube den Zugriff auf die Galerie.');
         return;

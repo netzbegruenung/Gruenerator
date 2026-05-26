@@ -42,27 +42,11 @@ export async function requestCameraPermission(): Promise<boolean> {
 }
 
 /**
- * Request media library permissions
- */
-export async function requestMediaLibraryPermission(): Promise<boolean> {
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status !== 'granted') {
-    Alert.alert(
-      'Galerie-Berechtigung',
-      'Bitte erlaube den Zugriff auf die Galerie, um Bilder auszuwählen.'
-    );
-    return false;
-  }
-  return true;
-}
-
-/**
  * Pick an image from the device gallery
  */
 export async function pickImageFromGallery(): Promise<ImagePickerResult | null> {
-  const hasPermission = await requestMediaLibraryPermission();
-  if (!hasPermission) return null;
-
+  // No permission request: launchImageLibraryAsync uses the Android Photo
+  // Picker, which needs no runtime permission (Google Play media policy).
   try {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -165,7 +149,8 @@ export async function base64ToFileUri(
  */
 export async function saveImageToGallery(base64Data: string): Promise<boolean> {
   try {
-    const { status } = await MediaLibrary.requestPermissionsAsync();
+    // Write-only: saving only, never reading the library.
+    const { status } = await MediaLibrary.requestPermissionsAsync(true);
     if (status !== 'granted') {
       Alert.alert(
         'Galerie-Berechtigung',
@@ -439,7 +424,6 @@ export async function generateProfilbild(
  */
 export const imageStudioService = {
   requestCameraPermission,
-  requestMediaLibraryPermission,
   pickImageFromGallery,
   takePhoto,
   base64ToFileUri,
