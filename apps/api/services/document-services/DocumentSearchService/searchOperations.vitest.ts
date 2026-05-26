@@ -34,27 +34,42 @@ import type { QdrantOperations } from '../../../database/services/QdrantOperatio
 
 type CapturedFilter = QdrantFilter | undefined;
 
-function makeMockQdrantOps(): { ops: QdrantOperations; captured: { filter: CapturedFilter } } {
-  const captured: { filter: CapturedFilter } = { filter: undefined };
+function makeMockQdrantOps(): {
+  ops: QdrantOperations;
+  captured: { filter: CapturedFilter; collection: string | undefined };
+} {
+  const captured: { filter: CapturedFilter; collection: string | undefined } = {
+    filter: undefined,
+    collection: undefined,
+  };
   const ops = {
-    searchWithQuality: vi.fn(async (_collection, _vec, filter) => {
+    searchWithQuality: vi.fn(async (collection, _vec, filter) => {
       captured.filter = filter;
+      captured.collection = collection;
       return [];
     }),
-    searchWithIntent: vi.fn(async (_collection, _vec, _intent, filter) => {
+    searchWithIntent: vi.fn(async (collection, _vec, _intent, filter) => {
       captured.filter = filter;
+      captured.collection = collection;
       return [];
     }),
-    hybridSearch: vi.fn(async (_collection, _vec, _query, filter) => {
+    hybridSearch: vi.fn(async (collection, _vec, _query, filter) => {
       captured.filter = filter;
+      captured.collection = collection;
       return { results: [] };
     }),
-    performTextSearch: vi.fn(async (_collection, _query, filter) => {
+    performTextSearch: vi.fn(async (collection, _query, filter) => {
       captured.filter = filter;
+      captured.collection = collection;
       return [];
     }),
   } as unknown as QdrantOperations;
   return { ops, captured };
+}
+
+function hasClause(filter: CapturedFilter, key: string): boolean {
+  if (!filter?.must) return false;
+  return filter.must.some((clause) => 'key' in clause && (clause as { key: string }).key === key);
 }
 
 function hasUserIdClause(filter: CapturedFilter): boolean {
@@ -180,6 +195,55 @@ describe('searchOperations — document scoping vs. user scoping invariant', () 
 
       expect(hasUserIdClause(captured.filter)).toBe(true);
       expect(hasDocumentIdClause(captured.filter)).toBe(false);
+    });
+
+    // Regression: "Volltext" on LV notebooks searched the per-user 'documents'
+    // collection with a user_id filter (always zero hits for system content).
+    // It must instead query the requested system collection with its scoping.
+    it('searches the requested searchCollection, not hardcoded "documents"', async () => {
+      const { ops, captured } = makeMockQdrantOps();
+      await performTextSearch(
+        ops,
+        'query',
+        '',
+        { limit: 5, searchCollection: 'landesverbaende_documents' },
+        1,
+        async () => []
+      );
+
+      expect(captured.collection).toBe('landesverbaende_documents');
+    });
+
+    it('omits user_id filter for system collections', async () => {
+      const { ops, captured } = makeMockQdrantOps();
+      await performTextSearch(
+        ops,
+        'query',
+        '',
+        { limit: 5, searchCollection: 'landesverbaende_documents' },
+        1,
+        async () => []
+      );
+
+      expect(hasUserIdClause(captured.filter)).toBe(false);
+    });
+
+    it('applies additionalFilter clauses (Landesverband scoping)', async () => {
+      const { ops, captured } = makeMockQdrantOps();
+      await performTextSearch(
+        ops,
+        'query',
+        '',
+        {
+          limit: 5,
+          searchCollection: 'landesverbaende_documents',
+          additionalFilter: { must: [{ key: 'landesverband', match: { value: 'bayern' } }] },
+        },
+        1,
+        async () => []
+      );
+
+      expect(hasClause(captured.filter, 'landesverband')).toBe(true);
     });
   });
 });
