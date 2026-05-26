@@ -4,12 +4,12 @@
  */
 
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   Pressable,
   ActivityIndicator,
@@ -125,7 +125,7 @@ export function ResultDisplay({
       </View>
 
       <View style={styles.imageContainer}>
-        <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
+        <Image source={{ uri: imageUri }} style={styles.image} contentFit="cover" />
         {/* Device gallery saved badge */}
         {saved && (
           <View style={styles.savedBadge}>

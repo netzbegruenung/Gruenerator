@@ -5,6 +5,7 @@
 
 import { useShareStore, type Share } from '@gruenerator/shared/share';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Image } from 'expo-image';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -13,20 +14,17 @@ import {
   Modal,
   Pressable,
   FlatList,
-  Image,
   ActivityIndicator,
   useColorScheme,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fetchMediathekImage } from '../../services/imageStudio';
 import { colors, spacing, borderRadius, lightTheme, darkTheme, typography } from '../../theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const NUM_COLUMNS = 3;
 const ITEM_GAP = spacing.xsmall;
-const ITEM_SIZE = (SCREEN_WIDTH - spacing.medium * 2 - ITEM_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
 
 interface MediathekSelectorProps {
   visible: boolean;
@@ -38,6 +36,8 @@ export function MediathekSelector({ visible, onClose, onImageSelect }: Mediathek
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const itemSize = (width - spacing.medium * 2 - ITEM_GAP * (NUM_COLUMNS - 1)) / NUM_COLUMNS;
 
   const { shares, isLoading, fetchUserShares } = useShareStore();
   const [selectedToken, setSelectedToken] = useState<string | null>(null);
@@ -88,11 +88,15 @@ export function MediathekSelector({ visible, onClose, onImageSelect }: Mediathek
 
       return (
         <Pressable
-          style={[styles.imageItem, isSelected && styles.imageItemSelected]}
+          style={[
+            styles.imageItem,
+            { width: itemSize, height: itemSize },
+            isSelected && styles.imageItemSelected,
+          ]}
           onPress={() => handleImagePress(item)}
           disabled={loadingImage}
         >
-          <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} resizeMode="cover" />
+          <Image source={{ uri: thumbnailUrl }} style={styles.thumbnail} contentFit="cover" />
           {isSelected && loadingImage && (
             <View style={styles.loadingOverlay}>
               <ActivityIndicator size="small" color={colors.white} />
@@ -108,7 +112,7 @@ export function MediathekSelector({ visible, onClose, onImageSelect }: Mediathek
         </Pressable>
       );
     },
-    [selectedToken, loadingImage, handleImagePress]
+    [selectedToken, loadingImage, handleImagePress, itemSize]
   );
 
   const renderEmpty = () => (
@@ -231,8 +235,6 @@ const styles = StyleSheet.create({
     marginBottom: ITEM_GAP,
   },
   imageItem: {
-    width: ITEM_SIZE,
-    height: ITEM_SIZE,
     borderRadius: borderRadius.medium,
     overflow: 'hidden',
     backgroundColor: colors.gray[100],

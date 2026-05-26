@@ -1,7 +1,8 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Image } from 'expo-image';
 import * as ExpoImagePicker from 'expo-image-picker';
 import { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Image, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 
 import { colors, spacing, borderRadius, typography } from '../../theme';
 
@@ -28,13 +29,8 @@ export function ImagePicker({
     setLoading(true);
 
     try {
-      const permissionResult = await ExpoImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        onError('Zugriff auf die Galerie wurde verweigert');
-        setLoading(false);
-        return;
-      }
-
+      // No permission request: launchImageLibraryAsync uses the Android Photo
+      // Picker, which needs no runtime permission (Google Play media policy).
       const result = await ExpoImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
@@ -118,8 +114,13 @@ export function ImagePicker({
     return (
       <View style={styles.container}>
         <View style={styles.previewContainer}>
-          <Image source={{ uri: selectedImage.uri }} style={styles.preview} resizeMode="cover" />
-          <Pressable style={styles.clearButton} onPress={onClear}>
+          <Image source={{ uri: selectedImage.uri }} style={styles.preview} contentFit="cover" />
+          <Pressable
+            style={styles.clearButton}
+            onPress={onClear}
+            accessibilityLabel="Bild entfernen"
+            accessibilityRole="button"
+          >
             <Ionicons name="close-circle" size={28} color={colors.white} />
           </Pressable>
         </View>

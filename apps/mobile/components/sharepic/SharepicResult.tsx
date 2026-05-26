@@ -1,17 +1,17 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { File, Paths } from 'expo-file-system';
+import { Image } from 'expo-image';
 import * as MediaLibrary from 'expo-media-library';
 import { useState, useCallback } from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   ScrollView,
   Pressable,
   useColorScheme,
+  useWindowDimensions,
   Alert,
-  Dimensions,
 } from 'react-native';
 
 import { shareFile } from '../../services/share';
@@ -25,13 +25,12 @@ interface SharepicResultProps {
   onNewGeneration?: () => void;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const IMAGE_WIDTH = SCREEN_WIDTH - spacing.medium * 2;
-
 export function SharepicResult({ sharepics, onNewGeneration }: SharepicResultProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const isDark = colorScheme === 'dark';
+  const { width } = useWindowDimensions();
+  const imageWidth = width - spacing.medium * 2;
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [savedIndices, setSavedIndices] = useState<Set<number>>(new Set());
@@ -45,7 +44,7 @@ export function SharepicResult({ sharepics, onNewGeneration }: SharepicResultPro
 
     setSaving(true);
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync(true);
       if (status !== 'granted') {
         Alert.alert('Berechtigung erforderlich', 'Bitte erlaube den Zugriff auf die Galerie.');
         return;
@@ -137,7 +136,7 @@ export function SharepicResult({ sharepics, onNewGeneration }: SharepicResultPro
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={(e) => {
-          const newIndex = Math.round(e.nativeEvent.contentOffset.x / IMAGE_WIDTH);
+          const newIndex = Math.round(e.nativeEvent.contentOffset.x / imageWidth);
           if (newIndex >= 0 && newIndex < sharepics.length) {
             setCurrentIndex(newIndex);
           }
@@ -145,8 +144,8 @@ export function SharepicResult({ sharepics, onNewGeneration }: SharepicResultPro
         contentContainerStyle={styles.scrollContent}
       >
         {sharepics.map((sharepic, index) => (
-          <View key={sharepic.id || index} style={styles.imageContainer}>
-            <Image source={{ uri: sharepic.image }} style={styles.image} resizeMode="contain" />
+          <View key={sharepic.id || index} style={[styles.imageContainer, { width: imageWidth }]}>
+            <Image source={{ uri: sharepic.image }} style={styles.image} contentFit="contain" />
             {savedIndices.has(index) && (
               <View style={styles.savedBadge}>
                 <Ionicons name="checkmark-circle" size={16} color={colors.white} />
@@ -235,7 +234,6 @@ const styles = StyleSheet.create({
     gap: spacing.medium,
   },
   imageContainer: {
-    width: IMAGE_WIDTH,
     aspectRatio: 1,
     borderRadius: borderRadius.large,
     overflow: 'hidden',

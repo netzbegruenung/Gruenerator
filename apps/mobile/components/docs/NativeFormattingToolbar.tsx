@@ -24,6 +24,22 @@ function isDivider(item: ToolbarItem): item is ToolbarDivider {
   return 'divider' in item;
 }
 
+const A11Y_LABELS: Record<string, string> = {
+  bold: 'Fett',
+  italic: 'Kursiv',
+  underline: 'Unterstrichen',
+  strike: 'Durchgestrichen',
+  h1: 'Überschrift 1',
+  h2: 'Überschrift 2',
+  h3: 'Überschrift 3',
+  bullet: 'Aufzählung',
+  number: 'Nummerierte Liste',
+  check: 'Checkliste',
+  left: 'Linksbündig',
+  center: 'Zentriert',
+  right: 'Rechtsbündig',
+};
+
 export const NativeFormattingToolbar = memo(function NativeFormattingToolbar() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -163,6 +179,9 @@ export const NativeFormattingToolbar = memo(function NativeFormattingToolbar() {
             <Pressable
               key={item.id}
               onPress={item.action}
+              accessibilityLabel={A11Y_LABELS[item.id] ?? item.label}
+              accessibilityRole="button"
+              accessibilityState={{ selected: item.isActive }}
               style={[styles.button, item.isActive && { backgroundColor: activeColor }]}
             >
               {item.icon ? (
