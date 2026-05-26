@@ -10,7 +10,7 @@
     ],
     "overrides": {
       "@expo/dom-webview": "~56.0.5",
-      "@types/react": "^19.2.14",
+      "@types/react": "19.2.14",
       "@types/react-dom": "^19.2.3",
       "@hocuspocus/provider": "^3.4.4",
       "@isaacs/brace-expansion": ">=5.0.1",
@@ -72,19 +72,19 @@
     "@commitlint/config-conventional": "^20.5.3",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "@semantic-release/github": "^12.0.6",
-    "@types/node": "^25.6.0",
+    "@semantic-release/github": "^12.0.8",
+    "@types/node": "^25.9.1",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "eslint": "^9.39.4",
     "husky": "^9.1.7",
-    "knip": "^6.12.0",
-    "lint-staged": "^17.0.2",
+    "knip": "^6.14.2",
+    "lint-staged": "^17.0.5",
     "prettier": "^3.8.3",
     "semantic-release": "^25.0.3",
     "turbo": "^2.9.14",
     "typescript": "^6.0.3",
-    "wait-on": "^9.0.5"
+    "wait-on": "^9.0.10"
   },
   "scripts": {
     "knip": "knip",
