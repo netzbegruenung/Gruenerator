@@ -43,6 +43,9 @@ export function FloatingBadgeTabs({ tabs, activeTab, onTabPress, style }: Floati
             key={tab.key}
             onPress={() => onTabPress(tab.key)}
             activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
+            accessibilityLabel={tab.label}
             style={[
               styles.badge,
               isActive

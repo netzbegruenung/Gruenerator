@@ -15,6 +15,8 @@ export function SidebarMenuButton({ color, size = 26 }: Props) {
     <Pressable
       onPress={openDrawer}
       hitSlop={8}
+      accessibilityLabel="Menü öffnen"
+      accessibilityRole="button"
       style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}
     >
       <Ionicons name="menu" size={size} color={color} />
