@@ -411,7 +411,7 @@ importers:
   apps/gruen-o-mat:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.14.0
+        specifier: ^0.14.8
         version: 0.14.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(ioredis@5.10.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.6))
       '@gruenerator/chat':
         specifier: workspace:*
@@ -463,8 +463,8 @@ importers:
   apps/mobile:
     dependencies:
       '@assistant-ui/react-native':
-        specifier: ^0.1.15
-        version: 0.1.15(@types/react@19.2.14)(assistant-cloud@0.1.29(ioredis@5.10.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(immer@11.1.8)(react-native@0.85.3(@babel/core@7.29.7)(@react-native/metro-config@0.84.1(@babel/core@7.29.7))(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
+        specifier: ^0.1.17
+        version: 0.1.17(@types/react@19.2.14)(assistant-cloud@0.1.29(ioredis@5.10.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(immer@11.1.8)(ioredis@5.10.1)(react-native@0.85.3(@babel/core@7.29.7)(@react-native/metro-config@0.84.1(@babel/core@7.29.7))(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.3))
       '@expo-google-fonts/raleway':
         specifier: ^0.4.2
         version: 0.4.2
@@ -671,7 +671,7 @@ importers:
   apps/web:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.14.0
+        specifier: ^0.14.8
         version: 0.14.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(ioredis@5.10.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.6))
       '@blocknote/xl-odt-exporter':
         specifier: ^0.50.0
@@ -1146,11 +1146,11 @@ importers:
   packages/chat:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.14.0
+        specifier: ^0.14.8
         version: 0.14.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(ioredis@5.10.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.6))
       '@assistant-ui/react-markdown':
-        specifier: 0.14.0
-        version: 0.14.0(@assistant-ui/react@0.14.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(ioredis@5.10.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.6)))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        specifier: 0.14.1
+        version: 0.14.1(@assistant-ui/react@0.14.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(ioredis@5.10.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.6)))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@gruenerator/collab':
         specifier: workspace:*
         version: link:../collab
@@ -1528,8 +1528,8 @@ importers:
   packages/ui:
     dependencies:
       '@assistant-ui/react-markdown':
-        specifier: 0.14.0
-        version: 0.14.0(@assistant-ui/react@0.14.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(ioredis@5.10.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.6)))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        specifier: 0.14.1
+        version: 0.14.1(@assistant-ui/react@0.14.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(ioredis@5.10.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.6)))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@base-ui/react':
         specifier: ^1.5.0
         version: 1.5.0(@date-fns/tz@1.5.0)(@types/react@19.2.14)(date-fns@4.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -1616,7 +1616,7 @@ importers:
   packages/voice:
     dependencies:
       '@assistant-ui/react':
-        specifier: ^0.14.0
+        specifier: ^0.14.8
         version: 0.14.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(ioredis@5.10.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.6))
       react:
         specifier: ^19.0.0
@@ -2002,25 +2002,6 @@ packages:
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
 
-  '@assistant-ui/core@0.2.0':
-    resolution: {integrity: sha512-vxuCwoh+WCNbXEFYvEAiaO2WYRG2zCK9LSv54IZLX9iY5hyMu2Dp0GaVl/M0+NgDyiFwdV4miQ2IrahrZaWAIw==}
-    peerDependencies:
-      '@assistant-ui/store': ^0.2.10
-      '@assistant-ui/tap': ^0.5.11
-      '@types/react': 19.2.14
-      assistant-cloud: ^0.1.27
-      react: ^18 || ^19
-      zustand: ^5.0.11
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      assistant-cloud:
-        optional: true
-      react:
-        optional: true
-      zustand:
-        optional: true
-
   '@assistant-ui/core@0.2.5':
     resolution: {integrity: sha512-Hx5KJHfHe2YEQ85jOE5pvOJsji6iYp75IYzBj8XN9+ONu11wf5kvy0iyojwNoPo0TAjsnqgnv0WfZpnYOqGR2Q==}
     peerDependencies:
@@ -2040,18 +2021,18 @@ packages:
       zustand:
         optional: true
 
-  '@assistant-ui/react-markdown@0.14.0':
-    resolution: {integrity: sha512-G29cz4UHnQFyxTXCHsloMfyqHSuKSiPhkaAa069tWdf/Px3ZKCyhcP0TENCnsjqsw2iTFMVm8/Nqa0d5OwsdYw==}
+  '@assistant-ui/react-markdown@0.14.1':
+    resolution: {integrity: sha512-Q1S66rLS0J+b7jUjKrPGryLZsdg8v9NX/QdSTRmOCi5H6smWHfgMYvDypQ4BHn+4Tc+m3ggLKFPCgBV6t6iLhQ==}
     peerDependencies:
-      '@assistant-ui/react': ^0.14.0
+      '@assistant-ui/react': ^0.14.8
       '@types/react': 19.2.14
       react: ^18 || ^19
     peerDependenciesMeta:
       '@types/react':
         optional: true
 
-  '@assistant-ui/react-native@0.1.15':
-    resolution: {integrity: sha512-NjZr9lHqVLvYa0GKhFO6IL+bO2Y3VyS7oSiT5Pou0/EGHIwPD6ynaqoeyzd/Pe2WBIzjeR5g5qN2TpzZ+g4iug==}
+  '@assistant-ui/react-native@0.1.17':
+    resolution: {integrity: sha512-6rbfc3ezH24WitcSUwq+DSkzaIVmosIeo+WZjv6KHuMbEAcacoNUR4FfTNHoHvsAwXjDOtG5ff5AeeyGsucwOA==}
     peerDependencies:
       '@types/react': 19.2.14
       react: ^18 || ^19
@@ -2073,16 +2054,6 @@ packages:
       '@types/react-dom':
         optional: true
 
-  '@assistant-ui/store@0.2.10':
-    resolution: {integrity: sha512-cgbSFIv0Ovu6yls4GQy7brLVx6qwUyLTf1Ki/lkj3UFJrO6oktxstosWvQBwk5mNgH6t3DOIrGSBDJSKRfCW5Q==}
-    peerDependencies:
-      '@assistant-ui/tap': ^0.5.11
-      '@types/react': 19.2.14
-      react: ^18 || ^19
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-
   '@assistant-ui/store@0.2.12':
     resolution: {integrity: sha512-XIm0XfbC4gdZLuwbqnOTZgp3Okl8BGdl0LlDIRHV/KYHo1KGH572Gow0t/W0KfuAKbmOtngiZDoHn6pu7nhzjg==}
     peerDependencies:
@@ -2091,17 +2062,6 @@ packages:
       react: ^18 || ^19
     peerDependenciesMeta:
       '@types/react':
-        optional: true
-
-  '@assistant-ui/tap@0.5.11':
-    resolution: {integrity: sha512-wsEp6mn6BOQnP56OksWHarIQiMeCDcTzEiAORTUq0yxWa/co6a06UowFe6zZS6WQ56EQ3w02bfSBFrGnsrIv5A==}
-    peerDependencies:
-      '@types/react': 19.2.14
-      react: ^18 || ^19
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      react:
         optional: true
 
   '@assistant-ui/tap@0.5.12':
@@ -11244,9 +11204,6 @@ packages:
 
   assistant-cloud@0.1.29:
     resolution: {integrity: sha512-MumJHqA0eumNCSYYWgYJvbPhqsZ2K1y28pGQ7dPCJxPNUDXhUxOfYU9vuL786i5uawS2asf7ibzvKTCi2+LZuw==}
-
-  assistant-stream@0.3.13:
-    resolution: {integrity: sha512-lbnR4Z1j1nUY3PBcVERxSfOsSSHsCzPrMZPGuKNXgX7t4itxR1iND/1ucFwwp0EyMKG7YKH4kIWU7AEmO4od6Q==}
 
   assistant-stream@0.3.16:
     resolution: {integrity: sha512-jrz5TxUNnZCy5SHdEFGEbYc/So0AlRS1Uw0k6/K8rCwulrs81s8oC+XT3LsHVDVz1KEdosCWbb27DG4ItS1vxQ==}
@@ -22803,17 +22760,20 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.4
       lru-cache: 10.4.3
 
-  '@assistant-ui/core@0.2.0(@assistant-ui/store@0.2.10(@assistant-ui/tap@0.5.11(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(react@19.2.3))(@assistant-ui/tap@0.5.11(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(assistant-cloud@0.1.29(ioredis@5.10.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(react@19.2.3)(zustand@5.0.13(@types/react@19.2.14)(immer@11.1.8)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3)))':
+  '@assistant-ui/core@0.2.5(@assistant-ui/store@0.2.12(@assistant-ui/tap@0.5.12(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(react@19.2.3))(@assistant-ui/tap@0.5.12(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(assistant-cloud@0.1.29(ioredis@5.10.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(ioredis@5.10.1)(react@19.2.3)(redis@5.12.1(@opentelemetry/api@1.9.1))(zustand@5.0.13(@types/react@19.2.14)(immer@11.1.8)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3)))':
     dependencies:
-      '@assistant-ui/store': 0.2.10(@assistant-ui/tap@0.5.11(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(react@19.2.3)
-      '@assistant-ui/tap': 0.5.11(@types/react@19.2.14)(react@19.2.3)
-      assistant-stream: 0.3.13
+      '@assistant-ui/store': 0.2.12(@assistant-ui/tap@0.5.12(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(react@19.2.3)
+      '@assistant-ui/tap': 0.5.12(@types/react@19.2.14)(react@19.2.3)
+      assistant-stream: 0.3.16(ioredis@5.10.1)(redis@5.12.1(@opentelemetry/api@1.9.1))
       nanoid: 5.1.11
     optionalDependencies:
       '@types/react': 19.2.14
       assistant-cloud: 0.1.29(ioredis@5.10.1)(redis@5.12.1(@opentelemetry/api@1.9.1))
       react: 19.2.3
       zustand: 5.0.13(@types/react@19.2.14)(immer@11.1.8)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
+    transitivePeerDependencies:
+      - ioredis
+      - redis
 
   '@assistant-ui/core@0.2.5(@assistant-ui/store@0.2.12(@assistant-ui/tap@0.5.12(@types/react@19.2.14)(react@19.2.6))(@types/react@19.2.14)(react@19.2.6))(@assistant-ui/tap@0.5.12(@types/react@19.2.14)(react@19.2.6))(@types/react@19.2.14)(assistant-cloud@0.1.29(ioredis@5.10.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(ioredis@5.10.1)(react@19.2.6)(redis@5.12.1(@opentelemetry/api@1.9.1))(zustand@5.0.13(@types/react@19.2.14)(immer@11.1.8)(react@19.2.6)(use-sync-external-store@1.6.0(react@19.2.6)))':
     dependencies:
@@ -22830,7 +22790,7 @@ snapshots:
       - ioredis
       - redis
 
-  '@assistant-ui/react-markdown@0.14.0(@assistant-ui/react@0.14.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(ioredis@5.10.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.6)))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+  '@assistant-ui/react-markdown@0.14.1(@assistant-ui/react@0.14.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(ioredis@5.10.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.6)))(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
       '@assistant-ui/react': 0.14.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(ioredis@5.10.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.6))
       '@radix-ui/react-primitive': 2.1.4(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -22845,12 +22805,12 @@ snapshots:
       - react-dom
       - supports-color
 
-  '@assistant-ui/react-native@0.1.15(@types/react@19.2.14)(assistant-cloud@0.1.29(ioredis@5.10.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(immer@11.1.8)(react-native@0.85.3(@babel/core@7.29.7)(@react-native/metro-config@0.84.1(@babel/core@7.29.7))(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))':
+  '@assistant-ui/react-native@0.1.17(@types/react@19.2.14)(assistant-cloud@0.1.29(ioredis@5.10.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(immer@11.1.8)(ioredis@5.10.1)(react-native@0.85.3(@babel/core@7.29.7)(@react-native/metro-config@0.84.1(@babel/core@7.29.7))(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.3))':
     dependencies:
-      '@assistant-ui/core': 0.2.0(@assistant-ui/store@0.2.10(@assistant-ui/tap@0.5.11(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(react@19.2.3))(@assistant-ui/tap@0.5.11(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(assistant-cloud@0.1.29(ioredis@5.10.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(react@19.2.3)(zustand@5.0.13(@types/react@19.2.14)(immer@11.1.8)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3)))
-      '@assistant-ui/store': 0.2.10(@assistant-ui/tap@0.5.11(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(react@19.2.3)
-      '@assistant-ui/tap': 0.5.11(@types/react@19.2.14)(react@19.2.3)
-      assistant-stream: 0.3.13
+      '@assistant-ui/core': 0.2.5(@assistant-ui/store@0.2.12(@assistant-ui/tap@0.5.12(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(react@19.2.3))(@assistant-ui/tap@0.5.12(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(assistant-cloud@0.1.29(ioredis@5.10.1)(redis@5.12.1(@opentelemetry/api@1.9.1)))(ioredis@5.10.1)(react@19.2.3)(redis@5.12.1(@opentelemetry/api@1.9.1))(zustand@5.0.13(@types/react@19.2.14)(immer@11.1.8)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3)))
+      '@assistant-ui/store': 0.2.12(@assistant-ui/tap@0.5.12(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(react@19.2.3)
+      '@assistant-ui/tap': 0.5.12(@types/react@19.2.14)(react@19.2.3)
+      assistant-stream: 0.3.16(ioredis@5.10.1)(redis@5.12.1(@opentelemetry/api@1.9.1))
       react: 19.2.3
       react-native: 0.85.3(@babel/core@7.29.7)(@react-native/metro-config@0.84.1(@babel/core@7.29.7))(@types/react@19.2.14)(react@19.2.3)
       zustand: 5.0.13(@types/react@19.2.14)(immer@11.1.8)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
@@ -22859,6 +22819,8 @@ snapshots:
     transitivePeerDependencies:
       - assistant-cloud
       - immer
+      - ioredis
+      - redis
       - use-sync-external-store
 
   '@assistant-ui/react@0.14.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(ioredis@5.10.1)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(redis@5.12.1(@opentelemetry/api@1.9.1))(use-sync-external-store@1.6.0(react@19.2.6))':
@@ -22891,9 +22853,9 @@ snapshots:
       - redis
       - use-sync-external-store
 
-  '@assistant-ui/store@0.2.10(@assistant-ui/tap@0.5.11(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(react@19.2.3)':
+  '@assistant-ui/store@0.2.12(@assistant-ui/tap@0.5.12(@types/react@19.2.14)(react@19.2.3))(@types/react@19.2.14)(react@19.2.3)':
     dependencies:
-      '@assistant-ui/tap': 0.5.11(@types/react@19.2.14)(react@19.2.3)
+      '@assistant-ui/tap': 0.5.12(@types/react@19.2.14)(react@19.2.3)
       react: 19.2.3
       use-effect-event: 2.0.3(react@19.2.3)
     optionalDependencies:
@@ -22907,7 +22869,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.14
 
-  '@assistant-ui/tap@0.5.11(@types/react@19.2.14)(react@19.2.3)':
+  '@assistant-ui/tap@0.5.12(@types/react@19.2.14)(react@19.2.3)':
     optionalDependencies:
       '@types/react': 19.2.14
       react: 19.2.3
@@ -36231,12 +36193,6 @@ snapshots:
     transitivePeerDependencies:
       - ioredis
       - redis
-
-  assistant-stream@0.3.13:
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      nanoid: 5.1.11
-      secure-json-parse: 4.1.0
 
   assistant-stream@0.3.16(ioredis@5.10.1)(redis@5.12.1(@opentelemetry/api@1.9.1)):
     dependencies:
