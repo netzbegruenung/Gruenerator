@@ -120,7 +120,7 @@ export default function PushedContentScreen() {
 
   const handleSaveToGallery = useCallback(async () => {
     if (!localUri) return;
-    const { status } = await MediaLibrary.requestPermissionsAsync();
+    const { status } = await MediaLibrary.requestPermissionsAsync(true);
     if (status !== 'granted') return;
     await MediaLibrary.Asset.create(localUri);
     setSavedToGallery(true);

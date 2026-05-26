@@ -129,7 +129,7 @@ export function ExportScreen({
 
   const handleSaveToGallery = useCallback(async () => {
     if (!videoUri) return;
-    const { status: permStatus } = await MediaLibrary.requestPermissionsAsync();
+    const { status: permStatus } = await MediaLibrary.requestPermissionsAsync(true);
     if (permStatus !== 'granted') return;
     await MediaLibrary.Asset.create(videoUri);
     setSavedToGallery(true);
