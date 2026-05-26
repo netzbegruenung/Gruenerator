@@ -50,6 +50,15 @@ import type {
 import type { ScraperResult } from '../../types.js';
 
 /**
+ * Re-fetch an already-indexed URL once its last indexing is older than this.
+ * Living documents (Wahlprogramme, revised Beschlüsse) keep a stable URL but
+ * change in place; a permanent "URL exists → skip" gate froze them forever.
+ * On a re-fetch the content-hash diff in DocumentProcessor decides whether to
+ * actually re-embed, so unchanged pages cost only an HTTP GET, not embeddings.
+ */
+const RECHECK_AFTER_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+
+/**
  * Main scraper class - orchestrates all modules
  * Reduced from 1,139 lines to ~400 lines through modularization
  */
@@ -213,17 +222,9 @@ export class LandesverbandScraper extends BaseScraper {
       for (let i = 0; i < toProcess.length; i++) {
         const pdf = toProcess[i];
         try {
-          if (!forceUpdate) {
-            const points = await scrollDocuments(
-              this.qdrantClient,
-              targetCollection,
-              { must: [{ key: 'source_url', match: { value: pdf.url } }] },
-              { limit: 1, withPayload: false, withVector: false }
-            );
-            if (points.length > 0) {
-              result.skipped++;
-              continue;
-            }
+          if (!forceUpdate && (await this.#isFreshlyIndexed(pdf.url, targetCollection))) {
+            result.skipped++;
+            continue;
           }
 
           const response = await this.#fetchUrl(pdf.url);
@@ -388,17 +389,9 @@ export class LandesverbandScraper extends BaseScraper {
       for (let i = 0; i < toProcess.length; i++) {
         const url = toProcess[i];
         try {
-          if (!forceUpdate) {
-            const points = await scrollDocuments(
-              this.qdrantClient,
-              targetCollection,
-              { must: [{ key: 'source_url', match: { value: url } }] },
-              { limit: 1, withPayload: false, withVector: false }
-            );
-            if (points.length > 0) {
-              result.skipped++;
-              continue;
-            }
+          if (!forceUpdate && (await this.#isFreshlyIndexed(url, targetCollection))) {
+            result.skipped++;
+            continue;
           }
 
           const content = await ContentExtractor.extractPageContent(
@@ -773,6 +766,26 @@ export class LandesverbandScraper extends BaseScraper {
   #shouldExcludeUrl(url: string, excludePatterns?: string[]): boolean {
     if (!url || !excludePatterns) return false;
     return excludePatterns.some((pattern) => url.includes(pattern));
+  }
+
+  /**
+   * Layer-1 freshness gate. Returns true when the URL is already indexed AND was
+   * last indexed within RECHECK_AFTER_MS, in which case the caller skips the fetch.
+   * Missing, timestamp-less (legacy), or stale points return false so the caller
+   * re-fetches and lets the DocumentProcessor content-hash diff decide on re-embed.
+   */
+  async #isFreshlyIndexed(url: string, targetCollection: string): Promise<boolean> {
+    const points = await scrollDocuments(
+      this.qdrantClient,
+      targetCollection,
+      { must: [{ key: 'source_url', match: { value: url } }] },
+      { limit: 1, withPayload: true, withVector: false }
+    );
+    if (points.length === 0) return false;
+    const indexedAt = points[0].payload?.indexed_at as string | undefined;
+    if (!indexedAt) return false;
+    const age = Date.now() - new Date(indexedAt).getTime();
+    return Number.isFinite(age) && age >= 0 && age < RECHECK_AFTER_MS;
   }
 
   /**
