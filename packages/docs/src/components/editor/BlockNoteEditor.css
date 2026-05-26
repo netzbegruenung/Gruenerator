@@ -167,7 +167,7 @@
 @media (max-width: 767px) {
   .blocknote-static-toolbar .bn-formatting-toolbar {
     position: fixed;
-    bottom: var(--mobile-keyboard-offset, 0px);
+    bottom: 0;
     left: 0;
     right: 0;
     top: auto;
@@ -183,7 +183,7 @@
     border-radius: 0;
     z-index: 50;
     background: var(--grey-100, #f3f4f6);
-    transition: bottom 0.15s ease-out, opacity 0.15s ease-out, transform 0.15s ease-out;
+    transition: opacity 0.15s ease-out, transform 0.15s ease-out;
     touch-action: pan-x;
     opacity: 0;
     transform: translateY(100%);
@@ -192,7 +192,10 @@
 
   .blocknote-static-toolbar.has-selection .bn-formatting-toolbar {
     opacity: 1;
-    transform: translateY(0);
+    /* Lift above the on-screen keyboard via a compositor transform: iOS WebKit
+       (incl. Chrome for iPad) keeps `position: fixed` anchored to the layout
+       viewport, so `bottom` won't clear the keyboard, but a transform tracks it. */
+    transform: translateY(calc(-1 * var(--mobile-keyboard-offset, 0px)));
     pointer-events: auto;
   }
 
