@@ -325,12 +325,49 @@ export class DocumentSearchService extends BaseSearchService {
         return await this.performHybridSearch(validated as SearchParams);
       }
 
+      if (mode === 'text' || mode === 'keyword') {
+        console.log('[DocumentSearchService] Executing full-text search mode');
+        return await this.performTextOnlySearch(validated as SearchParams);
+      }
+
       return await this.performSimilaritySearch(validated as SearchParams);
     } catch (error) {
       const _errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[DocumentSearchService] Search error:', error);
       return this.createErrorResponse(error as Error, searchParams.query);
     }
+  }
+
+  /**
+   * Full-text (keyword-only) search routed from {@link search} for `mode: 'text'`.
+   *
+   * Mirrors performSimilaritySearch's param extraction so that
+   * searchCollection + additionalFilter (Landesverband scoping for system
+   * collections) reach the text primitive. Without this, `text` mode fell
+   * through to vector search and the "Volltext" toggle had no effect.
+   */
+  private async performTextOnlySearch(params: SearchParams): Promise<SearchResponse> {
+    const validated = this.validateSearchParams(params);
+    const { query, userId, filters, options } = validated;
+
+    if (!this.qdrantOps) {
+      throw new Error('Qdrant not available');
+    }
+
+    return await searchOps.performTextSearch(
+      this.qdrantOps,
+      query,
+      userId ?? '',
+      {
+        ...options,
+        documentIds: filters.documentIds,
+        sourceType: filters.sourceType,
+        searchCollection: filters.searchCollection,
+        additionalFilter: filters.additionalFilter,
+      },
+      this.chunkMultiplier,
+      this.groupAndRankHybridResults.bind(this)
+    );
   }
 
   /**

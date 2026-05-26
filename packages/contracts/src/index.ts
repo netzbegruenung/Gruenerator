@@ -22,6 +22,7 @@ export {
   exportsContract,
   recentValuesContract,
   searchContract,
+  researchContract,
   chatGraphContract,
   boardsContract,
   boardCommentsContract,
@@ -59,6 +60,7 @@ export * from './schemas/threads.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
 export * from './schemas/search.js';
+export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/boards.js';
 export * from './schemas/boardComments.js';
