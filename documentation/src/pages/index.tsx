@@ -46,10 +46,7 @@ const categories: CategoryCard[] = [
     icon: '👤',
     description: 'Personalisiere den Grünerator und nutze die Grüne Wolke für deine Inhalte.',
     link: '/docs/Profil/gruene-wolke-tutorial',
-    topPages: [
-      { title: 'Grüne Wolke Tutorial', link: '/docs/Profil/gruene-wolke-tutorial' },
-      { title: 'Anweisungen & Wissen', link: '/docs/Profil/anweisungen-wissen' },
-    ],
+    topPages: [{ title: 'Grüne Wolke Tutorial', link: '/docs/Profil/gruene-wolke-tutorial' }],
   },
   {
     title: 'Grünerieren',
