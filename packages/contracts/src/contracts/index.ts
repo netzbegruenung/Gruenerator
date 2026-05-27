@@ -37,3 +37,4 @@ export { userTemplatesContract } from './userTemplatesContract.js';
 export { userAgentsContract } from './userAgentsContract.js';
 export { canvasAiContract } from './canvasAi.js';
 export { groupsContract } from './groupsContract.js';
+export { contentSyncContract } from './contentSyncContract.js';
