@@ -38,3 +38,4 @@ export { userAgentsContract } from './userAgentsContract.js';
 export { canvasAiContract } from './canvasAi.js';
 export { canvasContract } from './canvasContract.js';
 export { groupsContract } from './groupsContract.js';
+export { monitorContract } from './monitorContract.js';
