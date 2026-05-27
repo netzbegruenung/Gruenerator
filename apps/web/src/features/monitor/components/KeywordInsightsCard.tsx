@@ -77,8 +77,15 @@ export function KeywordInsightsCard({ locale }: KeywordInsightsCardProps) {
                 {sourcesOpen && (
                   <div className="mt-sm">
                     <CitationSourcesDisplay
-                      sources={data.sources}
-                      citations={data.citations}
+                      sources={data.sources.map((s) => ({
+                        ...s,
+                        source_url: s.source_url ?? undefined,
+                      }))}
+                      citations={data.citations.map((c) => ({
+                        ...c,
+                        index: Number(c.index),
+                        source_url: c.source_url ?? undefined,
+                      }))}
                       linkConfig={LINK_CONFIG}
                       title=""
                     />

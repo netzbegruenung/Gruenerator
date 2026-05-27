@@ -1,5 +1,7 @@
 import { randomUUID } from 'crypto';
 
+import { monitorSnapshots, type MonitorSnapshotRow } from '../../database/schema/monitor.js';
+import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
@@ -340,19 +342,18 @@ async function upsertArticles(articles: MonitorArticle[]): Promise<void> {
 
 async function saveSnapshotAggregates(snapshot: MonitorSnapshot): Promise<void> {
   try {
-    await db().query(
-      `INSERT INTO monitor_snapshots (id, created_at, total_articles, sources, topic_scores, keywords, social_trends)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        snapshot.id,
-        snapshot.createdAt,
-        snapshot.totalArticles,
-        snapshot.sources,
-        JSON.stringify(snapshot.topics),
-        JSON.stringify(snapshot.keywords),
-        JSON.stringify(snapshot.socialTrends),
-      ]
-    );
+    // Drizzle typed insert: the column set is checked against the schema, so a
+    // reference to a non-existent column (the bug that broke this table before)
+    // is now a compile error rather than a runtime PG 42703.
+    await getDrizzleInstance().insert(monitorSnapshots).values({
+      id: snapshot.id,
+      created_at: snapshot.createdAt,
+      total_articles: snapshot.totalArticles,
+      sources: snapshot.sources,
+      topic_scores: snapshot.topics,
+      keywords: snapshot.keywords,
+      social_trends: snapshot.socialTrends,
+    });
   } catch (error) {
     log.error(`Failed to save snapshot: ${toError(error).message}`);
     throw error;
@@ -374,20 +375,20 @@ export async function getLatestSnapshot(locale?: MonitorLocale): Promise<Monitor
 
   // Rebuild from DB
   try {
-    const rows = await db().query(
+    const rows = await db().query<MonitorSnapshotRow>(
       'SELECT * FROM monitor_snapshots ORDER BY created_at DESC LIMIT 1'
     );
-    if (rows.length === 0) return null;
+    const row = rows[0];
+    if (!row) return null;
 
-    const row = rows[0] as Record<string, unknown>;
     const snapshot: MonitorSnapshot = {
-      id: row.id as string,
-      createdAt: row.created_at as string,
-      topics: row.topic_scores as TopicScore[],
-      keywords: (row.keywords as KeywordEntry[]) || [],
-      socialTrends: (row.social_trends as SocialTrend[]) || [],
-      totalArticles: row.total_articles as number,
-      sources: row.sources as string[],
+      id: row.id,
+      createdAt: row.created_at,
+      topics: row.topic_scores,
+      keywords: row.keywords ?? [],
+      socialTrends: row.social_trends ?? [],
+      totalArticles: row.total_articles,
+      sources: row.sources,
       articlesByLocale: { de: 0, at: 0 },
     };
 

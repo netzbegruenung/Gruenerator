@@ -1,70 +1,41 @@
+import {
+  type EntityResult,
+  type EntitySummaryResult,
+  type KeywordInsightsResult,
+  type MeinungsbildData,
+  type MeinungsbildEstimate,
+  type MeinungsbildIssue,
+  type MonitorArticle,
+  type MonitorBriefingResult,
+  type MonitorHistoryEntry,
+  type MonitorLocale,
+  type MonitorSearchResult,
+  type MonitorSnapshot,
+  type PollData,
+  type PollParliament,
+  type StimmungResult,
+  type TopicScore,
+  type WatcherEntityInfo,
+} from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import apiClient from '../../../components/utils/apiClient';
 
-import type { Citation, Source } from '../../../components/common/Citation';
-
-function localeQuery(locale?: MonitorLocale): string {
-  return locale ? `?locale=${locale}` : '';
-}
 import type { TopicCategory } from '../topicConfig';
 
-export type MonitorLocale = 'de' | 'at';
-
-interface MonitorArticle {
-  url: string;
-  title: string;
-  source: string;
-  publishedAt: string | null;
-  excerpt: string;
-  locale: MonitorLocale;
-  topics: Partial<Record<TopicCategory, number>>;
-  primaryTopic: TopicCategory | null;
-  erSentiment?: number;
-}
-
-interface TopicScore {
-  topic: TopicCategory;
-  score: number;
-  articleCount: number;
-  topArticles: MonitorArticle[];
-}
-
-interface KeywordEntry {
-  keyword: string;
-  count: number;
-  topic: TopicCategory | null;
-}
-
-interface SocialTrend {
-  rank: number;
-  name: string;
-  url: string;
-}
-
-interface MonitorSnapshot {
-  id: string;
-  createdAt: string;
-  topics: TopicScore[];
-  keywords?: KeywordEntry[];
-  socialTrends?: SocialTrend[];
-  totalArticles: number;
-  sources: string[];
-  articlesByLocale: { de: number; at: number };
-}
-
-interface HistoryEntry {
-  date: string;
-  topics: TopicScore[];
+/** Build the typed `locale` query object, omitting the key when undefined. */
+function localeQuery(locale?: MonitorLocale): { locale?: MonitorLocale } {
+  return locale ? { locale } : {};
 }
 
 export function useMonitorSnapshot(locale?: MonitorLocale) {
-  return useQuery<MonitorSnapshot>({
+  return useQuery({
     queryKey: ['monitor', 'latest', locale],
-    queryFn: async () => {
-      const params = localeQuery(locale);
-      const { data } = await apiClient.get<MonitorSnapshot>(`/monitor/latest${params}`);
-      return data;
+    queryFn: async (): Promise<MonitorSnapshot> => {
+      const res = await getContractsClient().monitor.latest({ query: localeQuery(locale) });
+      if (res.status === 200) return res.body;
+      throw new Error('Monitor-Daten konnten nicht geladen werden.');
     },
     refetchInterval: 5 * 60 * 1000,
     staleTime: 2 * 60 * 1000,
@@ -73,11 +44,12 @@ export function useMonitorSnapshot(locale?: MonitorLocale) {
 }
 
 export function useMonitorHistory(days = 7) {
-  return useQuery<HistoryEntry[]>({
+  return useQuery({
     queryKey: ['monitor', 'history', days],
-    queryFn: async () => {
-      const { data } = await apiClient.get<HistoryEntry[]>(`/monitor/history?days=${days}`);
-      return data;
+    queryFn: async (): Promise<MonitorHistoryEntry[]> => {
+      const res = await getContractsClient().monitor.history({ query: { days } });
+      if (res.status === 200) return res.body;
+      throw new Error('Verlauf konnte nicht geladen werden.');
     },
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
@@ -85,14 +57,16 @@ export function useMonitorHistory(days = 7) {
 }
 
 export function useTopicArticles(topic: TopicCategory | null, locale?: MonitorLocale) {
-  return useQuery<{ topic: string; articles: MonitorArticle[] }>({
+  return useQuery({
     queryKey: ['monitor', 'topic', topic, locale],
     queryFn: async () => {
-      const params = localeQuery(locale);
-      const { data } = await apiClient.get<{ topic: string; articles: MonitorArticle[] }>(
-        `/monitor/topic/${topic}${params}`
-      );
-      return data;
+      if (!topic) throw new Error('Kein Thema ausgewählt.');
+      const res = await getContractsClient().monitor.topicArticles({
+        params: { topic },
+        query: localeQuery(locale),
+      });
+      if (res.status === 200) return res.body;
+      throw new Error('Artikel konnten nicht geladen werden.');
     },
     enabled: !!topic,
     staleTime: 2 * 60 * 1000,
@@ -100,21 +74,15 @@ export function useTopicArticles(topic: TopicCategory | null, locale?: MonitorLo
   });
 }
 
-interface SearchResult {
-  query: string;
-  count: number;
-  sources: string[];
-  articles: MonitorArticle[];
-}
-
 export function useMonitorSearch(query: string, locale?: MonitorLocale) {
-  return useQuery<SearchResult>({
+  return useQuery({
     queryKey: ['monitor', 'search', query, locale],
-    queryFn: async () => {
-      const params = new URLSearchParams({ q: query });
-      if (locale) params.set('locale', locale);
-      const { data } = await apiClient.get<SearchResult>(`/monitor/search?${params}`);
-      return data;
+    queryFn: async (): Promise<MonitorSearchResult> => {
+      const res = await getContractsClient().monitor.search({
+        query: { q: query, ...localeQuery(locale) },
+      });
+      if (res.status === 200) return res.body;
+      throw new Error('Suche fehlgeschlagen.');
     },
     enabled: query.length >= 2,
     staleTime: 2 * 60 * 1000,
@@ -122,97 +90,54 @@ export function useMonitorSearch(query: string, locale?: MonitorLocale) {
   });
 }
 
-interface KeywordInsightsResult {
-  text: string;
-  citations: Citation[];
-  sources: Source[];
-}
-
 export function useKeywordInsights(locale?: MonitorLocale) {
-  return useQuery<KeywordInsightsResult>({
+  return useQuery({
     queryKey: ['monitor', 'keyword-insights', locale],
-    queryFn: async () => {
-      const params = localeQuery(locale);
-      const { data } = await apiClient.get<KeywordInsightsResult>(
-        `/monitor/keyword-insights${params}`
-      );
-      return data;
+    queryFn: async (): Promise<KeywordInsightsResult> => {
+      const res = await getContractsClient().monitor.keywordInsights({
+        query: localeQuery(locale),
+      });
+      if (res.status === 200) return res.body;
+      throw new Error('Keyword-Insights konnten nicht geladen werden.');
     },
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   });
-}
-
-interface MonitorBriefingResult {
-  briefing: string;
-  tweets: Array<{ text: string; topic: string; hashtags: string[] }>;
-  citations?: Array<{ id: string; title: string; url: string; snippet: string }>;
-  generatedAt: string;
 }
 
 export function useMonitorBriefing(locale?: MonitorLocale) {
-  return useQuery<MonitorBriefingResult>({
+  return useQuery({
     queryKey: ['monitor', 'briefing', locale],
-    queryFn: async () => {
-      const params = localeQuery(locale);
-      const { data } = await apiClient.get<MonitorBriefingResult>(`/monitor/briefing${params}`);
-      return data;
+    queryFn: async (): Promise<MonitorBriefingResult> => {
+      const res = await getContractsClient().monitor.briefing({ query: localeQuery(locale) });
+      if (res.status === 200) return res.body;
+      throw new Error('Briefing konnte nicht geladen werden.');
     },
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   });
 }
 
-interface StimmungResult {
-  overall: Record<string, number>;
-  byTopic: Array<{ topic: string; emotions: Record<string, number>; articleCount: number }>;
-  bySource: Array<{ source: string; emotions: Record<string, number>; articleCount: number }>;
-  byKeyword: Array<{ keyword: string; emotions: Record<string, number>; articleCount: number }>;
-  moodSummary?: string;
-  moodReason?: string;
-  dominantEmotion: string | null;
-}
-
 export function useStimmung(locale?: MonitorLocale) {
-  return useQuery<StimmungResult>({
+  return useQuery({
     queryKey: ['monitor', 'stimmung', locale],
-    queryFn: async () => {
-      const params = localeQuery(locale);
-      const { data } = await apiClient.get<StimmungResult>(`/monitor/stimmung${params}`);
-      return data;
+    queryFn: async (): Promise<StimmungResult> => {
+      const res = await getContractsClient().monitor.stimmung({ query: localeQuery(locale) });
+      if (res.status === 200) return res.body;
+      throw new Error('Stimmung konnte nicht geladen werden.');
     },
     staleTime: 10 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
 }
 
-interface PollResult {
-  institute: string;
-  date: string;
-  parties: Record<string, number | null>;
-}
-
-interface PollData {
-  polls: PollResult[];
-  lastElection: PollResult | null;
-  average: Record<string, number>;
-  scrapedAt: string;
-  source?: 'politpro';
-  parliament?: string;
-  trend?: Record<string, Array<{ date: string; value: number }>>;
-}
-
-export interface PollParliament {
-  id: string;
-  name: string;
-}
-
 export function usePolls(parliament = 'deutschland') {
-  return useQuery<PollData>({
+  return useQuery({
     queryKey: ['monitor', 'polls', parliament],
-    queryFn: async () => {
-      const { data } = await apiClient.get<PollData>(`/monitor/polls?parliament=${parliament}`);
-      return data;
+    queryFn: async (): Promise<PollData> => {
+      const res = await getContractsClient().monitor.polls({ query: { parliament } });
+      if (res.status === 200) return res.body;
+      throw new Error('Umfragedaten konnten nicht geladen werden.');
     },
     staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
@@ -220,51 +145,24 @@ export function usePolls(parliament = 'deutschland') {
 }
 
 export function usePollParliaments() {
-  return useQuery<PollParliament[]>({
+  return useQuery({
     queryKey: ['monitor', 'polls', 'parliaments'],
-    queryFn: async () => {
-      const { data } = await apiClient.get<PollParliament[]>('/monitor/polls/parliaments');
-      return data;
+    queryFn: async (): Promise<PollParliament[]> => {
+      const res = await getContractsClient().monitor.pollParliaments();
+      if (res.status === 200) return res.body;
+      throw new Error('Parlamente konnten nicht geladen werden.');
     },
     staleTime: 60 * 60 * 1000,
   });
 }
 
-interface WatcherEntityInfo {
-  id: string;
-  label: string;
-  keywords: string[];
-}
-
-interface EntityResult {
-  entity: { id: string; label: string };
-  count: number;
-  sources: string[];
-  articles: MonitorArticle[];
-}
-
-interface RiskItem {
-  title: string;
-  source: string;
-  reasoning: string;
-  severity: 'high' | 'medium' | 'low';
-}
-
-interface EntitySummaryResult {
-  entity: { id: string; label: string };
-  count: number;
-  summary: string;
-  attackAnalysis: string;
-  riskAnalysis?: { risks: RiskItem[]; opportunities: RiskItem[] } | null;
-  generatedAt: string;
-}
-
 export function useWatcherEntities() {
-  return useQuery<WatcherEntityInfo[]>({
+  return useQuery({
     queryKey: ['monitor', 'entities'],
-    queryFn: async () => {
-      const { data } = await apiClient.get<WatcherEntityInfo[]>('/monitor/entities');
-      return data;
+    queryFn: async (): Promise<WatcherEntityInfo[]> => {
+      const res = await getContractsClient().monitor.entities();
+      if (res.status === 200) return res.body;
+      throw new Error('Watcher-Entitäten konnten nicht geladen werden.');
     },
     staleTime: 60 * 60 * 1000,
     gcTime: 120 * 60 * 1000,
@@ -272,12 +170,16 @@ export function useWatcherEntities() {
 }
 
 export function useEntityResults(entityId: string | null, locale?: MonitorLocale) {
-  return useQuery<EntityResult>({
+  return useQuery({
     queryKey: ['monitor', 'entity', entityId, locale],
-    queryFn: async () => {
-      const params = localeQuery(locale);
-      const { data } = await apiClient.get<EntityResult>(`/monitor/entities/${entityId}${params}`);
-      return data;
+    queryFn: async (): Promise<EntityResult> => {
+      if (!entityId) throw new Error('Keine Entität ausgewählt.');
+      const res = await getContractsClient().monitor.entityResults({
+        params: { id: entityId },
+        query: localeQuery(locale),
+      });
+      if (res.status === 200) return res.body;
+      throw new Error('Entitäts-Ergebnisse konnten nicht geladen werden.');
     },
     enabled: !!entityId,
     staleTime: 5 * 60 * 1000,
@@ -286,14 +188,16 @@ export function useEntityResults(entityId: string | null, locale?: MonitorLocale
 }
 
 export function useEntitySummary(entityId: string | null, locale?: MonitorLocale) {
-  return useQuery<EntitySummaryResult>({
+  return useQuery({
     queryKey: ['monitor', 'entity-summary', entityId, locale],
-    queryFn: async () => {
-      const params = localeQuery(locale);
-      const { data } = await apiClient.get<EntitySummaryResult>(
-        `/monitor/entities/${entityId}/summary${params}`
-      );
-      return data;
+    queryFn: async (): Promise<EntitySummaryResult> => {
+      if (!entityId) throw new Error('Keine Entität ausgewählt.');
+      const res = await getContractsClient().monitor.entitySummary({
+        params: { id: entityId },
+        query: localeQuery(locale),
+      });
+      if (res.status === 200) return res.body;
+      throw new Error('Zusammenfassung konnte nicht geladen werden.');
     },
     enabled: !!entityId,
     staleTime: 10 * 60 * 1000,
@@ -304,12 +208,12 @@ export function useEntitySummary(entityId: string | null, locale?: MonitorLocale
 export function useBriefingRefresh(locale?: MonitorLocale) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      const params = localeQuery(locale);
-      const { data } = await apiClient.post<MonitorBriefingResult>(
-        `/monitor/briefing/refresh${params}`
-      );
-      return data;
+    mutationFn: async (): Promise<MonitorBriefingResult> => {
+      const res = await getContractsClient().monitor.refreshBriefing({
+        query: localeQuery(locale),
+      });
+      if (res.status === 200) return res.body;
+      throw new Error('Briefing konnte nicht neu generiert werden.');
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['monitor', 'briefing'] });
@@ -321,18 +225,30 @@ export function useMonitorRefresh() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const { data } = await apiClient.post<{
-        success: boolean;
-        totalArticles: number;
-        activeTopics: number;
-      }>('/monitor/refresh');
-      return data;
+      const res = await getContractsClient().monitor.refresh();
+      if (res.status === 200) return res.body;
+      throw new Error('Aktualisierung fehlgeschlagen.');
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['monitor'] });
     },
   });
 }
+
+export function useMeinungsbild() {
+  return useQuery({
+    queryKey: ['monitor', 'meinungsbild'],
+    queryFn: async (): Promise<MeinungsbildData> => {
+      const res = await getContractsClient().monitor.meinungsbild();
+      if (res.status === 200) return res.body;
+      throw new Error('Meinungsbild-Daten konnten nicht geladen werden.');
+    },
+    staleTime: 60 * 60 * 1000,
+    gcTime: 120 * 60 * 1000,
+  });
+}
+
+// ─── Research-backed topic positions (not part of the monitor contract) ──────
 
 interface TopicPositionResult {
   document_title: string;
@@ -385,49 +301,20 @@ export function useTopicDocuments(keyword?: string, locale: MonitorLocale = 'de'
   });
 }
 
-// --- Meinungsbild (GERDA MRP estimates) ---
-
-export interface MeinungsbildIssue {
-  id: string;
-  label_de: string;
-  category: string;
-  question_de: string;
-  direction: string;
-}
-
-export interface MeinungsbildEstimate {
-  state_code: string;
-  state_name: string;
-  estimate: number;
-  pop: number;
-}
-
-export interface MeinungsbildData {
-  issues: MeinungsbildIssue[];
-  estimates: Record<string, MeinungsbildEstimate[]>;
-  fetchedAt: string;
-}
-
-export function useMeinungsbild() {
-  return useQuery<MeinungsbildData>({
-    queryKey: ['monitor', 'meinungsbild'],
-    queryFn: async () => {
-      const { data } = await apiClient.get<MeinungsbildData>('/monitor/meinungsbild');
-      return data;
-    },
-    staleTime: 60 * 60 * 1000,
-    gcTime: 120 * 60 * 1000,
-  });
-}
-
+// Re-exported for the monitor components (shapes now derive from the contract).
 export type {
-  MonitorSnapshot,
-  TopicScore,
-  MonitorArticle,
-  HistoryEntry,
-  SearchResult,
-  WatcherEntityInfo,
   EntityResult,
   EntitySummaryResult,
+  MeinungsbildData,
   MeinungsbildData as MeinungsbildDataType,
+  MeinungsbildEstimate,
+  MeinungsbildIssue,
+  MonitorArticle,
+  MonitorHistoryEntry as HistoryEntry,
+  MonitorLocale,
+  MonitorSearchResult as SearchResult,
+  PollParliament,
+  TopicScore,
+  MonitorSnapshot,
+  WatcherEntityInfo,
 };
