@@ -213,13 +213,6 @@ export const COLLECTIONS: CollectionConfigMap = {
     filterableFields: {
       content_type: lvContentTypeField,
       source_type: lvSourceTypeField,
-      curated_lists: {
-        label: 'Liste',
-        type: 'keyword',
-        valueLabels: {
-          'wahlprogramm-be': 'Wahlprogramm',
-        },
-      } satisfies FilterFieldConfig<'curated_lists'>,
       published_at: { label: 'Datum', type: 'date_range' },
     },
     defaultSearchMode: 'hybrid',

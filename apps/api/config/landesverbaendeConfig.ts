@@ -77,6 +77,13 @@ export interface CuratedList {
   label: string;
   shortName?: string;
   urls: string[];
+  /**
+   * When set, documents matched to this list are stored with this content_type
+   * instead of the scraping content path's type. Lets a curated subset of a
+   * generic sitemap (e.g. the Wahlprogramm inside /beschluesse) surface under
+   * the "Typ" filter as its own type — without a separate scraper or alias URLs.
+   */
+  contentType?: ContentType;
 }
 
 export interface LandesverbaendeConfig {
@@ -457,7 +464,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         // $('body') fallback that swallowed header/nav/footer + the related-items
         // sidebar. Verified across Beschlüsse, Wahlprogramm chapters and Presse —
         // all share this template.
-        content: ['.xBlog.single .ce-bodytext', '.ce-bodytext', '.xBlog.single', 'article', 'main .content'],
+        content: [
+          '.xBlog.single .ce-bodytext',
+          '.ce-bodytext',
+          '.xBlog.single',
+          'article',
+          'main .content',
+        ],
         categories: ['.tx_xblog_pi1 .tags a', '.categories a'],
         author: ['.author', '.byline'],
       },
@@ -503,7 +516,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         // $('body') fallback that swallowed header/nav/footer + the related-items
         // sidebar. Verified across Beschlüsse, Wahlprogramm chapters and Presse —
         // all share this template.
-        content: ['.xBlog.single .ce-bodytext', '.ce-bodytext', '.xBlog.single', 'article', 'main .content'],
+        content: [
+          '.xBlog.single .ce-bodytext',
+          '.ce-bodytext',
+          '.xBlog.single',
+          'article',
+          'main .content',
+        ],
         categories: ['.tx_xblog_pi1 .tags a', '.categories a'],
         author: ['.author', '.byline'],
       },
@@ -781,6 +800,9 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       id: 'wahlprogramm-be',
       label: 'Wahlprogramm',
       shortName: 'BE',
+      // Store these /beschluesse chapters as content_type 'wahlprogramm' so they
+      // surface under the "Typ" filter as Wahlprogramme, not "Beschluss".
+      contentType: 'wahlprogramm',
       urls: [
         'https://gruene.berlin/beschluesse/unser-wahlprogramm_3762',
         'https://gruene.berlin/beschluesse/unser-wahlprogramm-1_3763',
@@ -832,8 +854,10 @@ export function getAllSourceIds(): string[] {
  * Extract the trailing TYPO3-style id (e.g. `_3763`) from a URL pathname,
  * keyed by hostname so /beschluesse/foo_3763 and /news/foo_3763 collide
  * but /beschluesse/foo_3763 on different domains do not.
+ *
+ * Exported so search-result assembly can collapse alias duplicates by node id.
  */
-function trailingSlugKey(url: string): string | null {
+export function trailingSlugKey(url: string): string | null {
   try {
     const u = new URL(url);
     const m = u.pathname.match(/_(\d+)$/);
@@ -867,6 +891,27 @@ export function getCuratedListsForUrl(url: string): string[] {
   }
 
   return matched;
+}
+
+/**
+ * Return the content_type override for a URL if it belongs to a curated list
+ * that declares one (e.g. wahlprogramm-be → 'wahlprogramm'). Matches by exact
+ * URL or trailing TYPO3 slug id, same as getCuratedListsForUrl. Returns null
+ * when no matched list overrides the type, so the caller keeps the scraper's.
+ */
+export function getCuratedContentTypeForUrl(url: string): ContentType | null {
+  const lists = LANDESVERBAENDE_CONFIG.curatedLists;
+  if (!lists?.length) return null;
+
+  const targetSlug = trailingSlugKey(url);
+  for (const list of lists) {
+    if (!list.contentType) continue;
+    if (list.urls.includes(url)) return list.contentType;
+    if (targetSlug && list.urls.some((u) => trailingSlugKey(u) === targetSlug)) {
+      return list.contentType;
+    }
+  }
+  return null;
 }
 
 export default LANDESVERBAENDE_CONFIG;

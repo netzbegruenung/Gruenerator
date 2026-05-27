@@ -1,3 +1,5 @@
+import { getContractsClient } from '@gruenerator/shared/api';
+
 import apiClient from '../../../components/utils/apiClient';
 
 import type { ImageStudioState } from '../types/storeTypes';
@@ -11,10 +13,6 @@ interface MediaUploadResponse {
     mediaType: string;
     createdAt: string;
   };
-}
-
-interface CanvasCreateResponse {
-  id: string;
 }
 
 async function uploadBlobToMediaLibrary(blob: Blob): Promise<string | null> {
@@ -122,13 +120,18 @@ export async function mintCanvasFromStudioStore(state: ImageStudioState): Promis
   const title = state.editTitle || 'Neuer Canvas';
   const format = state.selectedFormatId || 'post-portrait';
 
-  const res = await apiClient.post<CanvasCreateResponse>('/canvas', {
-    title,
-    template_type: state.type,
-    initial_state,
-    format,
-    page_count: 1,
+  const result = await getContractsClient().canvas.create({
+    body: {
+      title,
+      template_type: state.type,
+      initial_state,
+      format,
+      page_count: 1,
+    },
   });
+  if (result.status !== 201) {
+    throw new Error(`Failed to create canvas (HTTP ${result.status})`);
+  }
 
-  return { id: res.data.id };
+  return { id: result.body.id };
 }
