@@ -457,7 +457,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         // $('body') fallback that swallowed header/nav/footer + the related-items
         // sidebar. Verified across Beschlüsse, Wahlprogramm chapters and Presse —
         // all share this template.
-        content: ['.xBlog.single .ce-bodytext', '.ce-bodytext', '.xBlog.single', 'article', 'main .content'],
+        content: [
+          '.xBlog.single .ce-bodytext',
+          '.ce-bodytext',
+          '.xBlog.single',
+          'article',
+          'main .content',
+        ],
         categories: ['.tx_xblog_pi1 .tags a', '.categories a'],
         author: ['.author', '.byline'],
       },
@@ -503,7 +509,13 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         // $('body') fallback that swallowed header/nav/footer + the related-items
         // sidebar. Verified across Beschlüsse, Wahlprogramm chapters and Presse —
         // all share this template.
-        content: ['.xBlog.single .ce-bodytext', '.ce-bodytext', '.xBlog.single', 'article', 'main .content'],
+        content: [
+          '.xBlog.single .ce-bodytext',
+          '.ce-bodytext',
+          '.xBlog.single',
+          'article',
+          'main .content',
+        ],
         categories: ['.tx_xblog_pi1 .tags a', '.categories a'],
         author: ['.author', '.byline'],
       },
