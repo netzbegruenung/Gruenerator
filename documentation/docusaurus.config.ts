@@ -210,12 +210,8 @@ const config: Config = {
           title: 'Anleitung',
           items: [
             {
-              label: 'Pro-Modus',
-              to: '/docs/gruenerieren/pro-modus',
-            },
-            {
-              label: 'Privacy-Mode',
-              to: '/docs/gruenerieren/privacy-mode',
+              label: 'KI-Modelle',
+              to: '/docs/gruenerieren/ki-modelle',
             },
             {
               label: 'Grüne Wolke Tutorial',
