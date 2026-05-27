@@ -1,6 +1,7 @@
 import { drizzleAdapter } from '@better-auth/drizzle-adapter';
 import { type UserProfile } from '@gruenerator/contracts';
 import { betterAuth } from 'better-auth';
+import { createAuthMiddleware } from 'better-auth/api';
 import { bearer } from 'better-auth/plugins/bearer';
 import { genericOAuth } from 'better-auth/plugins/generic-oauth';
 import { drizzle } from 'drizzle-orm/node-postgres';
@@ -333,6 +334,41 @@ export const auth = betterAuth({
         },
       },
     },
+  },
+
+  // Surface SILENT OAuth-callback failures. handleOAuthUserInfo ends a failed
+  // sign-in with `throw ctx.redirect(errorURL?error=<code>)` — `account_not_linked`,
+  // `email_is_missing`, `email_doesn't_match`, plus any error Keycloak passes
+  // through. A thrown redirect is NOT an error, so `onAPIError` below never fires,
+  // and Better Auth's own "account isn't linked" warning is `isDevelopment()`-gated
+  // — so in production these failures leave no trace at all (this is exactly what
+  // made the 1.6.11 `requireLocalEmailVerified` regression invisible). The caught
+  // redirect sets `responseHeaders` (carrying `location`) before `runAfterHooks`
+  // runs, so this after-hook can read the error code off the redirect target and
+  // log + cluster it in GlitchTip (`auth.stage=oauth-callback`, fingerprint per
+  // code). Benign replay/expiry codes are skipped to keep bot noise out.
+  hooks: {
+    after: createAuthMiddleware(async (ctx) => {
+      if (!ctx.path.startsWith('/oauth2/callback')) return;
+      const location = ctx.context.responseHeaders?.get('location');
+      if (location == null) return;
+      let code: string | null = null;
+      try {
+        code = new URL(location, env.BETTER_AUTH_URL ?? 'http://localhost').searchParams.get(
+          'error'
+        );
+      } catch {
+        code = null;
+      }
+      if (code == null || code === 'please_restart_the_process' || code === 'state_mismatch') {
+        return;
+      }
+      const providerId = ctx.path.split('/').pop() ?? 'unknown';
+      log.warn(`[Auth] oauth-callback provider=${providerId} redirected with error=${code}`);
+      const synthetic = new Error(`oauth-callback redirected with error=${code}`);
+      synthetic.name = code;
+      captureAuthIssue({ stage: 'oauth-callback', cause: synthetic, extras: { providerId, code } });
+    }),
   },
 
   // Forward Better Auth's caught endpoint errors (sign-in, sign-up, callback,
