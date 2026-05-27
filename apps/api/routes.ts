@@ -39,12 +39,12 @@ import {
   pickerController as imagePickerRoute,
   generationController as imageGenerationRouter,
 } from './routes/image/index.js';
+import { mountContentSyncContractRouter } from './routes/internal/contentSyncContractRouter.js';
 import {
   offboardingRouter,
   databaseTestRouter,
   rateLimitRouter,
   grueneApiTestRouter,
-  contentSyncRouter,
   wolkeWatchRouter,
 } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
@@ -665,7 +665,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/internal/wolke-watch', wolkeWatchRouter);
   app.use('/api/internal/gruene-api', grueneApiTestRouter);
   app.use('/api/internal/notebook', internalNotebookRouter);
-  app.use('/api/internal/content-sync', contentSyncRouter);
+  // Content-sync is a ts-rest contract router; apply the admin-token prefix
+  // before the endpoints register on `app` (createExpressEndpoints uses
+  // absolute paths, so prefix middleware must be mounted first).
+  app.use('/api/internal/content-sync', requireAdminToken);
+  mountContentSyncContractRouter(app);
   // Monitor: one contract router serves both the public /api/monitor/* routes
   // and the admin /api/internal/monitor/* refresh routes. Apply each prefix's
   // middleware before the endpoints register on `app`.
