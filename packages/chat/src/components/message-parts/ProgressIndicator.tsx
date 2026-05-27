@@ -3,14 +3,21 @@
 import { Search, Image } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { ShimmerText } from './ShimmerText';
+import { type ProgressDisplay } from './progressDisplayContext';
 import type { ChatProgress } from '../../hooks/useChatGraphStream';
 
 interface ProgressIndicatorProps {
   progress: ChatProgress;
   agentColor: string;
+  /** `box` (default): tinted pill + agent dot. `plain`: shimmering text only. */
+  variant?: ProgressDisplay;
 }
 
-export function ProgressIndicator({ progress, agentColor }: ProgressIndicatorProps) {
+export function ProgressIndicator({
+  progress,
+  agentColor,
+  variant = 'box',
+}: ProgressIndicatorProps) {
   if (
     progress.stage === 'idle' ||
     progress.stage === 'complete' ||
@@ -18,6 +25,14 @@ export function ProgressIndicator({ progress, agentColor }: ProgressIndicatorPro
     progress.intent === 'direct'
   ) {
     return null;
+  }
+
+  if (variant === 'plain') {
+    return progress.stage === 'error' ? (
+      <span className="text-sm text-error">{progress.message}</span>
+    ) : (
+      <ShimmerText className="text-sm">{progress.message}</ShimmerText>
+    );
   }
 
   const getIcon = () => {
