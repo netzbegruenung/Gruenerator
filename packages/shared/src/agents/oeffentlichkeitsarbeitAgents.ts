@@ -72,7 +72,6 @@ export const OEFFENTLICHKEITSARBEIT_AGENTS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-berlin',
     autoRoutingHint: 'creative',
-    slug: 'gruene-berlin',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Berlin',
     description:
@@ -114,7 +113,6 @@ export const OEFFENTLICHKEITSARBEIT_AGENTS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-hamburg',
     autoRoutingHint: 'creative',
-    slug: 'gruene-hamburg',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Hamburg',
     description:
@@ -156,7 +154,6 @@ export const OEFFENTLICHKEITSARBEIT_AGENTS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-mecklenburg-vorpommern',
     autoRoutingHint: 'creative',
-    slug: 'gruene-mv',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit MV',
     description:
@@ -198,7 +195,6 @@ export const OEFFENTLICHKEITSARBEIT_AGENTS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-thueringen',
     autoRoutingHint: 'creative',
-    slug: 'gruene-thueringen',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Thüringen',
     description:
@@ -240,7 +236,6 @@ export const OEFFENTLICHKEITSARBEIT_AGENTS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-brandenburg',
     autoRoutingHint: 'creative',
-    slug: 'gruene-brandenburg',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Brandenburg',
     description:
@@ -282,7 +277,6 @@ export const OEFFENTLICHKEITSARBEIT_AGENTS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-bayern',
     autoRoutingHint: 'creative',
-    slug: 'gruene-bayern',
     audience: 'de-DE',
     title: 'Öffentlichkeitsarbeit Bayern',
     description:
@@ -331,7 +325,6 @@ export const OEFFENTLICHKEITSARBEIT_AGENTS = [
   {
     identifier: 'gruenerator-oeffentlichkeitsarbeit-at',
     autoRoutingHint: 'creative',
-    slug: 'gruene-oesterreich',
     audience: 'de-AT',
     title: 'Öffentlichkeitsarbeit Österreich',
     iconKey: 'megaphone',

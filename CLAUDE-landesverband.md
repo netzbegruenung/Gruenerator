@@ -33,6 +33,8 @@ All Landesverbände share a single Qdrant collection (`landesverbaende_documents
 
 8. **`apps/api/scrape-{name}.ts`** (NEW) — Runner script based on `scrape-berlin.ts` template. Sources should match the IDs from `landesverbaendeConfig.ts`.
 
+9. **`packages/shared/src/agents/landesverbandHubs.ts`** — Add an `LV_HUBS` entry so `/agents/gruene-{name}` opens the Landesverband hub (the landing offering both LV agents). Requires the two specialist agents to already exist — the Öffentlichkeitsarbeit agent in `oeffentlichkeitsarbeitAgents.ts` (or generated via `lvPrAgents.ts`) and the Bürger\*innenanfragen agent generated from `LV_BUERGER_SPECS` in `lvBuergerAgents.ts`. The hub owns the branded `gruene-{name}` slug; the agents keep their derived slugs. The hub's icon is the LV's notebook icon (`NOTEBOOK_ICONS[notebookId]`), so no extra icon wiring is needed.
+
 ## Prerequisite: Scraper Config
 
 Before adding the notebook, ensure the scraper config exists in `apps/api/config/landesverbaendeConfig.ts`. The `shortName` field (e.g., `'MV'`, `'MV-F'`) becomes the `defaultFilter` value in the system collection.

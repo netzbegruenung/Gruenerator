@@ -1,5 +1,6 @@
 import {
   VISIBLE_SYSTEM_AGENTS as ALL_VISIBLE_SYSTEM_AGENTS,
+  getHubMemberAgentIds,
   getVisibleSystemAgentsForLocale,
   type Agent,
 } from '@gruenerator/shared/agents';
@@ -87,11 +88,16 @@ export function getPinnedAgentIds(userLocale: string): ReadonlySet<string> {
 
 /**
  * Agents shown in the "Alle Agents" modal: visible registry minus the pinned
- * set (those are rendered separately) and minus those whose `audience`
- * excludes this user's locale. Single source of truth for the modal — keeps
- * it from drifting against the sidebar.
+ * set (those are rendered separately), minus those whose `audience` excludes
+ * this user's locale, and minus the per-LV specialist agents — those are
+ * reached through their Landesverband hub (rendered as its own section), so
+ * listing all 14 individually would re-introduce the clutter the hub removes.
+ * Single source of truth for the modal — keeps it from drifting against the sidebar.
  */
 export function getVisibleSystemAgents(userLocale: string): readonly Agent[] {
   const pinned = getPinnedAgentIds(userLocale);
-  return getVisibleSystemAgentsForLocale(userLocale).filter((a) => !pinned.has(a.identifier));
+  const hubMembers = getHubMemberAgentIds();
+  return getVisibleSystemAgentsForLocale(userLocale).filter(
+    (a) => !pinned.has(a.identifier) && !hubMembers.has(a.identifier)
+  );
 }
