@@ -1,5 +1,7 @@
 import type { IconType } from 'react-icons';
 
+import type { AdditionalText } from '../configs/types';
+
 /**
  * All possible sidebar tab IDs.
  *
@@ -129,15 +131,4 @@ export interface SidebarPanelProps {
   isOpen: boolean;
   children: React.ReactNode;
   onClose?: () => void;
-}
-
-export interface AdditionalText {
-  id: string;
-  text: string;
-  type: 'header' | 'subheader' | 'body';
-  x?: number;
-  y?: number;
-  width?: number;
-  fontSize?: number;
-  align?: 'left' | 'center' | 'right';
 }
