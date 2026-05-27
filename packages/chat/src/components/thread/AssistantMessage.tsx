@@ -7,6 +7,7 @@ import { GrueneratorHomeIconLoading } from '../icons';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
+import { useProgressDisplay } from '../message-parts/progressDisplayContext';
 import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 import { SkillBadge } from '../message-parts/SkillBadge';
 import { TypingIndicator } from '../message-parts/TypingIndicator';
@@ -42,6 +43,7 @@ const partComponents = { Text: AssistantMessageTextPart, Reasoning, ReasoningGro
 export const AssistantMessage = memo(function AssistantMessage() {
   const message = useMessage();
   const density = useChatDensity();
+  const progressDisplay = useProgressDisplay();
   const isCompact = density === 'compact';
   const custom = message.metadata?.custom as ChatMessageMetadata | undefined;
 
@@ -142,7 +144,13 @@ export const AssistantMessage = memo(function AssistantMessage() {
                   />
                 );
               }
-              return <ProgressIndicator progress={custom!.progress!} agentColor={agentColor} />;
+              return (
+                <ProgressIndicator
+                  progress={custom!.progress!}
+                  agentColor={agentColor}
+                  variant={progressDisplay}
+                />
+              );
             }
 
             if (!textContent) {
@@ -166,6 +174,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
             <ProgressIndicator
               progress={custom.progress}
               agentColor={messageAgent?.backgroundColor || '#316049'}
+              variant={progressDisplay}
             />
           ))}
 
