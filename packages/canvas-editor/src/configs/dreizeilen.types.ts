@@ -6,6 +6,7 @@
  */
 
 import type { AdditionalText } from './types';
+import type { IconState } from './factory/baseTypes';
 import type { BalkenInstance } from '../primitives/BalkenGroup';
 import type { StockImageAttribution } from '../sidebar/types';
 import type { BalkenMode } from '../utils/balkenUtils';
@@ -61,17 +62,7 @@ export interface DreizeilenFullState {
 
   // === Icons & Shapes ===
   selectedIcons: string[];
-  iconStates: Record<
-    string,
-    {
-      x: number;
-      y: number;
-      scale: number;
-      rotation: number;
-      color?: string;
-      opacity?: number;
-    }
-  >;
+  iconStates: Record<string, IconState>;
   shapeInstances: ShapeInstance[];
   selectedShapeId: string | null;
 
