@@ -17,7 +17,7 @@ Es gibt zwei Sorten von Landesverband-Agents:
 
 <AgentTiles />
 
-Jede Kachel verlinkt auf den Öffentlichkeitsarbeit-Agent des Landesverbands; darunter stehen seine Skill-Abkürzungen und ein Link zur Wissensdatenbank (Notebook). Jeder Landesverband hat außerdem einen **Bürger\*innenanfragen**-Agent (siehe unten).
+Jede Kachel verlinkt auf die **Landesverband-Seite** — sie bietet beide Agents des Landesverbands zur Auswahl an: **Öffentlichkeitsarbeit** (siehe unten) und **Bürger\*innenanfragen** (siehe unten). Darunter stehen die Skill-Abkürzungen und ein Link zur Wissensdatenbank (Notebook).
 
 :::note Österreich
 Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — sie haben aber dieselben beiden Agent-Typen (Agent `/agents/gruene-oesterreich`, Wissensdatenbank `/notebooks/oesterreich` · `@at`). Diese Agents verwenden österreichisches Vokabular (Nationalrat, Klubobfrau\*Klubobmann, Klimaticket) und erscheinen nur für Nutzer\*innen mit österreichischer Einstellung.
@@ -27,7 +27,7 @@ Die Grünen Österreich sind kein Landesverband, sondern die Bundespartei — si
 
 Du erreichst einen Öffentlichkeitsarbeit-Agent auf zwei Wegen:
 
-**1. Über den Agent direkt** — öffne ihn über seine Adresse (z. B. `/agents/gruene-berlin`) oder wähle ihn in der Agent-Auswahl im Chat aus. Der Agent bleibt für das ganze Gespräch im LV-Stil.
+**1. Über die Landesverband-Seite** — öffne die LV-Adresse (z. B. `/agents/gruene-berlin`) und wähle dort den Öffentlichkeitsarbeit-Agent; oder wähle ihn direkt in der Agent-Auswahl im Chat aus. Der Agent bleibt für das ganze Gespräch im LV-Stil.
 
 **2. Über eine Skill-Abkürzung** — tippe im Chat einen Slash-Befehl wie `/presse-berlin` und direkt dahinter dein Thema. Die Skill schickt deine Anfrage an den passenden LV-Agent und gibt ihm gleich die richtige Aufgabe mit (Pressemitteilung bzw. Instagram-Post).
 
@@ -52,7 +52,7 @@ Unabhängig vom Landesverband gibt es allgemeine Skills für jede Plattform: `/p
 
 Die Bürger\*innenanfragen-Agents helfen dir, eingehende E-Mails von Bürger\*innen zu beantworten. Du fügst die Anfrage ein, der Agent recherchiert die Positionen des Landesverbands (die Treffer erscheinen als Recherche-Karten im Chat) und formuliert eine **versandfertige Antwort-E-Mail** nach festem Aufbau: Anrede → Dank → inhaltliche Antwort → weiterführende Links.
 
-Du findest sie in der Agent-Auswahl unter dem Namen **„Bürger\*innenanfragen (Berlin)"**, **„Bürger\*innenanfragen (Hamburg)"** usw. Für eine allgemeine, nicht LV-gebundene Variante gibt es außerdem die Skill `/bürgerservice`.
+Du erreichst sie über die Landesverband-Seite (z. B. `/agents/gruene-berlin`) — dort wählst du den **Bürger\*innenservice** statt der Öffentlichkeitsarbeit. Für eine allgemeine, nicht LV-gebundene Variante gibt es außerdem die Skill `/bürgerservice`.
 
 ## Die Wissensdatenbank dahinter
 

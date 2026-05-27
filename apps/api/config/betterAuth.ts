@@ -200,8 +200,21 @@ export const auth = betterAuth({
     // a verified email claim, which causes `account_not_linked` errors on
     // sign-in. All four IdPs route through trusted Keycloak realms operated
     // by netzbegruenung, so trusting them is safe.
+    // `requireLocalEmailVerified` defaults to `true` since better-auth 1.6.11.
+    // It's a SECOND, separate gate from `trustedProviders`: even a trusted
+    // provider is refused with `account_not_linked` when the *existing local*
+    // user has `email_verified = false` (link-account.mjs: `requireLocalEmailVerified
+    // && !dbUser.user.emailVerified`). Many of our profiles were created via OAuth
+    // before the email_verified claim was reliably stored, so they sit at false —
+    // and the upgrade to 1.6.11 silently started rejecting their first login via a
+    // second IdP (e.g. an existing Grünerator-login account signing in via Grünes
+    // Netz). We disable it because the threat it defends against (ghost-account
+    // hijacking via local email/password signup) does not exist here: there is no
+    // `emailAndPassword` provider, all auth flows through the four Keycloak realms
+    // we operate, and `trustedProviders` is restricted to exactly those realms.
     accountLinking: {
       enabled: true,
+      requireLocalEmailVerified: false,
       trustedProviders: [
         'keycloak-netzbegruenung',
         'keycloak-gruenes-netz',
