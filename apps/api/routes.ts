@@ -6,6 +6,7 @@
 import express from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
+import { requireAdminToken } from './middleware/adminTokenMiddleware.js';
 import authMiddleware from './middleware/authMiddleware.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
@@ -37,12 +38,12 @@ import {
   pickerController as imagePickerRoute,
   generationController as imageGenerationRouter,
 } from './routes/image/index.js';
+import { mountContentSyncContractRouter } from './routes/internal/contentSyncContractRouter.js';
 import {
   offboardingRouter,
   databaseTestRouter,
   rateLimitRouter,
   grueneApiTestRouter,
-  contentSyncRouter,
   wolkeWatchRouter,
 } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
@@ -661,7 +662,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/internal/gruene-api', grueneApiTestRouter);
   app.use('/api/internal/monitor', monitorInternalRouter);
   app.use('/api/internal/notebook', internalNotebookRouter);
-  app.use('/api/internal/content-sync', contentSyncRouter);
+  // Content-sync is a ts-rest contract router; apply the admin-token prefix
+  // before the endpoints register on `app` (createExpressEndpoints uses
+  // absolute paths, so prefix middleware must be mounted first).
+  app.use('/api/internal/content-sync', requireAdminToken);
+  mountContentSyncContractRouter(app);
   app.use('/api/monitor', requireAuth, publicReadLimiter, monitorRouter);
 
   app.get(

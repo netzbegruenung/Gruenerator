@@ -53,6 +53,7 @@ export {
   userAgentsContract,
   canvasAiContract,
   groupsContract,
+  contentSyncContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -91,3 +92,4 @@ export * from './schemas/userAgents.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/skill.js';
 export * from './schemas/groups.js';
+export * from './schemas/contentSync.js';
