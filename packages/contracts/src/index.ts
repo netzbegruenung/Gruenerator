@@ -52,7 +52,9 @@ export {
   userTemplatesContract,
   userAgentsContract,
   canvasAiContract,
+  canvasContract,
   groupsContract,
+  monitorContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -89,5 +91,7 @@ export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
 export * from './schemas/userAgents.js';
 export * from './schemas/canvasAi.js';
+export * from './schemas/canvas.js';
 export * from './schemas/skill.js';
 export * from './schemas/groups.js';
+export * from './schemas/monitor.js';

@@ -5,13 +5,18 @@ import {
   useAgentStore,
   type UserRole,
 } from '@gruenerator/chat';
-import { getSystemAgent, resolveAgentSlug } from '@gruenerator/shared/agents';
+import {
+  getLandesverbandHubBySlug,
+  getSystemAgent,
+  resolveAgentSlug,
+} from '@gruenerator/shared/agents';
 import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
 import { useDocumentTitle } from '@/components/hooks/useDocumentTitle';
 import { useUserAgents } from '@/features/agents/api';
+import { LandesverbandHub } from '@/features/chat/LandesverbandHub';
 import { SYSTEM_NOTEBOOKS } from '@/features/notebook/config/notebooksConfig';
 import { useFirstName } from '@/hooks/useFirstName';
 import { useAuthStore } from '@/stores/authStore';
@@ -44,9 +49,15 @@ function ChatPage() {
   // effect from re-applying (and clobbering a manual notebook pick) when the
   // `userAgents` query reference changes on an unrelated cache invalidation.
   const notebookAppliedForRef = useRef<string | null>(null);
+  // A Landesverband hub slug (`gruene-berlin`) opens a landing offering both LV
+  // agents instead of resolving straight to one. Checked first so the slug
+  // never falls through to agent resolution (which would bind a bogus agent).
+  const hub = slug ? getLandesverbandHubBySlug(slug) : null;
   // Path-based /agents/:slug is the canonical form; ?agent= is legacy but
   // still wins when explicitly set so old deep links keep their behavior.
-  const agentParam = searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null);
+  const agentParam = hub
+    ? null
+    : (searchParams.get('agent') ?? (slug ? resolveAgentSlug(slug) : null));
   const modeParam = searchParams.get('mode');
 
   // When the URL carries an agent or mode param, jump straight into the thread —
@@ -58,7 +69,7 @@ function ChatPage() {
       ? 'thread'
       : chatViewMode;
 
-  useDocumentTitle(effectiveViewMode === 'thread' ? currentThreadTitle : null);
+  useDocumentTitle(hub ? hub.name : effectiveViewMode === 'thread' ? currentThreadTitle : null);
 
   useEffect(() => {
     const store = useAgentStore.getState();
@@ -134,7 +145,9 @@ function ChatPage() {
   return (
     <div className="flex min-h-0 h-full bg-background">
       <main className="flex min-h-0 flex-1 flex-col pt-4 md:pt-0">
-        {effectiveViewMode === 'overview' ? (
+        {hub ? (
+          <LandesverbandHub hub={hub} onNavigate={handleNavigate} userLocale={userLocale} />
+        ) : effectiveViewMode === 'overview' ? (
           <ChatOverview
             firstName={firstName}
             notebooks={notebookLinks}

@@ -7,6 +7,7 @@
 import {
   CONTENT_TYPE_LABELS,
   getCuratedListsForUrl,
+  getCuratedContentTypeForUrl,
 } from '../../../../../config/landesverbaendeConfig.js';
 import {
   scrollDocuments,
@@ -52,6 +53,11 @@ export class DocumentProcessor {
     const { title, text, publishedAt, categories } = content;
     const targetCollection = collectionOverride || this.collectionName;
     const ageLimit = maxAgeYears ?? 10;
+
+    // A curated list (e.g. wahlprogramm-be) may override the scraping path's
+    // content type so a canonical subset surfaces under its own "Typ" filter
+    // value (Wahlprogramm) rather than the generic path type (Beschluss).
+    const effectiveContentType = getCuratedContentTypeForUrl(url) ?? contentType;
 
     // STEP 1: Validation - minimum length check
     if (!text || text.length < 100) {
@@ -103,7 +109,7 @@ export class DocumentProcessor {
     // STEP 5: Build document title
     const documentTitle =
       title ||
-      `${source.name} - ${(CONTENT_TYPE_LABELS as Record<string, string>)[contentType] || contentType}`;
+      `${source.name} - ${(CONTENT_TYPE_LABELS as Record<string, string>)[effectiveContentType] || effectiveContentType}`;
 
     // STEP 6: Chunk document
     const chunks = await smartChunkDocument(text, {
@@ -136,9 +142,10 @@ export class DocumentProcessor {
         source_name: source.name,
         landesverband: source.shortName,
         source_type: source.type,
-        content_type: contentType,
+        content_type: effectiveContentType,
         content_type_label:
-          (CONTENT_TYPE_LABELS as Record<string, string>)[contentType] || contentType,
+          (CONTENT_TYPE_LABELS as Record<string, string>)[effectiveContentType] ||
+          effectiveContentType,
         content_hash: contentHash,
         chunk_index: index,
         chunk_text: chunkTexts[index],

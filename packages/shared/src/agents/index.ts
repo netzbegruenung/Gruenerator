@@ -41,6 +41,14 @@ export {
 export { getAgentSlug, resolveAgentSlug } from './slug.js';
 
 export {
+  LV_HUBS,
+  type LvHub,
+  getLandesverbandHubBySlug,
+  getLandesverbandHubs,
+  getHubMemberAgentIds,
+} from './landesverbandHubs.js';
+
+export {
   MCP_AGENTS,
   MCP_SOCIAL_MEDIA_VARIANTS,
   type McpAgent,
