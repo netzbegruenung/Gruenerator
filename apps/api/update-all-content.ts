@@ -377,6 +377,10 @@ async function main() {
       {
         id: `landesverband-${lvCode}`,
         name: `Landesverband ${lvCode} (${matchingSources.length} sources)`,
+        // Large LVs (BE, HH) crawl 4+ sources with PDF/OCR and outgrow the 30 min
+        // default. Kept under the workflow's 60 min job limit so the timeout still
+        // fires inside the script (clean summary/email) instead of a hard CI cancel.
+        timeoutMs: 50 * 60 * 1000,
         async run(a) {
           await landesverbandScraperService.init();
           const result = await landesverbandScraperService.scrapeAllSources({
