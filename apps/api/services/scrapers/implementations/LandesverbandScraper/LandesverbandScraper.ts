@@ -10,6 +10,7 @@ import * as path from 'path';
 
 import { type QdrantClient } from '@qdrant/js-client-rest';
 
+import { env } from '../../../../config/env.js';
 import {
   getSourceById,
   getSourcesByType,
@@ -19,7 +20,6 @@ import {
   type ContentPath,
   type LandesverbandSource,
 } from '../../../../config/landesverbaendeConfig.js';
-import { env } from '../../../../config/env.js';
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
 import {
   scrollDocuments,

@@ -5,6 +5,8 @@
  * Used by MCP server, API, and other services.
  */
 
+import { LV_CONTENT_TYPE_LABELS, LV_SOURCE_TYPE_LABELS } from './landesverbandSources.js';
+
 import type {
   CollectionConfig,
   CollectionConfigMap,
@@ -12,7 +14,6 @@ import type {
   FilterFieldConfig,
 } from './types.js';
 import type { QdrantFilter } from '../filters/types.js';
-import { LV_CONTENT_TYPE_LABELS, LV_SOURCE_TYPE_LABELS } from './landesverbandSources.js';
 
 /** Shared "Typ" filter declaration reused across every Landesverband collection. */
 const lvContentTypeField: FilterFieldConfig<'content_type'> = {

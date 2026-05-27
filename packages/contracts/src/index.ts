@@ -54,6 +54,7 @@ export {
   canvasAiContract,
   canvasContract,
   groupsContract,
+  contentSyncContract,
   monitorContract,
 } from './contracts/index.js';
 
@@ -94,4 +95,5 @@ export * from './schemas/canvasAi.js';
 export * from './schemas/canvas.js';
 export * from './schemas/skill.js';
 export * from './schemas/groups.js';
+export * from './schemas/contentSync.js';
 export * from './schemas/monitor.js';
