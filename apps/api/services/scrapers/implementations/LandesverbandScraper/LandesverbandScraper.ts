@@ -59,6 +59,16 @@ import type { ScraperResult } from '../../types.js';
 const RECHECK_AFTER_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
 
 /**
+ * Content published longer ago than this is treated as settled: it no longer
+ * changes in place, so once indexed we never re-fetch it. This bounds the
+ * per-run re-check set to recent/living content instead of re-walking a
+ * multi-year archive every run — the re-fetch cost that pushed big LVs (BE, HH)
+ * past the sync timeout. Pages without a parseable published date fall through
+ * to the RECHECK_AFTER_MS window, so unknown-age content is still re-checked.
+ */
+const RECHECK_MAX_CONTENT_AGE_MS = 2 * 365 * 24 * 60 * 60 * 1000; // ~2 years
+
+/**
  * Main scraper class - orchestrates all modules
  * Reduced from 1,139 lines to ~400 lines through modularization
  */
@@ -769,10 +779,14 @@ export class LandesverbandScraper extends BaseScraper {
   }
 
   /**
-   * Layer-1 freshness gate. Returns true when the URL is already indexed AND was
-   * last indexed within RECHECK_AFTER_MS, in which case the caller skips the fetch.
-   * Missing, timestamp-less (legacy), or stale points return false so the caller
-   * re-fetches and lets the DocumentProcessor content-hash diff decide on re-embed.
+   * Layer-1 freshness gate. Returns true when the caller should skip the fetch.
+   * Skips an already-indexed URL when EITHER:
+   *   - its content was published more than RECHECK_MAX_CONTENT_AGE_MS ago
+   *     (settled history — never re-fetched once indexed), OR
+   *   - it was last indexed within RECHECK_AFTER_MS (recently re-checked).
+   * Missing, timestamp-less (legacy), or stale recent points return false so the
+   * caller re-fetches and lets the DocumentProcessor content-hash diff decide on
+   * re-embed.
    */
   async #isFreshlyIndexed(url: string, targetCollection: string): Promise<boolean> {
     const points = await scrollDocuments(
@@ -782,7 +796,20 @@ export class LandesverbandScraper extends BaseScraper {
       { limit: 1, withPayload: true, withVector: false }
     );
     if (points.length === 0) return false;
-    const indexedAt = points[0].payload?.indexed_at as string | undefined;
+    const payload = points[0].payload;
+
+    // Settled history (published > 2 years ago) does not change in place, so we
+    // never re-fetch it regardless of when it was last re-checked. This keeps
+    // the per-run re-fetch set bounded to recent/living content.
+    const publishedAt = payload?.published_at as string | undefined;
+    if (publishedAt) {
+      const contentAge = Date.now() - new Date(publishedAt).getTime();
+      if (Number.isFinite(contentAge) && contentAge > RECHECK_MAX_CONTENT_AGE_MS) {
+        return true;
+      }
+    }
+
+    const indexedAt = payload?.indexed_at as string | undefined;
     if (!indexedAt) return false;
     const age = Date.now() - new Date(indexedAt).getTime();
     return Number.isFinite(age) && age >= 0 && age < RECHECK_AFTER_MS;
