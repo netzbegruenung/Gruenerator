@@ -7,6 +7,7 @@
  */
 
 import { COLLECTION_MAP } from '../../../config/collectionMap.js';
+import { trailingSlugKey } from '../../../config/landesverbaendeConfig.js';
 import {
   getSearchParams,
   buildSubcategoryFilter,
@@ -103,6 +104,28 @@ export interface DirectWebSearchResult {
 }
 
 const documentSearchService = new DocumentSearchService();
+
+/**
+ * Collapse results that point at the same CMS node served under multiple path
+ * aliases (e.g. TYPO3 serves a press release at both /nachrichten/x_NNN and
+ * /pressemitteilungen/x_NNN). These share a trailing node id but get distinct
+ * content_hash → document_id (rendering drift), so upstream document_id dedup
+ * misses them. Results arrive relevance-ranked, so first-wins keeps the
+ * best-scoring copy. URLs without a node id are never collapsed.
+ */
+function collapseAliasDuplicates(results: DocumentResult[]): DocumentResult[] {
+  const seen = new Set<string>();
+  const out: DocumentResult[] = [];
+  for (const result of results) {
+    const key = result.source_url ? trailingSlugKey(result.source_url) : null;
+    if (key) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+    }
+    out.push(result);
+  }
+  return out;
+}
 
 /**
  * Execute a direct document search against Qdrant.
@@ -235,7 +258,7 @@ export async function executeDirectSearch(params: {
       }
     }
 
-    const formattedResults = response.results
+    const formattedResults = collapseAliasDuplicates(response.results)
       .slice(0, limit)
       .map((result: DocumentResult, index: number) => ({
         rank: index + 1,

@@ -844,8 +844,10 @@ export function getAllSourceIds(): string[] {
  * Extract the trailing TYPO3-style id (e.g. `_3763`) from a URL pathname,
  * keyed by hostname so /beschluesse/foo_3763 and /news/foo_3763 collide
  * but /beschluesse/foo_3763 on different domains do not.
+ *
+ * Exported so search-result assembly can collapse alias duplicates by node id.
  */
-function trailingSlugKey(url: string): string | null {
+export function trailingSlugKey(url: string): string | null {
   try {
     const u = new URL(url);
     const m = u.pathname.match(/_(\d+)$/);
