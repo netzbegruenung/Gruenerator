@@ -69,37 +69,37 @@ export async function createCollections(
     const existingNames = new Set(existingCollections.collections.map((c) => c.name));
 
     for (const [_key, schema] of Object.entries(COLLECTION_SCHEMAS)) {
-      if (existingNames.has(schema.name)) {
-        log.debug(`Collection ${schema.name} already exists, skipping`);
-        continue;
-      }
-
-      try {
-        const config = getCollectionConfig(vectorSize, schema);
-        await client.createCollection(schema.name, config);
-        log.debug(`Created ${schema.name} collection (${vectorSize} dims)`);
-
-        // Create indexes for this collection
-        for (const index of schema.indexes || []) {
-          try {
-            await client.createPayloadIndex(schema.name, {
-              field_name: index.field,
-              field_schema: getIndexSchema(index.type),
-            });
-            log.debug(`Created index ${index.field} on ${schema.name}`);
-          } catch (indexError) {
-            const message = indexError instanceof Error ? indexError.message : String(indexError);
-            if (!message.includes('already exists')) {
-              log.warn(`Failed to create index ${index.field} on ${schema.name}: ${message}`);
-            }
+      if (!existingNames.has(schema.name)) {
+        try {
+          const config = getCollectionConfig(vectorSize, schema);
+          await client.createCollection(schema.name, config);
+          log.debug(`Created ${schema.name} collection (${vectorSize} dims)`);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          if (schema.handleRaceCondition && message.includes('already exists')) {
+            log.debug(`Collection ${schema.name} already exists (race condition)`);
+          } else {
+            throw error;
           }
         }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (schema.handleRaceCondition && message.includes('already exists')) {
-          log.debug(`Collection ${schema.name} already exists (race condition)`);
-        } else {
-          throw error;
+      }
+
+      // Ensure payload indexes for both new and pre-existing collections.
+      // createPayloadIndex is idempotent (already-exists is caught), so this
+      // backfills indexes added to a schema after its collection was created —
+      // without it, schema index additions silently never apply to existing
+      // collections (which broke the curated_lists facet → filter UI).
+      for (const index of schema.indexes || []) {
+        try {
+          await client.createPayloadIndex(schema.name, {
+            field_name: index.field,
+            field_schema: getIndexSchema(index.type),
+          });
+        } catch (indexError) {
+          const message = indexError instanceof Error ? indexError.message : String(indexError);
+          if (!message.includes('already exists')) {
+            log.warn(`Failed to create index ${index.field} on ${schema.name}: ${message}`);
+          }
         }
       }
     }
