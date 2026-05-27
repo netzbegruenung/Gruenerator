@@ -6,6 +6,7 @@
 import express from 'express';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
+import { requireAdminToken } from './middleware/adminTokenMiddleware.js';
 import authMiddleware from './middleware/authMiddleware.js';
 import { rateLimitMiddleware } from './middleware/rateLimitMiddleware.js';
 import antraegeRouter from './routes/antraege/index.js';
@@ -47,7 +48,7 @@ import {
   wolkeWatchRouter,
 } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
-import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js';
+import { mountMonitorContractRouter } from './routes/monitor/monitorContractRouter.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
 import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
 import { mountNotebookSharingContractRouter } from './routes/notebook/notebookSharingContractRouter.js';
@@ -663,10 +664,14 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/internal/offboarding', offboardingRouter);
   app.use('/api/internal/wolke-watch', wolkeWatchRouter);
   app.use('/api/internal/gruene-api', grueneApiTestRouter);
-  app.use('/api/internal/monitor', monitorInternalRouter);
   app.use('/api/internal/notebook', internalNotebookRouter);
   app.use('/api/internal/content-sync', contentSyncRouter);
-  app.use('/api/monitor', requireAuth, publicReadLimiter, monitorRouter);
+  // Monitor: one contract router serves both the public /api/monitor/* routes
+  // and the admin /api/internal/monitor/* refresh routes. Apply each prefix's
+  // middleware before the endpoints register on `app`.
+  app.use('/api/internal/monitor', requireAdminToken);
+  app.use('/api/monitor', requireAuth, publicReadLimiter);
+  mountMonitorContractRouter(app);
 
   app.get(
     '/api/internal/route-stats',

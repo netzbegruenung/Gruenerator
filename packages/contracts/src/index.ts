@@ -54,6 +54,7 @@ export {
   canvasAiContract,
   canvasContract,
   groupsContract,
+  monitorContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -93,3 +94,4 @@ export * from './schemas/canvasAi.js';
 export * from './schemas/canvas.js';
 export * from './schemas/skill.js';
 export * from './schemas/groups.js';
+export * from './schemas/monitor.js';
