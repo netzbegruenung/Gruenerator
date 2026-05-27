@@ -46,20 +46,17 @@ const categories: CategoryCard[] = [
     icon: '👤',
     description: 'Personalisiere den Grünerator und nutze die Grüne Wolke für deine Inhalte.',
     link: '/docs/Profil/gruene-wolke-tutorial',
-    topPages: [
-      { title: 'Grüne Wolke Tutorial', link: '/docs/Profil/gruene-wolke-tutorial' },
-      { title: 'Anweisungen & Wissen', link: '/docs/Profil/anweisungen-wissen' },
-    ],
+    topPages: [{ title: 'Grüne Wolke Tutorial', link: '/docs/Profil/gruene-wolke-tutorial' }],
   },
   {
     title: 'Grünerieren',
     icon: '✨',
     description: 'Erstelle grüne Inhalte: Texte, Sharepics, Untertitel und mehr.',
-    link: '/docs/gruenerieren/pro-modus',
+    link: '/docs/gruenerieren/ki-modelle',
     topPages: [
-      { title: 'Pro-Modus', link: '/docs/gruenerieren/pro-modus' },
+      { title: 'KI-Modelle', link: '/docs/gruenerieren/ki-modelle' },
       { title: 'Websuche', link: '/docs/gruenerieren/websuche' },
-      { title: 'Privacy-Mode', link: '/docs/gruenerieren/privacy-mode' },
+      { title: 'Dateien hinzufügen', link: '/docs/gruenerieren/dateien-hinzufuegen' },
     ],
   },
   {
