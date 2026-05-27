@@ -288,8 +288,14 @@ export const useGroupSharing = (groupId: string | null, _options: UseGroupsOptio
 export const useCloneCanvasTemplate = () => {
   return useMutation({
     mutationFn: async (canvasId: string) => {
-      const response = await apiClient.post<{ newCanvasId: string }>(`/canvas/${canvasId}/clone`);
-      return response.data;
+      const result = await getContractsClient().canvas.clone({
+        params: { id: canvasId },
+        body: {},
+      });
+      if (result.status !== 201) {
+        throw new Error(`Failed to clone canvas (HTTP ${result.status})`);
+      }
+      return result.body;
     },
   });
 };
