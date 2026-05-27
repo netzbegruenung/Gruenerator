@@ -22,6 +22,7 @@ import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.
 import { mountPublicBoardsContractRouter } from './routes/boards/publicBoardsContractRouter.js';
 import { mountCanvasAiContractRouter } from './routes/canvas/aiSuggestRoute.js';
 import canvasChatEditRouter from './routes/canvas/canvasChatEditController.js';
+import { mountCanvasContractRouter } from './routes/canvas/canvasContractRouter.js';
 import { mountChatGraphContractRouter } from './routes/chat/chatGraphContractRouter.js';
 import { mountThreadsContractRouter } from './routes/chat/threadsContractRouter.js';
 import { mountDocsContractRouter } from './routes/docs/docsContractRouter.js';
@@ -47,7 +48,7 @@ import {
   wolkeWatchRouter,
 } from './routes/internal/index.js';
 import { markdownController as markdownRouter } from './routes/markdown/index.js';
-import { monitorRouter, monitorInternalRouter } from './routes/monitor/index.js';
+import { mountMonitorContractRouter } from './routes/monitor/monitorContractRouter.js';
 import { mountNotebookCollectionsContractRouter } from './routes/notebook/notebookCollectionsContractRouter.js';
 import { mountNotebookContractRouter } from './routes/notebook/notebookContractRouter.js';
 import { mountNotebookSharingContractRouter } from './routes/notebook/notebookSharingContractRouter.js';
@@ -423,11 +424,14 @@ export async function setupRoutes(app: Application): Promise<void> {
     canvasChatEditRouter
   );
 
-  // Canvas documents (collaborative): /api/canvas CRUD. Mounted AFTER the
-  // AI-suggest contract router above so /api/canvas/ai-suggest matches first
-  // and falls through to this CRUD router for everything else.
-  const { default: canvasDocumentsRouter } = await import('./routes/canvas/canvasController.js');
-  app.use('/api/canvas', requireAuth, authenticatedReadLimiter, canvasDocumentsRouter);
+  // Canvas documents (collaborative): /api/canvas CRUD via ts-rest contract.
+  // requireAuth + authenticatedReadLimiter run on the /api/canvas prefix BEFORE
+  // the contract endpoints (createExpressEndpoints registers handlers directly
+  // on the app, bypassing later prefix middleware). Mounted AFTER the AI-suggest
+  // + chat-edit routers above so /api/canvas/ai-suggest and
+  // /api/canvas/chat-edit/stream match first.
+  app.use('/api/canvas', requireAuth, authenticatedReadLimiter);
+  mountCanvasContractRouter(app);
 
   // ts-rest contract router — mount before legacy campaignCanvasRoute
   mountCampaignCanvasContractRouter(app);
@@ -660,14 +664,18 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/internal/offboarding', offboardingRouter);
   app.use('/api/internal/wolke-watch', wolkeWatchRouter);
   app.use('/api/internal/gruene-api', grueneApiTestRouter);
-  app.use('/api/internal/monitor', monitorInternalRouter);
   app.use('/api/internal/notebook', internalNotebookRouter);
   // Content-sync is a ts-rest contract router; apply the admin-token prefix
   // before the endpoints register on `app` (createExpressEndpoints uses
   // absolute paths, so prefix middleware must be mounted first).
   app.use('/api/internal/content-sync', requireAdminToken);
   mountContentSyncContractRouter(app);
-  app.use('/api/monitor', requireAuth, publicReadLimiter, monitorRouter);
+  // Monitor: one contract router serves both the public /api/monitor/* routes
+  // and the admin /api/internal/monitor/* refresh routes. Apply each prefix's
+  // middleware before the endpoints register on `app`.
+  app.use('/api/internal/monitor', requireAdminToken);
+  app.use('/api/monitor', requireAuth, publicReadLimiter);
+  mountMonitorContractRouter(app);
 
   app.get(
     '/api/internal/route-stats',

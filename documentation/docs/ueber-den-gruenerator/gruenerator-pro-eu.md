@@ -16,7 +16,7 @@ Der Grünerator ist die souveräne Alternative: **100% europäische Infrastruktu
 - **Black Forest Labs** (Deutschland) — Bildbearbeitung
 - **Regolo / Seeweb** (Italien) — Audio-/Video-Transkription (Zero Data Retention)
 - **IONOS** (Deutschland) — Backup-KI
-- **netzbegrünung e.V.** (Deutschland / Finnland) — Infrastruktur, Datenbank, Gruenerator-GPT
+- **netzbegrünung e.V.** (Deutschland / Finnland) — Infrastruktur, Datenbank, selbst gehostete Open-Source-Modelle (GPT-OSS, Gemma)
 - **SearXNG** (selbstgehostet, Deutschland) — Suche
 - **Hetzner** (Deutschland) — Hosting
 
