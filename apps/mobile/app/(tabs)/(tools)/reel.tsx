@@ -34,6 +34,7 @@ export default function ReelScreen() {
     stageName,
     uploadId,
     error,
+    errorDetail,
     transcribedSubtitles,
     startManualProcessing,
     cancelProcessing,
@@ -210,6 +211,20 @@ export default function ReelScreen() {
         );
       }
 
+      // On failure, drop the progress spinner (it would otherwise keep showing
+      // the stale "Video wird analysiert..." stage alongside the error overlay)
+      // and return to the picker so the user can retry. The error renders below.
+      if (status === 'error') {
+        return (
+          <VideoUploader
+            onVideoSelected={handleVideoSelected}
+            uploadProgress={0}
+            isUploading={false}
+            onBack={handleBackToProjects}
+          />
+        );
+      }
+
       return (
         <PulseLoader
           title={
@@ -246,6 +261,7 @@ export default function ReelScreen() {
         {error && screenMode !== 'projects' && (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>{error}</Text>
+            {errorDetail && <Text style={styles.errorDetailText}>{errorDetail}</Text>}
           </View>
         )}
       </View>
@@ -261,6 +277,7 @@ const styles = StyleSheet.create<{
   loadingSubtext: TextStyle;
   errorContainer: ViewStyle;
   errorText: TextStyle;
+  errorDetailText: TextStyle;
 }>({
   container: {
     flex: 1,
@@ -292,5 +309,12 @@ const styles = StyleSheet.create<{
   errorText: {
     color: colors.error[500],
     textAlign: 'center',
+  },
+  errorDetailText: {
+    color: colors.error[500],
+    textAlign: 'center',
+    fontSize: 12,
+    opacity: 0.75,
+    marginTop: spacing.xxsmall,
   },
 });

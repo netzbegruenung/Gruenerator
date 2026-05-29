@@ -26,6 +26,7 @@ export interface ReelProcessingState {
   videoUri: string | null;
   savedToGallery: boolean;
   error: string | null;
+  errorDetail: string | null;
   transcribedSubtitles: string | null;
 }
 
@@ -57,6 +58,7 @@ const initialState: ReelProcessingState = {
   videoUri: null,
   savedToGallery: false,
   error: null,
+  errorDetail: null,
   transcribedSubtitles: null,
 };
 
@@ -98,6 +100,7 @@ export function useReelProcessing() {
       updateState({
         status: 'error',
         error: ERROR_MESSAGES[errorKey],
+        errorDetail: details ?? null,
       });
     },
     [updateState]
