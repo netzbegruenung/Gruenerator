@@ -49,6 +49,29 @@ config.resolver.unstable_conditionNames = ['development', 'require', 'react-nati
 
 // Custom resolver for various edge cases
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  // Dedupe React to a single physical copy for the whole bundle.
+  // pnpm's `node-linker=hoisted` leaves several react@19.2.3 dirs on disk
+  // (apps/mobile, react-native, @tanstack/react-query, @assistant-ui/*), and
+  // Metro resolves `react` from each importer's own folder — so the bundle
+  // otherwise ships multiple React instances with separate hook/context
+  // internals. Cross-package context then misses: react-query throws
+  // "No QueryClient set" once a subtree (e.g. the assistant-ui chat tree)
+  // resolves a different React copy than the QueryClientProvider. Resolving
+  // every react/react-dom request as if imported from the app root collapses
+  // them to one instance (apps/mobile/node_modules/react, the Expo-pinned one).
+  if (
+    moduleName === 'react' ||
+    moduleName.startsWith('react/') ||
+    moduleName === 'react-dom' ||
+    moduleName.startsWith('react-dom/')
+  ) {
+    return context.resolveRequest(
+      { ...context, originModulePath: path.join(projectRoot, 'index.js') },
+      moduleName,
+      platform
+    );
+  }
+
   // Fix 'use dom' component resolution in monorepo.
   // The DOM transformer generates a relative path from node_modules/expo/dom/entry.js
   // to the component, but miscounts directory levels in a pnpm monorepo.
