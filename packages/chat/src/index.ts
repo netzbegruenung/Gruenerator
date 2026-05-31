@@ -69,10 +69,8 @@ export {
 } from './stores/chatConfigStore';
 
 // Runtime
-export {
-  GrueneratorChatProvider,
-  convertToThreadMessageLike,
-} from './runtime/GrueneratorChatProvider';
+export { GrueneratorChatProvider } from './runtime/GrueneratorChatProvider';
+export { convertToThreadMessageLike } from './runtime/GrueneratorChatRuntime';
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {
   createGrueneratorModelAdapter,
