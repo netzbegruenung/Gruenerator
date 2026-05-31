@@ -1,5 +1,6 @@
 import { useAgentStore } from '@gruenerator/chat';
 import { AIPromptInput } from '@gruenerator/ui';
+import { useVoxtralDictation } from '@gruenerator/voice';
 import React, { memo, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
