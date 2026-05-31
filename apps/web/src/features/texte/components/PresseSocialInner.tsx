@@ -1,5 +1,6 @@
 import { useAgentStore } from '@gruenerator/chat';
 import { AIPromptInput } from '@gruenerator/ui';
+import { useVoxtralDictation } from '@gruenerator/voice';
 import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -134,6 +135,7 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
     <>
       <ModeExtraFields mode={def.id} state={modeState} onChange={updateField} />
       <AIPromptInput
+        useDictation={useVoxtralDictation}
         value={prompt}
         onChange={setPrompt}
         onSubmit={onSubmit}

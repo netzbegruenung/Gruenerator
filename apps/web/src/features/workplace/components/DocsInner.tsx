@@ -1,5 +1,6 @@
 import { DocsProvider, useGenerateDocument } from '@gruenerator/docs';
 import { AIPromptInput, type AIPromptInputExample } from '@gruenerator/ui';
+import { useVoxtralDictation } from '@gruenerator/voice';
 import React, { memo, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -43,6 +44,7 @@ const DocsPromptInput: React.FC = () => {
 
   return (
     <AIPromptInput
+      useDictation={useVoxtralDictation}
       value={prompt}
       onChange={setPrompt}
       onSubmit={onSubmit}

@@ -1,5 +1,6 @@
 import { useAgentStore } from '@gruenerator/chat';
 import { AIPromptInput } from '@gruenerator/ui';
+import { useVoxtralDictation } from '@gruenerator/voice';
 import React, { memo, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -76,6 +77,7 @@ const GeneratorInner: React.FC<GeneratorInnerProps> = memo(({ def }) => {
     <>
       <ModeExtraFields mode={def.id} state={modeState} onChange={updateField} def={def} />
       <AIPromptInput
+        useDictation={useVoxtralDictation}
         value={gen.prompt}
         onChange={gen.setPrompt}
         onSubmit={onSubmit}
