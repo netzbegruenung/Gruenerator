@@ -1536,9 +1536,6 @@ importers:
       '@base-ui/react':
         specifier: ^1.5.0
         version: 1.5.0(@date-fns/tz@1.5.0)(@types/react@19.2.14)(date-fns@4.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@gruenerator/voice':
-        specifier: workspace:*
-        version: link:../voice
       ai:
         specifier: ^6.0.191
         version: 6.0.191(zod@3.25.76)
