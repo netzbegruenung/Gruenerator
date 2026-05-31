@@ -1,4 +1,4 @@
-import { useUserProfileStore } from '@gruenerator/chat';
+import { useUserProfileStore } from '@gruenerator/chat/stores';
 import { useEffect } from 'react';
 
 import { useUserDefaultsQuery } from '../features/user-defaults/userDefaultsQueries';

@@ -1,4 +1,4 @@
-import { useUserProfileStore } from '@gruenerator/chat';
+import { useUserProfileStore } from '@gruenerator/chat/stores';
 import { type UserProfile } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { create } from 'zustand';
