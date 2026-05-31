@@ -1,13 +1,24 @@
-import {
-  GrueneratorChatProvider,
-  ChatThreadList,
-  TooltipProvider,
-  type SharepicVariant,
-} from '@gruenerator/chat';
+import { GrueneratorChatProvider, TooltipProvider, type SharepicVariant } from '@gruenerator/chat';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
+
+// The thread list is built on assistant-ui (~heavy). It only renders for
+// authenticated users (the portal below is gated on userId), so lazy-loading it
+// keeps assistant-ui out of the initial bundle for logged-out visitors.
+const ChatThreadList = lazy(() =>
+  import('@gruenerator/chat').then((m) => ({ default: m.ChatThreadList }))
+);
 
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
@@ -42,7 +53,9 @@ function ChatThreadPortal() {
 
   return createPortal(
     <div onClick={handleClick} className="contents">
-      <ChatThreadList noScroll />
+      <Suspense fallback={null}>
+        <ChatThreadList noScroll />
+      </Suspense>
     </div>,
     portalTarget
   );
