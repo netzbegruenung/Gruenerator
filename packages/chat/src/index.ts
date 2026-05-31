@@ -69,10 +69,8 @@ export {
 } from './stores/chatConfigStore';
 
 // Runtime
-export {
-  GrueneratorChatProvider,
-  convertToThreadMessageLike,
-} from './runtime/GrueneratorChatProvider';
+export { GrueneratorChatProvider } from './runtime/GrueneratorChatProvider';
+export { convertToThreadMessageLike } from './runtime/GrueneratorChatRuntime';
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {
   createGrueneratorModelAdapter,
@@ -138,6 +136,11 @@ export {
 
 // Message Part Components
 export { ProgressIndicator } from './components/message-parts/ProgressIndicator';
+export {
+  ProgressDisplayContext,
+  useProgressDisplay,
+  type ProgressDisplay,
+} from './components/message-parts/progressDisplayContext';
 export { ProgressTracker } from './components/tool-ui/progress-tracker/ProgressTracker';
 export { TypingIndicator } from './components/message-parts/TypingIndicator';
 export {

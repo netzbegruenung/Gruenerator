@@ -1,11 +1,29 @@
-import { Router, type Request, type Response } from 'express';
+/**
+ * ts-rest contract router for the internal content-sync endpoint.
+ *
+ * Replaces the legacy Express router (contentSyncController.ts). This is the
+ * n8n boundary: n8n triggers a per-source scraper run and reads back the
+ * SyncResult counts. The contract (@gruenerator/contracts) is the source of
+ * truth for request/response shapes, and `contentSyncSourceSchema` validates
+ * `:sourceId` before the handler runs.
+ *
+ * Middleware is applied at the prefix in routes.ts, not here:
+ *   - /api/internal/content-sync/* → requireAdminToken
+ */
+import {
+  contentSyncContract,
+  contentSyncSourceSchema,
+  type ContentSyncSource,
+} from '@gruenerator/contracts';
+import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
-import { requireAdminToken } from '../../middleware/adminTokenMiddleware.js';
+import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { toError } from '../../utils/errors/index.js';
 import { createLogger } from '../../utils/logger.js';
 
+import type { Application } from 'express';
+
 const log = createLogger('content-sync-internal');
-const router: Router = Router();
 
 interface SyncResult {
   stored: number;
@@ -22,13 +40,14 @@ interface SourceConfig {
   run: () => Promise<SyncResult>;
 }
 
-const sourceCache: Record<string, SourceConfig> = {};
-const runningSync = new Set<string>();
+const sourceCache: Partial<Record<ContentSyncSource, SourceConfig>> = {};
+const runningSync = new Set<ContentSyncSource>();
 
-async function loadSource(sourceId: string): Promise<SourceConfig | null> {
-  if (sourceCache[sourceId]) return sourceCache[sourceId];
+async function loadSource(sourceId: ContentSyncSource): Promise<SourceConfig> {
+  const cached = sourceCache[sourceId];
+  if (cached) return cached;
 
-  let config: SourceConfig | null = null;
+  let config: SourceConfig;
 
   switch (sourceId) {
     case 'landesverbaende': {
@@ -111,36 +130,18 @@ async function loadSource(sourceId: string): Promise<SourceConfig | null> {
     }
   }
 
-  if (config) sourceCache[sourceId] = config;
+  sourceCache[sourceId] = config;
   return config;
 }
 
-const VALID_SOURCES = [
-  'landesverbaende',
-  'gruenblog',
-  'gruene-at',
-  'kommunalwiki',
-  'boell-stiftung',
-  'bundestag',
-  'social-media',
-];
+const s = initServer();
 
-router.post(
-  '/source/:sourceId',
-  requireAdminToken,
-  async (req: Request<{ sourceId: string }>, res: Response): Promise<void> => {
-    const { sourceId } = req.params;
-
-    if (!VALID_SOURCES.includes(sourceId)) {
-      res
-        .status(400)
-        .json({ error: `Invalid source: ${sourceId}. Valid: ${VALID_SOURCES.join(', ')}` });
-      return;
-    }
+export const contentSyncContractRouter = s.router(contentSyncContract, {
+  syncSource: async ({ params }) => {
+    const { sourceId } = params;
 
     if (runningSync.has(sourceId)) {
-      res.status(409).json({ error: `Sync already running for: ${sourceId}` });
-      return;
+      return { status: 409 as const, body: { error: `Sync already running for: ${sourceId}` } };
     }
 
     const startTime = Date.now();
@@ -150,11 +151,6 @@ router.post(
       log.info(`Content sync started: ${sourceId}`);
 
       const source = await loadSource(sourceId);
-      if (!source) {
-        res.status(500).json({ error: `Failed to load source: ${sourceId}` });
-        return;
-      }
-
       await source.init();
 
       let timeoutId: ReturnType<typeof setTimeout>;
@@ -174,30 +170,40 @@ router.post(
         `Content sync completed: ${sourceId} — stored=${result.stored} updated=${result.updated} skipped=${result.skipped} errors=${result.errors} (${Math.round(durationMs / 1000)}s)`
       );
 
-      res.json({
-        success: true,
-        sourceId,
-        name: source.name,
-        stored: result.stored ?? 0,
-        updated: result.updated ?? 0,
-        skipped: result.skipped ?? 0,
-        errors: result.errors ?? 0,
-        fetchErrors: result.fetchErrors ?? 0,
-        durationMs,
-      });
+      return {
+        status: 200 as const,
+        body: {
+          success: true as const,
+          sourceId,
+          name: source.name,
+          stored: result.stored,
+          updated: result.updated,
+          skipped: result.skipped,
+          errors: result.errors,
+          fetchErrors: result.fetchErrors ?? 0,
+          durationMs,
+        },
+      };
     } catch (error) {
       const err = toError(error);
       const durationMs = Date.now() - startTime;
       log.error(`Content sync failed: ${sourceId} — ${err.message}`);
-      res.status(500).json({ success: false, sourceId, error: err.message, durationMs });
+      return {
+        status: 500 as const,
+        body: { success: false as const, sourceId, error: err.message, durationMs },
+      };
     } finally {
       runningSync.delete(sourceId);
     }
-  }
-);
+  },
 
-router.get('/sources', (_req: Request, res: Response): void => {
-  res.json({ sources: VALID_SOURCES });
+  listSources: async () => {
+    return { status: 200 as const, body: { sources: [...contentSyncSourceSchema.options] } };
+  },
 });
 
-export const contentSyncRouter = router;
+export function mountContentSyncContractRouter(app: Application): void {
+  createExpressEndpoints(contentSyncContract, contentSyncContractRouter, app, {
+    requestValidationErrorHandler: logContractValidationError(log, 'contentSyncContract'),
+  });
+}

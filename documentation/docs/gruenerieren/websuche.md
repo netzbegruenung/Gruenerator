@@ -29,4 +29,4 @@ Die gefundenen Informationen werden von einer KI sinnvoll zusammengefasst und au
 
 ## Datenschutz
 
-Die Standard-Websuche des Grünerators nutzt eine Open-Source-Suchmaschine mit deutscher KI-Verarbeitung. Dadurch ist die Websuche besonders datenschutzfreundlich und deine Suchanfragen bleiben privat.
+Die Standard-Websuche des Grünerators nutzt eine Open-Source-Suchmaschine (SearXNG). Die gefundenen Ergebnisse werden anschließend von einem Open-Source-KI-Modell zusammengefasst, das auf deutschen Servern gehostet wird. Dadurch ist die Websuche besonders datenschutzfreundlich und deine Suchanfragen bleiben privat.

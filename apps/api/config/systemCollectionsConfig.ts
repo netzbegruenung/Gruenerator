@@ -325,14 +325,6 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     filterableFields: [
       LV_CONTENT_TYPE_FIELD,
       LV_SOURCE_TYPE_FIELD,
-      {
-        field: 'curated_lists',
-        label: 'Liste',
-        type: 'keyword',
-        valueLabels: {
-          'wahlprogramm-be': 'Wahlprogramm',
-        },
-      } satisfies FilterableField<'curated_lists'>,
       { field: 'published_at', label: 'Datum', type: 'date_range' },
     ],
     defaultFilter: { field: 'landesverband', value: ['BE', 'BE-F'] },

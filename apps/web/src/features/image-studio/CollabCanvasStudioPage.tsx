@@ -1,32 +1,21 @@
 import { useCanvasCollaboration, MasterCanvasEditor } from '@gruenerator/canvas-editor';
 import { PresenceAvatars, useCollaborators } from '@gruenerator/collab';
+import { type CanvasDocument } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { DottedBackground } from '../../components/common/DottedBackground';
-import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import withAuthRequired from '../../components/common/LoginRequired/withAuthRequired';
 import ErrorBoundary from '../../components/ErrorBoundary';
-import apiClient from '../../components/utils/apiClient';
+import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 import { useAuthStore } from '../../stores/authStore';
 
 import { ShareCanvasDialog } from './components/ShareCanvasDialog';
 import { WebCanvasEditorProvider } from './WebCanvasEditorProvider';
-
-interface CanvasDocument {
-  id: string;
-  title: string;
-  created_by: string;
-  permissions: Record<string, { level: string }> | null;
-  template_type: string;
-  base_template_id: string | null;
-  thumbnail_url: string | null;
-  page_count: number;
-  initial_state: Record<string, unknown>;
-}
 
 function CollabCanvasStudioContent() {
   const { id } = useParams<{ id: string }>();
@@ -40,8 +29,11 @@ function CollabCanvasStudioContent() {
   const { data: canvas, isLoading } = useQuery<CanvasDocument>({
     queryKey: ['canvas', id],
     queryFn: async () => {
-      const res = await apiClient.get<CanvasDocument>(`/canvas/${id}`);
-      return res.data;
+      const result = await getContractsClient().canvas.get({ params: { id: id! } });
+      if (result.status !== 200) {
+        throw new Error(`Failed to load canvas (HTTP ${result.status})`);
+      }
+      return result.body;
     },
     enabled: !!id,
   });
@@ -63,7 +55,13 @@ function CollabCanvasStudioContent() {
         old ? { ...old, title: newTitle } : old
       );
       try {
-        await apiClient.patch(`/canvas/${id}`, { title: newTitle });
+        const result = await getContractsClient().canvas.update({
+          params: { id },
+          body: { title: newTitle },
+        });
+        if (result.status !== 200) {
+          throw new Error(`PATCH returned HTTP ${result.status}`);
+        }
       } catch (err) {
         console.error('[canvas-rename] PATCH failed, reverting', err);
         queryClient.setQueryData(key, previous);

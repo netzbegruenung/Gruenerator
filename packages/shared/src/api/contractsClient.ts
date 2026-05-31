@@ -21,6 +21,7 @@ import {
   exportsContract,
   recentValuesContract,
   searchContract,
+  researchContract,
   boardsContract,
   boardCommentsContract,
   publicBoardsContract,
@@ -41,6 +42,8 @@ import {
   documentsContract,
   groupsContract,
   userProfileContract,
+  canvasContract,
+  monitorContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 
@@ -139,6 +142,7 @@ const _threadsClient = () => initClient(threadsContract, CLIENT_OPTS);
 const _exportsClient = () => initClient(exportsContract, CLIENT_OPTS);
 const _recentValuesClient = () => initClient(recentValuesContract, CLIENT_OPTS);
 const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
+const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
 const _boardCommentsClient = () => initClient(boardCommentsContract, CLIENT_OPTS);
 const _publicBoardsClient = () => initClient(publicBoardsContract, CLIENT_OPTS);
@@ -159,12 +163,15 @@ const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
 const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
 const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
+const _canvasClient = () => initClient(canvasContract, CLIENT_OPTS);
+const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
   exports: ReturnType<typeof _exportsClient>;
   recentValues: ReturnType<typeof _recentValuesClient>;
   search: ReturnType<typeof _searchClient>;
+  research: ReturnType<typeof _researchClient>;
   boards: ReturnType<typeof _boardsClient>;
   boardComments: ReturnType<typeof _boardCommentsClient>;
   publicBoards: ReturnType<typeof _publicBoardsClient>;
@@ -185,6 +192,8 @@ export interface ContractsClient {
   documents: ReturnType<typeof _documentsClient>;
   groups: ReturnType<typeof _groupsClient>;
   userProfile: ReturnType<typeof _userProfileClient>;
+  canvas: ReturnType<typeof _canvasClient>;
+  monitor: ReturnType<typeof _monitorClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -208,6 +217,7 @@ export function getContractsClient(): ContractsClient {
     exports: _exportsClient(),
     recentValues: _recentValuesClient(),
     search: _searchClient(),
+    research: _researchClient(),
     boards: _boardsClient(),
     boardComments: _boardCommentsClient(),
     publicBoards: _publicBoardsClient(),
@@ -228,6 +238,8 @@ export function getContractsClient(): ContractsClient {
     documents: _documentsClient(),
     groups: _groupsClient(),
     userProfile: _userProfileClient(),
+    canvas: _canvasClient(),
+    monitor: _monitorClient(),
   };
 
   return _client;

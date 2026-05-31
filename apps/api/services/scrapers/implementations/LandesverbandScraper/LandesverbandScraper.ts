@@ -10,6 +10,7 @@ import * as path from 'path';
 
 import { type QdrantClient } from '@qdrant/js-client-rest';
 
+import { env } from '../../../../config/env.js';
 import {
   getSourceById,
   getSourcesByType,
@@ -19,7 +20,6 @@ import {
   type ContentPath,
   type LandesverbandSource,
 } from '../../../../config/landesverbaendeConfig.js';
-import { env } from '../../../../config/env.js';
 import { getQdrantInstance } from '../../../../database/services/QdrantService/index.js';
 import {
   scrollDocuments,
@@ -48,6 +48,25 @@ import type {
   ProcessResult,
 } from './types.js';
 import type { ScraperResult } from '../../types.js';
+
+/**
+ * Re-fetch an already-indexed URL once its last indexing is older than this.
+ * Living documents (Wahlprogramme, revised Beschlüsse) keep a stable URL but
+ * change in place; a permanent "URL exists → skip" gate froze them forever.
+ * On a re-fetch the content-hash diff in DocumentProcessor decides whether to
+ * actually re-embed, so unchanged pages cost only an HTTP GET, not embeddings.
+ */
+const RECHECK_AFTER_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+
+/**
+ * Content published longer ago than this is treated as settled: it no longer
+ * changes in place, so once indexed we never re-fetch it. This bounds the
+ * per-run re-check set to recent/living content instead of re-walking a
+ * multi-year archive every run — the re-fetch cost that pushed big LVs (BE, HH)
+ * past the sync timeout. Pages without a parseable published date fall through
+ * to the RECHECK_AFTER_MS window, so unknown-age content is still re-checked.
+ */
+const RECHECK_MAX_CONTENT_AGE_MS = 2 * 365 * 24 * 60 * 60 * 1000; // ~2 years
 
 /**
  * Main scraper class - orchestrates all modules
@@ -213,17 +232,9 @@ export class LandesverbandScraper extends BaseScraper {
       for (let i = 0; i < toProcess.length; i++) {
         const pdf = toProcess[i];
         try {
-          if (!forceUpdate) {
-            const points = await scrollDocuments(
-              this.qdrantClient,
-              targetCollection,
-              { must: [{ key: 'source_url', match: { value: pdf.url } }] },
-              { limit: 1, withPayload: false, withVector: false }
-            );
-            if (points.length > 0) {
-              result.skipped++;
-              continue;
-            }
+          if (!forceUpdate && (await this.#isFreshlyIndexed(pdf.url, targetCollection))) {
+            result.skipped++;
+            continue;
           }
 
           const response = await this.#fetchUrl(pdf.url);
@@ -388,17 +399,9 @@ export class LandesverbandScraper extends BaseScraper {
       for (let i = 0; i < toProcess.length; i++) {
         const url = toProcess[i];
         try {
-          if (!forceUpdate) {
-            const points = await scrollDocuments(
-              this.qdrantClient,
-              targetCollection,
-              { must: [{ key: 'source_url', match: { value: url } }] },
-              { limit: 1, withPayload: false, withVector: false }
-            );
-            if (points.length > 0) {
-              result.skipped++;
-              continue;
-            }
+          if (!forceUpdate && (await this.#isFreshlyIndexed(url, targetCollection))) {
+            result.skipped++;
+            continue;
           }
 
           const content = await ContentExtractor.extractPageContent(
@@ -773,6 +776,43 @@ export class LandesverbandScraper extends BaseScraper {
   #shouldExcludeUrl(url: string, excludePatterns?: string[]): boolean {
     if (!url || !excludePatterns) return false;
     return excludePatterns.some((pattern) => url.includes(pattern));
+  }
+
+  /**
+   * Layer-1 freshness gate. Returns true when the caller should skip the fetch.
+   * Skips an already-indexed URL when EITHER:
+   *   - its content was published more than RECHECK_MAX_CONTENT_AGE_MS ago
+   *     (settled history — never re-fetched once indexed), OR
+   *   - it was last indexed within RECHECK_AFTER_MS (recently re-checked).
+   * Missing, timestamp-less (legacy), or stale recent points return false so the
+   * caller re-fetches and lets the DocumentProcessor content-hash diff decide on
+   * re-embed.
+   */
+  async #isFreshlyIndexed(url: string, targetCollection: string): Promise<boolean> {
+    const points = await scrollDocuments(
+      this.qdrantClient,
+      targetCollection,
+      { must: [{ key: 'source_url', match: { value: url } }] },
+      { limit: 1, withPayload: true, withVector: false }
+    );
+    if (points.length === 0) return false;
+    const payload = points[0].payload;
+
+    // Settled history (published > 2 years ago) does not change in place, so we
+    // never re-fetch it regardless of when it was last re-checked. This keeps
+    // the per-run re-fetch set bounded to recent/living content.
+    const publishedAt = payload?.published_at as string | undefined;
+    if (publishedAt) {
+      const contentAge = Date.now() - new Date(publishedAt).getTime();
+      if (Number.isFinite(contentAge) && contentAge > RECHECK_MAX_CONTENT_AGE_MS) {
+        return true;
+      }
+    }
+
+    const indexedAt = payload?.indexed_at as string | undefined;
+    if (!indexedAt) return false;
+    const age = Date.now() - new Date(indexedAt).getTime();
+    return Number.isFinite(age) && age >= 0 && age < RECHECK_AFTER_MS;
   }
 
   /**

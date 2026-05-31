@@ -26,6 +26,7 @@ export interface ReelProcessingState {
   videoUri: string | null;
   savedToGallery: boolean;
   error: string | null;
+  errorDetail: string | null;
   transcribedSubtitles: string | null;
 }
 
@@ -57,6 +58,7 @@ const initialState: ReelProcessingState = {
   videoUri: null,
   savedToGallery: false,
   error: null,
+  errorDetail: null,
   transcribedSubtitles: null,
 };
 
@@ -98,6 +100,7 @@ export function useReelProcessing() {
       updateState({
         status: 'error',
         error: ERROR_MESSAGES[errorKey],
+        errorDetail: details ?? null,
       });
     },
     [updateState]
@@ -106,7 +109,9 @@ export function useReelProcessing() {
   const saveToGallery = useCallback(
     async (videoUri: string): Promise<boolean> => {
       try {
-        const { status } = await MediaLibrary.requestPermissionsAsync();
+        // Write-only: we only save to the gallery, never read it (Google Play
+        // media-permission policy — avoids requesting READ_MEDIA_IMAGES/VIDEO).
+        const { status } = await MediaLibrary.requestPermissionsAsync(true);
         if (status !== 'granted') {
           handleError('permission_denied');
           return false;

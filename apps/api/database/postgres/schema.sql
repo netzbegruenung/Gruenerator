@@ -1223,10 +1223,39 @@ CREATE TABLE IF NOT EXISTS monitor_snapshots (
     total_articles INT NOT NULL,
     sources TEXT[] NOT NULL,
     topic_scores JSONB NOT NULL,
-    articles JSONB NOT NULL
+    articles JSONB NOT NULL DEFAULT '[]', -- legacy blob; superseded by monitor_articles
+    keywords JSONB DEFAULT '[]',
+    social_trends JSONB DEFAULT '[]'
 );
 
 CREATE INDEX IF NOT EXISTS idx_monitor_snapshots_created ON monitor_snapshots(created_at DESC);
+
+-- Normalized, deduplicated article store for watcher search (replaces the
+-- snapshot `articles` JSONB blob). Trigram indexes back the ILIKE searches.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE TABLE IF NOT EXISTS monitor_articles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    url TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    excerpt TEXT DEFAULT '',
+    source TEXT NOT NULL,
+    locale TEXT NOT NULL DEFAULT 'de',
+    published_at TIMESTAMPTZ,
+    primary_topic TEXT,
+    topic_scores JSONB DEFAULT '{}',
+    first_seen_at TIMESTAMPTZ DEFAULT now(),
+    last_seen_at TIMESTAMPTZ DEFAULT now(),
+    emotion_scores JSONB DEFAULT '{}',
+    top_nouns JSONB DEFAULT '[]',
+    er_sentiment FLOAT
+);
+
+CREATE INDEX IF NOT EXISTS idx_monitor_articles_title_trgm ON monitor_articles USING GIN(title gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_monitor_articles_excerpt_trgm ON monitor_articles USING GIN(excerpt gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_monitor_articles_seen ON monitor_articles(last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS idx_monitor_articles_locale ON monitor_articles(locale);
+CREATE INDEX IF NOT EXISTS idx_monitor_articles_topic ON monitor_articles(primary_topic);
 
 
 -- ════════════════════════════════════════════════════════════════════════════

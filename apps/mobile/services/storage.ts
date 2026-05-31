@@ -5,6 +5,7 @@ import { getErrorMessage } from '../utils/errors';
 const STORAGE_KEYS = {
   AUTH_TOKEN: 'auth_token',
   AUTH_USER: 'auth_user',
+  AUTH_EXPIRES_AT: 'auth_expires_at',
 } as const;
 
 /**
@@ -64,8 +65,33 @@ export const secureStorage = {
     }
   },
 
+  async getExpiresAt(): Promise<string | null> {
+    try {
+      return await SecureStore.getItemAsync(STORAGE_KEYS.AUTH_EXPIRES_AT);
+    } catch (error: unknown) {
+      console.error('[SecureStorage] Failed to get expiresAt:', getErrorMessage(error));
+      return null;
+    }
+  },
+
+  async setExpiresAt(expiresAt: string): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(STORAGE_KEYS.AUTH_EXPIRES_AT, expiresAt);
+    } catch (error: unknown) {
+      console.error('[SecureStorage] Failed to set expiresAt:', getErrorMessage(error));
+    }
+  },
+
+  async removeExpiresAt(): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(STORAGE_KEYS.AUTH_EXPIRES_AT);
+    } catch (error: unknown) {
+      console.error('[SecureStorage] Failed to remove expiresAt:', getErrorMessage(error));
+    }
+  },
+
   async clearAll(): Promise<void> {
-    await Promise.all([this.removeToken(), this.removeUser()]);
+    await Promise.all([this.removeToken(), this.removeUser(), this.removeExpiresAt()]);
   },
 };
 

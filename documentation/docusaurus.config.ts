@@ -58,10 +58,10 @@ const config: Config = {
         docs: {
           sidebarPath: './sidebars.ts',
           // Hidden until ready — remove entries to re-enable in the sidebar.
-          // landesverbaende: dev-only LV-Korpus analysis pages.
+          // intern: dev-only LV-Korpus analysis pages, internal.
           // monitor: Themen-Monitor not online yet.
           // briefings: Briefing-Archiv hidden for now.
-          exclude: ['landesverbaende/**', 'monitor/**', 'briefings/**'],
+          exclude: ['intern/**', 'monitor/**', 'briefings/**'],
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
@@ -210,12 +210,8 @@ const config: Config = {
           title: 'Anleitung',
           items: [
             {
-              label: 'Pro-Modus',
-              to: '/docs/gruenerieren/pro-modus',
-            },
-            {
-              label: 'Privacy-Mode',
-              to: '/docs/gruenerieren/privacy-mode',
+              label: 'KI-Modelle',
+              to: '/docs/gruenerieren/ki-modelle',
             },
             {
               label: 'Grüne Wolke Tutorial',

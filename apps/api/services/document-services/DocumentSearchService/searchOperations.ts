@@ -50,18 +50,26 @@ export async function performTextSearch(
   try {
     const limit = options.limit || 5;
 
+    // searchCollection/additionalFilter live in DocumentSearchFilters but are
+    // threaded through `options` here (SearchOptions has an index signature),
+    // mirroring how documentIds/sourceType are already read below.
+    const searchCollection = (options.searchCollection as string | undefined) || 'documents';
+    const additionalFilter = options.additionalFilter as QdrantFilter | undefined;
+
     const scopedByDocumentIds = !!(
       options.documentIds &&
       Array.isArray(options.documentIds) &&
       options.documentIds.length > 0
     );
 
-    // See findSimilarChunks for the rationale: when documentIds is supplied,
-    // the upstream caller has already authorized the viewer for that exact set,
-    // so adding a user_id filter would break shared-notebook search.
     const filter: QdrantFilter = { must: [] };
 
-    if (!scopedByDocumentIds) {
+    // Mirror findSimilarChunks: only pin user_id on the per-user 'documents'
+    // collection when not already scoped by an authorized documentId set.
+    // System collections (LV/Landesverband etc.) have no user_id payload — a
+    // user_id clause there would return zero hits, which was the original
+    // "Volltext changes nothing" symptom on LV notebooks.
+    if (searchCollection === 'documents' && !scopedByDocumentIds) {
       filter.must!.push({ key: 'user_id', match: { value: userId } });
     }
 
@@ -76,8 +84,13 @@ export async function performTextSearch(
       filter.must!.push({ key: 'source_type', match: { value: options.sourceType as string } });
     }
 
+    // Landesverband scoping (and any other caller-supplied facet filters).
+    if (additionalFilter?.must) {
+      filter.must!.push(...additionalFilter.must);
+    }
+
     const rawResults = await qdrantOps.performTextSearch(
-      'documents',
+      searchCollection,
       query,
       filter,
       Math.round(limit * chunkMultiplier)
