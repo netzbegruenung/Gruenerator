@@ -1,4 +1,5 @@
 import { AIPromptInput, CardGrid, SectionHeader } from '@gruenerator/ui';
+import { useVoxtralDictation } from '@gruenerator/voice';
 import { useState, useMemo, useCallback, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -179,6 +180,7 @@ const ImageStudioCategorySelector: React.FC = () => {
       {!isAustrianUser && (
         <div className="mb-xl">
           <AIPromptInput
+            useDictation={useVoxtralDictation}
             value={promptInput}
             onChange={setPromptInput}
             onSubmit={handlePromptSubmit}

@@ -1,4 +1,5 @@
 import { AIPromptInput } from '@gruenerator/ui';
+import { useVoxtralDictation } from '@gruenerator/voice';
 import React, { memo, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -31,6 +32,7 @@ const BoardsInner: React.FC = memo(() => {
 
   return (
     <AIPromptInput
+      useDictation={useVoxtralDictation}
       value={prompt}
       onChange={setPrompt}
       onSubmit={onSubmit}
