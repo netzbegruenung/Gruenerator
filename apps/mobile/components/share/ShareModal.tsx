@@ -233,7 +233,12 @@ export function ShareModal({
       <KeyboardAvoidingView behavior="padding" style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Teilen</Text>
-          <Pressable onPress={onClose} style={styles.closeButton}>
+          <Pressable
+            onPress={onClose}
+            style={styles.closeButton}
+            accessibilityLabel="Schließen"
+            accessibilityRole="button"
+          >
             <Ionicons name="close" size={24} color={colors.grey[600]} />
           </Pressable>
         </View>

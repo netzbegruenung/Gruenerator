@@ -22,6 +22,7 @@ export {
   exportsContract,
   recentValuesContract,
   searchContract,
+  researchContract,
   chatGraphContract,
   boardsContract,
   boardCommentsContract,
@@ -51,7 +52,10 @@ export {
   userTemplatesContract,
   userAgentsContract,
   canvasAiContract,
+  canvasContract,
   groupsContract,
+  contentSyncContract,
+  monitorContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -59,6 +63,7 @@ export * from './schemas/threads.js';
 export * from './schemas/exports.js';
 export * from './schemas/recentValues.js';
 export * from './schemas/search.js';
+export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/boards.js';
 export * from './schemas/boardComments.js';
@@ -87,5 +92,8 @@ export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
 export * from './schemas/userAgents.js';
 export * from './schemas/canvasAi.js';
+export * from './schemas/canvas.js';
 export * from './schemas/skill.js';
 export * from './schemas/groups.js';
+export * from './schemas/contentSync.js';
+export * from './schemas/monitor.js';

@@ -6,6 +6,7 @@ import { useRouter, type Href } from 'expo-router';
 import { memo, useCallback, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Linking } from 'react-native';
 
+import { useIsTablet } from '../../hooks/useIsTablet';
 import { colors, spacing, borderRadius, type Theme } from '../../theme';
 import { DocPreview } from '../common/DocPreview';
 
@@ -54,6 +55,7 @@ const fetchRecentActivity = async (): Promise<RecentItem[]> => {
 
 export const RecentlyCreatedSection = memo(({ theme }: { theme: Theme }) => {
   const router = useRouter();
+  const isTablet = useIsTablet();
   const [failedThumbs, setFailedThumbs] = useState<Set<string>>(new Set());
 
   const { data: allItems = [], isLoading } = useQuery({
@@ -128,6 +130,7 @@ export const RecentlyCreatedSection = memo(({ theme }: { theme: Theme }) => {
               onPress={() => handleOpen(item)}
               style={({ pressed }) => [
                 styles.card,
+                { width: isTablet ? '31%' : '48%' },
                 {
                   backgroundColor: pressed ? theme.surface : theme.card,
                   borderColor: theme.cardBorder,
@@ -194,7 +197,6 @@ const styles = StyleSheet.create({
     gap: spacing.small,
   },
   card: {
-    width: '48%',
     flexGrow: 1,
     borderRadius: borderRadius.large,
     borderWidth: 1,

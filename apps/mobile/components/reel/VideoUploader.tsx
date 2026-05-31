@@ -1,11 +1,11 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Image,
   Pressable,
   ActivityIndicator,
   type ViewStyle,
@@ -43,12 +43,8 @@ export function VideoUploader({
   const pickVideo = useCallback(async () => {
     setError(null);
 
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      setError('Zugriff auf die Galerie wurde verweigert');
-      return;
-    }
-
+    // No permission request: launchImageLibraryAsync uses the Android Photo
+    // Picker, which needs no runtime permission (Google Play media policy).
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['videos'],
       allowsEditing: false,
@@ -170,7 +166,7 @@ export function VideoUploader({
       ) : (
         <>
           <View style={styles.previewContainer}>
-            <Image source={{ uri: selectedVideo.uri }} style={styles.preview} resizeMode="cover" />
+            <Image source={{ uri: selectedVideo.uri }} style={styles.preview} contentFit="cover" />
             <Pressable style={styles.clearButton} onPress={clearSelection}>
               <Ionicons name="close-circle" size={28} color={colors.white} />
             </Pressable>

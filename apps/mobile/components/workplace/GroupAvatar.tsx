@@ -22,6 +22,7 @@ export function GroupAvatar({ name, avatarUrl, size = 64 }: Props) {
         source={{ uri: src }}
         style={{ width: size, height: size, borderRadius: radius }}
         contentFit="cover"
+        accessibilityLabel={name ? `Avatar von ${name}` : 'Gruppen-Avatar'}
       />
     );
   }

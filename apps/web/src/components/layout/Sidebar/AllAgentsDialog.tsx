@@ -1,4 +1,5 @@
-import { getAgentSlug } from '@gruenerator/shared/agents';
+import { getAgentSlug, getLandesverbandHubs } from '@gruenerator/shared/agents';
+import { NOTEBOOK_ICONS } from '@gruenerator/shared/notebook-icons';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@gruenerator/ui';
 import { useMemo, type ReactNode } from 'react';
 import { PiStarFill } from 'react-icons/pi';
@@ -22,7 +23,8 @@ interface AgentListRowProps {
   description?: string;
   avatar: ReactNode;
   onClick: () => void;
-  star: {
+  // Omitted for rows that aren't favouritable (e.g. Landesverband hubs).
+  star?: {
     active: boolean;
     onToggle?: () => void;
     pinned?: boolean;
@@ -30,9 +32,9 @@ interface AgentListRowProps {
 }
 
 function AgentListRow({ title, description, avatar, onClick, star }: AgentListRowProps) {
-  const starLabel = star.pinned
+  const starLabel = star?.pinned
     ? 'Standard-Favorit (immer angeheftet)'
-    : star.active
+    : star?.active
       ? 'Aus Favoriten entfernen'
       : 'Zu Favoriten hinzufügen';
 
@@ -51,19 +53,24 @@ function AgentListRow({ title, description, avatar, onClick, star }: AgentListRo
           )}
         </span>
       </button>
-      <button
-        type="button"
-        onClick={star.onToggle}
-        disabled={star.pinned}
-        className={cn(
-          'shrink-0 p-1.5 rounded',
-          star.pinned ? 'opacity-100 cursor-default' : 'hover:bg-grey-200 dark:hover:bg-grey-700'
-        )}
-        aria-label={starLabel}
-        title={starLabel}
-      >
-        <PiStarFill size={16} className={cn(star.active ? 'text-primary-600' : 'text-grey-300')} />
-      </button>
+      {star && (
+        <button
+          type="button"
+          onClick={star.onToggle}
+          disabled={star.pinned}
+          className={cn(
+            'shrink-0 p-1.5 rounded',
+            star.pinned ? 'opacity-100 cursor-default' : 'hover:bg-grey-200 dark:hover:bg-grey-700'
+          )}
+          aria-label={starLabel}
+          title={starLabel}
+        >
+          <PiStarFill
+            size={16}
+            className={cn(star.active ? 'text-primary-600' : 'text-grey-300')}
+          />
+        </button>
+      )}
     </li>
   );
 }
@@ -75,6 +82,7 @@ export function AllAgentsDialog({ onLinkClick, titleClass }: AllAgentsDialogProp
   const userLocale = useAuthStore((state) => state.locale) ?? 'de-DE';
   const defaultAgentEntries = useMemo(() => getDefaultAgentEntries(userLocale), [userLocale]);
   const visibleSystemAgents = useMemo(() => getVisibleSystemAgents(userLocale), [userLocale]);
+  const landesverbandHubs = useMemo(() => getLandesverbandHubs(userLocale), [userLocale]);
 
   return (
     <Dialog>
@@ -135,6 +143,34 @@ export function AllAgentsDialog({ onLinkClick, titleClass }: AllAgentsDialogProp
               />
             );
           })}
+
+          {landesverbandHubs.length > 0 && (
+            <>
+              <li
+                className="my-2 border-t border-grey-200 dark:border-grey-800"
+                aria-hidden="true"
+              />
+              <li className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wider text-grey-500">
+                Landesverbände
+              </li>
+              {landesverbandHubs.map((hub) => {
+                const Icon = NOTEBOOK_ICONS[hub.notebookId];
+                return (
+                  <AgentListRow
+                    key={hub.slug}
+                    title={hub.name}
+                    description="Öffentlichkeitsarbeit · Bürger*innenservice"
+                    onClick={() => onLinkClick(`/agents/${hub.slug}`, hub.name)}
+                    avatar={
+                      <span className="shrink-0 w-7 h-7 flex items-center justify-center text-secondary-600">
+                        <Icon aria-hidden="true" className="h-5 w-5" />
+                      </span>
+                    }
+                  />
+                );
+              })}
+            </>
+          )}
 
           {userAgents.length > 0 && (
             <>

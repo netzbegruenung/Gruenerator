@@ -27,18 +27,8 @@ interface MenuItem {
 
 const MENU_ITEMS: MenuItem[] = [
   { key: 'gruppen', label: 'Gruppen', icon: 'people-outline', href: '/(focused)/gruppen' },
-  {
-    key: 'inhalte',
-    label: 'Dateien',
-    icon: 'folder-outline',
-    href: { pathname: '/profile', params: { section: 'inhalte' } },
-  },
-  {
-    key: 'einstellungen',
-    label: 'Einstellungen',
-    icon: 'settings-outline',
-    href: { pathname: '/profile', params: { section: 'einstellungen' } },
-  },
+  { key: 'inhalte', label: 'Dateien', icon: 'folder-outline', href: '/(tabs)/(docs)' },
+  { key: 'einstellungen', label: 'Einstellungen', icon: 'settings-outline', href: '/profile' },
 ];
 
 const getPossessiveForm = (name: string | undefined): string => {
@@ -95,7 +85,14 @@ export function ProfileMenu() {
 
   return (
     <>
-      <Pressable ref={triggerRef} onPress={handleOpen} style={styles.trigger} hitSlop={8}>
+      <Pressable
+        ref={triggerRef}
+        onPress={handleOpen}
+        style={styles.trigger}
+        hitSlop={8}
+        accessibilityLabel="Profilmenü öffnen"
+        accessibilityRole="button"
+      >
         <ProfileAvatar
           avatarRobotId={user?.avatar_robot_id}
           displayName={user?.display_name}

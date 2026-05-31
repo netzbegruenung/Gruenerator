@@ -105,4 +105,10 @@ export const docsShareApi = {
   async unshareFromGroup(docId: string, groupId: string): Promise<void> {
     await apiRequest('delete', `/docs/${docId}/groups/${groupId}`);
   },
+
+  // Save the current document as a reusable template (web exposes this from its
+  // ShareModal). Backend: POST /docs/:id/save-as-template (documentController.ts).
+  async saveAsTemplate(docId: string, title: string): Promise<void> {
+    await apiRequest('post', `/docs/${docId}/save-as-template`, { title });
+  },
 };

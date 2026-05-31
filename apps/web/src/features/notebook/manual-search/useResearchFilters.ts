@@ -1,17 +1,9 @@
+import { getContractsClient } from '@gruenerator/shared/api';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 
-import apiClient from '../../../components/utils/apiClient';
-
 export type SearchMode = 'hybrid' | 'vector' | 'text';
 export type SortOption = 'relevance' | 'date_desc' | 'date_asc';
-
-export interface CollectionInfo {
-  id: string;
-  name: string;
-  description: string;
-  filterableFields: string[];
-}
 
 export interface FilterFieldConfig {
   label: string;
@@ -22,10 +14,6 @@ export interface FilterFieldConfig {
 }
 
 export type ActiveFilters = Record<string, string[] | { date_from?: string; date_to?: string }>;
-
-interface FiltersResponse {
-  filters: Record<string, FilterFieldConfig>;
-}
 
 const ALLOWED_FILTER_FIELDS = new Set([
   'published_at',
@@ -47,7 +35,13 @@ export function useResearchFilters(initialCollectionIds: string[] = []) {
 
   const { data: collections = [], isLoading: collectionsLoading } = useQuery({
     queryKey: ['research', 'collections'],
-    queryFn: () => apiClient.get<CollectionInfo[]>('/research/collections').then((r) => r.data),
+    queryFn: async () => {
+      const result = await getContractsClient().research.collections();
+      if (result.status !== 200) {
+        throw new Error(`Failed to load research collections (HTTP ${result.status})`);
+      }
+      return result.body;
+    },
     staleTime: 30 * 60 * 1000,
   });
 
@@ -61,13 +55,18 @@ export function useResearchFilters(initialCollectionIds: string[] = []) {
     isFetching: filtersFetching,
   } = useQuery({
     queryKey: ['research', 'filters', collectionsCacheKey],
-    queryFn: () => {
-      const params = selectedCollectionIds.length
-        ? `?collectionIds=${selectedCollectionIds.join(',')}`
-        : '';
-      return apiClient
-        .get<FiltersResponse>(`/research/filters${params}`)
-        .then((r) => r.data.filters);
+    queryFn: async () => {
+      const result = await getContractsClient().research.filters({
+        query: {
+          collectionIds: selectedCollectionIds.length ? selectedCollectionIds.join(',') : null,
+        },
+      });
+      if (result.status !== 200) {
+        throw new Error(`Failed to load research filters (HTTP ${result.status})`);
+      }
+      // Boundary cast: the contract types `type` as `string` (shared schema),
+      // but the backend only ever emits 'keyword' | 'date_range'.
+      return result.body.filters as Record<string, FilterFieldConfig>;
     },
     staleTime: 10 * 60 * 1000,
     placeholderData: keepPreviousData,

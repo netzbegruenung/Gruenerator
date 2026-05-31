@@ -19,7 +19,7 @@ export function ScreenScaffold({ title, children }: { title: string; children: R
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <LinearGradient
         colors={
           colorScheme === 'dark'

@@ -1,4 +1,5 @@
 import { ControllableCanvasWrapper } from '@gruenerator/canvas-editor';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useShareStore } from '@gruenerator/shared/share';
 import { Button } from '@gruenerator/ui';
 import { motion } from 'motion/react';
@@ -8,7 +9,6 @@ import { useNavigate } from 'react-router-dom';
 
 import { Markdown } from '../../../components/common/Markdown';
 import { ShareMediaModal } from '../../../components/common/ShareMediaModal';
-import apiClient from '../../../components/utils/apiClient';
 import useImageStudioStore from '../../../stores/imageStudioStore';
 import { cn } from '../../../utils/cn';
 import { AiHistoryTimeline } from '../components/AiHistoryTimeline';
@@ -176,12 +176,17 @@ const TemplateResultStep: React.FC<TemplateResultStepProps> = ({
         locationName,
         address,
       };
-      const res = await apiClient.post<{ id: string }>('/canvas', {
-        title: 'Neuer Canvas',
-        template_type: type,
-        initial_state,
+      const result = await getContractsClient().canvas.create({
+        body: {
+          title: 'Neuer Canvas',
+          template_type: type,
+          initial_state,
+        },
       });
-      void navigate(`/studio/canvas/${res.data.id}`);
+      if (result.status !== 201) {
+        throw new Error(`Failed to create canvas (HTTP ${result.status})`);
+      }
+      void navigate(`/studio/canvas/${result.body.id}`);
     } catch (err) {
       console.error('[TemplateResultStep] Failed to save as collab canvas:', err);
     } finally {
