@@ -10,6 +10,7 @@ import {
 } from '@gruenerator/shared/models';
 import { useShareStore } from '@gruenerator/shared/share';
 import { AIPromptInput, Button, SettingsDropdown, type SettingConfig } from '@gruenerator/ui';
+import { useVoxtralDictation } from '@gruenerator/voice';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, Image as ImageIcon, ImagePlus, X } from 'lucide-react';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -809,6 +810,7 @@ const BilderInner: React.FC = memo(() => {
       />
 
       <AIPromptInput
+        useDictation={useVoxtralDictation}
         value={prompt}
         onChange={setPrompt}
         onSubmit={onSubmit}
