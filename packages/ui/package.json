@@ -13,12 +13,12 @@
     }
   },
   "scripts": {
+    "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@assistant-ui/react-markdown": "0.14.0",
     "@base-ui/react": "^1.4.1",
-    "@gruenerator/voice": "workspace:*",
     "ai": "^6.0.175",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -42,7 +42,9 @@
     "@rolldown/plugin-babel": "^0.2.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "typescript": "^6.0.3"
+    "eslint": "^9.40.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.46.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",
