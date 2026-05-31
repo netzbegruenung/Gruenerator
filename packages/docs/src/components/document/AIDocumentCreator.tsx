@@ -1,4 +1,5 @@
 import { AIPromptInput } from '@gruenerator/ui';
+import { useVoxtralDictation } from '@gruenerator/voice';
 import { useCallback, useState } from 'react';
 
 const EXAMPLE_PROMPTS = [
@@ -26,6 +27,7 @@ export const AIDocumentCreator = ({ onGenerate, isLoading }: AIDocumentCreatorPr
 
   return (
     <AIPromptInput
+      useDictation={useVoxtralDictation}
       value={description}
       onChange={setDescription}
       onSubmit={handleSubmit}

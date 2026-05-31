@@ -810,6 +810,7 @@ const BilderInner: React.FC = memo(() => {
       />
 
       <AIPromptInput
+        useDictation={useVoxtralDictation}
         value={prompt}
         onChange={setPrompt}
         onSubmit={onSubmit}

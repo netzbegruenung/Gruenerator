@@ -77,6 +77,7 @@ const GeneratorInner: React.FC<GeneratorInnerProps> = memo(({ def }) => {
     <>
       <ModeExtraFields mode={def.id} state={modeState} onChange={updateField} def={def} />
       <AIPromptInput
+        useDictation={useVoxtralDictation}
         value={gen.prompt}
         onChange={gen.setPrompt}
         onSubmit={onSubmit}

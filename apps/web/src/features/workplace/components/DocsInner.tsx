@@ -44,6 +44,7 @@ const DocsPromptInput: React.FC = () => {
 
   return (
     <AIPromptInput
+      useDictation={useVoxtralDictation}
       value={prompt}
       onChange={setPrompt}
       onSubmit={onSubmit}
