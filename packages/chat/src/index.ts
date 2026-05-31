@@ -70,7 +70,7 @@ export {
 
 // Runtime
 export { GrueneratorChatProvider } from './runtime/GrueneratorChatProvider';
-export { convertToThreadMessageLike } from './runtime/GrueneratorChatRuntime';
+export { convertToThreadMessageLike } from './runtime/threadMessageConversion';
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {
   createGrueneratorModelAdapter,

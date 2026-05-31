@@ -1,4 +1,4 @@
-import { useAgentStore } from '@gruenerator/chat';
+import { useAgentStore } from '@gruenerator/chat/stores';
 import { getAgentSlug, getSystemAgent, type Agent } from '@gruenerator/shared/agents';
 import {
   Sheet,

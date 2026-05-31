@@ -258,6 +258,12 @@ export default defineConfig(({ command }) => ({
                     test: /[\\/]node_modules[\\/]@blocknote[\\/]xl-/,
                   }, // 3.3 MB combined
                   { name: 'vendor-react-pdf', test: /[\\/]node_modules[\\/]@react-pdf[\\/]/ }, // 1.4 MB
+                  // assistant-ui is a leaf lib (like recharts) — splitting it keeps
+                  // its primitives out of the initial bundle. It renders only for
+                  // authenticated users (the chat runtime + thread list load lazily),
+                  // so this chunk is fetched on demand, never eagerly. Excluded from
+                  // modulepreload by the `vendor-` filter above.
+                  { name: 'vendor-assistant-ui', test: /[\\/]node_modules[\\/]@assistant-ui[\\/]/ },
                   {
                     name: 'vendor-cytoscape',
                     test: /[\\/]node_modules[\\/]cytoscape(-[a-z-]+)?[\\/]/,
