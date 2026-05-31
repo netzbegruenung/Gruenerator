@@ -135,6 +135,7 @@ const PresseSocialInner: React.FC<PresseSocialInnerProps> = memo(({ def }) => {
     <>
       <ModeExtraFields mode={def.id} state={modeState} onChange={updateField} />
       <AIPromptInput
+        useDictation={useVoxtralDictation}
         value={prompt}
         onChange={setPrompt}
         onSubmit={onSubmit}

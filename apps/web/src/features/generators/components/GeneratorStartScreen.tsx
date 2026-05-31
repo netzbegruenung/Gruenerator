@@ -1,4 +1,5 @@
 import { AIPromptInput } from '@gruenerator/ui';
+import { useVoxtralDictation } from '@gruenerator/voice';
 import React, { memo, useCallback, useMemo, useState } from 'react';
 
 import { type CustomGenerator } from '../../auth/services/profileApiService';
@@ -80,6 +81,7 @@ const GeneratorStartScreen: React.FC<GeneratorStartScreenProps> = memo(
       <div className="w-full max-w-[800px] mx-auto px-md max-md:px-sm">
         <div className="flex flex-col gap-lg">
           <AIPromptInput
+            useDictation={useVoxtralDictation}
             value={aiDescription}
             onChange={onDescriptionChange}
             onSubmit={onGenerateWithAI}

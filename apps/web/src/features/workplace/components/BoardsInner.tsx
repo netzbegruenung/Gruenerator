@@ -32,6 +32,7 @@ const BoardsInner: React.FC = memo(() => {
 
   return (
     <AIPromptInput
+      useDictation={useVoxtralDictation}
       value={prompt}
       onChange={setPrompt}
       onSubmit={onSubmit}
