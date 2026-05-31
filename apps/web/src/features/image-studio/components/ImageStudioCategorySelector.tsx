@@ -180,6 +180,7 @@ const ImageStudioCategorySelector: React.FC = () => {
       {!isAustrianUser && (
         <div className="mb-xl">
           <AIPromptInput
+            useDictation={useVoxtralDictation}
             value={promptInput}
             onChange={setPromptInput}
             onSubmit={handlePromptSubmit}
