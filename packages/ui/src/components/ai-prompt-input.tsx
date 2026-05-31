@@ -1,4 +1,3 @@
-import { useVoxtralDictation } from '@gruenerator/voice';
 import { ArrowRight, Mic, Square } from 'lucide-react';
 import React, { useCallback, type ReactNode } from 'react';
 
@@ -8,6 +7,17 @@ export interface AIPromptInputExample {
   label: string;
   text: string;
 }
+
+/**
+ * Speech-to-text adapter shape. Injected by consumers (e.g. `useVoxtralDictation`
+ * from `@gruenerator/voice`) so this design-system package carries no voice/domain dependency.
+ */
+export type UseDictation = (opts: { onTranscript: (text: string) => void }) => {
+  isDictating: boolean;
+  toggle: () => void;
+};
+
+const useNoDictation: UseDictation = () => ({ isDictating: false, toggle: () => {} });
 
 export interface AIPromptInputProps {
   value: string;
@@ -30,6 +40,8 @@ export interface AIPromptInputProps {
   inputAreaOverride?: ReactNode;
   /** When defined, overrides the default `text.length >= 3` gate for the submit button. */
   canSubmit?: boolean;
+  /** Speech-to-text hook; omit to disable dictation (the mic button hides side effects to a no-op). */
+  useDictation?: UseDictation;
 }
 
 function ActionButton({
@@ -140,8 +152,9 @@ export const AIPromptInput = React.memo(function AIPromptInput({
   className,
   inputAreaOverride,
   canSubmit,
+  useDictation = useNoDictation,
 }: AIPromptInputProps) {
-  const { isDictating, toggle: toggleDictation } = useVoxtralDictation({
+  const { isDictating, toggle: toggleDictation } = useDictation({
     onTranscript: (text) => onChange(text),
   });
 
