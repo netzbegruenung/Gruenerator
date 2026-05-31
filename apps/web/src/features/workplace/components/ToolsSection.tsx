@@ -1,4 +1,4 @@
-import { IconButton, IconButtonRow } from '@gruenerator/ui';
+import { IconButton } from '@gruenerator/ui';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -105,40 +105,50 @@ function filterTools(tools: ToolItem[]): ToolItem[] {
   return tools.filter((tool) => !tool.devOnly || import.meta.env.DEV);
 }
 
+function IconGrid({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid w-full grid-cols-[repeat(auto-fit,minmax(6rem,1fr))] justify-items-center gap-lg px-md md:px-lg">
+      {children}
+    </div>
+  );
+}
+
 function ToolIconRow({ tools }: { tools: ToolItem[] }) {
   const navigate = useNavigate();
   return (
-    <IconButtonRow>
+    <IconGrid>
       {tools.map((tool) => {
         const Icon = tool.icon;
         return (
           <IconButton
             key={tool.id}
+            size="lg"
             icon={<Icon />}
             label={tool.title}
             onClick={() => navigate(tool.path)}
           />
         );
       })}
-    </IconButtonRow>
+    </IconGrid>
   );
 }
 
 function FavoriteIconRow({ favorites }: { favorites: FavoriteItem[] }) {
   return (
-    <IconButtonRow>
+    <IconGrid>
       {favorites.map((fav) => {
         const Icon = fav.icon;
         return (
           <IconButton
             key={fav.id}
+            size="lg"
             icon={<Icon />}
             label={fav.title}
             onClick={() => window.open(fav.href, '_blank', 'noopener,noreferrer')}
           />
         );
       })}
-    </IconButtonRow>
+    </IconGrid>
   );
 }
 
