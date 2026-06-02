@@ -19,6 +19,7 @@ COPY tsconfig.base.json tsconfig.strict-migration.json ./
 
 # Copy package.json files for workspace resolution
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/core/package.json ./packages/core/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/chat/package.json ./packages/chat/
 COPY packages/voice/package.json ./packages/voice/
@@ -32,6 +33,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # Copy source (changes here don't bust the install cache)
 COPY packages/shared ./packages/shared
+COPY packages/core ./packages/core
 COPY packages/contracts ./packages/contracts
 COPY packages/chat ./packages/chat
 COPY packages/voice ./packages/voice
