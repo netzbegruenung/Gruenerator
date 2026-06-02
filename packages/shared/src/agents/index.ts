@@ -49,6 +49,13 @@ export {
 } from './landesverbandHubs.js';
 
 export {
+  DEFAULT_AGENT_ICON,
+  SUGGESTED_AGENT_ICONS,
+  isSuggestedAgentIcon,
+  type SuggestedAgentIcon,
+} from './agentIcons.js';
+
+export {
   MCP_AGENTS,
   MCP_SOCIAL_MEDIA_VARIANTS,
   type McpAgent,
