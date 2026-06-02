@@ -3,7 +3,7 @@
   display: flex;
   min-height: 100vh;
   --sidebar-collapsed-width: 56px;
-  --sidebar-expanded-width: 280px;
+  --sidebar-expanded-width: 260px;
 }
 
 .app-content {
@@ -64,9 +64,5 @@
   }
 }
 
-@media (min-width: 1920px) {
-  :root {
-    --sidebar-collapsed-width: 64px;
-    --sidebar-expanded-width: 260px;
-  }
-}
+/* Width is uniform across breakpoints; the aside's Tailwind width
+   (md:w-14 / md:w-[260px]) must match these vars to keep .app-content aligned. */
