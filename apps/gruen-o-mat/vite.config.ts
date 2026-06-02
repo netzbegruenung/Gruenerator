@@ -22,6 +22,9 @@ export default defineConfig(({ command }) => ({
       // dist is only present in published builds. Aliasing the source
       // directly bypasses the dist requirement, matching apps/web's setup.
       '@gruenerator/shared': path.resolve(__dirname, '../../packages/shared/src'),
+      // shared/models re-exports from @gruenerator/core; aliases don't cascade,
+      // so core must be aliased to src too (same reason as shared above).
+      '@gruenerator/core': path.resolve(__dirname, '../../packages/core/src'),
     },
   },
   build: {

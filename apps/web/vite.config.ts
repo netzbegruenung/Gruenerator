@@ -119,6 +119,12 @@ export default defineConfig(({ command }) => ({
       //   "Rolldown failed to resolve import '@gruenerator/contracts'
       //    from packages/shared/src/api/contractsClient.ts"
       '@gruenerator/contracts': path.resolve(__dirname, '../../packages/contracts/src'),
+      // @gruenerator/core is imported transitively from the @gruenerator/shared
+      // alias (shared/avatar + shared/models re-export from @gruenerator/core).
+      // Same cascade rule as contracts above — alias it to src or Rolldown fails:
+      //   "Rolldown failed to resolve import '@gruenerator/core/models'
+      //    from packages/shared/src/models/index.ts".
+      '@gruenerator/core': path.resolve(__dirname, '../../packages/core/src'),
     },
     // React MUST be deduped to a single physical copy. pnpm installs several
     // react versions (root 19.2.6, plus 19.2.3/19.2.4 nested under deps like
@@ -130,7 +136,24 @@ export default defineConfig(({ command }) => ({
     // We CANNOT pin react via root pnpm.overrides (that forces mobile off its
     // Expo-locked react and breaks the RN renderer — see CLAUDE.md), so the
     // web bundle dedupes here instead.
-    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime', 'd3-path'],
+    //
+    // @assistant-ui/* MUST be deduped for the same reason: the runtime provider
+    // (AuiProvider, lazy-loaded from @gruenerator/chat) and the thread-list
+    // primitives are pulled through different entry points (workspace src via the
+    // alias above vs. Vite's prebundled .vite/deps). Without dedupe they resolve
+    // to TWO physical instances of the same version, so the React context set by
+    // one is invisible to the other — "requires an AuiProvider" on /workplace
+    // even though the provider is mounted above the consumer.
+    dedupe: [
+      'react',
+      'react-dom',
+      'react/jsx-runtime',
+      'react/jsx-dev-runtime',
+      'd3-path',
+      '@assistant-ui/react',
+      '@assistant-ui/tap',
+      '@assistant-ui/core',
+    ],
   },
   optimizeDeps: {
     include: [
