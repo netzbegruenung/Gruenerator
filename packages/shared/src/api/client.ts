@@ -83,6 +83,10 @@ export function createApiClient(options: CreateApiClientOptions): AxiosInstance 
         !originalRequest.skipAuthRefresh
       ) {
         originalRequest._retried = true;
+        // onUnauthorized is `() => void | Promise<boolean>`; awaiting the optional
+        // Promise variant is intentional (we act on the refreshed result). The
+        // `void` member of the union makes await-thenable flag it — safe here.
+        // eslint-disable-next-line @typescript-eslint/await-thenable
         const refreshed = await onUnauthorized();
         if (refreshed) {
           if (authMode === 'bearer' && getAuthToken) {

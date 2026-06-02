@@ -59,6 +59,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--learning-rate", type=float, default=1e-5, help="Learning rate (default: 1e-5)")
     parser.add_argument("--lora-r", type=int, default=64, help="LoRA rank (default: 64)")
     parser.add_argument("--lora-alpha", type=int, default=16, help="LoRA alpha (default: 16)")
+    parser.add_argument(
+        "--lora-trainable-modules",
+        default=None,
+        help="LoRA target modules, e.g. 'all-linear' to include MLP layers (default: Together's default)",
+    )
+    parser.add_argument("--warmup-ratio", type=float, default=0.0, help="LR warmup ratio (default: 0.0)")
+    parser.add_argument("--weight-decay", type=float, default=0.0, help="Weight decay regularization (default: 0.0)")
+    parser.add_argument(
+        "--min-lr-ratio", type=float, default=0.0, help="Min LR as a ratio of the initial LR (default: 0.0)"
+    )
+    parser.add_argument(
+        "--max-seq-length", type=int, default=None, help="Max sequence length; longer examples are truncated (default: model default)"
+    )
+    parser.add_argument("--random-seed", type=int, default=None, help="Random seed for reproducible runs (default: none)")
     parser.add_argument("--batch-size", default="max", help="Batch size or 'max' for auto (default: max)")
     parser.add_argument(
         "--poll-interval", type=int, default=30, help="Seconds between status checks (default: 30)"
@@ -247,8 +261,8 @@ def main() -> None:
 
     print(f"\nModel: {args.model}")
     print(f"Suffix: {args.suffix}")
-    print(f"LoRA rank: {args.lora_r}, alpha: {args.lora_alpha}")
-    print(f"Epochs: {args.n_epochs}, LR: {args.learning_rate}")
+    print(f"LoRA rank: {args.lora_r}, alpha: {args.lora_alpha}, modules: {args.lora_trainable_modules or 'default'}")
+    print(f"Epochs: {args.n_epochs}, LR: {args.learning_rate}, warmup: {args.warmup_ratio}, min_lr_ratio: {args.min_lr_ratio}")
     print(f"Batch size: {args.batch_size}")
 
     # Upload training file
@@ -276,6 +290,9 @@ def main() -> None:
         model=args.model,
         n_epochs=args.n_epochs,
         learning_rate=args.learning_rate,
+        warmup_ratio=args.warmup_ratio,
+        min_lr_ratio=args.min_lr_ratio,
+        weight_decay=args.weight_decay,
         lora=True,
         lora_r=args.lora_r,
         lora_alpha=args.lora_alpha,
@@ -285,6 +302,13 @@ def main() -> None:
         n_evals=4,
         n_checkpoints=3,
     )
+    # Pass optional knobs only when set, so unspecified runs keep Together's defaults.
+    if args.lora_trainable_modules:
+        job_params["lora_trainable_modules"] = args.lora_trainable_modules
+    if args.max_seq_length:
+        job_params["max_seq_length"] = args.max_seq_length
+    if args.random_seed is not None:
+        job_params["random_seed"] = args.random_seed
     if val_file_id:
         job_params["validation_file"] = val_file_id
 
