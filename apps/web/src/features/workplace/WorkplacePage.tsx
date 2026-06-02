@@ -1,5 +1,5 @@
 import { SectionHeader } from '@gruenerator/ui';
-import { memo } from 'react';
+import { Suspense, lazy, memo } from 'react';
 
 import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
@@ -7,10 +7,12 @@ import { useFirstName } from '../../hooks/useFirstName';
 import { useAuthStore } from '../../stores/authStore';
 
 import CreatorSection from './components/CreatorSection';
-import NotebooksSection from './components/NotebooksSection';
-import RecentlyCreatedSection from './components/RecentlyCreatedSection';
-import ReelsSection from './components/ReelsSection';
 import ToolsSection, { FavoritesSection } from './components/ToolsSection';
+
+// Below-the-fold — deferred so the greeting + chat composer paint first. These
+// pull heavy deps (NotebookEditor/Dialog, image-studio Lightbox + ShareMediaModal).
+const RecentlyCreatedSection = lazy(() => import('./components/RecentlyCreatedSection'));
+const NotebooksSection = lazy(() => import('./components/NotebooksSection'));
 
 function pickStable<T>(options: readonly T[], seed: number): T {
   return options[seed % options.length] as T;
@@ -242,20 +244,19 @@ const WorkplacePage = () => {
           <h1 className="text-4xl max-md:text-2xl font-semibold text-foreground-heading mb-xs">
             {getGreeting(locale, firstName)}
           </h1>
-          <p className="text-lg text-grey-500 dark:text-grey-400">
-            Beschreibe dein Vorhaben und die KI erstellt es für dich.
-          </p>
         </div>
 
         <div className="max-w-3xl mx-auto mb-xl">
           <CreatorSection />
         </div>
 
-        <RecentlyCreatedSection />
+        <Suspense fallback={null}>
+          <RecentlyCreatedSection />
+        </Suspense>
 
-        {/* <ReelsSection /> */}
-
-        <NotebooksSection />
+        <Suspense fallback={null}>
+          <NotebooksSection />
+        </Suspense>
 
         <section className="mb-xl">
           <SectionHeader title="Weitere Tools" />

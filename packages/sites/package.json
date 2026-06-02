@@ -19,6 +19,7 @@
   "dependencies": {
     "@gruenerator/shared": "workspace:*",
     "@gruenerator/sites-design": "workspace:*",
+    "@gruenerator/ui": "workspace:*",
     "@mdxeditor/editor": "^3.55.0",
     "axios": "^1.16.1",
     "class-variance-authority": "^0.7.1",

@@ -26,6 +26,7 @@ import { iconClass, menuLinkClass } from './sidebarStyles';
 interface NewItemDropdownProps {
   openRef: MutableRefObject<boolean>;
   titleClass: string;
+  collapsed: boolean;
   onChatClick: () => void;
   onLinkClick: (path: string, title: string) => void;
   onClose: () => void;
@@ -34,6 +35,7 @@ interface NewItemDropdownProps {
 const NewItemDropdown = memo(function NewItemDropdown({
   openRef,
   titleClass,
+  collapsed,
   onChatClick,
   onLinkClick,
   onClose,
@@ -93,10 +95,10 @@ const NewItemDropdown = memo(function NewItemDropdown({
   }, [createBoard, navigate, onClose]);
 
   return (
-    <div className="flex flex-col gap-0.5 p-0 mt-xs">
+    <div className="flex flex-col gap-0.5 p-0">
       <DropdownMenu open={open} onOpenChange={handleOpenChange}>
         <DropdownMenuTrigger asChild>
-          <button className={menuLinkClass(false)} type="button">
+          <button className={menuLinkClass(false, false, collapsed)} type="button">
             <PiPlus aria-hidden="true" className={iconClass} />
             <span className={titleClass}>Neu</span>
           </button>

@@ -5,7 +5,6 @@ import { GlobalChatProvider } from '../../../providers/GlobalChatProvider';
 import { useDesktopTabsStore } from '../../../stores/desktopTabsStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { isDesktopApp } from '../../../utils/platform';
-import ProfileButton from '../../layout/Header/ProfileButton';
 import { Sidebar } from '../../layout/Sidebar';
 import SidebarToggle from '../../layout/SidebarToggle';
 
@@ -122,16 +121,28 @@ const PageLayout = ({
       <GlobalBridges />
       <div className={layoutClasses}>
         {!hideHeader ? (
-          <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center justify-between px-2 h-12 pointer-events-none">
-            <div className="pointer-events-auto">
+          <header className="fixed top-0 left-0 right-0 z-[1002] flex items-center px-2.5 h-12 pointer-events-none">
+            <div className="pointer-events-auto flex items-center gap-0">
               <SidebarToggle />
-            </div>
-            <div className="pointer-events-auto flex items-center gap-1">
-              <ProfileButton />
+              {sidebarOpen && (
+                <>
+                  <img
+                    src="/images/gruenerator_logo_gruen.svg"
+                    alt="Grünerator"
+                    className="h-7 w-auto shrink-0 dark:hidden"
+                  />
+                  <img
+                    src="/images/gruenerator_logo_weiss.svg"
+                    alt="Grünerator"
+                    aria-hidden="true"
+                    className="hidden h-7 w-auto shrink-0 dark:block"
+                  />
+                </>
+              )}
             </div>
           </header>
         ) : isSidebarOnly ? (
-          <div className="fixed top-0 left-0 z-[1002] px-2 h-12 flex items-center pointer-events-none">
+          <div className="fixed top-0 left-0 z-[1002] px-2.5 h-12 flex items-center pointer-events-none">
             <div className="pointer-events-auto">
               <SidebarToggle />
             </div>

@@ -69,6 +69,8 @@
 @source "../../../../../packages/wolke/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/collab/src/**/*.{js,ts,jsx,tsx}";
 @source "../../../../../packages/canvas-editor/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../../packages/sites/src/**/*.{js,ts,jsx,tsx}";
+@source "../../../../../packages/sites-design/src/**/*.{js,ts,jsx,tsx}";
 
 /* BlockNote ships shadcn components with raw Tailwind classes (e.g. w-[300px] on
    the FloatingComposer card). They aren't precompiled into @blocknote/shadcn/style.css,

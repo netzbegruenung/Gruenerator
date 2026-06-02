@@ -4,37 +4,21 @@ import { FiLogOut, FiExternalLink, FiEye } from 'react-icons/fi';
 
 import { CandidatePage } from '../CandidatePage';
 import { LoadingOverlay } from '../components/common/LoadingOverlay';
-import { CreateSiteScreen, type SiteTarget } from '../components/CreateSiteScreen';
+import { CreateSiteScreen } from '../components/CreateSiteScreen';
 import {
   EditorLayout,
   EditorSidebar,
   InteractivePreview,
   SectionNavigation,
 } from '../components/editor';
-import { WordPressJsonResult } from '../components/WordPressJsonResult';
-import { useAuth } from '../SitesContext';
 import { useLoadingProgress } from '../hooks/useLoadingProgress';
-import { useSite, type GeneratedSiteData, type AiGeneratedContent } from '../hooks/useSite';
+import { useSite, type GeneratedSiteData } from '../hooks/useSite';
 import { useToast } from '../hooks/useToast';
+import { useAuth } from '../SitesContext';
 import { cn } from '../utils/cn';
 import { handleApiError } from '../utils/errorHandler';
 import { nameToSubdomain, sanitizeSubdomain } from '../utils/sanitization';
 import { validators } from '../utils/validation';
-
-function toWordPressJson(ai: AiGeneratedContent): string {
-  return JSON.stringify(
-    {
-      hero: { heading: ai.hero.heading, text: ai.hero.text },
-      about: { title: ai.about.title, content: ai.about.content },
-      hero_image: { title: ai.hero_image.title, subtitle: ai.hero_image.subtitle },
-      themes: ai.themes.map((t) => ({ title: t.title, content: t.content })),
-      actions: ai.actions.map((a) => ({ text: a.text, link: a.link || 'https://example.com' })),
-      contact: { title: ai.contact.title, email: ai.contact.email },
-    },
-    null,
-    2
-  );
-}
 
 export function EditPage() {
   const { user, logout } = useAuth();
@@ -62,8 +46,6 @@ export function EditPage() {
   const [subdomain, setSubdomain] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [description, setDescription] = useState('');
-  const [target, setTarget] = useState<SiteTarget>('sites');
-  const [wordpressJson, setWordpressJson] = useState<string | null>(null);
 
   // Pre-fill subdomain from user's display name
   useEffect(() => {
@@ -133,12 +115,10 @@ export function EditPage() {
   }, [site]);
 
   const handleGenerate = async () => {
-    if (target === 'sites') {
-      const subdomainError = validators.subdomain(subdomain);
-      if (subdomainError) {
-        toast.error('Subdomain ungültig', subdomainError);
-        return;
-      }
+    const subdomainError = validators.subdomain(subdomain);
+    if (subdomainError) {
+      toast.error('Subdomain ungültig', subdomainError);
+      return;
     }
 
     const descriptionError = validators.description(description);
@@ -158,17 +138,8 @@ export function EditPage() {
         description,
         email: contactEmail || undefined,
       });
-      if (target === 'wordpress') {
-        setWordpressJson(toWordPressJson(result.raw));
-      } else {
-        setPreviewData(result.transformed);
-      }
-      toast.success(
-        target === 'wordpress' ? 'Texte generiert' : 'Seite generiert',
-        target === 'wordpress'
-          ? 'Deine WordPress-Texte wurden generiert'
-          : 'Deine Seite wurde erfolgreich generiert'
-      );
+      setPreviewData(result.transformed);
+      toast.success('Seite generiert', 'Deine Seite wurde erfolgreich generiert');
     } catch (err) {
       console.error('Generate failed:', err);
       handleApiError(err, toast);
@@ -176,12 +147,10 @@ export function EditPage() {
   };
 
   const handleFlyerUpload = async (file: File) => {
-    if (target === 'sites') {
-      const subdomainError = validators.subdomain(subdomain);
-      if (subdomainError) {
-        toast.error('Subdomain ungültig', subdomainError);
-        return;
-      }
+    const subdomainError = validators.subdomain(subdomain);
+    if (subdomainError) {
+      toast.error('Subdomain ungültig', subdomainError);
+      return;
     }
 
     try {
@@ -189,17 +158,8 @@ export function EditPage() {
         file,
         email: contactEmail || undefined,
       });
-      if (target === 'wordpress') {
-        setWordpressJson(toWordPressJson(result.raw));
-      } else {
-        setPreviewData(result.transformed);
-      }
-      toast.success(
-        target === 'wordpress' ? 'Texte generiert' : 'Seite generiert',
-        target === 'wordpress'
-          ? 'Deine WordPress-Texte wurden aus dem Flyer generiert'
-          : 'Deine Seite wurde aus dem Flyer generiert'
-      );
+      setPreviewData(result.transformed);
+      toast.success('Seite generiert', 'Deine Seite wurde aus dem Flyer generiert');
     } catch (err) {
       console.error('Flyer generation failed:', err);
       handleApiError(err, toast);
@@ -326,11 +286,9 @@ export function EditPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-grey-100">
-        <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-grey-600">
-          <div className="w-10 h-10 border-[3px] border-grey-200 border-t-primary-600 rounded-full animate-[spin_1s_linear_infinite]" />
-          <p>Seite wird geladen...</p>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-full gap-4 text-grey-600">
+        <div className="w-10 h-10 border-[3px] border-grey-200 border-t-primary-600 rounded-full animate-[spin_1s_linear_infinite]" />
+        <p>Seite wird geladen...</p>
       </div>
     );
   }
@@ -372,8 +330,8 @@ export function EditPage() {
   // If site exists and we have candidate data, show the new editor
   if (site && candidateData) {
     return (
-      <div className="min-h-screen flex flex-col bg-grey-100">
-        <header className="flex flex-row items-center gap-sm py-sm px-md bg-white border-b border-grey-200 min-h-14">
+      <div className="min-h-full flex flex-col bg-grey-100">
+        <header className="flex flex-row items-center gap-sm py-sm pl-14 pr-md bg-white border-b border-grey-200 min-h-14">
           <div className="flex items-center gap-sm shrink-0">
             <h1 className="text-base text-primary-600 m-0 whitespace-nowrap">Grünerator Sites</h1>
           </div>
@@ -502,33 +460,7 @@ export function EditPage() {
     );
   }
 
-  // WordPress JSON result screen
-  if (wordpressJson !== null && target === 'wordpress') {
-    return (
-      <>
-        <WordPressJsonResult
-          json={wordpressJson}
-          onBack={() => setWordpressJson(null)}
-          onRegenerate={handleGenerate}
-          isRegenerating={isAnyGenerating}
-        />
-        <LoadingOverlay
-          isLoading={isAnyGenerating}
-          message="KI generiert deine Texte..."
-          progress={generationProgress}
-          submessage={
-            generationProgress < 30
-              ? 'Analysiere deine Beschreibung...'
-              : generationProgress < 60
-                ? 'Erstelle Inhalte...'
-                : 'Fast fertig...'
-          }
-        />
-      </>
-    );
-  }
-
-  // No site, no preview — show the beautiful start screen
+  // No site, no preview — show the start screen
   if (!previewCandidateData) {
     return (
       <>
@@ -544,10 +476,6 @@ export function EditPage() {
           isProcessing={isProcessing}
           isGenerating={isGenerating}
           isGeneratingFromFlyer={isGeneratingFromFlyer}
-          onLogout={logout}
-          userEmail={user?.email}
-          target={target}
-          onTargetChange={setTarget}
         />
         <LoadingOverlay
           isLoading={isAnyGenerating}
@@ -577,8 +505,8 @@ export function EditPage() {
 
   // Preview exists — show sidebar controls + generated preview
   return (
-    <div className="min-h-screen flex flex-col bg-grey-100">
-      <header className="flex flex-row items-center gap-sm py-sm px-md bg-white border-b border-grey-200 min-h-14">
+    <div className="min-h-full flex flex-col bg-grey-100">
+      <header className="flex flex-row items-center gap-sm py-sm pl-14 pr-md bg-white border-b border-grey-200 min-h-14">
         <div className="flex items-center gap-sm shrink-0">
           <h1 className="text-base text-primary-600 m-0 whitespace-nowrap">Grünerator Sites</h1>
           {user && <span>{user.email}</span>}
@@ -594,7 +522,7 @@ export function EditPage() {
       </header>
 
       <div className="flex flex-col flex-1 overflow-hidden lg:flex-row">
-        <aside className="w-full shrink-0 bg-white p-[var(--spacing-lg-r)] overflow-y-auto border-b border-grey-200 max-h-[60vh] md:p-[var(--spacing-xl-r)] md:max-h-none lg:w-[400px] lg:border-b-0 lg:border-r lg:border-grey-200 xl:w-[450px]">
+        <aside className="w-full shrink-0 bg-white p-lg overflow-y-auto border-b border-grey-200 max-h-[60vh] md:p-xl md:max-h-none lg:w-[400px] lg:border-b-0 lg:border-r lg:border-grey-200 xl:w-[450px]">
           <h2 className="text-lg text-grey-800 mb-lg">Vorschau</h2>
           <p className="text-grey-600 text-base leading-relaxed mb-lg">
             So wird deine Seite aussehen. Prüfe die Inhalte und erstelle die Seite oder generiere
