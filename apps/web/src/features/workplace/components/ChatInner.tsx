@@ -56,7 +56,15 @@ const ChatInner: React.FC = memo(() => {
 
   return (
     <ThreadPrimitive.Root
-      className={cn('w-full shrink-0', '[&>div]:px-0', '[&>div>p.text-center]:hidden')}
+      className={cn(
+        'w-full shrink-0 mx-auto max-w-[680px]',
+        '[&>div]:px-0',
+        '[&>div>p.text-center]:hidden',
+        // Match the narrower/taller resting composer used in Bilder & Boards
+        // (AIPromptInput: max-w-[680px] + rows={2}). Scoped here so the full
+        // /chat composer keeps its wider, single-row default.
+        '[&_textarea]:min-h-[3rem]'
+      )}
     >
       <NavigateToChatOnSend />
       <GrueneratorComposer
