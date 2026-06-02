@@ -101,10 +101,12 @@ jobs:
           filters: |
             shared:
               - 'packages/shared/**'
+              - 'packages/core/**'
               - 'pnpm-lock.yaml'
             web:
               - 'apps/web/**'
               - 'packages/shared/**'
+              - 'packages/core/**'
               - 'packages/docs/**'
               - 'packages/chat/**'
               - 'packages/voice/**'
@@ -118,20 +120,24 @@ jobs:
             api:
               - 'apps/api/**'
               - 'packages/shared/**'
+              - 'packages/core/**'
               - 'pnpm-lock.yaml'
             hocuspocus:
               - 'services/hocuspocus/**'
               - 'packages/shared/**'
+              - 'packages/core/**'
               - 'pnpm-lock.yaml'
             mcp:
               - 'services/mcp/**'
               - 'packages/shared/**'
+              - 'packages/core/**'
               - 'pnpm-lock.yaml'
             gruen-o-mat:
               - 'apps/gruen-o-mat/**'
               - 'packages/chat/**'
               - 'packages/voice/**'
               - 'packages/shared/**'
+              - 'packages/core/**'
               - 'packages/ui/**'
               - 'packages/collab/**'
               - 'pnpm-lock.yaml'
