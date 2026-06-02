@@ -1,5 +1,5 @@
-import { SitesProvider } from '@gruenerator/sites';
-import { useCallback, type ReactNode } from 'react';
+import { SitesProvider, type SitesAuth } from '@gruenerator/sites';
+import { useCallback, useMemo, type ReactNode } from 'react';
 
 import useAuth from '../../hooks/useAuth';
 
@@ -8,7 +8,7 @@ interface SitesProviderWebProps {
 }
 
 export function SitesProviderWeb({ children }: SitesProviderWebProps) {
-  const { logout: webLogout } = useAuth();
+  const { user, isAuthenticated, loading, error, logout: webLogout } = useAuth();
 
   const login = useCallback((redirectTo?: string) => {
     const target = redirectTo || window.location.pathname;
@@ -21,8 +21,27 @@ export function SitesProviderWeb({ children }: SitesProviderWebProps) {
     console.error('[sites]', error, context);
   }, []);
 
+  // Feed Sites its auth state from the web's React-Query-backed truth. Sites
+  // used to read the shared Zustand store, which the web app never populates —
+  // that left `isLoading` stuck `true` and the page hung on its spinner.
+  const auth = useMemo<SitesAuth>(
+    () => ({
+      user: user ? { id: user.id, email: user.email, display_name: user.display_name } : null,
+      isAuthenticated,
+      isLoading: loading,
+      error,
+    }),
+    [user, isAuthenticated, loading, error]
+  );
+
   return (
-    <SitesProvider basePath="/sites" login={login} logout={logout} reportError={reportError}>
+    <SitesProvider
+      basePath="/sites"
+      auth={auth}
+      login={login}
+      logout={logout}
+      reportError={reportError}
+    >
       {children}
     </SitesProvider>
   );
