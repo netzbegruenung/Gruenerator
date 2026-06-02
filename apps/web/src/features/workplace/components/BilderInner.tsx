@@ -64,13 +64,13 @@ const BEGRUENEN_MODE_ID = 'bild-begruenen';
 const VERGROESSERN_MODE_ID = 'bild-vergroessern';
 const HINTERGRUND_MODE_ID = 'bild-hintergrund-entfernen';
 
+const FLUX_VARIANT_LABEL_RE = /^(?:⭐\s+)?Flux\s+/;
+
 function shortCost(multiplier: number): string {
   if (multiplier === 0.5) return '½ Bild';
   if (multiplier === 1) return '1 Bild';
   return `${multiplier} Bilder`;
 }
-
-const FLUX_VARIANT_LABEL_RE = /^(?:⭐\s+)?Flux\s+/;
 
 // One model dropdown grouped by family: multi-variant families (Flux) open a
 // submenu of their variants; single-model families select directly.
@@ -96,57 +96,89 @@ function ImageModelDropdown({
     setOpen(false);
   };
   const itemSelectedClass = 'text-primary-700 dark:text-primary-300';
+
+  // Desktop: a Flux submenu nested under the model list; single-model families
+  // select directly.
+  const desktopContent = MODELS_BY_FAMILY.map(({ family, models }) => {
+    if (models.length === 1) {
+      const m = models[0];
+      const isSelected = m.id === value;
+      return (
+        <DropdownMenuItem
+          key={family.id}
+          onSelect={() => select(m.id)}
+          className={cn(isSelected && itemSelectedClass)}
+        >
+          <span className="flex-1">{m.name}</span>
+          {isSelected && <Check className="size-3.5 shrink-0 text-primary-500" />}
+        </DropdownMenuItem>
+      );
+    }
+    const familyActive = models.some((m) => m.id === value);
+    return (
+      <DropdownMenuSub key={family.id}>
+        <DropdownMenuSubTrigger className={cn(familyActive && itemSelectedClass)}>
+          {family.name}
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          {models.map((m) => {
+            const isSelected = m.id === value;
+            return (
+              <DropdownMenuItem
+                key={m.id}
+                onSelect={() => select(m.id)}
+                className={cn(isSelected && itemSelectedClass)}
+              >
+                <span className="flex-1">{m.name.replace(FLUX_VARIANT_LABEL_RE, '')}</span>
+                <span className="text-xs text-grey-500">{shortCost(m.costMultiplier)}</span>
+                {isSelected && <Check className="size-3.5 shrink-0 text-primary-500" />}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+    );
+  });
+
+  // Mobile: a flat bottom sheet — Flux variants grouped in a titled section,
+  // single-model families as loose rows. (Nested side fly-outs are awkward on touch.)
+  const mobileContent = MODELS_BY_FAMILY.map(({ family, models }) =>
+    models.length > 1 ? (
+      <ResponsiveMenuSection key={family.id} title={family.name}>
+        {models.map((m) => (
+          <ResponsiveMenuItem key={m.id} active={m.id === value} onClick={() => select(m.id)}>
+            {m.name.replace(FLUX_VARIANT_LABEL_RE, '')} · {shortCost(m.costMultiplier)}
+          </ResponsiveMenuItem>
+        ))}
+      </ResponsiveMenuSection>
+    ) : (
+      <ResponsiveMenuItem
+        key={family.id}
+        active={models[0].id === value}
+        onClick={() => select(models[0].id)}
+      >
+        {models[0].name}
+      </ResponsiveMenuItem>
+    )
+  );
+
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
+    <ResponsiveMenu
+      open={open}
+      onOpenChange={setOpen}
+      sheetTitle="Modell wählen"
+      dropdownSide="bottom"
+      dropdownAlign="start"
+      dropdownClassName="min-w-[12rem]"
+      trigger={
         <button type="button" className={cn(pillBase, pillActive, 'gap-1')}>
           <span>{selected.name}</span>
           <ChevronDown className={cn('size-3 transition-transform', open && 'rotate-180')} />
         </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[12rem]">
-        {MODELS_BY_FAMILY.map(({ family, models }) => {
-          if (models.length === 1) {
-            const m = models[0];
-            const isSelected = m.id === value;
-            return (
-              <DropdownMenuItem
-                key={family.id}
-                onSelect={() => select(m.id)}
-                className={cn(isSelected && itemSelectedClass)}
-              >
-                <span className="flex-1">{m.name}</span>
-                {isSelected && <Check className="size-3.5 shrink-0 text-primary-500" />}
-              </DropdownMenuItem>
-            );
-          }
-          const familyActive = models.some((m) => m.id === value);
-          return (
-            <DropdownMenuSub key={family.id}>
-              <DropdownMenuSubTrigger className={cn(familyActive && itemSelectedClass)}>
-                {family.name}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent>
-                {models.map((m) => {
-                  const isSelected = m.id === value;
-                  return (
-                    <DropdownMenuItem
-                      key={m.id}
-                      onSelect={() => select(m.id)}
-                      className={cn(isSelected && itemSelectedClass)}
-                    >
-                      <span className="flex-1">{m.name.replace(FLUX_VARIANT_LABEL_RE, '')}</span>
-                      <span className="text-xs text-grey-500">{shortCost(m.costMultiplier)}</span>
-                      {isSelected && <Check className="size-3.5 shrink-0 text-primary-500" />}
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      }
+      desktopContent={desktopContent}
+      mobileContent={mobileContent}
+    />
   );
 }
 
