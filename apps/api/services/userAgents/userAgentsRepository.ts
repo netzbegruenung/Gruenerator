@@ -62,6 +62,7 @@ export interface UserAgentInput {
   description: string;
   systemRole: string;
   avatar: string;
+  iconKey?: string;
   backgroundColor: string;
   tags: string[];
   model: string;
@@ -100,6 +101,7 @@ function rowToAgent(row: UserAgentRow): Agent {
     openingQuestions: row.opening_questions,
     locale: row.locale,
     author: row.author,
+    ...(row.icon_key ? { iconKey: row.icon_key } : {}),
     ...(row.default_model ? { defaultModel: row.default_model } : {}),
     ...(row.default_notebook_id ? { defaultNotebookId: row.default_notebook_id } : {}),
     ...(row.plugins ? { plugins: row.plugins } : {}),
@@ -117,6 +119,7 @@ function inputToInsertValues(userId: string, input: UserAgentInput) {
     description: input.description,
     system_role: input.systemRole,
     avatar: input.avatar,
+    icon_key: input.iconKey ?? null,
     background_color: input.backgroundColor,
     tags: input.tags,
     model: input.model,
@@ -141,6 +144,7 @@ function patchToUpdateValues(patch: UserAgentPatch): Record<string, unknown> {
   if (patch.description !== undefined) out.description = patch.description;
   if (patch.systemRole !== undefined) out.system_role = patch.systemRole;
   if (patch.avatar !== undefined) out.avatar = patch.avatar;
+  if (patch.iconKey !== undefined) out.icon_key = patch.iconKey;
   if (patch.backgroundColor !== undefined) out.background_color = patch.backgroundColor;
   if (patch.tags !== undefined) out.tags = patch.tags;
   if (patch.model !== undefined) out.model = patch.model;
