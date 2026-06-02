@@ -31,7 +31,7 @@ import {
 } from '../../lib/useScopedAgentState';
 import { useSkillFavoritesStore } from '../../stores/skillFavoritesStore';
 import {
-  agentMentionables,
+  getAgentMentionables,
   getCustomAgentMentionables,
   toolMentionables,
   notebookMentionables,
@@ -57,7 +57,7 @@ export const PlusMenu = memo(function PlusMenu({
   const isCompact = useChatDensity() === 'compact';
   const customAgents = getCustomAgentMentionables();
   const favorites = useSkillFavoritesStore((s) => s.favorites);
-  const quickSkills = agentMentionables.filter(
+  const quickSkills = getAgentMentionables().filter(
     (a) => a.isSystemDefault || favorites.includes(a.mention.toLowerCase())
   );
   const allQuickSkills = [...quickSkills, ...customAgents];

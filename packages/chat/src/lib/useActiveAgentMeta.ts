@@ -2,7 +2,9 @@ import { useMemo } from 'react';
 import { SKILLS, getSystemAgent, localizeAgent, type SkillIcon } from '@gruenerator/shared/agents';
 import { agentsList } from './agents';
 import { resolveAgentIcon } from './agentIcons';
+import { phosphorAgentIcon } from './phosphorAgentIcon';
 import { useScopedAgentId } from './useScopedAgentState';
+import { useUserAgentsRegistry } from '../stores/userAgentsRegistry';
 
 export interface ActiveAgentMeta {
   identifier: string;
@@ -24,6 +26,7 @@ export interface ActiveAgentMeta {
  */
 export function useActiveAgentMeta(userLocale: string = 'de-DE'): ActiveAgentMeta | null {
   const selectedAgentId = useScopedAgentId();
+  const userAgents = useUserAgentsRegistry((s) => s.userAgents);
 
   return useMemo(() => {
     if (!selectedAgentId) return null;
@@ -53,6 +56,23 @@ export function useActiveAgentMeta(userLocale: string = 'de-DE'): ActiveAgentMet
         ...(agent.welcomeQuestion ? { welcomeQuestion: agent.welcomeQuestion } : {}),
       };
     }
+    // User agents: resolved from the host-populated registry. Their `iconKey`
+    // is a full Phosphor component name, so it goes through the dynamic resolver
+    // (the curated slug registry can't map it).
+    const userAgent = userAgents.find((a) => a.identifier === selectedAgentId);
+    if (userAgent) {
+      return {
+        identifier: selectedAgentId,
+        avatar: userAgent.avatar,
+        ...(userAgent.iconKey ? { icon: phosphorAgentIcon(userAgent.iconKey) } : {}),
+        title: userAgent.title,
+        description: userAgent.description,
+        openingMessage: userAgent.openingMessage,
+        openingQuestions: userAgent.openingQuestions,
+        ...(userAgent.welcomeQuestion ? { welcomeQuestion: userAgent.welcomeQuestion } : {}),
+      };
+    }
+
     const skill = SKILLS.find((s) => s.identifier === selectedAgentId);
     if (!skill) return null;
     return {
@@ -62,5 +82,5 @@ export function useActiveAgentMeta(userLocale: string = 'de-DE'): ActiveAgentMet
       title: skill.title,
       description: skill.description,
     };
-  }, [selectedAgentId, userLocale]);
+  }, [selectedAgentId, userLocale, userAgents]);
 }

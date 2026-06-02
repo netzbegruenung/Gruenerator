@@ -42,6 +42,28 @@ Use for all new code. Import `cn()` from `@/utils/cn` for conditional classes.
 
 Prefer Tailwind utilities over `var(--)`. Only use variables confirmed in `variables.css`.
 
+## Design System Building Blocks (`@gruenerator/ui`)
+
+**Do NOT hand-roll page chrome, buttons, inputs, cards, or section headers.** Reach for the shared components first — match the patterns `apps/web/src/features/workplace/WorkplacePage.tsx` and `apps/web/src/features/agents/*` use. Hand-rolled `<button className="rounded bg-primary-600 …">`, raw `<input className="border …">`, or bespoke `<h2>+count` headers are a smell; reviewers push back.
+
+| Need | Use | Notes |
+|------|-----|-------|
+| Page wrapper | `PageContainer` (`@/components/common/PageContainer`) | `maxWidth="sm\|md\|lg"`, optional `title`/`subtitle` render the centered page header. Gives consistent padding + gradient. |
+| Section header | `SectionHeader` from `@gruenerator/ui` | `title` + optional `actions`/`onCreate`/`searchQuery`. Never hand-roll `<h2>+button`. |
+| Buttons | `Button` from `@gruenerator/ui` | Variants: `brand` (primary pill), `brand-outline`, `brand-ghost`, `brand-danger`, plus `default`/`outline`/`ghost`/`destructive`/`link`. Sizes `sm`/`default`/`lg`/`icon`. |
+| Text / number fields | `Input` from `@gruenerator/ui` | Forwards all `<input>` props. `bg-input-bg`, h-11. |
+| Multi-line | `Textarea` from `@gruenerator/ui` | |
+| Cards | `Card` / `CardGrid` / `CardActionsMenu` | Card list items: clickable card + hover-lift + `DropdownMenu` kebab (see `features/workplace/components/TextCard.tsx`, `features/agents/AgentCard.tsx`). |
+| Dialogs | `Dialog` + `DialogContent`/`DialogHeader`/`DialogTitle`/`DialogDescription`/`DialogFooter` | Confirm/edit modals. |
+| Dropdown menus | `DropdownMenu*` | Card actions; `DropdownMenuItem variant="destructive"` for delete. |
+| AI prompt box | `AIPromptInput` | One-shot "describe it" entry points; pass `useDictation={useVoxtralDictation}` + `examples`. |
+| Multi-step form | `MultiStepForm` + `MultiStepForm.Step` | Wizards (see `features/agents/AgentBuilderForm.tsx`). |
+| Avatars / icons | `Avatar`; agent icons via the Phosphor picker pattern (`features/agents/icons/`) | |
+
+Native `<select>` is acceptable when the shadcn `Select` is overkill — style it to match `Input`: `h-11 w-full rounded-sm border-0 bg-input-bg px-sm text-sm text-input-text outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50` (the `selectCls` convention in the agents feature). For a richer/searchable select, use `Select` from `@gruenerator/ui`.
+
+Reference implementation for a full feature using these: the agent creator/editor at `apps/web/src/features/agents/` (`AgentStartScreen`, `AgentBuilderForm`, `AgentSettingsPage`, `AgentCard`).
+
 ## shadcn/ui Components
 
 Prefer shadcn/ui for new UI. For chat, prefer Assistant UI (`@assistant-ui/react`) first. Always add via CLI:

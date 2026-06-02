@@ -11,6 +11,9 @@ export const userAgents = pgTable(
     description: text('description').notNull(),
     system_role: text('system_role').notNull(),
     avatar: text('avatar').notNull(),
+    // react-icons Phosphor component name (e.g. `PiSparkle`). User agents render
+    // this icon; `avatar` (emoji) is a legacy fallback for rows without one.
+    icon_key: text('icon_key'),
     background_color: text('background_color').notNull(),
     tags: jsonb('tags').$type<string[]>().notNull().default([]),
     model: text('model').notNull(),

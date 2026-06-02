@@ -72,14 +72,17 @@ export function useCreateUserAgent() {
 }
 
 /**
- * Synthesize an agent spec from the creator conversation (the thread the user
- * is chatting in). The backend loads the thread's messages and runs a Mistral
- * structured-generation pass; we return the validated spec for the draft panel.
+ * Synthesize an agent spec from either a one-shot freeform brief
+ * (`{ description }`, the guided-assistant start screen) or a creator
+ * conversation (`{ threadId }`). The backend runs a Mistral structured-
+ * generation pass and returns the validated spec to pre-fill the wizard.
  */
 export function useDraftAgent() {
   return useMutation({
-    mutationFn: async (threadId: string): Promise<DraftedAgentSpec> => {
-      const res = await getContractsClient().userAgents.draft({ body: { threadId } });
+    mutationFn: async (
+      input: { threadId: string } | { description: string }
+    ): Promise<DraftedAgentSpec> => {
+      const res = await getContractsClient().userAgents.draft({ body: input });
       if (res.status === 200) return res.body.spec;
       throw new Error(readError(res.body).message);
     },
