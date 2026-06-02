@@ -3,11 +3,14 @@ import React, { Suspense, lazy, memo, useState } from 'react';
 import ModePillRow from '../../texte/components/ModePillRow';
 import { DEFAULT_MODE } from '../../texte/modes';
 
-import BilderInner from './BilderInner';
-import BoardsInner from './BoardsInner';
 import ChatInner from './ChatInner';
-import DocsInner from './DocsInner';
 
+// Chat is the default tab (DEFAULT_MODE) and must paint instantly, so it stays
+// eager. The other tabs are lazy — their heavy deps (image-studio, @gruenerator/docs,
+// boards) stay out of the initial chunk until the user switches tabs.
+const BilderInner = lazy(() => import('./BilderInner'));
+const BoardsInner = lazy(() => import('./BoardsInner'));
+const DocsInner = lazy(() => import('./DocsInner'));
 const EigeneTab = lazy(() => import('../../texte/tabs/EigeneTab'));
 
 const CreatorSection: React.FC = memo(() => {
@@ -26,7 +29,7 @@ const CreatorSection: React.FC = memo(() => {
 
       {isChat ? (
         <ChatInner />
-      ) : isEigene ? (
+      ) : (
         <Suspense
           fallback={
             <div className="flex justify-center py-xl">
@@ -34,15 +37,17 @@ const CreatorSection: React.FC = memo(() => {
             </div>
           }
         >
-          <EigeneTab />
+          {isEigene ? (
+            <EigeneTab />
+          ) : isBilder ? (
+            <BilderInner key={mode} />
+          ) : isBoards ? (
+            <BoardsInner key={mode} />
+          ) : isDocs ? (
+            <DocsInner key={mode} />
+          ) : null}
         </Suspense>
-      ) : isBilder ? (
-        <BilderInner key={mode} />
-      ) : isBoards ? (
-        <BoardsInner key={mode} />
-      ) : isDocs ? (
-        <DocsInner key={mode} />
-      ) : null}
+      )}
     </div>
   );
 });
