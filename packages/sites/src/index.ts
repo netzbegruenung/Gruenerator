@@ -14,6 +14,8 @@ export {
   useSitesBasePath,
   useSitesActions,
   useAuth,
+  type SitesAuth,
+  type SitesUser,
   type SitesContextValue,
   type SitesProviderProps,
 } from './SitesContext';
