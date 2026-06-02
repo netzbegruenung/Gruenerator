@@ -482,10 +482,10 @@ const standardRoutes: RouteConfig[] = [
   { path: '/boards/public/:id', component: PublicBoardPage, layoutMode: 'noChrome', public: true },
   { path: '/boards/:id', component: BoardPage, layoutMode: 'noChrome' },
   // Sites Feature Routes — embedded candidate site builder
-  { path: '/sites', component: SitesHomePage, layoutMode: 'immersive' },
+  { path: '/sites', component: SitesHomePage, layoutMode: 'sidebarOnly' },
   { path: '/sites/login', component: SitesLoginPage, layoutMode: 'immersive', public: true },
-  { path: '/sites/demo', component: SitesDemoPage, layoutMode: 'immersive' },
-  { path: '/sites/edit', component: SitesEditPage, layoutMode: 'immersive' },
+  { path: '/sites/demo', component: SitesDemoPage, layoutMode: 'sidebarOnly' },
+  { path: '/sites/edit', component: SitesEditPage, layoutMode: 'sidebarOnly' },
   { path: '*', component: NotFound, public: true },
 ];
 
