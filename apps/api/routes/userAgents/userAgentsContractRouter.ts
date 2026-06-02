@@ -112,6 +112,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
         openingQuestions: body.openingQuestions,
         locale: body.locale,
         author: body.author,
+        ...(body.iconKey != null ? { iconKey: body.iconKey } : {}),
         ...(body.defaultModel != null ? { defaultModel: body.defaultModel } : {}),
         ...(body.defaultNotebookId != null ? { defaultNotebookId: body.defaultNotebookId } : {}),
         ...(body.plugins != null ? { plugins: body.plugins } : {}),
@@ -143,7 +144,22 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
   draft: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const { threadId } = args.body;
+      const { threadId, description } = args.body;
+
+      // Guided-assistant path: a one-shot freeform brief. No thread to load —
+      // wrap it as a single user message and synthesize directly.
+      if (description) {
+        const spec = await draftAgentSpec([{ role: 'user', content: description }]);
+        return { status: 200 as const, body: { success: true, spec } };
+      }
+
+      // Conversational path: load the (ownership-checked) thread messages.
+      if (!threadId) {
+        return {
+          status: 400 as const,
+          body: { success: false, message: 'Noch keine Unterhaltung zum Auswerten vorhanden.' },
+        };
+      }
       const postgres = getPostgresInstance();
       await postgres.ensureInitialized();
 
@@ -271,6 +287,7 @@ export const userAgentsContractRouter = s.router(userAgentsContract, {
       if (b.description !== undefined) patch.description = b.description;
       if (b.systemRole !== undefined) patch.systemRole = b.systemRole;
       if (b.avatar !== undefined) patch.avatar = b.avatar;
+      if (b.iconKey != null) patch.iconKey = b.iconKey;
       if (b.backgroundColor !== undefined) patch.backgroundColor = b.backgroundColor;
       if (b.tags !== undefined) patch.tags = b.tags;
       if (b.model !== undefined) patch.model = b.model;

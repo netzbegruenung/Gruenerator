@@ -34,6 +34,8 @@ export const skillFrontmatterSchema = z.object({
     .min(1)
     .regex(/^[a-z0-9äöüß-]+$/, 'mention must be lowercase letters, digits, hyphens (umlauts ok)'),
   skillCategory: skillCategorySchema.optional(),
+  /** Locale visibility, same semantics as agents: de-DE / de-AT / all (default). */
+  audience: z.enum(['de-DE', 'de-AT', 'all']).optional(),
   promptTemplate: z.string().min(1).optional(),
   isSystemDefault: z.boolean().optional(),
   /**

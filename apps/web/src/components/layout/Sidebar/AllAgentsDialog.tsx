@@ -5,6 +5,7 @@ import { useMemo, type ReactNode } from 'react';
 import { PiStarFill } from 'react-icons/pi';
 
 import { useUserAgents } from '../../../features/agents/api';
+import { AgentAvatar } from '../../../features/agents/icons/AgentAvatar';
 import useAgentFavoritesStore from '../../../stores/agentFavoritesStore';
 import { useAuthStore } from '../../../stores/authStore';
 
@@ -190,12 +191,12 @@ export function AllAgentsDialog({ onLinkClick, titleClass }: AllAgentsDialogProp
                     onLinkClick(`/agents/${getAgentSlug(agent.identifier)}`, agent.title)
                   }
                   avatar={
-                    <span
-                      className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-sm"
-                      style={{ backgroundColor: agent.backgroundColor }}
-                    >
-                      {agent.avatar}
-                    </span>
+                    <AgentAvatar
+                      iconKey={agent.iconKey}
+                      avatar={agent.avatar}
+                      backgroundColor={agent.backgroundColor}
+                      size="sm"
+                    />
                   }
                   star={{
                     active: favoriteIdentifiers.includes(agent.identifier),

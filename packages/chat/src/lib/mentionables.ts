@@ -46,6 +46,8 @@ export interface Mentionable {
   isSystemDefault?: boolean;
   iconKey?: string;
   icon?: React.ComponentType<{ className?: string }>;
+  /** Locale visibility (skills/agents): de-DE / de-AT / all. Undefined ≈ all. */
+  audience?: 'de-DE' | 'de-AT' | 'all';
 }
 
 export interface CustomAgentMentionable {
@@ -91,6 +93,7 @@ export function agentToMentionable(agent: AgentListItem): Mentionable {
     promptTemplate: agent.promptTemplate,
     isSystemDefault: agent.isSystemDefault,
     ...(agent.iconKey ? { iconKey: agent.iconKey } : {}),
+    ...(agent.audience ? { audience: agent.audience } : {}),
     ...(icon ? { icon } : {}),
   };
 }
@@ -110,6 +113,22 @@ export function customAgentToMentionable(agent: CustomAgentMentionable): Mention
 }
 
 export const agentMentionables: Mentionable[] = agentsList.map(agentToMentionable);
+
+// Locale for filtering agent/skill mentionables in the picker. Set by the host
+// app (mirrors `setCustomAgents`). Resolution stays locale-agnostic so existing
+// @mentions in old threads still resolve regardless of the current locale.
+let mentionLocale = 'de-DE';
+
+export function setMentionLocale(locale: string): void {
+  mentionLocale = locale;
+}
+
+/** Agent/skill mentionables visible for the current locale (de-DE/de-AT/all). */
+export function getAgentMentionables(): Mentionable[] {
+  return agentMentionables.filter(
+    (m) => m.audience === undefined || m.audience === 'all' || m.audience === mentionLocale
+  );
+}
 
 let customAgentMentionables: Mentionable[] = [];
 
@@ -519,7 +538,7 @@ export function decodeConnectToken(token: string): ConnectFileToken | null {
 
 export function getAllMentionables(): Mentionable[] {
   return [
-    ...agentMentionables,
+    ...getAgentMentionables(),
     ...customAgentMentionables,
     ...dynamicUserNotebookMentionables,
     ...notebookMentionables,
@@ -585,7 +604,7 @@ export function filterMentionables(query: string): {
   const allDocs = [...docToolMentionables, ...dynamicDocMentionables];
   if (!query) {
     return {
-      agents: agentMentionables,
+      agents: getAgentMentionables(),
       customAgents: customAgentMentionables,
       notebooks: notebookMentionables,
       userNotebooks: dynamicUserNotebookMentionables,
@@ -612,7 +631,7 @@ export function filterMentionables(query: string): {
     q.startsWith('notiz');
 
   return {
-    agents: agentMentionables.filter(matchFn),
+    agents: getAgentMentionables().filter(matchFn),
     customAgents: customAgentMentionables.filter(matchFn),
     notebooks: isNotebookCategoryQuery
       ? notebookMentionables
