@@ -2,7 +2,9 @@ import {
   ChatOverview,
   type NotebookLink,
   GrueneratorThread,
+  setMentionLocale,
   useAgentStore,
+  useUserAgentsRegistry,
   type UserRole,
 } from '@gruenerator/chat';
 import { getSystemAgent, resolveAgentSlug } from '@gruenerator/shared/agents';
@@ -40,6 +42,17 @@ function ChatPage() {
   const firstName = useFirstName();
   const userLocale = useAuthStore((s) => s.locale) ?? 'de-DE';
   const { data: userAgents } = useUserAgents();
+  // Bridge the user-agents query into the chat package so its welcome screen
+  // and message avatars can resolve a user agent's title/icon by identifier.
+  const setRegistryAgents = useUserAgentsRegistry((s) => s.setUserAgents);
+  useEffect(() => {
+    if (userAgents) setRegistryAgents(userAgents);
+  }, [userAgents, setRegistryAgents]);
+  // Locale-filter the @-mention / skill picker (de-DE/de-AT/all), matching the
+  // agent audience rule.
+  useEffect(() => {
+    setMentionLocale(userLocale);
+  }, [userLocale]);
   // The agent we've already auto-applied a default notebook for. Prevents the
   // effect from re-applying (and clobbering a manual notebook pick) when the
   // `userAgents` query reference changes on an unrelated cache invalidation.

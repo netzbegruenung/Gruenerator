@@ -2,11 +2,15 @@
 
 import { memo, useMemo } from 'react';
 import { MessagePrimitive, useMessage } from '@assistant-ui/react';
+import { type SkillIcon } from '@gruenerator/shared/agents';
 import { agentsList, getDefaultAgent } from '../../lib/agents';
+import { phosphorAgentIcon } from '../../lib/phosphorAgentIcon';
+import { useUserAgentsRegistry } from '../../stores/userAgentsRegistry';
 import { GrueneratorHomeIconLoading } from '../icons';
 import { CitationMarkdownText } from '../message-parts/CitationMarkdownText';
 import { Reasoning, ReasoningGroup } from '../assistant-ui/reasoning';
 import { ProgressIndicator } from '../message-parts/ProgressIndicator';
+import { useProgressDisplay } from '../message-parts/progressDisplayContext';
 import { ProgressTracker } from '../tool-ui/progress-tracker/ProgressTracker';
 import { SkillBadge } from '../message-parts/SkillBadge';
 import { TypingIndicator } from '../message-parts/TypingIndicator';
@@ -42,8 +46,10 @@ const partComponents = { Text: AssistantMessageTextPart, Reasoning, ReasoningGro
 export const AssistantMessage = memo(function AssistantMessage() {
   const message = useMessage();
   const density = useChatDensity();
+  const progressDisplay = useProgressDisplay();
   const isCompact = density === 'compact';
   const custom = message.metadata?.custom as ChatMessageMetadata | undefined;
+  const userAgents = useUserAgentsRegistry((s) => s.userAgents);
 
   // Resolve the agent that PRODUCED this message from its own metadata only.
   // The chat adapter sets `custom.agentId`/`agentMention` on every frame when an
@@ -51,11 +57,46 @@ export const AssistantMessage = memo(function AssistantMessage() {
   // (notebook QA, eigener chat) leave it unset → no agent avatar/badge. We do
   // NOT fall back to the currently-selected agent: selection is ambient UI state,
   // not message provenance, and leaks the wrong agent into notebook answers.
-  const messageAgent = useMemo(() => {
-    if (custom?.agentMention) return agentsList.find((a) => a.mention === custom.agentMention);
-    if (custom?.agentId) return agentsList.find((a) => a.identifier === custom.agentId);
+  const messageAgent = useMemo<
+    | {
+        identifier: string;
+        icon: SkillIcon;
+        backgroundColor: string;
+        avatar: string;
+        title: string;
+      }
+    | undefined
+  >(() => {
+    const skill = custom?.agentMention
+      ? agentsList.find((a) => a.mention === custom.agentMention)
+      : custom?.agentId
+        ? agentsList.find((a) => a.identifier === custom.agentId)
+        : undefined;
+    if (skill) {
+      return {
+        identifier: skill.identifier,
+        icon: skill.icon,
+        backgroundColor: skill.backgroundColor,
+        avatar: skill.avatar,
+        title: skill.title,
+      };
+    }
+    // User agents aren't in the skills catalog — resolve from the registry and
+    // map their Phosphor `iconKey` through the dynamic resolver.
+    if (custom?.agentId) {
+      const ua = userAgents.find((a) => a.identifier === custom.agentId);
+      if (ua) {
+        return {
+          identifier: ua.identifier,
+          icon: phosphorAgentIcon(ua.iconKey ?? 'PiSparkle'),
+          backgroundColor: ua.backgroundColor,
+          avatar: ua.avatar,
+          title: ua.title,
+        };
+      }
+    }
     return undefined;
-  }, [custom?.agentMention, custom?.agentId]);
+  }, [custom?.agentMention, custom?.agentId, userAgents]);
 
   const isNonDefaultAgent = messageAgent != null && messageAgent.identifier !== getDefaultAgent();
   const fetchFullText = useFetchFullText();
@@ -142,7 +183,13 @@ export const AssistantMessage = memo(function AssistantMessage() {
                   />
                 );
               }
-              return <ProgressIndicator progress={custom!.progress!} agentColor={agentColor} />;
+              return (
+                <ProgressIndicator
+                  progress={custom!.progress!}
+                  agentColor={agentColor}
+                  variant={progressDisplay}
+                />
+              );
             }
 
             if (!textContent) {
@@ -166,6 +213,7 @@ export const AssistantMessage = memo(function AssistantMessage() {
             <ProgressIndicator
               progress={custom.progress}
               agentColor={messageAgent?.backgroundColor || '#316049'}
+              variant={progressDisplay}
             />
           ))}
 

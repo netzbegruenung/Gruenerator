@@ -57,6 +57,7 @@ export const userAgentSchema = z.object({
   description: z.string(),
   systemRole: z.string(),
   avatar: z.string(),
+  iconKey: z.string().optional(),
   backgroundColor: z.string(),
   tags: z.array(z.string()).readonly(),
   model: z.string(),
@@ -84,6 +85,7 @@ export const createUserAgentBodySchema = z.object({
   description: z.string().min(1).max(500),
   systemRole: z.string().min(10),
   avatar: z.string().min(1).max(8),
+  iconKey: z.string().max(64).nullish(),
   backgroundColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
   tags: z.array(z.string()).default([]),
   model: z.string().default('mistral-large-latest'),
@@ -139,13 +141,19 @@ export const userAgentErrorResponseSchema = z.object({
 // ── Conversational draft (creator) ────────────────────────────────────────────
 
 /**
- * POST /api/user-agents/draft — synthesize a spec from a creator conversation.
- * The server loads the thread's messages (ownership-checked) rather than
- * trusting a client-supplied transcript.
+ * POST /api/user-agents/draft — synthesize a spec from either a creator
+ * conversation (`threadId`, server loads the ownership-checked messages) or a
+ * one-shot freeform brief (`description`, the guided-assistant entry point).
+ * Exactly one of the two is required.
  */
-export const draftAgentBodySchema = z.object({
-  threadId: z.string().min(1),
-});
+export const draftAgentBodySchema = z
+  .object({
+    threadId: z.string().min(1).optional(),
+    description: z.string().min(1).max(2000).optional(),
+  })
+  .refine((d) => Boolean(d.threadId) || Boolean(d.description), {
+    message: 'threadId oder description erforderlich',
+  });
 
 /**
  * The agent spec the creator synthesizes from the conversation. A subset of the
@@ -157,7 +165,7 @@ export const draftedAgentSpecSchema = z.object({
   title: z.string(),
   description: z.string(),
   systemRole: z.string(),
-  avatar: z.string(),
+  iconKey: z.string(),
   backgroundColor: z.string(),
   enabledTools: z.array(z.string()),
   skillMentions: z.array(z.string()),

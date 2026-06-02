@@ -191,6 +191,8 @@ export {
   notebookMentionables,
   documentMentionables,
   getAllMentionables,
+  getAgentMentionables,
+  setMentionLocale,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,
