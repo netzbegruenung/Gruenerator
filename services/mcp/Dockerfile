@@ -14,6 +14,7 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/core/package.json ./packages/core/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY services/mcp/package.json ./services/mcp/
 
@@ -23,6 +24,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # Copy source and compile
 COPY packages/shared ./packages/shared
+COPY packages/core ./packages/core
 COPY packages/contracts ./packages/contracts
 COPY services/mcp ./services/mcp
 
@@ -73,6 +75,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
 
 # Copy package.json files for workspace structure
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/package.json ./packages/core/
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/package.json ./packages/contracts/
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/mcp/package.json ./services/mcp/
 
@@ -85,6 +88,7 @@ RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/s
 
 # Copy compiled shared package (resolves @gruenerator/shared imports at runtime)
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/dist ./packages/core/dist
 # Redirect shared package exports from ./src/*.ts to ./dist/*.js for Node.js
 RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' packages/shared/package.json
 

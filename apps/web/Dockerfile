@@ -17,6 +17,7 @@ COPY tsconfig.base.json tsconfig.strict-migration.json ./
 
 # Copy only package.json files needed by pnpm filter (better layer caching)
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/core/package.json ./packages/core/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY packages/docs/package.json ./packages/docs/
 COPY packages/chat/package.json ./packages/chat/
@@ -36,6 +37,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # Copy source (changes here don't bust the install cache)
 COPY packages/shared ./packages/shared
+COPY packages/core ./packages/core
 COPY packages/contracts ./packages/contracts
 COPY packages/docs ./packages/docs
 COPY packages/chat ./packages/chat
