@@ -22,6 +22,7 @@ WORKDIR /app
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY tsconfig.base.json tsconfig.strict-migration.json ./
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/core/package.json ./packages/core/
 COPY packages/contracts/package.json ./packages/contracts/
 COPY services/hocuspocus/package.json ./services/hocuspocus/
 COPY apps/api/package.json ./apps/api/
@@ -32,6 +33,7 @@ RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store \
 
 # Copy source and compile
 COPY packages/shared ./packages/shared
+COPY packages/core ./packages/core
 COPY packages/contracts ./packages/contracts
 COPY services/hocuspocus ./services/hocuspocus
 COPY apps/api ./apps/api
@@ -99,6 +101,7 @@ COPY --from=builder --chown=gruenerator:gruenerator /app/pnpm-lock.yaml ./
 
 # Copy package.json files for workspace structure
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/package.json ./packages/core/
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/package.json ./packages/contracts/
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/package.json ./services/hocuspocus/
 COPY --from=builder --chown=gruenerator:gruenerator /app/apps/api/package.json ./apps/api/
@@ -115,6 +118,7 @@ RUN --mount=type=cache,id=pnpm-prod,target=/home/gruenerator/.local/share/pnpm/s
 # is needed — prod Node resolution falls through the `development` condition
 # (not active here) and hits `default`, which points at the compiled dist.
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/shared/dist ./packages/shared/dist
+COPY --from=builder --chown=gruenerator:gruenerator /app/packages/core/dist ./packages/core/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/packages/contracts/dist ./packages/contracts/dist
 COPY --from=builder --chown=gruenerator:gruenerator /app/services/hocuspocus/dist ./services/hocuspocus/dist
 
