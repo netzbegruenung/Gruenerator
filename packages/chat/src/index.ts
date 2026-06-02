@@ -138,6 +138,11 @@ export {
 
 // Message Part Components
 export { ProgressIndicator } from './components/message-parts/ProgressIndicator';
+export {
+  ProgressDisplayContext,
+  useProgressDisplay,
+  type ProgressDisplay,
+} from './components/message-parts/progressDisplayContext';
 export { ProgressTracker } from './components/tool-ui/progress-tracker/ProgressTracker';
 export { TypingIndicator } from './components/message-parts/TypingIndicator';
 export {
@@ -242,6 +247,7 @@ export {
 
 export { useDocumentChatStore } from './stores/documentChatStore';
 export { useUserProfileStore, type UserRole } from './stores/userProfileStore';
+export { useUserAgentsRegistry } from './stores/userAgentsRegistry';
 
 // Mention detection & insertion (shared logic for web + mobile)
 export {
@@ -293,6 +299,8 @@ export {
   notebookMentionables,
   documentMentionables,
   getAllMentionables,
+  getAgentMentionables,
+  setMentionLocale,
   setCustomAgents,
   getCustomAgentMentionables,
   customAgentToMentionable,

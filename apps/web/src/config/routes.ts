@@ -198,7 +198,8 @@ const SitesDemoPage = lazy(() => import('../features/sites/SitesDemoPage'));
 const SitesEditPage = lazy(() => import('../features/sites/SitesEditPage'));
 const AgentBuilderPage = lazy(() => import('../features/agents/AgentBuilderPage'));
 const AgentCreatorPage = lazy(() => import('../features/agents/AgentCreatorPage'));
-const SkillsPage = lazy(() => import('../features/skills/SkillsPage'));
+const AgentSettingsPage = lazy(() => import('../features/agents/AgentSettingsPage'));
+const SkillsAndAgentsPage = lazy(() => import('../features/skills/SkillsAndAgentsPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -237,14 +238,15 @@ const standardRoutes: RouteConfig[] = [
   // Unified Text Generator route (wildcard for path-based tab navigation)
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   { path: '/workplace', component: WorkplacePage },
-  // Conversational agent creator (default entry) + form editor. Gated behind
-  // SHOW_AGENT_CREATOR (dev, or a deploy with VITE_SHOW_AGENT_CREATOR=true);
-  // `/agents/:slug` below stays available so existing agents remain usable.
+  // Guided agent creator (default entry: AI brief → pre-filled wizard) + form
+  // editor. Gated behind SHOW_AGENT_CREATOR (dev, or a deploy with
+  // VITE_SHOW_AGENT_CREATOR=true); `/agents/:slug` below stays available so
+  // existing agents remain usable.
   ...(SHOW_AGENT_CREATOR
     ? ([
-        { path: '/agents/new', component: AgentCreatorPage, layoutMode: 'sidebarOnly' },
+        { path: '/agents/new', component: AgentCreatorPage },
         { path: '/agents/new/manual', component: AgentBuilderPage },
-        { path: '/agents/:identifier/edit', component: AgentBuilderPage },
+        { path: '/agents/:identifier/edit', component: AgentSettingsPage },
       ] satisfies RouteConfig[])
     : []),
   // Chat with a specific system agent at /agents/<slug>. Slug is the agent
@@ -261,7 +263,7 @@ const standardRoutes: RouteConfig[] = [
     path: '/recherche',
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
   },
-  { path: '/skills', component: SkillsPage },
+  { path: '/skills', component: SkillsAndAgentsPage },
   { path: '/gruppen', component: GruppenPage },
   { path: '/gruppen/:idOrSlug', component: GruppenPage },
   { path: '/gruen-o-mat', component: GruenOMatDemoPage },
