@@ -1,6 +1,5 @@
 import {
   CardActionsMenu,
-  CardGrid,
   cn,
   DropdownMenuItem,
   SectionHeader,
@@ -426,6 +425,14 @@ const RecentReelCard = memo(
 );
 RecentReelCard.displayName = 'RecentReelCard';
 
+// Below `lg`: one horizontally-scrollable row (cards sized so the next peeks in,
+// edge-to-edge via the negative margin). At `lg`: the standard 5-column grid.
+const RECENT_ROW_CLASS = cn(
+  'grid grid-flow-col auto-cols-[75%] sm:auto-cols-[42%] md:auto-cols-[30%]',
+  'gap-md overflow-x-auto pb-2 -mx-4 px-4',
+  'lg:grid-flow-row lg:grid-cols-5 lg:auto-cols-auto lg:overflow-visible lg:mx-0 lg:px-0 lg:pb-0'
+);
+
 const RecentlyCreatedSection: React.FC = memo(() => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -441,7 +448,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
       if (item.type === 'text') return false;
       return true;
     })
-    .slice(0, 10);
+    .slice(0, 5);
 
   const { deleteBoard } = useBoardsTyped({ enabled: true });
 
@@ -525,7 +532,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
       <SectionHeader title="Zuletzt" />
 
       {isLoading ? (
-        <CardGrid columns="5">
+        <div className={RECENT_ROW_CLASS}>
           {Array.from({ length: 5 }, (_, i) => (
             <div
               key={i}
@@ -539,13 +546,13 @@ const RecentlyCreatedSection: React.FC = memo(() => {
               </div>
             </div>
           ))}
-        </CardGrid>
+        </div>
       ) : items.length === 0 ? (
         <p className="text-sm text-grey-500 dark:text-grey-400 py-lg text-center">
           Noch keine Inhalte vorhanden.
         </p>
       ) : (
-        <CardGrid columns="5">
+        <div className={RECENT_ROW_CLASS}>
           {items.map((item) =>
             item.type === 'video' ? (
               <RecentReelCard
@@ -564,7 +571,7 @@ const RecentlyCreatedSection: React.FC = memo(() => {
               />
             )
           )}
-        </CardGrid>
+        </div>
       )}
     </section>
   );

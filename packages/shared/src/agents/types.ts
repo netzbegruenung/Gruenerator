@@ -211,4 +211,6 @@ export interface Skill {
   promptTemplate?: string;
   isSystemDefault?: boolean;
   skillSystemPrompt?: string;
+  /** Locale visibility, same semantics as `AgentAudience` on agents. Undefined ≈ `'all'`. */
+  audience?: AgentAudience;
 }

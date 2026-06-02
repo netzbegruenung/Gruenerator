@@ -7,6 +7,7 @@ avatar: '⚓'
 backgroundColor: '#316049'
 mention: 'insta-hamburg'
 skillCategory: social
+audience: 'de-DE'
 promptTemplate: 'Instagram-Post im Stil Grüne Hamburg zum Thema: '
 order: 54
 ---
