@@ -1,5 +1,5 @@
 import { useAgentStore } from '@gruenerator/chat/stores';
-import { getAgentSlug, getSystemAgent, type Agent } from '@gruenerator/shared/agents';
+import { getAgentSlug, getSystemAgent } from '@gruenerator/shared/agents';
 import {
   Sheet,
   SheetContent,
@@ -9,8 +9,9 @@ import {
   TooltipTrigger,
   useIsMobile,
 } from '@gruenerator/ui';
-import { useEffect, useMemo, useCallback, useRef, useState, memo } from 'react';
-import { PiSun, PiMoon, PiSignIn, PiCaretRight, PiSparkle, PiStarFill } from 'react-icons/pi';
+import { useEffect, useMemo, useCallback, useRef, memo } from 'react';
+import { type IconType } from 'react-icons';
+import { PiSignIn, PiSparkle, PiStarFill } from 'react-icons/pi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { getFavouriteItemsById } from '../../../config/sidebarFavouritesConfig';
@@ -20,20 +21,13 @@ import { useAuthStore } from '../../../stores/authStore';
 import useSidebarFavouritesStore from '../../../stores/sidebarFavouritesStore';
 import useSidebarStore from '../../../stores/sidebarStore';
 import { StatusBadge } from '../../common/StatusBadge';
-import useDarkMode from '../../hooks/useDarkMode';
-import {
-  getDirectMenuItems,
-  getMobileOnlyMenuItems,
-  getFooterLinks,
-  type MenuItemType,
-} from '../Header/menuData';
+import { getDirectMenuItems, getMobileOnlyMenuItems, type MenuItemType } from '../Header/menuData';
 
-import { AllAgentsDialog } from './AllAgentsDialog';
 import NewItemDropdown from './NewItemDropdown';
-import { getDefaultAgentEntries, getPinnedAgentIds, getAgentIcon } from './sidebarAgentConfig';
+import SidebarAccount from './SidebarAccount';
+import { getAgentIcon } from './sidebarAgentConfig';
 import { iconClass, menuLinkClass } from './sidebarStyles';
 
-import { SHOW_AGENT_CREATOR } from '@/config/featureFlags';
 import { cn } from '@/utils/cn';
 import '../../../assets/styles/components/layout/sidebar.css';
 
@@ -73,7 +67,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   const isAustrian = locale === 'de-AT';
 
   const newMenuOpenRef = useRef(false);
-  const [darkMode, toggleDarkMode] = useDarkMode();
+  const accountMenuOpenRef = useRef(false);
 
   const directMenuItems = useMemo(() => getDirectMenuItems({ isAustrian }), [isAustrian]);
   const mobileOnlyItems = useMemo(() => getMobileOnlyMenuItems(), []);
@@ -81,8 +75,6 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
     () => [...Object.values(directMenuItems), ...Object.values(mobileOnlyItems)],
     [directMenuItems, mobileOnlyItems]
   );
-  const footerLinks = useMemo(() => getFooterLinks(), []);
-
   const sidebarExpanded = isOpen || forceExpanded;
 
   // Close sidebar on route change
@@ -151,19 +143,19 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   }, [navigate, onNavigate, location.pathname]);
 
   const handleMouseLeave = useCallback(() => {
-    if (!newMenuOpenRef.current) {
+    if (!newMenuOpenRef.current && !accountMenuOpenRef.current) {
       close();
     }
   }, [close]);
 
   const titleClass = cn(
-    'font-semibold text-sm text-foreground-heading leading-tight transition-all duration-150 font-[Raleway,PT_Sans,Arial,sans-serif]',
-    sidebarExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
+    'min-w-0 flex-1 truncate text-sm font-medium leading-tight transition-all duration-150',
+    sidebarExpanded ? 'opacity-100 translate-x-0' : 'hidden'
   );
 
   const badgeClass = cn(
     'ml-auto transition-opacity duration-150',
-    sidebarExpanded ? 'opacity-100' : 'opacity-0'
+    sidebarExpanded ? 'opacity-100' : 'hidden'
   );
 
   // Shared sidebar content rendered in both mobile Sheet and desktop aside
@@ -192,7 +184,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           <div className="flex flex-col gap-0 p-0">
             {additionalItems.map((item) =>
               !item.path ? (
-                <span key={item.id} className={menuLinkClass(false, true)}>
+                <span key={item.id} className={menuLinkClass(false, true, !sidebarExpanded)}>
                   {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
                   <span className={titleClass}>{item.title}</span>
                   {item.badge && (
@@ -210,7 +202,9 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                         : handleLinkClick(item.path!, item.title)
                     }
                     className={menuLinkClass(
-                      isActive(item.path!, item.activePaths, item.activeQuery)
+                      isActive(item.path!, item.activePaths, item.activeQuery),
+                      false,
+                      !sidebarExpanded
                     )}
                     aria-current={
                       isActive(item.path!, item.activePaths, item.activeQuery) ? 'page' : undefined
@@ -230,7 +224,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
                 <Link
                   key={item.id}
                   to={item.path!}
-                  className={menuLinkClass(false)}
+                  className={menuLinkClass(false, false, !sidebarExpanded)}
                   onClick={() =>
                     item.id === 'chat' ? handleChatClick() : handleLinkClick(item.path!, item.title)
                   }
@@ -252,6 +246,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         <NewItemDropdown
           openRef={newMenuOpenRef}
           titleClass={titleClass}
+          collapsed={!sidebarExpanded}
           onChatClick={handleChatClick}
           onLinkClick={handleLinkClick}
           onClose={close}
@@ -267,59 +262,37 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
         />
       </nav>
 
-      {/* Unified scroll region: agents + threads scroll together (ChatGPT-style) */}
+      {/* Scroll region: chat threads */}
       <div
         className={cn(
           'flex-1 min-h-0 overflow-y-auto scrollbar-thin',
           !sidebarExpanded && 'hidden'
         )}
       >
-        {user && <SidebarAgents sidebarExpanded={sidebarExpanded} onLinkClick={handleLinkClick} />}
-
         <div id="chat-thread-portal-slot" className="mt-2" />
       </div>
 
-      {/* Login button for unauthenticated users */}
-      {!user && (
-        <div className="mt-auto px-2 pt-xs shrink-0">
+      {/* Account block (authenticated) or login button */}
+      {user ? (
+        <SidebarAccount
+          sidebarExpanded={sidebarExpanded}
+          openRef={accountMenuOpenRef}
+          onNavigate={handleLinkClick}
+        />
+      ) : (
+        <div className="mt-auto px-2 py-2 shrink-0">
           <NavTooltip label="Anmelden" collapsed={!sidebarExpanded}>
-            <Link to="/login" className={menuLinkClass(false)} onClick={() => setLoginIntent()}>
+            <Link
+              to="/login"
+              className={menuLinkClass(false, false, !sidebarExpanded)}
+              onClick={() => setLoginIntent()}
+            >
               <PiSignIn aria-hidden="true" className={iconClass} />
               <span className={titleClass}>Anmelden</span>
             </Link>
           </NavTooltip>
         </div>
       )}
-
-      {/* Footer - pushed to bottom */}
-      <div className={cn(user ? 'mt-auto' : '', 'px-2 py-xs shrink-0 flex items-center')}>
-        <NavTooltip
-          label={darkMode ? 'Heller Modus' : 'Dunkler Modus'}
-          collapsed={!sidebarExpanded}
-        >
-          <button
-            className="flex items-center justify-center w-10 h-10 p-0 ml-2 border-none bg-transparent rounded-full cursor-pointer text-foreground-heading hover:bg-hover-alt transition-colors shrink-0 [&_svg]:text-[1.4rem] [&_svg]:shrink-0 [&_svg]:w-6"
-            onClick={toggleDarkMode}
-            aria-label={darkMode ? 'Zum hellen Modus wechseln' : 'Zum dunklen Modus wechseln'}
-          >
-            {darkMode ? <PiMoon aria-hidden="true" /> : <PiSun aria-hidden="true" />}
-          </button>
-        </NavTooltip>
-        {!isDesktop &&
-          sidebarExpanded &&
-          footerLinks.map((item) => (
-            <Link
-              key={item.id}
-              to={item.path!}
-              className="flex items-center py-sm px-2.5 no-underline text-foreground rounded-sm transition-colors min-h-[40px] hover:bg-hover-alt"
-              onClick={() => handleLinkClick(item.path!, item.title)}
-            >
-              <span className="font-medium text-[0.7rem] text-foreground whitespace-nowrap font-[Raleway,PT_Sans,Arial,sans-serif]">
-                {item.title}
-              </span>
-            </Link>
-          ))}
-      </div>
     </>
   );
 
@@ -331,7 +304,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
           <SheetContent
             side="left"
             showCloseButton={false}
-            className="w-[85vw] max-w-[280px] p-0 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl flex flex-col gap-0 [&>div]:gap-0"
+            className="w-[85vw] max-w-[260px] p-0 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl flex flex-col gap-0 [&>div]:gap-0"
           >
             <SheetTitle className="sr-only">Navigation</SheetTitle>
             {sidebarInner}
@@ -347,7 +320,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
             // Desktop (non-Tauri) — frosted glass
             !isDesktop &&
               'md:w-14 bg-background/85 supports-[backdrop-filter]:bg-background/70 backdrop-blur-xl border-r border-grey-200/60 dark:border-grey-800/60',
-            !isDesktop && sidebarExpanded && 'md:w-[280px]',
+            !isDesktop && sidebarExpanded && 'md:w-[260px]',
             // Tauri desktop mode — keep native bar background, no blur
             isDesktop &&
               'top-[var(--titlebar-height)] h-[calc(100dvh-var(--titlebar-height))] bg-[var(--bar-background)]',
@@ -380,225 +353,125 @@ const SidebarFavourites = memo(function SidebarFavourites({
 }) {
   const favouriteIds = useSidebarFavouritesStore((s) => s.favouriteIds);
   const removeFavourite = useSidebarFavouritesStore((s) => s.removeFavourite);
-  const items = getFavouriteItemsById(favouriteIds);
+  const configItems = getFavouriteItemsById(favouriteIds);
 
-  if (items.length === 0) return null;
+  const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
+  const toggleAgentFav = useAgentFavoritesStore((s) => s.toggle);
+  const { data: userAgents = [] } = useUserAgents();
+
+  // Agent favourites live in the normal favourites list (system + user agents).
+  const agentItems = useMemo(() => {
+    const rows: { identifier: string; title: string; Icon: IconType; path: string }[] = [];
+    for (const identifier of favoriteIdentifiers) {
+      const sys = getSystemAgent(identifier);
+      if (sys) {
+        rows.push({
+          identifier,
+          title: sys.title,
+          Icon: getAgentIcon(identifier),
+          path: `/agents/${getAgentSlug(identifier)}`,
+        });
+        continue;
+      }
+      const ua = userAgents.find((a) => a.identifier === identifier);
+      if (ua) {
+        rows.push({
+          identifier,
+          title: ua.title,
+          Icon: PiSparkle,
+          path: `/agents/${getAgentSlug(identifier)}`,
+        });
+      }
+    }
+    return rows;
+  }, [favoriteIdentifiers, userAgents]);
 
   const expanded = isOpen || forceExpanded;
 
-  const titleClass = cn(
-    'font-semibold text-sm text-foreground-heading leading-tight transition-all duration-150 font-[Raleway,PT_Sans,Arial,sans-serif]',
-    expanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
-  );
-
-  return (
-    <div className="flex flex-col gap-0 p-0 border-t border-grey-200 dark:border-grey-700 mt-1 pt-1">
-      {items.map((item) => {
-        const content = (
-          <>
-            {item.icon && <item.icon aria-hidden="true" className={iconClass} />}
-            <span className={titleClass}>{item.title}</span>
-            <button
-              type="button"
-              className={cn(
-                'ml-auto shrink-0 text-primary-600 hover:text-red-500 transition-all p-0.5',
-                expanded ? 'opacity-100' : 'opacity-0 pointer-events-none'
-              )}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                removeFavourite(item.id);
-              }}
-              aria-label={`${item.title} aus Favoriten entfernen`}
-              title="Aus Favoriten entfernen"
-            >
-              <PiStarFill size={14} />
-            </button>
-          </>
-        );
-
-        return isDesktop ? (
-          <NavTooltip key={item.id} label={item.title} collapsed={!expanded}>
-            <button
-              onClick={() => onLinkClick(item.path, item.title)}
-              className={cn(menuLinkClass(isActive(item.path)), 'group')}
-              aria-current={isActive(item.path) ? 'page' : undefined}
-              type="button"
-            >
-              {content}
-            </button>
-          </NavTooltip>
-        ) : (
-          <Link
-            key={item.id}
-            to={item.path}
-            className={cn(menuLinkClass(false), 'group')}
-            onClick={() => onLinkClick(item.path, item.title)}
-          >
-            {content}
-          </Link>
-        );
-      })}
-    </div>
-  );
-});
-
-const AGENTS_EXPANDED_KEY = 'sidebar-agents-expanded';
-
-const SidebarAgents = memo(function SidebarAgents({
-  sidebarExpanded,
-  onLinkClick,
-}: {
-  sidebarExpanded: boolean;
-  onLinkClick: (path: string, title: string) => void;
-}) {
-  const { data: userAgents = [] } = useUserAgents();
-  const userLocale = useAuthStore((state) => state.locale) ?? 'de-DE';
-  const pinnedAgentIds = useMemo(() => getPinnedAgentIds(userLocale), [userLocale]);
-  const defaultAgentEntries = useMemo(() => getDefaultAgentEntries(userLocale), [userLocale]);
-
-  const favoriteIdentifiers = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
-  const favoriteAgents = useMemo(() => {
-    const out: Agent[] = [];
-    for (const identifier of favoriteIdentifiers) {
-      if (pinnedAgentIds.has(identifier)) continue;
-      const agent = getSystemAgent(identifier);
-      if (!agent) continue; // covers deleted agents + migration unknowns
-      out.push(agent);
-    }
-    return out;
-  }, [favoriteIdentifiers, pinnedAgentIds]);
-
-  // Favorites store uses identifier strings as keys; user-agent identifiers
-  // don't collide with skill mentions (different namespaces).
-  const favoriteUserAgents = useMemo(() => {
-    if (!userAgents.length || !favoriteIdentifiers.length) return [];
-    const favSet = new Set(favoriteIdentifiers);
-    return userAgents.filter((a) => favSet.has(a.identifier));
-  }, [userAgents, favoriteIdentifiers]);
-
-  const [isExpanded, setIsExpanded] = useState<boolean>(() => {
-    try {
-      const stored = localStorage.getItem(AGENTS_EXPANDED_KEY);
-      return stored === null ? true : stored === '1';
-    } catch {
-      return true;
-    }
-  });
-
-  const toggle = useCallback(() => {
-    setIsExpanded((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(AGENTS_EXPANDED_KEY, next ? '1' : '0');
-      } catch {
-        // localStorage unavailable
-      }
-      return next;
-    });
-  }, []);
+  // Favourites only show in the expanded sidebar (no icon-only rail entries).
+  if (!expanded) return null;
+  if (configItems.length === 0 && agentItems.length === 0) return null;
 
   const titleClass = cn(
-    'text-sm text-foreground leading-tight transition-all duration-150 truncate',
-    sidebarExpanded ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
+    'min-w-0 flex-1 truncate text-sm font-medium leading-tight transition-all duration-150',
+    expanded ? 'opacity-100 translate-x-0' : 'hidden'
   );
 
-  return (
-    <div className="mt-3 px-xs">
-      <button
-        type="button"
-        onClick={toggle}
-        aria-expanded={isExpanded}
-        className="flex w-full items-center gap-1.5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-grey-500 hover:text-foreground transition-colors"
+  const removeStar = (onRemove: () => void, title: string) => (
+    <button
+      type="button"
+      className={cn(
+        'ml-auto shrink-0 text-primary-600 hover:text-red-500 transition-all p-0.5',
+        expanded ? 'opacity-100' : 'hidden'
+      )}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onRemove();
+      }}
+      aria-label={`${title} aus Favoriten entfernen`}
+      title="Aus Favoriten entfernen"
+    >
+      <PiStarFill size={14} />
+    </button>
+  );
+
+  const renderRow = (
+    key: string,
+    icon: React.ReactNode,
+    title: string,
+    path: string,
+    star: React.ReactNode
+  ) => {
+    const content = (
+      <>
+        {icon}
+        <span className={titleClass}>{title}</span>
+        {star}
+      </>
+    );
+    return isDesktop ? (
+      <NavTooltip key={key} label={title} collapsed={!expanded}>
+        <button
+          onClick={() => onLinkClick(path, title)}
+          className={cn(menuLinkClass(isActive(path), false, !expanded), 'group')}
+          aria-current={isActive(path) ? 'page' : undefined}
+          type="button"
+        >
+          {content}
+        </button>
+      </NavTooltip>
+    ) : (
+      <Link
+        key={key}
+        to={path}
+        className={cn(menuLinkClass(false, false, !expanded), 'group')}
+        onClick={() => onLinkClick(path, title)}
       >
-        <span>Grünerator Agents</span>
-        <PiCaretRight
-          className={cn('h-3 w-3 shrink-0 transition-transform', isExpanded && 'rotate-90')}
-          aria-hidden="true"
-        />
-      </button>
-      {isExpanded && (
-        <ul className="list-none m-0 p-0">
-          {defaultAgentEntries.map((entry) => {
-            const Icon = getAgentIcon(entry.identifier);
-            return (
-              <li key={entry.key}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    onLinkClick(`/agents/${getAgentSlug(entry.identifier)}`, entry.label)
-                  }
-                  className={menuLinkClass(false)}
-                >
-                  <span className="shrink-0 w-6 h-6 flex items-center justify-center text-secondary-600">
-                    <Icon aria-hidden="true" className="h-5 w-5" />
-                  </span>
-                  <span className={titleClass}>{entry.label}</span>
-                </button>
-              </li>
-            );
-          })}
+        {content}
+      </Link>
+    );
+  };
 
-          {favoriteAgents.map((agent) => {
-            const Icon = getAgentIcon(agent.identifier);
-            return (
-              <li key={`fav-${agent.identifier}`}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    onLinkClick(`/agents/${getAgentSlug(agent.identifier)}`, agent.title)
-                  }
-                  className={menuLinkClass(false)}
-                >
-                  <span className="shrink-0 w-6 h-6 flex items-center justify-center text-secondary-600">
-                    <Icon aria-hidden="true" className="h-5 w-5" />
-                  </span>
-                  <span className={titleClass}>{agent.title}</span>
-                </button>
-              </li>
-            );
-          })}
-
-          {favoriteUserAgents.map((agent) => (
-            <li key={agent.identifier}>
-              <button
-                type="button"
-                onClick={() =>
-                  onLinkClick(`/agents/${getAgentSlug(agent.identifier)}`, agent.title)
-                }
-                className={menuLinkClass(false)}
-              >
-                <span className="shrink-0 w-6 h-6 flex items-center justify-center text-secondary-600">
-                  <PiSparkle aria-hidden="true" className="h-4 w-4" />
-                </span>
-                <span className={titleClass}>{agent.title}</span>
-              </button>
-            </li>
-          ))}
-
-          {import.meta.env.DEV && (
-            <li>
-              <AllAgentsDialog onLinkClick={onLinkClick} titleClass={titleClass} />
-            </li>
-          )}
-
-          {/* Entry point to the conversational agent creator (/agents/new),
-              gated behind SHOW_AGENT_CREATOR (dev or VITE_SHOW_AGENT_CREATOR). */}
-          {SHOW_AGENT_CREATOR && (
-            <li>
-              <button
-                type="button"
-                onClick={() => onLinkClick('/agents/new', 'Neue*r Agent*in')}
-                className={cn(menuLinkClass(false), 'text-primary-600 dark:text-primary-300')}
-              >
-                <span className="shrink-0 w-6 h-6 flex items-center justify-center text-base">
-                  +
-                </span>
-                <span className={titleClass}>Neue*r Agent*in</span>
-              </button>
-            </li>
-          )}
-        </ul>
+  return (
+    <div className="flex flex-col gap-0 p-0 mt-1 pt-1">
+      {configItems.map((item) =>
+        renderRow(
+          item.id,
+          item.icon ? <item.icon aria-hidden="true" className={iconClass} /> : null,
+          item.title,
+          item.path,
+          removeStar(() => removeFavourite(item.id), item.title)
+        )
+      )}
+      {agentItems.map((a) =>
+        renderRow(
+          `agent-${a.identifier}`,
+          <a.Icon aria-hidden="true" className={iconClass} />,
+          a.title,
+          a.path,
+          removeStar(() => toggleAgentFav(a.identifier), a.title)
+        )
       )}
     </div>
   );

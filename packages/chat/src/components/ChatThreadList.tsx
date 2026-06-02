@@ -58,7 +58,7 @@ export function ChatThreadList({ noScroll = false }: ChatThreadListProps = {}) {
           type="button"
           onClick={toggleExpanded}
           aria-expanded={isExpanded}
-          className="flex w-full items-center gap-1.5 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-grey-500 hover:text-foreground transition-colors"
+          className="flex w-full items-center gap-1.5 px-3 py-1 text-xs font-medium text-grey-500 hover:text-foreground transition-colors"
         >
           <span>Chats</span>
           <ChevronRight
