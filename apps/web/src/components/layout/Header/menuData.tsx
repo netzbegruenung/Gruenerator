@@ -1,3 +1,5 @@
+import { PiGlobe } from 'react-icons/pi';
+import { RiSpyLine } from 'react-icons/ri';
 import { SlNotebook } from 'react-icons/sl';
 
 import { getIcon, getIconById as getIconFromRegistry } from '../../../config/icons';
@@ -69,13 +71,22 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
     activePaths: ['/notebooks', '/notebook'],
   };
 
+  items.agents = {
+    id: 'agents',
+    path: '/skills',
+    title: 'Skills & Agents',
+    description: 'KI-Assistent*innen und Schnellbefehle für deine Aufgaben',
+    icon: RiSpyLine,
+    activePaths: ['/skills', '/agents'],
+  };
+
   if (import.meta.env.DEV) {
     items.sites = {
       id: 'sites',
       path: '/sites',
       title: 'Sites',
       description: 'Kandidat*innen-Site-Builder',
-      icon: getIcon('navigation', 'sharepic'),
+      icon: PiGlobe,
       activePaths: ['/sites'],
     };
   }
