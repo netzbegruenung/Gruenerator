@@ -17,14 +17,14 @@ import type { IconType } from 'react-icons';
 
 import { cn } from '@/utils/cn';
 
-interface NavItem {
+export interface NavItem {
   key: string;
   label: string;
   path: string;
   icon: IconType;
 }
 
-const NAV_ITEMS: NavItem[] = [
+export const NAV_ITEMS: NavItem[] = [
   { key: 'gruppen', label: 'Gruppen', path: '/gruppen', icon: FaUsers },
   { key: 'inhalte', label: 'Dateien', path: '/profile/inhalte', icon: FaFolder },
   { key: 'wolke', label: 'Wolke', path: '/profile/wolke', icon: FaCloud },
