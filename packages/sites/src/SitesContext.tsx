@@ -1,10 +1,29 @@
-import { useAuth as useSharedAuth } from '@gruenerator/shared/hooks';
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 
 import { setSitesUnauthorizedHandler } from './lib/apiClient';
 
+/**
+ * Minimal user shape Sites consumes. Satisfied by each host's own user object
+ * (web `UserProfile`, mobile shared `User`) — Sites only ever reads `email`
+ * and `display_name`, so it intentionally does not depend on either heavy type
+ * (which disagree on whether `email` is required).
+ */
+export interface SitesUser {
+  id: string;
+  email?: string;
+  display_name?: string;
+}
+
+export interface SitesAuth {
+  user: SitesUser | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+}
+
 export interface SitesContextValue {
   basePath: string;
+  auth: SitesAuth;
   login: (redirectTo?: string) => void;
   logout: () => void | Promise<void>;
   reportError: (error: unknown, context?: Record<string, unknown>) => void;
@@ -18,6 +37,7 @@ export interface SitesProviderProps extends SitesContextValue {
 
 export function SitesProvider({
   basePath,
+  auth,
   login,
   logout,
   reportError,
@@ -37,8 +57,8 @@ export function SitesProvider({
   }, [login]);
 
   const value = useMemo<SitesContextValue>(
-    () => ({ basePath, login, logout, reportError }),
-    [basePath, login, logout, reportError]
+    () => ({ basePath, auth, login, logout, reportError }),
+    [basePath, auth, login, logout, reportError]
   );
 
   return <SitesContext.Provider value={value}>{children}</SitesContext.Provider>;
@@ -62,12 +82,14 @@ export function useSitesActions(): Pick<SitesContextValue, 'login' | 'logout' | 
 }
 
 /**
- * Combined auth + actions hook. Reads auth state from the shared store
- * (populated by the host app's auth bootstrap) and pulls login/logout from context.
+ * Combined auth + actions hook. Auth state is injected by the host app via
+ * `<SitesProvider auth=...>` — the web host sources it from its React-Query
+ * `authStatus` truth, mobile from the shared store. Sites must NOT read a
+ * global auth store directly: the web app keeps its own store and never
+ * populates the shared one, so reading it pinned `isLoading: true` forever.
  */
 export function useAuth() {
-  const auth = useSharedAuth();
-  const { login, logout } = useSitesContext();
+  const { auth, login, logout } = useSitesContext();
   return {
     user: auth.user,
     isAuthenticated: auth.isAuthenticated,
