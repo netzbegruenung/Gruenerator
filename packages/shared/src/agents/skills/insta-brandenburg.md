@@ -7,6 +7,7 @@ avatar: '🌻'
 backgroundColor: '#316049'
 mention: 'insta-brandenburg'
 skillCategory: social
+audience: 'de-DE'
 promptTemplate: 'Instagram-Post im Stil Brandenburger Bündnisgrüne zum Thema: '
 order: 60
 ---
