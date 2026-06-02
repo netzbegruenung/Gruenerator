@@ -1459,6 +1459,9 @@ importers:
       '@gruenerator/sites-design':
         specifier: workspace:*
         version: link:../sites-design
+      '@gruenerator/ui':
+        specifier: workspace:*
+        version: link:../ui
       '@mdxeditor/editor':
         specifier: ^3.55.0
         version: 3.55.0(@codemirror/language@6.12.3)(@lezer/highlight@1.2.3)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(yjs@13.6.30)
