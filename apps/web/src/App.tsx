@@ -1,7 +1,6 @@
-import React, { lazy, useEffect, useState, Suspense } from 'react';
+import React, { lazy, useEffect, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 
-import { initializeApiClient } from './api/lazyApiClient';
 import SuspenseWrapper from './components/common/SuspenseWrapper';
 import ErrorBoundary from './components/ErrorBoundary';
 import useAccessibility from './components/hooks/useAccessibility';
@@ -106,20 +105,6 @@ function App() {
   const [darkMode, toggleDarkMode] = useDarkMode();
   const { isFirstRun, requireLogin, completeFirstRun } = useFirstRun();
   const { login } = useAuthStore();
-  const [appReady, setAppReady] = useState(false);
-
-  // Initialize API client after React mounts (deferred from index.tsx)
-  useEffect(() => {
-    initializeApiClient()
-      .then(() => {
-        setAppReady(true);
-      })
-      .catch((error) => {
-        console.error('[App] Initialization failed:', error);
-        // Still mark as ready to allow app to render (some features may work)
-        setAppReady(true);
-      });
-  }, []);
 
   useEffect(() => {
     window.history.scrollRestoration = 'manual';
@@ -129,11 +114,6 @@ function App() {
       behavior: 'instant',
     });
   }, []);
-
-  // Show minimal loading state while API client initializes (typically <100ms)
-  if (!appReady) {
-    return <AuthSplash />;
-  }
 
   // Maintenance mode blocks entire app (off by default, set VITE_MAINTENANCE_MODE=true to enable)
   const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
