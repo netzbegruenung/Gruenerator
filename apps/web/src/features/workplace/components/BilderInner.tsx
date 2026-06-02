@@ -1,18 +1,31 @@
 import { getGlobalApiClient } from '@gruenerator/shared/api';
 import {
+  DEFAULT_IMAGE_MODEL_ID,
   FLUX_VARIANT_ORDER,
   IMAGE_FAMILIES,
+  IMAGE_MODELS,
   IMAGE_MODEL_BY_ID,
-  getDefaultModelForFamily,
-  getImageFamily,
-  type ImageFamilyId,
   type ImageModelId,
 } from '@gruenerator/shared/models';
 import { useShareStore } from '@gruenerator/shared/share';
-import { AIPromptInput, Button, SettingsDropdown, type SettingConfig } from '@gruenerator/ui';
+import {
+  AIPromptInput,
+  Button,
+  DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  ResponsiveMenu,
+  ResponsiveMenuItem,
+  ResponsiveMenuSection,
+  SettingsDropdown,
+  pillActive,
+  pillBase,
+  type SettingConfig,
+} from '@gruenerator/ui';
 import { useVoxtralDictation } from '@gruenerator/voice';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Download, Image as ImageIcon, ImagePlus, X } from 'lucide-react';
+import { Check, ChevronDown, Download, Image as ImageIcon, ImagePlus, X } from 'lucide-react';
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import useApiSubmit from '../../../components/hooks/useApiSubmit';
@@ -33,7 +46,7 @@ type SubMode = 'erstellen' | 'bearbeiten' | 'begruenen' | 'vergroessern' | 'hint
 const SUB_MODE_OPTIONS: SettingConfig['options'] = [
   { id: 'erstellen', label: 'Erstellen' },
   { id: 'bearbeiten', label: 'Bearbeiten' },
-  { id: 'begruenen', label: '🌳 Begrünen' },
+  { id: 'begruenen', label: 'Begrünen' },
   { id: 'vergroessern', label: 'Vergrößern' },
   ...(import.meta.env.DEV ? [{ id: 'hintergrund', label: 'Hintergrund entfernen' }] : []),
 ];
@@ -51,31 +64,91 @@ const BEGRUENEN_MODE_ID = 'bild-begruenen';
 const VERGROESSERN_MODE_ID = 'bild-vergroessern';
 const HINTERGRUND_MODE_ID = 'bild-hintergrund-entfernen';
 
-const IMAGE_FAMILY_CONFIG: SettingConfig = {
-  key: 'imageFamily',
-  label: 'Modell',
-  options: IMAGE_FAMILIES.map((f) => ({ id: f.id, label: f.name })),
-  multiple: false,
-};
-
-const FLUX_VARIANT_LABEL_RE = /^(?:⭐\s+)?Flux\s+/;
-
 function shortCost(multiplier: number): string {
   if (multiplier === 0.5) return '½ Bild';
   if (multiplier === 1) return '1 Bild';
   return `${multiplier} Bilder`;
 }
 
-const FLUX_VARIANT_CONFIG: SettingConfig = {
-  key: 'fluxVariant',
-  label: 'Variante',
-  options: FLUX_VARIANT_ORDER.map((id) => {
-    const variant = IMAGE_MODEL_BY_ID[id];
-    const bareName = variant.name.replace(FLUX_VARIANT_LABEL_RE, '');
-    return { id, label: `${bareName} (${shortCost(variant.costMultiplier)})` };
-  }),
-  multiple: false,
-};
+const FLUX_VARIANT_LABEL_RE = /^(?:⭐\s+)?Flux\s+/;
+
+// One model dropdown grouped by family: multi-variant families (Flux) open a
+// submenu of their variants; single-model families select directly.
+const MODELS_BY_FAMILY = IMAGE_FAMILIES.map((family) => ({
+  family,
+  models:
+    family.id === 'flux'
+      ? FLUX_VARIANT_ORDER.map((id) => IMAGE_MODEL_BY_ID[id])
+      : IMAGE_MODELS.filter((m) => m.family === family.id),
+}));
+
+function ImageModelDropdown({
+  value,
+  onChange,
+}: {
+  value: ImageModelId;
+  onChange: (id: ImageModelId) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = IMAGE_MODEL_BY_ID[value];
+  const select = (id: ImageModelId) => {
+    onChange(id);
+    setOpen(false);
+  };
+  const itemSelectedClass = 'text-primary-700 dark:text-primary-300';
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <button type="button" className={cn(pillBase, pillActive, 'gap-1')}>
+          <span>{selected.name}</span>
+          <ChevronDown className={cn('size-3 transition-transform', open && 'rotate-180')} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[12rem]">
+        {MODELS_BY_FAMILY.map(({ family, models }) => {
+          if (models.length === 1) {
+            const m = models[0];
+            const isSelected = m.id === value;
+            return (
+              <DropdownMenuItem
+                key={family.id}
+                onSelect={() => select(m.id)}
+                className={cn(isSelected && itemSelectedClass)}
+              >
+                <span className="flex-1">{m.name}</span>
+                {isSelected && <Check className="size-3.5 shrink-0 text-primary-500" />}
+              </DropdownMenuItem>
+            );
+          }
+          const familyActive = models.some((m) => m.id === value);
+          return (
+            <DropdownMenuSub key={family.id}>
+              <DropdownMenuSubTrigger className={cn(familyActive && itemSelectedClass)}>
+                {family.name}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                {models.map((m) => {
+                  const isSelected = m.id === value;
+                  return (
+                    <DropdownMenuItem
+                      key={m.id}
+                      onSelect={() => select(m.id)}
+                      className={cn(isSelected && itemSelectedClass)}
+                    >
+                      <span className="flex-1">{m.name.replace(FLUX_VARIANT_LABEL_RE, '')}</span>
+                      <span className="text-xs text-grey-500">{shortCost(m.costMultiplier)}</span>
+                      {isSelected && <Check className="size-3.5 shrink-0 text-primary-500" />}
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 type AspectRatio = '16:9' | '4:3' | '1:1' | '3:4' | '9:16' | 'custom';
 
@@ -651,20 +724,10 @@ const BilderInner: React.FC = memo(() => {
   );
 
   const selectedImageModel = (modeState.imageModel as ImageModelId | undefined) ?? null;
-  const selectedFamily: ImageFamilyId | null = selectedImageModel
-    ? getImageFamily(selectedImageModel)
-    : null;
 
-  const handleFamilyChange = useCallback(
-    (familyId: ImageFamilyId) => {
-      updateField('imageModel', getDefaultModelForFamily(familyId));
-    },
-    [updateField]
-  );
-
-  const handleFluxVariantChange = useCallback(
-    (variantId: ImageModelId) => {
-      updateField('imageModel', variantId);
+  const handleModelChange = useCallback(
+    (modelId: ImageModelId) => {
+      updateField('imageModel', modelId);
     },
     [updateField]
   );
@@ -687,17 +750,9 @@ const BilderInner: React.FC = memo(() => {
             />
           ))}
         {isErstellen && (
-          <SettingsDropdown
-            config={IMAGE_FAMILY_CONFIG}
-            value={selectedFamily ?? 'flux'}
-            onChange={(val) => handleFamilyChange(val as ImageFamilyId)}
-          />
-        )}
-        {isErstellen && selectedFamily === 'flux' && (
-          <SettingsDropdown
-            config={FLUX_VARIANT_CONFIG}
-            value={selectedImageModel ?? 'flux-pro'}
-            onChange={(val) => handleFluxVariantChange(val as ImageModelId)}
+          <ImageModelDropdown
+            value={selectedImageModel ?? DEFAULT_IMAGE_MODEL_ID}
+            onChange={handleModelChange}
           />
         )}
         {(isBearbeiten || isBegruenen || isHintergrund) && filePickerPill}
@@ -742,7 +797,7 @@ const BilderInner: React.FC = memo(() => {
             <span className="text-grey-400">px</span>
           </span>
         )}
-        {usage && <UsageBadge usage={usage} />}
+        {usage && usage.remaining <= 5 && <UsageBadge usage={usage} />}
       </>
     ),
     [
@@ -759,10 +814,8 @@ const BilderInner: React.FC = memo(() => {
       erstellenDef?.settings,
       modeState,
       updateField,
-      selectedFamily,
       selectedImageModel,
-      handleFamilyChange,
-      handleFluxVariantChange,
+      handleModelChange,
       filePickerPill,
       aspectRatio,
       usage,

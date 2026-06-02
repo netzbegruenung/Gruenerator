@@ -30,5 +30,4 @@ export const imagineMode: ModeDefinition = {
     variant: '',
     imageModel: DEFAULT_IMAGE_MODEL_ID,
   },
-  examples: [{ label: 'Plakat', text: 'Ein grünes Wahlplakat mit Sonnenblumen und dem Slogan ' }],
 };
