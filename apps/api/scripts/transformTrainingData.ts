@@ -123,6 +123,7 @@ interface TransformStats {
     noTitle: number;
     duplicate: number;
     genericTitle: number;
+    ungenderedGeneric: number;
   };
   byCollection: Record<string, number>;
   byContentType: Record<string, number>;
@@ -166,13 +167,33 @@ const BOILERPLATE_PATTERNS = [
   /^(?:Zum Inhalt springen|Skip to content|Navigation überspringen)\s*/i,
   /^(?:Suche|Menü|Menu)\s*(?:öffnen|schließen)?\s*/i,
   /^(?:Startseite|Home)\s*[>»›]\s*/i,
+  // Leading scraped metadata (publication date / "Stand:") — see CLAUDE-finetuning.md data audit.
+  /^\s*(?:Veröffentlicht\s+am[^\n]*|Stand:[^\n]*|\d{1,2}\.\d{1,2}\.\d{4})\s*/i,
 ];
+
+// Lines containing URLs / domains / site navigation — scraper residue, dropped wholesale.
+const URL_OR_NAV_LINE =
+  /(https?:\/\/|www\.|[a-zäöü]\.de[A-ZÄÖÜ]|gruene\.de\b|Tagesordnung|Youtube-Playlist|Instagram-Kanal|Newsletter abonnier|Cookie|Datenschutzerklärung|Mehr erfahren)/i;
+
+/**
+ * Masculine-generic plurals (Bürger, Wähler, Schüler…) NOT followed by *innen/:innen.
+ * These teach the model to DROP Genderstern, contradicting the system prompt — the v2
+ * fine-tune's main failure. Docs that use them are excluded. See CLAUDE-finetuning.md.
+ */
+const UNGENDERED_GENERIC =
+  /\b(Bürger|Wähler|Politiker|Mitarbeiter|Kolleg|Schüler|Lehrer|Arbeiter|Verbraucher|Nutzer|Teilnehmer|Vertreter|Wissenschaftler|Aktivist|Einwohner|Pendler|Bewohner|Unternehmer|Experten|Sprecher|Helfer|Unterstützer|Anhänger)(?:n|innen)?\b(?![*:])/i;
 
 function stripBoilerplate(content: string): string {
   let cleaned = content;
   for (const pattern of BOILERPLATE_PATTERNS) {
     cleaned = cleaned.replace(pattern, '');
   }
+  // Drop any line that is URL/navigation residue.
+  cleaned = cleaned
+    .split('\n')
+    .filter((line) => !URL_OR_NAV_LINE.test(line))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n');
   return cleaned.trim();
 }
 
@@ -283,7 +304,7 @@ function transformDocuments(
     outputExamples: 0,
     trainExamples: 0,
     validationExamples: 0,
-    skipped: { tooShort: 0, noTitle: 0, duplicate: 0, genericTitle: 0 },
+    skipped: { tooShort: 0, noTitle: 0, duplicate: 0, genericTitle: 0, ungenderedGeneric: 0 },
     byCollection: {},
     byContentType: {},
     lengthStats: { min: Infinity, max: 0, avg: 0 },
@@ -308,6 +329,13 @@ function transformDocuments(
     const effectiveMinLength = doc.platform ? Math.min(minLength, 100) : minLength;
     if (doc.content.length < effectiveMinLength) {
       stats.skipped.tooShort++;
+      continue;
+    }
+
+    // Skip docs using masculine-generic plurals without Genderstern — they teach the
+    // model to drop gendering, the v2 fine-tune's main failure (see CLAUDE-finetuning.md).
+    if (UNGENDERED_GENERIC.test(stripBoilerplate(doc.content))) {
+      stats.skipped.ungenderedGeneric++;
       continue;
     }
 
@@ -514,6 +542,7 @@ function printStats(stats: TransformStats): void {
   console.log(`    No title/category: ${stats.skipped.noTitle}`);
   console.log(`    Duplicate content: ${stats.skipped.duplicate}`);
   console.log(`    Generic title: ${stats.skipped.genericTitle}`);
+  console.log(`    Ungendered masculine-generic: ${stats.skipped.ungenderedGeneric}`);
 
   console.log('\n  By collection:');
   for (const [col, count] of Object.entries(stats.byCollection).sort((a, b) => b[1] - a[1])) {

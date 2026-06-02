@@ -328,7 +328,11 @@ export function CreateSiteScreen({
 
             {/* Generate button */}
             <div className="mt-10 flex justify-end">
-              <Button size="lg" onClick={handleGenerateClick} disabled={isProcessing || !canGenerate}>
+              <Button
+                size="lg"
+                onClick={handleGenerateClick}
+                disabled={isProcessing || !canGenerate}
+              >
                 {isProcessing ? (
                   <>
                     <span className="size-5 border-2 border-white/30 border-t-white rounded-full animate-[spin_1s_linear_infinite]" />

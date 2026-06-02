@@ -11,10 +11,10 @@ import {
   InteractivePreview,
   SectionNavigation,
 } from '../components/editor';
-import { useAuth } from '../SitesContext';
 import { useLoadingProgress } from '../hooks/useLoadingProgress';
 import { useSite, type GeneratedSiteData } from '../hooks/useSite';
 import { useToast } from '../hooks/useToast';
+import { useAuth } from '../SitesContext';
 import { cn } from '../utils/cn';
 import { handleApiError } from '../utils/errorHandler';
 import { nameToSubdomain, sanitizeSubdomain } from '../utils/sanitization';

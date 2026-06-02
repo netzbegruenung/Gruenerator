@@ -178,6 +178,7 @@
   },
   "dependencies": {
     "@gruenerator/contracts": "workspace:*",
+    "@gruenerator/core": "workspace:*",
     "@ts-rest/core": "^3.52.1",
     "axios": "^1.16.1",
     "clsx": "^2.1.1",
