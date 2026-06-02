@@ -38,6 +38,10 @@ COPY packages/contracts ./packages/contracts
 COPY services/hocuspocus ./services/hocuspocus
 COPY apps/api ./apps/api
 
+# Compile core package (shared re-exports @gruenerator/core; must build first)
+WORKDIR /app/packages/core
+RUN pnpm exec tsc --project tsconfig.json
+
 # Compile shared package (API imports @gruenerator/shared/utils at runtime)
 WORKDIR /app/packages/shared
 RUN pnpm exec tsc --project tsconfig.json
