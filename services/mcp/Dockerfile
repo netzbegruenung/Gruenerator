@@ -28,6 +28,10 @@ COPY packages/core ./packages/core
 COPY packages/contracts ./packages/contracts
 COPY services/mcp ./services/mcp
 
+# Compile core package (shared re-exports @gruenerator/core; must build first)
+RUN pnpm --filter @gruenerator/core build
+RUN sed -i 's|"\./src/\(.*\)\.ts"|"./dist/\1.js"|g' /app/packages/core/package.json
+
 # Compile shared package (MCP imports @gruenerator/shared at runtime)
 RUN pnpm --filter @gruenerator/shared build
 # Redirect shared exports from .ts source to compiled .js/.d.ts so MCP's

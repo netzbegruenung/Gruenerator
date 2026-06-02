@@ -32,6 +32,10 @@ COPY services/hocuspocus ./services/hocuspocus
 WORKDIR /app/packages/contracts
 RUN pnpm exec tsc --project tsconfig.json
 
+# Compile core (shared re-exports @gruenerator/core; must build first)
+WORKDIR /app/packages/core
+RUN pnpm exec tsc --project tsconfig.json
+
 # Compile shared (hocuspocus imports @gruenerator/shared/yjs at runtime)
 WORKDIR /app/packages/shared
 RUN pnpm exec tsc --project tsconfig.json
