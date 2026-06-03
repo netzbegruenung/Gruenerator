@@ -95,7 +95,7 @@ const NewItemDropdown = memo(function NewItemDropdown({
   }, [createBoard, navigate, onClose]);
 
   return (
-    <div className="flex flex-col gap-0.5 p-0">
+    <div className="flex flex-col gap-0 p-0">
       <DropdownMenu open={open} onOpenChange={handleOpenChange}>
         <DropdownMenuTrigger asChild>
           <button className={menuLinkClass(false, false, collapsed)} type="button">
