@@ -49,7 +49,7 @@ export function ChatThreadList({ noScroll = false }: ChatThreadListProps = {}) {
   }, []);
 
   const rootClass = noScroll ? 'flex flex-col' : 'flex flex-1 flex-col overflow-hidden';
-  const innerClass = noScroll ? 'px-2 pt-2' : 'flex-1 overflow-y-auto px-2 pt-2 scrollbar-thin';
+  const innerClass = noScroll ? 'px-2' : 'flex-1 overflow-y-auto px-2 pt-2 scrollbar-thin';
 
   return (
     <ThreadListPrimitive.Root className={rootClass}>
@@ -71,10 +71,10 @@ export function ChatThreadList({ noScroll = false }: ChatThreadListProps = {}) {
           <>
             <ThreadListPrimitive.Items components={threadComponents} />
 
-            <div className="mt-4">
+            <div className="mt-2">
               <button
                 onClick={toggleArchived}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium text-foreground-muted transition-colors hover:text-foreground"
+                className="flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-foreground-muted transition-colors hover:text-foreground"
               >
                 <Archive className="h-3.5 w-3.5" />
                 Archiviert

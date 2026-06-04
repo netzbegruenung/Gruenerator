@@ -454,7 +454,7 @@ const SidebarFavourites = memo(function SidebarFavourites({
   };
 
   return (
-    <div className="flex flex-col gap-0 p-0 mt-1 pt-1">
+    <div className="flex flex-col gap-0 p-0 mt-2">
       {configItems.map((item) =>
         renderRow(
           item.id,
