@@ -62,6 +62,15 @@ export const LV_BUERGER_SPECS = [
       'Erneuerbare als „Freiheitsenergie" und Wirtschaftsfaktor, Verkehrswende im ländlichen Raum, Alpen- und Naturschutz, bezahlbares Wohnen',
   },
   {
+    lv: 'sachsen-anhalt',
+    title: 'Sachsen-Anhalt',
+    codes: ['LSA', 'LSA-F'],
+    notebook: 'sachsen-anhalt-notebook',
+    homepage: 'https://www.gruene-lsa.de',
+    themes:
+      'Energiewende und Wasserstoff (Mitteldeutsches Revier), Strukturwandel und gute Arbeit, Bildung und Kita, ländlicher Raum und Mobilität, Demokratie und Schutz vor Rechtsextremismus',
+  },
+  {
     lv: 'schleswig-holstein',
     title: 'Schleswig-Holstein',
     codes: 'SH',

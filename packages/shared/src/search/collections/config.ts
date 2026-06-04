@@ -256,6 +256,22 @@ export const COLLECTIONS: CollectionConfigMap = {
     includeInDefaultSearch: false,
   },
 
+  'sachsen-anhalt': {
+    name: 'landesverbaende_documents',
+    displayName: 'Grüne Sachsen-Anhalt',
+    description:
+      'Pressemitteilungen, Beschlüsse und Landtagswahlprogramm 2026 der Grünen Sachsen-Anhalt (Landesverband & Fraktion)',
+    filterableFields: {
+      content_type: lvContentTypeField,
+      source_type: lvSourceTypeField,
+      published_at: { label: 'Datum', type: 'date_range' },
+    },
+    defaultSearchMode: 'hybrid',
+    defaultFilter: { field: 'landesverband', value: ['LSA', 'LSA-F'] },
+    country: 'DE',
+    includeInDefaultSearch: false,
+  },
+
   satzungen: {
     name: 'satzungen_documents',
     displayName: 'Satzungen',
