@@ -76,6 +76,10 @@ export const COLLECTION_MAP: Record<string, CollectionMapping> = {
     qdrantCollection: 'landesverbaende_documents',
     systemId: 'brandenburg-system',
   },
+  'sachsen-anhalt': {
+    qdrantCollection: 'landesverbaende_documents',
+    systemId: 'sachsen-anhalt-system',
+  },
   // Agent-only: reached via the `gruenerator-ricarda-lang` specialized agent.
   // Not surfaced in @mention or notebook gallery.
   'ricarda-lang-tweets': {

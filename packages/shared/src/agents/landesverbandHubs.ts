@@ -88,6 +88,15 @@ export const LV_HUBS = [
     audience: 'de-DE',
   },
   {
+    lvId: 'sachsen-anhalt',
+    slug: 'gruene-sachsen-anhalt',
+    name: 'Grüne Sachsen-Anhalt',
+    notebookId: 'sachsen-anhalt-notebook',
+    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
+    buergerAgentId: 'gruenerator-buergeranfragen-sachsen-anhalt',
+    audience: 'de-DE',
+  },
+  {
     lvId: 'oesterreich',
     slug: 'gruene-oesterreich',
     name: 'Grüne Österreich',

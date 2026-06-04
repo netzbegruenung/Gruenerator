@@ -49,6 +49,7 @@ export const NOTEBOOK_ICONS = {
   'kommunalwiki-notebook': PiScales,
   'gruenblog-notebook': PiNewspaper,
   'bayern-notebook': PiMapPin,
+  'sachsen-anhalt-notebook': PiTree,
   'boell-stiftung-notebook': PiLightbulb,
 } satisfies Record<NotebookId, IconType>;
 

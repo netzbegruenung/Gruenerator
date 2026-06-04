@@ -55,6 +55,7 @@ const NOTEBOOK_PATHS = {
   'mecklenburg-vorpommern-notebook': '/notebooks/mecklenburg-vorpommern',
   'brandenburg-notebook': '/notebooks/brandenburg',
   'bayern-notebook': '/notebooks/bayern',
+  'sachsen-anhalt-notebook': '/notebooks/sachsen-anhalt',
   'oesterreich-notebook': '/notebooks/oesterreich',
   'kommunalwiki-notebook': '/notebooks/kommunalwiki',
   'gruenblog-notebook': '/notebooks/gruenblog',
