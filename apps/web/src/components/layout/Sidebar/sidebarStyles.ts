@@ -8,6 +8,6 @@ export const menuLinkClass = (active: boolean, disabled?: boolean, collapsed?: b
     disabled && 'opacity-55 cursor-default pointer-events-none'
   );
 
-// Eucalyptus (secondary-600) — matches the agent icons for one consistent icon colour.
+// Eucalyptus (secondary-600) in light mode; white in dark mode for legibility against the dark sidebar.
 export const iconClass =
-  'text-[1.25rem] text-secondary-600 shrink-0 w-5 flex items-center justify-center transition-colors duration-150';
+  'text-[1.25rem] text-secondary-600 dark:text-white shrink-0 w-5 flex items-center justify-center transition-colors duration-150';
