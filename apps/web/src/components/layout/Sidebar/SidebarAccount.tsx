@@ -175,7 +175,7 @@ const SidebarAccount = memo(function SidebarAccount({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 transition-colors hover:bg-hover-alt"
+                className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-3 py-1 transition-colors hover:bg-hover-alt"
                 aria-label="Benachrichtigungen öffnen"
               >
                 <span className="relative shrink-0">

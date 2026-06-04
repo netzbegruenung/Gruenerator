@@ -38,7 +38,7 @@ function ExternalThreadItem() {
   return (
     <div
       className={cn(
-        'group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 transition-colors',
+        'group flex w-full items-center gap-2 rounded-md px-3 py-1.5 min-h-[34px] transition-colors',
         'hover:bg-secondary-50 dark:hover:bg-secondary-800/40',
         isActive && 'bg-secondary-100 dark:bg-secondary-800/60 font-medium'
       )}
@@ -100,7 +100,7 @@ export function GrueneratorThreadListItem() {
     <>
       <ThreadListItemPrimitive.Root
         className={cn(
-          'group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 transition-colors',
+          'group flex w-full items-center gap-2 rounded-md px-3 py-1.5 min-h-[34px] transition-colors',
           'hover:bg-secondary-50 dark:hover:bg-secondary-800/40',
           'data-[active]:bg-secondary-100 dark:data-[active]:bg-secondary-800/60 data-[active]:font-medium'
         )}
@@ -187,7 +187,7 @@ export function GrueneratorArchivedThreadListItem() {
   return (
     <ThreadListItemPrimitive.Root
       className={cn(
-        'group flex w-full items-center gap-2 rounded-lg px-3 py-2.5 transition-colors',
+        'group flex w-full items-center gap-2 rounded-md px-3 py-1.5 min-h-[34px] transition-colors',
         'hover:bg-secondary-50 dark:hover:bg-secondary-800/40 opacity-60',
         'data-[active]:bg-secondary-100 dark:data-[active]:bg-secondary-800/60 data-[active]:font-medium data-[active]:opacity-100'
       )}
