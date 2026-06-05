@@ -42,6 +42,7 @@ import {
 } from './GrueneratorThreadListAdapter';
 import { ExternalThreadProvider } from '../context/ExternalThreadContext';
 import { grueneratorToolkit } from '../components/tool-ui/GrueneratorToolUIs';
+import { ChatThreadListPortal } from '../components/ChatThreadListPortal';
 import { chatSuggestions } from '../lib/suggestions';
 import type { StreamMetadata } from '../hooks/useChatGraphStream';
 import { convertToThreadMessageLike, type LoadedMessage } from './threadMessageConversion';
@@ -304,6 +305,8 @@ export function GrueneratorChatRuntimeProvider({
   getExternalThreads,
   onExternalThreadClick,
   activePath,
+  threadListPortalSlotId,
+  onRequestOpenChat,
 }: {
   children: ReactNode;
   userId: string;
@@ -311,6 +314,8 @@ export function GrueneratorChatRuntimeProvider({
   getExternalThreads?: () => ExternalThreadEntry[];
   onExternalThreadClick?: (externalId: string) => void;
   activePath?: string;
+  threadListPortalSlotId?: string;
+  onRequestOpenChat?: () => void;
 }) {
   const fetchFn = useChatConfigStore((s) => s.fetch);
   const onUnauthorized = useChatConfigStore((s) => s.onUnauthorized);
@@ -362,6 +367,12 @@ export function GrueneratorChatRuntimeProvider({
       <ExternalThreadProvider value={externalCtx}>
         <ThreadTitleEffect />
         <AgentSwitchListener />
+        {threadListPortalSlotId && (
+          <ChatThreadListPortal
+            slotId={threadListPortalSlotId}
+            onRequestOpen={onRequestOpenChat}
+          />
+        )}
         <ChatCollaborationBridge userId={userId} userName={userName}>
           {children}
         </ChatCollaborationBridge>
