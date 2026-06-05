@@ -1,16 +1,19 @@
 /**
  * Desktop (Tauri) authentication utilities
  *
- * Uses system browser + deep-link callback for OAuth flow.
- * Tokens are stored securely using Tauri's store plugin.
+ * Uses system browser + deep-link callback for OAuth, mirroring the mobile app.
  *
  * Flow:
- * 1. User clicks login → opens system browser to /auth/login
- * 2. User authenticates with Keycloak
- * 3. Callback redirects to gruenerator://auth/callback?code=<jwt>
- * 4. Tauri receives deep-link, emits event
- * 5. We exchange the code for access + refresh tokens
- * 6. Tokens stored in secure storage
+ * 1. User picks a provider → system browser opens to /auth/login?source=...
+ * 2. User authenticates with Keycloak (via Better Auth)
+ * 3. Backend /auth/app-callback redirects to gruenerator://auth/callback?code=<jwt>
+ * 4. Tauri receives the deep-link and emits the `deep-link-auth` event
+ * 5. We exchange the one-shot code at /auth/v2/token-exchange-code for a Better
+ *    Auth bearer session token, stored via the Tauri store plugin
+ *
+ * The bearer token is sent as `Authorization: Bearer <token>` by apiClient
+ * (which calls getDesktopToken). There is no refresh token — the bearer session
+ * slides server-side; an ended session yields 401 and the user re-authenticates.
  */
 
 import { isDesktopApp } from './platform';
@@ -27,6 +30,20 @@ const getSecureStorage = async () => {
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
 const REDIRECT_URI = 'gruenerator://auth/callback';
+
+/**
+ * The system browser opened via shell.open() needs an absolute URL with a
+ * scheme — a relative '/api/...' has none and is rejected by the shell scope,
+ * so the click silently does nothing. In dev API_BASE_URL is the relative
+ * '/api' (in-app fetches stay same-origin through the Vite proxy); prepend the
+ * webview origin so the browser gets e.g. http://localhost:3000/api/auth/login.
+ * In prod API_BASE_URL is already absolute and is returned unchanged.
+ */
+function toAbsoluteUrl(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${origin}${url.startsWith('/') ? '' : '/'}${url}`;
+}
 
 export type AuthSource =
   | 'gruenerator-login'
@@ -47,19 +64,7 @@ export interface DesktopUser {
   [key: string]: unknown;
 }
 
-interface TokenResponse {
-  success: boolean;
-  access_token?: string;
-  refresh_token?: string;
-  token_type?: string;
-  expires_in?: number;
-  user?: DesktopUser;
-  error?: string;
-  message?: string;
-}
-
 let deepLinkCleanup: (() => void) | null = null;
-let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Initialize desktop auth listener (call once on app start)
@@ -94,8 +99,6 @@ export async function initDesktopAuth(
 
         const result = await exchangeCodeForToken(code);
         if (result.success && result.user && result.accessToken) {
-          // Start auto-refresh timer
-          scheduleTokenRefresh();
           onAuthSuccess(result.user, result.accessToken);
         } else {
           onAuthError(result.error || 'Authentication failed');
@@ -126,39 +129,20 @@ async function restoreSession(
     const storage = await getSecureStorage();
     if (!storage) return;
 
-    const hasAuth = await storage.hasStoredAuth();
-    if (!hasAuth) {
-      console.log('[DesktopAuth] No stored auth found');
-      return;
-    }
-
-    // Try to get current access token
-    let accessToken = await storage.getAccessToken();
+    const token = await storage.getAccessToken();
     const user = await storage.getStoredUser();
+    if (!token || !user) return;
 
-    if (!user) {
-      console.log('[DesktopAuth] No stored user found');
+    // Drop the session only once it's definitively past expiry; otherwise
+    // restore optimistically (server validates on the next request).
+    const expiry = await storage.getTokenExpiry();
+    if (expiry && Date.now() > expiry) {
       await storage.clearTokens();
       return;
     }
 
-    // Check if token is expired and refresh if needed
-    if (await storage.isTokenExpired()) {
-      console.log('[DesktopAuth] Access token expired, refreshing...');
-      const refreshResult = await refreshAccessToken();
-      if (!refreshResult.success) {
-        console.log('[DesktopAuth] Failed to refresh token, clearing auth');
-        await storage.clearTokens();
-        return;
-      }
-      accessToken = refreshResult.accessToken || null;
-    }
-
-    if (accessToken && user) {
-      console.log('[DesktopAuth] Session restored from secure storage');
-      scheduleTokenRefresh();
-      onAuthSuccess(user as DesktopUser, accessToken);
-    }
+    console.log('[DesktopAuth] Session restored from secure storage');
+    onAuthSuccess(user as DesktopUser, token);
   } catch (error) {
     console.error('[DesktopAuth] Error restoring session:', error);
   }
@@ -171,10 +155,6 @@ export function cleanupDesktopAuth(): void {
   if (deepLinkCleanup) {
     deepLinkCleanup();
     deepLinkCleanup = null;
-  }
-  if (refreshTimer) {
-    clearTimeout(refreshTimer);
-    refreshTimer = null;
   }
 }
 
@@ -189,7 +169,9 @@ export async function openDesktopLogin(source: AuthSource = 'gruenerator-login')
 
   try {
     const { open } = await import('@tauri-apps/plugin-shell');
-    const authUrl = `${API_BASE_URL}/auth/login?source=${source}&redirectTo=${encodeURIComponent(REDIRECT_URI)}`;
+    const authUrl = toAbsoluteUrl(
+      `${API_BASE_URL}/auth/login?source=${source}&redirectTo=${encodeURIComponent(REDIRECT_URI)}`
+    );
     console.log('[DesktopAuth] Opening browser:', authUrl);
     await open(authUrl);
   } catch (error) {
@@ -199,7 +181,12 @@ export async function openDesktopLogin(source: AuthSource = 'gruenerator-login')
 }
 
 /**
- * Exchange login code for JWT tokens
+ * Exchange the one-shot login code for a Better Auth bearer session.
+ *
+ * Canonical native exchange (mobileTokenExchange plugin). Replaces the retired
+ * /auth/mobile/consume-login-code route (which 404'd, so desktop login silently
+ * never completed). Returns an opaque session token used as the Bearer; there
+ * is no separate refresh token. Mirrors apps/mobile.
  */
 async function exchangeCodeForToken(code: string): Promise<{
   success: boolean;
@@ -208,7 +195,7 @@ async function exchangeCodeForToken(code: string): Promise<{
   error?: string;
 }> {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/mobile/consume-login-code`, {
+    const response = await fetch(`${API_BASE_URL}/auth/v2/token-exchange-code`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -216,25 +203,29 @@ async function exchangeCodeForToken(code: string): Promise<{
       body: JSON.stringify({ code }),
     });
 
-    const data = (await response.json()) as TokenResponse;
+    const data = (await response.json().catch(() => ({}))) as {
+      token?: string;
+      user?: DesktopUser;
+      expiresAt?: string;
+      message?: string;
+    };
 
-    if (response.ok && data.success && data.access_token && data.refresh_token && data.user) {
-      // Save tokens to secure storage
+    if (response.ok && data.token && data.user) {
       const storage = await getSecureStorage();
       if (storage) {
-        await storage.saveTokens(data.access_token, data.refresh_token, data.user, data.expires_in);
+        await storage.saveSession(data.token, data.user, data.expiresAt);
       }
 
       return {
         success: true,
         user: data.user,
-        accessToken: data.access_token,
+        accessToken: data.token,
       };
     }
 
     return {
       success: false,
-      error: data.error || data.message || 'Invalid response from server',
+      error: data.message || `Token-Tausch fehlgeschlagen (HTTP ${response.status})`,
     };
   } catch (error) {
     console.error('[DesktopAuth] Token exchange failed:', error);
@@ -243,200 +234,26 @@ async function exchangeCodeForToken(code: string): Promise<{
 }
 
 /**
- * Refresh the access token using the refresh token
- */
-export async function refreshAccessToken(): Promise<{
-  success: boolean;
-  accessToken?: string;
-  error?: string;
-}> {
-  try {
-    const storage = await getSecureStorage();
-    if (!storage) {
-      return { success: false, error: 'Storage not available' };
-    }
-
-    const refreshToken = await storage.getRefreshToken();
-    if (!refreshToken) {
-      return { success: false, error: 'No refresh token available' };
-    }
-
-    const response = await fetch(`${API_BASE_URL}/auth/mobile/refresh`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
-
-    const data = (await response.json()) as TokenResponse;
-
-    if (response.ok && data.success && data.access_token) {
-      // Update access token in secure storage
-      await storage.updateAccessToken(data.access_token, data.expires_in);
-
-      // Update user if returned
-      if (data.user) {
-        await storage.updateStoredUser(data.user);
-      }
-
-      console.log('[DesktopAuth] Access token refreshed');
-      return { success: true, accessToken: data.access_token };
-    }
-
-    // If refresh failed due to expired/invalid token, clear everything
-    if (
-      data.error === 'token_expired' ||
-      data.error === 'token_revoked' ||
-      data.error === 'invalid_refresh_token'
-    ) {
-      await storage.clearTokens();
-    }
-
-    return { success: false, error: data.error || data.message || 'Failed to refresh token' };
-  } catch (error) {
-    console.error('[DesktopAuth] Token refresh failed:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
-  }
-}
-
-/**
- * Schedule automatic token refresh before expiry
- */
-function scheduleTokenRefresh(): void {
-  // Clear any existing timer
-  if (refreshTimer) {
-    clearTimeout(refreshTimer);
-  }
-
-  // Refresh 2 minutes before expiry (tokens last 15 min, so refresh at ~13 min)
-  const refreshInterval = 13 * 60 * 1000; // 13 minutes
-
-  refreshTimer = setTimeout(async () => {
-    console.log('[DesktopAuth] Auto-refreshing token...');
-    const result = await refreshAccessToken();
-    if (result.success) {
-      // Schedule next refresh
-      scheduleTokenRefresh();
-    } else {
-      console.error('[DesktopAuth] Auto-refresh failed:', result.error);
-      // Don't schedule another refresh - user will need to re-login
-    }
-  }, refreshInterval);
-
-  console.log('[DesktopAuth] Token refresh scheduled');
-}
-
-/**
- * Get the current access token (refreshing if needed)
+ * Get the stored bearer session token, or null if absent / past hard expiry.
+ * No client-side refresh: an expired/invalid token is rejected (401) and the
+ * user re-authenticates.
  */
 export async function getValidAccessToken(): Promise<string | null> {
   const storage = await getSecureStorage();
   if (!storage) return null;
 
-  const expired = await storage.isTokenExpired();
+  const token = await storage.getAccessToken();
+  if (!token) return null;
 
-  if (expired) {
-    console.log('[DesktopAuth] Token expired, refreshing...');
-    const result = await refreshAccessToken();
-    if (result.success && result.accessToken) {
-      return result.accessToken;
-    }
-    return null;
-  }
+  const expiry = await storage.getTokenExpiry();
+  if (expiry && Date.now() > expiry) return null;
 
-  return storage.getAccessToken();
+  return token;
 }
 
 /**
- * Get stored desktop token (legacy compatibility + new tokens)
+ * Get the stored desktop bearer token (used by apiClient for `Authorization`).
  */
 export async function getDesktopToken(): Promise<string | null> {
   return getValidAccessToken();
-}
-
-/**
- * Clear desktop token and logout
- */
-export async function clearDesktopToken(): Promise<void> {
-  // Stop auto-refresh
-  if (refreshTimer) {
-    clearTimeout(refreshTimer);
-    refreshTimer = null;
-  }
-
-  const storage = await getSecureStorage();
-
-  // Revoke refresh token on server
-  try {
-    const refreshToken = storage ? await storage.getRefreshToken() : null;
-    if (refreshToken) {
-      await fetch(`${API_BASE_URL}/auth/mobile/logout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refresh_token: refreshToken }),
-      });
-    }
-  } catch (error) {
-    console.error('[DesktopAuth] Error revoking refresh token:', error);
-  }
-
-  // Clear local storage
-  if (storage) {
-    await storage.clearTokens();
-  }
-}
-
-/**
- * Check if user has stored desktop auth
- */
-export async function hasDesktopAuth(): Promise<boolean> {
-  const storage = await getSecureStorage();
-  if (!storage) return false;
-  return storage.hasStoredAuth();
-}
-
-/**
- * Make an authenticated API request
- * Automatically includes Bearer token and handles token refresh
- */
-export async function authenticatedFetch(
-  url: string,
-  options: RequestInit = {}
-): Promise<Response> {
-  const token = await getValidAccessToken();
-
-  if (!token) {
-    throw new Error('Not authenticated');
-  }
-
-  const headers = new Headers(options.headers);
-  headers.set('Authorization', `Bearer ${token}`);
-
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
-
-  // If we get 401, try refreshing token once
-  if (response.status === 401) {
-    const refreshResult = await refreshAccessToken();
-    if (refreshResult.success && refreshResult.accessToken) {
-      headers.set('Authorization', `Bearer ${refreshResult.accessToken}`);
-      return fetch(url, { ...options, headers });
-    }
-  }
-
-  return response;
-}
-
-/**
- * Get the current authenticated user from storage
- */
-export async function getCurrentDesktopUser(): Promise<DesktopUser | null> {
-  const storage = await getSecureStorage();
-  if (!storage) return null;
-  return storage.getStoredUser() as Promise<DesktopUser | null>;
 }

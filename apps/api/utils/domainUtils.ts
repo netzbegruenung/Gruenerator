@@ -20,6 +20,14 @@ export function getAllowedDomains(includeDevDomains = false): string[] {
 export function getCorsOrigins(includeDevOrigins = false): string[] {
   const origins = ALLOWED_DOMAINS.map((domain) => `https://${domain}`);
 
+  // Tauri desktop app webview origins (custom scheme, fixed for bundled builds
+  // — NOT the dev server). The desktop webview fetches the API cross-origin, so
+  // without these CORS blocks every request (the origin can't be derived from a
+  // domain). macOS/Linux use `tauri://localhost`, Windows uses
+  // `http://tauri.localhost`. Mobile is a native HTTP client (no Origin) and
+  // needs no entry here.
+  origins.push('tauri://localhost', 'http://tauri.localhost');
+
   if (includeDevOrigins) {
     origins.push(
       'http://localhost:3000',
