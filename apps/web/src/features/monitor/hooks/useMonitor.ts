@@ -13,6 +13,8 @@ import {
   type MonitorSnapshot,
   type PollData,
   type PollParliament,
+  type StateElectionResult,
+  type StateElectionsData,
   type StimmungResult,
   type TopicScore,
   type WatcherEntityInfo,
@@ -248,6 +250,19 @@ export function useMeinungsbild() {
   });
 }
 
+export function useStateElections() {
+  return useQuery({
+    queryKey: ['monitor', 'elections'],
+    queryFn: async (): Promise<StateElectionsData> => {
+      const res = await getContractsClient().monitor.elections();
+      if (res.status === 200) return res.body;
+      throw new Error('Wahlergebnisse konnten nicht geladen werden.');
+    },
+    staleTime: 24 * 60 * 60 * 1000,
+    gcTime: 48 * 60 * 60 * 1000,
+  });
+}
+
 // ─── Research-backed topic positions (not part of the monitor contract) ──────
 
 interface TopicPositionResult {
@@ -314,6 +329,8 @@ export type {
   MonitorLocale,
   MonitorSearchResult as SearchResult,
   PollParliament,
+  StateElectionResult,
+  StateElectionsData,
   TopicScore,
   MonitorSnapshot,
   WatcherEntityInfo,

@@ -8,6 +8,7 @@ import PageContainer from '../../components/common/PageContainer';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import { useAuthStore } from '../../stores/authStore';
 
+import { BundeslandView } from './components/BundeslandView';
 import { KeywordInsightsCard } from './components/KeywordInsightsCard';
 import { KeywordRanking } from './components/KeywordRanking';
 import { MonitorOverview } from './components/MonitorOverview';
@@ -36,6 +37,7 @@ type MonitorTab =
   | 'social'
   | 'stimmung'
   | 'umfragen'
+  | 'bundesland'
   | 'watcher'
   | 'details';
 
@@ -110,6 +112,7 @@ function MonitorPage() {
                   <TabsTrigger value="topics">Themen</TabsTrigger>
                   <TabsTrigger value="stimmung">Stimmung</TabsTrigger>
                   <TabsTrigger value="umfragen">Umfragen</TabsTrigger>
+                  {locale === 'de' && <TabsTrigger value="bundesland">Bundesländer</TabsTrigger>}
                   <TabsTrigger value="watcher">Watcher</TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -130,6 +133,8 @@ function MonitorPage() {
             {tab === 'stimmung' && <StimmungView locale={locale} />}
 
             {tab === 'umfragen' && <UmfragenView locale={locale} />}
+
+            {tab === 'bundesland' && <BundeslandView />}
 
             {tab === 'watcher' && <WatcherView locale={locale} />}
 

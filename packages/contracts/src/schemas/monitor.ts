@@ -238,6 +238,29 @@ export const meinungsbildResponseSchema = z.object({
   fetchedAt: z.string(),
 });
 
+// ── State elections (GERDA Landtagswahl results) ─────────────────────────────
+
+export const stateElectionResultSchema = z.object({
+  stateCode: z.string(),
+  stateName: z.string(),
+  politProId: z.string(),
+  short: z.string(),
+  electionYear: z.number(),
+  electionDate: z.string().nullable(),
+  turnout: z.number().nullable(),
+  // Party display name → vote share (0–1). Includes a "Sonstige" bucket.
+  results: z.record(z.string(), z.number()),
+});
+
+export const stateElectionsResponseSchema = z.object({
+  source: z.string(),
+  citation: z.string(),
+  electionType: z.string(),
+  fetchedAt: z.string(),
+  // Keyed by state code "01"–"16".
+  states: z.record(z.string(), stateElectionResultSchema),
+});
+
 // ── Stimmung (emotion aggregation) ───────────────────────────────────────────
 
 const stimmungEmotionsSchema = z.record(z.string(), z.number());
@@ -355,3 +378,5 @@ export type EntitySummaryResult = z.infer<typeof entitySummaryResponseSchema>;
 export type MeinungsbildIssue = z.infer<typeof meinungsbildIssueSchema>;
 export type MeinungsbildEstimate = z.infer<typeof meinungsbildEstimateSchema>;
 export type MeinungsbildData = z.infer<typeof meinungsbildResponseSchema>;
+export type StateElectionResult = z.infer<typeof stateElectionResultSchema>;
+export type StateElectionsData = z.infer<typeof stateElectionsResponseSchema>;

@@ -129,4 +129,27 @@ export interface MeinungsbildData {
   fetchedAt: string;
 }
 
+// --- State elections (GERDA Landtagswahl results) ---
+
+export interface StateElectionResult {
+  stateCode: string;
+  stateName: string;
+  politProId: string;
+  short: string;
+  electionYear: number;
+  electionDate: string | null;
+  turnout: number | null;
+  /** Party display name → vote share (0–1). Includes a "Sonstige" bucket. */
+  results: Record<string, number>;
+}
+
+export interface StateElectionsData {
+  source: string;
+  citation: string;
+  electionType: string;
+  fetchedAt: string;
+  /** Keyed by state code "01"–"16". */
+  states: Record<string, StateElectionResult>;
+}
+
 export type NlpClassificationResult = NlpClassificationResultBase<TopicCategory>;

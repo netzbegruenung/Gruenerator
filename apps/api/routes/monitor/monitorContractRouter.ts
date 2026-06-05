@@ -28,6 +28,7 @@ import {
 import { getEntitySummary } from '../../services/monitor/MonitorSummaryService.js';
 import { getPolitProPolls, POLITPRO_PARLIAMENTS } from '../../services/monitor/PolitProService.js';
 import { getPolls } from '../../services/monitor/PollScraper.js';
+import { getStateElections } from '../../services/monitor/StateElectionsService.js';
 import { getStimmungSummary } from '../../services/monitor/StimmungSummaryService.js';
 import { WATCHER_ENTITIES, getEntity } from '../../services/monitor/watcherEntities.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -184,6 +185,20 @@ export const monitorContractRouter = s.router(monitorContract, {
     } catch (error) {
       log.error(`GET /meinungsbild failed: ${toError(error).message}`);
       return { status: 500 as const, body: { error: 'Failed to fetch meinungsbild data' } };
+    }
+  },
+
+  elections: async ({ res }) => {
+    try {
+      const data = await getStateElections();
+      if (!data) {
+        return { status: 503 as const, body: { error: 'State election data unavailable' } };
+      }
+      cache(res, 'private, max-age=86400, stale-while-revalidate=172800');
+      return { status: 200 as const, body: data };
+    } catch (error) {
+      log.error(`GET /elections failed: ${toError(error).message}`);
+      return { status: 500 as const, body: { error: 'Failed to fetch state election data' } };
     }
   },
 
