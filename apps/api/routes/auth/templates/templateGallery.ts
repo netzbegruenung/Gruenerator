@@ -90,6 +90,15 @@ try {
 const getFileDownloadUrl = (fileName: string) =>
   `/auth/system-files/${encodeURIComponent(fileName)}`;
 
+// Helper to get the gallery thumbnail URL for a system file.
+const getFileThumbnailUrl = (fileName: string) =>
+  `/auth/system-files/thumbs/${encodeURIComponent(fileName)}`;
+
+// Seasonal system files (e.g. Pride) are only surfaced during their month.
+// Evaluated per request so they appear/disappear at the month boundary with
+// no manual cleanup. Pride month = June (month index 5).
+const isPrideMonth = () => new Date().getMonth() === 5;
+
 // ============================================================================
 // Examples Endpoints
 // ============================================================================
@@ -467,14 +476,21 @@ router.get(
         ...f,
         template_type: f.file_type as unknown,
         download_url: getFileDownloadUrl(f.file_name as string),
+        thumbnail_url: getFileThumbnailUrl(f.file_name as string),
         external_url: null as null,
       })) as Array<
         Record<string, unknown> & {
           template_type: unknown;
           download_url: string;
+          thumbnail_url: string;
           external_url: null;
         }
       >;
+
+      // Hide seasonal files (e.g. Pride) outside their month.
+      if (!isPrideMonth()) {
+        filteredSystemFiles = filteredSystemFiles.filter((f) => f.seasonal !== 'pride');
+      }
 
       if (templateType && templateType !== 'all') {
         filteredSystemFiles = filteredSystemFiles.filter((f) => f.file_type === templateType);

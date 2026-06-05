@@ -161,5 +161,56 @@
       "tags": ["mitglied", "werbung", "sonnenblumen", "beitreten", "instagram", "story"]
     }
   ],
-  "files": []
+  "files": [
+    {
+      "id": "sys-file-pride-profilbild-2025",
+      "file_name": "Pride-Profilbild_2025_1000x1000px.jpg",
+      "file_type": "profilbild",
+      "title": "Pride 2025 – Profilbild",
+      "description": "Quadratisches Profilbild (1000×1000) im Pride-Design für Social-Media-Profile.",
+      "categories": ["profilbild", "pride"],
+      "tags": ["pride", "csd", "profilbild", "2025", "regenbogen", "instagram", "facebook"],
+      "seasonal": "pride"
+    },
+    {
+      "id": "sys-file-pride-profilbild-2025-transparent",
+      "file_name": "Pride-Profilbild_2025_1000x1000px_transparent.jpg",
+      "file_type": "profilbild",
+      "title": "Pride 2025 – Profilbild (transparent)",
+      "description": "Profilbild im Pride-Design mit transparentem Hintergrund zum Kombinieren.",
+      "categories": ["profilbild", "pride"],
+      "tags": ["pride", "csd", "profilbild", "2025", "regenbogen", "transparent"],
+      "seasonal": "pride"
+    },
+    {
+      "id": "sys-file-pride-hintergrund-quer-2025",
+      "file_name": "Pride-Hintergrund_2025-quer.jpg",
+      "file_type": "hintergrund",
+      "title": "Pride 2025 – Hintergrund (quer)",
+      "description": "Querformatiger Pride-Hintergrund für Banner, Header und Titelbilder.",
+      "categories": ["hintergrund", "pride"],
+      "tags": ["pride", "csd", "hintergrund", "2025", "regenbogen", "quer", "banner"],
+      "seasonal": "pride"
+    },
+    {
+      "id": "sys-file-pride-hintergrund-hoch-2025",
+      "file_name": "Pride-Hintergrund_2025-hoch.jpg",
+      "file_type": "hintergrund",
+      "title": "Pride 2025 – Hintergrund (hoch)",
+      "description": "Hochformatiger Pride-Hintergrund für Stories und Reels.",
+      "categories": ["hintergrund", "pride"],
+      "tags": ["pride", "csd", "hintergrund", "2025", "regenbogen", "hoch", "story"],
+      "seasonal": "pride"
+    },
+    {
+      "id": "sys-file-csd25-header",
+      "file_name": "CSD25_Header.jpg",
+      "file_type": "header",
+      "title": "CSD 2025 – Header",
+      "description": "Header-Grafik zum CSD 2025 für Social-Media-Titelbilder.",
+      "categories": ["header", "pride"],
+      "tags": ["pride", "csd", "header", "2025", "regenbogen"],
+      "seasonal": "pride"
+    }
+  ]
 }
