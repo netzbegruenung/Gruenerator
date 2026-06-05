@@ -4,6 +4,7 @@ import {
   useDocumentChat,
   BlockNoteEditor as BlockNoteEditorComponent,
   VersionHistory,
+  usePendingDocAI,
   useVersionHistoryShortcut,
   useDocsAdapter,
   createDocsApiClient,
@@ -47,7 +48,7 @@ import {
   FiX,
 } from 'react-icons/fi';
 import { PiSun, PiMoon, PiDesktop } from 'react-icons/pi';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useBeforeUnload, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 
 import useDarkMode from '../../components/hooks/useDarkMode';
@@ -279,6 +280,22 @@ function EditorContent() {
   const handleEditorReady = useCallback((editorInstance: BlockNoteEditor) => {
     setEditor(editorInstance);
   }, []);
+
+  // While AI suggestions are pending review, the changes live in a detached
+  // (un-synced) Y.Doc fork. Warn before a hard navigation (refresh / tab close /
+  // browser back) so they aren't silently lost. In-app route changes are not
+  // blocked here — that needs a react-router data router (tracked separately).
+  const hasPendingAIChanges = usePendingDocAI(editor);
+  useBeforeUnload(
+    useCallback(
+      (event: BeforeUnloadEvent) => {
+        if (!hasPendingAIChanges) return;
+        event.preventDefault();
+        event.returnValue = '';
+      },
+      [hasPendingAIChanges]
+    )
+  );
 
   useEffect(() => {
     if (!showActionsMenu) {

@@ -14,7 +14,7 @@ import type {
   ConfirmActionType,
   ChartData,
 } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { CanvasAiSuggestion } from '@gruenerator/contracts';
+import type { CanvasAiSuggestion, TriggerDocEdit } from '@gruenerator/contracts';
 import type { Response } from 'express';
 
 /**
@@ -163,7 +163,7 @@ export interface SSEEventPayloads {
   };
   document_indexed: { documentId: string; title: string };
   document_created: { documentId: string; title: string; subtype: string; url: string };
-  trigger_doc_edit: { targetDocumentId: string; userPrompt: string; useSelection: boolean };
+  trigger_doc_edit: TriggerDocEdit;
   interrupt: {
     interruptType: 'clarification';
     question: string;
