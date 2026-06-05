@@ -102,6 +102,7 @@ async function handleRealtimeSession(clientWs: WsWebSocket): Promise<void> {
 
       let segmentDone = false;
 
+      // eslint-disable-next-line @typescript-eslint/await-thenable -- the realtime voice connection is async-iterable; the rule mis-types it
       for await (const event of activeConnection) {
         if (clientWs.readyState !== clientWs.OPEN) break;
 

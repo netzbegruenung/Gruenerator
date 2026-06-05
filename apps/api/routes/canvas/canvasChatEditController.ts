@@ -171,7 +171,7 @@ router.post(
     }
 
     if (threadId) {
-      await userMessagePromise;
+      if (userMessagePromise) await userMessagePromise;
       try {
         await Promise.all([
           createMessage(

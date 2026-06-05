@@ -72,6 +72,8 @@ function parseArgs(): CliArgs {
       case '--concurrency':
         result.concurrency = Math.max(1, parseInt(args[++i], 10) || 3);
         break;
+      default:
+        break;
     }
   }
 
