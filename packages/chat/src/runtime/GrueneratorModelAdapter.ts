@@ -18,6 +18,7 @@ import type {
 } from '../hooks/useChatGraphStream';
 import { useAgentStore, type ToolKey, type ThreadMode, type SearchMode } from '../stores/chatStore';
 import { getSystemAgent } from '@gruenerator/shared/agents';
+import { triggerDocEditSchema } from '@gruenerator/contracts';
 import { parseAllMentions } from '../lib/mentionParser';
 import { parseSSELine } from '../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
@@ -654,12 +655,12 @@ async function* parseSSEStream(
           // here so the docs frontend can dispatch into BlockNote's AIExtension.
           // Handlers are keyed by documentId — there's exactly one docs surface
           // per document, registered when DocsAssistantChat mounts.
-          const payload = data as {
-            targetDocumentId: string;
-            userPrompt: string;
-            useSelection: boolean;
-            referenceContent?: string;
-          };
+          const parsed = triggerDocEditSchema.safeParse(data);
+          if (!parsed.success) {
+            console.warn('[ChatAdapter] trigger_doc_edit payload failed validation', parsed.error);
+            break;
+          }
+          const payload = parsed.data;
           const handler = useChatConfigStore
             .getState()
             .documentEditHandlers.get(payload.targetDocumentId);
