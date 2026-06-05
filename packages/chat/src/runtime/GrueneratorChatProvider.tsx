@@ -12,11 +12,23 @@ import { type ExternalThreadEntry } from './GrueneratorThreadListAdapter';
 // logged-out visitors on public pages never download it. The unauthenticated
 // branch below never references this lazy component, so the chunk is fetched
 // only once a logged-in user mounts a page. See GrueneratorChatRuntime.tsx.
+const importRuntime = () => import('./GrueneratorChatRuntime');
+
 const GrueneratorChatRuntimeProvider = lazy(() =>
-  import('./GrueneratorChatRuntime').then((m) => ({
+  importRuntime().then((m) => ({
     default: m.GrueneratorChatRuntimeProvider,
   }))
 );
+
+/**
+ * Warm the chat-runtime chunk ahead of first use. Call once a user is known to be
+ * authenticated so per-route chat surfaces (and the global thread-list portal) hit
+ * an already-loaded runtime instead of a cold lazy import. React's `lazy` dedupes
+ * the underlying import promise, so this shares the same module fetch.
+ */
+export const preloadChatRuntime = () => {
+  void importRuntime();
+};
 
 interface GrueneratorChatProviderProps {
   children: ReactNode;
@@ -27,6 +39,14 @@ interface GrueneratorChatProviderProps {
   onExternalThreadClick?: (externalId: string) => void;
   activePath?: string;
   enabledModelIds?: ReadonlySet<TextModelId> | null;
+  /**
+   * DOM id of the slot the global thread-list portal renders into. When set, the
+   * runtime renders the thread list itself (inside AssistantRuntimeProvider), so
+   * the app never injects runtime-dependent UI into the Suspense fallback.
+   */
+  threadListPortalSlotId?: string;
+  /** Invoked when the user clicks the global thread-list portal (e.g. navigate to /chat). */
+  onRequestOpenChat?: () => void;
 }
 
 export function GrueneratorChatProvider({
@@ -38,6 +58,8 @@ export function GrueneratorChatProvider({
   onExternalThreadClick,
   activePath,
   enabledModelIds,
+  threadListPortalSlotId,
+  onRequestOpenChat,
 }: GrueneratorChatProviderProps) {
   // Sync config store during render (before any hooks read from it).
   // useEffect runs AFTER render, which creates a race: providerApiClient
@@ -78,7 +100,8 @@ export function GrueneratorChatProvider({
   // fallback={children} renders the page unwrapped while the runtime chunk
   // loads — identical to the unauthenticated branch above, so it is safe by
   // construction. The chunk caches after first load, so navigation never
-  // re-suspends.
+  // re-suspends. Runtime-dependent chrome (the thread-list portal) is rendered
+  // INSIDE the runtime via threadListPortalSlotId, never as fallback children.
   return (
     <ModelPreferencesProvider enabledModelIds={enabledModelIds}>
       <Suspense fallback={children}>
@@ -88,6 +111,8 @@ export function GrueneratorChatProvider({
           getExternalThreads={getExternalThreads}
           onExternalThreadClick={onExternalThreadClick}
           activePath={activePath}
+          threadListPortalSlotId={threadListPortalSlotId}
+          onRequestOpenChat={onRequestOpenChat}
         >
           {children}
         </GrueneratorChatRuntimeProvider>
