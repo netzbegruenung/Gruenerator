@@ -16,7 +16,7 @@ import { LogOut } from 'lucide-react';
 import { type MutableRefObject, type ReactNode, memo, useEffect, useState } from 'react';
 import { FaUserCircle } from 'react-icons/fa';
 import { HiCog, HiDotsVertical } from 'react-icons/hi';
-import { PiBell, PiMoon, PiQuestion, PiSun } from 'react-icons/pi';
+import { PiBell, PiDesktop, PiMoon, PiQuestion, PiSun } from 'react-icons/pi';
 
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
 import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
@@ -47,7 +47,7 @@ const SidebarAccount = memo(function SidebarAccount({
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const isLoggingOut = useAuthStore((s) => s.isLoggingOut);
-  const [darkMode, toggleDarkMode] = useDarkMode();
+  const [, , themePreference, cycleTheme] = useDarkMode();
   const { data: unreadCount = 0 } = useUnreadCount();
   const { data: profile } = useProfile(user?.id);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -138,12 +138,25 @@ const SidebarAccount = memo(function SidebarAccount({
       <DropdownMenuSeparator />
       <DropdownMenuItem
         onSelect={(e) => {
+          // Keep the menu open so the user can click through Hell → Dunkel → System.
           e.preventDefault();
-          toggleDarkMode();
+          cycleTheme();
         }}
       >
-        {darkMode ? <PiSun className="size-4" /> : <PiMoon className="size-4" />}
-        <span>{darkMode ? 'Heller Modus' : 'Dunkler Modus'}</span>
+        {themePreference === 'light' ? (
+          <PiSun className="size-4" />
+        ) : themePreference === 'dark' ? (
+          <PiMoon className="size-4" />
+        ) : (
+          <PiDesktop className="size-4" />
+        )}
+        <span>
+          {themePreference === 'light'
+            ? 'Heller Modus'
+            : themePreference === 'dark'
+              ? 'Dunkler Modus'
+              : 'System'}
+        </span>
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem
