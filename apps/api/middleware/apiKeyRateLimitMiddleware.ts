@@ -1,5 +1,5 @@
-import { redisClient } from '../utils/redis/index.js';
 import { createLogger } from '../utils/logger.js';
+import { redisClient } from '../utils/redis/index.js';
 
 import type { Request, Response, NextFunction } from 'express';
 

@@ -93,6 +93,7 @@ class TTSService {
         { acceptHeaderOverride: CompleteAcceptEnum.textEventStream }
       );
 
+      // eslint-disable-next-line @typescript-eslint/await-thenable -- Mistral speech stream is async-iterable; the rule mis-types it
       for await (const event of stream as AsyncIterable<{
         event: string;
         data: { type: string; audioData?: string };

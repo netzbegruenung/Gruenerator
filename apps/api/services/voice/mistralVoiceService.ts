@@ -282,6 +282,7 @@ class MistralVoiceService {
 
       const chunks: string[] = [];
 
+      // eslint-disable-next-line @typescript-eslint/await-thenable -- Mistral SDK event stream is async-iterable; the rule mis-types it
       for await (const event of stream) {
         const eventData = event as Record<string, unknown>;
         const eventType = eventData.type as string | undefined;

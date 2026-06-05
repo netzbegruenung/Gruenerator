@@ -82,7 +82,7 @@ export async function storeDocumentVectors(
     );
     if (onBatchUpserted) {
       try {
-        await onBatchUpserted(totalUpserted, points.length);
+        await Promise.resolve(onBatchUpserted(totalUpserted, points.length));
       } catch (err) {
         // Progress reporting is best-effort — don't fail the upsert if metadata write fails.
         console.warn('[VectorOperations] onBatchUpserted callback failed:', (err as Error).message);
