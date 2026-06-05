@@ -225,10 +225,12 @@ export const extractPlainText = async (content: string | ContentObject): Promise
     // Convert markdown first if needed
     if (isMarkdownContent(processedContent)) {
       const { marked } = await import('marked');
-      processedContent = await marked(processedContent, {
-        breaks: true, // Convert line breaks to <br>
-        gfm: true, // GitHub Flavored Markdown
-      });
+      processedContent = await Promise.resolve(
+        marked(processedContent, {
+          breaks: true, // Convert line breaks to <br>
+          gfm: true, // GitHub Flavored Markdown
+        })
+      );
     }
 
     // Check if it's HTML content (after potential markdown conversion)

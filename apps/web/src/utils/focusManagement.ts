@@ -240,7 +240,7 @@ export const preserveFocus = async (
   const activeTag = activeElement?.tagName;
 
   // Perform update
-  await updateFn();
+  await Promise.resolve(updateFn());
 
   // Try to restore focus
   requestAnimationFrame(() => {
