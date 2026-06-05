@@ -6,33 +6,33 @@ description: Aktuelle Statistiken über die indexierten Inhalte im Grünerator
 
 # Inhaltsdatenbank
 
-> Zuletzt aktualisiert: **05.06.2026, 00:10**
+> Zuletzt aktualisiert: **05.06.2026, 10:40**
 
 ## Übersicht
 
 Der Grünerator durchsucht und indexiert Inhalte aus verschiedenen Quellen der Grünen Partei.
-Insgesamt sind **53.327 Vektoren** in der Datenbank gespeichert.
+Insgesamt sind **53.348 Vektoren** in der Datenbank gespeichert.
 
 ## Sammlungen
 
 | Sammlung               |   Vektoren |
 | ---------------------- | ---------: |
-| Landesverbände         |     31.401 |
+| Landesverbände         |     31.419 |
 | KommunalWiki           |      7.268 |
 | Bundestag              |      4.631 |
-| Böll-Stiftung          |      3.419 |
+| Böll-Stiftung          |      3.423 |
 | Social-Media-Beispiele |      1.972 |
 | gruene.at              |      1.014 |
 | gruene.de              |        884 |
 | Grundsatzprogramm      |        838 |
 | Grüne Österreich       |        776 |
 | Satzungen              |        712 |
-| Grünblog               |        412 |
-| **Gesamt**             | **53.327** |
+| Grünblog               |        411 |
+| **Gesamt**             | **53.348** |
 
 ## Landesverbände
 
-Die Landesverbände-Sammlung enthält **28.564 Vektoren** aus 12 Quellen.
+Die Landesverbände-Sammlung enthält **28.582 Vektoren** aus 12 Quellen.
 
 | Landesverband                   | Kürzel |   Vektoren |
 | ------------------------------- | ------ | ---------: |
@@ -40,7 +40,7 @@ Die Landesverbände-Sammlung enthält **28.564 Vektoren** aus 12 Quellen.
 | Hamburg                         | HH     |      4.774 |
 | Berlin Fraktion                 | BE-F   |      3.171 |
 | Thüringen                       | TH     |      2.787 |
-| Mecklenburg-Vorpommern Fraktion | MV-F   |      2.495 |
+| Mecklenburg-Vorpommern Fraktion | MV-F   |      2.513 |
 | Mecklenburg-Vorpommern          | MV     |      2.169 |
 | Berlin                          | BE     |      1.853 |
 | Brandenburg                     | BB     |      1.426 |
@@ -48,7 +48,7 @@ Die Landesverbände-Sammlung enthält **28.564 Vektoren** aus 12 Quellen.
 | Sachsen-Anhalt                  | LSA    |      1.054 |
 | Bayern                          | BY     |        995 |
 | Schleswig-Holstein              | SH     |        459 |
-| **Gesamt**                      |        | **28.564** |
+| **Gesamt**                      |        | **28.582** |
 
 ## Aktualisierung
 

@@ -244,7 +244,7 @@ export class QdrantService {
 
   async testConnection(): Promise<boolean> {
     try {
-      await this.client?.getCollections();
+      await Promise.resolve(this.client?.getCollections());
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -258,7 +258,7 @@ export class QdrantService {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        await this.client?.getCollections();
+        await Promise.resolve(this.client?.getCollections());
         log.debug(`Connection test successful (attempt ${attempt})`);
         return true;
       } catch (error) {
@@ -290,7 +290,7 @@ export class QdrantService {
         return;
       }
 
-      await this.client?.getCollections();
+      await Promise.resolve(this.client?.getCollections());
       this.lastHealthCheck = now;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

@@ -46,6 +46,9 @@ Beispiele:
 - details: Zusätzliche Details
 - lines: Falls spezifische Zeilen angegeben (line1, line2, line3)`;
       break;
+
+    default:
+      break;
   }
 
   return (

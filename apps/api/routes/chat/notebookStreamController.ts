@@ -130,7 +130,7 @@ router.post(
     // Persist assistant message and update thread timestamp in parallel
     if (threadId && result) {
       // Ensure user message is persisted before assistant message for ordering
-      await userMessagePromise;
+      if (userMessagePromise) await userMessagePromise;
       try {
         await Promise.all([
           createMessage(
