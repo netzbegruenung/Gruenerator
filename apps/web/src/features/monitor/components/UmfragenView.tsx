@@ -10,6 +10,7 @@ import {
 import { ExternalLink, Minus, TrendingDown, TrendingUp } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import { BUNDESLAENDER } from '../bundeslaender';
 import { usePolls } from '../hooks/useMonitor';
 
 import { MeinungsbildSection } from './MeinungsbildSection';
@@ -20,7 +21,7 @@ interface UmfragenViewProps {
   locale: MonitorLocale;
 }
 
-const PARTY_COLORS: Record<string, string> = {
+export const PARTY_COLORS: Record<string, string> = {
   'CDU/CSU': '#000000',
   AfD: '#009ee0',
   SPD: '#e3000f',
@@ -37,24 +38,8 @@ const PARTY_COLORS: Record<string, string> = {
   FPÖ: '#0E6EB8',
 };
 
-const LAENDER = [
-  { id: 'baden-wuerttemberg', name: 'Baden-Württemberg', short: 'BW' },
-  { id: 'bayern', name: 'Bayern', short: 'BY' },
-  { id: 'berlin', name: 'Berlin', short: 'BE' },
-  { id: 'brandenburg', name: 'Brandenburg', short: 'BB' },
-  { id: 'bremen', name: 'Bremen', short: 'HB' },
-  { id: 'hamburg', name: 'Hamburg', short: 'HH' },
-  { id: 'hessen', name: 'Hessen', short: 'HE' },
-  { id: 'mecklenburg-vorpommern', name: 'Meck.-Vorpommern', short: 'MV' },
-  { id: 'niedersachsen', name: 'Niedersachsen', short: 'NI' },
-  { id: 'nordrhein-westfalen', name: 'NRW', short: 'NW' },
-  { id: 'rheinland-pfalz', name: 'Rheinland-Pfalz', short: 'RP' },
-  { id: 'saarland', name: 'Saarland', short: 'SL' },
-  { id: 'sachsen', name: 'Sachsen', short: 'SN' },
-  { id: 'sachsen-anhalt', name: 'Sachsen-Anhalt', short: 'ST' },
-  { id: 'schleswig-holstein', name: 'Schleswig-Holstein', short: 'SH' },
-  { id: 'thueringen', name: 'Thüringen', short: 'TH' },
-];
+// Compact labels for the tight 2-column "Grüne in den Ländern" grid.
+const LAENDER = BUNDESLAENDER.map((b) => ({ id: b.id, name: b.display ?? b.name }));
 
 function isGruene(party: string): boolean {
   return party === 'GRÜNE' || party === 'Grüne' || party.toLowerCase().includes('grüne');
@@ -146,7 +131,7 @@ function PartyColumn({
   );
 }
 
-function SonntagsfrageChart({
+export function SonntagsfrageChart({
   parliament,
   title,
   subtitle,

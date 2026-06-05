@@ -16,6 +16,7 @@ import {
   type MonitorLocale,
   type NounCount,
   type SocialTrend,
+  type StateElectionResult,
   type TopicCategory,
   type TopicScore,
 } from '@gruenerator/contracts';
@@ -73,3 +74,24 @@ export const monitorArticles = pgTable(
   ]
 );
 export type MonitorArticleRow = InferSelectModel<typeof monitorArticles>;
+
+/**
+ * Latest Landtagswahl result per Bundesland (GERDA, vote-weighted to state level).
+ * Static reference data: 16 rows, refreshed after each state election by
+ * `scripts/seed-gerda-state-elections.ts`. Keyed by GERDA state code "01"–"16".
+ */
+export const monitorStateElections = pgTable('monitor_state_elections', {
+  state_code: text('state_code').primaryKey(),
+  state_name: text('state_name').notNull(),
+  polit_pro_id: text('polit_pro_id').notNull(),
+  short: text('short').notNull(),
+  election_year: integer('election_year').notNull(),
+  election_date: text('election_date'),
+  turnout: doublePrecision('turnout'),
+  // Party display name → vote share (0–1); includes a "Sonstige" bucket.
+  results: jsonb('results').$type<StateElectionResult['results']>().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true, mode: 'string' })
+    .notNull()
+    .defaultNow(),
+});
+export type MonitorStateElectionRow = InferSelectModel<typeof monitorStateElections>;
