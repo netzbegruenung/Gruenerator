@@ -5,9 +5,12 @@
  * Falls back to localStorage when not running in Tauri (for development).
  *
  * The store file is saved in the app's data directory:
- * - macOS: ~/Library/Application Support/de.gruenerator.app/
- * - Windows: %APPDATA%/de.gruenerator.app/
- * - Linux: ~/.local/share/de.gruenerator.app/
+ * - macOS: ~/Library/Application Support/de.gruenerator.desktop/
+ * - Windows: %APPDATA%/de.gruenerator.desktop/
+ * - Linux: ~/.local/share/de.gruenerator.desktop/
+ *
+ * Bearer model: a single opaque Better Auth session `token` (no refresh token)
+ * plus the user and a hard-expiry timestamp.
  */
 
 import { type Store, type StoreOptions } from '@tauri-apps/plugin-store';
@@ -23,6 +26,8 @@ interface TauriStoreModule {
 
 const STORE_NAME = 'auth.json';
 const ACCESS_TOKEN_KEY = 'access_token';
+// Legacy key — no longer written (bearer model has no refresh token). Still
+// cleared on logout so old installs don't keep a stale refresh token around.
 const REFRESH_TOKEN_KEY = 'refresh_token';
 const USER_KEY = 'user';
 const TOKEN_EXPIRY_KEY = 'token_expiry';
@@ -35,13 +40,6 @@ interface StoredUser {
   keycloak_id?: string | null;
   locale?: string;
   [key: string]: unknown;
-}
-
-interface AuthTokens {
-  accessToken: string | null;
-  refreshToken: string | null;
-  user: StoredUser | null;
-  expiresAt: number | null;
 }
 
 let storeInstance: Store | null = null;
@@ -84,51 +82,45 @@ async function getStore(): Promise<Store | null> {
 }
 
 /**
- * Save authentication tokens to secure storage
+ * Save a Better Auth bearer session (result of the native token-exchange).
+ * The opaque `token` is stored as the access token — read back by
+ * getDesktopToken() → apiClient `Authorization: Bearer`. `expiresAt` is an ISO
+ * timestamp from the exchange response.
  */
-export async function saveTokens(
-  accessToken: string,
-  refreshToken: string,
+export async function saveSession(
+  token: string,
   user?: StoredUser,
-  expiresIn?: number
+  expiresAt?: string
 ): Promise<void> {
-  const expiresAt = expiresIn ? Date.now() + expiresIn * 1000 : null;
+  const expiryMs = expiresAt ? Date.parse(expiresAt) : NaN;
+  const hasExpiry = !Number.isNaN(expiryMs);
 
   if (isDesktopApp()) {
     try {
       const store = await getStore();
       if (store) {
-        await store.set(ACCESS_TOKEN_KEY, accessToken);
-        await store.set(REFRESH_TOKEN_KEY, refreshToken);
-        if (user) {
-          await store.set(USER_KEY, user);
-        }
-        if (expiresAt) {
-          await store.set(TOKEN_EXPIRY_KEY, expiresAt);
-        }
+        await store.set(ACCESS_TOKEN_KEY, token);
+        if (user) await store.set(USER_KEY, user);
+        if (hasExpiry) await store.set(TOKEN_EXPIRY_KEY, expiryMs);
         await store.save();
-        console.log('[SecureStorage] Tokens saved to Tauri store');
         return;
       }
     } catch (error) {
-      console.error('[SecureStorage] Failed to save to Tauri store:', error);
+      console.error('[SecureStorage] Failed to save session to Tauri store:', error);
     }
   }
 
-  // Fallback to localStorage (development or web)
-  localStorage.setItem('gruenerator_access_token', accessToken);
-  localStorage.setItem('gruenerator_refresh_token', refreshToken);
+  localStorage.setItem('gruenerator_access_token', token);
   if (user) {
     localStorage.setItem('gruenerator_user', JSON.stringify(user));
   }
-  if (expiresAt) {
-    localStorage.setItem('gruenerator_token_expiry', String(expiresAt));
+  if (hasExpiry) {
+    localStorage.setItem('gruenerator_token_expiry', String(expiryMs));
   }
-  console.log('[SecureStorage] Tokens saved to localStorage (fallback)');
 }
 
 /**
- * Get the access token from secure storage
+ * Get the access (bearer) token from secure storage
  */
 export async function getAccessToken(): Promise<string | null> {
   if (isDesktopApp()) {
@@ -145,26 +137,6 @@ export async function getAccessToken(): Promise<string | null> {
 
   // Fallback to localStorage
   return localStorage.getItem('gruenerator_access_token');
-}
-
-/**
- * Get the refresh token from secure storage
- */
-export async function getRefreshToken(): Promise<string | null> {
-  if (isDesktopApp()) {
-    try {
-      const store = await getStore();
-      if (store) {
-        const token = (await store.get(REFRESH_TOKEN_KEY)) as string | undefined;
-        return token || null;
-      }
-    } catch (error) {
-      console.error('[SecureStorage] Failed to get refresh token from Tauri store:', error);
-    }
-  }
-
-  // Fallback to localStorage
-  return localStorage.getItem('gruenerator_refresh_token');
 }
 
 /**
@@ -196,7 +168,7 @@ export async function getStoredUser(): Promise<StoredUser | null> {
 }
 
 /**
- * Get token expiry timestamp
+ * Get token expiry timestamp (ms epoch), or null if none stored
  */
 export async function getTokenExpiry(): Promise<number | null> {
   if (isDesktopApp()) {
@@ -214,31 +186,6 @@ export async function getTokenExpiry(): Promise<number | null> {
   // Fallback to localStorage
   const expiry = localStorage.getItem('gruenerator_token_expiry');
   return expiry ? parseInt(expiry, 10) : null;
-}
-
-/**
- * Check if the access token is expired or about to expire
- */
-export async function isTokenExpired(bufferSeconds = 60): Promise<boolean> {
-  const expiry = await getTokenExpiry();
-  if (!expiry) {
-    return true;
-  }
-  return Date.now() >= expiry - bufferSeconds * 1000;
-}
-
-/**
- * Get all authentication data
- */
-export async function getAuthTokens(): Promise<AuthTokens> {
-  const [accessToken, refreshToken, user, expiresAt] = await Promise.all([
-    getAccessToken(),
-    getRefreshToken(),
-    getStoredUser(),
-    getTokenExpiry(),
-  ]);
-
-  return { accessToken, refreshToken, user, expiresAt };
 }
 
 /**
@@ -270,62 +217,4 @@ export async function clearTokens(): Promise<void> {
   // Also clear old key for backwards compatibility
   localStorage.removeItem('gruenerator_desktop_token');
   console.log('[SecureStorage] Tokens cleared from localStorage (fallback)');
-}
-
-/**
- * Update only the access token (after refresh)
- */
-export async function updateAccessToken(accessToken: string, expiresIn?: number): Promise<void> {
-  const expiresAt = expiresIn ? Date.now() + expiresIn * 1000 : null;
-
-  if (isDesktopApp()) {
-    try {
-      const store = await getStore();
-      if (store) {
-        await store.set(ACCESS_TOKEN_KEY, accessToken);
-        if (expiresAt) {
-          await store.set(TOKEN_EXPIRY_KEY, expiresAt);
-        }
-        await store.save();
-        return;
-      }
-    } catch (error) {
-      console.error('[SecureStorage] Failed to update access token in Tauri store:', error);
-    }
-  }
-
-  // Fallback to localStorage
-  localStorage.setItem('gruenerator_access_token', accessToken);
-  if (expiresAt) {
-    localStorage.setItem('gruenerator_token_expiry', String(expiresAt));
-  }
-}
-
-/**
- * Update stored user data
- */
-export async function updateStoredUser(user: StoredUser): Promise<void> {
-  if (isDesktopApp()) {
-    try {
-      const store = await getStore();
-      if (store) {
-        await store.set(USER_KEY, user);
-        await store.save();
-        return;
-      }
-    } catch (error) {
-      console.error('[SecureStorage] Failed to update user in Tauri store:', error);
-    }
-  }
-
-  // Fallback to localStorage
-  localStorage.setItem('gruenerator_user', JSON.stringify(user));
-}
-
-/**
- * Check if user has stored authentication
- */
-export async function hasStoredAuth(): Promise<boolean> {
-  const refreshToken = await getRefreshToken();
-  return !!refreshToken;
 }

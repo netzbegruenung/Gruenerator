@@ -5,6 +5,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useInstantAuth } from '../../../hooks/useAuth';
 import { getIntendedRedirect, isMobileAppContext } from '../../../utils/authRedirect';
 import { cn } from '../../../utils/cn';
+import { openDesktopLogin, type AuthSource } from '../../../utils/desktopAuth';
+import { isDesktopApp } from '../../../utils/platform';
 
 // Auth Backend URL from environment variable or fallback to relative path
 const AUTH_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
@@ -129,6 +131,17 @@ const LoginPage = ({
         apiBaseUrl={AUTH_BASE_URL}
         disabled={isAuthenticating}
         onBeforeLogin={handleBeforeLogin}
+        onLogin={
+          isDesktopApp()
+            ? (provider) => {
+                // Desktop (Tauri): use the native source/deep-link flow, not the
+                // web Better-Auth cookie flow (its session never reaches the app).
+                void openDesktopLogin(provider.source as AuthSource).catch(() => {
+                  setIsAuthenticating(false);
+                });
+              }
+            : undefined
+        }
       />
 
       {isAuthenticating && (
