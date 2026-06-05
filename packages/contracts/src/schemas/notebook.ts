@@ -105,25 +105,65 @@ export const notebookSourceSchema = z.object({
 export type NotebookSource = z.infer<typeof notebookSourceSchema>;
 
 /**
+ * QA response metadata. The service returns one of three variants
+ * (MultiCollectionMetadata | SingleCollectionMetadata | PersonQueryMetadata,
+ * plus an `is_public` flag the public-ask handler adds). We model it as the
+ * **superset with every field optional** rather than a discriminated union:
+ * there is no literal discriminant field across the three, and a plain
+ * `z.union` would strip the Person-only fields when a Single-shaped object
+ * matched the Single member first. The superset types the shape end-to-end
+ * (no more `z.unknown()` drift) without dropping any variant's fields.
+ */
+export const notebookQAMetadataSchema = z.object({
+  // multi
+  response_time_ms: z.number().optional(),
+  collections_queried: z.array(z.string()).optional(),
+  document_scope_detected: z.string().nullable().optional(),
+  document_title_filter: z.string().nullable().optional(),
+  subcategory_filters_applied: z.record(z.unknown()).nullable().optional(),
+  total_results: z.number().optional(),
+  citations_count: z.number().optional(),
+  fast_mode: z.boolean().optional(),
+  // single
+  collection_id: z.string().optional(),
+  collection_name: z.string().optional(),
+  sources_count: z.number().optional(),
+  corpus_state: z.enum(['indexing', 'failed', 'ready']).optional(),
+  corpus_state_detail: z
+    .object({
+      indexing_count: z.number(),
+      failed_count: z.number(),
+      ready_count: z.number(),
+      total_count: z.number(),
+    })
+    .optional(),
+  // person query
+  extractedName: z.string().optional(),
+  detectionConfidence: z.number().optional(),
+  detectionSource: z.string().optional(),
+  contentMentionsCount: z.number().optional(),
+  drucksachenCount: z.number().optional(),
+  aktivitaetenCount: z.number().optional(),
+  // public-ask augmentation (added in notebookContractRouter.askPublic)
+  is_public: z.boolean().optional(),
+});
+export type NotebookQAMetadata = z.infer<typeof notebookQAMetadataSchema>;
+
+/**
  * QA response mirrors `QAResponse` from apps/api/services/notebook/types.ts.
- * `citations` is strongly typed (it is the canonical cited-source list the UI
- * renders, and now carries `date`). `sources`, `allSources`, `metadata` stay
- * loosely typed (`z.unknown()`) — their inner shapes are deeply nested unions
- * (SearchSource / ExpandedChunkResult / multiple metadata types) and narrowing
- * them would strip branch-specific fields at serialize time.
+ * `citations` (carries `date`) and `metadata` are strongly typed. `sources`,
+ * `allSources`, `sourcesByCollection` stay `z.unknown()` — their inner shapes
+ * are heterogeneous unions (SearchSource / ExpandedChunkResult / Citation) and
+ * narrowing them would strip branch-specific fields at serialize time.
  */
 export const notebookQAResponseSchema = z.object({
   success: z.boolean(),
   answer: z.string(),
   citations: z.array(notebookCitationSchema).nullish(),
-  // Loosely-typed fields use z.unknown() because the service returns strict
-  // union types (MultiCollectionMetadata | SingleCollectionMetadata | ...)
-  // that don't have index signatures. The inferred schema type for these
-  // fields becomes `unknown`, which every concrete type assigns to.
   sources: z.unknown(),
   allSources: z.unknown(),
   sourcesByCollection: z.unknown().nullish(),
-  metadata: z.unknown(),
+  metadata: notebookQAMetadataSchema,
   isPersonQuery: z.boolean().nullish(),
   person: z.unknown().nullish(),
 });
