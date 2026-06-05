@@ -181,8 +181,11 @@ export const transformedCollectionSchema = z.object({
   wolke_share_links: z.array(wolkeShareLinkSchema),
   has_wolke_sources: z.boolean(),
   documents_from_wolke: z.number(),
-  // Optional fields that may be present on the raw Qdrant shape
-  settings: z.unknown().nullish(),
+  // Optional fields that may be present on the raw Qdrant shape. `settings` is
+  // a JSONB bag (labels / wolke_folders / linked_docs + future keys) — typed as
+  // an indexable record (not opaque `unknown`) so consumers can read keys
+  // without a cast; values stay `unknown` and nothing is stripped on the wire.
+  settings: z.record(z.unknown()).nullish(),
   notebook_collection_documents: z.array(z.object({ document_id: z.string() })).nullish(),
   labels: z.array(z.string()).nullish(),
   is_public: z.boolean().nullish(),
@@ -239,7 +242,7 @@ export const createCollectionResponseSchema = z.object({
     wolke_share_link_ids: z.array(z.string()).nullish(),
     auto_sync: z.boolean().nullish(),
     remove_missing_on_sync: z.boolean().nullish(),
-    settings: z.unknown().nullish(),
+    settings: z.record(z.unknown()).nullish(),
     slug_suffix: z.string().nullish(),
   }),
   message: z.string(),

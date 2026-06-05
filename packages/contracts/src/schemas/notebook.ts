@@ -54,6 +54,18 @@ export const notebookPublicCollectionResponseSchema = z.object({
 });
 
 /**
+ * Person info returned by the bundestagsfraktion person-query path. Mirrors
+ * `PersonInfo` in apps/api/services/notebook/types.ts.
+ */
+export const notebookPersonInfoSchema = z.object({
+  name: z.string().optional(),
+  fraktion: z.union([z.string(), z.array(z.string())]).optional(),
+  wahlkreis: z.string().optional(),
+  biografie: z.string().optional(),
+});
+export type NotebookPersonInfo = z.infer<typeof notebookPersonInfoSchema>;
+
+/**
  * Citation in a QA answer. Single source of truth for the cited-source shape
  * returned by the notebook ask endpoints (mirrors the broad `Citation` union in
  * apps/api/services/notebook/types.ts — most fields are `.nullish()` because the
@@ -151,10 +163,11 @@ export type NotebookQAMetadata = z.infer<typeof notebookQAMetadataSchema>;
 
 /**
  * QA response mirrors `QAResponse` from apps/api/services/notebook/types.ts.
- * `citations` (carries `date`) and `metadata` are strongly typed. `sources`,
- * `allSources`, `sourcesByCollection` stay `z.unknown()` — their inner shapes
- * are heterogeneous unions (SearchSource / ExpandedChunkResult / Citation) and
- * narrowing them would strip branch-specific fields at serialize time.
+ * `citations` (carries `date`), `metadata`, and `person` are strongly typed.
+ * `sources`, `allSources`, `sourcesByCollection` stay `z.unknown()` — their
+ * inner shapes are heterogeneous unions (SearchSource / ExpandedChunkResult /
+ * Citation) and narrowing them would strip branch-specific fields at serialize
+ * time.
  */
 export const notebookQAResponseSchema = z.object({
   success: z.boolean(),
@@ -165,7 +178,7 @@ export const notebookQAResponseSchema = z.object({
   sourcesByCollection: z.unknown().nullish(),
   metadata: notebookQAMetadataSchema,
   isPersonQuery: z.boolean().nullish(),
-  person: z.unknown().nullish(),
+  person: notebookPersonInfoSchema.nullish(),
 });
 
 // ── Per-notebook manual research (chunk-level Qdrant search) ────────────────
