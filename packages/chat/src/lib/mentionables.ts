@@ -17,6 +17,7 @@ import {
   PiCloud,
   PiNotePencil,
   PiPlugsConnected,
+  PiChartBar,
 } from 'react-icons/pi';
 import { agentsList, type AgentListItem } from './agents';
 
@@ -193,6 +194,20 @@ export const toolMentionables: Mentionable[] = [
     icon: PiFiles,
     backgroundColor: '#316049',
     mention: 'dokumente',
+  },
+  {
+    type: 'tool',
+    category: 'function',
+    trigger: '@',
+    identifier: 'umfragen',
+    title: 'Umfragen',
+    description: 'Meinungsumfragen & Sonntagsfrage durchsuchen',
+    avatar: '📊',
+    icon: PiChartBar,
+    backgroundColor: '#F59E0B',
+    mention: 'umfragen',
+    promptTemplate: 'Suche aktuelle Umfragen zu ',
+    audience: 'all',
   },
   {
     type: 'tool',
