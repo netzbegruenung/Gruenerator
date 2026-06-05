@@ -10,6 +10,7 @@ import { createAnalyzeImageTool } from './analyzeImage.js';
 import { createDraftStructuredTool } from './draftStructured.js';
 import { createEditImageTool } from './editImage.js';
 import { createGenerateImageTool } from './generateImage.js';
+import { createLookupBundeslandTool } from './lookupBundesland.js';
 import { createLookupMeinungsbildTool } from './lookupMeinungsbild.js';
 import { createRecallMemoryTool } from './recallMemory.js';
 import { createResearchTool } from './research.js';
@@ -62,6 +63,7 @@ const TOOL_ENTRIES: ToolEntry[] = [
   { key: 'draft_structured', factory: createDraftStructuredTool },
   { key: 'user_content', factory: createSearchUserContentTool },
   { key: 'meinungsbild', factory: createLookupMeinungsbildTool },
+  { key: 'bundesland', factory: createLookupBundeslandTool },
 ];
 
 /**
@@ -82,6 +84,7 @@ export function buildTools(deps: ToolDependencies): DynamicStructuredTool[] {
     'memory_save',
     'user_content',
     'meinungsbild',
+    'bundesland',
   ]);
   const agentWhitelist = deps.agentConfig.enabledTools;
   const tools: DynamicStructuredTool[] = [];
@@ -124,4 +127,5 @@ export const TOOL_LABELS: Record<string, string> = {
   draft_structured: 'Erstelle strukturierten Entwurf...',
   search_user_content: 'Durchsuche Nutzerdokumente...',
   lookup_meinungsbild: 'Suche Meinungsumfragen...',
+  lookup_bundesland: 'Suche Bundesland-Daten...',
 };

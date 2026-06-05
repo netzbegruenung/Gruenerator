@@ -34,6 +34,7 @@ import {
   pollDataSchema,
   pollParliamentsResponseSchema,
   pollsQuerySchema,
+  stateElectionsResponseSchema,
   stimmungResponseSchema,
   topicArticlesQuerySchema,
   topicArticlesResponseSchema,
@@ -167,6 +168,18 @@ export const monitorContract = c.router(
         503: monitorErrorResponseSchema,
       },
       summary: 'Meinungsbild estimates',
+    },
+
+    /** GET /api/monitor/elections — latest Landtagswahl results per Bundesland (GERDA). */
+    elections: {
+      method: 'GET',
+      path: '/api/monitor/elections',
+      responses: {
+        200: stateElectionsResponseSchema,
+        500: monitorErrorResponseSchema,
+        503: monitorErrorResponseSchema,
+      },
+      summary: 'State election results (Landtagswahlen)',
     },
 
     /** GET /api/monitor/stimmung — emotion aggregation + AI mood summary. */
