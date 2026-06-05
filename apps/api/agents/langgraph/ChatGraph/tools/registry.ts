@@ -12,6 +12,7 @@ import { createEditImageTool } from './editImage.js';
 import { createGenerateImageTool } from './generateImage.js';
 import { createLookupBundeslandTool } from './lookupBundesland.js';
 import { createLookupMeinungsbildTool } from './lookupMeinungsbild.js';
+import { createLookupUmfragenTool } from './lookupUmfragen.js';
 import { createRecallMemoryTool } from './recallMemory.js';
 import { createResearchTool } from './research.js';
 import { createSaveMemoryTool } from './saveMemory.js';
@@ -64,6 +65,7 @@ const TOOL_ENTRIES: ToolEntry[] = [
   { key: 'user_content', factory: createSearchUserContentTool },
   { key: 'meinungsbild', factory: createLookupMeinungsbildTool },
   { key: 'bundesland', factory: createLookupBundeslandTool },
+  { key: 'umfragen', factory: createLookupUmfragenTool },
 ];
 
 /**
@@ -85,6 +87,7 @@ export function buildTools(deps: ToolDependencies): DynamicStructuredTool[] {
     'user_content',
     'meinungsbild',
     'bundesland',
+    'umfragen',
   ]);
   const agentWhitelist = deps.agentConfig.enabledTools;
   const tools: DynamicStructuredTool[] = [];
@@ -128,4 +131,5 @@ export const TOOL_LABELS: Record<string, string> = {
   search_user_content: 'Durchsuche Nutzerdokumente...',
   lookup_meinungsbild: 'Suche Meinungsumfragen...',
   lookup_bundesland: 'Suche Bundesland-Daten...',
+  lookup_umfragen: 'Suche Umfragen...',
 };
