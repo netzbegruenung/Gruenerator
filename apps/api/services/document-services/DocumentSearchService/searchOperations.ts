@@ -106,6 +106,8 @@ export async function performTextSearch(
         similarity: result.score || 0,
         token_count: (result.payload?.token_count as number) ?? 0,
         created_at: result.payload?.created_at as string | undefined,
+        published_at:
+          (result.payload?.published_at as string) ?? (metadata?.published_at as string) ?? null,
         searchMethod: 'text',
         originalVectorScore: null,
         originalTextScore: result.score || 0,
@@ -275,6 +277,10 @@ export async function findSimilarChunks(
     content_type: (result.payload.content_type as string) ?? null,
     page_number: (result.payload.page_number as number) ?? null,
     created_at: result.payload.created_at as string | undefined,
+    published_at:
+      (result.payload.published_at as string) ??
+      (result.payload.metadata?.published_at as string) ??
+      null,
     source_id: (result.payload.source_id as string) ?? null,
     url: (result.payload.source_url as string) || (result.payload.url as string) || undefined,
     documents: {
@@ -382,6 +388,8 @@ export async function findHybridChunks(
       content_type: (result.payload.content_type as string) ?? null,
       page_number: (result.payload.page_number as number) ?? null,
       created_at: result.payload.created_at as string | undefined,
+      published_at:
+        (result.payload.published_at as string) ?? (metadata?.published_at as string) ?? null,
       source_id: (result.payload.source_id as string) ?? null,
       url: (result.payload.source_url as string) || (result.payload.url as string) || undefined,
       searchMethod: result.searchMethod || 'hybrid',

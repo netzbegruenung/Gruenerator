@@ -54,28 +54,72 @@ export const notebookPublicCollectionResponseSchema = z.object({
 });
 
 /**
- * QA response mirrors `QAResponse` from apps/api/services/notebook/types.ts.
- * Fields `citations`, `sources`, `allSources`, `metadata` are left loosely
- * typed (`z.unknown()`) because their inner shapes are deeply nested unions
- * of Citation / SearchSource / ExpandedChunkResult / multiple metadata types.
- * `.passthrough()` preserves any extra fields the service adds over time.
+ * Citation in a QA answer. Single source of truth for the cited-source shape
+ * returned by the notebook ask endpoints (mirrors the broad `Citation` union in
+ * apps/api/services/notebook/types.ts — most fields are `.nullish()` because the
+ * person-query path emits a different field subset than the document path).
  *
- * If a frontend consumer needs one of those inner shapes typed strictly,
- * add the inner schema here and narrow the field — fix at the source.
+ * `date` is the source's real publication date (or upload date for user docs);
+ * `null` when the source carries no usable date. Set in
+ * `buildReferencesMap` (SearchResultProcessor) from the Qdrant `published_at`
+ * payload — NOT the response timestamp.
+ */
+export const notebookCitationSchema = z.object({
+  index: z.string(),
+  // Nullability mirrors the producer types exactly: plain `.optional()` for
+  // `T | undefined` fields, `.nullable().optional()` only where the value is
+  // genuinely nullable. `date` is the real source date (or null).
+  date: z.string().nullable().optional(),
+  cited_text: z.string().optional(),
+  document_title: z.string().optional(),
+  document_id: z.string().optional(),
+  source_url: z.string().nullable().optional(),
+  similarity_score: z.number().optional(),
+  chunk_index: z.number().optional(),
+  filename: z.string().nullable().optional(),
+  page_number: z.number().nullable().optional(),
+  collection_id: z.string().optional(),
+  collection_name: z.string().optional(),
+  // Person-query / custom citation fields
+  title: z.string().optional(),
+  url: z.string().nullable().optional(),
+  snippet: z.string().optional(),
+  source: z.string().optional(),
+  type: z.string().optional(),
+});
+export type NotebookCitation = z.infer<typeof notebookCitationSchema>;
+
+/**
+ * A source (document) grouped from one or more citations. `date` mirrors
+ * `notebookCitationSchema.date`.
+ */
+export const notebookSourceSchema = z.object({
+  document_id: z.string(),
+  document_title: z.string(),
+  source_url: z.string().nullable(),
+  chunk_text: z.string(),
+  similarity_score: z.number(),
+  date: z.string().nullable().optional(),
+  citations: z.array(notebookCitationSchema),
+});
+export type NotebookSource = z.infer<typeof notebookSourceSchema>;
+
+/**
+ * QA response mirrors `QAResponse` from apps/api/services/notebook/types.ts.
+ * `citations` is strongly typed (it is the canonical cited-source list the UI
+ * renders, and now carries `date`). `sources`, `allSources`, `metadata` stay
+ * loosely typed (`z.unknown()`) — their inner shapes are deeply nested unions
+ * (SearchSource / ExpandedChunkResult / multiple metadata types) and narrowing
+ * them would strip branch-specific fields at serialize time.
  */
 export const notebookQAResponseSchema = z.object({
   success: z.boolean(),
   answer: z.string(),
+  citations: z.array(notebookCitationSchema).nullish(),
   // Loosely-typed fields use z.unknown() because the service returns strict
   // union types (MultiCollectionMetadata | SingleCollectionMetadata | ...)
   // that don't have index signatures. The inferred schema type for these
   // fields becomes `unknown`, which every concrete type assigns to.
-  //
-  // NOTE: no `.passthrough()` — Zod strips unknown fields at serialize time.
-  // This is safe for response validation; we only care about the shape above,
-  // and `.passthrough()` makes the inferred type require an index signature
-  // at the top level, which QAResponse doesn't have.
-  citations: z.unknown(),
   sources: z.unknown(),
   allSources: z.unknown(),
   sourcesByCollection: z.unknown().nullish(),

@@ -351,6 +351,7 @@ export class BaseSearchService {
           title: this.extractDocumentTitle(chunk),
           filename: this.extractDocumentFilename(chunk),
           created_at: this.extractDocumentCreatedAt(chunk),
+          published_at: this.extractPublishedAt(chunk),
           source_url: chunk.url || undefined,
           source_id: chunk.source_id ?? null,
           chunks: [],
@@ -365,6 +366,10 @@ export class BaseSearchService {
       }
       if (!docData.source_id && chunk.source_id) {
         docData.source_id = chunk.source_id;
+      }
+      if (!docData.published_at) {
+        const pub = this.extractPublishedAt(chunk);
+        if (pub) docData.published_at = pub;
       }
       const chunkData = this.extractChunkData(chunk);
 
@@ -446,6 +451,7 @@ export class BaseSearchService {
         title: doc.title,
         filename: doc.filename,
         created_at: doc.created_at,
+        published_at: doc.published_at ?? null,
         source_url: doc.source_url,
         source_id: doc.source_id ?? null,
         relevant_content: relevantContent,
@@ -610,6 +616,7 @@ export class BaseSearchService {
       similarity: chunk.similarity,
       token_count: chunk.token_count,
       created_at: chunk.created_at,
+      published_at: chunk.published_at ?? null,
       documents: {
         id: chunk.document_id,
         title: chunk.documents?.title || chunk.document_title,
@@ -645,6 +652,14 @@ export class BaseSearchService {
    */
   extractDocumentCreatedAt(chunk: TransformedChunk): string | undefined {
     return chunk.documents?.created_at;
+  }
+
+  /**
+   * Extract the real publication date from a chunk (Qdrant `published_at`
+   * payload, mapped by the search operations). Null for dateless sources.
+   */
+  extractPublishedAt(chunk: TransformedChunk): string | null {
+    return chunk.published_at ?? null;
   }
 
   /**
@@ -718,6 +733,7 @@ export class BaseSearchService {
           title: this.extractDocumentTitle(chunk),
           filename: this.extractDocumentFilename(chunk),
           created_at: this.extractDocumentCreatedAt(chunk),
+          published_at: this.extractPublishedAt(chunk),
           source_url: chunk.url || undefined,
           source_id: chunk.source_id ?? null,
           chunks: [],
@@ -843,6 +859,7 @@ export class BaseSearchService {
         title: doc.title,
         filename: doc.filename,
         created_at: doc.created_at,
+        published_at: doc.published_at ?? null,
         source_url: doc.source_url,
         source_id: doc.source_id ?? null,
         relevant_content: relevantContent,
@@ -1047,6 +1064,7 @@ export class BaseSearchService {
           title: chunk.documents?.title || chunk.document_title || 'Untitled',
           filename: chunk.documents?.filename || chunk.document_filename || '',
           created_at: chunk.documents?.created_at || chunk.document_created_at,
+          published_at: chunk.published_at ?? null,
           source_url: chunk.url || undefined,
           chunks: [],
           maxSimilarity: 0,
@@ -1094,6 +1112,7 @@ export class BaseSearchService {
         title: doc.title,
         filename: doc.filename,
         created_at: doc.created_at,
+        published_at: doc.published_at ?? null,
         source_url: doc.source_url,
         relevant_content: relevantContent,
         similarity_score: enhancedScore.finalScore,

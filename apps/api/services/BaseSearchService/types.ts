@@ -58,6 +58,7 @@ export interface RawChunk {
   similarity: number;
   token_count?: number | undefined;
   created_at?: string | undefined;
+  published_at?: string | null | undefined;
   content_type?: string | undefined;
   page_number?: number | undefined;
   url?: string | undefined;
@@ -102,6 +103,7 @@ export interface TransformedChunk {
   similarity: number;
   token_count?: number | undefined;
   created_at?: string | undefined;
+  published_at?: string | null | undefined;
   source_id?: string | null | undefined;
   url?: string | undefined;
   documents: {
@@ -154,6 +156,7 @@ export interface DocumentData {
   title?: string | undefined;
   filename?: string | undefined;
   created_at?: string | undefined;
+  published_at?: string | null | undefined;
   source_url?: string | undefined;
   source_id?: string | null | undefined;
   chunks: ChunkData[];
