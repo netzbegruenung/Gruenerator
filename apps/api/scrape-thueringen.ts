@@ -72,6 +72,8 @@ function parseArgs(): CliArgs {
       case '--source':
         result.source = args[++i];
         break;
+      default:
+        break;
     }
   }
 

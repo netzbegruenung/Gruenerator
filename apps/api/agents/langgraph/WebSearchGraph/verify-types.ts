@@ -103,6 +103,7 @@ const _testCitation: Citation = {
   chunk_index: 0,
   filename: 'file',
   page_number: 1,
+  date: null,
 };
 
 const _testSource: Source = {
@@ -111,6 +112,7 @@ const _testSource: Source = {
   source_url: 'url',
   chunk_text: 'text',
   similarity_score: 0.9,
+  date: null,
   citations: [],
 };
 

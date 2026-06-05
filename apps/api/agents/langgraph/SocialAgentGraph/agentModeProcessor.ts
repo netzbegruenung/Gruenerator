@@ -80,6 +80,7 @@ export async function processAgentModeStreaming(req: Request, res: Response): Pr
     let fullOutput = '';
     let finalState: Record<string, unknown> | null = null;
 
+    // eslint-disable-next-line @typescript-eslint/await-thenable -- LangGraph .stream() yields an async-iterable stream; the rule mis-types it
     for await (const update of stream) {
       if (abortController.signal.aborted) {
         log.debug('[agentMode] Stream aborted by client');
@@ -157,6 +158,9 @@ export async function processAgentModeStreaming(req: Request, res: Response): Pr
             }
             break;
           }
+
+          default:
+            break;
         }
       }
     }

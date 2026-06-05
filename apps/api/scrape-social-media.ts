@@ -68,6 +68,8 @@ function parseArgs(): CliArgs {
       case '--platform':
         platform = args[++i] as Platform;
         break;
+      default:
+        break;
     }
   }
 

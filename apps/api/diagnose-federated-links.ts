@@ -19,12 +19,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+import { getPostgresInstance, type PostgresService } from './database/services/PostgresService.js';
 import {
   KeycloakApiClient,
   type KeycloakUser,
   type FederatedIdentity,
 } from './utils/keycloak/apiClient.js';
-import { getPostgresInstance, type PostgresService } from './database/services/PostgresService.js';
 
 const KEYCLOAK_USERS_PAGE_SIZE = 50;
 

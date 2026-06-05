@@ -10,6 +10,7 @@ import type {
   SourcesByCollection as SearchSourcesByCollection,
   ReferencesMap,
 } from '../search/types.js';
+import type { NotebookCitation } from '@gruenerator/contracts';
 
 /**
  * Request filters for search
@@ -19,27 +20,12 @@ export interface RequestFilters {
 }
 
 /**
- * Citation in QA response
- * Can be either a search citation or a custom citation format
+ * Citation in QA response. Single source of truth lives in the contract
+ * (`notebookCitationSchema`); we alias the inferred type so the service, the
+ * HTTP response, and the frontend all share one shape. Carries `date` (real
+ * publication/upload date of the source, or null).
  */
-export interface Citation {
-  index: string;
-  title?: string | undefined;
-  url?: string | null | undefined;
-  snippet?: string | undefined;
-  source?: string | undefined;
-  type?: string | undefined;
-  cited_text?: string | undefined;
-  document_title?: string | undefined;
-  document_id?: string | undefined;
-  source_url?: string | null | undefined;
-  similarity_score?: number | undefined;
-  chunk_index?: number | undefined;
-  filename?: string | null | undefined;
-  page_number?: number | null | undefined;
-  collection_id?: string | undefined;
-  collection_name?: string | undefined;
-}
+export type Citation = NotebookCitation;
 
 /**
  * Multi-collection metadata
