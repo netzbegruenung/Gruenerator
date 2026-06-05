@@ -18,23 +18,37 @@ const GrueneratorHomeIcon = (props: SVGProps<SVGSVGElement>) => {
     >
       <defs>
         {pride && (
-          // Diagonal rainbow spanning the icon's bounds (userSpaceOnUse so the
-          // gradient flows across all paths as one mark, not per-path).
-          <linearGradient
-            id="ghi-pride"
-            gradientUnits="userSpaceOnUse"
-            x1="88"
-            y1="199"
-            x2="662"
-            y2="568"
-          >
-            <stop offset="0" stopColor="#E40303" />
-            <stop offset="0.2" stopColor="#FF8C00" />
-            <stop offset="0.4" stopColor="#FFED00" />
-            <stop offset="0.6" stopColor="#008026" />
-            <stop offset="0.8" stopColor="#004DFF" />
-            <stop offset="1" stopColor="#750787" />
-          </linearGradient>
+          <>
+            {/* Diagonal rainbow spanning the icon's bounds (userSpaceOnUse so the
+                gradient flows across the gear + center dot as one mark). */}
+            <linearGradient
+              id="ghi-pride"
+              gradientUnits="userSpaceOnUse"
+              x1="88"
+              y1="199"
+              x2="662"
+              y2="568"
+            >
+              <stop offset="0" stopColor="#E40303" />
+              <stop offset="0.2" stopColor="#FF8C00" />
+              <stop offset="0.4" stopColor="#FFED00" />
+              <stop offset="0.6" stopColor="#008026" />
+              <stop offset="0.8" stopColor="#004DFF" />
+              <stop offset="1" stopColor="#750787" />
+            </linearGradient>
+            {/* The underscore bar sits inside its own translate(), so it can't
+                share the userSpaceOnUse gradient (it would land before x1 and
+                paint solid red). objectBoundingBox makes it a full rainbow
+                relative to its own box, independent of the transform. */}
+            <linearGradient id="ghi-pride-line">
+              <stop offset="0" stopColor="#E40303" />
+              <stop offset="0.2" stopColor="#FF8C00" />
+              <stop offset="0.4" stopColor="#FFED00" />
+              <stop offset="0.6" stopColor="#008026" />
+              <stop offset="0.8" stopColor="#004DFF" />
+              <stop offset="1" stopColor="#750787" />
+            </linearGradient>
+          </>
         )}
         <clipPath id="ghi-clip-circle">
           <path d="M 240 352 L 305 352 L 305 416 L 240 416 Z" />
@@ -58,7 +72,10 @@ const GrueneratorHomeIcon = (props: SVGProps<SVGSVGElement>) => {
       </g>
       {/* Underscore bar — bottom-right of gear */}
       <g transform="translate(538, 495)">
-        <path d="M 124.27 14.8 L 114.64 59.17 L -48.08 59.17 L -38.47 14.8 Z" />
+        <path
+          fill={pride ? 'url(#ghi-pride-line)' : undefined}
+          d="M 124.27 14.8 L 114.64 59.17 L -48.08 59.17 L -38.47 14.8 Z"
+        />
       </g>
     </svg>
   );
