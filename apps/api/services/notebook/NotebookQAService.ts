@@ -773,11 +773,7 @@ export class NotebookQAService {
         },
       });
 
-      const expanded = expandResultsToChunks(
-        (resp.results as unknown as SearchResultInput[]) || [],
-        collectionId,
-        config.name
-      );
+      const expanded = expandResultsToChunks(resp.results || [], collectionId, config.name);
 
       // Post-filter: validate results match requested source_id filter (defense-in-depth)
       return this._applySourceIdPostFilter(expanded, filters);
@@ -885,7 +881,7 @@ export class NotebookQAService {
       },
     });
 
-    return (resp.results || []) as SearchResultInput[];
+    return resp.results || [];
   }
 
   /**
