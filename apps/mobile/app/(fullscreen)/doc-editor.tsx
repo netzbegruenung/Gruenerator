@@ -1,9 +1,22 @@
 import { useAuthStore } from '@gruenerator/shared/stores';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useLocalSearchParams, useRouter, type ErrorBoundaryProps } from 'expo-router';
+import {
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+  type ErrorBoundaryProps,
+} from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Pressable, useColorScheme } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  Pressable,
+  useColorScheme,
+  Alert,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DocAiEditSheet } from '../../components/docs/DocAiEditSheet';
@@ -83,6 +96,29 @@ export default function DocumentScreen() {
   const canEdit = store((s) => s.canEdit);
   const editorEpoch = store((s) => s.editorEpoch);
   const chromeVisible = !fullscreen;
+
+  // While AI suggestions are pending review, the edits live in a detached,
+  // un-synced Y.Doc fork — leaving the screen drops them silently. Block back /
+  // swipe-to-dismiss and steer the user to the review bar (Übernehmen/Verwerfen).
+  const navigation = useNavigation();
+  useEffect(() => {
+    if (!aiReviewPending) return;
+    const nav = navigation as unknown as {
+      addListener: (
+        type: 'beforeRemove',
+        cb: (e: { preventDefault: () => void }) => void
+      ) => () => void;
+    };
+    const unsubscribe = nav.addListener('beforeRemove', (e) => {
+      e.preventDefault();
+      Alert.alert(
+        'KI-Vorschläge prüfen',
+        'Übernimm oder verwirf die KI-Änderungen, bevor du das Dokument verlässt.',
+        [{ text: 'Zurück zum Dokument', style: 'cancel' }]
+      );
+    });
+    return unsubscribe;
+  }, [navigation, aiReviewPending]);
 
   // Load token (fast) — mounts editor immediately
   useEffect(() => {

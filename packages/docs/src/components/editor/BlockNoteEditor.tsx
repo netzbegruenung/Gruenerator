@@ -137,7 +137,7 @@ const BlockNoteEditorInner = ({
   hideFormattingToolbar = false,
   showDictationButton = true,
 }: BlockNoteEditorProps) => {
-  const { setEditor: setEditorInStore, removeEditor } = useEditorStore();
+  const { setEditor: setEditorInStore, setDocContext, removeEditor } = useEditorStore();
   const adapter = useDocsAdapter();
   const isTouchDevice = useIsTouchDevice();
   const toolbarMode = useEditorPreferencesStore((s) => s.toolbarMode);
@@ -302,26 +302,25 @@ const BlockNoteEditorInner = ({
     if (!editor) return;
 
     setEditorInStore(documentId, editor);
+    // Record the live collaboration handles so non-React call sites (notably
+    // acceptDocumentAI) can verify an accepted AI change lands on the doc the
+    // websocket is actually syncing — and recover if BlockNote's AI fork
+    // merged into a stale Y.Doc instead.
+    setDocContext(documentId, { ydoc: ydoc ?? null, provider: provider ?? null });
     setIsReady(true);
 
-    // Diagnostic: verify whether ForkYDocExtension is auto-registered by core
-    // when `collaboration` is passed to useCreateBlockNote. xl-ai's
-    // acceptChanges calls editor.getExtension(ForkYDocExtension)?.merge() —
-    // if this logs `false` while collab is active, AI accept will silently
-    // no-op and the suggestion diff won't render. Per the BlockNote expert
-    // review, default-extension auto-registration is the expected source of
-    // ForkYDoc; manual push only needed if this returns false.
+    // xl-ai's acceptChanges calls editor.getExtension(ForkYDocExtension)?.merge();
+    // if ForkYDoc isn't registered while collab is active, AI accept silently
+    // no-ops. Warn (dev only) rather than log unconditionally.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const forkExt = (editor as any).getExtension?.(ForkYDocExtension);
-    // eslint-disable-next-line no-console
-    console.log(
-      '[BlockNoteEditor] ForkYDoc present?',
-      !!forkExt,
-      '| collab active?',
-      !!collaborationOptions,
-      '| doc:',
-      documentId
-    );
+    if (collaborationOptions && !forkExt) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[BlockNoteEditor] ForkYDocExtension missing while collaboration is active — AI accept will not sync.',
+        { documentId }
+      );
+    }
 
     // Fix checkbox multi-click: intercept click on checkbox inputs and
     // toggle the block directly via editor API, bypassing ProseMirror's
@@ -354,7 +353,17 @@ const BlockNoteEditorInner = ({
       clearTimeout(timeoutId);
       removeEditor(documentId);
     };
-  }, [editor, documentId, setEditorInStore, removeEditor, onEditorReady]);
+  }, [
+    editor,
+    documentId,
+    ydoc,
+    provider,
+    collaborationOptions,
+    setEditorInStore,
+    setDocContext,
+    removeEditor,
+    onEditorReady,
+  ]);
 
   useEffect(() => {
     if (!editor || hasInitialized.current) return;
