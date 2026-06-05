@@ -103,6 +103,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       type: 'landesverband',
       baseUrl: 'https://www.gruene-lsa.de',
       cms: 'wordpress',
+      maxAgeYears: 5,
       contentPaths: [
         {
           // Site relaunched in Dec 2025 and changed permalinks from
@@ -168,6 +169,7 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       // pagination is /pressemitteilungen~p2 (no .html), ~77 pages; dates DD.MM.YY.
       baseUrl: 'https://gruene-fraktion-sachsen-anhalt.de',
       cms: 'neos',
+      maxAgeYears: 5,
       contentPaths: [
         {
           type: 'presse',
