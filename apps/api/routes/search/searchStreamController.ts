@@ -341,6 +341,7 @@ export async function streamNormalSearch(req: AuthenticatedRequest, res: Respons
 
     let fullText = '';
     try {
+      // eslint-disable-next-line @typescript-eslint/await-thenable -- AI SDK textStream is async-iterable; the rule mis-types it
       for await (const chunk of streamResult.textStream) {
         fullText += chunk;
         sse.sendRaw('text_delta', { text: chunk });
@@ -600,6 +601,7 @@ ${refsSummary}`;
 
     let fullText = '';
     try {
+      // eslint-disable-next-line @typescript-eslint/await-thenable -- AI SDK textStream is async-iterable; the rule mis-types it
       for await (const chunk of streamResult.textStream) {
         fullText += chunk;
         sse.sendRaw('text_delta', { text: chunk });

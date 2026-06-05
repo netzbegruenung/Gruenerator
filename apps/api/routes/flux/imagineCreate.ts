@@ -1,10 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 
+import { IMAGE_MODEL_BY_ID } from '@gruenerator/shared/models';
 import express, { type Response } from 'express';
 import { z } from 'zod';
-
-import { IMAGE_MODEL_BY_ID } from '@gruenerator/shared/models';
 
 import { requireAuth } from '../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../middleware/validateBody.js';
