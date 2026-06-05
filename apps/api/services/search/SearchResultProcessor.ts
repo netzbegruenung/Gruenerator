@@ -7,6 +7,8 @@
  * - Source grouping by collection
  */
 
+import { recencyBoost, resolveSourceDate } from './recency.js';
+
 import type {
   SearchResultInput,
   ExpandedChunkResult,
@@ -36,6 +38,9 @@ export function expandResultsToChunks(
     const sourceUrl = r.source_url || r.url || null;
     const docId = r.document_id || sourceUrl || '';
 
+    const publishedAt = r.published_at ?? null;
+    const createdAt = r.created_at;
+
     if (topChunks.length > 0) {
       for (const chunk of topChunks) {
         expanded.push({
@@ -48,6 +53,8 @@ export function expandResultsToChunks(
           similarity: r.similarity_score || 0,
           chunk_index: chunk.chunk_index,
           page_number: chunk.page_number ?? null,
+          published_at: publishedAt,
+          ...(createdAt && { created_at: createdAt }),
           ...(collectionId && { collection_id: collectionId }),
           ...(collectionName && { collection_name: collectionName }),
         });
@@ -63,6 +70,8 @@ export function expandResultsToChunks(
         similarity: typeof r.similarity_score === 'number' ? r.similarity_score : 0,
         chunk_index: r.chunk_index || 0,
         page_number: null,
+        published_at: publishedAt,
+        ...(createdAt && { created_at: createdAt }),
         ...(collectionId && { collection_id: collectionId }),
         ...(collectionName && { collection_name: collectionName }),
       });
@@ -96,9 +105,16 @@ export function deduplicateResults(
 }
 
 /**
- * Build references map from search results for citation processing
+ * Build references map from search results for citation processing.
+ *
+ * `date` is the source's real publication date (or upload date when
+ * `allowCreatedAt` is set for user collections), or null when none — NOT the
+ * response timestamp. Consumed by the answer prompt and returned in citations.
  */
-export function buildReferencesMap(results: ExpandedChunkResult[]): ReferencesMap {
+export function buildReferencesMap(
+  results: ExpandedChunkResult[],
+  options: { allowCreatedAt?: boolean | undefined } = {}
+): ReferencesMap {
   const referencesMap: ReferencesMap = {};
 
   for (let i = 0; i < results.length; i++) {
@@ -109,7 +125,7 @@ export function buildReferencesMap(results: ExpandedChunkResult[]): ReferencesMa
       title: r.title,
       snippets: [[r.snippet]],
       description: null,
-      date: new Date().toISOString(),
+      date: resolveSourceDate(r, { allowCreatedAt: options.allowCreatedAt }),
       source: 'qa_documents',
       document_id: r.document_id,
       source_url: r.source_url || null,
@@ -177,6 +193,7 @@ export function validateAndInjectCitations(
       chunk_index: ref.chunk_index,
       filename: ref.filename,
       page_number: ref.page_number,
+      date: ref.date ?? null,
       ...(ref.collection_id && { collection_id: ref.collection_id }),
       ...(ref.collection_name && { collection_name: ref.collection_name }),
     };
@@ -188,6 +205,7 @@ export function validateAndInjectCitations(
       document_id: string;
       document_title: string;
       source_url: string | null;
+      date: string | null;
       chunk_texts: string[];
       similarity_scores: number[];
       citations: Citation[];
@@ -201,6 +219,7 @@ export function validateAndInjectCitations(
         document_id: c.document_id,
         document_title: c.document_title,
         source_url: c.source_url || null,
+        date: c.date ?? null,
         chunk_texts: [c.cited_text],
         similarity_scores: [c.similarity_score],
         citations: [],
@@ -209,6 +228,7 @@ export function validateAndInjectCitations(
       const doc = byDoc.get(key)!;
       doc.chunk_texts.push(c.cited_text);
       doc.similarity_scores.push(c.similarity_score);
+      if (!doc.date && c.date) doc.date = c.date;
     }
     byDoc.get(key)!.citations.push(c);
   }
@@ -219,6 +239,7 @@ export function validateAndInjectCitations(
     source_url: source.source_url || null,
     chunk_text: source.chunk_texts.join(' [...] '),
     similarity_score: Math.max(...source.similarity_scores),
+    date: source.date,
     citations: source.citations,
   }));
 
@@ -269,17 +290,25 @@ export function renumberCitationsInOrder(
 }
 
 /**
- * Sort results by similarity score and apply quality threshold
+ * Sort results by similarity, with a mild recency boost as a secondary factor.
+ *
+ * The `threshold` gate is on raw `similarity` (recency only re-orders sources
+ * that already qualify — it never rescues a weak source). The boost is additive
+ * and small (see recency.ts), so content quality stays decisive; dateless
+ * sources get boost 0 and keep pure-similarity behaviour.
  */
 export function filterAndSortResults(
   results: ExpandedChunkResult[],
   options: FilterOptions = {}
 ): ExpandedChunkResult[] {
-  const { threshold = 0.35, limit = 40 } = options;
+  const { threshold = 0.35, limit = 40, now = new Date(), allowCreatedAt } = options;
+
+  const effective = (r: ExpandedChunkResult): number =>
+    r.similarity + recencyBoost(resolveSourceDate(r, { allowCreatedAt }), now);
 
   return results
     .filter((r) => r.similarity >= threshold)
-    .sort((a, b) => b.similarity - a.similarity)
+    .sort((a, b) => effective(b) - effective(a))
     .slice(0, limit);
 }
 
@@ -306,6 +335,7 @@ export function groupSourcesByCollection(
         document_id: string;
         document_title: string;
         source_url: string | null;
+        date: string | null;
         chunk_texts: string[];
         similarity_scores: number[];
         citations: Citation[];
@@ -319,6 +349,7 @@ export function groupSourcesByCollection(
           document_id: c.document_id,
           document_title: c.document_title,
           source_url: c.source_url || null,
+          date: c.date ?? null,
           chunk_texts: [c.cited_text],
           similarity_scores: [c.similarity_score],
           citations: [],
@@ -327,6 +358,7 @@ export function groupSourcesByCollection(
         const doc = byDoc.get(key)!;
         doc.chunk_texts.push(c.cited_text);
         doc.similarity_scores.push(c.similarity_score);
+        if (!doc.date && c.date) doc.date = c.date;
       }
       byDoc.get(key)!.citations.push(c);
     }
@@ -337,6 +369,7 @@ export function groupSourcesByCollection(
       source_url: source.source_url || null,
       chunk_text: source.chunk_texts.join(' [...] '),
       similarity_score: Math.max(...source.similarity_scores),
+      date: source.date,
       citations: source.citations,
     }));
 

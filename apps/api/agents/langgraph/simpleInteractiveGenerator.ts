@@ -288,6 +288,8 @@ function extractStructuredAnswers(
       case 'structure':
         structured.structure = Array.isArray(answer) ? answer[0] : answer;
         break;
+      default:
+        break;
     }
   }
 

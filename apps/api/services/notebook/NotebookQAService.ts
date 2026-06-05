@@ -14,7 +14,6 @@
  * - AI worker pool for draft generation
  */
 
-import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import {
   buildDraftPromptGrundsatz,
   buildDraftPromptGeneral,
@@ -30,6 +29,7 @@ import {
   applyDefaultFilter,
   type SubcategoryFilters,
 } from '../../config/systemCollectionsConfig.js';
+import { getPostgresInstance } from '../../database/services/PostgresService.js';
 import { checkNotebookAccess } from '../../routes/notebook/notebookAccess.js';
 import { createLogger } from '../../utils/logger.js';
 import { getEnrichedPersonSearchService } from '../bundestag/index.js';
@@ -43,6 +43,7 @@ import {
   renumberCitationsInOrder,
   filterAndSortResults,
   groupSourcesByCollection,
+  formatDe,
 } from '../search/index.js';
 
 import type {
@@ -376,7 +377,14 @@ export class NotebookQAService {
     const postFiltered = this._applySourceIdPostFilter(expanded, effectiveFilters);
 
     const deduped = deduplicateResults(postFiltered, false);
-    const sorted = filterAndSortResults(deduped, { threshold: 0.35, limit: 30 });
+    // User collections (!isSystem) may use upload `created_at` as a real date;
+    // system collections rank on `published_at` only (their created_at is index
+    // time). Recency is a mild secondary factor — quality stays decisive.
+    const sorted = filterAndSortResults(deduped, {
+      threshold: 0.35,
+      limit: 30,
+      allowCreatedAt: !isSystem,
+    });
 
     if (sorted.length === 0) {
       const corpus =
@@ -423,7 +431,7 @@ export class NotebookQAService {
     }
 
     // Generate response
-    const referencesMap = buildReferencesMap(sorted);
+    const referencesMap = buildReferencesMap(sorted, { allowCreatedAt: !isSystem });
     const draft = await this._generateDraft(trimmedQuestion, referencesMap, aiWorkerPool, isSystem);
 
     const { renumberedDraft, newReferencesMap } = renumberCitationsInOrder(draft, referencesMap);
@@ -667,14 +675,18 @@ export class NotebookQAService {
     const postFiltered = this._applySourceIdPostFilter(expanded, effectiveFilters);
 
     const deduped = deduplicateResults(postFiltered, false);
-    const sortedResults = filterAndSortResults(deduped, { threshold: 0.35, limit: 30 });
+    const sortedResults = filterAndSortResults(deduped, {
+      threshold: 0.35,
+      limit: 30,
+      allowCreatedAt: !isSystem,
+    });
 
     if (sortedResults.length === 0) {
       return null;
     }
 
     // Build references map and context
-    const referencesMap = buildReferencesMap(sortedResults);
+    const referencesMap = buildReferencesMap(sortedResults, { allowCreatedAt: !isSystem });
     const { systemPrompt, contextSummary } = this._buildStreamingContext(referencesMap, isSystem);
 
     return {
@@ -697,15 +709,23 @@ export class NotebookQAService {
     referencesMap: ReferencesMap,
     isSystemCollection: boolean
   ): { systemPrompt: string; contextSummary: string } {
-    const contextSummary = Object.keys(referencesMap)
+    const today = new Date().toLocaleDateString('de-DE', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    const sourceLines = Object.keys(referencesMap)
       .map((id) => {
         const ref = referencesMap[id];
         const snippet = ref.snippets[0]?.[0] || '';
         const short = snippet.slice(0, 400).replace(/\s+/g, ' ').trim();
         const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
-        return `${id}. ${collectionTag}${ref.title} — "${short}"`;
+        const dateLabel = formatDe(ref.date);
+        const datePart = dateLabel ? `(Datum: ${dateLabel}) ` : '';
+        return `${id}. ${collectionTag}${datePart}${ref.title} — "${short}"`;
       })
       .join('\n');
+    const contextSummary = `Heutiges Datum: ${today}\n\n${sourceLines}`;
 
     const { system: systemPrompt } = isSystemCollection
       ? buildDraftPromptGrundsatz('Grüne Dokumente')
@@ -753,11 +773,7 @@ export class NotebookQAService {
         },
       });
 
-      const expanded = expandResultsToChunks(
-        (resp.results as unknown as SearchResultInput[]) || [],
-        collectionId,
-        config.name
-      );
+      const expanded = expandResultsToChunks(resp.results || [], collectionId, config.name);
 
       // Post-filter: validate results match requested source_id filter (defense-in-depth)
       return this._applySourceIdPostFilter(expanded, filters);
@@ -865,7 +881,7 @@ export class NotebookQAService {
       },
     });
 
-    return (resp.results || []) as SearchResultInput[];
+    return resp.results || [];
   }
 
   /**
@@ -884,7 +900,9 @@ export class NotebookQAService {
         const snippet = ref.snippets[0]?.[0] || '';
         const short = snippet.slice(0, 400).replace(/\s+/g, ' ').trim();
         const collectionTag = ref.collection_name ? `[${ref.collection_name}] ` : '';
-        return `${id}. ${collectionTag}${ref.title} — "${short}"`;
+        const dateLabel = formatDe(ref.date);
+        const datePart = dateLabel ? `(Datum: ${dateLabel}) ` : '';
+        return `${id}. ${collectionTag}${datePart}${ref.title} — "${short}"`;
       })
       .join('\n');
 
@@ -893,7 +911,12 @@ export class NotebookQAService {
       : buildDraftPromptGeneral('Ihre Dokumente');
 
     const validIds = refKeys.join(', ');
-    const userPrompt = `Frage: ${question}\n\nGültige Quellen-IDs: ${validIds}\nVerwende AUSSCHLIESSLICH diese IDs für Quellenangaben.\n\nVerfügbare Quellen:\n${refsSummary}`;
+    const today = new Date().toLocaleDateString('de-DE', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+    const userPrompt = `Heutiges Datum: ${today}\n\nFrage: ${question}\n\nGültige Quellen-IDs: ${validIds}\nVerwende AUSSCHLIESSLICH diese IDs für Quellenangaben.\n\nVerfügbare Quellen:\n${refsSummary}`;
 
     const aiResult = await aiWorkerPool.processRequest({
       type: 'qa_draft',
@@ -924,12 +947,19 @@ export class NotebookQAService {
       .map((r) => {
         const snippet = r.snippet.slice(0, 300).replace(/\s+/g, ' ').trim();
         const collectionTag = r.collection_name ? `[${r.collection_name}] ` : '';
-        return `${collectionTag}${r.title}: "${snippet}"`;
+        const dateLabel = formatDe(r.published_at ?? r.date ?? null);
+        const datePart = dateLabel ? `(Datum: ${dateLabel}) ` : '';
+        return `${collectionTag}${datePart}${r.title}: "${snippet}"`;
       })
       .join('\n\n');
 
+    const today = new Date().toLocaleDateString('de-DE', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
     const { system: systemPrompt } = buildFastModePrompt();
-    const userPrompt = `Frage: ${question}\n\nKontext:\n${context}`;
+    const userPrompt = `Heutiges Datum: ${today}\n\nFrage: ${question}\n\nKontext:\n${context}`;
 
     const aiResult = await aiWorkerPool.processRequest({
       type: 'qa_draft_fast',

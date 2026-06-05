@@ -116,7 +116,14 @@ export interface SearchResultInput {
   similarity_score?: number | undefined;
   relevant_content?: string | undefined;
   chunk_text?: string | undefined;
-  chunk_index?: number | undefined;
+  // `| null` so a DocumentResult (whose chunk_index can be null) is structurally
+  // assignable here without a cast — see _performSearch / _searchCollection.
+  chunk_index?: number | null | undefined;
+  // Real publication date from the Qdrant payload (web/scraped content) and
+  // upload timestamp; carried through from DocumentResult so the notebook layer
+  // can rank by recency and cite source dates. Absent on dateless sources.
+  published_at?: string | null | undefined;
+  created_at?: string | undefined;
 }
 
 export interface ExpandedChunkResult {
@@ -131,13 +138,19 @@ export interface ExpandedChunkResult {
   page_number: number | null;
   collection_id?: string | undefined;
   collection_name?: string | undefined;
+  // Resolved real date of the source (published_at, else upload created_at),
+  // or null when none. Used for recency ranking and source-date citation.
+  date?: string | null | undefined;
+  published_at?: string | null | undefined;
+  created_at?: string | undefined;
 }
 
 export interface ReferenceData {
   title: string;
   snippets: string[][];
   description: string | null;
-  date: string;
+  // Real source date (published_at, else upload date) or null when none.
+  date: string | null;
   source: string;
   document_id: string;
   source_url: string | null;
@@ -165,6 +178,9 @@ export interface Citation {
   page_number: number | null;
   collection_id?: string | undefined;
   collection_name?: string | undefined;
+  // Real source date (or null) — mirrors ReferenceData.date. Strict producer
+  // type; structurally assignable to the broad contract NotebookCitation.
+  date: string | null;
 }
 
 export interface Source {
@@ -173,6 +189,7 @@ export interface Source {
   source_url: string | null;
   chunk_text: string;
   similarity_score: number;
+  date: string | null;
   citations: Citation[];
 }
 
@@ -186,6 +203,11 @@ export interface ValidationResult {
 export interface FilterOptions {
   threshold?: number | undefined;
   limit?: number | undefined;
+  // Recency ranking: `now` is injectable for deterministic tests; when
+  // `allowCreatedAt` is set, upload `created_at` counts as a real date (user
+  // collections only). Omit both to keep pure-similarity ordering.
+  now?: Date | undefined;
+  allowCreatedAt?: boolean | undefined;
 }
 
 export interface DedupeOptions {
