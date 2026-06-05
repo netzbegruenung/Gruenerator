@@ -13,6 +13,7 @@ import { type ProjectDataBody, type SubtitleSegment } from '@gruenerator/contrac
 import { type VideoMetadata } from '../../routes/subtitler/types.js';
 import { createLogger } from '../../utils/logger.js';
 
+import type { SubtitlerProjectService } from './ProjectService.js';
 import type { SubtitlerProject } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -53,8 +54,6 @@ interface SaveResult {
   relativeSubtitledPath: string;
   isNew?: boolean;
 }
-
-import type { SubtitlerProjectService } from './ProjectService.js';
 
 let projectService: SubtitlerProjectService | null = null;
 

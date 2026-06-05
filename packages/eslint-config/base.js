@@ -81,7 +81,11 @@ export default tseslint.config(
       eqeqeq: ['error', 'always', { null: 'ignore' }],
       '@typescript-eslint/switch-exhaustiveness-check': [
         'error',
-        { allowDefaultCaseForExhaustiveSwitch: true },
+        // A `default` clause counts as handling the remaining cases. Without this,
+        // switches over `string`-widened unions (e.g. `ProviderName | string`)
+        // report "Cases not matched: string" even with a default present — and
+        // `string` can't be enumerated, so a default is the only valid handling.
+        { allowDefaultCaseForExhaustiveSwitch: true, considerDefaultExhaustiveForUnions: true },
       ],
       // TODO: Re-enable as 'error' after fixing existing violations
       'no-case-declarations': 'warn',

@@ -78,6 +78,8 @@ function parseArgs(): CliArgs {
       case '--no-email':
         result.noEmail = true;
         break;
+      default:
+        break;
     }
   }
 

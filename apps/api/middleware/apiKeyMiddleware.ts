@@ -2,8 +2,8 @@ import { createHash } from 'crypto';
 
 import { eq } from 'drizzle-orm';
 
-import { getDrizzleInstance } from '../database/services/DrizzleService.js';
 import { api_keys, type ApiKeyScopes } from '../database/schema/apiKeys.js';
+import { getDrizzleInstance } from '../database/services/DrizzleService.js';
 import { createLogger } from '../utils/logger.js';
 
 import type { Request, Response, NextFunction } from 'express';
