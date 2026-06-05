@@ -265,6 +265,10 @@ export const auth = betterAuth({
 
   trustedOrigins: [
     'gruenerator://',
+    // Tauri desktop app webview origins — Better Auth rejects untrusted origins
+    // (CSRF protection). macOS/Linux: tauri://localhost, Windows: http://tauri.localhost.
+    'tauri://localhost',
+    'http://tauri.localhost',
     ...ALLOWED_DOMAINS.map((d) => `https://${d}`),
     ...(env.NODE_ENV === 'development'
       ? ['exp://', 'http://localhost:3000', 'http://localhost:5050']

@@ -8,12 +8,6 @@ function pushNotice(title: string, description: string): void {
   useAttachmentNoticeStore.getState().setNotice({ title, description });
 }
 
-export function handleAttachmentError(error: unknown): void {
-  const message = error instanceof Error ? error.message : 'Datei konnte nicht hinzugefügt werden.';
-  console.warn('[Attachment]', error);
-  pushNotice('Anhang nicht möglich', message);
-}
-
 // Extracts the rejected MIME type from AUI's English error message
 // ("File type X is not accepted. ..."). Returns null for any other shape.
 function extractRejectedContentType(message: string): string | null {
@@ -40,6 +34,15 @@ export function handleAttachmentAddError(event: AttachmentAddErrorEvent): void {
 
   if (event.reason === 'no-adapter') {
     pushNotice('Anhänge deaktiviert', 'In diesem Chat sind keine Anhänge möglich.');
+    return;
+  }
+
+  // 'adapter-error': our adapter's validateFile()/fileToBase64() threw. Those
+  // throw user-ready German messages (e.g. "Datei zu groß: x.pdf (26.0MB).
+  // Maximum: 25.0MB"), so surface event.message directly instead of a generic
+  // "try again" that hides the actual cause.
+  if (event.reason === 'adapter-error') {
+    pushNotice('Anhang nicht möglich', event.message);
     return;
   }
 

@@ -2,9 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- App Sandbox (required for Mac App Store, recommended for security) -->
+    <!-- App Sandbox: only for Mac App Store. Disabled for Developer ID direct
+         distribution — sandbox blocks the autostart LaunchAgent and file paths
+         outside the container. Notarization relies on hardened runtime (enabled
+         automatically by Tauri when signing for Developer ID), not the sandbox. -->
     <key>com.apple.security.app-sandbox</key>
-    <true/>
+    <false/>
 
     <!-- Network access for API calls -->
     <key>com.apple.security.network.client</key>

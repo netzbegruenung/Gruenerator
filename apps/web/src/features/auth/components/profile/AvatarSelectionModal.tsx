@@ -1,3 +1,4 @@
+import { getAllRobotIds } from '@gruenerator/shared/avatar';
 import {
   Dialog,
   DialogContent,
@@ -12,7 +13,10 @@ import { useState, useEffect, useCallback, type ReactElement } from 'react';
 
 import { cn } from '../../../../utils/cn';
 
-const ROBOT_IDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+// Derived from ROBOT_ID_MAX in @gruenerator/core/avatar — new avatars (e.g. the
+// Pride set 11–13) appear here automatically; no list to keep in sync.
+const ROBOT_IDS = getAllRobotIds();
+// Wolki is a specific unlock-gated avatar, not the count — keep it pinned.
 const WOLKI_ID = 10;
 
 interface AvatarSelectionModalProps {

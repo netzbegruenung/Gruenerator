@@ -1,11 +1,13 @@
+import { LoginProviders } from '@gruenerator/shared/auth';
 import { useState, useCallback } from 'react';
 
 import { cn } from '../../../utils/cn';
+import { type AuthSource } from '../../../utils/desktopAuth';
 
 interface FirstRunWizardProps {
   requireLogin: boolean;
   onComplete: () => void;
-  onLogin?: () => void;
+  onLogin?: (source?: AuthSource) => void;
 }
 
 type ThemeOption = 'light' | 'dark' | 'auto';
@@ -51,12 +53,6 @@ export function FirstRunWizard({ requireLogin, onComplete, onLogin }: FirstRunWi
       localStorage.setItem('theme', theme);
     }
   }, []);
-
-  const handleLogin = useCallback(() => {
-    if (onLogin) {
-      onLogin();
-    }
-  }, [onLogin]);
 
   const handleSkipLogin = useCallback(() => {
     handleNext();
@@ -205,13 +201,10 @@ export function FirstRunWizard({ requireLogin, onComplete, onLogin }: FirstRunWi
                 </div>
               ))}
             </div>
-            <div className="flex flex-col items-center gap-[12px]">
-              <button
-                className="py-[14px] px-[40px] rounded-[25px] text-base font-semibold cursor-pointer transition-all duration-300 border-none bg-gradient-to-br from-[var(--klee)] to-[var(--primary)] text-white shadow-[0_4px_12px_rgba(82,144,122,0.3)] hover:-translate-y-[2px] hover:shadow-[0_6px_16px_rgba(82,144,122,0.4)] max-[480px]:py-[12px] max-[480px]:px-[32px]"
-                onClick={handleLogin}
-              >
-                Jetzt anmelden
-              </button>
+            <div className="flex flex-col items-center gap-[16px]">
+              <div className="w-full max-w-[400px] text-left">
+                <LoginProviders onLogin={(provider) => onLogin?.(provider.source as AuthSource)} />
+              </div>
               <button
                 className={cn(
                   'bg-transparent border-none text-foreground opacity-70 cursor-pointer text-[0.9rem] py-[8px] px-[16px] transition-opacity duration-200 hover:opacity-100',
