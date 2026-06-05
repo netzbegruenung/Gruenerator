@@ -48,34 +48,53 @@
     <link rel="canonical" href="https://www.gruenerator.de" />
 
     <!-- Pre-paint theme application: prevents flash of wrong theme. Must mirror
-         the storage format used by src/components/hooks/useDarkMode.ts -->
+         the resolution used by src/components/hooks/useDarkMode.ts -->
     <script>
       (function () {
         try {
-          var EXPIRY = 7 * 24 * 60 * 60 * 1000;
-          var dark = null;
-          var saved = localStorage.getItem('darkMode');
-          if (saved) {
+          var EXPIRY = 7 * 24 * 60 * 60 * 1000; // explicit choice lapses to system after 7d inactivity
+          var isPref = function (v) { return v === 'light' || v === 'dark' || v === 'system'; };
+          var pref = null;
+          var ts = 0;
+
+          var stored = localStorage.getItem('themePreference');
+          if (stored) {
             try {
-              var parsed = JSON.parse(saved);
-              if (
-                parsed &&
-                typeof parsed.value === 'boolean' &&
-                typeof parsed.timestamp === 'number' &&
-                Date.now() - parsed.timestamp < EXPIRY
-              ) {
-                dark = parsed.value;
+              var parsed = JSON.parse(stored);
+              if (parsed && isPref(parsed.value)) {
+                pref = parsed.value;
+                ts = typeof parsed.timestamp === 'number' ? parsed.timestamp : Date.now();
               }
-            } catch (e) {}
+            } catch (e) {
+              if (isPref(stored)) { pref = stored; ts = Date.now(); }
+            }
           }
-          if (dark === null) {
-            var legacy = localStorage.getItem('theme');
-            if (legacy === 'dark') dark = true;
-            else if (legacy === 'light') dark = false;
+          // Migrate legacy `darkMode` JSON (honor its timestamp).
+          if (pref === null) {
+            var legacyDark = localStorage.getItem('darkMode');
+            if (legacyDark) {
+              try {
+                var p2 = JSON.parse(legacyDark);
+                if (p2 && typeof p2.value === 'boolean') {
+                  pref = p2.value ? 'dark' : 'light';
+                  ts = typeof p2.timestamp === 'number' ? p2.timestamp : Date.now();
+                }
+              } catch (e) {}
+            }
           }
-          if (dark === null) {
-            dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          // Migrate original `theme` string key.
+          if (pref === null) {
+            var legacyTheme = localStorage.getItem('theme');
+            if (legacyTheme === 'dark' || legacyTheme === 'light') { pref = legacyTheme; ts = Date.now(); }
           }
+
+          // Apply the inactivity rule (system never expires).
+          if (pref === null || pref === 'system' || Date.now() - ts >= EXPIRY) pref = 'system';
+
+          var dark =
+            pref === 'system'
+              ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              : pref === 'dark';
           document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
         } catch (e) {}
       })();
