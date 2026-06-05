@@ -1,6 +1,4 @@
-import { AIExtension } from '@blocknote/xl-ai';
-
-import { useEditorStore } from '../stores/editorStore';
+import { getDocAIExtension } from './aiExtension';
 
 /**
  * Programmatically trigger BlockNote's AI extension for a given document. Used
@@ -23,22 +21,7 @@ export async function invokeDocumentAI(opts: {
   // model into inserting it verbatim).
   referenceContent?: string;
 }): Promise<boolean> {
-  const editor = useEditorStore.getState().getEditor(opts.documentId);
-  if (!editor) return false;
-
-  // BlockNote's `getExtension` lookup at runtime is loosely typed because
-  // extension registration is dynamic; the cast names the trust boundary.
-  const ext = (
-    editor as unknown as {
-      getExtension?: (factory: typeof AIExtension) => {
-        invokeAI: (o: {
-          userPrompt: string;
-          useSelection?: boolean;
-          chatRequestOptions?: { body?: object };
-        }) => Promise<void>;
-      } | null;
-    }
-  ).getExtension?.(AIExtension);
+  const ext = getDocAIExtension(opts.documentId);
   if (!ext) return false;
 
   // NOTE: we deliberately do NOT call `openAIMenuAtBlock`. On mobile the web AI

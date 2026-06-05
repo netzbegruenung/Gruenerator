@@ -51,6 +51,7 @@ export {
   useGenerateDocument,
 } from './hooks/useDocuments';
 export { useResolveUsers } from './hooks/useResolveUsers';
+export { usePendingDocAI } from './hooks/usePendingDocAI';
 export { useIsTouchDevice } from '@gruenerator/shared/hooks';
 export { useVersionHistoryShortcut } from './hooks/useVersionHistoryShortcut';
 
