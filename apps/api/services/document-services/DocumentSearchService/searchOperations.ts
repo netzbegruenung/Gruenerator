@@ -20,10 +20,63 @@ import type {
   BundestagSearchResult,
   BundestagResultGroup,
   QdrantSearchResult,
+  QdrantResultPayload,
 } from './types.js';
 import type { QdrantOperations } from '../../../database/services/QdrantOperations.js';
 import type { QdrantService } from '../../../database/services/QdrantService.js';
 import type { SearchResponse } from '../../BaseSearchService/types.js';
+
+/**
+ * Payload-derived fields shared by every search-mode chunk mapper.
+ *
+ * Single source of truth for "what we read off a Qdrant chunk payload" —
+ * vector, hybrid AND text search all spread this. Centralizing it prevents
+ * per-path field drift: a new payload field added here lands in all three
+ * modes at once. (This is the structural fix for the class of bug where
+ * `published_at` / `quality_score` / `page_number` were populated in the
+ * vector + hybrid mappers but silently dropped in the text mapper.)
+ *
+ * Method-specific fields (id, similarity, searchMethod, originalVector/TextScore)
+ * stay in the callers — they genuinely differ per mode.
+ */
+export function buildChunkPayloadFields(payload: QdrantResultPayload | undefined): {
+  document_id: string;
+  chunk_index: number;
+  chunk_text: string;
+  token_count: number | undefined;
+  quality_score: number | null;
+  content_type: string | null;
+  page_number: number | null;
+  created_at: string | undefined;
+  published_at: string | null;
+  source_id: string | null;
+  url: string | undefined;
+  documents: { id: string; title: string; filename: string; created_at: string | undefined };
+} {
+  const p = payload ?? ({} as QdrantResultPayload);
+  const metadata = p.metadata as Record<string, unknown> | undefined;
+  const documentId =
+    (p.document_id as string) || (p.source_url as string) || (p.url as string) || '';
+  return {
+    document_id: documentId,
+    chunk_index: (p.chunk_index as number) ?? 0,
+    chunk_text: (p.chunk_text as string) ?? '',
+    token_count: p.token_count as number | undefined,
+    quality_score: (p.quality_score as number) ?? null,
+    content_type: (p.content_type as string) ?? null,
+    page_number: (p.page_number as number) ?? null,
+    created_at: p.created_at as string | undefined,
+    published_at: (p.published_at as string) ?? (metadata?.published_at as string) ?? null,
+    source_id: (p.source_id as string) ?? null,
+    url: (p.source_url as string) || (p.url as string) || undefined,
+    documents: {
+      id: documentId,
+      title: (p.title as string) || (metadata?.title as string) || 'Untitled',
+      filename: (p.filename as string) || (metadata?.filename as string) || '',
+      created_at: p.created_at as string | undefined,
+    },
+  };
+}
 
 /**
  * Perform full-text (keyword-only) search over document chunks
@@ -96,29 +149,17 @@ export async function performTextSearch(
       Math.round(limit * chunkMultiplier)
     );
 
-    const chunks: DocumentTransformedChunk[] = (rawResults || []).map((result) => {
-      const metadata = result.payload?.metadata as Record<string, unknown> | undefined;
-      return {
-        id: String(result.id),
-        document_id: String(result.payload?.document_id || ''),
-        chunk_index: (result.payload?.chunk_index as number) ?? 0,
-        chunk_text: String(result.payload?.chunk_text || ''),
-        similarity: result.score || 0,
-        token_count: (result.payload?.token_count as number) ?? 0,
-        created_at: result.payload?.created_at as string | undefined,
-        published_at:
-          (result.payload?.published_at as string) ?? (metadata?.published_at as string) ?? null,
-        searchMethod: 'text',
-        originalVectorScore: null,
-        originalTextScore: result.score || 0,
-        documents: {
-          id: String(result.payload?.document_id || ''),
-          title: String(result.payload?.title || metadata?.title || 'Untitled'),
-          filename: String(result.payload?.filename || metadata?.filename || ''),
-          created_at: result.payload?.created_at as string | undefined,
-        },
-      };
-    });
+    const chunks: DocumentTransformedChunk[] = (rawResults || []).map((result) => ({
+      id: String(result.id),
+      similarity: result.score || 0,
+      // Shared mapper guarantees text results carry the same payload fields
+      // (quality_score, page_number, source_id, content_type, published_at, …)
+      // as vector/hybrid — previously these were silently dropped here.
+      ...buildChunkPayloadFields(result.payload),
+      searchMethod: 'text',
+      originalVectorScore: null,
+      originalTextScore: result.score || 0,
+    }));
 
     if (chunks.length === 0) {
       return {
@@ -265,37 +306,8 @@ export async function findSimilarChunks(
 
   return results.map((result) => ({
     id: result.id,
-    document_id:
-      (result.payload.document_id as string) ||
-      (result.payload.source_url as string) ||
-      (result.payload.url as string),
-    chunk_index: result.payload.chunk_index as number,
-    chunk_text: result.payload.chunk_text as string,
     similarity: result.score,
-    token_count: result.payload.token_count as number | undefined,
-    quality_score: (result.payload.quality_score as number) ?? null,
-    content_type: (result.payload.content_type as string) ?? null,
-    page_number: (result.payload.page_number as number) ?? null,
-    created_at: result.payload.created_at as string | undefined,
-    published_at:
-      (result.payload.published_at as string) ??
-      (result.payload.metadata?.published_at as string) ??
-      null,
-    source_id: (result.payload.source_id as string) ?? null,
-    url: (result.payload.source_url as string) || (result.payload.url as string) || undefined,
-    documents: {
-      id:
-        (result.payload.document_id as string) ||
-        (result.payload.source_url as string) ||
-        (result.payload.url as string),
-      title:
-        (result.payload.title as string) ||
-        (result.payload.metadata?.title as string) ||
-        'Untitled',
-      filename:
-        (result.payload.filename as string) || (result.payload.metadata?.filename as string) || '',
-      created_at: result.payload.created_at as string | undefined,
-    },
+    ...buildChunkPayloadFields(result.payload),
   }));
 }
 
@@ -372,40 +384,14 @@ export async function findHybridChunks(
     `[SearchOperations] Qdrant hybridSearch returned ${hybridResult.results.length} hits`
   );
 
-  return hybridResult.results.map((result) => {
-    const metadata = result.payload.metadata as Record<string, unknown> | undefined;
-    return {
-      id: result.id,
-      document_id:
-        (result.payload.document_id as string) ||
-        (result.payload.source_url as string) ||
-        (result.payload.url as string),
-      chunk_index: result.payload.chunk_index as number,
-      chunk_text: result.payload.chunk_text as string,
-      similarity: result.score,
-      token_count: result.payload.token_count as number | undefined,
-      quality_score: (result.payload.quality_score as number) ?? null,
-      content_type: (result.payload.content_type as string) ?? null,
-      page_number: (result.payload.page_number as number) ?? null,
-      created_at: result.payload.created_at as string | undefined,
-      published_at:
-        (result.payload.published_at as string) ?? (metadata?.published_at as string) ?? null,
-      source_id: (result.payload.source_id as string) ?? null,
-      url: (result.payload.source_url as string) || (result.payload.url as string) || undefined,
-      searchMethod: result.searchMethod || 'hybrid',
-      originalVectorScore: result.originalVectorScore ?? null,
-      originalTextScore: result.originalTextScore ?? null,
-      documents: {
-        id:
-          (result.payload.document_id as string) ||
-          (result.payload.source_url as string) ||
-          (result.payload.url as string),
-        title: (result.payload.title as string) || (metadata?.title as string) || 'Untitled',
-        filename: (result.payload.filename as string) || (metadata?.filename as string) || '',
-        created_at: result.payload.created_at as string | undefined,
-      },
-    };
-  });
+  return hybridResult.results.map((result) => ({
+    id: result.id,
+    similarity: result.score,
+    ...buildChunkPayloadFields(result.payload),
+    searchMethod: result.searchMethod || 'hybrid',
+    originalVectorScore: result.originalVectorScore ?? null,
+    originalTextScore: result.originalTextScore ?? null,
+  }));
 }
 
 /**

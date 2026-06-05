@@ -116,7 +116,9 @@ export interface SearchResultInput {
   similarity_score?: number | undefined;
   relevant_content?: string | undefined;
   chunk_text?: string | undefined;
-  chunk_index?: number | undefined;
+  // `| null` so a DocumentResult (whose chunk_index can be null) is structurally
+  // assignable here without a cast — see _performSearch / _searchCollection.
+  chunk_index?: number | null | undefined;
   // Real publication date from the Qdrant payload (web/scraped content) and
   // upload timestamp; carried through from DocumentResult so the notebook layer
   // can rank by recency and cite source dates. Absent on dateless sources.

@@ -1,3 +1,4 @@
+import { type NotebookCitation, type NotebookSource } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
 const QA_CHAT_STORAGE_KEY = 'gruenerator_qa_chat_state';
@@ -5,28 +6,11 @@ const QA_CHAT_CACHE_VERSION = '1.0';
 const QA_CHAT_VERSION_KEY = 'gruenerator_qa_chat_version';
 const QA_CHAT_EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours
 
-export interface Citation {
-  index: string;
-  cited_text?: string;
-  document_title?: string;
-  document_id?: string;
-  source_url?: string | null;
-  similarity_score?: number;
-  chunk_index?: number;
-  filename?: string | null;
-  page_number?: number | null;
-  collection_id?: string;
-  collection_name?: string;
-}
-
-export interface Source {
-  document_id: string;
-  document_title: string;
-  source_url: string | null;
-  chunk_text: string;
-  similarity_score: number;
-  citations: Citation[];
-}
+// Single source of truth: the notebook ask contract. These carry `date`
+// (real source publication/upload date) so cached chat messages stay in sync
+// with the backend response shape.
+export type Citation = NotebookCitation;
+export type Source = NotebookSource;
 
 export interface LinkConfig {
   type: 'external' | 'vectorDocument';
