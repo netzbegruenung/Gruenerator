@@ -46,7 +46,7 @@ import {
   FiSidebar,
   FiX,
 } from 'react-icons/fi';
-import { PiSun, PiMoon } from 'react-icons/pi';
+import { PiSun, PiMoon, PiDesktop } from 'react-icons/pi';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 
@@ -159,7 +159,7 @@ function EditorContent() {
   const apiClient = useMemo(() => createDocsApiClient(adapter), [adapter]);
   const { user, isAuthResolved } = useAuth({ lazy: true });
   const isGuest = Boolean(isAuthResolved) && !user;
-  const [darkMode, toggleDarkMode] = useDarkMode();
+  const [, , themePreference, cycleTheme] = useDarkMode();
 
   const guestIdentity = useMemo(() => (isGuest ? getOrCreateGuestIdentity() : null), [isGuest]);
 
@@ -661,12 +661,22 @@ function EditorContent() {
                     <button
                       className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
                       onClick={() => {
-                        setShowActionsMenu(false);
-                        toggleDarkMode();
+                        // Cycle Hell → Dunkel → System; keep the menu open to click through.
+                        cycleTheme();
                       }}
                     >
-                      {darkMode ? <PiSun /> : <PiMoon />}
-                      {darkMode ? 'Heller Modus' : 'Dunkler Modus'}
+                      {themePreference === 'light' ? (
+                        <PiSun />
+                      ) : themePreference === 'dark' ? (
+                        <PiMoon />
+                      ) : (
+                        <PiDesktop />
+                      )}
+                      {themePreference === 'light'
+                        ? 'Heller Modus'
+                        : themePreference === 'dark'
+                          ? 'Dunkler Modus'
+                          : 'System'}
                     </button>
                     <button
                       className="flex items-center gap-2.5 w-full py-2 px-3 text-[0.8125rem] text-foreground bg-transparent border-none rounded-lg cursor-pointer text-left transition-colors hover:bg-black/5 dark:hover:bg-white/10 [&_svg]:w-4 [&_svg]:h-4 [&_svg]:text-grey-500"
