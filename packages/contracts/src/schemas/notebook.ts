@@ -54,34 +54,34 @@ export const notebookPublicCollectionResponseSchema = z.object({
 });
 
 /**
+ * Person info returned by the bundestagsfraktion person-query path. Mirrors
+ * `PersonInfo` in apps/api/services/notebook/types.ts.
+ */
+export const notebookPersonInfoSchema = z.object({
+  name: z.string().optional(),
+  fraktion: z.union([z.string(), z.array(z.string())]).optional(),
+  wahlkreis: z.string().optional(),
+  biografie: z.string().optional(),
+});
+export type NotebookPersonInfo = z.infer<typeof notebookPersonInfoSchema>;
+
+/**
  * QA response mirrors `QAResponse` from apps/api/services/notebook/types.ts.
- * Fields `citations`, `sources`, `allSources`, `metadata` are left loosely
- * typed (`z.unknown()`) because their inner shapes are deeply nested unions
- * of Citation / SearchSource / ExpandedChunkResult / multiple metadata types.
- * `.passthrough()` preserves any extra fields the service adds over time.
- *
- * If a frontend consumer needs one of those inner shapes typed strictly,
- * add the inner schema here and narrow the field — fix at the source.
+ * `person` is strongly typed; `citations`, `sources`, `allSources`, `metadata`
+ * stay loosely typed (`z.unknown()`) because their inner shapes are deeply
+ * nested unions (Citation / SearchSource / ExpandedChunkResult / multiple
+ * metadata types) and narrowing them would strip branch-specific fields.
  */
 export const notebookQAResponseSchema = z.object({
   success: z.boolean(),
   answer: z.string(),
-  // Loosely-typed fields use z.unknown() because the service returns strict
-  // union types (MultiCollectionMetadata | SingleCollectionMetadata | ...)
-  // that don't have index signatures. The inferred schema type for these
-  // fields becomes `unknown`, which every concrete type assigns to.
-  //
-  // NOTE: no `.passthrough()` — Zod strips unknown fields at serialize time.
-  // This is safe for response validation; we only care about the shape above,
-  // and `.passthrough()` makes the inferred type require an index signature
-  // at the top level, which QAResponse doesn't have.
   citations: z.unknown(),
   sources: z.unknown(),
   allSources: z.unknown(),
   sourcesByCollection: z.unknown().nullish(),
   metadata: z.unknown(),
   isPersonQuery: z.boolean().nullish(),
-  person: z.unknown().nullish(),
+  person: notebookPersonInfoSchema.nullish(),
 });
 
 // ── Per-notebook manual research (chunk-level Qdrant search) ────────────────
