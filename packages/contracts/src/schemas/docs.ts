@@ -199,3 +199,26 @@ export const exportToDocsResponseSchema = z.object({
 
 export type ExportToDocsBody = z.infer<typeof exportToDocsBodySchema>;
 export type ExportToDocsResponse = z.infer<typeof exportToDocsResponseSchema>;
+
+// ── chat → docs live-edit bridge ─────────────────────────────────────────────
+
+/**
+ * Payload of the `trigger_doc_edit` SSE event. The chat backend (ChatGraph,
+ * intent=edit_current_doc) forwards a doc-edit instruction to the docs editor
+ * surface, which dispatches it into BlockNote's AIExtension.
+ *
+ * `referenceContent` carries prior assistant text the user referenced
+ * ("dies/das einfügen"); it IS sent over the wire and so must be in the type —
+ * the previous hand-written event type omitted it and the consumer re-declared
+ * the shape with a cast. This schema is the single source of truth for both the
+ * emit sites and the consumer. `.optional()` (not `.nullish()`) is correct: it
+ * is an SSE payload field simply omitted when empty, not a request body.
+ */
+export const triggerDocEditSchema = z.object({
+  targetDocumentId: z.string(),
+  userPrompt: z.string(),
+  useSelection: z.boolean(),
+  referenceContent: z.string().optional(),
+});
+
+export type TriggerDocEdit = z.infer<typeof triggerDocEditSchema>;
