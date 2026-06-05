@@ -30,24 +30,21 @@ function pickTemplate(locale: string | null | undefined, hour: number): string {
   const daySeed = Math.floor(Date.now() / 86_400_000);
 
   if (locale === 'de-AT') {
-    if (hour < 6) return pickStable(['Gute Nacht', 'Schlaf guat'] as const, daySeed);
+    if (hour < 6)
+      return pickStable(
+        ['Gute Nacht', 'Schlaf guat', 'Das Ehrenamt schläft nie, was @Vorname?'] as const,
+        daySeed
+      );
     if (hour < 11) return pickStable(['Guten Morgen', 'Servus', 'Grüß dich'] as const, daySeed);
     if (hour < 14)
       return pickStable(['Grüß Gott', 'Servus', 'Habidere', 'Mahlzeit'] as const, daySeed);
     if (hour < 18)
       return pickStable(['Grüß dich', 'Servus', 'Schönen Nachmittag'] as const, daySeed);
-    return pickStable(
-      [
-        'Guten Abend',
-        'Schönen Abend',
-        'Servus',
-        'Das Ehrenamt schläft nie, was @Vorname?',
-      ] as const,
-      daySeed
-    );
+    return pickStable(['Guten Abend', 'Schönen Abend', 'Servus'] as const, daySeed);
   }
 
-  if (hour < 6) return 'Gute Nacht';
+  if (hour < 6)
+    return pickStable(['Gute Nacht', 'Das Ehrenamt schläft nie, was @Vorname?'] as const, daySeed);
   if (hour < 12)
     return pickStable(
       ['Guten Morgen', 'Moin', 'Der frühe Vogel rettet den Artenschutz, @Vorname', ...GENERAL_DE],
@@ -55,10 +52,7 @@ function pickTemplate(locale: string | null | undefined, hour: number): string {
     );
   if (hour < 14) return pickStable(['Guten Tag', 'Mahlzeit', ...GENERAL_DE], daySeed);
   if (hour < 18) return pickStable(['Guten Tag', ...GENERAL_DE], daySeed);
-  return pickStable(
-    ['Guten Abend', 'Das Ehrenamt schläft nie, was @Vorname?', ...GENERAL_DE],
-    daySeed
-  );
+  return pickStable(['Guten Abend', ...GENERAL_DE], daySeed);
 }
 
 function getGreeting(locale: string | null | undefined, firstName: string | null): string {
