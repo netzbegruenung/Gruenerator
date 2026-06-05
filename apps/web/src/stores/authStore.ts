@@ -1,6 +1,7 @@
 import { useUserProfileStore } from '@gruenerator/chat/stores';
 import { type UserProfile } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
+import { toast } from '@gruenerator/ui';
 import { create } from 'zustand';
 
 import apiClient, { setLoggingOutFlag } from '../components/utils/apiClient';
@@ -289,7 +290,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   // Auth actions
   login: (source?: AuthSource) => {
     if (isDesktopApp()) {
-      void openDesktopLogin(source || 'gruenerator-login');
+      // Surface failures instead of swallowing them: a rejected open() (e.g.
+      // browser couldn't launch) would otherwise leave the button looking dead.
+      openDesktopLogin(source || 'gruenerator-login').catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Unbekannter Fehler';
+        console.error('[AuthStore] Desktop login failed:', error);
+        toast.error(`Anmeldung konnte nicht gestartet werden: ${message}`);
+      });
     } else {
       // Navigate to SPA login page which shows provider buttons
       window.location.href = source ? `/login?source=${source}` : '/login';
