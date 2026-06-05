@@ -35,7 +35,9 @@ export const getInitials = (displayName?: string, email?: string): string => {
   if (displayName && displayName.trim()) {
     const nameParts = displayName.trim().split(/\s+/);
     if (nameParts.length >= 2) {
-      return (nameParts[0].charAt(0) + nameParts[nameParts.length - 1].charAt(0)).toUpperCase();
+      const first = nameParts[0] ?? '';
+      const last = nameParts[nameParts.length - 1] ?? '';
+      return (first.charAt(0) + last.charAt(0)).toUpperCase();
     }
     return displayName.substring(0, 2).toUpperCase();
   }
