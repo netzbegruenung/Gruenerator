@@ -368,6 +368,12 @@ const standardRoutes: RouteConfig[] = [
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/brandenburg') })),
   },
   {
+    path: '/gruene-sachsen-anhalt',
+    component: lazy(() =>
+      Promise.resolve({ default: createRedirect('/notebooks/sachsen-anhalt') })
+    ),
+  },
+  {
     path: '/kommunalwiki',
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/kommunalwiki') })),
   },
