@@ -10,7 +10,6 @@ import {
   fileToBase64,
   getAcceptedFileTypes,
 } from '../lib/fileUtils';
-import { handleAttachmentError } from '../lib/attachmentErrorHandler';
 
 // Synthetic content types used by @docs / @datei mention chips. These never
 // correspond to real File uploads — they flow through AUI's CreateAttachment
@@ -29,12 +28,11 @@ export class GrueneratorAttachmentAdapter implements AttachmentAdapter {
   accept = [getAcceptedFileTypes(), ...SYNTHETIC_MENTION_TYPES].join(',');
 
   async add({ file }: { file: File }): Promise<PendingAttachment> {
-    try {
-      validateFile(file);
-    } catch (error) {
-      handleAttachmentError(error);
-      throw error;
-    }
+    // Let validation errors propagate. AUI catches them and emits a structured
+    // `attachmentAddError` (reason: 'adapter-error') carrying this message —
+    // handleAttachmentAddError surfaces it as the user-facing notice. Catching
+    // here too would set a notice that the event handler then overwrites.
+    validateFile(file);
 
     return {
       id: crypto.randomUUID(),

@@ -1,3 +1,4 @@
+import { ROBOT_ID_MIN, ROBOT_ID_MAX } from '@gruenerator/core/avatar';
 import { eq, sql } from 'drizzle-orm';
 
 import { profiles } from '../../database/schema/core.js';
@@ -14,6 +15,11 @@ import type {
   ProfileStats,
   HealthCheckResult,
 } from './types.js';
+
+// Wolki is a specific unlock-gated avatar (requires an active Wolke
+// connection), not part of the avatar count — keep it as its own constant so
+// raising ROBOT_ID_MAX never accidentally moves the "special" avatar.
+const WOLKI_ROBOT_ID = 10;
 
 /**
  * ProfileService - Centralized service for user profile operations
@@ -332,16 +338,16 @@ class ProfileService {
    */
   async updateAvatar(userId: string, avatarRobotId: number): Promise<UserProfile> {
     try {
-      if (!avatarRobotId || avatarRobotId < 1 || avatarRobotId > 10) {
-        throw new Error('Avatar Robot ID must be between 1 and 10');
+      if (!avatarRobotId || avatarRobotId < ROBOT_ID_MIN || avatarRobotId > ROBOT_ID_MAX) {
+        throw new Error(`Avatar Robot ID must be between ${ROBOT_ID_MIN} and ${ROBOT_ID_MAX}`);
       }
 
-      if (avatarRobotId === 10) {
+      if (avatarRobotId === WOLKI_ROBOT_ID) {
         const { NextcloudShareManager } =
           await import('../../utils/integrations/nextcloud/shareManager.js');
         const shareLinks = await NextcloudShareManager.getShareLinks(userId);
         if (!shareLinks || shareLinks.length === 0) {
-          throw new Error('Avatar 10 (Wolki) requires an active Wolke connection');
+          throw new Error(`Avatar ${WOLKI_ROBOT_ID} (Wolki) requires an active Wolke connection`);
         }
       }
 

@@ -121,6 +121,33 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           listSelector: 'article a[href], .entry-title a, h2 a, h3 a',
           wpApi: { categoryId: 11 },
         },
+        {
+          // Standalone campaign pages (root permalinks, not under /category/).
+          // staticUrls bypass discovery; disableOffPathFilter keeps the root URLs.
+          // programm2026 is re-typed to 'wahlprogramm' by the curated list below.
+          type: 'blog',
+          path: '/',
+          listSelector: 'article a[href], h2 a, h3 a',
+          staticUrls: [
+            'https://www.gruene-lsa.de/suse/',
+            'https://www.gruene-lsa.de/kampagne/',
+            'https://www.gruene-lsa.de/programm2026/',
+          ],
+          disableOffPathFilter: true,
+        },
+        {
+          // Wahlprogramm PDF given directly. staticUrls + isPdfArchive OCRs the
+          // PDF (the year 2026 is parsed from the filename for the date).
+          type: 'wahlprogramm',
+          path: '/',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
+          processUndatedPdfs: true,
+          staticUrls: [
+            'https://www.gruene-lsa.de/wp-content/uploads/2026/05/Programm-zur-Landtagswahl-2026.pdf',
+          ],
+          disableOffPathFilter: true,
+        },
       ],
       contentSelectors: {
         title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
@@ -136,15 +163,18 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       name: 'Grüne Fraktion Sachsen-Anhalt',
       shortName: 'LSA-F',
       type: 'fraktion',
-      baseUrl: 'https://gruene-fraktion-lsa.de',
+      // Domain relaunched on gruene-fraktion-sachsen-anhalt.de (Neos, package
+      // DieGruenen.LSAWebsite). Articles live at /pressemitteilungen/<slug>;
+      // pagination is /pressemitteilungen~p2 (no .html), ~77 pages; dates DD.MM.YY.
+      baseUrl: 'https://gruene-fraktion-sachsen-anhalt.de',
       cms: 'neos',
       contentPaths: [
         {
           type: 'presse',
           path: '/pressemitteilungen',
           listSelector: 'a[href*="/pressemitteilungen/"]',
-          paginationPattern: '~p{page}.html',
-          maxPages: 70,
+          paginationPattern: '~p{page}',
+          maxPages: 77,
         },
       ],
       contentSelectors: {
@@ -811,6 +841,18 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
         'https://gruene.berlin/beschluesse/unser-wahlprogramm-kapitel-4_3766',
         'https://gruene.berlin/beschluesse/unser-wahlprogramm-kapitel-5_3767',
         'https://gruene.berlin/beschluesse/unser-wahlprogramm-kapitel-6_3768',
+      ],
+    },
+    {
+      id: 'wahlprogramm-lsa',
+      label: 'Wahlprogramm',
+      shortName: 'LSA',
+      // The /programm2026/ landing page and its PDF surface as 'wahlprogramm'
+      // under the "Typ" filter (overriding the 'blog'/static scrape type).
+      contentType: 'wahlprogramm',
+      urls: [
+        'https://www.gruene-lsa.de/programm2026/',
+        'https://www.gruene-lsa.de/wp-content/uploads/2026/05/Programm-zur-Landtagswahl-2026.pdf',
       ],
     },
   ],

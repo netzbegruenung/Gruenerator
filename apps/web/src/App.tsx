@@ -16,7 +16,9 @@ import ScrollToTop from './components/utils/ScrollToTop';
 import { routes } from './config/routes';
 import { useFirstRun } from './features/desktop/hooks/useFirstRun';
 import { useHydrateUserProfile } from './hooks/useHydrateUserProfile';
-import { useAuthStore } from './stores/authStore';
+import { type User, useAuthStore } from './stores/authStore';
+import { cleanupDesktopAuth, type DesktopUser, initDesktopAuth } from './utils/desktopAuth';
+import { isDesktopApp } from './utils/platform';
 import './App.css';
 
 function UserProfileHydrationBridge() {
@@ -33,7 +35,7 @@ const FirstRunWizard = lazy(() =>
 
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { Toaster } from '@gruenerator/ui';
+import { Toaster, toast } from '@gruenerator/ui';
 
 import { toastApiError } from './components/utils/toastError';
 // PopupNutzungsbedingungen moved to inline HTML in index.html — see the
@@ -104,7 +106,25 @@ function App() {
   useAccessibility();
   const [darkMode, toggleDarkMode] = useDarkMode();
   const { isFirstRun, requireLogin, completeFirstRun } = useFirstRun();
-  const { login } = useAuthStore();
+  const { login, setAuthState } = useAuthStore();
+
+  // Desktop (Tauri) OAuth callback: register the deep-link listener once on
+  // startup so the gruenerator://auth/callback round-trip actually completes.
+  // Must run above the isFirstRun early-return below — the wizard renders
+  // before <AuthBootstrap />, so this is the only place that covers both.
+  useEffect(() => {
+    if (!isDesktopApp()) return;
+    void initDesktopAuth(
+      (user: DesktopUser) => {
+        setAuthState({ user: user as unknown as User, isAuthenticated: true });
+        completeFirstRun();
+      },
+      (error: string) => {
+        toast.error(`Anmeldung fehlgeschlagen: ${error}`);
+      }
+    );
+    return () => cleanupDesktopAuth();
+  }, [setAuthState, completeFirstRun]);
 
   useEffect(() => {
     window.history.scrollRestoration = 'manual';

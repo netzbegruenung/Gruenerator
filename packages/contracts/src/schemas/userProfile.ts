@@ -2,6 +2,7 @@
  * Zod schemas for user-profile endpoints.
  * Mirrors apps/api/routes/auth/userProfile.ts.
  */
+import { ROBOT_ID_MIN, ROBOT_ID_MAX } from '@gruenerator/core/avatar';
 import { z } from 'zod';
 
 // ── Request body schemas (moved from controller) ────────────────────────────
@@ -9,13 +10,13 @@ import { z } from 'zod';
 export const profileUpdateBodySchema = z.object({
   display_name: z.string().optional(),
   username: z.string().optional(),
-  avatar_robot_id: z.number().int().min(1).max(10).optional(),
+  avatar_robot_id: z.number().int().min(ROBOT_ID_MIN).max(ROBOT_ID_MAX).optional(),
   email: z.string().optional(),
   custom_prompt: z.string().optional(),
 });
 
 export const avatarUpdateBodySchema = z.object({
-  avatar_robot_id: z.number().int().min(1).max(10),
+  avatar_robot_id: z.number().int().min(ROBOT_ID_MIN).max(ROBOT_ID_MAX),
 });
 
 export const betaFeatureToggleBodySchema = z.object({

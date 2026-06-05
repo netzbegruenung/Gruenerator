@@ -38,6 +38,7 @@ export type NotebookId =
   | 'mecklenburg-vorpommern-notebook'
   | 'brandenburg-notebook'
   | 'bayern-notebook'
+  | 'sachsen-anhalt-notebook'
   | 'oesterreich-notebook'
   | 'kommunalwiki-notebook'
   | 'gruenblog-notebook'
@@ -290,6 +291,25 @@ export const NOTEBOOK_REGISTRY = [
       title: 'Grüne Bayern',
       description: 'Pressemitteilungen, Beschlüsse und Regierungsprogramm Bayern',
       avatar: '🦁',
+      backgroundColor: '#316049',
+    },
+  },
+  {
+    id: 'sachsen-anhalt-notebook',
+    title: 'Sachsen-Anhalt',
+    description:
+      'Durchsuchbar sind Pressemitteilungen, Beschlüsse und das Landtagswahlprogramm 2026 der Grünen Sachsen-Anhalt.',
+    meta: 'Archiv',
+    tags: ['Sachsen-Anhalt', 'Presse', 'Beschlüsse', 'Wahlprogramm'],
+    order: 11,
+    category: 'landesebene',
+    audience: 'de-DE',
+    defaultAgent: 'gruenerator-oeffentlichkeitsarbeit-sachsen-anhalt',
+    mention: {
+      alias: 'sachsen-anhalt',
+      title: 'Grüne Sachsen-Anhalt',
+      description: 'Presse, Beschlüsse und Landtagswahlprogramm 2026 Sachsen-Anhalt',
+      avatar: '🌾',
       backgroundColor: '#316049',
     },
   },
