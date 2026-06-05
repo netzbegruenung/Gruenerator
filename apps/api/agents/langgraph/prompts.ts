@@ -116,6 +116,7 @@ function buildDraftPrompt(collectionName: string, isPolitical: boolean): PromptC
     '- Verbinde Informationen aus verschiedenen Quellen zu kohärenten Aussagen',
     '- Erkläre auf Basis der Quellen, WARUM etwas wichtig ist, nicht nur WAS gesagt wird',
     '- Bei Widersprüchen in Quellen: Benenne sie transparent',
+    '- Aktualität: Tragen Quellen ein Datum (im Quellen-Block als "(Datum: ...)" angegeben), bevorzuge bei vergleichbarer Relevanz neuere Informationen und benenne relevante Daten im Text (z.B. „laut Beschluss vom März 2024"). Das heutige Datum steht im Nutzer-Prompt. Inhaltliche Qualität bleibt entscheidend.',
     '- Gendere Personenbezeichnungen mit Genderstern (z.B. Bürger*innen, der*die Sprecher*in)',
     '',
     '## QUELLENTREUE:',

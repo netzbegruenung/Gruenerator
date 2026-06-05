@@ -3,6 +3,7 @@ import type {
   ChatModelRunOptions,
   ChatModelRunResult,
 } from '@assistant-ui/react';
+import type { NotebookCitation, NotebookSource } from '@gruenerator/contracts';
 import {
   type ChatProgress,
   type Citation as ChatCitation,
@@ -67,28 +68,10 @@ export interface NotebookAdapterConfig {
   onCustomEvent?: (event: string, data: unknown) => void;
 }
 
-export interface Citation {
-  index: string;
-  cited_text?: string;
-  document_title?: string;
-  document_id?: string;
-  source_url?: string | null;
-  similarity_score?: number;
-  chunk_index?: number;
-  filename?: string | null;
-  page_number?: number | null;
-  collection_id?: string;
-  collection_name?: string;
-}
-
-export interface Source {
-  document_id: string;
-  document_title: string;
-  source_url: string | null;
-  chunk_text: string;
-  similarity_score: number;
-  citations: Citation[];
-}
+// Single source of truth: the notebook ask contract. These carry `date`
+// (real source publication/upload date, or null) end-to-end.
+export type Citation = NotebookCitation;
+export type Source = NotebookSource;
 
 export interface LinkConfig {
   type: 'external' | 'vectorDocument';

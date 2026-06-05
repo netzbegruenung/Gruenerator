@@ -35,6 +35,16 @@ export type { RetryOptions } from './searchRetryStrategy.js';
 export { analyzeTemporality } from './TemporalAnalyzer.js';
 export type { TemporalAnalysis, TemporalUrgency } from './TemporalAnalyzer.js';
 
+// Export recency helpers (date-aware ranking + source-date formatting)
+export {
+  resolveSourceDate,
+  recencyBoost,
+  formatDe,
+  DEFAULT_HALF_LIFE_DAYS,
+  DEFAULT_MAX_BOOST,
+} from './recency.js';
+export type { DateResolvable, RecencyBoostOptions, ResolveDateOptions } from './recency.js';
+
 // Export crawling service
 export { selectAndCrawlTopUrls } from './CrawlingService.js';
 export type { CrawlableResult, CrawledResult } from './CrawlingService.js';
