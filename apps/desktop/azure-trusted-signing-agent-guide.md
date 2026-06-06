@@ -15,47 +15,47 @@ missing rights), and hands **Part B** (repo/CI) to a developer.
 
 ## ⚠️ Read first — two unrelated "signatures" exist
 
-| Thing | What it is | Stops SmartScreen? |
-|---|---|---|
+| Thing                                                                                 | What it is                                                                 | Stops SmartScreen?                     |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------- |
 | `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_KEY_PASSWORD` (already in `desktop-release.yml`) | **minisign** key that signs the **auto-updater manifest** (`latest.json`). | ❌ No — unrelated. **Leave it alone.** |
-| **Azure Trusted Signing** Authenticode cert (this guide) | Microsoft-trusted **code-signing** of the `.exe`/`.msi`. | ✅ Yes — this is the fix. |
+| **Azure Trusted Signing** Authenticode cert (this guide)                              | Microsoft-trusted **code-signing** of the `.exe`/`.msi`.                   | ✅ Yes — this is the fix.              |
 
 ---
 
 ## App facts (use these exact values)
 
-| Field | Value |
-|---|---|
-| Product name | `Grünerator` |
-| Bundle identifier | `de.gruenerator.desktop` |
-| Version | `1.2.0` |
-| Windows artifacts | NSIS `…_x64-setup.exe` and `.msi` |
-| Build pipeline | `.github/workflows/desktop-release.yml` (`tauri-apps/tauri-action@v0`, `windows-latest`, ~line 112) |
-| Tauri config | `apps/desktop/src-tauri/tauri.conf.json` (Windows block has **no** signing config yet) |
-| GitHub repository | `netzbegruenung/Gruenerator` |
-| Release trigger | push of tag `desktop-v*` (plus manual `workflow_dispatch`) |
+| Field             | Value                                                                                               |
+| ----------------- | --------------------------------------------------------------------------------------------------- |
+| Product name      | `Grünerator`                                                                                        |
+| Bundle identifier | `de.gruenerator.desktop`                                                                            |
+| Version           | `1.2.0`                                                                                             |
+| Windows artifacts | NSIS `…_x64-setup.exe` and `.msi`                                                                   |
+| Build pipeline    | `.github/workflows/desktop-release.yml` (`tauri-apps/tauri-action@v0`, `windows-latest`, ~line 112) |
+| Tauri config      | `apps/desktop/src-tauri/tauri.conf.json` (Windows block has **no** signing config yet)              |
+| GitHub repository | `netzbegruenung/Gruenerator`                                                                        |
+| Release trigger   | push of tag `desktop-v*` (plus manual `workflow_dispatch`)                                          |
 
 ## Decisions (prefilled — do not re-ask)
 
-| Decision | Value |
-|---|---|
-| Identity type | **Organization** — validating Moritz Wächter's Einzelunternehmen. *(Individual is NOT offered in the EU — only USA & Canada.)* |
-| Publisher shown in Windows | **Moritz Wächter** (the validated business name) |
-| Region | **West Europe** — endpoint `https://weu.codesigning.azure.net/` |
-| Azure subscription | `cc4836eb-72cc-4145-a8ab-29fbccc7992b` (Pay-As-You-Go) |
-| CI signing method | **`azure/trusted-signing-action`** |
-| The agent also requests the **D-U-N-S number** | yes (Phase 0) |
+| Decision                                       | Value                                                                                                                          |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Identity type                                  | **Organization** — validating Moritz Wächter's Einzelunternehmen. _(Individual is NOT offered in the EU — only USA & Canada.)_ |
+| Publisher shown in Windows                     | **Moritz Wächter** (the validated business name)                                                                               |
+| Region                                         | **West Europe** — endpoint `https://weu.codesigning.azure.net/`                                                                |
+| Azure subscription                             | `cc4836eb-72cc-4145-a8ab-29fbccc7992b` (Pay-As-You-Go)                                                                         |
+| CI signing method                              | **`azure/trusted-signing-action`**                                                                                             |
+| The agent also requests the **D-U-N-S number** | yes (Phase 0)                                                                                                                  |
 
 ### Identity / contact values
 
-| Field | Value |
-|---|---|
-| Business name (must match D-U-N-S **exactly**) | `Moritz Wächter` |
-| Business address (must match D-U-N-S exactly) | `Villestr. 6-8, 53347 Alfter` |
-| Country | `Germany` |
-| Contact email | `moritz-waechter@outlook.de` |
-| Contact phone | `+49 162 9830496` (national `0162 9830496`) |
-| D-U-N-S number | `<FILL: D-U-N-S>` — obtained in Phase 0 |
+| Field                                          | Value                                       |
+| ---------------------------------------------- | ------------------------------------------- |
+| Business name (must match D-U-N-S **exactly**) | `Moritz Wächter`                            |
+| Business address (must match D-U-N-S exactly)  | `Villestr. 6-8, 53347 Alfter`               |
+| Country                                        | `Germany`                                   |
+| Contact email                                  | `moritz-waechter@outlook.de`                |
+| Contact phone                                  | `+49 162 9830496` (national `0162 9830496`) |
+| D-U-N-S number                                 | `<FILL: D-U-N-S>` — obtained in Phase 0     |
 
 ### Status so far (done — do not redo)
 
@@ -84,7 +84,7 @@ in parallel.
 
 1. Open the free **Apple D-U-N-S lookup tool** (works for any business, no Apple account needed):
    `https://developer.apple.com/enroll/duns-lookup/`.
-   *(Fallback if unavailable: Dun & Bradstreet Germany `https://www.dnb.com/de-de/` → "D-U-N-S-Nummer".)*
+   _(Fallback if unavailable: Dun & Bradstreet Germany `https://www.dnb.com/de-de/` → "D-U-N-S-Nummer".)_
 2. Enter and **search**:
    - **Legal entity name:** `Moritz Wächter`
    - **Country/region:** `Germany`
@@ -101,6 +101,7 @@ in parallel.
    personal verification on their behalf.
 
 > **Known traps on the Apple D-U-N-S form (learned in practice — the operator must finish these):**
+>
 > 1. **Umlauts get stripped** by the form-fill tooling — "Wächter" saves as "Wchter". The operator
 >    must manually correct **Legal Entity Name → `Moritz Wächter`** and **Family Name → `Wächter`**.
 >    A mismatch here makes the Phase 3 D-U-N-S match fail.
@@ -121,7 +122,7 @@ No D-U-N-S needed for this — do it immediately while Phase 0 is pending.
 
 1. Go to `https://portal.azure.com`. If a sign-in/MFA screen appears, **stop** and let the human
    authenticate (never type credentials).
-2. Search **`gruenerator-signing`** and open it. *(The account already exists — do not create one.)*
+2. Search **`gruenerator-signing`** and open it. _(The account already exists — do not create one.)_
 3. Left menu → **Access control (IAM)** → **+ Add** → **Add role assignment**.
 4. Role: **`Artifact Signing Identity Verifier`** (search by name).
    - **Members:** user `moritz-waechter@outlook.de`. → **Review + assign**.
@@ -172,7 +173,7 @@ registration in the task — for CI auth, not user login.
      **Register**.
    - Copy **Application (client) ID** and **Directory (tenant) ID**.
 2. App → **Certificates & secrets** → **Federated credentials** → **+ Add credential**, scenario
-   *GitHub Actions deploying Azure resources*, **Organization** `netzbegruenung`, **Repository**
+   _GitHub Actions deploying Azure resources_, **Organization** `netzbegruenung`, **Repository**
    `Gruenerator`. Add **two** credentials:
    - Entity type **Tag**, value `desktop-v*`, name `release-tag` (releases are tag-triggered).
    - Entity type **Branch**, value `master`, name `manual-dispatch` (covers `workflow_dispatch`).
@@ -220,7 +221,7 @@ upload:
 
 1. `azure/login@v2` with `client-id`/`tenant-id`/`subscription-id` (OIDC).
 2. `azure/trusted-signing-action@v0` with `endpoint`, `trusted-signing-account-name:
-   gruenerator-signing`, `certificate-profile-name: gruenerator-public-trust`, and a glob over
+gruenerator-signing`, `certificate-profile-name: gruenerator-public-trust`, and a glob over
    `apps/desktop/src-tauri/target/**/release/bundle/{nsis,msi}` filtering `*.exe,*.msi`.
 
 The job needs `permissions: { id-token: write, contents: write }`.
