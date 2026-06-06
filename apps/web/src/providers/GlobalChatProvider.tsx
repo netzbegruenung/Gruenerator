@@ -1,24 +1,12 @@
-import { GrueneratorChatProvider, TooltipProvider, type SharepicVariant } from '@gruenerator/chat';
-import { useQuery } from '@tanstack/react-query';
 import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
-import { createPortal } from 'react-dom';
+  GrueneratorChatProvider,
+  TooltipProvider,
+  preloadChatRuntime,
+  type SharepicVariant,
+} from '@gruenerator/chat';
+import { useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-
-// The thread list is built on assistant-ui (~heavy). It only renders for
-// authenticated users (the portal below is gated on userId), so lazy-loading it
-// keeps assistant-ui out of the initial bundle for logged-out visitors.
-const ChatThreadList = lazy(() =>
-  import('@gruenerator/chat').then((m) => ({ default: m.ChatThreadList }))
-);
 
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
@@ -28,38 +16,10 @@ import { resolveNotebookChatEntries } from '../features/notebook/utils/notebookC
 import { useAuthStore } from '../stores/authStore';
 import { buildLoginUrl, isPublicPage } from '../utils/authRedirect';
 
+// DOM id of the sidebar slot the global thread list renders into. The slot
+// element lives in the layout Sidebar; the chat runtime renders the thread list
+// into it (see GrueneratorChatRuntimeProvider's threadListPortalSlotId).
 const PORTAL_SLOT_ID = 'chat-thread-portal-slot';
-
-function ChatThreadPortal() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    const sync = () => setPortalTarget(document.getElementById(PORTAL_SLOT_ID));
-    sync();
-    const observer = new MutationObserver(sync);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, []);
-
-  const handleClick = () => {
-    if (!location.pathname.startsWith('/chat')) {
-      void navigate('/chat');
-    }
-  };
-
-  if (!portalTarget) return null;
-
-  return createPortal(
-    <div onClick={handleClick} className="contents">
-      <Suspense fallback={null}>
-        <ChatThreadList noScroll />
-      </Suspense>
-    </div>,
-    portalTarget
-  );
-}
 
 interface GlobalChatProviderProps {
   children: ReactNode;
@@ -135,6 +95,17 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
     [navigate]
   );
 
+  // Clicking the global thread-list portal opens the chat surface.
+  const openChat = useCallback(() => {
+    if (!location.pathname.startsWith('/chat')) void navigate('/chat');
+  }, [location.pathname, navigate]);
+
+  // Warm the chat-runtime chunk as soon as the user is authenticated so per-route
+  // chat surfaces (and the thread-list portal) render against a loaded runtime.
+  useEffect(() => {
+    if (userId) preloadChatRuntime();
+  }, [userId]);
+
   const chatConfig = useMemo(
     () => ({
       onUnauthorized: () => {
@@ -201,11 +172,10 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       onExternalThreadClick={handleExternalClick}
       activePath={location.pathname}
       enabledModelIds={enabledModelIds}
+      threadListPortalSlotId={PORTAL_SLOT_ID}
+      onRequestOpenChat={openChat}
     >
-      <TooltipProvider>
-        {children}
-        {userId && <ChatThreadPortal />}
-      </TooltipProvider>
+      <TooltipProvider>{children}</TooltipProvider>
     </GrueneratorChatProvider>
   );
 }
