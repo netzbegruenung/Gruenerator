@@ -3,9 +3,10 @@ import axios from 'axios';
 import { type useToast } from '../hooks/useToast';
 
 export function handleApiError(error: unknown, toast: ReturnType<typeof useToast>): void {
-  if (axios.isAxiosError<{ error?: string }>(error)) {
+  if (axios.isAxiosError<{ error?: string; details?: string }>(error)) {
     const status = error.response?.status;
     const message = error.response?.data?.error || error.message;
+    const details = error.response?.data?.details;
 
     switch (status) {
       case 400:
@@ -30,7 +31,7 @@ export function handleApiError(error: unknown, toast: ReturnType<typeof useToast
       case 500:
         toast.error(
           'Serverfehler',
-          'Ein interner Fehler ist aufgetreten. Bitte versuche es später erneut.'
+          details || 'Ein interner Fehler ist aufgetreten. Bitte versuche es später erneut.'
         );
         return;
 

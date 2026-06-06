@@ -1,6 +1,6 @@
 import { type CandidateData } from '@gruenerator/sites-design';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { FiLogOut, FiExternalLink, FiEye } from 'react-icons/fi';
+import { FiExternalLink, FiEye } from 'react-icons/fi';
 
 import { CandidatePage } from '../CandidatePage';
 import { LoadingOverlay } from '../components/common/LoadingOverlay';
@@ -21,7 +21,7 @@ import { nameToSubdomain, sanitizeSubdomain } from '../utils/sanitization';
 import { validators } from '../utils/validation';
 
 export function EditPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const {
     site,
     isLoading,
@@ -54,6 +54,14 @@ export function EditPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when display_name loads
   }, [user?.display_name]);
+
+  // Pre-fill contact email from user's profile (editable later in the Contact section)
+  useEffect(() => {
+    if (user?.email && !contactEmail) {
+      setContactEmail(user.email);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when email loads
+  }, [user?.email]);
 
   // Preview state (before creating site)
   const [previewData, setPreviewData] = useState<GeneratedSiteData | null>(null);
@@ -365,13 +373,6 @@ export function EditPage() {
                 <FiExternalLink />
               </a>
             )}
-            <button
-              className="flex items-center justify-center w-9 h-9 bg-transparent border border-grey-200 rounded-sm text-grey-600 cursor-pointer transition-colors no-underline hover:bg-grey-100 hover:text-grey-800 hover:border-grey-400 [&_svg]:w-[18px] [&_svg]:h-[18px]"
-              onClick={logout}
-              title="Abmelden"
-            >
-              <FiLogOut />
-            </button>
           </div>
         </header>
 
@@ -467,8 +468,6 @@ export function EditPage() {
         <CreateSiteScreen
           subdomain={subdomain}
           onSubdomainChange={(v) => setSubdomain(sanitizeSubdomain(v))}
-          contactEmail={contactEmail}
-          onContactEmailChange={setContactEmail}
           description={description}
           onDescriptionChange={setDescription}
           onGenerate={handleGenerate}
@@ -507,18 +506,7 @@ export function EditPage() {
   return (
     <div className="min-h-full flex flex-col bg-grey-100">
       <header className="flex flex-row items-center gap-sm py-sm pl-14 pr-md bg-white border-b border-grey-200 min-h-14">
-        <div className="flex items-center gap-sm shrink-0">
-          <h1 className="text-base text-primary-600 m-0 whitespace-nowrap">Grünerator Sites</h1>
-          {user && <span>{user.email}</span>}
-        </div>
-        <div className="flex items-center gap-xs shrink-0 ml-auto">
-          <button
-            className="inline-flex items-center gap-1.5 bg-grey-200 text-grey-800 border-none py-xs px-sm text-sm font-medium rounded-sm cursor-pointer transition-colors hover:bg-grey-400 disabled:opacity-60 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4"
-            onClick={logout}
-          >
-            Abmelden
-          </button>
-        </div>
+        <h1 className="text-base text-primary-600 m-0 whitespace-nowrap">Grünerator Sites</h1>
       </header>
 
       <div className="flex flex-col flex-1 overflow-hidden lg:flex-row">
