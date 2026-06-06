@@ -148,6 +148,15 @@ server {
         add_header Cache-Control "public, immutable";
     }
 
+    # Robot avatars — stable filenames (1.webp..13.webp) served from /public,
+    # so they miss the hashed /assets/ rule. New avatars are added as new ids
+    # (never overwriting an existing one), so caching them immutable is safe and
+    # makes repeat loads a zero-byte (disk-cache) hit.
+    location /images/profileimages/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
     # Everything else (index.html, config.js, manifest.json, SW, illustrations)
     # no-cache = store but revalidate via ETag → efficient 304 responses
     location / {

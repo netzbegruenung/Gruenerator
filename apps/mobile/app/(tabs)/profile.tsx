@@ -65,6 +65,8 @@ function AvatarPickerSheet({
                 source={{ uri: getRobotAvatarUrl(id) }}
                 style={styles.avatarImage}
                 contentFit="cover"
+                cachePolicy="memory-disk"
+                recyclingKey={String(id)}
               />
             </Pressable>
           );

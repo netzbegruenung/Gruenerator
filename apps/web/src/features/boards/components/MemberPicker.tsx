@@ -1,10 +1,11 @@
-import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { useState, useMemo, type ReactNode } from 'react';
 import { FiSearch, FiUserX } from 'react-icons/fi';
 
 import { type AssignableMember, useAssignableMembers } from '../hooks/useAssignableMembers';
 import { type CardAssignee } from '../types';
+
+import { RobotAvatar } from '@/components/common/RobotAvatar';
 
 interface MemberPickerProps {
   boardId: string;
@@ -72,10 +73,12 @@ export function MemberPicker({ boardId, onSelect, children }: MemberPickerProps)
                 onClick={() => handleSelect(member)}
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors bg-transparent border-none cursor-pointer"
               >
-                <img
-                  src={getRobotAvatarPath(member.avatar_robot_id || 1)}
+                <RobotAvatar
+                  robotId={member.avatar_robot_id || 1}
+                  displayName={member.display_name || member.first_name}
+                  sizePx={24}
+                  className="w-6 h-6 shrink-0"
                   alt=""
-                  className="w-6 h-6 rounded-full shrink-0"
                 />
                 <span className="truncate">
                   {member.display_name || member.first_name || 'Unbekannt'}
