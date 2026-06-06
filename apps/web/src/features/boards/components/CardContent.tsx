@@ -1,4 +1,3 @@
-import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { Badge } from '@gruenerator/ui';
 import { memo, useCallback, useMemo } from 'react';
@@ -9,6 +8,7 @@ import { FIELD_IDS } from '../types';
 
 import type { Row, Field, SelectOption, CardAssignee } from '../types';
 
+import { RobotAvatar } from '@/components/common/RobotAvatar';
 import { cn } from '@/utils/cn';
 
 interface CardContentProps {
@@ -121,10 +121,12 @@ export const CardContent = memo(function CardContent({
           style={{ backgroundColor: activeUser.user.color }}
           title={`${activeUser.user.name} bearbeitet`}
         >
-          <img
-            src={getRobotAvatarPath(activeUser.user.avatarRobotId ?? 1)}
+          <RobotAvatar
+            robotId={activeUser.user.avatarRobotId ?? 1}
+            displayName={activeUser.user.name}
+            sizePx={14}
+            className="w-3.5 h-3.5"
             alt=""
-            className="w-3.5 h-3.5 rounded-full"
           />
         </div>
       )}
@@ -194,10 +196,12 @@ export const CardContent = memo(function CardContent({
           )}
           {assignee && (
             <span className="inline-flex items-center gap-1 ml-auto">
-              <img
-                src={getRobotAvatarPath(assignee.avatarRobotId ?? 1)}
+              <RobotAvatar
+                robotId={assignee.avatarRobotId ?? 1}
+                displayName={assignee.name}
+                sizePx={16}
+                className="w-4 h-4"
                 alt=""
-                className="w-4 h-4 rounded-full"
               />
               <span className="text-[10px] text-grey-400 truncate max-w-[60px]">
                 {assignee.name}

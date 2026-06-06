@@ -3,7 +3,6 @@ import {
   type CommentBlock,
   type CommentReaction,
 } from '@gruenerator/contracts';
-import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { Button } from '@gruenerator/ui';
@@ -16,6 +15,8 @@ import { useBoardComments } from '../hooks/useBoardComments';
 import { UserMentionPopover, type MentionUser } from './UserMentionPopover';
 
 import type { ReactNode } from 'react';
+
+import { RobotAvatar } from '@/components/common/RobotAvatar';
 
 // ── Tracked mention (position in text) ──────────────────────────────────
 
@@ -125,10 +126,12 @@ const CommentItem = memo(function CommentItem({
 
   return (
     <div className={`flex gap-2 group ${isReply ? 'ml-8' : ''}`}>
-      <img
-        src={getRobotAvatarPath(comment.author_avatar_robot_id ?? 1)}
+      <RobotAvatar
+        robotId={comment.author_avatar_robot_id ?? 1}
+        displayName={comment.author_name}
+        sizePx={24}
+        className="w-6 h-6 shrink-0 mt-0.5"
         alt=""
-        className="w-6 h-6 rounded-full shrink-0 mt-0.5"
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
@@ -442,10 +445,12 @@ export const CardComments = memo(function CardComments({
       )}
 
       <div className="flex gap-2 relative">
-        <img
-          src={getRobotAvatarPath(currentUserAvatarRobotId)}
+        <RobotAvatar
+          robotId={currentUserAvatarRobotId}
+          displayName={currentUserName}
+          sizePx={24}
+          className="w-6 h-6 shrink-0 mt-1"
           alt=""
-          className="w-6 h-6 rounded-full shrink-0 mt-1"
         />
         <div className="flex-1 flex flex-col gap-1.5">
           <textarea

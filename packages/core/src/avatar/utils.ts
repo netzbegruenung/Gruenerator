@@ -49,7 +49,9 @@ export const getInitials = (displayName?: string, email?: string): string => {
 
 export const getRobotAvatarPath = (robotId: number): string => {
   const id = validateRobotId(robotId);
-  return `/images/profileimages/${id}.svg`;
+  // WebP (256px) — the source SVGs were 1–4 MB each (embedded full-res PNGs);
+  // re-encoded to ~10 KB WebP. Supported by all current browsers and expo-image.
+  return `/images/profileimages/${id}.webp`;
 };
 
 export const getRobotAvatarUrl = (robotId: number, baseUrl?: string): string => {

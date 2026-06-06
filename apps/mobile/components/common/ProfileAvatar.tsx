@@ -46,6 +46,9 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
           source={{ uri: imageUrl }}
           style={{ width: dimension, height: dimension, borderRadius: dimension / 2 }}
           contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+          recyclingKey={String(robotId)}
           accessibilityLabel={avatarProps.alt}
         />
       </View>

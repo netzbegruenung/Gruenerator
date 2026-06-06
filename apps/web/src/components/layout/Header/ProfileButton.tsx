@@ -5,13 +5,13 @@ import { FaCloud, FaFolder, FaUserCircle, FaUsers } from 'react-icons/fa';
 import { HiCog } from 'react-icons/hi';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
+import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { useProfile } from '../../../features/auth/hooks/useProfileData';
-import { getAvatarDisplayProps } from '../../../features/auth/services/profileApiService';
 import NotificationList from '../../../features/notifications/components/NotificationList';
 import { useUnreadCount } from '../../../features/notifications/hooks/useNotifications';
 import { useAuthStore } from '../../../stores/authStore';
 
-import type { AvatarDisplay, Profile } from '../../../features/auth/services/profileApiService';
+import type { Profile } from '../../../features/auth/services/profileApiService';
 import type { User } from '../../../stores/authStore';
 import type { IconType } from 'react-icons';
 
@@ -39,34 +39,6 @@ const getPossessiveForm = (name: string | undefined): string => {
   return `${name}'s`;
 };
 
-const renderAvatar = (avatarProps: AvatarDisplay, size: 'sm' | 'lg', isLoading?: boolean) => {
-  const sizeClass = size === 'sm' ? 'size-full' : 'size-12';
-  const loadingStyle = isLoading
-    ? { opacity: 0.8, transition: 'opacity 0.2s ease-in-out' }
-    : undefined;
-
-  if (avatarProps.type === 'robot') {
-    return (
-      <div
-        className={cn('flex items-center justify-center overflow-hidden rounded-full', sizeClass)}
-      >
-        <img
-          src={avatarProps.src}
-          alt={avatarProps.alt}
-          className="size-full rounded-full object-cover"
-          style={loadingStyle}
-        />
-      </div>
-    );
-  }
-  return (
-    <FaUserCircle
-      className={cn('text-foreground-heading', size === 'sm' ? 'text-lg' : 'text-[3rem]')}
-      style={loadingStyle}
-    />
-  );
-};
-
 interface ProfileDropdownContentProps {
   user: User;
   unreadCount: number;
@@ -83,12 +55,6 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
   const displayName = profile?.display_name || '';
   const avatarRobotId = profile?.avatar_robot_id ?? null;
 
-  const avatarProps = getAvatarDisplayProps({
-    ...(avatarRobotId != null && { avatar_robot_id: avatarRobotId }),
-    display_name: displayName,
-    email: user.email,
-  });
-
   return (
     <>
       <div className="flex items-center gap-md p-md bg-background-alt border-b border-grey-200 dark:border-grey-700">
@@ -96,7 +62,14 @@ const ProfileDropdownContent = memo(({ user, unreadCount }: ProfileDropdownConte
           to="/profile"
           className="shrink-0 rounded-full transition-transform hover:scale-[1.08]"
         >
-          {renderAvatar(avatarProps, 'lg')}
+          <RobotAvatar
+            robotId={avatarRobotId}
+            displayName={displayName}
+            email={user.email}
+            sizePx={48}
+            className="size-12"
+            fallbackClassName="text-xl"
+          />
         </Link>
         <div className="min-w-0 text-left">
           <div className="text-[1.2rem] font-semibold text-foreground-heading truncate">
@@ -161,15 +134,9 @@ const ProfileButton = () => {
 
   const { data: unreadCount = 0 } = useUnreadCount();
 
-  const { data: profile, isPlaceholderData } = useProfile(user?.id);
+  const { data: profile } = useProfile(user?.id);
   const avatarRobotId = profile?.avatar_robot_id ?? null;
   const displayName = profile?.display_name || '';
-
-  const avatarProps = getAvatarDisplayProps({
-    ...(avatarRobotId != null && { avatar_robot_id: avatarRobotId }),
-    display_name: displayName,
-    email: user?.email,
-  });
 
   if (!user) {
     return (
@@ -194,7 +161,14 @@ const ProfileButton = () => {
           {avatarRobotId == null && !displayName ? (
             <div className="size-full rounded-full bg-grey-200 dark:bg-grey-700 animate-pulse" />
           ) : (
-            renderAvatar(avatarProps, 'sm', isPlaceholderData)
+            <RobotAvatar
+              robotId={avatarRobotId}
+              displayName={displayName}
+              email={user.email}
+              sizePx={38}
+              className="size-full"
+              priority
+            />
           )}
           {unreadCount > 0 && (
             <Badge
