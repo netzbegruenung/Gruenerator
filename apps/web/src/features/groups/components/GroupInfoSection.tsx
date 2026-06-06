@@ -1,6 +1,5 @@
 import { type GroupContentType } from '@gruenerator/contracts';
 import { getContractsClient } from '@gruenerator/shared/api';
-import { getRobotAvatarPath, validateRobotId } from '@gruenerator/shared/avatar';
 import {
   Badge,
   Button,
@@ -38,6 +37,7 @@ import {
 import { PiSquaresFour } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
+import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import { getNotebookById } from '../../notebook/config/notebooksConfig';
 import { type GroupAudience } from '../hooks/useGroupRequests';
 import {
@@ -46,6 +46,7 @@ import {
   getGroupInitials,
   type GroupLink,
 } from '../hooks/useGroups';
+
 
 import AddContentToGroupModal from './AddContentToGroupModal';
 import GroupJoinRequestsSection from './GroupJoinRequestsSection';
@@ -316,10 +317,11 @@ const GroupInfoSection = memo(
                     <>
                       {members?.slice(0, 5).map((member) => (
                         <span key={member.user_id} className="relative">
-                          <img
-                            src={getRobotAvatarPath(validateRobotId(member.avatar_robot_id))}
+                          <RobotAvatar
+                            robotId={member.avatar_robot_id}
+                            sizePx={28}
+                            className="size-7 ring-2 ring-background"
                             alt=""
-                            className="size-7 rounded-full ring-2 ring-background"
                           />
                           {onlineUserIds?.has(member.user_id) && (
                             <span className="absolute bottom-0 right-0 size-2 rounded-full bg-green-500 ring-1 ring-background" />

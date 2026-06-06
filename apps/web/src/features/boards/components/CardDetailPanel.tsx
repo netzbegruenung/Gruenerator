@@ -1,5 +1,4 @@
 import { useAgentStore } from '@gruenerator/chat';
-import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import {
   Badge,
   Button,
@@ -33,6 +32,7 @@ import { MemberPicker } from './MemberPicker';
 import type { Row, Field, SelectOption, CellValue, LinkedDoc, CardAssignee } from '../types';
 
 import { CollabDocPicker } from '@/components/common/CollabDocPicker';
+import { RobotAvatar } from '@/components/common/RobotAvatar';
 import { cn } from '@/utils/cn';
 
 const COMMON_EMOJI = [
@@ -458,10 +458,12 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                 <div className="flex-1">
                   {assignee && (
                     <div className="flex items-center gap-2 mb-1.5">
-                      <img
-                        src={getRobotAvatarPath(assignee.avatarRobotId ?? 1)}
+                      <RobotAvatar
+                        robotId={assignee.avatarRobotId ?? 1}
+                        displayName={assignee.name}
+                        sizePx={24}
+                        className="w-6 h-6 shrink-0"
                         alt=""
-                        className="w-6 h-6 rounded-full shrink-0"
                       />
                       <span className="text-sm text-foreground truncate">{assignee.name}</span>
                       <button

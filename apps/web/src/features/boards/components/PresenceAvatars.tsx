@@ -1,7 +1,9 @@
-import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { memo } from 'react';
 
 import type { CollaborationUser } from '@gruenerator/collab';
+
+import { RobotAvatar } from '@/components/common/RobotAvatar';
+
 
 const MAX_VISIBLE = 5;
 
@@ -23,7 +25,14 @@ export const PresenceAvatars = memo(function PresenceAvatars({
           style={{ backgroundColor: user.color }}
           title={user.name}
         >
-          <img src={getRobotAvatarPath(user.avatarRobotId ?? 1)} alt="" className="w-full h-full" />
+          <RobotAvatar
+            robotId={user.avatarRobotId ?? 1}
+            displayName={user.name}
+            sizePx={28}
+            className="w-full h-full"
+            fallbackClassName="bg-transparent text-white"
+            alt=""
+          />
         </div>
       ))}
       {collaborators.length > MAX_VISIBLE && (

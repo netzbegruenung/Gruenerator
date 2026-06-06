@@ -377,6 +377,10 @@ export const ShareModal = ({ documentId, documentTitle, onClose }: ShareModalPro
                           <img
                             src={getRobotAvatarPath(avatar.robotId!)}
                             alt={avatar.alt}
+                            width={28}
+                            height={28}
+                            loading="lazy"
+                            decoding="async"
                             className="h-7 w-7 shrink-0 rounded-full object-cover"
                           />
                         ) : (
