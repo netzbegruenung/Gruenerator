@@ -42,7 +42,7 @@ export function SocialFeedSectionEditor({ data, onChange }: SocialFeedSectionEdi
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-grey-900">
+      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
         <FaInstagram style={{ marginRight: '8px', color: '#E4405F' }} />
         Instagram Feed
       </h3>
@@ -55,7 +55,7 @@ export function SocialFeedSectionEditor({ data, onChange }: SocialFeedSectionEdi
             onChange={(e) => updateField('showFeed', e.target.checked)}
             className="w-5 h-5 accent-primary-600 cursor-pointer"
           />
-          <span className="text-base text-grey-700">Instagram-Feed anzeigen</span>
+          <span className="text-base text-foreground">Instagram-Feed anzeigen</span>
         </label>
       </div>
 
@@ -69,7 +69,7 @@ export function SocialFeedSectionEditor({ data, onChange }: SocialFeedSectionEdi
           >
             <label
               htmlFor="socialfeed-title"
-              className="block text-sm font-medium text-grey-700 mb-1.5"
+              className="block text-sm font-medium text-foreground mb-1.5"
             >
               Abschnittstitel
             </label>
@@ -82,7 +82,7 @@ export function SocialFeedSectionEditor({ data, onChange }: SocialFeedSectionEdi
               onFocus={() => handleFieldFocus('socialFeed', 'title')}
               onBlur={handleFieldBlur}
               placeholder="Instagram"
-              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
             />
           </div>
 
@@ -94,12 +94,12 @@ export function SocialFeedSectionEditor({ data, onChange }: SocialFeedSectionEdi
           >
             <label
               htmlFor="socialfeed-username"
-              className="block text-sm font-medium text-grey-700 mb-1.5"
+              className="block text-sm font-medium text-foreground mb-1.5"
             >
               Instagram-Benutzername
             </label>
-            <div className="flex items-center border border-grey-300 rounded-md overflow-hidden bg-white focus-within:border-primary-500 focus-within:ring-[2px] focus-within:ring-primary-500/15">
-              <span className="py-2.5 px-3 bg-grey-100 text-grey-600 text-sm border-r border-grey-300">
+            <div className="flex items-center border border-grey-300 dark:border-grey-700 rounded-md overflow-hidden bg-background-pure focus-within:border-primary-500 focus-within:ring-[2px] focus-within:ring-primary-500/15">
+              <span className="py-2.5 px-3 bg-grey-100 dark:bg-grey-800 text-grey-600 dark:text-grey-400 text-sm border-r border-grey-300 dark:border-grey-700">
                 @
               </span>
               <input
@@ -114,13 +114,13 @@ export function SocialFeedSectionEditor({ data, onChange }: SocialFeedSectionEdi
                 className="flex-1 border-none py-2.5 px-3 text-sm outline-none"
               />
             </div>
-            <p className="text-xs text-grey-500 mt-1">
+            <p className="text-xs text-grey-500 dark:text-grey-400 mt-1">
               Der Benutzername deines öffentlichen Instagram-Profils
             </p>
           </div>
 
-          <div className="p-md bg-primary-100 rounded-sm mt-md">
-            <p className="m-0 text-sm text-primary-800 leading-relaxed">
+          <div className="p-md bg-primary-100 dark:bg-primary-900 rounded-sm mt-md">
+            <p className="m-0 text-sm text-primary-800 dark:text-primary-300 leading-relaxed">
               <strong className="font-semibold">Datenschutz-Hinweis:</strong> Der Instagram-Feed
               wird erst geladen, nachdem Besucher*innen der Datenübertragung an Meta zugestimmt
               haben (DSGVO-konforme Zwei-Klick-Lösung).

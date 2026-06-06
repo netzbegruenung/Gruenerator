@@ -8,9 +8,9 @@ interface ThemesSectionProps {
 
 export function ThemesSection({ data }: ThemesSectionProps) {
   return (
-    <section className="bg-[var(--primary-50)] py-[var(--spacing-xxl-r)] md:py-[var(--spacing-xxxl-r)] overflow-hidden">
+    <section className="bg-[var(--background-color-alt)] py-[var(--spacing-xxl-r)] md:py-[var(--spacing-xxxl-r)] overflow-hidden">
       <div className="max-w-[var(--container-max-width)] mx-auto px-[var(--spacing-md-r)]">
-        <h2 className="text-[2rem] max-md:text-[1.75rem] font-bold text-[var(--primary-600)] mb-[var(--spacing-lg-r)] text-center">
+        <h2 className="text-[2rem] max-md:text-[1.75rem] font-bold text-[var(--link-color)] mb-[var(--spacing-lg-r)] text-center">
           {data.title}
         </h2>
 
@@ -27,7 +27,7 @@ export function ThemesSection({ data }: ThemesSectionProps) {
                 key={index}
                 className="pl-[var(--spacing-md-r)] md:pl-[var(--spacing-lg-r)] lg:pl-[var(--spacing-xl-r)] basis-[85%] md:basis-1/2 lg:basis-1/3"
               >
-                <article className="bg-white rounded-[var(--radius-md)] overflow-hidden shadow-[var(--shadow-md)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] h-full">
+                <article className="bg-[var(--background-color-pure)] rounded-[var(--radius-md)] overflow-hidden shadow-[var(--shadow-md)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] h-full">
                   {theme.imageUrl && (
                     <div className="aspect-[16/10] overflow-hidden">
                       <img
@@ -39,12 +39,12 @@ export function ThemesSection({ data }: ThemesSectionProps) {
                     </div>
                   )}
                   <div className="p-[var(--spacing-lg-r)]">
-                    <h3 className="text-[var(--font-size-lg)] font-semibold text-[var(--primary-600)] mb-[var(--spacing-sm)]">
+                    <h3 className="text-[var(--font-size-lg)] font-semibold text-[var(--link-color)] mb-[var(--spacing-sm)]">
                       {theme.title}
                     </h3>
                     <MarkdownContent
                       content={theme.content}
-                      className="text-[var(--grey-600)] text-[var(--font-size-base)] leading-relaxed"
+                      className="text-[var(--font-color-muted)] text-[var(--font-size-base)] leading-relaxed"
                     />
                   </div>
                 </article>

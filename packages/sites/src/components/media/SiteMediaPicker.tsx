@@ -92,12 +92,12 @@ export function SiteMediaPicker() {
       ref={modalRef}
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-xl w-full max-w-[800px] max-h-[80vh] flex flex-col shadow-[0_20px_60px_rgba(0,0,0,0.15)]">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-grey-200">
-          <h2 className="m-0 text-lg font-semibold text-grey-800">Mediathek</h2>
+      <div className="bg-background-pure rounded-xl w-full max-w-[800px] max-h-[80vh] flex flex-col shadow-[0_20px_60px_rgba(0,0,0,0.15)]">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-grey-200 dark:border-grey-700">
+          <h2 className="m-0 text-lg font-semibold text-foreground">Mediathek</h2>
           <button
             type="button"
-            className="bg-transparent border-none text-2xl text-grey-500 cursor-pointer px-2 py-1 leading-none transition-colors hover:text-grey-700"
+            className="bg-transparent border-none text-2xl text-grey-500 dark:text-grey-400 cursor-pointer px-2 py-1 leading-none transition-colors hover:text-foreground"
             onClick={closePicker}
             aria-label="Schließen"
           >
@@ -105,14 +105,14 @@ export function SiteMediaPicker() {
           </button>
         </div>
 
-        <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-grey-100 max-[600px]:flex-col max-[600px]:items-stretch">
+        <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-grey-100 dark:border-grey-800 max-[600px]:flex-col max-[600px]:items-stretch">
           <div className="flex-1 max-w-[300px] max-[600px]:max-w-none">
             <input
               type="text"
               placeholder="Suchen..."
               value={searchQuery}
               onChange={handleSearch}
-              className="w-full py-2 px-3 border border-grey-300 rounded-md text-sm focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/10"
+              className="w-full py-2 px-3 border border-grey-300 dark:border-grey-700 rounded-md text-sm focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/10"
             />
           </div>
           <div>
@@ -135,21 +135,21 @@ export function SiteMediaPicker() {
         </div>
 
         {(error || uploadError) && (
-          <div className="px-5 py-3 bg-red-50 text-red-700 text-sm border-b border-red-200">
+          <div className="px-5 py-3 bg-red-50 dark:bg-red-950 text-red-700 text-sm border-b border-red-200">
             {error || uploadError}
           </div>
         )}
 
         <div className="flex-1 overflow-y-auto px-5 py-4 min-h-[200px]">
           {isLoading && items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-[200px] text-grey-500 text-sm">
-              <div className="w-8 h-8 border-[3px] border-grey-200 border-t-primary-500 rounded-full animate-[spin_0.8s_linear_infinite] mb-3" />
+            <div className="flex flex-col items-center justify-center h-[200px] text-grey-500 dark:text-grey-400 text-sm">
+              <div className="w-8 h-8 border-[3px] border-grey-200 dark:border-grey-700 border-t-primary-500 rounded-full animate-[spin_0.8s_linear_infinite] mb-3" />
               <span>Laden...</span>
             </div>
           ) : items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-[200px] text-grey-500 text-sm">
+            <div className="flex flex-col items-center justify-center h-[200px] text-grey-500 dark:text-grey-400 text-sm">
               <p>Keine Medien gefunden</p>
-              <p className="mt-1 text-grey-400 text-[13px]">
+              <p className="mt-1 text-grey-400 dark:text-grey-500 text-[13px]">
                 Lade dein erstes Bild hoch, um loszulegen
               </p>
             </div>
@@ -160,7 +160,7 @@ export function SiteMediaPicker() {
                   key={item.id}
                   type="button"
                   className={cn(
-                    'relative aspect-square bg-grey-100 border-2 border-transparent rounded-lg overflow-hidden cursor-pointer p-0 transition-[border-color,transform] hover:border-grey-300',
+                    'relative aspect-square bg-grey-100 dark:bg-grey-800 border-2 border-transparent rounded-lg overflow-hidden cursor-pointer p-0 transition-[border-color,transform] hover:border-grey-300 dark:hover:border-grey-700',
                     isSelected(item) && 'border-primary-500 hover:border-primary-600'
                   )}
                   onClick={() => selectItem(item)}
@@ -187,10 +187,10 @@ export function SiteMediaPicker() {
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-grey-200">
+        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-grey-200 dark:border-grey-700">
           <button
             type="button"
-            className="py-2.5 px-5 rounded-md text-sm font-medium cursor-pointer transition-colors bg-white border border-grey-300 text-grey-700 hover:bg-grey-50 hover:border-grey-400"
+            className="py-2.5 px-5 rounded-md text-sm font-medium cursor-pointer transition-colors bg-background-pure border border-grey-300 dark:border-grey-700 text-foreground hover:bg-grey-50 dark:hover:bg-grey-900 hover:border-grey-400 dark:hover:border-grey-600"
             onClick={closePicker}
           >
             Abbrechen

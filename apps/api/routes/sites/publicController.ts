@@ -6,6 +6,7 @@ import express, { type Response, type Router, type RequestHandler } from 'expres
 
 import {
   THEME_STYLES,
+  THEME_STYLES_DARK,
   type SitesRequest,
   type UserSite,
   type SiteSection,
@@ -104,6 +105,7 @@ function renderSitePage(site: UserSite): string {
     ...baseColors,
     primary: accentColor,
   };
+  const dark = THEME_STYLES_DARK[theme] || THEME_STYLES_DARK.gruene;
 
   const socialLinksHtml = renderSocialLinks(socialLinks, colors.primary);
   const sectionsHtml = renderSections(sections, site.contact_email);
@@ -114,6 +116,7 @@ function renderSitePage(site: UserSite): string {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="color-scheme" content="light dark">
       <title>${site.site_title}</title>
       ${site.meta_description ? `<meta name="description" content="${site.meta_description}">` : ''}
       ${site.meta_keywords?.length ? `<meta name="keywords" content="${site.meta_keywords.join(', ')}">` : ''}
@@ -131,6 +134,7 @@ function renderSitePage(site: UserSite): string {
           background: ${colors.background};
           color: ${colors.text};
           line-height: 1.6;
+          color-scheme: light dark;
         }
         .hero {
           background: linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary}dd 100%);
@@ -229,6 +233,14 @@ function renderSitePage(site: UserSite): string {
           .hero p { font-size: 1rem; }
           .container { padding: 1rem; }
           .profile-image { width: 120px; height: 120px; }
+        }
+        /* Dark mode — follows the visitor's OS preference. Hero gradient
+           (brand accent) is left untouched. */
+        @media (prefers-color-scheme: dark) {
+          body { background: ${dark.background}; color: ${dark.text}; }
+          .bio-section, .content-section { background: ${dark.card}; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
+          .social-link { background: ${dark.card}; box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
+          footer { color: #9a9a9a; }
         }
       </style>
     </head>

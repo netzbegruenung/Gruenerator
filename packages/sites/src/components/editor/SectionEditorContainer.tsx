@@ -93,7 +93,7 @@ export function SectionEditorContainer({
       >
         {isSaving ? (
           <>
-            <span className="w-[18px] h-[18px] border-2 border-grey-200 border-t-white rounded-full animate-[spin_0.8s_linear_infinite]" />
+            <span className="w-[18px] h-[18px] border-2 border-grey-200 dark:border-grey-700 border-t-white rounded-full animate-[spin_0.8s_linear_infinite]" />
             Wird gespeichert...
           </>
         ) : (
