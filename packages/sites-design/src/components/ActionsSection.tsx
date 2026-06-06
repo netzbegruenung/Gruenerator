@@ -6,7 +6,7 @@ interface ActionsSectionProps {
 
 export function ActionsSection({ data }: ActionsSectionProps) {
   return (
-    <section className="bg-white py-[var(--spacing-xxl-r)] px-[var(--spacing-md-r)] md:py-[var(--spacing-xxxl-r)] md:px-[var(--spacing-lg-r)]">
+    <section className="bg-[var(--background-color-pure)] py-[var(--spacing-xxl-r)] px-[var(--spacing-md-r)] md:py-[var(--spacing-xxxl-r)] md:px-[var(--spacing-lg-r)]">
       <div className="max-w-[var(--container-max-width)] mx-auto">
         <div className="grid grid-cols-1 gap-[var(--spacing-lg-r)] justify-items-center md:grid-cols-[repeat(auto-fit,minmax(250px,350px))] md:gap-[var(--spacing-xl-r)] md:justify-center lg:grid-cols-[repeat(auto-fit,minmax(280px,350px))]">
           {data.actions.map((action, index) => (

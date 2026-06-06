@@ -28,7 +28,7 @@ export function HeroSection({ data }: HeroSectionProps) {
   const socialEntries = Object.entries(data.socialLinks).filter(([, url]) => url);
 
   return (
-    <section className="bg-white p-0 md:p-[var(--spacing-xxxl-r)_var(--spacing-lg-r)]">
+    <section className="bg-[var(--background-color-pure)] p-0 md:p-[var(--spacing-xxxl-r)_var(--spacing-lg-r)]">
       <div className="grid grid-cols-1 gap-0 items-center text-center max-w-[var(--container-max-width)] mx-auto md:grid-cols-[1fr_1.5fr] md:text-left md:gap-[var(--spacing-xl-r)]">
         {data.imageUrl && (
           <div className="flex justify-center order-first md:order-none w-full">
@@ -41,10 +41,10 @@ export function HeroSection({ data }: HeroSectionProps) {
           </div>
         )}
         <div className="flex flex-col gap-[var(--spacing-md)] p-[var(--spacing-lg-r)_var(--spacing-md-r)] md:p-0">
-          <h1 className="text-[var(--font-size-xl)] md:text-[var(--font-size-2xl)] lg:text-[var(--font-size-3xl)] xl:text-[var(--font-size-4xl)] font-bold text-[var(--primary-950)] leading-tight">
+          <h1 className="text-[var(--font-size-xl)] md:text-[var(--font-size-2xl)] lg:text-[var(--font-size-3xl)] xl:text-[var(--font-size-4xl)] font-bold text-[var(--font-color-h)] leading-tight">
             {data.name}
           </h1>
-          <p className="text-[var(--font-size-base)] md:text-[var(--font-size-lg)] text-[var(--grey-600)] mb-[var(--spacing-md)]">
+          <p className="text-[var(--font-size-base)] md:text-[var(--font-size-lg)] text-[var(--font-color-muted)] mb-[var(--spacing-md)]">
             {data.tagline}
           </p>
           {socialEntries.length > 0 && (

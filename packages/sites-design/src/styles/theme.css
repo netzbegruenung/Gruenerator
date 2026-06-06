@@ -69,11 +69,16 @@
   --grey-900: #3d3d3d;
   --grey-950: #262626;
 
-  /* Semantic Colors */
+  /* Semantic Colors — light defaults (flip in the [data-theme="dark"] block below) */
   --white: #ffffff;
   --black: #000000;
   --background-color: var(--white);
+  --background-color-pure: var(--white);
+  --background-color-alt: var(--primary-50);
   --font-color: var(--grey-800);
+  --font-color-h: var(--primary-950);
+  --font-color-muted: var(--grey-600);
+  --border-color: var(--grey-200);
   --link-color: var(--primary-600);
 
   /* Shadows */
@@ -224,6 +229,24 @@ h1, h2, h3, h4, h5, h6 {
 .footer-powered {
   margin-top: var(--spacing-sm);
   font-size: var(--font-size-xs);
+}
+
+/*
+ * Dark mode for the candidate site.
+ * Keyed on [data-theme="dark"] so the in-app builder preview follows the app
+ * theme. The standalone published page (apps/api publicController) keys its own
+ * dark variant on prefers-color-scheme. Only the semantic surface/text tokens
+ * flip — the brand --primary-* scale stays constant.
+ */
+[data-theme='dark'] {
+  --background-color: #1b1b1b;
+  --background-color-pure: #262626;
+  --background-color-alt: #1f2620;
+  --font-color: #e6e6e6;
+  --font-color-h: #f3f3f3;
+  --font-color-muted: #a3a3a3;
+  --border-color: #3a3a3a;
+  --link-color: var(--primary-300);
 }
 
 .footer-powered a {
