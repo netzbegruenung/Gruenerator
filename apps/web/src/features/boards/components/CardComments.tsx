@@ -18,7 +18,6 @@ import type { ReactNode } from 'react';
 
 import { RobotAvatar } from '@/components/common/RobotAvatar';
 
-
 // ── Tracked mention (position in text) ──────────────────────────────────
 
 interface TrackedMention {

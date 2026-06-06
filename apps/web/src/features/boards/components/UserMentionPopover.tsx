@@ -4,7 +4,6 @@ import { useAssignableMembers } from '../hooks/useAssignableMembers';
 
 import { RobotAvatar } from '@/components/common/RobotAvatar';
 
-
 export interface MentionUser {
   userId: string;
   displayName: string;
