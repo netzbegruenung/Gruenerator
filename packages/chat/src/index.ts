@@ -69,7 +69,7 @@ export {
 } from './stores/chatConfigStore';
 
 // Runtime
-export { GrueneratorChatProvider } from './runtime/GrueneratorChatProvider';
+export { GrueneratorChatProvider, preloadChatRuntime } from './runtime/GrueneratorChatProvider';
 export { convertToThreadMessageLike } from './runtime/threadMessageConversion';
 export { GrueneratorAttachmentAdapter } from './runtime/GrueneratorAttachmentAdapter';
 export {
