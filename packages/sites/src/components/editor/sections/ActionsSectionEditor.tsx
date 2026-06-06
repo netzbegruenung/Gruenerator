@@ -102,7 +102,9 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
             )}
           >
             <div className="flex items-center justify-between mb-sm">
-              <span className="text-sm font-semibold text-primary-600 dark:text-primary-400">Aktion {index + 1}</span>
+              <span className="text-sm font-semibold text-primary-600 dark:text-primary-400">
+                Aktion {index + 1}
+              </span>
               <div className="flex gap-1">
                 {data.actions.length > 1 && (
                   <button
@@ -174,7 +176,9 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
                     onClick={() => updateAction(index, 'link', link)}
                     className={cn(
                       'py-1 px-2.5 text-xs border border-grey-300 dark:border-grey-700 rounded cursor-pointer',
-                      action.link === link ? 'bg-primary-50 dark:bg-primary-950' : 'bg-background-pure'
+                      action.link === link
+                        ? 'bg-primary-50 dark:bg-primary-950'
+                        : 'bg-background-pure'
                     )}
                   >
                     {label}

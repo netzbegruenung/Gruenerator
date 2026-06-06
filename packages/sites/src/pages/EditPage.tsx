@@ -341,7 +341,9 @@ export function EditPage() {
       <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
         <header className="flex flex-row items-center gap-sm py-sm pl-14 pr-md bg-background-pure border-b border-grey-200 dark:border-grey-700 min-h-14">
           <div className="flex items-center gap-sm shrink-0">
-            <h1 className="text-base text-primary-600 dark:text-primary-400 m-0 whitespace-nowrap">Grünerator Sites</h1>
+            <h1 className="text-base text-primary-600 dark:text-primary-400 m-0 whitespace-nowrap">
+              Grünerator Sites
+            </h1>
           </div>
           <div className="flex-1 hidden lg:block overflow-x-auto">
             <SectionNavigation />
@@ -506,7 +508,9 @@ export function EditPage() {
   return (
     <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
       <header className="flex flex-row items-center gap-sm py-sm pl-14 pr-md bg-background-pure border-b border-grey-200 dark:border-grey-700 min-h-14">
-        <h1 className="text-base text-primary-600 dark:text-primary-400 m-0 whitespace-nowrap">Grünerator Sites</h1>
+        <h1 className="text-base text-primary-600 dark:text-primary-400 m-0 whitespace-nowrap">
+          Grünerator Sites
+        </h1>
       </header>
 
       <div className="flex flex-col flex-1 overflow-hidden lg:flex-row">
@@ -517,7 +521,9 @@ export function EditPage() {
             neu.
           </p>
           <p className="text-grey-600 dark:text-grey-400 text-base leading-relaxed mb-lg">
-            <strong className="text-primary-600 dark:text-primary-400 font-semibold">{subdomain}.grsites.de</strong>
+            <strong className="text-primary-600 dark:text-primary-400 font-semibold">
+              {subdomain}.grsites.de
+            </strong>
           </p>
 
           <div className="bg-grey-100 dark:bg-grey-800 rounded-sm p-md mb-lg">
@@ -525,7 +531,9 @@ export function EditPage() {
               <span className="text-xs font-semibold text-grey-400 dark:text-grey-500 uppercase tracking-wider">
                 Name:
               </span>
-              <span className="text-sm text-foreground leading-snug">{previewData!.site_title}</span>
+              <span className="text-sm text-foreground leading-snug">
+                {previewData!.site_title}
+              </span>
             </div>
             <div className="flex flex-col gap-xs mb-sm">
               <span className="text-xs font-semibold text-grey-400 dark:text-grey-500 uppercase tracking-wider">

@@ -92,7 +92,9 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
               )}
             >
               <div className="flex items-center justify-between mb-sm">
-                <span className="text-sm font-semibold text-primary-600 dark:text-primary-400">Thema {index + 1}</span>
+                <span className="text-sm font-semibold text-primary-600 dark:text-primary-400">
+                  Thema {index + 1}
+                </span>
                 <div className="flex gap-1">
                   {data.themes.length > 1 && (
                     <button

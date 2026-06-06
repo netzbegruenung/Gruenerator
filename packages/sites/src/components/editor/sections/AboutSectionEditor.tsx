@@ -84,7 +84,12 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
           placeholder="Erzähle etwas über dich, deinen Werdegang und deine Motivation..."
           minHeight="200px"
         />
-        <div className={cn('text-xs text-grey-500 dark:text-grey-400 text-right mt-1', getCharCountClass())}>
+        <div
+          className={cn(
+            'text-xs text-grey-500 dark:text-grey-400 text-right mt-1',
+            getCharCountClass()
+          )}
+        >
           {contentLength} / {MAX_CONTENT_LENGTH} Zeichen
         </div>
       </div>
