@@ -8,6 +8,17 @@
 -- Table: board_comments
 -- ──────────────────────────────────────────────────────────────────────────
 
+-- Ensure the shared updated_at trigger function exists. It lives in schema.sql,
+-- but schema sync only reconciles tables/columns (not functions), so an
+-- incrementally-migrated DB may be missing it. CREATE OR REPLACE is idempotent.
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
 CREATE TABLE IF NOT EXISTS board_comments (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     board_id    UUID NOT NULL REFERENCES collaborative_documents(id) ON DELETE CASCADE,
