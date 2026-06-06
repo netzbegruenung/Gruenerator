@@ -76,7 +76,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-grey-900">
+      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
         Profil
       </h3>
 
@@ -97,7 +97,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
               isFieldHighlighted('name') && 'animate-[field-highlight_1s_ease]'
             )}
           >
-            <label htmlFor="hero-name" className="block text-sm font-medium text-grey-700 mb-1.5">
+            <label htmlFor="hero-name" className="block text-sm font-medium text-foreground mb-1.5">
               Name
             </label>
             <input
@@ -109,7 +109,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
               onFocus={() => handleFieldFocus('hero', 'name')}
               onBlur={handleFieldBlur}
               placeholder="Max Mustermann"
-              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
             />
           </div>
 
@@ -121,7 +121,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
           >
             <label
               htmlFor="hero-tagline"
-              className="block text-sm font-medium text-grey-700 mb-1.5"
+              className="block text-sm font-medium text-foreground mb-1.5"
             >
               Tagline / Slogan
             </label>
@@ -134,16 +134,16 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
               onBlur={handleFieldBlur}
               placeholder="Kandidat*in für..."
               rows={2}
-              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
+              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
             />
           </div>
         </div>
       </div>
 
-      <div className="h-px bg-grey-200 my-md" />
+      <div className="h-px bg-grey-200 dark:bg-grey-700 my-md" />
 
       <div>
-        <h4 className="text-sm font-semibold mb-3 text-grey-700">Social Media</h4>
+        <h4 className="text-sm font-semibold mb-3 text-foreground">Social Media</h4>
         <div className="flex flex-col gap-2.5">
           {ALL_PLATFORMS.filter((p) => visiblePlatforms.includes(p.key)).map(
             ({ key, label, placeholder }) => (
@@ -151,7 +151,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
                 <div className="flex items-center justify-between">
                   <label
                     htmlFor={`social-${key}`}
-                    className="block text-xs font-medium text-grey-700 mb-1.5"
+                    className="block text-xs font-medium text-foreground mb-1.5"
                   >
                     {label}
                   </label>
@@ -159,7 +159,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
                     <button
                       type="button"
                       onClick={() => removePlatform(key)}
-                      className="bg-transparent border-none text-grey-400 cursor-pointer text-base px-1"
+                      className="bg-transparent border-none text-grey-400 dark:text-grey-500 cursor-pointer text-base px-1"
                       title="Entfernen"
                     >
                       ×
@@ -172,7 +172,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
                   value={data.socialLinks?.[key as keyof SocialLinks] || ''}
                   onChange={(e) => updateSocialLink(key, e.target.value)}
                   placeholder={placeholder}
-                  className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+                  className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
                 />
               </div>
             )
@@ -188,7 +188,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
                   e.target.value = '';
                 }
               }}
-              className="py-1.5 px-2.5 text-[13px] border border-dashed border-grey-300 rounded bg-grey-50 text-grey-600 cursor-pointer"
+              className="py-1.5 px-2.5 text-[13px] border border-dashed border-grey-300 dark:border-grey-700 rounded bg-grey-50 dark:bg-grey-900 text-grey-600 dark:text-grey-400 cursor-pointer"
               defaultValue=""
             >
               <option value="" disabled>

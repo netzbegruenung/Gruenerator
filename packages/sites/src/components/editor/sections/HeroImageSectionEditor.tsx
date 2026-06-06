@@ -38,7 +38,7 @@ export function HeroImageSectionEditor({ data, onChange }: HeroImageSectionEdito
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-grey-900">
+      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
         Hero-Bild
       </h3>
 
@@ -61,7 +61,7 @@ export function HeroImageSectionEditor({ data, onChange }: HeroImageSectionEdito
           >
             <label
               htmlFor="heroimage-title"
-              className="block text-sm font-medium text-grey-700 mb-1.5"
+              className="block text-sm font-medium text-foreground mb-1.5"
             >
               Hauptbotschaft
             </label>
@@ -75,11 +75,11 @@ export function HeroImageSectionEditor({ data, onChange }: HeroImageSectionEdito
               onBlur={handleFieldBlur}
               placeholder="Gemeinsam für eine nachhaltige Zukunft!"
               maxLength={MAX_TITLE_LENGTH}
-              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
             />
             <div
               className={cn(
-                'text-xs text-grey-500 text-right mt-1',
+                'text-xs text-grey-500 dark:text-grey-400 text-right mt-1',
                 data.title.length > MAX_TITLE_LENGTH * 0.9 && 'text-yellow-600'
               )}
             >
@@ -95,7 +95,7 @@ export function HeroImageSectionEditor({ data, onChange }: HeroImageSectionEdito
           >
             <label
               htmlFor="heroimage-subtitle"
-              className="block text-sm font-medium text-grey-700 mb-1.5"
+              className="block text-sm font-medium text-foreground mb-1.5"
             >
               Untertitel
             </label>
@@ -109,11 +109,11 @@ export function HeroImageSectionEditor({ data, onChange }: HeroImageSectionEdito
               placeholder="Ein unterstützender Satz zu deiner Hauptbotschaft..."
               rows={2}
               maxLength={MAX_SUBTITLE_LENGTH}
-              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
+              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
             />
             <div
               className={cn(
-                'text-xs text-grey-500 text-right mt-1',
+                'text-xs text-grey-500 dark:text-grey-400 text-right mt-1',
                 data.subtitle.length > MAX_SUBTITLE_LENGTH * 0.9 && 'text-yellow-600'
               )}
             >

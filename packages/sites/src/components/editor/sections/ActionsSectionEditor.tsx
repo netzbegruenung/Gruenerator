@@ -83,11 +83,11 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-grey-900">
+      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
         Aktionen
       </h3>
 
-      <p className="text-xs text-grey-500 mt-1 mb-md">
+      <p className="text-xs text-grey-500 dark:text-grey-400 mt-1 mb-md">
         Call-to-Action Kacheln, die Besucher zum Handeln auffordern.
       </p>
 
@@ -96,18 +96,18 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
           <div
             key={index}
             className={cn(
-              'bg-white border border-grey-200 rounded-lg p-md relative',
+              'bg-background-pure border border-grey-200 dark:border-grey-700 rounded-lg p-md relative',
               isItemHighlighted(index) &&
                 'border-primary-400 shadow-[0_0_0_2px_rgba(76,175,80,0.2)]'
             )}
           >
             <div className="flex items-center justify-between mb-sm">
-              <span className="text-sm font-semibold text-primary-600">Aktion {index + 1}</span>
+              <span className="text-sm font-semibold text-primary-600 dark:text-primary-400">Aktion {index + 1}</span>
               <div className="flex gap-1">
                 {data.actions.length > 1 && (
                   <button
                     type="button"
-                    className="flex items-center justify-center w-8 h-8 border-none bg-transparent rounded-md cursor-pointer text-grey-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                    className="flex items-center justify-center w-8 h-8 border-none bg-transparent rounded-md cursor-pointer text-grey-500 dark:text-grey-400 transition-colors hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600"
                     onClick={() => removeAction(index)}
                     aria-label="Aktion entfernen"
                   >
@@ -125,7 +125,7 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
             >
               <label
                 htmlFor={`action-${index}-text`}
-                className="block text-sm font-medium text-grey-700 mb-1.5"
+                className="block text-sm font-medium text-foreground mb-1.5"
               >
                 Button-Text
               </label>
@@ -139,7 +139,7 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
                 onBlur={handleFieldBlur}
                 placeholder="z.B. Unterstütze uns!"
                 maxLength={MAX_TEXT_LENGTH}
-                className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+                className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
               />
             </div>
 
@@ -151,7 +151,7 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
             >
               <label
                 htmlFor={`action-${index}-link`}
-                className="block text-sm font-medium text-grey-700 mb-1.5"
+                className="block text-sm font-medium text-foreground mb-1.5"
               >
                 Link
               </label>
@@ -164,7 +164,7 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
                 onFocus={() => handleFieldFocus('actions', 'link', index)}
                 onBlur={handleFieldBlur}
                 placeholder="https://... oder #section"
-                className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+                className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
               />
               <div className="flex gap-1.5 mt-2 flex-wrap">
                 {LINK_SUGGESTIONS.map(({ label, link }) => (
@@ -173,8 +173,8 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
                     type="button"
                     onClick={() => updateAction(index, 'link', link)}
                     className={cn(
-                      'py-1 px-2.5 text-xs border border-grey-300 rounded cursor-pointer',
-                      action.link === link ? 'bg-primary-50' : 'bg-white'
+                      'py-1 px-2.5 text-xs border border-grey-300 dark:border-grey-700 rounded cursor-pointer',
+                      action.link === link ? 'bg-primary-50 dark:bg-primary-950' : 'bg-background-pure'
                     )}
                   >
                     {label}
@@ -184,7 +184,7 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
             </div>
 
             <div className="mb-md">
-              <label className="block text-sm font-medium text-grey-700 mb-1.5">
+              <label className="block text-sm font-medium text-foreground mb-1.5">
                 Hintergrundbild
               </label>
               <ImageUpload
@@ -201,7 +201,7 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
       {data.actions.length < MAX_ACTIONS && (
         <button
           type="button"
-          className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-grey-300 bg-transparent rounded-lg cursor-pointer text-sm font-medium text-grey-600 transition-colors hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50"
+          className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-grey-300 dark:border-grey-700 bg-transparent rounded-lg cursor-pointer text-sm font-medium text-grey-600 dark:text-grey-400 transition-colors hover:border-primary-400 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-950"
           onClick={addAction}
         >
           + Aktion hinzufügen
