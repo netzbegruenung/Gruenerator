@@ -1,21 +1,26 @@
-import { useToastStore } from '../stores/toastStore';
+import { toast as appToast } from '@gruenerator/ui';
 
+/**
+ * Sites surfaces feedback through the host app's global toast system (sonner,
+ * mounted once at the web app root). It deliberately does NOT render its own
+ * toast container — keeping notifications visually consistent with the rest of
+ * the app instead of a parallel sites-only system.
+ */
 export function useToast() {
-  const { addToast, removeToast, clearAllToasts } = useToastStore();
-
   return {
-    success: (message: string, details?: string) => addToast({ type: 'success', message, details }),
+    success: (message: string, details?: string) =>
+      appToast.success(message, { description: details }),
 
     error: (message: string, details?: string) =>
-      addToast({ type: 'error', message, details, duration: 8000 }),
+      appToast.error(message, { description: details }),
 
     warning: (message: string, details?: string) =>
-      addToast({ type: 'warning', message, details, duration: 6000 }),
+      appToast.warning(message, { description: details }),
 
-    info: (message: string, details?: string) => addToast({ type: 'info', message, details }),
+    info: (message: string, details?: string) => appToast.info(message, { description: details }),
 
-    remove: removeToast,
+    remove: (id: string | number) => appToast.dismiss(id),
 
-    clearAll: clearAllToasts,
+    clearAll: () => appToast.dismiss(),
   };
 }
