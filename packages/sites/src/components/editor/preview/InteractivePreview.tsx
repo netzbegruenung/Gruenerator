@@ -59,14 +59,14 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
           <h1
             data-section="hero"
             data-field="name"
-            className={`${getElementClass('hero', 'name')} text-[length:var(--font-size-2xl)] font-bold mb-sm text-grey-900`}
+            className={`${getElementClass('hero', 'name')} text-[length:var(--font-size-2xl)] font-bold mb-sm text-[var(--font-color-h)]`}
           >
             {candidateData.hero.name || 'Dein Name'}
           </h1>
           <p
             data-section="hero"
             data-field="tagline"
-            className={`${getElementClass('hero', 'tagline')} text-[length:var(--font-size-lg)] text-grey-600`}
+            className={`${getElementClass('hero', 'tagline')} text-[length:var(--font-size-lg)] text-[var(--font-color-muted)]`}
           >
             {candidateData.hero.tagline || 'Dein Slogan'}
           </p>
@@ -77,21 +77,21 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
       <section
         data-section-id="about"
         ref={(el) => registerSection('about', el)}
-        className="editable-section editable-section-anchor relative bg-white"
+        className="editable-section editable-section-anchor relative bg-[var(--background-color-pure)]"
         onClick={handlePreviewClick}
       >
         <div className="max-w-[var(--container-max-width)] mx-auto flex flex-col items-start gap-[var(--spacing-lg-r)] p-[var(--spacing-xl-r)_var(--spacing-md-r)]">
           <h2
             data-section="about"
             data-field="title"
-            className={`${getElementClass('about', 'title')} text-[var(--primary-600)] text-[length:var(--font-size-2xl)] font-bold leading-tight m-0`}
+            className={`${getElementClass('about', 'title')} text-[var(--link-color)] text-[length:var(--font-size-2xl)] font-bold leading-tight m-0`}
           >
             {candidateData.about.title || 'Wer ich bin'}
           </h2>
           <div
             data-section="about"
             data-field="content"
-            className={`${getElementClass('about', 'content')} flex-1 [&_p]:text-[var(--grey-800)] [&_p]:text-[length:var(--font-size-base)] [&_p]:leading-relaxed [&_p]:mb-[var(--spacing-md)] [&_p:last-child]:mb-0`}
+            className={`${getElementClass('about', 'content')} flex-1 [&_p]:text-[var(--font-color)] [&_p]:text-[length:var(--font-size-base)] [&_p]:leading-relaxed [&_p]:mb-[var(--spacing-md)] [&_p:last-child]:mb-0`}
           >
             <MarkdownContent
               content={candidateData.about.content || 'Deine Biografie wird hier erscheinen...'}
@@ -140,11 +140,11 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
       <section
         data-section-id="themes"
         ref={(el) => registerSection('themes', el)}
-        className="editable-section editable-section-anchor bg-[var(--primary-50)] py-[var(--spacing-xxl-r)] overflow-hidden"
+        className="editable-section editable-section-anchor bg-[var(--background-color-alt)] py-[var(--spacing-xxl-r)] overflow-hidden"
         onClick={handlePreviewClick}
       >
         <div className="max-w-[var(--container-max-width)] mx-auto px-[var(--spacing-md-r)]">
-          <h2 className="text-[length:var(--font-size-2xl)] mb-xl text-center text-grey-900">
+          <h2 className="text-[length:var(--font-size-2xl)] mb-xl text-center text-[var(--font-color-h)]">
             {candidateData.themes.title || 'Meine Themen'}
           </h2>
           <div className="flex gap-[var(--spacing-md-r)] overflow-x-auto scrollbar-none pb-[var(--spacing-lg-r)]">
@@ -152,7 +152,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
               candidateData.themes.themes.map((theme, index) => (
                 <div
                   key={index}
-                  className="flex-[0_0_85%] min-w-[280px] bg-white rounded-[var(--radius-md)] overflow-hidden shadow-[var(--shadow-md)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
+                  className="flex-[0_0_85%] min-w-[280px] bg-[var(--background-color-pure)] rounded-[var(--radius-md)] overflow-hidden shadow-[var(--shadow-md)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
                 >
                   {theme.imageUrl && (
                     <div
@@ -173,7 +173,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                       data-section="themes"
                       data-field="title"
                       data-index={index}
-                      className={`${getElementClass('themes', 'title', index)} text-[length:var(--font-size-lg)] font-semibold text-[var(--primary-600)] mb-[var(--spacing-sm)]`}
+                      className={`${getElementClass('themes', 'title', index)} text-[length:var(--font-size-lg)] font-semibold text-[var(--link-color)] mb-[var(--spacing-sm)]`}
                     >
                       {theme.title || `Thema ${index + 1}`}
                     </h3>
@@ -181,7 +181,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                       data-section="themes"
                       data-field="content"
                       data-index={index}
-                      className={`${getElementClass('themes', 'content', index)} text-[var(--grey-600)] text-[length:var(--font-size-base)] leading-relaxed`}
+                      className={`${getElementClass('themes', 'content', index)} text-[var(--font-color-muted)] text-[length:var(--font-size-base)] leading-relaxed`}
                     >
                       <MarkdownContent content={theme.content || 'Beschreibung...'} />
                     </div>
@@ -189,7 +189,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                 </div>
               ))
             ) : (
-              <div className="text-center p-xl text-grey-500">Noch keine Themen hinzugefügt</div>
+              <div className="text-center p-xl text-[var(--font-color-muted)]">Noch keine Themen hinzugefügt</div>
             )}
           </div>
         </div>
@@ -199,7 +199,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
       <section
         data-section-id="actions"
         ref={(el) => registerSection('actions', el)}
-        className="editable-section editable-section-anchor bg-white py-[var(--spacing-xxl-r)] px-[var(--spacing-md-r)]"
+        className="editable-section editable-section-anchor bg-[var(--background-color-pure)] py-[var(--spacing-xxl-r)] px-[var(--spacing-md-r)]"
         onClick={handlePreviewClick}
       >
         <div className="grid grid-cols-1 gap-[var(--spacing-lg-r)] max-w-[var(--container-max-width)] mx-auto justify-items-center">
@@ -210,11 +210,11 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                 data-section="actions"
                 data-field="text"
                 data-index={index}
-                className={`${getElementClass('actions', 'text', index)} relative overflow-hidden cursor-pointer aspect-[3/4] min-h-[200px] w-full max-w-[350px] bg-[var(--primary-600)] flex items-center justify-center text-white`}
+                className={`${getElementClass('actions', 'text', index)} relative overflow-hidden cursor-pointer aspect-[3/4] min-h-[200px] w-full max-w-[350px] bg-[var(--link-color)] flex items-center justify-center text-white`}
                 style={{
                   background: action.imageUrl
                     ? `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${action.imageUrl})`
-                    : 'var(--primary-600)',
+                    : 'var(--link-color)',
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                 }}
@@ -225,7 +225,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
               </div>
             ))
           ) : (
-            <div className="text-center p-xl text-grey-500 col-span-full">
+            <div className="text-center p-xl text-[var(--font-color-muted)] col-span-full">
               Noch keine Aktionen hinzugefügt
             </div>
           )}
@@ -237,18 +237,18 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
         <section
           data-section-id="socialFeed"
           ref={(el) => registerSection('socialFeed', el)}
-          className="editable-section editable-section-anchor py-[var(--spacing-xl-r)] px-[var(--container-padding)] bg-white"
+          className="editable-section editable-section-anchor py-[var(--spacing-xl-r)] px-[var(--container-padding)] bg-[var(--background-color-pure)]"
           onClick={handlePreviewClick}
         >
           <div className="max-w-[var(--container-max-width)] mx-auto">
             <h2
               data-section="socialFeed"
               data-field="title"
-              className={`${getElementClass('socialFeed', 'title')} text-[length:var(--font-size-2xl)] mb-xl text-center text-grey-900`}
+              className={`${getElementClass('socialFeed', 'title')} text-[length:var(--font-size-2xl)] mb-xl text-center text-[var(--font-color-h)]`}
             >
               {candidateData.socialFeed.title || 'Instagram'}
             </h2>
-            <div className="flex flex-col items-center justify-center min-h-[120px] bg-grey-50 rounded-md border-2 border-dashed border-grey-300">
+            <div className="flex flex-col items-center justify-center min-h-[120px] bg-[var(--background-color-alt)] rounded-md border-2 border-dashed border-grey-300">
               {candidateData.socialFeed.showFeed ? (
                 candidateData.socialFeed.instagramUsername ? (
                   <div className="flex flex-col items-center gap-sm text-primary-600 text-center p-lg [&_p]:m-0 [&_p]:text-[length:var(--font-size-sm)]">
@@ -256,13 +256,13 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                     <p>@{candidateData.socialFeed.instagramUsername}</p>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center gap-sm text-grey-600 text-center p-lg [&_p]:m-0 [&_p]:text-[length:var(--font-size-sm)]">
+                  <div className="flex flex-col items-center gap-sm text-[var(--font-color-muted)] text-center p-lg [&_p]:m-0 [&_p]:text-[length:var(--font-size-sm)]">
                     <span className="text-[32px]">📷</span>
                     <p>Instagram-Username hinzufügen</p>
                   </div>
                 )
               ) : (
-                <div className="flex flex-col items-center gap-sm text-grey-600 text-center p-lg opacity-60 [&_p]:m-0 [&_p]:text-[length:var(--font-size-sm)]">
+                <div className="flex flex-col items-center gap-sm text-[var(--font-color-muted)] text-center p-lg opacity-60 [&_p]:m-0 [&_p]:text-[length:var(--font-size-sm)]">
                   <span className="text-[32px]">📷</span>
                   <p>Instagram-Feed deaktiviert</p>
                 </div>
@@ -283,7 +283,7 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
             ? `url(${candidateData.contact.backgroundImageUrl})`
             : undefined,
           backgroundColor: !candidateData.contact.backgroundImageUrl
-            ? 'var(--grey-800)'
+            ? 'var(--font-color)'
             : undefined,
         }}
       >
