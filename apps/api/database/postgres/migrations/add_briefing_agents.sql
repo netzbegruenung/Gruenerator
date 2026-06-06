@@ -1,5 +1,16 @@
 -- Briefing Agents: autonomous scheduled agents that collect data and send email briefings
 
+-- Ensure the shared updated_at trigger function exists. It lives in schema.sql,
+-- but schema sync only reconciles tables/columns (not functions), so an
+-- incrementally-migrated DB may be missing it. CREATE OR REPLACE is idempotent.
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
 CREATE TABLE IF NOT EXISTS briefing_agents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
