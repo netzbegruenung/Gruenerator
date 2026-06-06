@@ -368,10 +368,7 @@ export function GrueneratorChatRuntimeProvider({
         <ThreadTitleEffect />
         <AgentSwitchListener />
         {threadListPortalSlotId && (
-          <ChatThreadListPortal
-            slotId={threadListPortalSlotId}
-            onRequestOpen={onRequestOpenChat}
-          />
+          <ChatThreadListPortal slotId={threadListPortalSlotId} onRequestOpen={onRequestOpenChat} />
         )}
         <ChatCollaborationBridge userId={userId} userName={userName}>
           {children}
