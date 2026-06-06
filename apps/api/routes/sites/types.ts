@@ -64,6 +64,12 @@ export interface CreateSiteBody {
   site_title: string;
   tagline?: string | undefined;
   theme?: string | undefined;
+  bio?: string | undefined;
+  contact_email?: string | undefined;
+  social_links?: Record<string, string> | undefined;
+  profile_image?: string | undefined;
+  background_image?: string | undefined;
+  sections?: SiteSection[] | undefined;
 }
 
 export interface UpdateSiteBody {

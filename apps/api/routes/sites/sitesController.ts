@@ -109,7 +109,18 @@ router.post('/create', (async (req: SitesRequest, res: Response): Promise<void> 
       return;
     }
 
-    const { subdomain, site_title, tagline, theme = 'gruene' } = req.body as CreateSiteBody;
+    const {
+      subdomain,
+      site_title,
+      tagline,
+      theme = 'gruene',
+      bio,
+      contact_email,
+      social_links,
+      profile_image,
+      background_image,
+      sections,
+    } = req.body as CreateSiteBody;
 
     if (!subdomain || !site_title) {
       res.status(400).json({ error: 'Subdomain und Titel sind erforderlich' });
@@ -140,10 +151,25 @@ router.post('/create', (async (req: SitesRequest, res: Response): Promise<void> 
     }
 
     const result = await db.query<UserSiteRow>(
-      `INSERT INTO user_sites (user_id, subdomain, site_title, tagline, theme, is_published)
-       VALUES ($1, $2, $3, $4, $5, false)
+      `INSERT INTO user_sites (
+         user_id, subdomain, site_title, tagline, theme, is_published,
+         bio, contact_email, social_links, profile_image, background_image, sections
+       )
+       VALUES ($1, $2, $3, $4, $5, false, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
-      [userId, subdomainLower, site_title, tagline, theme]
+      [
+        userId,
+        subdomainLower,
+        site_title,
+        tagline,
+        theme,
+        bio ?? null,
+        contact_email ?? null,
+        social_links ? JSON.stringify(social_links) : null,
+        profile_image ?? null,
+        background_image ?? null,
+        sections ? JSON.stringify(sections) : null,
+      ]
     );
 
     res.json({ site: result[0] });
