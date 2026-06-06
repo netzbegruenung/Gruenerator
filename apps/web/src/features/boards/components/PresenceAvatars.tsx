@@ -4,7 +4,6 @@ import type { CollaborationUser } from '@gruenerator/collab';
 
 import { RobotAvatar } from '@/components/common/RobotAvatar';
 
-
 const MAX_VISIBLE = 5;
 
 interface PresenceAvatarsProps {

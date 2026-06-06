@@ -47,7 +47,6 @@ import {
   type GroupLink,
 } from '../hooks/useGroups';
 
-
 import AddContentToGroupModal from './AddContentToGroupModal';
 import GroupJoinRequestsSection from './GroupJoinRequestsSection';
 import GroupLinksSection from './GroupLinksSection';
