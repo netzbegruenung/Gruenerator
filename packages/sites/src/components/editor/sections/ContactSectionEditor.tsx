@@ -107,7 +107,10 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
           isFieldHighlighted('address') && 'animate-[field-highlight_1s_ease]'
         )}
       >
-        <label htmlFor="contact-address" className="block text-sm font-medium text-foreground mb-1.5">
+        <label
+          htmlFor="contact-address"
+          className="block text-sm font-medium text-foreground mb-1.5"
+        >
           Adresse
         </label>
         <textarea

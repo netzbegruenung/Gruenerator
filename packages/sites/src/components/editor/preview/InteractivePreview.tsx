@@ -189,7 +189,9 @@ export function InteractivePreview({ candidateData, containerRef }: InteractiveP
                 </div>
               ))
             ) : (
-              <div className="text-center p-xl text-[var(--font-color-muted)]">Noch keine Themen hinzugefügt</div>
+              <div className="text-center p-xl text-[var(--font-color-muted)]">
+                Noch keine Themen hinzugefügt
+              </div>
             )}
           </div>
         </div>

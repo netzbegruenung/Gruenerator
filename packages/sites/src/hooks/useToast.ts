@@ -11,8 +11,7 @@ export function useToast() {
     success: (message: string, details?: string) =>
       appToast.success(message, { description: details }),
 
-    error: (message: string, details?: string) =>
-      appToast.error(message, { description: details }),
+    error: (message: string, details?: string) => appToast.error(message, { description: details }),
 
     warning: (message: string, details?: string) =>
       appToast.warning(message, { description: details }),

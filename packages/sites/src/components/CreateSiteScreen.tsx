@@ -80,9 +80,7 @@ export function CreateSiteScreen({
   const canProceed = subdomain.trim().length >= 3;
   const descriptionLength = description.trim().length;
   const canGenerate =
-    mode === 'flyer'
-      ? !!selectedFile && !!onFlyerUpload
-      : descriptionLength >= MIN_DESCRIPTION;
+    mode === 'flyer' ? !!selectedFile && !!onFlyerUpload : descriptionLength >= MIN_DESCRIPTION;
 
   // Two-step flow: 0 = address, 1 = content (type or upload).
   const totalSteps = 2;
@@ -239,7 +237,9 @@ export function CreateSiteScreen({
                 <div className="flex items-center gap-3 rounded-lg border border-grey-200 dark:border-grey-700 bg-grey-50 dark:bg-grey-900 p-4">
                   <FiFile className="size-8 text-grey-500 dark:text-grey-400 shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{selectedFile.name}</p>
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {selectedFile.name}
+                    </p>
                     <p className="text-xs text-grey-500 dark:text-grey-400">
                       {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
                     </p>
@@ -271,8 +271,10 @@ export function CreateSiteScreen({
                 >
                   <FiUpload className="size-6 text-grey-400 dark:text-grey-500" />
                   <p className="text-sm text-grey-600 dark:text-grey-400 text-center">
-                    <span className="font-medium text-primary-600 dark:text-primary-400">Flyer hochladen</span> oder
-                    hierher ziehen
+                    <span className="font-medium text-primary-600 dark:text-primary-400">
+                      Flyer hochladen
+                    </span>{' '}
+                    oder hierher ziehen
                   </p>
                   <p className="text-xs text-grey-400 dark:text-grey-500">PDF, max. 20 MB</p>
                   <input

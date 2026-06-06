@@ -158,12 +158,14 @@ export const THEME_STYLES: Record<string, ThemeColors> = {
  * `@media (prefers-color-scheme: dark)` so a published page follows the
  * visitor's OS setting. Brand `primary` (the accent_color) is unchanged.
  */
-export const THEME_STYLES_DARK: Record<string, Pick<ThemeColors, 'background' | 'text' | 'card'>> =
-  {
-    gruene: { background: '#1b1b1b', text: '#e6e6e6', card: '#262626' },
-    modern: { background: '#161616', text: '#ededed', card: '#202020' },
-    professional: { background: '#1a1a1a', text: '#e6e6e6', card: '#242424' },
-  };
+export const THEME_STYLES_DARK: Record<
+  string,
+  Pick<ThemeColors, 'background' | 'text' | 'card'>
+> = {
+  gruene: { background: '#1b1b1b', text: '#e6e6e6', card: '#262626' },
+  modern: { background: '#161616', text: '#ededed', card: '#202020' },
+  professional: { background: '#1a1a1a', text: '#e6e6e6', card: '#242424' },
+};
 
 export const AVAILABLE_THEMES: Theme[] = [
   {

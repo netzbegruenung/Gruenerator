@@ -111,7 +111,9 @@ export function ImageUpload({
               className="h-1 bg-primary-500 rounded transition-[width_0.2s_ease]"
               style={{ width: `${progress}%` }}
             />
-            <span className="text-[13px] text-grey-600 dark:text-grey-400">Hochladen... {Math.round(progress)}%</span>
+            <span className="text-[13px] text-grey-600 dark:text-grey-400">
+              Hochladen... {Math.round(progress)}%
+            </span>
           </div>
         ) : value ? (
           <>
@@ -134,7 +136,10 @@ export function ImageUpload({
           </>
         ) : (
           <span
-            className={cn('text-grey-400 dark:text-grey-500 text-[13px] text-center p-2', circular && 'text-xs p-2.5')}
+            className={cn(
+              'text-grey-400 dark:text-grey-500 text-[13px] text-center p-2',
+              circular && 'text-xs p-2.5'
+            )}
           >
             + {placeholder}
           </span>
