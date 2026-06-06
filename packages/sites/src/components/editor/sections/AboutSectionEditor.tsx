@@ -46,14 +46,14 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-grey-900">
+      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
         Über mich
       </h3>
 
       <div
         className={cn('mb-md', isFieldHighlighted('title') && 'animate-[field-highlight_1s_ease]')}
       >
-        <label htmlFor="about-title" className="block text-sm font-medium text-grey-700 mb-1.5">
+        <label htmlFor="about-title" className="block text-sm font-medium text-foreground mb-1.5">
           Titel
         </label>
         <input
@@ -65,7 +65,7 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
           onFocus={() => handleFieldFocus('about', 'title')}
           onBlur={handleFieldBlur}
           placeholder="Wer ich bin"
-          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
         />
       </div>
 
@@ -75,7 +75,7 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
           isFieldHighlighted('content') && 'animate-[field-highlight_1s_ease]'
         )}
       >
-        <label className="block text-sm font-medium text-grey-700 mb-1.5">Inhalt</label>
+        <label className="block text-sm font-medium text-foreground mb-1.5">Inhalt</label>
         <MarkdownEditor
           value={data.content}
           onChange={(markdown) => updateField('content', markdown)}
@@ -84,7 +84,12 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
           placeholder="Erzähle etwas über dich, deinen Werdegang und deine Motivation..."
           minHeight="200px"
         />
-        <div className={cn('text-xs text-grey-500 text-right mt-1', getCharCountClass())}>
+        <div
+          className={cn(
+            'text-xs text-grey-500 dark:text-grey-400 text-right mt-1',
+            getCharCountClass()
+          )}
+        >
           {contentLength} / {MAX_CONTENT_LENGTH} Zeichen
         </div>
       </div>
