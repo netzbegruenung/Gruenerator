@@ -1,7 +1,8 @@
-import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { memo, useEffect, useMemo, useRef } from 'react';
 
 import { useAssignableMembers } from '../hooks/useAssignableMembers';
+
+import { RobotAvatar } from '@/components/common/RobotAvatar';
 
 export interface MentionUser {
   userId: string;
@@ -82,10 +83,12 @@ export const UserMentionPopover = memo(function UserMentionPopover({
                   : 'text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
               }`}
             >
-              <img
-                src={getRobotAvatarPath(member.avatar_robot_id || 1)}
+              <RobotAvatar
+                robotId={member.avatar_robot_id || 1}
+                displayName={name}
+                sizePx={20}
+                className="w-5 h-5 shrink-0"
                 alt=""
-                className="w-5 h-5 rounded-full shrink-0"
               />
               <span className="truncate">{name}</span>
             </button>
