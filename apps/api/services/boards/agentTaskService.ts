@@ -84,7 +84,7 @@ export async function claimNextAgentTask(): Promise<AgentTask | null> {
   return rows[0] ?? null;
 }
 
-export async function completeAgentTask(taskId: string, documentId: string): Promise<void> {
+export async function completeAgentTask(taskId: string, documentId: string | null): Promise<void> {
   await db.query(
     `UPDATE agent_tasks
         SET status = 'completed', result_document_id = $2, error = NULL,
