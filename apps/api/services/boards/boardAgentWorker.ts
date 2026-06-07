@@ -7,11 +7,16 @@
  * collaborative document, then notifies the requester (in-app + push + email via
  * createNotification) and replies on the originating card as the bot.
  */
-import { type ModelMessage } from 'ai';
+import { generateText, type ModelMessage } from 'ai';
 
-import { runChatGraph } from '../../agents/langgraph/ChatGraph/index.js';
+import {
+  buildSystemMessage,
+  chatGraph,
+  initializeChatState,
+} from '../../agents/langgraph/ChatGraph/index.js';
 import { PRIMARY_URL } from '../../config/domains.js';
 import { type AgentTask } from '../../database/schema/agentTasks.js';
+import { getModel } from '../../routes/chat/agents/providers.js';
 import { createLogger } from '../../utils/logger.js';
 import { getAIService } from '../ai/aiService.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
@@ -68,46 +73,46 @@ async function drain(): Promise<void> {
 async function processTask(task: AgentTask): Promise<void> {
   log.info(`Processing agent task ${task.id} (attempt ${task.attempts}/${task.max_attempts})`);
 
-  // Acknowledge on the card on the first attempt only.
-  if (task.attempts <= 1) {
-    await postBotComment({
-      boardId: task.board_id,
-      cardId: task.card_id,
-      parentId: task.trigger_comment_id,
-      blocks: [
-        {
-          type: 'text',
-          text: '🤖 Ich arbeite an deiner Aufgabe … du bekommst Bescheid, sobald das Dokument fertig ist.',
-        },
-      ],
-    }).catch((err: unknown) => {
-      log.warn(`Failed to post ack comment for task ${task.id}`, { error: errMsg(err) });
-    });
-  }
-
+  // The "Übernehme." acknowledgement is posted at enqueue time (agentTaskService),
+  // so the worker goes straight to producing the result.
   try {
     const userLocale = task.locale === 'de-AT' ? 'de-AT' : 'de-DE';
-    const messages: ModelMessage[] = [{ role: 'user', content: task.task_text }];
+    const userMessage: ModelMessage = { role: 'user', content: task.task_text };
 
-    const result = await runChatGraph({
-      messages,
+    // Run the ChatGraph for classification + retrieval/context, then generate the
+    // answer. The graph's respondNode only *prepares* the system message
+    // (state.responseText) — the chat controller normally streams the completion
+    // itself, so a headless caller must do the model call too. (Using the graph's
+    // responseText directly would put the system prompt into the document.)
+    const initialState = await initializeChatState({
+      messages: [userMessage],
       agentId: '', // falsy → ChatGraph resolves the default universal agent
       enabledTools: { search: true, web: true, person: true, examples: true, research: true },
       aiWorkerPool: getAIService(),
       userLocale,
     });
-
-    if (!result.success || !result.responseText.trim()) {
-      throw new Error(result.error || 'Der Agent lieferte kein Ergebnis');
+    const finalState = await chatGraph.invoke(initialState);
+    if (finalState.error) {
+      throw new Error(finalState.error);
     }
 
-    const title = deriveTitle(task.task_text, result.responseText);
-    const doc = await createDocumentWithContent(
-      title,
-      result.responseText,
-      'blank',
-      task.requested_by
-    );
+    const systemMessage = await buildSystemMessage(finalState);
+    const { agentConfig } = finalState;
+    const generated = await generateText({
+      model: getModel(agentConfig.provider as string, agentConfig.model),
+      system: systemMessage,
+      messages: [userMessage],
+      maxOutputTokens: agentConfig.params.max_tokens,
+      temperature: agentConfig.params.temperature,
+    });
+
+    const content = generated.text.trim();
+    if (!content) {
+      throw new Error('Der Agent lieferte kein Ergebnis');
+    }
+
+    const title = deriveTitle(task.task_text, content);
+    const doc = await createDocumentWithContent(title, content, 'blank', task.requested_by);
     const relativeUrl = `/docs/${doc.id}`;
 
     await completeAgentTask(task.id, doc.id);
