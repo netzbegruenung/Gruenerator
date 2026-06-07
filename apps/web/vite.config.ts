@@ -191,6 +191,15 @@ export default defineConfig(({ command }) => ({
     // Use compatible targets for native WebViews (Chrome=Edge WebView2, Safari=WKWebView)
     target: isNativeBuild ? ['chrome105', 'safari15'] : ['es2022', 'safari15'],
     sourcemap: 'hidden',
+    // CSS IS code-split per chunk. Combined with the natural JS splitting below
+    // (only `vendor-react` is forced), each lazy route's CSS rides with its own
+    // async chunk — the homepage eager-links ONLY the global `index.css`, not
+    // the excalidraw/blocknote/editor CSS it never uses.
+    //
+    // This was unsafe before because canvas-editor had an internal sidebar↔configs
+    // module-init cycle that crashed under natural splitting; that cycle is now
+    // broken at the source (presentation tokens moved to a leaf module), so
+    // per-chunk CSS is safe. Rollback: `VITE_SINGLE_BUNDLE=1` ships one bundle.
     cssCodeSplit: true,
     assetsInlineLimit: 0,
     chunkSizeWarningLimit: 300,
@@ -204,12 +213,18 @@ export default defineConfig(({ command }) => ({
     // /login. Filter the preload list to drop those named lazy chunks; they
     // still load on-demand when their consuming route or action triggers
     // the dynamic import.
+    //
+    // EXCEPTION: `vendor-react` (the React runtime + react-query) is eager
+    // core — it loads on every page — so it must STAY preloaded. The negative
+    // lookahead keeps it while still dropping every other `vendor-*` leaf.
+    // The catch-all core chunk is named `vendor` (no hyphen) so it is never
+    // matched here and stays preloaded too.
     modulePreload: {
       polyfill: true,
       resolveDependencies: (_filename, deps) =>
         deps.filter((d) => {
           const base = d.split('/').pop() ?? '';
-          return !/^(vendor-|pkg-canvas-editor)/.test(base);
+          return !/^(vendor-(?!react\.)|pkg-canvas-editor)/.test(base);
         }),
     },
     cssMinify: true,
@@ -217,108 +232,77 @@ export default defineConfig(({ command }) => ({
     rolldownOptions: {
       treeshake: true,
       output: {
-        entryFileNames: 'assets/js/[name].[hash].js',
-        chunkFileNames: 'assets/js/[name].[hash].js',
+        // Filenames are `<sanitized-name>-[hash]` — a HYPHEN before the hash and
+        // NO dots in the name part. Reason: the system nginx security filter
+        // (blocked-paths-regex, case-insensitive `\.sh|\.env|\.conf|\.log|…`,
+        // unanchored) 404s any path containing a `.<blockedExt>` segment. Two
+        // ways a build asset could trip it: (1) a content hash starting with a
+        // blocked ext after a dot — e.g. `index.sHm9A0Iy.css` matched `.sh`; and
+        // (2) a chunk NAME containing a dotted ext — e.g. the canvas-editor
+        // `dreizeilen_full.config-….js` matched `.conf`. Using a hyphen before
+        // the hash kills (1); replacing dots in the name kills (2). Net: the
+        // only dot left in any emitted filename is the real extension (.js/.css/
+        // …), none of which are blocked. Verified post-build by running the exact
+        // regex over every emitted filename (must be zero matches).
+        entryFileNames: (chunk) => `assets/js/${chunk.name.replace(/\./g, '-')}-[hash].js`,
+        chunkFileNames: (chunk) => `assets/js/${chunk.name.replace(/\./g, '-')}-[hash].js`,
         assetFileNames(assetInfo) {
           const name = assetInfo.names?.[0] || '';
+          // base = name without its final extension, with any remaining dots
+          // replaced by hyphens. `[extname]` re-appends the real extension.
+          const base = name.replace(/\.[^.]+$/, '').replace(/\./g, '-') || 'asset';
           if (name.endsWith('.jsx') || name.endsWith('.tsx')) {
-            return `assets/js/${name.replace(/\.(jsx|tsx)$/, '')}.[hash].js`;
+            return `assets/js/${base}-[hash].js`;
           }
           const ext = name.split('.').pop() || '';
           if (/png|jpe?g|svg|gif|tiff|bmp|ico|webp/i.test(ext)) {
-            return 'assets/images/[name].[hash][extname]';
+            return `assets/images/${base}-[hash][extname]`;
           }
           if (/css/i.test(ext)) {
-            return 'assets/css/[name].[hash][extname]';
+            return `assets/css/${base}-[hash][extname]`;
           }
           if (/woff2?|ttf|eot/i.test(ext)) {
-            return 'assets/fonts/[name].[hash][extname]';
+            return `assets/fonts/${base}-[hash][extname]`;
           }
-          return 'assets/[name].[hash][extname]';
+          return `assets/${base}-[hash][extname]`;
         },
-        // Code-splitting is DISABLED by default. Do not re-enable it without
-        // a runtime smoke test (see below) — it has crashed prod three times.
+        // NATURAL code-splitting: the ONLY forced group is `vendor-react`.
+        // Everything else (app code, workspace packages, node_modules) is split
+        // by Rolldown's own reachability analysis, so a library reached only via
+        // a lazy() route lands in that route's async chunk — and so does its CSS
+        // (cssCodeSplit:true above). This is what keeps excalidraw/blocknote/etc.
+        // CSS off the homepage's eager path.
         //
-        // History:
-        //  - pre-298ebe2f1: groups nested under `codeSplitting` (wrong schema
-        //    key) were silently dropped, so Rolldown's auto-chunker ran. It
-        //    produced module-init order cycles: "TypeError: s is not a function"
-        //    (react-markdown) and "Cannot read properties of undefined
-        //    (reading 'displayName')" (radix Primitive).
-        //  - 298ebe2f1: `codeSplitting: false` → crashes stopped.
-        //  - e49af52ea: re-enabled "leaf-only" `advancedChunks.groups`. Crashed
-        //    again: React was null inside the `pkg-canvas-editor` chunk.
-        //  - removing `pkg-canvas-editor`: the SAME crash reappeared in the
-        //    react-query (`useBaseQuery`) chunk, with React-DOM's reconciler
-        //    living inside `vendor-blocknote-export`.
+        // Why only `vendor-react`: the historical prod crashes were a cross-chunk
+        // module-init CYCLE where a chunk importing React initialized before the
+        // chunk holding React-DOM/react-query, so `React` was null → "Cannot read
+        // properties of null (reading 'useEffect')". Pinning the ENTIRE React
+        // runtime — react, react-dom, scheduler, use-sync-external-store AND
+        // @tanstack/react-query/-table — into one eager chunk means no async
+        // chunk can ever see a half-initialized React. react-query/-table MUST
+        // stay here.
         //
-        // Why "leaf-only" is NOT enough: `advancedChunks.groups` only NAMES a
-        // few chunks; everything else (React, React-DOM, react-query, …) is
-        // still AUTO-split by Rolldown. The auto-splitter scatters React/
-        // React-DOM across chunks and forms a cross-chunk init cycle — any
-        // chunk that imports React but initializes before the chunk holding
-        // React-DOM's module body sees `React === null` →
-        // "Cannot read properties of null (reading 'useEffect')". The bug is
-        // the splitter, not any single package, which is why whack-a-mole on
-        // individual groups doesn't help.
+        // The previous design ALSO used a catch-all `vendor` chunk + named heavy
+        // leaf groups to tame the auto-splitter. That was only needed because
+        // canvas-editor had an internal sidebar↔configs init cycle that the
+        // auto-splitter exposed across chunks. That cycle is now broken at the
+        // source (presentation tokens extracted to a leaf module; the two
+        // ineffective internal dynamic imports made static), so natural splitting
+        // is cycle-free and the manual groups are no longer required.
         //
-        // CI cannot catch this: the build compiles green; the cycle only
-        // throws at runtime in the browser. Re-enabling splitting therefore
-        // requires a runtime smoke test (load the app, assert no console
-        // error) BEFORE it ships — that gate does not exist yet.
-        //
-        // To experiment with splitting locally, set `VITE_EXPERIMENTAL_SPLIT=1`.
-        // The `advancedChunks.groups` below are kept for that experiment; each
-        // size comment is the source-byte size (gzip ≈ ÷4). Until a smoke test
-        // exists, the default ships a single bundle.
-        ...(process.env.VITE_EXPERIMENTAL_SPLIT !== '1'
+        // Validate any change with a browser smoke test (load the app + each
+        // heavy route, force-import the lazy chunks, assert no console init
+        // error). Rollback: `VITE_SINGLE_BUNDLE=1` ships one bundle.
+        ...(process.env.VITE_SINGLE_BUNDLE === '1'
           ? { codeSplitting: false }
           : {
               advancedChunks: {
                 groups: [
                   {
                     name: 'vendor-react',
-                    test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-sync-external-store)[\\/]/,
+                    test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-sync-external-store|@tanstack[\\/](react-query|query-core|react-table))[\\/]/,
                     priority: 100,
                   },
-                  // Heavy leaf libs (sorted by source size, largest first)
-                  { name: 'vendor-excalidraw', test: /[\\/]node_modules[\\/]@excalidraw[\\/]/ }, // 4.7 MB
-                  { name: 'vendor-mermaid', test: /[\\/]node_modules[\\/]mermaid[\\/]/ }, // 3.3 MB
-                  {
-                    name: 'vendor-blocknote-export',
-                    test: /[\\/]node_modules[\\/]@blocknote[\\/]xl-/,
-                  }, // 3.3 MB combined
-                  { name: 'vendor-react-pdf', test: /[\\/]node_modules[\\/]@react-pdf[\\/]/ }, // 1.4 MB
-                  {
-                    name: 'vendor-cytoscape',
-                    test: /[\\/]node_modules[\\/]cytoscape(-[a-z-]+)?[\\/]/,
-                  }, // 1.5 MB combined
-                  { name: 'vendor-docx', test: /[\\/]node_modules[\\/]docx[\\/]/ }, // 785 KB
-                  { name: 'vendor-katex', test: /[\\/]node_modules[\\/]katex[\\/]/ }, // 584 KB
-                  { name: 'vendor-fontkit', test: /[\\/]node_modules[\\/]fontkit[\\/]/ }, // 539 KB
-                  {
-                    name: 'vendor-recharts',
-                    test: /[\\/]node_modules[\\/](recharts|d3-[a-z-]+|victory-vendor)[\\/]/,
-                  }, // 519 KB
-                  {
-                    name: 'vendor-onnxruntime',
-                    test: /[\\/]node_modules[\\/]onnxruntime-web[\\/]/,
-                  }, // 505 KB
-                  { name: 'vendor-pptxgenjs', test: /[\\/]node_modules[\\/]pptxgenjs[\\/]/ }, // 505 KB
-                  { name: 'vendor-konva', test: /[\\/]node_modules[\\/](konva|react-konva)[\\/]/ }, // 417 KB
-                  {
-                    name: 'vendor-collab',
-                    test: /[\\/]node_modules[\\/](@hocuspocus|yjs|y-protocols|y-indexeddb|lib0)[\\/]/,
-                  }, // ~450 KB
-                  { name: 'vendor-imgly', test: /[\\/]node_modules[\\/]@imgly[\\/]/ }, // 167 KB
-                  // NOTE: do NOT add `pkg-canvas-editor` (or any other workspace
-                  // package) back here. canvas-editor ships React Providers/hooks
-                  // and imports react-konva (already split into `vendor-konva`),
-                  // so splitting it forms a cross-chunk init cycle: the
-                  // canvas-editor chunk renders while its `react` import binding is
-                  // still null → "Cannot read properties of null (reading
-                  // 'useEffect')". This crashed prod on master (commit e49af52ea).
-                  // Per the strategy comment above, only leaf libraries are split.
                 ],
               },
             }),
@@ -362,6 +346,21 @@ export default defineConfig(({ command }) => ({
             });
           },
         }),
+      },
+    },
+  },
+  // `vite preview` serves the production build (apps/web/build). It does not
+  // inherit `server.proxy`, so mirror the /api proxy here. Lets the bundle
+  // smoke test (load the built app, assert no chunk init-cycle console errors)
+  // run against a real backend. `VITE_PREVIEW_API` overrides the target so the
+  // build can be pointed at the test/beta API instead of a local one.
+  preview: {
+    port: 3000,
+    proxy: {
+      '/api': {
+        target: process.env.VITE_PREVIEW_API || 'http://localhost:3001',
+        changeOrigin: true,
+        ws: true,
       },
     },
   },
