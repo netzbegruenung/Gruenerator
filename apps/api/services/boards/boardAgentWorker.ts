@@ -20,6 +20,7 @@ import { createSearchTools } from '../../routes/chat/agents/searchTools.js';
 import { resolveModel } from '../../routes/chat/services/responseStreamingService.js';
 import { createLogger } from '../../utils/logger.js';
 import { getAIService } from '../ai/aiService.js';
+import { INTERMEDIATE_MODEL } from '../ai/providers.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
@@ -46,6 +47,17 @@ const MIN_DOCUMENT_TOKENS = 4000;
 
 // Max model<->tool round-trips while authoring (search/research then write).
 const MAX_TOOL_STEPS = 5;
+
+// Decides whether a tagged comment wants a short answer (posted back as a comment)
+// or a created text artifact (a document).
+const DELIVERABLE_PROMPT = `Du entscheidest, wie der Grünerator auf eine Aufgabe in einem Board-Kommentar reagieren soll.
+
+Antworte NUR mit einem JSON-Objekt: {"format":"comment"} ODER {"format":"document"}.
+
+"comment" = der Nutzer stellt eine Frage oder will eine kurze Auskunft/Einschätzung, die als Antwort im Kommentar-Thread passt.
+"document" = der Nutzer möchte, dass ein eigenständiger Text erstellt wird (z. B. Pressemitteilung, Rede, Antrag, Brief, Konzept oder längerer Entwurf; "schreib/erstelle/verfasse …").
+
+Im Zweifel: eine Frage → "comment"; ein Auftrag, einen Text zu erstellen → "document".`;
 
 // Intents that produce a non-text artifact (image/sharepic/chart) the board
 // agent can't deliver as a document — answered with a short explanation instead.
@@ -136,17 +148,25 @@ async function processTask(task: AgentTask): Promise<void> {
       return;
     }
 
-    // Build the agent's system prompt (systemRole, locale, intent guidance) but
-    // author a full document: the universal agent's ANTWORT-REGELN constrain output
-    // to a short chat reply, so a document-mode directive (appended last, so it
-    // wins) lifts the length cap. A generous token floor prevents truncation.
+    // Decide the deliverable: a quick question is answered in the comment thread;
+    // a "create a text" request becomes a document.
+    const isDocument = (await classifyDeliverable(task.task_text)) === 'document';
+
+    // Build the agent's system prompt (systemRole, locale, intent guidance), then
+    // steer the format: a full document (overriding the universal agent's short
+    // ANTWORT-REGELN), or a concise comment answer (where those rules fit as-is).
     const baseSystemMessage = await buildSystemMessage(finalState);
-    const systemMessage = `${baseSystemMessage}
+    const systemMessage = isDocument
+      ? `${baseSystemMessage}
 
 ## DOKUMENT-MODUS (vorrangig)
 Du erstellst ein eigenständiges, vollständiges Dokument — KEINE kurze Chat-Antwort. Die Längen- und Knappheitsregeln aus den ANTWORT-REGELN gelten hier NICHT. Schreibe so ausführlich und strukturiert, wie die Aufgabe es verlangt: mit aussagekräftiger Überschrift (#), sinnvollen Zwischenüberschriften und vollständig ausformulierten Absätzen.
 
-Du hast Recherche-Tools (gruenerator_search, web_search, research, …). Nutze sie aktiv, um Fakten und grüne Positionen zu belegen, bevor du schreibst — verlasse dich nicht nur auf vorhandenen Kontext. Gib am Ende AUSSCHLIESSLICH den Dokumentinhalt als Markdown aus — keine Meta-Kommentare, keine Rückfragen.`;
+Du hast Recherche-Tools (gruenerator_search, web_search, research, …). Nutze sie aktiv, um Fakten und grüne Positionen zu belegen, bevor du schreibst — verlasse dich nicht nur auf vorhandenen Kontext. Gib am Ende AUSSCHLIESSLICH den Dokumentinhalt als Markdown aus — keine Meta-Kommentare, keine Rückfragen.`
+      : `${baseSystemMessage}
+
+## KOMMENTAR-MODUS
+Du antwortest direkt in einem Board-Kommentar-Thread. Antworte knapp und konkret auf die Frage (folge den ANTWORT-REGELN oben). Nutze bei Faktenbedarf zuerst die Recherche-Tools. Gib NUR die Antwort aus — keine Anrede, keine Meta-Kommentare, keine Überschrift.`;
 
     const { agentConfig } = finalState;
     // Resolve via the same path as the chat controller so overflow-lane slots and
@@ -173,7 +193,9 @@ Du hast Recherche-Tools (gruenerator_search, web_search, research, …). Nutze s
         messages: [userMessage],
         tools: createSearchTools(agentConfig),
         stopWhen: stepCountIs(MAX_TOOL_STEPS),
-        maxOutputTokens: Math.max(agentConfig.params.max_tokens, MIN_DOCUMENT_TOKENS),
+        maxOutputTokens: isDocument
+          ? Math.max(agentConfig.params.max_tokens, MIN_DOCUMENT_TOKENS)
+          : agentConfig.params.max_tokens,
         temperature: agentConfig.params.temperature,
         abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
       });
@@ -185,6 +207,28 @@ Du hast Recherche-Tools (gruenerator_search, web_search, research, …). Nutze s
     const content = generatedText.trim();
     if (!content) {
       throw new Error('Der Agent lieferte kein Ergebnis');
+    }
+
+    // Question → answer directly in the comment thread, no document.
+    if (!isDocument) {
+      await completeAgentTask(task.id, null);
+      await postBotComment({
+        boardId: task.board_id,
+        cardId: task.card_id,
+        parentId: task.trigger_comment_id,
+        blocks: [{ type: 'text', text: content }],
+      });
+      await createNotification({
+        userId: task.requested_by,
+        type: 'agent_task_completed',
+        title: 'Der Grünerator hat geantwortet',
+        body: content.length > 140 ? content.slice(0, 139) + '…' : content,
+        actionUrl: `/boards/${task.board_id}?card=${task.card_id}`,
+        metadata: { boardId: task.board_id, cardId: task.card_id, taskId: task.id },
+        groupKey: `agent-task-${task.id}`,
+      });
+      log.info(`Agent task ${task.id} answered in comment (no document)`);
+      return;
     }
 
     const title = deriveTitle(task.task_text, content);
@@ -250,6 +294,34 @@ Du hast Recherche-Tools (gruenerator_search, web_search, research, …). Nutze s
         ],
       }).catch((e: unknown) => log.warn('Failed to post failure comment', { error: errMsg(e) }));
     }
+  }
+}
+
+/**
+ * Decide whether the tagged comment wants a short answer (posted back as a
+ * comment) or a created document. Cheap intermediate-model call; defaults to
+ * 'document' on any failure (preserves the prior always-a-document behaviour).
+ */
+async function classifyDeliverable(taskText: string): Promise<'comment' | 'document'> {
+  try {
+    const response = await getAIService().processRequest({
+      type: 'chat_intent_classification',
+      provider: INTERMEDIATE_MODEL.provider,
+      systemPrompt: DELIVERABLE_PROMPT,
+      messages: [{ role: 'user', content: taskText }],
+      options: {
+        model: INTERMEDIATE_MODEL.model,
+        max_tokens: 20,
+        temperature: 0,
+        response_format: { type: 'json_object' },
+      },
+    });
+    const match = (response.content || '').match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(match?.[0] || '{}') as { format?: unknown };
+    return parsed.format === 'comment' ? 'comment' : 'document';
+  } catch (err) {
+    log.warn('Deliverable classification failed, defaulting to document', { error: errMsg(err) });
+    return 'document';
   }
 }
 
