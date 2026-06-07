@@ -13,10 +13,10 @@
 import type { SubcategoryFilters } from '../../../config/systemCollectionsConfig.js';
 import type { AgentConfig } from '../../../routes/chat/agents/types.js';
 import type { AIWorkerPool } from '../../../workers/types.js';
-import type { WolkeFileRef, ConnectFileRef } from '@gruenerator/contracts';
+import type { WolkeFileRef, ConnectFileRef, CurrentBoard } from '@gruenerator/contracts';
 import type { ModelMessage } from 'ai';
 
-export type { WolkeFileRef, ConnectFileRef };
+export type { WolkeFileRef, ConnectFileRef, CurrentBoard };
 
 /**
  * Search source backends that can be queried in parallel.
@@ -51,6 +51,7 @@ export type SearchIntent =
   | 'save_as_doc' // Save response as document ("speichere als Dokument")
   | 'modify_doc' // Modify mentioned document ("ändere", "ergänze" with @doc) — for /chat surface
   | 'edit_current_doc' // Live-edit the open document via BlockNote AI — for docs editor surface
+  | 'edit_current_board' // Live-edit the open board via the boards assistant — for boards editor surface
   | 'modify_board' // Modify mentioned board ("füge Aufgabe hinzu" with @board)
   | 'share_doc' // Share document with group ("teile mit Gruppe", "share mit AG")
   | 'direct'; // No search needed (greetings, creative tasks without fact needs)
@@ -320,6 +321,7 @@ export interface ChatGraphInput {
   wolkeFiles?: WolkeFileRef[] | undefined;
   connectFiles?: ConnectFileRef[] | undefined;
   currentDocument?: CurrentDocument | undefined;
+  currentBoard?: CurrentBoard | undefined;
   userLocale?: UserLocale | undefined;
   customSystemPrompt?: string | undefined;
   activeSkillMention?: string | undefined;
@@ -393,6 +395,10 @@ export interface ChatGraphState {
   // Current open document in the docs editor (primary context, not retrieval scope).
   // Set when chat is embedded in a document editor surface.
   currentDocument: CurrentDocument | null;
+
+  // Live board state when chat is embedded in the boards editor surface. Primary
+  // context for board Q&A; presence + edit keywords route to edit_current_board.
+  currentBoard: CurrentBoard | null;
 
   // Custom system prompt (replaces entire agent system prompt when set)
   customSystemPrompt: string | null;
