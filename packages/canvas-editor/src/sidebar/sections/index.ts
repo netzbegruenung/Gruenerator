@@ -23,9 +23,10 @@ export { AiSection, SuggestionCard, OperationPreview } from './AiSection';
 export type { AiSectionProps, SuggestionCardProps } from './AiSection';
 export { ChatSection } from './ChatSection';
 export type { ChatSectionProps } from './ChatSection';
-export const IconsSection = lazy(() =>
-  import('./IconsSection').then((m) => ({ default: m.IconsSection }))
-);
+// Static: IconsSection is already statically imported/rendered by AssetsSection
+// + BrowseView, so the previous lazy() wrapper was an ineffective dynamic import
+// (it confused the chunker). Export it directly.
+export { IconsSection } from './IconsSection';
 export { BadgeSection } from './BadgeSection';
 export type { BadgeSectionProps } from './BadgeSection';
 export { BalkenSection } from './BalkenSection';
