@@ -113,9 +113,9 @@ export function createPresentationInitialState(
 
     // Image background (defaults for non-image layouts)
     currentImageSrc: (props.currentImageSrc as string) || '',
-    imageOffset: { x: 0, y: 0 },
-    imageScale: 1,
-    imageAttribution: null,
+    imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+    imageScale: (props.imageScale as number | undefined) ?? 1,
+    imageAttribution: (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
 
     // Footer
     footerDate: (props.footerDate as string) || '',
