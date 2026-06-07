@@ -61,16 +61,8 @@ const StepFlow: React.FC<StepFlowProps> = ({
   const updateFormData = useImageStudioStore((s) => s.updateFormData);
   const user = useAuthStore((s) => s.user);
 
-  const {
-    direction,
-    currentStep,
-    isFirstStep,
-    loading,
-    error,
-    goNext,
-    goBack,
-    bgRemovalProgress,
-  } = useStepFlow();
+  const { direction, currentStep, isFirstStep, loading, error, goNext, goBack, bgRemovalProgress } =
+    useStepFlow();
 
   // Initialize auto-save behavior
   useDraftAutoSave();
