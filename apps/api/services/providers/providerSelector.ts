@@ -151,7 +151,8 @@ export function selectProviderAndModel({
     provider = INTERMEDIATE_MODEL.provider;
     model = options.model || INTERMEDIATE_MODEL.model;
   }
-  // Sharepic types — short creative text, GPT-OSS
+  // Sharepic types — short creative text. Mistral Medium 3.5 (mistral-medium-2604,
+  // newest) produces noticeably better German slogans/quotes than GPT-OSS here.
   else if (
     type === 'sharepic_dreizeilen' ||
     type === 'sharepic_zitat' ||
@@ -160,8 +161,8 @@ export function selectProviderAndModel({
     type === 'sharepic_info' ||
     type === 'sharepic_veranstaltung'
   ) {
-    provider = 'litellm';
-    model = options.model || 'gpt-oss:120b';
+    provider = 'mistral';
+    model = options.model || 'mistral-medium-2604';
   }
 
   // Respect explicit provider at top-level if present (routes may set data.provider)

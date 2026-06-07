@@ -26,6 +26,7 @@ import { pendingActionStore } from './pendingActionStore.js';
 import {
   detectPreferredVariant,
   generateSharepicVariants,
+  type PriorSharepic,
   type SharepicVariant,
 } from './sharepicVariantHelpers.js';
 import { PROGRESS_MESSAGES } from './sseHelpers.js';
@@ -415,6 +416,23 @@ export async function handleShareDoc(opts: {
 /**
  * Execute the search/image/summary pipeline for each intent.
  */
+/**
+ * Resolve the author name for quote sharepics from the user's profile.
+ * Returns an empty string when no userId or display name is available — the
+ * quote then renders without an author line instead of failing.
+ */
+async function resolveSharepicAuthorName(userId?: string): Promise<string> {
+  if (!userId) return '';
+  try {
+    const { getProfileService } = await import('../../../services/user/ProfileService.js');
+    const profile = await getProfileService().getProfileById(userId);
+    return profile?.display_name?.trim() || '';
+  } catch (err) {
+    log.warn(`[ChatGraph] Could not resolve sharepic author name: ${err}`);
+    return '';
+  }
+}
+
 export async function executeIntentPipeline(opts: {
   classifiedState: ChatGraphState;
   sse: SSEWriter;
@@ -422,6 +440,8 @@ export async function executeIntentPipeline(opts: {
   enabledTools?: Record<string, boolean>;
   imageAttachments: ImageAttachment[];
   req?: Request;
+  /** When set, the sharepic branch refines the previous sharepic instead of starting fresh. */
+  sharepicRefinement?: { instruction: string; prior: PriorSharepic };
 }): Promise<{
   finalState: ChatGraphState;
   generatedImage: GeneratedImageResult | null;
@@ -506,16 +526,26 @@ export async function executeIntentPipeline(opts: {
         const lastMsg = finalState.messages?.[finalState.messages.length - 1];
         const rawText = lastMsg ? extractTextContent(lastMsg.content) : '';
         const messageText = rawText.replace(/@sharepic\b/gi, '').trim();
-        const preferredVariant = detectPreferredVariant(messageText);
+        const refinement = opts.sharepicRefinement;
+        const preferredVariant = refinement ? null : detectPreferredVariant(messageText);
+
+        // Quote sharepics are attributed to the person creating them — default the
+        // author to the user's profile display name. Empty when no profile name
+        // exists, in which case the quote renders without an author line.
+        const authorName = await resolveSharepicAuthorName(classifiedState.agentConfig?.userId);
+
         log.info(
-          `[ChatGraph] Sharepic topic: "${messageText.slice(0, 100)}", preferredVariant: ${preferredVariant ?? 'all'}`
+          `[ChatGraph] Sharepic topic: "${messageText.slice(0, 100)}", ` +
+            `${refinement ? `refinement: "${refinement.instruction}" (${refinement.prior.canvasType})` : `preferredVariant: ${preferredVariant ?? 'all'}`}, ` +
+            `author: ${authorName || '(none)'}`
         );
 
         if (!opts.req) throw new Error('Express request required for sharepic generation');
         const variants = await generateSharepicVariants({
           req: opts.req as SharepicExpressRequest,
           text: messageText,
-          ...(preferredVariant && { preferredVariant }),
+          ...(refinement ? { refinement } : preferredVariant ? { preferredVariant } : {}),
+          ...(authorName && { authorName }),
         });
 
         if (variants.length === 0) {
