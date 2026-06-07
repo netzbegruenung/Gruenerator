@@ -6,7 +6,7 @@ description: Aktuelle Statistiken über die indexierten Inhalte im Grünerator
 
 # Inhaltsdatenbank
 
-> Zuletzt aktualisiert: **06.06.2026, 23:40**
+> Zuletzt aktualisiert: **07.06.2026, 09:04**
 
 ## Übersicht
 
@@ -18,7 +18,7 @@ Insgesamt sind **54.770 Vektoren** in der Datenbank gespeichert.
 | Sammlung               |   Vektoren |
 | ---------------------- | ---------: |
 | Landesverbände         |     32.825 |
-| KommunalWiki           |      7.268 |
+| KommunalWiki           |      7.269 |
 | Bundestag              |      4.631 |
 | Böll-Stiftung          |      3.437 |
 | Social-Media-Beispiele |      1.972 |
@@ -27,7 +27,7 @@ Insgesamt sind **54.770 Vektoren** in der Datenbank gespeichert.
 | Grundsatzprogramm      |        838 |
 | Grüne Österreich       |        776 |
 | Satzungen              |        712 |
-| Grünblog               |        413 |
+| Grünblog               |        412 |
 | **Gesamt**             | **54.770** |
 
 ## Landesverbände
