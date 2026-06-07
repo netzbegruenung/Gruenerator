@@ -450,20 +450,24 @@ const ImageGallery = () => {
             Meine Bilder
           </h1>
         </div>
-        <div className="flex min-h-[300px] grow flex-col items-center justify-center px-lg py-2xl text-center">
-          <div className="mb-lg text-[4rem] text-disabled opacity-40">
-            <FaImage />
+        <div className="flex min-h-[300px] grow items-center justify-center px-lg py-2xl">
+          <div className="mx-auto max-w-[480px] rounded-lg border border-dashed border-grey-200 px-6 py-12 text-center dark:border-grey-700">
+            <div className="mb-4 flex justify-center">
+              <div className="flex size-12 items-center justify-center rounded-lg bg-background-alt text-foreground">
+                <FaImage className="size-6" />
+              </div>
+            </div>
+            <h2 className="text-lg font-medium text-foreground-heading">Noch keine Bilder</h2>
+            <p className="mx-auto mt-2 text-sm leading-relaxed text-foreground opacity-70">
+              Erstelle dein erstes Bild mit dem Image Studio.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <Button variant="brand" size="brand" onClick={handleNewImage}>
+                <FaPlus />
+                Bild erstellen
+              </Button>
+            </div>
           </div>
-          <h2 className="m-0 mb-sm text-2xl font-semibold text-foreground-heading">
-            Noch keine Bilder
-          </h2>
-          <p className="m-0 mb-lg text-base text-disabled">
-            Erstelle dein erstes Bild mit dem Image Studio.
-          </p>
-          <Button variant="brand" size="brand" onClick={handleNewImage}>
-            <FaPlus />
-            Bild erstellen
-          </Button>
         </div>
       </div>
     );
