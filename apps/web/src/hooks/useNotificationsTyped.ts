@@ -92,3 +92,14 @@ export async function updateNotificationPreferences(
   }
   return result.body;
 }
+
+export async function applyNotificationLevel(level: 'low' | 'medium' | 'high') {
+  const client = getContractsClient();
+  const result = await client.notifications.setPreferenceLevel({
+    body: { level },
+  });
+  if (result.status !== 200) {
+    throw new Error(`Failed to apply notification level (HTTP ${result.status})`);
+  }
+  return result.body;
+}
