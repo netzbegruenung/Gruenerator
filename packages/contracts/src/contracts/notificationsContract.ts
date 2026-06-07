@@ -20,6 +20,7 @@ import {
   notificationsErrorResponseSchema,
   notificationPreferencesResponseSchema,
   updateNotificationPreferencesBodySchema,
+  setNotificationLevelBodySchema,
 } from '../schemas/notifications.js';
 
 const c = initContract();
@@ -154,6 +155,24 @@ export const notificationsContract = c.router(
         500: notificationsErrorResponseSchema,
       },
       summary: 'Update notification preferences',
+    },
+
+    /**
+     * PUT /api/auth/profile/notification-preferences/level
+     * Apply a simplified level preset (Wenig/Mittel/Viele), overwriting all
+     * per-type channel preferences at once.
+     */
+    setPreferenceLevel: {
+      method: 'PUT',
+      path: '/api/auth/profile/notification-preferences/level',
+      body: setNotificationLevelBodySchema,
+      responses: {
+        200: notificationPreferencesResponseSchema,
+        400: notificationsErrorResponseSchema,
+        401: notificationsErrorResponseSchema,
+        500: notificationsErrorResponseSchema,
+      },
+      summary: 'Apply a notification level preset',
     },
   },
   { pathPrefix: '' }
