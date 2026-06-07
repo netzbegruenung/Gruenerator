@@ -176,7 +176,7 @@ const VorlagenSection = memo(
     const handleCloseAddModal = useCallback(() => setShowAddModal(false), []);
     const handleCloseEditModal = useCallback(() => setEditingTemplate(null), []);
     const handleNavigateToGallery = useCallback(() => {
-      window.location.href = '/datenbank/vorlagen';
+      window.location.href = '/vorlagen';
     }, []);
 
     const handleAddSuccess = useCallback(() => {

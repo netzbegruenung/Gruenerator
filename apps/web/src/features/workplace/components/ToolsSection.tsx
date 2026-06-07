@@ -37,9 +37,8 @@ const MAIN_TOOLS: ToolItem[] = [
   {
     id: 'vorlagen',
     title: 'Vorlagen',
-    path: '/datenbank/vorlagen',
+    path: '/vorlagen',
     icon: getIcon('navigation', 'vorlagen')!,
-    devOnly: true,
   },
   {
     id: 'transfer',
