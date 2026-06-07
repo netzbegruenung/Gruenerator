@@ -6,7 +6,7 @@ description: Aktuelle Statistiken über die indexierten Inhalte im Grünerator
 
 # Inhaltsdatenbank
 
-> Zuletzt aktualisiert: **07.06.2026, 09:04**
+> Zuletzt aktualisiert: **07.06.2026, 14:55**
 
 ## Übersicht
 
