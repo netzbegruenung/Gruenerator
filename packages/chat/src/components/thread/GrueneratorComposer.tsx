@@ -642,7 +642,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
                 onInsertMention={handleSelect}
                 onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
                 onUploadFile={handlePlusMenuUpload}
-                {...(onNavigate ? { onOpenSkillsPage: () => onNavigate('/skills') } : {})}
+                {...(onNavigate ? { onOpenSkillsPage: () => onNavigate('/agents') } : {})}
               />
             )}
             {showToolToggles && (

@@ -341,7 +341,7 @@ function AgentBuilderForm({ initialState, onCancel }: AgentBuilderFormProps) {
         <Button
           type="button"
           variant="brand-outline"
-          onClick={() => (onCancel ? onCancel() : navigate('/skills'))}
+          onClick={() => (onCancel ? onCancel() : navigate('/agents'))}
         >
           Abbrechen
         </Button>
