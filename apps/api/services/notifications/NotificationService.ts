@@ -24,6 +24,10 @@ const EMAIL_HANDLED_ELSEWHERE: ReadonlySet<NotificationType> = new Set<Notificat
   'document_shared',
 ]);
 
+// Types delivered exclusively in-app (no push, no email) regardless of importance
+// tier — e.g. one-off product announcements where a mass email/push is unwanted.
+const IN_APP_ONLY: ReadonlySet<NotificationType> = new Set<NotificationType>(['new_avatars']);
+
 type NotificationRow = InferSelectModel<typeof notifications>;
 
 const log = createLogger('NotificationService');
@@ -101,10 +105,12 @@ export async function createNotification(
   const profile = await getProfileForDelivery(userId);
   const showInApp = await shouldDeliver(userId, type, 'in_app', profile);
   const sendEmailChannel =
-    !EMAIL_HANDLED_ELSEWHERE.has(type) && (await shouldDeliver(userId, type, 'email', profile));
+    !EMAIL_HANDLED_ELSEWHERE.has(type) &&
+    !IN_APP_ONLY.has(type) &&
+    (await shouldDeliver(userId, type, 'email', profile));
 
   if (!showInApp) {
-    const sendPush = await shouldDeliver(userId, type, 'push', profile);
+    const sendPush = !IN_APP_ONLY.has(type) && (await shouldDeliver(userId, type, 'push', profile));
     if (sendPush) firePush(userId, title, body ?? null, type, actionUrl);
     if (sendEmailChannel) fireEmail(userId, profile, title, body ?? null, type, actionUrl);
     return null;
@@ -130,7 +136,8 @@ export async function createNotification(
     log.warn('Failed to publish notification via Redis', { userId, error: err.message });
   });
 
-  const sendPush = await shouldDeliver(userId, type, 'push', profile);
+  const sendPush =
+    !IN_APP_ONLY.has(type) && (await shouldDeliver(userId, type, 'push', profile));
   if (sendPush) firePush(userId, title, body ?? null, type, actionUrl, notification.id);
   if (sendEmailChannel) fireEmail(userId, profile, title, body ?? null, type, actionUrl);
 

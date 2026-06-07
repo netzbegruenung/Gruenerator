@@ -44,6 +44,7 @@ const TYPE_IMPORTANCE: Record<NotificationType, 1 | 2 | 3> = {
   transfer_downloaded: 3,
   notebook_liked: 3,
   wolke_new_files: 2,
+  new_avatars: 1,
 };
 
 export type NotificationLevel = 'low' | 'medium' | 'high';
