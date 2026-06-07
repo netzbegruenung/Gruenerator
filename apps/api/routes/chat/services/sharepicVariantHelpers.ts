@@ -11,11 +11,52 @@ const log = createLogger('SharepicVariants');
 export const SHAREPIC_VARIANT_TYPES = ['dreizeilen', 'zitat', 'info'] as const;
 export type SharepicVariantType = (typeof SHAREPIC_VARIANT_TYPES)[number];
 
+/**
+ * Keyword patterns that pin a sharepic request to a SPECIFIC variant.
+ *
+ * Order matters: the first match wins. `zitat` is checked first so
+ * "zitat sharepic" / "zitat-sharepic" resolves to the quote layout instead of
+ * falling through to the dreizeilen default. The `dreizeilen` synonyms include
+ * "balken" because users call that layout the "3-Balken-Bild".
+ *
+ * These are only consulted AFTER the message is already classified as a sharepic
+ * request, so chart terms like "balkendiagramm" never reach this map.
+ */
+const VARIANT_KEYWORDS: ReadonlyArray<{ type: SharepicVariantType; pattern: RegExp }> = [
+  {
+    type: 'zitat',
+    pattern: /\b(zitat\w*|quotes?|spruch\w*|spruchbild|zitatbild|aussage|statement)\b/i,
+  },
+  {
+    type: 'info',
+    pattern: /\b(info\w*|fakten|faktencheck|information\w*|erklär\w*|erklaer\w*)\b/i,
+  },
+  {
+    type: 'dreizeilen',
+    pattern:
+      /\b(dreizeiler|dreizeilen|drei[\s-]?zeilen|3[\s-]?zeilen|slogan|dreibalken|drei[\s-]?balken|balken)\b/i,
+  },
+];
+
+/**
+ * Detect whether the user explicitly asked for a particular sharepic variant.
+ * Returns null when the request is generic ("erstelle ein sharepic"), in which
+ * case all variants are generated so the user can choose.
+ */
+export function detectPreferredVariant(text: string): SharepicVariantType | null {
+  for (const { type, pattern } of VARIANT_KEYWORDS) {
+    if (pattern.test(text)) return type;
+  }
+  return null;
+}
+
 export interface SharepicVariant {
   id: string;
   canvasType: string;
   initialProps: Record<string, unknown>;
   label?: string;
+  /** Accessibility description generated alongside the sharepic text (for screen readers / social posts). */
+  altText?: string;
 }
 
 const CANVAS_TYPE_BY_SHAREPIC: Record<string, string> = {
@@ -45,6 +86,7 @@ interface SharepicResponseShape {
   subheader?: string;
   body?: string;
   selectedImage?: string;
+  altText?: string;
 }
 
 function buildInitialPropsForType(
@@ -87,13 +129,23 @@ function buildInitialPropsForType(
 interface GenerateVariantsArgs {
   req: SharepicExpressRequest;
   text: string;
+  /**
+   * When set, only this variant is generated (the user explicitly asked for it,
+   * e.g. "zitat sharepic"). When omitted, all variants are generated so the user
+   * can choose.
+   */
+  preferredVariant?: SharepicVariantType | null;
 }
 
 export async function generateSharepicVariants(
   args: GenerateVariantsArgs
 ): Promise<SharepicVariant[]> {
+  const typesToGenerate: ReadonlyArray<SharepicVariantType> = args.preferredVariant
+    ? [args.preferredVariant]
+    : SHAREPIC_VARIANT_TYPES;
+
   const settled = await Promise.allSettled(
-    SHAREPIC_VARIANT_TYPES.map((type) =>
+    typesToGenerate.map((type) =>
       generateSharepicForChat(args.req, type, {
         text: args.text,
         subject: args.text,
@@ -104,7 +156,7 @@ export async function generateSharepicVariants(
 
   const variants: SharepicVariant[] = [];
   settled.forEach((result, idx) => {
-    const requestedType = SHAREPIC_VARIANT_TYPES[idx];
+    const requestedType = typesToGenerate[idx];
     if (result.status !== 'fulfilled') {
       log.warn(`[SharepicVariants] ${requestedType} variant rejected:`, result.reason);
       return;
@@ -120,6 +172,7 @@ export async function generateSharepicVariants(
       canvasType,
       initialProps: buildInitialPropsForType(sharepic, canvasType),
       label: VARIANT_LABEL_BY_CANVAS_TYPE[canvasType] ?? canvasType,
+      ...(sharepic.altText && { altText: sharepic.altText }),
     });
   });
 

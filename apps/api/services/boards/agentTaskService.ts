@@ -44,6 +44,20 @@ export async function enqueueAgentTask(params: EnqueueAgentTaskParams): Promise<
     ]
   );
   log.info(`Enqueued agent task ${rows[0].id} for board ${params.boardId} card ${params.cardId}`);
+
+  // Immediate, short acknowledgement so the user sees the agent picked up the
+  // task the moment it's tagged — the result/failure reply follows from the worker.
+  await postBotComment({
+    boardId: params.boardId,
+    cardId: params.cardId,
+    parentId: params.triggerCommentId,
+    blocks: [{ type: 'text', text: 'Übernehme.' }],
+  }).catch((err: unknown) => {
+    log.warn('Failed to post acknowledgement comment', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
+
   return rows[0];
 }
 
@@ -70,7 +84,7 @@ export async function claimNextAgentTask(): Promise<AgentTask | null> {
   return rows[0] ?? null;
 }
 
-export async function completeAgentTask(taskId: string, documentId: string): Promise<void> {
+export async function completeAgentTask(taskId: string, documentId: string | null): Promise<void> {
   await db.query(
     `UPDATE agent_tasks
         SET status = 'completed', result_document_id = $2, error = NULL,

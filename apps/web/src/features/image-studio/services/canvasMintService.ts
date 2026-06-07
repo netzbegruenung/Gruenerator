@@ -89,7 +89,13 @@ async function buildInitialState(
 
   if (config.image) {
     const imageUrl = await resolveImageUrl(state, config.image.source);
-    if (imageUrl) initial[config.image.key] = imageUrl;
+    if (imageUrl) {
+      initial[config.image.key] = imageUrl;
+    } else if (config.image.required) {
+      // Fail loudly rather than mint a broken, imageless canvas — the caller
+      // surfaces this as a retry prompt (see TemplateStudioFlow).
+      throw new Error(`Cannot mint canvas: required image for "${type}" could not be resolved`);
+    }
   }
 
   return initial;
