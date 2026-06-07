@@ -10,6 +10,7 @@ import { useStepFlow } from '../hooks/useStepFlow';
 import ImageSizeSelectStep from '../steps/ImageSizeSelectStep';
 import ImageUploadStep from '../steps/ImageUploadStep';
 import InputStep from '../steps/InputStep';
+import { isMintableCanvasType } from '../utils/canvasTypeFields';
 
 // Types (Keep StepFlowProps, but maybe move others if needed by steps)
 
@@ -59,6 +60,7 @@ const StepFlow: React.FC<StepFlowProps> = ({
 }) => {
   const handleChange = useImageStudioStore((s) => s.handleChange);
   const updateFormData = useImageStudioStore((s) => s.updateFormData);
+  const type = useImageStudioStore((s) => s.type);
   const user = useAuthStore((s) => s.user);
 
   const {
@@ -154,18 +156,38 @@ const StepFlow: React.FC<StepFlowProps> = ({
             />
           )}
 
-          {currentStep.type === 'canvas_edit' && (
-            // Canvas editing has moved to the collaborative `/studio/canvas/:id`
-            // route. Reaching this step hands off via the store (see useStepFlow);
-            // this brief loader shows until TemplateStudioFlow mints and navigates.
-            <div
-              key={currentStep.id}
-              className="flex items-center justify-center gap-sm py-2xl text-foreground"
-            >
-              <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
-              <span className="text-sm">Leinwand wird vorbereitet…</span>
-            </div>
-          )}
+          {currentStep.type === 'canvas_edit' &&
+            (isMintableCanvasType(type ?? '') ? (
+              // Canvas editing has moved to the collaborative `/studio/canvas/:id`
+              // route. Reaching this step hands off via the store (see useStepFlow);
+              // this brief loader shows until TemplateStudioFlow mints and navigates.
+              <div
+                key={currentStep.id}
+                className="flex items-center justify-center gap-sm py-2xl text-foreground"
+              >
+                <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+                <span className="text-sm">Leinwand wird vorbereitet…</span>
+              </div>
+            ) : (
+              // Non-mintable types (e.g. presentation, a multi-slide pres-* config)
+              // have no single-document canvas route, so there is no handoff — show
+              // an explicit message instead of a loader that would never resolve.
+              <div
+                key={currentStep.id}
+                className="flex flex-col items-center justify-center gap-md py-2xl text-center text-foreground"
+              >
+                <p className="text-sm text-grey-600 dark:text-grey-300">
+                  Dieser Vorlagentyp kann hier nicht bearbeitet werden.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="rounded-md border border-grey-200 px-4 py-2 text-sm hover:bg-grey-100 dark:border-grey-700 dark:hover:bg-grey-800"
+                >
+                  Zurück
+                </button>
+              </div>
+            ))}
         </AnimatePresence>
 
         {imageLimitData && imageLimitData.count >= 8 && (

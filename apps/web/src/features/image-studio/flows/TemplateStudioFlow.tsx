@@ -38,7 +38,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
     previousStep === FORM_STEPS.IMAGE_UPLOAD && currentStep === FORM_STEPS.INPUT;
 
   const [isWideStep, setIsWideStep] = useState(false);
-  const [isMintingCanvas, setIsMintingCanvas] = useState(false);
+  const [mintError, setMintError] = useState(false);
 
   const handleStepChange = useCallback((stepType: string) => {
     setIsWideStep(stepType === 'image_upload');
@@ -47,30 +47,33 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
   const navigate = useNavigate();
   const mintingRef = useRef(false);
 
-  useEffect(() => {
-    if (currentStep !== FORM_STEPS.CANVAS_EDIT) return;
+  // Reaching CANVAS_EDIT mints a canvas document and navigates to the
+  // collaborative /studio/canvas/:id route. Extracted so the failure UI can
+  // retry it. mintingRef guards against concurrent/duplicate mints.
+  const runMint = useCallback(async () => {
     if (mintingRef.current) return;
     if (!type) return;
 
     mintingRef.current = true;
-    setIsMintingCanvas(true);
+    setMintError(false);
+    try {
+      const state = useImageStudioStore.getState();
+      const { id } = await mintCanvasFromStudioStore(state);
+      void navigate(`/studio/canvas/${id}`, { replace: true });
+    } catch (err) {
+      console.error('[TemplateStudioFlow] Canvas mint failed:', err);
+      void import('sonner').then(({ toast }) =>
+        toast.error('Leinwand konnte nicht gespeichert werden. Bitte erneut versuchen.')
+      );
+      mintingRef.current = false;
+      setMintError(true);
+    }
+  }, [type, navigate]);
 
-    const run = async () => {
-      try {
-        const state = useImageStudioStore.getState();
-        const { id } = await mintCanvasFromStudioStore(state);
-        void navigate(`/studio/canvas/${id}`, { replace: true });
-      } catch (err) {
-        console.error('[TemplateStudioFlow] Canvas mint failed:', err);
-        void import('sonner').then(({ toast }) =>
-          toast.error('Leinwand konnte nicht gespeichert werden. Bitte erneut versuchen.')
-        );
-        mintingRef.current = false;
-        setIsMintingCanvas(false);
-      }
-    };
-    void run();
-  }, [currentStep, type, navigate]);
+  useEffect(() => {
+    if (currentStep !== FORM_STEPS.CANVAS_EDIT) return;
+    void runMint();
+  }, [currentStep, runMint]);
 
   const handleAnimationStart = useCallback(() => {
     useImageStudioStore.getState().setIsAnimating(true);
@@ -165,7 +168,35 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
     return <div className="error-message">Konfiguration für diesen Typ nicht gefunden.</div>;
   }
 
-  if (isMintingCanvas) {
+  // CANVAS_EDIT is the mint→navigate handoff. While minting (or in the brief
+  // window before the effect runs) show a loader; on failure show an explicit
+  // retry/back instead of a dead-end blank screen.
+  if (currentStep === FORM_STEPS.CANVAS_EDIT) {
+    if (mintError) {
+      return (
+        <div className="flex h-[60vh] flex-col items-center justify-center gap-md text-center text-foreground">
+          <p className="text-sm text-grey-600 dark:text-grey-300">
+            Leinwand konnte nicht vorbereitet werden.
+          </p>
+          <div className="flex items-center gap-sm">
+            <button
+              type="button"
+              onClick={() => void runMint()}
+              className="rounded-md bg-primary-500 px-4 py-2 text-sm text-white hover:bg-primary-600"
+            >
+              Erneut versuchen
+            </button>
+            <button
+              type="button"
+              onClick={onBack}
+              className="rounded-md border border-grey-200 px-4 py-2 text-sm hover:bg-grey-100 dark:border-grey-700 dark:hover:bg-grey-800"
+            >
+              Zurück
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex h-[60vh] items-center justify-center gap-sm text-foreground">
         <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
