@@ -14,6 +14,8 @@ import { cn } from '@/utils/cn';
 interface NotificationPreferencesProps {
   onSuccessMessage: (message: string) => void;
   onErrorMessage: (message: string) => void;
+  /** Nur im Experten-Modus angezeigt (z. B. Test-E-Mail). */
+  expertExtras?: React.ReactNode;
 }
 
 const CHANNEL_ICONS: Record<NotificationChannel, React.ComponentType<{ className?: string }>> = {
@@ -33,6 +35,7 @@ const RAW_GROUPS = getRawTypesByGroup();
 const NotificationPreferences: React.FC<NotificationPreferencesProps> = ({
   onSuccessMessage,
   onErrorMessage,
+  expertExtras,
 }) => {
   const { level, preferences, isLoading, applyLevel, isApplyingLevel, toggleChannel } =
     useNotificationPreferences();
@@ -194,6 +197,7 @@ const NotificationPreferences: React.FC<NotificationPreferencesProps> = ({
               </div>
             </div>
           ))}
+          {expertExtras}
         </div>
       )}
     </div>
