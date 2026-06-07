@@ -70,6 +70,14 @@ export interface CanvasEditorServices {
   /** Fetch Unsplash image as File */
   fetchUnsplashImageAsFile?: (image: StockImage) => Promise<File>;
 
+  /**
+   * Upload an image blob to the host's media library and return a durable URL.
+   * In-editor image pickers call this so the persisted background is a stable
+   * URL that survives reloads/collaborators — never a session-local `blob:` URL.
+   * When omitted, pickers fall back to the (non-durable) object URL.
+   */
+  uploadImage?: (file: Blob, opts?: { filename?: string }) => Promise<string | null>;
+
   /** Open Unsplash search in browser */
   openUnsplashSearch?: (query: string) => void;
 

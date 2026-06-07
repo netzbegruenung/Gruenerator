@@ -120,47 +120,58 @@ export function TripleBalkenPreviewIcon({ size = 48 }: PreviewIconProps) {
   const w = size;
   const h = size * 0.75;
   const barH = h * 0.28;
-  const gap = h * 0.02;
-  const barW = w * 0.8;
+  const gap = h * 0.03;
+  const fontSize = barH * 0.48;
   const skew = Math.tan((12 * Math.PI) / 180) * barH;
   const cx = w / 2;
   const totalH = barH * 3 + gap * 2;
   const startY = (h - totalH) / 2;
+  const padX = fontSize * 0.6;
 
-  const offsets = [4, -2, 6];
-  const texts = ['DIE', 'GRÜNEN', ''];
-  const widths = [barW * 0.55, barW, barW * 0.7];
+  // Each labelled bar is sized to fit its text with padding — mirroring how the
+  // real canvas element fits bars to their text — and the text is constrained
+  // with textLength so it always sits inside the bar regardless of the font the
+  // app renders with. The third bar is decorative (no label, fixed width).
+  const bars: { text: string; offset: number; width?: number }[] = [
+    { text: 'DIE', offset: 4 },
+    { text: 'GRÜNEN', offset: -2 },
+    { text: '', offset: 6, width: w * 0.6 },
+  ];
 
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none">
-      {[0, 1, 2].map((i) => {
-        const bw = widths[i];
-        const x0 = cx - bw / 2 + offsets[i];
+      {bars.map((bar, i) => {
+        const fit = bar.text.length * fontSize * 0.62 + padX * 2 + skew;
+        const bw = bar.width ?? Math.min(fit, w - 4);
+        const x0 = Math.max(skew / 2, Math.min(w - bw - skew / 2, cx - bw / 2 + bar.offset));
         const y0 = startY + i * (barH + gap);
-        const sk = Math.tan((12 * Math.PI) / 180) * barH;
 
         const pts = [
-          `${x0 + sk / 2},${y0}`,
-          `${x0 + bw + sk / 2},${y0}`,
-          `${x0 + bw - sk / 2},${y0 + barH}`,
-          `${x0 - sk / 2},${y0 + barH}`,
+          `${x0 + skew / 2},${y0}`,
+          `${x0 + bw + skew / 2},${y0}`,
+          `${x0 + bw - skew / 2},${y0 + barH}`,
+          `${x0 - skew / 2},${y0 + barH}`,
         ].join(' ');
+
+        const textLen = bw - skew - padX * 2;
 
         return (
           <g key={i}>
             <polygon points={pts} fill={GREEN} />
-            {texts[i] && (
+            {bar.text && textLen > 0 && (
               <text
                 x={x0 + bw / 2}
                 y={y0 + barH / 2 + 1}
                 textAnchor="middle"
                 dominantBaseline="central"
                 fill={TEXT_COLOR}
-                fontSize={barH * 0.42}
+                fontSize={fontSize}
                 fontFamily="Arial, sans-serif"
                 fontWeight="bold"
+                textLength={textLen}
+                lengthAdjust="spacingAndGlyphs"
               >
-                {texts[i]}
+                {bar.text}
               </text>
             )}
           </g>

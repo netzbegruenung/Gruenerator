@@ -51,8 +51,9 @@ export function detectMention(text: string, caretPosition: number): MentionDetec
 }
 
 export function getFilteredFunctions(query: string): Mentionable[] {
-  const { notebooks, tools, boards, docs, documents, wolke, connect } = filterMentionables(query);
-  return [...tools, ...boards, ...docs, ...documents, ...wolke, ...connect, ...notebooks];
+  const { notebooks, tools, boards, docs, documents, wolke, connect, canva } =
+    filterMentionables(query);
+  return [...tools, ...boards, ...docs, ...documents, ...wolke, ...connect, ...canva, ...notebooks];
 }
 
 export function getFilteredSkills(query: string): Mentionable[] {
