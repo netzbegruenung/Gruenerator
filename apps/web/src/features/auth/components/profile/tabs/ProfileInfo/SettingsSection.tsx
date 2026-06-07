@@ -45,8 +45,10 @@ const SettingsSection: React.FC<SettingsSectionProps> = memo(
         <NotificationPreferences
           onSuccessMessage={onSuccessMessage}
           onErrorMessage={onErrorMessage}
+          expertExtras={
+            <TestEmailRow onSuccessMessage={onSuccessMessage} onErrorMessage={onErrorMessage} />
+          }
         />
-        <TestEmailRow onSuccessMessage={onSuccessMessage} onErrorMessage={onErrorMessage} />
       </div>
     );
   }
