@@ -334,11 +334,11 @@ export const freeformFullConfig: FullCanvasConfig<FreeformState, FreeformActions
     backgroundColor: (props.backgroundColor as string | undefined) ?? '#005538',
     currentImageSrc: props.currentImageSrc as string | undefined,
     backgroundImageFile: null,
-    imageOffset: { x: 0, y: 0 },
-    imageScale: 1,
+    imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+    imageScale: (props.imageScale as number | undefined) ?? 1,
     hasBackgroundImage: !!props.currentImageSrc,
-    backgroundImageOpacity: 1,
-    imageAttribution: null,
+    backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
+    imageAttribution: (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
 
     // Empty element arrays
     assetInstances: [],
