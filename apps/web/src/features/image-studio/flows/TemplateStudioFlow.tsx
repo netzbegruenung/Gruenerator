@@ -38,13 +38,10 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
     previousStep === FORM_STEPS.IMAGE_UPLOAD && currentStep === FORM_STEPS.INPUT;
 
   const [isWideStep, setIsWideStep] = useState(false);
-
-  const [isCanvasEdit, setIsCanvasEdit] = useState(false);
   const [isMintingCanvas, setIsMintingCanvas] = useState(false);
 
   const handleStepChange = useCallback((stepType: string) => {
     setIsWideStep(stepType === 'image_upload');
-    setIsCanvasEdit(stepType === 'canvas_edit');
   }, []);
 
   const navigate = useNavigate();
@@ -181,15 +178,8 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
     <ErrorBoundary>
       <WebCanvasEditorProvider>
         <LayoutGroup>
-          <div
-            className={cn('w-full flex justify-center p-8 max-[768px]:p-4', isCanvasEdit && 'p-0')}
-          >
-            <div
-              className={cn(
-                'w-full max-w-[var(--container-max-width)] mx-auto px-6 pb-16 text-center max-[768px]:px-4',
-                isCanvasEdit && 'p-0 max-w-none'
-              )}
-            >
+          <div className="w-full flex justify-center p-8 max-[768px]:p-4">
+            <div className="w-full max-w-[var(--container-max-width)] mx-auto px-6 pb-16 text-center max-[768px]:px-4">
               {flowTitle && (
                 <div className="flex flex-col mb-lg">
                   <h1 className="flex items-center justify-center gap-sm flex-wrap">
@@ -208,8 +198,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
                 className={cn(
                   'relative w-full max-w-[700px] mx-auto min-[1200px]:max-w-[900px] max-[768px]:p-0',
                   isWideStep &&
-                    'max-w-[1000px] min-[1200px]:max-w-[1200px] min-[1400px]:max-w-[1400px]',
-                  isCanvasEdit && 'max-w-none min-[1200px]:max-w-none'
+                    'max-w-[1000px] min-[1200px]:max-w-[1200px] min-[1400px]:max-w-[1400px]'
                 )}
               >
                 <AnimatePresence mode="wait">
@@ -225,20 +214,18 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
                     onAnimationComplete={handleAnimationComplete}
                   >
                     {(() => {
+                      // CANVAS_EDIT is intentionally excluded: reaching it triggers
+                      // the mint effect above, which shows the minting loader and
+                      // navigates to the collaborative /studio/canvas/:id route.
                       const shouldRenderStepFlow =
                         currentStep === FORM_STEPS.IMAGE_UPLOAD ||
                         currentStep === FORM_STEPS.INPUT ||
-                        currentStep === FORM_STEPS.IMAGE_SIZE_SELECT ||
-                        currentStep === FORM_STEPS.CANVAS_EDIT;
+                        currentStep === FORM_STEPS.IMAGE_SIZE_SELECT;
                       return shouldRenderStepFlow ? (
                         <StepFlow
                           onBack={onBack}
-                          onComplete={() =>
-                            useImageStudioStore.getState().setCurrentStep(FORM_STEPS.RESULT)
-                          }
                           onStepChange={handleStepChange}
                           imageLimitData={typeConfig?.hasRateLimit ? imageLimitData : null}
-                          startAtCanvasEdit={currentStep === FORM_STEPS.CANVAS_EDIT}
                         />
                       ) : null;
                     })()}
