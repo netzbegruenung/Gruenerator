@@ -3,7 +3,7 @@ import { PiArrowLeft } from 'react-icons/pi';
 
 import useDebounce from '../../../hooks/useDebounce';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
-import { ALL_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
+import { ALL_ASSETS, LOGO_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
 import { filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
 import {
   ALL_ILLUSTRATIONS,
@@ -495,8 +495,8 @@ function GrafiksSectionContent({
   searchQuery?: string;
 }) {
   const sortedAssets = useMemo(() => {
-    const recommended = ALL_ASSETS.filter((a) => recommendedAssetIds.includes(a.id));
-    const others = ALL_ASSETS.filter((a) => !recommendedAssetIds.includes(a.id));
+    const recommended = LOGO_ASSETS.filter((a) => recommendedAssetIds.includes(a.id));
+    const others = LOGO_ASSETS.filter((a) => !recommendedAssetIds.includes(a.id));
     const all = [...recommended, ...others];
     if (!searchQuery.trim()) return all;
     return all.filter((a) => matchesQuery(searchQuery, a.label, a.tags));

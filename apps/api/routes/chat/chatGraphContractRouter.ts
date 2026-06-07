@@ -74,6 +74,12 @@ import {
   streamForResolution,
   streamWithFallback,
 } from './services/responseStreamingService.js';
+import {
+  getLastSharepicVariant,
+  isSharepicRefinement,
+  isSharepicTopicMissing,
+  type PriorSharepic,
+} from './services/sharepicVariantHelpers.js';
 import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
 import { canAccessThread } from './services/threadAccessService.js';
 import { getUser, createThread, createMessage } from './services/threadPersistenceService.js';
@@ -563,6 +569,37 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         );
       }
 
+      // === Sharepic refinement: a follow-up edit right after a sharepic ===
+      // "verlängern" / "kürzer" / "anderes Bild" after a sharepic means "adjust
+      // the one you just made" — regenerate seeded with the previous sharepic's
+      // text, not a fresh sharepic about the word "verlängern". Overrides whatever
+      // intent the classifier picked (the edit verb alone rarely classifies as
+      // sharepic). Skipped when an image is attached (that's image_edit territory).
+      let sharepicRefinement: { instruction: string; prior: PriorSharepic } | undefined;
+      if (
+        actualThreadId &&
+        lastUserMessage &&
+        imageAttachments.length === 0 &&
+        classifiedState.intent !== 'image_edit' &&
+        !universalEditForced
+      ) {
+        const followText = (extractTextContent(lastUserMessage.content) as string) || '';
+        if (isSharepicRefinement(followText)) {
+          const prior = await getLastSharepicVariant(actualThreadId);
+          if (prior) {
+            sharepicRefinement = {
+              instruction: followText.replace(/@sharepic\b/gi, '').trim(),
+              prior,
+            };
+            classifiedState.intent = 'sharepic';
+            forcedTool = true;
+            log.info(
+              `[ChatGraph] Sharepic refinement: "${sharepicRefinement.instruction}" on ${prior.canvasType}`
+            );
+          }
+        }
+      }
+
       sse.send('progress_step', {
         stepId: classifyStepId,
         toolName: 'classify',
@@ -720,6 +757,69 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         if (handled) return { status: 200 as const, body: undefined };
       }
 
+      // === HITL: Sharepic without a topic → ask before generating ===
+      // Unlike the generic clarification above this fires even for forced @sharepic,
+      // because a bare "@sharepic" / "zitat sharepic" has the intent but no subject.
+      if (classifiedState.intent === 'sharepic' && actualThreadId && !sharepicRefinement) {
+        const sharepicText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        if (isSharepicTopicMissing(sharepicText as string)) {
+          log.info('[ChatGraph] Sharepic topic missing — asking user for the topic');
+
+          const stepId = `clarify_${Date.now()}`;
+          const question = 'Zu welchem Thema soll ich das Sharepic erstellen?';
+          const options = ['Klimaschutz', 'Soziale Gerechtigkeit', 'Verkehrswende', 'Artenschutz'];
+
+          sse.sendRaw('thinking_step', {
+            stepId,
+            toolName: 'ask_human',
+            title: 'Stelle Klärungsfrage...',
+            status: 'in_progress',
+            args: { question, options },
+          });
+
+          sse.send('interrupt', {
+            interruptType: 'clarification',
+            question,
+            options,
+            threadId: actualThreadId,
+          });
+
+          await pipelineStateStore.store(actualThreadId, {
+            classifiedState,
+            requestContext: {
+              userId,
+              agentId: agentId ?? 'gruenerator-universal',
+              enabledTools: enabledTools ?? {},
+              ...(modelId != null && { modelId }),
+              actualThreadId,
+              isNewThread,
+              processedMeta,
+              imageAttachments,
+              memoryContext,
+              memoryRetrieveTimeMs,
+              validMessages,
+              forcedTool,
+              ...(rawDocumentIds != null && { rawDocumentIds }),
+            },
+          });
+
+          sse.send('done', {
+            threadId: actualThreadId,
+            citations: [],
+            interrupted: true,
+            metadata: {
+              intent: classifiedState.intent,
+              searchCount: 0,
+              totalTimeMs: Date.now() - initialState.startTime,
+              classificationTimeMs: classifiedState.classificationTimeMs,
+              searchTimeMs: 0,
+            },
+          });
+          sse.end();
+          return { status: 200 as const, body: undefined };
+        }
+      }
+
       // === Stage 2: Search or Image Generation ===
       const { finalState, generatedImage, sharepicVariants } = await executeIntentPipeline({
         classifiedState,
@@ -728,6 +828,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(enabledTools != null && { enabledTools }),
         imageAttachments,
         req,
+        ...(sharepicRefinement && { sharepicRefinement }),
       });
 
       // === Stage 3: Response generation ===
@@ -1020,12 +1121,72 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       classifiedState.clarificationQuestion = null;
       classifiedState.clarificationOptions = null;
 
+      const startTime = Date.now();
+
+      // === Sharepic resume: the answer is the topic — regenerate and finish ===
+      if (classifiedState.intent === 'sharepic') {
+        // Combine the original (topic-less) request with the answer so any variant
+        // hint ("zitat sharepic") survives and the answer supplies the subject.
+        const prevUserMsg = [...classifiedState.messages].reverse().find((m) => m.role === 'user');
+        const prevText = prevUserMsg ? extractTextContent(prevUserMsg.content) : '';
+        const combined = `${prevText} ${userAnswer}`.trim();
+        classifiedState.messages = [
+          ...classifiedState.messages,
+          { role: 'user', content: combined },
+        ];
+
+        sse.send('intent', {
+          intent: 'sharepic',
+          message: getIntentMessage('sharepic'),
+          reasoning: `Resumed: ${userAnswer}`,
+        });
+
+        const { sharepicVariants } = await executeIntentPipeline({
+          classifiedState,
+          sse,
+          forcedTool: requestContext.forcedTool,
+          ...(requestContext.enabledTools != null && { enabledTools: requestContext.enabledTools }),
+          imageAttachments: requestContext.imageAttachments ?? [],
+          req,
+        });
+
+        const n = sharepicVariants.length;
+        const fullText =
+          n > 0
+            ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
+              `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
+            : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
+              `anderen Thema noch einmal versuchen?`;
+        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+        sse.send('text_delta', { text: fullText });
+
+        await persistResumedResponse({
+          threadId: requestContext.actualThreadId!,
+          fullText,
+          finalState: classifiedState,
+          classifiedState,
+        });
+
+        sse.send('done', {
+          ...(requestContext.actualThreadId != null && {
+            threadId: requestContext.actualThreadId,
+          }),
+          citations: [],
+          metadata: {
+            intent: 'sharepic',
+            searchCount: 0,
+            totalTimeMs: Date.now() - startTime,
+            searchTimeMs: 0,
+          },
+        });
+        sse.end();
+        return { status: 200 as const, body: undefined };
+      }
+
       const nonSearchIntents = new Set(['direct', 'image', 'image_edit']);
       if (nonSearchIntents.has(classifiedState.intent)) {
         classifiedState.intent = 'search';
       }
-
-      const startTime = Date.now();
 
       sse.send('intent', {
         intent: classifiedState.intent,

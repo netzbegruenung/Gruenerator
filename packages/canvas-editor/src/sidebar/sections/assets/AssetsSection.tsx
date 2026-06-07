@@ -3,7 +3,7 @@ import { FaPuzzlePiece, FaSearch, FaShapes } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi2';
 import { PiFrameCornersFill, PiSmileyWink, PiTagFill } from 'react-icons/pi';
 
-import { ALL_ASSETS, type AssetInstance } from '../../../utils/canvasAssets';
+import { LOGO_ASSETS, type AssetInstance } from '../../../utils/canvasAssets';
 import { getIconsSync, loadAllIcons } from '../../../utils/canvasIcons';
 import { ALL_ILLUSTRATIONS, UNDRAW_FEATURED } from '../../../utils/illustrations/registry';
 import { prefetchBackground } from '../../../utils/illustrations/svgCache';
@@ -207,8 +207,8 @@ function MobileView({
   const effectiveIllustrationsExpanded = bridge.active || illustrationenExpanded;
 
   const sortedAssets = useMemo(() => {
-    const recommended = ALL_ASSETS.filter((a) => recommendedAssetIds.includes(a.id));
-    const others = ALL_ASSETS.filter((a) => !recommendedAssetIds.includes(a.id));
+    const recommended = LOGO_ASSETS.filter((a) => recommendedAssetIds.includes(a.id));
+    const others = LOGO_ASSETS.filter((a) => !recommendedAssetIds.includes(a.id));
     return [...recommended, ...others];
   }, [recommendedAssetIds]);
 

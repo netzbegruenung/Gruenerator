@@ -69,7 +69,11 @@ const calculateLayout = (state: InfoState): LayoutResult => {
     },
     'body-text': {
       x: layout.body.x,
-      y: layout.body.y,
+      // Body starts at the arrow's Y (to its right), mirroring the backend
+      // info_canvas. `layout.body.y` is a static 0 ("dynamic, set at runtime")
+      // that was never computed here — using it dropped the body to the very top
+      // where it overlapped the header.
+      y: arrowY,
       width: layout.body.maxWidth,
       fontSize: bodyFontSize,
     },

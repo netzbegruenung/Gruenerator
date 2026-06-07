@@ -6,6 +6,7 @@ import { HiMagnifyingGlass, HiPhoto, HiXMark } from 'react-icons/hi2';
 import UnsplashAttribution from '../../common/UnsplashAttribution';
 import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
+import { persistImageSelection } from '../persistImageSelection';
 import { SidebarSlider } from '../components/SidebarSlider';
 import { SIDEBAR_SECTION } from '../primitives';
 import { SubsectionTabBar, type Subsection } from '../SubsectionTabBar';
@@ -56,12 +57,12 @@ function SearchContent({
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [pickError, setPickError] = useState<string | null>(null);
-  // Tracks which library item produced the current background blob URL, so we
-  // can dedupe it from the grid. The pipeline mediaUrl → blob URL erases
-  // identity, so we cache the mapping locally while it's still active.
+  // Tracks which library item backs the current background, so we can dedupe it
+  // from the grid. We cache the mapping locally (id → the src URL now applied)
+  // while it's still active.
   const [activeLibraryRef, setActiveLibraryRef] = useState<{
     id: string;
-    blobUrl: string;
+    srcUrl: string;
   } | null>(null);
 
   const {
@@ -83,7 +84,8 @@ function SearchContent({
     clearSearch: clearUnsplashSearch,
   } = useUnsplashSearch();
 
-  const { fetchUnsplashImageAsFile, trackUnsplashDownloadLive } = useCanvasEditorServices();
+  const { fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage } =
+    useCanvasEditorServices();
 
   useEffect(() => {
     setUploadSearch(searchQuery);
@@ -113,9 +115,10 @@ function SearchContent({
         const blob = await response.blob();
         const filename = item.originalFilename ?? item.title ?? `upload-${item.id}`;
         const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-        const objectUrl = URL.createObjectURL(file);
-        onImageChange(file, objectUrl, null);
-        setActiveLibraryRef({ id: item.id, blobUrl: objectUrl });
+        // The library URL is already durable — persist it directly instead of a
+        // session-local blob: URL (which dies on reload in the collab editor).
+        onImageChange(file, url, null);
+        setActiveLibraryRef({ id: item.id, srcUrl: url });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Fehler beim Laden des Bildes';
         setPickError(message);
@@ -130,18 +133,29 @@ function SearchContent({
       setPickError(null);
       try {
         const file = await fetchUnsplashImageAsFile(image);
-        const objectUrl = URL.createObjectURL(file);
         if (image.attribution?.downloadLocation && trackUnsplashDownloadLive) {
           await trackUnsplashDownloadLive(image.attribution.downloadLocation);
         }
-        onImageChange(file, objectUrl, image.attribution ?? null);
+        // Optimistic blob preview, then swap to a durable URL so the chosen
+        // image survives reload (the value gets written to the collab doc).
+        const { persisted } = await persistImageSelection(
+          file,
+          image.attribution ?? null,
+          onImageChange,
+          uploadImage
+        );
         setActiveLibraryRef(null);
+        if (!persisted && uploadImage) {
+          setPickError(
+            'Bild konnte nicht dauerhaft gespeichert werden und geht nach dem Neuladen verloren.'
+          );
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Fehler beim Laden des Bildes';
         setPickError(message);
       }
     },
-    [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive]
+    [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage]
   );
 
   const handleClearActive = useCallback(() => {
@@ -152,7 +166,7 @@ function SearchContent({
   const displayedError = pickError ?? uploadsError ?? unsplashError;
   const hasActive = !!currentImageSrc;
   const activeLibraryId =
-    activeLibraryRef && activeLibraryRef.blobUrl === currentImageSrc ? activeLibraryRef.id : null;
+    activeLibraryRef && activeLibraryRef.srcUrl === currentImageSrc ? activeLibraryRef.id : null;
   const dedupedUploads = activeLibraryId
     ? uploadItems.filter((item) => item.id !== activeLibraryId)
     : uploadItems;
