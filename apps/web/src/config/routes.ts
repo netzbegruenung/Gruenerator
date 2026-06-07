@@ -105,6 +105,7 @@ const TexteRedirectToWorkplace = lazy(() =>
   Promise.resolve({ default: TexteRedirectToWorkplaceComponent })
 );
 const VorlagenGallery = lazy(() => import('../components/common/Gallery'));
+const MeineVorlagenPage = lazy(() => import('../features/vorlagen/MeineVorlagenPage'));
 const AdminDashboardPage = lazy(() => import('../features/admin/AdminDashboardPage'));
 const GrueneApiTestPage = lazy(() => import('../features/admin/GrueneApiTestPage'));
 const PlaygroundPage = lazy(() => import('../features/playground/PlaygroundPage'));
@@ -287,7 +288,12 @@ const standardRoutes: RouteConfig[] = [
   { path: '/admin/gruene-api', component: GrueneApiTestPage },
   { path: '/playground', component: PlaygroundPage },
   { path: '/icon-test', component: IconAnimationTestPage, devOnly: true },
-  { path: '/datenbank/vorlagen', component: GrueneratorenBundle.VorlagenListe },
+  { path: '/vorlagen', component: GrueneratorenBundle.VorlagenListe },
+  { path: '/vorlagen/meine', component: MeineVorlagenPage },
+  {
+    path: '/datenbank/vorlagen',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/vorlagen') })),
+  },
   { path: '/suche', component: GrueneratorenBundle.Search, withForm: true },
   { path: '/kommunal', component: GrueneratorenBundle.Oparl },
   {

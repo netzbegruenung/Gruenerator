@@ -1,0 +1,142 @@
+import { Button } from '@gruenerator/ui';
+import { useCallback, useMemo, useState } from 'react';
+import { HiOutlineTemplate, HiPlus } from 'react-icons/hi';
+import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
+
+import VorlagenListSection from './components/VorlagenListSection';
+import { useTemplateActions } from './hooks/useTemplateActions';
+import { isCanvasEditorType, type Template } from './types';
+
+import AddTemplateModal from '@/components/common/AddTemplateModal/AddTemplateModal';
+import EditTemplateModal from '@/components/common/EditTemplateModal';
+import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired';
+import PageContainer from '@/components/common/PageContainer';
+import ErrorBoundary from '@/components/ErrorBoundary';
+
+const MeineVorlagenPage = () => {
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
+
+  const { query, openTemplate, getActions, updateTemplate } = useTemplateActions({
+    onEdit: setEditingTemplate,
+  });
+
+  const { canvasEditor, canva } = useMemo(() => {
+    const templates = (query.data ?? []) as Template[];
+    const canvasEditor: Template[] = [];
+    const canva: Template[] = [];
+    for (const t of templates) {
+      (isCanvasEditorType(t) ? canvasEditor : canva).push(t);
+    }
+    return { canvasEditor, canva };
+  }, [query.data]);
+
+  const isEmpty = !query.isLoading && canvasEditor.length === 0 && canva.length === 0;
+
+  const handleSave = useCallback(
+    async (id: string, data: Partial<Template>): Promise<void> => {
+      await updateTemplate(id, data);
+    },
+    [updateTemplate]
+  );
+
+  const handleAddSuccess = useCallback(() => {
+    void query.refetch();
+    toast.success('Vorlage wurde hinzugefügt.');
+    setShowAddModal(false);
+  }, [query]);
+
+  const handleEditSuccess = useCallback(() => {
+    void query.refetch();
+    toast.success('Vorlage wurde aktualisiert.');
+  }, [query]);
+
+  return (
+    <ErrorBoundary>
+      <PageContainer maxWidth="lg">
+        <div className="mb-lg pt-md text-center">
+          <h1 className="mb-xs text-4xl font-semibold text-foreground-heading max-md:text-2xl">
+            Meine Vorlagen
+          </h1>
+          <p className="mx-auto mb-lg max-w-[640px] text-foreground opacity-80">
+            Verwalte deine Canvas-Editor- und Canva-Vorlagen an einem Ort.
+          </p>
+          {!isEmpty && (
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Button variant="brand" size="brand" onClick={() => setShowAddModal(true)}>
+                <HiPlus className="size-5" />
+                Vorlage hinzufügen
+              </Button>
+              <Button asChild variant="brand-outline" size="brand">
+                <Link to="/vorlagen">Zur Galerie</Link>
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {isEmpty ? (
+          <div className="mx-auto max-w-[480px] rounded-lg border border-dashed border-grey-200 px-6 py-12 text-center dark:border-grey-700">
+            <div className="mb-4 flex justify-center">
+              <div className="flex size-12 items-center justify-center rounded-lg bg-background-alt text-foreground">
+                <HiOutlineTemplate className="size-6" />
+              </div>
+            </div>
+            <h2 className="text-lg font-medium text-foreground-heading">Noch keine Vorlagen</h2>
+            <p className="mx-auto mt-2 text-sm leading-relaxed text-foreground opacity-70">
+              Speichere Canva-Links oder erstelle Vorlagen im Canvas-Editor, um sie hier an einem
+              Ort zu verwalten.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <Button variant="brand" size="brand" onClick={() => setShowAddModal(true)}>
+                <HiPlus className="size-5" />
+                Vorlage hinzufügen
+              </Button>
+              <Button asChild variant="brand-outline" size="brand">
+                <Link to="/vorlagen">Galerie durchsuchen</Link>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <VorlagenListSection
+              title="Canvas-Editor Vorlagen"
+              items={canvasEditor}
+              loading={query.isLoading}
+              emptyMessage="Du hast noch keine Canvas-Editor-Vorlagen gespeichert."
+              getActions={getActions}
+              onOpen={(t) => void openTemplate(t)}
+            />
+
+            <VorlagenListSection
+              title="Canva Vorlagen"
+              items={canva}
+              loading={query.isLoading}
+              emptyMessage="Du hast noch keine Canva-Vorlagen gespeichert. Füge oben eine über „Vorlage hinzufügen“ hinzu."
+              getActions={getActions}
+              onOpen={(t) => void openTemplate(t)}
+            />
+          </>
+        )}
+
+        <AddTemplateModal
+          isOpen={showAddModal}
+          onClose={() => setShowAddModal(false)}
+          onSuccess={handleAddSuccess}
+        />
+
+        {editingTemplate && (
+          <EditTemplateModal
+            isOpen={true}
+            onClose={() => setEditingTemplate(null)}
+            onSave={handleSave}
+            onSuccess={handleEditSuccess}
+            template={editingTemplate}
+          />
+        )}
+      </PageContainer>
+    </ErrorBoundary>
+  );
+};
+
+export default withAuthRequired(MeineVorlagenPage, { title: 'Meine Vorlagen' });
