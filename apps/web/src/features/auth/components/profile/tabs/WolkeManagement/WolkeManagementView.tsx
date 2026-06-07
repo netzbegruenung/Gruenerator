@@ -20,6 +20,7 @@ import {
 const ConnectedAccountsSection = lazy(
   () => import('../../../../../connections/components/ConnectedAccountsSection')
 );
+const CanvaSection = lazy(() => import('../../../../../canva/components/CanvaSection'));
 
 import { cn } from '@/utils/cn';
 import './clouds.css';
@@ -233,6 +234,7 @@ const WolkeManagementView = memo(
         </CloudCard>
         {import.meta.env.DEV && <WordPressSection />}
         <ConnectedAccountsSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
+        <CanvaSection onSuccess={onSuccessMessage} onError={onErrorMessage} />
       </motion.div>
     );
   }

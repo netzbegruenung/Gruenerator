@@ -311,6 +311,51 @@ export function useConnectBrowseQuery(
   });
 }
 
+// ── @canva (direct Canva Connect API designs) ────────────────────────────────
+//
+// Unlike @connect/@wolke (Nango / Nextcloud), Canva is a direct OAuth
+// integration. The picker lists the user's designs live; selecting designs
+// inserts a markdown link per design into the composer.
+
+export interface ChatCanvaDesign {
+  id: string;
+  title: string;
+  viewUrl: string;
+  editUrl: string;
+  thumbnailUrl: string | null;
+  updatedAt: number | null;
+}
+
+/**
+ * The user's Canva designs. Disabled until the picker opens (`enabled`), and
+ * re-fetched on open so newly created designs show up. Returns an empty list
+ * (not an error) when the user hasn't connected Canva yet — the picker renders
+ * an empty-state in that case.
+ */
+export function useCanvaDesignsQuery(query: string, enabled = true) {
+  const apiClient = useApiClient();
+  return useQuery<{ designs: ChatCanvaDesign[]; connected: boolean }>({
+    queryKey: ['mention-canva-designs', query],
+    queryFn: async () => {
+      try {
+        const qs = query ? `?query=${encodeURIComponent(query)}` : '';
+        const res = await apiClient.get<{ designs?: ChatCanvaDesign[]; error?: string }>(
+          `/api/canva/designs${qs}`
+        );
+        return { designs: Array.isArray(res?.designs) ? res.designs : [], connected: true };
+      } catch {
+        // 404 (not connected) or any failure → treat as "not connected" so the
+        // picker shows the connect-first empty-state instead of an error.
+        return { designs: [], connected: false };
+      }
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    enabled,
+    retry: 1,
+  });
+}
+
 /**
  * Convenience hook that triggers all dynamic-mentionable queries — call from
  * the chat composer so dynamic mentionables are warm by the time @-popovers

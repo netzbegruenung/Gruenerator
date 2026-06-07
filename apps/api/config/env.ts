@@ -117,6 +117,11 @@ const envSchema = z.object({
   NANGO_SECRET_KEY: z.string().optional(),
   NANGO_SERVER_URL: z.string().default('http://nango:3003'),
 
+  // ── Canva Connect API (direct OAuth2 + PKCE, no Nango) ──────────────────
+  CANVA_CLIENT_ID: z.string().optional(),
+  CANVA_CLIENT_SECRET: z.string().optional(),
+  CANVA_REDIRECT_URI: z.string().optional(),
+
   // ── MCP ────────────────────────────────────────────────────────────────
   MCP_URL: z.string().optional(),
   BUNDESTAG_MCP_URL: z.string().optional(),
