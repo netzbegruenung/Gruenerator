@@ -170,7 +170,9 @@ const NotificationPreferences: React.FC<NotificationPreferencesProps> = ({
                       <div className="flex items-center gap-sm grow min-w-0">
                         <Icon className={cn('w-4 h-4 shrink-0 text-grey-400 dark:text-grey-500')} />
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{meta.label}</p>
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {meta.label}
+                          </p>
                           <p className="text-xs text-grey-500 dark:text-grey-400 truncate">
                             {meta.description}
                           </p>
