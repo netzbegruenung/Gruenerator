@@ -18,7 +18,11 @@ import type {
 } from '../hooks/useChatGraphStream';
 import { useAgentStore, type ToolKey, type ThreadMode, type SearchMode } from '../stores/chatStore';
 import { getSystemAgent } from '@gruenerator/shared/agents';
-import { triggerDocEditSchema } from '@gruenerator/contracts';
+import {
+  triggerDocEditSchema,
+  triggerBoardActionSchema,
+  type CurrentBoard,
+} from '@gruenerator/contracts';
 import { parseAllMentions } from '../lib/mentionParser';
 import { parseSSELine } from '../lib/sseParser';
 import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../lib/toolMappings';
@@ -679,6 +683,38 @@ async function* parseSSEStream(
           break;
         }
 
+        case 'trigger_board_action': {
+          // Live board edit (boards editor surface). The chat backend classified
+          // intent=edit_current_board and forwards the user's prompt here so the
+          // boards frontend can plan + apply operations against the live Yjs board.
+          // Handlers are keyed by boardId — one boards surface per board.
+          const parsed = triggerBoardActionSchema.safeParse(data);
+          if (!parsed.success) {
+            console.warn(
+              '[ChatAdapter] trigger_board_action payload failed validation',
+              parsed.error
+            );
+            break;
+          }
+          const payload = parsed.data;
+          const handler = useChatConfigStore
+            .getState()
+            .boardActionHandlers.get(payload.targetBoardId);
+          if (handler) {
+            try {
+              await handler(payload);
+            } catch (err) {
+              console.warn('[ChatAdapter] boardActionHandler threw', err);
+            }
+          } else {
+            console.warn(
+              '[ChatAdapter] trigger_board_action received but no handler registered for board',
+              payload.targetBoardId
+            );
+          }
+          break;
+        }
+
         // ── Search mode events ──
         case 'sources_preview': {
           const { results: previewResults, resultCount } = data as {
@@ -945,7 +981,9 @@ export function createGrueneratorModelAdapter(
       const safeCustomEnabledTools =
         activeAgentForRouting?.routeTo === 'search' && config.customEnabledTools
           ? Object.fromEntries(
-              Object.entries(config.customEnabledTools).filter(([k]) => k !== 'edit_current_doc')
+              Object.entries(config.customEnabledTools).filter(
+                ([k]) => k !== 'edit_current_doc' && k !== 'edit_current_board'
+              )
             )
           : config.customEnabledTools;
 
@@ -1146,6 +1184,7 @@ export function createGrueneratorModelAdapter(
             selectionText?: string | null;
           }
         | undefined;
+      let injectedCurrentBoard: CurrentBoard | undefined;
       if (config.threadId) {
         const provider = contextProviders.get(config.threadId);
         if (provider) {
@@ -1161,6 +1200,7 @@ export function createGrueneratorModelAdapter(
                 selectionText: cd.selectionText ?? null,
               };
             }
+            if (ctx.currentBoard) injectedCurrentBoard = ctx.currentBoard;
             const parts: string[] = [];
             if (ctx.selectionText) parts.push(`## Auswahl:\n${ctx.selectionText}`);
             if (ctx.attachmentContext) parts.push(ctx.attachmentContext);
@@ -1247,6 +1287,7 @@ export function createGrueneratorModelAdapter(
           documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
           documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
           currentDocument: injectedCurrentDocument,
+          currentBoard: injectedCurrentBoard,
           attachmentContext: injectedAttachmentContext,
           defaultNotebookId: config.selectedNotebookId || undefined,
           customSystemPrompt: config.customSystemPrompt || undefined,
@@ -1276,6 +1317,7 @@ export function createGrueneratorModelAdapter(
           documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
           documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
           currentDocument: injectedCurrentDocument,
+          currentBoard: injectedCurrentBoard,
           attachmentContext: injectedAttachmentContext,
           defaultNotebookId: config.selectedNotebookId || undefined,
           customSystemPrompt: config.customSystemPrompt || undefined,

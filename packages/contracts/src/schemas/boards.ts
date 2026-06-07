@@ -211,3 +211,111 @@ export type FieldSetting = z.infer<typeof fieldSettingSchema>;
 export type BoardView = z.infer<typeof boardViewSchema>;
 export type BoardState = z.infer<typeof boardStateResponseSchema>;
 export type AssignableMember = z.infer<typeof assignableMemberSchema>;
+
+// ── Board AI assistant ────────────────────────────────────────────────────────
+// Powers the in-board chat assistant (FAB on the boards page). The frontend
+// serializes the LIVE Yjs board state into `currentBoardSchema` and sends it as
+// chat-request context; when the user asks for a change, the chat backend emits
+// the `trigger_board_action` SSE event and the frontend calls POST
+// /api/boards/:id/ai to turn the request into a list of board operations, which
+// a client-side executor applies to the live board.
+
+/**
+ * Compact projection of the live board sent to the chat/AI backend as context.
+ * `assignableMembers` flattens AssignableMember to the id+name the model needs
+ * to resolve human assignee names.
+ */
+export const currentBoardSchema = z.object({
+  id: z.string(),
+  title: z.string().nullish(),
+  boardType: boardTypeSchema,
+  fields: z.array(boardFieldSchema),
+  rows: z.array(boardRowSchema),
+  views: z.array(boardViewSchema),
+  statusOptions: z.array(selectOptionSchema),
+  assignableMembers: z.array(z.object({ id: z.string(), name: z.string() })),
+});
+
+export type CurrentBoard = z.infer<typeof currentBoardSchema>;
+
+/**
+ * Payload of the `trigger_board_action` SSE event. The chat backend (ChatGraph,
+ * intent=edit_current_board) forwards a board-edit instruction to the boards
+ * assistant surface, which calls POST /api/boards/:id/ai and applies the result.
+ * Mirrors triggerDocEditSchema. `.optional()` (not `.nullish()`): SSE payload
+ * field simply omitted when empty, not a request body.
+ */
+export const triggerBoardActionSchema = z.object({
+  targetBoardId: z.string(),
+  userPrompt: z.string(),
+  referenceContent: z.string().optional(),
+});
+
+export type TriggerBoardAction = z.infer<typeof triggerBoardActionSchema>;
+
+/**
+ * A single board mutation the AI proposes. Discriminated union on `type` — per
+ * the repo's type-safety rule, never destructure; switch on `op.type`. The model
+ * emits HUMAN names for status/assignee/labels; the client executor resolves them
+ * to ids against the live board (auto-creating missing status columns / labels).
+ */
+export const boardOperationSchema = z.discriminatedUnion('type', [
+  // ── tasks ──
+  z.object({
+    type: z.literal('create_task'),
+    title: z.string(),
+    status: z.string().nullish(),
+    description: z.string().nullish(),
+    dueDate: z.string().nullish(),
+    assignee: z.string().nullish(),
+    labels: z.array(z.string()).nullish(),
+  }),
+  z.object({
+    type: z.literal('update_task'),
+    taskId: z.string(),
+    title: z.string().nullish(),
+    description: z.string().nullish(),
+    dueDate: z.string().nullish(),
+  }),
+  z.object({ type: z.literal('delete_task'), taskId: z.string() }),
+  z.object({ type: z.literal('move_task'), taskId: z.string(), status: z.string() }),
+  // ── comments ──
+  z.object({ type: z.literal('add_comment'), taskId: z.string(), text: z.string() }),
+  // ── people / fields on a task ──
+  z.object({ type: z.literal('set_assignee'), taskId: z.string(), assignee: z.string().nullish() }),
+  z.object({ type: z.literal('set_labels'), taskId: z.string(), labels: z.array(z.string()) }),
+  z.object({ type: z.literal('set_due_date'), taskId: z.string(), dueDate: z.string().nullish() }),
+  // ── columns (status options) ──
+  z.object({ type: z.literal('add_column'), name: z.string(), color: z.string().nullish() }),
+  z.object({ type: z.literal('rename_column'), columnId: z.string(), name: z.string() }),
+  // ── schema ──
+  z.object({
+    type: z.literal('add_field'),
+    name: z.string(),
+    fieldType: fieldTypeSchema,
+    options: z.array(z.string()).nullish(),
+  }),
+  z.object({ type: z.literal('add_view'), name: z.string(), layout: viewLayoutSchema }),
+]);
+
+export type BoardOperation = z.infer<typeof boardOperationSchema>;
+
+export const boardOperationsSchema = z.array(boardOperationSchema).min(1).max(50);
+
+/**
+ * Request body for POST /api/boards/:id/ai. The model turns `userPrompt` (with
+ * the live `board` as context) into a list of operations.
+ */
+export const boardAiRequestBodySchema = z.object({
+  userPrompt: z.string(),
+  board: currentBoardSchema,
+  referenceContent: z.string().nullish(),
+});
+
+export type BoardAiRequestBody = z.infer<typeof boardAiRequestBodySchema>;
+
+export const boardAiResponseSchema = z.object({
+  operations: z.array(boardOperationSchema),
+});
+
+export type BoardAiResponse = z.infer<typeof boardAiResponseSchema>;
