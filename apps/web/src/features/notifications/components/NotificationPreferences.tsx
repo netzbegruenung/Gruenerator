@@ -1,5 +1,5 @@
-import { CollapsibleSection, SelectCard, Switch } from '@gruenerator/ui';
-import { Bell, Info, Mail, Settings2, Smartphone } from 'lucide-react';
+import { SelectCard, Switch } from '@gruenerator/ui';
+import { Bell, Mail, Settings2, Smartphone } from 'lucide-react';
 import React from 'react';
 
 import { useNotificationPreferences } from '../hooks/useNotificationPreferences';
@@ -14,6 +14,8 @@ import { cn } from '@/utils/cn';
 interface NotificationPreferencesProps {
   onSuccessMessage: (message: string) => void;
   onErrorMessage: (message: string) => void;
+  /** Nur im Experten-Modus angezeigt (z. B. Test-E-Mail). */
+  expertExtras?: React.ReactNode;
 }
 
 const CHANNEL_ICONS: Record<NotificationChannel, React.ComponentType<{ className?: string }>> = {
@@ -33,9 +35,14 @@ const RAW_GROUPS = getRawTypesByGroup();
 const NotificationPreferences: React.FC<NotificationPreferencesProps> = ({
   onSuccessMessage,
   onErrorMessage,
+  expertExtras,
 }) => {
   const { level, preferences, isLoading, applyLevel, isApplyingLevel, toggleChannel } =
     useNotificationPreferences();
+
+  // Experten-Modus: ersetzt die Stufenauswahl durch die erweiterten Einstellungen
+  // (nie beides gleichzeitig). Standardmäßig an, wenn bereits individuell konfiguriert.
+  const [expertMode, setExpertMode] = React.useState(level === 'custom');
 
   const handleSelectLevel = async (value: 'low' | 'medium' | 'high') => {
     if (level === value) return;
@@ -78,59 +85,49 @@ const NotificationPreferences: React.FC<NotificationPreferencesProps> = ({
 
   return (
     <div className="space-y-lg">
-      <div>
-        <div className="text-sm font-medium text-foreground mb-xs">Benachrichtigungen</div>
-        <p className="text-xs text-grey-500 dark:text-grey-400">
-          Wähle, wie viele Benachrichtigungen du erhalten möchtest.
-          {level === 'custom' && (
-            <span className="ml-xs font-medium text-secondary-600 dark:text-secondary-400">
-              Aktuell: Individuell
-            </span>
-          )}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-md">
-        {LEVEL_OPTIONS.map((opt) => {
-          const Icon = opt.icon;
-          return (
-            <SelectCard
-              key={opt.value}
-              label={opt.label}
-              description={opt.description}
-              icon={<Icon className="w-5 h-5" />}
-              selected={level === opt.value}
-              onClick={() => {
-                if (!isApplyingLevel) void handleSelectLevel(opt.value);
-              }}
-            />
-          );
-        })}
-      </div>
-
-      <div className="flex items-start gap-sm p-md rounded-lg bg-primary-50 dark:bg-primary-950/30 border border-primary-200 dark:border-primary-800">
-        <Info className="w-4 h-4 mt-0.5 text-primary-600 dark:text-primary-400 shrink-0" />
-        <p className="text-sm text-primary-700 dark:text-primary-300">
-          Stufe Mittel ist empfohlen. Push-Benachrichtigungen erfordern die mobile App;
-          In-App-Benachrichtigungen erscheinen in der Glocke oben rechts.
-        </p>
-      </div>
-
-      <CollapsibleSection
-        bordered
-        title={
-          <span className="flex items-center gap-xs">
-            <Settings2 className="w-4 h-4" />
-            Erweiterte Einstellungen
-          </span>
-        }
-      >
-        <div className="space-y-lg pt-sm">
+      <div className="flex items-start justify-between gap-md">
+        <div>
+          <div className="text-sm font-medium text-foreground mb-xs">Benachrichtigungen</div>
           <p className="text-xs text-grey-500 dark:text-grey-400">
-            Stelle einzelne Benachrichtigungen pro Kanal ein. Eigene Anpassungen setzen die Stufe auf
-            Individuell.
+            {expertMode
+              ? 'Stelle einzelne Benachrichtigungen pro Kanal ein.'
+              : 'Wähle, wie viele Benachrichtigungen du erhalten möchtest.'}
           </p>
+        </div>
+        <label className="flex items-center gap-xs shrink-0 cursor-pointer select-none">
+          <span className="flex items-center gap-xs text-xs text-grey-500 dark:text-grey-400">
+            <Settings2 className="w-3.5 h-3.5" />
+            Experten
+          </span>
+          <Switch
+            className="h-[20px] w-[40px] data-[state=checked]:bg-secondary-600 data-[state=unchecked]:bg-grey-200 dark:data-[state=unchecked]:bg-grey-700"
+            checked={expertMode}
+            onCheckedChange={setExpertMode}
+            aria-label="Experteneinstellungen"
+          />
+        </label>
+      </div>
 
+      {!expertMode ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-md">
+          {LEVEL_OPTIONS.map((opt) => {
+            const Icon = opt.icon;
+            return (
+              <SelectCard
+                key={opt.value}
+                label={opt.label}
+                description={opt.description}
+                icon={<Icon className="w-5 h-5" />}
+                selected={level === opt.value}
+                onClick={() => {
+                  if (!isApplyingLevel) void handleSelectLevel(opt.value);
+                }}
+              />
+            );
+          })}
+        </div>
+      ) : (
+        <div className="space-y-lg">
           {RAW_GROUPS.map(({ group, label, types }) => (
             <div
               key={group}
@@ -200,8 +197,9 @@ const NotificationPreferences: React.FC<NotificationPreferencesProps> = ({
               </div>
             </div>
           ))}
+          {expertExtras}
         </div>
-      </CollapsibleSection>
+      )}
     </div>
   );
 };
