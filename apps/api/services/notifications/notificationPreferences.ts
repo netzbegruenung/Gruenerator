@@ -212,7 +212,11 @@ export async function applyLevelForUser(
   level: NotificationLevel
 ): Promise<Record<NotificationType, ChannelPreferences>> {
   const profileService = getProfileService();
-  await profileService.setUserDefaultsGenerator(userId, 'notifications', getPresetPreferences(level));
+  await profileService.setUserDefaultsGenerator(
+    userId,
+    'notifications',
+    getPresetPreferences(level)
+  );
   return getPreferencesForUser(userId);
 }
 
