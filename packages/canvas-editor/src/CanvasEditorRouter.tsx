@@ -421,13 +421,7 @@ export function ControllableCanvasWrapper({
         case 'pres-image':
         case 'pres-content':
         case 'presentation':
-          return createCallbacks([
-            'title',
-            'subtitle',
-            'bodyText',
-            'bodyText2',
-            ...BG_IMAGE_KEYS,
-          ]);
+          return createCallbacks(['title', 'subtitle', 'bodyText', 'bodyText2', ...BG_IMAGE_KEYS]);
         default:
           return {};
       }
