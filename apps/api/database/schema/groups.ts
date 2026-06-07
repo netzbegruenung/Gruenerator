@@ -36,6 +36,10 @@ export const group_memberships = pgTable('group_memberships', {
   role: text('role').$type<GroupRole>().default('member'),
   joined_at: timestamp('joined_at', { withTimezone: true }).defaultNow(),
   is_active: boolean('is_active').default(true),
+  // Per-member opt-out: when true, this user's email + push notifications for
+  // this group are suppressed (in-app notifications still appear). Toggled via
+  // the group's 3-dot menu.
+  notifications_muted: boolean('notifications_muted').notNull().default(false),
 });
 
 export const group_join_requests = pgTable('group_join_requests', {
