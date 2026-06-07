@@ -3,7 +3,6 @@ export { useAltTextStore, type AltTextStore } from './useAltText';
 export { useAutoSaveStore, type AutoSaveStore } from './useAutoSaveStore';
 export { usePreloadStore, type PreloadStore } from './usePreloadStore';
 export { useImageSourceStore, type ImageSourceStore } from './useImageSourceStore';
-export { useStepNavigationStore, type StepNavigationStore } from './useStepNavigationStore';
 
 // Feature hooks
 export { useEditPanel } from './useEditPanel';
