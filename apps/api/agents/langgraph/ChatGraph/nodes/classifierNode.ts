@@ -142,6 +142,11 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     const hasWolkeFiles = state.wolkeFiles && state.wolkeFiles.length > 0;
     const hasConnectFiles = state.connectFiles && state.connectFiles.length > 0;
     const hasBoards = state.boardIds && state.boardIds.length > 0;
+    // Live board open in the boards-editor surface. Primary context, NOT a
+    // retrieval mention — its id is deliberately NOT injected into boardIds, so
+    // `hasBoards` stays false here and the legacy server-side modify_board path
+    // cannot fire on the board page. @board mentions in /chat still hit modify_board.
+    const hasCurrentBoard = !!state.currentBoard;
     // Open document in the docs-editor is primary context, not retrieval scope.
     // Distinct from documentChatIds — we do NOT force-route to search for it.
     const hasCurrentDocument = !!state.currentDocument;
@@ -165,8 +170,33 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // to a referenced resource. Must be checked BEFORE passive context checks,
     // otherwise an image attachment or OCR text would shadow the mutation intent.
     const boardModifyPattern =
-      /\b(fuege?\s+(aufgabe|karte|eintrag)|neue\s+(karte|aufgabe)|aktualisiere\s+board|erstelle\s+aufgabe|aender|ergaenz|ueberarbeit|vereinfach|strukturier|umstrukturier|loesch|entfern|verschieb|sortier)/i;
+      /\b(f(?:ü|ue)ge?\s+(aufgabe|karte|eintrag|spalte|feld|kommentar)|neue[rs]?\s+(karte|aufgabe|spalte|feld|ansicht)|aktualisiere\s+board|erstelle\s+(aufgabe|spalte|ansicht|feld)|aender|änder|ergaenz|ergänz|ueberarbeit|überarbeit|vereinfach|strukturier|umstrukturier|loesch|lösch|entfern|verschieb|sortier|kommentier|weise\s+\S.{0,40}?\s+zu|zuweis|label|markier|setze?\s+(f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig))/i;
     const docModifyPattern = DOC_MODIFY_PATTERN;
+
+    // Open board in the boards-editor surface + modification keywords → live edit
+    // via the boards assistant (client-side executor on the live Yjs board). Must
+    // fire before any board/doc retrieval branches. Honors the per-board
+    // "AI may edit" toggle (enabledTools.edit_current_board === false).
+    const editCurrentBoardAllowed = state.enabledTools?.edit_current_board !== false;
+    if (
+      hasCurrentBoard &&
+      editCurrentBoardAllowed &&
+      userContent.length > 0 &&
+      boardModifyPattern.test(userContent)
+    ) {
+      const classificationTimeMs = Date.now() - startTime;
+      log.info(`[Classifier] Live board edit (regex fast-path) → edit_current_board`);
+      return {
+        intent: 'edit_current_board',
+        searchSources: [],
+        searchQuery: null,
+        detectedFilters: null,
+        reasoning: 'currentBoard + modification keywords → edit_current_board',
+        hasTemporal: temporal.hasTemporal,
+        complexity,
+        classificationTimeMs,
+      };
+    }
 
     if (hasBoards && userContent.length > 0 && boardModifyPattern.test(userContent)) {
       const classificationTimeMs = Date.now() - startTime;

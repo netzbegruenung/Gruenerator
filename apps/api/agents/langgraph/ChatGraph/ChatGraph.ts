@@ -39,6 +39,7 @@ import type {
   SearchResult,
   Citation,
   CurrentDocument,
+  CurrentBoard,
   ImageStyle,
   ImageEditStyle,
   GatherSource,
@@ -145,6 +146,10 @@ const ChatStateAnnotation = Annotation.Root({
   }),
   // Current open document in the docs editor (primary context for docs surface)
   currentDocument: Annotation<CurrentDocument | null>({
+    reducer: (x, y) => y ?? x ?? null,
+  }),
+  // Live board state in the boards editor (primary context for boards surface)
+  currentBoard: Annotation<CurrentBoard | null>({
     reducer: (x, y) => y ?? x ?? null,
   }),
   documentMentionContext: Annotation<string | null>({
@@ -461,6 +466,7 @@ function routeAfterClassification(
     intent === 'save_as_doc' ||
     intent === 'modify_doc' ||
     intent === 'modify_board' ||
+    intent === 'edit_current_board' ||
     intent === 'share_doc' ||
     intent === 'edit_current_doc'
   ) {
@@ -486,6 +492,7 @@ function routeAfterClassification(
     modify_doc: 'modify_doc',
     edit_current_doc: 'edit_current_doc',
     modify_board: 'modify_board',
+    edit_current_board: 'edit_current_board',
     share_doc: 'share_doc',
     direct: 'direct',
   };
@@ -699,6 +706,9 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
 
     // Current open document (docs editor surface)
     currentDocument: input.currentDocument || null,
+
+    // Live board (boards editor surface)
+    currentBoard: input.currentBoard || null,
 
     // Custom system prompt (from thread or user settings)
     customSystemPrompt: input.customSystemPrompt || null,
