@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     nextcloud_share_links JSONB DEFAULT '[]',
     wordpress_sites JSONB DEFAULT '[]',
     wordpress_enabled BOOLEAN DEFAULT FALSE,
+    canva_connection JSONB DEFAULT NULL,
     document_mode TEXT DEFAULT 'manual',
     user_defaults JSONB DEFAULT '{}',
     docs BOOLEAN DEFAULT FALSE,
