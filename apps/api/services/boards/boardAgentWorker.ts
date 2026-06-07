@@ -3,15 +3,15 @@
  *
  * Started once per process from server.ts (startWorker). Each tick claims
  * claimable tasks one at a time (FOR UPDATE SKIP LOCKED → safe across cluster
- * workers), runs the existing headless ChatGraph, writes the result to a
- * collaborative document, then notifies the requester (in-app + push + email via
- * createNotification) and replies on the originating card as the bot.
+ * workers), classifies the request, generates a document (with live search/
+ * research tools), writes it, then notifies the requester (in-app + push + email
+ * via createNotification) and replies on the originating card as the bot.
  */
 import { generateText, stepCountIs, type ModelMessage } from 'ai';
 
 import {
   buildSystemMessage,
-  chatGraph,
+  classifierNode,
   initializeChatState,
 } from '../../agents/langgraph/ChatGraph/index.js';
 import { PRIMARY_URL } from '../../config/domains.js';
@@ -97,11 +97,10 @@ async function processTask(task: AgentTask): Promise<void> {
     const userLocale = task.locale === 'de-AT' ? 'de-AT' : 'de-DE';
     const userMessage: ModelMessage = { role: 'user', content: task.task_text };
 
-    // Run the ChatGraph for classification + retrieval/context, then generate the
-    // answer. The graph's respondNode only *prepares* the system message
-    // (state.responseText) — the chat controller normally streams the completion
-    // itself, so a headless caller must do the model call too. (Using the graph's
-    // responseText directly would put the system prompt into the document.)
+    // Classify only — the model does its own retrieval via the search/research
+    // tools during authoring, so we skip the graph's search/rerank/qualityGate
+    // stages to avoid double retrieval. The classifier still gives us the intent
+    // (for the unsupported-artifact guard) and a locale/intent-aware system prompt.
     const initialState = await initializeChatState({
       messages: [userMessage],
       agentId: '', // falsy → ChatGraph resolves the default universal agent
@@ -109,7 +108,8 @@ async function processTask(task: AgentTask): Promise<void> {
       aiWorkerPool: getAIService(),
       userLocale,
     });
-    const finalState = await chatGraph.invoke(initialState);
+    const classification = await classifierNode(initialState);
+    const finalState = { ...initialState, ...classification };
     if (finalState.error) {
       throw new Error(finalState.error);
     }
@@ -136,10 +136,10 @@ async function processTask(task: AgentTask): Promise<void> {
       return;
     }
 
-    // Build the chat context (search results, locale, citations) but author a full
-    // document: the universal agent's ANTWORT-REGELN constrain output to a short
-    // chat reply, so a document-mode directive (appended last, so it wins) lifts
-    // the length cap. A generous token floor prevents truncation of long-form docs.
+    // Build the agent's system prompt (systemRole, locale, intent guidance) but
+    // author a full document: the universal agent's ANTWORT-REGELN constrain output
+    // to a short chat reply, so a document-mode directive (appended last, so it
+    // wins) lifts the length cap. A generous token floor prevents truncation.
     const baseSystemMessage = await buildSystemMessage(finalState);
     const systemMessage = `${baseSystemMessage}
 
