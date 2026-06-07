@@ -240,9 +240,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   { path: '/workplace', component: WorkplacePage },
   // Guided agent creator (default entry: AI brief → pre-filled wizard) + form
-  // editor. Gated behind SHOW_AGENT_CREATOR (dev, or a deploy with
-  // VITE_SHOW_AGENT_CREATOR=true); `/agents/:slug` below stays available so
-  // existing agents remain usable.
+  // editor. Available to everyone via SHOW_AGENT_CREATOR; `/agents/:slug` below
+  // stays available so existing agents remain usable.
   ...(SHOW_AGENT_CREATOR
     ? ([
         { path: '/agents/new', component: AgentCreatorPage },
