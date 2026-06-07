@@ -257,11 +257,28 @@ export function heuristicClassify(userContent: string): HeuristicResult {
     };
   }
 
+  // High confidence (0.93): Sharepic requests — a branded social graphic, NOT a
+  // free-form AI image. Checked BEFORE the generic image heuristic below, which
+  // would otherwise swallow "sharepic" into the AI-image path. Matches the noun
+  // anywhere ("mach mir ein zitat sharepic", "sharepic über X") plus the German
+  // spelling variants ("spruchbild", "zitatbild"). The specific variant
+  // (zitat/dreizeilen/info) is resolved later in the execution path from the same
+  // text — here we only need to route to the sharepic intent.
+  const sharepicKeywords = /\b(share[\s-]?pics?|sharepics?|spruchbild\w*|zitatbild\w*)\b/i;
+  if (sharepicKeywords.test(q)) {
+    return {
+      intent: 'sharepic',
+      searchQuery: null,
+      reasoning: 'Sharepic request detected',
+      confidence: 0.93,
+    };
+  }
+
   // High confidence (0.92): Image generation requests - very explicit patterns
   const imageKeywords =
-    /\b(erstell|generier|visualisier|zeichne|male|illustrier).{0,20}(bild|grafik|illustration|foto|image|poster|sharepic)\b/i;
+    /\b(erstell|generier|visualisier|zeichne|male|illustrier).{0,20}(bild|grafik|illustration|foto|image|poster)\b/i;
   const imageKeywordsAlt =
-    /\b(bild|grafik|illustration|foto|poster|sharepic).{0,20}(erstell|generier|erzeug|mach)\b/i;
+    /\b(bild|grafik|illustration|foto|poster).{0,20}(erstell|generier|erzeug|mach)\b/i;
   if (imageKeywords.test(q) || imageKeywordsAlt.test(q)) {
     return {
       intent: 'image',
