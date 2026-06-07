@@ -16,6 +16,8 @@ export interface SharepicVariant {
   canvasType: string;
   initialProps: Record<string, unknown>;
   label?: string;
+  /** Accessibility description generated alongside the sharepic text (for screen readers / social posts). */
+  altText?: string;
 }
 
 const CANVAS_TYPE_BY_SHAREPIC: Record<string, string> = {
@@ -45,6 +47,7 @@ interface SharepicResponseShape {
   subheader?: string;
   body?: string;
   selectedImage?: string;
+  altText?: string;
 }
 
 function buildInitialPropsForType(
@@ -120,6 +123,7 @@ export async function generateSharepicVariants(
       canvasType,
       initialProps: buildInitialPropsForType(sharepic, canvasType),
       label: VARIANT_LABEL_BY_CANVAS_TYPE[canvasType] ?? canvasType,
+      ...(sharepic.altText && { altText: sharepic.altText }),
     });
   });
 

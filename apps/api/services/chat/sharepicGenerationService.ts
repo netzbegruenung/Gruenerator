@@ -101,6 +101,7 @@ interface SharepicResult {
       alternatives?: unknown[];
       textData?: TextData;
       selectedImage?: string;
+      altText?: string;
     };
     sharepicTitle: string;
     sharepicDownloadText: string;
@@ -403,6 +404,7 @@ const generateInfoSharepic = async (
 
   const mainInfo = textResponse.mainInfo as { header?: string; subheader?: string; body?: string };
   const alternatives = (textResponse.alternatives as unknown[]) || [];
+  const altText = (textResponse.altText as string) || '';
   const { header, subheader, body } = mainInfo;
 
   const { payload: canvasPayload } = await callCanvasRoute(
@@ -433,6 +435,7 @@ const generateInfoSharepic = async (
         ...(subheader && { subheader }),
         ...(body && { body }),
         alternatives,
+        ...(altText && { altText }),
       },
       sharepicTitle: 'Sharepic Vorschau',
       sharepicDownloadText: 'Sharepic herunterladen',
@@ -457,6 +460,7 @@ const generateZitatPureSharepic = async (
 
   const quote = textResponse.quote as string;
   const alternatives = (textResponse.alternatives as unknown[]) || [];
+  const altText = (textResponse.altText as string) || '';
   const name =
     requestBody.preserveName && requestBody.name
       ? requestBody.name
@@ -483,6 +487,7 @@ const generateZitatPureSharepic = async (
         quote,
         name,
         alternatives,
+        ...(altText && { altText }),
       },
       sharepicTitle: 'Sharepic Vorschau',
       sharepicDownloadText: 'Sharepic herunterladen',
@@ -728,6 +733,7 @@ const generateDreizeilenWithAIImageSharepic = async (
 
     const mainSlogan = textResponse.mainSlogan as MainSlogan;
     const alternatives = (textResponse.alternatives as unknown[]) || [];
+    const altText = (textResponse.altText as string) || '';
 
     const textForAnalysis =
       `${mainSlogan.line1 || ''} ${mainSlogan.line2 || ''} ${mainSlogan.line3 || ''}`.trim();
@@ -774,6 +780,7 @@ const generateDreizeilenWithAIImageSharepic = async (
           mainSlogan,
           alternatives,
           selectedImage: selection.selectedImage.filename,
+          ...(altText && { altText }),
         },
         sharepicTitle: 'Sharepic Vorschau',
         sharepicDownloadText: 'Sharepic herunterladen',

@@ -24,14 +24,16 @@ interface TypeConfig {
 
 const TYPE_CONFIGS: Record<string, TypeConfig> = {
   info: {
-    fields: ['header', 'subheader', 'body', 'suchbegriff'],
+    fields: ['header', 'subheader', 'body', 'suchbegriff', 'alttext'],
+    optionalFields: ['alttext'],
     mainKey: 'mainInfo',
-    maxLengths: { header: 65, subheader: 125, body: 255 },
+    maxLengths: { header: 65, subheader: 125, body: 255, alttext: 220 },
   },
   dreizeilen: {
-    fields: ['zeile1', 'zeile2', 'zeile3', 'suchbegriff'],
+    fields: ['zeile1', 'zeile2', 'zeile3', 'suchbegriff', 'alttext'],
+    optionalFields: ['alttext'],
     mainKey: 'mainSlogan',
-    maxLengths: { zeile1: 35, zeile2: 35, zeile3: 35 },
+    maxLengths: { zeile1: 35, zeile2: 35, zeile3: 35, alttext: 220 },
   },
   veranstaltung: {
     fields: ['titel', 'tag', 'datum', 'zeit', 'ort', 'adresse', 'beschreibung', 'suchbegriff'],
@@ -43,8 +45,10 @@ const TYPE_CONFIGS: Record<string, TypeConfig> = {
     mainKey: 'quote',
   },
   zitat_pure: {
-    fields: ['zitat'],
+    fields: ['zitat', 'alttext'],
+    optionalFields: ['alttext'],
     mainKey: 'quote',
+    maxLengths: { alttext: 220 },
   },
   headline: {
     fields: ['zeile1', 'zeile2', 'zeile3'],
@@ -181,6 +185,9 @@ export async function handleUnifiedRequest(
       let mainData: Record<string, unknown> | string;
       let alternatives: Array<Record<string, unknown> | string> = [];
       let searchTerms: string[] = [];
+      // Accessibility alt text the model produces in the same run (optional field —
+      // absence never fails the parse; carried top-level on the response).
+      let altText = '';
 
       if (count > 1) {
         const parseResults = parseLabeledTextBatch(
@@ -217,8 +224,9 @@ export async function handleUnifiedRequest(
         searchTerms = processedResults.flatMap((data) =>
           data.suchbegriff ? [data.suchbegriff] : []
         );
+        altText = processedResults[0]?.alttext ?? '';
       } else {
-        const parseResult = parseLabeledText(content, config.fields);
+        const parseResult = parseLabeledText(content, config.fields, config.optionalFields);
 
         if (!parseResult.success) {
           lastError = parseResult.error || 'Parse failed';
@@ -237,6 +245,7 @@ export async function handleUnifiedRequest(
 
         mainData = mapToResponseFormat(type, processedData);
         searchTerms = processedData.suchbegriff ? [processedData.suchbegriff] : [];
+        altText = processedData.alttext ?? '';
       }
 
       const response: Record<string, unknown> = {
@@ -249,6 +258,10 @@ export async function handleUnifiedRequest(
       if (type === 'zitat' || type === 'zitat_pure') {
         response.quote = mainData;
         response.name = name || '';
+      }
+
+      if (altText) {
+        response.altText = altText;
       }
 
       log.info(`[${type}] Success on attempt ${attempts}`);

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Loader2, Pencil, Download, ExternalLink } from 'lucide-react';
+import { Loader2, Pencil, Download, ExternalLink, Copy, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 
@@ -24,6 +24,7 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [isRendering, setIsRendering] = useState(true);
   const [renderError, setRenderError] = useState(false);
+  const [altCopied, setAltCopied] = useState(false);
   const renderTimeRef = useRef(0);
   const startedRef = useRef(false);
 
@@ -67,6 +68,18 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
     useChatConfigStore.getState().onEditSharepic?.(variant);
   }, [variant]);
 
+  const handleCopyAlt = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (!variant.altText) return;
+      void navigator.clipboard?.writeText(variant.altText).then(() => {
+        setAltCopied(true);
+        setTimeout(() => setAltCopied(false), 2000);
+      });
+    },
+    [variant.altText]
+  );
+
   const label = variant.label ?? FALLBACK_LABELS[variant.canvasType] ?? 'Sharepic';
 
   if (renderError) {
@@ -100,7 +113,7 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
           {imageBase64 && (
             <img
               src={imageBase64}
-              alt={`${label}-Sharepic`}
+              alt={variant.altText || `${label}-Sharepic`}
               className={cn(
                 'mx-auto max-h-[420px] w-auto transition-opacity',
                 isRendering ? 'opacity-0' : 'opacity-100'
@@ -117,6 +130,22 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
           )}
         </div>
       </button>
+
+      {!isRendering && imageBase64 && variant.altText && (
+        <div className="flex items-start justify-between gap-2 border-t border-border px-3 py-2">
+          <p className="text-xs leading-snug text-foreground-muted">
+            <span className="font-medium text-foreground">Alt-Text:</span> {variant.altText}
+          </p>
+          <button
+            onClick={handleCopyAlt}
+            className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs text-foreground-muted hover:bg-primary/10 hover:text-foreground"
+            aria-label="Alt-Text in die Zwischenablage kopieren"
+          >
+            {altCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            <span>{altCopied ? 'Kopiert' : 'Kopieren'}</span>
+          </button>
+        </div>
+      )}
 
       {!isRendering && imageBase64 && (
         <div className="flex items-center justify-between border-t border-border px-3 py-2">

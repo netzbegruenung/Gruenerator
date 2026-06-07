@@ -36,6 +36,8 @@ export interface SharepicVariant {
   canvasType: string;
   initialProps: Record<string, unknown>;
   label?: string;
+  /** Accessibility description generated alongside the sharepic (for screen readers / social posts). */
+  altText?: string;
 }
 
 export interface SharepicData {
