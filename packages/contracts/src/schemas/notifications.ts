@@ -39,6 +39,7 @@ export const notificationTypeSchema = z.enum([
   'wolke_new_files',
   'agent_task_completed',
   'agent_task_failed',
+  'new_avatars',
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 

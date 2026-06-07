@@ -24,6 +24,7 @@ import {
 import { memo, useCallback, useRef, useState } from 'react';
 import {
   HiDotsVertical,
+  HiOutlineBell,
   HiOutlineDocumentText,
   HiOutlineLink,
   HiOutlinePhotograph,
@@ -34,6 +35,7 @@ import {
   HiCheck,
   HiX,
 } from 'react-icons/hi';
+import { HiOutlineBellSlash } from 'react-icons/hi2';
 import { PiSquaresFour } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
 
@@ -43,6 +45,7 @@ import { type GroupAudience } from '../hooks/useGroupRequests';
 import {
   useCloneCanvasTemplate,
   useGroupMembers,
+  useSetGroupMute,
   getGroupInitials,
   type GroupLink,
 } from '../hooks/useGroups';
@@ -68,6 +71,7 @@ export interface GroupData {
   isAdmin?: boolean;
   membership?: {
     role?: string;
+    notifications_muted?: boolean | null;
   };
   groupInfo?: GroupInfo;
   joinToken?: string;
@@ -182,6 +186,21 @@ const GroupInfoSection = memo(
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showVisibilityDialog, setShowVisibilityDialog] = useState(false);
     const cloneTemplate = useCloneCanvasTemplate();
+
+    const isMuted = data?.membership?.notifications_muted ?? false;
+    const setGroupMute = useSetGroupMute(groupId);
+    const handleToggleMute = useCallback(() => {
+      if (setGroupMute.isPending) return;
+      const next = !isMuted;
+      setGroupMute.mutate(next, {
+        onSuccess: () =>
+          onSuccessMessage?.(
+            next ? 'Gruppe stummgeschaltet.' : 'Benachrichtigungen wieder aktiviert.'
+          ),
+        onError: (err: Error) =>
+          onErrorMessage?.('Fehler beim Aktualisieren der Benachrichtigungen: ' + err.message),
+      });
+    }, [setGroupMute, isMuted, onSuccessMessage, onErrorMessage]);
 
     const handleCloneTemplate = useCallback(
       (templateId: string) => {
@@ -352,53 +371,72 @@ const GroupInfoSection = memo(
                 />
               </PopoverContent>
             </Popover>
-            {data?.isAdmin && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon-xs" aria-label="Gruppenaktionen">
-                    <HiDotsVertical />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleStartEditingBoth} disabled={isUpdatingGroupName}>
-                    <HiPencil className="size-4 mr-xs" />
-                    Bearbeiten
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => avatarInputRef.current?.click()}
-                    disabled={isUploadingAvatar}
-                  >
-                    <HiOutlinePhotograph className="size-4 mr-xs" />
-                    Gruppenbild ändern
-                  </DropdownMenuItem>
-                  {data?.groupInfo?.avatar_url && onDeleteAvatar && (
-                    <DropdownMenuItem onClick={onDeleteAvatar} disabled={isUploadingAvatar}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon-xs" aria-label="Gruppenaktionen">
+                  <HiDotsVertical />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleToggleMute} disabled={setGroupMute.isPending}>
+                  {isMuted ? (
+                    <>
+                      <HiOutlineBell className="size-4 mr-xs" />
+                      Stummschaltung aufheben
+                    </>
+                  ) : (
+                    <>
+                      <HiOutlineBellSlash className="size-4 mr-xs" />
+                      Benachrichtigungen stummschalten
+                    </>
+                  )}
+                </DropdownMenuItem>
+                {data?.isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleStartEditingBoth}
+                      disabled={isUpdatingGroupName}
+                    >
+                      <HiPencil className="size-4 mr-xs" />
+                      Bearbeiten
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={isUploadingAvatar}
+                    >
+                      <HiOutlinePhotograph className="size-4 mr-xs" />
+                      Gruppenbild ändern
+                    </DropdownMenuItem>
+                    {data?.groupInfo?.avatar_url && onDeleteAvatar && (
+                      <DropdownMenuItem onClick={onDeleteAvatar} disabled={isUploadingAvatar}>
+                        <HiOutlineTrash className="size-4 mr-xs" />
+                        Gruppenbild entfernen
+                      </DropdownMenuItem>
+                    )}
+                    {data?.joinToken && (
+                      <DropdownMenuItem onClick={copyJoinLink}>
+                        <HiOutlineLink className="size-4 mr-xs" />
+                        {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => setShowVisibilityDialog(true)}>
+                      <HiOutlineGlobeAlt className="size-4 mr-xs" />
+                      {data?.groupInfo?.is_public ? 'Öffentlich (verwalten)' : 'Öffentlich machen'}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setShowDeleteConfirm(true)}
+                      disabled={isDeletingGroup || isUpdatingGroupName}
+                      className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
+                    >
                       <HiOutlineTrash className="size-4 mr-xs" />
-                      Gruppenbild entfernen
+                      Gruppe löschen
                     </DropdownMenuItem>
-                  )}
-                  {data?.joinToken && (
-                    <DropdownMenuItem onClick={copyJoinLink}>
-                      <HiOutlineLink className="size-4 mr-xs" />
-                      {joinLinkCopied ? 'Kopiert!' : 'Einladungslink kopieren'}
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuItem onClick={() => setShowVisibilityDialog(true)}>
-                    <HiOutlineGlobeAlt className="size-4 mr-xs" />
-                    {data?.groupInfo?.is_public ? 'Öffentlich (verwalten)' : 'Öffentlich machen'}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setShowDeleteConfirm(true)}
-                    disabled={isDeletingGroup || isUpdatingGroupName}
-                    className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400"
-                  >
-                    <HiOutlineTrash className="size-4 mr-xs" />
-                    Gruppe löschen
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <div className="flex items-start gap-md">

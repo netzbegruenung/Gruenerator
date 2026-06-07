@@ -10,7 +10,11 @@ import {
   Users,
 } from 'lucide-react';
 
-import { openLinkAction, type NotificationTypeConfig } from '../notificationConfig';
+import {
+  openLinkAction,
+  setAvatarAction,
+  type NotificationTypeConfig,
+} from '../notificationConfig';
 
 export interface Notification {
   id: string;
@@ -113,6 +117,14 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     icon: CloudDownload,
     group: 'system',
     actions: (ctx) => [openLinkAction('Notizbuch öffnen')(ctx)],
+  },
+  new_avatars: {
+    label: 'Neue Avatare',
+    description: 'Wenn neue Profil-Avatare verfügbar sind',
+    icon: Sparkles,
+    image: '/images/profileimages/11.webp',
+    group: 'system',
+    actions: (ctx) => [setAvatarAction(11, 'Avatar aktivieren')(ctx)],
   },
 
   // transfer_downloaded: {

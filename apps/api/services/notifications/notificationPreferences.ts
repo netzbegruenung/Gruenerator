@@ -48,6 +48,7 @@ const TYPE_IMPORTANCE: Record<NotificationType, 1 | 2 | 3> = {
   // always deliver (incl. email) regardless of notification level.
   agent_task_completed: 1,
   agent_task_failed: 1,
+  new_avatars: 1,
 };
 
 export type NotificationLevel = 'low' | 'medium' | 'high';

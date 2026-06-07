@@ -158,8 +158,8 @@ function SkillCard({ skill, isFavorite, onToggleFavorite, onSelect }: SkillCardP
         </div>
         <div className="flex flex-col flex-1 p-md min-w-0">
           <div className="flex justify-between items-start gap-sm mb-xs">
-            <div className="flex min-w-0 items-center gap-xs">
-              <h3 className="text-base font-semibold text-foreground-heading m-0 truncate">
+            <div className="flex min-w-0 items-start gap-xs">
+              <h3 className="text-base font-semibold text-foreground-heading m-0 line-clamp-2">
                 {skill.title}
               </h3>
               <TypeBadge kind="skill" />
@@ -253,8 +253,8 @@ function AgentCard({
       </div>
       <div className="flex flex-col flex-1 p-md min-w-0">
         <div className="flex justify-between items-start gap-sm mb-xs">
-          <div className="flex min-w-0 items-center gap-xs">
-            <h3 className="text-base font-semibold text-foreground-heading m-0 truncate">
+          <div className="flex min-w-0 items-start gap-xs">
+            <h3 className="text-base font-semibold text-foreground-heading m-0 line-clamp-2">
               {agent.title}
             </h3>
             <TypeBadge kind="agent" />
@@ -344,8 +344,8 @@ function SharedAgentCard({ entry, onSelect, isFavorite, onToggleFavorite }: Shar
       </div>
       <div className="flex flex-col flex-1 p-md min-w-0">
         <div className="flex justify-between items-start gap-sm mb-xs">
-          <div className="flex min-w-0 items-center gap-xs">
-            <h3 className="text-base font-semibold text-foreground-heading m-0 truncate">
+          <div className="flex min-w-0 items-start gap-xs">
+            <h3 className="text-base font-semibold text-foreground-heading m-0 line-clamp-2">
               {agent.title}
             </h3>
             <TypeBadge kind="agent" />
