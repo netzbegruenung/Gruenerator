@@ -172,7 +172,11 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
 const HIDDEN_FROM_PREFS: ReadonlySet<NotificationType> = new Set<NotificationType>(['new_avatars']);
 
 /** Raw types grouped by category, in group order, for the expert table. */
-export function getRawTypesByGroup(): { group: NotificationGroup; label: string; types: NotificationType[] }[] {
+export function getRawTypesByGroup(): {
+  group: NotificationGroup;
+  label: string;
+  types: NotificationType[];
+}[] {
   const byGroup = new Map<NotificationGroup, NotificationType[]>();
   for (const [type, meta] of Object.entries(RAW_TYPE_META) as [NotificationType, RawTypeMeta][]) {
     if (HIDDEN_FROM_PREFS.has(type)) continue;
@@ -182,7 +186,11 @@ export function getRawTypesByGroup(): { group: NotificationGroup; label: string;
   }
   return (Object.keys(NOTIFICATION_GROUPS) as NotificationGroup[])
     .sort((a, b) => NOTIFICATION_GROUPS[a].order - NOTIFICATION_GROUPS[b].order)
-    .map((group) => ({ group, label: NOTIFICATION_GROUPS[group].label, types: byGroup.get(group) ?? [] }))
+    .map((group) => ({
+      group,
+      label: NOTIFICATION_GROUPS[group].label,
+      types: byGroup.get(group) ?? [],
+    }))
     .filter((g) => g.types.length > 0);
 }
 
