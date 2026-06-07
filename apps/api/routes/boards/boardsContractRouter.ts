@@ -34,8 +34,10 @@ import { logContractValidationError } from '../../utils/contractValidationLogger
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
+import { ensureDocChatThread } from '../chat/services/threadPersistenceService.js';
 
 import { checkBoardAccess } from './boardAccess.js';
+import { generateBoardOperations } from './boardAiService.js';
 
 import type { Application } from 'express';
 
@@ -348,6 +350,71 @@ export const boardsContractRouter = s.router(boardsContract, {
         status: 500 as const,
         body: {
           error: 'Failed to create board',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  },
+
+  getChatThread: async (args) => {
+    try {
+      const { id } = args.params;
+      const userId = getAuthedUser(args.req).id;
+
+      const { hasAccess, createdBy } = await checkBoardAccess(id, userId);
+      if (!createdBy) {
+        return { status: 404 as const, body: { error: 'Board not found' } };
+      }
+      if (!hasAccess) {
+        return { status: 403 as const, body: { error: 'Access denied' } };
+      }
+
+      // One shared thread per board, keyed by the board id (a collaborative_documents
+      // row) on chat_threads.doc_id. Owner is the thread's user_id, matching docs.
+      const thread = await ensureDocChatThread(id, createdBy, 'gruenerator-boards-editor');
+      return { status: 200 as const, body: { threadId: thread.id } };
+    } catch (error) {
+      log.error('[Boards Contract] Error resolving chat thread:', error);
+      return {
+        status: 500 as const,
+        body: {
+          error: 'Failed to resolve chat thread',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  },
+
+  ai: async (args) => {
+    try {
+      const { id } = args.params;
+      const userId = getAuthedUser(args.req).id;
+      const { userPrompt, board, referenceContent } = args.body;
+
+      // Re-enforce write access server-side — never trust the client.
+      const { hasAccess, createdBy, canEdit } = await checkBoardAccess(id, userId);
+      if (!createdBy) {
+        return { status: 404 as const, body: { error: 'Board not found' } };
+      }
+      if (!hasAccess || !canEdit) {
+        return { status: 403 as const, body: { error: 'No write access to this board' } };
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      const operations = await generateBoardOperations({
+        userPrompt,
+        board,
+        referenceContent: referenceContent ?? null,
+        today,
+      });
+
+      return { status: 200 as const, body: { operations } };
+    } catch (error) {
+      log.error('[Boards Contract] Error generating board operations:', error);
+      return {
+        status: 500 as const,
+        body: {
+          error: 'Failed to generate board operations',
           details: error instanceof Error ? error.message : String(error),
         },
       };
