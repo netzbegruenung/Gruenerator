@@ -203,6 +203,28 @@ export const useUpdateMemberRole = (groupId: string) => {
   });
 };
 
+/**
+ * Mute/unmute the caller's own email + push notifications for a group. In-app
+ * notifications are unaffected. Operates on the caller's membership, so any
+ * member (not just admins) can toggle it.
+ */
+export const useSetGroupMute = (groupId: string) => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (muted: boolean) => {
+      const res = await getContractsClient().groups.setGroupMute({
+        params: { groupId },
+        body: { muted },
+      });
+      if (res.status !== 200) throw new Error(errMessage(res.body));
+      return res.body.muted;
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: groupDetailsKey(groupId) });
+    },
+  });
+};
+
 export const useAddGroupLink = (groupId: string) => {
   const qc = useQueryClient();
   return useMutation({
