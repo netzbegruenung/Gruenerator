@@ -1,8 +1,9 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 
 import apiClient from '../../../components/utils/apiClient';
 import { removeBackground } from '../../../services/backgroundRemoval';
 import useImageStudioStore from '../../../stores/imageStudioStore';
+import { isMintableCanvasType } from '../utils/canvasTypeFields';
 import {
   getTypeConfig,
   getTemplateFieldConfig,
@@ -37,10 +38,6 @@ interface BgRemovalProgress {
   message: string;
 }
 
-interface UseStepFlowOptions {
-  startAtCanvasEdit?: boolean;
-}
-
 interface AiImageSuggestionResult {
   image?: {
     category?: string;
@@ -69,19 +66,13 @@ interface UseStepFlowReturn {
   reset: () => void;
   getFieldValue: (fieldName: string) => string;
   setError: (error: string) => void;
-  handleCanvasExport: (dataUrl: string) => void;
-  handleCanvasSave: (dataUrl: string) => void;
-  goBackToCanvas: () => void;
 }
 
-export const useStepFlow = ({
-  startAtCanvasEdit = false,
-}: UseStepFlowOptions = {}): UseStepFlowReturn => {
+export const useStepFlow = (): UseStepFlowReturn => {
   const [stepIndex, setStepIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [bgRemovalProgress, setBgRemovalProgress] = useState<BgRemovalProgress | null>(null);
-  const hasInitializedCanvasEditRef = useRef(false);
 
   const type = useImageStudioStore((s) => s.type);
   const transparentImage = useImageStudioStore((s) => s.transparentImage);
@@ -223,16 +214,18 @@ export const useStepFlow = ({
   const isLastStep = stepIndex === flowSteps.length - 1;
   const totalSteps = flowSteps.length;
 
+  // Canvas editing happens only on the collaborative `/studio/canvas/:id` route.
+  // When the wizard reaches its canvas-edit step, hand off by flipping the store
+  // to CANVAS_EDIT — TemplateStudioFlow's effect then mints a canvas document and
+  // navigates there. (Types without a single-document canvas config, e.g.
+  // `presentation`, are skipped and simply render nothing here, as before.)
   useEffect(() => {
-    if (startAtCanvasEdit && !hasInitializedCanvasEditRef.current && flowSteps.length > 0) {
-      const canvasEditIndex = flowSteps.findIndex((step) => step.type === 'canvas_edit');
-      if (canvasEditIndex >= 0) {
-        setStepIndex(canvasEditIndex);
-        setDirection(1);
-        hasInitializedCanvasEditRef.current = true;
-      }
+    if (currentStep?.type !== 'canvas_edit') return;
+    const studioType = useImageStudioStore.getState().type;
+    if (studioType && isMintableCanvasType(studioType)) {
+      useImageStudioStore.getState().setCurrentStep(FORM_STEPS.CANVAS_EDIT);
     }
-  }, [startAtCanvasEdit, flowSteps]);
+  }, [currentStep?.type]);
 
   useEffect(() => {
     const state = useImageStudioStore.getState();
@@ -396,20 +389,6 @@ export const useStepFlow = ({
       setBgRemovalProgress(null);
     }
   }, [setError]);
-
-  const handleCanvasExport = useCallback((dataUrl: string) => {
-    const state = useImageStudioStore.getState();
-    state.setGeneratedImage(dataUrl);
-    state.setCurrentStep(FORM_STEPS.RESULT);
-  }, []);
-
-  const handleCanvasSave = useCallback((dataUrl: string) => {
-    useImageStudioStore.getState().setGeneratedImage(dataUrl);
-  }, []);
-
-  const goBackToCanvas = useCallback(() => {
-    useImageStudioStore.getState().setCurrentStep(FORM_STEPS.CANVAS_EDIT);
-  }, []);
 
   const fetchAiImageSuggestion = useCallback(
     async (text: string): Promise<AiImageSuggestionResult | null> => {
@@ -615,9 +594,6 @@ export const useStepFlow = ({
     reset,
     getFieldValue,
     setError,
-    handleCanvasExport,
-    handleCanvasSave,
-    goBackToCanvas,
   };
 };
 
