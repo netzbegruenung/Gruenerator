@@ -321,9 +321,8 @@ export const auth = betterAuth({
           );
           // Deliver one-off product announcements (e.g. new Pride avatars) on
           // login — once per user, idempotent, best-effort.
-          const { deliverLoginAnnouncements } = await import(
-            '../services/notifications/loginAnnouncements.js'
-          );
+          const { deliverLoginAnnouncements } =
+            await import('../services/notifications/loginAnnouncements.js');
           await deliverLoginAnnouncements(session.userId);
         },
       },

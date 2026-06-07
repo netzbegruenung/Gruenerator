@@ -10,7 +10,11 @@ import {
   Users,
 } from 'lucide-react';
 
-import { openLinkAction, setAvatarAction, type NotificationTypeConfig } from '../notificationConfig';
+import {
+  openLinkAction,
+  setAvatarAction,
+  type NotificationTypeConfig,
+} from '../notificationConfig';
 
 export interface Notification {
   id: string;
