@@ -204,18 +204,12 @@ export default defineConfig(({ command }) => ({
     // /login. Filter the preload list to drop those named lazy chunks; they
     // still load on-demand when their consuming route or action triggers
     // the dynamic import.
-    //
-    // EXCEPTION: `vendor-react` (the React runtime + react-query) is eager
-    // core — it loads on every page — so it must STAY preloaded. The negative
-    // lookahead keeps it while still dropping every other `vendor-*` leaf.
-    // The catch-all core chunk is named `vendor` (no hyphen) so it is never
-    // matched here and stays preloaded too.
     modulePreload: {
       polyfill: true,
       resolveDependencies: (_filename, deps) =>
         deps.filter((d) => {
           const base = d.split('/').pop() ?? '';
-          return !/^(vendor-(?!react\.)|pkg-canvas-editor)/.test(base);
+          return !/^(vendor-|pkg-canvas-editor)/.test(base);
         }),
     },
     cssMinify: true,
@@ -242,114 +236,89 @@ export default defineConfig(({ command }) => ({
           }
           return 'assets/[name].[hash][extname]';
         },
-        // Code-splitting is ENABLED. It previously crashed prod three times —
-        // the fix is the chunk topology below, which guarantees an ACYCLIC
-        // chunk graph. Read this before touching the groups.
+        // Code-splitting is DISABLED by default. Do not re-enable it without
+        // a runtime smoke test (see below) — it has crashed prod three times.
         //
-        // The crash was always a cross-chunk module-init CYCLE: a chunk that
-        // imports React initializes before the chunk holding React-DOM's (or
-        // react-query's) module body has run, so its `React` binding is still
-        // null → "Cannot read properties of null (reading 'useEffect')".
-        // History: prod saw React-DOM's reconciler land in `vendor-blocknote-
-        // export` and react-query (`useBaseQuery`) in its own auto-split chunk,
-        // separate from React. The root cause was that the React runtime was
-        // scattered across chunks AND the auto-splitter invented unpredictable
-        // shared chunks for everything not explicitly named.
+        // History:
+        //  - pre-298ebe2f1: groups nested under `codeSplitting` (wrong schema
+        //    key) were silently dropped, so Rolldown's auto-chunker ran. It
+        //    produced module-init order cycles: "TypeError: s is not a function"
+        //    (react-markdown) and "Cannot read properties of undefined
+        //    (reading 'displayName')" (radix Primitive).
+        //  - 298ebe2f1: `codeSplitting: false` → crashes stopped.
+        //  - e49af52ea: re-enabled "leaf-only" `advancedChunks.groups`. Crashed
+        //    again: React was null inside the `pkg-canvas-editor` chunk.
+        //  - removing `pkg-canvas-editor`: the SAME crash reappeared in the
+        //    react-query (`useBaseQuery`) chunk, with React-DOM's reconciler
+        //    living inside `vendor-blocknote-export`.
         //
-        // Two rules kill the cycle:
-        //  1. The WHOLE React runtime — react, react-dom, scheduler,
-        //     use-sync-external-store AND @tanstack/react-query/-table — lives
-        //     in ONE eagerly-loaded chunk (`vendor-react`, priority 100). They
-        //     can never be split apart, so nothing ever sees a half-initialized
-        //     React. (Previously react-query was omitted here — that was the
-        //     bug.)
-        //  2. A catch-all `vendor` group (lowest priority) absorbs every other
-        //     node_module, so the auto-splitter never carves ad-hoc shared
-        //     chunks. Edges only ever point INTO core (`leaf → vendor-react`,
-        //     `vendor → vendor-react`); nothing points back into the leaves ⇒
-        //     acyclic.
+        // Why "leaf-only" is NOT enough: `advancedChunks.groups` only NAMES a
+        // few chunks; everything else (React, React-DOM, react-query, …) is
+        // still AUTO-split by Rolldown. The auto-splitter scatters React/
+        // React-DOM across chunks and forms a cross-chunk init cycle — any
+        // chunk that imports React but initializes before the chunk holding
+        // React-DOM's module body sees `React === null` →
+        // "Cannot read properties of null (reading 'useEffect')". The bug is
+        // the splitter, not any single package, which is why whack-a-mole on
+        // individual groups doesn't help.
         //
-        // Heavy leaf libs below are reachable ONLY via lazy() routes, so they
-        // load on demand and stay off the homepage's critical path. Each size
-        // comment is the source-byte size (gzip ≈ ÷4).
+        // CI cannot catch this: the build compiles green; the cycle only
+        // throws at runtime in the browser. Re-enabling splitting therefore
+        // requires a runtime smoke test (load the app, assert no console
+        // error) BEFORE it ships — that gate does not exist yet.
         //
-        // CI compiles green even on a cycle — it only throws at runtime in the
-        // browser. Validate any change to these groups with a browser smoke
-        // test (load the app + each split route, assert no console error).
-        //
-        // Emergency rollback: set `VITE_SINGLE_BUNDLE=1` to ship the old single
-        // bundle without a code change.
-        ...(process.env.VITE_SINGLE_BUNDLE === '1'
+        // To experiment with splitting locally, set `VITE_EXPERIMENTAL_SPLIT=1`.
+        // The `advancedChunks.groups` below are kept for that experiment; each
+        // size comment is the source-byte size (gzip ≈ ÷4). Until a smoke test
+        // exists, the default ships a single bundle.
+        ...(process.env.VITE_EXPERIMENTAL_SPLIT !== '1'
           ? { codeSplitting: false }
           : {
               advancedChunks: {
                 groups: [
                   {
-                    // The entire React runtime in one chunk — see rule 1 above.
-                    // react-query/-table MUST stay here with React.
                     name: 'vendor-react',
-                    test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-sync-external-store|@tanstack[\\/](react-query|query-core|react-table))[\\/]/,
+                    test: /[\\/]node_modules[\\/](react|react-dom|scheduler|use-sync-external-store)[\\/]/,
                     priority: 100,
                   },
-                  // Heavy leaf libs (sorted by source size, largest first).
-                  // Explicit `priority: 50` is REQUIRED: a group with no
-                  // priority sorts BELOW the catch-all, so without it every lib
-                  // falls into `vendor` and nothing splits. Must be < 100
-                  // (vendor-react wins) and > the catch-all.
-                  { name: 'vendor-excalidraw', test: /[\\/]node_modules[\\/]@excalidraw[\\/]/, priority: 50 }, // 4.7 MB
-                  { name: 'vendor-mermaid', test: /[\\/]node_modules[\\/]mermaid[\\/]/, priority: 50 }, // 3.3 MB
+                  // Heavy leaf libs (sorted by source size, largest first)
+                  { name: 'vendor-excalidraw', test: /[\\/]node_modules[\\/]@excalidraw[\\/]/ }, // 4.7 MB
+                  { name: 'vendor-mermaid', test: /[\\/]node_modules[\\/]mermaid[\\/]/ }, // 3.3 MB
                   {
                     name: 'vendor-blocknote-export',
                     test: /[\\/]node_modules[\\/]@blocknote[\\/]xl-/,
-                    priority: 50,
                   }, // 3.3 MB combined
-                  { name: 'vendor-react-pdf', test: /[\\/]node_modules[\\/]@react-pdf[\\/]/, priority: 50 }, // 1.4 MB
+                  { name: 'vendor-react-pdf', test: /[\\/]node_modules[\\/]@react-pdf[\\/]/ }, // 1.4 MB
                   {
                     name: 'vendor-cytoscape',
                     test: /[\\/]node_modules[\\/]cytoscape(-[a-z-]+)?[\\/]/,
-                    priority: 50,
                   }, // 1.5 MB combined
-                  { name: 'vendor-docx', test: /[\\/]node_modules[\\/]docx[\\/]/, priority: 50 }, // 785 KB
-                  { name: 'vendor-katex', test: /[\\/]node_modules[\\/]katex[\\/]/, priority: 50 }, // 584 KB
-                  { name: 'vendor-fontkit', test: /[\\/]node_modules[\\/]fontkit[\\/]/, priority: 50 }, // 539 KB
+                  { name: 'vendor-docx', test: /[\\/]node_modules[\\/]docx[\\/]/ }, // 785 KB
+                  { name: 'vendor-katex', test: /[\\/]node_modules[\\/]katex[\\/]/ }, // 584 KB
+                  { name: 'vendor-fontkit', test: /[\\/]node_modules[\\/]fontkit[\\/]/ }, // 539 KB
                   {
                     name: 'vendor-recharts',
                     test: /[\\/]node_modules[\\/](recharts|d3-[a-z-]+|victory-vendor)[\\/]/,
-                    priority: 50,
                   }, // 519 KB
                   {
                     name: 'vendor-onnxruntime',
                     test: /[\\/]node_modules[\\/]onnxruntime-web[\\/]/,
-                    priority: 50,
                   }, // 505 KB
-                  { name: 'vendor-pptxgenjs', test: /[\\/]node_modules[\\/]pptxgenjs[\\/]/, priority: 50 }, // 505 KB
-                  { name: 'vendor-konva', test: /[\\/]node_modules[\\/](konva|react-konva)[\\/]/, priority: 50 }, // 417 KB
+                  { name: 'vendor-pptxgenjs', test: /[\\/]node_modules[\\/]pptxgenjs[\\/]/ }, // 505 KB
+                  { name: 'vendor-konva', test: /[\\/]node_modules[\\/](konva|react-konva)[\\/]/ }, // 417 KB
                   {
                     name: 'vendor-collab',
                     test: /[\\/]node_modules[\\/](@hocuspocus|yjs|y-protocols|y-indexeddb|lib0)[\\/]/,
-                    priority: 50,
                   }, // ~450 KB
-                  { name: 'vendor-imgly', test: /[\\/]node_modules[\\/]@imgly[\\/]/, priority: 50 }, // 167 KB
-                  // Catch-all — see rule 2 above. Priority 0: below the named
-                  // groups (100 react, 50 leaves) so they win first; everything
-                  // else (router, zustand, axios, radix, …) lands here in ONE
-                  // predictable eager chunk instead of ad-hoc auto-split shared
-                  // chunks. Named `vendor` (no hyphen) on purpose: the
-                  // modulePreload filter drops `^vendor-` lazy leaves but keeps
-                  // `vendor`, which is needed on every page.
-                  {
-                    name: 'vendor',
-                    test: /[\\/]node_modules[\\/]/,
-                    priority: 0,
-                  },
+                  { name: 'vendor-imgly', test: /[\\/]node_modules[\\/]@imgly[\\/]/ }, // 167 KB
                   // NOTE: do NOT add `pkg-canvas-editor` (or any other workspace
-                  // package) here. canvas-editor ships React Providers/hooks and
-                  // imports react-konva (already split into `vendor-konva`), so
-                  // splitting it forms a cross-chunk init cycle: the canvas-editor
-                  // chunk renders while its `react` import binding is still null →
-                  // "Cannot read properties of null (reading 'useEffect')". This
-                  // crashed prod on master (commit e49af52ea). Only node_modules
-                  // are split; workspace packages stay in the entry graph.
+                  // package) back here. canvas-editor ships React Providers/hooks
+                  // and imports react-konva (already split into `vendor-konva`),
+                  // so splitting it forms a cross-chunk init cycle: the
+                  // canvas-editor chunk renders while its `react` import binding is
+                  // still null → "Cannot read properties of null (reading
+                  // 'useEffect')". This crashed prod on master (commit e49af52ea).
+                  // Per the strategy comment above, only leaf libraries are split.
                 ],
               },
             }),
@@ -393,21 +362,6 @@ export default defineConfig(({ command }) => ({
             });
           },
         }),
-      },
-    },
-  },
-  // `vite preview` serves the production build (apps/web/build). It does not
-  // inherit `server.proxy`, so mirror the /api proxy here. Lets the bundle
-  // smoke test (load the built app, assert no chunk init-cycle console errors)
-  // run against a real backend. `VITE_PREVIEW_API` overrides the target so the
-  // build can be pointed at the test/beta API instead of a local one.
-  preview: {
-    port: 3000,
-    proxy: {
-      '/api': {
-        target: process.env.VITE_PREVIEW_API || 'http://localhost:3001',
-        changeOrigin: true,
-        ws: true,
       },
     },
   },
