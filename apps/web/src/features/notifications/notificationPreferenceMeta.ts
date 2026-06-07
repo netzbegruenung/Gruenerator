@@ -23,6 +23,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   Share2,
+  Sparkles,
   UserPlus,
   Users,
 } from 'lucide-react';
@@ -83,6 +84,18 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     label: 'Erwähnungen',
     description: 'Wenn du in einem Kommentar erwähnt wirst',
     icon: AtSign,
+    group: 'board',
+  },
+  agent_task_completed: {
+    label: 'Agent-Aufgabe fertig',
+    description: 'Wenn der Grünerator eine an ihn delegierte Aufgabe erledigt hat',
+    icon: Sparkles,
+    group: 'board',
+  },
+  agent_task_failed: {
+    label: 'Agent-Aufgabe fehlgeschlagen',
+    description: 'Wenn der Grünerator eine delegierte Aufgabe nicht erledigen konnte',
+    icon: Sparkles,
     group: 'board',
   },
 
@@ -158,7 +171,11 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
 };
 
 /** Raw types grouped by category, in group order, for the expert table. */
-export function getRawTypesByGroup(): { group: NotificationGroup; label: string; types: NotificationType[] }[] {
+export function getRawTypesByGroup(): {
+  group: NotificationGroup;
+  label: string;
+  types: NotificationType[];
+}[] {
   const byGroup = new Map<NotificationGroup, NotificationType[]>();
   for (const [type, meta] of Object.entries(RAW_TYPE_META) as [NotificationType, RawTypeMeta][]) {
     const existing = byGroup.get(meta.group) ?? [];
@@ -167,7 +184,11 @@ export function getRawTypesByGroup(): { group: NotificationGroup; label: string;
   }
   return (Object.keys(NOTIFICATION_GROUPS) as NotificationGroup[])
     .sort((a, b) => NOTIFICATION_GROUPS[a].order - NOTIFICATION_GROUPS[b].order)
-    .map((group) => ({ group, label: NOTIFICATION_GROUPS[group].label, types: byGroup.get(group) ?? [] }))
+    .map((group) => ({
+      group,
+      label: NOTIFICATION_GROUPS[group].label,
+      types: byGroup.get(group) ?? [],
+    }))
     .filter((g) => g.types.length > 0);
 }
 
