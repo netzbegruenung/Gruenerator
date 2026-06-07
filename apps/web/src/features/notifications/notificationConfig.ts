@@ -106,28 +106,6 @@ export function getNotificationActions(
   );
 }
 
-export function getEmailPreferenceTypes() {
-  return getAllPreferenceTypes();
-}
-
-export function getAllPreferenceTypes() {
-  return Object.entries(NOTIFICATION_TYPES).map(([key, config]) => ({ key, ...config }));
-}
-
-export function getPreferenceTypesByGroup() {
-  const all = getAllPreferenceTypes();
-  const grouped = new Map<string, typeof all>();
-
-  for (const entry of all) {
-    const group = entry.group ?? 'system';
-    const existing = grouped.get(group) ?? [];
-    existing.push(entry);
-    grouped.set(group, existing);
-  }
-
-  return grouped;
-}
-
 export function truncateBody(body: string | null | undefined): string | null {
   if (!body) return null;
   if (body.length <= MAX_BODY_LENGTH) return body;

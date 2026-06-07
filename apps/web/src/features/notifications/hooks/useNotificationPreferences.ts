@@ -1,15 +1,17 @@
-import { type NotifChannelPreferences } from '@gruenerator/contracts';
+import { type NotifChannelPreferences, type NotificationLevel } from '@gruenerator/contracts';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import {
   fetchNotificationPreferences,
   updateNotificationPreferences,
+  applyNotificationLevel,
 } from '../../../hooks/useNotificationsTyped';
 
 type ChannelPreferences = NotifChannelPreferences;
 
 interface NotificationPreferencesResponse {
   success: boolean;
+  level: NotificationLevel;
   preferences: Record<string, ChannelPreferences>;
   defaults: Record<string, ChannelPreferences>;
 }
@@ -70,12 +72,27 @@ export function useNotificationPreferences() {
     },
   });
 
+  const levelMutation = useMutation({
+    mutationFn: async (level: 'low' | 'medium' | 'high') => {
+      return applyNotificationLevel(level) as Promise<NotificationPreferencesResponse>;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(QUERY_KEY, data);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: QUERY_KEY });
+    },
+  });
+
   return {
+    level: query.data?.level ?? 'medium',
     preferences: query.data?.preferences ?? {},
     defaults: query.data?.defaults ?? {},
     isLoading: query.isLoading,
     toggleChannel: (category: string, channel: keyof ChannelPreferences, value: boolean) =>
       mutation.mutateAsync({ category, channels: { [channel]: value } }),
+    applyLevel: (level: 'low' | 'medium' | 'high') => levelMutation.mutateAsync(level),
+    isApplyingLevel: levelMutation.isPending,
     isSaving: mutation.isPending,
   };
 }

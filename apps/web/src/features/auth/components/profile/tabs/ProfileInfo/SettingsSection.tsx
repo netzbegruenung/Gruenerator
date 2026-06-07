@@ -3,9 +3,7 @@ import { Button } from '@gruenerator/ui';
 import { Send } from 'lucide-react';
 import React, { memo, useState } from 'react';
 
-import FeatureToggle from '../../../../../../components/common/FeatureToggle';
-import { getEmailPreferenceTypes } from '../../../../../../features/notifications/notificationConfig';
-import { useUserDefaults } from '../../../../../../hooks/useUserDefaults';
+import NotificationPreferences from '../../../../../../features/notifications/components/NotificationPreferences';
 import { useAuthStore, type SupportedLocale } from '../../../../../../stores/authStore';
 
 interface SettingsSectionProps {
@@ -44,7 +42,10 @@ const SettingsSection: React.FC<SettingsSectionProps> = memo(
   ({ onSuccessMessage, onErrorMessage }) => {
     return (
       <div className="space-y-lg">
-        <NotificationToggles onSuccessMessage={onSuccessMessage} onErrorMessage={onErrorMessage} />
+        <NotificationPreferences
+          onSuccessMessage={onSuccessMessage}
+          onErrorMessage={onErrorMessage}
+        />
         <TestEmailRow onSuccessMessage={onSuccessMessage} onErrorMessage={onErrorMessage} />
       </div>
     );
@@ -113,41 +114,6 @@ const TestEmailRow: React.FC<{
         <Send className="w-4 h-4 mr-xs" />
         {isSending ? 'Wird gesendet…' : 'Test-E-Mail senden'}
       </Button>
-    </div>
-  );
-});
-
-const NotificationToggles: React.FC<{
-  onSuccessMessage: (msg: string) => void;
-  onErrorMessage: (msg: string) => void;
-}> = memo(({ onSuccessMessage, onErrorMessage }) => {
-  const { get, set } = useUserDefaults<boolean>('notifications');
-  const categories = getEmailPreferenceTypes();
-
-  const handleToggle = async (key: string, label: string, checked: boolean) => {
-    try {
-      await set(key, checked);
-      onSuccessMessage(`${label} ${checked ? 'aktiviert' : 'deaktiviert'}.`);
-    } catch {
-      onErrorMessage('Einstellung konnte nicht gespeichert werden.');
-    }
-  };
-
-  return (
-    <div>
-      <div className="text-sm font-medium text-foreground mb-md">E-Mail-Benachrichtigungen</div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-md">
-        {categories.map((cat) => (
-          <FeatureToggle
-            key={cat.key}
-            isActive={get(cat.key, true)}
-            onToggle={(checked) => handleToggle(cat.key, cat.label, checked)}
-            label={cat.label}
-            icon={cat.icon}
-            description={cat.description}
-          />
-        ))}
-      </div>
     </div>
   );
 });
