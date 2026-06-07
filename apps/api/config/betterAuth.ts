@@ -319,6 +319,12 @@ export const auth = betterAuth({
           log.info(
             `[Auth] session-created id=${session.id} user=${session.userId} token=${session.token?.slice(0, 8) ?? 'NONE'}`
           );
+          // Deliver one-off product announcements (e.g. new Pride avatars) on
+          // login — once per user, idempotent, best-effort.
+          const { deliverLoginAnnouncements } = await import(
+            '../services/notifications/loginAnnouncements.js'
+          );
+          await deliverLoginAnnouncements(session.userId);
         },
       },
     },
