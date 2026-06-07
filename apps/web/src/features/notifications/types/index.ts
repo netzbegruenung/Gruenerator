@@ -64,6 +64,14 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     subtypes: ['board_comment_added', 'board_comment_reply', 'board_user_mentioned'],
     actions: (ctx) => [openLinkAction('Karte öffnen')(ctx)],
   },
+  agent_task_completed: {
+    label: 'Grünerator-Agent',
+    description: 'Wenn der Grünerator eine an ihn delegierte Aufgabe erledigt hat',
+    icon: Sparkles,
+    group: 'board',
+    subtypes: ['agent_task_completed', 'agent_task_failed'],
+    actions: (ctx) => [openLinkAction('Dokument öffnen')(ctx)],
+  },
 
   group_member_joined: {
     label: 'Mitglieder & Rollen',

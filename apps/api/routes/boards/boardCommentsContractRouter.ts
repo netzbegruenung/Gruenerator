@@ -16,6 +16,8 @@ import {
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { enqueueAgentTask } from '../../services/boards/agentTaskService.js';
+import { GRUENERATOR_BOT_USER_ID } from '../../services/boards/grueneratorBot.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -400,6 +402,28 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
 
   for (const mentionedId of mentionedUserIds) {
     if (mentionedId === authorId) continue;
+
+    // Mentioning the bot delegates the comment as an async task instead of
+    // sending a notification (the bot has no inbox). Fire-and-forget like the
+    // surrounding notification dispatch.
+    if (mentionedId === GRUENERATOR_BOT_USER_ID) {
+      const localeRows = await db.query<{ locale: string }>(
+        `SELECT locale FROM profiles WHERE id = $1`,
+        [authorId]
+      );
+      void enqueueAgentTask({
+        boardId,
+        cardId,
+        triggerCommentId: commentId,
+        requestedBy: authorId,
+        taskText: content,
+        locale: localeRows[0]?.locale ?? 'de-DE',
+      }).catch((err: unknown) => {
+        log.warn('Failed to enqueue agent task', { error: errMsg(err) });
+      });
+      continue;
+    }
+
     notifiedUserIds.add(mentionedId);
 
     await createNotification({
@@ -420,7 +444,12 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
     );
 
     const parentAuthorId = parentRows[0]?.user_id;
-    if (parentAuthorId && parentAuthorId !== authorId && !notifiedUserIds.has(parentAuthorId)) {
+    if (
+      parentAuthorId &&
+      parentAuthorId !== authorId &&
+      parentAuthorId !== GRUENERATOR_BOT_USER_ID &&
+      !notifiedUserIds.has(parentAuthorId)
+    ) {
       notifiedUserIds.add(parentAuthorId);
 
       await createNotification({
@@ -444,6 +473,7 @@ async function fireCommentNotifications(params: CommentNotificationParams): Prom
   );
 
   for (const row of cardCreatorRows) {
+    if (row.user_id === GRUENERATOR_BOT_USER_ID) continue;
     if (notifiedUserIds.has(row.user_id)) continue;
     notifiedUserIds.add(row.user_id);
 
