@@ -103,6 +103,16 @@ export function convertToThreadMessageLike(messages: LoadedMessage[]): ThreadMes
     if (m.metadata?.roleName) custom.roleName = m.metadata.roleName;
     if (m.metadata?.citations) custom.citations = m.metadata.citations;
     if (m.metadata?.generatedImage) custom.generatedImage = m.metadata.generatedImage;
+
+    // Reconstruct the sharepic variant stack on reload. The live stream sets
+    // custom.sharepicData from the 'sharepic_complete' SSE event; without this the
+    // persisted sharepic tool call survives in metadata but the variant cards
+    // vanish when the thread is reloaded (AssistantMessage renders custom.sharepicData).
+    const sharepicCall = m.metadata?.toolCalls?.find((tc) => tc.toolName === 'sharepic');
+    const sharepicVariants = (sharepicCall?.result as { variants?: unknown } | undefined)?.variants;
+    if (Array.isArray(sharepicVariants) && sharepicVariants.length > 0) {
+      custom.sharepicData = { variants: sharepicVariants };
+    }
     if (m.metadata?.intent)
       custom.streamMetadata = {
         intent: m.metadata.intent,

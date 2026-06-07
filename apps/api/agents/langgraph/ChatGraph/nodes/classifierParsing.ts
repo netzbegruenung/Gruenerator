@@ -31,6 +31,7 @@ export function parseClassifierResponse(
     'search',
     'web',
     'examples',
+    'sharepic',
     'image',
     'image_edit',
     'summary',
@@ -216,6 +217,13 @@ export function parseClassifierResponse(
   const intentFieldPattern = (intent: string) =>
     new RegExp(`["']?intent["']?\\s*[:=]\\s*["']?${intent}\\b`, 'i');
 
+  // sharepic before image: it's the more specific intent and must not be shadowed.
+  if (intentFieldPattern('sharepic').test(content))
+    return {
+      intent: 'sharepic',
+      searchQuery: null,
+      reasoning: 'Fallback: sharepic detected in response',
+    };
   if (intentFieldPattern('image').test(content))
     return {
       intent: 'image',

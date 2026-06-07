@@ -58,13 +58,15 @@ async function processZitatPureText(textData: ZitatPureTextData): Promise<ZitatP
 
   const { quote, name } = textData;
 
-  if (!quote || !name) {
-    throw new Error('Sowohl Zitat als auch Name sind erforderlich');
+  // Only the quote is mandatory. A topic quote (not attributed to a person) has
+  // no author name — render the quote alone instead of failing the whole sharepic.
+  if (!quote) {
+    throw new Error('Ein Zitat ist erforderlich');
   }
 
   return {
     quote: quote.trim(),
-    name: name.trim(),
+    name: (name ?? '').trim(),
   };
 }
 
