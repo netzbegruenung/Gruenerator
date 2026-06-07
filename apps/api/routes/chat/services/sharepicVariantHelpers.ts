@@ -44,6 +44,7 @@ interface SharepicResponseShape {
   header?: string;
   subheader?: string;
   body?: string;
+  selectedImage?: string;
 }
 
 function buildInitialPropsForType(
@@ -57,6 +58,12 @@ function buildInitialPropsForType(
         line1: slogan.line1 ?? '',
         line2: slogan.line2 ?? '',
         line3: slogan.line3 ?? '',
+        // Carry the AI-selected stock background so the frontend canvas renders it.
+        // `hasBackgroundImage` is derived from `currentImageSrc` in the dreizeilen
+        // config's createInitialState — passing this key alone shows the layer.
+        ...(sharepic.selectedImage && {
+          currentImageSrc: `/api/image-picker/stock-image/${encodeURIComponent(sharepic.selectedImage)}`,
+        }),
       };
     }
     case 'zitat-pure':
