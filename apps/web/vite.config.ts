@@ -232,24 +232,39 @@ export default defineConfig(({ command }) => ({
     rolldownOptions: {
       treeshake: true,
       output: {
-        entryFileNames: 'assets/js/[name].[hash].js',
-        chunkFileNames: 'assets/js/[name].[hash].js',
+        // Filenames are `<sanitized-name>-[hash]` — a HYPHEN before the hash and
+        // NO dots in the name part. Reason: the system nginx security filter
+        // (blocked-paths-regex, case-insensitive `\.sh|\.env|\.conf|\.log|…`,
+        // unanchored) 404s any path containing a `.<blockedExt>` segment. Two
+        // ways a build asset could trip it: (1) a content hash starting with a
+        // blocked ext after a dot — e.g. `index.sHm9A0Iy.css` matched `.sh`; and
+        // (2) a chunk NAME containing a dotted ext — e.g. the canvas-editor
+        // `dreizeilen_full.config-….js` matched `.conf`. Using a hyphen before
+        // the hash kills (1); replacing dots in the name kills (2). Net: the
+        // only dot left in any emitted filename is the real extension (.js/.css/
+        // …), none of which are blocked. Verified post-build by running the exact
+        // regex over every emitted filename (must be zero matches).
+        entryFileNames: (chunk) => `assets/js/${chunk.name.replace(/\./g, '-')}-[hash].js`,
+        chunkFileNames: (chunk) => `assets/js/${chunk.name.replace(/\./g, '-')}-[hash].js`,
         assetFileNames(assetInfo) {
           const name = assetInfo.names?.[0] || '';
+          // base = name without its final extension, with any remaining dots
+          // replaced by hyphens. `[extname]` re-appends the real extension.
+          const base = name.replace(/\.[^.]+$/, '').replace(/\./g, '-') || 'asset';
           if (name.endsWith('.jsx') || name.endsWith('.tsx')) {
-            return `assets/js/${name.replace(/\.(jsx|tsx)$/, '')}.[hash].js`;
+            return `assets/js/${base}-[hash].js`;
           }
           const ext = name.split('.').pop() || '';
           if (/png|jpe?g|svg|gif|tiff|bmp|ico|webp/i.test(ext)) {
-            return 'assets/images/[name].[hash][extname]';
+            return `assets/images/${base}-[hash][extname]`;
           }
           if (/css/i.test(ext)) {
-            return 'assets/css/[name].[hash][extname]';
+            return `assets/css/${base}-[hash][extname]`;
           }
           if (/woff2?|ttf|eot/i.test(ext)) {
-            return 'assets/fonts/[name].[hash][extname]';
+            return `assets/fonts/${base}-[hash][extname]`;
           }
-          return 'assets/[name].[hash][extname]';
+          return `assets/${base}-[hash][extname]`;
         },
         // NATURAL code-splitting: the ONLY forced group is `vendor-react`.
         // Everything else (app code, workspace packages, node_modules) is split
