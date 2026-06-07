@@ -11,7 +11,7 @@
  */
 
 import {
-  boardOperationsSchema,
+  boardOperationSchema,
   type BoardOperation,
   type CurrentBoard,
 } from '@gruenerator/contracts';
@@ -64,6 +64,26 @@ RULES:
 - Return ONLY the tool call. No prose.`;
 
 /**
+ * Resolve a row's assignee cell to a human name. The cell is a JSON blob
+ * (`{id,name,avatarRobotId}`); we read `.name` (and resolve `.id` against the
+ * member map when present). Falls back to id-map lookup / raw string for legacy
+ * plain-string cells. Returns null when unassigned.
+ */
+function resolveAssigneeName(raw: unknown, assigneeById: Map<string, string>): string | null {
+  if (typeof raw !== 'string' || !raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as { id?: string; name?: string };
+    if (parsed && typeof parsed === 'object') {
+      if (parsed.id && assigneeById.has(parsed.id)) return assigneeById.get(parsed.id)!;
+      if (parsed.name) return parsed.name;
+    }
+  } catch {
+    // Not JSON — legacy plain value below.
+  }
+  return assigneeById.get(raw) ?? raw;
+}
+
+/**
  * Serialize the live board into a compact, model-readable context block.
  * Caps rows so very large boards stay within token limits.
  */
@@ -102,11 +122,10 @@ function serializeBoard(board: CurrentBoard, today: string): string {
     const title = (row.cells[FIELD_IDS.TITLE] as string) || '(kein Titel)';
     const statusId = row.cells[FIELD_IDS.STATUS];
     const statusName = typeof statusId === 'string' ? (statusById.get(statusId) ?? statusId) : '—';
-    const assigneeRaw = row.cells['field-assignee'];
-    const assigneeName =
-      typeof assigneeRaw === 'string' && assigneeRaw
-        ? (assigneeById.get(assigneeRaw) ?? assigneeRaw)
-        : null;
+    // The assignee cell is a JSON blob ({id,name,avatarRobotId}) written by the
+    // card UI / executor — not a bare user id. Parse it to surface the human
+    // name; fall back to id-map lookup then the raw value for legacy cells.
+    const assigneeName = resolveAssigneeName(row.cells['field-assignee'], assigneeById);
     const due = row.cells['field-due-date'];
     let line = `- [${row.id}] "${title}" (Status: ${statusName}`;
     if (assigneeName) line += `, Zuständig: ${assigneeName}`;
@@ -158,7 +177,10 @@ export async function generateBoardOperations(opts: {
     tools: {
       applyBoardOperations: tool({
         description: 'Apply a batch of operations to the board.',
-        inputSchema: z.object({ operations: boardOperationsSchema }),
+        // No `.min(1)` here (unlike boardOperationsSchema): the prompt allows an
+        // empty array to mean "nothing to change", and requiring ≥1 op would make
+        // that legitimate no-op fail tool-input validation / burn a retry.
+        inputSchema: z.object({ operations: z.array(boardOperationSchema).max(50) }),
       }),
     },
     toolChoice: 'required',
@@ -169,11 +191,12 @@ export async function generateBoardOperations(opts: {
 
   for (const tc of result.toolCalls) {
     if (tc.toolName === 'applyBoardOperations') {
-      // Validated against the contract schema; the tool inputSchema already
-      // enforces it, this is the trust-boundary assertion + a typed narrow.
-      const parsed = boardOperationsSchema.safeParse(
-        (tc.input as { operations: unknown }).operations
-      );
+      // Trust-boundary assertion + typed narrow. No `.min(1)` (empty = no-op is
+      // valid); the 50-op cap from boardOperationsSchema still applies.
+      const parsed = z
+        .array(boardOperationSchema)
+        .max(50)
+        .safeParse((tc.input as { operations: unknown }).operations);
       if (parsed.success) {
         captured = parsed.data;
       } else {

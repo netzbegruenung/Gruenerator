@@ -169,8 +169,17 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // These are the most specific signals — a user explicitly requesting a change
     // to a referenced resource. Must be checked BEFORE passive context checks,
     // otherwise an image attachment or OCR text would shadow the mutation intent.
+    // Imperative edit verbs only. Uses `-e`/`-en` imperative/infinitive endings
+    // (NOT bare stems) so participles/nouns in QUESTIONS don't misfire — e.g.
+    // "was wurde geändert/gelöscht/markiert?", "welche Labels gibt es?",
+    // "wie ist es sortiert?" must NOT route to an edit. Noun keywords (label,
+    // status, …) only count when preceded by an edit verb (füge … hinzu /
+    // erstelle / setze … / weise … zu).
+    // Leading `(?<![\p{L}])` (not `\b`) so umlaut-initial verbs (ändere,
+    // überarbeite) match after a space — `\b` fails there since ä/ü aren't ASCII
+    // word chars. `u` flag enables \p{L}.
     const boardModifyPattern =
-      /\b(f(?:ü|ue)ge?\s+(aufgabe|karte|eintrag|spalte|feld|kommentar)|neue[rs]?\s+(karte|aufgabe|spalte|feld|ansicht)|aktualisiere\s+board|erstelle\s+(aufgabe|spalte|ansicht|feld)|aender|änder|ergaenz|ergänz|ueberarbeit|überarbeit|vereinfach|strukturier|umstrukturier|loesch|lösch|entfern|verschieb|sortier|kommentier|weise\s+\S.{0,40}?\s+zu|zuweis|label|markier|setze?\s+(f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig))/i;
+      /(?<![\p{L}])(f(?:ü|ue)ge?\s+\S.{0,40}?\s+hinzu|neue[rs]?\s+(karte|aufgabe|spalte|feld|ansicht)|erstelle\s+\S.{0,40}?\s*(aufgabe|karte|spalte|ansicht|feld)|erstelle\s+(aufgabe|karte|spalte|ansicht|feld)|aktualisiere|(?:ä|ae)ndere|erg(?:ä|ae)nze|(?:ü|ue)berarbeite|vereinfache|(?:um)?strukturiere|l(?:ö|oe)sche|entferne|verschiebe|sortiere|kommentiere|markiere|weise\s+\S.{0,40}?\s+zu\b|setze?\s+\S.{0,40}?\s+(?:f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig|als|auf|zu\b)|setze?\s+(f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig))/iu;
     const docModifyPattern = DOC_MODIFY_PATTERN;
 
     // Open board in the boards-editor surface + modification keywords → live edit
