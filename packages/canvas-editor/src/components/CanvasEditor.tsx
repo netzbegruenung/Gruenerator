@@ -852,17 +852,26 @@ function CanvasEditorInner({
     mobileBridge.callbacks.onActiveTabChange(activeTab);
   }, [mobileBridge, activeTab]);
 
-  // Clear stale subsections when active tab changes (new section will report its own)
+  // Reset mobile-web subsection state DURING render when the tab changes — before the
+  // new section's SubsectionTabBar mounts and reports. A post-commit effect would run
+  // after the child's report/auto-select (child effects fire before parent effects) and
+  // clobber them, leaving the panel empty.
+  const webSubsectionResetTabRef = useRef(activeTab);
+  if (isMobileWeb && !isExternalSidebar && webSubsectionResetTabRef.current !== activeTab) {
+    webSubsectionResetTabRef.current = activeTab;
+    setMobileWebSubsections([]);
+    setMobileWebActiveSubsection(null);
+  }
+
+  // Clear stale subsections when active tab changes (new section will report its own).
+  // The mobile-web path is handled above during render; native + external stay here
+  // because they invoke external callbacks/store updates that can't run during render.
   const prevActiveTabRef = useRef(activeTab);
   useEffect(() => {
     if (prevActiveTabRef.current !== activeTab) {
       prevActiveTabRef.current = activeTab;
       if (mobileBridge) {
         mobileBridge.callbacks.onSubsectionsChange([]);
-      }
-      if (isMobileWeb) {
-        setMobileWebSubsections([]);
-        setMobileWebActiveSubsection(null);
       }
       if (isExternalSidebar && externalMobileMode) {
         setMobileWebSubsections([]);
@@ -873,7 +882,7 @@ function CanvasEditorInner({
         });
       }
     }
-  }, [mobileBridge, isMobileWeb, isExternalSidebar, externalMobileMode, activeTab]);
+  }, [mobileBridge, isExternalSidebar, externalMobileMode, activeTab]);
 
   // External sidebar store: lifecycle (activate on mount, deactivate on unmount)
   useEffect(() => {

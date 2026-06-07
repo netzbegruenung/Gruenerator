@@ -249,6 +249,10 @@ const standardRoutes: RouteConfig[] = [
         { path: '/agents/:identifier/edit', component: AgentSettingsPage },
       ] satisfies RouteConfig[])
     : []),
+  // Skills & Agents library — canonical at /agents (exact match ranks ahead of
+  // the `/agents/:slug` chat route below in React Router). `/skills` redirects
+  // here for old links.
+  { path: '/agents', component: SkillsAndAgentsPage },
   // Chat with a specific system agent at /agents/<slug>. Slug is the agent
   // identifier with the `gruenerator-` prefix stripped (see `getAgentSlug`
   // in @gruenerator/shared/agents). ChatPage handles both this path-based
@@ -263,7 +267,10 @@ const standardRoutes: RouteConfig[] = [
     path: '/recherche',
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks') })),
   },
-  { path: '/skills', component: SkillsAndAgentsPage },
+  {
+    path: '/skills',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/agents') })),
+  },
   { path: '/gruppen', component: GruppenPage },
   { path: '/gruppen/:idOrSlug', component: GruppenPage },
   { path: '/gruen-o-mat', component: GruenOMatDemoPage },

@@ -168,7 +168,20 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     icon: CloudDownload,
     group: 'system',
   },
+  new_avatars: {
+    label: 'Neue Avatare',
+    description: 'Wenn neue Profil-Avatare verfügbar sind',
+    icon: Sparkles,
+    group: 'system',
+  },
 };
+
+/**
+ * Raw types excluded from the expert preferences table. One-off announcement
+ * types (e.g. new_avatars) have no meaningful per-user toggle — they fire once
+ * and toggling them afterwards does nothing — so we keep them out of the UI.
+ */
+const HIDDEN_FROM_PREFS: ReadonlySet<NotificationType> = new Set<NotificationType>(['new_avatars']);
 
 /** Raw types grouped by category, in group order, for the expert table. */
 export function getRawTypesByGroup(): {
@@ -178,6 +191,7 @@ export function getRawTypesByGroup(): {
 }[] {
   const byGroup = new Map<NotificationGroup, NotificationType[]>();
   for (const [type, meta] of Object.entries(RAW_TYPE_META) as [NotificationType, RawTypeMeta][]) {
+    if (HIDDEN_FROM_PREFS.has(type)) continue;
     const existing = byGroup.get(meta.group) ?? [];
     existing.push(type);
     byGroup.set(meta.group, existing);

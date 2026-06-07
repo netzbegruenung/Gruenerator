@@ -22,6 +22,7 @@ import {
   groupLinkBodySchema,
   groupLinkResponseSchema,
   groupMembersResponseSchema,
+  groupMuteResponseSchema,
   groupOkResponseSchema,
   groupResolveResponseSchema,
   groupSuccessResponseSchema,
@@ -33,6 +34,7 @@ import {
   listUserGroupsResponseSchema,
   memberRoleBodySchema,
   requestToJoinResponseSchema,
+  setGroupMuteBodySchema,
   setGroupVisibilityBodySchema,
   shareContentBodySchema,
   unshareContentBodySchema,
@@ -296,6 +298,26 @@ export const groupsContract = c.router({
       500: groupErrorResponseSchema,
     },
     summary: 'Leave a group (non-creator)',
+  },
+
+  /**
+   * PUT /api/auth/groups/:groupId/mute
+   * The caller mutes/unmutes their own email + push notifications for this
+   * group. In-app notifications are unaffected. Operates on the caller's own
+   * membership — no admin rights required.
+   */
+  setGroupMute: {
+    method: 'PUT',
+    path: '/api/auth/groups/:groupId/mute',
+    pathParams: z.object({ groupId: z.string() }),
+    body: setGroupMuteBodySchema,
+    responses: {
+      200: groupMuteResponseSchema,
+      401: groupErrorResponseSchema,
+      404: groupErrorResponseSchema,
+      500: groupErrorResponseSchema,
+    },
+    summary: 'Mute or unmute the caller notifications for a group',
   },
 
   listMembers: {
