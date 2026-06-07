@@ -44,6 +44,10 @@ const TYPE_IMPORTANCE: Record<NotificationType, 1 | 2 | 3> = {
   transfer_downloaded: 3,
   notebook_liked: 3,
   wolke_new_files: 2,
+  // Tier 1: the user explicitly delegated work and is waiting on the result —
+  // always deliver (incl. email) regardless of notification level.
+  agent_task_completed: 1,
+  agent_task_failed: 1,
 };
 
 export type NotificationLevel = 'low' | 'medium' | 'high';
@@ -211,7 +215,11 @@ export async function applyLevelForUser(
   level: NotificationLevel
 ): Promise<Record<NotificationType, ChannelPreferences>> {
   const profileService = getProfileService();
-  await profileService.setUserDefaultsGenerator(userId, 'notifications', getPresetPreferences(level));
+  await profileService.setUserDefaultsGenerator(
+    userId,
+    'notifications',
+    getPresetPreferences(level)
+  );
   return getPreferencesForUser(userId);
 }
 

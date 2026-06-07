@@ -15,6 +15,7 @@ export * from './notebooks.js';
 export * from './collaborative.js';
 export * from './canvas.js';
 export * from './boards.js';
+export * from './agentTasks.js';
 export * from './yjs.js';
 export * from './sites.js';
 export * from './apiKeys.js';
