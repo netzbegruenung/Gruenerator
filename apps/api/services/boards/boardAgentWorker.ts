@@ -7,7 +7,7 @@
  * collaborative document, then notifies the requester (in-app + push + email via
  * createNotification) and replies on the originating card as the bot.
  */
-import { generateText, type ModelMessage } from 'ai';
+import { generateText, stepCountIs, type ModelMessage } from 'ai';
 
 import {
   buildSystemMessage,
@@ -16,6 +16,7 @@ import {
 } from '../../agents/langgraph/ChatGraph/index.js';
 import { PRIMARY_URL } from '../../config/domains.js';
 import { type AgentTask } from '../../database/schema/agentTasks.js';
+import { createSearchTools } from '../../routes/chat/agents/searchTools.js';
 import { resolveModel } from '../../routes/chat/services/responseStreamingService.js';
 import { createLogger } from '../../utils/logger.js';
 import { getAIService } from '../ai/aiService.js';
@@ -42,6 +43,9 @@ const GENERATION_TIMEOUT_MS = 180_000;
 // Documents can be long-form; never let a chat-tuned agent's small token budget
 // truncate the result below this floor.
 const MIN_DOCUMENT_TOKENS = 4000;
+
+// Max model<->tool round-trips while authoring (search/research then write).
+const MAX_TOOL_STEPS = 5;
 
 // Intents that produce a non-text artifact (image/sharepic/chart) the board
 // agent can't deliver as a document — answered with a short explanation instead.
@@ -140,7 +144,9 @@ async function processTask(task: AgentTask): Promise<void> {
     const systemMessage = `${baseSystemMessage}
 
 ## DOKUMENT-MODUS (vorrangig)
-Du erstellst ein eigenständiges, vollständiges Dokument — KEINE kurze Chat-Antwort. Die Längen- und Knappheitsregeln aus den ANTWORT-REGELN gelten hier NICHT. Schreibe so ausführlich und strukturiert, wie die Aufgabe es verlangt: mit aussagekräftiger Überschrift (#), sinnvollen Zwischenüberschriften und vollständig ausformulierten Absätzen. Gib AUSSCHLIESSLICH den Dokumentinhalt als Markdown aus — keine Meta-Kommentare, keine Rückfragen.`;
+Du erstellst ein eigenständiges, vollständiges Dokument — KEINE kurze Chat-Antwort. Die Längen- und Knappheitsregeln aus den ANTWORT-REGELN gelten hier NICHT. Schreibe so ausführlich und strukturiert, wie die Aufgabe es verlangt: mit aussagekräftiger Überschrift (#), sinnvollen Zwischenüberschriften und vollständig ausformulierten Absätzen.
+
+Du hast Recherche-Tools (gruenerator_search, web_search, research, …). Nutze sie aktiv, um Fakten und grüne Positionen zu belegen, bevor du schreibst — verlasse dich nicht nur auf vorhandenen Kontext. Gib am Ende AUSSCHLIESSLICH den Dokumentinhalt als Markdown aus — keine Meta-Kommentare, keine Rückfragen.`;
 
     const { agentConfig } = finalState;
     // Resolve via the same path as the chat controller so overflow-lane slots and
@@ -158,10 +164,15 @@ Du erstellst ein eigenständiges, vollständiges Dokument — KEINE kurze Chat-A
 
     let generatedText: string;
     try {
+      // Give the model live retrieval (search/research) while authoring, so it can
+      // ground facts on demand rather than only from the graph's pre-fetched
+      // context. toolChoice defaults to 'auto'; stepCountIs caps tool round-trips.
       const generated = await generateText({
         model: resolution.model,
         system: systemMessage,
         messages: [userMessage],
+        tools: createSearchTools(agentConfig),
+        stopWhen: stepCountIs(MAX_TOOL_STEPS),
         maxOutputTokens: Math.max(agentConfig.params.max_tokens, MIN_DOCUMENT_TOKENS),
         temperature: agentConfig.params.temperature,
         abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
