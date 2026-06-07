@@ -11,6 +11,7 @@ import {
   openUnsplashSearch,
   generateAiImage,
 } from './services/imageSourceService';
+import { uploadBlobToMediaLibrary } from './services/mediaUploadService';
 import { useGenerateCanvasSuggestions } from './useGenerateCanvasSuggestions';
 
 import type { CanvasEditorServices } from '@gruenerator/canvas-editor';
@@ -24,6 +25,7 @@ export const webCanvasEditorServices: CanvasEditorServices = {
   fetchUnsplashImageAsFile,
   openUnsplashSearch,
   generateAiImage,
+  uploadImage: uploadBlobToMediaLibrary,
   removeBackgroundFromImage,
   editAiImage,
   useGenerateCanvasSuggestions,

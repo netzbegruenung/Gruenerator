@@ -391,9 +391,12 @@ export function createImageTwoTextCanvas<
 
         // Image background
         currentImageSrc: (props.currentImageSrc as string) || (props.imageSrc as string) || '',
-        imageOffset: { x: 0, y: 0 },
-        imageScale: 1,
+        imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+        imageScale: (props.imageScale as number | undefined) ?? 1,
         isBackgroundLocked: false,
+        backgroundImageOpacity: (props.backgroundImageOpacity as number | undefined) ?? 1,
+        imageAttribution:
+          (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
 
         // Base state
         assetInstances: [],
