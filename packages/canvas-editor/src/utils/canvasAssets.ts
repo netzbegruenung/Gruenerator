@@ -119,6 +119,14 @@ export const ALL_ASSETS: UniversalAsset[] = [
 ];
 
 /**
+ * Logo assets shown in the "Logos" (grafiken) category.
+ * Only true logos (decoration) — marks like Anführungszeichen/Pfeil are excluded.
+ */
+export const LOGO_ASSETS: UniversalAsset[] = ALL_ASSETS.filter(
+  (a) => a.category === 'decoration'
+);
+
+/**
  * Mapping of canvas types to their recommended (default) assets
  * These appear in the "Empfohlen" section at the top
  */
