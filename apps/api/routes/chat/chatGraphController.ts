@@ -380,6 +380,7 @@ router.post(
         messages: validMessages,
         threadId: actualThreadId,
         agentId: agentId || 'gruenerator-universal',
+        userId,
         enabledTools: enabledTools || {
           search: true,
           web: true,

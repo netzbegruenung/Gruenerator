@@ -376,6 +376,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         messages: validMessages,
         threadId: actualThreadId,
         agentId: agentId ?? 'gruenerator-universal',
+        userId,
         enabledTools: enabledTools ?? {
           search: true,
           web: true,
@@ -730,79 +731,95 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       });
 
       // === Stage 3: Response generation ===
-      sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
-
-      const systemMessage = await buildSystemMessage(finalState);
-      const agentConfigForResolve = {
-        provider: finalState.agentConfig.provider as string,
-        model: finalState.agentConfig.model,
-        ...(finalState.agentConfig.defaultModel != null && {
-          defaultModel: finalState.agentConfig.defaultModel,
-        }),
-      };
-      const resolution = await resolveModel(
-        agentConfigForResolve,
-        modelId ?? undefined,
-        requestId,
-        {
-          hasImages: imageAttachments.length > 0,
-          intent: finalState.intent,
-        }
-      );
-
-      const prunedValidMessages = pruneMessages(
-        validMessages as Parameters<typeof pruneMessages>[0]
-      );
-      const finalSystemMessage = actualThreadId
-        ? await applyCompaction(
-            actualThreadId,
-            prunedValidMessages,
-            systemMessage,
-            contextWindowTokens
-          )
-        : systemMessage;
-
-      let messagesForAI = buildMessagesForAI(
-        finalSystemMessage,
-        prunedValidMessages as Parameters<typeof buildMessagesForAI>[1]
-      );
-      // image_edit narrates from BILDVERGLEICH text descriptions; the raw image
-      // would put bytes in front of a non-vision model (since we no longer
-      // force-switch above) and create a redundant grounding source for vision
-      // models — skip injection so the descriptions are the single source.
-      if (finalState.intent !== 'image_edit') {
-        messagesForAI = injectImageAttachments(
-          messagesForAI as Parameters<typeof injectImageAttachments>[0],
-          imageAttachments,
-          requestId
-        );
-      }
-
-      const baseMaxTokens = finalState.agentConfig.params.max_tokens;
-
       let fullText: string | null;
-      try {
-        fullText = await streamWithFallback({
-          primary: resolution,
-          sse,
-          logPrefix: '[ChatGraph]',
-          buildStream: async (r) => {
-            const isReasoning = isRegoloReasoningModel(r.provider, r.modelName);
-            return streamForResolution({
-              resolution: r,
-              messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
-              maxTokens: isReasoning ? Math.max(baseMaxTokens, 9000) : baseMaxTokens,
-              temperature: finalState.agentConfig.params.temperature,
-              sse,
-              logPrefix: '[ChatGraph]',
-            });
-          },
-        });
-      } finally {
-        if (resolution.releaseSlot) await resolution.releaseSlot();
-      }
+      if (finalState.intent === 'sharepic') {
+        // Sharepic variants were already produced + streamed in Stage 2 (sharepic_complete).
+        // Skip the LLM — with the still-vague topic it asks clarifying questions over the
+        // already-finished sharepic. Emit a fixed confirmation instead so the user sees the
+        // assistant knows the sharepic exists. Also covers the all-variants-failed case.
+        const n = sharepicVariants.length;
+        fullText =
+          n > 0
+            ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
+              `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
+            : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
+              `anderen Thema noch einmal versuchen?`;
+        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+        sse.send('text_delta', { text: fullText });
+      } else {
+        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
 
-      if (fullText === null) return { status: 200 as const, body: undefined };
+        const systemMessage = await buildSystemMessage(finalState);
+        const agentConfigForResolve = {
+          provider: finalState.agentConfig.provider as string,
+          model: finalState.agentConfig.model,
+          ...(finalState.agentConfig.defaultModel != null && {
+            defaultModel: finalState.agentConfig.defaultModel,
+          }),
+        };
+        const resolution = await resolveModel(
+          agentConfigForResolve,
+          modelId ?? undefined,
+          requestId,
+          {
+            hasImages: imageAttachments.length > 0,
+            intent: finalState.intent,
+          }
+        );
+
+        const prunedValidMessages = pruneMessages(
+          validMessages as Parameters<typeof pruneMessages>[0]
+        );
+        const finalSystemMessage = actualThreadId
+          ? await applyCompaction(
+              actualThreadId,
+              prunedValidMessages,
+              systemMessage,
+              contextWindowTokens
+            )
+          : systemMessage;
+
+        let messagesForAI = buildMessagesForAI(
+          finalSystemMessage,
+          prunedValidMessages as Parameters<typeof buildMessagesForAI>[1]
+        );
+        // image_edit narrates from BILDVERGLEICH text descriptions; the raw image
+        // would put bytes in front of a non-vision model (since we no longer
+        // force-switch above) and create a redundant grounding source for vision
+        // models — skip injection so the descriptions are the single source.
+        if (finalState.intent !== 'image_edit') {
+          messagesForAI = injectImageAttachments(
+            messagesForAI as Parameters<typeof injectImageAttachments>[0],
+            imageAttachments,
+            requestId
+          );
+        }
+
+        const baseMaxTokens = finalState.agentConfig.params.max_tokens;
+
+        try {
+          fullText = await streamWithFallback({
+            primary: resolution,
+            sse,
+            logPrefix: '[ChatGraph]',
+            buildStream: async (r) => {
+              const isReasoning = isRegoloReasoningModel(r.provider, r.modelName);
+              return streamForResolution({
+                resolution: r,
+                messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
+                maxTokens: isReasoning ? Math.max(baseMaxTokens, 9000) : baseMaxTokens,
+                temperature: finalState.agentConfig.params.temperature,
+                sse,
+                logPrefix: '[ChatGraph]',
+              });
+            },
+          });
+        } finally {
+          if (resolution.releaseSlot) await resolution.releaseSlot();
+        }
+
+        if (fullText === null) return { status: 200 as const, body: undefined };
+      }
 
       // === Stage 3b: Extract chart data from response (if chart intent) ===
       if (finalState.intent === 'chart') {
