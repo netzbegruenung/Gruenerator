@@ -26,6 +26,10 @@ import {
   parseBoardStructure,
   postProcessBoardStructure,
 } from '../../services/boards/BoardService.js';
+import {
+  GRUENERATOR_BOT_USER_ID,
+  GRUENERATOR_BOT_DISPLAY_NAME,
+} from '../../services/boards/grueneratorBot.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -37,6 +41,16 @@ import type { Application } from 'express';
 
 const log = createLogger('boardsContract');
 const BOARDS_SUBTYPE = 'boards';
+
+// The async board agent is always assignable/mentionable on every board, so the
+// @-mention popover can delegate tasks to it without per-board permission setup.
+const GRUENERATOR_BOT_MEMBER: AssignableMember = {
+  user_id: GRUENERATOR_BOT_USER_ID,
+  source: 'bot',
+  first_name: GRUENERATOR_BOT_DISPLAY_NAME,
+  display_name: GRUENERATOR_BOT_DISPLAY_NAME,
+  avatar_robot_id: 1,
+};
 
 const db = getPostgresInstance();
 
@@ -207,7 +221,13 @@ export const boardsContractRouter = s.router(boardsContract, {
         [id, BOARDS_SUBTYPE]
       );
 
-      return { status: 200 as const, body: members };
+      // Surface the async agent first so it's easy to delegate a task to it.
+      const withBot = [
+        GRUENERATOR_BOT_MEMBER,
+        ...members.filter((m) => m.user_id !== GRUENERATOR_BOT_USER_ID),
+      ];
+
+      return { status: 200 as const, body: withBot };
     } catch (error) {
       log.error('[Boards Contract] Error listing assignable members:', error);
       return {
