@@ -23,7 +23,11 @@ import { createLogger } from '../../../utils/logger.js';
 import { CONFIRM_ACTION_CONFIG } from './confirmActionService.js';
 import { extractTextContent } from './messageHelpers.js';
 import { pendingActionStore } from './pendingActionStore.js';
-import { generateSharepicVariants, type SharepicVariant } from './sharepicVariantHelpers.js';
+import {
+  detectPreferredVariant,
+  generateSharepicVariants,
+  type SharepicVariant,
+} from './sharepicVariantHelpers.js';
 import { PROGRESS_MESSAGES } from './sseHelpers.js';
 import { createMessage, touchThread } from './threadPersistenceService.js';
 
@@ -502,12 +506,16 @@ export async function executeIntentPipeline(opts: {
         const lastMsg = finalState.messages?.[finalState.messages.length - 1];
         const rawText = lastMsg ? extractTextContent(lastMsg.content) : '';
         const messageText = rawText.replace(/@sharepic\b/gi, '').trim();
-        log.info(`[ChatGraph] Sharepic topic: "${messageText.slice(0, 100)}"`);
+        const preferredVariant = detectPreferredVariant(messageText);
+        log.info(
+          `[ChatGraph] Sharepic topic: "${messageText.slice(0, 100)}", preferredVariant: ${preferredVariant ?? 'all'}`
+        );
 
         if (!opts.req) throw new Error('Express request required for sharepic generation');
         const variants = await generateSharepicVariants({
           req: opts.req as SharepicExpressRequest,
           text: messageText,
+          ...(preferredVariant && { preferredVariant }),
         });
 
         if (variants.length === 0) {
