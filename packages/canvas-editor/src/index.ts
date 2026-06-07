@@ -52,8 +52,8 @@ export type {
   PresentationSlideState,
   PresentationSlideActions,
 } from './configs/presentation/presentationTypes';
-export type { PresentationColorMode } from './configs/presentation/presentationTheme';
-export { PRES_COLORS, PRES_CONFIG } from './configs/presentation/presentationTheme';
+export type { PresentationColorMode } from './utils/presentationTokens';
+export { PRES_COLORS, PRES_CONFIG } from './utils/presentationTokens';
 
 export {
   CANVAS_FORMATS,
