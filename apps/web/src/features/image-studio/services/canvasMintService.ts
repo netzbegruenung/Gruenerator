@@ -1,32 +1,12 @@
 import { getContractsClient } from '@gruenerator/shared/api';
 
-import apiClient from '../../../components/utils/apiClient';
 import { getCanvasTypeFields } from '../utils/canvasTypeFields';
+
+import { uploadBlobToMediaLibrary } from './mediaUploadService';
 
 import type { ImageStudioState } from '../types/storeTypes';
 
-interface MediaUploadResponse {
-  success: boolean;
-  data: {
-    id: string;
-    shareToken: string;
-    shareUrl: string;
-    mediaType: string;
-    createdAt: string;
-  };
-}
-
-async function uploadBlobToMediaLibrary(blob: Blob): Promise<string | null> {
-  const form = new FormData();
-  const filename = blob instanceof File && blob.name ? blob.name : `canvas-mint-${Date.now()}.png`;
-  form.append('file', blob, filename);
-  form.append('uploadSource', 'canvas-mint');
-
-  const res = await apiClient.post<MediaUploadResponse>('/media/upload', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-  return res.data?.data?.shareUrl ?? null;
-}
+const mintUploadOpts = { uploadSource: 'canvas-mint' } as const;
 
 function pickImageUrl(state: ImageStudioState): string | null {
   if (state.selectedImage?.urls?.regular) return state.selectedImage.urls.regular;
@@ -39,7 +19,7 @@ async function uploadImageUrlToMediaLibrary(url: string): Promise<string | null>
   try {
     const res = await fetch(url);
     const blob = await res.blob();
-    return await uploadBlobToMediaLibrary(blob);
+    return await uploadBlobToMediaLibrary(blob, mintUploadOpts);
   } catch (err) {
     console.error('[canvasMint] Failed to upload image from URL:', err);
     return null;
@@ -64,7 +44,7 @@ async function resolveImageUrl(
   const blob = state.uploadedImage ?? state.file;
   if (!(blob instanceof Blob)) return null;
   try {
-    return await uploadBlobToMediaLibrary(blob);
+    return await uploadBlobToMediaLibrary(blob, mintUploadOpts);
   } catch (err) {
     console.error('[canvasMint] Failed to upload background image:', err);
     return null;

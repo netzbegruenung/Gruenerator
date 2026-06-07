@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 import './canvas-editor.css';
+import type { StockImageAttribution } from './common/imageSourceTypes';
 import { useYjsFormState } from './collab/useYjsFormState';
 import { CanvasEditor } from './components/CanvasEditor';
 import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
@@ -18,16 +19,37 @@ type CanvasState = Record<string, unknown>;
  * entry here — so dropping or mistyping a field (e.g. forgetting to thread
  * a background URL) is a compile error rather than a silent runtime '' fallback.
  */
+/**
+ * Background-image state that persists alongside the image so the position,
+ * zoom, opacity and Unsplash credit all survive a reload — not just the URL.
+ * Optional because legacy saves and non-image layouts omit them.
+ */
+interface BackgroundImageProps {
+  imageOffset?: { x: number; y: number };
+  imageScale?: number;
+  backgroundImageOpacity?: number;
+  imageAttribution?: StockImageAttribution | null;
+}
+
 export interface CanvasInitialPropsMap {
-  zitat: { quote: string; name: string; imageSrc: string };
+  zitat: { quote: string; name: string; imageSrc: string } & BackgroundImageProps;
   'zitat-pure': { quote: string; name: string };
   info: { header: string; body: string };
   veranstaltung: VeranstaltungInitialProps;
   'veranstaltung-plakat': VeranstaltungInitialProps;
-  simple: { headline: string; subtext: string; imageSrc: string };
+  simple: { headline: string; subtext: string; imageSrc: string } & BackgroundImageProps;
   slider: { label: string; headline: string; subtext: string };
-  dreizeilen: { line1: string; line2: string; line3: string; currentImageSrc: string };
-  freeform: { backgroundMode: string; backgroundColor: string; currentImageSrc: string };
+  dreizeilen: {
+    line1: string;
+    line2: string;
+    line3: string;
+    currentImageSrc: string;
+  } & BackgroundImageProps;
+  freeform: {
+    backgroundMode: string;
+    backgroundColor: string;
+    currentImageSrc: string;
+  } & BackgroundImageProps;
   'pres-title': PresentationInitialProps;
   'pres-image': PresentationInitialProps;
   'pres-content': PresentationInitialProps;
@@ -35,7 +57,7 @@ export interface CanvasInitialPropsMap {
   profilbild: { transparentImage: string; backgroundColor: string };
 }
 
-interface VeranstaltungInitialProps {
+interface VeranstaltungInitialProps extends BackgroundImageProps {
   eventTitle: string;
   beschreibung: string;
   weekday: string;
@@ -46,7 +68,7 @@ interface VeranstaltungInitialProps {
   imageSrc: string;
 }
 
-interface PresentationInitialProps {
+interface PresentationInitialProps extends BackgroundImageProps {
   title: string;
   subtitle: string;
   bodyText: string;
@@ -266,13 +288,27 @@ export function ControllableCanvasWrapper({
     // Each branch returns an object `satisfies CanvasInitialPropsMap['<key>']` so
     // the field set is structurally checked at compile time (see top of file).
     const str = (v: unknown): string => (typeof v === 'string' ? v : '');
+    // The persisted background lives under `currentImageSrc` for every type;
+    // some types surface it to the inner canvas as `imageSrc`. Fall back across
+    // both (and the legacy `imageSrc` prop) so saves from either key re-hydrate.
+    const bgSrc = (): string =>
+      str(effectiveState.currentImageSrc) || str(effectiveState.imageSrc) || imageSrc || '';
+    // Image transform/opacity/credit that persist alongside the URL.
+    const bgImageProps = (): BackgroundImageProps => ({
+      imageOffset: effectiveState.imageOffset as { x: number; y: number } | undefined,
+      imageScale: effectiveState.imageScale as number | undefined,
+      backgroundImageOpacity: effectiveState.backgroundImageOpacity as number | undefined,
+      imageAttribution:
+        (effectiveState.imageAttribution as StockImageAttribution | null | undefined) ?? null,
+    });
     const buildInitialProps = (): Record<string, unknown> => {
       switch (type) {
         case 'zitat':
           return {
             quote: str(effectiveState.quote),
             name: str(effectiveState.name),
-            imageSrc: str(effectiveState.imageSrc) || imageSrc || '',
+            imageSrc: bgSrc(),
+            ...bgImageProps(),
           } satisfies CanvasInitialPropsMap['zitat'];
         case 'zitat-pure':
           return {
@@ -294,13 +330,15 @@ export function ControllableCanvasWrapper({
             time: str(effectiveState.time),
             locationName: str(effectiveState.locationName),
             address: str(effectiveState.address),
-            imageSrc: str(effectiveState.imageSrc) || imageSrc || '',
+            imageSrc: bgSrc(),
+            ...bgImageProps(),
           } satisfies CanvasInitialPropsMap['veranstaltung'];
         case 'simple':
           return {
             headline: str(effectiveState.headline),
             subtext: str(effectiveState.subtext),
-            imageSrc: str(effectiveState.imageSrc) || imageSrc || '',
+            imageSrc: bgSrc(),
+            ...bgImageProps(),
           } satisfies CanvasInitialPropsMap['simple'];
         case 'slider':
           return {
@@ -313,13 +351,15 @@ export function ControllableCanvasWrapper({
             line1: str(effectiveState.line1),
             line2: str(effectiveState.line2),
             line3: str(effectiveState.line3),
-            currentImageSrc: str(effectiveState.currentImageSrc) || imageSrc || '',
+            currentImageSrc: bgSrc(),
+            ...bgImageProps(),
           } satisfies CanvasInitialPropsMap['dreizeilen'];
         case 'freeform':
           return {
             backgroundMode: str(effectiveState.backgroundMode) || 'color',
             backgroundColor: str(effectiveState.backgroundColor) || '#005538',
-            currentImageSrc: str(effectiveState.currentImageSrc) || imageSrc || '',
+            currentImageSrc: bgSrc(),
+            ...bgImageProps(),
           } satisfies CanvasInitialPropsMap['freeform'];
         case 'pres-title':
         case 'pres-image':
@@ -330,7 +370,8 @@ export function ControllableCanvasWrapper({
             subtitle: str(effectiveState.subtitle),
             bodyText: str(effectiveState.bodyText),
             bodyText2: str(effectiveState.bodyText2),
-            currentImageSrc: str(effectiveState.currentImageSrc) || imageSrc || '',
+            currentImageSrc: bgSrc(),
+            ...bgImageProps(),
           } satisfies PresentationInitialProps;
         case 'profilbild':
           return {
@@ -342,30 +383,45 @@ export function ControllableCanvasWrapper({
       }
     };
 
+    // Background-image fields that must sync back to the collab doc when changed
+    // in-editor (GenericCanvas emits the matching on<Key>Change). Without these
+    // the chosen image — and its position/zoom/opacity/credit — is local-only
+    // and lost on reload. `currentImageSrc` is the persisted key for every type.
+    const BG_IMAGE_KEYS = [
+      'currentImageSrc',
+      'imageOffset',
+      'imageScale',
+      'backgroundImageOpacity',
+      'imageAttribution',
+    ];
+
     // Build callbacks based on canvas type
     const buildCallbacks = (): Record<string, (val: unknown) => void> => {
       switch (type) {
         case 'zitat':
+          return createCallbacks(['quote', 'name', ...BG_IMAGE_KEYS]);
         case 'zitat-pure':
           return createCallbacks(['quote', 'name']);
         case 'info':
           return createCallbacks(['header', 'body']);
         case 'veranstaltung':
         case 'veranstaltung-plakat':
-          return createCallbacks(['eventTitle', 'beschreibung']);
+          return createCallbacks(['eventTitle', 'beschreibung', ...BG_IMAGE_KEYS]);
         case 'simple':
-          return createCallbacks(['headline', 'subtext']);
+          return createCallbacks(['headline', 'subtext', ...BG_IMAGE_KEYS]);
         case 'slider':
           return createCallbacks(['label', 'headline', 'subtext']);
         case 'dreizeilen':
-          return createCallbacks(['line1', 'line2', 'line3']);
+          return createCallbacks(['line1', 'line2', 'line3', ...BG_IMAGE_KEYS]);
         case 'freeform':
-          return {};
+          // backgroundMode must persist alongside the image — the background
+          // image element only renders when backgroundMode === 'image'.
+          return createCallbacks(['backgroundMode', ...BG_IMAGE_KEYS]);
         case 'pres-title':
         case 'pres-image':
         case 'pres-content':
         case 'presentation':
-          return createCallbacks(['title', 'subtitle', 'bodyText', 'bodyText2']);
+          return createCallbacks(['title', 'subtitle', 'bodyText', 'bodyText2', ...BG_IMAGE_KEYS]);
         default:
           return {};
       }
