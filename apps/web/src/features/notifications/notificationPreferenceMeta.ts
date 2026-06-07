@@ -86,6 +86,18 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     icon: AtSign,
     group: 'board',
   },
+  agent_task_completed: {
+    label: 'Agent-Aufgabe fertig',
+    description: 'Wenn der Grünerator eine an ihn delegierte Aufgabe erledigt hat',
+    icon: Sparkles,
+    group: 'board',
+  },
+  agent_task_failed: {
+    label: 'Agent-Aufgabe fehlgeschlagen',
+    description: 'Wenn der Grünerator eine delegierte Aufgabe nicht erledigen konnte',
+    icon: Sparkles,
+    group: 'board',
+  },
 
   // Gruppen
   group_member_joined: {
