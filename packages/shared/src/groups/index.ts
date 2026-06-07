@@ -26,6 +26,7 @@ export {
   useGroupMembers,
   useJoinGroup,
   useLeaveGroup,
+  useSetGroupMute,
   useUpdateGroupInfo,
   useUpdateGroupLink,
   useUpdateGroupName,
