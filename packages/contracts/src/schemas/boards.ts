@@ -73,7 +73,7 @@ export const deleteBoardResponseSchema = z.object({
 
 export const assignableMemberSchema = z.object({
   user_id: z.string(),
-  source: z.enum(['owner', 'direct', 'group']),
+  source: z.enum(['owner', 'direct', 'group', 'bot']),
   first_name: z.string().nullable(),
   display_name: z.string().nullable(),
   avatar_robot_id: z.number(),
