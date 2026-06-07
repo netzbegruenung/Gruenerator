@@ -32,31 +32,17 @@ export function SubsectionTabBar({ subsections, defaultSubsection }: SubsectionT
     }
   }, [bridge, subsections]);
 
-  // Auto-select first subsection when bridge becomes active and none is selected
-  const hasAutoSelectedRef = useRef(false);
+  // Auto-select first subsection whenever the bridge is active and none is selected.
+  // In bridge/mobile mode the bottom sheet always shows exactly one subsection, so
+  // "nothing selected" is never a valid user state — re-select unconditionally rather
+  // than latching, which made recovery impossible if the active subsection was cleared
+  // externally.
   useEffect(() => {
-    if (!bridge.active || hasAutoSelectedRef.current) return;
+    if (!bridge.active) return;
     if (!bridge.activeSubsection && subsections.length > 0) {
-      hasAutoSelectedRef.current = true;
       bridge.onActiveSubsectionChange(defaultSubsection || subsections[0].id);
     }
   }, [bridge, subsections, defaultSubsection]);
-
-  // Reset auto-select flag when bridge deactivates
-  useEffect(() => {
-    if (!bridge.active) {
-      hasAutoSelectedRef.current = false;
-    }
-  }, [bridge.active]);
-
-  // Reset auto-select when subsections change (new tab was selected)
-  const prevSubsectionsRef = useRef(subsections);
-  useEffect(() => {
-    if (prevSubsectionsRef.current !== subsections) {
-      prevSubsectionsRef.current = subsections;
-      hasAutoSelectedRef.current = false;
-    }
-  }, [subsections]);
 
   // Standard web state (always called to satisfy hooks rules)
   const [isMobile, setIsMobile] = useState(
