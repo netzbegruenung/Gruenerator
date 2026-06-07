@@ -179,6 +179,8 @@ export const groupMembershipSchema = z.object({
   role: z.string(),
   joined_at: z.string().nullish(),
   isAdmin: z.boolean(),
+  // Whether the caller has muted email + push notifications for this group.
+  notifications_muted: z.boolean().nullish(),
 });
 export type GroupMembershipDto = z.infer<typeof groupMembershipSchema>;
 
@@ -225,6 +227,12 @@ export const memberRoleBodySchema = z.object({
   role: groupRoleSchema,
 });
 export type MemberRoleBody = z.infer<typeof memberRoleBodySchema>;
+
+/** Body for muting/unmuting the caller's own notifications for a group. */
+export const setGroupMuteBodySchema = z.object({
+  muted: z.boolean(),
+});
+export type SetGroupMuteBody = z.infer<typeof setGroupMuteBodySchema>;
 
 export const groupLinkBodySchema = z.object({
   title: z
@@ -288,6 +296,11 @@ export const groupLinkResponseSchema = z.object({
 
 export const groupOkResponseSchema = z.object({
   success: z.literal(true),
+});
+
+export const groupMuteResponseSchema = z.object({
+  success: z.literal(true),
+  muted: z.boolean(),
 });
 
 // ── Content sharing (migrated from the legacy groupContent.ts routes) ──────────

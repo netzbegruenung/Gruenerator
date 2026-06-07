@@ -300,7 +300,7 @@ export const coreRoutes = {
       await postgres.ensureInitialized();
 
       const row = (await postgres.queryOne(
-        `SELECT gm.role, gm.joined_at,
+        `SELECT gm.role, gm.joined_at, gm.notifications_muted,
                 g.id, g.name, g.description, g.created_at, g.created_by, g.join_token,
                 g.settings, g.avatar_url, g.links, g.is_public, g.audience, g.slug_suffix
            FROM group_memberships gm
@@ -311,6 +311,7 @@ export const coreRoutes = {
       )) as {
         role: string;
         joined_at: string | Date | null;
+        notifications_muted: boolean | null;
         id: string;
         name: string;
         description: string | null;
@@ -356,6 +357,7 @@ export const coreRoutes = {
             role: row.role,
             joined_at: toIsoOrNull(row.joined_at),
             isAdmin,
+            notifications_muted: row.notifications_muted ?? false,
           },
         },
       };
@@ -662,6 +664,39 @@ export const coreRoutes = {
       return {
         status: 500 as const,
         body: { success: false as const, message: 'Fehler beim Verlassen der Gruppe.' },
+      };
+    }
+  }),
+
+  setGroupMute: s.route(groupsContract.setGroupMute, async (args) => {
+    const { groupId } = args.params;
+    const { muted } = args.body;
+    try {
+      const userId = getUserId(args.req);
+      const postgres = getPostgresInstance();
+      await postgres.ensureInitialized();
+
+      const result = await postgres.exec(
+        'UPDATE group_memberships SET notifications_muted = $1 WHERE group_id = $2 AND user_id = $3',
+        [muted, groupId, userId]
+      );
+
+      if (result.changes === 0) {
+        return {
+          status: 404 as const,
+          body: { success: false as const, message: 'Du bist nicht Mitglied dieser Gruppe.' },
+        };
+      }
+
+      return { status: 200 as const, body: { success: true as const, muted } };
+    } catch (error) {
+      log.error('[groupsContract.setGroupMute] Error:', error);
+      return {
+        status: 500 as const,
+        body: {
+          success: false as const,
+          message: 'Fehler beim Aktualisieren der Benachrichtigungen.',
+        },
       };
     }
   }),
