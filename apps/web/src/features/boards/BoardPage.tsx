@@ -1,6 +1,6 @@
 import { DocsProvider } from '@gruenerator/docs';
 import { Fab } from '@gruenerator/ui';
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useState } from 'react';
 import { FiMessageSquare, FiX } from 'react-icons/fi';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
@@ -331,16 +331,19 @@ function BoardViewContent({
       {/* AI assistant — only once the board state is synced and a user is present. */}
       {isSynced && userId && (
         <>
-          <Fab
-            icon={<FiMessageSquare />}
-            active={assistantOpen}
-            aria-label="KI-Board-Assistent ein-/ausblenden"
-            title="KI-Board-Assistent"
-            onClick={() => {
-              setAssistantMounted(true);
-              setAssistantOpen((v) => !v);
-            }}
-          />
+          {/* Hidden while the panel is open — the fixed panel overlays the FAB's
+              corner (composer/send button), and the panel has its own close button. */}
+          {!assistantOpen && (
+            <Fab
+              icon={<FiMessageSquare />}
+              aria-label="KI-Board-Assistent öffnen"
+              title="KI-Board-Assistent"
+              onClick={() => {
+                setAssistantMounted(true);
+                setAssistantOpen(true);
+              }}
+            />
+          )}
           {assistantMounted && (
             <aside
               className={

@@ -283,7 +283,13 @@ function BoardChatReadyHost({
   useEffect(() => {
     return registerBoardActionHandler(boardId, async (payload) => {
       if (payload.targetBoardId !== boardId) return;
-      if (!aiEditEnabledRef.current) return;
+      // The toggle may have been switched off after the request was sent (the
+      // classifier read enabledTools at send time). Don't apply, but tell the
+      // user so the chat's success-sounding reply isn't mistaken for a real edit.
+      if (!aiEditEnabledRef.current) {
+        toast.info('KI-Bearbeitung ist deaktiviert — es wurde nichts am Board geändert.');
+        return;
+      }
       try {
         const result = await getContractsClient().boards.ai({
           params: { id: boardId },
