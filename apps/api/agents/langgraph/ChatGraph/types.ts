@@ -287,6 +287,12 @@ export interface ChatGraphInput {
   messages: ModelMessage[];
   threadId?: string | undefined;
   agentId: string;
+  /**
+   * Owner of the request. Required to resolve user-created agents (the
+   * `user_agents` table) and custom-generator agents (`cg-*`), which are keyed
+   * by `(user_id, identifier)`. When omitted, only system agents resolve.
+   */
+  userId?: string | undefined;
   enabledTools: Record<string, boolean>;
   aiWorkerPool: AIWorkerPool;
   attachmentContext?: string | undefined;
