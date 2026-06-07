@@ -37,6 +37,7 @@ export const notificationTypeSchema = z.enum([
   'transfer_downloaded',
   'notebook_liked',
   'wolke_new_files',
+  'new_avatars',
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 
