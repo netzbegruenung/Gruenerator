@@ -16,7 +16,7 @@ import {
 } from '../../agents/langgraph/ChatGraph/index.js';
 import { PRIMARY_URL } from '../../config/domains.js';
 import { type AgentTask } from '../../database/schema/agentTasks.js';
-import { getModel } from '../../routes/chat/agents/providers.js';
+import { resolveModel } from '../../routes/chat/services/responseStreamingService.js';
 import { createLogger } from '../../utils/logger.js';
 import { getAIService } from '../ai/aiService.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
@@ -29,9 +29,23 @@ import {
   postBotComment,
 } from './agentTaskService.js';
 
+import type { SearchIntent } from '../../agents/langgraph/ChatGraph/index.js';
+
 const log = createLogger('boardAgentWorker');
 
 const POLL_INTERVAL_MS = 5_000;
+
+// Hard ceiling on a single generation so one hung model call can't stall the
+// whole drain loop (which processes tasks sequentially).
+const GENERATION_TIMEOUT_MS = 180_000;
+
+// Documents can be long-form; never let a chat-tuned agent's small token budget
+// truncate the result below this floor.
+const MIN_DOCUMENT_TOKENS = 4000;
+
+// Intents that produce a non-text artifact (image/sharepic/chart) the board
+// agent can't deliver as a document — answered with a short explanation instead.
+const UNSUPPORTED_INTENTS = new Set<SearchIntent>(['image', 'image_edit', 'sharepic', 'chart']);
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let initialized = false;
@@ -96,17 +110,68 @@ async function processTask(task: AgentTask): Promise<void> {
       throw new Error(finalState.error);
     }
 
-    const systemMessage = await buildSystemMessage(finalState);
-    const { agentConfig } = finalState;
-    const generated = await generateText({
-      model: getModel(agentConfig.provider as string, agentConfig.model),
-      system: systemMessage,
-      messages: [userMessage],
-      maxOutputTokens: agentConfig.params.max_tokens,
-      temperature: agentConfig.params.temperature,
-    });
+    // The board agent only delivers text documents. For image/sharepic/chart
+    // intents the graph would burn work producing an artifact we can't attach, so
+    // answer with a short explanation and finish the task cleanly (no document).
+    if (UNSUPPORTED_INTENTS.has(finalState.intent)) {
+      await completeAgentTask(task.id, null);
+      await postBotComment({
+        boardId: task.board_id,
+        cardId: task.card_id,
+        parentId: task.trigger_comment_id,
+        blocks: [
+          {
+            type: 'text',
+            text: 'Ich kann auf Boards aktuell nur Text-Dokumente erstellen (keine Bilder, Sharepics oder Diagramme). Formuliere die Aufgabe gerne als Textauftrag.',
+          },
+        ],
+      }).catch((e: unknown) =>
+        log.warn('Failed to post unsupported-intent comment', { error: errMsg(e) })
+      );
+      log.info(`Agent task ${task.id} completed without document (intent: ${finalState.intent})`);
+      return;
+    }
 
-    const content = generated.text.trim();
+    // Build the chat context (search results, locale, citations) but author a full
+    // document: the universal agent's ANTWORT-REGELN constrain output to a short
+    // chat reply, so a document-mode directive (appended last, so it wins) lifts
+    // the length cap. A generous token floor prevents truncation of long-form docs.
+    const baseSystemMessage = await buildSystemMessage(finalState);
+    const systemMessage = `${baseSystemMessage}
+
+## DOKUMENT-MODUS (vorrangig)
+Du erstellst ein eigenständiges, vollständiges Dokument — KEINE kurze Chat-Antwort. Die Längen- und Knappheitsregeln aus den ANTWORT-REGELN gelten hier NICHT. Schreibe so ausführlich und strukturiert, wie die Aufgabe es verlangt: mit aussagekräftiger Überschrift (#), sinnvollen Zwischenüberschriften und vollständig ausformulierten Absätzen. Gib AUSSCHLIESSLICH den Dokumentinhalt als Markdown aus — keine Meta-Kommentare, keine Rückfragen.`;
+
+    const { agentConfig } = finalState;
+    // Resolve via the same path as the chat controller so overflow-lane slots and
+    // provider fallback are handled; release any acquired slot afterwards.
+    const resolution = await resolveModel(
+      {
+        provider: agentConfig.provider as string,
+        model: agentConfig.model,
+        ...(agentConfig.defaultModel != null && { defaultModel: agentConfig.defaultModel }),
+      },
+      undefined,
+      `board-agent-${task.id}`,
+      { intent: finalState.intent }
+    );
+
+    let generatedText: string;
+    try {
+      const generated = await generateText({
+        model: resolution.model,
+        system: systemMessage,
+        messages: [userMessage],
+        maxOutputTokens: Math.max(agentConfig.params.max_tokens, MIN_DOCUMENT_TOKENS),
+        temperature: agentConfig.params.temperature,
+        abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
+      });
+      generatedText = generated.text;
+    } finally {
+      if (resolution.releaseSlot) await resolution.releaseSlot();
+    }
+
+    const content = generatedText.trim();
     if (!content) {
       throw new Error('Der Agent lieferte kein Ergebnis');
     }
