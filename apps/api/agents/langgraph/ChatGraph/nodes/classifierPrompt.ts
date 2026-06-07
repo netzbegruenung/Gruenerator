@@ -13,7 +13,8 @@
 export const CLASSIFIER_PROMPT = `Du analysierst Benutzeranfragen und entscheidest welches Tool benötigt wird.
 
 VERFÜGBARE TOOLS:
-- image: Bildgenerierung - "erstelle Bild", "generiere Bild", "visualisiere", "zeichne", "male"
+- sharepic: Sharepic-Erstellung (gebrandete Social-Media-Grafik der Grünen) - "erstelle ein Sharepic", "Zitat-Sharepic", "Spruchbild", "Dreizeiler", "Info-Sharepic". NICHT mit "image" verwechseln: ein Sharepic ist eine Vorlagen-Grafik mit Text, kein frei generiertes KI-Bild.
+- image: Bildgenerierung (freies KI-Bild) - "erstelle Bild", "generiere Bild", "visualisiere", "zeichne", "male"
 - image_edit: Bildbearbeitung eines angehängten Bildes - "bearbeite das Bild", "ändere dieses Foto", "mach mehr Bäume rein", "editiere", "transformiere das Bild". Nur wenn ein Bild angehängt ist ODER der Nutzer explizit Bild/Foto erwähnt.
 - research: NUR bei EXPLIZITER Recherche-Anforderung ("recherchiere", "finde Fakten zu", "belege für")
 - search: NUR bei expliziten FRAGEN zu Grünen Parteiprogrammen, Positionen, Beschlüssen
@@ -58,7 +59,8 @@ RECHERCHE NUR WENN:
 - Nutzer NICHT alle Informationen mitliefert UND Fakten benötigt werden
 
 SCHRITT 3 - TOOL WÄHLEN:
-1. Bildgenerierung? → image
+0. Sharepic/Spruchbild/Zitat-Sharepic/Dreizeiler/Info-Sharepic? → sharepic (VOR image prüfen!)
+1. Bildgenerierung (freies KI-Bild)? → image
 1b. Bildbearbeitung (Bearbeitungsverb + Bild/Foto-Bezug oder Bild-Anhang)? → image_edit
 2. EXPLIZITE Web-Suche ("suche im netz")? → web
 3. Zusammenfassung eines angehängten/referenzierten Dokuments? → summary
@@ -153,7 +155,7 @@ Antworte NUR mit JSON:
   "typoAnalysis": {"original": "...", "corrected": "..."} | null,
   "contentType": "pressemitteilung" | "artikel" | "rede" | "argumentation" | "tweet" | "slogan" | null,
   "needsResearch": true | false,
-  "intent": "image" | "image_edit" | "research" | "search" | "web" | "examples" | "summary" | "chart" | "save_as_doc" | "modify_doc" | "modify_board" | "share_doc" | "direct",
+  "intent": "sharepic" | "image" | "image_edit" | "research" | "search" | "web" | "examples" | "summary" | "chart" | "save_as_doc" | "modify_doc" | "modify_board" | "share_doc" | "direct",
   "secondaryIntent": "image" | "examples" | "chart" | "save_as_doc" | null,
   "documentSubtype": "antrag" | "pressemitteilung" | "protokoll" | "notizen" | "redaktionsplan" | "checkliste" | "einladung" | "tabelle" | null,
   "searchQuery": "ORIGINALTEXT des Benutzers (KEINE Korrekturen an Eigennamen!)" | null,
@@ -175,7 +177,7 @@ Antworte NUR mit JSON:
   "reasoning": "..."
 }
 
-Bei "direct", "image" und "image_edit" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[].
+Bei "direct", "sharepic", "image" und "image_edit" setze searchQuery, optimizedSearchQuery, subQueries, searchSources und filters auf null/[].
 Bei "save_as_doc" setze documentSubtype auf den passenden Dokumenttyp:
 - "checkliste" für Aufgabenlisten, Todo-Listen, Checklisten, Aufgaben zum Abhaken
 - "protokoll" für Sitzungsprotokolle, Versammlungsprotokolle
@@ -194,6 +196,7 @@ Bei "share_doc" setze targetGroupName auf den im Text genannten Gruppennamen (z.
  */
 export const NON_SEARCH_INTENTS = new Set([
   'direct',
+  'sharepic',
   'image',
   'image_edit',
   'chart',
