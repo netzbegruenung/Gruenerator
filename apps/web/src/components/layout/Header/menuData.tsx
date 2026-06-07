@@ -73,11 +73,11 @@ export const getDirectMenuItems = (_flags: MenuFlags = {}): DirectMenuItemsResul
 
   items.agents = {
     id: 'agents',
-    path: '/skills',
+    path: '/agents',
     title: 'Skills & Agents',
     description: 'KI-Assistent*innen und Schnellbefehle für deine Aufgaben',
     icon: RiSpyLine,
-    activePaths: ['/skills', '/agents'],
+    activePaths: ['/agents', '/skills'],
   };
 
   if (import.meta.env.DEV) {
