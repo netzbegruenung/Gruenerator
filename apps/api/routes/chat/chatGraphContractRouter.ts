@@ -376,6 +376,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         messages: validMessages,
         threadId: actualThreadId,
         agentId: agentId ?? 'gruenerator-universal',
+        userId,
         enabledTools: enabledTools ?? {
           search: true,
           web: true,

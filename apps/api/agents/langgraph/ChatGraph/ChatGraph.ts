@@ -14,7 +14,11 @@
 import { StateGraph, Annotation } from '@langchain/langgraph';
 
 import { resolveNotebookCollections } from '../../../config/notebookCollectionMap.js';
-import { getAgent, getDefaultAgentId } from '../../../routes/chat/agents/agentLoader.js';
+import {
+  getAgent,
+  getAgentForUser,
+  getDefaultAgentId,
+} from '../../../routes/chat/agents/agentLoader.js';
 import { createLogger } from '../../../utils/logger.js';
 
 import { briefGeneratorNode } from './nodes/briefGeneratorNode.js';
@@ -629,7 +633,13 @@ export const chatGraph = createChatGraph();
  * Loads agent configuration and sets up initial state.
  */
 export async function initializeChatState(input: ChatGraphInput): Promise<ChatState> {
-  const agentConfig = await getAgent(input.agentId || getDefaultAgentId());
+  const agentId = input.agentId || getDefaultAgentId();
+  // User-created agents (`user_agents`) and custom-generator agents (`cg-*`) are
+  // keyed by userId, so resolve through the user-aware loader when we have one.
+  // Without a userId (tests, non-HTTP callers) only system agents resolve.
+  const agentConfig = input.userId
+    ? await getAgentForUser(agentId, input.userId)
+    : await getAgent(agentId);
 
   if (!agentConfig) {
     throw new Error(`Agent not found: ${input.agentId}`);
