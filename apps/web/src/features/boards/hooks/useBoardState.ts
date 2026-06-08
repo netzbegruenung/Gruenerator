@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 import { DEFAULT_FIELDS, DEFAULT_KANBAN_VIEW, DEFAULT_ROWS } from '../utils/boardDefaults';
 
-import type { Field, Row, BoardView, CellValue } from '../types';
+import type { Field, Row, BoardView, CellValue, SelectOption } from '../types';
 import type * as Y from 'yjs';
 
 interface BoardState {
@@ -220,6 +220,25 @@ export const useBoardState = (
     [ydoc, yFields]
   );
 
+  // Reorder (or replace) the select options of a field — used for column drag-
+  // reorder (A7) and for editing column/option WIP limits (A6). Preserves the
+  // rest of typeOptions (e.g. isSystem) and only swaps the `options` array.
+  const reorderFieldOptions = useCallback(
+    (fieldId: string, newOptions: SelectOption[]) => {
+      ydoc.transact(() => {
+        const fields = yFields.toJSON() as Field[];
+        const index = fields.findIndex((f) => f.id === fieldId);
+        if (index === -1) return;
+        const field = fields[index];
+        yFields.delete(index, 1);
+        yFields.insert(index, [
+          { ...field, typeOptions: { ...field.typeOptions, options: newOptions } },
+        ]);
+      });
+    },
+    [ydoc, yFields]
+  );
+
   // --- View CRUD ---
 
   const addView = useCallback(
@@ -269,6 +288,7 @@ export const useBoardState = (
     addField,
     updateField,
     removeField,
+    reorderFieldOptions,
     addView,
     updateView,
     removeView,

@@ -25,6 +25,32 @@ export const boardActivityContract = c.router(
       },
       summary: 'List the activity timeline for a card',
     },
+    listBoardActivity: {
+      method: 'GET',
+      path: '/api/board-activity/:boardId/activity',
+      pathParams: z.object({ boardId: z.string() }),
+      responses: {
+        200: activityListResponseSchema,
+        401: boardActivityErrorResponseSchema,
+        403: boardActivityErrorResponseSchema,
+        500: boardActivityErrorResponseSchema,
+      },
+      summary: 'List the board-wide activity feed (all cards + board-level events)',
+    },
+    recordBoardActivity: {
+      method: 'POST',
+      path: '/api/board-activity/:boardId/activity',
+      pathParams: z.object({ boardId: z.string() }),
+      body: recordActivityBodySchema,
+      responses: {
+        201: boardActivityRowSchema,
+        400: boardActivityErrorResponseSchema,
+        401: boardActivityErrorResponseSchema,
+        403: boardActivityErrorResponseSchema,
+        500: boardActivityErrorResponseSchema,
+      },
+      summary: 'Record a board-level event + notify board watchers',
+    },
     recordActivity: {
       method: 'POST',
       path: '/api/board-activity/:boardId/cards/:cardId/activity',

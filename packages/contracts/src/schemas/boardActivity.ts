@@ -18,6 +18,12 @@ export const activityTypeSchema = z.enum([
   'card_restored',
   'comment_added',
   'attachment_added',
+  // Board-level events (recorded with the sentinel card_id '__board__') — they
+  // surface in the board-wide activity feed (A8) and notify board watchers (A9).
+  'board_renamed',
+  'board_archived',
+  'board_restored',
+  'board_duplicated',
 ]);
 export type ActivityType = z.infer<typeof activityTypeSchema>;
 
