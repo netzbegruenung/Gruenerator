@@ -10,13 +10,6 @@ import { createLogger } from '../../utils/logger.js';
 const log = createLogger('cardSubscriptionService');
 const db = getPostgresInstance();
 
-/**
- * Sentinel card_id for board-level (whole-board) subscriptions (A9). Reuses the
- * board_card_subscriptions table — UNIQUE(board_id, '__board__', user_id) gives
- * one board-level subscription per user without a schema change.
- */
-export const BOARD_SUBSCRIPTION_CARD_ID = '__board__';
-
 /** User ids currently watching a card. */
 export async function getCardSubscribers(boardId: string, cardId: string): Promise<string[]> {
   const rows = await db.query<{ user_id: string }>(

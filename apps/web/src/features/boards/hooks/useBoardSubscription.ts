@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 /** Whether the current user watches the whole board (A9), plus a toggle. */
 export function useBoardSubscription(boardId: string | undefined) {
   const queryClient = useQueryClient();
-  const queryKey = ['board-subscription', boardId, '__board__'];
+  const queryKey = ['board-subscription', boardId, 'board'];
 
   const subscriptionQuery = useQuery({
     queryKey,

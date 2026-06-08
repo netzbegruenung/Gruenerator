@@ -9,7 +9,12 @@ import { boardSubscriptionsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
-  BOARD_SUBSCRIPTION_CARD_ID,
+  countBoardSubscribers,
+  isBoardSubscribed,
+  subscribeToBoard,
+  unsubscribeFromBoard,
+} from '../../services/boards/boardSubscriptionService.js';
+import {
   countSubscribers,
   isSubscribed,
   subscribeToCard,
@@ -85,7 +90,7 @@ export const boardSubscriptionsContractRouter = s.router(boardSubscriptionsContr
     }
   },
 
-  // ── Board-level watch (sentinel card_id) ──────────────────────────────────
+  // ── Board-level watch (board_subscriptions table) ─────────────────────────
   getBoardSubscription: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
@@ -94,8 +99,8 @@ export const boardSubscriptionsContractRouter = s.router(boardSubscriptionsContr
       if (!hasAccess) return { status: 403 as const, body: { error: 'Kein Zugriff' } };
 
       const [subscribed, count] = await Promise.all([
-        isSubscribed(boardId, BOARD_SUBSCRIPTION_CARD_ID, userId),
-        countSubscribers(boardId, BOARD_SUBSCRIPTION_CARD_ID),
+        isBoardSubscribed(boardId, userId),
+        countBoardSubscribers(boardId),
       ]);
       return { status: 200 as const, body: { subscribed, count } };
     } catch (error) {
@@ -111,8 +116,8 @@ export const boardSubscriptionsContractRouter = s.router(boardSubscriptionsContr
       const { hasAccess } = await checkBoardAccess(boardId, userId);
       if (!hasAccess) return { status: 403 as const, body: { error: 'Kein Zugriff' } };
 
-      await subscribeToCard(boardId, BOARD_SUBSCRIPTION_CARD_ID, userId);
-      const count = await countSubscribers(boardId, BOARD_SUBSCRIPTION_CARD_ID);
+      await subscribeToBoard(boardId, userId);
+      const count = await countBoardSubscribers(boardId);
       return { status: 200 as const, body: { subscribed: true, count } };
     } catch (error) {
       log.error('Error subscribing to board', { error: errMsg(error) });
@@ -127,8 +132,8 @@ export const boardSubscriptionsContractRouter = s.router(boardSubscriptionsContr
       const { hasAccess } = await checkBoardAccess(boardId, userId);
       if (!hasAccess) return { status: 403 as const, body: { error: 'Kein Zugriff' } };
 
-      await unsubscribeFromCard(boardId, BOARD_SUBSCRIPTION_CARD_ID, userId);
-      const count = await countSubscribers(boardId, BOARD_SUBSCRIPTION_CARD_ID);
+      await unsubscribeFromBoard(boardId, userId);
+      const count = await countBoardSubscribers(boardId);
       return { status: 200 as const, body: { subscribed: false, count } };
     } catch (error) {
       log.error('Error unsubscribing from board', { error: errMsg(error) });
