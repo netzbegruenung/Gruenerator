@@ -1,6 +1,6 @@
 import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { useState, useMemo, type ReactNode } from 'react';
-import { FiSearch, FiUserX } from 'react-icons/fi';
+import { FiCheck, FiSearch, FiUserX } from 'react-icons/fi';
 
 import { type AssignableMember, useAssignableMembers } from '../hooks/useAssignableMembers';
 import { type CardAssignee } from '../types';
@@ -11,9 +11,19 @@ interface MemberPickerProps {
   boardId: string;
   onSelect: (assignee: CardAssignee | null) => void;
   children: ReactNode;
+  /** When set, the picker shows a checkmark next to these member ids. */
+  selectedIds?: string[];
+  /** Multi-select mode: toggling a member keeps the popover open. */
+  multiple?: boolean;
 }
 
-export function MemberPicker({ boardId, onSelect, children }: MemberPickerProps) {
+export function MemberPicker({
+  boardId,
+  onSelect,
+  children,
+  selectedIds,
+  multiple = false,
+}: MemberPickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -27,6 +37,8 @@ export function MemberPicker({ boardId, onSelect, children }: MemberPickerProps)
     });
   }, [members, search]);
 
+  const selected = useMemo(() => new Set(selectedIds ?? []), [selectedIds]);
+
   const handleSelect = (member: AssignableMember | null) => {
     if (member) {
       onSelect({
@@ -37,8 +49,11 @@ export function MemberPicker({ boardId, onSelect, children }: MemberPickerProps)
     } else {
       onSelect(null);
     }
-    setOpen(false);
-    setSearch('');
+    // In multi-select keep the popover open so several can be toggled in a row.
+    if (!multiple) {
+      setOpen(false);
+      setSearch('');
+    }
   };
 
   return (
@@ -67,24 +82,28 @@ export function MemberPicker({ boardId, onSelect, children }: MemberPickerProps)
           </button>
           {isLoading && <p className="px-3 py-4 text-xs text-grey-400 text-center">Laden...</p>}
           {!isLoading &&
-            filtered.map((member) => (
-              <button
-                key={member.user_id}
-                onClick={() => handleSelect(member)}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors bg-transparent border-none cursor-pointer"
-              >
-                <RobotAvatar
-                  robotId={member.avatar_robot_id || 1}
-                  displayName={member.display_name || member.first_name}
-                  sizePx={24}
-                  className="w-6 h-6 shrink-0"
-                  alt=""
-                />
-                <span className="truncate">
-                  {member.display_name || member.first_name || 'Unbekannt'}
-                </span>
-              </button>
-            ))}
+            filtered.map((member) => {
+              const isSelected = selected.has(member.user_id);
+              return (
+                <button
+                  key={member.user_id}
+                  onClick={() => handleSelect(member)}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 transition-colors bg-transparent border-none cursor-pointer"
+                >
+                  <RobotAvatar
+                    robotId={member.avatar_robot_id || 1}
+                    displayName={member.display_name || member.first_name}
+                    sizePx={24}
+                    className="w-6 h-6 shrink-0"
+                    alt=""
+                  />
+                  <span className="truncate flex-1">
+                    {member.display_name || member.first_name || 'Unbekannt'}
+                  </span>
+                  {isSelected && <FiCheck size={14} className="shrink-0 text-primary-600" />}
+                </button>
+              );
+            })}
         </div>
       </PopoverContent>
     </Popover>
