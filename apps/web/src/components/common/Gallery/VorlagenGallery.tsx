@@ -5,6 +5,8 @@ import { HiPlus } from 'react-icons/hi';
 import { HiCog6Tooth } from 'react-icons/hi2';
 import { Link } from 'react-router-dom';
 
+import { useEntityFavorites } from '../../../features/favorites/hooks/useEntityFavorites';
+import { useEntityLikes } from '../../../features/likes/hooks/useEntityLikes';
 import SearchBar from '../../../features/search/components/SearchBar';
 import apiClient from '../../utils/apiClient';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
@@ -128,6 +130,16 @@ const VorlagenGallery = memo((): JSX.Element => {
 
   const categories = categoriesQuery.data ?? [];
   const items = dataQuery.data ?? [];
+
+  const { likedIds, toggleLike, isToggling: isLikeToggling, canLike } = useEntityLikes('template');
+  const {
+    favoritedIds,
+    toggleFavorite,
+    isToggling: isFavoriteToggling,
+    canFavorite,
+  } = useEntityFavorites('template');
+
+  const previewId = previewTemplate ? String(previewTemplate.id) : '';
 
   const handleTagClick = useCallback((tag: string) => {
     setInputValue((prev) => addTagToSearch(prev, tag));
@@ -275,6 +287,15 @@ const VorlagenGallery = memo((): JSX.Element => {
           onClose={() => setPreviewTemplate(null)}
           template={previewTemplate}
           onTagClick={handleTagClick}
+          liked={likedIds.has(previewId)}
+          likeCount={(previewTemplate.likes_count as number | undefined) ?? 0}
+          onToggleLike={() => toggleLike(previewId)}
+          likeToggling={isLikeToggling(previewId)}
+          canLike={canLike}
+          favorited={favoritedIds.has(previewId)}
+          onToggleFavorite={() => toggleFavorite(previewId)}
+          favoriteToggling={isFavoriteToggling(previewId)}
+          canFavorite={canFavorite}
         />
       )}
     </div>

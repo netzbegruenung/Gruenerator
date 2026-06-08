@@ -162,6 +162,12 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     icon: Heart,
     group: 'system',
   },
+  template_liked: {
+    label: 'Vorlagen-Likes',
+    description: 'Wenn jemand deine veröffentlichte Vorlage mag',
+    icon: Heart,
+    group: 'system',
+  },
   wolke_new_files: {
     label: 'Neue Wolke-Dateien',
     description: 'Neue Dateien in den Wolke-Ordnern deiner Notizbücher',

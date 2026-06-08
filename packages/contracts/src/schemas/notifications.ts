@@ -36,6 +36,7 @@ export const notificationTypeSchema = z.enum([
   'group_join_denied',
   'transfer_downloaded',
   'notebook_liked',
+  'template_liked',
   'wolke_new_files',
   'agent_task_completed',
   'agent_task_failed',
