@@ -9,7 +9,15 @@ import {
   PopoverTrigger,
 } from '@gruenerator/ui';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { FiFilter, FiArrowUp, FiArrowDown, FiX, FiPlus, FiColumns } from 'react-icons/fi';
+import {
+  FiFilter,
+  FiArrowUp,
+  FiArrowDown,
+  FiX,
+  FiPlus,
+  FiColumns,
+  FiAlignLeft,
+} from 'react-icons/fi';
 
 import type { Field, BoardView, FilterRule, SortRule } from '../types';
 
@@ -79,6 +87,16 @@ export const ViewToolbar = memo(function ViewToolbar({
           fields={fields}
           groupByFieldId={activeView.groupByFieldId}
           onGroupByChange={(fieldId) => onUpdateView(activeView.id, { groupByFieldId: fieldId })}
+        />
+      ) : null}
+      {activeView.layout === 'kanban' ? (
+        <SwimlaneButton
+          fields={fields}
+          groupByFieldId={activeView.groupByFieldId}
+          swimlaneFieldId={activeView.swimlaneFieldId}
+          onSwimlaneChange={(fieldId) =>
+            onUpdateView(activeView.id, { swimlaneFieldId: fieldId })
+          }
         />
       ) : null}
       {hasFiltersOrSorts && (
@@ -381,6 +399,73 @@ function GroupByButton({
             key={f.id}
             onClick={() => onGroupByChange(f.id)}
             className={f.id === groupByFieldId ? 'bg-grey-100 dark:bg-grey-800' : ''}
+          >
+            {f.name}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Swimlane Button (A12) — second grouping axis (rows) for kanban
+// ---------------------------------------------------------------------------
+
+function SwimlaneButton({
+  fields,
+  groupByFieldId,
+  swimlaneFieldId,
+  onSwimlaneChange,
+}: {
+  fields: Field[];
+  groupByFieldId?: string;
+  swimlaneFieldId?: string;
+  onSwimlaneChange: (fieldId: string | undefined) => void;
+}) {
+  // Offer select/checkbox fields except the one already used for columns.
+  const laneFields = useMemo(
+    () =>
+      fields.filter(
+        (f) => ['singleSelect', 'checkbox'].includes(f.type) && f.id !== groupByFieldId
+      ),
+    [fields, groupByFieldId]
+  );
+
+  const currentField = useMemo(
+    () => fields.find((f) => f.id === swimlaneFieldId),
+    [fields, swimlaneFieldId]
+  );
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md border-none cursor-pointer transition-colors ${
+            swimlaneFieldId
+              ? 'bg-primary-600/10 text-primary-600 dark:text-primary-400'
+              : 'bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800'
+          }`}
+        >
+          <FiAlignLeft size={12} />
+          {currentField ? `Swimlanes: ${currentField.name}` : 'Swimlanes'}
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {swimlaneFieldId && (
+          <DropdownMenuItem onClick={() => onSwimlaneChange(undefined)}>
+            <FiX className="mr-2" size={13} />
+            Swimlanes entfernen
+          </DropdownMenuItem>
+        )}
+        {laneFields.length === 0 && (
+          <div className="px-2 py-1.5 text-xs text-grey-400">Kein passendes Feld</div>
+        )}
+        {laneFields.map((f) => (
+          <DropdownMenuItem
+            key={f.id}
+            onClick={() => onSwimlaneChange(f.id)}
+            className={f.id === swimlaneFieldId ? 'bg-grey-100 dark:bg-grey-800' : ''}
           >
             {f.name}
           </DropdownMenuItem>

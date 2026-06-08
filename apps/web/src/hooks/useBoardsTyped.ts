@@ -75,10 +75,12 @@ export const useBoardsTyped = (options?: { enabled?: boolean }) => {
       id,
       title,
       is_archived,
+      description,
     }: {
       id: string;
       title?: string;
       is_archived?: boolean;
+      description?: string | null;
     }) => {
       const client = getContractsClient();
       const result = await client.boards.updateBoard({
@@ -86,6 +88,7 @@ export const useBoardsTyped = (options?: { enabled?: boolean }) => {
         body: {
           ...(title !== undefined && { title }),
           ...(is_archived !== undefined && { is_archived }),
+          ...(description !== undefined && { description }),
         },
       });
       if (result.status !== 200) {
