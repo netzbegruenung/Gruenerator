@@ -15,6 +15,7 @@ import { mountImageModelPreferenceContractRouter } from './routes/auth/imageMode
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
+import { mountTemplateInteractionsContractRouter } from './routes/auth/templates/templateInteractionsContractRouter.js';
 import { mountUserTemplatesContractRouter } from './routes/auth/templates/userTemplatesContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
 import { mountBoardCommentsContractRouter } from './routes/boards/boardCommentsContractRouter.js';
@@ -318,6 +319,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // later `app.use('/api/auth', ...)` middleware.
   app.use('/api/auth/user-templates', requireAuth);
   mountUserTemplatesContractRouter(app);
+  // ts-rest contract router for template likes & favorites — mounts BEFORE the
+  // legacy authRouter so contract routes match first. requireAuth is applied at
+  // the prefix because every route requires authentication.
+  app.use('/api/auth/templates', requireAuth);
+  mountTemplateInteractionsContractRouter(app);
   app.use('/api/auth', authenticatedReadLimiter, authRouter);
   // ts-rest contract router for notebook collections — mounts BEFORE the
   // legacy router so contract-modeled routes match first. requireAuth is
