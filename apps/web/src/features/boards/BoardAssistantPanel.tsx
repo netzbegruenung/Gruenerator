@@ -12,6 +12,8 @@ interface BoardAssistantPanelProps {
   boardTitle: string | null;
   /** Live board mutation surface (lifted useBoardState from BoardContent). */
   boardState: BoardMutations;
+  /** Active view's grouping field — AI column/status ops target this field. */
+  groupByFieldId?: string;
   /**
    * When true, the chat UI renders. When false the provider stays mounted
    * (runtime + Hocuspocus + thread alive) but no UI shows — close/reopen is
@@ -26,6 +28,7 @@ export function BoardAssistantPanel({
   userName,
   boardTitle,
   boardState,
+  groupByFieldId,
   isOpen,
 }: BoardAssistantPanelProps) {
   return (
@@ -35,6 +38,7 @@ export function BoardAssistantPanel({
       userName={userName}
       boardTitle={boardTitle}
       boardState={boardState}
+      groupByFieldId={groupByFieldId}
     >
       {isOpen ? <BoardAssistantChat /> : null}
     </BoardAssistantProvider>

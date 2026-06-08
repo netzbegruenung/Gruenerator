@@ -19,12 +19,17 @@ export function serializeBoardForChat(opts: {
   rows: Row[];
   views: BoardView[];
   assignableMembers: AssignableMember[];
+  /** Field the visible Kanban columns are grouped by (active view). */
+  groupByFieldId?: string;
 }): CurrentBoard {
   const { boardId, boardTitle, fields, rows, views, assignableMembers } = opts;
 
-  const statusField = fields.find((f) => f.id === FIELD_IDS.STATUS);
+  // The visible columns come from the active grouping field — fall back to the
+  // standard status field that every template's Kanban view groups by.
+  const groupByFieldId = opts.groupByFieldId ?? FIELD_IDS.STATUS;
+  const groupField = fields.find((f) => f.id === groupByFieldId);
   const statusOptions =
-    ((statusField?.typeOptions.options as SelectOption[] | undefined) ?? DEFAULT_STATUS_OPTIONS) ||
+    ((groupField?.typeOptions.options as SelectOption[] | undefined) ?? DEFAULT_STATUS_OPTIONS) ||
     [];
 
   const trimmedRows: Row[] = rows.slice(0, MAX_ROWS).map((row) => {
@@ -51,6 +56,7 @@ export function serializeBoardForChat(opts: {
     fields,
     rows: trimmedRows,
     views,
+    groupByFieldId,
     statusOptions,
     assignableMembers: assignableMembers.map((m) => ({
       id: m.user_id,

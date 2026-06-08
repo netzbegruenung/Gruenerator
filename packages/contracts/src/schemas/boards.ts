@@ -237,6 +237,11 @@ export const currentBoardSchema = z.object({
   fields: z.array(boardFieldSchema),
   rows: z.array(boardRowSchema),
   views: z.array(boardViewSchema),
+  // The field the visible Kanban columns are grouped by. `statusOptions` are this
+  // field's options — NOT necessarily FIELD_IDS.STATUS — so the executor writes
+  // columns/status to the field actually on screen. Optional for rollout
+  // compatibility; the client-side executor uses its own live value regardless.
+  groupByFieldId: z.string().optional(),
   statusOptions: z.array(selectOptionSchema),
   assignableMembers: z.array(z.object({ id: z.string(), name: z.string() })),
 });
