@@ -5,7 +5,10 @@ import {
 } from '@gruenerator/shared/components/EditableTitle';
 import { memo, useRef } from 'react';
 import { FiArrowLeft } from 'react-icons/fi';
+import { PiStar, PiStarFill } from 'react-icons/pi';
 import { useNavigate } from 'react-router-dom';
+
+import useSidebarFavouritesStore, { useIsFavourite } from '../../../stores/sidebarFavouritesStore';
 
 import { BoardDropdown } from './BoardDropdown';
 import { PresenceAvatars } from './PresenceAvatars';
@@ -24,6 +27,9 @@ interface BoardInlineHeaderProps {
   onArchiveToggle: () => void;
   onExpertModeToggle: () => void;
   onRename: (title: string) => void;
+  onOpenSettings?: () => void;
+  onOpenActivity?: () => void;
+  onDuplicate?: () => void;
   compact?: boolean;
 }
 
@@ -39,11 +45,16 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
   onArchiveToggle,
   onExpertModeToggle,
   onRename,
+  onOpenSettings,
+  onOpenActivity,
+  onDuplicate,
   compact,
 }: BoardInlineHeaderProps) {
   const navigate = useNavigate();
   const collaborators = useCollaborators(provider);
   const titleRef = useRef<EditableTitleHandle>(null);
+  const isFavourite = useIsFavourite(boardId);
+  const toggleFavourite = useSidebarFavouritesStore((s) => s.toggleFavourite);
 
   const showStatusDot = !isConnected || !isSynced;
   const statusClass = !isConnected ? 'bg-red-500' : 'bg-yellow-500';
@@ -78,6 +89,18 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
         className={`flex items-center justify-end gap-sm ${compact ? '' : 'order-1 sm:order-2 mb-sm sm:mb-0'}`}
       >
         <PresenceAvatars collaborators={collaborators} />
+        <button
+          onClick={() => toggleFavourite(boardId)}
+          aria-label={isFavourite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
+          title={isFavourite ? 'Aus Favoriten entfernen' : 'Zu Favoriten'}
+          className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-grey-100 dark:hover:bg-[#2a2a2a] bg-transparent border-none cursor-pointer transition-colors"
+        >
+          {isFavourite ? (
+            <PiStarFill size={16} className="text-primary-600" />
+          ) : (
+            <PiStar size={16} className="text-grey-400" />
+          )}
+        </button>
         <BoardDropdown
           boardId={boardId}
           isArchived={isArchived}
@@ -86,6 +109,9 @@ export const BoardInlineHeader = memo(function BoardInlineHeader({
           onArchiveToggle={onArchiveToggle}
           onExpertModeToggle={onExpertModeToggle}
           onRequestRename={() => titleRef.current?.startEdit()}
+          onOpenSettings={onOpenSettings}
+          onOpenActivity={onOpenActivity}
+          onDuplicate={onDuplicate}
         />
       </div>
     </div>
