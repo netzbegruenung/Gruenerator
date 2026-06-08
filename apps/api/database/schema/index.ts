@@ -10,6 +10,7 @@ export * from './system.js';
 export * from './features.js';
 export * from './templates.js';
 export * from './entityLikes.js';
+export * from './entityFavorites.js';
 export * from './media.js';
 export * from './notebooks.js';
 export * from './collaborative.js';
