@@ -60,6 +60,9 @@ import { CollabDocPicker } from '@/components/common/CollabDocPicker';
 import { RobotAvatar } from '@/components/common/RobotAvatar';
 import { cn } from '@/utils/cn';
 
+// "No colour" choice for a new label — a neutral grey so the chip still renders.
+const NEUTRAL_LABEL_COLOR = '#9ca3af';
+
 const COMMON_EMOJI = [
   '📋',
   '📌',
@@ -499,6 +502,18 @@ export const CardDetailPanel = memo(function CardDetailPanel({
           <div className="px-4 sm:px-6 pb-2">
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-grey-400 mr-1">Cover</span>
+              {/* None — clears the cover color (highlighted when no cover set). */}
+              <button
+                onClick={() => onUpdateRow(row.id, { coverColor: undefined })}
+                className={cn(
+                  'flex h-3 w-5 items-center justify-center rounded-sm border border-grey-300 dark:border-grey-600 cursor-pointer transition-transform hover:scale-125 bg-transparent',
+                  !row.coverColor && 'ring-2 ring-primary-500 ring-offset-1'
+                )}
+                title="Kein Cover"
+                aria-label="Kein Cover"
+              >
+                <FiX size={9} className="text-grey-400" />
+              </button>
               {LABEL_COLORS.map((color) => (
                 <button
                   key={color}
@@ -596,22 +611,52 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                   />
                   <div className="flex gap-2 sm:gap-1">
                     {colorPickerOpen ? (
-                      LABEL_COLORS.slice(0, 5).map((color) => (
+                      <>
+                        {/* None — neutral/colorless label (first option, "undo"). */}
                         <button
-                          key={color}
                           onClick={() => {
-                            setSelectedLabelColor(color);
+                            setSelectedLabelColor(NEUTRAL_LABEL_COLOR);
                             setColorPickerOpen(false);
                           }}
-                          className="w-7 h-7 sm:w-5 sm:h-5 rounded-full border-none cursor-pointer transition-transform hover:scale-110"
+                          className="flex h-7 w-7 sm:h-5 sm:w-5 items-center justify-center rounded-full border border-grey-300 dark:border-grey-600 cursor-pointer transition-transform hover:scale-110 bg-transparent"
                           style={{
-                            backgroundColor: color,
                             outline:
-                              selectedLabelColor === color ? '2px solid currentColor' : 'none',
+                              selectedLabelColor === NEUTRAL_LABEL_COLOR
+                                ? '2px solid currentColor'
+                                : 'none',
                             outlineOffset: '2px',
                           }}
-                        />
-                      ))
+                          title="Keine Farbe"
+                          aria-label="Keine Farbe"
+                        >
+                          <FiX size={11} className="text-grey-400" />
+                        </button>
+                        {LABEL_COLORS.slice(0, 5).map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => {
+                              setSelectedLabelColor(color);
+                              setColorPickerOpen(false);
+                            }}
+                            className="w-7 h-7 sm:w-5 sm:h-5 rounded-full border-none cursor-pointer transition-transform hover:scale-110"
+                            style={{
+                              backgroundColor: color,
+                              outline:
+                                selectedLabelColor === color ? '2px solid currentColor' : 'none',
+                              outlineOffset: '2px',
+                            }}
+                          />
+                        ))}
+                      </>
+                    ) : selectedLabelColor === NEUTRAL_LABEL_COLOR ? (
+                      <button
+                        onClick={() => setColorPickerOpen(true)}
+                        className="flex h-7 w-7 sm:h-5 sm:w-5 items-center justify-center rounded-full border border-grey-300 dark:border-grey-600 cursor-pointer transition-transform hover:scale-110 bg-transparent"
+                        title="Farbe wählen"
+                        aria-label="Farbe wählen"
+                      >
+                        <FiX size={11} className="text-grey-400" />
+                      </button>
                     ) : (
                       <button
                         onClick={() => setColorPickerOpen(true)}
