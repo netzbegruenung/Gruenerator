@@ -69,6 +69,19 @@ function renderBlocks(blocks: CommentBlock[]): ReactNode[] {
         </span>
       );
     }
+    if (block.type === 'link' && block.url) {
+      return (
+        <a
+          key={i}
+          href={block.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary-600 dark:text-primary-400 underline hover:no-underline"
+        >
+          {block.text ?? block.url}
+        </a>
+      );
+    }
     return <span key={i}>{block.text}</span>;
   });
 }
