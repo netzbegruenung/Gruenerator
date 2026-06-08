@@ -28,6 +28,7 @@ export {
   boardCommentsContract,
   publicBoardsContract,
   sharesContract,
+  sharesReadContract,
   userProfileContract,
   notebookContract,
   notebookCollectionsContract,
