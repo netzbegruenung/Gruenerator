@@ -144,6 +144,7 @@ function PublicKanbanContent({
       updateRow={noop}
       updateRowCell={noop}
       deleteRow={noop}
+      duplicateRow={() => null}
       updateField={noop}
       removeField={noop}
       currentUserId=""

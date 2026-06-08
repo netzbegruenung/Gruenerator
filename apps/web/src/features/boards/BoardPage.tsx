@@ -269,6 +269,7 @@ function BoardViewContent({
           updateRow={boardState.updateRow}
           updateRowCell={boardState.updateRowCell}
           deleteRow={boardState.deleteRow}
+          duplicateRow={boardState.duplicateRow}
           updateField={boardState.updateField}
           removeField={boardState.removeField}
           onUpdateView={boardState.updateView}
@@ -323,8 +324,10 @@ function BoardViewContent({
           onUpdateCell={boardState.updateRowCell}
           onUpdateRow={boardState.updateRow}
           onDelete={boardState.deleteRow}
+          onDuplicate={(rowId) => boardState.duplicateRow(rowId, currentUserId)}
           onUpdateField={boardState.updateField}
           boardId={boardId}
+          currentUserId={currentUserId}
         />
       )}
 
