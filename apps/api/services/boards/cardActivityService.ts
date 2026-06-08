@@ -13,7 +13,8 @@ const db = getPostgresInstance();
 
 export interface RecordCardActivityParams {
   boardId: string;
-  cardId: string;
+  // null for board-level events (A8).
+  cardId: string | null;
   userId: string;
   type: ActivityType;
   payload?: Record<string, unknown>;

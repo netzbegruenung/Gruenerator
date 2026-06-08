@@ -48,8 +48,8 @@ export const boardSubscriptionsContract = c.router(
       },
       summary: 'Stop watching a card',
     },
-    // Board-level watch (A9): the whole board, not a single card. Stored in the
-    // same table via the sentinel card_id '__board__'.
+    // Board-level watch (A9): the whole board, not a single card. Backed by the
+    // board_subscriptions table.
     getBoardSubscription: {
       method: 'GET',
       path: '/api/board-subscriptions/:boardId/board/subscription',
