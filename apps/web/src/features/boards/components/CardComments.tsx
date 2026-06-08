@@ -7,7 +7,7 @@ import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { Button } from '@gruenerator/ui';
 import { memo, useCallback, useRef, useState } from 'react';
-import { FiSend, FiCornerDownRight, FiMessageSquare } from 'react-icons/fi';
+import { FiSend, FiCornerDownRight, FiMessageSquare, FiX } from 'react-icons/fi';
 import { useParams } from 'react-router-dom';
 
 import { useBoardComments } from '../hooks/useBoardComments';
@@ -140,19 +140,19 @@ const CommentItem = memo(function CommentItem({
           </span>
           <span className="text-[10px] text-grey-400">{formatCommentDate(comment.created_at)}</span>
           {comment.is_edited && <span className="text-[10px] text-grey-400">(bearbeitet)</span>}
-          <div className="sm:opacity-0 sm:group-hover:opacity-100 flex items-center gap-0.5 ml-auto transition-opacity">
+          <div className="sm:opacity-0 sm:group-hover:opacity-100 flex items-center gap-1 ml-auto transition-opacity">
             {!isReply && onReply && (
               <button
                 onClick={() => onReply(comment.id)}
-                className="text-grey-400 hover:text-primary-600 bg-transparent border-none cursor-pointer text-[10px] p-1 sm:p-0"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-grey-400 hover:text-primary-600 hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
                 title="Antworten"
               >
-                <FiCornerDownRight size={12} />
+                <FiCornerDownRight size={16} />
               </button>
             )}
             <button
               onClick={() => setShowReactions((v) => !v)}
-              className="text-grey-400 hover:text-primary-600 bg-transparent border-none cursor-pointer text-[10px] p-1 sm:p-0"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-base leading-none hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
               title="Reagieren"
             >
               😀
@@ -160,10 +160,10 @@ const CommentItem = memo(function CommentItem({
             {comment.user_id === currentUserId && (
               <button
                 onClick={() => onDelete(comment.id)}
-                className="text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer text-[10px] p-1 sm:p-0"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-grey-400 hover:text-red-500 hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
                 title="Löschen"
               >
-                &times;
+                <FiX size={16} />
               </button>
             )}
           </div>
