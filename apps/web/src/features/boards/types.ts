@@ -107,6 +107,8 @@ export interface ChecklistItem {
   done: boolean;
   doneBy?: string;
   doneAt?: string;
+  /** Optional person responsible for this individual subtask. */
+  assignee?: CardAssignee;
 }
 
 export interface ChecklistGroup {
