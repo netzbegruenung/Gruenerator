@@ -274,10 +274,13 @@ export function useViewData({
 
   // Second axis (A12): split rows into lanes by swimlaneFieldId, then group each
   // lane into the normal columns. Only for kanban with a swimlane field set.
+  // A12 2D-Swimlanes vorerst deaktiviert — auf true setzen zum Reaktivieren.
+  const SWIMLANES_ENABLED: boolean = false;
   const swimlanes = useMemo<SwimlaneGroup[] | null>(() => {
     const swimlaneFieldId = activeView?.swimlaneFieldId;
     const groupByFieldId = activeView?.groupByFieldId;
-    if (!swimlaneFieldId || !groupByFieldId || activeView?.layout !== 'kanban') return null;
+    if (!SWIMLANES_ENABLED || !swimlaneFieldId || !groupByFieldId || activeView?.layout !== 'kanban')
+      return null;
     const lanes = applyGroups(filteredRows, swimlaneFieldId, fields);
     return lanes.map((lane) => ({
       laneId: lane.groupId,
