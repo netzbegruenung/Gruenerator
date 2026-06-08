@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
 import { memo, useRef } from 'react';
-import { FiMoreVertical, FiTrash2, FiEdit2, FiEyeOff, FiCopy } from 'react-icons/fi';
+import { FiMoreVertical, FiTrash2, FiEdit2, FiEyeOff, FiCopy, FiZap } from 'react-icons/fi';
 
 import { useColumnActivity } from '../context/BoardAwarenessContext';
 import { COLUMN_COLORS } from '../utils/boardDefaults';
@@ -29,6 +29,12 @@ interface ColumnHeaderProps {
   onHide?: () => void;
   onColorChange: (color: string) => void;
   onDuplicate?: () => void;
+  /** True when this column is a Grünerator-Spalte (carries an aiTask). */
+  hasAiTask?: boolean;
+  /** Open the AI-column config dialog (create on a plain column, or edit). */
+  onConfigureAi?: () => void;
+  /** Strip the aiTask from this column (only meaningful when hasAiTask). */
+  onRemoveAi?: () => void;
 }
 
 export const ColumnHeader = memo(function ColumnHeader({
@@ -40,6 +46,9 @@ export const ColumnHeader = memo(function ColumnHeader({
   onHide,
   onColorChange,
   onDuplicate,
+  hasAiTask,
+  onConfigureAi,
+  onRemoveAi,
 }: ColumnHeaderProps) {
   const columnActivity = useColumnActivity(columnId);
   const titleRef = useRef<EditableTitleHandle>(null);
@@ -64,6 +73,14 @@ export const ColumnHeader = memo(function ColumnHeader({
         inputClassName="flex-1 text-sm font-semibold bg-transparent border-none outline-none text-foreground"
         editableClassName="cursor-pointer"
       />
+
+      {hasAiTask && (
+        <FiZap
+          className="shrink-0 text-primary-600 dark:text-primary-400"
+          size={13}
+          title="Grünerator-Spalte"
+        />
+      )}
 
       <span className="text-xs text-grey-400 tabular-nums">{cardCount}</span>
 
@@ -118,6 +135,18 @@ export const ColumnHeader = memo(function ColumnHeader({
             <DropdownMenuItem onClick={onHide}>
               <FiEyeOff className="mr-2" size={14} />
               Spalte ausblenden
+            </DropdownMenuItem>
+          )}
+          {onConfigureAi && (
+            <DropdownMenuItem onClick={onConfigureAi}>
+              <FiZap className="mr-2" size={14} />
+              {hasAiTask ? 'Grünerator-Aufgabe bearbeiten' : 'In Grünerator-Spalte umwandeln'}
+            </DropdownMenuItem>
+          )}
+          {hasAiTask && onRemoveAi && (
+            <DropdownMenuItem onClick={onRemoveAi}>
+              <FiZap className="mr-2" size={14} />
+              Grünerator-Aufgabe entfernen
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={onDelete} className="text-red-600">

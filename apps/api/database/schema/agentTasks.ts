@@ -1,5 +1,6 @@
+import { type BoardFlowConfig } from '@gruenerator/contracts';
 import { type InferSelectModel } from 'drizzle-orm';
-import { integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 /**
  * Type source for the asynchronous board-agent task queue. Runtime DDL lives in
@@ -23,6 +24,9 @@ export const agent_tasks = pgTable('agent_tasks', {
   result_document_id: uuid('result_document_id'),
   error: text('error'),
   locale: text('locale').notNull().default('de-DE'),
+  // AI-column flow config (source + AI step + output nodes + card context). Null for
+  // legacy @-mention tasks. See database/postgres/migrations/add_agent_task_flow_config.sql.
+  flow_config: jsonb('flow_config').$type<BoardFlowConfig | null>(),
   created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   started_at: timestamp('started_at', { withTimezone: true }),

@@ -4,6 +4,8 @@
  */
 import { z } from 'zod';
 
+import { boardAiTaskSchema } from './boardFlow.js';
+
 // ── Request bodies ──────────────────────────────────────────────────────────
 
 export const generateBoardBodySchema = z.object({
@@ -122,6 +124,10 @@ export const selectOptionSchema = z.object({
   id: z.string(),
   name: z.string(),
   color: z.string(),
+  // Present when this status option is a "KI-Spalte" (AI column). Optional so the
+  // field stays backward-compatible; MUST be declared here or Zod strips it on
+  // every board-snapshot roundtrip.
+  aiTask: boardAiTaskSchema.optional(),
 });
 
 export const boardFieldSchema = z.object({

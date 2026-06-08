@@ -1,7 +1,14 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@gruenerator/ui';
 import { memo, useState, useCallback, useMemo } from 'react';
-import { FiPlus } from 'react-icons/fi';
+import { FiPlus, FiZap } from 'react-icons/fi';
 import { useShallow } from 'zustand/react/shallow';
 
+import { AiColumnDialog } from '../aiColumns/AiColumnDialog';
 import { BoardAwarenessProvider } from '../context/BoardAwarenessContext';
 import { useBoardAwareness } from '../hooks/useBoardAwareness';
 import { FIELD_IDS } from '../types';
@@ -15,6 +22,7 @@ import { ColumnHeader } from './ColumnHeader';
 
 import type { Field, Row, RowGroup, BoardView, SelectOption, CellValue } from '../types';
 import type { DragStartEvent, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
+import type { BoardAiTask } from '@gruenerator/contracts';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 
 import {
@@ -70,6 +78,8 @@ interface ColumnBoardProps {
   onHideGroup: (groupId: string) => void;
   onColorChange: (groupId: string, color: string) => void;
   onDuplicateGroup: (groupId: string) => void;
+  onConfigureColumnAi: (groupId: string) => void;
+  onRemoveColumnAi: (groupId: string) => void;
   handleAddCard: (groupId: string, name: string) => void;
   onCardClick: (row: Row) => void;
   onRenameCard: (rowId: string, title: string) => void;
@@ -81,11 +91,14 @@ const ColumnBoard = memo(function ColumnBoard({
   groupName,
   groupColor,
   cardCount,
+  statusField,
   onRenameGroup,
   onDeleteGroup,
   onHideGroup,
   onColorChange,
   onDuplicateGroup,
+  onConfigureColumnAi,
+  onRemoveColumnAi,
   handleAddCard,
   onCardClick,
   onRenameCard,
@@ -101,10 +114,12 @@ const ColumnBoard = memo(function ColumnBoard({
     (color: string) => onColorChange(groupId, color),
     [onColorChange, groupId]
   );
-  const onDuplicate = useCallback(
-    () => onDuplicateGroup(groupId),
-    [onDuplicateGroup, groupId]
+  const onDuplicate = useCallback(() => onDuplicateGroup(groupId), [onDuplicateGroup, groupId]);
+  const onConfigureAi = useCallback(
+    () => onConfigureColumnAi(groupId),
+    [onConfigureColumnAi, groupId]
   );
+  const onRemoveAi = useCallback(() => onRemoveColumnAi(groupId), [onRemoveColumnAi, groupId]);
   const onAdd = useCallback(
     (name: string) => handleAddCard(groupId, name),
     [handleAddCard, groupId]
@@ -114,6 +129,11 @@ const ColumnBoard = memo(function ColumnBoard({
     () => ({ id: groupId, name: groupName, color: groupColor }),
     [groupId, groupName, groupColor]
   );
+
+  const hasAiTask = useMemo(() => {
+    const options = (statusField?.typeOptions.options ?? []) as SelectOption[];
+    return !!options.find((o) => o.id === groupId)?.aiTask;
+  }, [statusField, groupId]);
 
   return (
     <KanbanBoard id={groupId}>
@@ -127,6 +147,9 @@ const ColumnBoard = memo(function ColumnBoard({
           onHide={onHide}
           onColorChange={onColor}
           onDuplicate={onDuplicate}
+          hasAiTask={hasAiTask}
+          onConfigureAi={onConfigureAi}
+          onRemoveAi={onRemoveAi}
         />
       </KanbanHeader>
       <KanbanCards<KanbanItem> id={groupId}>
@@ -190,6 +213,8 @@ export function PlannerKanban({
   );
   const [selectedRow, setSelectedRow] = useState<Row | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiEditingOptionId, setAiEditingOptionId] = useState<string | null>(null);
   const {
     remoteCursors,
     remoteActivities,
@@ -331,6 +356,67 @@ export function PlannerKanban({
     });
   }, [statusField, updateField]);
 
+  const openAiDialogForNew = useCallback(() => {
+    setAiEditingOptionId(null);
+    setAiDialogOpen(true);
+  }, []);
+
+  const openAiDialogForColumn = useCallback((optionId: string) => {
+    setAiEditingOptionId(optionId);
+    setAiDialogOpen(true);
+  }, []);
+
+  const handleRemoveColumnAi = useCallback(
+    (optionId: string) => {
+      if (!statusField) return;
+      const options = (statusField.typeOptions.options ?? []) as SelectOption[];
+      updateField(statusField.id, {
+        typeOptions: {
+          ...statusField.typeOptions,
+          options: options.map((o) => {
+            if (o.id !== optionId) return o;
+            const next = { ...o };
+            delete next.aiTask;
+            return next;
+          }),
+        },
+      });
+    },
+    [statusField, updateField]
+  );
+
+  const handleConfirmAiColumn = useCallback(
+    (aiTask: BoardAiTask) => {
+      if (!statusField) return;
+      const options = (statusField.typeOptions.options ?? []) as SelectOption[];
+      if (aiEditingOptionId) {
+        updateField(statusField.id, {
+          typeOptions: {
+            ...statusField.typeOptions,
+            options: options.map((o) => (o.id === aiEditingOptionId ? { ...o, aiTask } : o)),
+          },
+        });
+      } else {
+        const newOption: SelectOption = {
+          id: `status-${Date.now()}`,
+          name: '✨ Grünerator-Spalte',
+          color: COLUMN_COLORS[options.length % COLUMN_COLORS.length],
+          aiTask,
+        };
+        updateField(statusField.id, {
+          typeOptions: { ...statusField.typeOptions, options: [...options, newOption] },
+        });
+      }
+    },
+    [statusField, updateField, aiEditingOptionId]
+  );
+
+  const aiDialogInitial = useMemo(() => {
+    if (!aiEditingOptionId) return null;
+    const options = (statusField?.typeOptions.options ?? []) as SelectOption[];
+    return options.find((o) => o.id === aiEditingOptionId)?.aiTask ?? null;
+  }, [aiEditingOptionId, statusField]);
+
   const handleRenameGroup = useCallback(
     (optionId: string, name: string) => {
       if (!statusField) return;
@@ -463,13 +549,26 @@ export function PlannerKanban({
           className="items-start"
           after={
             <div className="flex items-start gap-2 shrink-0">
-              <button
-                onClick={handleAddColumn}
-                className="flex items-center justify-center w-8 h-8 mt-2 rounded-lg bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-200 dark:hover:bg-[#2a2a2a] cursor-pointer transition-colors border-none"
-                title="Spalte hinzufügen"
-              >
-                <FiPlus size={16} />
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="flex items-center justify-center w-8 h-8 mt-2 rounded-lg bg-transparent text-grey-400 hover:text-foreground hover:bg-grey-200 dark:hover:bg-[#2a2a2a] cursor-pointer transition-colors border-none"
+                    title="Spalte hinzufügen"
+                  >
+                    <FiPlus size={16} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem onClick={handleAddColumn}>
+                    <FiPlus className="mr-2" size={14} />
+                    Neue Spalte
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={openAiDialogForNew}>
+                    <FiZap className="mr-2" size={14} />
+                    Neue Grünerator-Spalte
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               {hiddenGroups.length > 0 && (
                 <div className="mt-2 flex flex-col gap-1">
                   <button
@@ -511,6 +610,8 @@ export function PlannerKanban({
               onHideGroup={handleHideGroup}
               onColorChange={handleColorChange}
               onDuplicateGroup={handleDuplicateGroup}
+              onConfigureColumnAi={openAiDialogForColumn}
+              onRemoveColumnAi={handleRemoveColumnAi}
               handleAddCard={handleAddCard}
               onCardClick={handleCardClick}
               onRenameCard={handleRenameCard}
@@ -519,6 +620,14 @@ export function PlannerKanban({
           )}
         </KanbanProvider>
       </div>
+
+      <AiColumnDialog
+        open={aiDialogOpen}
+        onOpenChange={setAiDialogOpen}
+        initial={aiDialogInitial}
+        fields={fields}
+        onConfirm={handleConfirmAiColumn}
+      />
 
       <CardDetailPanel
         row={selectedRow}

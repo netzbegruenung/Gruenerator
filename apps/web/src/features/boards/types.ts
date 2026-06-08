@@ -143,6 +143,7 @@ export const FIELD_IDS = {
   LINKED_DOCS: 'field-linked-docs',
   COMMENTS: 'field-comments',
   CHECKLIST: 'field-checklist',
+  RECURRENCE: 'field-recurrence',
 } as const;
 
 // ---------------------------------------------------------------------------
