@@ -15,6 +15,7 @@ import { adminVorlagenContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
+import { enrichTemplate } from '../../../services/templates/templateEnrichment.js';
 import { isAdminByEmail } from '../../../utils/adminEmails.js';
 import { logContractValidationError } from '../../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../../utils/getAuthedUser.js';
@@ -157,6 +158,11 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
         { table: 'user_templates' }
       );
 
+      // Re-index so the vector payload reflects the published/public status.
+      void enrichTemplate(id).catch((e) =>
+        log.warn('[adminVorlagenContract.approve] enrichTemplate failed', e)
+      );
+
       log.info(`[adminVorlagenContract] Vorlage ${id} approved by ${userId}`);
       return {
         status: 200 as const,
@@ -208,6 +214,11 @@ export const adminVorlagenContractRouter = s.router(adminVorlagenContract, {
          WHERE id = $2`,
         [JSON.stringify(updatedMetadata), id],
         { table: 'user_templates' }
+      );
+
+      // Re-index so the vector payload reflects the rejected status.
+      void enrichTemplate(id).catch((e) =>
+        log.warn('[adminVorlagenContract.reject] enrichTemplate failed', e)
       );
 
       log.info(`[adminVorlagenContract] Vorlage ${id} rejected by ${userId}`);

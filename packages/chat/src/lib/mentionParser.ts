@@ -159,6 +159,23 @@ export function parseAllMentions(text: string): ParsedMentions {
       continue;
     }
 
+    // Handle bare @canva trigger (popover hint — strip, no payload). Picked
+    // designs are inserted as plain markdown links, not @canva: tokens, so
+    // there's no payload form to decode here.
+    if (trigger === '@' && alias === 'canva') {
+      const triggerIndex = match.index + match[0].indexOf('@');
+      mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
+      continue;
+    }
+
+    // Handle bare @vorlagen trigger (popover hint — strip, no payload). Picked
+    // templates are inserted as plain markdown links, like @canva.
+    if (trigger === '@' && alias === 'vorlagen') {
+      const triggerIndex = match.index + match[0].indexOf('@');
+      mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
+      continue;
+    }
+
     const mentionable = resolveMentionable(alias);
     if (!mentionable) {
       if (trigger === '@') {
@@ -274,7 +291,12 @@ export function extractMentionPreviews(text: string): MentionPreview[] {
 
     if (
       trigger === '@' &&
-      (alias === 'datei' || alias === 'dokumentchat' || alias === 'wolke' || alias === 'connect')
+      (alias === 'datei' ||
+        alias === 'dokumentchat' ||
+        alias === 'wolke' ||
+        alias === 'connect' ||
+        alias === 'canva' ||
+        alias === 'vorlagen')
     ) {
       continue;
     }
