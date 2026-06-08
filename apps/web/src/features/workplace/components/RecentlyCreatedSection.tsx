@@ -117,6 +117,72 @@ const PlaceholderBars = memo(() => (
 ));
 PlaceholderBars.displayName = 'PlaceholderBars';
 
+// A single Kanban "card": a rounded tile with one or two short prose bars, so a
+// column reads as a stack of real tasks rather than empty boxes.
+const MiniCard = memo(({ lines = 1 }: { lines?: number }) => (
+  <div className="flex flex-col gap-1 rounded-[3px] border border-grey-200/70 bg-grey-50 px-1.5 py-1 dark:border-grey-600/50 dark:bg-grey-700/40">
+    <div className="h-1 w-4/5 rounded-full bg-grey-300 dark:bg-grey-500" />
+    {lines > 1 && <div className="h-1 w-1/2 rounded-full bg-grey-200 dark:bg-grey-600" />}
+  </div>
+));
+MiniCard.displayName = 'MiniCard';
+
+// Board overview for the preview sheet. The card list doesn't carry real board
+// rows (those live in Yjs, loaded only via /boards/:id/state), so we render a
+// type-faithful schematic instead of the generic doc outline: a three-column
+// Kanban (eucalyptus-tinted column headers over stacked cards) or a grid of
+// whiteboard sticky notes. Same paper sheet as a document — it reads as a
+// snapshot of the board, not an empty plate.
+const KANBAN_COLUMNS = [
+  { tint: 'bg-secondary-400 dark:bg-secondary-500', cards: [2, 1] },
+  { tint: 'bg-primary-400 dark:bg-primary-500', cards: [1, 1, 2] },
+  { tint: 'bg-grey-300 dark:bg-grey-500', cards: [1] },
+];
+
+const WHITEBOARD_NOTES = [
+  'bg-secondary-100 dark:bg-secondary-900/40',
+  'bg-primary-100 dark:bg-primary-900/40',
+  'bg-grey-100 dark:bg-grey-700/40',
+  'bg-secondary-50 dark:bg-secondary-900/30',
+  'bg-grey-100 dark:bg-grey-700/40',
+  'bg-primary-50 dark:bg-primary-900/30',
+];
+
+const BoardPreviewBody = memo(({ boardType }: { boardType?: 'kanban' | 'whiteboard' }) => {
+  if (boardType === 'whiteboard') {
+    return (
+      <div className="grid h-full grid-cols-3 grid-rows-2 gap-1.5 p-3" aria-hidden>
+        {WHITEBOARD_NOTES.map((tint, i) => (
+          <div
+            key={i}
+            className={cn(
+              'flex flex-col justify-center gap-1 rounded-[3px] p-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.05)]',
+              tint
+            )}
+          >
+            <div className="h-1 w-4/5 rounded-full bg-black/10 dark:bg-white/15" />
+            <div className="h-1 w-1/2 rounded-full bg-black/10 dark:bg-white/15" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-2 px-3 pt-3.5" aria-hidden>
+      {KANBAN_COLUMNS.map((col, ci) => (
+        <div key={ci} className="flex flex-1 flex-col gap-1.5">
+          <div className={cn('h-1.5 w-3/4 rounded-full', col.tint)} />
+          {col.cards.map((lines, i) => (
+            <MiniCard key={i} lines={lines} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+});
+BoardPreviewBody.displayName = 'BoardPreviewBody';
+
 // The "sheet": a white page anchored to the top of the preview zone that bleeds
 // past the bottom edge (height taller than its clipped parent, top-only radius,
 // no bottom border) so it always reads as a document. Stays pure white in dark
@@ -152,6 +218,8 @@ const PreviewSheet = memo(({ item }: { item: RecentItem }) => {
         )}
       </div>
     );
+  } else if (item.type === 'board') {
+    body = <BoardPreviewBody boardType={item.boardType} />;
   } else {
     body = <PlaceholderBars />;
   }
