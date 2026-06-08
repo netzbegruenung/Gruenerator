@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
 import { memo, useRef } from 'react';
-import { FiMoreVertical, FiTrash2, FiEdit2, FiEyeOff } from 'react-icons/fi';
+import { FiMoreVertical, FiTrash2, FiEdit2, FiEyeOff, FiCopy } from 'react-icons/fi';
 
 import { useColumnActivity } from '../context/BoardAwarenessContext';
 import { COLUMN_COLORS } from '../utils/boardDefaults';
@@ -28,6 +28,7 @@ interface ColumnHeaderProps {
   onDelete: () => void;
   onHide?: () => void;
   onColorChange: (color: string) => void;
+  onDuplicate?: () => void;
 }
 
 export const ColumnHeader = memo(function ColumnHeader({
@@ -38,6 +39,7 @@ export const ColumnHeader = memo(function ColumnHeader({
   onDelete,
   onHide,
   onColorChange,
+  onDuplicate,
 }: ColumnHeaderProps) {
   const columnActivity = useColumnActivity(columnId);
   const titleRef = useRef<EditableTitleHandle>(null);
@@ -106,6 +108,12 @@ export const ColumnHeader = memo(function ColumnHeader({
               ))}
             </div>
           </div>
+          {onDuplicate && (
+            <DropdownMenuItem onClick={onDuplicate}>
+              <FiCopy className="mr-2" size={14} />
+              Spalte duplizieren
+            </DropdownMenuItem>
+          )}
           {onHide && (
             <DropdownMenuItem onClick={onHide}>
               <FiEyeOff className="mr-2" size={14} />
