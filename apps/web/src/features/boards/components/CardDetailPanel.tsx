@@ -31,6 +31,8 @@ import {
   FiX,
   FiEye,
   FiEyeOff,
+  FiChevronLeft,
+  FiChevronRight,
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
@@ -422,56 +424,16 @@ export const CardDetailPanel = memo(function CardDetailPanel({
         {row.coverColor && (
           <div className="h-2 shrink-0" style={{ backgroundColor: row.coverColor }} />
         )}
-        <div className="flex items-center justify-between border-b border-grey-200 dark:border-grey-700 px-4 py-3 sm:px-6">
-          <SheetTitle className="text-sm font-medium text-grey-500">Karte bearbeiten</SheetTitle>
-          <div className="flex items-center gap-0.5">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="flex items-center justify-center w-10 h-10 sm:w-7 sm:h-7 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
-                  title="Aktionen"
-                >
-                  <FiMoreHorizontal size={16} />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                {onDuplicate && (
-                  <DropdownMenuItem onClick={handleDuplicate}>
-                    <FiCopy className="mr-2" size={13} />
-                    Duplizieren
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onClick={handleArchive}>
-                  <FiArchive className="mr-2" size={13} />
-                  Archivieren
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  variant="destructive"
-                  onClick={() => {
-                    onDelete(row.id);
-                    onOpenChange(false);
-                  }}
-                >
-                  <FiTrash2 className="mr-2" size={13} />
-                  Löschen
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <button
-              onClick={() => onOpenChange(false)}
-              className="flex items-center justify-center w-10 h-10 sm:w-7 sm:h-7 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
-            >
-              <span className="text-lg leading-none">&times;</span>
-            </button>
-          </div>
-        </div>
-
         <div
           className="flex-1 overflow-y-auto"
           style={{ paddingBottom: 'var(--mobile-keyboard-offset, 0px)' }}
         >
-          <div className="px-4 pt-6 pb-2 sm:px-6">
+          {/* Title kept for screen readers only. */}
+          <SheetTitle className="sr-only">Karte bearbeiten</SheetTitle>
+
+          {/* Title row doubles as the header: emoji + editable title + the
+              nav/actions/close controls, so no separate header bar is needed. */}
+          <div className="px-4 pt-4 pb-2 sm:px-6">
             <div className="flex items-start gap-2">
               <EmojiPicker
                 value={row.icon}
@@ -488,7 +450,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                   }
                 }}
                 rows={1}
-                className="w-full text-xl font-bold bg-transparent border-none outline-none text-foreground-heading resize-none leading-relaxed"
+                className="flex-1 min-w-0 text-xl font-bold bg-transparent border-none outline-none text-foreground-heading resize-none leading-snug pt-1"
                 placeholder="Kartentitel"
                 onInput={(e) => {
                   const target = e.target as HTMLTextAreaElement;
@@ -496,6 +458,69 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                   target.style.height = `${target.scrollHeight}px`;
                 }}
               />
+              <div className="flex items-center gap-0.5 shrink-0 -mr-1 sm:-mr-2">
+                {onPrevCard && (
+                  <button
+                    onClick={onPrevCard}
+                    className="flex items-center justify-center w-9 h-9 sm:w-7 sm:h-7 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
+                    title="Vorherige Karte (←)"
+                    aria-label="Vorherige Karte"
+                  >
+                    <FiChevronLeft size={18} />
+                  </button>
+                )}
+                {onNextCard && (
+                  <button
+                    onClick={onNextCard}
+                    className="flex items-center justify-center w-9 h-9 sm:w-7 sm:h-7 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
+                    title="Nächste Karte (→)"
+                    aria-label="Nächste Karte"
+                  >
+                    <FiChevronRight size={18} />
+                  </button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className="flex items-center justify-center w-9 h-9 sm:w-7 sm:h-7 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
+                      title="Aktionen"
+                    >
+                      <FiMoreHorizontal size={16} />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-44">
+                    {onDuplicate && (
+                      <DropdownMenuItem onClick={handleDuplicate}>
+                        <FiCopy className="mr-2" size={13} />
+                        Duplizieren
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={handleArchive}>
+                      <FiArchive className="mr-2" size={13} />
+                      Archivieren
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => {
+                        onDelete(row.id);
+                        onOpenChange(false);
+                      }}
+                    >
+                      <FiTrash2 className="mr-2" size={13} />
+                      Löschen
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <button
+                  onClick={() => onOpenChange(false)}
+                  className="flex items-center justify-center w-9 h-9 sm:w-7 sm:h-7 rounded-md text-grey-400 hover:text-foreground hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
+                  title="Schließen"
+                  aria-label="Schließen"
+                >
+                  <span className="text-lg leading-none">&times;</span>
+                </button>
+              </div>
             </div>
           </div>
 
