@@ -48,6 +48,7 @@ const TYPE_IMPORTANCE: Record<NotificationType, 1 | 2 | 3> = {
   group_join_denied: 1,
   transfer_downloaded: 3,
   notebook_liked: 3,
+  template_liked: 3,
   wolke_new_files: 2,
   // Tier 1: the user explicitly delegated work and is waiting on the result —
   // always deliver (incl. email) regardless of notification level.

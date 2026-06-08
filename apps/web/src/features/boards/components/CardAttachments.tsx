@@ -73,7 +73,7 @@ export const CardAttachments = memo(function CardAttachments({
                   <button
                     onClick={() => handleSetCover(att.id, att.url, att.is_cover)}
                     className={cn(
-                      'sm:opacity-0 sm:group-hover/att:opacity-100 bg-transparent border-none cursor-pointer transition-opacity p-1',
+                      'sm:opacity-0 sm:group-hover/att:opacity-100 bg-transparent border-none cursor-pointer transition-opacity p-2 sm:p-1',
                       att.is_cover
                         ? 'text-amber-500 sm:opacity-100'
                         : 'text-grey-400 hover:text-amber-500'
@@ -86,14 +86,14 @@ export const CardAttachments = memo(function CardAttachments({
                 <a
                   href={att.url}
                   download={att.file_name}
-                  className="sm:opacity-0 sm:group-hover/att:opacity-100 text-grey-400 hover:text-primary-600 transition-opacity p-1"
+                  className="sm:opacity-0 sm:group-hover/att:opacity-100 text-grey-400 hover:text-primary-600 transition-opacity p-2 sm:p-1"
                   title="Herunterladen"
                 >
                   <FiDownload size={13} />
                 </a>
                 <button
                   onClick={() => remove.mutate(att.id)}
-                  className="sm:opacity-0 sm:group-hover/att:opacity-100 text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer transition-opacity p-1"
+                  className="sm:opacity-0 sm:group-hover/att:opacity-100 text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer transition-opacity p-2 sm:p-1"
                   title="Löschen"
                 >
                   <FiTrash2 size={13} />
