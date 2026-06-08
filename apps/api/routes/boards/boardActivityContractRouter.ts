@@ -14,11 +14,8 @@ import {
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { getBoardSubscribers } from '../../services/boards/boardSubscriptionService.js';
 import { recordCardActivity } from '../../services/boards/cardActivityService.js';
-import {
-  BOARD_SUBSCRIPTION_CARD_ID,
-  getCardSubscribers,
-} from '../../services/boards/cardSubscriptionService.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
@@ -113,7 +110,7 @@ export const boardActivityContractRouter = s.router(boardActivityContract, {
 
       const insertedId = await recordCardActivity({
         boardId,
-        cardId: BOARD_SUBSCRIPTION_CARD_ID,
+        cardId: null,
         userId,
         type,
         ...(payload ? { payload } : {}),
@@ -123,7 +120,7 @@ export const boardActivityContractRouter = s.router(boardActivityContract, {
       void (async () => {
         try {
           const [subscribers, actorRows] = await Promise.all([
-            getCardSubscribers(boardId, BOARD_SUBSCRIPTION_CARD_ID),
+            getBoardSubscribers(boardId),
             db.query<{ display_name: string }>(
               `SELECT display_name FROM profiles WHERE id = $1`,
               [userId]
