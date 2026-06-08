@@ -421,10 +421,74 @@ export const boardsContractRouter = s.router(boardsContract, {
     }
   },
 
+  duplicateBoard: async (args) => {
+    try {
+      const { id } = args.params;
+      const userId = getAuthedUser(args.req).id;
+
+      const { hasAccess } = await checkBoardAccess(id, userId);
+      if (!hasAccess) return { status: 403 as const, body: { error: 'Kein Zugriff' } };
+
+      // Load the source structure (fields/rows/views) + its description.
+      const source = await loadBoardState(id, userId);
+      if (!source) return { status: 404 as const, body: { error: 'Board not found' } };
+
+      const descRows = (await db.query(
+        'SELECT description FROM collaborative_documents WHERE id = $1',
+        [id]
+      )) as { description: string | null }[];
+
+      const created = await createBoardDocument(
+        `${source.title} (Kopie)`,
+        userId,
+        source.boardType
+      );
+
+      const description = descRows[0]?.description ?? null;
+      if (description) {
+        await db.query('UPDATE collaborative_documents SET description = $1 WHERE id = $2', [
+          description,
+          created.id,
+        ]);
+      }
+
+      // The client seeds the cloned structure into the new board's Yjs doc on
+      // navigation — same path as generateBoard. Relational tails are NOT copied.
+      const board = (await db.query(
+        `SELECT cd.*, p.display_name as creator_name
+         FROM collaborative_documents cd
+         LEFT JOIN profiles p ON cd.created_by = p.id
+         WHERE cd.id = $1`,
+        [created.id]
+      )) as BoardDocument[];
+
+      return {
+        status: 201 as const,
+        body: {
+          board: board[0],
+          generatedStructure: {
+            fields: source.fields,
+            rows: source.rows,
+            views: source.views,
+          },
+        },
+      };
+    } catch (error) {
+      log.error('[Boards Contract] Error duplicating board:', error);
+      return {
+        status: 500 as const,
+        body: {
+          error: 'Failed to duplicate board',
+          details: error instanceof Error ? error.message : String(error),
+        },
+      };
+    }
+  },
+
   updateBoard: async (args) => {
     try {
       const { id } = args.params;
-      const { title, is_archived } = args.body;
+      const { title, is_archived, description } = args.body;
       const userId = getAuthedUser(args.req).id;
 
       const checkResult = (await db.query(
@@ -462,6 +526,10 @@ export const boardsContractRouter = s.router(boardsContract, {
           `content = jsonb_set(COALESCE(content, '{}')::jsonb, '{is_archived}', $${paramIndex++}::jsonb)`
         );
         values.push(JSON.stringify(!!is_archived));
+      }
+      if (description !== undefined) {
+        updates.push(`description = $${paramIndex++}`);
+        values.push(description); // null clears it
       }
 
       values.push(id);
