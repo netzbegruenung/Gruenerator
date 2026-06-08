@@ -325,7 +325,7 @@ const FieldRow = memo(function FieldRow({
         )}
       </div>
 
-      {isSelect && (
+      {isSelect && !locked && (
         <div className="mt-2 space-y-1">
           {options.map((opt) => (
             <div key={opt.id} className="flex items-center gap-1.5">

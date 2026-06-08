@@ -438,11 +438,8 @@ export const boardsContractRouter = s.router(boardsContract, {
         [id]
       )) as { description: string | null }[];
 
-      const created = await createBoardDocument(
-        `${source.title} (Kopie)`,
-        userId,
-        source.boardType
-      );
+      const boardType = source.boardType === 'whiteboard' ? 'whiteboard' : 'kanban';
+      const created = await createBoardDocument(`${source.title} (Kopie)`, userId, boardType);
 
       const description = descRows[0]?.description ?? null;
       if (description) {

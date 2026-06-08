@@ -48,7 +48,9 @@ function todayIso(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-/** Status option ids that count as "done" (rightmost-column convention + name match). */
+// Status options whose name reads as "done"; used only to exclude completed cards
+// from the overdue filter. No positional fallback — a non-done last column must
+// not be silently treated as done (it would hide genuinely overdue cards).
 function doneStatusIds(fields: Field[]): Set<string> {
   const status = fields.find((f) => f.id === FIELD_IDS.STATUS);
   const options = ((status?.typeOptions.options as SelectOption[] | undefined) ?? []).filter(Boolean);
@@ -56,8 +58,6 @@ function doneStatusIds(fields: Field[]): Set<string> {
   for (const opt of options) {
     if (/erledigt|fertig|abgeschlossen|done|completed|closed/i.test(opt.name)) ids.add(opt.id);
   }
-  // Fall back to the conventional rightmost column when no name matched.
-  if (ids.size === 0 && options.length > 0) ids.add(options[options.length - 1].id);
   return ids;
 }
 
