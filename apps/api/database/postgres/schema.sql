@@ -483,6 +483,7 @@ CREATE TABLE IF NOT EXISTS user_templates (
     status TEXT DEFAULT 'published',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    vector_indexed_at TIMESTAMPTZ,
     CONSTRAINT valid_template_status CHECK (status IN ('published', 'draft', 'archived', 'private', 'public', 'enabled', 'active', 'pending_review', 'rejected'))
 );
 

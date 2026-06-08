@@ -27,8 +27,14 @@ import { FileMentionPopover } from './FileMentionPopover';
 import { WolkeMentionPopover } from './WolkeMentionPopover';
 import { ConnectMentionPopover } from './ConnectMentionPopover';
 import { CanvaMentionPopover } from './CanvaMentionPopover';
+import { VorlagenMentionPopover } from './VorlagenMentionPopover';
 import type { CollabDocSelection } from '../../lib/documentMentionables';
-import type { WolkeFileToken, ConnectFileToken, CanvaDesignToken } from '../../lib/mentionables';
+import type {
+  WolkeFileToken,
+  ConnectFileToken,
+  CanvaDesignToken,
+  VorlageToken,
+} from '../../lib/mentionables';
 import { PlusMenu } from './PlusMenu';
 import { ModelPicker } from './ModelPicker';
 import { getCaretCoords } from '../../lib/caretPosition';
@@ -198,7 +204,7 @@ function ComposerButtons({
 
 interface MentionState {
   visible: boolean;
-  mode: 'functions' | 'skills' | 'datei' | 'wolke' | 'connect' | 'canva';
+  mode: 'functions' | 'skills' | 'datei' | 'wolke' | 'connect' | 'canva' | 'vorlagen';
   query: string;
   selectedIndex: number;
   anchorRect: { x: number; y: number } | null;
@@ -320,6 +326,22 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
           });
         }
         setMention((prev) => ({ ...prev, mode: 'canva', visible: true, mentionStart: -1 }));
+        return;
+      }
+
+      // When user selects the @vorlagen trigger, swap to the Vorlagen picker.
+      if (mentionable.type === 'vorlagen') {
+        if (mention.mentionStart >= 0) {
+          const currentText = composerRuntime.getState().text;
+          const before = currentText.slice(0, mention.mentionStart);
+          const after = currentText.slice(textarea.selectionStart);
+          composerRuntime.setText(`${before}${after}`);
+          requestAnimationFrame(() => {
+            const pos = before.length;
+            textarea.setSelectionRange(pos, pos);
+          });
+        }
+        setMention((prev) => ({ ...prev, mode: 'vorlagen', visible: true, mentionStart: -1 }));
         return;
       }
 
@@ -496,14 +518,39 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
     [composerRuntime, dismissPopover]
   );
 
+  const handleVorlagenSelect = useCallback(
+    (vorlagen: VorlageToken[]) => {
+      if (vorlagen.length === 0) return;
+      // Insert each chosen template as a markdown link — a direct reference
+      // the user/agent can act on (mirrors @canva).
+      const links = vorlagen
+        .map((v) => (v.url ? `[📋 ${v.title}](${v.url})` : `📋 ${v.title}`))
+        .join(' ');
+      const currentText = composerRuntime.getState().text;
+      const needsSpace = currentText.length > 0 && !currentText.endsWith(' ');
+      const newText = `${currentText}${needsSpace ? ' ' : ''}${links} `;
+      composerRuntime.setText(newText);
+      dismissPopover();
+      requestAnimationFrame(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+          textarea.setSelectionRange(newText.length, newText.length);
+          textarea.focus();
+        }
+      });
+    },
+    [composerRuntime, dismissPopover]
+  );
+
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      // Don't interfere when file/doc browser, wolke, connect, or canva picker is open
+      // Don't interfere when file/doc browser, wolke, connect, canva, or vorlagen picker is open
       if (
         mention.mode === 'datei' ||
         mention.mode === 'wolke' ||
         mention.mode === 'connect' ||
-        mention.mode === 'canva'
+        mention.mode === 'canva' ||
+        mention.mode === 'vorlagen'
       )
         return;
 
@@ -541,7 +588,8 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
         mention.mode === 'datei' ||
         mention.mode === 'wolke' ||
         mention.mode === 'connect' ||
-        mention.mode === 'canva'
+        mention.mode === 'canva' ||
+        mention.mode === 'vorlagen'
       ) {
         if (e.key === 'Escape') {
           e.preventDefault();
@@ -650,6 +698,12 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
             <CanvaMentionPopover
               visible={mention.visible}
               onSelect={handleCanvaSelect}
+              onDismiss={dismissPopover}
+            />
+          ) : mention.mode === 'vorlagen' ? (
+            <VorlagenMentionPopover
+              visible={mention.visible}
+              onSelect={handleVorlagenSelect}
               onDismiss={dismissPopover}
             />
           ) : mention.mode === 'skills' ? (
