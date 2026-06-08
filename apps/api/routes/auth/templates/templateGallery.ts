@@ -13,11 +13,7 @@ import { z } from 'zod';
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import authMiddlewareModule from '../../../middleware/authMiddleware.js';
 import { validateBody, type TypedRequest } from '../../../middleware/validateBody.js';
-import {
-  getLikedEntityIdsForUser,
-  likeEntity,
-  unlikeEntity,
-} from '../../../services/entityLikes/EntityLikesService.js';
+import { getLikeCountsForEntities } from '../../../services/entityLikes/EntityLikesService.js';
 import { setContentDisposition } from '../../../utils/http/contentDisposition.js';
 import { createLogger } from '../../../utils/logger.js';
 
@@ -27,10 +23,6 @@ const similarBodySchema = z.object({
   query: z.string(),
   type: z.string().optional(),
   limit: z.number().optional(),
-});
-
-const likeBodySchema = z.object({
-  templateType: z.string().optional(),
 });
 
 const __filename = fileURLToPath(import.meta.url);
@@ -98,6 +90,201 @@ const getFileThumbnailUrl = (fileName: string) =>
 // Evaluated per request so they appear/disappear at the month boundary with
 // no manual cleanup. Pride month = June (month index 5).
 const isPrideMonth = () => new Date().getMonth() === 5;
+
+// ============================================================================
+// Shared gallery builder
+// ============================================================================
+
+export interface GalleryFilters {
+  searchTerm?: string;
+  searchMode?: string;
+  templateType?: string;
+  tags?: string;
+}
+
+/**
+ * Build the merged Vorlagen gallery list (published user vorlagen + system
+ * templates + system files), applying the same search/type/tag filters used by
+ * GET /vorlagen. Extracted so the template-interactions favorites endpoint can
+ * resolve favorited ids back to full gallery objects without duplicating the
+ * merge logic.
+ */
+export async function buildGalleryTemplates(
+  filters: GalleryFilters = {}
+): Promise<Array<Record<string, unknown>>> {
+  const { searchTerm = '', searchMode = 'title', templateType, tags } = filters;
+
+  const postgres = getPostgresInstance();
+  await postgres.ensureInitialized();
+
+  const conditions = ['is_private = $1', 'status = $2'];
+  const params: unknown[] = [false, 'published'];
+  let paramIndex = 3;
+
+  if (templateType && templateType !== 'all') {
+    conditions.push(`template_type = $${paramIndex++}`);
+    params.push(templateType);
+  }
+
+  if (tags) {
+    try {
+      const tagsArray = JSON.parse(tags) as unknown[];
+      if (Array.isArray(tagsArray) && tagsArray.length > 0) {
+        conditions.push(`tags @> $${paramIndex++}::jsonb`);
+        params.push(JSON.stringify(tagsArray));
+      }
+    } catch {
+      log.warn('[Vorlagen Gallery] Invalid tags JSON:', tags);
+    }
+  }
+
+  if (searchTerm && String(searchTerm).trim().length > 0) {
+    const term = `%${String(searchTerm).trim()}%`;
+    if (searchMode === 'fulltext') {
+      conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
+      params.push(term);
+    } else {
+      conditions.push(`title ILIKE $${paramIndex}`);
+      params.push(term);
+    }
+  }
+
+  const query = `
+      SELECT id, title, description, template_type, thumbnail_url, external_url,
+             images, categories, tags, content_data, metadata, created_at, updated_at
+      FROM user_templates
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY created_at DESC
+      LIMIT 100
+    `;
+
+  const data = await postgres.query(query, params, { table: 'user_templates' });
+
+  const userVorlagen = (
+    (data || []) as Array<{
+      id: string;
+      title: string;
+      description: string;
+      template_type: string;
+      thumbnail_url: string;
+      external_url: string;
+      images: unknown[];
+      categories: string[];
+      tags: string[];
+      content_data: unknown;
+      metadata: unknown;
+      created_at: string;
+      updated_at: string;
+    }>
+  ).map((item) => ({
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    template_type: item.template_type,
+    thumbnail_url: item.thumbnail_url,
+    external_url: item.external_url,
+    images: item.images || [],
+    categories: item.categories || [],
+    tags: item.tags || [],
+    content_data: item.content_data || {},
+    metadata: item.metadata || {},
+    created_at: item.created_at,
+    updated_at: item.updated_at,
+  }));
+
+  // Filter and merge system templates
+  let filteredSystemTemplates = systemTemplates;
+  if (templateType && templateType !== 'all') {
+    filteredSystemTemplates = systemTemplates.filter((t) => t.template_type === templateType);
+  }
+  if (searchTerm && String(searchTerm).trim().length > 0) {
+    const term = String(searchTerm).trim().toLowerCase();
+    filteredSystemTemplates = filteredSystemTemplates.filter(
+      (t) => t.title?.toLowerCase().includes(term) || t.description?.toLowerCase().includes(term)
+    );
+  }
+  if (tags) {
+    try {
+      const tagsArray = JSON.parse(tags) as string[];
+      if (Array.isArray(tagsArray) && tagsArray.length > 0) {
+        filteredSystemTemplates = filteredSystemTemplates.filter((t) =>
+          tagsArray.every((tag: string) => t.tags?.includes(tag.toLowerCase()))
+        );
+      }
+    } catch {
+      // Invalid tags JSON, skip filtering
+    }
+  }
+
+  // Filter system files with same logic
+  let filteredSystemFiles = systemFiles.map((f) => ({
+    ...f,
+    template_type: f.file_type as unknown,
+    download_url: getFileDownloadUrl(f.file_name as string),
+    thumbnail_url: getFileThumbnailUrl(f.file_name as string),
+    external_url: null as null,
+  })) as Array<
+    Record<string, unknown> & {
+      template_type: unknown;
+      download_url: string;
+      thumbnail_url: string;
+      external_url: null;
+    }
+  >;
+
+  // Hide seasonal files (e.g. Pride) outside their month.
+  if (!isPrideMonth()) {
+    filteredSystemFiles = filteredSystemFiles.filter((f) => f.seasonal !== 'pride');
+  }
+
+  if (templateType && templateType !== 'all') {
+    filteredSystemFiles = filteredSystemFiles.filter((f) => f.file_type === templateType);
+  }
+  if (searchTerm && String(searchTerm).trim().length > 0) {
+    const term = String(searchTerm).trim().toLowerCase();
+    filteredSystemFiles = filteredSystemFiles.filter(
+      (f) =>
+        (f.title as string | undefined)?.toLowerCase().includes(term) ||
+        (f.description as string | undefined)?.toLowerCase().includes(term)
+    );
+  }
+  if (tags) {
+    try {
+      const tagsArray = JSON.parse(tags) as string[];
+      if (Array.isArray(tagsArray) && tagsArray.length > 0) {
+        filteredSystemFiles = filteredSystemFiles.filter((f) =>
+          tagsArray.every((tag: string) =>
+            (f.tags as string[] | undefined)?.includes(tag.toLowerCase())
+          )
+        );
+      }
+    } catch {
+      // Invalid tags JSON, skip filtering
+    }
+  }
+
+  // System templates first, then system files, then approved user vorlagen.
+  // SystemTemplate is a known-shape interface (no index signature); the merged
+  // gallery is intentionally loose, so widen at this boundary.
+  return [...filteredSystemTemplates, ...filteredSystemFiles, ...userVorlagen] as Array<
+    Record<string, unknown>
+  >;
+}
+
+/**
+ * Attach a `likes_count` to each gallery item via a single batched query,
+ * avoiding N+1 lookups. Mutates and returns the same array.
+ */
+export async function attachLikeCounts(
+  templates: Array<Record<string, unknown>>
+): Promise<Array<Record<string, unknown>>> {
+  const ids = templates.map((t) => String(t.id)).filter(Boolean);
+  const counts = await getLikeCountsForEntities('template', ids);
+  for (const t of templates) {
+    t.likes_count = counts.get(String(t.id)) ?? 0;
+  }
+  return templates;
+}
 
 // ============================================================================
 // Examples Endpoints
@@ -360,166 +547,16 @@ router.get(
   async (req: AuthRequest, res: Response): Promise<void> => {
     log.debug('>>> /vorlagen endpoint HIT <<<');
     try {
-      const { searchTerm = '', searchMode = 'title', templateType, tags } = req.query;
+      const { searchTerm, searchMode, templateType, tags } = req.query;
 
-      const postgres = getPostgresInstance();
-      await postgres.ensureInitialized();
-
-      const conditions = ['is_private = $1', 'status = $2'];
-      const params: unknown[] = [false, 'published'];
-      let paramIndex = 3;
-
-      if (templateType && templateType !== 'all') {
-        conditions.push(`template_type = $${paramIndex++}`);
-        params.push(templateType);
-      }
-
-      // Filter by tags using JSONB containment
-      if (tags) {
-        try {
-          const tagsArray = JSON.parse(tags as string) as unknown[];
-          if (Array.isArray(tagsArray) && tagsArray.length > 0) {
-            conditions.push(`tags @> $${paramIndex++}::jsonb`);
-            params.push(JSON.stringify(tagsArray));
-          }
-        } catch {
-          log.warn('[Vorlagen Gallery] Invalid tags JSON:', tags);
-        }
-      }
-
-      if (searchTerm && String(searchTerm).trim().length > 0) {
-        const term = `%${String(searchTerm).trim()}%`;
-        if (searchMode === 'fulltext') {
-          conditions.push(`(title ILIKE $${paramIndex} OR description ILIKE $${paramIndex})`);
-          params.push(term);
-        } else {
-          conditions.push(`title ILIKE $${paramIndex}`);
-          params.push(term);
-        }
-      }
-
-      const query = `
-      SELECT id, title, description, template_type, thumbnail_url, external_url,
-             images, categories, tags, content_data, metadata, created_at, updated_at
-      FROM user_templates
-      WHERE ${conditions.join(' AND ')}
-      ORDER BY created_at DESC
-      LIMIT 100
-    `;
-
-      const data = await postgres.query(query, params, { table: 'user_templates' });
-
-      const userVorlagen = (
-        (data || []) as Array<{
-          id: string;
-          title: string;
-          description: string;
-          template_type: string;
-          thumbnail_url: string;
-          external_url: string;
-          images: unknown[];
-          categories: string[];
-          tags: string[];
-          content_data: unknown;
-          metadata: unknown;
-          created_at: string;
-          updated_at: string;
-        }>
-      ).map((item) => {
-        log.debug(
-          `[Vorlagen DEBUG] Item: id=${item.id}, title=${item.title}, external_url=${item.external_url}`
-        );
-        return {
-          id: item.id,
-          title: item.title,
-          description: item.description,
-          template_type: item.template_type,
-          thumbnail_url: item.thumbnail_url,
-          external_url: item.external_url,
-          images: item.images || [],
-          categories: item.categories || [],
-          tags: item.tags || [],
-          content_data: item.content_data || {},
-          metadata: item.metadata || {},
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-        };
+      const vorlagen = await buildGalleryTemplates({
+        ...(searchTerm !== undefined && { searchTerm: searchTerm as string }),
+        ...(searchMode !== undefined && { searchMode: searchMode as string }),
+        ...(templateType !== undefined && { templateType: templateType as string }),
+        ...(tags !== undefined && { tags: tags as string }),
       });
 
-      // Filter and merge system templates
-      let filteredSystemTemplates = systemTemplates;
-      if (templateType && templateType !== 'all') {
-        filteredSystemTemplates = systemTemplates.filter((t) => t.template_type === templateType);
-      }
-      if (searchTerm && String(searchTerm).trim().length > 0) {
-        const term = String(searchTerm).trim().toLowerCase();
-        filteredSystemTemplates = filteredSystemTemplates.filter(
-          (t) =>
-            t.title?.toLowerCase().includes(term) || t.description?.toLowerCase().includes(term)
-        );
-      }
-      if (tags) {
-        try {
-          const tagsArray = JSON.parse(tags as string) as string[];
-          if (Array.isArray(tagsArray) && tagsArray.length > 0) {
-            filteredSystemTemplates = filteredSystemTemplates.filter((t) =>
-              tagsArray.every((tag: string) => t.tags?.includes(tag.toLowerCase()))
-            );
-          }
-        } catch {
-          // Invalid tags JSON, skip filtering
-        }
-      }
-
-      // Filter system files with same logic
-      let filteredSystemFiles = systemFiles.map((f) => ({
-        ...f,
-        template_type: f.file_type as unknown,
-        download_url: getFileDownloadUrl(f.file_name as string),
-        thumbnail_url: getFileThumbnailUrl(f.file_name as string),
-        external_url: null as null,
-      })) as Array<
-        Record<string, unknown> & {
-          template_type: unknown;
-          download_url: string;
-          thumbnail_url: string;
-          external_url: null;
-        }
-      >;
-
-      // Hide seasonal files (e.g. Pride) outside their month.
-      if (!isPrideMonth()) {
-        filteredSystemFiles = filteredSystemFiles.filter((f) => f.seasonal !== 'pride');
-      }
-
-      if (templateType && templateType !== 'all') {
-        filteredSystemFiles = filteredSystemFiles.filter((f) => f.file_type === templateType);
-      }
-      if (searchTerm && String(searchTerm).trim().length > 0) {
-        const term = String(searchTerm).trim().toLowerCase();
-        filteredSystemFiles = filteredSystemFiles.filter(
-          (f) =>
-            (f.title as string | undefined)?.toLowerCase().includes(term) ||
-            (f.description as string | undefined)?.toLowerCase().includes(term)
-        );
-      }
-      if (tags) {
-        try {
-          const tagsArray = JSON.parse(tags as string) as string[];
-          if (Array.isArray(tagsArray) && tagsArray.length > 0) {
-            filteredSystemFiles = filteredSystemFiles.filter((f) =>
-              tagsArray.every((tag: string) =>
-                (f.tags as string[] | undefined)?.includes(tag.toLowerCase())
-              )
-            );
-          }
-        } catch {
-          // Invalid tags JSON, skip filtering
-        }
-      }
-
-      // System templates first, then system files, then approved user vorlagen
-      const vorlagen = [...filteredSystemTemplates, ...filteredSystemFiles, ...userVorlagen];
+      await attachLikeCounts(vorlagen);
 
       res.json({ success: true, vorlagen });
     } catch (error) {
@@ -679,80 +716,9 @@ router.get(
   }
 );
 
-// ============================================================================
-// Template Likes Endpoints
-// ============================================================================
-
-// Get user's liked template IDs
-router.get(
-  '/vorlagen/likes',
-  ensureAuthenticated,
-  async (req: AuthRequest, res: Response): Promise<void> => {
-    try {
-      const userId = req.user!.id;
-      const ids = await getLikedEntityIdsForUser({ userId, entityType: 'template' });
-      const likes = ids.map((id) => ({ template_id: id }));
-      res.json({ success: true, likes, count: likes.length });
-    } catch (error) {
-      const err = error as Error;
-      log.error('[Template Likes] GET error:', err);
-      res.status(500).json({ success: false, message: 'Fehler beim Laden der Favoriten' });
-    }
-  }
-);
-
-// Like a template
-router.post(
-  '/vorlagen/:templateId/like',
-  ensureAuthenticated,
-  validateBody(likeBodySchema),
-  async (
-    req: TypedRequest<{ templateType?: string }, { templateId: string }>,
-    res: Response
-  ): Promise<void> => {
-    try {
-      const userId = req.user!.id;
-      const { templateId } = req.params;
-
-      if (!templateId) {
-        res.status(400).json({ success: false, message: 'Template ID erforderlich' });
-        return;
-      }
-
-      await likeEntity({ userId, entityType: 'template', entityId: templateId });
-      log.info(`[Template Likes] User ${userId} liked template ${templateId}`);
-      res.json({ success: true, liked: true });
-    } catch (error) {
-      const err = error as Error;
-      log.error('[Template Likes] POST error:', err);
-      res.status(500).json({ success: false, message: 'Fehler beim Speichern des Favoriten' });
-    }
-  }
-);
-
-// Unlike a template
-router.delete(
-  '/vorlagen/:templateId/like',
-  ensureAuthenticated,
-  async (req: AuthRequest<{ templateId: string }>, res: Response): Promise<void> => {
-    try {
-      const userId = req.user!.id;
-      const { templateId } = req.params;
-
-      if (!templateId) {
-        res.status(400).json({ success: false, message: 'Template ID erforderlich' });
-        return;
-      }
-
-      await unlikeEntity({ userId, entityType: 'template', entityId: templateId });
-      log.info(`[Template Likes] User ${userId} unliked template ${templateId}`);
-      res.json({ success: true, liked: false });
-    } catch (error) {
-      const err = error as Error;
-      log.error('[Template Likes] DELETE error:', err);
-      res.status(500).json({ success: false, message: 'Fehler beim Entfernen des Favoriten' });
-    }
-  }
-);
+// NOTE: Template likes & favorites live in the ts-rest
+// templateInteractionsContractRouter (mounted at /api/auth/templates), which
+// adds like counts, favorites, and like-notifications. The former legacy raw
+// like endpoints on this router were removed in favour of that contract.
 
 export default router;
