@@ -111,16 +111,15 @@ export const boardActivityContractRouter = s.router(boardActivityContract, {
       if (!hasAccess || !canEdit)
         return { status: 403 as const, body: { error: 'Kein Schreibzugriff' } };
 
-      await recordCardActivity({
+      const insertedId = await recordCardActivity({
         boardId,
         cardId: BOARD_SUBSCRIPTION_CARD_ID,
         userId,
         type,
         ...(payload ? { payload } : {}),
       });
+      if (!insertedId) return { status: 500 as const, body: { error: 'Aktivität nicht gespeichert' } };
 
-      // Fan out to board watchers (excluding the actor). Fire-and-forget — a
-      // failed notification must never break the recorded event.
       void (async () => {
         try {
           const [subscribers, actorRows] = await Promise.all([
@@ -132,18 +131,22 @@ export const boardActivityContractRouter = s.router(boardActivityContract, {
           ]);
           const actorName = actorRows[0]?.display_name ?? 'Jemand';
           const label = BOARD_EVENT_LABEL[type] ?? 'aktualisiert';
-          for (const subscriberId of subscribers) {
-            if (subscriberId === userId) continue;
-            await createNotification({
-              userId: subscriberId,
-              type: 'board_updates',
-              title: `${actorName} hat „${boardTitle ?? 'ein Board'}" ${label}`,
-              body: '',
-              actionUrl: `/boards/${boardId}`,
-              metadata: { boardId, activityType: type },
-              groupKey: `board-activity-${boardId}`,
-            });
-          }
+          // allSettled so one failed delivery doesn't skip the remaining watchers.
+          await Promise.allSettled(
+            subscribers
+              .filter((subscriberId) => subscriberId !== userId)
+              .map((subscriberId) =>
+                createNotification({
+                  userId: subscriberId,
+                  type: 'board_updates',
+                  title: `${actorName} hat „${boardTitle ?? 'ein Board'}“ ${label}`,
+                  body: '',
+                  actionUrl: `/boards/${boardId}`,
+                  metadata: { boardId, activityType: type },
+                  groupKey: `board-activity-${boardId}`,
+                })
+              )
+          );
         } catch (err) {
           log.warn('Board watcher fan-out failed', { error: errMsg(err) });
         }
@@ -156,10 +159,8 @@ export const boardActivityContractRouter = s.router(boardActivityContract, {
            p.avatar_robot_id AS author_avatar_robot_id
          FROM board_card_activity a
          LEFT JOIN profiles p ON a.user_id = p.id
-         WHERE a.board_id = $1 AND a.card_id = $2
-         ORDER BY a.created_at DESC
-         LIMIT 1`,
-        [boardId, BOARD_SUBSCRIPTION_CARD_ID]
+         WHERE a.id = $1`,
+        [insertedId]
       );
       const entry = rows[0];
       if (!entry) return { status: 500 as const, body: { error: 'Aktivität nicht gespeichert' } };

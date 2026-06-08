@@ -274,7 +274,7 @@ export function PlannerKanban({
     [broadcastActivity]
   );
 
-  const allRows = useMemo(() => groups.flatMap((g) => g.rows), [groups]);
+  const allRows = useMemo(() => visibleGroups.flatMap((g) => g.rows), [visibleGroups]);
 
   const handlePrevCard = useCallback(() => {
     if (!selectedRow) return;
@@ -491,29 +491,39 @@ export function PlannerKanban({
     [statusField, updateField]
   );
 
+  // Swap with the nearest *visible* neighbour so hidden columns don't absorb moves.
   const handleMoveColumn = useCallback(
     (optionId: string, dir: 'left' | 'right') => {
       if (!statusField) return;
       const options = [...((statusField.typeOptions.options ?? []) as SelectOption[])];
-      const idx = options.findIndex((o) => o.id === optionId);
-      const target = dir === 'left' ? idx - 1 : idx + 1;
-      if (idx === -1 || target < 0 || target >= options.length) return;
-      [options[idx], options[target]] = [options[target], options[idx]];
+      const visible = options.filter((o) => !hiddenGroupIds.has(o.id));
+      const vIdx = visible.findIndex((o) => o.id === optionId);
+      const targetId = visible[dir === 'left' ? vIdx - 1 : vIdx + 1]?.id;
+      if (vIdx === -1 || !targetId) return;
+      const i = options.findIndex((o) => o.id === optionId);
+      const j = options.findIndex((o) => o.id === targetId);
+      [options[i], options[j]] = [options[j], options[i]];
       updateField(statusField.id, {
         typeOptions: { ...statusField.typeOptions, options },
       });
     },
-    [statusField, updateField]
+    [statusField, updateField, hiddenGroupIds]
   );
 
+  // index/total are over *visible* columns so can-move flags match what's shown.
   const optionMeta = useMemo(() => {
     const options = (statusField?.typeOptions.options as SelectOption[] | undefined) ?? [];
+    const visible = options.filter((o) => !hiddenGroupIds.has(o.id));
     const map = new Map<string, { index: number; total: number; limit?: number }>();
-    options.forEach((o, index) => {
-      map.set(o.id, { index, total: options.length, ...(o.limit != null ? { limit: o.limit } : {}) });
+    visible.forEach((o, index) => {
+      map.set(o.id, {
+        index,
+        total: visible.length,
+        ...(o.limit != null ? { limit: o.limit } : {}),
+      });
     });
     return map;
-  }, [statusField]);
+  }, [statusField, hiddenGroupIds]);
 
   const renderBoard = (
     laneGroups: RowGroup[],

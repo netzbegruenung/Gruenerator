@@ -4,6 +4,7 @@ import { memo } from 'react';
 import { FiActivity } from 'react-icons/fi';
 
 import { useBoardActivityFeed } from '../../hooks/useBoardActivityFeed';
+import { activityRelativeTime } from '../../utils/activityFormat';
 
 import { RobotAvatar } from '@/components/common/RobotAvatar';
 
@@ -28,17 +29,6 @@ const VERB: Record<ActivityType, string> = {
   board_restored: 'hat das Board wiederhergestellt',
   board_duplicated: 'hat das Board dupliziert',
 };
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const min = Math.floor(diff / 60_000);
-  if (min < 1) return 'gerade eben';
-  if (min < 60) return `vor ${min} Min.`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `vor ${h} Std.`;
-  const d = Math.floor(h / 24);
-  return `vor ${d} Tg.`;
-}
 
 /** Board-wide activity feed (A8) in a right-side sheet, opened from the ⋯ menu. */
 export const BoardActivitySheet = memo(function BoardActivitySheet({
@@ -80,7 +70,7 @@ export const BoardActivitySheet = memo(function BoardActivitySheet({
                     <span className="text-grey-500">{VERB[e.type] ?? 'hat etwas geändert'}</span>
                   </span>
                   <span className="ml-auto text-grey-400 shrink-0">
-                    {relativeTime(e.created_at)}
+                    {activityRelativeTime(e.created_at)}
                   </span>
                 </div>
               ))}
