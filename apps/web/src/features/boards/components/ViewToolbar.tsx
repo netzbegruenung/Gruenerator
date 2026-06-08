@@ -21,6 +21,9 @@ import {
 
 import type { Field, BoardView, FilterRule, SortRule } from '../types';
 
+// A12 2D-Swimlanes vorerst deaktiviert (zu komplex) — auf true setzen zum Reaktivieren.
+const SWIMLANES_ENABLED: boolean = false;
+
 interface ViewToolbarProps {
   fields: Field[];
   activeView: BoardView | null;
@@ -89,7 +92,7 @@ export const ViewToolbar = memo(function ViewToolbar({
           onGroupByChange={(fieldId) => onUpdateView(activeView.id, { groupByFieldId: fieldId })}
         />
       ) : null}
-      {activeView.layout === 'kanban' ? (
+      {SWIMLANES_ENABLED && activeView.layout === 'kanban' ? (
         <SwimlaneButton
           fields={fields}
           groupByFieldId={activeView.groupByFieldId}
