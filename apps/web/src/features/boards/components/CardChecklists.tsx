@@ -125,7 +125,7 @@ export const CardChecklists = memo(function CardChecklists({
                 </span>
                 <button
                   onClick={() => deleteGroup(group.id)}
-                  className="text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-1"
+                  className="text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-2 sm:p-1"
                   title="Checkliste löschen"
                 >
                   <FiTrash2 size={12} />
@@ -158,7 +158,7 @@ export const CardChecklists = memo(function CardChecklists({
                     </span>
                     <button
                       onClick={() => deleteItem(group.id, item.id)}
-                      className="sm:opacity-0 sm:group-hover/item:opacity-100 text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer transition-opacity p-1"
+                      className="sm:opacity-0 sm:group-hover/item:opacity-100 text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer transition-opacity p-2 sm:p-1"
                       title="Eintrag entfernen"
                     >
                       <FiX size={12} />

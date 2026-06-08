@@ -175,6 +175,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   const [linkedDocs, setLinkedDocs] = useState<LinkedDoc[]>([]);
   const [newLabelText, setNewLabelText] = useState('');
   const [selectedLabelColor, setSelectedLabelColor] = useState(LABEL_COLORS[0]);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [assignees, setAssignees] = useState<CardAssignee[]>([]);
   const [checklists, setChecklists] = useState<ChecklistGroup[]>([]);
 
@@ -249,6 +250,30 @@ export const CardDetailPanel = memo(function CardDetailPanel({
       onUpdateCell(row.id, FIELD_IDS.LABELS, updated);
     },
     [row, selectedLabelIds, onUpdateCell]
+  );
+
+  // Explicit removal — works even for labels whose board option no longer exists
+  // (e.g. the option was deleted but the card still references the id), which the
+  // toggle list below can't show.
+  const removeLabel = useCallback(
+    (labelId: string) => {
+      if (!row) return;
+      const updated = selectedLabelIds.filter((id) => id !== labelId);
+      setSelectedLabelIds(updated);
+      onUpdateCell(row.id, FIELD_IDS.LABELS, updated);
+    },
+    [row, selectedLabelIds, onUpdateCell]
+  );
+
+  // The labels currently on the card, resolved to {id,name,color} — with a
+  // fallback for orphaned ids so they remain visible and removable.
+  const selectedLabels = useMemo(
+    () =>
+      selectedLabelIds.map((id) => {
+        const opt = labelOptions.find((o) => o.id === id);
+        return { id, name: opt?.name ?? 'Label', color: opt?.color ?? '#9ca3af' };
+      }),
+    [selectedLabelIds, labelOptions]
   );
 
   const addNewLabel = useCallback(() => {
@@ -511,25 +536,49 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                 Labels
               </p>
               <div className="flex-1">
-                {labelOptions.length > 0 && (
+                {/* Assigned labels — explicit removable chips (always available). */}
+                {selectedLabels.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-2">
-                    {labelOptions.map((opt) => (
-                      <Badge
-                        key={opt.id}
-                        className="cursor-pointer text-xs"
-                        style={{
-                          backgroundColor: selectedLabelIds.includes(opt.id)
-                            ? opt.color
-                            : 'transparent',
-                          color: selectedLabelIds.includes(opt.id) ? 'white' : undefined,
-                        }}
-                        variant={selectedLabelIds.includes(opt.id) ? 'default' : 'outline'}
-                        onClick={() => toggleLabel(opt.id)}
-                        title="Klicken zum Umschalten"
+                    {selectedLabels.map((lbl) => (
+                      <span
+                        key={lbl.id}
+                        className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium text-white"
+                        style={{ backgroundColor: lbl.color }}
                       >
-                        {opt.name}
-                      </Badge>
+                        {lbl.name}
+                        <button
+                          onClick={() => removeLabel(lbl.id)}
+                          className="flex items-center justify-center bg-transparent border-none cursor-pointer p-1.5 sm:p-0.5 -mr-1 text-white/80 hover:text-white"
+                          title="Label entfernen"
+                          aria-label={`Label ${lbl.name} entfernen`}
+                        >
+                          <FiX size={13} />
+                        </button>
+                      </span>
                     ))}
+                  </div>
+                )}
+                {/* Add labels — click an option to assign (already-assigned hidden). */}
+                {labelOptions.some((o) => !selectedLabelIds.includes(o.id)) && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {labelOptions
+                      .filter((opt) => !selectedLabelIds.includes(opt.id))
+                      .map((opt) => (
+                        <Badge
+                          key={opt.id}
+                          className="cursor-pointer text-xs"
+                          style={{ backgroundColor: 'transparent' }}
+                          variant="outline"
+                          onClick={() => toggleLabel(opt.id)}
+                          title="Label hinzufügen"
+                        >
+                          <span
+                            className="inline-block w-2 h-2 rounded-full mr-1 shrink-0"
+                            style={{ backgroundColor: opt.color }}
+                          />
+                          {opt.name}
+                        </Badge>
+                      ))}
                   </div>
                 )}
                 <div className="flex gap-1.5 items-center">
@@ -546,18 +595,32 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                     className="flex-1 rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-2.5 sm:py-1.5 text-sm outline-none focus:border-primary-500 placeholder:text-grey-400 dark:placeholder:text-grey-300"
                   />
                   <div className="flex gap-2 sm:gap-1">
-                    {LABEL_COLORS.slice(0, 5).map((color) => (
+                    {colorPickerOpen ? (
+                      LABEL_COLORS.slice(0, 5).map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => {
+                            setSelectedLabelColor(color);
+                            setColorPickerOpen(false);
+                          }}
+                          className="w-7 h-7 sm:w-5 sm:h-5 rounded-full border-none cursor-pointer transition-transform hover:scale-110"
+                          style={{
+                            backgroundColor: color,
+                            outline:
+                              selectedLabelColor === color ? '2px solid currentColor' : 'none',
+                            outlineOffset: '2px',
+                          }}
+                        />
+                      ))
+                    ) : (
                       <button
-                        key={color}
-                        onClick={() => setSelectedLabelColor(color)}
+                        onClick={() => setColorPickerOpen(true)}
                         className="w-7 h-7 sm:w-5 sm:h-5 rounded-full border-none cursor-pointer transition-transform hover:scale-110"
-                        style={{
-                          backgroundColor: color,
-                          outline: selectedLabelColor === color ? '2px solid currentColor' : 'none',
-                          outlineOffset: '2px',
-                        }}
+                        style={{ backgroundColor: selectedLabelColor }}
+                        title="Farbe wählen"
+                        aria-label="Farbe wählen"
                       />
-                    ))}
+                    )}
                   </div>
                 </div>
               </div>
@@ -590,10 +653,10 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                           </span>
                           <button
                             onClick={() => removeAssignee(a.id, a.name)}
-                            className="text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-0.5"
+                            className="flex items-center justify-center text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer p-2 sm:p-0.5"
                             title="Entfernen"
                           >
-                            <FiX size={11} />
+                            <FiX size={13} />
                           </button>
                         </span>
                       ))}
