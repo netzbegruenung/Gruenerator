@@ -203,7 +203,21 @@ export async function applyBoardOperations(
   // Collect deletions to confirm once at the end.
   const deletes: { taskId: string; title: string }[] = [];
 
+  // SAFETY: in an existing board the assistant may only CREATE new items — it must
+  // not edit, move, assign, comment on, archive, duplicate or delete existing
+  // entries (too risky). To re-enable any of those, add its op type here.
+  const ALLOWED_OPS: ReadonlySet<BoardOperation['type']> = new Set([
+    'create_task',
+    'add_column',
+    'add_field',
+    'add_view',
+  ]);
+
   for (const op of ops) {
+    if (!ALLOWED_OPS.has(op.type)) {
+      skipped.push(`„${op.type}" ist deaktiviert — die KI darf nur neue Einträge anlegen`);
+      continue;
+    }
     try {
       switch (op.type) {
         case 'create_task': {
