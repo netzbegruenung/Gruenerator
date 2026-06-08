@@ -311,6 +311,93 @@ export function useConnectBrowseQuery(
   });
 }
 
+// ── @canva (direct Canva Connect API designs) ────────────────────────────────
+//
+// Unlike @connect/@wolke (Nango / Nextcloud), Canva is a direct OAuth
+// integration. The picker lists the user's designs live; selecting designs
+// inserts a markdown link per design into the composer.
+
+export interface ChatCanvaDesign {
+  id: string;
+  title: string;
+  viewUrl: string;
+  editUrl: string;
+  thumbnailUrl: string | null;
+  updatedAt: number | null;
+}
+
+/**
+ * The user's Canva designs. Disabled until the picker opens (`enabled`), and
+ * re-fetched on open so newly created designs show up. Returns an empty list
+ * (not an error) when the user hasn't connected Canva yet — the picker renders
+ * an empty-state in that case.
+ */
+export function useCanvaDesignsQuery(query: string, enabled = true) {
+  const apiClient = useApiClient();
+  return useQuery<{ designs: ChatCanvaDesign[]; connected: boolean }>({
+    queryKey: ['mention-canva-designs', query],
+    queryFn: async () => {
+      try {
+        const qs = query ? `?query=${encodeURIComponent(query)}` : '';
+        const res = await apiClient.get<{ designs?: ChatCanvaDesign[]; error?: string }>(
+          `/api/canva/designs${qs}`
+        );
+        return { designs: Array.isArray(res?.designs) ? res.designs : [], connected: true };
+      } catch {
+        // 404 (not connected) or any failure → treat as "not connected" so the
+        // picker shows the connect-first empty-state instead of an error.
+        return { designs: [], connected: false };
+      }
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    enabled,
+    retry: 1,
+  });
+}
+
+// ── @vorlagen (semantic template search) ─────────────────────────────────────
+//
+// The @vorlagen picker semantically searches the user's published Vorlagen via
+// the backend vector index. Each query embeds the search term and returns the
+// best matches; selecting templates inserts a markdown link per template.
+
+export interface ChatVorlageTemplate {
+  id: string;
+  title: string;
+  description: string | null;
+  thumbnail_url: string | null;
+  external_url: string | null;
+  score: number;
+}
+
+/**
+ * Semantic search over published Vorlagen for the @vorlagen picker. Disabled
+ * until the picker opens (`enabled`); re-fetched per query term. Returns an
+ * empty list (not an error) on any failure so the picker renders an empty-state.
+ */
+export function useVorlagenSearchQuery(query: string, enabled = true) {
+  const apiClient = useApiClient();
+  return useQuery<{ vorlagen: ChatVorlageTemplate[] }>({
+    queryKey: ['mention-vorlagen-search', query],
+    queryFn: async () => {
+      try {
+        const qs = query ? `?query=${encodeURIComponent(query)}` : '';
+        const res = await apiClient.get<{ vorlagen?: ChatVorlageTemplate[] }>(
+          `/api/vorlagen/search${qs}`
+        );
+        return { vorlagen: Array.isArray(res?.vorlagen) ? res.vorlagen : [] };
+      } catch {
+        return { vorlagen: [] };
+      }
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    enabled,
+    retry: 1,
+  });
+}
+
 /**
  * Convenience hook that triggers all dynamic-mentionable queries — call from
  * the chat composer so dynamic mentionables are warm by the time @-popovers

@@ -198,6 +198,22 @@ export const COLLECTION_SCHEMAS: Record<string, CollectionSchema> = {
     hnsw: 'minimal',
     indexes: [],
   },
+  // User-submitted Vorlagen (templates). One point per template, vector built
+  // from title + (AI/user) description + tags. Keyword indexes support later
+  // filtered semantic search (published & public templates, by type/tags/owner).
+  user_templates: {
+    name: 'user_templates',
+    optimizer: 'small',
+    hnsw: 'standard',
+    indexes: [
+      { field: 'template_id', type: 'keyword' },
+      { field: 'user_id', type: 'keywordTenant' },
+      { field: 'template_type', type: 'keyword' },
+      { field: 'status', type: 'keyword' },
+      { field: 'is_private', type: 'keyword' },
+      { field: 'tags', type: 'keyword' },
+    ],
+  },
   social_media_examples: {
     name: 'social_media_examples',
     optimizer: 'large',

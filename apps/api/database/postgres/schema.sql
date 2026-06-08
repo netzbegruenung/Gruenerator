@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     nextcloud_share_links JSONB DEFAULT '[]',
     wordpress_sites JSONB DEFAULT '[]',
     wordpress_enabled BOOLEAN DEFAULT FALSE,
+    canva_connection JSONB DEFAULT NULL,
     document_mode TEXT DEFAULT 'manual',
     user_defaults JSONB DEFAULT '{}',
     docs BOOLEAN DEFAULT FALSE,
@@ -481,6 +482,7 @@ CREATE TABLE IF NOT EXISTS user_templates (
     status TEXT DEFAULT 'published',
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    vector_indexed_at TIMESTAMPTZ,
     CONSTRAINT valid_template_status CHECK (status IN ('published', 'draft', 'archived', 'private', 'public', 'enabled', 'active', 'pending_review', 'rejected'))
 );
 
