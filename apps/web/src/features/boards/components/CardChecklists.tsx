@@ -1,13 +1,23 @@
 import { memo, useCallback, useState } from 'react';
-import { FiCheckSquare, FiPlus, FiTrash2, FiX } from 'react-icons/fi';
+import { FiCheckSquare, FiPlus, FiTrash2, FiUserPlus, FiX } from 'react-icons/fi';
 
-import { checklistProgress, type ChecklistGroup, type ChecklistItem } from '../types';
+import {
+  checklistProgress,
+  type CardAssignee,
+  type ChecklistGroup,
+  type ChecklistItem,
+} from '../types';
 
+import { MemberPicker } from './MemberPicker';
+
+import { RobotAvatar } from '@/components/common/RobotAvatar';
 import { cn } from '@/utils/cn';
 
 interface CardChecklistsProps {
   groups: ChecklistGroup[];
   currentUserId?: string;
+  /** Board context — enables assigning a person to a single checklist item. */
+  boardId?: string;
   /** Persist the next checklist state (caller serializes into the cell). */
   onChange: (groups: ChecklistGroup[]) => void;
 }
@@ -24,6 +34,7 @@ function rid(prefix: string): string {
 export const CardChecklists = memo(function CardChecklists({
   groups,
   currentUserId,
+  boardId,
   onChange,
 }: CardChecklistsProps) {
   const [newItemText, setNewItemText] = useState<Record<string, string>>({});
@@ -104,6 +115,27 @@ export const CardChecklists = memo(function CardChecklists({
     [mutate]
   );
 
+  const setItemAssignee = useCallback(
+    (groupId: string, itemId: string, assignee: CardAssignee | null) => {
+      mutate((draft) =>
+        draft.map((g) =>
+          g.id !== groupId
+            ? g
+            : {
+                ...g,
+                items: g.items.map((it) => {
+                  if (it.id !== itemId) return it;
+                  if (assignee) return { ...it, assignee };
+                  const { assignee: _drop, ...rest } = it;
+                  return rest;
+                }),
+              }
+        )
+      );
+    },
+    [mutate]
+  );
+
   return (
     <div className="flex flex-row items-start">
       <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
@@ -156,6 +188,34 @@ export const CardChecklists = memo(function CardChecklists({
                     >
                       {item.text}
                     </span>
+                    {boardId && (
+                      <MemberPicker
+                        boardId={boardId}
+                        onSelect={(a) => setItemAssignee(group.id, item.id, a)}
+                      >
+                        {item.assignee ? (
+                          <button
+                            className="shrink-0 bg-transparent border-none cursor-pointer p-0"
+                            title={`Zuständig: ${item.assignee.name}`}
+                          >
+                            <RobotAvatar
+                              robotId={item.assignee.avatarRobotId ?? 1}
+                              displayName={item.assignee.name}
+                              sizePx={18}
+                              className="w-[18px] h-[18px] rounded-full"
+                              alt={item.assignee.name}
+                            />
+                          </button>
+                        ) : (
+                          <button
+                            className="sm:opacity-0 sm:group-hover/item:opacity-100 text-grey-400 hover:text-primary-600 bg-transparent border-none cursor-pointer transition-opacity p-1"
+                            title="Person zuweisen"
+                          >
+                            <FiUserPlus size={13} />
+                          </button>
+                        )}
+                      </MemberPicker>
+                    )}
                     <button
                       onClick={() => deleteItem(group.id, item.id)}
                       className="sm:opacity-0 sm:group-hover/item:opacity-100 text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer transition-opacity p-1"
