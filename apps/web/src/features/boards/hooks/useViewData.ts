@@ -16,6 +16,8 @@ interface UseViewDataInput {
   rows: Row[];
   views: BoardView[];
   activeViewId: string;
+  /** When false (default) archived cards are filtered out of every layout. */
+  includeArchived?: boolean;
 }
 
 interface UseViewDataOutput {
@@ -150,17 +152,24 @@ export function useViewData({
   rows,
   views,
   activeViewId,
+  includeArchived = false,
 }: UseViewDataInput): UseViewDataOutput {
   const activeView = useMemo(
     () => views.find((v) => v.id === activeViewId) ?? views[0] ?? null,
     [views, activeViewId]
   );
 
+  // Hide archived (soft-deleted) cards from every view unless explicitly included.
+  const visibleRows = useMemo(
+    () => (includeArchived ? rows : rows.filter((r) => !r.archivedAt)),
+    [rows, includeArchived]
+  );
+
   const filteredRows = useMemo(() => {
-    if (!activeView) return rows;
-    const filtered = applyFilters(rows, activeView.filters, fields);
+    if (!activeView) return visibleRows;
+    const filtered = applyFilters(visibleRows, activeView.filters, fields);
     return applySorts(filtered, activeView.sorts);
-  }, [rows, activeView, fields]);
+  }, [visibleRows, activeView, fields]);
 
   const groups = useMemo(() => {
     if (!activeView?.groupByFieldId) {
