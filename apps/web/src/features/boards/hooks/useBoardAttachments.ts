@@ -28,8 +28,10 @@ export function useBoardAttachments(boardId: string | undefined, cardId: string)
       if (!boardId) return;
       const form = new FormData();
       form.append('file', file);
+      // apiClient already has baseURL '/api' — path must be relative to it
+      // (a leading '/api' would produce '/api/api/...').
       await getGlobalApiClient().post(
-        `/api/board-attachments/${boardId}/cards/${cardId}/upload`,
+        `/board-attachments/${boardId}/cards/${cardId}/upload`,
         form,
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
