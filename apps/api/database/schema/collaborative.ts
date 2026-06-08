@@ -20,6 +20,8 @@ export const collaborative_documents = pgTable('collaborative_documents', {
   id: uuid('id').primaryKey().defaultRandom(),
   title: text('title').notNull(),
   content: text('content'),
+  // Board-level markdown description (board-overview briefing). Boards only.
+  description: text('description'),
   created_by: uuid('created_by'),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
