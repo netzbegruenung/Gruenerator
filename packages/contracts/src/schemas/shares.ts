@@ -82,3 +82,68 @@ export const pushToPhoneResponseSchema = z.object({
   success: z.literal(true),
   pushedToDevices: z.number(),
 });
+
+// ── Read / management endpoints ─────────────────────────────────────────────
+
+// Query schemas — kept as raw strings; handlers parse exactly like the legacy
+// router did (parseInt fallbacks etc.) to preserve behavior.
+export const mySharesQuerySchema = z.object({
+  type: z.string().optional(),
+  status: z.string().optional(),
+});
+
+export const recentSharesQuerySchema = z.object({
+  limit: z.string().optional(),
+});
+
+export const templatesQuerySchema = z.object({
+  visibility: z.string().optional(),
+});
+
+export const shareListResponseSchema = z.object({
+  success: z.literal(true),
+  shares: z.array(z.unknown()),
+  count: z.number(),
+  limit: z.number(),
+});
+
+export const shareListSimpleResponseSchema = z.object({
+  success: z.literal(true),
+  shares: z.array(z.unknown()),
+});
+
+export const deleteShareResponseSchema = z.object({
+  success: z.literal(true),
+  message: z.string(),
+});
+
+export const clonedShareSchema = z.object({
+  id: z.string(),
+  shareToken: z.string(),
+  shareUrl: z.string(),
+  createdAt: z.union([z.string(), z.date()]),
+  mediaType: z.enum(['image', 'video']),
+  hasOriginalImage: z.boolean().optional(),
+  status: z.string().optional(),
+});
+
+export const cloneTemplateResponseSchema = z.object({
+  success: z.literal(true),
+  share: clonedShareSchema,
+  message: z.string(),
+});
+
+export const listTemplatesResponseSchema = z.object({
+  success: z.literal(true),
+  templates: z.array(z.unknown()),
+});
+
+export const getTemplateResponseSchema = z.object({
+  success: z.literal(true),
+  template: z.unknown(),
+});
+
+export const listDevicesResponseSchema = z.object({
+  success: z.literal(true),
+  devices: z.array(z.unknown()),
+});
