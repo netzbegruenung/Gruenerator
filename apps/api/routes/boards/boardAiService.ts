@@ -42,14 +42,19 @@ const BOARD_TOOL_STRICT_PROMPT = `You translate a user's request into board oper
 
 You MUST respond ONLY by calling applyBoardOperations with { "operations": [ ... ] }.
 Each operation has a "type" and the fields documented in the schema. Valid types:
-- create_task { title, status?, description?, dueDate?, assignee?, labels? }
+- create_task { title, status?, description?, dueDate?, assignee?, assignees?, labels? }
 - update_task { taskId, title?, description?, dueDate? }
-- delete_task { taskId }
+- delete_task { taskId }                // permanent; archive_task is the soft option
+- archive_task { taskId }               // hide the card from all views (soft-delete)
+- restore_task { taskId }               // bring an archived card back
+- duplicate_task { taskId }             // clone the card into the same column
 - move_task { taskId, status }
 - add_comment { taskId, text }
-- set_assignee { taskId, assignee? }
+- set_assignee { taskId, assignee? }    // single person (legacy)
+- set_assignees { taskId, assignees[] } // multiple people — prefer this for >1
 - set_labels { taskId, labels[] }
 - set_due_date { taskId, dueDate? }   // ISO date (YYYY-MM-DD) or null to clear
+- add_checklist_item { taskId, checklistTitle?, text }  // appends a checklist item
 - add_column { name, color? }
 - rename_column { columnId, name }
 - add_field { name, fieldType, options? }
@@ -57,7 +62,9 @@ Each operation has a "type" and the fields documented in the schema. Valid types
 
 RULES:
 - Use the EXACT taskId values from the board state for existing tasks.
-- For "status", "assignee" and "labels" use HUMAN NAMES (e.g. "In Arbeit", "Erledigt", a member's name, "Dringend"). The client resolves them to ids and creates a column/label if it does not exist yet.
+- For "status", "assignee"/"assignees" and "labels" use HUMAN NAMES (e.g. "In Arbeit", "Erledigt", a member's name, "Dringend"). The client resolves them to ids and creates a column/label if it does not exist yet.
+- When assigning more than one person, use set_assignees with a list; use set_assignee only for a single person.
+- Prefer archive_task over delete_task unless the user explicitly wants permanent deletion.
 - Combine multiple changes into one operations array when the user asks for several things.
 - Dates must be ISO (YYYY-MM-DD). Resolve relative dates ("nächsten Freitag") against today.
 - Only emit operations the user actually asked for. If nothing should change, return an empty operations array.

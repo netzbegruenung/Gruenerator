@@ -117,6 +117,44 @@ export const useBoardState = (
   );
 
   /**
+   * Clone a card into the same column, right after the source. Copies all Yjs
+   * cell data (title gets a " (Kopie)" suffix); intentionally drops `archivedAt`
+   * and the relational tail (comments/attachments/activity live in Postgres and
+   * are not cloned). Returns the new row id.
+   */
+  const duplicateRow = useCallback(
+    (rowId: string, createdBy: string): string | null => {
+      let newId: string | null = null;
+      ydoc.transact(() => {
+        const rows = yRows.toJSON() as Row[];
+        const index = rows.findIndex((r) => r.id === rowId);
+        if (index === -1) return;
+        const src = rows[index];
+        const FIELD_TITLE = 'field-title';
+        newId = `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const cells = { ...src.cells };
+        const title = cells[FIELD_TITLE];
+        if (typeof title === 'string') cells[FIELD_TITLE] = `${title} (Kopie)`;
+        // Reset comment counter cell so the clone starts with no comments.
+        if ('field-comments' in cells) cells['field-comments'] = '[]';
+        const clone: Row = {
+          id: newId,
+          cells,
+          createdBy,
+          createdAt: new Date().toISOString(),
+          ...(src.icon ? { icon: src.icon } : {}),
+          ...(src.coverColor ? { coverColor: src.coverColor } : {}),
+          ...(src.coverImageUrl ? { coverImageUrl: src.coverImageUrl } : {}),
+          // archivedAt intentionally omitted (clone is active).
+        };
+        yRows.insert(index + 1, [clone]);
+      });
+      return newId;
+    },
+    [ydoc, yRows]
+  );
+
+  /**
    * Called by kibo-ui Kanban after a drag-and-drop.
    * Receives the full rows array with updated group assignments.
    * We diff against current state and apply column (group) changes.
@@ -226,6 +264,7 @@ export const useBoardState = (
     updateRow,
     updateRowCell,
     deleteRow,
+    duplicateRow,
     onDragReorder,
     addField,
     updateField,

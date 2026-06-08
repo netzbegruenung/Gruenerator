@@ -147,6 +147,11 @@ export const boardRowSchema = z.object({
   createdAt: z.string(),
   icon: z.string().optional(),
   coverColor: z.string().optional(),
+  // Image attachment used as the card cover (set via "Als Cover" on an attachment).
+  coverImageUrl: z.string().optional(),
+  // ISO timestamp set when the card is archived (soft-delete); absent = active.
+  // Archived rows are filtered out of every view by default (useViewData).
+  archivedAt: z.string().optional(),
 });
 
 export const viewLayoutSchema = z.enum(['kanban', 'table', 'list', 'calendar', 'gantt']);
@@ -267,7 +272,9 @@ export const boardOperationSchema = z.discriminatedUnion('type', [
     status: z.string().nullish(),
     description: z.string().nullish(),
     dueDate: z.string().nullish(),
+    // `assignee` (single) kept for backward compat; `assignees` (multi) preferred.
     assignee: z.string().nullish(),
+    assignees: z.array(z.string()).nullish(),
     labels: z.array(z.string()).nullish(),
   }),
   z.object({
@@ -278,13 +285,30 @@ export const boardOperationSchema = z.discriminatedUnion('type', [
     dueDate: z.string().nullish(),
   }),
   z.object({ type: z.literal('delete_task'), taskId: z.string() }),
+  // Soft-delete: archive hides the card from all views; restore brings it back.
+  z.object({ type: z.literal('archive_task'), taskId: z.string() }),
+  z.object({ type: z.literal('restore_task'), taskId: z.string() }),
+  // Clone a card (cells incl. checklists/labels/assignees) into the same column.
+  z.object({ type: z.literal('duplicate_task'), taskId: z.string() }),
   z.object({ type: z.literal('move_task'), taskId: z.string(), status: z.string() }),
   // ── comments ──
   z.object({ type: z.literal('add_comment'), taskId: z.string(), text: z.string() }),
   // ── people / fields on a task ──
   z.object({ type: z.literal('set_assignee'), taskId: z.string(), assignee: z.string().nullish() }),
+  z.object({
+    type: z.literal('set_assignees'),
+    taskId: z.string(),
+    assignees: z.array(z.string()),
+  }),
   z.object({ type: z.literal('set_labels'), taskId: z.string(), labels: z.array(z.string()) }),
   z.object({ type: z.literal('set_due_date'), taskId: z.string(), dueDate: z.string().nullish() }),
+  // Append an item to a card checklist (creates the named checklist if absent).
+  z.object({
+    type: z.literal('add_checklist_item'),
+    taskId: z.string(),
+    checklistTitle: z.string().nullish(),
+    text: z.string(),
+  }),
   // ── columns (status options) ──
   z.object({ type: z.literal('add_column'), name: z.string(), color: z.string().nullish() }),
   z.object({ type: z.literal('rename_column'), columnId: z.string(), name: z.string() }),

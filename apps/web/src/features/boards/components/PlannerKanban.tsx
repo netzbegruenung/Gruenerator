@@ -150,6 +150,7 @@ interface PlannerKanbanProps {
   updateRow: (rowId: string, updates: Partial<Row>) => void;
   updateRowCell: (rowId: string, fieldId: string, value: CellValue) => void;
   deleteRow: (rowId: string) => void;
+  duplicateRow: (rowId: string, createdBy: string) => string | null;
   updateField: (fieldId: string, updates: Partial<Field>) => void;
   removeField: (fieldId: string) => void;
   onUpdateView?: (viewId: string, updates: Partial<BoardView>) => void;
@@ -167,6 +168,7 @@ export function PlannerKanban({
   updateRow,
   updateRowCell,
   deleteRow,
+  duplicateRow,
   updateField,
   onUpdateView,
   currentUserId,
@@ -478,6 +480,7 @@ export function PlannerKanban({
         onUpdateCell={updateRowCell}
         onUpdateRow={updateRow}
         onDelete={deleteRow}
+        onDuplicate={(rowId) => duplicateRow(rowId, currentUserId)}
         onUpdateField={updateField}
         boardId={boardId}
         currentUserId={currentUserId}
