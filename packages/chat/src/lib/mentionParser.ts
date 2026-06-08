@@ -168,6 +168,14 @@ export function parseAllMentions(text: string): ParsedMentions {
       continue;
     }
 
+    // Handle bare @vorlagen trigger (popover hint — strip, no payload). Picked
+    // templates are inserted as plain markdown links, like @canva.
+    if (trigger === '@' && alias === 'vorlagen') {
+      const triggerIndex = match.index + match[0].indexOf('@');
+      mentionSpans.push([triggerIndex, triggerIndex + alias.length + 1]);
+      continue;
+    }
+
     const mentionable = resolveMentionable(alias);
     if (!mentionable) {
       if (trigger === '@') {
@@ -287,7 +295,8 @@ export function extractMentionPreviews(text: string): MentionPreview[] {
         alias === 'dokumentchat' ||
         alias === 'wolke' ||
         alias === 'connect' ||
-        alias === 'canva')
+        alias === 'canva' ||
+        alias === 'vorlagen')
     ) {
       continue;
     }

@@ -22,6 +22,7 @@ export const userTemplates = pgTable(
     status: text('status').notNull().default('published'),
     created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updated_at: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    vector_indexed_at: timestamp('vector_indexed_at', { withTimezone: true }),
   },
   (t) => [
     index('idx_user_templates_user_id').on(t.user_id),
