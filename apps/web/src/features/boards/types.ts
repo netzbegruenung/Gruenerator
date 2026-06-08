@@ -81,6 +81,14 @@ export interface RowGroup {
   rows: Row[];
 }
 
+/** A horizontal swimlane (A12): a lane value × the normal column groups within it. */
+export interface SwimlaneGroup {
+  laneId: string;
+  laneName: string;
+  laneColor: string;
+  groups: RowGroup[];
+}
+
 // ---------------------------------------------------------------------------
 // Legacy types (used by MemberPicker, kept for compatibility) — client-only
 // ---------------------------------------------------------------------------

@@ -21,6 +21,10 @@ const VERB: Record<ActivityType, string> = {
   card_restored: 'hat die Karte wiederhergestellt',
   comment_added: 'hat kommentiert',
   attachment_added: 'hat einen Anhang hinzugefügt',
+  board_renamed: 'hat das Board umbenannt',
+  board_archived: 'hat das Board archiviert',
+  board_restored: 'hat das Board wiederhergestellt',
+  board_duplicated: 'hat das Board dupliziert',
 };
 
 function relativeTime(iso: string): string {
