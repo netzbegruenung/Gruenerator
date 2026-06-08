@@ -39,6 +39,13 @@ export interface BoardExecutorCtx {
   boardState: BoardMutations;
   currentUserId: string;
   assignableMembers: AssignableMember[];
+  /**
+   * Field the visible Kanban columns are grouped by (the active view). All
+   * column/status operations target THIS field, not a hardcoded one — so an
+   * AI-added column lands on the field actually on screen. Defaults to
+   * FIELD_IDS.STATUS (the standard every template's Kanban view groups by).
+   */
+  groupByFieldId?: string;
   /** Adds a plain-text comment to a card (REST). */
   addComment: (taskId: string, text: string) => Promise<void>;
   /** Confirms a batch of deletions. Resolves true to proceed. */
@@ -88,11 +95,15 @@ export async function applyBoardOperations(
   const skipped: string[] = [];
   let applied = 0;
 
+  // The field the visible columns are grouped by — every column/status op targets
+  // this, never a hardcoded id, so AI edits hit the field on screen.
+  const statusFieldId = ctx.groupByFieldId ?? FIELD_IDS.STATUS;
+
   // Local working copies of select-option sets, seeded from the live board and
   // mutated as we go — so multiple ops in one batch that create/reference the
   // same column or label stay consistent (the React snapshot won't update
   // synchronously between ops within this run).
-  const statusField = boardState.fields.find((f) => f.id === FIELD_IDS.STATUS);
+  const statusField = boardState.fields.find((f) => f.id === statusFieldId);
   let statusOptions: SelectOption[] = [
     ...((statusField?.typeOptions.options as SelectOption[] | undefined) ?? []),
   ];
@@ -115,7 +126,7 @@ export async function applyBoardOperations(
     const color =
       COLUMN_COLORS[(statusOptions.length % (COLUMN_COLORS.length - 1)) + 1] ?? '#8da4bf';
     statusOptions = [...statusOptions, { id, name: nameOrId.trim(), color }];
-    boardState.updateField(FIELD_IDS.STATUS, {
+    boardState.updateField(statusFieldId, {
       typeOptions: { ...statusField.typeOptions, options: statusOptions },
     });
     return id;
@@ -198,6 +209,9 @@ export async function applyBoardOperations(
         case 'create_task': {
           const statusId = resolveStatusId(op.status) ?? statusOptions[0]?.id ?? 'status-todo';
           const row = createDefaultRow(statusId, ctx.currentUserId);
+          // createDefaultRow writes the status cell on FIELD_IDS.STATUS; if the
+          // board groups by another field, place the card in the visible column too.
+          if (statusFieldId !== FIELD_IDS.STATUS) row.cells[statusFieldId] = statusId;
           row.cells[FIELD_IDS.TITLE] = op.title;
           if (op.description != null) row.cells[FIELD_IDS.DESCRIPTION] = op.description;
           if (op.dueDate != null) row.cells[FIELD_IDS.DUE_DATE] = op.dueDate;
@@ -236,7 +250,7 @@ export async function applyBoardOperations(
             skipped.push(`Spalte „${op.status}" konnte nicht aufgelöst werden`);
             break;
           }
-          boardState.updateRowCell(op.taskId, FIELD_IDS.STATUS, statusId);
+          boardState.updateRowCell(op.taskId, statusFieldId, statusId);
           applied++;
           break;
         }
@@ -357,7 +371,7 @@ export async function applyBoardOperations(
             break;
           }
           statusOptions = statusOptions.map((o, i) => (i === idx ? { ...o, name: op.name } : o));
-          boardState.updateField(FIELD_IDS.STATUS, {
+          boardState.updateField(statusFieldId, {
             typeOptions: { ...statusField.typeOptions, options: statusOptions },
           });
           applied++;
