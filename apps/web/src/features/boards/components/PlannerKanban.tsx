@@ -69,6 +69,7 @@ interface ColumnBoardProps {
   onDeleteGroup: (groupId: string) => void;
   onHideGroup: (groupId: string) => void;
   onColorChange: (groupId: string, color: string) => void;
+  onDuplicateGroup: (groupId: string) => void;
   handleAddCard: (groupId: string, name: string) => void;
   onCardClick: (row: Row) => void;
   onRenameCard: (rowId: string, title: string) => void;
@@ -84,6 +85,7 @@ const ColumnBoard = memo(function ColumnBoard({
   onDeleteGroup,
   onHideGroup,
   onColorChange,
+  onDuplicateGroup,
   handleAddCard,
   onCardClick,
   onRenameCard,
@@ -98,6 +100,10 @@ const ColumnBoard = memo(function ColumnBoard({
   const onColor = useCallback(
     (color: string) => onColorChange(groupId, color),
     [onColorChange, groupId]
+  );
+  const onDuplicate = useCallback(
+    () => onDuplicateGroup(groupId),
+    [onDuplicateGroup, groupId]
   );
   const onAdd = useCallback(
     (name: string) => handleAddCard(groupId, name),
@@ -120,6 +126,7 @@ const ColumnBoard = memo(function ColumnBoard({
           onDelete={onDelete}
           onHide={onHide}
           onColorChange={onColor}
+          onDuplicate={onDuplicate}
         />
       </KanbanHeader>
       <KanbanCards<KanbanItem> id={groupId}>
@@ -389,6 +396,46 @@ export function PlannerKanban({
     [statusField, updateField]
   );
 
+  // Duplicate a whole column: a new status option right after the source, then
+  // clone every (non-archived) card from that column into the new one.
+  const handleDuplicateGroup = useCallback(
+    (optionId: string) => {
+      if (!statusField) return;
+      const options = (statusField.typeOptions.options ?? []) as SelectOption[];
+      const idx = options.findIndex((o) => o.id === optionId);
+      if (idx === -1) return;
+      const src = options[idx];
+      const newOptId = `status-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const newOption: SelectOption = {
+        id: newOptId,
+        name: `${src.name} (Kopie)`,
+        color: src.color,
+      };
+      updateField(statusField.id, {
+        typeOptions: {
+          ...statusField.typeOptions,
+          options: [...options.slice(0, idx + 1), newOption, ...options.slice(idx + 1)],
+        },
+      });
+
+      const group = groups.find((g) => g.groupId === optionId);
+      group?.rows.forEach((row, i) => {
+        const cells: Record<string, CellValue> = { ...row.cells, [FIELD_IDS.STATUS]: newOptId };
+        if (FIELD_IDS.COMMENTS in cells) cells[FIELD_IDS.COMMENTS] = '[]';
+        addRow({
+          id: `row-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+          cells,
+          createdBy: currentUserId,
+          createdAt: new Date().toISOString(),
+          ...(row.icon ? { icon: row.icon } : {}),
+          ...(row.coverColor ? { coverColor: row.coverColor } : {}),
+          ...(row.coverImageUrl ? { coverImageUrl: row.coverImageUrl } : {}),
+        });
+      });
+    },
+    [statusField, updateField, groups, addRow, currentUserId]
+  );
+
   const cardCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const group of groups) {
@@ -463,6 +510,7 @@ export function PlannerKanban({
               onDeleteGroup={handleDeleteGroup}
               onHideGroup={handleHideGroup}
               onColorChange={handleColorChange}
+              onDuplicateGroup={handleDuplicateGroup}
               handleAddCard={handleAddCard}
               onCardClick={handleCardClick}
               onRenameCard={handleRenameCard}

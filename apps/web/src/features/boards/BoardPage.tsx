@@ -372,6 +372,7 @@ function BoardViewContent({
                     userName={userName}
                     boardTitle={boardTitle}
                     boardState={boardState}
+                    groupByFieldId={activeView?.groupByFieldId ?? FIELD_IDS.STATUS}
                     isOpen={assistantOpen}
                   />
                 </Suspense>
