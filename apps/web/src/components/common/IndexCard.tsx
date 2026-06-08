@@ -1,5 +1,6 @@
 import { Badge } from '@gruenerator/ui';
 import { memo, type JSX, type ReactNode } from 'react';
+import { HiOutlineUser } from 'react-icons/hi2';
 import { IoHeart, IoHeartOutline } from 'react-icons/io5';
 
 import { cn } from '@/utils/cn';
@@ -18,6 +19,8 @@ export interface IndexCardProps {
   imageAlt?: string;
   authorName?: string;
   authorEmail?: string;
+  /** Small pill rendered as an overlay (over the thumbnail) / inline marker, e.g. "Community". */
+  badge?: ReactNode;
   onTagClick?: (tag: string) => void;
   isLiked?: boolean;
   onLikeToggle?: (id: string) => void;
@@ -38,6 +41,7 @@ const IndexCard = memo(
     imageAlt = '',
     authorName,
     authorEmail,
+    badge,
     onTagClick,
     isLiked = false,
     onLikeToggle,
@@ -90,6 +94,7 @@ const IndexCard = memo(
               loading="lazy"
               className="w-full h-full object-contain"
             />
+            {badge != null && <div className="absolute top-sm left-sm">{badge}</div>}
             {onLikeToggle != null && (
               <button
                 type="button"
@@ -108,6 +113,7 @@ const IndexCard = memo(
         )}
 
         <div className={cn('flex flex-col flex-1', hasImage && 'p-lg max-md:p-md')}>
+          {badge != null && !hasImage && <div className="mb-sm">{badge}</div>}
           <div className="flex justify-between items-start mb-md">
             <h3 className="text-xl max-md:text-lg font-semibold text-foreground-heading m-0 flex-1">
               {title}
@@ -145,18 +151,22 @@ const IndexCard = memo(
           )}
 
           {authorName && (
-            <div className="text-sm text-foreground mb-sm">
-              {authorEmail ? (
-                <a
-                  href={`mailto:${authorEmail}`}
-                  className="text-primary-600 no-underline hover:underline"
-                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                >
-                  {authorName}
-                </a>
-              ) : (
-                <span>{authorName}</span>
-              )}
+            <div className="flex items-center gap-xs text-sm text-grey-600 dark:text-grey-400 mb-sm">
+              <HiOutlineUser className="size-4 shrink-0" aria-hidden="true" />
+              <span>
+                von{' '}
+                {authorEmail ? (
+                  <a
+                    href={`mailto:${authorEmail}`}
+                    className="font-medium text-primary-600 no-underline hover:underline"
+                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                  >
+                    {authorName}
+                  </a>
+                ) : (
+                  <span className="font-medium text-foreground">{authorName}</span>
+                )}
+              </span>
             </div>
           )}
 
@@ -180,7 +190,8 @@ const IndexCard = memo(
       prev.id === next.id &&
       prev.variant === next.variant &&
       prev.authorName === next.authorName &&
-      prev.authorEmail === next.authorEmail
+      prev.authorEmail === next.authorEmail &&
+      prev.badge === next.badge
     );
   }
 );
