@@ -90,6 +90,8 @@ interface BoardAssistantProviderProps {
   userName: string | null;
   boardTitle: string | null;
   boardState: BoardMutations;
+  /** Active view's grouping field — column/status ops target this field. */
+  groupByFieldId?: string;
   children: ReactNode;
 }
 
@@ -99,6 +101,7 @@ export function BoardAssistantProvider({
   userName,
   boardTitle,
   boardState,
+  groupByFieldId,
   children,
 }: BoardAssistantProviderProps) {
   if (!userId) {
@@ -114,6 +117,7 @@ export function BoardAssistantProvider({
         userName={userName}
         boardTitle={boardTitle}
         boardState={boardState}
+        groupByFieldId={groupByFieldId}
       >
         {children}
       </BoardAssistantProviderInner>
@@ -132,6 +136,8 @@ interface InnerProps {
   userName: string | null;
   boardTitle: string | null;
   boardState: BoardMutations;
+  /** Active view's grouping field — column/status ops target this field. */
+  groupByFieldId?: string;
   children: ReactNode;
 }
 
@@ -141,6 +147,7 @@ function BoardAssistantProviderInner({
   userName,
   boardTitle,
   boardState,
+  groupByFieldId,
   children,
 }: InnerProps) {
   const {
@@ -191,6 +198,7 @@ function BoardAssistantProviderInner({
       userName={userName}
       boardTitle={boardTitle}
       boardState={boardState}
+      groupByFieldId={groupByFieldId}
     >
       {children}
     </BoardChatReadyHost>
@@ -204,6 +212,8 @@ interface ReadyHostProps {
   userName: string | null;
   boardTitle: string | null;
   boardState: BoardMutations;
+  /** Active view's grouping field — column/status ops target this field. */
+  groupByFieldId?: string;
   children: ReactNode;
 }
 
@@ -214,6 +224,7 @@ function BoardChatReadyHost({
   userName,
   boardTitle,
   boardState,
+  groupByFieldId,
   children,
 }: ReadyHostProps) {
   const fetchFn = useChatConfigStore((s) => s.fetch);
@@ -234,6 +245,8 @@ function BoardChatReadyHost({
   boardStateRef.current = boardState;
   const boardTitleRef = useRef(boardTitle);
   boardTitleRef.current = boardTitle;
+  const groupByFieldIdRef = useRef(groupByFieldId);
+  groupByFieldIdRef.current = groupByFieldId;
   const membersRef = useRef(assignableMembers ?? []);
   membersRef.current = assignableMembers ?? [];
 
@@ -273,6 +286,7 @@ function BoardChatReadyHost({
         rows: boardStateRef.current.rows,
         views: boardStateRef.current.views,
         assignableMembers: membersRef.current,
+        ...(groupByFieldIdRef.current ? { groupByFieldId: groupByFieldIdRef.current } : {}),
       }),
     });
     return registerContextProvider(threadId, provider);
@@ -310,11 +324,18 @@ function BoardChatReadyHost({
           toast.error('Board-Aktion fehlgeschlagen.');
           return;
         }
-        if (result.body.operations.length === 0) return;
+        if (result.body.operations.length === 0) {
+          // The planner returned no operations — the chat reply may still sound
+          // like a success, so surface that nothing was applied instead of
+          // returning silently.
+          toast.info('Es wurde keine Board-Änderung erkannt — nichts wurde geändert.');
+          return;
+        }
         const { applied, skipped } = await applyBoardOperations(result.body.operations, {
           boardState: boardStateRef.current,
           currentUserId: userId,
           assignableMembers: membersRef.current,
+          ...(groupByFieldIdRef.current ? { groupByFieldId: groupByFieldIdRef.current } : {}),
           addComment: async (taskId, text) => {
             const res = await getContractsClient().boardComments.createComment({
               params: { boardId, cardId: taskId },
