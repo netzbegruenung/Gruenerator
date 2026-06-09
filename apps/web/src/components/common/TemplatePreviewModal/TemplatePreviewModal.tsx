@@ -11,6 +11,9 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { HiExternalLink, HiChevronLeft, HiChevronRight } from 'react-icons/hi';
 import { SiCanva } from 'react-icons/si';
 
+import FavoriteButton from '../FavoriteButton';
+import LikeButton from '../LikeButton';
+
 import { cn } from '@/utils/cn';
 
 const formatDate = (value: string | number | Date | null | undefined) => {
@@ -60,6 +63,17 @@ interface TemplatePreviewModalProps {
   onClose: () => void;
   template: Template;
   onTagClick?: (tag: string) => void;
+  // Like (public heart + count)
+  liked?: boolean;
+  likeCount?: number;
+  onToggleLike?: () => void;
+  likeToggling?: boolean;
+  canLike?: boolean;
+  // Favorite (personal star bookmark)
+  favorited?: boolean;
+  onToggleFavorite?: () => void;
+  favoriteToggling?: boolean;
+  canFavorite?: boolean;
 }
 
 const TemplatePreviewModal = ({
@@ -67,6 +81,15 @@ const TemplatePreviewModal = ({
   onClose,
   template,
   onTagClick,
+  liked = false,
+  likeCount = 0,
+  onToggleLike,
+  likeToggling = false,
+  canLike = false,
+  favorited = false,
+  onToggleFavorite,
+  favoriteToggling = false,
+  canFavorite = false,
 }: TemplatePreviewModalProps): React.ReactNode => {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -277,7 +300,29 @@ const TemplatePreviewModal = ({
           </div>
         </div>
 
-        <DialogFooter className="px-lg py-md border-t border-grey-200 dark:border-grey-700">
+        <DialogFooter className="px-lg py-md border-t border-grey-200 dark:border-grey-700 sm:justify-between items-center gap-md">
+          <div className="flex items-center gap-sm">
+            {onToggleLike && (
+              <LikeButton
+                liked={liked}
+                count={likeCount}
+                onToggle={onToggleLike}
+                loading={likeToggling}
+                disabled={!canLike}
+                disabledReason={!canLike ? 'Melde dich an, um zu liken' : undefined}
+              />
+            )}
+            {onToggleFavorite && (
+              <FavoriteButton
+                favorited={favorited}
+                onToggle={onToggleFavorite}
+                loading={favoriteToggling}
+                disabled={!canFavorite}
+                disabledReason={!canFavorite ? 'Melde dich an, um zu merken' : undefined}
+                showLabel
+              />
+            )}
+          </div>
           <Button onClick={handleOpenExternal}>
             {isCanva ? (
               <>

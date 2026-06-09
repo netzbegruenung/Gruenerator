@@ -17,31 +17,99 @@ export async function getProfileForDelivery(userId: string): Promise<UserProfile
 }
 
 /**
- * Platform defaults per notification type.
- * Encodes which channels are enabled by default for each type.
- * Types that previously had `emailPreference: false` in the frontend config
- * now have `email: false` here — single source of truth.
+ * Importance tier per notification type (single source of truth).
+ *   1 = Kritisch & persönlich (an auch bei "Wenig")
+ *   2 = Wichtig             (an ab "Mittel" = Standard)
+ *   3 = Optional/Info       (nur bei "Viele")
+ * The 3-level user setting (Wenig/Mittel/Viele) is just a threshold over these
+ * tiers; channels are uniform — an active type fires on all channels, an
+ * inactive type on none.
  */
-const DEFAULT_CHANNEL_PREFERENCES: Record<NotificationType, ChannelPreferences> = {
-  document_shared: { email: true, push: true, in_app: true },
-  document_permission_changed: { email: false, push: true, in_app: true },
-  document_access_revoked: { email: false, push: true, in_app: true },
-  board_updates: { email: true, push: true, in_app: true },
-  board_comment_added: { email: false, push: true, in_app: true },
-  board_comment_reply: { email: false, push: true, in_app: true },
-  board_user_mentioned: { email: true, push: true, in_app: true },
-  group_member_joined: { email: true, push: true, in_app: true },
-  group_member_left: { email: false, push: true, in_app: true },
-  group_role_changed: { email: false, push: true, in_app: true },
-  group_content_shared: { email: true, push: true, in_app: true },
-  group_deleted: { email: false, push: true, in_app: true },
-  group_join_requested: { email: true, push: true, in_app: true },
-  group_join_approved: { email: true, push: true, in_app: true },
-  group_join_denied: { email: false, push: true, in_app: true },
-  transfer_downloaded: { email: false, push: true, in_app: true },
-  notebook_liked: { email: false, push: false, in_app: true },
-  wolke_new_files: { email: true, push: true, in_app: true },
+const TYPE_IMPORTANCE: Record<NotificationType, 1 | 2 | 3> = {
+  document_shared: 1,
+  document_permission_changed: 2,
+  document_access_revoked: 1,
+  board_updates: 2,
+  board_comment_added: 3,
+  board_comment_reply: 1,
+  board_user_mentioned: 1,
+  board_card_assigned: 1,
+  board_card_status_changed: 2,
+  board_attachment_added: 2,
+  board_due_date_reminder: 1,
+  board_card_watching: 2,
+  group_member_joined: 3,
+  group_member_left: 3,
+  group_role_changed: 3,
+  group_content_shared: 3,
+  group_deleted: 1,
+  group_join_requested: 3,
+  group_join_approved: 1,
+  group_join_denied: 1,
+  transfer_downloaded: 3,
+  notebook_liked: 3,
+  template_liked: 3,
+  wolke_new_files: 2,
+  // Tier 1: the user explicitly delegated work and is waiting on the result —
+  // always deliver (incl. email) regardless of notification level.
+  agent_task_completed: 1,
+  agent_task_failed: 1,
+  new_avatars: 1,
 };
+
+export type NotificationLevel = 'low' | 'medium' | 'high';
+
+const LEVEL_THRESHOLD: Record<NotificationLevel, 1 | 2 | 3> = {
+  low: 1,
+  medium: 2,
+  high: 3,
+};
+
+const ALL_ON: ChannelPreferences = { email: true, push: true, in_app: true };
+const ALL_OFF: ChannelPreferences = { email: false, push: false, in_app: false };
+
+/**
+ * Build the full per-type preference map for a level. A type is fully on when
+ * its importance tier is at or below the level's threshold, otherwise fully off.
+ */
+export function getPresetPreferences(
+  level: NotificationLevel
+): Record<NotificationType, ChannelPreferences> {
+  const threshold = LEVEL_THRESHOLD[level];
+  const result = {} as Record<NotificationType, ChannelPreferences>;
+  for (const type of ALL_NOTIFICATION_TYPES) {
+    result[type] = TYPE_IMPORTANCE[type] <= threshold ? { ...ALL_ON } : { ...ALL_OFF };
+  }
+  return result;
+}
+
+/**
+ * Platform defaults = the "Mittel" preset. Making medium the default means a
+ * fresh user (no stored prefs) naturally resolves to level "medium", and
+ * existing users without an explicit override stop receiving tier-3 noise
+ * (e.g. every group join) immediately.
+ */
+const DEFAULT_CHANNEL_PREFERENCES: Record<NotificationType, ChannelPreferences> =
+  getPresetPreferences('medium');
+
+/**
+ * Derive which level a resolved preference map corresponds to, or 'custom' when
+ * it matches none of the three presets (i.e. the user fine-tuned channels).
+ */
+export function deriveLevel(
+  resolved: Record<NotificationType, ChannelPreferences>
+): NotificationLevel | 'custom' {
+  const channelsEqual = (a: ChannelPreferences, b: ChannelPreferences): boolean =>
+    a.email === b.email && a.push === b.push && a.in_app === b.in_app;
+
+  for (const level of ['low', 'medium', 'high'] as const) {
+    const preset = getPresetPreferences(level);
+    if (ALL_NOTIFICATION_TYPES.every((type) => channelsEqual(resolved[type], preset[type]))) {
+      return level;
+    }
+  }
+  return 'custom';
+}
 
 /**
  * Resolve a stored preference value into per-channel preferences.
@@ -142,6 +210,24 @@ export function getDefaultPreferences(): Record<NotificationType, ChannelPrefere
     result[type] = { ...DEFAULT_CHANNEL_PREFERENCES[type] };
   }
   return result;
+}
+
+/**
+ * Apply a level preset to a user: overwrites the entire `notifications`
+ * generator with the preset's per-type channel map in a single write.
+ * Returns the freshly resolved preferences.
+ */
+export async function applyLevelForUser(
+  userId: string,
+  level: NotificationLevel
+): Promise<Record<NotificationType, ChannelPreferences>> {
+  const profileService = getProfileService();
+  await profileService.setUserDefaultsGenerator(
+    userId,
+    'notifications',
+    getPresetPreferences(level)
+  );
+  return getPreferencesForUser(userId);
 }
 
 /**

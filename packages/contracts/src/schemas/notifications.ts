@@ -26,6 +26,11 @@ export const notificationTypeSchema = z.enum([
   'board_comment_added',
   'board_comment_reply',
   'board_user_mentioned',
+  'board_card_assigned',
+  'board_card_status_changed',
+  'board_attachment_added',
+  'board_due_date_reminder',
+  'board_card_watching',
   'group_member_joined',
   'group_member_left',
   'group_role_changed',
@@ -36,7 +41,11 @@ export const notificationTypeSchema = z.enum([
   'group_join_denied',
   'transfer_downloaded',
   'notebook_liked',
+  'template_liked',
   'wolke_new_files',
+  'agent_task_completed',
+  'agent_task_failed',
+  'new_avatars',
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 
@@ -67,8 +76,17 @@ export const notifChannelPreferencesSchema = z.object({
 });
 export type NotifChannelPreferences = z.infer<typeof notifChannelPreferencesSchema>;
 
+/**
+ * Simplified notification level. 'low' | 'medium' | 'high' are the three user
+ * presets (Wenig/Mittel/Viele); 'custom' is derived when the resolved
+ * preferences match no preset (the user fine-tuned channels in expert mode).
+ */
+export const notificationLevelSchema = z.enum(['low', 'medium', 'high', 'custom']);
+export type NotificationLevel = z.infer<typeof notificationLevelSchema>;
+
 export const notificationPreferencesResponseSchema = z.object({
   success: z.boolean(),
+  level: notificationLevelSchema,
   preferences: z.record(notifChannelPreferencesSchema),
   defaults: z.record(notifChannelPreferencesSchema),
 });
@@ -82,6 +100,10 @@ export const updateNotificationPreferencesBodySchema = z.object({
     push: z.boolean().nullish(),
     in_app: z.boolean().nullish(),
   }),
+});
+
+export const setNotificationLevelBodySchema = z.object({
+  level: z.enum(['low', 'medium', 'high']),
 });
 
 // ── Response schemas ─────────────────────────────────────────────────────────

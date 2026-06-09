@@ -3,6 +3,17 @@
 -- (document_subtype='canvas'); only canvas-specific columns live in the
 -- 1:1 sidecar canvas_documents table.
 
+-- Ensure the shared updated_at trigger function exists. It lives in schema.sql,
+-- but schema sync only reconciles tables/columns (not functions), so an
+-- incrementally-migrated DB may be missing it. CREATE OR REPLACE is idempotent.
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
 CREATE TABLE IF NOT EXISTS canvas_documents (
     document_id UUID PRIMARY KEY REFERENCES collaborative_documents(id) ON DELETE CASCADE,
     template_type TEXT NOT NULL,

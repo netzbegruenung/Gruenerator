@@ -27,7 +27,7 @@ export function MarkdownEditor({
 }: MarkdownEditorProps) {
   return (
     <div
-      className="border border-grey-300 rounded-md bg-white overflow-hidden transition-colors focus-within:border-primary-500 focus-within:ring-[3px] focus-within:ring-primary-500/15"
+      className="border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure overflow-hidden transition-colors focus-within:border-primary-500 focus-within:ring-[3px] focus-within:ring-primary-500/15"
       onFocus={onFocus}
       onBlur={onBlur}
     >

@@ -1,5 +1,5 @@
 import { AnimatePresence } from 'motion/react';
-import React, { useEffect, useCallback, useState, useMemo } from 'react';
+import React, { useEffect, useCallback, useMemo } from 'react';
 
 import { useAuthStore } from '../../../stores/authStore';
 import useImageStudioStore from '../../../stores/imageStudioStore';
@@ -7,24 +7,20 @@ import { useDraftAutoSave } from '../hooks/useDraftAutoSave';
 import { useStepFlow } from '../hooks/useStepFlow';
 
 // Import extracted steps
-import CanvasEditStep from '../steps/CanvasEditStep';
 import ImageSizeSelectStep from '../steps/ImageSizeSelectStep';
 import ImageUploadStep from '../steps/ImageUploadStep';
 import InputStep from '../steps/InputStep';
-
-import { cn } from '@/utils/cn';
+import { isMintableCanvasType } from '../utils/canvasTypeFields';
 
 // Types (Keep StepFlowProps, but maybe move others if needed by steps)
 
 export interface StepFlowProps {
   onBack?: () => void;
-  onComplete?: () => void;
   onStepChange?: (stepType: string) => void;
   imageLimitData?: {
     count: number;
     canGenerate: boolean;
   } | null;
-  startAtCanvasEdit?: boolean;
 }
 
 export type AnimationDirection = number;
@@ -59,32 +55,16 @@ export const slideVariants = {
 
 const StepFlow: React.FC<StepFlowProps> = ({
   onBack: parentOnBack,
-  onComplete,
   onStepChange,
   imageLimitData,
-  startAtCanvasEdit,
 }) => {
   const handleChange = useImageStudioStore((s) => s.handleChange);
   const updateFormData = useImageStudioStore((s) => s.updateFormData);
-  const uploadedImage = useImageStudioStore((s) => s.uploadedImage);
+  const type = useImageStudioStore((s) => s.type);
   const user = useAuthStore((s) => s.user);
 
-  const {
-    stepIndex,
-    direction,
-    currentStep,
-    flowSteps,
-    isFirstStep,
-    loading,
-    error,
-    goNext,
-    goBack,
-    getFieldValue,
-    transparentImage,
-    typeConfig,
-    handleCanvasExport,
-    bgRemovalProgress,
-  } = useStepFlow({ startAtCanvasEdit });
+  const { direction, currentStep, isFirstStep, loading, error, goNext, goBack, bgRemovalProgress } =
+    useStepFlow();
 
   // Initialize auto-save behavior
   useDraftAutoSave();
@@ -93,21 +73,6 @@ const StepFlow: React.FC<StepFlowProps> = ({
     const displayName = user?.display_name || '';
     return displayName.trim();
   }, [user]);
-
-  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (uploadedImage) {
-      if (typeof uploadedImage === 'string') {
-        setUploadedImageUrl(uploadedImage);
-        return;
-      }
-      const url = URL.createObjectURL(uploadedImage);
-      setUploadedImageUrl(url);
-      return () => URL.revokeObjectURL(url);
-    }
-    setUploadedImageUrl(null);
-  }, [uploadedImage]);
 
   useEffect(() => {
     if (!useImageStudioStore.getState().name && userDisplayName) {
@@ -144,16 +109,9 @@ const StepFlow: React.FC<StepFlowProps> = ({
     return null;
   }
 
-  const isCanvasEdit = currentStep?.type === 'canvas_edit';
-
   return (
     <div className="flex flex-col items-center w-full">
-      <div
-        className={cn(
-          'w-full max-w-[700px] mx-auto flex flex-col gap-md p-md max-[768px]:p-xs',
-          isCanvasEdit && 'max-w-none p-0 gap-0 max-[768px]:p-0'
-        )}
-      >
+      <div className="w-full max-w-[700px] mx-auto flex flex-col gap-md p-md max-[768px]:p-xs">
         <AnimatePresence mode="wait" custom={direction}>
           {currentStep.type === 'image_upload' && (
             <ImageUploadStep
@@ -190,20 +148,38 @@ const StepFlow: React.FC<StepFlowProps> = ({
             />
           )}
 
-          {currentStep.type === 'canvas_edit' && (
-            <CanvasEditStep
-              typeConfig={typeConfig ?? undefined}
-              uploadedImageUrl={uploadedImageUrl}
-              getFieldValue={getFieldValue}
-              handleCanvasExport={handleCanvasExport}
-              handleBack={handleBack}
-              transparentImage={transparentImage}
-              currentStepId={currentStep.id}
-              direction={direction}
-              onHeadlineChange={(headline) => updateFormData({ headline })}
-              onSubtextChange={(subtext) => updateFormData({ subtext })}
-            />
-          )}
+          {currentStep.type === 'canvas_edit' &&
+            (isMintableCanvasType(type ?? '') ? (
+              // Canvas editing has moved to the collaborative `/studio/canvas/:id`
+              // route. Reaching this step hands off via the store (see useStepFlow);
+              // this brief loader shows until TemplateStudioFlow mints and navigates.
+              <div
+                key={currentStep.id}
+                className="flex items-center justify-center gap-sm py-2xl text-foreground"
+              >
+                <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
+                <span className="text-sm">Leinwand wird vorbereitet…</span>
+              </div>
+            ) : (
+              // Non-mintable types (e.g. presentation, a multi-slide pres-* config)
+              // have no single-document canvas route, so there is no handoff — show
+              // an explicit message instead of a loader that would never resolve.
+              <div
+                key={currentStep.id}
+                className="flex flex-col items-center justify-center gap-md py-2xl text-center text-foreground"
+              >
+                <p className="text-sm text-grey-600 dark:text-grey-300">
+                  Dieser Vorlagentyp kann hier nicht bearbeitet werden.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleBack}
+                  className="rounded-md border border-grey-200 px-4 py-2 text-sm hover:bg-grey-100 dark:border-grey-700 dark:hover:bg-grey-800"
+                >
+                  Zurück
+                </button>
+              </div>
+            ))}
         </AnimatePresence>
 
         {imageLimitData && imageLimitData.count >= 8 && (

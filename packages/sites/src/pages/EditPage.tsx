@@ -1,6 +1,6 @@
 import { type CandidateData } from '@gruenerator/sites-design';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { FiLogOut, FiExternalLink, FiEye } from 'react-icons/fi';
+import { FiExternalLink, FiEye } from 'react-icons/fi';
 
 import { CandidatePage } from '../CandidatePage';
 import { LoadingOverlay } from '../components/common/LoadingOverlay';
@@ -21,7 +21,7 @@ import { nameToSubdomain, sanitizeSubdomain } from '../utils/sanitization';
 import { validators } from '../utils/validation';
 
 export function EditPage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const {
     site,
     isLoading,
@@ -54,6 +54,14 @@ export function EditPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when display_name loads
   }, [user?.display_name]);
+
+  // Pre-fill contact email from user's profile (editable later in the Contact section)
+  useEffect(() => {
+    if (user?.email && !contactEmail) {
+      setContactEmail(user.email);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when email loads
+  }, [user?.email]);
 
   // Preview state (before creating site)
   const [previewData, setPreviewData] = useState<GeneratedSiteData | null>(null);
@@ -286,8 +294,8 @@ export function EditPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-full gap-4 text-grey-600">
-        <div className="w-10 h-10 border-[3px] border-grey-200 border-t-primary-600 rounded-full animate-[spin_1s_linear_infinite]" />
+      <div className="flex flex-col items-center justify-center min-h-full gap-4 text-grey-600 dark:text-grey-400">
+        <div className="w-10 h-10 border-[3px] border-grey-200 dark:border-grey-700 border-t-primary-600 rounded-full animate-[spin_1s_linear_infinite]" />
         <p>Seite wird geladen...</p>
       </div>
     );
@@ -330,10 +338,12 @@ export function EditPage() {
   // If site exists and we have candidate data, show the new editor
   if (site && candidateData) {
     return (
-      <div className="min-h-full flex flex-col bg-grey-100">
-        <header className="flex flex-row items-center gap-sm py-sm pl-14 pr-md bg-white border-b border-grey-200 min-h-14">
+      <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
+        <header className="flex flex-row items-center gap-sm py-sm pl-14 pr-md bg-background-pure border-b border-grey-200 dark:border-grey-700 min-h-14">
           <div className="flex items-center gap-sm shrink-0">
-            <h1 className="text-base text-primary-600 m-0 whitespace-nowrap">Grünerator Sites</h1>
+            <h1 className="text-base text-primary-600 dark:text-primary-400 m-0 whitespace-nowrap">
+              Grünerator Sites
+            </h1>
           </div>
           <div className="flex-1 hidden lg:block overflow-x-auto">
             <SectionNavigation />
@@ -359,19 +369,12 @@ export function EditPage() {
                 href={`https://${site.subdomain}.grsites.de`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center w-9 h-9 bg-transparent border border-grey-200 rounded-sm text-grey-600 cursor-pointer transition-colors no-underline hover:bg-grey-100 hover:text-grey-800 hover:border-grey-400 [&_svg]:w-[18px] [&_svg]:h-[18px]"
+                className="flex items-center justify-center w-9 h-9 bg-transparent border border-grey-200 dark:border-grey-700 rounded-sm text-grey-600 dark:text-grey-400 cursor-pointer transition-colors no-underline hover:bg-grey-100 dark:hover:bg-grey-800 hover:text-foreground hover:border-grey-400 dark:hover:border-grey-600 [&_svg]:w-[18px] [&_svg]:h-[18px]"
                 title="Live-Seite öffnen"
               >
                 <FiExternalLink />
               </a>
             )}
-            <button
-              className="flex items-center justify-center w-9 h-9 bg-transparent border border-grey-200 rounded-sm text-grey-600 cursor-pointer transition-colors no-underline hover:bg-grey-100 hover:text-grey-800 hover:border-grey-400 [&_svg]:w-[18px] [&_svg]:h-[18px]"
-              onClick={logout}
-              title="Abmelden"
-            >
-              <FiLogOut />
-            </button>
           </div>
         </header>
 
@@ -392,7 +395,7 @@ export function EditPage() {
 
         {/* Fullscreen Preview Mode */}
         {isPreviewMode && (
-          <div className="fixed inset-0 z-[1000] bg-white flex flex-col">
+          <div className="fixed inset-0 z-[1000] bg-background-pure flex flex-col">
             <div className="flex flex-wrap justify-between items-center py-sm px-md bg-primary-600 text-white shadow-md shrink-0 gap-sm md:px-lg">
               <div className="flex items-center gap-sm">
                 <span className="font-semibold text-sm md:text-base">Vorschau</span>
@@ -441,10 +444,10 @@ export function EditPage() {
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto bg-grey-200 flex justify-center p-0">
+            <div className="flex-1 overflow-y-auto bg-grey-200 dark:bg-grey-700 flex justify-center p-0">
               <div
                 className={cn(
-                  'bg-white h-full overflow-y-auto transition-[width] duration-300',
+                  'bg-background-pure h-full overflow-y-auto transition-[width] duration-300',
                   previewDevice === 'desktop' && 'w-full',
                   previewDevice === 'tablet' && 'w-[768px] max-w-full shadow-lg',
                   previewDevice === 'phone' && 'w-[375px] max-w-full shadow-lg'
@@ -467,8 +470,6 @@ export function EditPage() {
         <CreateSiteScreen
           subdomain={subdomain}
           onSubdomainChange={(v) => setSubdomain(sanitizeSubdomain(v))}
-          contactEmail={contactEmail}
-          onContactEmailChange={setContactEmail}
           description={description}
           onDescriptionChange={setDescription}
           onGenerate={handleGenerate}
@@ -505,51 +506,46 @@ export function EditPage() {
 
   // Preview exists — show sidebar controls + generated preview
   return (
-    <div className="min-h-full flex flex-col bg-grey-100">
-      <header className="flex flex-row items-center gap-sm py-sm pl-14 pr-md bg-white border-b border-grey-200 min-h-14">
-        <div className="flex items-center gap-sm shrink-0">
-          <h1 className="text-base text-primary-600 m-0 whitespace-nowrap">Grünerator Sites</h1>
-          {user && <span>{user.email}</span>}
-        </div>
-        <div className="flex items-center gap-xs shrink-0 ml-auto">
-          <button
-            className="inline-flex items-center gap-1.5 bg-grey-200 text-grey-800 border-none py-xs px-sm text-sm font-medium rounded-sm cursor-pointer transition-colors hover:bg-grey-400 disabled:opacity-60 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4"
-            onClick={logout}
-          >
-            Abmelden
-          </button>
-        </div>
+    <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
+      <header className="flex flex-row items-center gap-sm py-sm pl-14 pr-md bg-background-pure border-b border-grey-200 dark:border-grey-700 min-h-14">
+        <h1 className="text-base text-primary-600 dark:text-primary-400 m-0 whitespace-nowrap">
+          Grünerator Sites
+        </h1>
       </header>
 
       <div className="flex flex-col flex-1 overflow-hidden lg:flex-row">
-        <aside className="w-full shrink-0 bg-white p-lg overflow-y-auto border-b border-grey-200 max-h-[60vh] md:p-xl md:max-h-none lg:w-[400px] lg:border-b-0 lg:border-r lg:border-grey-200 xl:w-[450px]">
-          <h2 className="text-lg text-grey-800 mb-lg">Vorschau</h2>
-          <p className="text-grey-600 text-base leading-relaxed mb-lg">
+        <aside className="w-full shrink-0 bg-background-pure p-lg overflow-y-auto border-b border-grey-200 dark:border-grey-700 max-h-[60vh] md:p-xl md:max-h-none lg:w-[400px] lg:border-b-0 lg:border-r lg:border-grey-200 dark:lg:border-grey-700 xl:w-[450px]">
+          <h2 className="text-lg text-foreground mb-lg">Vorschau</h2>
+          <p className="text-grey-600 dark:text-grey-400 text-base leading-relaxed mb-lg">
             So wird deine Seite aussehen. Prüfe die Inhalte und erstelle die Seite oder generiere
             neu.
           </p>
-          <p className="text-grey-600 text-base leading-relaxed mb-lg">
-            <strong className="text-primary-600 font-semibold">{subdomain}.grsites.de</strong>
+          <p className="text-grey-600 dark:text-grey-400 text-base leading-relaxed mb-lg">
+            <strong className="text-primary-600 dark:text-primary-400 font-semibold">
+              {subdomain}.grsites.de
+            </strong>
           </p>
 
-          <div className="bg-grey-100 rounded-sm p-md mb-lg">
+          <div className="bg-grey-100 dark:bg-grey-800 rounded-sm p-md mb-lg">
             <div className="flex flex-col gap-xs mb-sm">
-              <span className="text-xs font-semibold text-grey-400 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-grey-400 dark:text-grey-500 uppercase tracking-wider">
                 Name:
               </span>
-              <span className="text-sm text-grey-800 leading-snug">{previewData!.site_title}</span>
+              <span className="text-sm text-foreground leading-snug">
+                {previewData!.site_title}
+              </span>
             </div>
             <div className="flex flex-col gap-xs mb-sm">
-              <span className="text-xs font-semibold text-grey-400 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-grey-400 dark:text-grey-500 uppercase tracking-wider">
                 Tagline:
               </span>
-              <span className="text-sm text-grey-800 leading-snug">{previewData!.tagline}</span>
+              <span className="text-sm text-foreground leading-snug">{previewData!.tagline}</span>
             </div>
             <div className="flex flex-col gap-xs">
-              <span className="text-xs font-semibold text-grey-400 uppercase tracking-wider">
+              <span className="text-xs font-semibold text-grey-400 dark:text-grey-500 uppercase tracking-wider">
                 Themen:
               </span>
-              <span className="text-sm text-grey-800 leading-snug">
+              <span className="text-sm text-foreground leading-snug">
                 {previewData!.sections.themes.map((t) => t.title).join(', ')}
               </span>
             </div>
@@ -563,7 +559,7 @@ export function EditPage() {
             >
               {isCreating ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-grey-200 border-t-primary-600 rounded-full animate-[spin_1s_linear_infinite]" />
+                  <span className="w-4 h-4 border-2 border-grey-200 dark:border-grey-700 border-t-primary-600 rounded-full animate-[spin_1s_linear_infinite]" />
                   Wird erstellt...
                 </>
               ) : (
@@ -571,14 +567,14 @@ export function EditPage() {
               )}
             </button>
             <button
-              className="inline-flex items-center justify-center gap-xs bg-grey-100 bg-none text-grey-600 border-none py-sm px-lg text-base font-semibold rounded-sm cursor-pointer transition-all w-full hover:bg-grey-200 hover:shadow-none disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0"
+              className="inline-flex items-center justify-center gap-xs bg-grey-100 dark:bg-grey-800 bg-none text-grey-600 dark:text-grey-400 border-none py-sm px-lg text-base font-semibold rounded-sm cursor-pointer transition-all w-full hover:bg-grey-200 dark:hover:bg-grey-700 hover:shadow-none disabled:opacity-60 disabled:cursor-not-allowed disabled:translate-y-0"
               onClick={handleDiscardPreview}
               disabled={isCreating}
             >
               Verwerfen
             </button>
             <button
-              className="w-full p-sm bg-grey-100 border border-dashed border-grey-400 rounded-sm text-grey-600 text-sm cursor-pointer transition-colors hover:bg-grey-200 hover:border-grey-400 hover:text-grey-800 disabled:opacity-50 disabled:cursor-not-allowed mt-xs"
+              className="w-full p-sm bg-grey-100 dark:bg-grey-800 border border-dashed border-grey-400 dark:border-grey-600 rounded-sm text-grey-600 dark:text-grey-400 text-sm cursor-pointer transition-colors hover:bg-grey-200 dark:hover:bg-grey-700 hover:border-grey-400 dark:hover:border-grey-600 hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed mt-xs"
               onClick={handleGenerate}
               disabled={isGenerating || isCreating}
             >
@@ -588,10 +584,10 @@ export function EditPage() {
         </aside>
 
         <main className="flex-1 flex flex-col overflow-hidden min-h-[40vh] lg:min-h-0">
-          <div className="py-md px-lg bg-white border-b border-grey-200">
-            <h3 className="m-0 text-base text-grey-600">Vorschau</h3>
+          <div className="py-md px-lg bg-background-pure border-b border-grey-200 dark:border-grey-700">
+            <h3 className="m-0 text-base text-grey-600 dark:text-grey-400">Vorschau</h3>
           </div>
-          <div className="flex-1 overflow-y-auto bg-white">
+          <div className="flex-1 overflow-y-auto bg-background-pure">
             <CandidatePage candidate={previewCandidateData} />
           </div>
         </main>

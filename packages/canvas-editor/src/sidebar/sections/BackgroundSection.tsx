@@ -6,6 +6,7 @@ import { HiPhoto, HiMagnifyingGlass, HiXMark } from 'react-icons/hi2';
 import UnsplashAttribution from '../../common/UnsplashAttribution';
 import { useUnsplashSearch } from '../../hooks/useUnsplashSearch';
 import { useCanvasEditorServices } from '../../CanvasEditorProvider';
+import { persistImageSelection } from '../persistImageSelection';
 
 import type { StockImage } from '../../common/imageSourceTypes';
 import { SidebarSlider } from '../components/SidebarSlider';
@@ -109,7 +110,8 @@ interface ImageSubsectionProps {
 }
 
 function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageSubsectionProps) {
-  const { fetchUnsplashImageAsFile, trackUnsplashDownloadLive } = useCanvasEditorServices();
+  const { fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage } =
+    useCanvasEditorServices();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const {
@@ -147,18 +149,19 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
 
       try {
         const file = await fetchUnsplashImageAsFile(image);
-        const objectUrl = URL.createObjectURL(file);
 
         if (image.attribution?.downloadLocation && trackUnsplashDownloadLive) {
           await trackUnsplashDownloadLive(image.attribution.downloadLocation);
         }
 
-        onImageChange(file, objectUrl, image.attribution ?? null);
+        // Optimistic blob preview, then swap to a durable URL so the chosen
+        // image survives reload (the value gets written to the collab doc).
+        await persistImageSelection(file, image.attribution ?? null, onImageChange, uploadImage);
       } catch (error) {
         console.error('[ImageSubsection] Failed to select image:', error);
       }
     },
-    [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive]
+    [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage]
   );
 
   // Handle image removal

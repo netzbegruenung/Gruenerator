@@ -1,4 +1,4 @@
-import { getRobotAvatarPath, validateRobotId, getRobotAvatarAlt } from '@gruenerator/shared/avatar';
+import { validateRobotId } from '@gruenerator/shared/avatar';
 import {
   Badge,
   DropdownMenu,
@@ -8,6 +8,7 @@ import {
 } from '@gruenerator/ui';
 import { HiUsers, HiShieldCheck, HiDotsVertical } from 'react-icons/hi';
 
+import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import Spinner from '../../../components/common/Spinner';
 import { useGroupMembers, useUpdateMemberRole, type GroupMember } from '../hooks/useGroups';
 import { getMemberDisplayName, sortMembersByName } from '../utils/anonymousNames';
@@ -101,10 +102,11 @@ const GroupMembersList = ({
               key={member.user_id}
               className="flex items-center gap-sm px-sm py-xs rounded-md hover:bg-grey-50 dark:hover:bg-grey-800/50 transition-colors"
             >
-              <img
-                src={getRobotAvatarPath(profileImageNumber)}
-                alt={getRobotAvatarAlt(profileImageNumber)}
-                className="w-7 h-7 rounded-full shrink-0"
+              <RobotAvatar
+                robotId={profileImageNumber}
+                displayName={fullDisplayName}
+                sizePx={28}
+                className="w-7 h-7 shrink-0"
               />
               <div className="flex-1 min-w-0">
                 <span className="text-sm font-medium text-foreground-heading truncate block">

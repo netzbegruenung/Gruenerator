@@ -38,42 +38,42 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
     previousStep === FORM_STEPS.IMAGE_UPLOAD && currentStep === FORM_STEPS.INPUT;
 
   const [isWideStep, setIsWideStep] = useState(false);
-
-  const [isCanvasEdit, setIsCanvasEdit] = useState(false);
-  const [isMintingCanvas, setIsMintingCanvas] = useState(false);
+  const [mintError, setMintError] = useState(false);
 
   const handleStepChange = useCallback((stepType: string) => {
     setIsWideStep(stepType === 'image_upload');
-    setIsCanvasEdit(stepType === 'canvas_edit');
   }, []);
 
   const navigate = useNavigate();
   const mintingRef = useRef(false);
 
-  useEffect(() => {
-    if (currentStep !== FORM_STEPS.CANVAS_EDIT) return;
+  // Reaching CANVAS_EDIT mints a canvas document and navigates to the
+  // collaborative /studio/canvas/:id route. Extracted so the failure UI can
+  // retry it. mintingRef guards against concurrent/duplicate mints.
+  const runMint = useCallback(async () => {
     if (mintingRef.current) return;
     if (!type) return;
 
     mintingRef.current = true;
-    setIsMintingCanvas(true);
+    setMintError(false);
+    try {
+      const state = useImageStudioStore.getState();
+      const { id } = await mintCanvasFromStudioStore(state);
+      void navigate(`/studio/canvas/${id}`, { replace: true });
+    } catch (err) {
+      console.error('[TemplateStudioFlow] Canvas mint failed:', err);
+      void import('sonner').then(({ toast }) =>
+        toast.error('Leinwand konnte nicht gespeichert werden. Bitte erneut versuchen.')
+      );
+      mintingRef.current = false;
+      setMintError(true);
+    }
+  }, [type, navigate]);
 
-    const run = async () => {
-      try {
-        const state = useImageStudioStore.getState();
-        const { id } = await mintCanvasFromStudioStore(state);
-        void navigate(`/studio/canvas/${id}`, { replace: true });
-      } catch (err) {
-        console.error('[TemplateStudioFlow] Canvas mint failed:', err);
-        void import('sonner').then(({ toast }) =>
-          toast.error('Leinwand konnte nicht gespeichert werden. Bitte erneut versuchen.')
-        );
-        mintingRef.current = false;
-        setIsMintingCanvas(false);
-      }
-    };
-    void run();
-  }, [currentStep, type, navigate]);
+  useEffect(() => {
+    if (currentStep !== FORM_STEPS.CANVAS_EDIT) return;
+    void runMint();
+  }, [currentStep, runMint]);
 
   const handleAnimationStart = useCallback(() => {
     useImageStudioStore.getState().setIsAnimating(true);
@@ -168,7 +168,35 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
     return <div className="error-message">Konfiguration für diesen Typ nicht gefunden.</div>;
   }
 
-  if (isMintingCanvas) {
+  // CANVAS_EDIT is the mint→navigate handoff. While minting (or in the brief
+  // window before the effect runs) show a loader; on failure show an explicit
+  // retry/back instead of a dead-end blank screen.
+  if (currentStep === FORM_STEPS.CANVAS_EDIT) {
+    if (mintError) {
+      return (
+        <div className="flex h-[60vh] flex-col items-center justify-center gap-md text-center text-foreground">
+          <p className="text-sm text-grey-600 dark:text-grey-300">
+            Leinwand konnte nicht vorbereitet werden.
+          </p>
+          <div className="flex items-center gap-sm">
+            <button
+              type="button"
+              onClick={() => void runMint()}
+              className="rounded-md bg-primary-500 px-4 py-2 text-sm text-white hover:bg-primary-600"
+            >
+              Erneut versuchen
+            </button>
+            <button
+              type="button"
+              onClick={onBack}
+              className="rounded-md border border-grey-200 px-4 py-2 text-sm hover:bg-grey-100 dark:border-grey-700 dark:hover:bg-grey-800"
+            >
+              Zurück
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex h-[60vh] items-center justify-center gap-sm text-foreground">
         <div className="size-4 animate-spin rounded-full border-2 border-grey-200 border-t-primary-500" />
@@ -181,15 +209,8 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
     <ErrorBoundary>
       <WebCanvasEditorProvider>
         <LayoutGroup>
-          <div
-            className={cn('w-full flex justify-center p-8 max-[768px]:p-4', isCanvasEdit && 'p-0')}
-          >
-            <div
-              className={cn(
-                'w-full max-w-[var(--container-max-width)] mx-auto px-6 pb-16 text-center max-[768px]:px-4',
-                isCanvasEdit && 'p-0 max-w-none'
-              )}
-            >
+          <div className="w-full flex justify-center p-8 max-[768px]:p-4">
+            <div className="w-full max-w-[var(--container-max-width)] mx-auto px-6 pb-16 text-center max-[768px]:px-4">
               {flowTitle && (
                 <div className="flex flex-col mb-lg">
                   <h1 className="flex items-center justify-center gap-sm flex-wrap">
@@ -208,8 +229,7 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
                 className={cn(
                   'relative w-full max-w-[700px] mx-auto min-[1200px]:max-w-[900px] max-[768px]:p-0',
                   isWideStep &&
-                    'max-w-[1000px] min-[1200px]:max-w-[1200px] min-[1400px]:max-w-[1400px]',
-                  isCanvasEdit && 'max-w-none min-[1200px]:max-w-none'
+                    'max-w-[1000px] min-[1200px]:max-w-[1200px] min-[1400px]:max-w-[1400px]'
                 )}
               >
                 <AnimatePresence mode="wait">
@@ -225,20 +245,18 @@ const TemplateStudioFlow = ({ onBack }: TemplateStudioFlowProps) => {
                     onAnimationComplete={handleAnimationComplete}
                   >
                     {(() => {
+                      // CANVAS_EDIT is intentionally excluded: reaching it triggers
+                      // the mint effect above, which shows the minting loader and
+                      // navigates to the collaborative /studio/canvas/:id route.
                       const shouldRenderStepFlow =
                         currentStep === FORM_STEPS.IMAGE_UPLOAD ||
                         currentStep === FORM_STEPS.INPUT ||
-                        currentStep === FORM_STEPS.IMAGE_SIZE_SELECT ||
-                        currentStep === FORM_STEPS.CANVAS_EDIT;
+                        currentStep === FORM_STEPS.IMAGE_SIZE_SELECT;
                       return shouldRenderStepFlow ? (
                         <StepFlow
                           onBack={onBack}
-                          onComplete={() =>
-                            useImageStudioStore.getState().setCurrentStep(FORM_STEPS.RESULT)
-                          }
                           onStepChange={handleStepChange}
                           imageLimitData={typeConfig?.hasRateLimit ? imageLimitData : null}
-                          startAtCanvasEdit={currentStep === FORM_STEPS.CANVAS_EDIT}
                         />
                       ) : null;
                     })()}

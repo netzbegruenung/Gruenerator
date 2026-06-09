@@ -26,6 +26,9 @@ export {
   chatGraphContract,
   boardsContract,
   boardCommentsContract,
+  boardActivityContract,
+  boardSubscriptionsContract,
+  boardAttachmentsContract,
   publicBoardsContract,
   sharesContract,
   userProfileContract,
@@ -50,6 +53,7 @@ export {
   imageModelPreferenceContract,
   adminVorlagenContract,
   userTemplatesContract,
+  templateInteractionsContract,
   userAgentsContract,
   canvasAiContract,
   canvasContract,
@@ -67,6 +71,9 @@ export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/boards.js';
 export * from './schemas/boardComments.js';
+export * from './schemas/boardActivity.js';
+export * from './schemas/boardSubscriptions.js';
+export * from './schemas/boardAttachments.js';
 export * from './schemas/shares.js';
 export * from './schemas/userProfile.js';
 export * from './schemas/notebook.js';
@@ -90,6 +97,7 @@ export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
+export * from './schemas/templateInteractions.js';
 export * from './schemas/userAgents.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/canvas.js';

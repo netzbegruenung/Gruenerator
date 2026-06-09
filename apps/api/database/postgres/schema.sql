@@ -158,6 +158,7 @@ CREATE TABLE IF NOT EXISTS group_memberships (
     role TEXT DEFAULT 'member',
     joined_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE,
+    notifications_muted BOOLEAN NOT NULL DEFAULT FALSE,
     UNIQUE(group_id, user_id)
 );
 

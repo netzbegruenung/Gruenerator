@@ -1,5 +1,6 @@
 import { IconButton } from '@gruenerator/ui';
 import React from 'react';
+import { RiSpyLine } from 'react-icons/ri';
 import { useNavigate } from 'react-router-dom';
 
 import { getIcon } from '../../../config/icons';
@@ -23,6 +24,12 @@ interface FavoriteItem {
 
 const MAIN_TOOLS: ToolItem[] = [
   {
+    id: 'agents',
+    title: 'Agentura',
+    path: '/agentura',
+    icon: RiSpyLine,
+  },
+  {
     id: 'gruen-veraendern',
     title: 'Bild mit KI begrünen',
     path: '/studio/ki/green-edit',
@@ -37,9 +44,8 @@ const MAIN_TOOLS: ToolItem[] = [
   {
     id: 'vorlagen',
     title: 'Vorlagen',
-    path: '/datenbank/vorlagen',
+    path: '/vorlagen',
     icon: getIcon('navigation', 'vorlagen')!,
-    devOnly: true,
   },
   {
     id: 'transfer',

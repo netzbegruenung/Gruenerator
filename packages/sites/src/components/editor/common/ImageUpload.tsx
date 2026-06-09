@@ -94,7 +94,7 @@ export function ImageUpload({
       />
       <div
         className={cn(
-          'group relative border-2 border-dashed border-grey-300 rounded-lg cursor-pointer overflow-hidden flex items-center justify-center bg-grey-50 transition-colors hover:border-primary-500 hover:bg-primary-50 focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15',
+          'group relative border-2 border-dashed border-grey-300 dark:border-grey-700 rounded-lg cursor-pointer overflow-hidden flex items-center justify-center bg-grey-50 dark:bg-grey-900 transition-colors hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-950 focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15',
           circular && 'rounded-full'
         )}
         style={aspectRatio ? { aspectRatio: circular ? '1/1' : aspectRatio } : undefined}
@@ -111,7 +111,9 @@ export function ImageUpload({
               className="h-1 bg-primary-500 rounded transition-[width_0.2s_ease]"
               style={{ width: `${progress}%` }}
             />
-            <span className="text-[13px] text-grey-600">Hochladen... {Math.round(progress)}%</span>
+            <span className="text-[13px] text-grey-600 dark:text-grey-400">
+              Hochladen... {Math.round(progress)}%
+            </span>
           </div>
         ) : value ? (
           <>
@@ -134,7 +136,10 @@ export function ImageUpload({
           </>
         ) : (
           <span
-            className={cn('text-grey-400 text-[13px] text-center p-2', circular && 'text-xs p-2.5')}
+            className={cn(
+              'text-grey-400 dark:text-grey-500 text-[13px] text-center p-2',
+              circular && 'text-xs p-2.5'
+            )}
           >
             + {placeholder}
           </span>
@@ -144,7 +149,7 @@ export function ImageUpload({
         <button
           type="button"
           className={cn(
-            'block mt-1.5 p-0 border-none bg-transparent text-primary-600 text-[13px] cursor-pointer text-center w-full hover:underline',
+            'block mt-1.5 p-0 border-none bg-transparent text-primary-600 dark:text-primary-400 text-[13px] cursor-pointer text-center w-full hover:underline',
             (circular || size === 'small') && 'text-[11px] mt-1'
           )}
           onClick={handleLibraryClick}

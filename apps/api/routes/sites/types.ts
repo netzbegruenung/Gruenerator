@@ -64,6 +64,12 @@ export interface CreateSiteBody {
   site_title: string;
   tagline?: string | undefined;
   theme?: string | undefined;
+  bio?: string | undefined;
+  contact_email?: string | undefined;
+  social_links?: Record<string, string> | undefined;
+  profile_image?: string | undefined;
+  background_image?: string | undefined;
+  sections?: SiteSection[] | undefined;
 }
 
 export interface UpdateSiteBody {
@@ -145,6 +151,20 @@ export const THEME_STYLES: Record<string, ThemeColors> = {
     text: '#2c3e50',
     card: '#ffffff',
   },
+};
+
+/**
+ * Dark-mode surface palette for published sites. Applied via
+ * `@media (prefers-color-scheme: dark)` so a published page follows the
+ * visitor's OS setting. Brand `primary` (the accent_color) is unchanged.
+ */
+export const THEME_STYLES_DARK: Record<
+  string,
+  Pick<ThemeColors, 'background' | 'text' | 'card'>
+> = {
+  gruene: { background: '#1b1b1b', text: '#e6e6e6', card: '#262626' },
+  modern: { background: '#161616', text: '#ededed', card: '#202020' },
+  professional: { background: '#1a1a1a', text: '#e6e6e6', card: '#242424' },
 };
 
 export const AVAILABLE_THEMES: Theme[] = [

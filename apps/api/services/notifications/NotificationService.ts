@@ -1,6 +1,6 @@
 import { and, count, eq, lt, sql, type InferSelectModel } from 'drizzle-orm';
 
-import { notifications } from '../../database/schema/index.js';
+import { group_memberships, notifications } from '../../database/schema/index.js';
 import { getDrizzleInstance } from '../../database/services/DrizzleService.js';
 import { sendNotificationEmail } from '../../services/email/index.js';
 import { sendPushToUser } from '../../services/pushNotificationService.js';
@@ -23,6 +23,10 @@ import type { UserProfile } from '../user/types.js';
 const EMAIL_HANDLED_ELSEWHERE: ReadonlySet<NotificationType> = new Set<NotificationType>([
   'document_shared',
 ]);
+
+// Types delivered exclusively in-app (no push, no email) regardless of importance
+// tier — e.g. one-off product announcements where a mass email/push is unwanted.
+const IN_APP_ONLY: ReadonlySet<NotificationType> = new Set<NotificationType>(['new_avatars']);
 
 type NotificationRow = InferSelectModel<typeof notifications>;
 
@@ -93,18 +97,66 @@ function fireEmail(
   });
 }
 
+/**
+ * Resolve the group a notification belongs to, if any. Group notifications
+ * carry the id in `metadata.groupId` (and mirror it in `groupKey` as
+ * `group:<id>`); non-group notifications have neither.
+ */
+function resolveGroupId(
+  metadata: Record<string, unknown>,
+  groupKey: string | undefined
+): string | null {
+  if (typeof metadata.groupId === 'string' && metadata.groupId) return metadata.groupId;
+  if (groupKey?.startsWith('group:')) return groupKey.slice('group:'.length) || null;
+  return null;
+}
+
+/**
+ * Whether the user has muted notifications for this group (via the group's
+ * 3-dot menu). Fail-open: any error resolves to `false` so notifications are
+ * never silently suppressed by an infra hiccup.
+ */
+async function isGroupMutedForUser(userId: string, groupId: string): Promise<boolean> {
+  try {
+    const db = getDrizzleInstance();
+    const rows = await db
+      .select({ muted: group_memberships.notifications_muted })
+      .from(group_memberships)
+      .where(and(eq(group_memberships.group_id, groupId), eq(group_memberships.user_id, userId)))
+      .limit(1);
+    return rows[0]?.muted === true;
+  } catch (err) {
+    log.warn('Failed to check group mute preference', {
+      userId,
+      groupId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return false;
+  }
+}
+
 export async function createNotification(
   params: CreateNotificationParams
 ): Promise<NotificationRow | null> {
   const { userId, type, title, body, metadata = {}, actionUrl, groupKey } = params;
 
   const profile = await getProfileForDelivery(userId);
+
+  // A muted group suppresses the noisy channels (email + push) for this user;
+  // the in-app notification is still recorded so nothing is lost.
+  const groupId = resolveGroupId(metadata, groupKey);
+  const groupMuted = groupId ? await isGroupMutedForUser(userId, groupId) : false;
+
   const showInApp = await shouldDeliver(userId, type, 'in_app', profile);
   const sendEmailChannel =
-    !EMAIL_HANDLED_ELSEWHERE.has(type) && (await shouldDeliver(userId, type, 'email', profile));
+    !groupMuted &&
+    !EMAIL_HANDLED_ELSEWHERE.has(type) &&
+    !IN_APP_ONLY.has(type) &&
+    (await shouldDeliver(userId, type, 'email', profile));
 
   if (!showInApp) {
-    const sendPush = await shouldDeliver(userId, type, 'push', profile);
+    const sendPush =
+      !groupMuted && !IN_APP_ONLY.has(type) && (await shouldDeliver(userId, type, 'push', profile));
     if (sendPush) firePush(userId, title, body ?? null, type, actionUrl);
     if (sendEmailChannel) fireEmail(userId, profile, title, body ?? null, type, actionUrl);
     return null;
@@ -130,7 +182,8 @@ export async function createNotification(
     log.warn('Failed to publish notification via Redis', { userId, error: err.message });
   });
 
-  const sendPush = await shouldDeliver(userId, type, 'push', profile);
+  const sendPush =
+    !groupMuted && !IN_APP_ONLY.has(type) && (await shouldDeliver(userId, type, 'push', profile));
   if (sendPush) firePush(userId, title, body ?? null, type, actionUrl, notification.id);
   if (sendEmailChannel) fireEmail(userId, profile, title, body ?? null, type, actionUrl);
 

@@ -11,6 +11,7 @@ import {
   useGroupMembers as useGroupMembersShared,
   useJoinGroup,
   useLeaveGroup,
+  useSetGroupMute,
   useUpdateGroupLink,
   useUpdateMemberRole as useUpdateMemberRoleShared,
   useUploadGroupAvatar,
@@ -195,9 +196,9 @@ export const useGroups = ({ isActive }: UseGroupsOptions = {}) => {
   };
 };
 
-// Re-exported hook kept for compatibility with existing callers
-// that expect `useLeaveGroup` / `useGroupDetails` in this module.
-export { useLeaveGroup };
+// Re-exported hooks kept for compatibility with existing callers
+// that expect `useLeaveGroup` / `useGroupDetails` / `useSetGroupMute` here.
+export { useLeaveGroup, useSetGroupMute };
 
 export const useGroupMembers = (groupId: string | null, _options: UseGroupsOptions = {}) => {
   const query = useGroupMembersShared(groupId);
