@@ -53,7 +53,9 @@ function todayIso(): string {
 // not be silently treated as done (it would hide genuinely overdue cards).
 function doneStatusIds(fields: Field[]): Set<string> {
   const status = fields.find((f) => f.id === FIELD_IDS.STATUS);
-  const options = ((status?.typeOptions.options as SelectOption[] | undefined) ?? []).filter(Boolean);
+  const options = ((status?.typeOptions.options as SelectOption[] | undefined) ?? []).filter(
+    Boolean
+  );
   const ids = new Set<string>();
   for (const opt of options) {
     if (/erledigt|fertig|abgeschlossen|done|completed|closed/i.test(opt.name)) ids.add(opt.id);
@@ -279,7 +281,12 @@ export function useViewData({
   const swimlanes = useMemo<SwimlaneGroup[] | null>(() => {
     const swimlaneFieldId = activeView?.swimlaneFieldId;
     const groupByFieldId = activeView?.groupByFieldId;
-    if (!SWIMLANES_ENABLED || !swimlaneFieldId || !groupByFieldId || activeView?.layout !== 'kanban')
+    if (
+      !SWIMLANES_ENABLED ||
+      !swimlaneFieldId ||
+      !groupByFieldId ||
+      activeView?.layout !== 'kanban'
+    )
       return null;
     const lanes = applyGroups(filteredRows, swimlaneFieldId, fields);
     return lanes.map((lane) => ({

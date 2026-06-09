@@ -184,7 +184,9 @@ export const BoardSettingsSheet = memo(function BoardSettingsSheet({
               <FiBell size={15} className="text-grey-500" />
               <div>
                 <p className="text-sm font-medium text-foreground">Board beobachten</p>
-                <p className="text-xs text-grey-400">Bei Änderungen am Board benachrichtigt werden</p>
+                <p className="text-xs text-grey-400">
+                  Bei Änderungen am Board benachrichtigt werden
+                </p>
               </div>
             </div>
             <Switch
@@ -232,7 +234,12 @@ export const BoardSettingsSheet = memo(function BoardSettingsSheet({
                   </option>
                 ))}
               </select>
-              <Button size="sm" variant="outline" onClick={handleAddField} disabled={!newFieldName.trim()}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleAddField}
+                disabled={!newFieldName.trim()}
+              >
                 <FiPlus size={14} />
               </Button>
             </div>

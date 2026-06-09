@@ -122,10 +122,7 @@ const ColumnBoard = memo(function ColumnBoard({
     (color: string) => onColorChange(groupId, color),
     [onColorChange, groupId]
   );
-  const onDuplicate = useCallback(
-    () => onDuplicateGroup(groupId),
-    [onDuplicateGroup, groupId]
-  );
+  const onDuplicate = useCallback(() => onDuplicateGroup(groupId), [onDuplicateGroup, groupId]);
   const onSetLimitCb = useCallback(
     (next: number | null) => onSetLimit(groupId, next),
     [onSetLimit, groupId]
@@ -138,7 +135,12 @@ const ColumnBoard = memo(function ColumnBoard({
   );
 
   const column = useMemo(
-    () => ({ id: groupId, name: groupName, color: groupColor, ...(limit != null ? { limit } : {}) }),
+    () => ({
+      id: groupId,
+      name: groupName,
+      color: groupColor,
+      ...(limit != null ? { limit } : {}),
+    }),
     [groupId, groupName, groupColor, limit]
   );
 

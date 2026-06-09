@@ -115,16 +115,16 @@ export const boardActivityContractRouter = s.router(boardActivityContract, {
         type,
         ...(payload ? { payload } : {}),
       });
-      if (!insertedId) return { status: 500 as const, body: { error: 'Aktivität nicht gespeichert' } };
+      if (!insertedId)
+        return { status: 500 as const, body: { error: 'Aktivität nicht gespeichert' } };
 
       void (async () => {
         try {
           const [subscribers, actorRows] = await Promise.all([
             getBoardSubscribers(boardId),
-            db.query<{ display_name: string }>(
-              `SELECT display_name FROM profiles WHERE id = $1`,
-              [userId]
-            ),
+            db.query<{ display_name: string }>(`SELECT display_name FROM profiles WHERE id = $1`, [
+              userId,
+            ]),
           ]);
           const actorName = actorRows[0]?.display_name ?? 'Jemand';
           const label = BOARD_EVENT_LABEL[type] ?? 'aktualisiert';
