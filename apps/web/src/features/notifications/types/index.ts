@@ -111,6 +111,13 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     group: 'system',
     actions: (ctx) => [openLinkAction('Notizbuch öffnen')(ctx)],
   },
+  template_liked: {
+    label: 'Vorlagen-Likes',
+    description: 'Wenn andere deine veröffentlichte Vorlage mögen',
+    icon: Heart,
+    group: 'system',
+    actions: (ctx) => [openLinkAction('Vorlage öffnen')(ctx)],
+  },
   wolke_new_files: {
     label: 'Neue Wolke-Dateien',
     description: 'Wenn in den Wolke-Ordnern deiner Notizbücher neue Dateien gefunden werden',
