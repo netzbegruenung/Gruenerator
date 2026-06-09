@@ -12,7 +12,7 @@ Die **8 großen Lücken** sind in diesem Branch umgesetzt (Multiple Assignees, C
 | --- | ----------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | 1   | **Zeiterfassung / Stopwatch**             | planka | Start/Pause-Timer pro Karte (`{ startedAt, total }`), Chip im Preview. Yjs-Zelle `field-stopwatch` + Toggle im Panel.            |
 | 2   | **Karten-Nummer / Public-ID mit Prefix**  | kan    | Auto-inkrementierende Ticket-Nr. (`PROJ-123`), Prefix pro Board. Counter im Yjs-Doc oder relational; Anzeige in Preview + Panel. |
-| 3   | **Subtask-Assignee**                      | planka | Checklisten-Item an Member zuweisen (`ChecklistItem.assigneeId` ergänzen; `doneBy` existiert bereits). MemberPicker je Item.     |
+| 3   | ~~**Subtask-Assignee**~~ ✅ umgesetzt     | planka | Checklisten-Item an Member zuweisen — `ChecklistItem.assignee` + MemberPicker je Item (PR `feat/board-subtask-assignee`).        |
 | 4   | **Subtask → Karten-Link (Dependency)**    | planka | `ChecklistItem.linkedCardId`; Klick navigiert zur Karte.                                                                         |
 | 5   | **Checkliste „auf Vorderseite zeigen"**   | planka | `ChecklistGroup.showOnFront` / erledigte ausblenden; Preview rendert Items.                                                      |
 | 6   | **Custom-Field-Gruppen**                  | planka | Custom Fields in benannte Sektionen bündeln (`fieldGroups` im Board-Schema).                                                     |
