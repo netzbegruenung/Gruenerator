@@ -101,10 +101,7 @@ const ColumnBoard = memo(function ColumnBoard({
     (color: string) => onColorChange(groupId, color),
     [onColorChange, groupId]
   );
-  const onDuplicate = useCallback(
-    () => onDuplicateGroup(groupId),
-    [onDuplicateGroup, groupId]
-  );
+  const onDuplicate = useCallback(() => onDuplicateGroup(groupId), [onDuplicateGroup, groupId]);
   const onAdd = useCallback(
     (name: string) => handleAddCard(groupId, name),
     [handleAddCard, groupId]
