@@ -4,6 +4,7 @@ import { HiOutlineTemplate, HiPlus } from 'react-icons/hi';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import FavoriteVorlagenSection from './components/FavoriteVorlagenSection';
 import VorlagenListSection from './components/VorlagenListSection';
 import { useTemplateActions } from './hooks/useTemplateActions';
 import { isCanvasEditorType, type Template } from './types';
@@ -74,6 +75,8 @@ const MeineVorlagenPage = () => {
             </div>
           )}
         </div>
+
+        <FavoriteVorlagenSection />
 
         {isEmpty ? (
           <div className="mx-auto max-w-[480px] rounded-lg border border-dashed border-grey-200 px-6 py-12 text-center dark:border-grey-700">
