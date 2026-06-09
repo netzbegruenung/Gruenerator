@@ -26,6 +26,9 @@ export {
   chatGraphContract,
   boardsContract,
   boardCommentsContract,
+  boardActivityContract,
+  boardSubscriptionsContract,
+  boardAttachmentsContract,
   publicBoardsContract,
   sharesContract,
   userProfileContract,
@@ -68,6 +71,9 @@ export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
 export * from './schemas/boards.js';
 export * from './schemas/boardComments.js';
+export * from './schemas/boardActivity.js';
+export * from './schemas/boardSubscriptions.js';
+export * from './schemas/boardAttachments.js';
 export * from './schemas/shares.js';
 export * from './schemas/userProfile.js';
 export * from './schemas/notebook.js';

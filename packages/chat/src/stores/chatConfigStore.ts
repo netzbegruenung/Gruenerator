@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+import type { CurrentBoard } from '@gruenerator/contracts';
+
 export interface ChatConfig {
   /** Custom fetch function. Default: fetch with credentials:'include' */
   fetch?: (url: string, options?: RequestInit) => Promise<Response>;
@@ -81,6 +83,11 @@ export interface ChatRequestContext {
     markdown: string;
     selectionText?: string | null;
   };
+  /**
+   * The live board the user is editing — primary context when chat is embedded
+   * in the boards editor. Serialized from the live Yjs board each request.
+   */
+  currentBoard?: CurrentBoard;
 }
 
 export type ChatRequestContextProvider = () => Promise<ChatRequestContext> | ChatRequestContext;
@@ -103,6 +110,21 @@ export interface DocumentEditTriggerPayload {
 
 export type DocumentEditTriggerHandler = (
   payload: DocumentEditTriggerPayload
+) => void | Promise<void>;
+
+/**
+ * Handler the boards-editor surface registers to receive `trigger_board_action`
+ * SSE events. The handler calls POST /api/boards/:id/ai to plan operations and
+ * applies them to the live Yjs board via the client-side executor.
+ */
+export interface BoardActionTriggerPayload {
+  targetBoardId: string;
+  userPrompt: string;
+  referenceContent?: string;
+}
+
+export type BoardActionTriggerHandler = (
+  payload: BoardActionTriggerPayload
 ) => void | Promise<void>;
 
 interface ChatConfigStore extends ResolvedChatConfig {
@@ -131,6 +153,10 @@ interface ChatConfigStore extends ResolvedChatConfig {
     threadId: string,
     handler: DocumentEditTriggerHandler
   ) => () => void;
+  /** boardId → board-action dispatcher (boards editor surface only). */
+  boardActionHandlers: Map<string, BoardActionTriggerHandler>;
+  /** Register a board-action handler for a board. Returns the unregister function. */
+  registerBoardActionHandler: (boardId: string, handler: BoardActionTriggerHandler) => () => void;
 }
 
 const DEFAULT_ENDPOINTS: ResolvedEndpoints = {
@@ -188,6 +214,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
   wolkeConnectUrl: undefined,
   contextProviders: new Map(),
   documentEditHandlers: new Map(),
+  boardActionHandlers: new Map(),
 
   configure: (config?: ChatConfig) => {
     set({
@@ -224,6 +251,19 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       if (after.get(threadId) === handler) {
         after.delete(threadId);
         set({ documentEditHandlers: after });
+      }
+    };
+  },
+
+  registerBoardActionHandler: (boardId, handler) => {
+    const next = new Map(get().boardActionHandlers);
+    next.set(boardId, handler);
+    set({ boardActionHandlers: next });
+    return () => {
+      const after = new Map(get().boardActionHandlers);
+      if (after.get(boardId) === handler) {
+        after.delete(boardId);
+        set({ boardActionHandlers: after });
       }
     };
   },

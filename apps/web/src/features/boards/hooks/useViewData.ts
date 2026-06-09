@@ -1,21 +1,36 @@
 import { useMemo } from 'react';
 
+import { FIELD_IDS, parseAssignees } from '../types';
+
 import type {
   Field,
   Row,
   BoardView,
   RowGroup,
+  SwimlaneGroup,
   SelectOption,
   CellValue,
   FilterRule,
   SortRule,
 } from '../types';
 
+/** Always-on lightweight presets shown in the BoardQuickBar (A4). */
+export type QuickFilter = 'mine' | 'overdue' | 'unassigned';
+
 interface UseViewDataInput {
   fields: Field[];
   rows: Row[];
   views: BoardView[];
   activeViewId: string;
+  /** When false (default) archived cards are filtered out of every layout. */
+  includeArchived?: boolean;
+  /** Transient full-text query (title + description), not persisted to the view. */
+  searchQuery?: string;
+  /** Transient quick-filter chips (AND-combined), not persisted to the view. */
+  quickFilters?: QuickFilter[];
+  /** Current user, for the "Meine Aufgaben" quick filter. */
+  currentUserId?: string;
+  currentUserName?: string;
 }
 
 interface UseViewDataOutput {
@@ -23,6 +38,65 @@ interface UseViewDataOutput {
   fields: Field[];
   filteredRows: Row[];
   groups: RowGroup[];
+  /** Present only when the active view has a swimlaneFieldId set (A12, kanban). */
+  swimlanes: SwimlaneGroup[] | null;
+}
+
+/** Local YYYY-MM-DD for "overdue" comparison (cells store ISO date strings). */
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Status options whose name reads as "done"; used only to exclude completed cards
+// from the overdue filter. No positional fallback — a non-done last column must
+// not be silently treated as done (it would hide genuinely overdue cards).
+function doneStatusIds(fields: Field[]): Set<string> {
+  const status = fields.find((f) => f.id === FIELD_IDS.STATUS);
+  const options = ((status?.typeOptions.options as SelectOption[] | undefined) ?? []).filter(
+    Boolean
+  );
+  const ids = new Set<string>();
+  for (const opt of options) {
+    if (/erledigt|fertig|abgeschlossen|done|completed|closed/i.test(opt.name)) ids.add(opt.id);
+  }
+  return ids;
+}
+
+function matchesSearch(row: Row, q: string): boolean {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return true;
+  const title = row.cells[FIELD_IDS.TITLE];
+  const desc = row.cells[FIELD_IDS.DESCRIPTION];
+  return (
+    (typeof title === 'string' && title.toLowerCase().includes(needle)) ||
+    (typeof desc === 'string' && desc.toLowerCase().includes(needle))
+  );
+}
+
+function matchesQuickFilter(
+  row: Row,
+  qf: QuickFilter,
+  ctx: { userId?: string; userName?: string; today: string; doneIds: Set<string> }
+): boolean {
+  switch (qf) {
+    case 'mine': {
+      const assignees = parseAssignees(row.cells[FIELD_IDS.ASSIGNEE]);
+      return assignees.some(
+        (a) => (ctx.userId && a.id === ctx.userId) || (ctx.userName && a.name === ctx.userName)
+      );
+    }
+    case 'unassigned':
+      return parseAssignees(row.cells[FIELD_IDS.ASSIGNEE]).length === 0;
+    case 'overdue': {
+      const due = row.cells[FIELD_IDS.DUE_DATE];
+      if (typeof due !== 'string' || !due || due >= ctx.today) return false;
+      const status = row.cells[FIELD_IDS.STATUS];
+      return !(typeof status === 'string' && ctx.doneIds.has(status));
+    }
+    default:
+      return true;
+  }
 }
 
 function matchesFilter(row: Row, rule: FilterRule, fields: Field[]): boolean {
@@ -150,17 +224,46 @@ export function useViewData({
   rows,
   views,
   activeViewId,
+  includeArchived = false,
+  searchQuery = '',
+  quickFilters = [],
+  currentUserId,
+  currentUserName,
 }: UseViewDataInput): UseViewDataOutput {
   const activeView = useMemo(
     () => views.find((v) => v.id === activeViewId) ?? views[0] ?? null,
     [views, activeViewId]
   );
 
+  // Hide archived (soft-deleted) cards from every view unless explicitly included.
+  const visibleRows = useMemo(
+    () => (includeArchived ? rows : rows.filter((r) => !r.archivedAt)),
+    [rows, includeArchived]
+  );
+
+  // Transient layer: search + quick-filter chips, AND-combined on top of the
+  // view's own filters. Not persisted — these are ephemeral board-overview tools.
+  const quickFiltered = useMemo(() => {
+    const q = searchQuery.trim();
+    if (!q && quickFilters.length === 0) return visibleRows;
+    const ctx = {
+      userId: currentUserId,
+      userName: currentUserName,
+      today: todayIso(),
+      doneIds: doneStatusIds(fields),
+    };
+    return visibleRows.filter(
+      (row) =>
+        (!q || matchesSearch(row, q)) &&
+        quickFilters.every((qf) => matchesQuickFilter(row, qf, ctx))
+    );
+  }, [visibleRows, searchQuery, quickFilters, currentUserId, currentUserName, fields]);
+
   const filteredRows = useMemo(() => {
-    if (!activeView) return rows;
-    const filtered = applyFilters(rows, activeView.filters, fields);
+    if (!activeView) return quickFiltered;
+    const filtered = applyFilters(quickFiltered, activeView.filters, fields);
     return applySorts(filtered, activeView.sorts);
-  }, [rows, activeView, fields]);
+  }, [quickFiltered, activeView, fields]);
 
   const groups = useMemo(() => {
     if (!activeView?.groupByFieldId) {
@@ -171,5 +274,28 @@ export function useViewData({
     return applyGroups(filteredRows, activeView.groupByFieldId, fields);
   }, [filteredRows, activeView, fields]);
 
-  return { activeView, fields, filteredRows, groups };
+  // Second axis (A12): split rows into lanes by swimlaneFieldId, then group each
+  // lane into the normal columns. Only for kanban with a swimlane field set.
+  // A12 2D-Swimlanes vorerst deaktiviert — auf true setzen zum Reaktivieren.
+  const SWIMLANES_ENABLED: boolean = false;
+  const swimlanes = useMemo<SwimlaneGroup[] | null>(() => {
+    const swimlaneFieldId = activeView?.swimlaneFieldId;
+    const groupByFieldId = activeView?.groupByFieldId;
+    if (
+      !SWIMLANES_ENABLED ||
+      !swimlaneFieldId ||
+      !groupByFieldId ||
+      activeView?.layout !== 'kanban'
+    )
+      return null;
+    const lanes = applyGroups(filteredRows, swimlaneFieldId, fields);
+    return lanes.map((lane) => ({
+      laneId: lane.groupId,
+      laneName: lane.groupName,
+      laneColor: lane.groupColor,
+      groups: applyGroups(lane.rows, groupByFieldId, fields),
+    }));
+  }, [filteredRows, activeView, fields]);
+
+  return { activeView, fields, filteredRows, groups, swimlanes };
 }
