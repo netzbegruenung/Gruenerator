@@ -190,6 +190,9 @@ export async function buildGalleryTemplates(
     metadata: item.metadata || {},
     created_at: item.created_at,
     updated_at: item.updated_at,
+    // User-submitted templates: lets the gallery mark them as community
+    // contributions and surface their author, distinct from official ones.
+    source: 'community' as const,
   }));
 
   // Filter and merge system templates
@@ -264,11 +267,15 @@ export async function buildGalleryTemplates(
   }
 
   // System templates first, then system files, then approved user vorlagen.
+  // Tag the official entries so the frontend can distinguish them from
+  // community contributions.
   // SystemTemplate is a known-shape interface (no index signature); the merged
   // gallery is intentionally loose, so widen at this boundary.
-  return [...filteredSystemTemplates, ...filteredSystemFiles, ...userVorlagen] as Array<
-    Record<string, unknown>
-  >;
+  return [
+    ...filteredSystemTemplates.map((t) => ({ ...t, source: 'system' as const })),
+    ...filteredSystemFiles.map((f) => ({ ...f, source: 'system' as const })),
+    ...userVorlagen,
+  ] as Array<Record<string, unknown>>;
 }
 
 /**

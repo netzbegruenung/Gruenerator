@@ -9,7 +9,15 @@ import {
   DropdownMenuTrigger,
 } from '@gruenerator/ui';
 import { memo, useRef } from 'react';
-import { FiMoreVertical, FiTrash2, FiEdit2, FiEyeOff } from 'react-icons/fi';
+import {
+  FiMoreVertical,
+  FiTrash2,
+  FiEdit2,
+  FiEyeOff,
+  FiCopy,
+  FiChevronLeft,
+  FiChevronRight,
+} from 'react-icons/fi';
 
 import { useColumnActivity } from '../context/BoardAwarenessContext';
 import { COLUMN_COLORS } from '../utils/boardDefaults';
@@ -18,6 +26,9 @@ interface ColumnData {
   id: string;
   name: string;
   color: string;
+  // Optional WIP limit (A6). When set, the count badge shows `count/limit` and
+  // turns red on overflow.
+  limit?: number;
 }
 
 interface ColumnHeaderProps {
@@ -28,6 +39,12 @@ interface ColumnHeaderProps {
   onDelete: () => void;
   onHide?: () => void;
   onColorChange: (color: string) => void;
+  onDuplicate?: () => void;
+  // WIP limit + reorder are only wired for real status columns (not the
+  // synthetic "Ohne Status" bucket).
+  onSetLimit?: (limit: number | null) => void;
+  onMoveLeft?: () => void;
+  onMoveRight?: () => void;
 }
 
 export const ColumnHeader = memo(function ColumnHeader({
@@ -38,9 +55,14 @@ export const ColumnHeader = memo(function ColumnHeader({
   onDelete,
   onHide,
   onColorChange,
+  onDuplicate,
+  onSetLimit,
+  onMoveLeft,
+  onMoveRight,
 }: ColumnHeaderProps) {
   const columnActivity = useColumnActivity(columnId);
   const titleRef = useRef<EditableTitleHandle>(null);
+  const overLimit = column.limit != null && cardCount > column.limit;
 
   return (
     <div className="flex items-center gap-xs px-3 py-2">
@@ -63,7 +85,12 @@ export const ColumnHeader = memo(function ColumnHeader({
         editableClassName="cursor-pointer"
       />
 
-      <span className="text-xs text-grey-400 tabular-nums">{cardCount}</span>
+      <span
+        className={`text-xs tabular-nums ${overLimit ? 'font-semibold text-red-600 dark:text-red-400' : 'text-grey-400'}`}
+        title={column.limit != null ? `${cardCount} von max. ${column.limit}` : undefined}
+      >
+        {column.limit != null ? `${cardCount}/${column.limit}` : cardCount}
+      </span>
 
       {columnActivity.length > 0 && (
         <div className="flex -space-x-1">
@@ -106,6 +133,50 @@ export const ColumnHeader = memo(function ColumnHeader({
               ))}
             </div>
           </div>
+          {onSetLimit && (
+            <div className="px-2 py-1.5">
+              <span className="text-xs text-grey-500">WIP-Limit</span>
+              <input
+                type="number"
+                min={1}
+                defaultValue={column.limit ?? ''}
+                placeholder="kein Limit"
+                onClick={(e) => e.stopPropagation()}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  const n = v === '' ? null : Math.max(1, Math.floor(Number(v)));
+                  onSetLimit(n != null && Number.isFinite(n) ? n : null);
+                }}
+                className="mt-1 w-full rounded border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-1 text-xs outline-none focus:border-primary-500"
+              />
+            </div>
+          )}
+          {(onMoveLeft || onMoveRight) && (
+            <div className="flex gap-1 px-2 py-1.5">
+              <button
+                onClick={onMoveLeft}
+                disabled={!onMoveLeft}
+                className="flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs text-grey-500 hover:bg-grey-100 dark:hover:bg-grey-800 disabled:opacity-30 disabled:cursor-default bg-transparent border-none cursor-pointer"
+                title="Nach links"
+              >
+                <FiChevronLeft size={14} /> Links
+              </button>
+              <button
+                onClick={onMoveRight}
+                disabled={!onMoveRight}
+                className="flex flex-1 items-center justify-center gap-1 rounded px-2 py-1 text-xs text-grey-500 hover:bg-grey-100 dark:hover:bg-grey-800 disabled:opacity-30 disabled:cursor-default bg-transparent border-none cursor-pointer"
+                title="Nach rechts"
+              >
+                Rechts <FiChevronRight size={14} />
+              </button>
+            </div>
+          )}
+          {onDuplicate && (
+            <DropdownMenuItem onClick={onDuplicate}>
+              <FiCopy className="mr-2" size={14} />
+              Spalte duplizieren
+            </DropdownMenuItem>
+          )}
           {onHide && (
             <DropdownMenuItem onClick={onHide}>
               <FiEyeOff className="mr-2" size={14} />
