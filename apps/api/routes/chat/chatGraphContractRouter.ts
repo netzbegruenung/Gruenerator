@@ -124,6 +124,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         wolkeFiles: rawWolkeFiles,
         connectFiles: rawConnectFiles,
         currentDocument: rawCurrentDocument,
+        currentBoard: rawCurrentBoard,
         customSystemPrompt: rawCustomSystemPrompt,
         roleName: rawRoleName,
         initialAssistantMessage: rawInitialAssistantMessage,
@@ -427,6 +428,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               selectionText: rawCurrentDocument.selectionText ?? null,
             }
           : undefined,
+        // Live board (boards editor surface). Deliberately NOT mirrored into
+        // boardIds — see classifierNode (keeps legacy modify_board from firing).
+        currentBoard: rawCurrentBoard ?? undefined,
         userLocale: user.locale ?? 'de-DE',
         customSystemPrompt: rawCustomSystemPrompt ?? undefined,
         activeSkillMention: rawActiveSkillMention ?? undefined,
@@ -438,6 +442,26 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       log.info(`[ChatGraph] User ${userId} locale: ${userLocale}`);
 
       initialState.agentConfig.userId = userId;
+
+      // Boards editor surface: surface the live board through the existing
+      // boardContext channel so respondNode can answer read-only questions
+      // ("what's overdue?", "summarize the board"). The edit path is handled
+      // separately via the edit_current_board intent + trigger_board_action SSE.
+      if (rawCurrentBoard) {
+        const { formatBoardAsContext } = await import('../../services/boards/BoardService.js');
+        // Contract board types are structurally compatible with BoardService's
+        // loose BoardState (which casts Yjs toJSON() output); the only mismatch is
+        // exactOptionalPropertyTypes on view fields, so cast at this boundary.
+        initialState.boardContext = formatBoardAsContext({
+          id: rawCurrentBoard.id,
+          title: rawCurrentBoard.title ?? 'Board',
+          boardType: rawCurrentBoard.boardType,
+          fields: rawCurrentBoard.fields,
+          rows: rawCurrentBoard.rows,
+          views: rawCurrentBoard.views,
+        } as Parameters<typeof formatBoardAsContext>[0]);
+      }
+
       if (memoryContext) {
         initialState.memoryContext = memoryContext;
         initialState.memoryRetrieveTimeMs = memoryRetrieveTimeMs;
@@ -973,6 +997,33 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         });
         log.info(
           `[ChatGraph] Emitted trigger_doc_edit for doc ${rawCurrentDocument.id} (selection: ${hasSelection}, refContentChars: ${cappedPrev.length})`
+        );
+      }
+
+      // === Stage 3d: Live board edit trigger (boards editor surface only) ===
+      // For edit_current_board intent, emit a `trigger_board_action` SSE event
+      // with the user's prompt. The boards-editor frontend calls POST
+      // /api/boards/:id/ai to plan operations, then applies them to the live
+      // Yjs board. ChatGraph never edits the board itself — classify + forward.
+      if (finalState.intent === 'edit_current_board' && rawCurrentBoard?.id) {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const lastUserIdx = lastUserMessage ? validMessages.indexOf(lastUserMessage) : -1;
+        const priorMessages = lastUserIdx > 0 ? validMessages.slice(0, lastUserIdx) : [];
+        const SUBSTANTIVE_THRESHOLD = 200;
+        const prevAssistantText =
+          [...priorMessages]
+            .reverse()
+            .map((m) => (m.role === 'assistant' ? extractTextContent(m.content) : ''))
+            .find((t) => t.trim().length >= SUBSTANTIVE_THRESHOLD) ?? '';
+        const cappedPrev =
+          prevAssistantText.length > 8000 ? prevAssistantText.slice(0, 8000) : prevAssistantText;
+        sse.send('trigger_board_action', {
+          targetBoardId: rawCurrentBoard.id,
+          userPrompt: lastUserText,
+          ...(cappedPrev.trim() ? { referenceContent: cappedPrev } : {}),
+        });
+        log.info(
+          `[ChatGraph] Emitted trigger_board_action for board ${rawCurrentBoard.id} (refContentChars: ${cappedPrev.length})`
         );
       }
 

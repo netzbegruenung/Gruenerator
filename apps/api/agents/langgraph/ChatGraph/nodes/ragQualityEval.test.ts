@@ -241,6 +241,7 @@ async function evaluateBudgetAllocation() {
     wolkeFiles: [],
     connectFiles: [],
     currentDocument: null,
+    currentBoard: null,
     searchSources: [],
     intent: 'search',
     secondaryIntent: null,

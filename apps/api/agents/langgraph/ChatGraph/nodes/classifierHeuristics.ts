@@ -30,6 +30,7 @@ export const INTENT_KEYWORDS: Record<
     | 'modify_doc'
     | 'edit_current_doc'
     | 'modify_board'
+    | 'edit_current_board'
     | 'share_doc'
     | 'pressemitteilung_examples'
   >,
