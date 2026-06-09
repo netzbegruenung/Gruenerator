@@ -31,6 +31,7 @@ import { createCacheMiddleware } from './middleware/cacheMiddleware.js';
 import { setupRoutes } from './routes.js';
 import { createAIService, type AIService } from './services/ai/aiService.js';
 import { startBoardAgentWorker } from './services/boards/boardAgentWorker.js';
+import { startCardDueReminderWorker } from './services/boards/cardDueReminderWorker.js';
 import { startUploadsCleanup } from './services/cleanup/uploadsCleanupService.js';
 import { startNotificationCleanup } from './services/notifications/notificationCleanupService.js';
 import { startCleanupScheduler as startExportCleanup } from './services/subtitler/exportCleanupService.js';
@@ -274,6 +275,9 @@ async function startWorker(): Promise<void> {
   // Async board agent: drains the agent_tasks queue (@gruenerator delegations).
   // Safe to run in every cluster worker — claiming uses FOR UPDATE SKIP LOCKED.
   startBoardAgentWorker();
+
+  // Reminds card watchers about cards due today/tomorrow (idempotent via reminded_at).
+  startCardDueReminderWorker();
 
   // TUS Upload Handler — registered before compression middleware.
   // TUS uploads are binary streams that don't benefit from compression

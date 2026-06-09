@@ -155,6 +155,8 @@ When changing column type via migration, grep all queries for that column and up
 
 ESLint (flat config), Prettier, Husky pre-commit (lint-staged), Knip (unused code). Don't add files to `allowDefaultProject` if already discovered by TS project service.
 
+**Typecheck only when finished.** During a multi-file implementation, do NOT run `pnpm typecheck`/build after each change — keep editing and run a single consolidated typecheck (and lint) pass at the very end, fixing all surfaced errors together.
+
 ### Newsletter
 
 See `CLAUDE-newsletter.md`. Landesverband notebooks: see `CLAUDE-landesverband.md`.

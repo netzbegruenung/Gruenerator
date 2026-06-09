@@ -17,8 +17,12 @@ import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferen
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
 import { mountUserTemplatesContractRouter } from './routes/auth/templates/userTemplatesContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
+import { mountBoardActivityContractRouter } from './routes/boards/boardActivityContractRouter.js';
+import { mountBoardAttachmentsContractRouter } from './routes/boards/boardAttachmentsContractRouter.js';
+import { boardAttachmentUploadRouter } from './routes/boards/boardAttachmentUpload.js';
 import { mountBoardCommentsContractRouter } from './routes/boards/boardCommentsContractRouter.js';
 import { mountBoardsContractRouter } from './routes/boards/boardsContractRouter.js';
+import { mountBoardSubscriptionsContractRouter } from './routes/boards/boardSubscriptionsContractRouter.js';
 import { mountPublicBoardsContractRouter } from './routes/boards/publicBoardsContractRouter.js';
 import { mountCanvasAiContractRouter } from './routes/canvas/aiSuggestRoute.js';
 import canvasChatEditRouter from './routes/canvas/canvasChatEditController.js';
@@ -617,8 +621,17 @@ export async function setupRoutes(app: Application): Promise<void> {
   // register their own routes after, so the middleware runs first.
   app.use('/api/boards', requireAuth, authenticatedReadLimiter);
   app.use('/api/board-comments', requireAuth, authenticatedReadLimiter);
+  app.use('/api/board-activity', requireAuth, authenticatedReadLimiter);
+  app.use('/api/board-subscriptions', requireAuth, authenticatedReadLimiter);
+  app.use('/api/board-attachments', requireAuth, authenticatedReadLimiter);
   mountBoardsContractRouter(app);
   mountBoardCommentsContractRouter(app);
+  mountBoardActivityContractRouter(app);
+  mountBoardSubscriptionsContractRouter(app);
+  // Plain Express upload/download routes BEFORE the ts-rest contract router so the
+  // multipart/binary handlers aren't shadowed by the JSON contract's validation.
+  app.use('/api/board-attachments', boardAttachmentUploadRouter);
+  mountBoardAttachmentsContractRouter(app);
   app.use('/api/users', requireAuth, publicReadLimiter, usersRouter);
   // ts-rest contract router — mount before legacy voiceController router
   mountVoiceContractRouter(app);
