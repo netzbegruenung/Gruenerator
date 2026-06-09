@@ -70,7 +70,8 @@ import {
 } from './routes/search/index.js';
 import searchGraphRouter from './routes/search/searchGraphController.js';
 import { mountShareContractRouter } from './routes/share/shareContractRouter.js';
-import shareRouter from './routes/share/shareController.js';
+import shareFileRouter from './routes/share/shareFileRouter.js';
+import { mountShareReadContractRouter } from './routes/share/shareReadContractRouter.js';
 import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
@@ -579,9 +580,13 @@ export async function setupRoutes(app: Application): Promise<void> {
   // The contract router below checks req.user.id per write handler; the legacy
   // router keeps public preview/download/thumbnail endpoints reachable.
   app.use('/api/share', optionalAuth);
-  // ts-rest contract router — mount before legacy shareRouter
+  // ts-rest contract routers — mount BEFORE the legacy file router so ts-rest
+  // matches the migrated routes first. Write endpoints (image/video/template/
+  // push) + read/management endpoints (my/recent/templates/devices/delete/
+  // publish) are contracted; only public info + file-streaming stay legacy.
   mountShareContractRouter(app);
-  app.use('/api/share', publicReadLimiter, shareRouter);
+  mountShareReadContractRouter(app);
+  app.use('/api/share', publicReadLimiter, shareFileRouter);
   // ts-rest contract router — mount before legacy transferRouter (GET /list and DELETE /:token)
   // POST /upload (multer file upload) falls through to the legacy router.
   app.use('/api/transfer', requireAuth);
