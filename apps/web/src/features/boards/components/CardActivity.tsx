@@ -3,6 +3,7 @@ import { memo } from 'react';
 import { FiActivity } from 'react-icons/fi';
 
 import { useBoardActivity } from '../hooks/useBoardActivity';
+import { activityRelativeTime } from '../utils/activityFormat';
 
 import { RobotAvatar } from '@/components/common/RobotAvatar';
 
@@ -21,19 +22,11 @@ const VERB: Record<ActivityType, string> = {
   card_restored: 'hat die Karte wiederhergestellt',
   comment_added: 'hat kommentiert',
   attachment_added: 'hat einen Anhang hinzugefügt',
+  board_renamed: 'hat das Board umbenannt',
+  board_archived: 'hat das Board archiviert',
+  board_restored: 'hat das Board wiederhergestellt',
+  board_duplicated: 'hat das Board dupliziert',
 };
-
-function relativeTime(iso: string): string {
-  const then = new Date(iso).getTime();
-  const diff = Date.now() - then;
-  const min = Math.floor(diff / 60_000);
-  if (min < 1) return 'gerade eben';
-  if (min < 60) return `vor ${min} Min.`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `vor ${h} Std.`;
-  const d = Math.floor(h / 24);
-  return `vor ${d} Tg.`;
-}
 
 export const CardActivity = memo(function CardActivity({ boardId, cardId }: CardActivityProps) {
   const { activityQuery } = useBoardActivity(boardId, cardId);
@@ -64,7 +57,9 @@ export const CardActivity = memo(function CardActivity({ boardId, cardId }: Card
                 <span className="font-medium">{e.author_name ?? 'Jemand'}</span>{' '}
                 <span className="text-grey-500">{VERB[e.type] ?? 'hat etwas geändert'}</span>
               </span>
-              <span className="ml-auto text-grey-400 shrink-0">{relativeTime(e.created_at)}</span>
+              <span className="ml-auto text-grey-400 shrink-0">
+                {activityRelativeTime(e.created_at)}
+              </span>
             </div>
           ))}
       </div>

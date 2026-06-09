@@ -9,6 +9,12 @@ import { boardSubscriptionsContract } from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import {
+  countBoardSubscribers,
+  isBoardSubscribed,
+  subscribeToBoard,
+  unsubscribeFromBoard,
+} from '../../services/boards/boardSubscriptionService.js';
+import {
   countSubscribers,
   isSubscribed,
   subscribeToCard,
@@ -80,6 +86,57 @@ export const boardSubscriptionsContractRouter = s.router(boardSubscriptionsContr
       return { status: 200 as const, body: { subscribed: false, count } };
     } catch (error) {
       log.error('Error unsubscribing', { error: errMsg(error) });
+      return { status: 500 as const, body: { error: 'Abbestellen fehlgeschlagen' } };
+    }
+  },
+
+  // ── Board-level watch (board_subscriptions table) ─────────────────────────
+  getBoardSubscription: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const { boardId } = args.params;
+      const { hasAccess } = await checkBoardAccess(boardId, userId);
+      if (!hasAccess) return { status: 403 as const, body: { error: 'Kein Zugriff' } };
+
+      const [subscribed, count] = await Promise.all([
+        isBoardSubscribed(boardId, userId),
+        countBoardSubscribers(boardId),
+      ]);
+      return { status: 200 as const, body: { subscribed, count } };
+    } catch (error) {
+      log.error('Error reading board subscription', { error: errMsg(error) });
+      return { status: 500 as const, body: { error: 'Abo konnte nicht geladen werden' } };
+    }
+  },
+
+  subscribeBoard: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const { boardId } = args.params;
+      const { hasAccess } = await checkBoardAccess(boardId, userId);
+      if (!hasAccess) return { status: 403 as const, body: { error: 'Kein Zugriff' } };
+
+      await subscribeToBoard(boardId, userId);
+      const count = await countBoardSubscribers(boardId);
+      return { status: 200 as const, body: { subscribed: true, count } };
+    } catch (error) {
+      log.error('Error subscribing to board', { error: errMsg(error) });
+      return { status: 500 as const, body: { error: 'Abo fehlgeschlagen' } };
+    }
+  },
+
+  unsubscribeBoard: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const { boardId } = args.params;
+      const { hasAccess } = await checkBoardAccess(boardId, userId);
+      if (!hasAccess) return { status: 403 as const, body: { error: 'Kein Zugriff' } };
+
+      await unsubscribeFromBoard(boardId, userId);
+      const count = await countBoardSubscribers(boardId);
+      return { status: 200 as const, body: { subscribed: false, count } };
+    } catch (error) {
+      log.error('Error unsubscribing from board', { error: errMsg(error) });
       return { status: 500 as const, body: { error: 'Abbestellen fehlgeschlagen' } };
     }
   },

@@ -250,7 +250,7 @@ const WorkplacePage = () => {
         <div className="text-center mb-lg pt-md">
           <h1
             className={`text-4xl max-md:text-2xl font-semibold mb-xs ${
-              pride ? 'bg-clip-text text-transparent' : 'text-foreground-heading'
+              pride ? 'inline-block w-fit bg-clip-text text-transparent' : 'text-foreground-heading'
             }`}
             style={
               pride
