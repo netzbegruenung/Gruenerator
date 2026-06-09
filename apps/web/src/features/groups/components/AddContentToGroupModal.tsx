@@ -180,7 +180,8 @@ const AddContentToGroupModal: React.FC<AddContentToGroupModalProps> = ({
         queryKey: ['add-to-group', 'boards'],
         queryFn: async (): Promise<ContentItem[]> => {
           const result = await getContractsClient().boards.listBoards();
-          return result.status === 200 ? result.body : [];
+          if (result.status !== 200) return [];
+          return result.body.map((b) => ({ ...b, description: b.description ?? undefined }));
         },
         enabled: isOpen,
       },

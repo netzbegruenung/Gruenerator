@@ -6,11 +6,17 @@
  * Mount via mountBoardActivityContractRouter(app) after requireAuth in routes.ts.
  */
 
-import { boardActivityContract, type BoardActivityEntry } from '@gruenerator/contracts';
+import {
+  boardActivityContract,
+  type ActivityType,
+  type BoardActivityEntry,
+} from '@gruenerator/contracts';
 import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
+import { getBoardSubscribers } from '../../services/boards/boardSubscriptionService.js';
 import { recordCardActivity } from '../../services/boards/cardActivityService.js';
+import { createNotification } from '../../services/notifications/NotificationService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -21,6 +27,13 @@ import type { Application } from 'express';
 
 const log = createLogger('boardActivityContract');
 const db = getPostgresInstance();
+
+const BOARD_EVENT_LABEL: Partial<Record<ActivityType, string>> = {
+  board_renamed: 'umbenannt',
+  board_archived: 'archiviert',
+  board_restored: 'wiederhergestellt',
+  board_duplicated: 'dupliziert',
+};
 
 function errMsg(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -53,6 +66,105 @@ export const boardActivityContractRouter = s.router(boardActivityContract, {
     } catch (error) {
       log.error('Error listing activity', { error: errMsg(error) });
       return { status: 500 as const, body: { error: 'Aktivität konnte nicht geladen werden' } };
+    }
+  },
+
+  // Board-wide feed (A8): all cards + board-level events, newest first.
+  listBoardActivity: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const { boardId } = args.params;
+
+      const { hasAccess } = await checkBoardAccess(boardId, userId);
+      if (!hasAccess) return { status: 403 as const, body: { error: 'Kein Zugriff' } };
+
+      const rows = await db.query<BoardActivityEntry>(
+        `SELECT
+           a.*,
+           p.display_name AS author_name,
+           p.avatar_robot_id AS author_avatar_robot_id
+         FROM board_card_activity a
+         LEFT JOIN profiles p ON a.user_id = p.id
+         WHERE a.board_id = $1
+         ORDER BY a.created_at DESC
+         LIMIT 200`,
+        [boardId]
+      );
+      return { status: 200 as const, body: rows };
+    } catch (error) {
+      log.error('Error listing board activity', { error: errMsg(error) });
+      return { status: 500 as const, body: { error: 'Aktivität konnte nicht geladen werden' } };
+    }
+  },
+
+  // Record a board-level event (sentinel card_id) and notify board watchers (A9).
+  recordBoardActivity: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const { boardId } = args.params;
+      const { type, payload } = args.body;
+
+      const { hasAccess, canEdit, boardTitle } = await checkBoardAccess(boardId, userId);
+      if (!hasAccess || !canEdit)
+        return { status: 403 as const, body: { error: 'Kein Schreibzugriff' } };
+
+      const insertedId = await recordCardActivity({
+        boardId,
+        cardId: null,
+        userId,
+        type,
+        ...(payload ? { payload } : {}),
+      });
+      if (!insertedId)
+        return { status: 500 as const, body: { error: 'Aktivität nicht gespeichert' } };
+
+      void (async () => {
+        try {
+          const [subscribers, actorRows] = await Promise.all([
+            getBoardSubscribers(boardId),
+            db.query<{ display_name: string }>(`SELECT display_name FROM profiles WHERE id = $1`, [
+              userId,
+            ]),
+          ]);
+          const actorName = actorRows[0]?.display_name ?? 'Jemand';
+          const label = BOARD_EVENT_LABEL[type] ?? 'aktualisiert';
+          // allSettled so one failed delivery doesn't skip the remaining watchers.
+          await Promise.allSettled(
+            subscribers
+              .filter((subscriberId) => subscriberId !== userId)
+              .map((subscriberId) =>
+                createNotification({
+                  userId: subscriberId,
+                  type: 'board_updates',
+                  title: `${actorName} hat „${boardTitle ?? 'ein Board'}“ ${label}`,
+                  body: '',
+                  actionUrl: `/boards/${boardId}`,
+                  metadata: { boardId, activityType: type },
+                  groupKey: `board-activity-${boardId}`,
+                })
+              )
+          );
+        } catch (err) {
+          log.warn('Board watcher fan-out failed', { error: errMsg(err) });
+        }
+      })();
+
+      const rows = await db.query<BoardActivityEntry>(
+        `SELECT
+           a.*,
+           p.display_name AS author_name,
+           p.avatar_robot_id AS author_avatar_robot_id
+         FROM board_card_activity a
+         LEFT JOIN profiles p ON a.user_id = p.id
+         WHERE a.id = $1`,
+        [insertedId]
+      );
+      const entry = rows[0];
+      if (!entry) return { status: 500 as const, body: { error: 'Aktivität nicht gespeichert' } };
+      return { status: 201 as const, body: entry };
+    } catch (error) {
+      log.error('Error recording board activity', { error: errMsg(error) });
+      return { status: 500 as const, body: { error: 'Aktivität konnte nicht gespeichert werden' } };
     }
   },
 
