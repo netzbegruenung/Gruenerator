@@ -17,7 +17,8 @@ export function useBoardActivityFeed(boardId: string | undefined, enabled = true
       if (!boardId) return [];
       const client = getContractsClient();
       const result = await client.boardActivity.listBoardActivity({ params: { boardId } });
-      if (result.status !== 200) throw new Error(`Failed to load board activity (HTTP ${result.status})`);
+      if (result.status !== 200)
+        throw new Error(`Failed to load board activity (HTTP ${result.status})`);
       return result.body;
     },
     enabled: !!boardId && enabled,

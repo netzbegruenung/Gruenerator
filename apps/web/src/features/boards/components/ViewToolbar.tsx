@@ -97,9 +97,7 @@ export const ViewToolbar = memo(function ViewToolbar({
           fields={fields}
           groupByFieldId={activeView.groupByFieldId}
           swimlaneFieldId={activeView.swimlaneFieldId}
-          onSwimlaneChange={(fieldId) =>
-            onUpdateView(activeView.id, { swimlaneFieldId: fieldId })
-          }
+          onSwimlaneChange={(fieldId) => onUpdateView(activeView.id, { swimlaneFieldId: fieldId })}
         />
       ) : null}
       {hasFiltersOrSorts && (
