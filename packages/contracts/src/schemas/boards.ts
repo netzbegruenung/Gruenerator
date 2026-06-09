@@ -18,6 +18,8 @@ export const createBoardBodySchema = z.object({
 export const updateBoardBodySchema = z.object({
   title: z.string().optional(),
   is_archived: z.boolean().optional(),
+  // Markdown board description (board-level briefing); null clears it.
+  description: z.string().nullish(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────
@@ -52,6 +54,8 @@ export const boardDocumentSchema = z.object({
   updated_at: z.string(),
   creator_name: z.string().optional(),
   content: boardContentSchema.nullish(),
+  // Optional markdown board-level description (board-overview briefing).
+  description: z.string().nullish(),
 });
 
 export const generateBoardResponseSchema = z.object({
@@ -122,6 +126,9 @@ export const selectOptionSchema = z.object({
   id: z.string(),
   name: z.string(),
   color: z.string(),
+  // Optional WIP limit (max cards) when this option is a kanban column. Empty =
+  // no limit. The column header shows `count/limit` and turns red on overflow.
+  limit: z.number().int().positive().optional(),
 });
 
 export const boardFieldSchema = z.object({
@@ -147,6 +154,11 @@ export const boardRowSchema = z.object({
   createdAt: z.string(),
   icon: z.string().optional(),
   coverColor: z.string().optional(),
+  // Image attachment used as the card cover (set via "Als Cover" on an attachment).
+  coverImageUrl: z.string().optional(),
+  // ISO timestamp set when the card is archived (soft-delete); absent = active.
+  // Archived rows are filtered out of every view by default (useViewData).
+  archivedAt: z.string().optional(),
 });
 
 export const viewLayoutSchema = z.enum(['kanban', 'table', 'list', 'calendar', 'gantt']);
@@ -173,6 +185,9 @@ export const boardViewSchema = z.object({
   name: z.string(),
   layout: viewLayoutSchema,
   groupByFieldId: z.string().optional(),
+  // Second grouping axis for kanban: rows are split into horizontal swimlanes by
+  // this field, each containing the normal `groupByFieldId` columns. Absent = 1D.
+  swimlaneFieldId: z.string().optional(),
   dateFieldId: z.string().optional(),
   endDateFieldId: z.string().optional(),
   hiddenGroupIds: z.array(z.string()).optional(),
@@ -232,6 +247,11 @@ export const currentBoardSchema = z.object({
   fields: z.array(boardFieldSchema),
   rows: z.array(boardRowSchema),
   views: z.array(boardViewSchema),
+  // The field the visible Kanban columns are grouped by. `statusOptions` are this
+  // field's options — NOT necessarily FIELD_IDS.STATUS — so the executor writes
+  // columns/status to the field actually on screen. Optional for rollout
+  // compatibility; the client-side executor uses its own live value regardless.
+  groupByFieldId: z.string().optional(),
   statusOptions: z.array(selectOptionSchema),
   assignableMembers: z.array(z.object({ id: z.string(), name: z.string() })),
 });
@@ -267,7 +287,9 @@ export const boardOperationSchema = z.discriminatedUnion('type', [
     status: z.string().nullish(),
     description: z.string().nullish(),
     dueDate: z.string().nullish(),
+    // `assignee` (single) kept for backward compat; `assignees` (multi) preferred.
     assignee: z.string().nullish(),
+    assignees: z.array(z.string()).nullish(),
     labels: z.array(z.string()).nullish(),
   }),
   z.object({
@@ -278,13 +300,30 @@ export const boardOperationSchema = z.discriminatedUnion('type', [
     dueDate: z.string().nullish(),
   }),
   z.object({ type: z.literal('delete_task'), taskId: z.string() }),
+  // Soft-delete: archive hides the card from all views; restore brings it back.
+  z.object({ type: z.literal('archive_task'), taskId: z.string() }),
+  z.object({ type: z.literal('restore_task'), taskId: z.string() }),
+  // Clone a card (cells incl. checklists/labels/assignees) into the same column.
+  z.object({ type: z.literal('duplicate_task'), taskId: z.string() }),
   z.object({ type: z.literal('move_task'), taskId: z.string(), status: z.string() }),
   // ── comments ──
   z.object({ type: z.literal('add_comment'), taskId: z.string(), text: z.string() }),
   // ── people / fields on a task ──
   z.object({ type: z.literal('set_assignee'), taskId: z.string(), assignee: z.string().nullish() }),
+  z.object({
+    type: z.literal('set_assignees'),
+    taskId: z.string(),
+    assignees: z.array(z.string()),
+  }),
   z.object({ type: z.literal('set_labels'), taskId: z.string(), labels: z.array(z.string()) }),
   z.object({ type: z.literal('set_due_date'), taskId: z.string(), dueDate: z.string().nullish() }),
+  // Append an item to a card checklist (creates the named checklist if absent).
+  z.object({
+    type: z.literal('add_checklist_item'),
+    taskId: z.string(),
+    checklistTitle: z.string().nullish(),
+    text: z.string(),
+  }),
   // ── columns (status options) ──
   z.object({ type: z.literal('add_column'), name: z.string(), color: z.string().nullish() }),
   z.object({ type: z.literal('rename_column'), columnId: z.string(), name: z.string() }),

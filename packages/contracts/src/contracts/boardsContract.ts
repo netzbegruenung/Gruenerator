@@ -149,6 +149,27 @@ export const boardsContract = c.router(
     },
 
     /**
+     * POST /api/boards/:id/duplicate
+     * Clone a board's structure (fields/rows/views + description) into a fresh
+     * board. Relational tails (comments/attachments/activity) are NOT copied.
+     * Returns the new board + its structure (client seeds it, like generateBoard).
+     */
+    duplicateBoard: {
+      method: 'POST',
+      path: '/api/boards/:id/duplicate',
+      pathParams: z.object({ id: z.string() }),
+      body: z.object({}),
+      responses: {
+        201: generateBoardResponseSchema,
+        401: boardErrorResponseSchema,
+        403: boardErrorResponseSchema,
+        404: boardErrorResponseSchema,
+        500: boardErrorResponseSchema,
+      },
+      summary: 'Duplicate a board',
+    },
+
+    /**
      * GET /api/boards/:id/chat-thread
      * Resolve (idempotently create) the shared chat thread for a board. One
      * thread per board, shared across collaborators — reuses chat_threads.doc_id

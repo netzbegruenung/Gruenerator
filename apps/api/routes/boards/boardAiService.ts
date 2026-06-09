@@ -41,26 +41,30 @@ const FIELD_IDS = {
 const BOARD_TOOL_STRICT_PROMPT = `You translate a user's request into board operations by calling the tool applyBoardOperations.
 
 You MUST respond ONLY by calling applyBoardOperations with { "operations": [ ... ] }.
-Each operation has a "type" and the fields documented in the schema. Valid types:
-- create_task { title, status?, description?, dueDate?, assignee?, labels? }
-- update_task { taskId, title?, description?, dueDate? }
-- delete_task { taskId }
-- move_task { taskId, status }
-- add_comment { taskId, text }
-- set_assignee { taskId, assignee? }
-- set_labels { taskId, labels[] }
-- set_due_date { taskId, dueDate? }   // ISO date (YYYY-MM-DD) or null to clear
+
+IMPORTANT — you may ONLY CREATE NEW things in the board. You must NOT modify, move,
+assign, comment on, archive, duplicate or delete EXISTING entries. Only these
+operation types are permitted:
+- create_task { title, status?, description?, dueDate?, assignee?, assignees?, labels? }
 - add_column { name, color? }
-- rename_column { columnId, name }
 - add_field { name, fieldType, options? }
 - add_view { name, layout }            // layout: kanban|table|list|calendar|gantt
 
+Operations that touch existing entries are DISABLED and will be rejected — do NOT
+emit them: update_task, delete_task, archive_task, restore_task, duplicate_task,
+move_task, add_comment, set_assignee, set_assignees, set_labels, set_due_date,
+add_checklist_item, rename_column.
+
 RULES:
-- Use the EXACT taskId values from the board state for existing tasks.
-- For "status", "assignee" and "labels" use HUMAN NAMES (e.g. "In Arbeit", "Erledigt", a member's name, "Dringend"). The client resolves them to ids and creates a column/label if it does not exist yet.
-- Combine multiple changes into one operations array when the user asks for several things.
+- For "status", "assignee"/"assignees" and "labels" use HUMAN NAMES (e.g. "In Arbeit",
+  "Erledigt", a member's name, "Dringend"). The client resolves them to ids and
+  creates a column/label if it does not exist yet.
+- If the user asks to change, move, assign, comment on or delete an existing task,
+  briefly explain (in the next turn) that you can only create new items — but for
+  THIS tool call still return an empty operations array.
 - Dates must be ISO (YYYY-MM-DD). Resolve relative dates ("nächsten Freitag") against today.
-- Only emit operations the user actually asked for. If nothing should change, return an empty operations array.
+- Only emit operations the user actually asked for. If nothing should be created,
+  return an empty operations array.
 - Return ONLY the tool call. No prose.`;
 
 /**

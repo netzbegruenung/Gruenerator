@@ -2,8 +2,12 @@ import { type AssignableMember, type BoardOperation } from '@gruenerator/contrac
 
 import {
   FIELD_IDS,
+  parseChecklists,
+  serializeAssignees,
   type BoardView,
+  type CardAssignee,
   type CellValue,
+  type ChecklistGroup,
   type Field,
   type FieldType,
   type Row,
@@ -25,6 +29,7 @@ export interface BoardMutations {
   updateRow: (rowId: string, updates: Partial<Row>) => void;
   updateRowCell: (rowId: string, fieldId: string, value: CellValue) => void;
   deleteRow: (rowId: string) => void;
+  duplicateRow: (rowId: string, createdBy: string) => string | null;
   addField: (field: Field) => void;
   updateField: (fieldId: string, updates: Partial<Field>) => void;
   addView: (view: BoardView) => void;
@@ -34,6 +39,13 @@ export interface BoardExecutorCtx {
   boardState: BoardMutations;
   currentUserId: string;
   assignableMembers: AssignableMember[];
+  /**
+   * Field the visible Kanban columns are grouped by (the active view). All
+   * column/status operations target THIS field, not a hardcoded one — so an
+   * AI-added column lands on the field actually on screen. Defaults to
+   * FIELD_IDS.STATUS (the standard every template's Kanban view groups by).
+   */
+  groupByFieldId?: string;
   /** Adds a plain-text comment to a card (REST). */
   addComment: (taskId: string, text: string) => Promise<void>;
   /** Confirms a batch of deletions. Resolves true to proceed. */
@@ -83,11 +95,15 @@ export async function applyBoardOperations(
   const skipped: string[] = [];
   let applied = 0;
 
+  // The field the visible columns are grouped by — every column/status op targets
+  // this, never a hardcoded id, so AI edits hit the field on screen.
+  const statusFieldId = ctx.groupByFieldId ?? FIELD_IDS.STATUS;
+
   // Local working copies of select-option sets, seeded from the live board and
   // mutated as we go — so multiple ops in one batch that create/reference the
   // same column or label stay consistent (the React snapshot won't update
   // synchronously between ops within this run).
-  const statusField = boardState.fields.find((f) => f.id === FIELD_IDS.STATUS);
+  const statusField = boardState.fields.find((f) => f.id === statusFieldId);
   let statusOptions: SelectOption[] = [
     ...((statusField?.typeOptions.options as SelectOption[] | undefined) ?? []),
   ];
@@ -110,7 +126,7 @@ export async function applyBoardOperations(
     const color =
       COLUMN_COLORS[(statusOptions.length % (COLUMN_COLORS.length - 1)) + 1] ?? '#8da4bf';
     statusOptions = [...statusOptions, { id, name: nameOrId.trim(), color }];
-    boardState.updateField(FIELD_IDS.STATUS, {
+    boardState.updateField(statusFieldId, {
       typeOptions: { ...statusField.typeOptions, options: statusOptions },
     });
     return id;
@@ -143,23 +159,43 @@ export async function applyBoardOperations(
     return ids;
   }
 
-  function resolveAssigneeCell(name: string | null | undefined): string {
-    if (!name) return '';
+  function resolveOneAssignee(name: string): CardAssignee {
     const lc = name.trim().toLowerCase();
     const member = ctx.assignableMembers.find((m) => {
       const display = (m.display_name || m.first_name || '').trim().toLowerCase();
       return m.user_id === name || display === lc;
     });
     if (member) {
-      return JSON.stringify({
+      return {
         id: member.user_id,
         name: member.display_name || member.first_name || name,
         avatarRobotId: member.avatar_robot_id,
-      });
+      };
     }
     // Unresolved — store the raw name so it's at least visible, and report it.
     skipped.push(`Mitglied „${name}" nicht gefunden — als Text gespeichert`);
-    return JSON.stringify({ id: '', name: name.trim(), avatarRobotId: 1 });
+    return { id: '', name: name.trim(), avatarRobotId: 1 };
+  }
+
+  /** Single assignee → cell string (backward-compat; stores a one-element array). */
+  function resolveAssigneeCell(name: string | null | undefined): string {
+    if (!name) return '';
+    return serializeAssignees([resolveOneAssignee(name)]);
+  }
+
+  /** Multiple assignees (names or ids) → cell string, de-duplicated by id+name. */
+  function resolveAssigneesCell(names: string[]): string {
+    const seen = new Set<string>();
+    const out: CardAssignee[] = [];
+    for (const n of names) {
+      if (!n) continue;
+      const a = resolveOneAssignee(n);
+      const key = `${a.id}|${a.name.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(a);
+    }
+    return serializeAssignees(out);
   }
 
   const fieldTypeFor = (t: FieldType): FieldType => t;
@@ -167,16 +203,37 @@ export async function applyBoardOperations(
   // Collect deletions to confirm once at the end.
   const deletes: { taskId: string; title: string }[] = [];
 
+  // SAFETY: in an existing board the assistant may only CREATE new items — it must
+  // not edit, move, assign, comment on, archive, duplicate or delete existing
+  // entries (too risky). To re-enable any of those, add its op type here.
+  const ALLOWED_OPS: ReadonlySet<BoardOperation['type']> = new Set([
+    'create_task',
+    'add_column',
+    'add_field',
+    'add_view',
+  ]);
+
   for (const op of ops) {
+    if (!ALLOWED_OPS.has(op.type)) {
+      skipped.push(`„${op.type}" ist deaktiviert — die KI darf nur neue Einträge anlegen`);
+      continue;
+    }
     try {
       switch (op.type) {
         case 'create_task': {
           const statusId = resolveStatusId(op.status) ?? statusOptions[0]?.id ?? 'status-todo';
           const row = createDefaultRow(statusId, ctx.currentUserId);
+          // createDefaultRow writes the status cell on FIELD_IDS.STATUS; if the
+          // board groups by another field, place the card in the visible column too.
+          if (statusFieldId !== FIELD_IDS.STATUS) row.cells[statusFieldId] = statusId;
           row.cells[FIELD_IDS.TITLE] = op.title;
           if (op.description != null) row.cells[FIELD_IDS.DESCRIPTION] = op.description;
           if (op.dueDate != null) row.cells[FIELD_IDS.DUE_DATE] = op.dueDate;
-          if (op.assignee != null) row.cells[FIELD_IDS.ASSIGNEE] = resolveAssigneeCell(op.assignee);
+          if (op.assignees && op.assignees.length > 0) {
+            row.cells[FIELD_IDS.ASSIGNEE] = resolveAssigneesCell(op.assignees);
+          } else if (op.assignee != null) {
+            row.cells[FIELD_IDS.ASSIGNEE] = resolveAssigneeCell(op.assignee);
+          }
           if (op.labels && op.labels.length > 0) {
             row.cells[FIELD_IDS.LABELS] = resolveLabelIds(op.labels);
           }
@@ -207,7 +264,7 @@ export async function applyBoardOperations(
             skipped.push(`Spalte „${op.status}" konnte nicht aufgelöst werden`);
             break;
           }
-          boardState.updateRowCell(op.taskId, FIELD_IDS.STATUS, statusId);
+          boardState.updateRowCell(op.taskId, statusFieldId, statusId);
           applied++;
           break;
         }
@@ -217,6 +274,65 @@ export async function applyBoardOperations(
             break;
           }
           boardState.updateRowCell(op.taskId, FIELD_IDS.ASSIGNEE, resolveAssigneeCell(op.assignee));
+          applied++;
+          break;
+        }
+        case 'set_assignees': {
+          if (!rowExists(op.taskId)) {
+            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
+            break;
+          }
+          boardState.updateRowCell(
+            op.taskId,
+            FIELD_IDS.ASSIGNEE,
+            resolveAssigneesCell(op.assignees)
+          );
+          applied++;
+          break;
+        }
+        case 'archive_task': {
+          if (!rowExists(op.taskId)) {
+            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
+            break;
+          }
+          boardState.updateRow(op.taskId, { archivedAt: new Date().toISOString() });
+          applied++;
+          break;
+        }
+        case 'restore_task': {
+          if (!rowExists(op.taskId)) {
+            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
+            break;
+          }
+          boardState.updateRow(op.taskId, { archivedAt: undefined });
+          applied++;
+          break;
+        }
+        case 'duplicate_task': {
+          if (!rowExists(op.taskId)) {
+            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
+            break;
+          }
+          const id = boardState.duplicateRow(op.taskId, ctx.currentUserId);
+          if (id) applied++;
+          else skipped.push(`Aufgabe ${op.taskId} konnte nicht dupliziert werden`);
+          break;
+        }
+        case 'add_checklist_item': {
+          if (!rowExists(op.taskId)) {
+            skipped.push(`Aufgabe ${op.taskId} nicht gefunden`);
+            break;
+          }
+          const row = boardState.rows.find((r) => r.id === op.taskId);
+          const groups: ChecklistGroup[] = parseChecklists(row?.cells[FIELD_IDS.CHECKLIST]);
+          const title = op.checklistTitle?.trim() || 'Checkliste';
+          let group = groups.find((g) => g.title.trim().toLowerCase() === title.toLowerCase());
+          if (!group) {
+            group = { id: `cl-${slug(title)}-${rand()}`, title, items: [] };
+            groups.push(group);
+          }
+          group.items.push({ id: `cli-${rand()}-${rand()}`, text: op.text, done: false });
+          boardState.updateRowCell(op.taskId, FIELD_IDS.CHECKLIST, JSON.stringify(groups));
           applied++;
           break;
         }
@@ -269,7 +385,7 @@ export async function applyBoardOperations(
             break;
           }
           statusOptions = statusOptions.map((o, i) => (i === idx ? { ...o, name: op.name } : o));
-          boardState.updateField(FIELD_IDS.STATUS, {
+          boardState.updateField(statusFieldId, {
             typeOptions: { ...statusField.typeOptions, options: statusOptions },
           });
           applied++;
