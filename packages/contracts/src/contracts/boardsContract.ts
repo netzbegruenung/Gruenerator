@@ -20,7 +20,10 @@ import {
   boardDocumentSchema,
   boardStateResponseSchema,
   assignableMembersResponseSchema,
+  boardAiRequestBodySchema,
+  boardAiResponseSchema,
 } from '../schemas/boards.js';
+import { chatThreadResponseSchema } from '../schemas/docs.js';
 
 const c = initContract();
 
@@ -143,6 +146,67 @@ export const boardsContract = c.router(
         500: boardErrorResponseSchema,
       },
       summary: 'Create a new board',
+    },
+
+    /**
+     * POST /api/boards/:id/duplicate
+     * Clone a board's structure (fields/rows/views + description) into a fresh
+     * board. Relational tails (comments/attachments/activity) are NOT copied.
+     * Returns the new board + its structure (client seeds it, like generateBoard).
+     */
+    duplicateBoard: {
+      method: 'POST',
+      path: '/api/boards/:id/duplicate',
+      pathParams: z.object({ id: z.string() }),
+      body: z.object({}),
+      responses: {
+        201: generateBoardResponseSchema,
+        401: boardErrorResponseSchema,
+        403: boardErrorResponseSchema,
+        404: boardErrorResponseSchema,
+        500: boardErrorResponseSchema,
+      },
+      summary: 'Duplicate a board',
+    },
+
+    /**
+     * GET /api/boards/:id/chat-thread
+     * Resolve (idempotently create) the shared chat thread for a board. One
+     * thread per board, shared across collaborators — reuses chat_threads.doc_id
+     * since a board is a collaborative_documents row.
+     */
+    getChatThread: {
+      method: 'GET',
+      path: '/api/boards/:id/chat-thread',
+      pathParams: z.object({ id: z.string() }),
+      responses: {
+        200: chatThreadResponseSchema,
+        401: boardErrorResponseSchema,
+        403: boardErrorResponseSchema,
+        404: boardErrorResponseSchema,
+        500: boardErrorResponseSchema,
+      },
+      summary: 'Resolve the shared chat thread for a board',
+    },
+
+    /**
+     * POST /api/boards/:id/ai
+     * Turn a natural-language board-edit request into a list of board operations
+     * (applied client-side by the boards assistant). Returns operations as JSON.
+     */
+    ai: {
+      method: 'POST',
+      path: '/api/boards/:id/ai',
+      pathParams: z.object({ id: z.string() }),
+      body: boardAiRequestBodySchema,
+      responses: {
+        200: boardAiResponseSchema,
+        401: boardErrorResponseSchema,
+        403: boardErrorResponseSchema,
+        404: boardErrorResponseSchema,
+        500: boardErrorResponseSchema,
+      },
+      summary: 'Generate board operations from a natural-language request',
     },
 
     /**

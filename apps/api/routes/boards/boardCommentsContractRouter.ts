@@ -17,6 +17,8 @@ import { createExpressEndpoints, initServer } from '@ts-rest/express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
 import { enqueueAgentTask } from '../../services/boards/agentTaskService.js';
+import { recordCardActivity } from '../../services/boards/cardActivityService.js';
+import { autoSubscribe } from '../../services/boards/cardSubscriptionService.js';
 import { GRUENERATOR_BOT_USER_ID } from '../../services/boards/grueneratorBot.js';
 import { createNotification } from '../../services/notifications/NotificationService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
@@ -170,6 +172,16 @@ export const boardCommentsContractRouter = s.router(boardCommentsContract, {
       );
 
       const comment = rows[0];
+
+      // Commenter becomes a watcher; record the activity for the unified feed.
+      void autoSubscribe(boardId, cardId, userId, 'comment');
+      void recordCardActivity({
+        boardId,
+        cardId,
+        userId,
+        type: 'comment_added',
+        payload: { commentId: comment.id },
+      });
 
       const profile = await db.query<{
         display_name: string | null;

@@ -23,7 +23,7 @@
  * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
-import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense, lazy } from 'react';
+import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } from 'react';
 
 import { Skeleton } from '@gruenerator/ui';
 
@@ -36,6 +36,7 @@ import {
 import { CanvasEditorLayout } from '../../layouts';
 import { MobileSubsectionBridgeContext } from '../../sidebar/MobileSubsectionBridgeContext';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
+import { SidebarTabBar, SidebarPanel, WebSubsectionBar } from '../../sidebar';
 import { AutoSaveStoreProvider, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
 import { useCanvasSidebarStore } from '../../stores/canvasSidebarStore';
 
@@ -61,16 +62,6 @@ import type { MobileSubsectionBridgeValue } from '../../sidebar/MobileSubsection
 import type { SidebarTabId } from '../../sidebar/types';
 
 import { cn } from '../../utils/cn';
-
-const LazySidebarTabBar = lazy(() =>
-  import('../../sidebar').then((m) => ({ default: m.SidebarTabBar }))
-);
-const LazySidebarPanel = lazy(() =>
-  import('../../sidebar').then((m) => ({ default: m.SidebarPanel }))
-);
-const LazyWebSubsectionBar = lazy(() =>
-  import('../../sidebar').then((m) => ({ default: m.WebSubsectionBar }))
-);
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
 const sidebarLoadingFallback = (
@@ -798,13 +789,13 @@ function CanvasEditorInner({
     return pageLoadingIndicator;
   }
 
-  // Build sidebar elements (lazy-loaded to reduce initial bundle)
+  // Build sidebar elements (static within the already-async editor chunk)
   // In mobile bridge mode, native handles the tab bar
   // In external sidebar mode, web app sidebar handles the tab bar
   const tabBar =
     isMobileBridge || isExternalSidebar ? null : (
       <Suspense fallback={null}>
-        <LazySidebarTabBar
+        <SidebarTabBar
           tabs={visibleTabs}
           activeTab={activeTab}
           onTabClick={handleTabClick}
@@ -820,13 +811,13 @@ function CanvasEditorInner({
   const panel = isExternalSidebar ? null : (
     <MobileSubsectionBridgeContext.Provider value={subsectionBridgeValue}>
       <Suspense fallback={sidebarLoadingFallback}>
-        <LazySidebarPanel
+        <SidebarPanel
           isOpen={activeTab !== null}
           onClose={handlePanelClose}
           bottomOffset={subsectionBarOffset}
         >
           {renderActiveSection()}
-        </LazySidebarPanel>
+        </SidebarPanel>
       </Suspense>
     </MobileSubsectionBridgeContext.Provider>
   );
@@ -835,7 +826,7 @@ function CanvasEditorInner({
   const webSubsectionBar =
     isMobileWeb && !isExternalSidebar && mobileWebSubsections.length > 0 ? (
       <Suspense fallback={null}>
-        <LazyWebSubsectionBar
+        <WebSubsectionBar
           subsections={mobileWebSubsections}
           activeSubsection={mobileWebActiveSubsection}
           onSubsectionClick={setMobileWebActiveSubsection}
