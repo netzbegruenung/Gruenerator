@@ -47,6 +47,7 @@ import withAuthRequired from '@/components/common/LoginRequired/withAuthRequired
 import { Markdown } from '@/components/common/Markdown';
 import PageContainer from '@/components/common/PageContainer';
 import { getAgentIcon } from '@/components/layout/Sidebar/sidebarAgentConfig';
+import { SHOW_AGENT_CREATOR } from '@/config/featureFlags';
 import useAgentFavoritesStore from '@/stores/agentFavoritesStore';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -398,7 +399,7 @@ function SkillsAndAgentsPage() {
   const agentFavorites = useAgentFavoritesStore((s) => s.favoriteIdentifiers);
   const toggleAgentFavorite = useAgentFavoritesStore((s) => s.toggle);
 
-  const showCreateAgentCta = import.meta.env.DEV;
+  const showCreateAgentCta = SHOW_AGENT_CREATOR;
 
   const filteredSkills = useMemo(() => {
     // Only "real" skills with their own system prompt (Schnellbefehl-only skills
