@@ -443,6 +443,9 @@ router.get(
           metadata: item.metadata || {},
           created_at: item.created_at,
           updated_at: item.updated_at,
+          // User-submitted templates: lets the gallery mark them as community
+          // contributions and surface their author, distinct from official ones.
+          source: 'community' as const,
         };
       });
 
@@ -518,8 +521,14 @@ router.get(
         }
       }
 
-      // System templates first, then system files, then approved user vorlagen
-      const vorlagen = [...filteredSystemTemplates, ...filteredSystemFiles, ...userVorlagen];
+      // System templates first, then system files, then approved user vorlagen.
+      // Tag the official entries so the frontend can distinguish them from
+      // community contributions.
+      const vorlagen = [
+        ...filteredSystemTemplates.map((t) => ({ ...t, source: 'system' as const })),
+        ...filteredSystemFiles.map((f) => ({ ...f, source: 'system' as const })),
+        ...userVorlagen,
+      ];
 
       res.json({ success: true, vorlagen });
     } catch (error) {
