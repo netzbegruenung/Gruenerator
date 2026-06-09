@@ -149,7 +149,7 @@ const Sidebar = ({ isDesktop = false, onNavigate }: SidebarProps) => {
   }, [close]);
 
   const titleClass = cn(
-    'min-w-0 flex-1 truncate text-sm font-medium leading-tight transition-all duration-150',
+    'min-w-0 flex-1 truncate text-left text-sm font-medium leading-tight transition-all duration-150',
     sidebarExpanded ? 'opacity-100 translate-x-0' : 'hidden'
   );
 
@@ -393,7 +393,7 @@ const SidebarFavourites = memo(function SidebarFavourites({
   if (configItems.length === 0 && agentItems.length === 0) return null;
 
   const titleClass = cn(
-    'min-w-0 flex-1 truncate text-sm font-medium leading-tight transition-all duration-150',
+    'min-w-0 flex-1 truncate text-left text-sm font-medium leading-tight transition-all duration-150',
     expanded ? 'opacity-100 translate-x-0' : 'hidden'
   );
 
