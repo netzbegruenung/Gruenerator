@@ -39,14 +39,14 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
 
   return (
     <div>
-      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-grey-900">
+      <h3 className="flex items-center gap-2 m-0 mb-md text-lg font-semibold text-foreground">
         Kontakt
       </h3>
 
       <div
         className={cn('mb-md', isFieldHighlighted('title') && 'animate-[field-highlight_1s_ease]')}
       >
-        <label htmlFor="contact-title" className="block text-sm font-medium text-grey-700 mb-1.5">
+        <label htmlFor="contact-title" className="block text-sm font-medium text-foreground mb-1.5">
           Titel
         </label>
         <input
@@ -58,14 +58,14 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
           onFocus={() => handleFieldFocus('contact', 'title')}
           onBlur={handleFieldBlur}
           placeholder="Kontakt"
-          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
         />
       </div>
 
       <div
         className={cn('mb-md', isFieldHighlighted('email') && 'animate-[field-highlight_1s_ease]')}
       >
-        <label htmlFor="contact-email" className="block text-sm font-medium text-grey-700 mb-1.5">
+        <label htmlFor="contact-email" className="block text-sm font-medium text-foreground mb-1.5">
           E-Mail *
         </label>
         <input
@@ -78,14 +78,14 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
           onBlur={handleFieldBlur}
           placeholder="kontakt@beispiel.de"
           required
-          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
         />
       </div>
 
       <div
         className={cn('mb-md', isFieldHighlighted('phone') && 'animate-[field-highlight_1s_ease]')}
       >
-        <label htmlFor="contact-phone" className="block text-sm font-medium text-grey-700 mb-1.5">
+        <label htmlFor="contact-phone" className="block text-sm font-medium text-foreground mb-1.5">
           Telefon
         </label>
         <input
@@ -97,7 +97,7 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
           onFocus={() => handleFieldFocus('contact', 'phone')}
           onBlur={handleFieldBlur}
           placeholder="+49 123 456789"
-          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
         />
       </div>
 
@@ -107,7 +107,10 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
           isFieldHighlighted('address') && 'animate-[field-highlight_1s_ease]'
         )}
       >
-        <label htmlFor="contact-address" className="block text-sm font-medium text-grey-700 mb-1.5">
+        <label
+          htmlFor="contact-address"
+          className="block text-sm font-medium text-foreground mb-1.5"
+        >
           Adresse
         </label>
         <textarea
@@ -119,14 +122,14 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
           onBlur={handleFieldBlur}
           placeholder="Musterstraße 1&#10;12345 Musterstadt"
           rows={3}
-          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 rounded-md bg-white transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
+          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
         />
       </div>
 
-      <div className="h-px bg-grey-200 my-md" />
+      <div className="h-px bg-grey-200 dark:bg-grey-700 my-md" />
 
       <div className="mb-md">
-        <label className="block text-sm font-medium text-grey-700 mb-1.5">Hintergrundbild</label>
+        <label className="block text-sm font-medium text-foreground mb-1.5">Hintergrundbild</label>
         <ImageUpload
           value={data.backgroundImageUrl}
           onChange={(url) => updateField('backgroundImageUrl', url)}

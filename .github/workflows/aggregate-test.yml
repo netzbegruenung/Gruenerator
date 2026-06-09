@@ -28,4 +28,8 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter @gruenerator/api...
 
       - name: Run aggregate test
+        # Resolve @gruenerator/* workspace imports to TS source (the package
+        # exports' `development` condition) so the unbuilt dist/ isn't required.
+        env:
+          NODE_OPTIONS: --conditions=development
         run: npx tsx apps/api/test-aggregate.ts

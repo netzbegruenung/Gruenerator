@@ -74,6 +74,12 @@ import {
   streamForResolution,
   streamWithFallback,
 } from './services/responseStreamingService.js';
+import {
+  getLastSharepicVariant,
+  isSharepicRefinement,
+  isSharepicTopicMissing,
+  type PriorSharepic,
+} from './services/sharepicVariantHelpers.js';
 import { createSSEStream, getIntentMessage, PROGRESS_MESSAGES } from './services/sseHelpers.js';
 import { canAccessThread } from './services/threadAccessService.js';
 import { getUser, createThread, createMessage } from './services/threadPersistenceService.js';
@@ -118,6 +124,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         wolkeFiles: rawWolkeFiles,
         connectFiles: rawConnectFiles,
         currentDocument: rawCurrentDocument,
+        currentBoard: rawCurrentBoard,
         customSystemPrompt: rawCustomSystemPrompt,
         roleName: rawRoleName,
         initialAssistantMessage: rawInitialAssistantMessage,
@@ -421,6 +428,9 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
               selectionText: rawCurrentDocument.selectionText ?? null,
             }
           : undefined,
+        // Live board (boards editor surface). Deliberately NOT mirrored into
+        // boardIds — see classifierNode (keeps legacy modify_board from firing).
+        currentBoard: rawCurrentBoard ?? undefined,
         userLocale: user.locale ?? 'de-DE',
         customSystemPrompt: rawCustomSystemPrompt ?? undefined,
         activeSkillMention: rawActiveSkillMention ?? undefined,
@@ -432,6 +442,26 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       log.info(`[ChatGraph] User ${userId} locale: ${userLocale}`);
 
       initialState.agentConfig.userId = userId;
+
+      // Boards editor surface: surface the live board through the existing
+      // boardContext channel so respondNode can answer read-only questions
+      // ("what's overdue?", "summarize the board"). The edit path is handled
+      // separately via the edit_current_board intent + trigger_board_action SSE.
+      if (rawCurrentBoard) {
+        const { formatBoardAsContext } = await import('../../services/boards/BoardService.js');
+        // Contract board types are structurally compatible with BoardService's
+        // loose BoardState (which casts Yjs toJSON() output); the only mismatch is
+        // exactOptionalPropertyTypes on view fields, so cast at this boundary.
+        initialState.boardContext = formatBoardAsContext({
+          id: rawCurrentBoard.id,
+          title: rawCurrentBoard.title ?? 'Board',
+          boardType: rawCurrentBoard.boardType,
+          fields: rawCurrentBoard.fields,
+          rows: rawCurrentBoard.rows,
+          views: rawCurrentBoard.views,
+        } as Parameters<typeof formatBoardAsContext>[0]);
+      }
+
       if (memoryContext) {
         initialState.memoryContext = memoryContext;
         initialState.memoryRetrieveTimeMs = memoryRetrieveTimeMs;
@@ -561,6 +591,37 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         log.info(
           `[ChatGraph] image_edit style resolved to "${classifiedState.imageEditStyle}" (greenEditForced=${greenEditMentionForced}, universalForced=${universalEditForced})`
         );
+      }
+
+      // === Sharepic refinement: a follow-up edit right after a sharepic ===
+      // "verlängern" / "kürzer" / "anderes Bild" after a sharepic means "adjust
+      // the one you just made" — regenerate seeded with the previous sharepic's
+      // text, not a fresh sharepic about the word "verlängern". Overrides whatever
+      // intent the classifier picked (the edit verb alone rarely classifies as
+      // sharepic). Skipped when an image is attached (that's image_edit territory).
+      let sharepicRefinement: { instruction: string; prior: PriorSharepic } | undefined;
+      if (
+        actualThreadId &&
+        lastUserMessage &&
+        imageAttachments.length === 0 &&
+        classifiedState.intent !== 'image_edit' &&
+        !universalEditForced
+      ) {
+        const followText = (extractTextContent(lastUserMessage.content) as string) || '';
+        if (isSharepicRefinement(followText)) {
+          const prior = await getLastSharepicVariant(actualThreadId);
+          if (prior) {
+            sharepicRefinement = {
+              instruction: followText.replace(/@sharepic\b/gi, '').trim(),
+              prior,
+            };
+            classifiedState.intent = 'sharepic';
+            forcedTool = true;
+            log.info(
+              `[ChatGraph] Sharepic refinement: "${sharepicRefinement.instruction}" on ${prior.canvasType}`
+            );
+          }
+        }
       }
 
       sse.send('progress_step', {
@@ -720,6 +781,69 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         if (handled) return { status: 200 as const, body: undefined };
       }
 
+      // === HITL: Sharepic without a topic → ask before generating ===
+      // Unlike the generic clarification above this fires even for forced @sharepic,
+      // because a bare "@sharepic" / "zitat sharepic" has the intent but no subject.
+      if (classifiedState.intent === 'sharepic' && actualThreadId && !sharepicRefinement) {
+        const sharepicText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        if (isSharepicTopicMissing(sharepicText as string)) {
+          log.info('[ChatGraph] Sharepic topic missing — asking user for the topic');
+
+          const stepId = `clarify_${Date.now()}`;
+          const question = 'Zu welchem Thema soll ich das Sharepic erstellen?';
+          const options = ['Klimaschutz', 'Soziale Gerechtigkeit', 'Verkehrswende', 'Artenschutz'];
+
+          sse.sendRaw('thinking_step', {
+            stepId,
+            toolName: 'ask_human',
+            title: 'Stelle Klärungsfrage...',
+            status: 'in_progress',
+            args: { question, options },
+          });
+
+          sse.send('interrupt', {
+            interruptType: 'clarification',
+            question,
+            options,
+            threadId: actualThreadId,
+          });
+
+          await pipelineStateStore.store(actualThreadId, {
+            classifiedState,
+            requestContext: {
+              userId,
+              agentId: agentId ?? 'gruenerator-universal',
+              enabledTools: enabledTools ?? {},
+              ...(modelId != null && { modelId }),
+              actualThreadId,
+              isNewThread,
+              processedMeta,
+              imageAttachments,
+              memoryContext,
+              memoryRetrieveTimeMs,
+              validMessages,
+              forcedTool,
+              ...(rawDocumentIds != null && { rawDocumentIds }),
+            },
+          });
+
+          sse.send('done', {
+            threadId: actualThreadId,
+            citations: [],
+            interrupted: true,
+            metadata: {
+              intent: classifiedState.intent,
+              searchCount: 0,
+              totalTimeMs: Date.now() - initialState.startTime,
+              classificationTimeMs: classifiedState.classificationTimeMs,
+              searchTimeMs: 0,
+            },
+          });
+          sse.end();
+          return { status: 200 as const, body: undefined };
+        }
+      }
+
       // === Stage 2: Search or Image Generation ===
       const { finalState, generatedImage, sharepicVariants } = await executeIntentPipeline({
         classifiedState,
@@ -728,82 +852,99 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         ...(enabledTools != null && { enabledTools }),
         imageAttachments,
         req,
+        ...(sharepicRefinement && { sharepicRefinement }),
       });
 
       // === Stage 3: Response generation ===
-      sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
-
-      const systemMessage = await buildSystemMessage(finalState);
-      const agentConfigForResolve = {
-        provider: finalState.agentConfig.provider as string,
-        model: finalState.agentConfig.model,
-        ...(finalState.agentConfig.defaultModel != null && {
-          defaultModel: finalState.agentConfig.defaultModel,
-        }),
-      };
-      const resolution = await resolveModel(
-        agentConfigForResolve,
-        modelId ?? undefined,
-        requestId,
-        {
-          hasImages: imageAttachments.length > 0,
-          intent: finalState.intent,
-        }
-      );
-
-      const prunedValidMessages = pruneMessages(
-        validMessages as Parameters<typeof pruneMessages>[0]
-      );
-      const finalSystemMessage = actualThreadId
-        ? await applyCompaction(
-            actualThreadId,
-            prunedValidMessages,
-            systemMessage,
-            contextWindowTokens
-          )
-        : systemMessage;
-
-      let messagesForAI = buildMessagesForAI(
-        finalSystemMessage,
-        prunedValidMessages as Parameters<typeof buildMessagesForAI>[1]
-      );
-      // image_edit narrates from BILDVERGLEICH text descriptions; the raw image
-      // would put bytes in front of a non-vision model (since we no longer
-      // force-switch above) and create a redundant grounding source for vision
-      // models — skip injection so the descriptions are the single source.
-      if (finalState.intent !== 'image_edit') {
-        messagesForAI = injectImageAttachments(
-          messagesForAI as Parameters<typeof injectImageAttachments>[0],
-          imageAttachments,
-          requestId
-        );
-      }
-
-      const baseMaxTokens = finalState.agentConfig.params.max_tokens;
-
       let fullText: string | null;
-      try {
-        fullText = await streamWithFallback({
-          primary: resolution,
-          sse,
-          logPrefix: '[ChatGraph]',
-          buildStream: async (r) => {
-            const isReasoning = isRegoloReasoningModel(r.provider, r.modelName);
-            return streamForResolution({
-              resolution: r,
-              messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
-              maxTokens: isReasoning ? Math.max(baseMaxTokens, 9000) : baseMaxTokens,
-              temperature: finalState.agentConfig.params.temperature,
-              sse,
-              logPrefix: '[ChatGraph]',
-            });
-          },
-        });
-      } finally {
-        if (resolution.releaseSlot) await resolution.releaseSlot();
-      }
+      if (finalState.intent === 'sharepic') {
+        // Sharepic variants were already produced + streamed in Stage 2 (sharepic_complete).
+        // Skip the LLM — with the still-vague topic it asks clarifying questions over the
+        // already-finished sharepic. Emit a fixed confirmation instead so the user sees the
+        // assistant knows the sharepic exists. Also covers the all-variants-failed case.
+        const n = sharepicVariants.length;
+        fullText =
+          n > 0
+            ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
+              `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
+            : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
+              `anderen Thema noch einmal versuchen?`;
+        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+        sse.send('text_delta', { text: fullText });
+      } else {
+        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
 
-      if (fullText === null) return { status: 200 as const, body: undefined };
+        const systemMessage = await buildSystemMessage(finalState);
+        const agentConfigForResolve = {
+          provider: finalState.agentConfig.provider as string,
+          model: finalState.agentConfig.model,
+          ...(finalState.agentConfig.defaultModel != null && {
+            defaultModel: finalState.agentConfig.defaultModel,
+          }),
+        };
+        const resolution = await resolveModel(
+          agentConfigForResolve,
+          modelId ?? undefined,
+          requestId,
+          {
+            hasImages: imageAttachments.length > 0,
+            intent: finalState.intent,
+          }
+        );
+
+        const prunedValidMessages = pruneMessages(
+          validMessages as Parameters<typeof pruneMessages>[0]
+        );
+        const finalSystemMessage = actualThreadId
+          ? await applyCompaction(
+              actualThreadId,
+              prunedValidMessages,
+              systemMessage,
+              contextWindowTokens
+            )
+          : systemMessage;
+
+        let messagesForAI = buildMessagesForAI(
+          finalSystemMessage,
+          prunedValidMessages as Parameters<typeof buildMessagesForAI>[1]
+        );
+        // image_edit narrates from BILDVERGLEICH text descriptions; the raw image
+        // would put bytes in front of a non-vision model (since we no longer
+        // force-switch above) and create a redundant grounding source for vision
+        // models — skip injection so the descriptions are the single source.
+        if (finalState.intent !== 'image_edit') {
+          messagesForAI = injectImageAttachments(
+            messagesForAI as Parameters<typeof injectImageAttachments>[0],
+            imageAttachments,
+            requestId
+          );
+        }
+
+        const baseMaxTokens = finalState.agentConfig.params.max_tokens;
+
+        try {
+          fullText = await streamWithFallback({
+            primary: resolution,
+            sse,
+            logPrefix: '[ChatGraph]',
+            buildStream: async (r) => {
+              const isReasoning = isRegoloReasoningModel(r.provider, r.modelName);
+              return streamForResolution({
+                resolution: r,
+                messages: messagesForAI as Parameters<typeof streamForResolution>[0]['messages'],
+                maxTokens: isReasoning ? Math.max(baseMaxTokens, 9000) : baseMaxTokens,
+                temperature: finalState.agentConfig.params.temperature,
+                sse,
+                logPrefix: '[ChatGraph]',
+              });
+            },
+          });
+        } finally {
+          if (resolution.releaseSlot) await resolution.releaseSlot();
+        }
+
+        if (fullText === null) return { status: 200 as const, body: undefined };
+      }
 
       // === Stage 3b: Extract chart data from response (if chart intent) ===
       if (finalState.intent === 'chart') {
@@ -856,6 +997,33 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         });
         log.info(
           `[ChatGraph] Emitted trigger_doc_edit for doc ${rawCurrentDocument.id} (selection: ${hasSelection}, refContentChars: ${cappedPrev.length})`
+        );
+      }
+
+      // === Stage 3d: Live board edit trigger (boards editor surface only) ===
+      // For edit_current_board intent, emit a `trigger_board_action` SSE event
+      // with the user's prompt. The boards-editor frontend calls POST
+      // /api/boards/:id/ai to plan operations, then applies them to the live
+      // Yjs board. ChatGraph never edits the board itself — classify + forward.
+      if (finalState.intent === 'edit_current_board' && rawCurrentBoard?.id) {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const lastUserIdx = lastUserMessage ? validMessages.indexOf(lastUserMessage) : -1;
+        const priorMessages = lastUserIdx > 0 ? validMessages.slice(0, lastUserIdx) : [];
+        const SUBSTANTIVE_THRESHOLD = 200;
+        const prevAssistantText =
+          [...priorMessages]
+            .reverse()
+            .map((m) => (m.role === 'assistant' ? extractTextContent(m.content) : ''))
+            .find((t) => t.trim().length >= SUBSTANTIVE_THRESHOLD) ?? '';
+        const cappedPrev =
+          prevAssistantText.length > 8000 ? prevAssistantText.slice(0, 8000) : prevAssistantText;
+        sse.send('trigger_board_action', {
+          targetBoardId: rawCurrentBoard.id,
+          userPrompt: lastUserText,
+          ...(cappedPrev.trim() ? { referenceContent: cappedPrev } : {}),
+        });
+        log.info(
+          `[ChatGraph] Emitted trigger_board_action for board ${rawCurrentBoard.id} (refContentChars: ${cappedPrev.length})`
         );
       }
 
@@ -1004,12 +1172,72 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       classifiedState.clarificationQuestion = null;
       classifiedState.clarificationOptions = null;
 
+      const startTime = Date.now();
+
+      // === Sharepic resume: the answer is the topic — regenerate and finish ===
+      if (classifiedState.intent === 'sharepic') {
+        // Combine the original (topic-less) request with the answer so any variant
+        // hint ("zitat sharepic") survives and the answer supplies the subject.
+        const prevUserMsg = [...classifiedState.messages].reverse().find((m) => m.role === 'user');
+        const prevText = prevUserMsg ? extractTextContent(prevUserMsg.content) : '';
+        const combined = `${prevText} ${userAnswer}`.trim();
+        classifiedState.messages = [
+          ...classifiedState.messages,
+          { role: 'user', content: combined },
+        ];
+
+        sse.send('intent', {
+          intent: 'sharepic',
+          message: getIntentMessage('sharepic'),
+          reasoning: `Resumed: ${userAnswer}`,
+        });
+
+        const { sharepicVariants } = await executeIntentPipeline({
+          classifiedState,
+          sse,
+          forcedTool: requestContext.forcedTool,
+          ...(requestContext.enabledTools != null && { enabledTools: requestContext.enabledTools }),
+          imageAttachments: requestContext.imageAttachments ?? [],
+          req,
+        });
+
+        const n = sharepicVariants.length;
+        const fullText =
+          n > 0
+            ? `Ich habe dir ${n} Sharepic-${n === 1 ? 'Variante' : 'Varianten'} erstellt. ` +
+              `Wähle eine aus oder sag mir, was ich am Text oder Bild anpassen soll.`
+            : `Die Sharepic-Erstellung hat leider nicht geklappt. Magst du es mit einem ` +
+              `anderen Thema noch einmal versuchen?`;
+        sse.send('response_start', { message: PROGRESS_MESSAGES.responseStart });
+        sse.send('text_delta', { text: fullText });
+
+        await persistResumedResponse({
+          threadId: requestContext.actualThreadId!,
+          fullText,
+          finalState: classifiedState,
+          classifiedState,
+        });
+
+        sse.send('done', {
+          ...(requestContext.actualThreadId != null && {
+            threadId: requestContext.actualThreadId,
+          }),
+          citations: [],
+          metadata: {
+            intent: 'sharepic',
+            searchCount: 0,
+            totalTimeMs: Date.now() - startTime,
+            searchTimeMs: 0,
+          },
+        });
+        sse.end();
+        return { status: 200 as const, body: undefined };
+      }
+
       const nonSearchIntents = new Set(['direct', 'image', 'image_edit']);
       if (nonSearchIntents.has(classifiedState.intent)) {
         classifiedState.intent = 'search';
       }
-
-      const startTime = Date.now();
 
       sse.send('intent', {
         intent: classifiedState.intent,

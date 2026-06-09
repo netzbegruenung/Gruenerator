@@ -92,6 +92,8 @@ export interface GroupMembership {
   role: string;
   joined_at?: string;
   isAdmin: boolean;
+  /** Whether the caller muted email + push notifications for this group. */
+  notifications_muted?: boolean | null;
 }
 
 export interface VerifyTokenResult {

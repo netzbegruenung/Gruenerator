@@ -11,16 +11,18 @@ export type EntityLikeType = 'notebook' | 'template';
 const likedIdsQueryKey = (entityType: EntityLikeType) => ['entityLikes', entityType] as const;
 
 const PUBLIC_NOTEBOOKS_KEY = ['notebookCollections', 'public'] as const;
+const VORLAGEN_GALLERY_KEY = ['vorlagen-gallery'] as const;
 
 async function fetchLikedIds(entityType: EntityLikeType): Promise<string[]> {
-  if (entityType !== 'notebook') {
-    return [];
-  }
   const client = getContractsClient();
-  const result = await client.notebookCollections.listMyLikedCollections();
-  if (result.status !== 200) {
-    throw new Error('Konnte Likes nicht laden');
+  if (entityType === 'notebook') {
+    const result = await client.notebookCollections.listMyLikedCollections();
+    if (result.status !== 200) throw new Error('Konnte Likes nicht laden');
+    return result.body.liked_ids;
   }
+  // template
+  const result = await client.templateInteractions.listMyLikedTemplates();
+  if (result.status !== 200) throw new Error('Konnte Likes nicht laden');
   return result.body.liked_ids;
 }
 
@@ -28,11 +30,14 @@ async function callLike(
   entityType: EntityLikeType,
   entityId: string
 ): Promise<{ liked: boolean; count: number }> {
-  if (entityType !== 'notebook') {
-    throw new Error(`Like backend for entityType '${entityType}' not wired yet`);
-  }
   const client = getContractsClient();
-  const result = await client.notebookCollections.likeCollection({ params: { id: entityId } });
+  if (entityType === 'notebook') {
+    const result = await client.notebookCollections.likeCollection({ params: { id: entityId } });
+    if (result.status !== 200) throw new Error('Like fehlgeschlagen');
+    return { liked: true, count: result.body.count };
+  }
+  // template
+  const result = await client.templateInteractions.likeTemplate({ params: { id: entityId } });
   if (result.status !== 200) throw new Error('Like fehlgeschlagen');
   return { liked: true, count: result.body.count };
 }
@@ -41,11 +46,14 @@ async function callUnlike(
   entityType: EntityLikeType,
   entityId: string
 ): Promise<{ liked: boolean; count: number }> {
-  if (entityType !== 'notebook') {
-    throw new Error(`Unlike backend for entityType '${entityType}' not wired yet`);
-  }
   const client = getContractsClient();
-  const result = await client.notebookCollections.unlikeCollection({ params: { id: entityId } });
+  if (entityType === 'notebook') {
+    const result = await client.notebookCollections.unlikeCollection({ params: { id: entityId } });
+    if (result.status !== 200) throw new Error('Unlike fehlgeschlagen');
+    return { liked: false, count: result.body.count };
+  }
+  // template
+  const result = await client.templateInteractions.unlikeTemplate({ params: { id: entityId } });
   if (result.status !== 200) throw new Error('Unlike fehlgeschlagen');
   return { liked: false, count: result.body.count };
 }
@@ -61,6 +69,41 @@ function patchPublicNotebooksCache(
       c.id === entityId ? { ...c, likes_count: Math.max(0, (c.likes_count ?? 0) + delta) } : c
     );
   });
+}
+
+/**
+ * Patch every cached Vorlagen-gallery query (keyed by filter combination) so a
+ * like/unlike reflects immediately regardless of which filter view is active.
+ */
+function patchTemplateGalleryCache(
+  qc: ReturnType<typeof useQueryClient>,
+  entityId: string,
+  delta: number
+) {
+  qc.setQueriesData<Array<Record<string, unknown>> | undefined>(
+    { queryKey: VORLAGEN_GALLERY_KEY },
+    (prev) => {
+      if (!Array.isArray(prev)) return prev;
+      return prev.map((item) =>
+        String(item.id) === entityId
+          ? {
+              ...item,
+              likes_count: Math.max(0, ((item.likes_count as number | undefined) ?? 0) + delta),
+            }
+          : item
+      );
+    }
+  );
+}
+
+function patchEntityCache(
+  entityType: EntityLikeType,
+  qc: ReturnType<typeof useQueryClient>,
+  entityId: string,
+  delta: number
+) {
+  if (entityType === 'notebook') patchPublicNotebooksCache(qc, entityId, delta);
+  else patchTemplateGalleryCache(qc, entityId, delta);
 }
 
 export interface UseEntityLikesResult {
@@ -79,7 +122,7 @@ export function useEntityLikes(entityType: EntityLikeType): UseEntityLikesResult
   const query = useQuery({
     queryKey: likedIdsQueryKey(entityType),
     queryFn: () => fetchLikedIds(entityType),
-    enabled: isAuthenticated && entityType === 'notebook',
+    enabled: isAuthenticated,
     retry: 1,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
@@ -105,17 +148,13 @@ export function useEntityLikes(entityType: EntityLikeType): UseEntityLikesResult
         : [...previousIds, entityId];
       qc.setQueryData(likedIdsQueryKey(entityType), nextIds);
 
-      if (entityType === 'notebook') {
-        patchPublicNotebooksCache(qc, entityId, isCurrentlyLiked ? -1 : 1);
-      }
+      patchEntityCache(entityType, qc, entityId, isCurrentlyLiked ? -1 : 1);
       return { previousIds, wasLiked: isCurrentlyLiked };
     },
     onError: (_err, entityId, context) => {
       if (context) {
         qc.setQueryData(likedIdsQueryKey(entityType), context.previousIds);
-        if (entityType === 'notebook') {
-          patchPublicNotebooksCache(qc, entityId, context.wasLiked ? 1 : -1);
-        }
+        patchEntityCache(entityType, qc, entityId, context.wasLiked ? 1 : -1);
       }
     },
     onSettled: (_data, _err, entityId) => {

@@ -3,12 +3,11 @@ import {
   type CommentBlock,
   type CommentReaction,
 } from '@gruenerator/contracts';
-import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { useMobileKeyboardOffset } from '@gruenerator/shared/hooks';
 import { formatRelativeTime } from '@gruenerator/shared/utils';
 import { Button } from '@gruenerator/ui';
 import { memo, useCallback, useRef, useState } from 'react';
-import { FiSend, FiCornerDownRight, FiMessageSquare } from 'react-icons/fi';
+import { FiSend, FiCornerDownRight, FiMessageSquare, FiX } from 'react-icons/fi';
 import { useParams } from 'react-router-dom';
 
 import { useBoardComments } from '../hooks/useBoardComments';
@@ -16,6 +15,8 @@ import { useBoardComments } from '../hooks/useBoardComments';
 import { UserMentionPopover, type MentionUser } from './UserMentionPopover';
 
 import type { ReactNode } from 'react';
+
+import { RobotAvatar } from '@/components/common/RobotAvatar';
 
 // ── Tracked mention (position in text) ──────────────────────────────────
 
@@ -125,10 +126,12 @@ const CommentItem = memo(function CommentItem({
 
   return (
     <div className={`flex gap-2 group ${isReply ? 'ml-8' : ''}`}>
-      <img
-        src={getRobotAvatarPath(comment.author_avatar_robot_id ?? 1)}
+      <RobotAvatar
+        robotId={comment.author_avatar_robot_id ?? 1}
+        displayName={comment.author_name}
+        sizePx={24}
+        className="w-6 h-6 shrink-0 mt-0.5"
         alt=""
-        className="w-6 h-6 rounded-full shrink-0 mt-0.5"
       />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
@@ -137,19 +140,19 @@ const CommentItem = memo(function CommentItem({
           </span>
           <span className="text-[10px] text-grey-400">{formatCommentDate(comment.created_at)}</span>
           {comment.is_edited && <span className="text-[10px] text-grey-400">(bearbeitet)</span>}
-          <div className="sm:opacity-0 sm:group-hover:opacity-100 flex items-center gap-0.5 ml-auto transition-opacity">
+          <div className="sm:opacity-0 sm:group-hover:opacity-100 flex items-center gap-1 ml-auto transition-opacity">
             {!isReply && onReply && (
               <button
                 onClick={() => onReply(comment.id)}
-                className="text-grey-400 hover:text-primary-600 bg-transparent border-none cursor-pointer text-[10px] p-1 sm:p-0"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-grey-400 hover:text-primary-600 hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
                 title="Antworten"
               >
-                <FiCornerDownRight size={12} />
+                <FiCornerDownRight size={16} />
               </button>
             )}
             <button
               onClick={() => setShowReactions((v) => !v)}
-              className="text-grey-400 hover:text-primary-600 bg-transparent border-none cursor-pointer text-[10px] p-1 sm:p-0"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-base leading-none hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
               title="Reagieren"
             >
               😀
@@ -157,10 +160,10 @@ const CommentItem = memo(function CommentItem({
             {comment.user_id === currentUserId && (
               <button
                 onClick={() => onDelete(comment.id)}
-                className="text-grey-400 hover:text-red-500 bg-transparent border-none cursor-pointer text-[10px] p-1 sm:p-0"
+                className="flex h-7 w-7 items-center justify-center rounded-md text-grey-400 hover:text-red-500 hover:bg-grey-100 dark:hover:bg-grey-800 bg-transparent border-none cursor-pointer transition-colors"
                 title="Löschen"
               >
-                &times;
+                <FiX size={16} />
               </button>
             )}
           </div>
@@ -442,10 +445,12 @@ export const CardComments = memo(function CardComments({
       )}
 
       <div className="flex gap-2 relative">
-        <img
-          src={getRobotAvatarPath(currentUserAvatarRobotId)}
+        <RobotAvatar
+          robotId={currentUserAvatarRobotId}
+          displayName={currentUserName}
+          sizePx={24}
+          className="w-6 h-6 shrink-0 mt-1"
           alt=""
-          className="w-6 h-6 rounded-full shrink-0 mt-1"
         />
         <div className="flex-1 flex flex-col gap-1.5">
           <textarea

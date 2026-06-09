@@ -14,7 +14,11 @@ import type {
   ConfirmActionType,
   ChartData,
 } from '../../../agents/langgraph/ChatGraph/types.js';
-import type { CanvasAiSuggestion } from '@gruenerator/contracts';
+import type {
+  CanvasAiSuggestion,
+  TriggerDocEdit,
+  TriggerBoardAction,
+} from '@gruenerator/contracts';
 import type { Response } from 'express';
 
 /**
@@ -41,6 +45,7 @@ export type SSEEventType =
   | 'document_indexed'
   | 'document_created'
   | 'trigger_doc_edit'
+  | 'trigger_board_action'
   | 'confirm_action'
   | 'chart_data'
   | 'memory_context'
@@ -163,7 +168,8 @@ export interface SSEEventPayloads {
   };
   document_indexed: { documentId: string; title: string };
   document_created: { documentId: string; title: string; subtype: string; url: string };
-  trigger_doc_edit: { targetDocumentId: string; userPrompt: string; useSelection: boolean };
+  trigger_doc_edit: TriggerDocEdit;
+  trigger_board_action: TriggerBoardAction;
   interrupt: {
     interruptType: 'clarification';
     question: string;
@@ -256,6 +262,7 @@ export const INTENT_MESSAGE_POOLS: Record<SearchIntent, string[]> = {
   modify_doc: ['Bearbeite...', 'Ändere...', 'Überarbeite...'],
   edit_current_doc: ['Passe an...', 'Bearbeite...', 'Ändere...'],
   modify_board: ['Aktualisiere...', 'Ergänze...', 'Pflege...'],
+  edit_current_board: ['Passe Board an...', 'Aktualisiere...', 'Pflege...'],
   share_doc: ['Teile...', 'Sende...', 'Reiche weiter...'],
   direct: ['Antworte...', 'Schreibe...', 'Formuliere...'],
 };

@@ -5,11 +5,16 @@ import {
   LayoutDashboard,
   MessageSquare,
   Share2,
+  Sparkles,
   UserPlus,
   Users,
 } from 'lucide-react';
 
-import { openLinkAction, type NotificationTypeConfig } from '../notificationConfig';
+import {
+  openLinkAction,
+  setAvatarAction,
+  type NotificationTypeConfig,
+} from '../notificationConfig';
 
 export interface Notification {
   id: string;
@@ -59,6 +64,14 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     subtypes: ['board_comment_added', 'board_comment_reply', 'board_user_mentioned'],
     actions: (ctx) => [openLinkAction('Karte öffnen')(ctx)],
   },
+  agent_task_completed: {
+    label: 'Grünerator-Agent',
+    description: 'Wenn der Grünerator eine an ihn delegierte Aufgabe erledigt hat',
+    icon: Sparkles,
+    group: 'board',
+    subtypes: ['agent_task_completed', 'agent_task_failed'],
+    actions: (ctx) => [openLinkAction('Dokument öffnen')(ctx)],
+  },
 
   group_member_joined: {
     label: 'Mitglieder & Rollen',
@@ -98,12 +111,27 @@ export const NOTIFICATION_TYPES: Record<string, NotificationTypeConfig> = {
     group: 'system',
     actions: (ctx) => [openLinkAction('Notizbuch öffnen')(ctx)],
   },
+  template_liked: {
+    label: 'Vorlagen-Likes',
+    description: 'Wenn andere deine veröffentlichte Vorlage mögen',
+    icon: Heart,
+    group: 'system',
+    actions: (ctx) => [openLinkAction('Vorlage öffnen')(ctx)],
+  },
   wolke_new_files: {
     label: 'Neue Wolke-Dateien',
     description: 'Wenn in den Wolke-Ordnern deiner Notizbücher neue Dateien gefunden werden',
     icon: CloudDownload,
     group: 'system',
     actions: (ctx) => [openLinkAction('Notizbuch öffnen')(ctx)],
+  },
+  new_avatars: {
+    label: 'Neue Avatare',
+    description: 'Wenn neue Profil-Avatare verfügbar sind',
+    icon: Sparkles,
+    image: '/images/profileimages/11.webp',
+    group: 'system',
+    actions: (ctx) => [setAvatarAction(11, 'Avatar aktivieren')(ctx)],
   },
 
   // transfer_downloaded: {

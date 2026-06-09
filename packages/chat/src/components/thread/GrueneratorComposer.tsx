@@ -753,7 +753,7 @@ export const GrueneratorComposer = memo(function GrueneratorComposer({
                 onInsertMention={handleSelect}
                 onOpenFileBrowser={handlePlusMenuOpenFileBrowser}
                 onUploadFile={handlePlusMenuUpload}
-                {...(onNavigate ? { onOpenSkillsPage: () => onNavigate('/agents') } : {})}
+                {...(onNavigate ? { onOpenSkillsPage: () => onNavigate('/agentura') } : {})}
               />
             )}
             {showToolToggles && (

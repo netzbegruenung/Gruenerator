@@ -26,8 +26,19 @@ const GENERAL_DE = [
   'Was steht heute auf der Agenda, @Vorname?',
 ] as const;
 
+// Pride month (June, month index 5): show a special rainbow-coloured greeting.
+// Evaluated per render so it switches on/off at the month boundary with no
+// manual revert needed — same pattern as GrueneratorHomeIcon.
+const isPrideMonth = () => new Date().getMonth() === 5;
+
+const PRIDE_GREETING = 'Happy Pride, @Vorname!';
+
 function pickTemplate(locale: string | null | undefined, hour: number): string {
   const daySeed = Math.floor(Date.now() / 86_400_000);
+
+  if (isPrideMonth()) {
+    return PRIDE_GREETING;
+  }
 
   if (locale === 'de-AT') {
     if (hour < 6)
@@ -230,12 +241,26 @@ const WorkplacePage = () => {
   const locale = useAuthStore((state) => state.locale);
   const isAustrian = locale === 'de-AT';
 
+  const pride = isPrideMonth();
+
   return (
     <ErrorBoundary>
       {/* <Sun /> */}
       <PageContainer maxWidth="lg">
         <div className="text-center mb-lg pt-md">
-          <h1 className="text-4xl max-md:text-2xl font-semibold text-foreground-heading mb-xs">
+          <h1
+            className={`text-4xl max-md:text-2xl font-semibold mb-xs ${
+              pride ? 'inline-block w-fit bg-clip-text text-transparent' : 'text-foreground-heading'
+            }`}
+            style={
+              pride
+                ? {
+                    backgroundImage:
+                      'linear-gradient(90deg,#E40303,#FF8C00,#FFED00,#008026,#004DFF,#750787)',
+                  }
+                : undefined
+            }
+          >
             {getGreeting(locale, firstName)}
           </h1>
         </div>

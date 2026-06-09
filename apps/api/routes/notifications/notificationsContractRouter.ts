@@ -10,6 +10,7 @@
  *   - DELETE /api/notifications
  *   - GET  /api/auth/profile/notification-preferences
  *   - PATCH /api/auth/profile/notification-preferences
+ *   - PUT  /api/auth/profile/notification-preferences/level
  *
  * NOT contracted: GET /api/notifications/stream (SSE — text/event-stream).
  *
@@ -119,11 +120,12 @@ export const notificationsContractRouter = s.router(notificationsContract, {
   getPreferences: async (args) => {
     try {
       const userId = getAuthedUser(args.req).id;
-      const { getPreferencesForUser, getDefaultPreferences } =
+      const { getPreferencesForUser, getDefaultPreferences, deriveLevel } =
         await import('../../services/notifications/notificationPreferences.js');
       const preferences = await getPreferencesForUser(userId);
       const defaults = getDefaultPreferences();
-      return { status: 200 as const, body: { success: true, preferences, defaults } };
+      const level = deriveLevel(preferences);
+      return { status: 200 as const, body: { success: true, level, preferences, defaults } };
     } catch (error) {
       log.error('[notificationsContract.getPreferences] Error:', error);
       return { status: 500 as const, body: { error: 'Failed to load notification preferences' } };
@@ -143,7 +145,7 @@ export const notificationsContractRouter = s.router(notificationsContract, {
         };
       }
 
-      const { getPreferencesForUser, getDefaultPreferences } =
+      const { getPreferencesForUser, getDefaultPreferences, deriveLevel } =
         await import('../../services/notifications/notificationPreferences.js');
       const { getProfileService } = await import('../../services/user/ProfileService.js');
 
@@ -185,10 +187,32 @@ export const notificationsContractRouter = s.router(notificationsContract, {
       await profileService.updateUserDefault(userId, 'notifications', category, merged);
 
       const preferences = await getPreferencesForUser(userId);
-      return { status: 200 as const, body: { success: true, preferences, defaults } };
+      const level = deriveLevel(preferences);
+      return { status: 200 as const, body: { success: true, level, preferences, defaults } };
     } catch (error) {
       log.error('[notificationsContract.updatePreferences] Error:', error);
       return { status: 500 as const, body: { error: 'Failed to update notification preferences' } };
+    }
+  },
+
+  setPreferenceLevel: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const { level } = args.body;
+
+      const { applyLevelForUser, getDefaultPreferences, deriveLevel } =
+        await import('../../services/notifications/notificationPreferences.js');
+
+      const preferences = await applyLevelForUser(userId, level);
+      const defaults = getDefaultPreferences();
+      const resolvedLevel = deriveLevel(preferences);
+      return {
+        status: 200 as const,
+        body: { success: true, level: resolvedLevel, preferences, defaults },
+      };
+    } catch (error) {
+      log.error('[notificationsContract.setPreferenceLevel] Error:', error);
+      return { status: 500 as const, body: { error: 'Failed to apply notification level' } };
     }
   },
 });

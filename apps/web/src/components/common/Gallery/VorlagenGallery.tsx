@@ -1,9 +1,12 @@
-import { Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
+import { Badge, Button, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import { HiPlus } from 'react-icons/hi';
 import { HiCog6Tooth } from 'react-icons/hi2';
+import { Link } from 'react-router-dom';
 
+import { useEntityFavorites } from '../../../features/favorites/hooks/useEntityFavorites';
+import { useEntityLikes } from '../../../features/likes/hooks/useEntityLikes';
 import SearchBar from '../../../features/search/components/SearchBar';
 import apiClient from '../../utils/apiClient';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
@@ -29,6 +32,7 @@ interface VorlageItem {
   external_url?: string;
   content_data?: { originalUrl?: string };
   metadata?: { author_name?: string; contact_email?: string };
+  source?: 'community' | 'system';
   [key: string]: unknown;
 }
 
@@ -128,6 +132,16 @@ const VorlagenGallery = memo((): JSX.Element => {
   const categories = categoriesQuery.data ?? [];
   const items = dataQuery.data ?? [];
 
+  const { likedIds, toggleLike, isToggling: isLikeToggling, canLike } = useEntityLikes('template');
+  const {
+    favoritedIds,
+    toggleFavorite,
+    isToggling: isFavoriteToggling,
+    canFavorite,
+  } = useEntityFavorites('template');
+
+  const previewId = previewTemplate ? String(previewTemplate.id) : '';
+
   const handleTagClick = useCallback((tag: string) => {
     setInputValue((prev) => addTagToSearch(prev, tag));
   }, []);
@@ -152,68 +166,74 @@ const VorlagenGallery = memo((): JSX.Element => {
         </p>
 
         <div className="mx-auto mb-xl flex w-full justify-center px-md box-border">
-          <div className="gallery-controls">
-            <div className="gallery-controls-row">
-              <SearchBar
-                onSearch={() => {}}
-                value={inputValue}
-                onChange={setInputValue}
-                placeholder="Vorlagen durchsuchen..."
-                hideExamples
-                hideDisclaimer
-                settingsContent={
-                  showCategoryFilter ? (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          className="flex items-center justify-center rounded-full border-none bg-transparent p-2 text-foreground opacity-70 transition-colors hover:bg-background-alt hover:text-primary-500 hover:opacity-100"
-                          aria-label="Einstellungen"
-                          title="Einstellungen"
+          <div className="w-full max-w-[960px]">
+            <div className="flex items-center gap-3 max-md:flex-col max-md:items-stretch">
+              <div className="min-w-0 flex-1">
+                <SearchBar
+                  onSearch={() => {}}
+                  value={inputValue}
+                  onChange={setInputValue}
+                  placeholder="Vorlagen durchsuchen..."
+                  hideExamples
+                  hideDisclaimer
+                  settingsContent={
+                    showCategoryFilter ? (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            className="flex items-center justify-center rounded-full border-none bg-transparent p-2 text-foreground opacity-70 transition-colors hover:bg-background-alt hover:text-primary-500 hover:opacity-100"
+                            aria-label="Einstellungen"
+                            title="Einstellungen"
+                          >
+                            <HiCog6Tooth className="size-5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="end"
+                          sideOffset={8}
+                          className="w-[16rem] space-y-3 p-3"
                         >
-                          <HiCog6Tooth className="size-5" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        align="end"
-                        sideOffset={8}
-                        className="w-[16rem] space-y-3 p-3"
-                      >
-                        <div>
-                          <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
-                            Kategorie
-                          </span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {categories.map((category) => (
-                              <button
-                                key={category.id}
-                                type="button"
-                                className={cn(
-                                  'rounded-2xl border px-2.5 py-1 text-xs font-medium transition-colors',
-                                  selectedCategory === category.id
-                                    ? 'border-transparent bg-primary-500 text-white'
-                                    : 'border-grey-300 text-grey-700 hover:border-grey-400 dark:border-grey-600 dark:text-grey-300'
-                                )}
-                                onClick={() => setSelectedCategory(category.id)}
-                              >
-                                {category.label}
-                              </button>
-                            ))}
+                          <div>
+                            <span className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-grey-500 dark:text-grey-400">
+                              Kategorie
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {categories.map((category) => (
+                                <button
+                                  key={category.id}
+                                  type="button"
+                                  className={cn(
+                                    'rounded-2xl border px-2.5 py-1 text-xs font-medium transition-colors',
+                                    selectedCategory === category.id
+                                      ? 'border-transparent bg-primary-500 text-white'
+                                      : 'border-grey-300 text-grey-700 hover:border-grey-400 dark:border-grey-600 dark:text-grey-300'
+                                  )}
+                                  onClick={() => setSelectedCategory(category.id)}
+                                >
+                                  {category.label}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  ) : null
-                }
-              />
-              <button
-                type="button"
-                className="pabtn pabtn--primary pabtn--s"
+                        </PopoverContent>
+                      </Popover>
+                    ) : null
+                  }
+                />
+              </div>
+              <Button
+                variant="brand"
+                size="brand"
+                className="max-md:w-full"
                 onClick={() => setShowAddModal(true)}
               >
-                <HiPlus className="pabtn__icon" />
-                <span className="pabtn__label">Vorlage hinzufügen</span>
-              </button>
+                <HiPlus className="size-5" />
+                Vorlage hinzufügen
+              </Button>
+              <Button asChild variant="brand-outline" size="brand" className="max-md:w-full">
+                <Link to="/vorlagen/meine">Meine Vorlagen</Link>
+              </Button>
             </div>
 
             <AddTemplateModal
@@ -243,6 +263,11 @@ const VorlagenGallery = memo((): JSX.Element => {
             const templateType = item.template_type
               ? item.template_type.charAt(0).toUpperCase() + item.template_type.slice(1)
               : '';
+            // Community = user-submitted. Fall back to author presence so cards are
+            // still marked correctly if the API hasn't been redeployed with `source`.
+            const isCommunity = item.source
+              ? item.source === 'community'
+              : Boolean(item.metadata?.author_name);
             return (
               <IndexCard
                 key={String(item.id)}
@@ -256,6 +281,13 @@ const VorlagenGallery = memo((): JSX.Element => {
                 className="vorlagen-card"
                 authorName={item.metadata?.author_name || ''}
                 authorEmail={item.metadata?.contact_email || ''}
+                badge={
+                  isCommunity ? (
+                    <Badge className="border-transparent bg-primary-600 text-white shadow-sm">
+                      Community
+                    </Badge>
+                  ) : null
+                }
               />
             );
           })
@@ -268,6 +300,15 @@ const VorlagenGallery = memo((): JSX.Element => {
           onClose={() => setPreviewTemplate(null)}
           template={previewTemplate}
           onTagClick={handleTagClick}
+          liked={likedIds.has(previewId)}
+          likeCount={(previewTemplate.likes_count as number | undefined) ?? 0}
+          onToggleLike={() => toggleLike(previewId)}
+          likeToggling={isLikeToggling(previewId)}
+          canLike={canLike}
+          favorited={favoritedIds.has(previewId)}
+          onToggleFavorite={() => toggleFavorite(previewId)}
+          favoriteToggling={isFavoriteToggling(previewId)}
+          canFavorite={canFavorite}
         />
       )}
     </div>

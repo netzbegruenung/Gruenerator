@@ -1,14 +1,14 @@
-import { getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import { EditableTitle } from '@gruenerator/shared/components/EditableTitle';
 import { Badge } from '@gruenerator/ui';
 import { memo, useCallback, useMemo } from 'react';
-import { FiFileText, FiMessageSquare } from 'react-icons/fi';
+import { FiCheckSquare, FiFileText, FiMessageSquare } from 'react-icons/fi';
 
 import { useCardActivity } from '../context/BoardAwarenessContext';
-import { FIELD_IDS } from '../types';
+import { checklistProgress, FIELD_IDS, parseAssignees, parseChecklists } from '../types';
 
-import type { Row, Field, SelectOption, CardAssignee } from '../types';
+import type { Row, Field, SelectOption } from '../types';
 
+import { RobotAvatar } from '@/components/common/RobotAvatar';
 import { cn } from '@/utils/cn';
 
 interface CardContentProps {
@@ -41,15 +41,12 @@ export const CardContent = memo(function CardContent({
   const description = (row.cells[FIELD_IDS.DESCRIPTION] as string) || '';
   const dueDate = row.cells[FIELD_IDS.DUE_DATE] as string | null;
   const labelIds = (row.cells[FIELD_IDS.LABELS] ?? []) as string[];
-  const assigneeRaw = row.cells[FIELD_IDS.ASSIGNEE] as string | null;
-  const assignee: CardAssignee | null = useMemo(() => {
-    if (!assigneeRaw) return null;
-    try {
-      return JSON.parse(assigneeRaw) as CardAssignee;
-    } catch {
-      return assigneeRaw ? { id: '', name: assigneeRaw, avatarRobotId: 1 } : null;
-    }
-  }, [assigneeRaw]);
+  const assignees = useMemo(() => parseAssignees(row.cells[FIELD_IDS.ASSIGNEE]), [row.cells]);
+
+  const checklist = useMemo(
+    () => checklistProgress(parseChecklists(row.cells[FIELD_IDS.CHECKLIST])),
+    [row.cells]
+  );
 
   const linkedDocsCount = useMemo(() => {
     try {
@@ -108,11 +105,19 @@ export const CardContent = memo(function CardContent({
         opacity: isBeingDragged ? 0.4 : undefined,
       }}
     >
-      {row.coverColor && (
-        <div
-          className="absolute inset-x-0 top-0 h-1.5 rounded-t-[5px]"
-          style={{ backgroundColor: row.coverColor }}
+      {row.coverImageUrl ? (
+        <img
+          src={row.coverImageUrl}
+          alt=""
+          className="mb-1.5 -mx-3 -mt-2.5 h-20 w-[calc(100%+1.5rem)] rounded-t-[5px] object-cover"
         />
+      ) : (
+        row.coverColor && (
+          <div
+            className="absolute inset-x-0 top-0 h-1.5 rounded-t-[5px]"
+            style={{ backgroundColor: row.coverColor }}
+          />
+        )
       )}
 
       {isBeingEdited && activeUser && (
@@ -121,10 +126,12 @@ export const CardContent = memo(function CardContent({
           style={{ backgroundColor: activeUser.user.color }}
           title={`${activeUser.user.name} bearbeitet`}
         >
-          <img
-            src={getRobotAvatarPath(activeUser.user.avatarRobotId ?? 1)}
+          <RobotAvatar
+            robotId={activeUser.user.avatarRobotId ?? 1}
+            displayName={activeUser.user.name}
+            sizePx={14}
+            className="w-3.5 h-3.5"
             alt=""
-            className="w-3.5 h-3.5 rounded-full"
           />
         </div>
       )}
@@ -164,7 +171,11 @@ export const CardContent = memo(function CardContent({
         <p className="text-xs text-grey-500 m-0 mt-1 line-clamp-2 leading-relaxed">{description}</p>
       )}
 
-      {(formattedDate || linkedDocsCount > 0 || commentCount > 0 || assignee) && (
+      {(formattedDate ||
+        linkedDocsCount > 0 ||
+        commentCount > 0 ||
+        checklist.total > 0 ||
+        assignees.length > 0) && (
         <div className="mt-1.5 flex items-center gap-1.5">
           {formattedDate && (
             <Badge
@@ -180,6 +191,17 @@ export const CardContent = memo(function CardContent({
               {formattedDate}
             </Badge>
           )}
+          {checklist.total > 0 && (
+            <span
+              className={cn(
+                'inline-flex items-center gap-0.5 text-[10px]',
+                checklist.done === checklist.total ? 'text-primary-600' : 'text-grey-400'
+              )}
+            >
+              <FiCheckSquare size={10} />
+              {checklist.done}/{checklist.total}
+            </span>
+          )}
           {linkedDocsCount > 0 && (
             <span className="inline-flex items-center gap-0.5 text-[10px] text-grey-400">
               <FiFileText size={10} />
@@ -192,16 +214,26 @@ export const CardContent = memo(function CardContent({
               {commentCount}
             </span>
           )}
-          {assignee && (
-            <span className="inline-flex items-center gap-1 ml-auto">
-              <img
-                src={getRobotAvatarPath(assignee.avatarRobotId ?? 1)}
-                alt=""
-                className="w-4 h-4 rounded-full"
-              />
-              <span className="text-[10px] text-grey-400 truncate max-w-[60px]">
-                {assignee.name}
-              </span>
+          {assignees.length > 0 && (
+            <span className="inline-flex items-center ml-auto pl-1">
+              {assignees.slice(0, 3).map((a, i) => (
+                <RobotAvatar
+                  key={`${a.id}-${a.name}`}
+                  robotId={a.avatarRobotId ?? 1}
+                  displayName={a.name}
+                  sizePx={16}
+                  className={cn(
+                    'w-4 h-4 rounded-full ring-1 ring-white dark:ring-grey-900',
+                    i > 0 && '-ml-1.5'
+                  )}
+                  alt={a.name}
+                />
+              ))}
+              {assignees.length > 3 && (
+                <span className="-ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-grey-200 dark:bg-grey-700 px-1 text-[9px] text-grey-500 ring-1 ring-white dark:ring-grey-900">
+                  +{assignees.length - 3}
+                </span>
+              )}
             </span>
           )}
         </div>

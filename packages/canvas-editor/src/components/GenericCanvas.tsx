@@ -47,6 +47,19 @@ import type { ToolbarBridgeState } from './ToolbarStateBridge';
 
 const EMPTY_CALLBACKS: Record<string, ((val: unknown) => void) | undefined> = {};
 
+// Background-image state keys that must be synced back to the host (and thus
+// persisted to the collaborative document) when changed in-editor. Each maps to
+// an `on<Key>Change` callback wired per canvas type in CanvasEditorRouter.
+const SYNCED_IMAGE_KEYS = [
+  'currentImageSrc',
+  'backgroundMode',
+  'imageAttribution',
+  'imageOffset',
+  'imageScale',
+  'backgroundImageOpacity',
+  'hasBackgroundImage',
+] as const;
+
 import type { AlignmentDirection } from './Toolbar';
 import type { BaseCanvasState } from '../configs/factory/baseTypes';
 import type { FullCanvasConfig, LayoutResult } from '../configs/types';
@@ -176,6 +189,33 @@ function GenericCanvasWithRef<
       setStateRaw(config.createInitialState(initialProps));
     }
   }, [config, initialProps]);
+
+  // Sync background-image fields back to the host whenever they change. The
+  // config stores update only local component state for these (unlike text
+  // fields, which sync through their own callbacks), so without this the chosen
+  // background image is lost on reload in the collaborative editor. Emitting the
+  // matching `on<Key>Change` callback routes the value through the same
+  // formState persistence path text fields use. No-op for keys the active
+  // canvas type doesn't wire in CanvasEditorRouter.buildCallbacks.
+  const prevSyncedRef = useRef<Record<string, unknown>>({});
+  const syncedSeededRef = useRef(false);
+  useEffect(() => {
+    const s = state as Record<string, unknown>;
+    if (!syncedSeededRef.current) {
+      // Seed on first render so initial state isn't re-emitted as a change.
+      syncedSeededRef.current = true;
+      for (const key of SYNCED_IMAGE_KEYS) prevSyncedRef.current[key] = s[key];
+      return;
+    }
+    for (const key of SYNCED_IMAGE_KEYS) {
+      const next = s[key];
+      if (next !== prevSyncedRef.current[key]) {
+        prevSyncedRef.current[key] = next;
+        const cbName = `on${key.charAt(0).toUpperCase()}${key.slice(1)}Change`;
+        callbacks[cbName]?.(next);
+      }
+    }
+  }, [state, callbacks]);
 
   // Font loading - non-blocking! Renders immediately with fallback, swaps to custom font when ready
   const { isFontAvailable } = useFontLoader(

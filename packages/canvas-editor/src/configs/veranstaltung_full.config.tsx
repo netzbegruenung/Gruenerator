@@ -537,8 +537,8 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       address: (props.address as string | undefined) ?? '',
       currentImageSrc: (props.imageSrc as string | undefined) ?? '',
       backgroundImageFile: (props.backgroundImageFile as File | Blob | null | undefined) ?? null,
-      imageOffset: { x: 0, y: 0 },
-      imageScale: 1,
+      imageOffset: (props.imageOffset as { x: number; y: number } | undefined) ?? { x: 0, y: 0 },
+      imageScale: (props.imageScale as number | undefined) ?? 1,
       isBackgroundLocked: false,
       customEventTitleFontSize: null,
       customBeschreibungFontSize: null,
@@ -557,7 +557,8 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       balkenInstances: [],
       frameInstances: [],
       userImageInstances: [],
-      imageAttribution: null,
+      imageAttribution:
+        (props.imageAttribution as StockImageAttribution | null | undefined) ?? null,
     };
   },
 

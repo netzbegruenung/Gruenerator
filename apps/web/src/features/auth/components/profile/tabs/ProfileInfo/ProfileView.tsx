@@ -3,12 +3,14 @@ import { motion } from 'motion/react';
 import React, { type FormEvent } from 'react';
 
 import TextInput from '../../../../../../components/common/Form/Input/TextInput';
+import { RobotAvatar } from '../../../../../../components/common/RobotAvatar';
 import Spinner from '../../../../../../components/common/Spinner';
 import MemoriesSection from '../../../../../../components/profile/MemoriesSection';
 import { useAuthStore, type SupportedLocale } from '../../../../../../stores/authStore';
 import { cn } from '../../../../../../utils/cn';
 
-import ImageModelSettingsSection from './ImageModelSettingsSection';
+// Bildmodellauswahl vorübergehend auskommentiert
+// import ImageModelSettingsSection from './ImageModelSettingsSection';
 import ModelSettingsSection from './ModelSettingsSection';
 import RolesSection from './RolesSection';
 import SettingsSection from './SettingsSection';
@@ -149,13 +151,15 @@ const ProfileView = ({
           }}
           aria-label="Avatar ändern"
         >
-          {avatarProps.type === 'robot' ? (
-            <img src={avatarProps.src} alt={avatarProps.alt} className="size-full object-contain" />
-          ) : (
-            <div className="size-full bg-primary-500 flex items-center justify-center text-2xl text-white font-bold">
-              {avatarProps.initials}
-            </div>
-          )}
+          <RobotAvatar
+            robotId={avatarProps.type === 'robot' ? avatarProps.robotId : null}
+            displayName={displayName}
+            email={email}
+            sizePx={64}
+            className="size-full"
+            fallbackClassName="text-2xl"
+            priority
+          />
         </div>
 
         <div className="flex flex-col gap-xxs flex-1 min-w-[150px]">
@@ -205,7 +209,8 @@ const ProfileView = ({
 
       <ModelSettingsSection onSuccessMessage={onSuccessMessage} onErrorMessage={() => {}} />
 
-      <ImageModelSettingsSection onSuccessMessage={onSuccessMessage} onErrorMessage={() => {}} />
+      {/* Bildmodellauswahl vorübergehend auskommentiert
+      <ImageModelSettingsSection onSuccessMessage={onSuccessMessage} onErrorMessage={() => {}} /> */}
 
       <MemoriesSection />
 

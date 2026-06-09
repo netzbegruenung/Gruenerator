@@ -1,4 +1,4 @@
-import { getAllRobotIds } from '@gruenerator/shared/avatar';
+import { getAllRobotIds, getRobotAvatarPath } from '@gruenerator/shared/avatar';
 import {
   Dialog,
   DialogContent,
@@ -98,10 +98,13 @@ const AvatarSelectionModal = ({
                     title={isLocked ? 'Verbinde deine Wolke, um Wolki freizuschalten' : undefined}
                   >
                     <img
-                      src={`/images/profileimages/${robotId}.svg`}
+                      src={getRobotAvatarPath(robotId)}
                       alt={isWolki ? 'Wolki' : `Avatar ${robotId}`}
                       className={cn('w-full h-full object-contain', isLocked && 'grayscale')}
+                      width={64}
+                      height={64}
                       loading="lazy"
+                      decoding="async"
                     />
                     {isSelected && !isLocked && (
                       <div className="absolute -top-0.5 -right-0.5 size-4 rounded-full bg-primary-500 text-white flex items-center justify-center">

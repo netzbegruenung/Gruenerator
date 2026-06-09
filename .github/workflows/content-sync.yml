@@ -221,8 +221,11 @@ jobs:
 
       - name: Aggregate summaries
         # pnpm --filter sets cwd to apps/api/, so pass an absolute path.
-        run: pnpm --filter @gruenerator/api run sync:aggregate -- --dir "${{ github.workspace }}/summaries/"
+        # Admin digest goes out on the daily run (and manual dispatch) only.
+        # Hourly runs are LV-only and the per-LV jobs send their own mails, so
+        # suppress the admin digest there to avoid hourly inbox spam.
         env:
+          SCHEDULE: ${{ github.event.schedule }}
           BREVO_SMTP_HOST: ${{ secrets.BREVO_SMTP_HOST }}
           BREVO_SMTP_PORT: ${{ secrets.BREVO_SMTP_PORT }}
           BREVO_SMTP_USER: ${{ secrets.BREVO_SMTP_USER }}
@@ -230,6 +233,15 @@ jobs:
           EMAIL_FROM: ${{ vars.EMAIL_FROM || 'Grünerator <info@gruenerator.eu>' }}
           CONTENT_SYNC_EMAIL: ${{ vars.CONTENT_SYNC_EMAIL }}
           SYNC_SUMMARY_PATH: ${{ github.workspace }}/sync-summary.json
+        run: |
+          ARGS="--dir ${{ github.workspace }}/summaries/"
+          # Hourly schedule = any cron other than the daily '0 2 * * *'.
+          # Empty SCHEDULE means manual dispatch → keep the digest.
+          if [ -n "$SCHEDULE" ] && [ "$SCHEDULE" != "0 2 * * *" ]; then
+            ARGS="$ARGS --no-email"
+          fi
+          echo "Running: pnpm --filter @gruenerator/api run sync:aggregate -- $ARGS"
+          pnpm --filter @gruenerator/api run sync:aggregate -- $ARGS
 
       - name: Generate job summary
         if: always()

@@ -24,6 +24,9 @@ import {
   researchContract,
   boardsContract,
   boardCommentsContract,
+  boardActivityContract,
+  boardSubscriptionsContract,
+  boardAttachmentsContract,
   publicBoardsContract,
   notebookContract,
   notebookCollectionsContract,
@@ -37,6 +40,7 @@ import {
   imageModelPreferenceContract,
   adminVorlagenContract,
   userTemplatesContract,
+  templateInteractionsContract,
   userAgentsContract,
   docsContract,
   documentsContract,
@@ -145,6 +149,9 @@ const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
 const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
 const _boardCommentsClient = () => initClient(boardCommentsContract, CLIENT_OPTS);
+const _boardActivityClient = () => initClient(boardActivityContract, CLIENT_OPTS);
+const _boardSubscriptionsClient = () => initClient(boardSubscriptionsContract, CLIENT_OPTS);
+const _boardAttachmentsClient = () => initClient(boardAttachmentsContract, CLIENT_OPTS);
 const _publicBoardsClient = () => initClient(publicBoardsContract, CLIENT_OPTS);
 const _notebookClient = () => initClient(notebookContract, CLIENT_OPTS);
 const _notebookCollectionsClient = () => initClient(notebookCollectionsContract, CLIENT_OPTS);
@@ -158,6 +165,7 @@ const _modelPreferencesClient = () => initClient(modelPreferencesContract, CLIEN
 const _imageModelPreferenceClient = () => initClient(imageModelPreferenceContract, CLIENT_OPTS);
 const _adminVorlagenClient = () => initClient(adminVorlagenContract, CLIENT_OPTS);
 const _userTemplatesClient = () => initClient(userTemplatesContract, CLIENT_OPTS);
+const _templateInteractionsClient = () => initClient(templateInteractionsContract, CLIENT_OPTS);
 const _userAgentsClient = () => initClient(userAgentsContract, CLIENT_OPTS);
 const _docsClient = () => initClient(docsContract, CLIENT_OPTS);
 const _documentsClient = () => initClient(documentsContract, CLIENT_OPTS);
@@ -174,6 +182,9 @@ export interface ContractsClient {
   research: ReturnType<typeof _researchClient>;
   boards: ReturnType<typeof _boardsClient>;
   boardComments: ReturnType<typeof _boardCommentsClient>;
+  boardActivity: ReturnType<typeof _boardActivityClient>;
+  boardSubscriptions: ReturnType<typeof _boardSubscriptionsClient>;
+  boardAttachments: ReturnType<typeof _boardAttachmentsClient>;
   publicBoards: ReturnType<typeof _publicBoardsClient>;
   notebook: ReturnType<typeof _notebookClient>;
   notebookCollections: ReturnType<typeof _notebookCollectionsClient>;
@@ -187,6 +198,7 @@ export interface ContractsClient {
   imageModelPreference: ReturnType<typeof _imageModelPreferenceClient>;
   adminVorlagen: ReturnType<typeof _adminVorlagenClient>;
   userTemplates: ReturnType<typeof _userTemplatesClient>;
+  templateInteractions: ReturnType<typeof _templateInteractionsClient>;
   userAgents: ReturnType<typeof _userAgentsClient>;
   docs: ReturnType<typeof _docsClient>;
   documents: ReturnType<typeof _documentsClient>;
@@ -220,6 +232,9 @@ export function getContractsClient(): ContractsClient {
     research: _researchClient(),
     boards: _boardsClient(),
     boardComments: _boardCommentsClient(),
+    boardActivity: _boardActivityClient(),
+    boardSubscriptions: _boardSubscriptionsClient(),
+    boardAttachments: _boardAttachmentsClient(),
     publicBoards: _publicBoardsClient(),
     notebook: _notebookClient(),
     notebookCollections: _notebookCollectionsClient(),
@@ -233,6 +248,7 @@ export function getContractsClient(): ContractsClient {
     imageModelPreference: _imageModelPreferenceClient(),
     adminVorlagen: _adminVorlagenClient(),
     userTemplates: _userTemplatesClient(),
+    templateInteractions: _templateInteractionsClient(),
     userAgents: _userAgentsClient(),
     docs: _docsClient(),
     documents: _documentsClient(),

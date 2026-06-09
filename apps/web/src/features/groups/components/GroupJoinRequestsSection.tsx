@@ -1,8 +1,9 @@
-import { getRobotAvatarPath, validateRobotId, getRobotAvatarAlt } from '@gruenerator/shared/avatar';
+import { validateRobotId } from '@gruenerator/shared/avatar';
 import { Button } from '@gruenerator/ui';
 import { memo, useState } from 'react';
 import { HiCheck, HiUserAdd, HiX } from 'react-icons/hi';
 
+import { RobotAvatar } from '../../../components/common/RobotAvatar';
 import {
   useGroupJoinRequests,
   useReviewJoinRequest,
@@ -64,10 +65,11 @@ const GroupJoinRequestsSection = memo(
                 key={request.id}
                 className="flex items-center gap-sm px-sm py-xs rounded-md hover:bg-grey-50 dark:hover:bg-grey-800/50 transition-colors"
               >
-                <img
-                  src={getRobotAvatarPath(profileImageNumber)}
-                  alt={getRobotAvatarAlt(profileImageNumber)}
-                  className="w-7 h-7 rounded-full shrink-0"
+                <RobotAvatar
+                  robotId={profileImageNumber}
+                  displayName={requesterName(request)}
+                  sizePx={28}
+                  className="w-7 h-7 shrink-0"
                 />
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium text-foreground-heading truncate block">

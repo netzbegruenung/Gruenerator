@@ -430,6 +430,40 @@ class ProfileService {
   }
 
   /**
+   * Replace an entire generator object within user_defaults in a single write.
+   * Use when applying a full preset (e.g. notification level) instead of
+   * many per-key updateUserDefault calls.
+   */
+  async setUserDefaultsGenerator(
+    userId: string,
+    generator: string,
+    value: Record<string, unknown>
+  ): Promise<UserProfile> {
+    try {
+      if (!generator) {
+        throw new Error('Generator is required');
+      }
+      const FORBIDDEN_KEYS = ['__proto__', 'constructor', 'prototype'];
+      if (FORBIDDEN_KEYS.includes(generator)) {
+        throw new Error('Invalid generator name');
+      }
+
+      const currentProfile = await this.getProfileById(userId);
+      if (!currentProfile) {
+        throw new Error('Profile not found');
+      }
+
+      const defaults = currentProfile.user_defaults || {};
+      defaults[generator] = value;
+
+      return await this.updateProfile(userId, { user_defaults: defaults });
+    } catch (error: unknown) {
+      console.error('[ProfileService] Error setting user defaults generator:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get user defaults from profile
    */
   getUserDefaults(profile: UserProfile | null): Record<string, Record<string, unknown>> {
