@@ -9,6 +9,8 @@
  */
 import { z } from 'zod';
 
+import { currentBoardSchema } from './boards.js';
+
 // ── Shared sub-schemas ──────────────────────────────────────────────────────
 
 /**
@@ -74,6 +76,9 @@ export const chatStreamBodySchema = z.object({
       selectionText: z.string().nullish(),
     })
     .nullish(),
+  // Live board state injected by the boards assistant surface (FAB on the boards
+  // page). Primary context for board Q&A and the edit_current_board intent.
+  currentBoard: currentBoardSchema.nullish(),
   customSystemPrompt: z.string().nullish(),
   roleName: z.string().nullish(),
   // Seed for a brand-new thread: the generated text (Antrag, PM, Social) the

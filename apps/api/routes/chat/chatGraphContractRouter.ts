@@ -107,6 +107,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         docMentionIds: rawDocMentionIds,
         boardIds: rawBoardIds,
         currentDocument: rawCurrentDocument,
+        currentBoard: rawCurrentBoard,
       } = args.body;
 
       // === Stage 1: Classify ===
@@ -618,6 +619,33 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         });
         log.info(
           `[ChatGraph] Emitted trigger_doc_edit for doc ${rawCurrentDocument.id} (selection: ${hasSelection}, refContentChars: ${cappedPrev.length})`
+        );
+      }
+
+      // === Stage 3d: Live board edit trigger (boards editor surface only) ===
+      // For edit_current_board intent, emit a `trigger_board_action` SSE event
+      // with the user's prompt. The boards-editor frontend calls POST
+      // /api/boards/:id/ai to plan operations, then applies them to the live
+      // Yjs board. ChatGraph never edits the board itself — classify + forward.
+      if (finalState.intent === 'edit_current_board' && rawCurrentBoard?.id) {
+        const lastUserText = lastUserMessage ? extractTextContent(lastUserMessage.content) : '';
+        const lastUserIdx = lastUserMessage ? validMessages.indexOf(lastUserMessage) : -1;
+        const priorMessages = lastUserIdx > 0 ? validMessages.slice(0, lastUserIdx) : [];
+        const SUBSTANTIVE_THRESHOLD = 200;
+        const prevAssistantText =
+          [...priorMessages]
+            .reverse()
+            .map((m) => (m.role === 'assistant' ? extractTextContent(m.content) : ''))
+            .find((t) => t.trim().length >= SUBSTANTIVE_THRESHOLD) ?? '';
+        const cappedPrev =
+          prevAssistantText.length > 8000 ? prevAssistantText.slice(0, 8000) : prevAssistantText;
+        sse.send('trigger_board_action', {
+          targetBoardId: rawCurrentBoard.id,
+          userPrompt: lastUserText,
+          ...(cappedPrev.trim() ? { referenceContent: cappedPrev } : {}),
+        });
+        log.info(
+          `[ChatGraph] Emitted trigger_board_action for board ${rawCurrentBoard.id} (refContentChars: ${cappedPrev.length})`
         );
       }
 

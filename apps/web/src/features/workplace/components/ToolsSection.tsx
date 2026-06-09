@@ -25,8 +25,8 @@ interface FavoriteItem {
 const MAIN_TOOLS: ToolItem[] = [
   {
     id: 'agents',
-    title: 'Skills & Agents',
-    path: '/agents',
+    title: 'Agentura',
+    path: '/agentura',
     icon: RiSpyLine,
   },
   {

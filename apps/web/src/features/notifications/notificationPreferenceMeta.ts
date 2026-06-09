@@ -86,6 +86,36 @@ export const RAW_TYPE_META: Record<NotificationType, RawTypeMeta> = {
     icon: AtSign,
     group: 'board',
   },
+  board_card_assigned: {
+    label: 'Zuweisungen',
+    description: 'Wenn dir eine Karte zugewiesen wird',
+    icon: LayoutDashboard,
+    group: 'board',
+  },
+  board_card_status_changed: {
+    label: 'Statusänderungen',
+    description: 'Wenn sich der Status einer beobachteten Karte ändert',
+    icon: LayoutDashboard,
+    group: 'board',
+  },
+  board_attachment_added: {
+    label: 'Neue Anhänge',
+    description: 'Wenn eine Datei an eine beobachtete Karte angehängt wird',
+    icon: LayoutDashboard,
+    group: 'board',
+  },
+  board_due_date_reminder: {
+    label: 'Fälligkeits-Erinnerung',
+    description: 'Erinnerung, wenn eine Karte demnächst fällig ist',
+    icon: LayoutDashboard,
+    group: 'board',
+  },
+  board_card_watching: {
+    label: 'Beobachtete Karten',
+    description: 'Aktivität auf Karten, die du beobachtest',
+    icon: LayoutDashboard,
+    group: 'board',
+  },
   agent_task_completed: {
     label: 'Agent-Aufgabe fertig',
     description: 'Wenn der Grünerator eine an ihn delegierte Aufgabe erledigt hat',

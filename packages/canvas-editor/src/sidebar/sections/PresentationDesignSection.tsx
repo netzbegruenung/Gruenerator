@@ -8,9 +8,7 @@
 
 import { memo } from 'react';
 
-import { PRES_COLORS } from '../../configs/presentation/presentationTheme';
-
-import type { PresentationColorMode } from '../../configs/presentation/presentationTheme';
+import { PRES_COLORS, type PresentationColorMode } from '../../utils/presentationTokens';
 
 // ============================================================================
 // PROPS
