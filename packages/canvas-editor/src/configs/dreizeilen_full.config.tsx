@@ -549,6 +549,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       getState,
       setState,
       saveToHistory,
+      debouncedSaveToHistory,
       CANVAS_WIDTH,
       CANVAS_HEIGHT
     );
@@ -567,6 +568,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       getState,
       setState,
       saveToHistory,
+      debouncedSaveToHistory,
       CANVAS_WIDTH,
       CANVAS_HEIGHT,
       '#005538'
@@ -606,6 +608,7 @@ export const dreizeilenFullConfig: FullCanvasConfig<DreizeilenFullState, Dreizei
       getState,
       setState,
       saveToHistory,
+      debouncedSaveToHistory,
       DREIZEILEN_CONFIG.canvas.width,
       DREIZEILEN_CONFIG.canvas.height
     );

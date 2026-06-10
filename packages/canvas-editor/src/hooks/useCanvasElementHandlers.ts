@@ -250,10 +250,8 @@ export function useCanvasElementHandlers<
 
       const additionalTexts = getStateArray<{ id: string }>(state, 'additionalTexts');
       if (additionalTexts.find((t) => t.id === id)) {
-        if (actions.updateAdditionalText) {
-          actions.updateAdditionalText(id, { fontSize: size });
-          debouncedSaveToHistory(state);
-        }
+        // updateAdditionalText saves history itself with the post-change state
+        actions.updateAdditionalText?.(id, { fontSize: size });
       }
     },
     [config.elements, state, actions, setState, debouncedSaveToHistory]
@@ -539,22 +537,17 @@ export function useCanvasElementHandlers<
 
   const handleUserImageDragEnd = useCallback(
     (id: string, x: number, y: number) => {
-      if (actions.updateUserImage) {
-        actions.updateUserImage(id, { x, y });
-        saveToHistory({ ...state, userImageInstances: getStateArray(state, 'userImageInstances') });
-      }
+      // updateUserImage saves history itself with the post-change state
+      actions.updateUserImage?.(id, { x, y });
     },
-    [actions, saveToHistory, state]
+    [actions]
   );
 
   const handleUserImageTransformEnd = useCallback(
     (id: string, x: number, y: number, width: number, height: number, rotation: number) => {
-      if (actions.updateUserImage) {
-        actions.updateUserImage(id, { x, y, width, height, rotation });
-        saveToHistory({ ...state, userImageInstances: getStateArray(state, 'userImageInstances') });
-      }
+      actions.updateUserImage?.(id, { x, y, width, height, rotation });
     },
-    [actions, saveToHistory, state]
+    [actions]
   );
 
   return useMemo(

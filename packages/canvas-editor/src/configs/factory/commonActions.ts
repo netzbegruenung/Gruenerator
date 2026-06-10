@@ -45,6 +45,7 @@ export function createAssetActions<TState extends { assetInstances: AssetInstanc
   getState: () => TState,
   setState: StateSetter<TState>,
   saveToHistory: HistorySaver<TState>,
+  debouncedSaveToHistory: HistorySaver<TState>,
   canvasWidth: number,
   canvasHeight: number
 ) {
@@ -62,6 +63,7 @@ export function createAssetActions<TState extends { assetInstances: AssetInstanc
         ...prev,
         assetInstances: prev.assetInstances.map((a) => (a.id === id ? { ...a, ...partial } : a)),
       }));
+      debouncedSaveToHistory(getState());
     },
     removeAsset: (id: string) => {
       setState((prev) => ({
@@ -154,6 +156,7 @@ export function createShapeActions<TState extends { shapeInstances: ShapeInstanc
   getState: () => TState,
   setState: StateSetter<TState>,
   saveToHistory: HistorySaver<TState>,
+  debouncedSaveToHistory: HistorySaver<TState>,
   canvasWidth: number,
   canvasHeight: number,
   defaultColor: string = BRAND_COLORS[0].value
@@ -172,6 +175,7 @@ export function createShapeActions<TState extends { shapeInstances: ShapeInstanc
         ...prev,
         shapeInstances: prev.shapeInstances.map((s) => (s.id === id ? { ...s, ...partial } : s)),
       }));
+      debouncedSaveToHistory(getState());
     },
     removeShape: (id: string) => {
       setState((prev) => ({
@@ -297,6 +301,7 @@ export function createAdditionalTextActions<TState extends { additionalTexts: Ad
   getState: () => TState,
   setState: StateSetter<TState>,
   saveToHistory: HistorySaver<TState>,
+  debouncedSaveToHistory: HistorySaver<TState>,
   canvasWidth: number,
   canvasHeight: number,
   fontColor: string = '#ffffff'
@@ -375,6 +380,7 @@ export function createAdditionalTextActions<TState extends { additionalTexts: Ad
         ...prev,
         additionalTexts: prev.additionalTexts.map((t) => (t.id === id ? { ...t, ...partial } : t)),
       }));
+      debouncedSaveToHistory(getState());
     },
     removeAdditionalText: (id: string) => {
       setState((prev) => ({
@@ -533,6 +539,7 @@ export function createFrameActions<TState extends { frameInstances: FrameInstanc
   getState: () => TState,
   setState: StateSetter<TState>,
   saveToHistory: HistorySaver<TState>,
+  debouncedSaveToHistory: HistorySaver<TState>,
   canvasWidth: number,
   canvasHeight: number
 ) {
@@ -550,6 +557,7 @@ export function createFrameActions<TState extends { frameInstances: FrameInstanc
         ...prev,
         frameInstances: prev.frameInstances.map((f) => (f.id === id ? { ...f, ...partial } : f)),
       }));
+      debouncedSaveToHistory(getState());
     },
     removeFrame: (id: string) => {
       const frame = getState().frameInstances.find((f) => f.id === id);
@@ -588,6 +596,7 @@ export function createUserImageActions<TState extends { userImageInstances: User
   getState: () => TState,
   setState: StateSetter<TState>,
   saveToHistory: HistorySaver<TState>,
+  debouncedSaveToHistory: HistorySaver<TState>,
   canvasWidth: number,
   canvasHeight: number
 ) {
@@ -619,6 +628,7 @@ export function createUserImageActions<TState extends { userImageInstances: User
           u.id === id ? { ...u, ...partial } : u
         ),
       }));
+      debouncedSaveToHistory(getState());
     },
     removeUserImage: (id: string) => {
       const instance = getState().userImageInstances.find((u) => u.id === id);
@@ -648,7 +658,14 @@ export function createBaseActions<TState extends BaseCanvasState>(
   fontColor?: string
 ) {
   return {
-    ...createAssetActions(getState, setState, saveToHistory, canvasWidth, canvasHeight),
+    ...createAssetActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      canvasWidth,
+      canvasHeight
+    ),
     ...createIconActions(
       getState,
       setState,
@@ -657,7 +674,14 @@ export function createBaseActions<TState extends BaseCanvasState>(
       canvasWidth,
       canvasHeight
     ),
-    ...createShapeActions(getState, setState, saveToHistory, canvasWidth, canvasHeight),
+    ...createShapeActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      canvasWidth,
+      canvasHeight
+    ),
     ...createIllustrationActions(
       getState,
       setState,
@@ -670,6 +694,7 @@ export function createBaseActions<TState extends BaseCanvasState>(
       getState,
       setState,
       saveToHistory,
+      debouncedSaveToHistory,
       canvasWidth,
       canvasHeight,
       fontColor
@@ -677,7 +702,21 @@ export function createBaseActions<TState extends BaseCanvasState>(
     ...createPillBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
     ...createCircleBadgeActions(getState, setState, saveToHistory, debouncedSaveToHistory),
     ...createBalkenActions(getState, setState, saveToHistory, debouncedSaveToHistory),
-    ...createFrameActions(getState, setState, saveToHistory, canvasWidth, canvasHeight),
-    ...createUserImageActions(getState, setState, saveToHistory, canvasWidth, canvasHeight),
+    ...createFrameActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      canvasWidth,
+      canvasHeight
+    ),
+    ...createUserImageActions(
+      getState,
+      setState,
+      saveToHistory,
+      debouncedSaveToHistory,
+      canvasWidth,
+      canvasHeight
+    ),
   };
 }

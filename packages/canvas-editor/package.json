@@ -29,7 +29,8 @@
   },
   "scripts": {
     "build:css": "tailwindcss -i ./src/styles/tailwind-input.css -o ./dist/canvas-editor-bundle.css --minify",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@gruenerator/collab": "workspace:*",
@@ -57,7 +58,8 @@
     "@tailwindcss/cli": "^4.3.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",
