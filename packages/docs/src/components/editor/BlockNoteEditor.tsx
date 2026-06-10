@@ -248,6 +248,9 @@ const BlockNoteEditorInner = ({
         transport: new DefaultChatTransport({
           api: aiApiUrl,
           credentials: 'include',
+          // The backend verifies edit permission against this id before
+          // generating operations (aiController.ts).
+          body: { documentId },
           // Route through the DocsAdapter's fetch so the mobile DOM WebView reaches
           // the API via the native proxy (CORS/auth). On web this is platformFetch
           // — identical to the default — so web behavior is unchanged.
@@ -275,7 +278,7 @@ const BlockNoteEditorInner = ({
     }
 
     return exts;
-  }, [showComments, threadStore, resolveUsers, aiApiUrl, collaborationOptions]);
+  }, [showComments, threadStore, resolveUsers, aiApiUrl, documentId, collaborationOptions]);
 
   const editor = useCreateBlockNote(
     {
