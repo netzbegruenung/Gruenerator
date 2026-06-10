@@ -49,6 +49,7 @@ export class DateExtractor {
       /(\d{1,2})_(\d{1,2})_(\d{4})/, // Underscore: 15_05_2023
       /(\d{4})_(\d{1,2})_(\d{1,2})/, // Underscore ISO: 2023_05_15
       GERMAN_MONTH_PATTERN, // German text month: 24. Mai 2025
+      /_(20[0-2]\d)_/, // Year between underscores: LDK_2023_Potsdam (\b never matches next to _, a word char)
       /\b(20[0-2]\d)\b/, // Year only: 2023
       /\b(199\d)\b/, // Year only: 1990s
     ];
