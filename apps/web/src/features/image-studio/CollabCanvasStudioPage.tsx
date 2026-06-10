@@ -162,7 +162,9 @@ function CollabCanvasStudioContent() {
             onExport={handleExport}
             onCancel={handleCancel}
             collaborative={
-              collab.ydoc ? { ydoc: collab.ydoc, isSynced: collab.isSynced } : undefined
+              collab.ydoc
+                ? { ydoc: collab.ydoc, isSynced: collab.isSynced, provider: collab.provider }
+                : undefined
             }
             chromeCenter={chromeCenter}
             chromeRight={chromeRight}

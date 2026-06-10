@@ -5,7 +5,7 @@ import { ALL_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
 import { getIconsSync, type IconDef } from '../../../utils/canvasIcons';
 import { filterIcons, filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
 import { FRAME_PRESETS } from '../../../utils/frameUtils';
-import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/registry';
+import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/fullCatalog';
 import { ALL_SHAPES, type ShapeDef } from '../../../utils/shapes';
 
 import type { FrameClipType } from '../../../utils/frameUtils';

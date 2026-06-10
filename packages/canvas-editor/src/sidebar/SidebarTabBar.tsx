@@ -1,5 +1,5 @@
 import { useState, useEffect, memo, useCallback } from 'react';
-import { FaCheck } from 'react-icons/fa';
+import { FaCheck, FaExclamationTriangle } from 'react-icons/fa';
 import { useMediaQuery } from '@gruenerator/shared/hooks';
 
 import { useAutoSaveStore } from '../stores/useAutoSaveStore';
@@ -84,6 +84,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
   horizontal = false,
 }: SidebarTabBarProps) {
   const autoSaveStatus = useAutoSaveStore((s) => s.autoSaveStatus);
+  const retryAutoSave = useAutoSaveStore((s) => s.retryAutoSave);
   const isMobile = useMediaQuery('(max-width: 899px)');
   const [showSaved, setShowSaved] = useState(false);
 
@@ -140,6 +141,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
           className={cn(
             'flex items-center justify-center size-10 opacity-0 transition-opacity duration-300',
             autoSaveStatus === 'saving' && 'opacity-100',
+            autoSaveStatus === 'error' && 'opacity-100',
             showSaved && 'opacity-100'
           )}
           title={
@@ -148,7 +150,7 @@ export const SidebarTabBar = memo(function SidebarTabBar({
               : autoSaveStatus === 'saved'
                 ? 'Gespeichert'
                 : autoSaveStatus === 'error'
-                  ? 'Fehler beim Speichern'
+                  ? 'Fehler beim Speichern — klicken zum Wiederholen'
                   : ''
           }
         >
@@ -156,6 +158,16 @@ export const SidebarTabBar = memo(function SidebarTabBar({
             <div className="size-4 border-2 border-[var(--border-subtle)] border-t-[var(--interactive-accent-color)] rounded-full animate-auto-save-spin" />
           )}
           {showSaved && <FaCheck size={14} className="text-green-500 animate-auto-save-check" />}
+          {autoSaveStatus === 'error' && (
+            <button
+              className="bg-transparent border-none p-0 cursor-pointer flex items-center justify-center"
+              onClick={() => retryAutoSave?.()}
+              aria-label="Speichern erneut versuchen"
+              type="button"
+            >
+              <FaExclamationTriangle size={14} className="text-red-500" />
+            </button>
+          )}
         </div>
       )}
     </div>

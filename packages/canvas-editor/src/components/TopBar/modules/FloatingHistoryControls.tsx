@@ -11,6 +11,8 @@ interface FloatingHistoryControlsProps {
   canRedo: boolean;
 }
 
+const isMac = typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
+
 export function FloatingHistoryControls({
   onUndo,
   onRedo,
@@ -26,7 +28,7 @@ export function FloatingHistoryControls({
           onUndo();
         }}
         disabled={!canUndo}
-        title="Rückgängig"
+        title={isMac ? 'Rückgängig (⌘Z)' : 'Rückgängig (Strg+Z)'}
         type="button"
       >
         <PiArrowCounterClockwise size={20} />
@@ -38,7 +40,7 @@ export function FloatingHistoryControls({
           onRedo();
         }}
         disabled={!canRedo}
-        title="Wiederholen"
+        title={isMac ? 'Wiederholen (⌘⇧Z)' : 'Wiederholen (Strg+Y)'}
         type="button"
       >
         <PiArrowClockwise size={20} />

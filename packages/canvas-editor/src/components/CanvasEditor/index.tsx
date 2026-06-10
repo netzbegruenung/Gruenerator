@@ -33,6 +33,7 @@ import {
   usePresentationExport,
   usePageThumbnails,
 } from '../../hooks';
+import { useZoomGestures } from '../../hooks/useZoomGestures';
 import { CanvasEditorLayout } from '../../layouts';
 import { MobileSubsectionBridgeContext } from '../../sidebar/MobileSubsectionBridgeContext';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
@@ -188,11 +189,22 @@ function CanvasEditorInner({
     pagesContainerRef.current?.style.setProperty('--canvas-zoom', String(zoom));
   }, [zoom, pagesContainerRef]);
 
+  // Pinch and ctrl/cmd+wheel drive the same zoom as the CanvasMetaBar buttons
+  useZoomGestures(pagesContainerRef, setZoom);
+
   const pageCollaborativeAt = useCallback(
-    (index: number) => {
+    (index: number, pageId?: string, isActivePage?: boolean) => {
       if (!collaborative) return undefined;
       const pageYMap = getPageYMap(index);
-      return pageYMap ? { pageYMap, isSynced: collaborative.isSynced } : undefined;
+      return pageYMap
+        ? {
+            pageYMap,
+            isSynced: collaborative.isSynced,
+            provider: collaborative.provider ?? null,
+            pageId: pageId ?? null,
+            publishSelection: isActivePage ?? false,
+          }
+        : undefined;
     },
     [collaborative, getPageYMap]
   );
@@ -947,7 +959,7 @@ function CanvasEditorInner({
                 onStateChange={handlePageStateChange}
                 onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
                 mobileBridge={isActive ? mobileBridge : undefined}
-                pageCollaborative={pageCollaborativeAt(index)}
+                pageCollaborative={pageCollaborativeAt(index, page.id, isActive)}
               />
             );
           })}

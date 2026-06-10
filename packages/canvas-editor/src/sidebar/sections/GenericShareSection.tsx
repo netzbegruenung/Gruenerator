@@ -142,8 +142,12 @@ function DownloadShareSubsection({
     }
   }, [shareToken, autoSaveStoreApi]);
 
+  // Remembers the last export attempt so a failed export can be retried
+  const lastExportOpRef = useRef<(() => Promise<void> | void) | null>(null);
+
   const handleSingleDownload = async () => {
     dlDropdown.setOpen(false);
+    lastExportOpRef.current = handleSingleDownload;
     setDownloadState('capturing');
     try {
       onCaptureCanvas();
@@ -160,10 +164,25 @@ function DownloadShareSubsection({
 
   const handleDownloadAllZip = async () => {
     dlDropdown.setOpen(false);
+    lastExportOpRef.current = handleDownloadAllZip;
     if (onDownloadAllZip) {
       await onDownloadAllZip();
     }
   };
+
+  const handleDownloadPptx = onDownloadPptx
+    ? async () => {
+        lastExportOpRef.current = onDownloadPptx;
+        await onDownloadPptx();
+      }
+    : undefined;
+
+  const handleDownloadPdf = onDownloadPdf
+    ? async () => {
+        lastExportOpRef.current = onDownloadPdf;
+        await onDownloadPdf();
+      }
+    : undefined;
 
   const handleDownloadClick = async () => {
     if (isMultiPage) {
@@ -300,10 +319,10 @@ function DownloadShareSubsection({
                     </>
                   )}
                 </button>
-                {onDownloadPptx && (
+                {handleDownloadPptx && (
                   <button
                     className={dropdownOption}
-                    onClick={onDownloadPptx}
+                    onClick={handleDownloadPptx}
                     disabled={isMultiExporting}
                     role="menuitem"
                     type="button"
@@ -312,10 +331,10 @@ function DownloadShareSubsection({
                     <span>PowerPoint (PPTX)</span>
                   </button>
                 )}
-                {onDownloadPdf && (
+                {handleDownloadPdf && (
                   <button
                     className={dropdownOption}
-                    onClick={onDownloadPdf}
+                    onClick={handleDownloadPdf}
                     disabled={isMultiExporting}
                     role="menuitem"
                     type="button"
@@ -402,6 +421,15 @@ function DownloadShareSubsection({
       {exportError && !isMultiExporting && (
         <div className="flex items-center gap-2 text-sm text-red-600">
           <span>{exportError}</span>
+          {lastExportOpRef.current && (
+            <button
+              className="bg-transparent border-none p-0 cursor-pointer text-sm font-medium text-primary-600 hover:underline"
+              onClick={() => void lastExportOpRef.current?.()}
+              type="button"
+            >
+              Erneut versuchen
+            </button>
+          )}
         </div>
       )}
 
@@ -425,9 +453,16 @@ function DownloadShareSubsection({
         </>
       )}
 
-      {downloadState === 'success' && autoSaveStatus === 'error' && (
+      {autoSaveStatus === 'error' && (
         <div className="flex items-center gap-2 text-sm text-red-600">
           <span>Fehler beim Speichern</span>
+          <button
+            className="bg-transparent border-none p-0 cursor-pointer text-sm font-medium text-primary-600 hover:underline"
+            onClick={() => autoSaveStoreApi.getState().retryAutoSave?.()}
+            type="button"
+          >
+            Erneut versuchen
+          </button>
         </div>
       )}
     </div>

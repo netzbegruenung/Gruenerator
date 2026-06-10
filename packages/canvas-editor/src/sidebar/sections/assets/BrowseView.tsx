@@ -5,8 +5,8 @@ import useDebounce from '../../../hooks/useDebounce';
 import { useCanvasEditorServices } from '../../../CanvasEditorProvider';
 import { ALL_ASSETS, LOGO_ASSETS, type UniversalAsset } from '../../../utils/canvasAssets';
 import { filterIllustrations, matchesQuery } from '../../../utils/filterUtils';
+import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/fullCatalog';
 import {
-  ALL_ILLUSTRATIONS,
   getIllustrationThumbPath,
   getIllustrationPath,
 } from '../../../utils/illustrations/registry';
