@@ -1,3 +1,4 @@
+import { type BoardContent, type BoardType } from '@gruenerator/contracts';
 import express, { type Response, type Router } from 'express';
 
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
@@ -179,16 +180,22 @@ export async function fetchRecentBoards(
       title: string;
       updated_at: string;
       created_by: string;
-      content: string | null;
+      content: string | BoardContent | null;
       creator_name: string;
     }>
   ).map((row) => {
-    let boardType: 'kanban' | 'whiteboard' = 'kanban';
+    let boardType: BoardType = 'kanban';
     try {
-      const content = (typeof row.content === 'string' ? JSON.parse(row.content) : row.content) as {
-        boardType?: string;
-      } | null;
-      if (content?.boardType === 'whiteboard') boardType = 'whiteboard';
+      // Parse into the contract type (BoardContent) rather than a hand-written cast,
+      // so the field name is checked against boardContentSchema. The metadata column
+      // stores `board_type` (snake_case) — an earlier `boardType` typo silently
+      // defaulted every board to kanban because the cast invented its own shape;
+      // typing it through the schema makes that a typecheck error instead.
+      const content: BoardContent | null =
+        typeof row.content === 'string' ? (JSON.parse(row.content) as BoardContent) : row.content;
+      if (content && typeof content !== 'string' && content.board_type === 'whiteboard') {
+        boardType = 'whiteboard';
+      }
     } catch {
       // default to kanban
     }

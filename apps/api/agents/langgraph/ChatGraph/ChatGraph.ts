@@ -11,6 +11,7 @@
  * - direct intent → respond node directly
  */
 
+import { resolveSkillMention } from '@gruenerator/shared/agents';
 import { StateGraph, Annotation } from '@langchain/langgraph';
 
 import { resolveNotebookCollections } from '../../../config/notebookCollectionMap.js';
@@ -644,12 +645,38 @@ export async function initializeChatState(input: ChatGraphInput): Promise<ChatSt
   // User-created agents (`user_agents`) and custom-generator agents (`cg-*`) are
   // keyed by userId, so resolve through the user-aware loader when we have one.
   // Without a userId (tests, non-HTTP callers) only system agents resolve.
-  const agentConfig = input.userId
+  let agentConfig = input.userId
     ? await getAgentForUser(agentId, input.userId)
     : await getAgent(agentId);
 
   if (!agentConfig) {
     throw new Error(`Agent not found: ${input.agentId}`);
+  }
+
+  // Skill mentions carry the identifier of their owning agent (e.g.
+  // /presse-berlin → gruenerator-oeffentlichkeitsarbeit-berlin). On the
+  // default agent, adopt that agent's scoping (defaultFilter +
+  // toolRestrictions) so search_documents and pressemitteilung_examples are
+  // pinned to the matching Landesverband. The skill body carries the voice;
+  // model, provider and systemRole of the active agent stay untouched, and an
+  // explicitly selected non-default agent always wins.
+  if (input.activeSkillMention && agentId === getDefaultAgentId()) {
+    const skillAgentId = resolveSkillMention(input.activeSkillMention);
+    if (skillAgentId && skillAgentId !== agentConfig.identifier) {
+      const skillAgent = await getAgent(skillAgentId);
+      if (skillAgent && (skillAgent.defaultFilter != null || skillAgent.toolRestrictions != null)) {
+        agentConfig = {
+          ...agentConfig,
+          ...(skillAgent.defaultFilter != null && { defaultFilter: skillAgent.defaultFilter }),
+          ...(skillAgent.toolRestrictions != null && {
+            toolRestrictions: skillAgent.toolRestrictions,
+          }),
+        };
+        log.info(
+          `[ChatGraph] Skill ${input.activeSkillMention} adopted scoping from agent ${skillAgentId}`
+        );
+      }
+    }
   }
 
   return {

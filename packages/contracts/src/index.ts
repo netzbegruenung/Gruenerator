@@ -31,6 +31,7 @@ export {
   boardAttachmentsContract,
   publicBoardsContract,
   sharesContract,
+  sharesReadContract,
   userProfileContract,
   notebookContract,
   notebookCollectionsContract,

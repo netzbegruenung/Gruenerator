@@ -46,7 +46,8 @@ export type BoardCommentReaction = InferSelectModel<typeof board_comment_reactio
 export const board_card_activity = pgTable('board_card_activity', {
   id: uuid('id').primaryKey().defaultRandom(),
   board_id: uuid('board_id').notNull(),
-  card_id: text('card_id').notNull(),
+  // null for board-level events (A8); a card id for per-card events.
+  card_id: text('card_id'),
   user_id: uuid('user_id').notNull(),
   type: text('type').notNull(),
   payload: jsonb('payload').$type<Record<string, unknown>>().notNull().default({}),
@@ -54,6 +55,18 @@ export const board_card_activity = pgTable('board_card_activity', {
 });
 
 export type BoardCardActivity = InferSelectModel<typeof board_card_activity>;
+
+// ── Board-level watchers (A9) — whole-board subscriptions ─────────────────────
+
+export const board_subscriptions = pgTable('board_subscriptions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  board_id: uuid('board_id').notNull(),
+  user_id: uuid('user_id').notNull(),
+  source: text('source').notNull().default('manual'),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type BoardSubscription = InferSelectModel<typeof board_subscriptions>;
 
 // ── Card watchers / subscriptions (Feature: watchers + notifications) ─────────
 

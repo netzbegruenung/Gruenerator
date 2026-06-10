@@ -1,4 +1,4 @@
-import { Button, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
+import { Badge, Button, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import { HiPlus } from 'react-icons/hi';
@@ -32,6 +32,7 @@ interface VorlageItem {
   external_url?: string;
   content_data?: { originalUrl?: string };
   metadata?: { author_name?: string; contact_email?: string };
+  source?: 'community' | 'system';
   [key: string]: unknown;
 }
 
@@ -262,6 +263,11 @@ const VorlagenGallery = memo((): JSX.Element => {
             const templateType = item.template_type
               ? item.template_type.charAt(0).toUpperCase() + item.template_type.slice(1)
               : '';
+            // Community = user-submitted. Fall back to author presence so cards are
+            // still marked correctly if the API hasn't been redeployed with `source`.
+            const isCommunity = item.source
+              ? item.source === 'community'
+              : Boolean(item.metadata?.author_name);
             return (
               <IndexCard
                 key={String(item.id)}
@@ -275,6 +281,13 @@ const VorlagenGallery = memo((): JSX.Element => {
                 className="vorlagen-card"
                 authorName={item.metadata?.author_name || ''}
                 authorEmail={item.metadata?.contact_email || ''}
+                badge={
+                  isCommunity ? (
+                    <Badge className="border-transparent bg-primary-600 text-white shadow-sm">
+                      Community
+                    </Badge>
+                  ) : null
+                }
               />
             );
           })

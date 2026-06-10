@@ -18,6 +18,12 @@ export const activityTypeSchema = z.enum([
   'card_restored',
   'comment_added',
   'attachment_added',
+  // Board-level events (recorded with a null card_id) — they surface in the
+  // board-wide activity feed (A8) and notify board watchers (A9).
+  'board_renamed',
+  'board_archived',
+  'board_restored',
+  'board_duplicated',
 ]);
 export type ActivityType = z.infer<typeof activityTypeSchema>;
 
@@ -27,7 +33,8 @@ export const activityPayloadSchema = z.record(z.unknown());
 export const boardActivityRowSchema = z.object({
   id: z.string(),
   board_id: z.string(),
-  card_id: z.string(),
+  // null for board-level events (A8).
+  card_id: z.string().nullable(),
   user_id: z.string(),
   type: activityTypeSchema,
   payload: activityPayloadSchema,

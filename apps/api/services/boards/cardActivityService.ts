@@ -13,25 +13,29 @@ const db = getPostgresInstance();
 
 export interface RecordCardActivityParams {
   boardId: string;
-  cardId: string;
+  // null for board-level events (A8).
+  cardId: string | null;
   userId: string;
   type: ActivityType;
   payload?: Record<string, unknown>;
 }
 
-export async function recordCardActivity(params: RecordCardActivityParams): Promise<void> {
+/** Returns the inserted row id, or null if recording failed (never throws). */
+export async function recordCardActivity(params: RecordCardActivityParams): Promise<string | null> {
   const { boardId, cardId, userId, type, payload = {} } = params;
   try {
-    await db.query(
+    const rows = await db.query<{ id: string }>(
       `INSERT INTO board_card_activity (board_id, card_id, user_id, type, payload)
-       VALUES ($1, $2, $3, $4, $5::jsonb)`,
+       VALUES ($1, $2, $3, $4, $5::jsonb)
+       RETURNING id`,
       [boardId, cardId, userId, type, JSON.stringify(payload)]
     );
+    return rows[0]?.id ?? null;
   } catch (error) {
-    // Fire-and-forget: never let activity recording break the mutation it logs.
     log.warn('Failed to record card activity', {
       type,
       error: error instanceof Error ? error.message : String(error),
     });
+    return null;
   }
 }
