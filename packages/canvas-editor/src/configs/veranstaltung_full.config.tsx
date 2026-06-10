@@ -570,6 +570,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       getState,
       setState,
       saveToHistory,
+      debouncedSaveToHistory,
       CANVAS_WIDTH,
       CANVAS_HEIGHT
     );
@@ -588,6 +589,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       getState,
       setState,
       saveToHistory,
+      debouncedSaveToHistory,
       CANVAS_WIDTH,
       CANVAS_HEIGHT,
       '#005538'
@@ -627,6 +629,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       getState,
       setState,
       saveToHistory,
+      debouncedSaveToHistory,
       CANVAS_WIDTH,
       CANVAS_HEIGHT
     );
@@ -635,6 +638,7 @@ export const veranstaltungFullConfig: FullCanvasConfig<
       getState,
       setState,
       saveToHistory,
+      debouncedSaveToHistory,
       CANVAS_WIDTH,
       CANVAS_HEIGHT
     );
