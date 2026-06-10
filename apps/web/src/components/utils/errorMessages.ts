@@ -91,6 +91,13 @@ const errorMessages: Record<ErrorCode, ErrorMessageInfo> = {
       'Der KI-Dienst ist derzeit überlastet. Bitte versuchen Sie es in einigen Minuten erneut.',
   },
 
+  // Backend error codes
+  auth_unavailable: {
+    title: 'Anmeldedienst nicht erreichbar',
+    message:
+      'Der Anmeldedienst ist vorübergehend nicht erreichbar. Deine Sitzung ist nicht abgelaufen — bitte versuche es gleich erneut.',
+  },
+
   // Axios Error Codes
   ERR_NETWORK: {
     title: 'Netzwerkfehler',
@@ -159,6 +166,11 @@ export const getErrorMessage = (error: ErrorInput): ErrorMessageInfo => {
     errorType = error.response?.status || error.code || 'ERR_NETWORK';
   } else if (isAnthropicError(error)) {
     errorType = error.error?.type || 'default';
+  } else if (typeof (error as { status?: unknown })?.status === 'number') {
+    // ApiErrors thrown by handleApiError (apiClient.ts) are plain Errors
+    // carrying `.status` — without this branch they all fell through to the
+    // generic "Unerwarteter Fehler" fallback regardless of the actual code.
+    errorType = (error as { status: number }).status;
   } else if (hasCode(error)) {
     errorType = error.code || 'default';
   } else if (typeof error === 'string') {

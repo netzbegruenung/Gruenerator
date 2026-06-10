@@ -23,6 +23,13 @@ export const SESSION_ACTIVE = 'gruenerator_session_active';
 // reload that `performLoginRedirect` triggers but resets when the tab closes.
 export const REDIRECT_TIMESTAMPS = 'gruenerator_redirect_timestamps';
 
+// Set by `performLoginRedirect` right before navigating to /login; the login
+// page reads-and-removes it to show a "Sitzung abgelaufen" banner so the user
+// knows WHY they landed there. sessionStorage (per-tab, survives the redirect's
+// full-page navigation) and intentionally NOT in ALL_AUTH_LOCAL_KEYS — it must
+// outlive the auth-cache wipe that precedes the redirect.
+export const SESSION_EXPIRED_FLAG = 'gruenerator_session_expired';
+
 /**
  * All localStorage keys that hold any form of "user is authenticated" hint.
  * Use this when nuking auth state in defensive paths (circuit breaker, dead
