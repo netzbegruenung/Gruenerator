@@ -33,6 +33,8 @@ import { createLogger } from '../../utils/logger.js';
 import { getModel, isProviderConfigured } from '../chat/agents/providers.js';
 import { type AgentConfig } from '../chat/agents/types.js';
 
+import { checkDocumentWriteAccess } from './documentAccess.js';
+
 const log = createLogger('DocsAI');
 const router = createAuthenticatedRouter();
 
@@ -73,6 +75,10 @@ Do NOT use "replace", "insert", "modify", or any other type value.
 Return ONLY the JSON tool input. No prose, no code fences, no commentary.`;
 
 export const aiRequestBodySchema = z.object({
+  // The document being edited. Auth middleware only proves *who* the caller
+  // is — this id is what lets the handler check they may *edit* the document
+  // (and ties the AI call to a doc for the telemetry log).
+  documentId: z.string().uuid(),
   messages: z.array(z.unknown()),
   toolDefinitions: z.record(z.string(), z.unknown()),
   // Optional: when the docs-chat panel forwards an edit request, the prior
@@ -104,10 +110,19 @@ const DOCS_AI_MODELS: Record<AgentConfig['provider'], string> = {
  */
 export async function handleAiRequest(req: TypedRequest<AiRequestBody>, res: Response) {
   try {
-    const { messages, toolDefinitions, referenceContent } = req.body;
+    const { documentId, messages, toolDefinitions, referenceContent } = req.body;
+
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+    if (!(await checkDocumentWriteAccess(documentId, userId))) {
+      log.warn(`[DocsAI] User ${userId} denied AI edit on document ${documentId}`);
+      return res.status(403).json({ error: 'No edit permission for this document' });
+    }
 
     log.info(
-      `[DocsAI] Request received: ${messages.length} messages, ${Object.keys(toolDefinitions).length} tools, refContentChars: ${referenceContent?.length ?? 0}`
+      `[DocsAI] Request received for doc ${documentId}: ${messages.length} messages, ${Object.keys(toolDefinitions).length} tools, refContentChars: ${referenceContent?.length ?? 0}`
     );
 
     log.info(`[DocsAI] Tool definitions received: ${Object.keys(toolDefinitions).join(', ')}`);
@@ -183,7 +198,7 @@ ${referenceContent.trim()}
       temperature: 0.3,
       onFinish: ({ toolCalls, text, finishReason, usage }) => {
         log.info(
-          `[DocsAI] Stream finished — reason: ${finishReason}, toolCalls: ${toolCalls?.length || 0}, text length: ${text?.length || 0}`
+          `[DocsAI] Stream finished for doc ${documentId} — reason: ${finishReason}, toolCalls: ${toolCalls?.length || 0}, text length: ${text?.length || 0}`
         );
         if (toolCalls?.length) {
           toolCalls.forEach((tc, i) => {

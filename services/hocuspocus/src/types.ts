@@ -18,7 +18,6 @@ export interface AuthenticationData {
   documentName: string;
   requestHeaders: Record<string, string | string[] | undefined>;
   requestParameters: URLSearchParams;
-  connection: unknown;
   token?: string;
 }
 

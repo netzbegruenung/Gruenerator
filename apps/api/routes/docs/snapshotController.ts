@@ -311,7 +311,9 @@ router.post(
 
       await db.query(
         `INSERT INTO yjs_document_updates (document_id, update_data, created_at)
-         VALUES ($1, $2, CURRENT_TIMESTAMP)`,
+         VALUES ($1, $2, CURRENT_TIMESTAMP)
+         ON CONFLICT (document_id) DO UPDATE
+           SET update_data = EXCLUDED.update_data, created_at = EXCLUDED.created_at`,
         [req.params.id, compressedState]
       );
 

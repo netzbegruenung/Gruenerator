@@ -70,13 +70,13 @@ function extractAutoTitle(html: string): string | null {
  * PostgreSQL Persistence Adapter for Y.js Documents
  *
  * Stores Y.js documents in PostgreSQL using existing tables:
- * - yjs_document_updates: Incremental updates
- * - yjs_document_snapshots: Periodic snapshots for fast loading
+ * - yjs_document_updates: one full-state row per document (UPSERT on store)
+ * - yjs_document_snapshots: periodic snapshots for version history
  */
 export class PostgresPersistence {
-  private readonly UPDATE_BATCH_SIZE = 100;
   private readonly SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
   private readonly SNAPSHOT_RETENTION_DAYS = 90;
+  private readonly MAX_SNAPSHOT_SIZE_ENTRIES = 10_000;
   private readonly db: DbQueryFn;
   private lastSnapshotSizes = new Map<string, number>();
   private snapshotCounter = 0;
@@ -85,99 +85,109 @@ export class PostgresPersistence {
     this.db = db;
   }
 
-  /** Throws on DB error — callers must handle. Returns null only for genuinely new documents. */
+  /**
+   * Throws on DB error, and when stored rows exist but none of them can be
+   * decoded — serving an empty doc in that case would let the caller inject
+   * the template and the next store would overwrite the (still recoverable)
+   * real bytes in Postgres. Returns null only for genuinely new documents.
+   */
   async loadDocument(documentId: string): Promise<Uint8Array | null> {
-    const snapshotResult = await this.db(
-      `SELECT snapshot_data, version, created_at
-       FROM yjs_document_snapshots
-       WHERE document_id = $1
-       ORDER BY version DESC
-       LIMIT 1`,
-      [documentId]
-    );
+    const ydoc = new Y.Doc();
 
-    if (snapshotResult.length > 0) {
-      const snapshot = snapshotResult[0];
-      log.debug(`[Load] Found snapshot for ${documentId}, version ${snapshot.version}`);
+    // Walk snapshots newest-first until one decompresses and applies cleanly.
+    let appliedSnapshot: { version: number; created_at: unknown } | null = null;
+    let snapshotRowsSeen = 0;
+    for (let offset = 0; ; offset++) {
+      const rows = await this.db(
+        `SELECT snapshot_data, version, created_at
+         FROM yjs_document_snapshots
+         WHERE document_id = $1
+         ORDER BY version DESC
+         LIMIT 1 OFFSET $2`,
+        [documentId, offset]
+      );
+      if (rows.length === 0) break;
+      snapshotRowsSeen++;
 
-      const ydoc = new Y.Doc();
-
+      const snapshot = rows[0];
       try {
         const decompressed = await gunzipAsync(snapshot.snapshot_data as Buffer);
         Y.applyUpdate(ydoc, decompressed);
-        log.debug(`[Load] Applied snapshot (${decompressed.length} bytes)`);
-      } catch (error) {
-        log.error(`[Load] Failed to decompress/apply snapshot: ${error}`);
-      }
-
-      const updatesResult = await this.db(
-        `SELECT update_data
-         FROM yjs_document_updates
-         WHERE document_id = $1
-           AND created_at > $2
-         ORDER BY created_at ASC`,
-        [documentId, snapshot.created_at]
-      );
-
-      log.debug(`[Load] Found ${updatesResult.length} updates after snapshot`);
-
-      for (const row of updatesResult) {
-        try {
-          const decompressed = await gunzipAsync(row.update_data as Buffer);
-          Y.applyUpdate(ydoc, decompressed);
-        } catch (error) {
-          log.error(`[Load] Failed to apply update: ${error}`);
+        appliedSnapshot = snapshot as { version: number; created_at: unknown };
+        if (offset > 0) {
+          log.warn(
+            `[Load] Recovered ${documentId} from older snapshot v${appliedSnapshot.version} (${offset} newer snapshot(s) unreadable)`
+          );
         }
+        break;
+      } catch (error) {
+        log.error(
+          `[Load] Snapshot v${snapshot.version} for ${documentId} unreadable, trying older: ${error}`
+        );
       }
+    }
 
+    // Current-state rows (at most one post-migration; the ordered loop also
+    // covers pre-migration leftovers). Each row holds a full state, so a row
+    // applied on top of an older fallback snapshot self-heals the document.
+    const updatesResult = appliedSnapshot
+      ? await this.db(
+          `SELECT update_data
+           FROM yjs_document_updates
+           WHERE document_id = $1
+             AND created_at > $2
+           ORDER BY created_at ASC`,
+          [documentId, appliedSnapshot.created_at]
+        )
+      : await this.db(
+          `SELECT update_data
+           FROM yjs_document_updates
+           WHERE document_id = $1
+           ORDER BY created_at ASC`,
+          [documentId]
+        );
+
+    let appliedUpdates = 0;
+    let failedUpdates = 0;
+    for (const row of updatesResult) {
+      try {
+        const decompressed = await gunzipAsync(row.update_data as Buffer);
+        Y.applyUpdate(ydoc, decompressed);
+        appliedUpdates++;
+      } catch (error) {
+        failedUpdates++;
+        log.error(`[Load] Failed to apply update for ${documentId}: ${error}`);
+      }
+    }
+
+    if (appliedSnapshot || appliedUpdates > 0) {
       const state = Y.encodeStateAsUpdate(ydoc);
       log.info(`[Load] Document ${documentId} loaded (${state.length} bytes)`);
       return state;
     }
 
-    const updatesResult = await this.db(
-      `SELECT update_data
-       FROM yjs_document_updates
-       WHERE document_id = $1
-       ORDER BY created_at ASC`,
+    if (snapshotRowsSeen > 0 || failedUpdates > 0) {
+      throw new Error(
+        `Stored state for ${documentId} exists but is unreadable (${snapshotRowsSeen} snapshot(s), ${failedUpdates} update(s) failed to decode)`
+      );
+    }
+
+    // Third tier: API-seeded init_data. Live Yjs state takes precedence;
+    // this only fires on first connection after a server-side doc creation.
+    const initResult = await this.db(
+      'SELECT init_data FROM collaborative_documents_init WHERE document_id = $1',
       [documentId]
     );
-
-    if (updatesResult.length === 0) {
-      // Third tier: API-seeded init_data. Live Yjs state takes precedence;
-      // this only fires on first connection after a server-side doc creation.
-      const initResult = await this.db(
-        'SELECT init_data FROM collaborative_documents_init WHERE document_id = $1',
-        [documentId]
+    if (initResult.length > 0 && initResult[0].init_data) {
+      const decompressed = await gunzipAsync(initResult[0].init_data as Buffer);
+      log.info(
+        `[Load] Document ${documentId} hydrated from init_data (${decompressed.length} bytes)`
       );
-      if (initResult.length > 0 && initResult[0].init_data) {
-        const decompressed = await gunzipAsync(initResult[0].init_data as Buffer);
-        log.info(
-          `[Load] Document ${documentId} hydrated from init_data (${decompressed.length} bytes)`
-        );
-        return decompressed;
-      }
-
-      log.info(`[Load] No stored state for ${documentId}`);
-      return null;
+      return decompressed;
     }
 
-    log.debug(`[Load] Found ${updatesResult.length} total updates (no snapshot)`);
-
-    const ydoc = new Y.Doc();
-
-    for (const row of updatesResult) {
-      try {
-        const decompressed = await gunzipAsync(row.update_data as Buffer);
-        Y.applyUpdate(ydoc, decompressed);
-      } catch (error) {
-        log.error(`[Load] Failed to apply update: ${error}`);
-      }
-    }
-
-    const state = Y.encodeStateAsUpdate(ydoc);
-    log.info(`[Load] Document ${documentId} loaded (${state.length} bytes)`);
-    return state;
+    log.info(`[Load] No stored state for ${documentId}`);
+    return null;
   }
 
   async initializeWithTemplate(documentId: string, ydoc: Y.Doc): Promise<void> {
@@ -241,16 +251,19 @@ export class PostgresPersistence {
     try {
       const compressed = await gzipAsync(state);
 
+      // `state` is the full document, so a single row per document suffices —
+      // appending would pile up redundant full copies between snapshots.
       await this.db(
         `INSERT INTO yjs_document_updates (document_id, update_data, created_at)
-         VALUES ($1, $2, CURRENT_TIMESTAMP)`,
+         VALUES ($1, $2, CURRENT_TIMESTAMP)
+         ON CONFLICT (document_id) DO UPDATE
+           SET update_data = EXCLUDED.update_data, created_at = EXCLUDED.created_at`,
         [documentId, compressed]
       );
 
       log.debug(`[Store] Stored update for ${documentId} (${compressed.length} bytes compressed)`);
 
       await this.maybeCreateSnapshot(documentId, state);
-      await this.cleanupOldUpdates(documentId);
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Store] Error storing document ${documentId}: ${err.message}`);
@@ -289,6 +302,10 @@ export class PostgresPersistence {
           [documentId, compressed, nextVersion]
         );
 
+        // Crude bound so the map can't grow with every doc ever touched.
+        if (this.lastSnapshotSizes.size >= this.MAX_SNAPSHOT_SIZE_ENTRIES) {
+          this.lastSnapshotSizes.clear();
+        }
         this.lastSnapshotSizes.set(documentId, state.length);
         log.info(`[Snapshot] Created snapshot for ${documentId}, version ${nextVersion}`);
 
@@ -323,36 +340,6 @@ export class PostgresPersistence {
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       log.error(`[Cleanup] Error cleaning old snapshots: ${err.message}`);
-    }
-  }
-
-  private async cleanupOldUpdates(documentId: string): Promise<void> {
-    try {
-      const snapshotResult = await this.db(
-        `SELECT created_at
-         FROM yjs_document_snapshots
-         WHERE document_id = $1
-         ORDER BY version DESC
-         LIMIT 1`,
-        [documentId]
-      );
-
-      if (snapshotResult.length > 0) {
-        const deleteResult = await this.db(
-          `DELETE FROM yjs_document_updates
-           WHERE document_id = $1
-             AND created_at < $2
-           RETURNING id`,
-          [documentId, snapshotResult[0].created_at]
-        );
-
-        if (deleteResult.length > 0) {
-          log.debug(`[Cleanup] Deleted ${deleteResult.length} old updates for ${documentId}`);
-        }
-      }
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      log.error(`[Cleanup] Error cleaning up old updates: ${err.message}`);
     }
   }
 
