@@ -1,4 +1,4 @@
-import type { Layer } from '@gruenerator/shared/canvas-editor';
+import type { CanvasEditorConfig, Layer } from '@gruenerator/shared/canvas-editor';
 import * as Y from 'yjs';
 
 import type { CanvasEditorStoreApi } from '../stores/createCanvasEditorStore';
@@ -76,7 +76,7 @@ export function bindCanvasStoreToYMap({ store, parent }: BindOptions): CanvasBin
       store.getState().setLayers(layers);
       const cfg = Object.fromEntries(yConfig.entries());
       if (Object.keys(cfg).length > 0) {
-        store.getState().setConfig(cfg as Partial<Layer>);
+        store.getState().setConfig(cfg as Partial<CanvasEditorConfig>);
       }
     } finally {
       applyingRemote = false;
@@ -101,7 +101,9 @@ export function bindCanvasStoreToYMap({ store, parent }: BindOptions): CanvasBin
     if (event.transaction.origin === LOCAL_ORIGIN) return;
     applyingRemote = true;
     try {
-      store.getState().setConfig(Object.fromEntries(yConfig.entries()) as Partial<Layer>);
+      store
+        .getState()
+        .setConfig(Object.fromEntries(yConfig.entries()) as Partial<CanvasEditorConfig>);
     } finally {
       applyingRemote = false;
     }
