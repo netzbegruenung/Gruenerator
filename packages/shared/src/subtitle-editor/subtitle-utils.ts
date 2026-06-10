@@ -7,7 +7,7 @@ import type { SubtitleSegment } from './subtitle-types.js';
 
 const MAX_SUBTITLE_TEXT_LENGTH = 500000;
 
-function parseTimestamp(timeStr: string): { min: number; sec: number; frac: number } | null {
+function parseTimestamp(timeStr: string): { min: number; sec: number; fracSeconds: number } | null {
   const parts = timeStr.split(':');
   if (parts.length !== 2) return null;
 
@@ -17,17 +17,26 @@ function parseTimestamp(timeStr: string): { min: number; sec: number; frac: numb
 
   const min = parseInt(minStr, 10);
   const sec = parseInt(secParts[0], 10);
-  const frac = parseInt(secParts[1], 10);
 
-  if (isNaN(min) || isNaN(sec) || isNaN(frac)) return null;
-  if (sec < 0 || sec > 59 || frac < 0 || frac > 9) return null;
+  // Tolerant fraction handling: accept 1–2 fractional digits (tenths or
+  // centiseconds) and silently truncate anything beyond — rejecting would
+  // drop the whole segment. Emitters stay at one digit until the Phase B
+  // formatter switch (see manualSubtitleGeneratorService.formatTime).
+  if (!/^\d+$/.test(secParts[1])) return null;
+  const fracStr = secParts[1].slice(0, 2);
+  const fracSeconds = parseInt(fracStr, 10) / 10 ** fracStr.length;
 
-  return { min, sec, frac };
+  if (isNaN(min) || isNaN(sec)) return null;
+  if (min < 0 || sec < 0 || sec > 59) return null;
+
+  return { min, sec, fracSeconds };
 }
 
 /**
  * Parse subtitle text format into segment array
  * Format: "MM:SS.F - MM:SS.F\nText\n\nMM:SS.F - MM:SS.F\nText..."
+ * Accepts 1–2 fractional digits per timestamp (tenths or centiseconds);
+ * extra digits are truncated. Emitters write 1 digit until Phase B.
  *
  * @param text - Raw subtitle text from backend
  * @returns Array of parsed subtitle segments
@@ -55,8 +64,8 @@ export function parseSubtitlesText(text: string | null | undefined): SubtitleSeg
 
     if (!startParsed || !endParsed) return;
 
-    const startTime = startParsed.min * 60 + startParsed.sec + startParsed.frac / 10;
-    const endTime = endParsed.min * 60 + endParsed.sec + endParsed.frac / 10;
+    const startTime = startParsed.min * 60 + startParsed.sec + startParsed.fracSeconds;
+    const endTime = endParsed.min * 60 + endParsed.sec + endParsed.fracSeconds;
 
     segments.push({
       id: index,
@@ -99,14 +108,20 @@ export function formatTime(seconds: number): string {
 
 /**
  * Format seconds to MM:SS.F format (with single decimal)
+ * Intentionally emits ONE fractional digit until the Phase B precision
+ * switch (deployed mobile parsers must be tolerant first).
  *
  * @param seconds - Time in seconds
  * @returns Formatted time string "MM:SS.F"
  */
 export function formatTimeWithFraction(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  const frac = Math.round((seconds % 1) * 10);
+  // Integer tenths with carry: the old `Math.round((s % 1) * 10)` emitted
+  // an invalid two-digit fraction slot for inputs like 5.96s ("00:05.10").
+  const totalTenths = Math.max(0, Math.round(seconds * 10));
+  const frac = totalTenths % 10;
+  const totalSecs = (totalTenths - frac) / 10;
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${frac}`;
 }
 

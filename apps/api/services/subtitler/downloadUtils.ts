@@ -671,15 +671,19 @@ function processSubtitleSegments(subtitles: string): SubtitleSegment[] {
       if (lines.length < 2) return null;
 
       const timeLine = lines[0].trim();
-      const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\.(\d)\s*-\s*(\d{1,2}):(\d{2})\.(\d)$/);
+      // Tolerant of 1–2 fractional digits (tenths/centiseconds); extra
+      // digits are truncated. Emitters write 1 digit until Phase B.
+      const timeMatch = timeLine.match(
+        /^(\d{1,2}):(\d{2})\.(\d{1,2})\d*\s*-\s*(\d{1,2}):(\d{2})\.(\d{1,2})\d*$/
+      );
       if (!timeMatch) return null;
 
       let startMin = parseInt(timeMatch[1]);
       let startSec = parseInt(timeMatch[2]);
-      const startFrac = parseInt(timeMatch[3]);
+      const startFrac = parseInt(timeMatch[3]) / 10 ** timeMatch[3].length;
       let endMin = parseInt(timeMatch[4]);
       let endSec = parseInt(timeMatch[5]);
-      const endFrac = parseInt(timeMatch[6]);
+      const endFrac = parseInt(timeMatch[6]) / 10 ** timeMatch[6].length;
 
       if (startSec >= 60) {
         startMin += Math.floor(startSec / 60);
@@ -690,8 +694,8 @@ function processSubtitleSegments(subtitles: string): SubtitleSegment[] {
         endSec = endSec % 60;
       }
 
-      const startTime = startMin * 60 + startSec + startFrac / 10;
-      const endTime = endMin * 60 + endSec + endFrac / 10;
+      const startTime = startMin * 60 + startSec + startFrac;
+      const endTime = endMin * 60 + endSec + endFrac;
 
       if (startTime >= endTime) return null;
 
