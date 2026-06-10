@@ -86,7 +86,11 @@ export function GrueneratorThreadListItem() {
           }
         }
       }
-      useAgentStore.getState().setChatViewMode('thread');
+      const store = useAgentStore.getState();
+      // Explicit thread pick: drop queued auto-send state so a stale persisted
+      // value can't make AutoMessageSender hijack the switch into a new thread.
+      store.setPendingInitialAssistantMessage(null);
+      store.setChatViewMode('thread');
       baseSwitchTo(e);
     },
     [baseSwitchTo, remoteId, ctx]
@@ -178,7 +182,9 @@ export function GrueneratorArchivedThreadListItem() {
   const handleDelete = useSafeThreadAction('delete');
   const handleSwitch = useCallback(
     (e: MouseEvent) => {
-      useAgentStore.getState().setChatViewMode('thread');
+      const store = useAgentStore.getState();
+      store.setPendingInitialAssistantMessage(null);
+      store.setChatViewMode('thread');
       baseSwitchTo(e);
     },
     [baseSwitchTo]
