@@ -159,8 +159,11 @@ export function getVaapiOutputOptions(qp: number, encoder: string): string[] {
  * paths containing either character break the filter graph.
  */
 export function buildSubtitlesFilter(assFilePath: string, fontDir: string): string {
-  const escapedAssPath = assFilePath.replace(/:/g, '\\:').replace(/'/g, "\\'");
-  const escapedFontDir = fontDir.replace(/:/g, '\\:').replace(/'/g, "\\'");
+  // Escape backslash first so the `\:` / `\'` sequences we add below aren't re-escaped.
+  const escapeFilterPath = (p: string): string =>
+    p.replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, "\\'");
+  const escapedAssPath = escapeFilterPath(assFilePath);
+  const escapedFontDir = escapeFilterPath(fontDir);
   return `subtitles='${escapedAssPath}':fontsdir='${escapedFontDir}'`;
 }
 
