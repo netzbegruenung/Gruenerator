@@ -90,18 +90,22 @@ function parseSubtitleSegments(subtitles: string): SubtitleSegment[] {
       if (lines.length < 2) return null;
 
       const timeLine = lines[0].trim();
-      const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\.(\d)\s*-\s*(\d{1,2}):(\d{2})\.(\d)$/);
+      // Tolerant of 1–2 fractional digits (tenths/centiseconds); extra
+      // digits are truncated. Emitters write 1 digit until Phase B.
+      const timeMatch = timeLine.match(
+        /^(\d{1,2}):(\d{2})\.(\d{1,2})\d*\s*-\s*(\d{1,2}):(\d{2})\.(\d{1,2})\d*$/
+      );
       if (!timeMatch) return null;
 
       const startMin = parseInt(timeMatch[1]);
       const startSec = parseInt(timeMatch[2]);
-      const startFrac = parseInt(timeMatch[3]);
+      const startFrac = parseInt(timeMatch[3]) / 10 ** timeMatch[3].length;
       const endMin = parseInt(timeMatch[4]);
       const endSec = parseInt(timeMatch[5]);
-      const endFrac = parseInt(timeMatch[6]);
+      const endFrac = parseInt(timeMatch[6]) / 10 ** timeMatch[6].length;
 
-      const startTime = startMin * 60 + startSec + startFrac * 0.1;
-      const endTime = endMin * 60 + endSec + endFrac * 0.1;
+      const startTime = startMin * 60 + startSec + startFrac;
+      const endTime = endMin * 60 + endSec + endFrac;
       const text = lines.slice(1).join('\n');
 
       return { startTime, endTime, text };
