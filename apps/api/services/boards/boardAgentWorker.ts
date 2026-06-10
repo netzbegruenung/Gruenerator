@@ -3,32 +3,29 @@
  *
  * Started once per process from server.ts (startWorker). Each tick claims
  * claimable tasks one at a time (FOR UPDATE SKIP LOCKED → safe across cluster
- * workers), classifies the request, generates a document (with live search/
- * research tools), writes it, then notifies the requester (in-app + push + email
- * via createNotification) and replies on the originating card as the bot.
+ * workers). Two kinds of task:
+ *  - AI-column flow tasks (flow_config set) → delegated to runFlow (source → AI →
+ *    output nodes).
+ *  - Legacy @-mention tasks → classify, generate (with live search/research tools),
+ *    then answer in the comment thread or create a document; notify the requester.
  */
-import { generateText, stepCountIs, type ModelMessage } from 'ai';
+import { type CommentBlock } from '@gruenerator/contracts';
 
-import {
-  buildSystemMessage,
-  classifierNode,
-  initializeChatState,
-} from '../../agents/langgraph/ChatGraph/index.js';
-import { PRIMARY_URL } from '../../config/domains.js';
 import { type AgentTask } from '../../database/schema/agentTasks.js';
-import { createSearchTools } from '../../routes/chat/agents/searchTools.js';
-import { resolveModel } from '../../routes/chat/services/responseStreamingService.js';
 import { createLogger } from '../../utils/logger.js';
 import { getAIService } from '../ai/aiService.js';
 import { INTERMEDIATE_MODEL } from '../ai/providers.js';
 import { createDocumentWithContent } from '../docs/DocGenerationService.js';
 import { createNotification } from '../notifications/NotificationService.js';
 
+import { deriveTitle, generateFromState, prepareAgentState } from './agentFlow/generate.js';
+import { runFlow } from './agentFlow/index.js';
 import {
   claimNextAgentTask,
   completeAgentTask,
   failOrRetryAgentTask,
   postBotComment,
+  updateBotComment,
 } from './agentTaskService.js';
 
 import type { SearchIntent } from '../../agents/langgraph/ChatGraph/index.js';
@@ -36,17 +33,6 @@ import type { SearchIntent } from '../../agents/langgraph/ChatGraph/index.js';
 const log = createLogger('boardAgentWorker');
 
 const POLL_INTERVAL_MS = 5_000;
-
-// Hard ceiling on a single generation so one hung model call can't stall the
-// whole drain loop (which processes tasks sequentially).
-const GENERATION_TIMEOUT_MS = 180_000;
-
-// Documents can be long-form; never let a chat-tuned agent's small token budget
-// truncate the result below this floor.
-const MIN_DOCUMENT_TOKENS = 4000;
-
-// Max model<->tool round-trips while authoring (search/research then write).
-const MAX_TOOL_STEPS = 5;
 
 // Decides whether a tagged comment wants a short answer (posted back as a comment)
 // or a created text artifact (a document).
@@ -103,47 +89,67 @@ async function drain(): Promise<void> {
 async function processTask(task: AgentTask): Promise<void> {
   log.info(`Processing agent task ${task.id} (attempt ${task.attempts}/${task.max_attempts})`);
 
-  // The "Übernehme." acknowledgement is posted at enqueue time (agentTaskService),
-  // so the worker goes straight to producing the result.
+  // Mention path: one in-thread comment that starts as "working…" and is updated in
+  // place to the answer — so a quick reply never leaves a redundant ack + answer
+  // pair. Flow tasks (Grünerator-Spalte) skip this; their feedback is the start
+  // button + toast and the result is posted by the output nodes.
+  let workingCommentId: string | null = null;
+  const finishComment = async (blocks: CommentBlock[]): Promise<void> => {
+    try {
+      if (workingCommentId) {
+        await updateBotComment(workingCommentId, blocks);
+      } else {
+        workingCommentId = await postBotComment({
+          boardId: task.board_id,
+          cardId: task.card_id,
+          parentId: task.trigger_comment_id,
+          blocks,
+        });
+      }
+    } catch (e) {
+      log.warn('Failed to post/update bot comment', { error: errMsg(e) });
+    }
+  };
+
   try {
+    // Grünerator-Spalte tasks carry a flow config and run their own pipeline
+    // (source → AI step → output nodes). The @-mention path continues below.
+    if (task.flow_config) {
+      await runFlow(task);
+      log.info(`Agent task ${task.id} completed via Grünerator-Spalte flow`);
+      return;
+    }
+
+    // Post the single "working" comment now; every result path updates it in place.
+    workingCommentId = await postBotComment({
+      boardId: task.board_id,
+      cardId: task.card_id,
+      parentId: task.trigger_comment_id,
+      blocks: [{ type: 'text', text: '💭 Einen Moment, ich schaue mir das an …' }],
+    }).catch((e: unknown) => {
+      log.warn('Failed to post working comment', { error: errMsg(e) });
+      return null;
+    });
+
     const userLocale = task.locale === 'de-AT' ? 'de-AT' : 'de-DE';
-    const userMessage: ModelMessage = { role: 'user', content: task.task_text };
 
     // Classify only — the model does its own retrieval via the search/research
-    // tools during authoring, so we skip the graph's search/rerank/qualityGate
-    // stages to avoid double retrieval. The classifier still gives us the intent
-    // (for the unsupported-artifact guard) and a locale/intent-aware system prompt.
-    const initialState = await initializeChatState({
-      messages: [userMessage],
-      agentId: '', // falsy → ChatGraph resolves the default universal agent
-      enabledTools: { search: true, web: true, person: true, examples: true, research: true },
-      aiWorkerPool: getAIService(),
-      userLocale,
-    });
-    const classification = await classifierNode(initialState);
-    const finalState = { ...initialState, ...classification };
-    if (finalState.error) {
-      throw new Error(finalState.error);
-    }
+    // tools during authoring. The classifier gives us the intent (for the
+    // unsupported-artifact guard) and a locale/intent-aware system prompt.
+    const prepared = await prepareAgentState(task.task_text, userLocale);
+    const { finalState } = prepared;
 
     // The board agent only delivers text documents. For image/sharepic/chart
     // intents the graph would burn work producing an artifact we can't attach, so
     // answer with a short explanation and finish the task cleanly (no document).
     if (UNSUPPORTED_INTENTS.has(finalState.intent)) {
       await completeAgentTask(task.id, null);
-      await postBotComment({
-        boardId: task.board_id,
-        cardId: task.card_id,
-        parentId: task.trigger_comment_id,
-        blocks: [
-          {
-            type: 'text',
-            text: 'Ich kann auf Boards aktuell nur Text-Dokumente erstellen (keine Bilder, Sharepics oder Diagramme). Formuliere die Aufgabe gerne als Textauftrag.',
-          },
-        ],
-      }).catch((e: unknown) =>
-        log.warn('Failed to post unsupported-intent comment', { error: errMsg(e) })
-      );
+      await finishComment([
+        {
+          type: 'text',
+          text: 'Ich kann auf Boards aktuell nur Text-Dokumente erstellen (keine Bilder, Sharepics oder Diagramme). Formuliere die Aufgabe gerne als Textauftrag.',
+        },
+      ]);
       log.info(`Agent task ${task.id} completed without document (intent: ${finalState.intent})`);
       return;
     }
@@ -152,59 +158,10 @@ async function processTask(task: AgentTask): Promise<void> {
     // a "create a text" request becomes a document.
     const isDocument = (await classifyDeliverable(task.task_text)) === 'document';
 
-    // Build the agent's system prompt (systemRole, locale, intent guidance), then
-    // steer the format: a full document (overriding the universal agent's short
-    // ANTWORT-REGELN), or a concise comment answer (where those rules fit as-is).
-    const baseSystemMessage = await buildSystemMessage(finalState);
-    const systemMessage = isDocument
-      ? `${baseSystemMessage}
-
-## DOKUMENT-MODUS (vorrangig)
-Du erstellst ein eigenständiges, vollständiges Dokument — KEINE kurze Chat-Antwort. Die Längen- und Knappheitsregeln aus den ANTWORT-REGELN gelten hier NICHT. Schreibe so ausführlich und strukturiert, wie die Aufgabe es verlangt: mit aussagekräftiger Überschrift (#), sinnvollen Zwischenüberschriften und vollständig ausformulierten Absätzen.
-
-Du hast Recherche-Tools (gruenerator_search, web_search, research, …). Nutze sie aktiv, um Fakten und grüne Positionen zu belegen, bevor du schreibst — verlasse dich nicht nur auf vorhandenen Kontext. Gib am Ende AUSSCHLIESSLICH den Dokumentinhalt als Markdown aus — keine Meta-Kommentare, keine Rückfragen.`
-      : `${baseSystemMessage}
-
-## KOMMENTAR-MODUS
-Du antwortest direkt in einem Board-Kommentar-Thread. Antworte knapp und konkret auf die Frage (folge den ANTWORT-REGELN oben). Nutze bei Faktenbedarf zuerst die Recherche-Tools. Gib NUR die Antwort aus — keine Anrede, keine Meta-Kommentare, keine Überschrift.`;
-
-    const { agentConfig } = finalState;
-    // Resolve via the same path as the chat controller so overflow-lane slots and
-    // provider fallback are handled; release any acquired slot afterwards.
-    const resolution = await resolveModel(
-      {
-        provider: agentConfig.provider as string,
-        model: agentConfig.model,
-        ...(agentConfig.defaultModel != null && { defaultModel: agentConfig.defaultModel }),
-      },
-      undefined,
-      `board-agent-${task.id}`,
-      { intent: finalState.intent }
-    );
-
-    let generatedText: string;
-    try {
-      // Give the model live retrieval (search/research) while authoring, so it can
-      // ground facts on demand rather than only from the graph's pre-fetched
-      // context. toolChoice defaults to 'auto'; stepCountIs caps tool round-trips.
-      const generated = await generateText({
-        model: resolution.model,
-        system: systemMessage,
-        messages: [userMessage],
-        tools: createSearchTools(agentConfig),
-        stopWhen: stepCountIs(MAX_TOOL_STEPS),
-        maxOutputTokens: isDocument
-          ? Math.max(agentConfig.params.max_tokens, MIN_DOCUMENT_TOKENS)
-          : agentConfig.params.max_tokens,
-        temperature: agentConfig.params.temperature,
-        abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
-      });
-      generatedText = generated.text;
-    } finally {
-      if (resolution.releaseSlot) await resolution.releaseSlot();
-    }
-
-    const content = generatedText.trim();
+    const content = await generateFromState(prepared, {
+      longForm: isDocument,
+      slotLabel: `board-agent-${task.id}`,
+    });
     if (!content) {
       throw new Error('Der Agent lieferte kein Ergebnis');
     }
@@ -212,12 +169,7 @@ Du antwortest direkt in einem Board-Kommentar-Thread. Antworte knapp und konkret
     // Question → answer directly in the comment thread, no document.
     if (!isDocument) {
       await completeAgentTask(task.id, null);
-      await postBotComment({
-        boardId: task.board_id,
-        cardId: task.card_id,
-        parentId: task.trigger_comment_id,
-        blocks: [{ type: 'text', text: content }],
-      });
+      await finishComment([{ type: 'text', text: content }]);
       await createNotification({
         userId: task.requested_by,
         type: 'agent_task_completed',
@@ -253,15 +205,10 @@ Du antwortest direkt in einem Board-Kommentar-Thread. Antworte knapp und konkret
       groupKey: `agent-task-${task.id}`,
     });
 
-    await postBotComment({
-      boardId: task.board_id,
-      cardId: task.card_id,
-      parentId: task.trigger_comment_id,
-      blocks: [
-        { type: 'text', text: '✅ Fertig! Ich habe ein Dokument erstellt: ' },
-        { type: 'link', text: title, url: `${PRIMARY_URL}${relativeUrl}` },
-      ],
-    });
+    await finishComment([
+      { type: 'text', text: '✅ Fertig! Ich habe ein Dokument erstellt: ' },
+      { type: 'link', text: title, url: relativeUrl },
+    ]);
 
     log.info(`Agent task ${task.id} completed → document ${doc.id}`);
   } catch (err) {
@@ -282,17 +229,12 @@ Du antwortest direkt in einem Board-Kommentar-Thread. Antworte knapp und konkret
         log.warn('Failed to post failure notification', { error: errMsg(e) })
       );
 
-      await postBotComment({
-        boardId: task.board_id,
-        cardId: task.card_id,
-        parentId: task.trigger_comment_id,
-        blocks: [
-          {
-            type: 'text',
-            text: `⚠️ Ich konnte die Aufgabe leider nicht abschließen (${message}). Bitte formuliere sie ggf. neu und erwähne mich erneut.`,
-          },
-        ],
-      }).catch((e: unknown) => log.warn('Failed to post failure comment', { error: errMsg(e) }));
+      await finishComment([
+        {
+          type: 'text',
+          text: `⚠️ Ich konnte die Aufgabe leider nicht abschließen (${message}). Bitte formuliere sie ggf. neu und erwähne mich erneut.`,
+        },
+      ]);
     }
   }
 }
@@ -323,20 +265,6 @@ async function classifyDeliverable(taskText: string): Promise<'comment' | 'docum
     log.warn('Deliverable classification failed, defaulting to document', { error: errMsg(err) });
     return 'document';
   }
-}
-
-/**
- * Derive a document title: prefer a leading heading from the generated content,
- * otherwise fall back to the (mention-stripped) task text.
- */
-function deriveTitle(taskText: string, responseText: string): string {
-  const mdHeading = responseText.match(/^\s{0,3}#{1,3}\s+(.+)$/m);
-  const htmlHeading = responseText.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
-  const heading = (mdHeading?.[1] ?? htmlHeading?.[1] ?? '').replace(/<[^>]+>/g, '').trim();
-  if (heading) return heading.slice(0, 120);
-
-  const cleaned = taskText.replace(/@\S+/g, '').replace(/\s+/g, ' ').trim();
-  return cleaned.slice(0, 80) || 'Neues Dokument';
 }
 
 function errMsg(error: unknown): string {
