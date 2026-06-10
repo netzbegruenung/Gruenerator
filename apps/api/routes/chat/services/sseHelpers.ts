@@ -54,6 +54,10 @@ export type SSEEventType =
   | 'canvas_operations'
   | 'canvas_operations_error'
   | 'done'
+  // Non-fatal degradation the client should know about (context dropped,
+  // unknown model id, …). Payload: { code, message }. Unknown event types
+  // are ignored by older clients, so this is backwards-compatible.
+  | 'warning'
   | 'error';
 
 /**
@@ -228,6 +232,7 @@ export interface SSEEventPayloads {
       memoryRetrieveTimeMs?: number;
     };
   };
+  warning: { code: string; message: string };
   error: { error: string };
 }
 

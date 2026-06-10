@@ -35,6 +35,20 @@ const log = createLogger('ResponseStreaming');
  * production load.
  */
 const FIRST_TOKEN_DEADLINE_MS = 20_000;
+/** LiteLLM overflow lane can queue behind its single Verdigado slot. */
+const LITELLM_FIRST_TOKEN_DEADLINE_MS = 30_000;
+/**
+ * Regolo reasoning models hold back answer text until thinking completes —
+ * reasoning deltas don't satisfy the deadline (see the reasoning streamer),
+ * so the wait for the first TEXT token is legitimately much longer.
+ */
+const REASONING_FIRST_TOKEN_DEADLINE_MS = 45_000;
+
+export function getFirstTokenDeadlineMs(provider: string, modelName: string): number {
+  if (isRegoloReasoningModel(provider, modelName)) return REASONING_FIRST_TOKEN_DEADLINE_MS;
+  if (provider === 'litellm') return LITELLM_FIRST_TOKEN_DEADLINE_MS;
+  return FIRST_TOKEN_DEADLINE_MS;
+}
 
 interface ModelResolution {
   model: LanguageModel;
@@ -48,6 +62,10 @@ interface ModelResolution {
   /** Set when this resolution acquired the Verdigado overflow slot. MUST be
    *  invoked after the stream completes (success, failure, abort). */
   releaseSlot?: () => Promise<void>;
+  /** Set when the user requested a modelId the registry doesn't know and the
+   *  agent default was used instead — callers surface this to the client so
+   *  the selection isn't ignored silently. */
+  unknownModelId?: string;
 }
 
 /**
@@ -67,6 +85,7 @@ export async function resolveModel(
   let sibling: { provider: string; model: string } | undefined;
   let releaseSlot: (() => Promise<void>) | undefined;
   let resolvedId: string | undefined;
+  let unknownModelId: string | undefined;
 
   if (modelId && modelId !== 'mistral' && modelId !== 'auto') {
     const tuple = await resolveModelTuple(modelId, requestId);
@@ -79,6 +98,7 @@ export async function resolveModel(
       log.info(`[ChatGraph] Using user-selected model: ${modelId} → ${modelProvider}/${modelName}`);
     } else {
       log.warn(`[ChatGraph] Unknown model ID "${modelId}", using agent default`);
+      unknownModelId = modelId;
     }
   }
 
@@ -137,6 +157,7 @@ export async function resolveModel(
   if (resolvedId) result.modelId = resolvedId;
   if (sibling) result.sibling = sibling;
   if (releaseSlot) result.releaseSlot = releaseSlot;
+  if (unknownModelId) result.unknownModelId = unknownModelId;
   return result;
 }
 
@@ -183,8 +204,8 @@ function extractSystemFromMessages(messages: ModelMessage[]): {
 
 class FirstTokenTimeoutError extends Error {
   readonly kind: FallbackReason = 'first_token_timeout';
-  constructor() {
-    super(`No content token received within ${FIRST_TOKEN_DEADLINE_MS}ms`);
+  constructor(deadlineMs: number) {
+    super(`No content token received within ${deadlineMs}ms`);
     this.name = 'FirstTokenTimeoutError';
   }
 }
@@ -239,11 +260,11 @@ function startResponseHeartbeat(sse: SSEWriter): () => void {
 
 /**
  * Set up a one-shot first-token deadline. Returns the deadline promise (which
- * rejects with FirstTokenTimeoutError after FIRST_TOKEN_DEADLINE_MS), an
- * abort signal that fires at the same time, and a clear() to disarm both
- * once the first real text chunk arrives.
+ * rejects with FirstTokenTimeoutError after `deadlineMs`), an abort signal
+ * that fires at the same time, and a clear() to disarm both once the first
+ * real text chunk arrives.
  */
-function createFirstTokenDeadline(): {
+function createFirstTokenDeadline(deadlineMs: number): {
   deadline: Promise<never>;
   signal: AbortSignal;
   clear: () => void;
@@ -253,8 +274,8 @@ function createFirstTokenDeadline(): {
   const deadline = new Promise<never>((_, reject) => {
     timeoutHandle = setTimeout(() => {
       controller.abort();
-      reject(new FirstTokenTimeoutError());
-    }, FIRST_TOKEN_DEADLINE_MS);
+      reject(new FirstTokenTimeoutError(deadlineMs));
+    }, deadlineMs);
   });
   // Suppress unhandled-rejection if cleared before resolution.
   deadline.catch(() => {});
@@ -276,6 +297,7 @@ async function streamAndAccumulateOrThrow(params: {
   signal?: AbortSignal;
   logPrefix?: string;
   providerOptions?: Parameters<typeof streamText>[0]['providerOptions'];
+  firstTokenDeadlineMs?: number;
 }): Promise<string | null> {
   const {
     model,
@@ -286,9 +308,14 @@ async function streamAndAccumulateOrThrow(params: {
     signal,
     logPrefix = '[ChatGraph]',
     providerOptions,
+    firstTokenDeadlineMs = FIRST_TOKEN_DEADLINE_MS,
   } = params;
 
-  const { deadline, signal: deadlineSignal, clear } = createFirstTokenDeadline();
+  const {
+    deadline,
+    signal: deadlineSignal,
+    clear,
+  } = createFirstTokenDeadline(firstTokenDeadlineMs);
   const composed = signal ? AbortSignal.any([signal, deadlineSignal]) : deadlineSignal;
 
   const { system, messages: messagesWithoutSystem } = extractSystemFromMessages(
@@ -393,6 +420,7 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
   sse: SSEWriter;
   signal?: AbortSignal;
   logPrefix?: string;
+  firstTokenDeadlineMs?: number;
 }): Promise<string | null> {
   const {
     modelName,
@@ -402,9 +430,14 @@ async function streamAndAccumulateWithReasoningOrThrow(params: {
     sse,
     signal,
     logPrefix = '[ChatGraph]',
+    firstTokenDeadlineMs = FIRST_TOKEN_DEADLINE_MS,
   } = params;
 
-  const { deadline, signal: deadlineSignal, clear } = createFirstTokenDeadline();
+  const {
+    deadline,
+    signal: deadlineSignal,
+    clear,
+  } = createFirstTokenDeadline(firstTokenDeadlineMs);
   const composed = signal ? AbortSignal.any([signal, deadlineSignal]) : deadlineSignal;
 
   const streamParams: Parameters<typeof streamRegoloWithReasoning>[0] = {
@@ -574,6 +607,8 @@ export async function streamForResolution(params: {
 }): Promise<string | null> {
   const { resolution, messages, maxTokens, temperature, sse, signal, logPrefix } = params;
 
+  const firstTokenDeadlineMs = getFirstTokenDeadlineMs(resolution.provider, resolution.modelName);
+
   if (isRegoloReasoningModel(resolution.provider, resolution.modelName)) {
     const args: Parameters<typeof streamAndAccumulateWithReasoningOrThrow>[0] = {
       modelName: resolution.modelName,
@@ -581,6 +616,7 @@ export async function streamForResolution(params: {
       maxTokens,
       temperature,
       sse,
+      firstTokenDeadlineMs,
     };
     if (signal) args.signal = signal;
     if (logPrefix) args.logPrefix = logPrefix;
@@ -593,6 +629,7 @@ export async function streamForResolution(params: {
     maxTokens,
     temperature,
     sse,
+    firstTokenDeadlineMs,
   };
   if (signal) args.signal = signal;
   if (logPrefix) args.logPrefix = logPrefix;

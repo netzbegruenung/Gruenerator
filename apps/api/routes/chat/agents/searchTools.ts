@@ -1,11 +1,11 @@
 /**
  * Shared AI-SDK search/research tools for grounded generation.
  *
- * Extracted from chatStreamController so both the (legacy) streaming chat handler
- * and the async board agent can author with the same grounded tool set. The chat
- * handler runs these as a router (toolChoice:'required') and needs the
- * `direct_response` escape hatch; document authoring runs them on-demand
- * (toolChoice:'auto') and omits it — hence the `includeDirectResponse` option.
+ * Shared between the chat handler and the async board agent so both author
+ * with the same grounded tool set. The chat handler runs these as a router
+ * (toolChoice:'required') and needs the `direct_response` escape hatch;
+ * document authoring runs them on-demand (toolChoice:'auto') and omits it —
+ * hence the `includeDirectResponse` option.
  */
 import { tool, type ToolSet } from 'ai';
 import { z } from 'zod';
