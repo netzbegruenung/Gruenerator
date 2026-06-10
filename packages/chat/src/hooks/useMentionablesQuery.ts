@@ -356,6 +356,48 @@ export function useCanvaDesignsQuery(query: string, enabled = true) {
   });
 }
 
+// ── @vorlagen (semantic template search) ─────────────────────────────────────
+//
+// The @vorlagen picker semantically searches the user's published Vorlagen via
+// the backend vector index. Each query embeds the search term and returns the
+// best matches; selecting templates inserts a markdown link per template.
+
+export interface ChatVorlageTemplate {
+  id: string;
+  title: string;
+  description: string | null;
+  thumbnail_url: string | null;
+  external_url: string | null;
+  score: number;
+}
+
+/**
+ * Semantic search over published Vorlagen for the @vorlagen picker. Disabled
+ * until the picker opens (`enabled`); re-fetched per query term. Returns an
+ * empty list (not an error) on any failure so the picker renders an empty-state.
+ */
+export function useVorlagenSearchQuery(query: string, enabled = true) {
+  const apiClient = useApiClient();
+  return useQuery<{ vorlagen: ChatVorlageTemplate[] }>({
+    queryKey: ['mention-vorlagen-search', query],
+    queryFn: async () => {
+      try {
+        const qs = query ? `?query=${encodeURIComponent(query)}` : '';
+        const res = await apiClient.get<{ vorlagen?: ChatVorlageTemplate[] }>(
+          `/api/vorlagen/search${qs}`
+        );
+        return { vorlagen: Array.isArray(res?.vorlagen) ? res.vorlagen : [] };
+      } catch {
+        return { vorlagen: [] };
+      }
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
+    enabled,
+    retry: 1,
+  });
+}
+
 /**
  * Convenience hook that triggers all dynamic-mentionable queries — call from
  * the chat composer so dynamic mentionables are warm by the time @-popovers

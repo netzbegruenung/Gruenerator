@@ -23,6 +23,10 @@ import {
   UrlValidator,
 } from '../../../services/scrapers/implementations/UrlCrawler/index.js';
 import { createDocFromTemplate } from '../../../services/templates/collaborativeTemplateService.js';
+import {
+  enrichTemplate,
+  deleteTemplateVector,
+} from '../../../services/templates/templateEnrichment.js';
 import { logContractValidationError } from '../../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../../utils/getAuthedUser.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -174,6 +178,11 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
 
       const newTemplate = await postgres.insert('user_templates', templateData);
 
+      // Fire-and-forget: vision description (if empty) + vector indexing.
+      void enrichTemplate(String(newTemplate.id)).catch((e) =>
+        log.warn('[userTemplatesContract.fromUrl] enrichTemplate failed', e)
+      );
+
       return {
         status: 201 as const,
         body: {
@@ -281,6 +290,11 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
 
       const newTemplate = await postgres.insert('user_templates', templateData);
 
+      // Fire-and-forget: vision description (if empty) + vector indexing.
+      void enrichTemplate(String(newTemplate.id)).catch((e) =>
+        log.warn('[userTemplatesContract.create] enrichTemplate failed', e)
+      );
+
       return {
         status: 201 as const,
         body: {
@@ -339,6 +353,8 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
 
       const deletedIds = deletedData.map((t) => t.id);
       const failedIds = ids.filter((id) => !deletedIds.includes(id));
+
+      for (const deletedId of deletedIds) void deleteTemplateVector(deletedId);
 
       return {
         status: 200 as const,
@@ -430,6 +446,19 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
         };
       }
 
+      // Re-index when searchable fields changed (re-embeds; re-runs vision only
+      // if the description was cleared).
+      if (
+        'title' in updateData ||
+        'description' in updateData ||
+        'tags' in updateData ||
+        'is_private' in updateData
+      ) {
+        void enrichTemplate(id).catch((e) =>
+          log.warn('[userTemplatesContract.update] enrichTemplate failed', e)
+        );
+      }
+
       return {
         status: 200 as const,
         body: {
@@ -470,6 +499,8 @@ export const userTemplatesContractRouter = s.router(userTemplatesContract, {
           },
         };
       }
+
+      void deleteTemplateVector(id);
 
       return {
         status: 200 as const,
