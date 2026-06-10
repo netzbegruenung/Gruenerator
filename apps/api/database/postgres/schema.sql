@@ -796,7 +796,8 @@ CREATE INDEX IF NOT EXISTS idx_collaborative_document_folders_parent ON collabor
 CREATE INDEX IF NOT EXISTS idx_collaborative_document_folders_created_by ON collaborative_document_folders(created_by);
 
 -- Y.js indexes
-CREATE INDEX IF NOT EXISTS idx_yjs_document_updates_document_id ON yjs_document_updates(document_id);
+-- One full-state row per document (writers UPSERT); see migration yjs_document_updates_one_row_per_doc.sql
+CREATE UNIQUE INDEX IF NOT EXISTS uq_yjs_document_updates_document_id ON yjs_document_updates(document_id);
 CREATE INDEX IF NOT EXISTS idx_yjs_document_updates_created_at ON yjs_document_updates(created_at);
 
 -- Notebook indexes
