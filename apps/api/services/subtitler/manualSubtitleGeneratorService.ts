@@ -110,6 +110,13 @@ function detectPunctuation(word: string): PunctuationResult {
   };
 }
 
+// Emits the wire format "M:SS.F" with exactly ONE fractional digit
+// (tenths). All consumers parse this strictly — shared parseTimestamp
+// (packages/shared/src/subtitle-editor/subtitle-utils.ts) rejects frac > 9,
+// web parseSubtitleTime and downloadUtils' processSubtitleSegments match
+// a single \d — and deployed mobile clients ship the strict parser.
+// Widening to centiseconds requires changing all parsers first and
+// waiting out old app versions.
 function formatTime(timeInSeconds: number): string {
   const minutes = Math.floor(timeInSeconds / 60);
   const wholeSeconds = Math.floor(timeInSeconds % 60);

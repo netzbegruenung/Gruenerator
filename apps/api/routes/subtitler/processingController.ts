@@ -160,7 +160,12 @@ router.post(
           await redisClient.set(jobKey, JSON.stringify({ status: 'error', data: error.message }), {
             EX: 86400,
           });
-        });
+        })
+        // Terminal catch: if the error handler itself fails (e.g. Redis
+        // down), the job would silently stay "processing" for 24h.
+        .catch((handlerError: unknown) =>
+          log.error('[subtitler-transcription] error handler failed:', handlerError)
+        );
 
       res.status(202).json({ success: true, status: 'processing', uploadId });
     } catch (error: unknown) {
@@ -578,9 +583,17 @@ router.post(
         projectId,
         userId,
         textOverlays: toAssTextOverlays(textOverlays),
-      }).catch((e: Error) =>
-        reportBackgroundError(e, { job: 'subtitler-export', exportToken, uploadId: uploadId || '' })
-      );
+      })
+        .catch((e: Error) =>
+          reportBackgroundError(e, {
+            job: 'subtitler-export',
+            exportToken,
+            uploadId: uploadId || '',
+          })
+        )
+        .catch((handlerError: unknown) =>
+          log.error('[subtitler-export] error handler failed:', handlerError)
+        );
     } catch (e: unknown) {
       if (!res.headersSent)
         res.status(500).json({ error: e instanceof Error ? e.message : String(e) });

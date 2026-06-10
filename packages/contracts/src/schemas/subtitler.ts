@@ -254,12 +254,15 @@ export const exportStartResponseSchema = z.object({
  */
 export const exportProgressSchema = z.object({
   status: z.enum(['exporting', 'complete', 'error']),
+  /** Percentage 0–100 */
   progress: z.number().nullish(),
+  /** ffmpeg timemark string ("HH:MM:SS.ss" processed so far), not an ETA */
   timeRemaining: z.union([z.string(), z.number()]).nullish(),
   message: z.string().nullish(),
   outputPath: z.string().nullish(),
   originalFilename: z.string().nullish(),
   projectId: z.string().nullish(),
+  /** Video duration in seconds */
   duration: z.number().nullish(),
   error: z.string().nullish(),
 });
