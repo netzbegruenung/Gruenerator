@@ -33,6 +33,7 @@ import {
   usePresentationExport,
   usePageThumbnails,
 } from '../../hooks';
+import { useZoomGestures } from '../../hooks/useZoomGestures';
 import { CanvasEditorLayout } from '../../layouts';
 import { MobileSubsectionBridgeContext } from '../../sidebar/MobileSubsectionBridgeContext';
 import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
@@ -187,6 +188,9 @@ function CanvasEditorInner({
   useEffect(() => {
     pagesContainerRef.current?.style.setProperty('--canvas-zoom', String(zoom));
   }, [zoom, pagesContainerRef]);
+
+  // Pinch and ctrl/cmd+wheel drive the same zoom as the CanvasMetaBar buttons
+  useZoomGestures(pagesContainerRef, setZoom);
 
   const pageCollaborativeAt = useCallback(
     (index: number, pageId?: string, isActivePage?: boolean) => {
