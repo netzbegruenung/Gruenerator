@@ -71,8 +71,11 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false, // Verhindert unnötige Neuladungen
       refetchOnReconnect: 'always', // Nur bei Reconnect neu laden
       retry: (failureCount, error: unknown) => {
-        // Smart retry logic
-        const status = (error as { status?: number })?.status;
+        // Smart retry logic. Status lives at `.status` on AxiosErrors and
+        // ApiErrors, but at `.response.status` on older transformed shapes —
+        // read both so 401/403/404 are reliably excluded from retries.
+        const err = error as { status?: number; response?: { status?: number } } | undefined;
+        const status = err?.status ?? err?.response?.status;
         if (status === 404 || status === 401 || status === 403) return false;
         return failureCount < 2; // Max 2 retries
       },

@@ -7,6 +7,7 @@ import {
   INSTANT_AUTH_CACHE,
   LOGOUT_TIMESTAMP,
   REDIRECT_TIMESTAMPS,
+  SESSION_EXPIRED_FLAG,
 } from '../../features/auth/storageKeys';
 import { captureAuthIssue } from '../../lib/observability/captureAuthIssue';
 import { buildLoginUrl, isPublicPage } from '../../utils/authRedirect';
@@ -41,44 +42,51 @@ const baseURL: string = (import.meta.env.VITE_API_BASE_URL as string | undefined
 // back → user loses state.
 //
 // New rule: **never trust a single 401 as proof of dead session**.
-// Instead, on the first 401, do a silent session probe against
-// `/auth/status`. If the probe returns `isAuthenticated: true`, the
-// 401 was transient — swallow it and let the caller's query retry
-// mechanism do its thing. If the probe returns unauthenticated (or
-// itself 401s), THEN redirect.
+// Instead, on the first 401, do a silent session probe. The probe
+// yields a three-way verdict:
+//
+//   'alive'         — probe confirmed the session: the 401 was transient
+//                     (cookie rotation mid-flight). Retry the original
+//                     request once instead of failing the user's action.
+//   'dead'          — probe definitively saw no session (200 without a
+//                     user, or the probe itself 401/403'd). Redirect.
+//   'indeterminate' — probe failed for OTHER reasons (timeout, network,
+//                     5xx — e.g. the backend's auth_unavailable 503 while
+//                     Redis is down). This says NOTHING about the session;
+//                     treating it as dead used to log users out during
+//                     pure infra hiccups. Neither retry nor redirect —
+//                     propagate the error to the caller's handling.
 //
 // The probe result is cached for 5 seconds so a cascade of 401s
 // across multiple routes (e.g. 10 TanStack queries re-firing after
-// window focus) share one probe instead of DOSing `/auth/status`.
+// window focus) share one probe instead of DOSing the endpoint.
 //
 // Routes tagged `skipAuthRedirect: true` still bypass the whole
 // path — they explicitly opt out of any redirect behavior.
 
 const PROBE_CACHE_TTL_MS = 5_000;
 
+type ProbeVerdict = 'alive' | 'dead' | 'indeterminate';
+
 interface ProbeState {
   timestamp: number;
-  isAuthenticated: boolean;
+  verdict: ProbeVerdict;
 }
 
-let probeInFlight: Promise<boolean> | null = null;
+let probeInFlight: Promise<ProbeVerdict> | null = null;
 let lastProbe: ProbeState | null = null;
 
 /**
- * Silently probe `/auth/status` to decide whether the session is
- * actually dead or whether the 401 we just saw was transient. Returns
- * `true` if the session is healthy (caller should swallow the 401),
- * `false` if the session is dead (caller should redirect).
- *
- * Coalesces concurrent probes: the first caller kicks off the fetch,
- * every other caller within the same tick awaits the same promise.
- * Caches the result for 5s to collapse 401 cascades across routes.
+ * Silently probe Better Auth's session endpoint to classify the 401 we
+ * just saw. Coalesces concurrent probes: the first caller kicks off the
+ * fetch, every other caller within the same tick awaits the same promise.
+ * Caches the verdict for 5s to collapse 401 cascades across routes.
  */
-async function isSessionStillAlive(): Promise<boolean> {
+async function probeSessionVerdict(): Promise<ProbeVerdict> {
   // Return cached result if recent.
   const now = Date.now();
   if (lastProbe && now - lastProbe.timestamp < PROBE_CACHE_TTL_MS) {
-    return lastProbe.isAuthenticated;
+    return lastProbe.verdict;
   }
 
   // Coalesce in-flight probes.
@@ -86,44 +94,33 @@ async function isSessionStillAlive(): Promise<boolean> {
     return probeInFlight;
   }
 
-  probeInFlight = (async (): Promise<boolean> => {
+  probeInFlight = (async (): Promise<ProbeVerdict> => {
+    let verdict: ProbeVerdict;
     try {
       // Hit Better Auth's native session endpoint directly. Going through
       // `apiClient` would re-enter the interceptor and infinite-loop;
-      // `authClient.getSession()` is a peer of `apiClient` so it doesn't
+      // this raw axios call is a peer of `apiClient` so it doesn't
       // share the interceptor chain.
       const response = await axios.get(`${baseURL}/auth/v2/get-session`, {
         withCredentials: useCredentials,
         timeout: 10_000,
       });
       const data = response.data as { user?: unknown } | null | undefined;
-      const alive = data != null && data.user != null;
-      lastProbe = { timestamp: Date.now(), isAuthenticated: alive };
-      return alive;
-    } catch {
-      // Probe itself failed (usually 401 — session really is dead).
-      lastProbe = { timestamp: Date.now(), isAuthenticated: false };
-      return false;
+      verdict = data != null && data.user != null ? 'alive' : 'dead';
+    } catch (probeError) {
+      // Only a definitive 401/403 from the probe proves the session is
+      // dead. Anything else (timeout, network error, 5xx) is an infra
+      // signal, not a session signal.
+      const status = (probeError as AxiosError).response?.status;
+      verdict = status === 401 || status === 403 ? 'dead' : 'indeterminate';
     } finally {
       probeInFlight = null;
     }
+    lastProbe = { timestamp: Date.now(), verdict };
+    return verdict;
   })();
 
   return probeInFlight;
-}
-
-/**
- * Decide whether a 401 from an arbitrary request should trigger a
- * full-page redirect to login. Returns `true` if the caller should
- * redirect, `false` if the 401 was transient and should be swallowed.
- */
-async function shouldRedirectOn401(): Promise<boolean> {
-  if (_isLoggingOut) return false;
-  if (isPublicPage()) return false;
-  if (window.location.pathname === '/login') return false;
-
-  const alive = await isSessionStillAlive();
-  return !alive;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -246,6 +243,16 @@ function performLoginRedirect(): void {
     .concat(now);
   writeRedirectTimestamps(recent);
 
+  // Tell the login page WHY the user landed there. sessionStorage so it
+  // survives the full-page navigation but stays scoped to this tab; the
+  // login page reads-and-removes it to show a "Sitzung abgelaufen" banner
+  // instead of silently dropping the user on a bare login screen.
+  try {
+    sessionStorage.setItem(SESSION_EXPIRED_FLAG, '1');
+  } catch {
+    // Non-fatal.
+  }
+
   // Always wipe the instant-auth cache + set the cooldown marker before
   // navigating. This is the load-bearing fix: without it, the next /login
   // mount reads stale "isAuthenticated:true" from cache and bounces back.
@@ -292,7 +299,9 @@ const useCredentials: boolean = !isDesktopApp();
 //   - Return `false` → shared client propagates the 401 to the caller. We
 //     return false when the probe says the session is dead; `performLoginRedirect`
 //     has already fired, so the navigation is in flight and the rejected
-//     promise just unblocks any await'ing code.
+//     promise just unblocks any await'ing code. An 'indeterminate' verdict
+//     (probe failed on infra, not auth) also returns false — but WITHOUT
+//     the redirect, so an outage doesn't log the user out.
 const sharedApiClient = createApiClient({
   baseURL,
   authMode: isDesktopApp() ? 'bearer' : 'cookie',
@@ -301,14 +310,15 @@ const sharedApiClient = createApiClient({
     if (_isLoggingOut || isPublicPage() || window.location.pathname === '/login') {
       return false;
     }
-    const alive = await isSessionStillAlive();
-    if (alive) {
+    const verdict = await probeSessionVerdict();
+    if (verdict === 'alive') {
       // Session is actually healthy — tell the shared client to retry
       // the original request. The cookie just got rotated mid-flight.
       return true;
     }
-    // Real dead session. Fire the redirect and let the 401 propagate.
-    performLoginRedirect();
+    if (verdict === 'dead') {
+      performLoginRedirect();
+    }
     return false;
   },
   timeout: 900000,
@@ -359,28 +369,40 @@ apiClient.interceptors.request.use(
 
 // Response interceptor for error handling.
 //
-// Goes through `shouldRedirectOn401` which probes `/auth/status`
-// silently before deciding. A single transient 401 — e.g. from a
-// background poller firing during a Better Auth cookie revalidation —
-// is swallowed because the probe finds the session is actually alive.
-// Only when the probe itself 401s (or returns `isAuthenticated: false`)
-// does the redirect fire. See the long-form explanation above the
-// `shouldRedirectOn401` helper.
+// On a 401, `probeSessionVerdict` silently classifies the failure (see the
+// long-form explanation above the helper):
+//   'alive'         → the 401 was transient (cookie rotation mid-flight).
+//                     Re-fire the original request ONCE. Without this, the
+//                     swallowed 401 reached the caller, `toastApiError`
+//                     skipped it (401s never toast), and the user's click
+//                     simply did nothing — especially for mutations, which
+//                     TanStack Query never retries. Safe to replay: a 401
+//                     means `requireAuth` rejected before the handler ran,
+//                     so no server-side side effect happened; the re-dispatch
+//                     re-runs the request interceptor (fresh desktop token).
+//   'dead'          → redirect to login (except on public pages / /login).
+//   'indeterminate' → neither: propagate the error to the caller.
 //
 // Routes tagged `skipAuthRedirect: true` bypass the whole path.
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error: AxiosError) => {
-    if (error.config?.skipAuthRedirect) {
+    const config = error.config;
+    if (config?.skipAuthRedirect) {
       return Promise.reject(error);
     }
 
-    if (error.response && error.response.status === 401) {
-      if (await shouldRedirectOn401()) {
+    if (error.response && error.response.status === 401 && !_isLoggingOut) {
+      const verdict = await probeSessionVerdict();
+      if (verdict === 'alive' && config && !config._retried401) {
+        config._retried401 = true;
+        return apiClient.request(config);
+      }
+      if (verdict === 'dead' && !isPublicPage() && window.location.pathname !== '/login') {
         performLoginRedirect();
       }
-      // Always reject so the caller's `.catch` / TanStack Query error
-      // handler can surface a sensible error state. Swallowing to
+      // Always reject otherwise so the caller's `.catch` / TanStack Query
+      // error handler can surface a sensible error state. Swallowing to
       // `undefined` would hide real failures (non-auth 500s, network
       // errors) from component-level retry logic.
     }
@@ -509,6 +531,10 @@ const handleApiError = (error: AxiosError): never => {
         errorData.message || `Serverfehler (Status ${status})`
       );
       friendlyError.name = errorData.errorType || 'ServerError';
+      // Without `.status` this error is opaque to every status-based consumer:
+      // `getErrorMessage` falls through to the generic "Unerwarteter Fehler"
+      // toast and `toastApiError`'s 401/404 skip never matches.
+      friendlyError.status = status;
       friendlyError.originalError = error;
       friendlyError.errorId = errorData.errorId;
       friendlyError.timestamp = errorData.timestamp;
