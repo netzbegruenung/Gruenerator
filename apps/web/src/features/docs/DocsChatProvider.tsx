@@ -24,8 +24,8 @@ import {
   type GrueneratorAdapterConfig,
 } from '@gruenerator/chat';
 import { chatThreadResponseSchema, type ChatThreadResponse } from '@gruenerator/contracts';
-import { getSystemAgent } from '@gruenerator/shared/agents';
 import { invokeDocumentAI, useEditorStore } from '@gruenerator/docs';
+import { getSystemAgent } from '@gruenerator/shared/agents';
 import { getContractsClient } from '@gruenerator/shared/api';
 import { loadedThreadMessagesSchema } from '@gruenerator/shared/chat';
 import { useQuery } from '@tanstack/react-query';
@@ -244,12 +244,23 @@ function DocsChatReadyHost({
     return registerDocumentEditHandler(documentId, async (payload) => {
       if (payload.targetDocumentId !== documentId) return;
       if (!aiEditEnabledRef.current) return;
-      await invokeDocumentAI({
-        documentId,
-        userPrompt: payload.userPrompt,
-        useSelection: payload.useSelection,
-        ...(payload.referenceContent ? { referenceContent: payload.referenceContent } : {}),
-      });
+      // The SSE dispatcher only console.warns on handler errors — without a
+      // toast here, the chat announces the edit and then silently nothing
+      // happens (e.g. network failure or missing edit permission).
+      try {
+        const invoked = await invokeDocumentAI({
+          documentId,
+          userPrompt: payload.userPrompt,
+          useSelection: payload.useSelection,
+          ...(payload.referenceContent ? { referenceContent: payload.referenceContent } : {}),
+        });
+        if (!invoked) throw new Error('no editor mounted for document');
+      } catch (err) {
+        console.error('[DocsChat] AI document edit failed:', err);
+        void import('sonner').then(({ toast }) =>
+          toast.error('Die KI-Bearbeitung konnte nicht gestartet werden.')
+        );
+      }
     });
   }, [documentId, registerDocumentEditHandler]);
 
