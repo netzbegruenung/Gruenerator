@@ -20,6 +20,7 @@ import {
   FiCheck,
   FiTrash2,
   FiCalendar,
+  FiRepeat,
   FiTag,
   FiMessageSquare,
   FiFileText,
@@ -36,10 +37,12 @@ import {
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
+import { AgentRunButton } from '../aiColumns/AgentRunButton';
 import { useBoardActivity } from '../hooks/useBoardActivity';
 import { useCardSubscription } from '../hooks/useCardSubscription';
 import { FIELD_IDS, parseAssignees, parseChecklists, serializeAssignees } from '../types';
 import { LABEL_COLORS } from '../utils/boardDefaults';
+import { RECURRENCE_OPTIONS } from '../utils/recurrence';
 
 import { CardActivity } from './CardActivity';
 import { CardAttachments } from './CardAttachments';
@@ -176,6 +179,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [recurrence, setRecurrence] = useState('');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [linkedDocs, setLinkedDocs] = useState<LinkedDoc[]>([]);
   const [newLabelText, setNewLabelText] = useState('');
@@ -183,6 +187,9 @@ export const CardDetailPanel = memo(function CardDetailPanel({
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [assignees, setAssignees] = useState<CardAssignee[]>([]);
   const [checklists, setChecklists] = useState<ChecklistGroup[]>([]);
+  // Tracks which (row, open) the local form state was last synced from; see the
+  // render-time sync below.
+  const [syncedToken, setSyncedToken] = useState<string | null>(null);
 
   // Activity recording + watch toggle (relational; keyed on the open card).
   const activeCardId = row?.id ?? '';
@@ -218,24 +225,29 @@ export const CardDetailPanel = memo(function CardDetailPanel({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, onPrevCard, onNextCard]);
 
-  // Sync local state from row when panel opens or row changes
+  // Sync local form state from the row when the panel opens or the row changes.
+  // Done during render (React's "adjusting state when a prop changes" pattern)
+  // rather than in an effect, so there's no extra commit/render pass.
   const rowId = row?.id;
-  useEffect(() => {
-    if (!row) return;
+  const syncToken = `${rowId ?? ''}|${open ? '1' : '0'}`;
+  if (row && syncToken !== syncedToken) {
+    setSyncedToken(syncToken);
     setTitle((row.cells[FIELD_IDS.TITLE] as string) || '');
     setDescription((row.cells[FIELD_IDS.DESCRIPTION] as string) || '');
     setDueDate((row.cells[FIELD_IDS.DUE_DATE] as string) || '');
+    setRecurrence((row.cells[FIELD_IDS.RECURRENCE] as string) || '');
     setSelectedLabelIds((row.cells[FIELD_IDS.LABELS] ?? []) as string[]);
+    let docs: LinkedDoc[] = [];
     try {
       const raw = row.cells[FIELD_IDS.LINKED_DOCS];
-      setLinkedDocs(typeof raw === 'string' ? (JSON.parse(raw) as LinkedDoc[]) : []);
+      docs = typeof raw === 'string' ? (JSON.parse(raw) as LinkedDoc[]) : [];
     } catch {
-      setLinkedDocs([]);
+      docs = [];
     }
+    setLinkedDocs(docs);
     setAssignees(parseAssignees(row.cells[FIELD_IDS.ASSIGNEE]));
     setChecklists(parseChecklists(row.cells[FIELD_IDS.CHECKLIST]));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally sync only on row change or panel open
-  }, [rowId, open]);
+  }
 
   const handleTitleBlur = useCallback(() => {
     if (!row) return;
@@ -808,6 +820,50 @@ export const CardDetailPanel = memo(function CardDetailPanel({
                 )}
               </div>
             </div>
+
+            {/* Recurrence — when set, completing the card spawns the next occurrence */}
+            <div className="flex flex-row">
+              <p className="w-24 shrink-0 text-sm font-medium text-grey-500 dark:text-grey-100 pt-1.5">
+                <FiRepeat className="inline mr-1.5" size={13} />
+                Wiederholung
+              </p>
+              <div className="flex-1">
+                <select
+                  value={recurrence}
+                  onChange={(e) => {
+                    if (!row) return;
+                    const value = e.target.value;
+                    setRecurrence(value);
+                    onUpdateCell(row.id, FIELD_IDS.RECURRENCE, value || null);
+                  }}
+                  className="w-full rounded-md border border-grey-200 dark:border-grey-700 bg-transparent px-2 py-2.5 sm:py-1.5 text-sm outline-none hover:border-primary-500 focus:border-primary-500 transition-colors cursor-pointer"
+                >
+                  <option value="">Nicht wiederkehrend</option>
+                  {RECURRENCE_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.name}
+                    </option>
+                  ))}
+                </select>
+                {recurrence && (
+                  <p className="text-xs text-grey-400 dark:text-grey-300 mt-1 m-0">
+                    Beim Abschließen wird automatisch eine neue Karte mit nächstem Fälligkeitsdatum
+                    erstellt.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Grünerator-Spalte — runs the configured Grünerator agent on this card.
+                Renders nothing unless the card's status column carries an aiTask. */}
+            {row && (
+              <AgentRunButton
+                boardId={boardId}
+                row={row}
+                fields={fields}
+                onLinkDocument={addLinkedDoc}
+              />
+            )}
 
             {/* Linked documents */}
             <div className="flex flex-row items-start">
