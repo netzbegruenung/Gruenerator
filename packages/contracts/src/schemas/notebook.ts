@@ -217,3 +217,40 @@ export const notebookResearchSearchResponseSchema = z.object({
     timeMs: z.number(),
   }),
 });
+
+// ── Recent documents ("Zuletzt hinzugefügt") ────────────────────────────────
+
+export const notebookRecentDocumentCardSchema = z.object({
+  id: z.string(),
+  collectionId: z.string(),
+  collectionName: z.string(),
+  title: z.string(),
+  snippet: z.string().nullable(),
+  url: z.string().nullable(),
+  publishedAt: z.string().nullable(),
+  sourceLabel: z.string().nullable(),
+});
+
+export type NotebookRecentDocumentCard = z.infer<typeof notebookRecentDocumentCardSchema>;
+
+export const notebookRecentResponseSchema = z.object({
+  collectionId: z.string().nullish(),
+  items: z.array(notebookRecentDocumentCardSchema),
+});
+
+// ── Statistics ───────────────────────────────────────────────────────────────
+
+const notebookStatsFacetBucketSchema = z.object({ value: z.string(), count: z.number() });
+
+export const notebookStatsResponseSchema = z.object({
+  totalDocuments: z.number(),
+  categoryDistribution: z.array(notebookStatsFacetBucketSchema),
+  sourceDistribution: z.array(notebookStatsFacetBucketSchema),
+  dateRange: z.object({ min: z.string().nullable(), max: z.string().nullable() }),
+  monthlyActivity: z.array(z.object({ month: z.string(), count: z.number() })),
+  topWords: z.array(z.object({ word: z.string(), count: z.number() })),
+  topicDistribution: z.array(z.object({ topic: z.string(), count: z.number() })),
+  topicSampleSize: z.number(),
+});
+
+export type NotebookStatsResponse = z.infer<typeof notebookStatsResponseSchema>;

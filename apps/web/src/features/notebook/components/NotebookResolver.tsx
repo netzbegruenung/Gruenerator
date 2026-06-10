@@ -50,6 +50,23 @@ function NotebookResolverPage() {
         </div>
       );
     }
+    // The resolver returns null for a definitive 404 and throws for anything
+    // else (network error, 5xx) — only the latter lands here. Don't show
+    // "nicht gefunden" for a notebook that may well exist.
+    if (resolverQuery.isError) {
+      return (
+        <div className="flex flex-1 flex-col items-center justify-center gap-sm p-md text-foreground-muted">
+          <p>Notebook konnte nicht geladen werden.</p>
+          <button
+            type="button"
+            className="text-primary underline underline-offset-2"
+            onClick={() => void resolverQuery.refetch()}
+          >
+            Erneut versuchen
+          </button>
+        </div>
+      );
+    }
     if (resolverQuery.data) {
       return <DynamicNotebookPage id={resolverQuery.data.id} />;
     }

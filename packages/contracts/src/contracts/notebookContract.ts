@@ -1,14 +1,13 @@
 /**
  * ts-rest contract for /api/auth/notebook (interaction routes).
  *
- * Covers the 5 endpoints in apps/api/routes/notebook/interactionController.ts.
- * The /api/auth/notebook-collections CRUD surface (collectionsController.ts,
- * 10 routes) is NOT in scope for this contract — see the roadmap Phase 4.1
- * batch plan.
+ * QA interaction, research search, recent documents, statistics, and public
+ * token access. The /api/auth/notebook-collections CRUD surface lives in
+ * notebookCollectionsContract.
  *
- * Mixed authentication: `getFilters` and the two `/public/*` routes do NOT
- * require auth; `askMulti` and `askSingle` do. Auth is enforced per-handler
- * in the contract router, not via prefix middleware.
+ * Mixed authentication: `getFilters`, recent/stats, and the two `/public/*`
+ * routes do NOT require auth; `askMulti` and `askSingle` do. Auth is enforced
+ * per-handler in the contract router, not via prefix middleware.
  */
 import { initContract } from '@ts-rest/core';
 import { z } from 'zod';
@@ -19,8 +18,10 @@ import {
   notebookFiltersResponseSchema,
   notebookPublicCollectionResponseSchema,
   notebookQAResponseSchema,
+  notebookRecentResponseSchema,
   notebookResearchSearchBodySchema,
   notebookResearchSearchResponseSchema,
+  notebookStatsResponseSchema,
 } from '../schemas/notebook.js';
 
 const c = initContract();
@@ -100,6 +101,70 @@ export const notebookContract = c.router(
         500: notebookErrorResponseSchema,
       },
       summary: 'Manual research over a single user-owned notebook (chunk-level)',
+    },
+
+    /**
+     * GET /api/auth/notebook/collections/:id/recent
+     * Most recently published documents of a single system collection.
+     * No auth required (system-collection data only).
+     */
+    getCollectionRecent: {
+      method: 'GET',
+      path: '/api/auth/notebook/collections/:id/recent',
+      pathParams: z.object({ id: z.string() }),
+      query: z.object({ limit: z.string().nullish() }),
+      responses: {
+        200: notebookRecentResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Recently published documents of a notebook collection',
+    },
+
+    /**
+     * GET /api/auth/notebook/recent
+     * Merged recent documents across multiple system collections.
+     * No auth required (system-collection data only).
+     */
+    getRecent: {
+      method: 'GET',
+      path: '/api/auth/notebook/recent',
+      query: z.object({ collections: z.string(), limit: z.string().nullish() }),
+      responses: {
+        200: notebookRecentResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Recently published documents across notebook collections',
+    },
+
+    /**
+     * GET /api/auth/notebook/collections/:id/stats
+     * Aggregated statistics for a single system collection (24h server cache).
+     */
+    getCollectionStats: {
+      method: 'GET',
+      path: '/api/auth/notebook/collections/:id/stats',
+      pathParams: z.object({ id: z.string() }),
+      query: z.object({ refresh: z.string().nullish() }),
+      responses: {
+        200: notebookStatsResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Statistics for a notebook collection',
+    },
+
+    /**
+     * GET /api/auth/notebook/stats
+     * Merged statistics across multiple system collections.
+     */
+    getStats: {
+      method: 'GET',
+      path: '/api/auth/notebook/stats',
+      query: z.object({ collections: z.string(), refresh: z.string().nullish() }),
+      responses: {
+        200: notebookStatsResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Statistics across notebook collections',
     },
 
     /**
