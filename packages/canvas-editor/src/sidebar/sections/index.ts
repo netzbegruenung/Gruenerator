@@ -2,7 +2,7 @@
  * Sidebar Sections Index
  *
  * Exports are split into static and lazy-loaded sections:
- * - Lightweight sections are exported directly (FontSizeSection, etc.)
+ * - Lightweight sections are exported directly
  * - Heavy sections are lazy-loaded with React.lazy() to reduce initial bundle size
  */
 
@@ -12,11 +12,6 @@ import { lazy } from 'react';
 // STATIC EXPORTS - Lightweight sections loaded immediately
 // =============================================================================
 
-export { FontSizeSection } from './FontSizeSection';
-export { FreeformTextSection } from './FreeformTextSection';
-export type { FreeformTextSectionProps } from './FreeformTextSection';
-export { UnifiedTextSection } from './UnifiedTextSection';
-export type { UnifiedTextSectionProps } from './UnifiedTextSection';
 export { CombinedTextSection } from './CombinedTextSection';
 export type { CombinedTextSectionProps } from './CombinedTextSection';
 export { AiSection, SuggestionCard, OperationPreview } from './AiSection';
@@ -29,8 +24,6 @@ export type { ChatSectionProps } from './ChatSection';
 export { IconsSection } from './IconsSection';
 export { BadgeSection } from './BadgeSection';
 export type { BadgeSectionProps } from './BadgeSection';
-export { BalkenSection } from './BalkenSection';
-export type { BalkenSectionProps } from './BalkenSection';
 export { BalkenSettingsSection } from './BalkenSettingsSection';
 export type { BalkenSettingsSectionProps } from './BalkenSettingsSection';
 export { FrameSettingsSection } from './FrameSettingsSection';

@@ -1,8 +1,11 @@
 /**
  * Illustration Registry
  *
- * Loads all illustration definitions synchronously at module load time,
- * similar to how icons are loaded in canvasIcons.ts.
+ * Small illustration sets (kawaii, opendoodles, featured undraw) load
+ * statically; the full ~1600-entry undraw catalog (~280 KB of metadata) is
+ * pulled in via dynamic import only when an async lookup first needs it, so
+ * it stays out of the editor-core chunk. Sync access to the full catalog
+ * lives in fullCatalog.ts (used only inside the lazy assets chunk).
  */
 
 import type {
@@ -16,7 +19,6 @@ import type {
 import { KAWAII_ILLUSTRATIONS } from './kawaii';
 import { OPENDOODLES } from './opendoodles';
 import { UNDRAW_FEATURED } from './undraw';
-import { UNDRAW_ALL } from './undrawAll';
 
 // Re-export types and constants for convenience
 export type {
@@ -33,20 +35,13 @@ export type {
 export { ILLUSTRATION_COLORS, KAWAII_MOODS } from './types';
 
 // =============================================================================
-// STATIC EXPORTS (loaded at module initialization, like icons)
+// ASYNC LOADERS
 // =============================================================================
 
-export const ALL_ILLUSTRATIONS: IllustrationDef[] = [
-  ...KAWAII_ILLUSTRATIONS,
-  ...OPENDOODLES,
-  ...UNDRAW_ALL,
-];
-
-export const ALL_SVG_ILLUSTRATIONS: SvgDef[] = [...OPENDOODLES, ...UNDRAW_ALL];
-
-// =============================================================================
-// LEGACY ASYNC LOADERS (kept for backward compatibility)
-// =============================================================================
+let undrawAllPromise: Promise<SvgDef[]> | null = null;
+function loadUndrawAll(): Promise<SvgDef[]> {
+  return (undrawAllPromise ??= import('./undrawAll').then((m) => m.UNDRAW_ALL));
+}
 
 export async function loadKawaiiIllustrations(): Promise<KawaiiDef[]> {
   return KAWAII_ILLUSTRATIONS;
@@ -61,11 +56,13 @@ export async function loadUndrawIllustrations(): Promise<SvgDef[]> {
 }
 
 export async function getAllIllustrations(): Promise<IllustrationDef[]> {
-  return ALL_ILLUSTRATIONS;
+  const undrawAll = await loadUndrawAll();
+  return [...KAWAII_ILLUSTRATIONS, ...OPENDOODLES, ...undrawAll];
 }
 
 export async function getAllSvgIllustrations(): Promise<SvgDef[]> {
-  return ALL_SVG_ILLUSTRATIONS;
+  const undrawAll = await loadUndrawAll();
+  return [...OPENDOODLES, ...undrawAll];
 }
 
 // =============================================================================
@@ -166,5 +163,7 @@ export async function getAllSvgCategories(): Promise<string[]> {
 export const getSvgIllustrationsByCategory = getIllustrationsByCategory;
 export const searchSvgIllustrations = searchIllustrations;
 
-// Re-export source arrays for direct access if needed
-export { KAWAII_ILLUSTRATIONS, OPENDOODLES, UNDRAW_FEATURED, UNDRAW_ALL };
+// Re-export the small static source arrays for direct access if needed.
+// The full undraw catalog is intentionally NOT re-exported here — sync
+// consumers use fullCatalog.ts so the data stays in a lazy chunk.
+export { KAWAII_ILLUSTRATIONS, OPENDOODLES, UNDRAW_FEATURED };

@@ -82,7 +82,11 @@ export {
 } from './lib/blockNoteUtils';
 export { defaultDocumentContent } from './lib/defaultContent';
 export { invokeDocumentAI } from './lib/invokeDocumentAI';
-export { acceptDocumentAI, rejectDocumentAI } from './lib/reviewDocumentAI';
+export {
+  acceptDocumentAI,
+  rejectDocumentAI,
+  type AcceptDocumentAIResult,
+} from './lib/reviewDocumentAI';
 
 // Utils
 export { lazyWithRetry } from './utils/lazyWithRetry';

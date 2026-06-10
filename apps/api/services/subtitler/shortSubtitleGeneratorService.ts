@@ -2,6 +2,12 @@
  * Short Subtitle Generator Service
  *
  * Generates short, readable subtitles for social media videos using AI.
+ *
+ * NOTE: The only route using this service (/api/claude/generate-short-subtitles,
+ * routes/texte/subtitles.ts) has no in-repo frontend caller and never feeds
+ * subtitler_projects.subtitles — dead-code-removal candidate. If it ever gets
+ * wired into the subtitler pipeline, the prompt's time format must match the
+ * wire format emitted by manualSubtitleGeneratorService.formatTime.
  */
 
 import { createLogger } from '../../utils/logger.js';
@@ -69,6 +75,7 @@ Segment Text 3
 
 4.  **Zeitformat MM:SS (für die Ausgabe) - ÜBERLAPPUNGSFREIE RUNDUNG:**
     - Verwende die exakten Wort-Timestamps für die Segmentierung
+    - Gib Sekunden IMMER ohne Nachkommastellen aus (exakt MM:SS, z.B. 01:05 — niemals 01:05.2)
     - Für die MM:SS Ausgabe: Runde Startsekunde AB (floor), Endsekunde AUF (ceil)
     - **KRITISCH: Überlappungsvermeidung beim Runden:**
       - Wenn das gerundete Ende von Segment A (MM:SS) >= gerundeter Start von Segment B (MM:SS) ist, dann:

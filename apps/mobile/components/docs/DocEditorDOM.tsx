@@ -242,6 +242,7 @@ interface DocEditorDOMProps {
   onDocSnapshotChange?: (markdown: string, selectionText: string) => void;
   onSlashChange?: (json: string) => void;
   onAiReviewPendingChange?: (pending: boolean) => void;
+  onAiAcceptFailed?: () => void;
   proxyFetch?: (url: string, options?: string) => Promise<string>;
   wsOpen?: (url: string, protocols?: string) => Promise<string>;
   wsSend?: (b64: string) => Promise<void>;
@@ -626,6 +627,8 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
   wsCloseRef.current = props.wsClose;
   const onAiReviewPendingChangeRef = useRef(props.onAiReviewPendingChange);
   onAiReviewPendingChangeRef.current = props.onAiReviewPendingChange;
+  const onAiAcceptFailedRef = useRef(props.onAiAcceptFailed);
+  onAiAcceptFailedRef.current = props.onAiAcceptFailed;
 
   const hasWsBridge = !!(props.wsOpen && props.wsSend && props.wsReceive && props.wsClose);
 
@@ -701,14 +704,20 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
         documentId: props.documentId,
         userPrompt: prompt,
         useSelection,
-      }).then((ok) => {
-        if (ok) onAiReviewPendingChangeRef.current?.(true);
-      });
+      })
+        .then((ok) => {
+          if (ok) onAiReviewPendingChangeRef.current?.(true);
+        })
+        .catch((err) => {
+          console.error('[DocEditorDOM] AI invoke failed:', err);
+          onAiReviewPendingChangeRef.current?.(false);
+        });
     } else if (props.pendingAction.type === 'accept-ai') {
       // NOTE: since the AI menu is never opened, the doc stays editable during
       // review (xl-ai normally locks isEditable via openAIMenuAtBlock). Accepted
       // as-is for now — no native editable-locking.
-      acceptDocumentAI(props.documentId);
+      const result = acceptDocumentAI(props.documentId);
+      if (result === 'not-broadcast') onAiAcceptFailedRef.current?.();
       onAiReviewPendingChangeRef.current?.(false);
     } else if (props.pendingAction.type === 'reject-ai') {
       rejectDocumentAI(props.documentId);

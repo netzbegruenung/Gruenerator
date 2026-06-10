@@ -24,6 +24,12 @@ interface AwarenessRecord {
 interface UseSelectionAwarenessOptions {
   /** Multi-page only — the local user's currently active page id. */
   activePageId?: string | null;
+  /**
+   * Whether this instance publishes the local selection. In multi-page mode
+   * every page mounts the hook on the same provider — only the active page
+   * may publish, or instances would overwrite each other.
+   */
+  publish?: boolean;
 }
 
 export function useSelectionAwareness(
@@ -31,17 +37,22 @@ export function useSelectionAwareness(
   options?: UseSelectionAwarenessOptions
 ): RemoteSelection[] {
   const localSelection = useCanvasStoreSelector((s) => s.selectedLayerIds);
+  // The config-driven editor tracks its selection in selectedElement (single id);
+  // selectedLayerIds is only populated by the layer API. Publish whichever is active.
+  const localElement = useCanvasStoreSelector((s) => s.selectedElement);
   const activePageId = options?.activePageId ?? null;
+  const publish = options?.publish ?? true;
 
   useEffect(() => {
-    if (!provider?.awareness) return;
-    provider.awareness.setLocalStateField('selectedLayerIds', localSelection);
-  }, [provider, localSelection]);
+    if (!provider?.awareness || !publish) return;
+    const published = localElement ? [localElement] : localSelection;
+    provider.awareness.setLocalStateField('selectedLayerIds', published);
+  }, [provider, localSelection, localElement, publish]);
 
   useEffect(() => {
-    if (!provider?.awareness) return;
+    if (!provider?.awareness || !publish) return;
     provider.awareness.setLocalStateField('activePageId', activePageId);
-  }, [provider, activePageId]);
+  }, [provider, activePageId, publish]);
 
   const remote = useAwarenessState<RemoteSelection[]>(
     provider,

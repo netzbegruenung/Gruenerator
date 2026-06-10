@@ -1,10 +1,12 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
 import { View, Pressable, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ErrorBoundary } from '../../components/common/ErrorBoundary';
 import { SubtitleEditorScreen } from '../../components/subtitle-editor';
+import { useSubtitleEditorStore } from '../../stores/subtitleEditorStore';
 import { lightTheme, darkTheme, colors } from '../../theme';
 
 import type { Project } from '@gruenerator/shared';
@@ -14,6 +16,14 @@ export default function FullscreenSubtitleEditor() {
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ projectId: string; projectData: string }>();
+
+  // Clear editor state on unmount so a later session can't observe a
+  // previous project's state if its load path skips loadProject().
+  useEffect(() => {
+    return () => {
+      useSubtitleEditorStore.getState().reset();
+    };
+  }, []);
 
   const project: Project | null = params.projectData
     ? (JSON.parse(params.projectData) as Project)

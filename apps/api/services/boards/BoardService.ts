@@ -1,5 +1,5 @@
 import { promisify } from 'util';
-import { gunzip } from 'zlib';
+import { gunzip, gzip } from 'zlib';
 
 import * as Y from 'yjs';
 
@@ -7,6 +7,7 @@ import { getPostgresInstance } from '../../database/services/PostgresService/Pos
 import { createLogger } from '../../utils/logger.js';
 
 const gunzipAsync = promisify(gunzip);
+const gzipAsync = promisify(gzip);
 const _log = createLogger('BoardService');
 
 const BOARDS_SUBTYPE = 'boards';
@@ -390,11 +391,15 @@ export async function addRowsToBoard(
   });
 
   const update = Y.encodeStateAsUpdate(doc);
+  const compressed = await gzipAsync(Buffer.from(update));
   const db = getPostgresInstance();
-  await db.query('INSERT INTO yjs_document_updates (document_id, data) VALUES ($1, $2)', [
-    boardId,
-    Buffer.from(update),
-  ]);
+  await db.query(
+    `INSERT INTO yjs_document_updates (document_id, update_data, created_at)
+     VALUES ($1, $2, CURRENT_TIMESTAMP)
+     ON CONFLICT (document_id) DO UPDATE
+       SET update_data = EXCLUDED.update_data, created_at = EXCLUDED.created_at`,
+    [boardId, compressed]
+  );
 
   _log.info(`Added ${rows.length} rows to board ${boardId}`);
   doc.destroy();

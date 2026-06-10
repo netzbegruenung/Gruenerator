@@ -114,6 +114,7 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
     useCanvasEditorServices();
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [pickError, setPickError] = useState<string | null>(null);
   const {
     searchResults,
     totalResults,
@@ -147,6 +148,7 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
     async (image: StockImage) => {
       if (!onImageChange || !fetchUnsplashImageAsFile) return;
 
+      setPickError(null);
       try {
         const file = await fetchUnsplashImageAsFile(image);
 
@@ -156,9 +158,20 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
 
         // Optimistic blob preview, then swap to a durable URL so the chosen
         // image survives reload (the value gets written to the collab doc).
-        await persistImageSelection(file, image.attribution ?? null, onImageChange, uploadImage);
+        const { persisted } = await persistImageSelection(
+          file,
+          image.attribution ?? null,
+          onImageChange,
+          uploadImage
+        );
+        if (!persisted && uploadImage) {
+          setPickError(
+            'Bild konnte nicht dauerhaft gespeichert werden und geht nach dem Neuladen verloren.'
+          );
+        }
       } catch (error) {
         console.error('[ImageSubsection] Failed to select image:', error);
+        setPickError(error instanceof Error ? error.message : 'Fehler beim Laden des Bildes');
       }
     },
     [onImageChange, fetchUnsplashImageAsFile, trackUnsplashDownloadLive, uploadImage]
@@ -280,6 +293,13 @@ function ImageSubsection({ currentImageSrc, onImageChange, textContext }: ImageS
           }}
         >
           <p>Suche läuft...</p>
+        </div>
+      )}
+
+      {/* Persist Error */}
+      {pickError && (
+        <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg mb-3">
+          <p className="text-red-600 dark:text-red-400 text-sm m-0">{pickError}</p>
         </div>
       )}
 

@@ -5,5 +5,5 @@ export { bindCanvasStoreToYMap, bindCanvasStoreToYDoc } from './yjsBinding';
 export type { CanvasBinding } from './yjsBinding';
 export { useSelectionAwareness } from './useSelectionAwareness';
 export { useYjsFormState } from './useYjsFormState';
-export { useYjsPages, useYjsPageState } from './useYjsPages';
+export { useYjsPages } from './useYjsPages';
 export type { YjsPageView, YjsPagesApi } from './useYjsPages';

@@ -15,6 +15,10 @@
  *      (via `group_content_shares` + `group_memberships`).
  *   5. No access — none of the above → returns false (not 500).
  *
+ * Doc-linked threads additionally defer to the linked document's access
+ * rules (direct + group); those queries run between/after the above and
+ * return no rows in these tests.
+ *
  * The Postgres instance is mocked via `vi.mock` so these tests run in
  * milliseconds with no DB. Each test asserts both the call shape (correct
  * SQL arguments) and the return value.
@@ -47,11 +51,21 @@ beforeEach(() => {
   queryMock.mockReset();
 });
 
-// The service uses two sequential queries. We program the mock to return
-// different results for the first (direct access) vs second (group share)
-// query based on call order.
-function mockQueries(directAccessRows: unknown[], groupAccessRows: unknown[]) {
-  queryMock.mockResolvedValueOnce(directAccessRows).mockResolvedValueOnce(groupAccessRows);
+// The service runs up to four sequential queries (each short-circuits on a
+// hit): direct access → doc direct access → group share → doc group share.
+// We program the mock per call-order position; later positions default to
+// "no rows" for tests that only exercise the early paths.
+function mockQueries(
+  directAccessRows: unknown[],
+  groupAccessRows: unknown[],
+  docDirectAccessRows: unknown[] = [],
+  docGroupAccessRows: unknown[] = []
+) {
+  queryMock
+    .mockResolvedValueOnce(directAccessRows)
+    .mockResolvedValueOnce(docDirectAccessRows)
+    .mockResolvedValueOnce(groupAccessRows)
+    .mockResolvedValueOnce(docGroupAccessRows);
 }
 
 // ── Access paths ──────────────────────────────────────────────────────────
@@ -103,9 +117,10 @@ describe('canAccessThread — group share path', () => {
     const result = await canAccessThread(THREAD_ID, USER_ID);
 
     expect(result).toBe(true);
-    expect(queryMock).toHaveBeenCalledTimes(2);
-    // Group query was called with (threadId, userId).
-    const groupCall = queryMock.mock.calls[1];
+    expect(queryMock).toHaveBeenCalledTimes(3);
+    // Group query (3rd in order, after direct + doc-direct) was called with
+    // (threadId, userId).
+    const groupCall = queryMock.mock.calls[2];
     expect(groupCall?.[1]).toEqual([THREAD_ID, USER_ID]);
   });
 
@@ -115,7 +130,7 @@ describe('canAccessThread — group share path', () => {
     const result = await canAccessThread(THREAD_ID, OTHER_USER);
 
     expect(result).toBe(false);
-    expect(queryMock).toHaveBeenCalledTimes(2);
+    expect(queryMock).toHaveBeenCalledTimes(4);
   });
 });
 

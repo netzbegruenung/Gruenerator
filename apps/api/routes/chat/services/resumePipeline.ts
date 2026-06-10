@@ -238,6 +238,12 @@ export async function runChatGraphResume({
       hasImages: resumeImageAttachments.length > 0,
       intent: finalState.intent,
     });
+    if (resolution2.unknownModelId) {
+      sse.send('warning', {
+        code: 'unknown_model_id',
+        message: `Modell "${resolution2.unknownModelId}" ist nicht verfügbar — Standardmodell wird verwendet.`,
+      });
+    }
     const validMessages = requestContext.validMessages;
     const prunedValidMessages = pruneMessages(validMessages);
     const messagesForAI = buildMessagesForAI(systemMessage, prunedValidMessages);

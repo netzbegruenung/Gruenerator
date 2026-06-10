@@ -110,6 +110,15 @@ function detectPunctuation(word: string): PunctuationResult {
   };
 }
 
+// Emits the wire format "M:SS.F" with exactly ONE fractional digit
+// (tenths). Phase A of the precision migration made all in-repo parsers
+// tolerant of 1–2 fractional digits (shared parseTimestamp, downloadUtils
+// processSubtitleSegments, exportService parseSubtitleSegments) — but
+// deployed mobile binaries still ship the old strict parser, which DROPS
+// segments with two digits. This formatter must stay at one digit until
+// the Phase B gate is met: tolerant mobile release published in both
+// stores + ~95% adoption among subtitler-active sessions. See the
+// Phase B checklist in the precision-migration PR description.
 function formatTime(timeInSeconds: number): string {
   const minutes = Math.floor(timeInSeconds / 60);
   const wholeSeconds = Math.floor(timeInSeconds % 60);

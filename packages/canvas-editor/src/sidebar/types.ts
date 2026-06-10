@@ -69,13 +69,6 @@ export interface TextSectionProps {
   onUpdateAdditionalTextFontSize?: (id: string, size: number) => void;
 }
 
-export interface FontSizeSectionProps {
-  quoteFontSize?: number;
-  nameFontSize?: number;
-  onQuoteFontSizeChange?: (size: number) => void;
-  onNameFontSizeChange?: (size: number) => void;
-}
-
 export interface BackgroundSectionProps {
   // Color props
   colors: BackgroundColorOption[];
