@@ -121,18 +121,25 @@ export function useSubtitleEditor({ player, timelineRef }: UseSubtitleEditorOpti
       clearTimeout(autoSaveTimeoutRef.current);
     }
 
-    // Set new timeout for auto-save
+    // Set new timeout for auto-save. Read ALL state from the store at
+    // fire time — mixing closure-captured values with getState() reads
+    // is how a stale (e.g. temp-) projectId sneaks into the save.
     autoSaveTimeoutRef.current = setTimeout(async () => {
       try {
         const state = useSubtitleEditorStore.getState();
-        if (!state.hasUnsavedChanges || state.isSaving) {
+        if (
+          !state.hasUnsavedChanges ||
+          state.isSaving ||
+          !state.projectId ||
+          state.projectId.startsWith('temp-')
+        ) {
           return;
         }
 
         useSubtitleEditorStore.setState({ isSaving: true, error: null });
 
         const subtitlesText = formatSubtitlesToText(state.segments);
-        await updateProject(state.projectId!, {
+        await updateProject(state.projectId, {
           subtitles: subtitlesText,
           stylePreference: state.stylePreference,
           heightPreference: state.heightPreference,
