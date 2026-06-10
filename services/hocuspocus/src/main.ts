@@ -51,8 +51,8 @@ async function main(): Promise<void> {
   await server.listen();
   log.info(`Hocuspocus WebSocket server started on ${HOCUSPOCUS_HOST}:${HOCUSPOCUS_PORT}`);
 
-  // 5. Start health check HTTP server
-  startHealthServer(HEALTH_PORT, { pool, redis });
+  // 5. Start health check HTTP server (+ internal canvas API when configured)
+  startHealthServer(HEALTH_PORT, { pool, redis, hocuspocus: server, persistence });
 
   // 6. Graceful shutdown
   const shutdown = async () => {
