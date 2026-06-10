@@ -26,6 +26,7 @@ export {
   chatGraphContract,
   boardsContract,
   boardCommentsContract,
+  boardAgentContract,
   boardActivityContract,
   boardSubscriptionsContract,
   boardAttachmentsContract,
@@ -70,6 +71,7 @@ export * from './schemas/recentValues.js';
 export * from './schemas/search.js';
 export * from './schemas/research.js';
 export * from './schemas/chatGraph.js';
+export * from './schemas/boardFlow.js';
 export * from './schemas/boards.js';
 export * from './schemas/boardComments.js';
 export * from './schemas/boardActivity.js';

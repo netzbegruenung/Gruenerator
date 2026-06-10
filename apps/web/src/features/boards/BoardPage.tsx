@@ -1,4 +1,5 @@
 import { DocsProvider } from '@gruenerator/docs';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { Fab } from '@gruenerator/ui';
 import { lazy, Suspense, useCallback, useState } from 'react';
 import { FiMessageSquare, FiX } from 'react-icons/fi';
@@ -259,6 +260,23 @@ function BoardViewContent({
     currentUserName: userName ?? undefined,
   });
 
+  // Drag handler that also mirrors a recurring follow-up card's due date into the
+  // relational table the reminder worker scans (Yjs cells aren't queryable in SQL).
+  const handleDragReorder = useCallback(
+    (rows: Row[], groupByFieldId: string) => {
+      const spawned = boardState.onDragReorder(rows, groupByFieldId);
+      for (const card of spawned) {
+        void getContractsClient()
+          .boardActivity.recordActivity({
+            params: { boardId, cardId: card.rowId },
+            body: { type: 'due_changed', payload: { dueDate: card.dueDate } },
+          })
+          .catch(() => {});
+      }
+    },
+    [boardState, boardId]
+  );
+
   const handleAddView = useCallback(
     (layout: ViewLayout) => {
       const id = `view-${layout}-${Date.now()}`;
@@ -360,7 +378,7 @@ function BoardViewContent({
           groups={groups}
           swimlanes={swimlanes}
           activeView={activeView}
-          onDragReorder={boardState.onDragReorder}
+          onDragReorder={handleDragReorder}
           addRow={boardState.addRow}
           updateRow={boardState.updateRow}
           updateRowCell={boardState.updateRowCell}

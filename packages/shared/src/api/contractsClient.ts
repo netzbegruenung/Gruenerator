@@ -24,6 +24,7 @@ import {
   researchContract,
   boardsContract,
   boardCommentsContract,
+  boardAgentContract,
   boardActivityContract,
   boardSubscriptionsContract,
   boardAttachmentsContract,
@@ -149,6 +150,7 @@ const _searchClient = () => initClient(searchContract, CLIENT_OPTS);
 const _researchClient = () => initClient(researchContract, CLIENT_OPTS);
 const _boardsClient = () => initClient(boardsContract, CLIENT_OPTS);
 const _boardCommentsClient = () => initClient(boardCommentsContract, CLIENT_OPTS);
+const _boardAgentClient = () => initClient(boardAgentContract, CLIENT_OPTS);
 const _boardActivityClient = () => initClient(boardActivityContract, CLIENT_OPTS);
 const _boardSubscriptionsClient = () => initClient(boardSubscriptionsContract, CLIENT_OPTS);
 const _boardAttachmentsClient = () => initClient(boardAttachmentsContract, CLIENT_OPTS);
@@ -182,6 +184,7 @@ export interface ContractsClient {
   research: ReturnType<typeof _researchClient>;
   boards: ReturnType<typeof _boardsClient>;
   boardComments: ReturnType<typeof _boardCommentsClient>;
+  boardAgent: ReturnType<typeof _boardAgentClient>;
   boardActivity: ReturnType<typeof _boardActivityClient>;
   boardSubscriptions: ReturnType<typeof _boardSubscriptionsClient>;
   boardAttachments: ReturnType<typeof _boardAttachmentsClient>;
@@ -232,6 +235,7 @@ export function getContractsClient(): ContractsClient {
     research: _researchClient(),
     boards: _boardsClient(),
     boardComments: _boardCommentsClient(),
+    boardAgent: _boardAgentClient(),
     boardActivity: _boardActivityClient(),
     boardSubscriptions: _boardSubscriptionsClient(),
     boardAttachments: _boardAttachmentsClient(),
