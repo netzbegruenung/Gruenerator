@@ -64,6 +64,12 @@
   overflow: visible;
 }
 
+/* Keep one-finger scrolling, but route two-finger pinch to the editor zoom
+   (useZoomGestures) instead of the browser's page zoom. */
+.canvas-editor-layout__canvas {
+  touch-action: pan-x pan-y;
+}
+
 /* ── Zoom (CSS scale) on the entire pages container ── */
 .heterogeneous-multipage__pages-container {
   transform: scale(var(--canvas-zoom, 1));
