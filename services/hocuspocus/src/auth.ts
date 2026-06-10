@@ -15,6 +15,7 @@ import type {
 const log = createLogger('HocuspocusAuth');
 
 const GRANTED_BY_SHARE_LINK = 'auto:share_link';
+const SESSION_CHECK_TIMEOUT_MS = 5000;
 
 export class AuthService {
   private readonly db: DbQueryFn;
@@ -365,16 +366,23 @@ export class AuthService {
         },
       });
 
-      this.db(
-        `UPDATE collaborative_documents
-         SET permissions = COALESCE(permissions, '{}')::jsonb || $1::jsonb
-         WHERE id = $2
-           AND NOT (COALESCE(permissions, '{}')::jsonb ? $3)`,
-        [permissionEntry, documentName, userId]
-      ).catch((err: unknown) => {
+      // Awaited so a failed grant is at least visible at error level with the
+      // ids needed for follow-up: the user keeps this live session either way,
+      // but without the persisted entry they lose access on reconnect.
+      try {
+        await this.db(
+          `UPDATE collaborative_documents
+           SET permissions = COALESCE(permissions, '{}')::jsonb || $1::jsonb
+           WHERE id = $2
+             AND NOT (COALESCE(permissions, '{}')::jsonb ? $3)`,
+          [permissionEntry, documentName, userId]
+        );
+      } catch (err) {
         const error = err instanceof Error ? err : new Error(String(err));
-        log.error(`[Auth] Error auto-adding user to permissions: ${error.message}`);
-      });
+        log.error(
+          `[Auth] Error auto-adding user ${userId} to permissions of ${documentName}: ${error.message}`
+        );
+      }
     }
 
     const permissionLevel = userPermission?.level;
@@ -443,6 +451,9 @@ export class AuthService {
     try {
       const response = await fetch(`${apiBase}/api/auth/v2/get-session`, {
         headers: { authorization: `Bearer ${token}` },
+        // Fail the handshake fast instead of stalling every connection for
+        // Node's default fetch timeout when the API hangs.
+        signal: AbortSignal.timeout(SESSION_CHECK_TIMEOUT_MS),
       });
 
       if (!response.ok) {
@@ -489,6 +500,7 @@ export class AuthService {
     try {
       const response = await fetch(`${apiBase}/api/auth/v2/get-session`, {
         headers: { cookie: cookieHeader },
+        signal: AbortSignal.timeout(SESSION_CHECK_TIMEOUT_MS),
       });
 
       if (!response.ok) {

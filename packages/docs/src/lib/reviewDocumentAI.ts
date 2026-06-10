@@ -2,11 +2,20 @@ import { useEditorStore } from '../stores/editorStore';
 import { getDocAIExtension, isDocAIForked } from './aiExtension';
 
 /**
+ * - 'merged': accepted and (as far as detectable) broadcast to collaborators
+ * - 'not-broadcast': accepted locally, but the merge never landed on the live
+ *   doc the provider syncs — collaborators will NOT see the change; callers
+ *   must surface this to the user instead of silently closing the review UI
+ * - 'no-extension': no editor/AI extension mounted for this document
+ */
+export type AcceptDocumentAIResult = 'merged' | 'not-broadcast' | 'no-extension';
+
+/**
  * Accept the pending AI suggestions for a document. Public counterpart to the
  * web AI popover's Accept button — used by the native review bar on mobile,
  * where the web popover is suppressed. `acceptChanges` self-contains cleanup
  * (it calls closeAIMenu internally) and works even though the menu was never
- * opened. Returns false if no editor/extension is mounted (defensive).
+ * opened.
  *
  * The reported bug — "I merge an AI change, I see it, but collaborators don't" —
  * is a broadcast failure: BlockNote's `acceptChanges()` merges the AI fork back
@@ -16,9 +25,9 @@ import { getDocAIExtension, isDocAIForked } from './aiExtension';
  * broadcastable update on it, and (2) force a sync so any locally-applied but
  * unsent update is pushed before the user can navigate away.
  */
-export function acceptDocumentAI(documentId: string): boolean {
+export function acceptDocumentAI(documentId: string): AcceptDocumentAIResult {
   const ext = getDocAIExtension(documentId);
-  if (!ext) return false;
+  if (!ext) return 'no-extension';
 
   const { provider, ydoc } = useEditorStore.getState().getDocContext(documentId) ?? {
     provider: null,
@@ -45,8 +54,9 @@ export function acceptDocumentAI(documentId: string): boolean {
 
   const stillForked = isDocAIForked(documentId);
   const sameDoc = provider && ydoc ? provider.document === ydoc : null;
+  const notBroadcast = Boolean(wasForked && ydoc && provider && !liveDocUpdated);
 
-  if (wasForked && ydoc && provider && !liveDocUpdated) {
+  if (notBroadcast) {
     // eslint-disable-next-line no-console
     console.error(
       '[acceptDocumentAI] merge produced no update on the live doc — accepted change will NOT sync to collaborators',
@@ -72,7 +82,7 @@ export function acceptDocumentAI(documentId: string): boolean {
     synced: provider?.synced ?? null,
   });
 
-  return true;
+  return notBroadcast ? 'not-broadcast' : 'merged';
 }
 
 /**
