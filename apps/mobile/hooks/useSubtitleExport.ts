@@ -1,3 +1,4 @@
+import { validateSubtitleSegments } from '@gruenerator/shared';
 import { useAuthStore } from '@gruenerator/shared/stores';
 import * as Notifications from 'expo-notifications';
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -84,6 +85,22 @@ export function useSubtitleExport(saveChanges: () => Promise<boolean>) {
         error: 'Keine Untertitel zum Exportieren vorhanden',
       });
       return;
+    }
+
+    const validation = validateSubtitleSegments(segments);
+    if (validation.allEmpty) {
+      setState({
+        ...initialState,
+        status: 'error',
+        error: 'Alle Untertitel sind leer — bitte füge Text hinzu, bevor du exportierst.',
+      });
+      return;
+    }
+    if (validation.issues.length > 0) {
+      console.warn(
+        '[useSubtitleExport] Exporting despite subtitle issues:',
+        validation.issues.map((issue) => issue.message)
+      );
     }
 
     setState((prev) => ({ ...prev, status: 'exporting', progress: 0 }));
