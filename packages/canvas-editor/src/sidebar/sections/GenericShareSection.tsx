@@ -172,14 +172,14 @@ function DownloadShareSubsection({
 
   const handleDownloadPptx = onDownloadPptx
     ? async () => {
-        lastExportOpRef.current = handleDownloadPptx;
+        lastExportOpRef.current = onDownloadPptx;
         await onDownloadPptx();
       }
     : undefined;
 
   const handleDownloadPdf = onDownloadPdf
     ? async () => {
-        lastExportOpRef.current = handleDownloadPdf;
+        lastExportOpRef.current = onDownloadPdf;
         await onDownloadPdf();
       }
     : undefined;

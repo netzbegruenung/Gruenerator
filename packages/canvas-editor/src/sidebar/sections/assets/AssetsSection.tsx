@@ -104,7 +104,7 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
   const hasIconsFeature = selectedIcons !== undefined && onIconToggle !== undefined;
   // Loads the Iconify catalog when the section mounts (React Query, cached)
   // and re-renders the icon subsection + search once it arrives.
-  const { data: iconCatalog = [] } = useIconCatalog();
+  useIconCatalog();
   const hasBadgesFeature =
     onAddPillBadge !== undefined || onAddCircleBadge !== undefined || onAddBalken !== undefined;
   const hasShapesFeature = onAddShape !== undefined;
@@ -202,6 +202,7 @@ function MobileView({
   const [iconsExpanded, setIconsExpanded] = useState(false);
   const [illustrationenExpanded, setIllustrationenExpanded] = useState(false);
 
+  const { data: iconCatalog = [] } = useIconCatalog();
   const bridge = useMobileSubsectionBridge();
   const effectiveFormenExpanded = bridge.active || formenExpanded;
   const effectiveIconsExpanded = bridge.active || iconsExpanded;
