@@ -15,6 +15,7 @@ import { PiArrowLeft } from 'react-icons/pi';
 import { IoShareOutline } from 'react-icons/io5';
 
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
+import { waitForAutoSave } from '../../stores/waitForAutoSave';
 
 import { DownloadSection } from './DownloadSection';
 
@@ -67,6 +68,7 @@ export function ShareDropdown({
   const [shareSuccess, setShareSuccess] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [templateUrl, setTemplateUrl] = useState<string | null>(null);
+  const [templateError, setTemplateError] = useState<string | null>(null);
   const [templateCopied, setTemplateCopied] = useState(false);
 
   const autoSaveStoreApi = useAutoSaveStoreApi();
@@ -110,26 +112,21 @@ export function ShareDropdown({
 
   const handleSaveAsTemplate = async () => {
     setIsSavingTemplate(true);
+    setTemplateError(null);
     try {
       let tokenToUse = shareToken || currentShareToken;
       if (!tokenToUse) {
         await onCaptureCanvas();
-        await new Promise<void>((resolve, reject) => {
-          const check = () => {
-            const s = autoSaveStoreApi.getState();
-            if (s.autoSaveStatus === 'saved' && s.autoSavedShareToken) resolve();
-            else if (s.autoSaveStatus === 'error') reject(new Error('Auto-save failed'));
-            else setTimeout(check, 100);
-          };
-          setTimeout(check, 200);
-        });
+        await waitForAutoSave(autoSaveStoreApi);
         tokenToUse = autoSaveStoreApi.getState().autoSavedShareToken;
       }
       if (!tokenToUse) throw new Error('Kein Share-Token verfügbar');
       const result = await saveAsTemplate(tokenToUse, `${canvasType} Vorlage`, 'public');
       if (result.success) setTemplateUrl(`${window.location.origin}${result.templateUrl}`);
+      else setTemplateError('Vorlage konnte nicht gespeichert werden.');
     } catch (error) {
       console.error('Failed to save template:', error);
+      setTemplateError('Vorlage konnte nicht gespeichert werden.');
     } finally {
       setIsSavingTemplate(false);
     }
@@ -244,6 +241,12 @@ export function ShareDropdown({
                 />
               )}
             </IconButtonRow>
+
+            {templateError && (
+              <p className="px-4 pb-3 m-0 text-xs text-red-600 dark:text-red-400">
+                {templateError}
+              </p>
+            )}
 
             {/* Template link (shown after saving) */}
             {templateUrl && (
