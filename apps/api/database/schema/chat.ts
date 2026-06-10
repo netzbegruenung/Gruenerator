@@ -56,6 +56,24 @@ export const chatThreadAttachments = pgTable('chat_thread_attachments', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+/**
+ * Maps chat sharepic variants to their lazily-minted canvas documents.
+ * `is_active` marks the variant the sharepic_edit intent targets when no
+ * explicit currentSharepic selection arrives with the request. Mirrors
+ * `migrations/create_chat_thread_canvases.sql`.
+ */
+export const chatThreadCanvases = pgTable('chat_thread_canvases', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  thread_id: uuid('thread_id').notNull(),
+  variant_id: text('variant_id').notNull(),
+  canvas_id: uuid('canvas_id').notNull(), // FK → collaborative_documents.id (ON DELETE CASCADE)
+  canvas_type: text('canvas_type').notNull(),
+  is_active: boolean('is_active').notNull().default(false),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 export type ChatThread = InferSelectModel<typeof chatThreads>;
 export type ChatMessage = InferSelectModel<typeof chatMessages>;
 export type ChatThreadAttachment = InferSelectModel<typeof chatThreadAttachments>;
+export type ChatThreadCanvas = InferSelectModel<typeof chatThreadCanvases>;

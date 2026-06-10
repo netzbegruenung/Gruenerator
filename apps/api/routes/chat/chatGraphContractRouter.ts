@@ -44,6 +44,7 @@ import {
   streamWithFallback,
 } from './services/responseStreamingService.js';
 import { runChatGraphResume } from './services/resumePipeline.js';
+import { handleSharepicEdit, isSharepicEditInstruction } from './services/sharepicEditService.js';
 import {
   getLastSharepicVariant,
   isSharepicRefinement,
@@ -104,6 +105,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         boardIds: rawBoardIds,
         currentDocument: rawCurrentDocument,
         currentBoard: rawCurrentBoard,
+        currentSharepic: rawCurrentSharepic,
       } = args.body;
 
       // === Stage 1: Classify ===
@@ -211,12 +213,48 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         );
       }
 
+      // === Sharepic edit: full NL editing of an existing chat sharepic ===
+      // "Zeile 2 kürzer", "Balken nach oben", "anderes Hintergrundbild" on a
+      // sharepic the thread already produced. Applies structured operations to
+      // the (lazily minted) canvas document and updates the card in place —
+      // see sharepicEditService. Falls through to the legacy text-regeneration
+      // refinement below when no editable target exists.
+      if (
+        actualThreadId &&
+        lastUserMessage &&
+        imageAttachments.length === 0 &&
+        classifiedState.intent !== 'image_edit' &&
+        !universalEditForced
+      ) {
+        const editText = ((extractTextContent(lastUserMessage.content) as string) || '')
+          .replace(/@sharepic\b/gi, ' ')
+          .trim();
+        if (editText && (isSharepicEditInstruction(editText) || isSharepicRefinement(editText))) {
+          const handled = await handleSharepicEdit({
+            sse,
+            req,
+            threadId: actualThreadId,
+            userId,
+            instruction: editText,
+            currentSharepic: rawCurrentSharepic ?? null,
+            aiWorkerPool,
+            startTime: initialState.startTime,
+            ...(classifiedState.classificationTimeMs != null && {
+              classificationTimeMs: classifiedState.classificationTimeMs,
+            }),
+          });
+          if (handled) return { status: 200 as const, body: undefined };
+        }
+      }
+
       // === Sharepic refinement: a follow-up edit right after a sharepic ===
       // "verlängern" / "kürzer" / "anderes Bild" after a sharepic means "adjust
       // the one you just made" — regenerate seeded with the previous sharepic's
       // text, not a fresh sharepic about the word "verlängern". Overrides whatever
       // intent the classifier picked (the edit verb alone rarely classifies as
       // sharepic). Skipped when an image is attached (that's image_edit territory).
+      // Reached only when handleSharepicEdit above declined (no target variant
+      // or non-editable template).
       let sharepicRefinement: { instruction: string; prior: PriorSharepic } | undefined;
       if (
         actualThreadId &&
