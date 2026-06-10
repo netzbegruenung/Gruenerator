@@ -377,7 +377,10 @@ async function readCache(key: string): Promise<NotebookStats | null> {
   try {
     const raw = await redisClient.get(key);
     if (!raw) return null;
-    return JSON.parse(raw) as NotebookStats;
+    const parsed = JSON.parse(raw) as Partial<NotebookStats>;
+    // Cached payloads (24h TTL) may predate a schema addition and miss newer
+    // fields. Backfill defaults so the NotebookStats type holds at runtime.
+    return { ...emptyStats(), ...parsed };
   } catch (error) {
     log.warn(`Redis cache read failed: ${error instanceof Error ? error.message : error}`);
     return null;

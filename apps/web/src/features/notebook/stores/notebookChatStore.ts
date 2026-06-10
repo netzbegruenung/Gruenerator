@@ -1,3 +1,4 @@
+import { type Citation as ChatCitation } from '@gruenerator/chat';
 import { type NotebookCitation, type NotebookSource } from '@gruenerator/contracts';
 import { create } from 'zustand';
 
@@ -29,9 +30,11 @@ export interface NotebookChatMessage {
     resultId?: string;
     question?: string;
     citations?: Citation[];
-    chatCitations?: Array<Record<string, unknown>>;
+    // Display-mapped citations from the chat runtime (NotebookMessageMetadata
+    // .citations) — distinct from the raw contract `citations` above.
+    chatCitations?: ChatCitation[];
     sources?: Source[];
-    additionalSources?: Array<Record<string, unknown>>;
+    additionalSources?: unknown[];
     linkConfig?: LinkConfig;
     sourcesByCollection?: Record<string, unknown>;
     [key: string]: unknown;
