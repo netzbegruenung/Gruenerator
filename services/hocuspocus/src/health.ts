@@ -1,8 +1,11 @@
 import express from 'express';
 
+import { registerInternalApi } from './internalApi.js';
 import { createLogger } from './logger.js';
 
+import type { PostgresPersistence } from './persistence.js';
 import type { RedisLike } from './types.js';
+import type { Server } from '@hocuspocus/server';
 import type PgPool from 'pg';
 
 const log = createLogger('Health');
@@ -10,11 +13,18 @@ const log = createLogger('Health');
 interface HealthDeps {
   pool: InstanceType<typeof PgPool.Pool>;
   redis: RedisLike;
+  /** When provided (with persistence), the internal canvas API is mounted. */
+  hocuspocus?: Server;
+  persistence?: PostgresPersistence;
 }
 
 export function startHealthServer(port: number, deps: HealthDeps): void {
   const { pool, redis } = deps;
   const app = express();
+
+  if (deps.hocuspocus && deps.persistence) {
+    registerInternalApi(app, { server: deps.hocuspocus, persistence: deps.persistence });
+  }
 
   // Cache the result to avoid running a DB query on every /health hit.
   // Acts as an implicit rate-limit against floods of requests.
