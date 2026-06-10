@@ -77,7 +77,7 @@ interface SubtitlerExportStoreState {
   timeRemaining: number | null;
 
   // Internal polling state
-  pollingInterval: ReturnType<typeof setInterval> | null;
+  pollingInterval: ReturnType<typeof setTimeout> | null;
   pollingStartTime: number | null;
   retryCount: number;
   lastSuccessfulPoll: number | null;
@@ -288,15 +288,8 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
           console.log(
             `[SubtitlerExportStore] Retrying polling (${newRetryCount}/${POLLING_CONFIG.MAX_RETRY_COUNT})`
           );
+          // The scheduling loop below picks up retryCount and applies backoff
           set({ retryCount: newRetryCount });
-
-          // Use exponential backoff for retries
-          const retryDelay = POLLING_CONFIG.RETRY_DELAY_BASE * Math.pow(2, newRetryCount - 1);
-          setTimeout(() => {
-            if (get().status === EXPORT_STATUS.EXPORTING) {
-              void poll();
-            }
-          }, retryDelay);
         } else {
           console.error('[SubtitlerExportStore] Max retries reached, stopping polling');
           set({
@@ -310,19 +303,33 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
 
     // Calculate polling interval based on elapsed time
     const getPollingInterval = () => {
-      const elapsed = Date.now() - (state.pollingStartTime || Date.now());
+      const elapsed = Date.now() - (get().pollingStartTime || Date.now());
       return elapsed > POLLING_CONFIG.EXTENDED_TIME_THRESHOLD
         ? POLLING_CONFIG.EXTENDED_INTERVAL
         : POLLING_CONFIG.INITIAL_INTERVAL;
     };
 
-    // Start initial poll immediately
-    void poll();
+    // Self-rescheduling timeout loop: setInterval would evaluate the
+    // adaptive interval only once, and a queued tick could still fire
+    // after the export reaches a terminal state.
+    const runPoll = async () => {
+      await poll();
 
-    // Set up recurring polling with adaptive interval
-    const intervalId = setInterval(poll, getPollingInterval());
+      const currentState = get();
+      if (currentState.status !== EXPORT_STATUS.EXPORTING) {
+        return;
+      }
 
-    set({ pollingInterval: intervalId });
+      const delay =
+        currentState.retryCount > 0
+          ? POLLING_CONFIG.RETRY_DELAY_BASE * Math.pow(2, currentState.retryCount - 1)
+          : getPollingInterval();
+      set({ pollingInterval: setTimeout(() => void runPoll(), delay) });
+    };
+
+    // Schedule (not call) the first poll so pollingInterval is set
+    // synchronously and the duplicate-start guard above holds.
+    set({ pollingInterval: setTimeout(() => void runPoll(), 0) });
   },
 
   // Stop polling
@@ -330,7 +337,7 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
     const state = get();
     if (state.pollingInterval) {
       console.log('[SubtitlerExportStore] Stopping progress polling');
-      clearInterval(state.pollingInterval);
+      clearTimeout(state.pollingInterval);
       set({ pollingInterval: null });
     }
   },
@@ -441,10 +448,9 @@ export const useSubtitlerExportStore = create<SubtitlerExportStoreState>((set, g
       link.click();
       document.body.removeChild(link);
 
-      // Clean up URL after delay
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-      }, 60000);
+      // Browsers keep a started download alive after revoke; revoking now
+      // avoids leaking the blob URL if the tab closes before a timer fires.
+      window.URL.revokeObjectURL(url);
 
       console.log(`[SubtitlerExportStore] Download triggered successfully: ${filename}`);
     } catch (error) {
