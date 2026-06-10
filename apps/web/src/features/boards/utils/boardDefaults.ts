@@ -1,6 +1,12 @@
 import { FIELD_IDS } from '../types';
 
+import { RECURRENCE_OPTIONS } from './recurrence';
+
 import type { Field, Row, BoardView, SelectOption } from '../types';
+
+/** Well-known status option ids used for recurrence (move-to-done → respawn in todo). */
+export const TODO_STATUS_ID = 'status-todo';
+export const DONE_STATUS_ID = 'status-done';
 
 export const COLUMN_COLORS = [
   'transparent',
@@ -88,6 +94,13 @@ export const DEFAULT_FIELDS: Field[] = [
     typeOptions: { isSystem: true },
     order: 7,
   },
+  {
+    id: FIELD_IDS.RECURRENCE,
+    name: 'Wiederholung',
+    type: 'singleSelect',
+    typeOptions: { options: RECURRENCE_OPTIONS, isSystem: true },
+    order: 8,
+  },
 ];
 
 export const DEFAULT_KANBAN_VIEW: BoardView = {
@@ -99,7 +112,7 @@ export const DEFAULT_KANBAN_VIEW: BoardView = {
   sorts: [],
   fieldSettings: DEFAULT_FIELDS.map((f) => ({
     fieldId: f.id,
-    visible: f.id !== FIELD_IDS.COMMENTS,
+    visible: f.id !== FIELD_IDS.COMMENTS && f.id !== FIELD_IDS.RECURRENCE,
   })),
 };
 
@@ -115,6 +128,7 @@ export function createDefaultRow(statusOptionId: string, userId: string): Row {
       [FIELD_IDS.ASSIGNEE]: '',
       [FIELD_IDS.LINKED_DOCS]: '[]',
       [FIELD_IDS.COMMENTS]: '[]',
+      [FIELD_IDS.RECURRENCE]: null,
     },
     createdBy: userId,
     createdAt: new Date().toISOString(),

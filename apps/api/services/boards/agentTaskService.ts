@@ -5,7 +5,7 @@
  * and drained by boardAgentWorker. Claiming uses `FOR UPDATE SKIP LOCKED` so the
  * poller is safe to run in every cluster worker without double-processing.
  */
-import { type CommentBlock } from '@gruenerator/contracts';
+import { type BoardFlowConfig, type CommentBlock } from '@gruenerator/contracts';
 
 import { type AgentTask } from '../../database/schema/agentTasks.js';
 import { getPostgresInstance } from '../../database/services/PostgresService/PostgresService.js';
@@ -27,12 +27,14 @@ export interface EnqueueAgentTaskParams {
   requestedBy: string;
   taskText: string;
   locale: string;
+  /** Set for AI-column ("KI-Spalte") tasks; null/undefined = legacy @-mention task. */
+  flowConfig?: BoardFlowConfig | null;
 }
 
 export async function enqueueAgentTask(params: EnqueueAgentTaskParams): Promise<AgentTask> {
   const rows = await db.query<AgentTask>(
-    `INSERT INTO agent_tasks (board_id, card_id, trigger_comment_id, requested_by, task_text, locale)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO agent_tasks (board_id, card_id, trigger_comment_id, requested_by, task_text, locale, flow_config)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
     [
       params.boardId,
@@ -41,22 +43,15 @@ export async function enqueueAgentTask(params: EnqueueAgentTaskParams): Promise<
       params.requestedBy,
       params.taskText,
       params.locale,
+      params.flowConfig ? JSON.stringify(params.flowConfig) : null,
     ]
   );
   log.info(`Enqueued agent task ${rows[0].id} for board ${params.boardId} card ${params.cardId}`);
 
-  // Immediate, short acknowledgement so the user sees the agent picked up the
-  // task the moment it's tagged — the result/failure reply follows from the worker.
-  await postBotComment({
-    boardId: params.boardId,
-    cardId: params.cardId,
-    parentId: params.triggerCommentId,
-    blocks: [{ type: 'text', text: 'Übernehme.' }],
-  }).catch((err: unknown) => {
-    log.warn('Failed to post acknowledgement comment', {
-      error: err instanceof Error ? err.message : String(err),
-    });
-  });
+  // No acknowledgement comment here. The @-mention path posts a single "working"
+  // comment from the worker and updates it in place to the answer (see
+  // boardAgentWorker) — so there's never a redundant ack + answer pair. Flow
+  // (Grünerator-Spalte) tasks show running state via the start button + toast.
 
   return rows[0];
 }
@@ -126,12 +121,16 @@ export interface PostBotCommentParams {
   blocks: CommentBlock[];
 }
 
-/** Author a comment on a card as the Grünerator bot (used for ack/result replies). */
-export async function postBotComment(params: PostBotCommentParams): Promise<void> {
-  const content = params.blocks
+function blocksToPlainText(blocks: CommentBlock[]): string {
+  return blocks
     .map((b) => (b.type === 'mention' ? `@${b.displayName ?? ''}` : (b.text ?? '')))
     .join('')
     .trim();
+}
+
+/** Author a comment on a card as the Grünerator bot. Returns the new comment id. */
+export async function postBotComment(params: PostBotCommentParams): Promise<string> {
+  const content = blocksToPlainText(params.blocks);
 
   // Only one reply level is allowed (see boardCommentsContractRouter.createComment).
   // If the trigger comment is itself a reply, fall back to a top-level comment.
@@ -144,9 +143,10 @@ export async function postBotComment(params: PostBotCommentParams): Promise<void
     if (parent.length === 0 || parent[0].parent_id) parentId = null;
   }
 
-  await db.query(
+  const rows = await db.query<{ id: string }>(
     `INSERT INTO board_comments (board_id, card_id, parent_id, user_id, content, blocks, mentioned_user_ids)
-     VALUES ($1, $2, $3, $4, $5, $6, '{}')`,
+     VALUES ($1, $2, $3, $4, $5, $6, '{}')
+     RETURNING id`,
     [
       params.boardId,
       params.cardId,
@@ -155,5 +155,21 @@ export async function postBotComment(params: PostBotCommentParams): Promise<void
       content,
       JSON.stringify(params.blocks),
     ]
+  );
+  return rows[0].id;
+}
+
+/**
+ * Update an existing bot comment in place (used to turn the "working…" comment into
+ * the final answer, so a quick reply doesn't leave a redundant ack + answer pair).
+ * Guarded to bot-authored comments.
+ */
+export async function updateBotComment(commentId: string, blocks: CommentBlock[]): Promise<void> {
+  const content = blocksToPlainText(blocks);
+  await db.query(
+    `UPDATE board_comments
+        SET blocks = $2, content = $3, is_edited = TRUE, edited_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND user_id = $4`,
+    [commentId, JSON.stringify(blocks), content, GRUENERATOR_BOT_USER_ID]
   );
 }

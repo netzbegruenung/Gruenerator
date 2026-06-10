@@ -1,9 +1,23 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
-import { DEFAULT_FIELDS, DEFAULT_KANBAN_VIEW, DEFAULT_ROWS } from '../utils/boardDefaults';
+import { FIELD_IDS } from '../types';
+import {
+  DEFAULT_FIELDS,
+  DEFAULT_KANBAN_VIEW,
+  DEFAULT_ROWS,
+  DONE_STATUS_ID,
+  TODO_STATUS_ID,
+} from '../utils/boardDefaults';
+import { computeNextDueDate, isRecurrencePattern } from '../utils/recurrence';
 
 import type { Field, Row, BoardView, CellValue } from '../types';
 import type * as Y from 'yjs';
+
+/** A recurring card spawned when its predecessor was moved to "done". */
+export interface RecurringSpawn {
+  rowId: string;
+  dueDate: string;
+}
 
 interface BoardState {
   fields: Field[];
@@ -160,9 +174,10 @@ export const useBoardState = (
    * We diff against current state and apply column (group) changes.
    */
   const onDragReorder = useCallback(
-    (newRows: Row[], groupByFieldId: string) => {
+    (newRows: Row[], groupByFieldId: string): RecurringSpawn[] => {
       const oldRows = yRows.toJSON() as Row[];
       const oldById = new Map(oldRows.map((r, i) => [r.id, { row: r, index: i }]));
+      const spawned: RecurringSpawn[] = [];
 
       ydoc.transact(() => {
         for (const newRow of newRows) {
@@ -170,16 +185,47 @@ export const useBoardState = (
           if (!old) continue;
           const oldGroup = old.row.cells[groupByFieldId];
           const newGroup = newRow.cells[groupByFieldId];
-          if (oldGroup !== newGroup) {
-            const currentRows = yRows.toJSON() as Row[];
-            const idx = currentRows.findIndex((r) => r.id === newRow.id);
-            if (idx !== -1) {
-              yRows.delete(idx, 1);
-              yRows.insert(Math.min(idx, yRows.length), [newRow]);
-            }
+          if (oldGroup === newGroup) continue;
+
+          const currentRows = yRows.toJSON() as Row[];
+          const idx = currentRows.findIndex((r) => r.id === newRow.id);
+          if (idx !== -1) {
+            yRows.delete(idx, 1);
+            yRows.insert(Math.min(idx, yRows.length), [newRow]);
+          }
+
+          // Recurring card moved into "done" → spawn the next occurrence in todo.
+          const recurrence = old.row.cells[FIELD_IDS.RECURRENCE];
+          if (
+            groupByFieldId === FIELD_IDS.STATUS &&
+            newGroup === DONE_STATUS_ID &&
+            oldGroup !== DONE_STATUS_ID &&
+            isRecurrencePattern(recurrence)
+          ) {
+            const dueDate = computeNextDueDate(old.row.cells[FIELD_IDS.DUE_DATE], recurrence);
+            const newId = `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+            const clone: Row = {
+              id: newId,
+              cells: {
+                ...old.row.cells,
+                [FIELD_IDS.STATUS]: TODO_STATUS_ID,
+                [FIELD_IDS.DUE_DATE]: dueDate,
+                ...(FIELD_IDS.COMMENTS in old.row.cells ? { [FIELD_IDS.COMMENTS]: '[]' } : {}),
+              },
+              createdBy: old.row.createdBy,
+              createdAt: new Date().toISOString(),
+              ...(old.row.icon ? { icon: old.row.icon } : {}),
+              ...(old.row.coverColor ? { coverColor: old.row.coverColor } : {}),
+              ...(old.row.coverImageUrl ? { coverImageUrl: old.row.coverImageUrl } : {}),
+              // archivedAt intentionally omitted (the new occurrence is active).
+            };
+            yRows.push([clone]);
+            spawned.push({ rowId: newId, dueDate });
           }
         }
       });
+
+      return spawned;
     },
     [ydoc, yRows]
   );
