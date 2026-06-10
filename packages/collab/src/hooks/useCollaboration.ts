@@ -86,7 +86,7 @@ export const useCollaboration = ({
     if (!isGuest && !userRef.current) return;
 
     let ignore = false;
-    let corruptionTimeout: ReturnType<typeof setTimeout> | null = null;
+    let idbTimeout: ReturnType<typeof setTimeout> | null = null;
     const ydoc = new Y.Doc();
 
     const markLocalLoaded = () =>
@@ -102,12 +102,28 @@ export const useCollaboration = ({
           console.info('[Collab] Local cache loaded | doc:', documentId);
           markLocalLoaded();
         });
-        corruptionTimeout = setTimeout(() => {
+        // A slow IDB open is NOT corruption — slow disks/mobile/large docs hit
+        // this regularly, and the cache may be the user's only copy while
+        // offline. On timeout just proceed without the local cache for this
+        // session (server state arrives over the websocket; IDB may still
+        // finish syncing in the background).
+        idbTimeout = setTimeout(() => {
           if (ignore || idbProvider.synced) return;
           console.warn(
-            '[Collab] IndexedDB sync timeout — clearing corrupted cache | doc:',
+            '[Collab] IndexedDB sync timeout — proceeding without local cache | doc:',
             documentId
           );
+          markLocalLoaded();
+        }, 10000);
+        idbProvider.whenSynced.then(() => {
+          if (idbTimeout) clearTimeout(idbTimeout);
+        });
+        // Only an actual IDB open error means the cache is unusable — drop it
+        // so the next visit starts clean. (whenSynced never rejects; the
+        // underlying openDB promise is `_db`.)
+        idbProvider._db.catch(() => {
+          if (ignore) return;
+          console.warn('[Collab] IndexedDB error — clearing local cache | doc:', documentId);
           idbProvider.destroy();
           idbProviderRef.current = null;
           try {
@@ -116,9 +132,6 @@ export const useCollaboration = ({
             /* best-effort */
           }
           markLocalLoaded();
-        }, 5000);
-        idbProvider.whenSynced.then(() => {
-          if (corruptionTimeout) clearTimeout(corruptionTimeout);
         });
         registerDocAccess(documentId);
       } catch (err) {
@@ -220,7 +233,7 @@ export const useCollaboration = ({
     return () => {
       console.info('[Collab] Cleanup | doc:', documentId);
       ignore = true;
-      if (corruptionTimeout) clearTimeout(corruptionTimeout);
+      if (idbTimeout) clearTimeout(idbTimeout);
       providerRef.current?.awareness?.setLocalState(null);
       providerRef.current?.destroy();
       providerRef.current = null;
