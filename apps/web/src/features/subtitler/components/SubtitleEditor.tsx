@@ -399,13 +399,6 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     );
   }
 
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const wholeSeconds = Math.floor(seconds % 60);
-    const fractionalSecond = Math.floor((seconds % 1) * 10);
-    return `${mins}:${wholeSeconds.toString().padStart(2, '0')}.${fractionalSecond}`;
-  };
-
   const handleExport = async (maxResolution: number | null = null): Promise<void> => {
     if (!uploadId || !segments.length) {
       setError('Fehlende Upload-ID oder keine Untertitel zum Exportieren.');
