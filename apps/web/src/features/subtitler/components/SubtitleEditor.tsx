@@ -1,4 +1,4 @@
-import { useProjectsStore } from '@gruenerator/shared';
+import { useProjectsStore, validateSubtitleSegments } from '@gruenerator/shared';
 import { Button } from '@gruenerator/ui';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { FaSave, FaCheck, FaDownload, FaPlay, FaPause } from 'react-icons/fa';
@@ -210,6 +210,7 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     error: exportError,
     exportToken,
     startExport,
+    retryExport,
     resetExport,
     subscribe,
   } = exportStore;
@@ -339,8 +340,13 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     if (!videoRef.current) return;
 
     const video = videoRef.current;
-    video.currentTime = timeInSeconds;
-    setCurrentTimeInSeconds(timeInSeconds);
+    // Segments can end past the actual video duration (transcription
+    // drift); the browser clamps silently, so clamp ourselves to keep
+    // currentTimeInSeconds in sync with the real playback position.
+    const maxTime = Number.isFinite(video.duration) ? video.duration : timeInSeconds;
+    const clampedTime = Math.min(Math.max(0, timeInSeconds), maxTime);
+    video.currentTime = clampedTime;
+    setCurrentTimeInSeconds(clampedTime);
 
     if (scrubTimeoutRef.current) {
       clearTimeout(scrubTimeoutRef.current);
@@ -404,6 +410,22 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
     if (!uploadId || !segments.length) {
       setError('Fehlende Upload-ID oder keine Untertitel zum Exportieren.');
       return;
+    }
+
+    const validation = validateSubtitleSegments(segments, videoDuration || null);
+    if (validation.allEmpty) {
+      setError('Alle Untertitel sind leer — bitte füge Text hinzu, bevor du exportierst.');
+      return;
+    }
+    if (validation.issues.length > 0) {
+      const summary = validation.issues
+        .slice(0, 5)
+        .map((issue) => issue.message)
+        .join('\n');
+      const proceed = window.confirm(
+        `Es gibt Probleme mit den Untertiteln:\n\n${summary}\n\nTrotzdem exportieren?`
+      );
+      if (!proceed) return;
     }
 
     try {
@@ -513,9 +535,22 @@ const SubtitleEditor: React.FC<SubtitleEditorProps> = ({
       {error && (
         <div className="mb-md flex items-center justify-between gap-md rounded-lg border border-red-600 bg-red-50 p-md text-red-600 dark:bg-grey-800">
           <span>{error}</span>
-          <Button variant="outline" size="sm" onClick={() => setError(null)}>
-            Schließen
-          </Button>
+          <div className="flex shrink-0 gap-xs">
+            {exportStatus === 'error' && (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setError(null);
+                  void retryExport();
+                }}
+              >
+                Erneut versuchen
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setError(null)}>
+              Schließen
+            </Button>
+          </div>
         </div>
       )}
 

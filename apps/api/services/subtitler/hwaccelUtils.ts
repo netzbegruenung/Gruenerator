@@ -153,6 +153,20 @@ export function getVaapiOutputOptions(qp: number, encoder: string): string[] {
   return ['-c:v', encoder, '-qp', qp.toString(), '-profile:v', profile];
 }
 
+/**
+ * Build a `subtitles=` video filter with paths escaped for ffmpeg filter
+ * syntax (`:` is the option separator, `'` the quote char). Unescaped
+ * paths containing either character break the filter graph.
+ */
+export function buildSubtitlesFilter(assFilePath: string, fontDir: string): string {
+  // Escape backslash first so the `\:` / `\'` sequences we add below aren't re-escaped.
+  const escapeFilterPath = (p: string): string =>
+    p.replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, "\\'");
+  const escapedAssPath = escapeFilterPath(assFilePath);
+  const escapedFontDir = escapeFilterPath(fontDir);
+  return `subtitles='${escapedAssPath}':fontsdir='${escapedFontDir}'`;
+}
+
 export function getSubtitleFilterChain(
   assFilePath: string | null,
   fontDir: string | null,
@@ -161,9 +175,7 @@ export function getSubtitleFilterChain(
   const cpuFilters: string[] = [];
 
   if (assFilePath && fontDir) {
-    const escapedAssPath = assFilePath.replace(/:/g, '\\:').replace(/'/g, "\\'");
-    const escapedFontDir = fontDir.replace(/:/g, '\\:').replace(/'/g, "\\'");
-    cpuFilters.push(`subtitles='${escapedAssPath}':fontsdir='${escapedFontDir}'`);
+    cpuFilters.push(buildSubtitlesFilter(assFilePath, fontDir));
   }
 
   if (scaleFilter) cpuFilters.push(scaleFilter);

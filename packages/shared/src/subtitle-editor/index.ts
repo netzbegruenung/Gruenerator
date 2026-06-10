@@ -37,6 +37,9 @@ export {
   getNextSegment,
   getPreviousSegment,
   validateSegment,
+  validateSubtitleSegments,
   cloneSegments,
   segmentsEqual,
 } from './subtitle-utils.js';
+
+export type { SubtitleValidationIssue, SubtitleValidationResult } from './subtitle-utils.js';

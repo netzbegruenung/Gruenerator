@@ -150,9 +150,12 @@ export const useSubtitleEditorStore = create<SubtitleEditorStore>()((set, get) =
  * Selector for the active segment at current time
  */
 export const selectActiveSegment = (state: SubtitleEditorStore): SubtitleSegment | null => {
+  // End boundary exclusive, mirroring findActiveSegment in
+  // @gruenerator/shared — adjacent segments would otherwise both match
+  // at the exact boundary time.
   return (
     state.segments.find(
-      (segment) => state.currentTime >= segment.startTime && state.currentTime <= segment.endTime
+      (segment) => state.currentTime >= segment.startTime && state.currentTime < segment.endTime
     ) || null
   );
 };
@@ -162,7 +165,7 @@ export const selectActiveSegment = (state: SubtitleEditorStore): SubtitleSegment
  */
 export const selectActiveSegmentId = (state: SubtitleEditorStore): number | null => {
   const segment = state.segments.find(
-    (s) => state.currentTime >= s.startTime && state.currentTime <= s.endTime
+    (s) => state.currentTime >= s.startTime && state.currentTime < s.endTime
   );
   return segment?.id ?? null;
 };
