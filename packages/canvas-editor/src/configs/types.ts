@@ -403,7 +403,7 @@ export interface FullCanvasConfig<
 
   /**
    * Text field configurations for the unified Text tab.
-   * Each field is rendered in the UnifiedTextSection with its own input/textarea.
+   * Each field is rendered in the CombinedTextSection with its own input/textarea.
    * If not specified, the template-specific text section is used instead.
    *
    * Example:

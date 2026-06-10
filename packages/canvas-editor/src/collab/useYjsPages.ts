@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as Y from 'yjs';
 
 import { YDOC_KEYS } from './ydocKeys';
@@ -290,48 +290,4 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
       canRedoPageOp,
     };
   }, [ydoc, isSynced, version, historyVersion]);
-}
-
-/**
- * Subscribe to a single page's `state` Y.Map. Returns a plain object mirror
- * that re-renders on remote changes, plus a setter that wraps writes in a
- * `ydoc.transact`. Used by per-page form rendering inside CanvasEditor.
- */
-export function useYjsPageState(pageYMap: Y.Map<unknown> | null): {
-  state: Record<string, unknown>;
-  updateState: (partial: Record<string, unknown>) => void;
-} {
-  const [snapshot, setSnapshot] = useState<Record<string, unknown>>(() => {
-    if (!pageYMap) return {};
-    const stateY = pageYMap.get(YDOC_KEYS.state);
-    return stateY instanceof Y.Map ? Object.fromEntries((stateY as Y.Map<unknown>).entries()) : {};
-  });
-
-  useEffect(() => {
-    if (!pageYMap) return undefined;
-    const stateY = pageYMap.get(YDOC_KEYS.state);
-    if (!(stateY instanceof Y.Map)) return undefined;
-    const yState = stateY as Y.Map<unknown>;
-    const apply = () => setSnapshot(Object.fromEntries(yState.entries()));
-    yState.observe(apply);
-    apply();
-    return () => yState.unobserve(apply);
-  }, [pageYMap]);
-
-  const updateState = useCallback(
-    (partial: Record<string, unknown>) => {
-      if (!pageYMap) return;
-      const stateY = pageYMap.get(YDOC_KEYS.state);
-      const ydoc = pageYMap.doc;
-      if (!(stateY instanceof Y.Map) || !ydoc) return;
-      ydoc.transact(() => {
-        for (const [k, v] of Object.entries(partial)) {
-          (stateY as Y.Map<unknown>).set(k, v);
-        }
-      }, LOCAL_ORIGIN);
-    },
-    [pageYMap]
-  );
-
-  return { state: snapshot, updateState };
 }
