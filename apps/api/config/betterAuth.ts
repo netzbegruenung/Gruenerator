@@ -234,20 +234,39 @@ export const auth = betterAuth({
     },
   },
 
+  // Redis failures must not bubble into Better Auth's session resolution:
+  // `get` returning null falls back to the Postgres session row
+  // (storeSessionInDatabase: true), and a lost `set` only skips the cache.
+  // `delete` is the exception — swallowing it would leave a revoked session
+  // readable from Redis until its TTL expires, so it logs and rethrows.
   secondaryStorage: {
     get: async (key) => {
-      const value = await redisClient.get(`ba:${key}`);
-      return value ?? null;
+      try {
+        const value = await redisClient.get(`ba:${key}`);
+        return value ?? null;
+      } catch (err) {
+        log.warn('secondaryStorage.get failed for ba:%s — falling back to DB: %s', key, err);
+        return null;
+      }
     },
     set: async (key, value, ttl) => {
-      if (ttl) {
-        await redisClient.set(`ba:${key}`, value, { EX: ttl });
-      } else {
-        await redisClient.set(`ba:${key}`, value);
+      try {
+        if (ttl) {
+          await redisClient.set(`ba:${key}`, value, { EX: ttl });
+        } else {
+          await redisClient.set(`ba:${key}`, value);
+        }
+      } catch (err) {
+        log.warn('secondaryStorage.set failed for ba:%s — cache write skipped: %s', key, err);
       }
     },
     delete: async (key) => {
-      await redisClient.del(`ba:${key}`);
+      try {
+        await redisClient.del(`ba:${key}`);
+      } catch (err) {
+        log.error('secondaryStorage.delete failed for ba:%s — session revocation at risk', key);
+        throw err;
+      }
     },
   },
 
