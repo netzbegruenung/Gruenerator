@@ -206,6 +206,7 @@ function CanvasEditorInner({
     downloadAllAsZip,
     isExporting: isMultiExporting,
     exportProgress,
+    error: multiExportError,
   } = useMultiPageExport({
     canvasRefs,
     canvasType: isPresentationMode ? 'presentation' : 'heterogeneous',
@@ -217,6 +218,7 @@ function CanvasEditorInner({
     exportAsPdf,
     isExporting: isPresentationExporting,
     exportProgress: presentationExportProgress,
+    error: presentationExportError,
   } = usePresentationExport(pages, canvasRefs);
 
   // Stable callback using functional pattern (Rule 5.5)
@@ -653,6 +655,7 @@ function CanvasEditorInner({
       exportProgress: isPresentationExporting
         ? { current: presentationExportProgress.current, total: presentationExportProgress.total }
         : exportProgress,
+      exportError: presentationExportError ?? multiExportError,
       onDownloadPptx: isPresentationMode ? exportAsPptx : undefined,
       onDownloadPdf: isPresentationMode ? exportAsPdf : undefined,
     }),
@@ -667,6 +670,8 @@ function CanvasEditorInner({
       isPresentationMode,
       isPresentationExporting,
       presentationExportProgress,
+      presentationExportError,
+      multiExportError,
       exportAsPptx,
       exportAsPdf,
       handleCaptureCanvas,
