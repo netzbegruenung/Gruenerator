@@ -5,7 +5,8 @@ import { PiFrameCornersFill, PiSmileyWink, PiTagFill } from 'react-icons/pi';
 
 import { LOGO_ASSETS, type AssetInstance } from '../../../utils/canvasAssets';
 import { getIconsSync, loadAllIcons } from '../../../utils/canvasIcons';
-import { ALL_ILLUSTRATIONS, UNDRAW_FEATURED } from '../../../utils/illustrations/registry';
+import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/fullCatalog';
+import { UNDRAW_FEATURED } from '../../../utils/illustrations/registry';
 import { prefetchBackground } from '../../../utils/illustrations/svgCache';
 import { ALL_SHAPES, type ShapeInstance, type ShapeType } from '../../../utils/shapes';
 import {
