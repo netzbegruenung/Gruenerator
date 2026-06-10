@@ -1,0 +1,470 @@
+/**
+ * Stream context builder for the chat-graph `stream` endpoint.
+ *
+ * Owns everything that happens BEFORE Stage 1 (classify): auth + payload
+ * validation, notebook resolution, wolke/connect ref filtering, message
+ * conversion, thread creation, attachment processing, memory retrieval,
+ * state initialization and context enrichment.
+ *
+ * Returns a discriminated result: `{ done: true }` when the request was
+ * already terminated (an SSE error event was sent + the stream closed), or
+ * `{ done: false, ctx }` with the fully-populated `StreamContext` the staged
+ * pipeline consumes.
+ */
+
+import { type chatGraphContract } from '@gruenerator/contracts';
+import { convertToModelMessages } from 'ai';
+
+import { initializeChatState } from '../../../agents/langgraph/ChatGraph/index.js';
+import {
+  isKnownNotebook,
+  isUserNotebookId,
+  resolveUserNotebookDocumentIds,
+} from '../../../config/notebookCollectionMap.js';
+import {
+  getMem0Instance,
+  normalizeCategory,
+  formatMemoriesByCategory,
+} from '../../../services/mem0/index.js';
+import { getCachedPersona } from '../../../services/mem0/personaService.js';
+import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
+import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
+import { createLogger } from '../../../utils/logger.js';
+import { ThreadId, UserId } from '../../../utils/types/branded.js';
+import { getContextWindow } from '../agents/providers.js';
+
+import { getThreadAttachments } from './attachmentPersistenceService.js';
+import { processAttachments } from './attachmentProcessingService.js';
+import { enrichContext } from './contextEnrichmentService.js';
+import { extractTextContent, filterEmptyAssistantMessages } from './messageHelpers.js';
+import { type createSSEStream, PROGRESS_MESSAGES } from './sseHelpers.js';
+import { canAccessThread } from './threadAccessService.js';
+import { getUser, createThread, createMessage } from './threadPersistenceService.js';
+
+import type {
+  ChatGraphInput,
+  ProcessedAttachment,
+} from '../../../agents/langgraph/ChatGraph/types.js';
+import type { ServerInferRequest } from '@ts-rest/core';
+import type { ModelMessage, UIMessage } from 'ai';
+import type { Request } from 'express';
+
+const log = createLogger('chatGraphContractRouter');
+
+type StreamBody = ServerInferRequest<typeof chatGraphContract.stream>['body'];
+type SSEStream = ReturnType<typeof createSSEStream>;
+type ProcessAttachmentsResult = Awaited<ReturnType<typeof processAttachments>>;
+
+/**
+ * Everything Stage 1–4 of the stream pipeline read that is computed before
+ * classification. Raw request-body fields stay on `body` and are read directly.
+ */
+export interface StreamContext {
+  requestId: string;
+  userId: string;
+  aiWorkerPool: ReturnType<typeof getAIWorkerPool>;
+  notebookIds: string[];
+  validMessages: ChatGraphInput['messages'];
+  lastUserMessage: ChatGraphInput['messages'][number] | undefined;
+  actualThreadId: string | undefined;
+  isNewThread: boolean;
+  classifyStepId: string;
+  imageAttachments: ProcessAttachmentsResult['imageAttachments'];
+  processedMeta: ProcessAttachmentsResult['processedMeta'];
+  initialState: Awaited<ReturnType<typeof initializeChatState>>;
+  memoryContext: string | null;
+  memoryRetrieveTimeMs: number;
+  contextWindowTokens: number;
+}
+
+export type BuildStreamContextResult = { done: true } | { done: false; ctx: StreamContext };
+
+export async function buildStreamContext({
+  req,
+  body,
+  sse,
+  requestId,
+}: {
+  req: Request;
+  body: StreamBody;
+  sse: SSEStream;
+  requestId: string;
+}): Promise<BuildStreamContextResult> {
+  const {
+    messages: clientMessages,
+    agentId,
+    notebookIds: rawNotebookIds,
+    documentChatMode,
+    attachmentContext: rawClientAttachmentContext,
+    defaultNotebookId: rawDefaultNotebookId,
+    docMentionIds: rawDocMentionIds,
+    wolkeFiles: rawWolkeFiles,
+    connectFiles: rawConnectFiles,
+    currentDocument: rawCurrentDocument,
+    customSystemPrompt: rawCustomSystemPrompt,
+    roleName: rawRoleName,
+    initialAssistantMessage: rawInitialAssistantMessage,
+    activeSkillMention: rawActiveSkillMention,
+    enabledTools,
+    modelId,
+    attachments,
+    documentIds: rawDocumentIds,
+    textIds: rawTextIds,
+    documentChatIds: rawDocumentChatIds,
+    boardIds: rawBoardIds,
+    threadId,
+  } = body;
+
+  // === Validate ===
+  const user = getUser(req);
+  if (!user?.id) {
+    sse.send('error', { error: PROGRESS_MESSAGES.unauthorized });
+    sse.end();
+    return { done: true };
+  }
+
+  const userId = user.id;
+  const aiWorkerPool = getAIWorkerPool(req);
+
+  if (!aiWorkerPool) {
+    sse.send('error', { error: PROGRESS_MESSAGES.aiUnavailable });
+    sse.end();
+    return { done: true };
+  }
+
+  if ((clientMessages as unknown[]).length === 0) {
+    sse.send('error', { error: PROGRESS_MESSAGES.messagesRequired });
+    sse.end();
+    return { done: true };
+  }
+
+  const systemNotebookIds = rawNotebookIds?.filter(isKnownNotebook) ?? [];
+  const userNotebookUuids = rawNotebookIds?.filter(isUserNotebookId) ?? [];
+  const { documentIds: notebookDocumentIds, resolvedUserNotebookIds } =
+    userNotebookUuids.length > 0
+      ? await resolveUserNotebookDocumentIds(userId, userNotebookUuids)
+      : { documentIds: [], resolvedUserNotebookIds: [] };
+  const notebookIds = [...systemNotebookIds, ...resolvedUserNotebookIds];
+  const defaultNotebookId =
+    rawDefaultNotebookId && isKnownNotebook(rawDefaultNotebookId)
+      ? rawDefaultNotebookId
+      : undefined;
+  // An agent can bind a user-owned notebook (UUID) as its default knowledge
+  // base. Resolve it to document IDs (ownership-checked) so search can scope
+  // to it — mirrors the mention path, but as a default rather than explicit.
+  const { documentIds: defaultNotebookDocumentIds } =
+    rawDefaultNotebookId && !defaultNotebookId && isUserNotebookId(rawDefaultNotebookId)
+      ? await resolveUserNotebookDocumentIds(userId, [rawDefaultNotebookId])
+      : { documentIds: [] };
+
+  // Filter wolkeFiles to refs whose shareLinkId is still owned + active for this user.
+  // Stale refs (deleted/deactivated share link) are dropped silently so the chat still works.
+  let wolkeFiles: typeof rawWolkeFiles = undefined;
+  if (rawWolkeFiles?.length) {
+    try {
+      const userShareLinks = await NextcloudShareManager.getShareLinks(userId);
+      const allowedIds = new Set(userShareLinks.filter((l) => l.is_active).map((l) => l.id));
+      const filtered = rawWolkeFiles.filter((f) => allowedIds.has(f.shareLinkId));
+      wolkeFiles = filtered.length > 0 ? filtered : undefined;
+      if (filtered.length < rawWolkeFiles.length) {
+        log.warn(
+          `[ChatGraph] Dropped ${rawWolkeFiles.length - filtered.length} stale wolkeFiles ref(s) for user ${userId}`
+        );
+      }
+    } catch (err) {
+      log.warn(`[ChatGraph] wolkeFiles ownership check failed; ignoring refs`, err);
+      wolkeFiles = undefined;
+    }
+  }
+
+  // @connect file refs need no per-ref ownership pre-check: the Nango
+  // connection (resolved per-file at retrieval time via
+  // ConnectionService.getConnection(userId, provider)) IS the ownership
+  // boundary, and a revoked/expired token fails safe to an empty result.
+  // Normalize null mimeType → omit so downstream types stay clean.
+  const connectFiles = rawConnectFiles?.length
+    ? rawConnectFiles.map((f) => ({
+        provider: f.provider,
+        fileId: f.fileId,
+        name: f.name,
+        ...(f.mimeType ? { mimeType: f.mimeType } : {}),
+      }))
+    : undefined;
+
+  log.info(`[ChatGraph] Processing request for user ${userId}, agent ${agentId ?? 'default'}`);
+  if (notebookIds.length > 0) {
+    log.info(`[ChatGraph] Notebook scoping: ${notebookIds.join(', ')}`);
+  }
+  if (resolvedUserNotebookIds.length > 0) {
+    log.info(
+      `[ChatGraph] User-notebook scoping: ${resolvedUserNotebookIds.length} notebook(s) → ${notebookDocumentIds.length} document(s)`
+    );
+  }
+
+  // === Convert messages ===
+  let modelMessages: ChatGraphInput['messages'];
+  try {
+    modelMessages = (await convertToModelMessages(
+      clientMessages as UIMessage[]
+    )) as ModelMessage[] as ChatGraphInput['messages'];
+  } catch (convertError) {
+    log.error('[ChatGraph] Error converting messages:', convertError);
+    sse.send('error', { error: 'Failed to process messages' });
+    sse.end();
+    return { done: true };
+  }
+
+  if (!modelMessages || !Array.isArray(modelMessages)) {
+    sse.send('error', { error: 'Failed to process messages' });
+    sse.end();
+    return { done: true };
+  }
+
+  const validMessages = filterEmptyAssistantMessages(
+    modelMessages as ModelMessage[]
+  ) as ChatGraphInput['messages'];
+  log.info(
+    `[ChatGraph] Converted ${(clientMessages as unknown[]).length} → ${validMessages.length} valid messages`
+  );
+
+  const lastUserMessage = validMessages.filter((m) => m.role === 'user').pop();
+
+  // === Create thread if needed ===
+  // Normalize null → undefined: contract schema uses .nullish() to accept
+  // both, but downstream code is typed for string | undefined.
+  let actualThreadId: string | undefined = threadId ?? undefined;
+  let isNewThread = false;
+
+  if (!actualThreadId && lastUserMessage) {
+    const userText = extractTextContent(lastUserMessage.content);
+    const thread = await createThread(
+      userId,
+      agentId ?? 'gruenerator-universal',
+      userText.slice(0, 50) + (userText.length > 50 ? '...' : '') || 'Neue Unterhaltung'
+    );
+    actualThreadId = thread.id;
+    isNewThread = true;
+    sse.send('thread_created', { threadId: actualThreadId });
+  }
+
+  if (actualThreadId && lastUserMessage) {
+    if (!isNewThread) {
+      if (!(await canAccessThread(ThreadId(actualThreadId), UserId(userId)))) {
+        sse.send('error', { error: 'Thread not found' });
+        sse.end();
+        return { done: true };
+      }
+    }
+
+    // Seed message (Antrag / PM / Social text) — persisted BEFORE the user
+    // message so order is seed → user → assistant-reply. New threads only.
+    if (
+      isNewThread &&
+      typeof rawInitialAssistantMessage === 'string' &&
+      rawInitialAssistantMessage
+    ) {
+      await createMessage(
+        actualThreadId,
+        'assistant',
+        rawInitialAssistantMessage,
+        { seed: true },
+        userId
+      );
+    }
+
+    const userText = extractTextContent(lastUserMessage.content);
+    await createMessage(
+      actualThreadId,
+      'user',
+      userText,
+      rawRoleName ? { roleName: rawRoleName } : undefined,
+      userId
+    );
+  }
+
+  // Light progress ping so the UI shows "Verstehe Anfrage…" immediately,
+  // instead of looking frozen during attachment processing + memory fetch
+  // + classification (collectively 1–8s on a cold path).
+  const classifyStepId = `classify_${Date.now()}`;
+  sse.send('progress_step', {
+    stepId: classifyStepId,
+    toolName: 'classify',
+    title: 'Verstehe Anfrage…',
+    status: 'in_progress',
+  });
+
+  // === Process attachments ===
+  const {
+    attachmentContext: derivedAttachmentContext,
+    imageAttachments,
+    processedMeta,
+  } = await processAttachments(attachments as ProcessedAttachment[] | undefined, requestId);
+
+  // Merge any client-injected context (e.g. docs editor markdown + selection)
+  // with what processAttachments derived from uploaded files.
+  const clientAttachmentContext =
+    (rawClientAttachmentContext as string | null | undefined)?.trim() || undefined;
+  const attachmentContext =
+    clientAttachmentContext && derivedAttachmentContext
+      ? `${clientAttachmentContext}\n\n---\n\n${derivedAttachmentContext}`
+      : clientAttachmentContext || derivedAttachmentContext;
+
+  const docAttachments =
+    (attachments as ProcessedAttachment[] | undefined)?.filter((a) => !a.isImage) ?? [];
+
+  const previousAttachments = actualThreadId ? await getThreadAttachments(actualThreadId, 5) : [];
+
+  // === Memory retrieval (mem0) ===
+  let memoryContext: string | null = null;
+  let memoryRetrieveTimeMs = 0;
+  let memoriesUsed: Array<{ content: string; category: string | null }> = [];
+
+  const mem0 = getMem0Instance();
+  if (mem0 && lastUserMessage) {
+    try {
+      const memoryStartTime = Date.now();
+
+      const persona = await getCachedPersona(userId);
+      if (persona) {
+        memoryContext = persona;
+        memoriesUsed = [{ content: '[Persona]', category: null }];
+        log.info(`[${requestId}] Using cached persona for memory context`);
+      } else {
+        const userQuery = extractTextContent(lastUserMessage.content);
+        const memories = await mem0.searchMemories(userQuery, userId, 5);
+        if (memories.length > 0) {
+          memoriesUsed = memories.map((m) => ({
+            content: m.memory,
+            category: normalizeCategory(m.metadata?.memoryType) ?? null,
+          }));
+
+          memoryContext = formatMemoriesByCategory(
+            memories.map((m) => ({
+              memory: m.memory,
+              category: normalizeCategory(m.metadata?.memoryType),
+            }))
+          );
+          log.info(`[${requestId}] Retrieved ${memories.length} memories for context`);
+        }
+      }
+
+      memoryRetrieveTimeMs = Date.now() - memoryStartTime;
+    } catch (memError) {
+      log.warn(`[${requestId}] Memory retrieval failed (continuing without):`, memError);
+    }
+  }
+
+  // === Read user profile instructions ===
+  const userInstructions = user.custom_prompt?.trim() || undefined;
+
+  // === Resolve context window for model-aware budgets ===
+  const contextWindowTokens = getContextWindow(modelId);
+
+  // === Initialize state ===
+  const initialState = await initializeChatState({
+    messages: validMessages,
+    threadId: actualThreadId,
+    agentId: agentId ?? 'gruenerator-universal',
+    userId,
+    enabledTools: enabledTools ?? {
+      search: true,
+      web: true,
+      person: true,
+      examples: true,
+      research: true,
+      image: true,
+      image_edit: true,
+    },
+    aiWorkerPool,
+    attachmentContext: attachmentContext ?? undefined,
+    imageAttachments: imageAttachments.length > 0 ? imageAttachments : undefined,
+    threadAttachments: previousAttachments.length > 0 ? previousAttachments : undefined,
+    notebookIds: notebookIds.length > 0 ? notebookIds : undefined,
+    notebookDocumentIds: notebookDocumentIds.length > 0 ? notebookDocumentIds : undefined,
+    defaultNotebookId,
+    defaultNotebookDocumentIds:
+      defaultNotebookDocumentIds.length > 0 ? defaultNotebookDocumentIds : undefined,
+    documentIds: rawDocumentIds?.length ? rawDocumentIds : undefined,
+    documentChatIds: rawDocumentChatIds?.length
+      ? rawDocumentChatIds
+      : docAttachments.length > 0 || documentChatMode
+        ? []
+        : undefined,
+    boardIds: rawBoardIds?.length ? rawBoardIds : undefined,
+    wolkeFiles,
+    connectFiles,
+    // When the docs editor sends a currentDocument, also surface its id as a
+    // doc-mention so the existing modify_doc / summary intent paths activate
+    // (they key off `hasDocMentions`). Explicit @doc mentions always take
+    // precedence — we only fall back to currentDocument.id otherwise.
+    docMentionIds: rawDocMentionIds?.length
+      ? rawDocMentionIds
+      : rawCurrentDocument?.id
+        ? [rawCurrentDocument.id]
+        : undefined,
+    currentDocument: rawCurrentDocument
+      ? {
+          id: rawCurrentDocument.id,
+          title: rawCurrentDocument.title ?? null,
+          markdown: rawCurrentDocument.markdown,
+          selectionText: rawCurrentDocument.selectionText ?? null,
+        }
+      : undefined,
+    userLocale: user.locale ?? 'de-DE',
+    customSystemPrompt: rawCustomSystemPrompt ?? undefined,
+    activeSkillMention: rawActiveSkillMention ?? undefined,
+    userInstructions,
+    contextWindowTokens,
+  });
+
+  const userLocale = user.locale ?? 'de-DE';
+  log.info(`[ChatGraph] User ${userId} locale: ${userLocale}`);
+
+  initialState.agentConfig.userId = userId;
+  if (memoryContext) {
+    initialState.memoryContext = memoryContext;
+    initialState.memoryRetrieveTimeMs = memoryRetrieveTimeMs;
+
+    const isPersona = memoriesUsed.length === 1 && memoriesUsed[0].content === '[Persona]';
+    sse.send('memory_context', {
+      memoryCount: isPersona ? 1 : memoriesUsed.length,
+      memories: isPersona ? [] : memoriesUsed,
+      isPersona,
+    });
+  }
+
+  // === Enrich context (documents, boards, mentions, vectorization) ===
+  await enrichContext({
+    initialState,
+    userId,
+    ...(rawDocumentIds != null && { rawDocumentIds }),
+    ...(rawTextIds != null && { rawTextIds }),
+    ...(rawBoardIds != null && { rawBoardIds }),
+    ...(rawDocMentionIds != null && { rawDocMentionIds }),
+    docAttachments,
+    processedMeta,
+    contextWindowTokens,
+    sse,
+  });
+
+  return {
+    done: false,
+    ctx: {
+      requestId,
+      userId,
+      aiWorkerPool,
+      notebookIds,
+      validMessages,
+      lastUserMessage,
+      actualThreadId,
+      isNewThread,
+      classifyStepId,
+      imageAttachments,
+      processedMeta,
+      initialState,
+      memoryContext,
+      memoryRetrieveTimeMs,
+      contextWindowTokens,
+    },
+  };
+}

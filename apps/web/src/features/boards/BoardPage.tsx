@@ -18,16 +18,23 @@ import { BoardCalendarView } from './components/BoardCalendarView';
 import { BoardGanttView } from './components/BoardGanttView';
 import { BoardInlineHeader } from './components/BoardInlineHeader';
 import { BoardListView } from './components/BoardListView';
+import { BoardActivitySheet } from './components/board-overview/BoardActivitySheet';
+import { BoardQuickBar } from './components/board-overview/BoardQuickBar';
+import { BoardSettingsSheet } from './components/board-overview/BoardSettingsSheet';
 import { BoardTableView } from './components/BoardTableView';
 import { CardDetailPanel } from './components/CardDetailPanel';
 import { PlannerKanban } from './components/PlannerKanban';
 import { ViewSwitcher } from './components/ViewSwitcher';
 import { ViewToolbar } from './components/ViewToolbar';
+import { useBoardActivityFeed } from './hooks/useBoardActivityFeed';
 import { useBoardCollaboration } from './hooks/useBoardCollaboration';
 import { useBoardDetail } from './hooks/useBoardDetail';
 import { useBoardState } from './hooks/useBoardState';
+import { useDuplicateBoard } from './hooks/useDuplicateBoard';
 import { useViewData } from './hooks/useViewData';
 import { FIELD_IDS, getBoardType, isBoardArchived } from './types';
+
+import type { QuickFilter } from './hooks/useViewData';
 
 import type { BoardInitialStructure } from './hooks/useBoardState';
 import type { Row, ViewLayout } from './types';
@@ -64,6 +71,13 @@ function BoardContent() {
   // useBoardsTyped mutations invalidate ['boards'], which prefix-matches and refreshes
   // this board's detail query (['boards', id]) too.
   const { deleteBoard, updateBoard } = useBoardsTyped();
+  // Board-level activity events (A8) + watcher notifications (A9). enabled:false —
+  // here we only need the record mutation, not the feed query.
+  const { recordBoardEvent } = useBoardActivityFeed(id, false);
+  const duplicateBoard = useDuplicateBoard(id);
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
 
   const handleDelete = useCallback(() => {
     if (!id) return;
@@ -71,15 +85,35 @@ function BoardContent() {
   }, [deleteBoard, id, navigate]);
   const handleArchiveToggle = useCallback(() => {
     if (!id) return;
-    updateBoard.mutate({ id, is_archived: !board || !isBoardArchived(board) });
-  }, [updateBoard, id, board]);
+    const willArchive = !board || !isBoardArchived(board);
+    updateBoard.mutate({ id, is_archived: willArchive });
+    recordBoardEvent.mutate({ type: willArchive ? 'board_archived' : 'board_restored' });
+  }, [updateBoard, id, board, recordBoardEvent]);
   const handleRename = useCallback(
     (title: string) => {
       if (!id) return;
       updateBoard.mutate({ id, title });
+      recordBoardEvent.mutate({ type: 'board_renamed', payload: { title } });
+    },
+    [updateBoard, id, recordBoardEvent]
+  );
+  const handleSaveDescription = useCallback(
+    (description: string) => {
+      if (!id) return;
+      updateBoard.mutate({ id, description });
     },
     [updateBoard, id]
   );
+  const handleDuplicate = useCallback(() => {
+    duplicateBoard.mutate(undefined, {
+      onSuccess: (body) => {
+        if (!body) return;
+        void navigate(`/boards/${body.board.id}`, {
+          state: { generatedStructure: body.generatedStructure },
+        });
+      },
+    });
+  }, [duplicateBoard, navigate]);
 
   const { ydoc, provider, isConnected, isSynced } = useBoardCollaboration(id || '');
 
@@ -126,6 +160,9 @@ function BoardContent() {
         onArchiveToggle={handleArchiveToggle}
         onExpertModeToggle={handleExpertModeToggle}
         onRename={handleRename}
+        onOpenSettings={isWhiteboard ? undefined : () => setSettingsOpen(true)}
+        onOpenActivity={isWhiteboard ? undefined : () => setActivityOpen(true)}
+        onDuplicate={isWhiteboard ? undefined : handleDuplicate}
         compact={isWhiteboard}
       />
       {isWhiteboard ? (
@@ -149,7 +186,13 @@ function BoardContent() {
           userName={user?.display_name ?? null}
           boardId={board.id}
           boardTitle={board.title}
+          boardDescription={board.description ?? ''}
           expertMode={expertMode}
+          settingsOpen={settingsOpen}
+          onSettingsOpenChange={setSettingsOpen}
+          activityOpen={activityOpen}
+          onActivityOpenChange={setActivityOpen}
+          onSaveDescription={handleSaveDescription}
         />
       )}
     </div>
@@ -166,7 +209,13 @@ function BoardViewContent({
   userName,
   boardId,
   boardTitle,
+  boardDescription,
   expertMode,
+  settingsOpen,
+  onSettingsOpenChange,
+  activityOpen,
+  onActivityOpenChange,
+  onSaveDescription,
 }: {
   ydoc: Doc;
   isSynced: boolean;
@@ -177,7 +226,13 @@ function BoardViewContent({
   userName: string | null;
   boardId: string;
   boardTitle: string;
+  boardDescription: string;
   expertMode: boolean;
+  settingsOpen: boolean;
+  onSettingsOpenChange: (open: boolean) => void;
+  activityOpen: boolean;
+  onActivityOpenChange: (open: boolean) => void;
+  onSaveDescription: (value: string) => void;
 }) {
   const boardState = useBoardState(ydoc, isSynced, generatedStructure);
   const [activeViewId, setActiveViewId] = useState('view-kanban-default');
@@ -185,12 +240,24 @@ function BoardViewContent({
   const [detailOpen, setDetailOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [assistantMounted, setAssistantMounted] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [quickFilters, setQuickFilters] = useState<QuickFilter[]>([]);
 
-  const { activeView, fields, filteredRows, groups } = useViewData({
+  const toggleQuickFilter = useCallback((filter: QuickFilter) => {
+    setQuickFilters((prev) =>
+      prev.includes(filter) ? prev.filter((f) => f !== filter) : [...prev, filter]
+    );
+  }, []);
+
+  const { activeView, fields, filteredRows, groups, swimlanes } = useViewData({
     fields: boardState.fields,
     rows: boardState.rows,
     views: boardState.views,
     activeViewId,
+    searchQuery,
+    quickFilters,
+    currentUserId: currentUserId || undefined,
+    currentUserName: userName ?? undefined,
   });
 
   // Drag handler that also mirrors a recurring follow-up card's due date into the
@@ -260,6 +327,34 @@ function BoardViewContent({
 
   return (
     <>
+      <BoardQuickBar
+        search={searchQuery}
+        onSearchChange={setSearchQuery}
+        quickFilters={quickFilters}
+        onToggleQuickFilter={toggleQuickFilter}
+        hasUser={Boolean(currentUserId || userName)}
+      />
+
+      <BoardSettingsSheet
+        boardId={boardId}
+        boardTitle={boardTitle}
+        open={settingsOpen}
+        onOpenChange={onSettingsOpenChange}
+        description={boardDescription}
+        onSaveDescription={onSaveDescription}
+        fields={boardState.fields}
+        rows={filteredRows}
+        addField={boardState.addField}
+        updateField={boardState.updateField}
+        removeField={boardState.removeField}
+      />
+
+      <BoardActivitySheet
+        boardId={boardId}
+        open={activityOpen}
+        onOpenChange={onActivityOpenChange}
+      />
+
       {expertMode && boardState.views.length > 0 && (
         <>
           <ViewSwitcher
@@ -281,6 +376,7 @@ function BoardViewContent({
         <PlannerKanban
           fields={fields}
           groups={groups}
+          swimlanes={swimlanes}
           activeView={activeView}
           onDragReorder={handleDragReorder}
           addRow={boardState.addRow}

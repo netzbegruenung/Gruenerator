@@ -32,6 +32,7 @@ export {
   boardAttachmentsContract,
   publicBoardsContract,
   sharesContract,
+  sharesReadContract,
   userProfileContract,
   notebookContract,
   notebookCollectionsContract,
@@ -54,6 +55,7 @@ export {
   imageModelPreferenceContract,
   adminVorlagenContract,
   userTemplatesContract,
+  templateInteractionsContract,
   userAgentsContract,
   canvasAiContract,
   canvasContract,
@@ -98,6 +100,7 @@ export * from './schemas/modelPreferences.js';
 export * from './schemas/imageModelPreference.js';
 export * from './schemas/adminVorlagen.js';
 export * from './schemas/userTemplates.js';
+export * from './schemas/templateInteractions.js';
 export * from './schemas/userAgents.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/canvas.js';

@@ -906,6 +906,7 @@ export const CardDetailPanel = memo(function CardDetailPanel({
             <CardChecklists
               groups={checklists}
               currentUserId={currentUserId}
+              boardId={boardId}
               onChange={handleChecklistChange}
             />
 

@@ -20,6 +20,9 @@ import {
   FiSliders,
   FiCheck,
   FiEdit2,
+  FiSettings,
+  FiActivity,
+  FiCopy,
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
@@ -33,6 +36,10 @@ interface BoardDropdownProps {
   onArchiveToggle: () => void;
   onExpertModeToggle: () => void;
   onRequestRename: () => void;
+  // Board-overview actions (kanban boards only — omitted for whiteboards).
+  onOpenSettings?: () => void;
+  onOpenActivity?: () => void;
+  onDuplicate?: () => void;
 }
 
 export const BoardDropdown = memo(function BoardDropdown({
@@ -43,6 +50,9 @@ export const BoardDropdown = memo(function BoardDropdown({
   onArchiveToggle,
   onExpertModeToggle,
   onRequestRename,
+  onOpenSettings,
+  onOpenActivity,
+  onDuplicate,
 }: BoardDropdownProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
@@ -72,6 +82,24 @@ export const BoardDropdown = memo(function BoardDropdown({
             <FiShare2 className="mr-2" size={14} />
             Teilen
           </DropdownMenuItem>
+          {onDuplicate && (
+            <DropdownMenuItem onClick={onDuplicate}>
+              <FiCopy className="mr-2" size={14} />
+              Board duplizieren
+            </DropdownMenuItem>
+          )}
+          {onOpenActivity && (
+            <DropdownMenuItem onClick={onOpenActivity}>
+              <FiActivity className="mr-2" size={14} />
+              Aktivität anzeigen
+            </DropdownMenuItem>
+          )}
+          {onOpenSettings && (
+            <DropdownMenuItem onClick={onOpenSettings}>
+              <FiSettings className="mr-2" size={14} />
+              Board-Einstellungen
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={onArchiveToggle}>
             <FiArchive className="mr-2" size={14} />
             {isArchived ? 'Board wiederherstellen' : 'Board archivieren'}

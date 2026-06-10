@@ -20,6 +20,8 @@ export const createBoardBodySchema = z.object({
 export const updateBoardBodySchema = z.object({
   title: z.string().optional(),
   is_archived: z.boolean().optional(),
+  // Markdown board description (board-level briefing); null clears it.
+  description: z.string().nullish(),
 });
 
 // ── Response schemas ────────────────────────────────────────────────────────
@@ -54,6 +56,8 @@ export const boardDocumentSchema = z.object({
   updated_at: z.string(),
   creator_name: z.string().optional(),
   content: boardContentSchema.nullish(),
+  // Optional markdown board-level description (board-overview briefing).
+  description: z.string().nullish(),
 });
 
 export const generateBoardResponseSchema = z.object({
@@ -128,6 +132,9 @@ export const selectOptionSchema = z.object({
   // field stays backward-compatible; MUST be declared here or Zod strips it on
   // every board-snapshot roundtrip.
   aiTask: boardAiTaskSchema.optional(),
+  // Optional WIP limit (max cards) when this option is a kanban column. Empty =
+  // no limit. The column header shows `count/limit` and turns red on overflow.
+  limit: z.number().int().positive().optional(),
 });
 
 export const boardFieldSchema = z.object({
@@ -184,6 +191,9 @@ export const boardViewSchema = z.object({
   name: z.string(),
   layout: viewLayoutSchema,
   groupByFieldId: z.string().optional(),
+  // Second grouping axis for kanban: rows are split into horizontal swimlanes by
+  // this field, each containing the normal `groupByFieldId` columns. Absent = 1D.
+  swimlaneFieldId: z.string().optional(),
   dateFieldId: z.string().optional(),
   endDateFieldId: z.string().optional(),
   hiddenGroupIds: z.array(z.string()).optional(),
