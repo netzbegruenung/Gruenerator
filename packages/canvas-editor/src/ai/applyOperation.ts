@@ -266,6 +266,15 @@ export function applyOperation<TState, TActions extends CanvasAiActionsBase>(
         return dispatchResult;
       }
 
+      case 'set-background-image':
+        // Server-only operation: the chat backend resolves the stock-photo
+        // query via ImageSelectionService before patching state. The studio
+        // applier has no resolver — users change images via the Hintergrund tab.
+        return {
+          ok: false,
+          reason: 'Hintergrundbilder bitte über den Hintergrund-Tab ändern',
+        };
+
       default: {
         // Exhaustiveness check — if a new op kind is added to the Zod
         // schema, this line fails to compile until it is handled above.
