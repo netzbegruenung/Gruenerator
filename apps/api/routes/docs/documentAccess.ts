@@ -62,6 +62,52 @@ export async function checkDocumentAccess(
   return checkGroupAccess(userId, document.id);
 }
 
+/**
+ * Write-access mirror of the Hocuspocus connection check
+ * (services/hocuspocus/src/auth.ts `canEditDocument`): owner → direct
+ * owner/editor permission → editor share link → group share with write.
+ */
+export async function checkDocumentWriteAccess(
+  documentId: string,
+  userId: string
+): Promise<boolean> {
+  const rows = (await db.query(
+    `SELECT created_by, permissions, is_public, share_mode, share_permission
+     FROM collaborative_documents
+     WHERE id = $1 AND is_deleted = false`,
+    [documentId]
+  )) as {
+    created_by: string;
+    permissions: Record<string, { level?: string } | undefined> | null;
+    is_public: boolean;
+    share_mode: string | null;
+    share_permission: string | null;
+  }[];
+
+  if (rows.length === 0) return false;
+  const doc = rows[0];
+
+  if (doc.created_by === userId) return true;
+
+  const level = doc.permissions?.[userId]?.level;
+  if (level === 'owner' || level === 'editor') return true;
+
+  const sharePermission = doc.share_permission || 'editor';
+  if ((doc.share_mode === 'authenticated' || doc.is_public) && sharePermission === 'editor') {
+    return true;
+  }
+
+  const groupAccess = (await db.query(
+    `SELECT gcs.permissions FROM group_content_shares gcs
+     INNER JOIN group_memberships gm ON gm.group_id = gcs.group_id AND gm.user_id = $1 AND gm.is_active = TRUE
+     WHERE gcs.content_type = 'collaborative_documents' AND gcs.content_id = $2
+     LIMIT 1`,
+    [userId, documentId]
+  )) as { permissions: { read?: boolean; write?: boolean } | null }[];
+
+  return groupAccess.length > 0 && groupAccess[0].permissions?.write === true;
+}
+
 export function autoGrantSharePermission(document: CollaborativeDocument, userId: string): void {
   const isLinkShared = document.share_mode === 'authenticated' || document.share_mode === 'public';
   if (
