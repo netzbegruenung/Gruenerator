@@ -18,6 +18,7 @@ import React, {
 } from 'react';
 import { Layer } from 'react-konva';
 
+import { useSelectionAwareness } from '../collab/useSelectionAwareness';
 import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
 import {
   CanvasStoreProvider,
@@ -43,6 +44,8 @@ import { getOptimalContainerWidth } from '../utils/viewport';
 
 import { CanvasRenderLayer } from './CanvasRenderLayer';
 import { ToolbarStateBridge } from './ToolbarStateBridge';
+
+import type { RemoteSelector } from './RemoteSelectionOverlay';
 
 import type { ToolbarBridgeState } from './ToolbarStateBridge';
 
@@ -111,6 +114,12 @@ export interface GenericCanvasProps<TState, TActions extends OptionalCanvasActio
   collaborative?: {
     pageYMap: import('yjs').Map<unknown>;
     isSynced: boolean;
+    /** Hocuspocus provider — enables awareness features (remote selections). */
+    provider?: import('@hocuspocus/provider').HocuspocusProvider | null;
+    /** Id of this page, published to awareness so peers can filter selections per page. */
+    pageId?: string | null;
+    /** Only the active page publishes its selection to awareness. */
+    publishSelection?: boolean;
   };
 }
 
@@ -380,6 +389,26 @@ function GenericCanvasWithRef<
     setAutoSaveDirty,
   ]);
 
+  // Live remote selections (collab mode). Publishes the local selection to
+  // awareness (active page only) and maps remote peers' selections on this
+  // page to element ids for the render layer's outlines.
+  const collabPageId = props.collaborative?.pageId ?? null;
+  const remoteSelectionsRaw = useSelectionAwareness(props.collaborative?.provider ?? null, {
+    activePageId: collabPageId,
+    publish: props.collaborative?.publishSelection ?? true,
+  });
+  const remoteSelections = useMemo(() => {
+    if (remoteSelectionsRaw.length === 0) return undefined;
+    const map = new Map<string, RemoteSelector>();
+    for (const peer of remoteSelectionsRaw) {
+      if (peer.activePageId !== collabPageId) continue;
+      for (const id of peer.selectedLayerIds) {
+        if (!map.has(id)) map.set(id, { userName: peer.userName, color: peer.color });
+      }
+    }
+    return map.size > 0 ? map : undefined;
+  }, [remoteSelectionsRaw, collabPageId]);
+
   const elementHandlers = useCanvasElementHandlers({
     config,
     state,
@@ -527,6 +556,7 @@ function GenericCanvasWithRef<
           stageWidth={config.canvas.width}
           stageHeight={config.canvas.height}
           isFontAvailable={isFontAvailable}
+          remoteSelections={remoteSelections}
         />
 
         {/* Attribution overlay - only visible during export */}
