@@ -271,6 +271,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     await import('./routes/connections/connectionsController.js');
   const { default: wordpressApiRouter } = await import('./routes/wordpress/wordpressApi.js');
   const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.js');
+  const { default: vorlagenApiRouter } = await import('./routes/vorlagen/vorlagenApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
@@ -729,6 +730,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Direct Canva Connect API (OAuth2 + PKCE). requireAuth is applied per-route
   // inside the router — the OAuth callback must stay public (cookie-less redirect).
   app.use('/api/canva', standardMutationLimiter, canvaApiRouter);
+  // Vorlagen semantic search (chat @vorlagen picker). requireAuth is per-route.
+  app.use('/api/vorlagen', authenticatedReadLimiter, vorlagenApiRouter);
   // ts-rest contract router — mount before legacy wordpressApiRouter
   // requireAuth is also inside the legacy router, but we apply it here
   // since the contract router runs first.

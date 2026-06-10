@@ -30,7 +30,8 @@ export type MentionableType =
   | 'doc'
   | 'wolke'
   | 'connect'
-  | 'canva';
+  | 'canva'
+  | 'vorlagen';
 export type MentionableCategory = 'skill' | 'function';
 
 export interface Mentionable {
@@ -580,6 +581,35 @@ export interface CanvaDesignToken {
   thumbnailUrl?: string;
 }
 
+// @vorlagen opens a sub-popover that semantically searches the user's published
+// Vorlagen (templates) via the vector index. Picking templates inserts a
+// markdown link per template into the composer — a direct reference, mirroring
+// @canva. Dev-only for now (feature in development): hidden in production.
+export const vorlagenMentionables: Mentionable[] =
+  process.env.NODE_ENV !== 'production'
+    ? [
+        {
+          type: 'vorlagen',
+          category: 'function',
+          trigger: '@',
+          identifier: 'vorlagen-trigger',
+          title: 'Vorlagen',
+          description: 'Passende Vorlagen per Vektorsuche einfügen',
+          avatar: '📋',
+          icon: PiClipboardText,
+          backgroundColor: '#316049',
+          mention: 'vorlagen',
+        },
+      ]
+    : [];
+
+export interface VorlageToken {
+  id: string;
+  title: string;
+  url: string;
+  thumbnailUrl?: string;
+}
+
 export function getAllMentionables(): Mentionable[] {
   return [
     ...getAgentMentionables(),
@@ -595,6 +625,7 @@ export function getAllMentionables(): Mentionable[] {
     ...wolkeMentionables,
     ...connectMentionables,
     ...canvaMentionables,
+    ...vorlagenMentionables,
   ];
 }
 
@@ -616,6 +647,7 @@ function rebuildMentionableMap(): void {
     wolkeMentionables,
     connectMentionables,
     canvaMentionables,
+    vorlagenMentionables,
   ];
   for (const source of orderedSources) {
     for (const m of source) {
@@ -646,6 +678,7 @@ export function filterMentionables(query: string): {
   wolke: Mentionable[];
   connect: Mentionable[];
   canva: Mentionable[];
+  vorlagen: Mentionable[];
 } {
   const allBoards = [...boardToolMentionables, ...dynamicBoardMentionables];
   const allDocs = [...docToolMentionables, ...dynamicDocMentionables];
@@ -662,6 +695,7 @@ export function filterMentionables(query: string): {
       wolke: wolkeMentionables,
       connect: connectMentionables,
       canva: canvaMentionables,
+      vorlagen: vorlagenMentionables,
     };
   }
   const q = query.toLowerCase();
@@ -694,6 +728,7 @@ export function filterMentionables(query: string): {
     wolke: wolkeMentionables.filter(matchFn),
     connect: connectMentionables.filter(matchFn),
     canva: canvaMentionables.filter(matchFn),
+    vorlagen: vorlagenMentionables.filter(matchFn),
   };
 }
 
@@ -713,6 +748,7 @@ export function filterMentionablesByCategory(
     ...all.wolke,
     ...all.connect,
     ...all.canva,
+    ...all.vorlagen,
     ...all.userNotebooks,
     ...all.notebooks,
   ];
