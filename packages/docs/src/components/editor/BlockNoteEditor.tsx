@@ -298,7 +298,14 @@ const BlockNoteEditorInner = ({
       collaboration: collaborationOptions,
       domAttributes: EDITOR_DOM_ATTRIBUTES,
     },
-    [collaborationOptions]
+    // `extensions` is frozen into the editor at creation — anything inside it
+    // that can change identity at runtime must appear here, or the live editor
+    // keeps the stale instance. threadStore carries the comments auth role
+    // (DefaultThreadStoreAuth), which changes when `editable` flips
+    // mid-session; recreating the editor then is safe (content lives in Yjs).
+    // Gated on showComments so surfaces without comments (mobile) never churn.
+    // aiApiUrl/documentId/resolveUsers are creation-stable by construction.
+    [collaborationOptions, showComments ? threadStore : null]
   );
 
   useEffect(() => {
