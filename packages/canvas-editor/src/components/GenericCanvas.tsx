@@ -31,6 +31,7 @@ import {
   useFontLoader,
 } from '../hooks';
 import { useCanvasAutoSave } from '../hooks/useCanvasAutoSave';
+import { useAutoSaveStore } from '../stores/useAutoSaveStore';
 import { useCanvasElementHandlers } from '../hooks/useCanvasElementHandlers';
 import { useCanvasKeyboardHandlers } from '../hooks/useCanvasKeyboardHandlers';
 import { getCanvasFormatOrDefault } from '../formats';
@@ -325,66 +326,59 @@ function GenericCanvasWithRef<
   // Auto-save hook for gallery integration. Skipped in collaborative mode —
   // Hocuspocus persists Yjs updates server-side; the gallery share-token path
   // would race with Y.Doc state.
+  const autoSaveEnabled = !mobileBridge && !props.collaborative;
   useCanvasAutoSave(exportedImage, {
     canvasType: config.id,
     canvasState: state,
-    enabled: !mobileBridge && !props.collaborative,
+    enabled: autoSaveEnabled,
   });
 
   // History-synced auto-save: capture canvas whenever undo/redo history changes
   const historyIndex = useCanvasStoreSelector((s) => s.historyIndex);
+  const selectedElementForCapture = useCanvasStoreSelector((s) => s.selectedElement);
+  const setAutoSaveDirty = useAutoSaveStore((s) => s.setDirty);
   const lastAutoSaveHistoryIndexRef = useRef(-1);
 
   useEffect(() => {
-    console.log('[AutoSave][historyEffect] tick', {
-      historyIndex,
-      isExporting,
-      lastSavedAt: lastAutoSaveHistoryIndexRef.current,
-      selectedElement: store.getState().selectedElement,
-    });
-    if (historyIndex < 0 || isExporting) {
-      console.log('[AutoSave][historyEffect] skip: initial or exporting');
-      return;
+    if (historyIndex < 0 || isExporting) return;
+    // historyIndex 0 is the initial mount snapshot — an untouched canvas is not dirty
+    if (
+      autoSaveEnabled &&
+      historyIndex > 0 &&
+      lastAutoSaveHistoryIndexRef.current !== historyIndex
+    ) {
+      setAutoSaveDirty(true);
     }
-    if (store.getState().selectedElement) {
-      console.log('[AutoSave][historyEffect] skip: element selected');
-      return;
-    }
-    if (lastAutoSaveHistoryIndexRef.current === historyIndex) {
-      console.log('[AutoSave][historyEffect] skip: already captured for this historyIndex');
-      return;
-    }
+    // Capture waits until nothing is selected (selection handles would end up in
+    // the screenshot); selectedElementForCapture in the deps re-runs this effect
+    // on deselect so the pending historyIndex still gets captured.
+    if (store.getState().selectedElement) return;
+    if (lastAutoSaveHistoryIndexRef.current === historyIndex) return;
 
     // Debounce screenshot capture — toDataURL at pixelRatio:2 is expensive (~100-200ms).
     // 1500ms ensures we only capture after the user stops editing.
     const timer = setTimeout(() => {
       // Re-check at capture time in case selection changed during debounce
-      if (store.getState().selectedElement) {
-        console.log('[AutoSave][historyEffect] capture aborted: element selected at capture time');
-        return;
-      }
-      console.log('[AutoSave][historyEffect] capturing stage at historyIndex', historyIndex);
+      if (store.getState().selectedElement) return;
       const dataUrl = stageRef.current?.toDataURL({ format: 'png', pixelRatio: 2 });
       if (dataUrl) {
-        console.log('[AutoSave][historyEffect] capture OK, setExportedImage', {
-          historyIndex,
-          dataUrlLen: dataUrl.length,
-        });
         setExportedImage(dataUrl);
         exportedImageRef.current = dataUrl;
         lastAutoSaveHistoryIndexRef.current = historyIndex;
       } else {
-        console.warn(
-          '[AutoSave][historyEffect] capture FAILED: stageRef.current.toDataURL() returned null',
-          {
-            stageRefSet: !!stageRef.current,
-          }
-        );
+        console.warn('[AutoSave] capture failed: stage toDataURL returned null');
       }
     }, 1500);
 
     return () => clearTimeout(timer);
-  }, [historyIndex, isExporting, store]);
+  }, [
+    historyIndex,
+    isExporting,
+    store,
+    selectedElementForCapture,
+    autoSaveEnabled,
+    setAutoSaveDirty,
+  ]);
 
   const elementHandlers = useCanvasElementHandlers({
     config,

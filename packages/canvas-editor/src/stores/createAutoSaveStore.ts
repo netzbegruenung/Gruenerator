@@ -14,12 +14,15 @@ export interface AutoSaveState {
   autoSaveStatus: AutoSaveStatus;
   autoSavedShareToken: string | null;
   lastAutoSavedImageSrc: string | null;
+  /** True while there are edits that have not been persisted yet. */
+  isDirty: boolean;
 }
 
 export interface AutoSaveActions {
   setAutoSaveStatus: (status: AutoSaveStatus) => void;
   setAutoSavedShareToken: (token: string | null) => void;
   setLastAutoSavedImageSrc: (src: string | null) => void;
+  setDirty: (dirty: boolean) => void;
   clearAutoSaveState: () => void;
 }
 
@@ -40,15 +43,18 @@ export function createAutoSaveStore(options: CreateAutoSaveStoreOptions = {}) {
     autoSaveStatus: 'idle',
     autoSavedShareToken: initialShareToken,
     lastAutoSavedImageSrc: null,
+    isDirty: false,
 
     setAutoSaveStatus: (status) => set({ autoSaveStatus: status }),
     setAutoSavedShareToken: (token) => set({ autoSavedShareToken: token }),
     setLastAutoSavedImageSrc: (src) => set({ lastAutoSavedImageSrc: src }),
+    setDirty: (dirty) => set({ isDirty: dirty }),
     clearAutoSaveState: () =>
       set({
         autoSaveStatus: 'idle',
         autoSavedShareToken: null,
         lastAutoSavedImageSrc: null,
+        isDirty: false,
       }),
   }));
 }
