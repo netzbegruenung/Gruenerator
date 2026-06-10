@@ -6,6 +6,7 @@
 import { type QdrantClient } from '@qdrant/js-client-rest';
 
 import { createLogger } from '../../../utils/logger.js';
+import { generatePointId } from '../../../utils/validation/index.js';
 
 import { chunkToNumericId, stringToNumericId } from './utils.js';
 
@@ -411,5 +412,81 @@ export async function indexSocialMediaExample(
     const message = error instanceof Error ? error.message : String(error);
     log.error(`Failed to index ${platform} example: ${message}`);
     throw new Error(`${platform} example indexing failed: ${message}`);
+  }
+}
+
+export interface UserTemplateIndexPayload {
+  user_id?: string | null;
+  template_type?: string;
+  status?: string;
+  is_private?: boolean;
+  tags?: string[];
+  title?: string;
+}
+
+/**
+ * Index a single user template (Vorlage) point. One point per template, keyed
+ * on a stable hash of the template id so re-indexing on edit/approve overwrites
+ * in place. The caller supplies the pre-computed embedding (title + description
+ * + tags). Payload fields back the later filtered semantic search.
+ * @param client - Qdrant client instance
+ * @param collectionName - Target collection name ('user_templates')
+ * @param templateId - user_templates.id (UUID)
+ * @param embedding - 1024-dim embedding vector
+ * @param payload - Filterable metadata (owner, type, status, visibility, tags)
+ */
+export async function indexUserTemplate(
+  client: QdrantClient,
+  collectionName: string,
+  templateId: string,
+  embedding: number[],
+  payload: UserTemplateIndexPayload
+): Promise<{ success: boolean }> {
+  try {
+    const point = {
+      id: generatePointId('template', templateId, 0),
+      vector: embedding,
+      payload: {
+        template_id: templateId,
+        user_id: payload.user_id ?? null,
+        template_type: payload.template_type ?? 'template',
+        status: payload.status ?? 'published',
+        is_private: payload.is_private ?? false,
+        tags: payload.tags ?? [],
+        title: payload.title ?? '',
+        indexed_at: new Date().toISOString(),
+      },
+    };
+
+    await client.upsert(collectionName, { points: [point] });
+
+    log.debug(`Indexed user template ${templateId}`);
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    log.error(`Failed to index user template: ${message}`);
+    throw new Error(`User template indexing failed: ${message}`);
+  }
+}
+
+/**
+ * Delete a user template's vector by payload filter (template_id).
+ */
+export async function deleteUserTemplateVectors(
+  client: QdrantClient,
+  collectionName: string,
+  templateId: string
+): Promise<{ success: boolean }> {
+  try {
+    await client.delete(collectionName, {
+      filter: { must: [{ key: 'template_id', match: { value: templateId } }] },
+    });
+
+    log.debug(`Deleted vectors for user template ${templateId}`);
+    return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    log.warn(`Failed to delete user template vectors: ${message}`);
+    return { success: false };
   }
 }

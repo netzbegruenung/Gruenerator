@@ -15,6 +15,7 @@ import { mountImageModelPreferenceContractRouter } from './routes/auth/imageMode
 import authInitRouter from './routes/auth/initController.js';
 import { mountModelPreferencesContractRouter } from './routes/auth/modelPreferencesContractRouter.js';
 import { mountAdminVorlagenContractRouter } from './routes/auth/templates/adminVorlagenContractRouter.js';
+import { mountTemplateInteractionsContractRouter } from './routes/auth/templates/templateInteractionsContractRouter.js';
 import { mountUserTemplatesContractRouter } from './routes/auth/templates/userTemplatesContractRouter.js';
 import { mountUserProfileContractRouter } from './routes/auth/userProfileContractRouter.js';
 import { mountBoardActivityContractRouter } from './routes/boards/boardActivityContractRouter.js';
@@ -70,7 +71,8 @@ import {
 } from './routes/search/index.js';
 import searchGraphRouter from './routes/search/searchGraphController.js';
 import { mountShareContractRouter } from './routes/share/shareContractRouter.js';
-import shareRouter from './routes/share/shareController.js';
+import shareFileRouter from './routes/share/shareFileRouter.js';
+import { mountShareReadContractRouter } from './routes/share/shareReadContractRouter.js';
 import backgroundRemovalRoute from './routes/sharepic/backgroundRemoval.js';
 import editSessionRouter from './routes/sharepic/editSession.js';
 import promptRoute from './routes/sharepic/promptRoute.js';
@@ -270,6 +272,7 @@ export async function setupRoutes(app: Application): Promise<void> {
     await import('./routes/connections/connectionsController.js');
   const { default: wordpressApiRouter } = await import('./routes/wordpress/wordpressApi.js');
   const { default: canvaApiRouter } = await import('./routes/canva/canvaApi.js');
+  const { default: vorlagenApiRouter } = await import('./routes/vorlagen/vorlagenApi.js');
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
@@ -323,6 +326,11 @@ export async function setupRoutes(app: Application): Promise<void> {
   // later `app.use('/api/auth', ...)` middleware.
   app.use('/api/auth/user-templates', requireAuth);
   mountUserTemplatesContractRouter(app);
+  // ts-rest contract router for template likes & favorites — mounts BEFORE the
+  // legacy authRouter so contract routes match first. requireAuth is applied at
+  // the prefix because every route requires authentication.
+  app.use('/api/auth/templates', requireAuth);
+  mountTemplateInteractionsContractRouter(app);
   app.use('/api/auth', authenticatedReadLimiter, authRouter);
   // ts-rest contract router for notebook collections — mounts BEFORE the
   // legacy router so contract-modeled routes match first. requireAuth is
@@ -574,9 +582,13 @@ export async function setupRoutes(app: Application): Promise<void> {
   // The contract router below checks req.user.id per write handler; the legacy
   // router keeps public preview/download/thumbnail endpoints reachable.
   app.use('/api/share', optionalAuth);
-  // ts-rest contract router — mount before legacy shareRouter
+  // ts-rest contract routers — mount BEFORE the legacy file router so ts-rest
+  // matches the migrated routes first. Write endpoints (image/video/template/
+  // push) + read/management endpoints (my/recent/templates/devices/delete/
+  // publish) are contracted; only public info + file-streaming stay legacy.
   mountShareContractRouter(app);
-  app.use('/api/share', publicReadLimiter, shareRouter);
+  mountShareReadContractRouter(app);
+  app.use('/api/share', publicReadLimiter, shareFileRouter);
   // ts-rest contract router — mount before legacy transferRouter (GET /list and DELETE /:token)
   // POST /upload (multer file upload) falls through to the legacy router.
   app.use('/api/transfer', requireAuth);
@@ -720,6 +732,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   // Direct Canva Connect API (OAuth2 + PKCE). requireAuth is applied per-route
   // inside the router — the OAuth callback must stay public (cookie-less redirect).
   app.use('/api/canva', standardMutationLimiter, canvaApiRouter);
+  // Vorlagen semantic search (chat @vorlagen picker). requireAuth is per-route.
+  app.use('/api/vorlagen', authenticatedReadLimiter, vorlagenApiRouter);
   // ts-rest contract router — mount before legacy wordpressApiRouter
   // requireAuth is also inside the legacy router, but we apply it here
   // since the contract router runs first.

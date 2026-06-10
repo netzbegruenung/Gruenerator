@@ -1,10 +1,12 @@
-import { Button, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
+import { Badge, Button, Popover, PopoverContent, PopoverTrigger } from '@gruenerator/ui';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useCallback, useEffect, useMemo, useState, type JSX } from 'react';
 import { HiPlus } from 'react-icons/hi';
 import { HiCog6Tooth } from 'react-icons/hi2';
 import { Link } from 'react-router-dom';
 
+import { useEntityFavorites } from '../../../features/favorites/hooks/useEntityFavorites';
+import { useEntityLikes } from '../../../features/likes/hooks/useEntityLikes';
 import SearchBar from '../../../features/search/components/SearchBar';
 import apiClient from '../../utils/apiClient';
 import AddTemplateModal from '../AddTemplateModal/AddTemplateModal';
@@ -30,6 +32,7 @@ interface VorlageItem {
   external_url?: string;
   content_data?: { originalUrl?: string };
   metadata?: { author_name?: string; contact_email?: string };
+  source?: 'community' | 'system';
   [key: string]: unknown;
 }
 
@@ -128,6 +131,16 @@ const VorlagenGallery = memo((): JSX.Element => {
 
   const categories = categoriesQuery.data ?? [];
   const items = dataQuery.data ?? [];
+
+  const { likedIds, toggleLike, isToggling: isLikeToggling, canLike } = useEntityLikes('template');
+  const {
+    favoritedIds,
+    toggleFavorite,
+    isToggling: isFavoriteToggling,
+    canFavorite,
+  } = useEntityFavorites('template');
+
+  const previewId = previewTemplate ? String(previewTemplate.id) : '';
 
   const handleTagClick = useCallback((tag: string) => {
     setInputValue((prev) => addTagToSearch(prev, tag));
@@ -250,6 +263,11 @@ const VorlagenGallery = memo((): JSX.Element => {
             const templateType = item.template_type
               ? item.template_type.charAt(0).toUpperCase() + item.template_type.slice(1)
               : '';
+            // Community = user-submitted. Fall back to author presence so cards are
+            // still marked correctly if the API hasn't been redeployed with `source`.
+            const isCommunity = item.source
+              ? item.source === 'community'
+              : Boolean(item.metadata?.author_name);
             return (
               <IndexCard
                 key={String(item.id)}
@@ -263,6 +281,13 @@ const VorlagenGallery = memo((): JSX.Element => {
                 className="vorlagen-card"
                 authorName={item.metadata?.author_name || ''}
                 authorEmail={item.metadata?.contact_email || ''}
+                badge={
+                  isCommunity ? (
+                    <Badge className="border-transparent bg-primary-600 text-white shadow-sm">
+                      Community
+                    </Badge>
+                  ) : null
+                }
               />
             );
           })
@@ -275,6 +300,15 @@ const VorlagenGallery = memo((): JSX.Element => {
           onClose={() => setPreviewTemplate(null)}
           template={previewTemplate}
           onTagClick={handleTagClick}
+          liked={likedIds.has(previewId)}
+          likeCount={(previewTemplate.likes_count as number | undefined) ?? 0}
+          onToggleLike={() => toggleLike(previewId)}
+          likeToggling={isLikeToggling(previewId)}
+          canLike={canLike}
+          favorited={favoritedIds.has(previewId)}
+          onToggleFavorite={() => toggleFavorite(previewId)}
+          favoriteToggling={isFavoriteToggling(previewId)}
+          canFavorite={canFavorite}
         />
       )}
     </div>

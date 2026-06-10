@@ -44,6 +44,7 @@ const TARGETS: LvTarget[] = [
   },
   { slug: 'thueringen', display: 'Thüringen', lvCode: 'TH', fraktionCode: 'TH-F' },
   { slug: 'brandenburg', display: 'Brandenburg', lvCode: 'BB', fraktionCode: null },
+  { slug: 'bayern', display: 'Bayern', lvCode: 'BY', fraktionCode: 'BY-F' },
 ];
 
 interface QdrantPoint {
@@ -216,7 +217,14 @@ async function main() {
   console.log(`Output dir: ${OUTPUT_DIR}`);
   console.log(`Qdrant: ${QDRANT_URL} / ${COLLECTION}`);
 
-  for (const target of TARGETS) {
+  // Optional slug filter: `tsx extract-lv-pms.ts bayern` only processes Bayern.
+  const only = process.argv.slice(2).filter((a) => !a.startsWith('-'));
+  const targets = only.length > 0 ? TARGETS.filter((t) => only.includes(t.slug)) : TARGETS;
+  if (only.length > 0) {
+    console.log(`Filtered to: ${targets.map((t) => t.slug).join(', ') || '(none matched)'}`);
+  }
+
+  for (const target of targets) {
     await processTarget(target, 'landesverband', target.lvCode);
     if (target.fraktionCode) {
       await processTarget(target, 'fraktion', target.fraktionCode);

@@ -12,18 +12,18 @@
  * - Functional setState for stable callbacks
  * - Hoisted static JSX elements
  * - content-visibility CSS for off-screen pages
+ *
+ * The component is split into:
+ * - PageWrapper            — memoized per-page renderer (./PageWrapper)
+ * - usePageRefs            — imperative canvas/DOM ref arrays
+ * - useLoadedConfigs       — async config cache
+ * - useMobileWebViewport   — < 900px viewport tracking
+ * - usePageScrollSync      — IntersectionObserver + auto-scroll on add
+ * - usePageUndoRedoShortcuts — Cmd/Ctrl+Z page-array history
+ * - useToolbarHandlers     — bundled toolbar actions for the active page
  */
 
-import React, {
-  useCallback,
-  useRef,
-  useMemo,
-  useEffect,
-  useState,
-  Suspense,
-  memo,
-  lazy,
-} from 'react';
+import React, { useCallback, useRef, useMemo, useEffect, useState, Suspense } from 'react';
 
 import { Skeleton } from '@gruenerator/ui';
 
@@ -32,43 +32,36 @@ import {
   useMultiPageExport,
   usePresentationExport,
   usePageThumbnails,
-} from '../hooks';
-import { useMobileBridge } from '../hooks/useMobileBridge';
-import { CanvasEditorLayout } from '../layouts';
-import { MobileSubsectionBridgeContext } from '../sidebar/MobileSubsectionBridgeContext';
-import { UserUploadsProvider } from '../sidebar/UserUploadsProvider';
-import { AutoSaveStoreProvider, useAutoSaveStoreApi } from '../stores/useAutoSaveStore';
-import { useCanvasSidebarStore } from '../stores/canvasSidebarStore';
+} from '../../hooks';
+import { CanvasEditorLayout } from '../../layouts';
+import { MobileSubsectionBridgeContext } from '../../sidebar/MobileSubsectionBridgeContext';
+import { UserUploadsProvider } from '../../sidebar/UserUploadsProvider';
+import { SidebarTabBar, SidebarPanel, WebSubsectionBar } from '../../sidebar';
+import { AutoSaveStoreProvider, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
+import { useCanvasSidebarStore } from '../../stores/canvasSidebarStore';
 
-import { CanvasMetaBar } from './CanvasMetaBar';
-import { getCategoryForTemplate } from '../utils/templateRegistry';
+import { CanvasMetaBar } from '../CanvasMetaBar';
+import { getCategoryForTemplate } from '../../utils/templateRegistry';
 
-import { GenericCanvas } from './GenericCanvas';
-import { PageThumbnailStrip } from './PageThumbnailStrip';
-import { PageToolbar } from './PageToolbar';
-import { Toolbar } from './Toolbar';
-import { AddPageButton } from './TemplatePickerFlyout';
-import { ZoomableViewport } from './ZoomableViewport';
+import { PageThumbnailStrip } from '../PageThumbnailStrip';
+import { Toolbar } from '../Toolbar';
+import { AddPageButton } from '../TemplatePickerFlyout';
 
-import type { GenericCanvasRef, ToolbarStateReport } from './GenericCanvas';
-import type { AlignmentDirection } from './Toolbar';
-import type { CanvasConfigId, FullCanvasConfig } from '../configs/types';
-import type { MobileBridgeProps } from '../hooks/useMobileBridge';
-import type { MobileSubsectionBridgeValue } from '../sidebar/MobileSubsectionBridgeContext';
-import type { InitialPageDef } from '../hooks/usePageManager';
-import type { SidebarTabId } from '../sidebar/types';
+import { PageWrapper } from './PageWrapper';
+import { useMobileWebViewport } from './hooks/useMobileWebViewport';
+import { usePageRefs } from './hooks/usePageRefs';
+import { useLoadedConfigs } from './hooks/useLoadedConfigs';
+import { usePageScrollSync } from './hooks/usePageScrollSync';
+import { usePageUndoRedoShortcuts } from './hooks/usePageUndoRedoShortcuts';
+import { useToolbarHandlers } from './hooks/useToolbarHandlers';
 
-import { cn } from '../utils/cn';
+import type { CanvasEditorProps } from './types';
+import type { ToolbarStateReport } from '../GenericCanvas';
+import type { CanvasConfigId } from '../../configs/types';
+import type { MobileSubsectionBridgeValue } from '../../sidebar/MobileSubsectionBridgeContext';
+import type { SidebarTabId } from '../../sidebar/types';
 
-const LazySidebarTabBar = lazy(() =>
-  import('../sidebar').then((m) => ({ default: m.SidebarTabBar }))
-);
-const LazySidebarPanel = lazy(() =>
-  import('../sidebar').then((m) => ({ default: m.SidebarPanel }))
-);
-const LazyWebSubsectionBar = lazy(() =>
-  import('../sidebar').then((m) => ({ default: m.WebSubsectionBar }))
-);
+import { cn } from '../../utils/cn';
 
 // Hoisted static JSX elements (Rule 6.3: avoids re-creation every render)
 const sidebarLoadingFallback = (
@@ -95,216 +88,6 @@ const pageLoadingIndicator = (
     <div className="text-sm text-foreground-muted">Lädt Vorlagen...</div>
   </div>
 );
-
-interface CanvasEditorProps {
-  initialConfigId: CanvasConfigId;
-  initialProps: Record<string, unknown>;
-  onExport: (base64: string) => void;
-  onCancel: () => void;
-  callbacks?: Record<string, (val: unknown) => void>;
-  maxPages?: number;
-  /** Pre-populated pages — overrides single-page initialization when provided */
-  initialPages?: InitialPageDef[];
-  /** Mobile bridge — when provided, hides web tab bar + floating toolbar, uses native controls */
-  mobileBridge?: MobileBridgeProps;
-  /** When true, tab bar is handled externally (e.g. web app sidebar) via canvasSidebarStore */
-  externalSidebar?: boolean;
-  /** When true + externalSidebar, syncs mobile subsection state to canvasSidebarStore for external mobile UI */
-  externalMobileMode?: boolean;
-  /**
-   * Collaborative mode — fed into usePageManager to back the pages list with
-   * a Yjs doc, and used to derive each page's Y.Map for layers/config sync.
-   */
-  collaborative?: {
-    ydoc: import('yjs').Doc;
-    isSynced: boolean;
-  };
-  /** Host-supplied content rendered at the very left of the toolbar (in-flow). */
-  chromeLeft?: React.ReactNode;
-  /** Host-supplied content rendered absolute-centered in the toolbar (e.g. doc title, sync badge). */
-  chromeCenter?: React.ReactNode;
-  /** Host-supplied content rendered in the toolbar's right cluster (e.g. presence avatars). */
-  chromeRight?: React.ReactNode;
-  /**
-   * When provided, the share popover shows a "Personen" entry that triggers
-   * this callback. Used by collab hosts to open their invite/permissions dialog.
-   */
-  onInvitePeople?: () => void;
-  /**
-   * Seeds the per-instance AutoSaveStore with a known share token, e.g. when
-   * the editor is opened against an existing share via URL. Without this seed,
-   * the first save after a page reload creates a new draft instead of updating.
-   */
-  initialShareToken?: string | null;
-}
-
-interface PageWrapperProps {
-  page: { id: string; configId: CanvasConfigId; state: Record<string, unknown> };
-  index: number;
-  pageCount: number;
-  config: FullCanvasConfig;
-  isActive: boolean;
-  canDelete: boolean;
-  canvasRef: React.RefObject<GenericCanvasRef | null>;
-  onSelect: (index: number) => void;
-  onDelete: (id: string) => void;
-  onMovePage: (id: string, direction: 'up' | 'down') => void;
-  onDuplicatePage: (id: string) => void;
-  onExport: (base64: string) => void;
-  onCancel: () => void;
-  callbacks: Record<string, (val: unknown) => void>;
-  multiPageExport?: {
-    pageCount: number;
-    onDownloadAllZip: () => Promise<void>;
-    isExporting: boolean;
-    exportProgress: { current: number; total: number };
-  };
-  onStateChange: (
-    pageId: string,
-    state: Record<string, unknown>,
-    actions: Record<string, unknown>,
-    selectedElement: string | null
-  ) => void;
-  mobileBridge?: MobileBridgeProps;
-  onToolbarStateChange?: (state: ToolbarStateReport) => void;
-  /**
-   * Per-page collaborative binding. The page Y.Map under which `layers` and
-   * `config` are stored. Set on every page in collab mode (one Y.Map per page).
-   */
-  pageCollaborative?: {
-    pageYMap: import('yjs').Map<unknown>;
-    isSynced: boolean;
-  };
-  /** Forwarded ref to the wrapper div — used for IntersectionObserver tracking */
-  pageRef?: React.Ref<HTMLDivElement>;
-}
-
-/**
- * Memoized page wrapper component (Rule 5.2: enables early returns before computation)
- * Prevents re-rendering all pages when only one changes
- */
-const PageWrapper = memo(function PageWrapper({
-  page,
-  index,
-  pageCount,
-  config,
-  isActive,
-  canDelete,
-  canvasRef,
-  onSelect,
-  onDelete,
-  onMovePage,
-  onDuplicatePage,
-  onExport,
-  onCancel,
-  callbacks,
-  multiPageExport,
-  onStateChange,
-  onToolbarStateChange,
-  mobileBridge,
-  pageCollaborative,
-  pageRef,
-}: PageWrapperProps) {
-  const lastReportedRef = useRef<{
-    state: Record<string, unknown> | null;
-    actions: Record<string, unknown> | null;
-    selectedElement: string | null;
-  }>({ state: null, actions: null, selectedElement: null });
-
-  useEffect(() => {
-    if (!canvasRef) return undefined;
-
-    const checkRef = () => {
-      const ref = canvasRef.current;
-      if (ref && isActive) {
-        const state = ref.getState?.();
-        const actions = ref.getActions?.();
-        const selectedElement = ref.getSelectedElement?.() ?? null;
-        if (state && actions) {
-          const last = lastReportedRef.current;
-          if (
-            last.state !== state ||
-            last.actions !== actions ||
-            last.selectedElement !== selectedElement
-          ) {
-            lastReportedRef.current = { state, actions, selectedElement };
-            onStateChange(page.id, state, actions, selectedElement);
-          }
-        }
-      }
-    };
-
-    checkRef();
-
-    if (isActive) {
-      const interval = setInterval(checkRef, 200);
-      return () => clearInterval(interval);
-    }
-    return undefined;
-  }, [canvasRef, isActive, page.id, onStateChange]);
-
-  // Functional setState callback (Rule 5.5: stable callback)
-  const handleSelect = useCallback(() => {
-    onSelect(index);
-  }, [onSelect, index]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        onSelect(index);
-      }
-    },
-    [onSelect, index]
-  );
-
-  return (
-    <div
-      ref={pageRef}
-      data-page-index={index}
-      className={cn(
-        'heterogeneous-multipage__page-wrapper group relative cursor-pointer w-fit focus-visible:outline-2 focus-visible:outline-[var(--tanne,#0a2b1e)] focus-visible:outline-offset-1',
-        '[&_.zoomable-viewport-wrapper]:w-fit [&_.zoomable-viewport-container]:p-0 [&_.zoomable-viewport-container]:overflow-visible',
-        isActive && 'heterogeneous-multipage__page-wrapper--active'
-      )}
-      onClick={handleSelect}
-      role="button"
-      tabIndex={0}
-      onKeyDown={handleKeyDown}
-      aria-label={`Seite ${index + 1}${isActive ? ' (ausgewählt)' : ''}`}
-      aria-pressed={isActive}
-    >
-      <PageToolbar
-        pageIndex={index}
-        pageCount={pageCount}
-        isActive={isActive}
-        onMoveUp={() => onMovePage(page.id, 'up')}
-        onMoveDown={() => onMovePage(page.id, 'down')}
-        onDuplicate={() => onDuplicatePage(page.id)}
-        onDelete={canDelete ? () => onDelete(page.id) : undefined}
-      />
-
-      <ZoomableViewport
-        canvasWidth={config.canvas.width}
-        canvasHeight={config.canvas.height}
-        defaultZoom="fit"
-      >
-        <GenericCanvas
-          forwardedRef={canvasRef}
-          config={config}
-          initialProps={page.state}
-          onExport={onExport}
-          onCancel={onCancel}
-          callbacks={callbacks}
-          multiPageExport={multiPageExport}
-          mobileBridge={mobileBridge}
-          onToolbarStateChange={onToolbarStateChange}
-          collaborative={pageCollaborative}
-        />
-      </ZoomableViewport>
-    </div>
-  );
-});
 
 export function CanvasEditor(props: CanvasEditorProps) {
   console.log('[AutoSave][CanvasEditor] outer render', {
@@ -342,15 +125,7 @@ function CanvasEditorInner({
   const isExternalSidebar = externalSidebar && !isMobileBridge;
 
   // Track mobile web viewport (< 900px, not native bridge)
-  const [isMobileWeb, setIsMobileWeb] = useState(
-    typeof window !== 'undefined' && window.innerWidth < 900 && !isMobileBridge
-  );
-  useEffect(() => {
-    if (isMobileBridge) return;
-    const handleResize = () => setIsMobileWeb(window.innerWidth < 900);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isMobileBridge]);
+  const isMobileWeb = useMobileWebViewport(isMobileBridge);
 
   // Mobile web subsection state (for WebSubsectionBar)
   const [mobileWebSubsections, setMobileWebSubsections] = useState<
@@ -383,9 +158,7 @@ function CanvasEditorInner({
   });
 
   // Store loaded configs for rendering
-  const [loadedConfigs, setLoadedConfigs] = useState<Map<CanvasConfigId, FullCanvasConfig>>(
-    new Map()
-  );
+  const loadedConfigs = useLoadedConfigs({ pages, getConfigForPage });
 
   // Sidebar state - ONE shared sidebar for all pages
   // In mobile bridge mode, activeTab is controlled by native via mobileBridge.activeTab
@@ -405,32 +178,15 @@ function CanvasEditorInner({
   // Toolbar state - reported by active page's GenericCanvas
   const [toolbarState, setToolbarState] = useState<ToolbarStateReport | null>(null);
 
-  // Create refs array for all canvas instances
-  const canvasRefsRef = useRef<React.RefObject<GenericCanvasRef | null>[]>([]);
-
-  // Ensure refs array has entries for all pages (synchronous, before render)
-  // This must be synchronous to avoid race conditions where refs are accessed
-  // during render before useEffect would run
-  while (canvasRefsRef.current.length < pages.length) {
-    canvasRefsRef.current.push(React.createRef<GenericCanvasRef>());
-  }
-
-  // DOM refs to each PageWrapper root — used for IntersectionObserver scroll tracking
-  // and scroll-into-view from the thumbnail strip.
-  const pageDomRefsRef = useRef<React.RefObject<HTMLDivElement | null>[]>([]);
-  while (pageDomRefsRef.current.length < pages.length) {
-    pageDomRefsRef.current.push(React.createRef<HTMLDivElement>());
-  }
-  pageDomRefsRef.current.length = pages.length;
-
-  const pagesContainerRef = useRef<HTMLDivElement>(null);
-  const ignoreScrollSyncUntilRef = useRef(0);
+  // Imperative canvas + DOM ref arrays (grown synchronously before render)
+  const { canvasRefsRef, pageDomRefsRef, pagesContainerRef, ignoreScrollSyncUntilRef, canvasRefs } =
+    usePageRefs(pages.length);
 
   const [zoom, setZoom] = useState(1);
 
   useEffect(() => {
     pagesContainerRef.current?.style.setProperty('--canvas-zoom', String(zoom));
-  }, [zoom]);
+  }, [zoom, pagesContainerRef]);
 
   const pageCollaborativeAt = useCallback(
     (index: number) => {
@@ -440,35 +196,6 @@ function CanvasEditorInner({
     },
     [collaborative, getPageYMap]
   );
-
-  // Load configs for all pages
-  useEffect(() => {
-    const loadConfigs = async () => {
-      const configIdsToLoad = pages.map((p) => p.configId).filter((id) => !loadedConfigs.has(id));
-
-      if (configIdsToLoad.length === 0) return;
-
-      const newConfigs = new Map(loadedConfigs);
-      await Promise.all(
-        configIdsToLoad.map(async (configId) => {
-          try {
-            const config = await getConfigForPage(configId);
-            newConfigs.set(configId, config);
-          } catch (err) {
-            console.error(`Failed to load config for ${configId}:`, err);
-          }
-        })
-      );
-      setLoadedConfigs(newConfigs);
-    };
-
-    void loadConfigs();
-  }, [pages, loadedConfigs, getConfigForPage]);
-
-  // Get stable refs array for the hook
-  const canvasRefs = useMemo(() => {
-    return canvasRefsRef.current.slice(0, pages.length);
-  }, [pages.length]);
 
   // Detect presentation mode from initial config
   const isPresentationMode = initialConfigId.startsWith('pres-');
@@ -523,13 +250,16 @@ function CanvasEditorInner({
   );
 
   // Sidebar handlers - functional setState (Rule 5.5)
-  const handleTabClick = useCallback((tabId: SidebarTabId) => {
-    setActiveTab((current) => (current === tabId ? null : tabId));
-  }, []);
+  const handleTabClick = useCallback(
+    (tabId: SidebarTabId) => {
+      setActiveTab((current) => (current === tabId ? null : tabId));
+    },
+    [setActiveTab]
+  );
 
   const handlePanelClose = useCallback(() => {
     setActiveTab(null);
-  }, []);
+  }, [setActiveTab]);
 
   // Page selection handler - functional setState (Rule 5.5)
   const handlePageSelect = useCallback(
@@ -551,37 +281,17 @@ function CanvasEditorInner({
         block: 'center',
       });
     },
-    [setCurrentPageIndex]
+    [setCurrentPageIndex, ignoreScrollSyncUntilRef, pageDomRefsRef]
   );
 
-  // Track which page is most-visible in the viewport and mirror that as the
-  // active page (so the thumbnail strip's highlight follows the user's scroll).
-  useEffect(() => {
-    if (pages.length < 2) return undefined;
-    const refs = pageDomRefsRef.current;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (Date.now() < ignoreScrollSyncUntilRef.current) return;
-        let bestIdx = -1;
-        let bestRatio = 0;
-        entries.forEach((entry) => {
-          if (entry.intersectionRatio > bestRatio) {
-            bestRatio = entry.intersectionRatio;
-            const idxAttr = (entry.target as HTMLElement).dataset.pageIndex;
-            if (idxAttr != null) bestIdx = Number(idxAttr);
-          }
-        });
-        if (bestIdx !== -1) {
-          setCurrentPageIndex(bestIdx);
-        }
-      },
-      { root: null, threshold: [0, 0.25, 0.5, 0.75, 1] }
-    );
-    refs.forEach((r) => {
-      if (r.current) observer.observe(r.current);
-    });
-    return () => observer.disconnect();
-  }, [pages.length, setCurrentPageIndex]);
+  // Track most-visible page as active + auto-scroll to newly added pages
+  usePageScrollSync({
+    pagesLength: pages.length,
+    currentPageIndex,
+    setCurrentPageIndex,
+    pageDomRefsRef,
+    ignoreScrollSyncUntilRef,
+  });
 
   // Capture per-page PNG snapshots for the thumbnail strip
   const pageThumbnails = usePageThumbnails({
@@ -590,44 +300,10 @@ function CanvasEditorInner({
     currentPageIndex,
   });
 
-  // Page-level undo/redo via capture-phase keydown. We run BEFORE the
-  // per-page useCanvasUndoRedo handlers so that when the active page has no
-  // element-level undo available, we route Ctrl+Z to the page-array
-  // UndoManager (which restores deleted/duplicated/moved pages). If the
-  // active page DOES have element undo, we let the per-page handler take it.
+  // Page-level undo/redo via capture-phase keydown.
   const activePageCanUndo = toolbarState?.canUndo ?? false;
   const activePageCanRedo = toolbarState?.canRedo ?? false;
-  useEffect(() => {
-    if (isMobileBridge) return undefined;
-    const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
-      ) {
-        return;
-      }
-      const isMac = navigator.platform.toLowerCase().includes('mac');
-      const modKey = isMac ? e.metaKey : e.ctrlKey;
-      if (!modKey) return;
-      const k = e.key.toLowerCase();
-      const isUndo = k === 'z' && !e.shiftKey;
-      const isRedo = k === 'y' || (k === 'z' && e.shiftKey);
-      if (!isUndo && !isRedo) return;
-
-      if (isUndo && !activePageCanUndo && canUndoPageOp) {
-        e.preventDefault();
-        e.stopPropagation();
-        undoPageOp();
-      } else if (isRedo && !activePageCanRedo && canRedoPageOp) {
-        e.preventDefault();
-        e.stopPropagation();
-        redoPageOp();
-      }
-    };
-    window.addEventListener('keydown', handler, true);
-    return () => window.removeEventListener('keydown', handler, true);
-  }, [
+  usePageUndoRedoShortcuts({
     isMobileBridge,
     activePageCanUndo,
     activePageCanRedo,
@@ -635,33 +311,7 @@ function CanvasEditorInner({
     canRedoPageOp,
     undoPageOp,
     redoPageOp,
-  ]);
-
-  // Auto-scroll to a newly added page so the user sees the result of
-  // "Seite duplizieren" / "Seite hinzufügen" without manually scrolling.
-  // We only scroll when BOTH the page count AND the active index changed in
-  // the same render — that's the signature of an add/duplicate, not a plain
-  // scroll-driven IntersectionObserver update.
-  const prevPagesSignatureRef = useRef({
-    length: pages.length,
-    index: currentPageIndex,
   });
-  useEffect(() => {
-    const prev = prevPagesSignatureRef.current;
-    const lengthIncreased = pages.length > prev.length;
-    const indexChanged = currentPageIndex !== prev.index;
-    if (lengthIncreased && indexChanged) {
-      const target = pageDomRefsRef.current[currentPageIndex];
-      ignoreScrollSyncUntilRef.current = Date.now() + 800;
-      const t = setTimeout(() => {
-        target?.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 60);
-      prevPagesSignatureRef.current = { length: pages.length, index: currentPageIndex };
-      return () => clearTimeout(t);
-    }
-    prevPagesSignatureRef.current = { length: pages.length, index: currentPageIndex };
-    return undefined;
-  }, [pages.length, currentPageIndex]);
 
   // Callback for PageWrapper to report state changes
   const handlePageStateChange = useCallback(
@@ -704,54 +354,27 @@ function CanvasEditorInner({
     });
   }, []);
 
-  const toolbarHandlers = useMemo(() => {
-    const ref = canvasRefsRef.current[currentPageIndex];
-    return {
-      // Toolbar Undo/Redo: prefer per-page (element) history; if none, fall
-      // back to page-array history (restores deleted/duplicated/moved pages).
-      undo: () => {
-        if (toolbarState?.canUndo) {
-          ref?.current?.undo?.();
-        } else if (canUndoPageOp) {
-          undoPageOp();
-        }
-      },
-      redo: () => {
-        if (toolbarState?.canRedo) {
-          ref?.current?.redo?.();
-        } else if (canRedoPageOp) {
-          redoPageOp();
-        }
-      },
-      handleMoveLayer: (direction: 'up' | 'down') => ref?.current?.handleMoveLayer?.(direction),
-      handleColorSelect: (color: string) => ref?.current?.handleColorSelect?.(color),
-      handleOpacityChange: (id: string, opacity: number, type: string) =>
-        ref?.current?.handleOpacityChange?.(id, opacity, type),
-      handleFontSizeChange: (id: string, size: number) =>
-        ref?.current?.handleFontSizeChange?.(id, size),
-      handleAlign: (direction: AlignmentDirection) => ref?.current?.handleAlign?.(direction),
-    };
-  }, [
+  const toolbarHandlers = useToolbarHandlers({
+    canvasRefsRef,
     currentPageIndex,
-    toolbarState?.canUndo,
-    toolbarState?.canRedo,
+    toolbarState,
     canUndoPageOp,
     canRedoPageOp,
     undoPageOp,
     redoPageOp,
-  ]);
+  });
 
   const handleCaptureCanvas = useCallback(async () => {
     const ref = canvasRefsRef.current[currentPageIndex];
     if (!ref?.current) return null;
     return await ref.current.captureCanvas();
-  }, [currentPageIndex]);
+  }, [currentPageIndex, canvasRefsRef]);
 
   const handleCaptureCanvasForAi = useCallback(async () => {
     const ref = canvasRefsRef.current[currentPageIndex];
     if (!ref?.current) return null;
     return await ref.current.captureCanvasForAi();
-  }, [currentPageIndex]);
+  }, [currentPageIndex, canvasRefsRef]);
 
   const handleDownload = useCallback(
     (format: 'png' | 'jpeg' = 'png', pixelRatio = 2) => {
@@ -768,7 +391,7 @@ function CanvasEditorInner({
         document.body.removeChild(link);
       }
     },
-    [currentPageIndex]
+    [currentPageIndex, canvasRefsRef]
   );
 
   // Get active page data for shared sidebar
@@ -832,7 +455,7 @@ function CanvasEditorInner({
         return current;
       });
     }
-  }, [activeSelectedElement, activeConfig]);
+  }, [activeSelectedElement, activeConfig, setActiveTab]);
 
   // Mobile bridge: report tab changes to native
   useEffect(() => {
@@ -896,6 +519,7 @@ function CanvasEditorInner({
     return () => {
       useCanvasSidebarStore.getState().deactivate();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExternalSidebar]);
 
   // External sidebar store: sync tab state + auto-save status on changes
@@ -1039,6 +663,7 @@ function CanvasEditorInner({
       isMultiExporting,
       exportProgress,
       currentPageIndex,
+      canvasRefsRef,
       isPresentationMode,
       isPresentationExporting,
       presentationExportProgress,
@@ -1069,7 +694,7 @@ function CanvasEditorInner({
         <SectionComponent {...sectionProps} />
       </Suspense>
     );
-  }, [activeTab, activeConfig, activeState, activeActions, shareProps]);
+  }, [activeTab, activeConfig, activeState, activeActions, activeSelectedElement, shareProps]);
 
   // Check if all configs are loaded
   const allConfigsLoaded = pages.every((p) => loadedConfigs.has(p.configId));
@@ -1117,7 +742,7 @@ function CanvasEditorInner({
 
   const toolbarOnDelete = useMemo(
     () => (pageCount > 1 && currentPage ? () => removePage(currentPage.id) : undefined),
-    [pageCount, currentPage?.id, removePage]
+    [pageCount, currentPage, removePage]
   );
 
   const canvasText = ((activeState as Record<string, unknown> | null)?.headline as string) ?? '';
@@ -1164,13 +789,13 @@ function CanvasEditorInner({
     return pageLoadingIndicator;
   }
 
-  // Build sidebar elements (lazy-loaded to reduce initial bundle)
+  // Build sidebar elements (static within the already-async editor chunk)
   // In mobile bridge mode, native handles the tab bar
   // In external sidebar mode, web app sidebar handles the tab bar
   const tabBar =
     isMobileBridge || isExternalSidebar ? null : (
       <Suspense fallback={null}>
-        <LazySidebarTabBar
+        <SidebarTabBar
           tabs={visibleTabs}
           activeTab={activeTab}
           onTabClick={handleTabClick}
@@ -1186,13 +811,13 @@ function CanvasEditorInner({
   const panel = isExternalSidebar ? null : (
     <MobileSubsectionBridgeContext.Provider value={subsectionBridgeValue}>
       <Suspense fallback={sidebarLoadingFallback}>
-        <LazySidebarPanel
+        <SidebarPanel
           isOpen={activeTab !== null}
           onClose={handlePanelClose}
           bottomOffset={subsectionBarOffset}
         >
           {renderActiveSection()}
-        </LazySidebarPanel>
+        </SidebarPanel>
       </Suspense>
     </MobileSubsectionBridgeContext.Provider>
   );
@@ -1201,7 +826,7 @@ function CanvasEditorInner({
   const webSubsectionBar =
     isMobileWeb && !isExternalSidebar && mobileWebSubsections.length > 0 ? (
       <Suspense fallback={null}>
-        <LazyWebSubsectionBar
+        <WebSubsectionBar
           subsections={mobileWebSubsections}
           activeSubsection={mobileWebActiveSubsection}
           onSubsectionClick={setMobileWebActiveSubsection}
@@ -1340,5 +965,7 @@ function CanvasEditorInner({
     </UserUploadsProvider>
   );
 }
+
+export type { CanvasEditorProps, PageWrapperProps } from './types';
 
 export default CanvasEditor;

@@ -377,3 +377,15 @@ export function createSSEStream(res: Response): SSEWriter {
   SSEWriter.initHeaders(res);
   return new SSEWriter(res);
 }
+
+/**
+ * Emit an SSE `error` event, close the stream, and return the ts-rest
+ * handler result literal. Consolidates the
+ * `sse.send('error', …); sse.end(); return { status: 200, body: undefined }`
+ * pattern repeated across the chat-graph contract handlers.
+ */
+export function sseFail(sse: SSEWriter, error: string): { status: 200; body: undefined } {
+  sse.send('error', { error });
+  sse.end();
+  return { status: 200 as const, body: undefined };
+}
