@@ -290,6 +290,18 @@ export const useCanvasAutoSave = (
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [autoSaveStoreApi]);
 
+  // Expose a retry through the store so UI outside this hook (share section,
+  // sidebar tab bar) can re-run a failed save.
+  const generatedImageRef = useRef(generatedImage);
+  generatedImageRef.current = generatedImage;
+  useEffect(() => {
+    autoSaveStoreApi.getState().setRetryAutoSave(() => {
+      const image = generatedImageRef.current;
+      if (image) void performAutoSave(image);
+    });
+    return () => autoSaveStoreApi.getState().setRetryAutoSave(null);
+  }, [autoSaveStoreApi, performAutoSave]);
+
   // Return status by reading directly from store (no subscription = no re-renders)
   return {
     status: autoSaveStoreApi.getState().autoSaveStatus,
