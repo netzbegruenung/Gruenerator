@@ -43,12 +43,17 @@ router.get('/', async (req, res) => {
       [threadId]
     );
 
-    // Parse JSONB data if it comes back as string (some drivers do this)
-    const parseJsonField = (data: unknown): unknown => {
+    // Parse JSONB data if it comes back as string (some drivers do this).
+    // A parse failure means corrupted data, not "field absent" — log it so it
+    // doesn't masquerade as a message without tool calls.
+    const parseJsonField = (data: unknown, fieldName: string, messageId: unknown): unknown => {
       if (typeof data === 'string') {
         try {
           return JSON.parse(data);
         } catch {
+          log.warn(
+            `Corrupted JSONB in chat_messages.${fieldName} (message ${String(messageId)}): ${data.slice(0, 100)}`
+          );
           return null;
         }
       }
@@ -70,9 +75,9 @@ router.get('/', async (req, res) => {
     }
 
     // Build a map of toolCallId -> result for efficient lookup
-    const buildResultsMap = (toolResults: unknown): Map<string, unknown> => {
+    const buildResultsMap = (toolResults: unknown, messageId: unknown): Map<string, unknown> => {
       const map = new Map<string, unknown>();
-      const parsed = parseJsonField(toolResults);
+      const parsed = parseJsonField(toolResults, 'tool_results', messageId);
       if (!Array.isArray(parsed)) return map;
 
       for (const tr of parsed) {
@@ -85,8 +90,8 @@ router.get('/', async (req, res) => {
     };
 
     const formattedMessages = messages.map((msg) => {
-      const parsedToolResults = parseJsonField(msg.tool_results);
-      const parsedToolCalls = parseJsonField(msg.tool_calls);
+      const parsedToolResults = parseJsonField(msg.tool_results, 'tool_results', msg.id);
+      const parsedToolCalls = parseJsonField(msg.tool_calls, 'tool_calls', msg.id);
       const content = (msg.content as string) || '';
 
       // Extract metadata from tool_results if it's an object (not array)
@@ -118,7 +123,7 @@ router.get('/', async (req, res) => {
       if (parsedToolResults && typeof parsedToolResults === 'object') {
         if (Array.isArray(parsedToolResults)) {
           // It's tool invocation results
-          resultsMap = buildResultsMap(msg.tool_results);
+          resultsMap = buildResultsMap(msg.tool_results, msg.id);
         } else {
           // It's search metadata or user message metadata (e.g. roleName)
           const meta = parsedToolResults as Record<string, unknown>;

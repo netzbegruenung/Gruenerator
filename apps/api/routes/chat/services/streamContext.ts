@@ -31,6 +31,7 @@ import { getAIWorkerPool } from '../../../utils/getAIWorkerPool.js';
 import { NextcloudShareManager } from '../../../utils/integrations/nextcloud/shareManager.js';
 import { createLogger } from '../../../utils/logger.js';
 import { ThreadId, UserId } from '../../../utils/types/branded.js';
+import { withTimeout } from '../../../utils/withTimeout.js';
 import { getContextWindow } from '../agents/providers.js';
 
 import { getThreadAttachments } from './attachmentPersistenceService.js';
@@ -50,6 +51,12 @@ import type { ModelMessage, UIMessage } from 'ai';
 import type { Request } from 'express';
 
 const log = createLogger('chatGraphContractRouter');
+
+// Upper bound for best-effort external context calls (Mem0, Nextcloud) that
+// run before the LLM stream starts — they add to time-to-first-token, so a
+// hanging service must not stall the chat. On timeout the turn proceeds
+// without that context.
+const EXTERNAL_CONTEXT_TIMEOUT_MS = 3_000;
 
 type StreamBody = ServerInferRequest<typeof chatGraphContract.stream>['body'];
 type SSEStream = ReturnType<typeof createSSEStream>;
@@ -158,11 +165,18 @@ export async function buildStreamContext({
       : { documentIds: [] };
 
   // Filter wolkeFiles to refs whose shareLinkId is still owned + active for this user.
-  // Stale refs (deleted/deactivated share link) are dropped silently so the chat still works.
+  // Stale refs (deleted/deactivated share link) are dropped so the chat still
+  // works, but the client is told via a `warning` SSE event since the answer
+  // will lack the requested file context. The ownership check is bounded so a
+  // slow Nextcloud cannot delay time-to-first-token indefinitely.
   let wolkeFiles: typeof rawWolkeFiles = undefined;
   if (rawWolkeFiles?.length) {
     try {
-      const userShareLinks = await NextcloudShareManager.getShareLinks(userId);
+      const userShareLinks = await withTimeout(
+        NextcloudShareManager.getShareLinks(userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'wolke share-link check'
+      );
       const allowedIds = new Set(userShareLinks.filter((l) => l.is_active).map((l) => l.id));
       const filtered = rawWolkeFiles.filter((f) => allowedIds.has(f.shareLinkId));
       wolkeFiles = filtered.length > 0 ? filtered : undefined;
@@ -170,10 +184,18 @@ export async function buildStreamContext({
         log.warn(
           `[ChatGraph] Dropped ${rawWolkeFiles.length - filtered.length} stale wolkeFiles ref(s) for user ${userId}`
         );
+        sse.send('warning', {
+          code: 'wolke_refs_dropped',
+          message: `${rawWolkeFiles.length - filtered.length} Wolke-Datei(en) nicht mehr verfügbar — Antwort ohne diese Dateien.`,
+        });
       }
     } catch (err) {
       log.warn(`[ChatGraph] wolkeFiles ownership check failed; ignoring refs`, err);
       wolkeFiles = undefined;
+      sse.send('warning', {
+        code: 'wolke_check_failed',
+        message: 'Wolke-Dateien konnten nicht geprüft werden — Antwort ohne diese Dateien.',
+      });
     }
   }
 
@@ -324,14 +346,22 @@ export async function buildStreamContext({
     try {
       const memoryStartTime = Date.now();
 
-      const persona = await getCachedPersona(userId);
+      const persona = await withTimeout(
+        getCachedPersona(userId),
+        EXTERNAL_CONTEXT_TIMEOUT_MS,
+        'mem0 persona lookup'
+      );
       if (persona) {
         memoryContext = persona;
         memoriesUsed = [{ content: '[Persona]', category: null }];
         log.info(`[${requestId}] Using cached persona for memory context`);
       } else {
         const userQuery = extractTextContent(lastUserMessage.content);
-        const memories = await mem0.searchMemories(userQuery, userId, 5);
+        const memories = await withTimeout(
+          mem0.searchMemories(userQuery, userId, 5),
+          EXTERNAL_CONTEXT_TIMEOUT_MS,
+          'mem0 memory search'
+        );
         if (memories.length > 0) {
           memoriesUsed = memories.map((m) => ({
             content: m.memory,

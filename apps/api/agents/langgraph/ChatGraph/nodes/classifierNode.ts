@@ -179,7 +179,7 @@ async function classifierNodeImpl(state: ChatGraphState): Promise<Partial<ChatGr
     // überarbeite) match after a space — `\b` fails there since ä/ü aren't ASCII
     // word chars. `u` flag enables \p{L}.
     const boardModifyPattern =
-      /(?<![\p{L}])(f(?:ü|ue)ge?\s+\S.{0,40}?\s+hinzu|neue[rs]?\s+(karte|aufgabe|spalte|feld|ansicht)|erstelle\s+\S.{0,40}?\s*(aufgabe|karte|spalte|ansicht|feld)|erstelle\s+(aufgabe|karte|spalte|ansicht|feld)|aktualisiere|(?:ä|ae)ndere|erg(?:ä|ae)nze|(?:ü|ue)berarbeite|vereinfache|(?:um)?strukturiere|l(?:ö|oe)sche|entferne|verschiebe|sortiere|kommentiere|markiere|weise\s+\S.{0,40}?\s+zu\b|setze?\s+\S.{0,40}?\s+(?:f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig|als|auf|zu\b)|setze?\s+(f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig))/iu;
+      /(?<![\p{L}])(f(?:ü|ue)ge?\s+\S.{0,40}?\s+hinzu|neue[rs]?\s+(karte|aufgabe|spalte|feld|ansicht)|erstelle\s+\S.{0,40}?\s*(aufgabe|karte|spalte|ansicht|feld)|erstelle\s+(aufgabe|karte|spalte|ansicht|feld)|aktualisiere|(?:ä|ae)ndere|erg(?:ä|ae)nze|(?:ü|ue)berarbeite|vereinfache|(?:um)?strukturiere?|l(?:ö|oe)sche?|entferne|verschiebe|sortiere?|kommentiere|markiere|weise\s+\S.{0,40}?\s+zu\b|setze?\s+\S.{0,40}?\s+(?:f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig|als|auf|zu\b)|setze?\s+(f(?:ä|ae)llig|frist|status|zust(?:ä|ae)ndig))/iu;
     const docModifyPattern = DOC_MODIFY_PATTERN;
 
     // Open board in the boards-editor surface + modification keywords → live edit

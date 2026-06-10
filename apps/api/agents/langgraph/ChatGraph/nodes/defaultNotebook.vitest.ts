@@ -632,7 +632,7 @@ describe('buildCitations', () => {
     });
   });
 
-  it('skips results without URLs', () => {
+  it('keeps results without URLs (empty-string url sentinel)', () => {
     const results: SearchResult[] = [
       {
         source: 'research_synthesis',
@@ -650,8 +650,11 @@ describe('buildCitations', () => {
     ];
 
     const citations = buildCitations(results);
-    expect(citations).toHaveLength(1);
-    expect(citations[0].url).toBe('https://hamburg.de/1');
+    expect(citations).toHaveLength(2);
+    // Ordered by relevance: the URL-less synthesis result ranks first and
+    // carries the empty-string sentinel instead of being dropped.
+    expect(citations[0].url).toBe('');
+    expect(citations[1].url).toBe('https://hamburg.de/1');
   });
 
   it('limits to 8 citations', () => {

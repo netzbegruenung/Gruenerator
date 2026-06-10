@@ -1,6 +1,5 @@
 /**
  * Zod schemas for chat-graph endpoints.
- * Mirrors the schemas in apps/api/routes/chat/chatGraphController.ts — keep in sync.
  *
  * Note: Both /stream and /resume endpoints use SSE (Server-Sent Events) for
  * their responses, so the response schemas here only model the HTTP-level
@@ -40,6 +39,41 @@ export const connectFileRefSchema = z.object({
 });
 export type ConnectFileRef = z.infer<typeof connectFileRefSchema>;
 
+/**
+ * A single chat message on the wire. Two client formats reach the stream
+ * endpoint: the chat UI sends AI-SDK UIMessages (`parts` array), the voice
+ * surfaces send plain `{ role, content }` ModelMessages. Both pass through
+ * `convertToModelMessages` server-side, so the schema only pins down the
+ * envelope (role + at least one payload field) and lets the part/content
+ * internals through untouched (`passthrough`, so Zod doesn't strip the
+ * AI-SDK part fields it doesn't know about).
+ */
+export const chatWireMessageSchema = z
+  .object({
+    id: z.string().nullish(),
+    role: z.enum(['system', 'user', 'assistant']),
+    parts: z.array(z.object({ type: z.string() }).passthrough()).nullish(),
+    content: z.union([z.string(), z.array(z.unknown())]).nullish(),
+  })
+  .passthrough()
+  .refine((m) => m.parts != null || m.content != null, {
+    message: 'message must have either parts or content',
+  });
+export type ChatWireMessage = z.infer<typeof chatWireMessageSchema>;
+
+/**
+ * File attachment payload from the frontend (base64 data + metadata).
+ * Mirrors `ProcessedAttachment` in the ChatGraph types.
+ */
+export const chatAttachmentSchema = z.object({
+  name: z.string(),
+  type: z.string(),
+  size: z.number(),
+  data: z.string(),
+  isImage: z.boolean(),
+});
+export type ChatAttachment = z.infer<typeof chatAttachmentSchema>;
+
 // ── Request bodies ──────────────────────────────────────────────────────────
 //
 // All optional fields use `.nullish()` (= `.optional().nullable()`) so they
@@ -50,12 +84,12 @@ export type ConnectFileRef = z.infer<typeof connectFileRefSchema>;
 // `T | undefined` (it's only ~3 fields, so a transform helper is overkill).
 
 export const chatStreamBodySchema = z.object({
-  messages: z.array(z.unknown()),
+  messages: z.array(chatWireMessageSchema).min(1),
   agentId: z.string().nullish(),
   threadId: z.string().nullish(),
   enabledTools: z.record(z.boolean()).nullish(),
   modelId: z.string().nullish(),
-  attachments: z.array(z.unknown()).nullish(),
+  attachments: z.array(chatAttachmentSchema).nullish(),
   notebookIds: z.array(z.string()).nullish(),
   forcedTools: z.array(z.string()).nullish(),
   documentIds: z.array(z.string()).nullish(),
