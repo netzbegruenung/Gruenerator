@@ -475,6 +475,12 @@ export default function DocumentScreen() {
             }
           }}
           onAiReviewPendingChange={(p) => store.getState().setAiReviewPending(p)}
+          onAiAcceptFailed={() =>
+            Alert.alert(
+              'Änderung nicht synchronisiert',
+              'Die KI-Änderung wurde lokal übernommen, konnte aber nicht an andere Bearbeiter:innen übertragen werden. Bitte lade das Dokument neu und versuche es erneut.'
+            )
+          }
           proxyFetch={handleProxyFetch}
           wsOpen={handleWsOpen}
           wsSend={handleWsSend}

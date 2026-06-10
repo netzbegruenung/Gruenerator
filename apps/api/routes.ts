@@ -276,7 +276,6 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { urlController: crawlUrlRouter } = await import('./routes/crawl/index.js');
   const { default: grueneratorChatRoute } = await import('./routes/chat/grueneratorChat.js');
   const { default: chatServiceRouter } = await import('./routes/chat/index.js');
-  const { default: chatGraphRouter } = await import('./routes/chat/chatGraphController.js');
   const { default: threadSharingRouter } = await import('./routes/chat/threadSharingController.js');
   const { default: gruenOMatRouter } = await import('./routes/gruenomat/gruenOMatController.js');
   const { default: mediaRouter } = await import('./routes/media/mediaController.js');
@@ -398,17 +397,15 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/chat-service/threads', requireAuth);
   app.use('/api/chat-graph', requireAuth);
   // /api/chat-graph/stream is in CUSTOM_BODY_PARSER_PATHS (bodyParserConfig.ts)
-  // so the global 10mb body parser is skipped. The legacy chatGraphController
-  // installs its own 50mb parser at controller mount, but ts-rest's contract
-  // router (mounted next) runs BEFORE the legacy router and would otherwise
-  // see req.body === undefined and 400. Install the same 50mb parser scoped
-  // to /api/chat-graph here so both routers receive a parsed body.
+  // so the global 10mb body parser is skipped. Install a 50mb parser scoped
+  // to /api/chat-graph here so the contract router receives a parsed body
+  // (large payloads: base64 image attachments).
   app.use('/api/chat-graph', express.json({ limit: '50mb' }));
+  app.use('/api/chat-graph', aiGenerationLimiter);
   mountThreadsContractRouter(app);
   mountChatGraphContractRouter(app);
   app.use('/api/chat-service', authenticatedReadLimiter, chatServiceRouter);
   app.use('/api/chat-service/threads', authenticatedReadLimiter, threadSharingRouter);
-  app.use('/api/chat-graph', aiGenerationLimiter, chatGraphRouter);
   app.use('/api/gruen-o-mat', gruenOMatRouter);
   app.use('/api/dreizeilen_canvas', standardMutationLimiter, sharepicDreizeilenCanvasRoute);
   app.use('/api/zitat_canvas', standardMutationLimiter, zitatSharepicCanvasRoute);

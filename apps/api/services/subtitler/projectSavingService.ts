@@ -80,8 +80,21 @@ async function saveSubtitledVideo(
   await fsPromises.mkdir(projectDir, { recursive: true });
 
   if (existingSubtitledPath) {
-    const oldPath = path.join(PROJECTS_DIR, existingSubtitledPath);
-    await fsPromises.unlink(oldPath).catch(() => {});
+    // Defense in depth: the path comes from the DB and is written by this
+    // service, but never unlink outside PROJECTS_DIR even if a row was
+    // tampered with.
+    const oldPath = path.resolve(PROJECTS_DIR, existingSubtitledPath);
+    if (!oldPath.startsWith(path.resolve(PROJECTS_DIR) + path.sep)) {
+      log.error(`Refusing to delete path outside projects dir: ${existingSubtitledPath}`);
+    } else {
+      await fsPromises
+        .unlink(oldPath)
+        .catch((err: unknown) =>
+          log.debug(
+            `Old subtitled video cleanup skipped: ${err instanceof Error ? err.message : String(err)}`
+          )
+        );
+    }
   }
 
   await fsPromises.copyFile(outputPath, persistentPath);

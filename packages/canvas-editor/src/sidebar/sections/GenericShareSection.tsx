@@ -16,6 +16,7 @@ import { IoCheckmarkOutline, IoShareOutline } from 'react-icons/io5';
 import { Skeleton } from '@gruenerator/ui';
 
 import { useAutoSaveStore, useAutoSaveStoreApi } from '../../stores/useAutoSaveStore';
+import { waitForAutoSave } from '../../stores/waitForAutoSave';
 import { SubsectionTabBar } from '../SubsectionTabBar';
 
 export interface GenericShareSectionProps {
@@ -31,6 +32,7 @@ export interface GenericShareSectionProps {
   onShareAllPages?: () => Promise<void>;
   isMultiExporting?: boolean;
   exportProgress?: { current: number; total: number };
+  exportError?: string | null;
   onDownloadPptx?: () => Promise<void>;
   onDownloadPdf?: () => Promise<void>;
 }
@@ -113,6 +115,7 @@ function DownloadShareSubsection({
   onShareAllPages,
   isMultiExporting = false,
   exportProgress,
+  exportError,
   onDownloadPptx,
   onDownloadPdf,
 }: Omit<GenericShareSectionProps, 'canvasType'>) {
@@ -139,8 +142,12 @@ function DownloadShareSubsection({
     }
   }, [shareToken, autoSaveStoreApi]);
 
+  // Remembers the last export attempt so a failed export can be retried
+  const lastExportOpRef = useRef<(() => Promise<void> | void) | null>(null);
+
   const handleSingleDownload = async () => {
     dlDropdown.setOpen(false);
+    lastExportOpRef.current = handleSingleDownload;
     setDownloadState('capturing');
     try {
       onCaptureCanvas();
@@ -157,10 +164,25 @@ function DownloadShareSubsection({
 
   const handleDownloadAllZip = async () => {
     dlDropdown.setOpen(false);
+    lastExportOpRef.current = handleDownloadAllZip;
     if (onDownloadAllZip) {
       await onDownloadAllZip();
     }
   };
+
+  const handleDownloadPptx = onDownloadPptx
+    ? async () => {
+        lastExportOpRef.current = onDownloadPptx;
+        await onDownloadPptx();
+      }
+    : undefined;
+
+  const handleDownloadPdf = onDownloadPdf
+    ? async () => {
+        lastExportOpRef.current = onDownloadPdf;
+        await onDownloadPdf();
+      }
+    : undefined;
 
   const handleDownloadClick = async () => {
     if (isMultiPage) {
@@ -297,10 +319,10 @@ function DownloadShareSubsection({
                     </>
                   )}
                 </button>
-                {onDownloadPptx && (
+                {handleDownloadPptx && (
                   <button
                     className={dropdownOption}
-                    onClick={onDownloadPptx}
+                    onClick={handleDownloadPptx}
                     disabled={isMultiExporting}
                     role="menuitem"
                     type="button"
@@ -309,10 +331,10 @@ function DownloadShareSubsection({
                     <span>PowerPoint (PPTX)</span>
                   </button>
                 )}
-                {onDownloadPdf && (
+                {handleDownloadPdf && (
                   <button
                     className={dropdownOption}
-                    onClick={onDownloadPdf}
+                    onClick={handleDownloadPdf}
                     disabled={isMultiExporting}
                     role="menuitem"
                     type="button"
@@ -396,6 +418,21 @@ function DownloadShareSubsection({
         </div>
       )}
 
+      {exportError && !isMultiExporting && (
+        <div className="flex items-center gap-2 text-sm text-red-600">
+          <span>{exportError}</span>
+          {lastExportOpRef.current && (
+            <button
+              className="bg-transparent border-none p-0 cursor-pointer text-sm font-medium text-primary-600 hover:underline"
+              onClick={() => void lastExportOpRef.current?.()}
+              type="button"
+            >
+              Erneut versuchen
+            </button>
+          )}
+        </div>
+      )}
+
       {downloadState === 'success' && autoSaveStatus === 'saving' && (
         <div className="flex items-center gap-2 text-sm text-foreground-muted">
           <Skeleton className="size-3 rounded-full" />
@@ -416,9 +453,16 @@ function DownloadShareSubsection({
         </>
       )}
 
-      {downloadState === 'success' && autoSaveStatus === 'error' && (
+      {autoSaveStatus === 'error' && (
         <div className="flex items-center gap-2 text-sm text-red-600">
           <span>Fehler beim Speichern</span>
+          <button
+            className="bg-transparent border-none p-0 cursor-pointer text-sm font-medium text-primary-600 hover:underline"
+            onClick={() => autoSaveStoreApi.getState().retryAutoSave?.()}
+            type="button"
+          >
+            Erneut versuchen
+          </button>
         </div>
       )}
     </div>
@@ -444,20 +488,7 @@ function TemplateSubsection({
 
       if (!tokenToUse) {
         onCaptureCanvas();
-        await new Promise<void>((resolve, reject) => {
-          const checkStatus = () => {
-            const status = autoSaveStoreApi.getState().autoSaveStatus;
-            const token = autoSaveStoreApi.getState().autoSavedShareToken;
-            if (status === 'saved' && token) {
-              resolve();
-            } else if (status === 'error') {
-              reject(new Error('Auto-save failed'));
-            } else {
-              setTimeout(checkStatus, 100);
-            }
-          };
-          setTimeout(checkStatus, 200);
-        });
+        await waitForAutoSave(autoSaveStoreApi);
         tokenToUse = autoSaveStoreApi.getState().autoSavedShareToken;
       }
 
@@ -545,6 +576,7 @@ export function GenericShareSection({
   onShareAllPages,
   isMultiExporting,
   exportProgress,
+  exportError,
   onDownloadPptx,
   onDownloadPdf,
 }: GenericShareSectionProps) {
@@ -567,6 +599,7 @@ export function GenericShareSection({
             onShareAllPages={onShareAllPages}
             isMultiExporting={isMultiExporting}
             exportProgress={exportProgress}
+            exportError={exportError}
             onDownloadPptx={onDownloadPptx}
             onDownloadPdf={onDownloadPdf}
           />
@@ -598,6 +631,9 @@ export function GenericShareSection({
       onShareAllPages,
       isMultiExporting,
       exportProgress,
+      exportError,
+      onDownloadPptx,
+      onDownloadPdf,
     ]
   );
 

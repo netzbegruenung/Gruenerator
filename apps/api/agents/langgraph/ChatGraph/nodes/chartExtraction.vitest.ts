@@ -11,7 +11,7 @@ import type { ChartData } from '../types.js';
 
 /**
  * Extract chart data from response text.
- * Mirrors the extraction logic in chatGraphController.ts.
+ * Mirrors extractChartFromResponse in routes/chat/services/confirmActionService.ts.
  */
 function extractChartData(text: string): ChartData | null {
   const chartMatch = text.match(/```chart\s*\n?([\s\S]*?)```/);

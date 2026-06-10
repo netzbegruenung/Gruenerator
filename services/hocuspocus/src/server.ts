@@ -31,7 +31,6 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
     async onAuthenticate(data) {
       try {
         const { documentName, requestHeaders, requestParameters, token } = data;
-        const connection = (data as unknown as { connection: unknown }).connection;
 
         log.info(
           `[Auth-Hook] onAuthenticate called for document: ${documentName}, hasToken: ${!!token}`
@@ -41,7 +40,6 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
           documentName,
           requestHeaders,
           requestParameters,
-          connection,
           token,
         });
 
@@ -53,6 +51,11 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
         }
 
         log.info(`[Auth] User ${authResult.userId} authenticated for document ${documentName}`);
+
+        // Server-side write enforcement: Hocuspocus only blocks incoming sync
+        // writes when connectionConfig.readOnly is set — the context flag below
+        // is informational and never consulted by the framework.
+        data.connectionConfig.readOnly = authResult.readOnly || false;
 
         return {
           user: {
@@ -163,10 +166,13 @@ export function createHocuspocusServer(config: HocuspocusConfig): Server {
       log.info(`Hocuspocus server listening on ${host}:${port}`);
       log.info('WebSocket endpoint: ws://' + host + ':' + port);
 
-      // One-time backfill: regenerate previews with fixed heading conversion
-      persistence.backfillAllPreviews().catch((err) => {
-        log.error(`[Backfill] Error during startup backfill: ${err}`);
-      });
+      // Full preview backfill loads every document from Postgres — opt-in only,
+      // for one-off repairs. Previews stay fresh via updateContentPreview on store.
+      if (process.env.HOCUSPOCUS_BACKFILL_PREVIEWS === 'true') {
+        persistence.backfillAllPreviews().catch((err) => {
+          log.error(`[Backfill] Error during startup backfill: ${err}`);
+        });
+      }
     },
 
     async onStateless(_data) {},

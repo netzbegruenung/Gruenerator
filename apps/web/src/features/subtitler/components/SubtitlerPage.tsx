@@ -303,7 +303,7 @@ const SubtitlerPage = (): React.ReactElement => {
         currentUploadRef.current = upload;
         upload.start();
       } catch (err) {
-        setError('Upload konnte nicht gestartet werden.');
+        setError(err instanceof Error ? err.message : 'Upload konnte nicht gestartet werden.');
         setIsUploading(false);
         currentUploadRef.current = null;
       }

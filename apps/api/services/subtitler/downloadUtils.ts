@@ -348,67 +348,84 @@ async function processVideoWithSubtitles(
       log.debug(`[FFmpeg] Applied VAAPI filter chain with subtitles`);
     } else if (assFilePath) {
       const fontDir = path.dirname(tempFontPath || assFilePath);
-      command.videoFilters([`subtitles=${assFilePath}:fontsdir=${fontDir}`]);
+      command.videoFilters([hwaccel.buildSubtitlesFilter(assFilePath, fontDir)]);
       log.debug(
         `[FFmpeg] Applied ASS filter with font directory: ${assFilePath}:fontsdir=${fontDir}`
       );
     }
 
+    // ffmpeg fires progress events many times per second; unserialized
+    // Redis writes can land after the terminal del/complete write and
+    // resurrect the key as "exporting". Throttle and stop writing once
+    // the job is finished.
+    let lastProgressWrite = 0;
+    let exportFinished = false;
+
     command
       .on('start', (_cmd: string) => {
         log.debug('[FFmpeg] Processing started');
       })
-      .on('progress', async (progress: { percent?: number; timemark?: string }) => {
+      .on('progress', (progress: { percent?: number; timemark?: string }) => {
         const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
         log.debug('Fortschritt:', `${progressPercent}%`);
+
+        const now = Date.now();
+        if (exportFinished || now - lastProgressWrite < 500) return;
+        lastProgressWrite = now;
 
         const progressData = {
           status: 'exporting',
           progress: progressPercent,
           timeRemaining: progress.timemark,
         };
-        try {
-          await redisClient.set(`export:${exportToken}`, JSON.stringify(progressData), {
-            EX: 60 * 60,
-          });
-        } catch (redisError: unknown) {
-          log.warn(
-            'Redis Progress Update Fehler:',
-            redisError instanceof Error ? redisError.message : redisError
+        redisClient
+          .set(`export:${exportToken}`, JSON.stringify(progressData), { EX: 60 * 60 })
+          .catch((redisError: unknown) =>
+            log.warn(
+              'Redis Progress Update Fehler:',
+              redisError instanceof Error ? redisError.message : redisError
+            )
           );
-        }
       })
       .on('error', (err: Error) => {
+        exportFinished = true;
         log.error('FFmpeg Fehler:', err);
-        redisClient
-          .del(`export:${exportToken}`)
-          .catch((delErr: unknown) =>
+
+        // Await all cleanup before rejecting so temp ASS/font files are
+        // not orphaned when the surrounding promise chain unwinds.
+        void (async () => {
+          try {
+            await redisClient.del(`export:${exportToken}`);
+          } catch (delErr: unknown) {
             log.warn(
               `[FFmpeg Error Cleanup] Failed to delete progress key export:${exportToken}`,
               delErr
-            )
-          );
-
-        if (assFilePath) {
-          assService
-            .cleanupTempFile(assFilePath)
-            .catch((cleanupErr: unknown) =>
-              log.warn('[FFmpeg Error] ASS cleanup failed:', cleanupErr)
             );
-          if (tempFontPath) {
-            fsPromises
-              .unlink(tempFontPath)
-              .catch((fontErr: unknown) =>
+          }
+
+          if (assFilePath) {
+            try {
+              await assService.cleanupTempFile(assFilePath);
+            } catch (cleanupErr: unknown) {
+              log.warn('[FFmpeg Error] ASS cleanup failed:', cleanupErr);
+            }
+            if (tempFontPath) {
+              try {
+                await fsPromises.unlink(tempFontPath);
+              } catch (fontErr: unknown) {
                 log.warn(
                   '[FFmpeg Error] Font cleanup failed:',
                   fontErr instanceof Error ? fontErr.message : fontErr
-                )
-              );
+                );
+              }
+            }
           }
-        }
-        reject(err);
+
+          reject(err);
+        })();
       })
       .on('end', async () => {
+        exportFinished = true;
         log.debug('FFmpeg Verarbeitung abgeschlossen');
 
         try {
@@ -654,15 +671,19 @@ function processSubtitleSegments(subtitles: string): SubtitleSegment[] {
       if (lines.length < 2) return null;
 
       const timeLine = lines[0].trim();
-      const timeMatch = timeLine.match(/^(\d{1,2}):(\d{2})\.(\d)\s*-\s*(\d{1,2}):(\d{2})\.(\d)$/);
+      // Tolerant of 1–2 fractional digits (tenths/centiseconds); extra
+      // digits are truncated. Emitters write 1 digit until Phase B.
+      const timeMatch = timeLine.match(
+        /^(\d{1,2}):(\d{2})\.(\d{1,2})\d*\s*-\s*(\d{1,2}):(\d{2})\.(\d{1,2})\d*$/
+      );
       if (!timeMatch) return null;
 
       let startMin = parseInt(timeMatch[1]);
       let startSec = parseInt(timeMatch[2]);
-      const startFrac = parseInt(timeMatch[3]);
+      const startFrac = parseInt(timeMatch[3]) / 10 ** timeMatch[3].length;
       let endMin = parseInt(timeMatch[4]);
       let endSec = parseInt(timeMatch[5]);
-      const endFrac = parseInt(timeMatch[6]);
+      const endFrac = parseInt(timeMatch[6]) / 10 ** timeMatch[6].length;
 
       if (startSec >= 60) {
         startMin += Math.floor(startSec / 60);
@@ -673,8 +694,8 @@ function processSubtitleSegments(subtitles: string): SubtitleSegment[] {
         endSec = endSec % 60;
       }
 
-      const startTime = startMin * 60 + startSec + startFrac / 10;
-      const endTime = endMin * 60 + endSec + endFrac / 10;
+      const startTime = startMin * 60 + startSec + startFrac;
+      const endTime = endMin * 60 + endSec + endFrac;
 
       if (startTime >= endTime) return null;
 

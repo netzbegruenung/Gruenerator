@@ -14,7 +14,7 @@
  * | Tab ID      | Image Templates          | Color Templates           |
  * |-------------|--------------------------|---------------------------|
  * | background  | ImageBackgroundSection   | BackgroundSection         |
- * | text        | UnifiedTextSection       | UnifiedTextSection        |
+ * | text        | CombinedTextSection      | CombinedTextSection       |
  * | elements    | AssetsSection            | AssetsSection             |
  * | share       | GenericShareSection      | GenericShareSection       |
  */
@@ -93,7 +93,7 @@ export type BackgroundType = 'image' | 'color';
 
 /**
  * Configuration for a text field in the unified text section.
- * Templates declare their text fields, and UnifiedTextSection renders them dynamically.
+ * Templates declare their text fields, and CombinedTextSection renders them dynamically.
  */
 export interface TextFieldConfig {
   /** State key for this text field (e.g., 'quote', 'line1') */

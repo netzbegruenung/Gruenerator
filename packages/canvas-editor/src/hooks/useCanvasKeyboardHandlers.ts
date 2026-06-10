@@ -57,6 +57,20 @@ export function useCanvasKeyboardHandlers<TState extends Partial<BaseCanvasState
       const currentState = stateRef.current;
       const currentActions = actionsRef.current;
 
+      // ESCAPE — deselect (skipped while typing in an inline editor or input)
+      if (e.key === 'Escape') {
+        const target = e.target as HTMLElement | null;
+        if (
+          target instanceof HTMLInputElement ||
+          target instanceof HTMLTextAreaElement ||
+          target?.isContentEditable
+        ) {
+          return;
+        }
+        if (selectedElement) setSelectedElement(null);
+        return;
+      }
+
       // DUPLICATE (Ctrl+D) — copy + paste in one step
       if (isCtrlOrCmd && e.key === 'd' && selectedElement) {
         e.preventDefault();
