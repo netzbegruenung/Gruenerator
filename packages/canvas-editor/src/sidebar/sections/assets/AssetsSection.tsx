@@ -3,8 +3,8 @@ import { FaPuzzlePiece, FaSearch, FaShapes } from 'react-icons/fa';
 import { HiSparkles } from 'react-icons/hi2';
 import { PiFrameCornersFill, PiSmileyWink, PiTagFill } from 'react-icons/pi';
 
+import { useIconCatalog } from '../../../hooks/useIconCatalog';
 import { LOGO_ASSETS, type AssetInstance } from '../../../utils/canvasAssets';
-import { getIconsSync, loadAllIcons } from '../../../utils/canvasIcons';
 import { ALL_ILLUSTRATIONS } from '../../../utils/illustrations/fullCatalog';
 import { UNDRAW_FEATURED } from '../../../utils/illustrations/registry';
 import { prefetchBackground } from '../../../utils/illustrations/svgCache';
@@ -33,9 +33,6 @@ import type { FrameClipType, FrameInstance } from '../../../utils/frameUtils';
 import type { IllustrationInstance } from '../../../utils/illustrations/types';
 
 import { cn } from '../../../utils/cn';
-
-// Preload icons as soon as this module is imported (idempotent, cached)
-loadAllIcons();
 
 export interface ExtendedAssetsSectionProps {
   recommendedAssetIds?: string[];
@@ -105,6 +102,9 @@ export function AssetsSection(props: ExtendedAssetsSectionProps) {
 
   const hasAssetsFeature = onAddAsset !== undefined;
   const hasIconsFeature = selectedIcons !== undefined && onIconToggle !== undefined;
+  // Loads the Iconify catalog when the section mounts (React Query, cached)
+  // and re-renders the icon subsection + search once it arrives.
+  const { data: iconCatalog = [] } = useIconCatalog();
   const hasBadgesFeature =
     onAddPillBadge !== undefined || onAddCircleBadge !== undefined || onAddBalken !== undefined;
   const hasShapesFeature = onAddShape !== undefined;
@@ -433,7 +433,7 @@ function MobileView({
   }
 
   if (hasIconsFeature) {
-    const hasMoreIcons = (getIconsSync()?.length ?? 0) > 4;
+    const hasMoreIcons = iconCatalog.length > 4;
     subsections.push({
       id: 'icons',
       icon: HiSparkles,
