@@ -34,14 +34,18 @@ describe('buildCitations', () => {
     expect(buildCitations([])).toEqual([]);
   });
 
-  it('filters out results without a URL', () => {
+  it('includes results without a URL (URL is metadata, not a gate)', () => {
+    // Private-file sources (Wolke, Connect) have no public URL but must still
+    // be citable; URL-less citations carry the empty-string sentinel.
     const results: SearchResult[] = [
-      makeResult({ url: undefined }),
+      makeResult({ url: undefined, title: 'Wolke-Datei' }),
       makeResult({ url: 'https://gruene.de/test' }),
     ];
     const citations = buildCitations(results);
-    expect(citations).toHaveLength(1);
-    expect(citations[0].url).toBe('https://gruene.de/test');
+    expect(citations).toHaveLength(2);
+    const urls = citations.map((c) => c.url);
+    expect(urls).toContain('https://gruene.de/test');
+    expect(urls).toContain('');
   });
 
   it('limits to 8 citations max', () => {
@@ -184,7 +188,7 @@ describe('buildCitations — enriched fields', () => {
     expect(citations[0].similarityScore).toBe(0);
   });
 
-  it('preserves all enriched fields across mixed results', () => {
+  it('groups chunks of the same document and preserves enriched fields', () => {
     const results = [
       makeResult({
         url: 'https://gruene.de/a',
@@ -209,20 +213,18 @@ describe('buildCitations — enriched fields', () => {
       }),
     ];
     const citations = buildCitations(results);
-    expect(citations).toHaveLength(3);
+    // The two doc-1 chunks collapse into one citation (grouped by documentId);
+    // the representative chunk drives the enriched fields.
+    expect(citations).toHaveLength(2);
 
     expect(citations[0].documentId).toBe('doc-1');
     expect(citations[0].chunkIndex).toBe(0);
     expect(citations[0].similarityScore).toBe(0.95);
     expect(citations[0].collectionId).toBe('deutschland');
 
-    expect(citations[1].documentId).toBe('doc-1');
-    expect(citations[1].chunkIndex).toBe(2);
-    expect(citations[1].similarityScore).toBe(0.72);
-
-    expect(citations[2].documentId).toBeUndefined();
-    expect(citations[2].similarityScore).toBeUndefined();
-    expect(citations[2].collectionId).toBeUndefined();
+    expect(citations[1].documentId).toBeUndefined();
+    expect(citations[1].similarityScore).toBeUndefined();
+    expect(citations[1].collectionId).toBeUndefined();
   });
 });
 

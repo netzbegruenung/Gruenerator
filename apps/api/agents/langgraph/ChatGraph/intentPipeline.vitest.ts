@@ -54,6 +54,7 @@ const ALL_INTENTS: SearchIntent[] = [
   'save_as_doc',
   'modify_doc',
   'edit_current_doc',
+  'edit_current_board',
   'modify_board',
   'share_doc',
   'direct',
@@ -305,6 +306,8 @@ describe('every SearchIntent has a handler path', () => {
     modify_doc: 'routes to respond, then confirm_action SSE + pendingActionStore',
     edit_current_doc:
       'routes to respond, controller emits trigger_doc_edit SSE for BlockNote AI live edit',
+    edit_current_board:
+      'controller emits trigger_board_action SSE for the boards assistant live edit (client-side executor)',
     modify_board: 'routes to respond, then confirm_action SSE + pendingActionStore',
     share_doc: 'short-circuits before LLM — resolves group, emits confirm_action SSE',
   };

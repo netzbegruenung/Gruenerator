@@ -13,7 +13,6 @@ import {
 import { getParam } from '../../utils/params.js';
 
 import { getAgent, loadAgents, getDefaultAgentId } from './agents/agentLoader.js';
-import chatStreamRouter from './chatStreamController.js';
 import confirmRouter from './confirmController.js';
 import messagesRouter from './messagesController.js';
 import notebookStreamRouter from './notebookStreamController.js';
@@ -24,7 +23,6 @@ import threadsRouter from './threadsController.js';
 
 const router = express.Router();
 
-router.use('/stream', chatStreamRouter);
 router.use('/threads', threadsRouter);
 router.use('/messages', messagesRouter);
 router.use('/notebook/stream', notebookStreamRouter);

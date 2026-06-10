@@ -1,22 +1,18 @@
 /**
  * ts-rest contract router for /api/chat-graph
  *
- * Wraps the SSE endpoints in chatGraphController.ts using a
- * contract-driven router from @ts-rest/express.
+ * Contract-driven router from @ts-rest/express; sole handler for the
+ * chat-graph SSE endpoints (stream, resume).
  *
  * Because both endpoints produce Server-Sent Events (SSE), the ts-rest
  * handler performs body validation and then delegates the actual response
- * to the same SSE helpers used by the legacy controller. The contract
- * provides typed request-body validation; the SSE stream itself is opaque
- * from ts-rest's perspective.
+ * to the SSE helpers. The contract provides typed request-body validation;
+ * the SSE stream itself is opaque from ts-rest's perspective.
  *
  * The handlers are kept thin:
  * - `stream` builds the request context (./services/streamContext) and then
  *   runs Stages 1–4 (classify → intent → response → persist) inline.
  * - `resume` delegates wholesale to ./services/resumePipeline.
- *
- * Mount this BEFORE the legacy router in routes.ts so ts-rest matches
- * its own routes first; unmatched paths fall through to the legacy router.
  */
 
 import { chatGraphContract } from '@gruenerator/contracts';
@@ -513,6 +509,12 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
             intent: finalState.intent,
           }
         );
+        if (resolution.unknownModelId) {
+          sse.send('warning', {
+            code: 'unknown_model_id',
+            message: `Modell "${resolution.unknownModelId}" ist nicht verfügbar — Standardmodell wird verwendet.`,
+          });
+        }
 
         const prunedValidMessages = pruneMessages(
           validMessages as Parameters<typeof pruneMessages>[0]
@@ -650,7 +652,10 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
       }
 
       // === Stage 4: Persist & complete ===
-      await persistAssistantResponse({
+      // Kicked off here but awaited only after sse.end(): the client already
+      // has the full response, so a slow Postgres write must not delay the
+      // done event. persistAssistantResponse catches its own errors.
+      const persistPromise = persistAssistantResponse({
         threadId: actualThreadId!,
         userId,
         fullText,
@@ -726,6 +731,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
 
       log.info(`[ChatGraph] Complete: ${fullText.length} chars in ${totalTimeMs}ms`);
       sse.end();
+      await persistPromise;
       return { status: 200 as const, body: undefined };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -754,7 +760,6 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
 
 /**
  * Mount the ts-rest contract router onto an Express app instance.
- * Call this from routes.ts BEFORE mounting the legacy chatGraphController router.
  */
 export function mountChatGraphContractRouter(app: Application): void {
   createExpressEndpoints(chatGraphContract, chatGraphContractRouter, app, {
