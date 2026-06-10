@@ -189,10 +189,18 @@ function CanvasEditorInner({
   }, [zoom, pagesContainerRef]);
 
   const pageCollaborativeAt = useCallback(
-    (index: number) => {
+    (index: number, pageId?: string, isActivePage?: boolean) => {
       if (!collaborative) return undefined;
       const pageYMap = getPageYMap(index);
-      return pageYMap ? { pageYMap, isSynced: collaborative.isSynced } : undefined;
+      return pageYMap
+        ? {
+            pageYMap,
+            isSynced: collaborative.isSynced,
+            provider: collaborative.provider ?? null,
+            pageId: pageId ?? null,
+            publishSelection: isActivePage ?? false,
+          }
+        : undefined;
     },
     [collaborative, getPageYMap]
   );
@@ -947,7 +955,7 @@ function CanvasEditorInner({
                 onStateChange={handlePageStateChange}
                 onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
                 mobileBridge={isActive ? mobileBridge : undefined}
-                pageCollaborative={pageCollaborativeAt(index)}
+                pageCollaborative={pageCollaborativeAt(index, page.id, isActive)}
               />
             );
           })}

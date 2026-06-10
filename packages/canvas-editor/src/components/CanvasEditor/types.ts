@@ -27,6 +27,8 @@ export interface CanvasEditorProps {
   collaborative?: {
     ydoc: import('yjs').Doc;
     isSynced: boolean;
+    /** Hocuspocus provider — enables awareness features (remote selections). */
+    provider?: import('@hocuspocus/provider').HocuspocusProvider | null;
   };
   /** Host-supplied content rendered at the very left of the toolbar (in-flow). */
   chromeLeft?: React.ReactNode;
@@ -83,6 +85,12 @@ export interface PageWrapperProps {
   pageCollaborative?: {
     pageYMap: import('yjs').Map<unknown>;
     isSynced: boolean;
+    /** Hocuspocus provider — enables awareness features (remote selections). */
+    provider?: import('@hocuspocus/provider').HocuspocusProvider | null;
+    /** Id of this page, published to awareness so peers can filter selections per page. */
+    pageId?: string | null;
+    /** Only the active page publishes its selection to awareness. */
+    publishSelection?: boolean;
   };
   /** Forwarded ref to the wrapper div — used for IntersectionObserver tracking */
   pageRef?: React.Ref<HTMLDivElement>;

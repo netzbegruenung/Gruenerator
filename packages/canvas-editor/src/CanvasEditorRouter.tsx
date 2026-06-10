@@ -130,6 +130,8 @@ export interface ControllableCanvasWrapperProps {
   collaborative?: {
     ydoc: Y.Doc;
     isSynced: boolean;
+    /** Hocuspocus provider — enables awareness features (remote selections). */
+    provider?: import('@hocuspocus/provider').HocuspocusProvider | null;
   };
   /** Host-supplied content rendered at the very left of the toolbar (in-flow). */
   chromeLeft?: React.ReactNode;
