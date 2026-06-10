@@ -188,7 +188,10 @@ export const useCanvasAutoSave = (
       if (!imageSrc) return;
       if (refs.enabled === false) return;
       if (storeState.autoSaveStatus === 'saving') return;
-      if (storeState.lastAutoSavedImageSrc === imageSrc) return;
+      if (storeState.lastAutoSavedImageSrc === imageSrc) {
+        storeState.setDirty(false);
+        return;
+      }
 
       refs.setAutoSaveStatus('saving');
 
@@ -252,6 +255,7 @@ export const useCanvasAutoSave = (
           refs.setAutoSavedShareToken(share.shareToken);
           refs.setLastAutoSavedImageSrc(imageSrc);
           refs.setAutoSaveStatus('saved');
+          autoSaveStoreApi.getState().setDirty(false);
         } else {
           console.warn('[AutoSave][performAutoSave] api returned no shareToken');
           refs.setAutoSaveStatus('error');
@@ -275,10 +279,12 @@ export const useCanvasAutoSave = (
     return () => clearTimeout(timer);
   }, [generatedImage, performAutoSave]);
 
-  // Warn before leaving while a save is still in flight
+  // Warn before leaving while a save is in flight or edits are not yet persisted
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (autoSaveStoreApi.getState().autoSaveStatus === 'saving') e.preventDefault();
+      const s = autoSaveStoreApi.getState();
+      const enabled = latestRefs.current.enabled !== false;
+      if (s.autoSaveStatus === 'saving' || (enabled && s.isDirty)) e.preventDefault();
     };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
