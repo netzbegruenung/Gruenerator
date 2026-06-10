@@ -13,7 +13,15 @@ import { CardContent } from './CardContent';
 import { CardDetailPanel } from './CardDetailPanel';
 import { ColumnHeader } from './ColumnHeader';
 
-import type { Field, Row, RowGroup, BoardView, SelectOption, CellValue } from '../types';
+import type {
+  Field,
+  Row,
+  RowGroup,
+  SwimlaneGroup,
+  BoardView,
+  SelectOption,
+  CellValue,
+} from '../types';
 import type { DragStartEvent, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
 import type { HocuspocusProvider } from '@hocuspocus/provider';
 
@@ -65,11 +73,18 @@ interface ColumnBoardProps {
   groupColor: string;
   cardCount: number;
   statusField: Field | undefined;
+  // WIP limit + reorder (only meaningful for real status columns).
+  limit?: number;
+  isRealColumn: boolean;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
   onRenameGroup: (groupId: string, name: string) => void;
   onDeleteGroup: (groupId: string) => void;
   onHideGroup: (groupId: string) => void;
   onColorChange: (groupId: string, color: string) => void;
   onDuplicateGroup: (groupId: string) => void;
+  onSetLimit: (groupId: string, limit: number | null) => void;
+  onMoveColumn: (groupId: string, dir: 'left' | 'right') => void;
   handleAddCard: (groupId: string, name: string) => void;
   onCardClick: (row: Row) => void;
   onRenameCard: (rowId: string, title: string) => void;
@@ -81,11 +96,17 @@ const ColumnBoard = memo(function ColumnBoard({
   groupName,
   groupColor,
   cardCount,
+  limit,
+  isRealColumn,
+  canMoveLeft,
+  canMoveRight,
   onRenameGroup,
   onDeleteGroup,
   onHideGroup,
   onColorChange,
   onDuplicateGroup,
+  onSetLimit,
+  onMoveColumn,
   handleAddCard,
   onCardClick,
   onRenameCard,
@@ -101,18 +122,26 @@ const ColumnBoard = memo(function ColumnBoard({
     (color: string) => onColorChange(groupId, color),
     [onColorChange, groupId]
   );
-  const onDuplicate = useCallback(
-    () => onDuplicateGroup(groupId),
-    [onDuplicateGroup, groupId]
+  const onDuplicate = useCallback(() => onDuplicateGroup(groupId), [onDuplicateGroup, groupId]);
+  const onSetLimitCb = useCallback(
+    (next: number | null) => onSetLimit(groupId, next),
+    [onSetLimit, groupId]
   );
+  const onMoveLeft = useCallback(() => onMoveColumn(groupId, 'left'), [onMoveColumn, groupId]);
+  const onMoveRight = useCallback(() => onMoveColumn(groupId, 'right'), [onMoveColumn, groupId]);
   const onAdd = useCallback(
     (name: string) => handleAddCard(groupId, name),
     [handleAddCard, groupId]
   );
 
   const column = useMemo(
-    () => ({ id: groupId, name: groupName, color: groupColor }),
-    [groupId, groupName, groupColor]
+    () => ({
+      id: groupId,
+      name: groupName,
+      color: groupColor,
+      ...(limit != null ? { limit } : {}),
+    }),
+    [groupId, groupName, groupColor, limit]
   );
 
   return (
@@ -127,6 +156,9 @@ const ColumnBoard = memo(function ColumnBoard({
           onHide={onHide}
           onColorChange={onColor}
           onDuplicate={onDuplicate}
+          onSetLimit={isRealColumn ? onSetLimitCb : undefined}
+          onMoveLeft={isRealColumn && canMoveLeft ? onMoveLeft : undefined}
+          onMoveRight={isRealColumn && canMoveRight ? onMoveRight : undefined}
         />
       </KanbanHeader>
       <KanbanCards<KanbanItem> id={groupId}>
@@ -151,6 +183,9 @@ const ColumnBoard = memo(function ColumnBoard({
 interface PlannerKanbanProps {
   fields: Field[];
   groups: RowGroup[];
+  // When set (A12, kanban + swimlaneFieldId), rows render as horizontal lanes,
+  // each containing the normal columns. Falls back to `groups` when null.
+  swimlanes?: SwimlaneGroup[] | null;
   activeView: BoardView | null;
   onDragReorder: (rows: Row[], groupByFieldId: string) => void;
   addRow: (row: Row) => void;
@@ -169,6 +204,7 @@ interface PlannerKanbanProps {
 export function PlannerKanban({
   fields,
   groups,
+  swimlanes,
   activeView,
   onDragReorder,
   addRow,
@@ -218,9 +254,6 @@ export function PlannerKanban({
     [groups, hiddenGroupIds]
   );
 
-  const kanbanItems = useMemo(() => rowsToKanbanItems(visibleGroups), [visibleGroups]);
-  const kanbanColumns = useMemo(() => groupsToColumns(visibleGroups), [visibleGroups]);
-
   const handleCardClick = useCallback(
     (row: Row) => {
       setSelectedRow(row);
@@ -243,7 +276,7 @@ export function PlannerKanban({
     [broadcastActivity]
   );
 
-  const allRows = useMemo(() => kanbanItems.map((item) => item.row), [kanbanItems]);
+  const allRows = useMemo(() => visibleGroups.flatMap((g) => g.rows), [visibleGroups]);
 
   const handlePrevCard = useCallback(() => {
     if (!selectedRow) return;
@@ -296,25 +329,30 @@ export function PlannerKanban({
     [onDragReorder, groupByFieldId]
   );
 
+  const swimlaneFieldId = activeView?.swimlaneFieldId;
   const handleAddCard = useCallback(
-    (targetGroupId: string, name: string) => {
+    (targetGroupId: string, name: string, laneValue?: string) => {
+      const cells: Record<string, CellValue> = {
+        [FIELD_IDS.TITLE]: name,
+        [groupByFieldId]: targetGroupId,
+        [FIELD_IDS.DESCRIPTION]: '',
+        [FIELD_IDS.DUE_DATE]: null,
+        [FIELD_IDS.LABELS]: [],
+        [FIELD_IDS.ASSIGNEE]: '',
+        [FIELD_IDS.LINKED_DOCS]: '[]',
+        [FIELD_IDS.COMMENTS]: '[]',
+      };
+      if (swimlaneFieldId && laneValue && !laneValue.startsWith('_')) {
+        cells[swimlaneFieldId] = laneValue;
+      }
       addRow({
         id: `row-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        cells: {
-          [FIELD_IDS.TITLE]: name,
-          [groupByFieldId]: targetGroupId,
-          [FIELD_IDS.DESCRIPTION]: '',
-          [FIELD_IDS.DUE_DATE]: null,
-          [FIELD_IDS.LABELS]: [],
-          [FIELD_IDS.ASSIGNEE]: '',
-          [FIELD_IDS.LINKED_DOCS]: '[]',
-          [FIELD_IDS.COMMENTS]: '[]',
-        },
+        cells,
         createdBy: currentUserId,
         createdAt: new Date().toISOString(),
       });
     },
-    [addRow, currentUserId, groupByFieldId]
+    [addRow, currentUserId, groupByFieldId, swimlaneFieldId]
   );
 
   const handleAddColumn = useCallback(() => {
@@ -436,32 +474,82 @@ export function PlannerKanban({
     [statusField, updateField, groups, addRow, currentUserId]
   );
 
-  const cardCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const group of groups) {
-      counts.set(group.groupId, group.rows.length);
-    }
-    return counts;
-  }, [groups]);
+  const handleSetLimit = useCallback(
+    (optionId: string, limit: number | null) => {
+      if (!statusField) return;
+      const options = (statusField.typeOptions.options ?? []) as SelectOption[];
+      updateField(statusField.id, {
+        typeOptions: {
+          ...statusField.typeOptions,
+          options: options.map((o) => {
+            if (o.id !== optionId) return o;
+            const next: SelectOption = { id: o.id, name: o.name, color: o.color };
+            if (limit != null) next.limit = limit;
+            return next;
+          }),
+        },
+      });
+    },
+    [statusField, updateField]
+  );
 
-  return (
-    <BoardAwarenessProvider value={remoteActivities}>
-      <div
-        ref={containerRef}
-        className="relative z-10 flex-1 overflow-x-scroll overflow-y-hidden p-md sm:p-lg"
-        onMouseMove={onMouseMove}
-        onMouseLeave={onMouseLeave}
-      >
-        <BoardCursorLayer cursors={remoteCursors} containerRef={containerRef} />
-        <KanbanProvider<KanbanItem, { id: string; name: string; color: string }>
-          columns={kanbanColumns}
-          data={kanbanItems}
-          onDataChange={handleDataChange}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-          className="items-start"
-          after={
+  // Swap with the nearest *visible* neighbour so hidden columns don't absorb moves.
+  const handleMoveColumn = useCallback(
+    (optionId: string, dir: 'left' | 'right') => {
+      if (!statusField) return;
+      const options = [...((statusField.typeOptions.options ?? []) as SelectOption[])];
+      const visible = options.filter((o) => !hiddenGroupIds.has(o.id));
+      const vIdx = visible.findIndex((o) => o.id === optionId);
+      const targetId = visible[dir === 'left' ? vIdx - 1 : vIdx + 1]?.id;
+      if (vIdx === -1 || !targetId) return;
+      const i = options.findIndex((o) => o.id === optionId);
+      const j = options.findIndex((o) => o.id === targetId);
+      [options[i], options[j]] = [options[j], options[i]];
+      updateField(statusField.id, {
+        typeOptions: { ...statusField.typeOptions, options },
+      });
+    },
+    [statusField, updateField, hiddenGroupIds]
+  );
+
+  // index/total are over *visible* columns so can-move flags match what's shown.
+  const optionMeta = useMemo(() => {
+    const options = (statusField?.typeOptions.options as SelectOption[] | undefined) ?? [];
+    const visible = options.filter((o) => !hiddenGroupIds.has(o.id));
+    const map = new Map<string, { index: number; total: number; limit?: number }>();
+    visible.forEach((o, index) => {
+      map.set(o.id, {
+        index,
+        total: visible.length,
+        ...(o.limit != null ? { limit: o.limit } : {}),
+      });
+    });
+    return map;
+  }, [statusField, hiddenGroupIds]);
+
+  const renderBoard = (
+    laneGroups: RowGroup[],
+    laneValue: string | null,
+    showColumnTools: boolean,
+    laneHiddenGroups: RowGroup[]
+  ) => {
+    const items = rowsToKanbanItems(laneGroups);
+    const columns = groupsToColumns(laneGroups);
+    const counts = new Map(laneGroups.map((g) => [g.groupId, g.rows.length]));
+    const addCard = (groupId: string, name: string) =>
+      handleAddCard(groupId, name, laneValue ?? undefined);
+
+    return (
+      <KanbanProvider<KanbanItem, { id: string; name: string; color: string }>
+        columns={columns}
+        data={items}
+        onDataChange={handleDataChange}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+        className="items-start"
+        after={
+          showColumnTools ? (
             <div className="flex items-start gap-2 shrink-0">
               <button
                 onClick={handleAddColumn}
@@ -470,15 +558,15 @@ export function PlannerKanban({
               >
                 <FiPlus size={16} />
               </button>
-              {hiddenGroups.length > 0 && (
+              {laneHiddenGroups.length > 0 && (
                 <div className="mt-2 flex flex-col gap-1">
                   <button
                     onClick={handleShowAllGroups}
                     className="px-3 py-1.5 text-xs text-grey-400 hover:text-foreground bg-grey-100 dark:bg-[#1e1e1e] rounded-lg border-none cursor-pointer transition-colors whitespace-nowrap"
                   >
-                    {hiddenGroups.length} ausgeblendet
+                    {laneHiddenGroups.length} ausgeblendet
                   </button>
-                  {hiddenGroups.map((g) => (
+                  {laneHiddenGroups.map((g) => (
                     <button
                       key={g.groupId}
                       onClick={() => handleShowGroup(g.groupId)}
@@ -496,28 +584,73 @@ export function PlannerKanban({
                 </div>
               )}
             </div>
-          }
-        >
-          {(column) => (
+          ) : undefined
+        }
+      >
+        {(column) => {
+          const meta = optionMeta.get(column.id);
+          return (
             <ColumnBoard
               key={column.id}
               groupId={column.id}
               groupName={column.name}
               groupColor={column.color}
-              cardCount={cardCounts.get(column.id) || 0}
+              cardCount={counts.get(column.id) || 0}
               statusField={statusField}
+              limit={meta?.limit}
+              isRealColumn={meta != null}
+              canMoveLeft={meta != null && meta.index > 0}
+              canMoveRight={meta != null && meta.index < meta.total - 1}
               onRenameGroup={handleRenameGroup}
               onDeleteGroup={handleDeleteGroup}
               onHideGroup={handleHideGroup}
               onColorChange={handleColorChange}
               onDuplicateGroup={handleDuplicateGroup}
-              handleAddCard={handleAddCard}
+              onSetLimit={handleSetLimit}
+              onMoveColumn={handleMoveColumn}
+              handleAddCard={addCard}
               onCardClick={handleCardClick}
               onRenameCard={handleRenameCard}
               fields={fields}
             />
-          )}
-        </KanbanProvider>
+          );
+        }}
+      </KanbanProvider>
+    );
+  };
+
+  return (
+    <BoardAwarenessProvider value={remoteActivities}>
+      <div
+        ref={containerRef}
+        className="relative z-10 flex-1 overflow-auto p-md sm:p-lg"
+        onMouseMove={onMouseMove}
+        onMouseLeave={onMouseLeave}
+      >
+        <BoardCursorLayer cursors={remoteCursors} containerRef={containerRef} />
+        {swimlanes ? (
+          <div className="flex flex-col gap-5">
+            {swimlanes.map((lane, i) => (
+              <div key={lane.laneId}>
+                <div className="flex items-center gap-2 mb-1.5 px-1">
+                  {lane.laneColor !== 'transparent' && (
+                    <span
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: lane.laneColor }}
+                    />
+                  )}
+                  <span className="text-sm font-semibold text-foreground">{lane.laneName}</span>
+                  <span className="text-xs text-grey-400">
+                    {lane.groups.reduce((n, g) => n + g.rows.length, 0)}
+                  </span>
+                </div>
+                {renderBoard(lane.groups, lane.laneId, i === 0, [])}
+              </div>
+            ))}
+          </div>
+        ) : (
+          renderBoard(visibleGroups, null, true, hiddenGroups)
+        )}
       </div>
 
       <CardDetailPanel

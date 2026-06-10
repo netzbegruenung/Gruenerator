@@ -14,7 +14,7 @@ export { boardActivityContract } from './boardActivityContract.js';
 export { boardSubscriptionsContract } from './boardSubscriptionsContract.js';
 export { boardAttachmentsContract } from './boardAttachmentsContract.js';
 export { publicBoardsContract } from './publicBoardsContract.js';
-export { sharesContract } from './sharesContract.js';
+export { sharesContract, sharesReadContract } from './sharesContract.js';
 export { userProfileContract } from './userProfileContract.js';
 export { notebookContract } from './notebookContract.js';
 export { notebookCollectionsContract } from './notebookCollectionsContract.js';

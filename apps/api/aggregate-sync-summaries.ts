@@ -14,21 +14,23 @@ import { env } from './config/env.js';
 import { sendContentSyncEmail } from './services/email/emailService.js';
 import { type SyncSummary } from './types/syncTypes.js';
 
-function parseArgs(): { dir: string } {
+function parseArgs(): { dir: string; noEmail: boolean } {
   const args = process.argv.slice(2);
   let dir = '';
+  let noEmail = false;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--dir') dir = args[++i];
+    else if (args[i] === '--no-email') noEmail = true;
   }
   if (!dir) {
-    console.error('Usage: npx tsx aggregate-sync-summaries.ts --dir <path>');
+    console.error('Usage: npx tsx aggregate-sync-summaries.ts --dir <path> [--no-email]');
     process.exit(1);
   }
-  return { dir };
+  return { dir, noEmail };
 }
 
 async function main() {
-  const { dir } = parseArgs();
+  const { dir, noEmail } = parseArgs();
 
   const files = readdirSync(dir).filter((f) => f.endsWith('.json'));
   if (files.length === 0) {
@@ -73,7 +75,9 @@ async function main() {
   console.log(`Merged summary written to ${summaryPath}`);
 
   const emailTo = env.CONTENT_SYNC_EMAIL;
-  if (emailTo) {
+  if (noEmail) {
+    console.log('Aggregate digest: --no-email set — skipping admin email');
+  } else if (emailTo) {
     // Skip the digest when nothing of interest happened: no new/updated docs,
     // no hard errors, no job failures. Transient fetchErrors don't count —
     // flaky-site retries shouldn't spam the inbox. Mirrors the per-LV gate

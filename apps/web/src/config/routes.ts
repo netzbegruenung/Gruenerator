@@ -200,7 +200,9 @@ const SitesEditPage = lazy(() => import('../features/sites/SitesEditPage'));
 const AgentBuilderPage = lazy(() => import('../features/agents/AgentBuilderPage'));
 const AgentCreatorPage = lazy(() => import('../features/agents/AgentCreatorPage'));
 const AgentSettingsPage = lazy(() => import('../features/agents/AgentSettingsPage'));
-const SkillsAndAgentsPage = lazy(() => import('../features/skills/SkillsAndAgentsPage'));
+const AgenturaPage = lazy(() => import('../features/agentura/AgenturaPage'));
+const AgentDetailPage = lazy(() => import('../features/agentura/AgentDetailPage'));
+const SkillDetailPage = lazy(() => import('../features/agentura/SkillDetailPage'));
 
 /**
  * Lazy loading für Grüneratoren Bundle
@@ -240,9 +242,8 @@ const standardRoutes: RouteConfig[] = [
   { path: '/texte/*', component: GrueneratorenBundle.Texte, withForm: true },
   { path: '/workplace', component: WorkplacePage },
   // Guided agent creator (default entry: AI brief → pre-filled wizard) + form
-  // editor. Gated behind SHOW_AGENT_CREATOR (dev, or a deploy with
-  // VITE_SHOW_AGENT_CREATOR=true); `/agents/:slug` below stays available so
-  // existing agents remain usable.
+  // editor. Available to everyone via SHOW_AGENT_CREATOR; `/agents/:slug` below
+  // stays available so existing agents remain usable.
   ...(SHOW_AGENT_CREATOR
     ? ([
         { path: '/agents/new', component: AgentCreatorPage },
@@ -250,10 +251,16 @@ const standardRoutes: RouteConfig[] = [
         { path: '/agents/:identifier/edit', component: AgentSettingsPage },
       ] satisfies RouteConfig[])
     : []),
-  // Skills & Agents library — canonical at /agents (exact match ranks ahead of
-  // the `/agents/:slug` chat route below in React Router). `/skills` redirects
-  // here for old links.
-  { path: '/agents', component: SkillsAndAgentsPage },
+  // Agentura — the agents & skills marketplace. Detail "product pages" sit
+  // under /agentura/agent/<slug> and /agentura/skill/<mention>; the storefront
+  // is /agentura. Old library links (/agents, /skills) redirect here.
+  { path: '/agentura/agent/:slug', component: AgentDetailPage },
+  { path: '/agentura/skill/:mention', component: SkillDetailPage },
+  { path: '/agentura', component: AgenturaPage },
+  {
+    path: '/agents',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/agentura') })),
+  },
   // Chat with a specific system agent at /agents/<slug>. Slug is the agent
   // identifier with the `gruenerator-` prefix stripped (see `getAgentSlug`
   // in @gruenerator/shared/agents). ChatPage handles both this path-based
@@ -270,7 +277,7 @@ const standardRoutes: RouteConfig[] = [
   },
   {
     path: '/skills',
-    component: lazy(() => Promise.resolve({ default: createRedirect('/agents') })),
+    component: lazy(() => Promise.resolve({ default: createRedirect('/agentura') })),
   },
   { path: '/gruppen', component: GruppenPage },
   { path: '/gruppen/:idOrSlug', component: GruppenPage },
