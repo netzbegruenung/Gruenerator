@@ -701,9 +701,14 @@ export default function DocEditorDOM(props: DocEditorDOMProps) {
         documentId: props.documentId,
         userPrompt: prompt,
         useSelection,
-      }).then((ok) => {
-        if (ok) onAiReviewPendingChangeRef.current?.(true);
-      });
+      })
+        .then((ok) => {
+          if (ok) onAiReviewPendingChangeRef.current?.(true);
+        })
+        .catch((err) => {
+          console.error('[DocEditorDOM] AI invoke failed:', err);
+          onAiReviewPendingChangeRef.current?.(false);
+        });
     } else if (props.pendingAction.type === 'accept-ai') {
       // NOTE: since the AI menu is never opened, the doc stays editable during
       // review (xl-ai normally locks isEditable via openAIMenuAtBlock). Accepted
