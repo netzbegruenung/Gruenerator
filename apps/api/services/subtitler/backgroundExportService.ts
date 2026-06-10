@@ -212,15 +212,25 @@ export async function processVideoExportInBackground(
           command.videoFilters(videoFilters);
         }
 
+        // Throttle progress writes (ffmpeg can emit >10 events/sec) and
+        // stop them entirely once the job is finished so no stale
+        // "exporting" write can overwrite the terminal status.
+        let lastProgressWrite = 0;
+        let exportFinished = false;
+
         command
           .on('start', () => {
             log.debug('FFmpeg processing started');
           })
-          .on('progress', async (progress: { percent?: number; timemark?: string }) => {
+          .on('progress', (progress: { percent?: number; timemark?: string }) => {
             const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
 
-            try {
-              await redisClient.set(
+            const now = Date.now();
+            if (exportFinished || now - lastProgressWrite < 500) return;
+            lastProgressWrite = now;
+
+            redisClient
+              .set(
                 `export:${exportToken}`,
                 JSON.stringify({
                   status: 'exporting',
@@ -228,14 +238,15 @@ export async function processVideoExportInBackground(
                   timeRemaining: progress.timemark,
                 }),
                 { EX: 60 * 60 }
+              )
+              .catch((redisError: unknown) =>
+                log.warn(
+                  `Redis progress update error: ${redisError instanceof Error ? redisError.message : String(redisError)}`
+                )
               );
-            } catch (redisError: unknown) {
-              log.warn(
-                `Redis progress update error: ${redisError instanceof Error ? redisError.message : String(redisError)}`
-              );
-            }
           })
           .on('error', async (err: Error) => {
+            exportFinished = true;
             log.error(`FFmpeg error: ${err.message}`);
             redisClient
               .set(
@@ -254,6 +265,7 @@ export async function processVideoExportInBackground(
             reject(err);
           })
           .on('end', async () => {
+            exportFinished = true;
             log.info(`FFmpeg processing complete for ${exportToken}`);
 
             if (projectId && userId) {

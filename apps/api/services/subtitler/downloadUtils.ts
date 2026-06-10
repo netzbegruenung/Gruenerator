@@ -348,67 +348,84 @@ async function processVideoWithSubtitles(
       log.debug(`[FFmpeg] Applied VAAPI filter chain with subtitles`);
     } else if (assFilePath) {
       const fontDir = path.dirname(tempFontPath || assFilePath);
-      command.videoFilters([`subtitles=${assFilePath}:fontsdir=${fontDir}`]);
+      command.videoFilters([hwaccel.buildSubtitlesFilter(assFilePath, fontDir)]);
       log.debug(
         `[FFmpeg] Applied ASS filter with font directory: ${assFilePath}:fontsdir=${fontDir}`
       );
     }
 
+    // ffmpeg fires progress events many times per second; unserialized
+    // Redis writes can land after the terminal del/complete write and
+    // resurrect the key as "exporting". Throttle and stop writing once
+    // the job is finished.
+    let lastProgressWrite = 0;
+    let exportFinished = false;
+
     command
       .on('start', (_cmd: string) => {
         log.debug('[FFmpeg] Processing started');
       })
-      .on('progress', async (progress: { percent?: number; timemark?: string }) => {
+      .on('progress', (progress: { percent?: number; timemark?: string }) => {
         const progressPercent = progress.percent ? Math.round(progress.percent) : 0;
         log.debug('Fortschritt:', `${progressPercent}%`);
+
+        const now = Date.now();
+        if (exportFinished || now - lastProgressWrite < 500) return;
+        lastProgressWrite = now;
 
         const progressData = {
           status: 'exporting',
           progress: progressPercent,
           timeRemaining: progress.timemark,
         };
-        try {
-          await redisClient.set(`export:${exportToken}`, JSON.stringify(progressData), {
-            EX: 60 * 60,
-          });
-        } catch (redisError: unknown) {
-          log.warn(
-            'Redis Progress Update Fehler:',
-            redisError instanceof Error ? redisError.message : redisError
+        redisClient
+          .set(`export:${exportToken}`, JSON.stringify(progressData), { EX: 60 * 60 })
+          .catch((redisError: unknown) =>
+            log.warn(
+              'Redis Progress Update Fehler:',
+              redisError instanceof Error ? redisError.message : redisError
+            )
           );
-        }
       })
       .on('error', (err: Error) => {
+        exportFinished = true;
         log.error('FFmpeg Fehler:', err);
-        redisClient
-          .del(`export:${exportToken}`)
-          .catch((delErr: unknown) =>
+
+        // Await all cleanup before rejecting so temp ASS/font files are
+        // not orphaned when the surrounding promise chain unwinds.
+        void (async () => {
+          try {
+            await redisClient.del(`export:${exportToken}`);
+          } catch (delErr: unknown) {
             log.warn(
               `[FFmpeg Error Cleanup] Failed to delete progress key export:${exportToken}`,
               delErr
-            )
-          );
-
-        if (assFilePath) {
-          assService
-            .cleanupTempFile(assFilePath)
-            .catch((cleanupErr: unknown) =>
-              log.warn('[FFmpeg Error] ASS cleanup failed:', cleanupErr)
             );
-          if (tempFontPath) {
-            fsPromises
-              .unlink(tempFontPath)
-              .catch((fontErr: unknown) =>
+          }
+
+          if (assFilePath) {
+            try {
+              await assService.cleanupTempFile(assFilePath);
+            } catch (cleanupErr: unknown) {
+              log.warn('[FFmpeg Error] ASS cleanup failed:', cleanupErr);
+            }
+            if (tempFontPath) {
+              try {
+                await fsPromises.unlink(tempFontPath);
+              } catch (fontErr: unknown) {
                 log.warn(
                   '[FFmpeg Error] Font cleanup failed:',
                   fontErr instanceof Error ? fontErr.message : fontErr
-                )
-              );
+                );
+              }
+            }
           }
-        }
-        reject(err);
+
+          reject(err);
+        })();
       })
       .on('end', async () => {
+        exportFinished = true;
         log.debug('FFmpeg Verarbeitung abgeschlossen');
 
         try {
