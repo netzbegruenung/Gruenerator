@@ -8,6 +8,7 @@ import {
   useVersionHistoryShortcut,
   useDocsAdapter,
   createDocsApiClient,
+  useUpdateDocument,
   lazyWithRetry,
   ErrorBoundary,
   type Document,
@@ -192,6 +193,7 @@ function EditorContent() {
   }, [docData, isGuest, user]);
 
   const queryClient = useQueryClient();
+  const { mutateAsync: updateDocument } = useUpdateDocument();
 
   const handleTitleChange = useCallback(
     async (newTitle: string) => {
@@ -201,12 +203,16 @@ function EditorContent() {
         old ? { ...old, title: newTitle } : old
       );
       try {
-        await apiClient.put(`/docs/${id}`, { title: newTitle });
+        // useUpdateDocument also syncs the documents-list cache on success,
+        // so the rename shows up on the list page immediately.
+        await updateDocument({ id, updates: { title: newTitle } });
       } catch {
-        queryClient.setQueryData(activeKey, docData);
+        // Refetch the canonical state instead of writing back the closure's
+        // possibly outdated docData snapshot.
+        await queryClient.invalidateQueries({ queryKey: activeKey });
       }
     },
-    [id, apiClient, queryClient, docData]
+    [id, queryClient, updateDocument]
   );
 
   const [showShareModal, setShowShareModal] = useState(false);
@@ -327,6 +333,7 @@ function EditorContent() {
       setShowActionsMenu(false);
     } catch (error) {
       console.error('Export failed:', error);
+      void import('sonner').then(({ toast }) => toast.error('Export fehlgeschlagen'));
     }
   }, [docData, editor]);
 
@@ -351,6 +358,7 @@ function EditorContent() {
       setShowActionsMenu(false);
     } catch (error) {
       console.error('PDF export failed:', error);
+      void import('sonner').then(({ toast }) => toast.error('PDF-Export fehlgeschlagen'));
     }
   }, [docData, editor]);
 
@@ -369,6 +377,7 @@ function EditorContent() {
       setShowActionsMenu(false);
     } catch (error) {
       console.error('ODT export failed:', error);
+      void import('sonner').then(({ toast }) => toast.error('ODT-Export fehlgeschlagen'));
     }
   }, [docData, editor]);
 
