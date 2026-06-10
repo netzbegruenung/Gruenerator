@@ -36,6 +36,8 @@ export interface SharepicVariant {
   canvasType: string;
   initialProps: Record<string, unknown>;
   label?: string;
+  /** Set once the variant has been minted into a canvas document (chat editing). */
+  canvasId?: string;
 }
 
 export interface SharepicData {
