@@ -121,10 +121,11 @@ export function findActiveSegment(
   segments: SubtitleSegment[],
   currentTime: number
 ): SubtitleSegment | null {
+  // End boundary is exclusive: with adjacent segments (a.end === b.start)
+  // an inclusive check would match both at the exact boundary time.
   return (
-    segments.find(
-      (segment) => currentTime >= segment.startTime && currentTime <= segment.endTime
-    ) || null
+    segments.find((segment) => currentTime >= segment.startTime && currentTime < segment.endTime) ||
+    null
   );
 }
 
@@ -137,7 +138,7 @@ export function findActiveSegment(
  */
 export function findActiveSegmentIndex(segments: SubtitleSegment[], currentTime: number): number {
   return segments.findIndex(
-    (segment) => currentTime >= segment.startTime && currentTime <= segment.endTime
+    (segment) => currentTime >= segment.startTime && currentTime < segment.endTime
   );
 }
 
@@ -212,6 +213,81 @@ export function validateSegment(segment: SubtitleSegment): {
   return {
     valid: errors.length === 0,
     errors,
+  };
+}
+
+export interface SubtitleValidationIssue {
+  /** Index of the offending segment in the input array */
+  index: number;
+  type: 'empty-text' | 'invalid-times' | 'overlap' | 'exceeds-duration';
+  message: string;
+}
+
+export interface SubtitleValidationResult {
+  issues: SubtitleValidationIssue[];
+  /** True when every segment has empty/whitespace-only text */
+  allEmpty: boolean;
+}
+
+/**
+ * Validate a full segment list before export/save: empty texts,
+ * non-positive durations, overlaps between neighbours (in start order)
+ * and segments running past the video duration.
+ *
+ * @param segments - Segments to validate (id not required)
+ * @param videoDuration - Video duration in seconds, if known
+ */
+export function validateSubtitleSegments(
+  segments: ReadonlyArray<Pick<SubtitleSegment, 'startTime' | 'endTime' | 'text'>>,
+  videoDuration?: number | null
+): SubtitleValidationResult {
+  const issues: SubtitleValidationIssue[] = [];
+
+  const formatRange = (segment: Pick<SubtitleSegment, 'startTime' | 'endTime'>): string =>
+    `${formatTime(segment.startTime)}–${formatTime(segment.endTime)}`;
+
+  segments.forEach((segment, index) => {
+    if (segment.text.trim() === '') {
+      issues.push({
+        index,
+        type: 'empty-text',
+        message: `Untertitel ${index + 1} (${formatRange(segment)}) hat keinen Text.`,
+      });
+    }
+    if (segment.endTime <= segment.startTime || segment.startTime < 0) {
+      issues.push({
+        index,
+        type: 'invalid-times',
+        message: `Untertitel ${index + 1} hat ungültige Zeiten (${formatRange(segment)}).`,
+      });
+    }
+    if (videoDuration != null && videoDuration > 0 && segment.endTime > videoDuration) {
+      issues.push({
+        index,
+        type: 'exceeds-duration',
+        message: `Untertitel ${index + 1} endet nach dem Videoende (${formatRange(segment)}).`,
+      });
+    }
+  });
+
+  const byStart = segments
+    .map((segment, index) => ({ segment, index }))
+    .sort((a, b) => a.segment.startTime - b.segment.startTime);
+  for (let i = 1; i < byStart.length; i++) {
+    const prev = byStart[i - 1];
+    const curr = byStart[i];
+    if (curr.segment.startTime < prev.segment.endTime) {
+      issues.push({
+        index: curr.index,
+        type: 'overlap',
+        message: `Untertitel ${prev.index + 1} und ${curr.index + 1} überschneiden sich zeitlich.`,
+      });
+    }
+  }
+
+  return {
+    issues,
+    allEmpty: segments.length > 0 && segments.every((segment) => segment.text.trim() === ''),
   };
 }
 
