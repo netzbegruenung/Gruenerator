@@ -449,7 +449,12 @@ export function createGrueneratorModelAdapter(
         injectedCurrentDocument,
         injectedAttachmentContext,
         seededInitialAssistantMessage,
-        currentSharepic: useSharepicLiveStore.getState().activeVariant,
+        currentSharepic: (() => {
+          const active = useSharepicLiveStore.getState().activeVariant;
+          if (!active) return null;
+          const { variantId, canvasId, canvasType } = active;
+          return { variantId, canvasId, canvasType };
+        })(),
       });
 
       let response: Response;

@@ -38,6 +38,14 @@ neu erfindet.
 - **Kontext-Disziplin:** pro Edit landen nur `{ canvasId, variantId, version,
   summary }` in `tool_results`; voller State reist ausschließlich über SSE
   (`sharepic_minted` / `sharepic_updated` / `sharepic_edit_error`).
+- **Sharepic-Modus (Artifact-Panel):** das aktiv geschaltete Sharepic dockt
+  als `SharepicArtifactPanel` rechts an die Chat-Surface (`ChatPage`, nur ≥xl;
+  darunter bleibt die Inline-Karte die einzige Fläche). Karte und Panel teilen
+  sich die komplette Render-/Versions-/Restore-Logik über
+  `useSharepicArtifact` und denselben `sharepicLiveStore`-Eintrag — SSE-Updates
+  erreichen beide identisch. `ActiveSharepic` trägt dafür `initialProps`/
+  `label` (client-only; der Request-Body mappt weiterhin nur
+  `{ variantId, canvasId, canvasType }`).
 - **Thumbnails:** nach jedem echten Edit (SSE-Update/Restore, NICHT
   Mount-Rehydration) markiert der Client den Eintrag `thumbnailDirty`;
   `SharepicVariantCard` lädt den nächsten erfolgreichen Head-Render als
@@ -49,7 +57,7 @@ neu erfindet.
 
 | Thema | Warum aufgeschoben | Wenn doch gebraucht |
 | --- | --- | --- |
-| **Agentischer Tool-Loop im Chat** | User-Entscheidung „structured call now, loop later"; Loop wäre Chat-weiter Umbau (Latenz, Kosten, Kontext-Wachstum) | `sharepicEditService` ist als Tool-Executor wiederverwendbar gebaut |
+| **Agentischer Tool-Loop im Chat** | User-Entscheidung „structured call now, loop later"; Loop wäre Chat-weiter Umbau (Latenz, Kosten, Kontext-Wachstum) | Konkreter Plan inkl. Aufwand: `chat-tool-loop-plan.md` (v1 gescoped auf den Sharepic-Modus) |
 | **Formatwechsel per Chat** (Portrait → Story …) | `canvas.resize` klont ein NEUES Dokument → bricht Karten-Identität (canvasId in Thread & Versionen) | Konzept nötig: Karte auf neues Doc umhängen oder Resize-in-place |
 | **Multi-Page-Sharepics** (Slider, Präsentationen) | Patches gehen nur auf Seite 0; `formState` kann Edits nicht seitenweise attribuieren | Ops um `pageId` erweitern; Deskriptoren für Slider/Pres-Templates |
 | **KI-generierte / hochgeladene Hintergründe** | v1 nur Stock-Suche (`set-background-image` → ImageSelectionService) | Flux-Pfad existiert im image-Intent; Upload bräuchte Attachment-Routing in den Edit-Branch |

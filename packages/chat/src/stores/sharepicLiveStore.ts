@@ -27,6 +27,13 @@ export interface ActiveSharepic {
   variantId: string;
   canvasId: string | null;
   canvasType: string;
+  /**
+   * Render seed for surfaces that don't hold the original variant (the docked
+   * artifact panel). Client-only — the request body maps the identifying
+   * fields explicitly and never sends props.
+   */
+  initialProps: Record<string, unknown>;
+  label?: string;
 }
 
 interface SharepicLiveStore {
