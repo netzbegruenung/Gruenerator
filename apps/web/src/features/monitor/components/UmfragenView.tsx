@@ -181,11 +181,12 @@ export function SonntagsfrageChart({
 
       <div className="mt-lg grid grid-cols-1 sm:grid-cols-2 gap-sm">
         {data.polls.length > 1 && (
-          <Accordion type="single" collapsible>
-            <AccordionItem
-              value="einzelumfragen"
-              className="border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
-            >
+          <Accordion
+            type="single"
+            collapsible
+            className="border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
+          >
+            <AccordionItem value="einzelumfragen">
               <AccordionTrigger className="px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 hover:no-underline">
                 {data.polls.length} Einzelumfragen
               </AccordionTrigger>
@@ -242,11 +243,12 @@ export function SonntagsfrageChart({
           </Accordion>
         )}
 
-        <Accordion type="single" collapsible>
-          <AccordionItem
-            value="politpro-info"
-            className="border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
-          >
+        <Accordion
+          type="single"
+          collapsible
+          className="border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
+        >
+          <AccordionItem value="politpro-info">
             <AccordionTrigger className="px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 hover:no-underline">
               Daten: PolitPro
             </AccordionTrigger>
