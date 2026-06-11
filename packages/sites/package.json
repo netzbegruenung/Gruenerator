@@ -24,7 +24,7 @@
     "@gruenerator/shared": "workspace:*",
     "@gruenerator/sites-design": "workspace:*",
     "@gruenerator/ui": "workspace:*",
-    "@mdxeditor/editor": "^3.55.0",
+    "@mdxeditor/editor": "^4.0.2",
     "axios": "^1.17.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
