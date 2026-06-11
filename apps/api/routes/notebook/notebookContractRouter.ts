@@ -1,19 +1,17 @@
 /**
  * ts-rest contract router for /api/auth/notebook (interaction routes).
  *
- * Wraps the same NotebookQAService calls as interactionController.ts using
- * a contract-driven router from @ts-rest/express.
- *
- * Mount BEFORE the legacy interactionController router in routes.ts so
- * ts-rest matches its own routes first; unmatched paths fall through to
- * the legacy router.
+ * Contract-driven router from @ts-rest/express wrapping NotebookQAService
+ * plus the recent-documents and statistics services. Sole handler for these
+ * routes (the legacy interactionController, recentDocumentsController and
+ * statisticsController have been removed).
  *
  * ## Mixed authentication
- * This contract has 5 routes with mixed auth: 2 require auth (`askMulti`,
- * `askSingle` — both read `req.user`), 3 are public (`getFilters`, public
- * token routes). Applying `requireAuth` at the prefix would break the
- * public routes, so auth is checked per-handler here via the
- * `requireAuthUser` helper, which throws a typed 401 contract response.
+ * Routes have mixed auth: `askMulti`/`askSingle` require auth (both read
+ * `req.user`); `getFilters`, recent/stats and the public token routes do
+ * not. Applying `requireAuth` at the prefix would break the public routes,
+ * so auth is checked per-handler here via the `requireAuthUser` helper,
+ * which returns a typed 401 contract response.
  */
 
 import { notebookContract } from '@gruenerator/contracts';
@@ -29,11 +27,20 @@ import { NotebookQdrantHelper } from '../../database/services/NotebookQdrantHelp
 import { getQdrantInstance } from '../../database/services/QdrantService/index.js';
 import { getQdrantDocumentService } from '../../services/document-services/index.js';
 import { notebookQAService } from '../../services/notebook/index.js';
+import {
+  byPublishedAtDesc,
+  dedupeByUrlOrTitle,
+  fetchRecentForCollection,
+  normalizeRecentLimit,
+} from '../../services/notebook/notebookRecentService.js';
+import { getNotebookStats } from '../../services/notebook/notebookStatsService.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAIWorkerPool } from '../../utils/getAIWorkerPool.js';
 import { createLogger } from '../../utils/logger.js';
 import { fromParam, type NotebookId } from '../../utils/types/branded.js';
 import { highlightSnippet, truncateSnippet } from '../research/researchController.js';
+
+import { requireNotebookRead } from './notebookAccess.js';
 
 import type { PublicAccessRecord } from './types.js';
 import type { UserProfile } from '../../services/user/types.js';
@@ -41,6 +48,17 @@ import type { Application, Request } from 'express';
 
 const log = createLogger('notebookContractRouter');
 const notebookHelper = new NotebookQdrantHelper();
+
+// Initialize system collections on startup (relocated from the deleted
+// legacy interactionController — this is the only call site).
+void (async () => {
+  try {
+    await notebookHelper.ensureSystemGrundsatzCollection();
+    log.debug('System collections initialized');
+  } catch (error) {
+    log.error('Failed to initialize system collections:', error);
+  }
+})();
 
 const MODE_WEIGHTS: Record<'hybrid' | 'vector' | 'text', readonly [number, number]> = {
   hybrid: [0.7, 0.3],
@@ -286,8 +304,9 @@ export const notebookContractRouter = s.router(notebookContract, {
       if (!collection) {
         return { status: 404 as const, body: { error: 'Notebook not found' } };
       }
-      if (collection.user_id !== userId && collection.user_id !== 'SYSTEM') {
-        return { status: 403 as const, body: { error: 'Forbidden' } };
+      if (collection.user_id !== 'SYSTEM') {
+        const guard = await requireNotebookRead(collectionId, userId);
+        if (guard) return guard;
       }
 
       // Resolve notebook → document IDs via the n:m join collection. Chunks
@@ -399,6 +418,65 @@ export const notebookContractRouter = s.router(notebookContract, {
     } catch (error) {
       log.error('[notebookContract.researchSearch] Error:', error);
       return { status: 500 as const, body: { error: 'Search failed. Please try again.' } };
+    }
+  },
+
+  getCollectionRecent: async (args) => {
+    const collectionId = args.params.id;
+    const limit = normalizeRecentLimit(args.query.limit);
+
+    const cards = await fetchRecentForCollection(collectionId, limit);
+    return { status: 200 as const, body: { collectionId, items: cards } };
+  },
+
+  getRecent: async (args) => {
+    const collectionIds = args.query.collections
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (collectionIds.length === 0) {
+      return { status: 200 as const, body: { items: [] } };
+    }
+
+    const limit = normalizeRecentLimit(args.query.limit);
+    const perCollection = Math.max(Math.ceil((limit * 2) / collectionIds.length), 4);
+
+    const results = await Promise.all(
+      collectionIds.map((id) => fetchRecentForCollection(id, perCollection))
+    );
+
+    const merged = results.flat().sort(byPublishedAtDesc);
+    const unique = dedupeByUrlOrTitle(merged).slice(0, limit);
+    return { status: 200 as const, body: { items: unique } };
+  },
+
+  getCollectionStats: async (args) => {
+    const collectionId = args.params.id;
+    const refresh = args.query.refresh === '1' || args.query.refresh === 'true';
+    try {
+      const stats = await getNotebookStats([collectionId], { refresh });
+      return { status: 200 as const, body: stats };
+    } catch (error) {
+      log.error(`[notebookContract.getCollectionStats] stats failed for ${collectionId}:`, error);
+      return { status: 500 as const, body: { error: 'stats_failed' } };
+    }
+  },
+
+  getStats: async (args) => {
+    const collectionIds = args.query.collections
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const refresh = args.query.refresh === '1' || args.query.refresh === 'true';
+
+    try {
+      // getNotebookStats returns the empty-stats shape for an empty id list.
+      const stats = await getNotebookStats(collectionIds, { refresh });
+      return { status: 200 as const, body: stats };
+    } catch (error) {
+      log.error(`[notebookContract.getStats] stats failed for ${collectionIds.join(',')}:`, error);
+      return { status: 500 as const, body: { error: 'stats_failed' } };
     }
   },
 
