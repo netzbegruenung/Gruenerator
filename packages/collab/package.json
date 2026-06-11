@@ -18,10 +18,10 @@
   "dependencies": {
     "@hocuspocus/provider": "^3.4.4",
     "y-indexeddb": "^9.0.12",
-    "yjs": "^13.6.30"
+    "yjs": "^13.6.31"
   },
   "devDependencies": {
-    "@types/react": "^19.2.14",
+    "@types/react": "19.2.14",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
