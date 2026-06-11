@@ -93,7 +93,18 @@ export function toBetterAuthUser(user: BetterAuthUser): UserProfile {
   return parsed;
 }
 
-async function tryResolveUser(req: Request): Promise<Express.User | null> {
+/**
+ * Returned by `tryResolveUser` when the auth backend (Postgres/Redis) failed
+ * while resolving the session — as opposed to `null`, which means "no valid
+ * session". The distinction matters: an infra hiccup must surface as 503, not
+ * 401, or the frontend treats a logged-in user as logged out and forces a
+ * re-login (observed in production as sporadic forced logouts).
+ */
+const AUTH_UNAVAILABLE = Symbol('auth-unavailable');
+
+async function tryResolveUser(
+  req: Request
+): Promise<Express.User | null | typeof AUTH_UNAVAILABLE> {
   if (
     env.NODE_ENV === 'development' &&
     env.ALLOW_DEV_AUTH_BYPASS &&
@@ -127,12 +138,12 @@ async function tryResolveUser(req: Request): Promise<Express.User | null> {
       req.headers.authorization ? 'present' : 'absent'
     );
   } catch (err) {
-    // Silent-catch boundary: returning `null` below produces a generic 401
-    // for the user without any error reaching Express's error middleware,
-    // so Sentry's `setupExpressErrorHandler` would never see this. Capture
+    // Silent-catch boundary: this never reaches Express's error middleware,
+    // so Sentry's `setupExpressErrorHandler` would never see it. Capture
     // explicitly to surface session-resolution failures (DB errors, Redis
     // outages, malformed cookies) that would otherwise be invisible.
     captureAuthIssue({ stage: 'session-resolve', cause: err, req });
+    return AUTH_UNAVAILABLE;
   }
 
   return null;
@@ -183,6 +194,17 @@ async function requireAuth(req: Request, res: Response, next: NextFunction): Pro
   }
 
   const user = await tryResolveUser(req);
+  if (user === AUTH_UNAVAILABLE) {
+    // Auth backend failure, not a dead session — 503 instead of 401 so the
+    // client neither wipes its auth state nor redirects to login. No
+    // /auth/login redirect in the HTML branch either: that bounce is exactly
+    // what forces an unnecessary re-login.
+    res.status(503).json({
+      error: 'auth_unavailable',
+      message: 'Anmeldedienst vorübergehend nicht erreichbar',
+    });
+    return;
+  }
   if (user) {
     req.user = user;
     return next();
@@ -219,7 +241,10 @@ async function optionalAuth(req: Request, _res: Response, next: NextFunction): P
   }
 
   const user = await tryResolveUser(req);
-  if (user) {
+  // AUTH_UNAVAILABLE degrades to the guest view here instead of failing the
+  // whole request: optional-auth routes serve public content, and a logged-in
+  // user transiently seeing the guest variant beats a hard 503 on it.
+  if (user && user !== AUTH_UNAVAILABLE) {
     req.user = user;
   }
   return next();
