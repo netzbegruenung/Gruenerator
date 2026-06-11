@@ -191,11 +191,12 @@ export function BundeslandView() {
 
           <MeinungsbildForState code={selected.code} />
 
-          <Accordion type="single" collapsible>
-            <AccordionItem
-              value="gerda-info"
-              className="border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
-            >
+          <Accordion
+            type="single"
+            collapsible
+            className="border border-grey-200 dark:border-grey-700 rounded-lg overflow-hidden"
+          >
+            <AccordionItem value="gerda-info">
               <AccordionTrigger className="px-md py-sm text-sm font-medium text-foreground hover:bg-grey-50 dark:hover:bg-grey-800/50 hover:no-underline">
                 Daten: GERDA — German Election Database & PolitPro
               </AccordionTrigger>
