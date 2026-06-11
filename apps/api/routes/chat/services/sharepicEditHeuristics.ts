@@ -39,3 +39,17 @@ export function hasSharepicEditVerb(text: string): boolean {
   if (NEW_VARIANTS_PATTERN.test(text)) return false;
   return EDIT_VERB_PATTERN.test(text);
 }
+
+const AFFIRMATION_PATTERN =
+  /^(ja|yes|yep|jup|jo|ok(ay)?|passt( so)?|gerne?|genau( so)?|perfekt|super|top|mach( das| es)?( so)?|so umsetzen|setz(e)?( das)?( so)? um|übernimm( das)?|übernehmen|einsetzen|bitte)([.!,\s]+(ja|yes|ok(ay)?|passt|gerne?|genau|bitte|mach( das| es)?( so)?|so|um(setzen)?|das))*[.!\s]*$/iu;
+
+/**
+ * Short confirmations ("ja", "yes", "mach das so") right after the assistant
+ * proposed an edit. Only consulted in active Sharepic-Modus on the loop path —
+ * the loop sees the prior assistant reply, so it can apply what was proposed.
+ */
+export function isShortAffirmation(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.length === 0 || trimmed.length > 40) return false;
+  return AFFIRMATION_PATTERN.test(trimmed);
+}
