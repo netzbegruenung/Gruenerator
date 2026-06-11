@@ -16,7 +16,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hocuspocus/provider": "^3.4.4",
+    "@hocuspocus/provider": "^4.1.2",
     "y-indexeddb": "^9.0.12",
     "yjs": "^13.6.31"
   },

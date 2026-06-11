@@ -12,7 +12,7 @@
       "@expo/dom-webview": "~56.0.5",
       "@types/react": "19.2.14",
       "@types/react-dom": "^19.2.3",
-      "@hocuspocus/provider": "^3.4.4",
+      "@hocuspocus/provider": "^4.1.2",
       "@isaacs/brace-expansion": ">=5.0.1",
       "diff": ">=5.2.2",
       "hono": ">=4.12.18",
