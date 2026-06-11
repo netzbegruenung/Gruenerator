@@ -10,7 +10,6 @@
  * (they need `gin_trgm_ops`) and are intentionally not modelled here.
  */
 import {
-  type EmotionScores,
   type MonitorArticle,
   type MonitorKeywordEntry,
   type MonitorLocale,
@@ -63,9 +62,7 @@ export const monitorArticles = pgTable(
     topic_scores: jsonb('topic_scores').$type<MonitorArticle['topics']>().default({}),
     first_seen_at: timestamp('first_seen_at', { withTimezone: true, mode: 'string' }).defaultNow(),
     last_seen_at: timestamp('last_seen_at', { withTimezone: true, mode: 'string' }).defaultNow(),
-    emotion_scores: jsonb('emotion_scores').$type<EmotionScores>().default({}),
     top_nouns: jsonb('top_nouns').$type<NounCount[]>().default([]),
-    er_sentiment: doublePrecision('er_sentiment'),
   },
   (t) => [
     index('idx_monitor_articles_seen').on(t.last_seen_at),
