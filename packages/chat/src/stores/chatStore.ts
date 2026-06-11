@@ -145,8 +145,8 @@ export const useAgentStore = create<AgentState>()(
   persist(
     (set) => ({
       selectedAgentId: null,
-      selectedProvider: 'litellm',
-      selectedModel: 'gemma-litellm',
+      selectedProvider: 'mistral',
+      selectedModel: 'mistral-medium-3.5',
       currentThreadId: null,
       currentThreadTitle: null,
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
@@ -344,7 +344,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 11,
+      version: 12,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -423,6 +423,14 @@ export const useAgentStore = create<AgentState>()(
         }
         if (version < 11) {
           state.enabledTools = { ...DEFAULT_ENABLED_TOOLS };
+        }
+        if (version < 12) {
+          // Mistral Medium 3.5 is the new default. Move users still on the old
+          // implicit default (gemma-litellm); explicit other choices stay.
+          if (state.selectedModel === 'gemma-litellm') {
+            state.selectedModel = 'mistral-medium-3.5';
+            state.selectedProvider = 'mistral';
+          }
         }
         return state;
       },
