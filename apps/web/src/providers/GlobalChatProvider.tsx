@@ -10,6 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
+import { uploadBlobToMediaLibrary } from '../features/image-studio/services/mediaUploadService';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
 import useNotebookStore from '../features/notebook/stores/notebookStore';
@@ -166,6 +167,18 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
         });
         if (result.status !== 200) return null;
         return result.body.state;
+      },
+      updateSharepicThumbnail: async (canvasId: string, imageDataUrl: string) => {
+        const blob = await (await fetch(imageDataUrl)).blob();
+        const thumbnailUrl = await uploadBlobToMediaLibrary(blob, {
+          filename: `sharepic-thumbnail-${canvasId}.png`,
+          uploadSource: 'chat-sharepic-thumbnail',
+        });
+        if (!thumbnailUrl) return;
+        await getContractsClient().canvas.update({
+          params: { id: canvasId },
+          body: { thumbnail_url: thumbnailUrl },
+        });
       },
       restoreSharepicVersion: async (canvasId: string, version: number) => {
         const result = await getContractsClient().canvas.restoreVersion({

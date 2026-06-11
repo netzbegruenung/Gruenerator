@@ -35,6 +35,24 @@ interface VersionEntry {
   summary: string | null;
 }
 
+/**
+ * After a real edit (entry is thumbnail-dirty) the freshly rendered head PNG
+ * doubles as the canvas thumbnail. Version previews never qualify, and the
+ * flag is cleared up front — a failed upload is not worth a retry loop.
+ */
+function maybeUploadThumbnail(variantId: string, dataUrl: string, isVersionPreview: boolean) {
+  if (isVersionPreview) return;
+  const store = useSharepicLiveStore.getState();
+  const entry = store.entries[variantId];
+  if (!entry?.thumbnailDirty || !entry.canvasId) return;
+  const upload = useChatConfigStore.getState().updateSharepicThumbnail;
+  if (!upload) return;
+  store.clearThumbnailDirty(variantId);
+  upload(entry.canvasId, dataUrl).catch((err) => {
+    console.warn('[SharepicVariantCard] Thumbnail-Update fehlgeschlagen:', err);
+  });
+}
+
 export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [isRendering, setIsRendering] = useState(true);
@@ -71,6 +89,7 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
         if (dataUrl) {
           setImageBase64(dataUrl);
           setRenderError(false);
+          maybeUploadThumbnail(variant.id, dataUrl, viewState != null);
         } else {
           setRenderError(true);
         }
@@ -84,7 +103,7 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
     return () => {
       cancelled = true;
     };
-  }, [variant.canvasType, renderInput]);
+  }, [variant.canvasType, variant.id, renderInput, viewState]);
 
   // Thread-reload rehydration: a minted variant renders its CURRENT state
   // (which may have changed in the studio), not the stale initialProps.
@@ -168,6 +187,7 @@ export function SharepicVariantCard({ variant }: SharepicVariantCardProps) {
         canvasType: variant.canvasType,
         version: result.version,
         state: result.state,
+        thumbnailDirty: true,
       });
     }
   }, [canvasId, viewVersion, variant.id, variant.canvasType]);
