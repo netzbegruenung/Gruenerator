@@ -28,16 +28,16 @@ const platformIconMap: Record<string, React.ComponentType<{ size?: number }>> = 
 export function ContactSection({ data }: ContactSectionProps) {
   return (
     <section
-      className="relative bg-cover bg-center py-[var(--spacing-xxl-r)] md:py-[var(--spacing-xxxl-r)]"
+      className="relative bg-cover bg-center py-[var(--spacing-responsive-xxlarge)] md:py-16 px-[var(--spacing-responsive-medium)] md:px-[var(--spacing-responsive-large)]"
       style={
         data.backgroundImageUrl ? { backgroundImage: `url(${data.backgroundImageUrl})` } : undefined
       }
     >
       <div className="absolute inset-0 bg-black/40 z-[1]" />
       <div className="relative z-[2]">
-        <div className="max-w-[var(--container-max-width)] mx-auto p-[var(--spacing-lg-r)_var(--spacing-md-r)] md:p-[var(--spacing-xl-r)_var(--spacing-lg-r)]">
+        <div className="max-w-7xl mx-auto">
           <div className="flex flex-col">
-            <h2 className="text-[var(--font-size-2xl)] md:text-[var(--font-size-3xl)] font-bold text-white mb-[var(--spacing-lg-r)]">
+            <h2 className="font-[GrueneTypeNeue] text-[length:var(--font-size-2xl)] md:text-[length:var(--font-size-3xl)] font-bold text-white mb-[var(--spacing-responsive-large)]">
               {data.title}
             </h2>
 
@@ -45,7 +45,7 @@ export function ContactSection({ data }: ContactSectionProps) {
               {data.email && (
                 <a
                   href={`mailto:${data.email}`}
-                  className="flex items-center gap-[var(--spacing-sm)] text-white text-[var(--font-size-base)] hover:underline hover:opacity-100"
+                  className="flex items-center gap-[var(--spacing-sm)] text-white text-[length:var(--font-size-base)] hover:underline hover:opacity-100"
                 >
                   <FaEnvelope className="w-5 text-center text-white" />
                   <span>{data.email}</span>
@@ -55,7 +55,7 @@ export function ContactSection({ data }: ContactSectionProps) {
               {data.phone && (
                 <a
                   href={`tel:${data.phone}`}
-                  className="flex items-center gap-[var(--spacing-sm)] text-white text-[var(--font-size-base)] hover:underline hover:opacity-100"
+                  className="flex items-center gap-[var(--spacing-sm)] text-white text-[length:var(--font-size-base)] hover:underline hover:opacity-100"
                 >
                   <FaPhone className="w-5 text-center text-white" />
                   <span>{data.phone}</span>
@@ -63,7 +63,7 @@ export function ContactSection({ data }: ContactSectionProps) {
               )}
 
               {data.address && (
-                <div className="flex items-center gap-[var(--spacing-sm)] text-white text-[var(--font-size-base)]">
+                <div className="flex items-center gap-[var(--spacing-sm)] text-white text-[length:var(--font-size-base)]">
                   <FaMapMarkerAlt className="w-5 text-center text-white" />
                   <span>{data.address}</span>
                 </div>

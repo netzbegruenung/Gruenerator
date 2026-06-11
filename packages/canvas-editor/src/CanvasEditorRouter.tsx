@@ -8,7 +8,7 @@ import { loadCanvasConfig, isValidCanvasType } from './configs/configLoader';
 import type { FullCanvasConfig, CanvasConfigId } from './configs/types';
 import type { MobileBridgeProps } from './hooks/useMobileBridge';
 import type { InitialPageDef } from './hooks/usePageManager';
-import type * as Y from 'yjs';
+import * as Y from 'yjs';
 
 type CanvasState = Record<string, unknown>;
 
@@ -188,6 +188,32 @@ export function ControllableCanvasWrapper({
   });
 
   const effectiveState = isCollab ? yFormState : internalState;
+
+  // One-shot heal for docs from before template callbacks dual-wrote into
+  // pages[i].state: their text edits live only in root formState, while the
+  // mounted page renders from the stale page seed. Copy differing formState
+  // values into the page state map (single-page docs only — for multi-page
+  // docs formState mixes the last edits of ALL pages and can't be attributed).
+  // The non-local origin lets useYjsPageStateSync apply the values to the
+  // already-mounted canvas as well.
+  const healedRef = useRef(false);
+  useEffect(() => {
+    if (!collaborative?.ydoc || !collaborative.isSynced || healedRef.current) return;
+    healedRef.current = true;
+    const ydoc = collaborative.ydoc;
+    const pagesArr = ydoc.getArray<Y.Map<unknown>>('pages');
+    const formState = ydoc.getMap<unknown>('formState');
+    if (pagesArr.length !== 1 || formState.size === 0) return;
+    const stateY = pagesArr.get(0).get('state');
+    if (!(stateY instanceof Y.Map)) return;
+    ydoc.transact(() => {
+      formState.forEach((value, key) => {
+        if ((stateY as Y.Map<unknown>).get(key) !== value) {
+          (stateY as Y.Map<unknown>).set(key, value);
+        }
+      });
+    }, 'canvas-form-state-heal');
+  }, [collaborative?.ydoc, collaborative?.isSynced]);
 
   // Load config dynamically when type changes (for config-driven canvases)
   // Now includes 'zitat' and 'dreizeilen' for unified multi-page support

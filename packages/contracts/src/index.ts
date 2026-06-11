@@ -62,6 +62,7 @@ export {
   groupsContract,
   contentSyncContract,
   monitorContract,
+  sitesContract,
 } from './contracts/index.js';
 
 // ── Schemas (Zod) ───────────────────────────────────────────────────────────
@@ -104,7 +105,9 @@ export * from './schemas/templateInteractions.js';
 export * from './schemas/userAgents.js';
 export * from './schemas/canvasAi.js';
 export * from './schemas/canvas.js';
+export * from './schemas/canvasTemplateDescriptors.js';
 export * from './schemas/skill.js';
 export * from './schemas/groups.js';
 export * from './schemas/contentSync.js';
 export * from './schemas/monitor.js';
+export * from './schemas/sites.js';

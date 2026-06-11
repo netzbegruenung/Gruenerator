@@ -75,7 +75,10 @@ export function useYjsFormState({ ydoc, isSynced, fallback }: Options): Result {
       const yMap = ydoc.getMap<unknown>(YDOC_KEYS.formState);
       ydoc.transact(() => {
         for (const [k, v] of Object.entries(changes)) {
-          yMap.set(k, v);
+          // Skip identical values — GenericCanvas re-emits synced image keys
+          // whenever component state changes (including remote page-state
+          // merges), so unconditional writes would echo between clients.
+          if (yMap.get(k) !== v) yMap.set(k, v);
         }
       }, LOCAL_ORIGIN);
     },

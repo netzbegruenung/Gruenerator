@@ -179,29 +179,6 @@ export const bulkDeleteTexts = async (textIds: string[]): Promise<ProcessedBulkR
   }
 };
 
-/**
- * Bulk delete QA collections
- * @param qaIds - Array of QA collection IDs to delete
- * @returns Result of bulk delete operation
- */
-export const bulkDeleteQA = async (qaIds: string[]): Promise<ProcessedBulkResult> => {
-  try {
-    console.log('[documentAndTextUtils] Bulk deleting QA collections:', qaIds);
-
-    const response = await apiClient.delete<BulkOperationResult>('/qa-collections/bulk', {
-      data: { ids: qaIds },
-    });
-
-    const result = response.data;
-    console.log('[documentAndTextUtils] Bulk delete QA result:', result);
-
-    return handleBulkOperationResult(result, 'delete', 'Notebooks');
-  } catch (error) {
-    console.error('[documentAndTextUtils] Error in bulk delete QA:', error);
-    throw new Error(formatApiError(error as Error, 'Bulk-Löschen der Notebooks'));
-  }
-};
-
 // =====================================================================
 // BUSINESS LOGIC HELPERS
 // =====================================================================

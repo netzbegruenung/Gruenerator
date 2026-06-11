@@ -1,3 +1,4 @@
+import { cn } from '@gruenerator/shared/utils';
 import { useRef, useEffect } from 'react';
 
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
@@ -5,8 +6,6 @@ import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
 
 import type { HeroImageSectionType as HeroImageSection } from '@gruenerator/sites-design';
-
-import { cn } from '../../../utils/cn';
 
 interface HeroImageSectionEditorProps {
   data: HeroImageSection;
@@ -75,7 +74,7 @@ export function HeroImageSectionEditor({ data, onChange }: HeroImageSectionEdito
               onBlur={handleFieldBlur}
               placeholder="Gemeinsam für eine nachhaltige Zukunft!"
               maxLength={MAX_TITLE_LENGTH}
-              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+              className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
             />
             <div
               className={cn(
@@ -109,7 +108,7 @@ export function HeroImageSectionEditor({ data, onChange }: HeroImageSectionEdito
               placeholder="Ein unterstützender Satz zu deiner Hauptbotschaft..."
               rows={2}
               maxLength={MAX_SUBTITLE_LENGTH}
-              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
+              className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
             />
             <div
               className={cn(

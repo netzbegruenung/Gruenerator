@@ -1,3 +1,4 @@
+import { cn } from '@gruenerator/shared/utils';
 import { useRef, useCallback } from 'react';
 
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
@@ -6,8 +7,6 @@ import { ImageUpload } from '../common/ImageUpload';
 import { MarkdownEditor } from '../common/MarkdownEditor';
 
 import type { ThemesSectionType as ThemesSection, ThemeCard } from '@gruenerator/sites-design';
-
-import { cn } from '../../../utils/cn';
 
 interface ThemesSectionEditorProps {
   data: ThemesSection;
@@ -41,14 +40,19 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
   );
 
   const updateTheme = (index: number, field: keyof ThemeCard, value: string) => {
+    const current = data.themes[index];
+    if (!current) return;
     const newThemes = [...data.themes];
-    newThemes[index] = { ...newThemes[index], [field]: value };
+    newThemes[index] = { ...current, [field]: value };
     onChange({ ...data, themes: newThemes });
   };
 
   const addTheme = () => {
     if (data.themes.length >= MAX_THEMES) return;
-    onChange({ ...data, themes: [...data.themes, { ...DEFAULT_THEME }] });
+    onChange({
+      ...data,
+      themes: [...data.themes, { ...DEFAULT_THEME, _key: crypto.randomUUID() }],
+    });
   };
 
   const removeTheme = (index: number) => {
@@ -84,7 +88,7 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
           const contentLength = getTextLength(theme.content || '');
           return (
             <div
-              key={index}
+              key={theme._key ?? theme.title}
               className={cn(
                 'bg-background-pure border border-grey-200 dark:border-grey-700 rounded-lg p-md relative',
                 isItemHighlighted(index) &&
@@ -131,7 +135,7 @@ export function ThemesSectionEditor({ data, onChange }: ThemesSectionEditorProps
                   onBlur={handleFieldBlur}
                   placeholder="z.B. Klimaschutz"
                   maxLength={MAX_TITLE_LENGTH}
-                  className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+                  className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
                 />
               </div>
 

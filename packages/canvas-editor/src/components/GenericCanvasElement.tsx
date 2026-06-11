@@ -104,9 +104,12 @@ const MemoizedTextElement = memo(
     const text = assertAsString(state[config.textKey]);
     const customFontSize = getOptionalStateValue<number>(state, config.fontSizeStateKey);
     const customWidth = getOptionalStateValue<number>(state, config.widthStateKey);
-    const customPosition = config.positionStateKey
-      ? assertAsPosition(state[config.positionStateKey])
-      : null;
+    // null/undefined means "no manual override — use the computed layout".
+    // assertAsPosition's {0,0} fallback must NOT kick in here, or every
+    // element with a positionStateKey but no stored position would render
+    // at the canvas origin.
+    const rawCustomPosition = config.positionStateKey ? state[config.positionStateKey] : null;
+    const customPosition = rawCustomPosition != null ? assertAsPosition(rawCustomPosition) : null;
 
     const layoutItem = layout[config.id];
     const x = customPosition?.x ?? resolveValue(config.x, state, layout);

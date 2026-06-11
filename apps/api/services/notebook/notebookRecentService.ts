@@ -1,13 +1,10 @@
 /**
- * Notebook Recent Documents Controller
+ * Recent documents for system notebook collections.
  *
- * Returns the most recently published documents for a system notebook collection
- * (or a union of collections for multi-source notebooks).
- *
- * Used by the notebook startpages to power the "Zuletzt hinzugefügt" section.
+ * Returns the most recently published documents for a system collection
+ * (or a merged union for multi-source notebooks). Powers the
+ * "Zuletzt hinzugefügt" section on notebook startpages.
  */
-
-import express, { type Response, type Request } from 'express';
 
 import {
   getSystemCollectionConfig,
@@ -17,9 +14,9 @@ import { getQdrantInstance } from '../../database/services/QdrantService/index.j
 import { createLogger } from '../../utils/logger.js';
 
 import type { ScrollPoint } from '../../database/services/QdrantService/operations/types.js';
+import type { NotebookRecentDocumentCard } from '@gruenerator/contracts';
 
 const log = createLogger('notebookRecent');
-const router = express.Router();
 
 const DEFAULT_LIMIT = 6;
 const MAX_LIMIT = 20;
@@ -28,18 +25,7 @@ const MAX_LIMIT = 20;
 // collection in full (largest is hamburg-lv-presse ≈ 1948 articles).
 const SCROLL_WINDOW = 2500;
 
-interface RecentDocumentCard {
-  id: string;
-  collectionId: string;
-  collectionName: string;
-  title: string;
-  snippet: string | null;
-  url: string | null;
-  publishedAt: string | null;
-  sourceLabel: string | null;
-}
-
-function normalizeLimit(raw: unknown): number {
+export function normalizeRecentLimit(raw: unknown): number {
   const n = typeof raw === 'string' ? parseInt(raw, 10) : typeof raw === 'number' ? raw : NaN;
   if (!Number.isFinite(n) || n <= 0) return DEFAULT_LIMIT;
   return Math.min(Math.trunc(n), MAX_LIMIT);
@@ -58,7 +44,7 @@ function toCard(
   collectionId: string,
   collectionName: string,
   pointId: string | number
-): RecentDocumentCard {
+): NotebookRecentDocumentCard {
   const title =
     pickString(payload, 'title', 'name', 'headline') ??
     pickString(payload, 'primary_category') ??
@@ -86,10 +72,10 @@ function toCard(
   };
 }
 
-async function fetchRecentForCollection(
+export async function fetchRecentForCollection(
   collectionId: string,
   limit: number
-): Promise<RecentDocumentCard[]> {
+): Promise<NotebookRecentDocumentCard[]> {
   const config = getSystemCollectionConfig(collectionId);
   if (!config) {
     log.debug(`Unknown system collection: ${collectionId}`);
@@ -128,12 +114,7 @@ async function fetchRecentForCollection(
       )
     );
 
-    const sorted = cards.sort((a: RecentDocumentCard, b: RecentDocumentCard) => {
-      if (!a.publishedAt && !b.publishedAt) return 0;
-      if (!a.publishedAt) return 1;
-      if (!b.publishedAt) return -1;
-      return b.publishedAt.localeCompare(a.publishedAt);
-    });
+    const sorted = cards.sort(byPublishedAtDesc);
 
     return dedupeByUrlOrTitle(sorted).slice(0, limit);
   } catch (error) {
@@ -144,14 +125,26 @@ async function fetchRecentForCollection(
   }
 }
 
-function dedupeByUrlOrTitle(cards: RecentDocumentCard[]): RecentDocumentCard[] {
+export function byPublishedAtDesc(
+  a: NotebookRecentDocumentCard,
+  b: NotebookRecentDocumentCard
+): number {
+  if (!a.publishedAt && !b.publishedAt) return 0;
+  if (!a.publishedAt) return 1;
+  if (!b.publishedAt) return -1;
+  return b.publishedAt.localeCompare(a.publishedAt);
+}
+
+export function dedupeByUrlOrTitle(
+  cards: NotebookRecentDocumentCard[]
+): NotebookRecentDocumentCard[] {
   // Dedup by URL AND by title. The title key catches duplicates that the URL
   // key misses: TYPO3 alias paths for the same article (/nachrichten/X vs
   // /pressemitteilungen/X) and the same article cross-indexed in multiple
   // system collections (e.g. Wahlprogramm chapters in both Beschlüsse and
   // Wahlprogramm). Sort already prefers newest, so the first occurrence wins.
   const seen = new Set<string>();
-  const result: RecentDocumentCard[] = [];
+  const result: NotebookRecentDocumentCard[] = [];
   for (const card of cards) {
     const urlKey = card.url ? `url:${card.url}` : null;
     const titleKey = `title:${card.title}`;
@@ -163,42 +156,3 @@ function dedupeByUrlOrTitle(cards: RecentDocumentCard[]): RecentDocumentCard[] {
   }
   return result;
 }
-
-router.get('/collections/:id/recent', async (req: Request<{ id: string }>, res: Response) => {
-  const collectionId = req.params.id;
-  const limit = normalizeLimit(req.query.limit);
-
-  const cards = await fetchRecentForCollection(collectionId, limit);
-  res.json({ collectionId, items: cards });
-});
-
-router.get('/recent', async (req: Request, res: Response) => {
-  const raw = req.query.collections;
-  const collectionIds = (typeof raw === 'string' ? raw : '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  if (collectionIds.length === 0) {
-    return res.json({ items: [] });
-  }
-
-  const limit = normalizeLimit(req.query.limit);
-  const perCollection = Math.max(Math.ceil((limit * 2) / collectionIds.length), 4);
-
-  const results = await Promise.all(
-    collectionIds.map((id) => fetchRecentForCollection(id, perCollection))
-  );
-
-  const merged = results.flat().sort((a, b) => {
-    if (!a.publishedAt && !b.publishedAt) return 0;
-    if (!a.publishedAt) return 1;
-    if (!b.publishedAt) return -1;
-    return b.publishedAt.localeCompare(a.publishedAt);
-  });
-
-  const unique = dedupeByUrlOrTitle(merged).slice(0, limit);
-  res.json({ items: unique });
-});
-
-export default router;

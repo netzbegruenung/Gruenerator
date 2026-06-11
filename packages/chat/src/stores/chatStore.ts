@@ -8,6 +8,7 @@ import {
   type TextProvider,
 } from '@gruenerator/shared/models';
 import { AUTO_MODEL_ID, type AutoModelId, type SelectedModel } from '../lib/resolveAutoModel';
+import { useSharepicLiveStore } from './sharepicLiveStore';
 import type { ChatApiClient } from '../context/ChatContext';
 
 export const MODEL_OPTIONS = TEXT_MODELS;
@@ -193,6 +194,10 @@ export const useAgentStore = create<AgentState>()(
           needsCompaction: false,
           activeSkillMention: null,
         });
+        // The Sharepic-Modus (docked artifact panel) is thread-scoped: a
+        // variant from the old thread must not stay pinned — nor be sent as
+        // the currentSharepic edit target — in the new one.
+        useSharepicLiveStore.getState().setActiveVariant(null);
       },
 
       setCurrentThreadTitle: (title) => set({ currentThreadTitle: title }),

@@ -45,6 +45,12 @@ import {
 } from './services/responseStreamingService.js';
 import { runChatGraphResume } from './services/resumePipeline.js';
 import {
+  handleSharepicAgenticEdit,
+  isChatToolLoopEnabled,
+} from './services/sharepicAgenticService.js';
+import { hasSharepicEditVerb, isShortAffirmation } from './services/sharepicEditHeuristics.js';
+import { handleSharepicEdit, isSharepicEditInstruction } from './services/sharepicEditService.js';
+import {
   getLastSharepicVariant,
   isSharepicRefinement,
   isSharepicTopicMissing,
@@ -104,6 +110,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         boardIds: rawBoardIds,
         currentDocument: rawCurrentDocument,
         currentBoard: rawCurrentBoard,
+        currentSharepic: rawCurrentSharepic,
       } = args.body;
 
       // === Stage 1: Classify ===
@@ -211,12 +218,69 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         );
       }
 
+      // === Sharepic edit: full NL editing of an existing chat sharepic ===
+      // "Zeile 2 kürzer", "Balken nach oben", "anderes Hintergrundbild" on a
+      // sharepic the thread already produced. Applies structured operations to
+      // the (lazily minted) canvas document and updates the card in place —
+      // see sharepicEditService. Falls through to the legacy text-regeneration
+      // refinement below when no editable target exists.
+      if (
+        actualThreadId &&
+        lastUserMessage &&
+        imageAttachments.length === 0 &&
+        classifiedState.intent !== 'image_edit' &&
+        !universalEditForced
+      ) {
+        const editText = ((extractTextContent(lastUserMessage.content) as string) || '')
+          .replace(/@sharepic\b/gi, ' ')
+          .trim();
+        // With an explicitly activated sharepic (Sharepic-Modus) AND the tool
+        // loop on, an edit verb alone is enough — the loop can answer with
+        // plain text when the message turns out not to be sharepic-related,
+        // so over-triggering is cheap. The strict verb+noun check stays the
+        // bar for the tool-forced single-call path.
+        const sharepicModeRelaxed =
+          isChatToolLoopEnabled() &&
+          rawCurrentSharepic != null &&
+          !!editText &&
+          (hasSharepicEditVerb(editText) || isShortAffirmation(editText));
+        if (
+          editText &&
+          (isSharepicEditInstruction(editText) ||
+            isSharepicRefinement(editText) ||
+            sharepicModeRelaxed)
+        ) {
+          // CHAT_TOOL_LOOP swaps the executor, not the routing: same entry
+          // condition and fallthrough semantics, but the edit runs as a small
+          // agentic tool loop instead of one structured call.
+          const editHandler = isChatToolLoopEnabled()
+            ? handleSharepicAgenticEdit
+            : handleSharepicEdit;
+          const handled = await editHandler({
+            sse,
+            req,
+            threadId: actualThreadId,
+            userId,
+            instruction: editText,
+            currentSharepic: rawCurrentSharepic ?? null,
+            aiWorkerPool,
+            startTime: initialState.startTime,
+            ...(classifiedState.classificationTimeMs != null && {
+              classificationTimeMs: classifiedState.classificationTimeMs,
+            }),
+          });
+          if (handled) return { status: 200 as const, body: undefined };
+        }
+      }
+
       // === Sharepic refinement: a follow-up edit right after a sharepic ===
       // "verlängern" / "kürzer" / "anderes Bild" after a sharepic means "adjust
       // the one you just made" — regenerate seeded with the previous sharepic's
       // text, not a fresh sharepic about the word "verlängern". Overrides whatever
       // intent the classifier picked (the edit verb alone rarely classifies as
       // sharepic). Skipped when an image is attached (that's image_edit territory).
+      // Reached only when handleSharepicEdit above declined (no target variant
+      // or non-editable template).
       let sharepicRefinement: { instruction: string; prior: PriorSharepic } | undefined;
       if (
         actualThreadId &&

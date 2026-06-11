@@ -160,10 +160,31 @@ export const notebookCollectionsContract = c.router(
         200: z.array(searchResultItemSchema),
         400: notebookErrorResponseSchema,
         401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
         404: notebookErrorResponseSchema,
         500: notebookErrorResponseSchema,
       },
       summary: 'Search documents within a notebook collection',
+    },
+
+    /**
+     * DELETE /api/auth/notebook-collections/bulk
+     * Bulk delete notebook collections by ID array.
+     * Declared before deleteCollection so the literal `/bulk` segment is
+     * registered ahead of the `/:id` matcher (ts-rest registers routes in
+     * definition order — see userTemplatesContract).
+     */
+    bulkDelete: {
+      method: 'DELETE',
+      path: '/api/auth/notebook-collections/bulk',
+      body: bulkDeleteBodySchema,
+      responses: {
+        200: bulkDeleteResponseSchema,
+        400: notebookErrorResponseSchema,
+        401: notebookErrorResponseSchema,
+        500: notebookErrorResponseSchema,
+      },
+      summary: 'Bulk delete notebook collections',
     },
 
     /**
@@ -197,27 +218,11 @@ export const notebookCollectionsContract = c.router(
       responses: {
         200: simpleSuccessMessageSchema,
         401: notebookErrorResponseSchema,
+        403: notebookErrorResponseSchema,
         404: notebookErrorResponseSchema,
         500: notebookErrorResponseSchema,
       },
       summary: 'Remove a document from a notebook collection',
-    },
-
-    /**
-     * DELETE /api/auth/notebook-collections/bulk
-     * Bulk delete notebook collections by ID array.
-     */
-    bulkDelete: {
-      method: 'DELETE',
-      path: '/api/auth/notebook-collections/bulk',
-      body: bulkDeleteBodySchema,
-      responses: {
-        200: bulkDeleteResponseSchema,
-        400: notebookErrorResponseSchema,
-        401: notebookErrorResponseSchema,
-        500: notebookErrorResponseSchema,
-      },
-      summary: 'Bulk delete notebook collections',
     },
 
     /**

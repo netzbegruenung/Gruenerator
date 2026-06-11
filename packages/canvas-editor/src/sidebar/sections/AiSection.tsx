@@ -324,6 +324,12 @@ export function OperationPreview({ op }: { op: CanvasAiOperation }) {
         </>
       );
     }
+    case 'set-background-image':
+      return (
+        <>
+          <span className="font-medium">Hintergrundbild:</span> {op.query}
+        </>
+      );
     default: {
       const _exhaustive: never = op;
       void _exhaustive;

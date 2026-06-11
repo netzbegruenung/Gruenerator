@@ -1,12 +1,9 @@
 /**
  * ts-rest contract router for /api/auth/notebook-collections (CRUD routes).
  *
- * Wraps the same NotebookQdrantHelper + service calls as collectionsController.ts
- * using a contract-driven router from @ts-rest/express.
- *
- * Mount BEFORE the legacy collectionsController router in routes.ts so
- * ts-rest matches its own routes first; unmatched paths fall through to
- * the legacy router.
+ * Contract-driven router from @ts-rest/express wrapping NotebookQdrantHelper
+ * + service calls. Sole handler for these routes (the legacy
+ * collectionsController has been removed).
  *
  * ## Authentication
  * All routes require authentication. `requireAuth` middleware is applied at
@@ -38,6 +35,7 @@ import {
   checkNotebookAccess,
   requireNotebookEdit,
   requireNotebookOwner,
+  requireNotebookRead,
 } from './notebookAccess.js';
 
 import type { DocumentRecord, WolkeShareLink } from './types.js';
@@ -856,7 +854,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         removedCount = docsToRemove.length;
       }
 
-      const newTotal = existingIds.size + addedCount - removedCount;
+      // Recount from the join collection — arithmetic on the pre-sync snapshot
+      // drifts when documents are added/removed concurrently.
+      const newTotal = (await notebookHelper.getCollectionDocuments(collectionId)).length;
       await notebookHelper.updateNotebookCollection(collectionId, { document_count: newTotal });
 
       return {
@@ -889,13 +889,8 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
         };
       }
 
-      const access = await checkNotebookAccess(collectionId, userId);
-      if (!access.exists) {
-        return { status: 404 as const, body: { error: 'Notebook collection not found' } };
-      }
-      if (!access.canRead) {
-        return { status: 404 as const, body: { error: 'Notebook collection not found' } };
-      }
+      const guard = await requireNotebookRead(collectionId, userId);
+      if (guard) return guard;
 
       const collectionDocs = await notebookHelper.getCollectionDocuments(collectionId);
       const documentIds = collectionDocs.map((d) => d.document_id);
@@ -923,6 +918,55 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
     } catch (error) {
       log.error('[notebookCollectionsContract.searchCollection] Error:', error);
       return { status: 500 as const, body: { error: 'Search failed' } };
+    }
+  },
+
+  // Registered before deleteCollection so the literal `/bulk` segment wins
+  // over the `/:id` matcher (ts-rest registers routes in object order).
+  bulkDelete: async (args) => {
+    try {
+      const userId = getUserId(args.req);
+      const { ids } = args.body;
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return {
+          status: 400 as const,
+          body: { error: 'Array of collection IDs is required' },
+        };
+      }
+
+      if (ids.length > 100) {
+        return {
+          status: 400 as const,
+          body: { error: 'Maximum 100 collections can be deleted at once' },
+        };
+      }
+
+      const result = await notebookHelper.bulkDeleteCollections(ids, userId);
+
+      const deletedIds = result.results.deleted;
+      const failedIds = result.results.failed.map((f: { id: string }) => f.id);
+
+      return {
+        status: 200 as const,
+        body: {
+          success: true,
+          message: `Bulk delete completed: ${deletedIds.length} of ${ids.length} Notebook collections deleted successfully`,
+          deleted_count: deletedIds.length,
+          failed_ids: failedIds,
+          total_requested: ids.length,
+          deleted_ids: deletedIds,
+        },
+      };
+    } catch (error) {
+      log.error('[notebookCollectionsContract.bulkDelete] Error:', error);
+      const err = error as Error;
+      return {
+        status: 500 as const,
+        body: {
+          error: err.message || 'Failed to perform bulk delete of Notebook collections',
+        },
+      };
     }
   },
 
@@ -959,6 +1003,9 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
       if (guard) return guard;
 
       await notebookHelper.removeDocumentsFromCollection(collectionId, [documentId]);
+
+      const remaining = (await notebookHelper.getCollectionDocuments(collectionId)).length;
+      await notebookHelper.updateNotebookCollection(collectionId, { document_count: remaining });
 
       log.debug(
         `[notebookCollectionsContract] Removed document ${documentId} from collection ${collectionId}`
@@ -1050,53 +1097,6 @@ export const notebookCollectionsContractRouter = s.router(notebookCollectionsCon
     } catch (error) {
       log.error('[notebookCollectionsContract.unlikeCollection] Error:', error);
       return { status: 500 as const, body: { error: 'Internal server error' } };
-    }
-  },
-
-  bulkDelete: async (args) => {
-    try {
-      const userId = getUserId(args.req);
-      const { ids } = args.body;
-
-      if (!Array.isArray(ids) || ids.length === 0) {
-        return {
-          status: 400 as const,
-          body: { error: 'Array of collection IDs is required' },
-        };
-      }
-
-      if (ids.length > 100) {
-        return {
-          status: 400 as const,
-          body: { error: 'Maximum 100 collections can be deleted at once' },
-        };
-      }
-
-      const result = await notebookHelper.bulkDeleteCollections(ids, userId);
-
-      const deletedIds = result.results.deleted;
-      const failedIds = result.results.failed.map((f: { id: string }) => f.id);
-
-      return {
-        status: 200 as const,
-        body: {
-          success: true,
-          message: `Bulk delete completed: ${deletedIds.length} of ${ids.length} Notebook collections deleted successfully`,
-          deleted_count: deletedIds.length,
-          failed_ids: failedIds,
-          total_requested: ids.length,
-          deleted_ids: deletedIds,
-        },
-      };
-    } catch (error) {
-      log.error('[notebookCollectionsContract.bulkDelete] Error:', error);
-      const err = error as Error;
-      return {
-        status: 500 as const,
-        body: {
-          error: err.message || 'Failed to perform bulk delete of Notebook collections',
-        },
-      };
     }
   },
 

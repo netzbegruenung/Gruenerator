@@ -117,6 +117,7 @@ export { type CategoryFilterField } from './components/notebook/CategoryFilterDr
 
 // Thread Components
 export { GrueneratorThread } from './components/thread/GrueneratorThread';
+export { SharepicArtifactPanel } from './components/SharepicArtifactPanel';
 export { composerToolbarButtonClass } from './lib/utils';
 export { useChatDensity, type ChatDensity } from './components/thread/chatDensityContext';
 export { GrueneratorComposer } from './components/thread/GrueneratorComposer';
