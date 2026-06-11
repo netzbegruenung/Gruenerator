@@ -120,10 +120,10 @@ export function selectProviderAndModel({
     provider = 'mistral';
     model = options.model || 'mistral-medium-2604';
   }
-  // QA draft (final answer) — GPT-OSS with reasoning
+  // QA draft (final answer) — Mistral Medium 3.5, the notebook default
   else if (type === 'qa_draft') {
-    provider = 'litellm';
-    model = options.model || 'gpt-oss:120b';
+    provider = 'mistral';
+    model = options.model || 'mistral-medium-2604';
   }
   // QA intermediate steps (planner, repair, tools) — fast model
   else if (type === 'qa_tools' || type === 'qa_planner' || type === 'qa_repair') {
