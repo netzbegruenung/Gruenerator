@@ -2,6 +2,7 @@ import {
   ChatOverview,
   type NotebookLink,
   GrueneratorThread,
+  SharepicArtifactPanel,
   setMentionLocale,
   useAgentStore,
   useUserAgentsRegistry,
@@ -178,6 +179,12 @@ function ChatPage() {
           />
         )}
       </main>
+      {!hub && effectiveViewMode === 'thread' && (
+        // Sharepic-Modus: pins the active sharepic as a docked artifact while
+        // the user iterates via chat. Below xl the inline card stays the only
+        // surface (the panel would crowd out the thread).
+        <SharepicArtifactPanel className="hidden w-[24rem] shrink-0 flex-col overflow-hidden border-l border-border bg-background-alt xl:flex" />
+      )}
     </div>
   );
 }
