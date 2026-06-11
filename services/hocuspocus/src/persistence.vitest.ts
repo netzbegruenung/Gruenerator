@@ -19,6 +19,26 @@ function gzippedState(text: string): Buffer {
   return gzipSync(encodeState(text));
 }
 
+/**
+ * Build a snapshot and a later full-state update that evolved from it, so the
+ * update deterministically supersedes the snapshot (same client id, higher
+ * clock) — exactly how the live `yjs_document_updates` row relates to an older
+ * `yjs_document_snapshots` row in production. Encoding them as two independent
+ * docs would leave the conflict to be resolved by random client id, which is
+ * non-deterministic and not what loadDocument relies on.
+ */
+function snapshotThenUpdate(
+  snapshotText: string,
+  updateText: string
+): { snapshot: Buffer; update: Buffer } {
+  const ydoc = new Y.Doc();
+  ydoc.getMap('test').set('content', snapshotText);
+  const snapshot = gzipSync(Buffer.from(Y.encodeStateAsUpdate(ydoc)));
+  ydoc.getMap('test').set('content', updateText);
+  const update = gzipSync(Buffer.from(Y.encodeStateAsUpdate(ydoc)));
+  return { snapshot, update };
+}
+
 function decodeContent(state: Uint8Array): string {
   const ydoc = new Y.Doc();
   Y.applyUpdate(ydoc, state);
@@ -56,12 +76,11 @@ describe('PostgresPersistence.loadDocument', () => {
   });
 
   it('loads the latest snapshot plus the current-state row', async () => {
+    const { snapshot, update } = snapshotThenUpdate('snapshot-v2', 'live-state');
     const persistence = new PostgresPersistence(
       mockDb({
-        snapshots: [
-          { snapshot_data: gzippedState('snapshot-v2'), version: 2, created_at: '2026-01-02' },
-        ],
-        updates: [{ update_data: gzippedState('live-state') }],
+        snapshots: [{ snapshot_data: snapshot, version: 2, created_at: '2026-01-02' }],
+        updates: [{ update_data: update }],
       })
     );
     const state = await persistence.loadDocument(DOC_ID);
