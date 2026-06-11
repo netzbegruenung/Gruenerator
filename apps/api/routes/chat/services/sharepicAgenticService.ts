@@ -114,14 +114,16 @@ function buildLoopSystemPrompt(args: {
     ...buildOperationCatalog(descriptor),
     '',
     'ARBEITSWEISE:',
-    '- Setze Änderungen mit "apply_sharepic_ops" um — fasse zusammengehörige Operationen in EINEN Aufruf.',
+    '- Setze Änderungen SOFORT mit "apply_sharepic_ops" um. Stelle KEINE Rückfragen und beschreibe keine Entwürfe im Chat — bei Spielraum (z.B. "Text kürzen") entscheide selbst und formuliere kampagnentauglich.',
+    '- Fasse zusammengehörige Operationen in EINEN Aufruf.',
+    '- Bestätigt der*die Nutzer*in einen früheren Vorschlag ("ja", "mach das so"), wende GENAU diesen Vorschlag aus der vorigen Antwort jetzt mit "apply_sharepic_ops" an.',
     '- Wird eine Operation abgelehnt (rejected), korrigiere sie EINMAL mit angepassten Werten.',
     '- "read_sharepic_state" nur, wenn du den aktuellen Zustand wirklich brauchst (z.B. nach Ablehnungen).',
     '- "restore_version" nur auf ausdrücklichen Wunsch ("zurück zur vorherigen Version").',
     `- Du hast maximal ${MAX_STEPS} Schritte. Antworte am Ende IMMER mit 1–2 freundlichen Sätzen auf Deutsch.`,
     '- Ändere NUR, was verlangt wurde. Nutze nur die gelisteten Felder, IDs und Werte.',
     '- Bezieht sich die Nachricht auf Texte aus der vorigen Antwort ("setz das ein", "nimm Vorschlag 2"), übernimm sie sinngemäß in die passenden Felder — kürze auf die Feldlängen der Vorlage.',
-    '- Hat die Nachricht NICHTS mit dem Sharepic zu tun, rufe KEIN Tool auf und antworte nur kurz im Chat.'
+    '- NUR wenn die Nachricht erkennbar nichts mit dem Sharepic zu tun hat, antworte ohne Tool-Aufruf kurz im Chat.'
   );
 
   return lines.join('\n');

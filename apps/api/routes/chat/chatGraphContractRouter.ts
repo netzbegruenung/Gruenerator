@@ -48,7 +48,7 @@ import {
   handleSharepicAgenticEdit,
   isChatToolLoopEnabled,
 } from './services/sharepicAgenticService.js';
-import { hasSharepicEditVerb } from './services/sharepicEditHeuristics.js';
+import { hasSharepicEditVerb, isShortAffirmation } from './services/sharepicEditHeuristics.js';
 import { handleSharepicEdit, isSharepicEditInstruction } from './services/sharepicEditService.js';
 import {
   getLastSharepicVariant,
@@ -243,7 +243,7 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
           isChatToolLoopEnabled() &&
           rawCurrentSharepic != null &&
           !!editText &&
-          hasSharepicEditVerb(editText);
+          (hasSharepicEditVerb(editText) || isShortAffirmation(editText));
         if (
           editText &&
           (isSharepicEditInstruction(editText) ||

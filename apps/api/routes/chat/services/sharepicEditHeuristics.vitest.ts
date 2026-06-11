@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 
-import { isSharepicEditInstruction, hasSharepicEditVerb } from './sharepicEditHeuristics.js';
+import {
+  isSharepicEditInstruction,
+  hasSharepicEditVerb,
+  isShortAffirmation,
+} from './sharepicEditHeuristics.js';
 
 describe('isSharepicEditInstruction', () => {
   it('matches umlaut-initial verbs (the \\b bug: "ändere"/"änderungen" never matched)', () => {
@@ -43,5 +47,23 @@ describe('hasSharepicEditVerb (relaxed Sharepic-Modus check)', () => {
   it('stays quiet on plain questions and fresh-variant requests', () => {
     expect(hasSharepicEditVerb('was bedeutet das?')).toBe(false);
     expect(hasSharepicEditVerb('drei varianten bitte')).toBe(false);
+  });
+});
+
+describe('isShortAffirmation', () => {
+  it('matches confirmations of a proposed edit', () => {
+    expect(isShortAffirmation('yes')).toBe(true);
+    expect(isShortAffirmation('ja')).toBe(true);
+    expect(isShortAffirmation('Ja, mach das so!')).toBe(true);
+    expect(isShortAffirmation('ok, so umsetzen')).toBe(true);
+    expect(isShortAffirmation('passt')).toBe(true);
+  });
+
+  it('rejects questions, content and long messages', () => {
+    expect(isShortAffirmation('ja aber was bedeutet das für die farbe?')).toBe(false);
+    expect(isShortAffirmation('was steht im wahlprogramm?')).toBe(false);
+    expect(
+      isShortAffirmation('ja ich finde wir sollten dann auch noch über den hintergrund sprechen')
+    ).toBe(false);
   });
 });
