@@ -180,23 +180,23 @@
     "@gruenerator/contracts": "workspace:*",
     "@gruenerator/core": "workspace:*",
     "@ts-rest/core": "^3.52.1",
-    "axios": "^1.16.1",
+    "axios": "^1.17.0",
     "clsx": "^2.1.1",
     "nanoid": "^5.1.11",
     "react-icons": "^5.6.0",
     "tailwind-merge": "^3.6.0",
-    "yjs": "^13.6.30",
-    "zustand": "^5.0.13"
+    "yjs": "^13.6.31",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@gruenerator/eslint-config": "workspace:*",
-    "@tanstack/react-query": "^5.100.14",
-    "@types/react": "^19.2.14",
+    "@tanstack/react-query": "^5.101.0",
+    "@types/react": "19.2.14",
     "chokidar": "^3.6.0",
-    "cross-env": "^7.0.3",
+    "cross-env": "^10.1.0",
     "eslint": "^9.39.4",
     "gray-matter": "^4.0.3",
-    "tsx": "^4.22.3",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3"
   },
   "peerDependencies": {
