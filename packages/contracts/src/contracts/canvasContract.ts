@@ -20,6 +20,10 @@ import {
   canvasListResponseSchema,
   canvasMessageResponseSchema,
   canvasResizeResponseSchema,
+  canvasRestoreResponseSchema,
+  canvasStateResponseSchema,
+  canvasVersionListResponseSchema,
+  canvasVersionResponseSchema,
   createCanvasBodySchema,
   resizeCanvasBodySchema,
   updateCanvasBodySchema,
@@ -85,6 +89,67 @@ export const canvasContract = c.router(
         500: canvasErrorResponseSchema,
       },
       summary: 'Clone a canvas',
+    },
+
+    /** GET /api/canvas/:id/state — current merged state (Yjs-aware). */
+    getState: {
+      method: 'GET',
+      path: '/api/canvas/:id/state',
+      pathParams: z.object({ id: z.string() }),
+      responses: {
+        200: canvasStateResponseSchema,
+        401: canvasErrorResponseSchema,
+        403: canvasErrorResponseSchema,
+        404: canvasErrorResponseSchema,
+        500: canvasErrorResponseSchema,
+      },
+      summary: 'Get the current canvas state (live Yjs or initial_state fallback)',
+    },
+
+    /** GET /api/canvas/:id/versions — chat-edit version history (newest first). */
+    listVersions: {
+      method: 'GET',
+      path: '/api/canvas/:id/versions',
+      pathParams: z.object({ id: z.string() }),
+      responses: {
+        200: canvasVersionListResponseSchema,
+        401: canvasErrorResponseSchema,
+        403: canvasErrorResponseSchema,
+        404: canvasErrorResponseSchema,
+        500: canvasErrorResponseSchema,
+      },
+      summary: 'List chat-edit state versions of a canvas',
+    },
+
+    /** GET /api/canvas/:id/versions/:version — one version snapshot. */
+    getVersion: {
+      method: 'GET',
+      path: '/api/canvas/:id/versions/:version',
+      pathParams: z.object({ id: z.string(), version: z.coerce.number().int() }),
+      responses: {
+        200: canvasVersionResponseSchema,
+        401: canvasErrorResponseSchema,
+        403: canvasErrorResponseSchema,
+        404: canvasErrorResponseSchema,
+        500: canvasErrorResponseSchema,
+      },
+      summary: 'Get a single canvas state version',
+    },
+
+    /** POST /api/canvas/:id/versions/:version/restore — re-apply as new version. */
+    restoreVersion: {
+      method: 'POST',
+      path: '/api/canvas/:id/versions/:version/restore',
+      pathParams: z.object({ id: z.string(), version: z.coerce.number().int() }),
+      body: z.object({}).optional(),
+      responses: {
+        200: canvasRestoreResponseSchema,
+        401: canvasErrorResponseSchema,
+        403: canvasErrorResponseSchema,
+        404: canvasErrorResponseSchema,
+        500: canvasErrorResponseSchema,
+      },
+      summary: 'Restore a canvas state version (applied as a new version)',
     },
 
     /** GET /api/canvas/:id — a single canvas the caller can access. */

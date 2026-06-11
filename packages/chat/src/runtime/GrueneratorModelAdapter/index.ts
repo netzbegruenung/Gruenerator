@@ -4,6 +4,7 @@ import { parseAllMentions } from '../../lib/mentionParser';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
 import { useDocumentChatStore } from '../../stores/documentChatStore';
+import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 import { streamErrorMessage } from '../streamErrorMessage';
 
 import { buildRequestBody } from './buildRequestBody';
@@ -448,6 +449,12 @@ export function createGrueneratorModelAdapter(
         injectedCurrentDocument,
         injectedAttachmentContext,
         seededInitialAssistantMessage,
+        currentSharepic: (() => {
+          const active = useSharepicLiveStore.getState().activeVariant;
+          if (!active) return null;
+          const { variantId, canvasId, canvasType } = active;
+          return { variantId, canvasId, canvasType };
+        })(),
       });
 
       let response: Response;

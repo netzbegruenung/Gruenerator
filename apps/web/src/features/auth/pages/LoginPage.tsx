@@ -7,6 +7,7 @@ import { getIntendedRedirect, isMobileAppContext } from '../../../utils/authRedi
 import { cn } from '../../../utils/cn';
 import { openDesktopLogin, type AuthSource } from '../../../utils/desktopAuth';
 import { isDesktopApp } from '../../../utils/platform';
+import { SESSION_EXPIRED_FLAG } from '../storageKeys';
 
 // Auth Backend URL from environment variable or fallback to relative path
 const AUTH_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api';
@@ -61,6 +62,25 @@ const LoginPage = ({
   const isMobileApp = isMobileAppContext(location);
 
   const successMessage = (location.state as { message?: string } | null)?.message;
+
+  // Read-and-remove: set by performLoginRedirect (apiClient) when a dead
+  // session forced the user here. Lazy initializer so it survives re-renders
+  // but is consumed exactly once per redirect.
+  const [sessionExpired] = useState(() => {
+    try {
+      const flag = sessionStorage.getItem(SESSION_EXPIRED_FLAG);
+      if (flag !== null) sessionStorage.removeItem(SESSION_EXPIRED_FLAG);
+      return flag !== null;
+    } catch {
+      return false;
+    }
+  });
+
+  const sessionExpiredBanner = sessionExpired && !successMessage && (
+    <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-md mb-md rounded-sm text-foreground">
+      Deine Sitzung ist abgelaufen — bitte melde dich erneut an.
+    </div>
+  );
 
   const displayPageName =
     pageName || (mode === 'required' ? getPageName(location.pathname) : undefined);
@@ -193,6 +213,8 @@ const LoginPage = ({
             >
               {getHeaderContent()}
 
+              {sessionExpiredBanner}
+
               {successMessage && (
                 <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm">
                   {successMessage}
@@ -254,6 +276,8 @@ const LoginPage = ({
           )}
         >
           {getHeaderContent()}
+
+          {sessionExpiredBanner}
 
           {successMessage && (
             <div className="bg-primary-50 dark:bg-primary-900/20 border-l-4 border-primary-500 p-md mb-md rounded-sm">

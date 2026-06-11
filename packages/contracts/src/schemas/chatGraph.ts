@@ -113,6 +113,16 @@ export const chatStreamBodySchema = z.object({
   // Live board state injected by the boards assistant surface (FAB on the boards
   // page). Primary context for board Q&A and the edit_current_board intent.
   currentBoard: currentBoardSchema.nullish(),
+  // The sharepic variant the user marked as "active for chat editing" (card
+  // toggle). Targets the sharepic_edit branch; canvasId is set once the
+  // variant has been minted into a canvas document.
+  currentSharepic: z
+    .object({
+      variantId: z.string(),
+      canvasId: z.string().nullish(),
+      canvasType: z.string(),
+    })
+    .nullish(),
   customSystemPrompt: z.string().nullish(),
   roleName: z.string().nullish(),
   // Seed for a brand-new thread: the generated text (Antrag, PM, Social) the

@@ -1,22 +1,8 @@
+import { type NotebookRecentDocumentCard } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 
-import apiClient from '../../../components/utils/apiClient';
-
-export interface RecentDocumentCard {
-  id: string;
-  collectionId: string;
-  collectionName: string;
-  title: string;
-  snippet: string | null;
-  url: string | null;
-  publishedAt: string | null;
-  sourceLabel: string | null;
-}
-
-interface RecentResponse {
-  items: RecentDocumentCard[];
-  collectionId?: string;
-}
+export type RecentDocumentCard = NotebookRecentDocumentCard;
 
 interface UseLastAddedOptions {
   collectionIds: string[];
@@ -27,19 +13,26 @@ interface UseLastAddedOptions {
 async function fetchRecent(collectionIds: string[], limit: number): Promise<RecentDocumentCard[]> {
   if (collectionIds.length === 0) return [];
 
+  const client = getContractsClient();
+
   if (collectionIds.length === 1) {
-    const id = collectionIds[0];
-    const { data } = await apiClient.get<RecentResponse>(
-      `/auth/notebook/collections/${encodeURIComponent(id)}/recent`,
-      { params: { limit } }
-    );
-    return data.items ?? [];
+    const result = await client.notebook.getCollectionRecent({
+      params: { id: collectionIds[0] },
+      query: { limit: String(limit) },
+    });
+    if (result.status !== 200) {
+      throw new Error(`Failed to load recent documents (HTTP ${result.status})`);
+    }
+    return result.body.items;
   }
 
-  const { data } = await apiClient.get<RecentResponse>('/auth/notebook/recent', {
-    params: { collections: collectionIds.join(','), limit },
+  const result = await client.notebook.getRecent({
+    query: { collections: collectionIds.join(','), limit: String(limit) },
   });
-  return data.items ?? [];
+  if (result.status !== 200) {
+    throw new Error(`Failed to load recent documents (HTTP ${result.status})`);
+  }
+  return result.body.items;
 }
 
 export function useLastAddedDocuments({

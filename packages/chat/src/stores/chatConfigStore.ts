@@ -35,6 +35,30 @@ export interface ChatConfig {
     canvasType: string,
     initialProps: Record<string, unknown>
   ) => Promise<string | null>;
+  /** Current state of a chat-edited sharepic canvas (GET /api/canvas/:id/state). */
+  fetchSharepicState?: (
+    canvasId: string
+  ) => Promise<{ state: Record<string, unknown>; version: number | null } | null>;
+  /** Chat-edit version history of a canvas, newest first. */
+  fetchSharepicVersions?: (
+    canvasId: string
+  ) => Promise<Array<{ version: number; summary: string | null; created_at: string }>>;
+  /** One version's full state (for the card's version stepper preview). */
+  fetchSharepicVersionState?: (
+    canvasId: string,
+    version: number
+  ) => Promise<Record<string, unknown> | null>;
+  /** Restores a version (re-applied as a new version); returns the new head. */
+  restoreSharepicVersion?: (
+    canvasId: string,
+    version: number
+  ) => Promise<{ version: number; state: Record<string, unknown> } | null>;
+  /**
+   * Persists a freshly rendered PNG (data URL) as the canvas document's
+   * thumbnail after a chat edit, so galleries don't keep showing the mint
+   * state. Best-effort — failures must not surface in the chat UI.
+   */
+  updateSharepicThumbnail?: (canvasId: string, imageDataUrl: string) => Promise<void>;
   /**
    * URL the @wolke picker links to when the user hasn't connected any
    * Nextcloud share link yet. Platform-specific (web: `/wolke`, native: a deep
@@ -140,6 +164,11 @@ interface ChatConfigStore extends ResolvedChatConfig {
     canvasType: string,
     initialProps: Record<string, unknown>
   ) => Promise<string | null>;
+  fetchSharepicState?: ChatConfig['fetchSharepicState'];
+  fetchSharepicVersions?: ChatConfig['fetchSharepicVersions'];
+  fetchSharepicVersionState?: ChatConfig['fetchSharepicVersionState'];
+  restoreSharepicVersion?: ChatConfig['restoreSharepicVersion'];
+  updateSharepicThumbnail?: ChatConfig['updateSharepicThumbnail'];
   /** URL the @wolke empty-state CTA opens (new tab). Hidden when unset. */
   wolkeConnectUrl?: string;
   /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
@@ -225,6 +254,11 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       onEditInDocs: config?.onEditInDocs,
       onEditSharepic: config?.onEditSharepic,
       renderSharepic: config?.renderSharepic,
+      fetchSharepicState: config?.fetchSharepicState,
+      fetchSharepicVersions: config?.fetchSharepicVersions,
+      fetchSharepicVersionState: config?.fetchSharepicVersionState,
+      restoreSharepicVersion: config?.restoreSharepicVersion,
+      updateSharepicThumbnail: config?.updateSharepicThumbnail,
       wolkeConnectUrl: config?.wolkeConnectUrl,
     });
   },

@@ -4,11 +4,13 @@ import {
   preloadChatRuntime,
   type SharepicVariant,
 } from '@gruenerator/chat';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { renderSharepicToImage } from '../features/image-studio/renderSharepicToImage';
+import { uploadBlobToMediaLibrary } from '../features/image-studio/services/mediaUploadService';
 import { useModelPreferences } from '../features/models/hooks/useModelPreferences';
 import { useNotebookChatStore } from '../features/notebook/stores/notebookChatStore';
 import useNotebookStore from '../features/notebook/stores/notebookStore';
@@ -117,6 +119,13 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
       wolkeConnectUrl: '/profile/wolke',
       renderSharepic: renderSharepicToImage,
       onEditSharepic: (variant: SharepicVariant) => {
+        // Minted variants live in a real canvas document — open it directly
+        // (fully bidirectional with chat edits). Unminted ones use the legacy
+        // localStorage handoff into the template flow.
+        if (variant.canvasId) {
+          window.open(`/studio/canvas/${variant.canvasId}`, '_blank', 'noopener,noreferrer');
+          return;
+        }
         const handoffId =
           typeof crypto !== 'undefined' && 'randomUUID' in crypto
             ? crypto.randomUUID()
@@ -139,6 +148,45 @@ export function GlobalChatProvider({ children }: GlobalChatProviderProps) {
           '_blank',
           'noopener,noreferrer'
         );
+      },
+      fetchSharepicState: async (canvasId: string) => {
+        const result = await getContractsClient().canvas.getState({ params: { id: canvasId } });
+        if (result.status !== 200) return null;
+        return { state: result.body.state, version: result.body.version };
+      },
+      fetchSharepicVersions: async (canvasId: string) => {
+        const result = await getContractsClient().canvas.listVersions({
+          params: { id: canvasId },
+        });
+        if (result.status !== 200) return [];
+        return result.body.versions;
+      },
+      fetchSharepicVersionState: async (canvasId: string, version: number) => {
+        const result = await getContractsClient().canvas.getVersion({
+          params: { id: canvasId, version },
+        });
+        if (result.status !== 200) return null;
+        return result.body.state;
+      },
+      updateSharepicThumbnail: async (canvasId: string, imageDataUrl: string) => {
+        const blob = await (await fetch(imageDataUrl)).blob();
+        const thumbnailUrl = await uploadBlobToMediaLibrary(blob, {
+          filename: `sharepic-thumbnail-${canvasId}.png`,
+          uploadSource: 'chat-sharepic-thumbnail',
+        });
+        if (!thumbnailUrl) return;
+        await getContractsClient().canvas.update({
+          params: { id: canvasId },
+          body: { thumbnail_url: thumbnailUrl },
+        });
+      },
+      restoreSharepicVersion: async (canvasId: string, version: number) => {
+        const result = await getContractsClient().canvas.restoreVersion({
+          params: { id: canvasId, version },
+          body: {},
+        });
+        if (result.status !== 200) return null;
+        return { version: result.body.version, state: result.body.state };
       },
       onEditInDocs: async (content: string, title?: string, existingDocId?: string) => {
         if (existingDocId) {

@@ -20,6 +20,7 @@ import { Layer } from 'react-konva';
 
 import { useSelectionAwareness } from '../collab/useSelectionAwareness';
 import { useYjsCanvasBinding } from '../collab/useYjsCanvasBinding';
+import { useYjsPageStateSync } from '../collab/useYjsPageStateSync';
 import {
   CanvasStoreProvider,
   useCanvasStore,
@@ -247,6 +248,27 @@ function GenericCanvasWithRef<
       return { ...prev, ...partial };
     });
   }, []);
+
+  // External edits to this page's `state` Y.Map (chat sharepic editing via
+  // the Hocuspocus internal API) merge into the live component state.
+  // Rebuilding through createInitialState recomputes derived fields
+  // (balkenInstances, hasBackgroundImage); balkenInstances is dropped from
+  // the input so the primary balken regenerates from the new text/colors.
+  const handleRemotePageState = useCallback(
+    (partial: Record<string, unknown>) => {
+      setStateRaw((prev) => {
+        const merged: Record<string, unknown> = { ...prev, ...partial };
+        delete merged.balkenInstances;
+        return config.createInitialState(merged) as TState;
+      });
+    },
+    [config]
+  );
+  useYjsPageStateSync({
+    pageYMap: props.collaborative?.pageYMap ?? null,
+    isSynced: props.collaborative?.isSynced ?? false,
+    onRemoteState: handleRemotePageState,
+  });
 
   const collectState = useCallback(() => state, [state]);
   const handleRestore = useCallback((restoredState: Record<string, unknown>) => {

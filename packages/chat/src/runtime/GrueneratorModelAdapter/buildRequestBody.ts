@@ -48,6 +48,12 @@ export interface BuildRequestBodyParams {
   injectedCurrentDocument: InjectedCurrentDocument | undefined;
   injectedAttachmentContext: string | undefined;
   seededInitialAssistantMessage: string | undefined;
+  /** Variant marked "active for chat editing" on a sharepic card, if any. */
+  currentSharepic: {
+    variantId: string;
+    canvasId: string | null;
+    canvasType: string;
+  } | null;
 }
 
 const lastUserText = (formattedMessages: FormattedMessage[]): string =>
@@ -86,6 +92,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     injectedCurrentDocument,
     injectedAttachmentContext,
     seededInitialAssistantMessage,
+    currentSharepic,
   } = params;
 
   if (effectiveMode === 'search') {
@@ -127,6 +134,7 @@ export function buildRequestBody(params: BuildRequestBodyParams): Record<string,
     documentChatIds: mergedDocChatIds.length > 0 ? mergedDocChatIds : undefined,
     documentChatMode: hasDocumentChat || mergedDocChatIds.length > 0 || undefined,
     currentDocument: injectedCurrentDocument,
+    currentSharepic: currentSharepic ?? undefined,
     attachmentContext: injectedAttachmentContext,
     defaultNotebookId: config.selectedNotebookId || undefined,
     customSystemPrompt: config.customSystemPrompt || undefined,

@@ -260,13 +260,7 @@ export async function setupRoutes(app: Application): Promise<void> {
   const { default: generatorConfiguratorRoute } =
     await import('./routes/custom_generators/generator_configurator.js');
   const { default: customPromptRoute } = await import('./routes/custom_prompts/custom_prompt.js');
-  const {
-    collectionsRouter: notebookCollectionsRouter,
-    interactionRouter: notebookInteractionRouter,
-    recentDocumentsRouter: notebookRecentDocumentsRouter,
-    statisticsRouter: notebookStatisticsRouter,
-    internalNotebookRouter,
-  } = await import('./routes/notebook/index.js');
+  const { internalNotebookRouter } = await import('./routes/notebook/index.js');
   const { default: nextcloudApiRouter } = await import('./routes/nextcloud/nextcloudApi.js');
   const { default: connectionsRouter } =
     await import('./routes/connections/connectionsController.js');
@@ -331,9 +325,8 @@ export async function setupRoutes(app: Application): Promise<void> {
   app.use('/api/auth/templates', requireAuth);
   mountTemplateInteractionsContractRouter(app);
   app.use('/api/auth', authenticatedReadLimiter, authRouter);
-  // ts-rest contract router for notebook collections — mounts BEFORE the
-  // legacy router so contract-modeled routes match first. requireAuth is
-  // applied at the prefix because all 10 routes require authentication.
+  // ts-rest contract router for notebook collections. requireAuth is
+  // applied at the prefix because all routes require authentication.
   app.use('/api/auth/notebook-collections', requireAuth);
   // Neutral "my groups" endpoint used by share dialogs across features. Must
   // be `.use`'d before the contract router mounts the GET /api/auth/groups/me
@@ -345,21 +338,17 @@ export async function setupRoutes(app: Application): Promise<void> {
   // collide with any legacy group route.
   mountGroupsContractRouter(app);
   // Sharing endpoints (share mode, edit policy, group shares) — mounted BEFORE
-  // the CRUD router so :id/share doesn't fall through to the legacy router.
+  // the CRUD router so :id/share matches before the :id CRUD routes.
   mountNotebookSharingContractRouter(app);
   // Wolke pending-files endpoints (:id/pending-files/...) — mounted BEFORE the
-  // CRUD router so they don't fall through to the legacy collectionsController.
+  // CRUD router so they match before the :id CRUD routes.
   mountWolkePendingContractRouter(app);
   mountNotebookCollectionsContractRouter(app);
-  app.use('/api/auth/notebook-collections', authenticatedReadLimiter, notebookCollectionsRouter);
   // Mixed-auth contract: `optionalAuth` populates req.user without rejecting,
   // so per-handler `requireAuthUser()` gates the writes and the public/:token
-  // routes still work. Mounted before the legacy router so contract routes win.
+  // routes still work.
   app.use('/api/auth/notebook', optionalAuth);
   mountNotebookContractRouter(app);
-  app.use('/api/auth/notebook', authenticatedReadLimiter, notebookInteractionRouter);
-  app.use('/api/auth/notebook', authenticatedReadLimiter, notebookRecentDocumentsRouter);
-  app.use('/api/auth/notebook', authenticatedReadLimiter, notebookStatisticsRouter);
   // External API for partner integrations (MCP / programmatic access).
   // Auth: per-route Bearer API key middleware (requireApiKey). Rate-limited
   // per-key via apiKeyRateLimit. LV scope enforced inside each handler.
