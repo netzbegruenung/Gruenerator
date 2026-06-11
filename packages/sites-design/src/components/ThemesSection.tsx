@@ -1,5 +1,5 @@
 import type { ThemesSection as ThemesSectionType } from '../types/candidate';
-import { MarkdownContent } from '../utils/markdown';
+import { RichTextContent } from './RichTextContent';
 import { Carousel, CarouselContent, CarouselItem, CarouselDots } from './ui/carousel';
 
 interface ThemesSectionProps {
@@ -42,9 +42,9 @@ export function ThemesSection({ data }: ThemesSectionProps) {
                     <h3 className="text-[length:var(--font-size-lg)] font-semibold text-[var(--link-color)] mb-[var(--spacing-sm)]">
                       {theme.title}
                     </h3>
-                    <MarkdownContent
+                    <RichTextContent
                       content={theme.content}
-                      className="text-[var(--font-color-muted)] text-[length:var(--font-size-base)] leading-relaxed"
+                      className="text-[var(--font-color-muted)] text-[length:var(--font-size-base)] leading-relaxed [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-[1.5em] [&_ol]:pl-[1.5em]"
                     />
                   </div>
                 </article>
