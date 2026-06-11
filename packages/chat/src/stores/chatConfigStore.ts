@@ -54,6 +54,12 @@ export interface ChatConfig {
     version: number
   ) => Promise<{ version: number; state: Record<string, unknown> } | null>;
   /**
+   * Persists a freshly rendered PNG (data URL) as the canvas document's
+   * thumbnail after a chat edit, so galleries don't keep showing the mint
+   * state. Best-effort — failures must not surface in the chat UI.
+   */
+  updateSharepicThumbnail?: (canvasId: string, imageDataUrl: string) => Promise<void>;
+  /**
    * URL the @wolke picker links to when the user hasn't connected any
    * Nextcloud share link yet. Platform-specific (web: `/wolke`, native: a deep
    * link). Omit to hide the CTA — only the warning copy renders.
@@ -162,6 +168,7 @@ interface ChatConfigStore extends ResolvedChatConfig {
   fetchSharepicVersions?: ChatConfig['fetchSharepicVersions'];
   fetchSharepicVersionState?: ChatConfig['fetchSharepicVersionState'];
   restoreSharepicVersion?: ChatConfig['restoreSharepicVersion'];
+  updateSharepicThumbnail?: ChatConfig['updateSharepicThumbnail'];
   /** URL the @wolke empty-state CTA opens (new tab). Hidden when unset. */
   wolkeConnectUrl?: string;
   /** threadId → context-getter, populated by host surfaces (e.g. docs editor). */
@@ -251,6 +258,7 @@ export const useChatConfigStore = create<ChatConfigStore>((set, get) => ({
       fetchSharepicVersions: config?.fetchSharepicVersions,
       fetchSharepicVersionState: config?.fetchSharepicVersionState,
       restoreSharepicVersion: config?.restoreSharepicVersion,
+      updateSharepicThumbnail: config?.updateSharepicThumbnail,
       wolkeConnectUrl: config?.wolkeConnectUrl,
     });
   },

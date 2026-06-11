@@ -445,6 +445,7 @@ export async function* parseSSEStream(
             version: payload.version,
             state: payload.state,
             summary: payload.summary,
+            thumbnailDirty: true,
           });
           break;
         }
