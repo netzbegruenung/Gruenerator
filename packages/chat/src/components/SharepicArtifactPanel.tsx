@@ -2,12 +2,23 @@
 
 import { useMemo } from 'react';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@gruenerator/ui';
+import {
   ChevronLeft,
   ChevronRight,
   Download,
-  ExternalLink,
   History,
   Loader2,
+  Pencil,
   SquarePen,
   X,
 } from 'lucide-react';
@@ -93,7 +104,7 @@ function PanelInner({ active, className }: { active: ActiveSharepic; className?:
             </button>
           </div>
         ) : (
-          <div className="relative overflow-hidden rounded-lg border border-border bg-background">
+          <div className="group/panelimg relative overflow-hidden rounded-lg border border-border bg-background">
             {isRendering && !imageBase64 && (
               <div className="flex h-72 items-center justify-center">
                 <div className="flex flex-col items-center gap-2">
@@ -112,6 +123,40 @@ function PanelInner({ active, className }: { active: ActiveSharepic; className?:
                     : 'mx-auto w-full opacity-100 transition-opacity'
                 }
               />
+            )}
+            {imageBase64 && !isRendering && (
+              <div className="absolute inset-0 flex items-center justify-center gap-3 bg-black/0 opacity-0 transition-opacity group-hover/panelimg:bg-black/30 group-hover/panelimg:opacity-100 focus-within:bg-black/30 focus-within:opacity-100">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      className="flex size-11 items-center justify-center rounded-full bg-white text-grey-900 shadow-lg transition-transform hover:scale-105"
+                      aria-label="Sharepic im Studio bearbeiten"
+                    >
+                      <Pencil className="h-5 w-5" />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Im Studio öffnen?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Das Sharepic öffnet sich im Studio-Editor in einem neuen Tab. Änderungen
+                        bleiben synchron — du kannst danach hier im Chat weiterarbeiten.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                      <AlertDialogAction onClick={openInStudio}>Im Studio öffnen</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                <button
+                  onClick={download}
+                  className="flex size-11 items-center justify-center rounded-full bg-white text-grey-900 shadow-lg transition-transform hover:scale-105"
+                  aria-label="Sharepic herunterladen"
+                >
+                  <Download className="h-5 w-5" />
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -153,25 +198,6 @@ function PanelInner({ active, className }: { active: ActiveSharepic; className?:
         <p className="text-xs text-foreground-muted">
           Beschreibe Änderungen einfach im Chat — sie landen direkt auf diesem Sharepic.
         </p>
-      </div>
-
-      <div className="flex items-center justify-end gap-1 border-t border-border px-3 py-2">
-        <button
-          onClick={download}
-          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-foreground-muted hover:bg-primary/10 hover:text-foreground"
-          aria-label="Sharepic herunterladen"
-        >
-          <Download className="h-3.5 w-3.5" />
-          <span>Herunterladen</span>
-        </button>
-        <button
-          onClick={openInStudio}
-          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs text-primary hover:bg-primary/10"
-          aria-label="Sharepic im Studio öffnen"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-          <span>Im Studio öffnen</span>
-        </button>
       </div>
     </aside>
   );
