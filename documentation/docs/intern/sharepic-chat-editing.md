@@ -38,6 +38,12 @@ neu erfindet.
 - **Kontext-Disziplin:** pro Edit landen nur `{ canvasId, variantId, version,
   summary }` in `tool_results`; voller State reist ausschließlich über SSE
   (`sharepic_minted` / `sharepic_updated` / `sharepic_edit_error`).
+- **Thumbnails:** nach jedem echten Edit (SSE-Update/Restore, NICHT
+  Mount-Rehydration) markiert der Client den Eintrag `thumbnailDirty`;
+  `SharepicVariantCard` lädt den nächsten erfolgreichen Head-Render als
+  Thumbnail hoch (`updateSharepicThumbnail`-Callback in
+  `GlobalChatProvider`: Media-Library-Upload + `PATCH /api/canvas/:id`).
+  Best-effort — Fehler erscheinen nie in der Chat-UI.
 
 ## Bewusst aufgeschoben (kein Bug — Scope-Entscheidung)
 
@@ -49,7 +55,6 @@ neu erfindet.
 | **KI-generierte / hochgeladene Hintergründe** | v1 nur Stock-Suche (`set-background-image` → ImageSelectionService) | Flux-Pfad existiert im image-Intent; Upload bräuchte Attachment-Routing in den Edit-Branch |
 | **Chat-Edits auf fremden / nicht im Chat geminteten Canvases** | Berechtigungs- und UX-Fragen ungelöst (wessen Karte? welcher Thread?) | `chat_thread_canvases` um externe Docs erweitern + ACL-Prüfung |
 | **Studio-Edits in der Versions-Historie** | Yjs-Snapshots decken Studio-Historie ab; Karten-Stepper zeigt nur Chat-Edits | Hook in `onStoreDocument` oder Hocuspocus-Change-Hook |
-| **Thumbnail-Update nach Chat-Edits** | Nice-to-have; Studio-Galerie zeigt bis dahin das Mint-Thumbnail | Frontend: nach Re-Render PNG via Media-Library + `PATCH /api/canvas/:id` |
 | **`@sharepic` in Produktion** | Mentionable ist dev-only geflaggt (`packages/chat/src/lib/mentionables.ts`), bis die manuelle E2E-Matrix aus PR #1215 gelaufen ist | Flag entfernen + Envs in prod setzen |
 | **Heal für Multi-Page-Altdokumente** | `formState` mischt die letzten Edits ALLER Seiten — nicht attribuierbar; Heal läuft nur bei `pages.length === 1` | Nur mit per-Page-Schreibhistorie möglich; ab Dual-Write entsteht das Problem nicht mehr neu |
 

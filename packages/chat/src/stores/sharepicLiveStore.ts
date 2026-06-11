@@ -15,6 +15,12 @@ export interface SharepicLiveEntry {
   /** Full flat state of the latest version; null until first fetch/update. */
   state: Record<string, unknown> | null;
   summary?: string;
+  /**
+   * Set when the state changed through a real edit (SSE update / restore) —
+   * NOT on mount rehydration. The card uploads its next successful head
+   * render as the canvas thumbnail and clears the flag.
+   */
+  thumbnailDirty?: boolean;
 }
 
 export interface ActiveSharepic {
@@ -32,6 +38,7 @@ interface SharepicLiveStore {
     entry: Partial<SharepicLiveEntry> & { canvasId: string }
   ) => void;
   setActiveVariant: (active: ActiveSharepic | null) => void;
+  clearThumbnailDirty: (variantId: string) => void;
 }
 
 export const useSharepicLiveStore = create<SharepicLiveStore>((set, get) => ({
@@ -51,4 +58,10 @@ export const useSharepicLiveStore = create<SharepicLiveStore>((set, get) => ({
   },
 
   setActiveVariant: (active) => set({ activeVariant: active }),
+
+  clearThumbnailDirty: (variantId) => {
+    const prev = get().entries[variantId];
+    if (!prev?.thumbnailDirty) return;
+    set({ entries: { ...get().entries, [variantId]: { ...prev, thumbnailDirty: false } } });
+  },
 }));
