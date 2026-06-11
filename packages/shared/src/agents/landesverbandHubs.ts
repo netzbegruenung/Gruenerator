@@ -97,6 +97,15 @@ export const LV_HUBS = [
     audience: 'de-DE',
   },
   {
+    lvId: 'hessen',
+    slug: 'gruene-hessen',
+    name: 'Grüne Hessen',
+    notebookId: 'hessen-notebook',
+    prAgentId: 'gruenerator-oeffentlichkeitsarbeit-hessen',
+    buergerAgentId: 'gruenerator-buergeranfragen-hessen',
+    audience: 'de-DE',
+  },
+  {
     lvId: 'oesterreich',
     slug: 'gruene-oesterreich',
     name: 'Grüne Österreich',
