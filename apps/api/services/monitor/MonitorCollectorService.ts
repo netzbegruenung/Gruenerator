@@ -46,6 +46,9 @@ function getLocale(domain: string): MonitorLocale {
   return AT_DOMAINS.has(domain) ? 'at' : 'de';
 }
 
+// LSR-konform: nur Headline + Link aus RSS übernehmen. content/contentSnippet
+// werden bewusst NICHT gelesen — Textauszüge aus Presse-Feeds fallen unter das
+// Leistungsschutzrecht (§ 87f-h UrhG), Überschrift + Hyperlink sind ausgenommen.
 interface RSSItem {
   title?: string;
   link?: string;
@@ -87,7 +90,7 @@ async function fetchFeed(
       items.push({
         url: rssItem.link,
         title: rssItem.title || '',
-        excerpt: '',
+        excerpt: '', // immer leer für RSS — Volltext/Auszug kommt nur aus lizenzierten Quellen (EventRegistry)
         source: feed.title || domain,
         publishedAt: pubDate || null,
         locale,
