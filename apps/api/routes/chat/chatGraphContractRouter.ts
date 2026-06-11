@@ -48,6 +48,7 @@ import {
   handleSharepicAgenticEdit,
   isChatToolLoopEnabled,
 } from './services/sharepicAgenticService.js';
+import { hasSharepicEditVerb } from './services/sharepicEditHeuristics.js';
 import { handleSharepicEdit, isSharepicEditInstruction } from './services/sharepicEditService.js';
 import {
   getLastSharepicVariant,
@@ -233,7 +234,22 @@ export const chatGraphContractRouter = s.router(chatGraphContract, {
         const editText = ((extractTextContent(lastUserMessage.content) as string) || '')
           .replace(/@sharepic\b/gi, ' ')
           .trim();
-        if (editText && (isSharepicEditInstruction(editText) || isSharepicRefinement(editText))) {
+        // With an explicitly activated sharepic (Sharepic-Modus) AND the tool
+        // loop on, an edit verb alone is enough — the loop can answer with
+        // plain text when the message turns out not to be sharepic-related,
+        // so over-triggering is cheap. The strict verb+noun check stays the
+        // bar for the tool-forced single-call path.
+        const sharepicModeRelaxed =
+          isChatToolLoopEnabled() &&
+          rawCurrentSharepic != null &&
+          !!editText &&
+          hasSharepicEditVerb(editText);
+        if (
+          editText &&
+          (isSharepicEditInstruction(editText) ||
+            isSharepicRefinement(editText) ||
+            sharepicModeRelaxed)
+        ) {
           // CHAT_TOOL_LOOP swaps the executor, not the routing: same entry
           // condition and fallthrough semantics, but the edit runs as a small
           // agentic tool loop instead of one structured call.
