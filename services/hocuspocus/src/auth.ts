@@ -482,13 +482,13 @@ export class AuthService {
   }
 
   private async authenticateByCookie(
-    requestHeaders: Record<string, string | string[] | undefined>,
+    requestHeaders: Headers,
     documentName: string
   ): Promise<AuthenticationResult> {
-    const cookieHeader = requestHeaders.cookie;
+    const cookieHeader = requestHeaders.get('cookie');
     log.debug(`[Auth-Cookie] Cookie header exists: ${!!cookieHeader}`);
 
-    if (!cookieHeader || typeof cookieHeader !== 'string') {
+    if (!cookieHeader) {
       return { authenticated: false, reason: 'No session cookie provided' };
     }
 
