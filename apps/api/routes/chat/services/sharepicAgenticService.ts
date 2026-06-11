@@ -13,9 +13,10 @@
  * existing `sharepic_updated` SSE events only.
  */
 import { buildSharepicSnapshot, getSharepicTemplateDescriptor } from '@gruenerator/contracts';
-import { streamText, tool, stepCountIs } from 'ai';
+import { streamText, tool, stepCountIs, type ModelMessage } from 'ai';
 import { z } from 'zod';
 
+import { getPostgresInstance } from '../../../database/services/PostgresService.js';
 import {
   getCurrentCanvasState,
   applyCanvasStatePatch,
@@ -59,6 +60,24 @@ function resolveLoopModel(): { provider: string; modelName: string } {
   };
 }
 
+/**
+ * Last assistant reply of the thread, truncated. Instructions like "setze
+ * Vorschlag 1 ein" reference text the assistant JUST suggested — without it
+ * the loop model has nothing to insert.
+ */
+async function getPriorAssistantText(threadId: string): Promise<string | null> {
+  const pg = getPostgresInstance();
+  const rows = (await pg.query(
+    `SELECT content FROM chat_messages
+     WHERE thread_id = $1 AND role = 'assistant'
+     ORDER BY created_at DESC LIMIT 1`,
+    [threadId]
+  )) as Array<{ content: string | null }>;
+  const content = rows[0]?.content?.trim();
+  if (!content) return null;
+  return content.length > 4000 ? `${content.slice(0, 4000)}…` : content;
+}
+
 interface PersistedStep {
   toolCallId: string;
   toolName: string;
@@ -100,7 +119,9 @@ function buildLoopSystemPrompt(args: {
     '- "read_sharepic_state" nur, wenn du den aktuellen Zustand wirklich brauchst (z.B. nach Ablehnungen).',
     '- "restore_version" nur auf ausdrücklichen Wunsch ("zurück zur vorherigen Version").',
     `- Du hast maximal ${MAX_STEPS} Schritte. Antworte am Ende IMMER mit 1–2 freundlichen Sätzen auf Deutsch.`,
-    '- Ändere NUR, was verlangt wurde. Nutze nur die gelisteten Felder, IDs und Werte.'
+    '- Ändere NUR, was verlangt wurde. Nutze nur die gelisteten Felder, IDs und Werte.',
+    '- Bezieht sich die Nachricht auf Texte aus der vorigen Antwort ("setz das ein", "nimm Vorschlag 2"), übernimm sie sinngemäß in die passenden Felder — kürze auf die Feldlängen der Vorlage.',
+    '- Hat die Nachricht NICHTS mit dem Sharepic zu tun, rufe KEIN Tool auf und antworte nur kurz im Chat.'
   );
 
   return lines.join('\n');
@@ -300,10 +321,16 @@ export async function handleSharepicAgenticEdit(args: HandleSharepicEditArgs): P
     let text = '';
     let responseStarted = false;
 
+    const priorAssistantText = await getPriorAssistantText(threadId);
+    const messages: ModelMessage[] = [
+      ...(priorAssistantText ? [{ role: 'assistant' as const, content: priorAssistantText }] : []),
+      { role: 'user' as const, content: instruction },
+    ];
+
     const result = streamText({
       model: getModel(provider, modelName),
       system,
-      messages: [{ role: 'user', content: instruction }],
+      messages,
       tools,
       stopWhen: stepCountIs(MAX_STEPS),
       temperature: 0.2,

@@ -43,29 +43,7 @@ import type { AIWorkerPool } from '../../../workers/types.js';
 
 const log = createLogger('SharepicEdit');
 
-/**
- * Element/styling nouns that the legacy refinement regex doesn't cover.
- * Combined with REFINE-style verbs in isSharepicEditInstruction below.
- */
-const EDIT_NOUN_PATTERN =
-  /\b(zeile\s*[123]?|text\w*|balken|schrift\w*|font|farb\w*|hintergrund\w*|bild\w*|foto\w*|motiv\w*|sonnenblume|logo|zitat\w*|überschrift|ueberschrift|header)\b/i;
-
-const EDIT_VERB_PATTERN =
-  /\b(änder\w*|aender\w*|ändere?|mach\w*|verschieb\w*|beweg\w*|setz\w*|tausch\w*|ersetz\w*|wechsel\w*|vergrößer\w*|vergroesser\w*|verklein\w*|größer|groesser|kleiner|höher|hoeher|tiefer|kürz\w*|kuerz\w*|verläng\w*|verlaeng\w*|anpass\w*|entfern\w*|ausblend\w*|einblend\w*|zeig\w*|versteck\w*|nach\s+(oben|unten|links|rechts)|anderes?|neues?)\b/i;
-
-/** Phrases that mean "generate fresh variants" — never treated as an edit. */
-const NEW_VARIANTS_PATTERN =
-  /\b(neue?s?\s+(sharepic|varianten?)|noch\s*mal\s+(neu|von\s+vorn)|alle\s+varianten|drei\s+varianten)\b/i;
-
-/**
- * True when the message reads like an edit instruction for an existing
- * sharepic (vs. a request for a fresh one). Only meaningful when the thread
- * actually has a sharepic to edit — callers check target existence.
- */
-export function isSharepicEditInstruction(text: string): boolean {
-  if (NEW_VARIANTS_PATTERN.test(text)) return false;
-  return EDIT_VERB_PATTERN.test(text) && EDIT_NOUN_PATTERN.test(text);
-}
+export { isSharepicEditInstruction } from './sharepicEditHeuristics.js';
 
 interface ThreadCanvasRow {
   variant_id: string;
