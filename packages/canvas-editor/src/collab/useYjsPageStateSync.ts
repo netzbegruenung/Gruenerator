@@ -1,19 +1,21 @@
 import { useEffect, useRef } from 'react';
 import * as Y from 'yjs';
 
+import { PAGES_LOCAL_ORIGIN } from './useYjsPages';
 import { YDOC_KEYS } from './ydocKeys';
 
 /**
- * Push remote changes of a page's `state` Y.Map into the mounted canvas.
+ * Push external changes of a page's `state` Y.Map into the mounted canvas.
  *
  * GenericCanvas holds template-field state as local React state seeded once
- * from `page.state` — without this observer a server-side edit (chat sharepic
- * editing applies patches via the Hocuspocus internal API into formState AND
- * pages[i].state) would not appear in an open studio tab until reload.
+ * from `page.state` — without this observer neither a chat sharepic edit
+ * (applied server-side via the Hocuspocus internal API) nor another studio
+ * client's edit (dual-written into the page state map by CanvasEditor) would
+ * appear in an open studio tab until reload.
  *
- * The studio itself never writes `page.state` for a mounted page (text edits
- * flow through callbacks → root formState), so every observed change here is
- * external and safe to merge.
+ * This client's own dual-writes carry PAGES_LOCAL_ORIGIN and are skipped —
+ * the local component state already has those values, and rebuilding it on
+ * every keystroke would disrupt inline text editing.
  */
 export function useYjsPageStateSync(options: {
   pageYMap: Y.Map<unknown> | null;
@@ -33,6 +35,7 @@ export function useYjsPageStateSync(options: {
       const partial: Record<string, unknown> = {};
       for (const event of events) {
         if (event.target !== stateY) continue;
+        if (event.transaction.origin === PAGES_LOCAL_ORIGIN) continue;
         for (const key of (event as Y.YMapEvent<unknown>).keysChanged) {
           partial[key] = (stateY as Y.Map<unknown>).get(key);
         }

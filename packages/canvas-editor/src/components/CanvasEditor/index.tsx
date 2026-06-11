@@ -48,6 +48,7 @@ import { PageThumbnailStrip } from '../PageThumbnailStrip';
 import { Toolbar } from '../Toolbar';
 import { AddPageButton } from '../TemplatePickerFlyout';
 
+import { wrapCallbacksWithPageSync } from '../../collab/wrapCallbacksWithPageSync';
 import { PageWrapper } from './PageWrapper';
 import { useMobileWebViewport } from './hooks/useMobileWebViewport';
 import { usePageRefs } from './hooks/usePageRefs';
@@ -146,6 +147,7 @@ function CanvasEditorInner({
     pageCount,
     getConfigForPage,
     getPageYMap,
+    updatePageState,
     undoPageOp,
     redoPageOp,
     canUndoPageOp,
@@ -160,6 +162,21 @@ function CanvasEditorInner({
 
   // Store loaded configs for rendering
   const loadedConfigs = useLoadedConfigs({ pages, getConfigForPage });
+
+  // Collab mode: template-field callbacks dual-write into the page's `state`
+  // Y.Map so other clients (useYjsPageStateSync) and reloads see the edits —
+  // the host's own callback chain only persists them to root formState.
+  const collabPageCallbacks = useMemo(() => {
+    if (!collaborative) return null;
+    const map = new Map<string, Record<string, (val: unknown) => void>>();
+    for (const page of pages) {
+      map.set(
+        page.id,
+        wrapCallbacksWithPageSync(callbacks, (partial) => updatePageState(page.id, partial))
+      );
+    }
+    return map;
+  }, [collaborative, callbacks, pages, updatePageState]);
 
   // Sidebar state - ONE shared sidebar for all pages
   // In mobile bridge mode, activeTab is controlled by native via mobileBridge.activeTab
@@ -954,7 +971,7 @@ function CanvasEditorInner({
                 onDuplicatePage={duplicatePage}
                 onExport={handleExport}
                 onCancel={onCancel}
-                callbacks={callbacks}
+                callbacks={collabPageCallbacks?.get(page.id) ?? callbacks}
                 multiPageExport={index === 0 ? multiPageExportProps : undefined}
                 onStateChange={handlePageStateChange}
                 onToolbarStateChange={isActive ? handleToolbarStateChange : undefined}
