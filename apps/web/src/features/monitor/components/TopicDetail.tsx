@@ -115,7 +115,6 @@ export function TopicDetail({ topic, locale, onBack }: TopicDetailProps) {
                   }
                   source={article.source}
                   publishedAt={article.publishedAt}
-                  sentiment={article.erSentiment}
                 />
               ))}
             </CardGrid>

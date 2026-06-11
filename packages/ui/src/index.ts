@@ -201,7 +201,6 @@ export { ArticleCard, type ArticleCardProps } from './components/article-card';
 export { CollapsibleSection, type CollapsibleSectionProps } from './components/collapsible-section';
 export { ProgressBar, progressBarVariants, type ProgressBarProps } from './components/progress-bar';
 export { WordCloud, type WordCloudItem, type WordCloudProps } from './components/word-cloud';
-export { MoodBar, getMoodLabel, type MoodBarProps } from './components/mood-bar';
 export {
   MultiStepForm,
   type MultiStepFormProps,

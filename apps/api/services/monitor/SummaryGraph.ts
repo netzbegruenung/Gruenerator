@@ -13,8 +13,6 @@ import { z } from 'zod';
 import { createLogger } from '../../utils/logger.js';
 import { getModel, isProviderConfigured } from '../ai/providers.js';
 
-import { EMOTION_NAMES } from './types.js';
-
 import type { MonitorArticle } from './types.js';
 
 const log = createLogger('SummaryGraph');
@@ -175,29 +173,6 @@ Regeln:
 function buildRiskContext(articles: MonitorArticle[]): string {
   const lines: string[] = [];
 
-  // Sentiment overview
-  const sentiments = articles.filter((a) => a.erSentiment != null).map((a) => a.erSentiment!);
-  if (sentiments.length > 0) {
-    const avg = sentiments.reduce((a, b) => a + b, 0) / sentiments.length;
-    const negCount = sentiments.filter((s) => s < -0.3).length;
-    const label = avg < -0.2 ? 'negativ' : avg > 0.1 ? 'positiv' : 'gemischt';
-    lines.push(`Sentiment-Durchschnitt: ${avg.toFixed(2)} (${label})`);
-    if (negCount > 0) lines.push(`Stark negative Artikel: ${negCount} von ${sentiments.length}`);
-  }
-
-  // Emotion profile
-  const emotionTotals: Record<string, number> = {};
-  for (const a of articles) {
-    for (const [k, v] of Object.entries(a.emotionScores ?? {}) as [string, number | undefined][]) {
-      emotionTotals[k] = (emotionTotals[k] ?? 0) + (v ?? 0);
-    }
-  }
-  const emotionParts = Object.entries(emotionTotals)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 4)
-    .map(([k, v]) => `${EMOTION_NAMES[k] || k} ${Math.round(v)}`);
-  if (emotionParts.length > 0) lines.push(`Emotionsprofil: ${emotionParts.join(', ')}`);
-
   // Topic distribution
   const topicCounts: Record<string, number> = {};
   for (const a of articles) {
@@ -221,20 +196,6 @@ function buildRiskContext(articles: MonitorArticle[]): string {
     .slice(0, 5)
     .map(([k]) => k);
   if (topKw.length > 0) lines.push(`Schlagwörter: ${topKw.join(', ')}`);
-
-  // Most negative articles
-  const negArticles = articles
-    .filter((a) => a.erSentiment != null && a.erSentiment < -0.3)
-    .sort((a, b) => (a.erSentiment ?? 0) - (b.erSentiment ?? 0))
-    .slice(0, 3);
-  if (negArticles.length > 0) {
-    lines.push(
-      '\nNegativste Artikel:\n' +
-        negArticles
-          .map((a) => `- [${a.source}] "${a.title}" (Sentiment: ${a.erSentiment!.toFixed(1)})`)
-          .join('\n')
-    );
-  }
 
   return lines.join('\n');
 }
@@ -291,7 +252,7 @@ Politischer Kontext (Stand März 2026):
 
 Schreibe auf Deutsch mit Genderstern (*). Sei direkt und konkret.`,
       prompt: `RISIKO-DATEN:
-${riskContext || 'Keine Sentiment-Daten verfügbar.'}
+${riskContext || 'Keine Daten verfügbar.'}
 
 EXTRAHIERTE FAKTEN über ${state.entityLabel}:
 ${factsFormatted}
@@ -301,8 +262,7 @@ Analysiere die Berichterstattung und identifiziere:
 - 2-3 konkrete Risiken (Angriffsflächen, negative Berichterstattung, fehlende Positionen)
 - 2-3 konkrete Chancen (positive Themen, starke Positionen, Verstärkungspotenzial)
 
-Jedes Item braucht: kurze Überschrift, Quelle, Begründung, Dringlichkeit (high/medium/low).
-Stark negative Artikel (Sentiment < -0.3) = höhere Dringlichkeit.`,
+Jedes Item braucht: kurze Überschrift, Quelle, Begründung, Dringlichkeit (high/medium/low).`,
       temperature: 0.3,
       maxOutputTokens: 1500,
     });
