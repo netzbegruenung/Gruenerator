@@ -52,6 +52,7 @@ export {
 } from './hooks/useDocuments';
 export { useResolveUsers } from './hooks/useResolveUsers';
 export { usePendingDocAI } from './hooks/usePendingDocAI';
+export { useDocAIReviewState, type DocAIReviewState } from './hooks/useDocAIReviewState';
 export { useIsTouchDevice } from '@gruenerator/shared/hooks';
 export { useVersionHistoryShortcut } from './hooks/useVersionHistoryShortcut';
 
@@ -81,7 +82,11 @@ export {
   MAX_FILE_SIZE,
 } from './lib/blockNoteUtils';
 export { defaultDocumentContent } from './lib/defaultContent';
-export { invokeDocumentAI } from './lib/invokeDocumentAI';
+export {
+  invokeDocumentAI,
+  isDocAIInvocationInFlight,
+  subscribeDocAIInFlight,
+} from './lib/invokeDocumentAI';
 export {
   acceptDocumentAI,
   rejectDocumentAI,
