@@ -394,6 +394,10 @@ const standardRoutes: RouteConfig[] = [
     ),
   },
   {
+    path: '/gruene-hessen',
+    component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/hessen') })),
+  },
+  {
     path: '/kommunalwiki',
     component: lazy(() => Promise.resolve({ default: createRedirect('/notebooks/kommunalwiki') })),
   },
