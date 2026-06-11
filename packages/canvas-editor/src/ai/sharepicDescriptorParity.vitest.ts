@@ -7,6 +7,7 @@ import {
   type CanvasAiOperation,
 } from '@gruenerator/contracts';
 
+import { zitatPureFullConfig } from '../configs/zitat_pure_full.config';
 import { COLOR_SCHEMES } from '../utils/dreizeilenLayout';
 
 // The server-safe descriptors in @gruenerator/contracts duplicate the
@@ -66,6 +67,22 @@ describe('sharepicOpsToStatePatch', () => {
       balkenOffset: { x: 40, y: 0 },
     });
     expect(result.patch.balkenOffset).toEqual({ x: 40, y: -300 });
+  });
+
+  it('moves the zitat-pure name via update-element (absolute coords, clamped)', () => {
+    const ops: CanvasAiOperation[] = [
+      { kind: 'update-element', elementId: 'name', patch: { y: 60 } },
+    ];
+    const result = sharepicOpsToStatePatch(zitatPure, ops, {});
+    // y clamps to the 120px top boundary; missing x falls back to the 75px left margin.
+    expect(result.patch.namePosition).toEqual({ x: 75, y: 120 });
+  });
+
+  it('zitat-pure name element state key matches the template config', () => {
+    const el = zitatPureFullConfig.elements.find((e) => e.id === 'name-text');
+    expect(el && 'positionStateKey' in el ? el.positionStateKey : null).toBe(
+      zitatPure.elements.find((e) => e.id === 'name')?.positionStateKey
+    );
   });
 
   it('rejects set-color-scheme with unknown scheme ids', () => {

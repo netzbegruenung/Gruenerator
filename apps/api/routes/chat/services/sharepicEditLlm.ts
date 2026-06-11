@@ -97,8 +97,15 @@ export function buildOperationCatalog(descriptor: SharepicTemplateDescriptor): s
     );
     for (const el of descriptor.elements) {
       const scalePart = el.scale ? `, scale ${el.scale.min}–${el.scale.max}` : '';
+      // Offset elements (bounds spanning negative y) move relative to their
+      // anchor; absolute elements use canvas coordinates where smaller y is
+      // higher up. The wrong hint sends the model in the wrong direction.
+      const directionHint =
+        el.bounds.minY < 0
+          ? 'Negative y = nach oben.'
+          : 'Absolute Position: kleinere y-Werte = weiter oben.';
       lines.push(
-        `    elementId "${el.id}": x ${el.bounds.minX}..${el.bounds.maxX}, y ${el.bounds.minY}..${el.bounds.maxY}${scalePart}. Negative y = nach oben.`
+        `    elementId "${el.id}" (${el.label}): x ${el.bounds.minX}..${el.bounds.maxX}, y ${el.bounds.minY}..${el.bounds.maxY}${scalePart}. ${directionHint}`
       );
     }
   }

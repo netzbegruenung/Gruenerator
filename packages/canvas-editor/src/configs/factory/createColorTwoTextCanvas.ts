@@ -184,6 +184,14 @@ export interface ColorTwoTextOptions<
 
   /** Optional: Background image that changes with color */
   backgroundImageMap?: Record<string, string>;
+
+  /**
+   * Optional: template-specific state keys that must survive
+   * createInitialState (e.g. zitat-pure's `namePosition`). Without this the
+   * initial-state whitelist silently drops keys written by chat edits, so
+   * card renders and remote-sync re-seeds lose them.
+   */
+  passthroughStateKeys?: string[];
 }
 
 // ============================================================================
@@ -211,6 +219,7 @@ export function createColorTwoTextCanvas<
     maxPages = 10,
     getCanvasText,
     backgroundImageMap,
+    passthroughStateKeys = [],
   } = options;
 
   // Build base elements
@@ -379,8 +388,12 @@ export function createColorTwoTextCanvas<
         // Text fields
         [primaryField.key]: (props[primaryField.key] as string) || '',
         [secondaryField.key]: (props[secondaryField.key] as string) || '',
-        customPrimaryFontSize: null,
-        customSecondaryFontSize: null,
+        // Carried over from props: chat edits persist these into the canvas
+        // state, and card renders / remote-sync re-seeds run through here —
+        // hard-nulling them silently reverted "Schrift größer" edits.
+        customPrimaryFontSize: (props.customPrimaryFontSize as number | null | undefined) ?? null,
+        customSecondaryFontSize:
+          (props.customSecondaryFontSize as number | null | undefined) ?? null,
 
         // Background color
         backgroundColor: (props.backgroundColor as string) || defaultBackgroundColor,
@@ -398,6 +411,10 @@ export function createColorTwoTextCanvas<
         balkenInstances: [],
         frameInstances: [],
         userImageInstances: [],
+
+        ...Object.fromEntries(
+          passthroughStateKeys.filter((k) => k in props).map((k) => [k, props[k]])
+        ),
       }) as State,
 
     createActions: (getState, setState, saveToHistory, debouncedSaveToHistory, callbacks) => {
