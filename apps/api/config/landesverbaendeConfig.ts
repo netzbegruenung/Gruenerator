@@ -777,19 +777,24 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           listSelector: 'a[href*="/single-news/"]',
           paginationPattern: '/seite-{page}',
           paginationOffset: -1,
-          maxPages: 15,
+          // Frozen archive (ends Mai 2025), ~5 articles/page; page ~60 reaches
+          // Mitte 2021, so 70 covers the full 5-year window (maxAgeYears).
+          maxPages: 70,
         },
       ],
       contentSelectors: {
-        title: ['h1', '.news-single h2', 'meta[property="og:title"]'],
+        // h1 is the site logo link; the headline is the h2 inside the
+        // single-news container's <header>.
+        title: ['.news.single header h2', 'meta[property="og:title"]', 'h1'],
+        // No bare 'time' selector: the sidebar event calendar renders upcoming
+        // dates as <time> tags, which previously stamped every article with a
+        // future event date.
         date: [
-          'time[datetime]',
-          'time',
-          '.date',
-          '.news-date',
           'meta[property="article:published_time"]',
+          'time[datetime]',
+          '.ce-bodytext p.inlineleft',
         ],
-        content: ['.news-text', '.bodytext', 'article', 'main .content'],
+        content: ['.ce-bodytext', '.news-text', '.bodytext'],
         categories: ['.news-category', '.tags a', 'a[href*="/themen/"]'],
         author: ['.author', '.byline'],
       },
@@ -803,24 +808,38 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
       baseUrl: 'https://archiv.gruene-brandenburg.de',
       cms: 'typo3',
       maxAgeYears: 5,
+      // /beschluesse is only an index of per-year listing pages; the PDFs live
+      // on those year pages. Only years inside the 5-year window are listed —
+      // older year pages would be OCR'd and then dropped by the age filter.
+      // PDF URLs embed the year (/beschluesse/2022/2022-03/...), so
+      // DateExtractor dates them without processUndatedPdfs.
       contentPaths: [
         {
           type: 'beschluss',
-          path: '/beschluesse',
-          listSelector: 'a[href*="/beschluesse/"], a[href$=".pdf"]',
+          path: '/partei/parteitage/beschluesse/2021',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
+          maxPages: 1,
+        },
+        {
+          type: 'beschluss',
+          path: '/partei/parteitage/beschluesse/2022',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
+          maxPages: 1,
+        },
+        {
+          type: 'beschluss',
+          path: '/partei/parteitage/beschluesse/2022-1',
+          listSelector: 'a[href$=".pdf"]',
+          isPdfArchive: true,
           maxPages: 1,
         },
       ],
       contentSelectors: {
-        title: ['h1', '.news-single h2', 'meta[property="og:title"]'],
-        date: [
-          'time[datetime]',
-          'time',
-          '.date',
-          '.news-date',
-          'meta[property="article:published_time"]',
-        ],
-        content: ['.news-text', '.bodytext', 'article', 'main .content'],
+        title: ['.news.single header h2', 'meta[property="og:title"]', 'h1'],
+        date: ['meta[property="article:published_time"]', 'time[datetime]'],
+        content: ['.ce-bodytext', '.news-text', '.bodytext'],
         categories: ['.news-category', '.tags a'],
         author: ['.author', '.byline'],
       },

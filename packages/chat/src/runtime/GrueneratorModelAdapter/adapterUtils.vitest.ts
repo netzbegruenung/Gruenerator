@@ -65,6 +65,7 @@ describe('buildRequestBody', () => {
     injectedCurrentDocument: undefined,
     injectedAttachmentContext: undefined,
     seededInitialAssistantMessage: undefined,
+    currentSharepic: null,
     ...overrides,
   });
 

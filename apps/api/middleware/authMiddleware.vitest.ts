@@ -242,7 +242,10 @@ describe('requireAuth', () => {
     expect(state.statusCode).toBe(401);
   });
 
-  it('401s when Better Auth throws during session resolution', async () => {
+  it('503s with auth_unavailable when Better Auth throws during session resolution', async () => {
+    // An infra failure (Redis/Postgres down) is NOT a dead session. A 401
+    // here makes the frontend wipe its auth state and force a re-login —
+    // the exact production bug this distinction fixes.
     getSessionMock.mockRejectedValue(new Error('Redis connection lost'));
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -252,8 +255,24 @@ describe('requireAuth', () => {
 
     await requireAuth(req, res, next);
 
-    // Must not crash; must 401 the request; must log the error.
-    expect(state.statusCode).toBe(401);
+    expect(state.statusCode).toBe(503);
+    expect(state.body).toMatchObject({ error: 'auth_unavailable' });
+    expect(next).not.toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it('503s (no login redirect) for HTML requests when Better Auth throws', async () => {
+    getSessionMock.mockRejectedValue(new Error('Postgres timeout'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const req = mockReq({ originalUrl: '/dashboard', headers: { accept: 'text/html' } });
+    const { res, state } = mockRes();
+    const next = vi.fn() as NextFunction;
+
+    await requireAuth(req, res, next);
+
+    expect(state.statusCode).toBe(503);
+    expect(state.redirected).toBeNull();
     expect(next).not.toHaveBeenCalled();
     errorSpy.mockRestore();
   });
@@ -312,6 +331,22 @@ describe('optionalAuth', () => {
     expect(next).toHaveBeenCalledTimes(1);
     expect(state.statusCode).toBe(200); // untouched
     expect(req.user).toBeUndefined();
+  });
+
+  it('degrades to guest (next(), no user) when Better Auth throws', async () => {
+    getSessionMock.mockRejectedValue(new Error('Redis connection lost'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const req = mockReq({ headers: { cookie: 'better-auth.session=xyz' } });
+    const { res, state } = mockRes();
+    const next = vi.fn() as NextFunction;
+
+    await optionalAuth(req, res, next);
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(state.statusCode).toBe(200); // untouched — no 503 on public content
+    expect(req.user).toBeUndefined();
+    errorSpy.mockRestore();
   });
 });
 

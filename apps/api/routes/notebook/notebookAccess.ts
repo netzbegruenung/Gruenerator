@@ -119,6 +119,21 @@ export async function checkNotebookAccess(
 }
 
 /**
+ * Convenience guard for read endpoints. Returns a 403/404-shaped object
+ * the caller can return directly when access is denied; otherwise null when
+ * the user is allowed to proceed.
+ */
+export async function requireNotebookRead(
+  notebookId: string,
+  userId: string | null
+): Promise<{ status: 403 | 404; body: { error: string } } | null> {
+  const access = await checkNotebookAccess(notebookId, userId);
+  if (!access.exists) return { status: 404, body: { error: 'Notebook nicht gefunden' } };
+  if (!access.canRead) return { status: 403, body: { error: 'Keine Berechtigung' } };
+  return null;
+}
+
+/**
  * Convenience guard for mutation endpoints. Returns a 403/404-shaped object
  * the caller can return directly when access is denied; otherwise null when
  * the user is allowed to proceed.

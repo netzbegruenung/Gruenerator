@@ -39,6 +39,12 @@ interface TextElementOptions<TState> {
     fontSize: number;
   };
   align?: 'left' | 'center' | 'right';
+  /**
+   * State key holding an absolute `{ x, y }` override. When set (e.g. by a
+   * chat `update-element` op or a studio drag), it wins over the computed
+   * layout position; when absent the element stays auto-laid-out.
+   */
+  positionStateKey?: string;
 }
 
 const PRIMARY_FONT_SIZE_KEY = 'customPrimaryFontSize';
@@ -92,6 +98,7 @@ function buildBaseElement<TState>(
     opacityStateKey,
     fill,
     fillStateKey,
+    ...(options.positionStateKey ? { positionStateKey: options.positionStateKey } : {}),
   };
 }
 
