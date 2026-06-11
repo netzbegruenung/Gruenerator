@@ -146,7 +146,7 @@ export const useAgentStore = create<AgentState>()(
     (set) => ({
       selectedAgentId: null,
       selectedProvider: 'litellm',
-      selectedModel: 'gemma-litellm',
+      selectedModel: AUTO_MODEL_ID,
       currentThreadId: null,
       currentThreadTitle: null,
       enabledTools: { ...DEFAULT_ENABLED_TOOLS },
@@ -344,7 +344,7 @@ export const useAgentStore = create<AgentState>()(
           removeItem: (key: string) => mem.delete(key),
         };
       }),
-      version: 11,
+      version: 12,
       migrate: (persisted: unknown, version: number) => {
         const state = persisted as Record<string, unknown>;
         if (version === 0) {
@@ -423,6 +423,14 @@ export const useAgentStore = create<AgentState>()(
         }
         if (version < 11) {
           state.enabledTools = { ...DEFAULT_ENABLED_TOOLS };
+        }
+        if (version < 12) {
+          // 'Automatisch' is the new default selection (notebooks resolve to
+          // Mistral Medium 3.5, general chat keeps Gemma). Move users still on
+          // the old implicit default (gemma-litellm); explicit choices stay.
+          if (state.selectedModel === 'gemma-litellm') {
+            state.selectedModel = AUTO_MODEL_ID;
+          }
         }
         return state;
       },
