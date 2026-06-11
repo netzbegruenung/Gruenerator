@@ -1462,6 +1462,9 @@ importers:
 
   packages/sites:
     dependencies:
+      '@gruenerator/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@gruenerator/shared':
         specifier: workspace:*
         version: link:../shared

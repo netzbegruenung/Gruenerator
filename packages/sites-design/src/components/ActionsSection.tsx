@@ -6,13 +6,13 @@ interface ActionsSectionProps {
 
 export function ActionsSection({ data }: ActionsSectionProps) {
   return (
-    <section className="bg-[var(--background-color-pure)] py-[var(--spacing-xxl-r)] px-[var(--spacing-md-r)] md:py-[var(--spacing-xxxl-r)] md:px-[var(--spacing-lg-r)]">
-      <div className="max-w-[var(--container-max-width)] mx-auto">
-        <div className="grid grid-cols-1 gap-[var(--spacing-lg-r)] justify-items-center md:grid-cols-[repeat(auto-fit,minmax(250px,350px))] md:gap-[var(--spacing-xl-r)] md:justify-center lg:grid-cols-[repeat(auto-fit,minmax(280px,350px))]">
+    <section className="bg-[var(--background-color-pure)] py-[var(--spacing-responsive-xxlarge)] px-[var(--spacing-responsive-medium)] md:py-16 md:px-[var(--spacing-responsive-large)]">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 gap-[var(--spacing-responsive-medium)] sm:grid-cols-2 lg:grid-cols-3 md:gap-[var(--spacing-responsive-large)]">
           {data.actions.map((action, index) => (
             <div
               key={index}
-              className="relative overflow-hidden cursor-pointer aspect-[3/4] min-h-[200px] md:min-h-[250px] w-full max-w-[350px] bg-[var(--primary-600)] flex items-center justify-center text-white group"
+              className="relative overflow-hidden cursor-pointer aspect-[3/4] w-full rounded-[var(--radius-md)] shadow-[var(--shadow-md)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] bg-[var(--primary-600)] flex items-center justify-center text-white group"
             >
               <a
                 href={action.link}
@@ -29,7 +29,7 @@ export function ActionsSection({ data }: ActionsSectionProps) {
                   />
                 )}
                 <div className="absolute inset-0 z-[1] bg-black/20 pointer-events-none" />
-                <h2 className="absolute inset-0 z-[2] flex items-center justify-center font-bold text-white text-center leading-snug m-0 p-[var(--spacing-md)] bg-black/10 pointer-events-none text-[var(--font-size-base)] md:text-[var(--font-size-lg)] lg:text-[var(--font-size-xl)] xl:text-[var(--font-size-2xl)]">
+                <h2 className="absolute inset-0 z-[2] flex items-center justify-center font-bold text-white text-center leading-snug m-0 p-[var(--spacing-md)] bg-black/10 pointer-events-none text-[length:var(--font-size-base)] md:text-[length:var(--font-size-lg)] lg:text-[length:var(--font-size-xl)] xl:text-[length:var(--font-size-2xl)]">
                   {action.text}
                 </h2>
               </a>
