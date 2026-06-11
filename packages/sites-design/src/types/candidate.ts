@@ -27,6 +27,8 @@ export interface HeroImageSection {
 }
 
 export interface ThemeCard {
+  /** Client-only render key — never persisted. */
+  _key?: string;
   imageUrl: string;
   title: string;
   content: string;
@@ -38,6 +40,8 @@ export interface ThemesSection {
 }
 
 export interface ActionTile {
+  /** Client-only render key — never persisted. */
+  _key?: string;
   imageUrl: string;
   text: string;
   link: string;

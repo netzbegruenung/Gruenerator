@@ -8,9 +8,9 @@ interface ThemesSectionProps {
 
 export function ThemesSection({ data }: ThemesSectionProps) {
   return (
-    <section className="bg-[var(--background-color-alt)] py-[var(--spacing-xxl-r)] md:py-[var(--spacing-xxxl-r)] overflow-hidden">
-      <div className="max-w-[var(--container-max-width)] mx-auto px-[var(--spacing-md-r)]">
-        <h2 className="text-[2rem] max-md:text-[1.75rem] font-bold text-[var(--link-color)] mb-[var(--spacing-lg-r)] text-center">
+    <section className="bg-[var(--background-color-alt)] py-[var(--spacing-responsive-xxlarge)] md:py-16 px-[var(--spacing-responsive-medium)] md:px-[var(--spacing-responsive-large)] overflow-hidden">
+      <div className="max-w-7xl mx-auto">
+        <h2 className="font-[GrueneTypeNeue] text-[length:var(--font-size-2xl)] md:text-[length:var(--font-size-3xl)] font-bold text-[var(--link-color)] mb-[var(--spacing-responsive-large)] text-center">
           {data.title}
         </h2>
 
@@ -21,11 +21,11 @@ export function ThemesSection({ data }: ThemesSectionProps) {
             skipSnaps: false,
           }}
         >
-          <CarouselContent className="-ml-[var(--spacing-md-r)] md:-ml-[var(--spacing-lg-r)] lg:-ml-[var(--spacing-xl-r)]">
+          <CarouselContent className="-ml-[var(--spacing-responsive-medium)] md:-ml-[var(--spacing-responsive-large)]">
             {data.themes.map((theme, index) => (
               <CarouselItem
                 key={index}
-                className="pl-[var(--spacing-md-r)] md:pl-[var(--spacing-lg-r)] lg:pl-[var(--spacing-xl-r)] basis-[85%] md:basis-1/2 lg:basis-1/3"
+                className="pl-[var(--spacing-responsive-medium)] md:pl-[var(--spacing-responsive-large)] basis-[85%] md:basis-1/2 lg:basis-1/3"
               >
                 <article className="bg-[var(--background-color-pure)] rounded-[var(--radius-md)] overflow-hidden shadow-[var(--shadow-md)] transition-all hover:-translate-y-1 hover:shadow-[var(--shadow-lg)] h-full">
                   {theme.imageUrl && (
@@ -38,13 +38,13 @@ export function ThemesSection({ data }: ThemesSectionProps) {
                       />
                     </div>
                   )}
-                  <div className="p-[var(--spacing-lg-r)]">
-                    <h3 className="text-[var(--font-size-lg)] font-semibold text-[var(--link-color)] mb-[var(--spacing-sm)]">
+                  <div className="p-[var(--spacing-responsive-large)]">
+                    <h3 className="text-[length:var(--font-size-lg)] font-semibold text-[var(--link-color)] mb-[var(--spacing-sm)]">
                       {theme.title}
                     </h3>
                     <MarkdownContent
                       content={theme.content}
-                      className="text-[var(--font-color-muted)] text-[var(--font-size-base)] leading-relaxed"
+                      className="text-[var(--font-color-muted)] text-[length:var(--font-size-base)] leading-relaxed"
                     />
                   </div>
                 </article>

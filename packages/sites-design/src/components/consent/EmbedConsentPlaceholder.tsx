@@ -72,7 +72,7 @@ export function EmbedConsentPlaceholder({ platform, onConsent }: EmbedConsentPla
   return (
     <div className="flex flex-col items-center justify-center p-xl bg-neutral-600 rounded-md text-center min-h-[300px]">
       <div className="text-5xl text-grey-600 mb-md [&>svg]:w-12 [&>svg]:h-12">{content.icon}</div>
-      <h3 className="font-[family-name:var(--font-family-heading)] text-xl text-grey-900 m-0 mb-sm">
+      <h3 className="font-[GrueneTypeNeue] text-xl text-grey-900 m-0 mb-sm">
         {content.text.title}
       </h3>
       <p className="text-sm text-grey-600 max-w-[480px] m-0 mb-sm leading-relaxed">
@@ -94,7 +94,7 @@ export function EmbedConsentPlaceholder({ platform, onConsent }: EmbedConsentPla
 
       <div className="flex flex-col items-center gap-sm">
         <button
-          className="inline-flex items-center gap-xs py-sm px-lg bg-primary-600 text-white border-none rounded-sm font-[family-name:var(--font-family-body)] text-base font-semibold cursor-pointer transition-colors hover:bg-primary-700 [&>svg]:w-5 [&>svg]:h-5"
+          className="inline-flex items-center gap-xs py-sm px-lg bg-primary-600 text-white border-none rounded-sm text-base font-semibold cursor-pointer transition-colors hover:bg-primary-700 [&>svg]:w-5 [&>svg]:h-5"
           onClick={handleLoadClick}
         >
           {content.icon}

@@ -10,7 +10,7 @@
 
 /* Hover state */
 .editable-element:hover {
-  outline: 2px dashed var(--primary-400, #66bb6a);
+  outline: 2px dashed var(--primary-400);
   outline-offset: 4px;
 }
 
@@ -21,7 +21,7 @@
   top: -28px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--primary-700, #388e3c);
+  background: var(--primary-700);
   color: white;
   padding: 4px 10px;
   border-radius: 4px;
@@ -41,7 +41,7 @@
   left: 50%;
   transform: translateX(-50%);
   border: 5px solid transparent;
-  border-top-color: var(--primary-700, #388e3c);
+  border-top-color: var(--primary-700);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
@@ -54,19 +54,19 @@
 
 /* Highlighted state (when field is focused in editor) */
 .editable-element--highlighted {
-  outline: 3px solid var(--primary-600, #43a047) !important;
+  outline: 3px solid var(--primary-600) !important;
   outline-offset: 4px;
-  background-color: rgba(76, 175, 80, 0.08);
+  background-color: color-mix(in srgb, var(--primary-500) 8%, transparent);
 }
 
 .editable-element--highlighted::after {
   content: 'Wird bearbeitet';
-  background: var(--primary-600, #43a047);
+  background: var(--primary-600);
   opacity: 1;
 }
 
 .editable-element--highlighted::before {
-  border-top-color: var(--primary-600, #43a047);
+  border-top-color: var(--primary-600);
   opacity: 1;
 }
 
@@ -93,7 +93,7 @@
 }
 
 .editable-section--active {
-  box-shadow: inset 0 0 0 2px var(--primary-200, #a5d6a7);
+  box-shadow: inset 0 0 0 2px var(--primary-200);
 }
 
 /* Scroll anchor offset for sections */
@@ -149,17 +149,17 @@
 
   .editable-element:hover {
     outline: none;
-    background-color: rgba(76, 175, 80, 0.05);
+    background-color: color-mix(in srgb, var(--primary-500) 5%, transparent);
   }
 
   .editable-element:active {
-    outline: 2px solid var(--primary-400, #66bb6a);
+    outline: 2px solid var(--primary-400);
     outline-offset: 2px;
-    background-color: rgba(76, 175, 80, 0.1);
+    background-color: color-mix(in srgb, var(--primary-500) 10%, transparent);
   }
 
   .editable-element--highlighted {
-    outline: 2px solid var(--primary-600, #43a047) !important;
+    outline: 2px solid var(--primary-600) !important;
     outline-offset: 2px;
   }
 }
@@ -170,11 +170,11 @@
   bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--grey-800, #343a40);
+  background: var(--grey-800);
   color: white;
   padding: 8px 16px;
   border-radius: 20px;
-  font-size: var(--font-size-sm, 14px);
+  font-size: var(--font-size-sm);
   font-weight: 500;
   display: flex;
   align-items: center;

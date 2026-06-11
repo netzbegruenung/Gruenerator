@@ -1,6 +1,7 @@
 // Components
 export {
   HeroSection,
+  HeroImagePlaceholder,
   AboutSection,
   HeroImageSection,
   ThemesSection,

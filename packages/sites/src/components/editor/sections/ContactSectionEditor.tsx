@@ -1,3 +1,4 @@
+import { cn } from '@gruenerator/shared/utils';
 import { useRef, useEffect } from 'react';
 
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
@@ -5,8 +6,6 @@ import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
 
 import type { ContactSectionType as ContactSection } from '@gruenerator/sites-design';
-
-import { cn } from '../../../utils/cn';
 
 interface ContactSectionEditorProps {
   data: ContactSection;
@@ -58,7 +57,7 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
           onFocus={() => handleFieldFocus('contact', 'title')}
           onBlur={handleFieldBlur}
           placeholder="Kontakt"
-          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+          className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
         />
       </div>
 
@@ -78,7 +77,7 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
           onBlur={handleFieldBlur}
           placeholder="kontakt@beispiel.de"
           required
-          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+          className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
         />
       </div>
 
@@ -97,7 +96,7 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
           onFocus={() => handleFieldFocus('contact', 'phone')}
           onBlur={handleFieldBlur}
           placeholder="+49 123 456789"
-          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+          className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
         />
       </div>
 
@@ -122,7 +121,7 @@ export function ContactSectionEditor({ data, onChange }: ContactSectionEditorPro
           onBlur={handleFieldBlur}
           placeholder="Musterstraße 1&#10;12345 Musterstadt"
           rows={3}
-          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
+          className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
         />
       </div>
 
