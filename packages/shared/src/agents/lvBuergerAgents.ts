@@ -71,6 +71,15 @@ export const LV_BUERGER_SPECS = [
       'Energiewende und Wasserstoff (Mitteldeutsches Revier), Strukturwandel und gute Arbeit, Bildung und Kita, ländlicher Raum und Mobilität, Demokratie und Schutz vor Rechtsextremismus',
   },
   {
+    lv: 'hessen',
+    title: 'Hessen',
+    codes: ['HE', 'HE-F'],
+    notebook: 'hessen-notebook',
+    homepage: 'https://www.gruene-hessen.de',
+    themes:
+      'Verkehrswende und RMV im Rhein-Main-Gebiet, Energiewende und Naturschutz (Wald, Wasser), bezahlbares Wohnen in Frankfurt und den Ballungsräumen, Bildung und Kita, Demokratie und Schutz vor Rechtsextremismus',
+  },
+  {
     lv: 'schleswig-holstein',
     title: 'Schleswig-Holstein',
     codes: 'SH',
