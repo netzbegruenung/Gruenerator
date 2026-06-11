@@ -53,3 +53,22 @@ export function isDocAIForked(documentId: string): boolean {
   if (!editor) return false;
   return getForkExtensionForEditor(editor)?.store?.state?.isForked ?? false;
 }
+
+/**
+ * The xl-ai extension's own store. `aiMenuState` is `'closed'` unless the user
+ * opened the AI popover (toolbar / slash menu) — chat-triggered invocations
+ * never open it. Both this and the fork store come from BlockNote's
+ * `createStore` and share the same `state`/`subscribe` API.
+ */
+export type DocAIMenuStore = {
+  state?: { aiMenuState?: unknown };
+  subscribe?: (listener: () => void) => () => void;
+};
+
+export function getDocAIMenuStore(editor: unknown): DocAIMenuStore | null {
+  if (!editor) return null;
+  const ext = (editor as EditorWithExtensions).getExtension?.(AIExtension) as
+    | { store?: DocAIMenuStore }
+    | undefined;
+  return ext?.store ?? null;
+}
