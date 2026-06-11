@@ -20,6 +20,14 @@
       "project": ["src/**/*.{ts,tsx}"],
       "ignore": ["src/tiptap-editor/**"]
     },
+    "packages/sites": {
+      "entry": ["src/index.ts!"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/sites-design": {
+      "entry": ["src/index.ts!"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
     "packages/eslint-config": {
       "entry": ["base.js", "react.js", "node.js"],
       "project": ["*.js"]

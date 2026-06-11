@@ -1,3 +1,4 @@
+import { cn } from '@gruenerator/shared/utils';
 import { useRef, useEffect, useState } from 'react';
 
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
@@ -5,8 +6,6 @@ import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
 
 import type { HeroSectionType as HeroSection, SocialLinks } from '@gruenerator/sites-design';
-
-import { cn } from '../../../utils/cn';
 
 interface HeroSectionEditorProps {
   data: HeroSection;
@@ -109,7 +108,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
               onFocus={() => handleFieldFocus('hero', 'name')}
               onBlur={handleFieldBlur}
               placeholder="Max Mustermann"
-              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+              className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
             />
           </div>
 
@@ -134,7 +133,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
               onBlur={handleFieldBlur}
               placeholder="Kandidat*in für..."
               rows={2}
-              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
+              className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15 resize-y min-h-[100px]"
             />
           </div>
         </div>
@@ -172,7 +171,7 @@ export function HeroSectionEditor({ data, onChange }: HeroSectionEditorProps) {
                   value={data.socialLinks?.[key as keyof SocialLinks] || ''}
                   onChange={(e) => updateSocialLink(key, e.target.value)}
                   placeholder={placeholder}
-                  className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+                  className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
                 />
               </div>
             )

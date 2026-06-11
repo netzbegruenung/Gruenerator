@@ -261,7 +261,7 @@ export async function runChatGraphResume({
           return streamForResolution({
             resolution: r,
             messages: messagesForAI,
-            maxTokens: isReasoning ? Math.max(baseMaxTokens, 9000) : baseMaxTokens,
+            maxTokens: isReasoning ? Math.max(baseMaxTokens, 16000) : Math.max(baseMaxTokens, 8000),
             temperature: finalState.agentConfig.params.temperature,
             sse,
             logPrefix: '[ChatGraph:Resume]',

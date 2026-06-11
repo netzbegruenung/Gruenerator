@@ -11,10 +11,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "zustand": "^5.0.13"
+    "zustand": "^5.0.14"
   },
   "peerDependencies": {
-    "@assistant-ui/react": "^0.14.8",
+    "@assistant-ui/react": "^0.14.16",
     "react": "^19.0.0"
   },
   "devDependencies": {

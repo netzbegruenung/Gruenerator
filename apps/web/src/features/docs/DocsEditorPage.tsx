@@ -57,6 +57,7 @@ import { useDocumentTitle } from '../../components/hooks/useDocumentTitle';
 import { useAuth } from '../../hooks/useAuth';
 import { useCollaborationConfig } from '../../hooks/useCollaborationConfig';
 
+import { DocAiReviewBar } from './DocAiReviewBar';
 import { webAppDocsAdapter } from './docsAdapter';
 import { GuestBadge, GUEST_ANIMALS } from './GuestBadge';
 import { useDocsLiveWolkeSync } from './useDocsLiveWolkeSync';
@@ -758,6 +759,9 @@ function EditorContent() {
             commentsPortalTarget={commentsPortalTarget}
             onEditorReady={handleEditorReady}
           />
+          <div className="sticky bottom-4 z-[150] flex justify-center pointer-events-none [&>*]:pointer-events-auto">
+            <DocAiReviewBar documentId={id!} editor={editor} />
+          </div>
         </main>
 
         {hasOpenedChat && id && (

@@ -41,8 +41,8 @@ import type express from 'express';
 const log = createLogger('NotebookStreamCore');
 const notebookHelper = new NotebookQdrantHelper();
 
-const DEFAULT_PROVIDER = 'litellm';
-const DEFAULT_MODEL = 'gpt-oss:120b';
+const DEFAULT_PROVIDER = 'mistral';
+const DEFAULT_MODEL = 'mistral-medium-2604';
 
 export interface NotebookStreamOptions {
   req: express.Request;
@@ -289,7 +289,7 @@ export async function handleNotebookStream(
     log.debug(`⏱ Model setup: ${t2 - t1}ms`);
 
     // Reasoning models need extra room for the <think> block before content.
-    const baseMaxOutput = isFast ? 3000 : 16000;
+    const baseMaxOutput = isFast ? 8000 : 16000;
 
     sse.send('response_start', { message: 'Generiere Antwort...' });
 

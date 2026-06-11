@@ -1,6 +1,6 @@
-import { useEditorStore, SECTION_ORDER, SECTION_LABELS } from '../../stores/editorStore';
+import { cn } from '@gruenerator/shared/utils';
 
-import { cn } from '../../utils/cn';
+import { useEditorStore, SECTION_ORDER, SECTION_LABELS } from '../../stores/editorStore';
 
 interface SectionNavigationProps {
   className?: string;

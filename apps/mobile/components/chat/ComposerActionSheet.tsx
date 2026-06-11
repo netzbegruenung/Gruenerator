@@ -1,4 +1,10 @@
-import { useAgentStore, MODEL_OPTIONS, type ToolKey } from '@gruenerator/chat';
+import {
+  useAgentStore,
+  MODEL_OPTIONS,
+  AUTO_MODEL_ID,
+  AUTO_MODEL_OPTION,
+  type ToolKey,
+} from '@gruenerator/chat';
 import { QWEN_WARNING } from '@gruenerator/shared/models';
 import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { memo, useCallback } from 'react';
@@ -107,6 +113,37 @@ export const ComposerActionSheet = memo(function ComposerActionSheet({
           Modell
         </Text>
         <View style={styles.chipRow}>
+          <Pressable
+            onPress={() => setSelectedModel(AUTO_MODEL_ID)}
+            style={[
+              styles.modelChip,
+              {
+                backgroundColor:
+                  selectedModel === AUTO_MODEL_ID ? colors.primary[600] : theme.surface,
+                borderColor: selectedModel === AUTO_MODEL_ID ? colors.primary[600] : theme.border,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.modelChipText,
+                { color: selectedModel === AUTO_MODEL_ID ? colors.white : theme.text },
+              ]}
+            >
+              {AUTO_MODEL_OPTION.name}
+            </Text>
+            <Text
+              style={[
+                styles.modelChipDesc,
+                {
+                  color:
+                    selectedModel === AUTO_MODEL_ID ? colors.primary[200] : theme.textSecondary,
+                },
+              ]}
+            >
+              {AUTO_MODEL_OPTION.description}
+            </Text>
+          </Pressable>
           {MODEL_OPTIONS.map((model) => {
             const active = selectedModel === model.id;
             return (

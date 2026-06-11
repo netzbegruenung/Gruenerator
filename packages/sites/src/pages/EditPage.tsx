@@ -1,5 +1,6 @@
+import { cn } from '@gruenerator/shared/utils';
 import { type CandidateData } from '@gruenerator/sites-design';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { FiExternalLink, FiEye } from 'react-icons/fi';
 
 import { CandidatePage } from '../CandidatePage';
@@ -12,13 +13,257 @@ import {
   SectionNavigation,
 } from '../components/editor';
 import { useLoadingProgress } from '../hooks/useLoadingProgress';
-import { useSite, type GeneratedSiteData } from '../hooks/useSite';
+import { useSite, type GeneratedSiteData, type SiteData } from '../hooks/useSite';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../SitesContext';
-import { cn } from '../utils/cn';
 import { handleApiError } from '../utils/errorHandler';
 import { nameToSubdomain, sanitizeSubdomain } from '../utils/sanitization';
 import { validators } from '../utils/validation';
+
+function buildCandidateDataFromSite(site: SiteData): CandidateData {
+  return {
+    id: site.id,
+    slug: site.subdomain,
+    hero: {
+      imageUrl: site.profile_image || '',
+      name: site.site_title,
+      tagline: site.tagline || '',
+      socialLinks: site.social_links || {},
+    },
+    about: {
+      title: 'Wer ich bin',
+      content: site.bio || '',
+    },
+    heroImage: site.sections?.heroImage || {
+      imageUrl: '',
+      title: 'Gemeinsam für eine nachhaltige Zukunft!',
+      subtitle: '',
+    },
+    themes: {
+      title: 'Meine Themen',
+      themes: (site.sections?.themes || []).map((theme) => ({
+        ...theme,
+        _key: crypto.randomUUID(),
+      })),
+    },
+    actions: {
+      actions: (site.sections?.actions || []).map((action) => ({
+        ...action,
+        _key: crypto.randomUUID(),
+      })),
+    },
+    contact: {
+      title: site.sections?.contact?.title || 'Kontakt',
+      backgroundImageUrl: site.sections?.contact?.backgroundImageUrl || '',
+      email: site.contact_email || '',
+      phone: '',
+      address: '',
+      socialMedia: [],
+    },
+    socialFeed: site.sections?.socialFeed || {
+      title: 'Instagram',
+      instagramUsername: '',
+      showFeed: false,
+    },
+  };
+}
+
+interface SiteEditorProps {
+  site: SiteData;
+}
+
+/**
+ * Editor for an existing site. Mounted with key={site.id} so the draft state
+ * lazily initializes from the server object once and survives re-renders;
+ * a different site remounts the editor with fresh data.
+ */
+function SiteEditor({ site }: SiteEditorProps) {
+  const { updateSite, togglePublish, isUpdating, isPublishing } = useSite();
+  const toast = useToast();
+
+  const previewScrollRef = useRef<HTMLDivElement>(null);
+  const [candidateData, setCandidateData] = useState<CandidateData>(() =>
+    buildCandidateDataFromSite(site)
+  );
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'phone'>('desktop');
+
+  const handleUpdateCandidateData = useCallback((updates: Partial<CandidateData>) => {
+    setCandidateData((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      const socialLinks = Object.fromEntries(
+        Object.entries(candidateData.hero.socialLinks).filter(([_, value]) => value !== undefined)
+      ) as Record<string, string>;
+
+      await updateSite({
+        id: site.id,
+        data: {
+          site_title: candidateData.hero.name,
+          tagline: candidateData.hero.tagline,
+          bio: candidateData.about.content,
+          contact_email: candidateData.contact.email,
+          social_links: socialLinks,
+          sections: {
+            heroImage: candidateData.heroImage,
+            themes: candidateData.themes.themes.map(({ _key, ...theme }) => theme),
+            actions: candidateData.actions.actions.map(({ _key, ...action }) => action),
+            contact: {
+              title: candidateData.contact.title,
+              backgroundImageUrl: candidateData.contact.backgroundImageUrl,
+            },
+            socialFeed: candidateData.socialFeed,
+          },
+        },
+      });
+      toast.success('Gespeichert', 'Deine Änderungen wurden gespeichert');
+    } catch (err) {
+      console.error('Update failed:', err);
+      handleApiError(err, toast);
+    }
+  };
+
+  const handlePublish = async () => {
+    try {
+      await togglePublish({ id: site.id, publish: !site.is_published });
+      const action = site.is_published ? 'depubliziert' : 'veröffentlicht';
+      toast.success(
+        site.is_published ? 'Depubliziert' : 'Veröffentlicht',
+        `Deine Seite wurde ${action}`
+      );
+    } catch (err) {
+      console.error('Publish failed:', err);
+      handleApiError(err, toast);
+    }
+  };
+
+  return (
+    <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
+      <header className="flex flex-row items-center gap-sm py-sm pl-14 pr-md bg-background-pure border-b border-grey-200 dark:border-grey-700 min-h-14">
+        <div className="flex items-center gap-sm shrink-0">
+          <h1 className="text-base text-primary-600 dark:text-primary-400 m-0 whitespace-nowrap">
+            Grünerator Sites
+          </h1>
+        </div>
+        <div className="flex-1 hidden lg:block overflow-x-auto">
+          <SectionNavigation />
+        </div>
+        <div className="flex items-center gap-xs shrink-0">
+          <button
+            className="inline-flex items-center gap-1.5 bg-primary-600 text-white border-none py-xs px-sm text-sm font-medium rounded-sm cursor-pointer transition-colors hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4"
+            onClick={() => setIsPreviewMode(true)}
+            title="Vorschau"
+          >
+            <FiEye />
+            <span className="hidden md:inline">Vorschau</span>
+          </button>
+          <button
+            className="inline-flex items-center gap-1.5 bg-primary-600 text-white border-none py-xs px-sm text-sm font-medium rounded-sm cursor-pointer transition-colors hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4"
+            onClick={handlePublish}
+            disabled={isPublishing}
+          >
+            {isPublishing ? '...' : site.is_published ? 'Depublizieren' : 'Veröffentlichen'}
+          </button>
+          {site.is_published && (
+            <a
+              href={`https://${site.subdomain}.grsites.de`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center w-9 h-9 bg-transparent border border-grey-200 dark:border-grey-700 rounded-sm text-grey-600 dark:text-grey-400 cursor-pointer transition-colors no-underline hover:bg-grey-100 dark:hover:bg-grey-800 hover:text-foreground hover:border-grey-400 dark:hover:border-grey-600 [&_svg]:w-[18px] [&_svg]:h-[18px]"
+              title="Live-Seite öffnen"
+            >
+              <FiExternalLink />
+            </a>
+          )}
+        </div>
+      </header>
+
+      <EditorLayout
+        ref={previewScrollRef}
+        sidebar={
+          <EditorSidebar
+            candidateData={candidateData}
+            onUpdate={handleUpdateCandidateData}
+            onSave={handleSave}
+            isSaving={isUpdating}
+          />
+        }
+        preview={
+          <InteractivePreview candidateData={candidateData} containerRef={previewScrollRef} />
+        }
+      />
+
+      {/* Fullscreen Preview Mode */}
+      {isPreviewMode && (
+        <div className="fixed inset-y-0 right-0 left-[var(--sidebar-collapsed-width)] z-[1000] bg-background-pure flex flex-col">
+          <div className="flex flex-wrap justify-between items-center py-sm px-md bg-primary-600 text-white shadow-md shrink-0 gap-sm md:px-lg">
+            <div className="flex items-center gap-sm">
+              <span className="font-semibold text-sm md:text-base">Vorschau</span>
+              <span className="hidden md:block opacity-80 text-xs">
+                {site.subdomain}.grsites.de
+              </span>
+            </div>
+            <div className="flex gap-xs">
+              <button
+                className={cn(
+                  'bg-white/10 border-none py-xs px-sm rounded-sm cursor-pointer text-base text-white transition-colors hover:bg-white/20',
+                  previewDevice === 'desktop' && 'bg-white/30'
+                )}
+                onClick={() => setPreviewDevice('desktop')}
+                title="Desktop"
+              >
+                Desktop
+              </button>
+              <button
+                className={cn(
+                  'bg-white/10 border-none py-xs px-sm rounded-sm cursor-pointer text-base text-white transition-colors hover:bg-white/20',
+                  previewDevice === 'tablet' && 'bg-white/30'
+                )}
+                onClick={() => setPreviewDevice('tablet')}
+                title="Tablet"
+              >
+                Tablet
+              </button>
+              <button
+                className={cn(
+                  'bg-white/10 border-none py-xs px-sm rounded-sm cursor-pointer text-base text-white transition-colors hover:bg-white/20',
+                  previewDevice === 'phone' && 'bg-white/30'
+                )}
+                onClick={() => setPreviewDevice('phone')}
+                title="Handy"
+              >
+                Handy
+              </button>
+            </div>
+            <div className="flex items-center gap-xs">
+              <button
+                className="bg-white/20 text-white border-none py-xs px-md rounded-sm cursor-pointer text-sm transition-colors hover:bg-white/30"
+                onClick={() => setIsPreviewMode(false)}
+              >
+                Schließen
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto bg-grey-200 dark:bg-grey-700 flex justify-center p-0">
+            <div
+              className={cn(
+                'bg-background-pure h-full overflow-y-auto transition-[width] duration-300',
+                previewDevice === 'desktop' && 'w-full',
+                previewDevice === 'tablet' && 'w-[768px] max-w-full shadow-lg',
+                previewDevice === 'phone' && 'w-[375px] max-w-full shadow-lg'
+              )}
+              style={{ containerType: 'inline-size', containerName: 'preview' }}
+            >
+              <CandidatePage candidate={candidateData} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function EditPage() {
   const { user } = useAuth();
@@ -27,12 +272,9 @@ export function EditPage() {
     isLoading,
     createSite,
     updateSite,
-    togglePublish,
     generateSite,
     generateFromFlyer,
     isCreating,
-    isUpdating,
-    isPublishing,
     isGenerating,
     isGeneratingFromFlyer,
   } = useSite();
@@ -40,28 +282,14 @@ export function EditPage() {
   const isAnyGenerating = isGenerating || isGeneratingFromFlyer;
   const generationProgress = useLoadingProgress(isAnyGenerating, 45000);
 
-  const previewScrollRef = useRef<HTMLDivElement>(null);
-
-  // AI generation form state (when no site exists)
-  const [subdomain, setSubdomain] = useState('');
-  const [contactEmail, setContactEmail] = useState('');
+  // AI generation form state (when no site exists). Subdomain derives from the
+  // user's display name until they touch the field; the contact email comes
+  // straight from the profile (editable later in the Contact section).
+  const [subdomainInput, setSubdomainInput] = useState<string | null>(null);
+  const subdomain =
+    subdomainInput ?? (user?.display_name ? nameToSubdomain(user.display_name) : '');
+  const contactEmail = user?.email ?? '';
   const [description, setDescription] = useState('');
-
-  // Pre-fill subdomain from user's display name
-  useEffect(() => {
-    if (user?.display_name && !subdomain) {
-      setSubdomain(nameToSubdomain(user.display_name));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when display_name loads
-  }, [user?.display_name]);
-
-  // Pre-fill contact email from user's profile (editable later in the Contact section)
-  useEffect(() => {
-    if (user?.email && !contactEmail) {
-      setContactEmail(user.email);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only run when email loads
-  }, [user?.email]);
 
   // Preview state (before creating site)
   const [previewData, setPreviewData] = useState<GeneratedSiteData | null>(null);
@@ -69,58 +297,6 @@ export function EditPage() {
   // Regenerate state (temporarily unused - feature in progress)
   const [regenerateDescription, setRegenerateDescription] = useState('');
   const [_showRegenerateForm, _setShowRegenerateForm] = useState(false);
-
-  // Fullscreen preview mode
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
-  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'phone'>('desktop');
-
-  // Candidate data for editing
-  const [candidateData, setCandidateData] = useState<CandidateData | null>(null);
-
-  // Initialize candidate data from site
-  useEffect(() => {
-    if (site) {
-      setCandidateData({
-        id: site.id,
-        slug: site.subdomain,
-        hero: {
-          imageUrl: site.profile_image || '',
-          name: site.site_title,
-          tagline: site.tagline || '',
-          socialLinks: site.social_links || {},
-        },
-        about: {
-          title: 'Wer ich bin',
-          content: site.bio || '',
-        },
-        heroImage: site.sections?.heroImage || {
-          imageUrl: '',
-          title: 'Gemeinsam für eine nachhaltige Zukunft!',
-          subtitle: '',
-        },
-        themes: {
-          title: 'Meine Themen',
-          themes: site.sections?.themes || [],
-        },
-        actions: {
-          actions: site.sections?.actions || [],
-        },
-        contact: {
-          title: site.sections?.contact?.title || 'Kontakt',
-          backgroundImageUrl: site.sections?.contact?.backgroundImageUrl || '',
-          email: site.contact_email || '',
-          phone: '',
-          address: '',
-          socialMedia: [],
-        },
-        socialFeed: site.sections?.socialFeed || {
-          title: 'Instagram',
-          instagramUsername: '',
-          showFeed: false,
-        },
-      });
-    }
-  }, [site]);
 
   const handleGenerate = async () => {
     const subdomainError = validators.subdomain(subdomain);
@@ -185,7 +361,7 @@ export function EditPage() {
         bio: previewData.bio,
         contact_email: previewData.contact_email || contactEmail,
         sections: previewData.sections,
-      } as Parameters<typeof createSite>[0]);
+      });
 
       setPreviewData(null);
       toast.success('Seite erstellt', 'Deine Seite wurde erfolgreich erstellt');
@@ -197,60 +373,6 @@ export function EditPage() {
 
   const handleDiscardPreview = () => {
     setPreviewData(null);
-  };
-
-  const handleUpdateCandidateData = useCallback((updates: Partial<CandidateData>) => {
-    setCandidateData((prev) => (prev ? { ...prev, ...updates } : null));
-  }, []);
-
-  const handleSave = async () => {
-    if (!site || !candidateData) return;
-
-    try {
-      const socialLinks = Object.fromEntries(
-        Object.entries(candidateData.hero.socialLinks).filter(([_, value]) => value !== undefined)
-      ) as Record<string, string>;
-
-      await updateSite({
-        id: site.id,
-        data: {
-          site_title: candidateData.hero.name,
-          tagline: candidateData.hero.tagline,
-          bio: candidateData.about.content,
-          contact_email: candidateData.contact.email,
-          social_links: socialLinks,
-          sections: {
-            heroImage: candidateData.heroImage,
-            themes: candidateData.themes.themes,
-            actions: candidateData.actions.actions,
-            contact: {
-              title: candidateData.contact.title,
-              backgroundImageUrl: candidateData.contact.backgroundImageUrl,
-            },
-            socialFeed: candidateData.socialFeed,
-          },
-        },
-      });
-      toast.success('Gespeichert', 'Deine Änderungen wurden gespeichert');
-    } catch (err) {
-      console.error('Update failed:', err);
-      handleApiError(err, toast);
-    }
-  };
-
-  const handlePublish = async () => {
-    if (!site) return;
-    try {
-      await togglePublish(site.id);
-      const action = site.is_published ? 'depubliziert' : 'veröffentlicht';
-      toast.success(
-        site.is_published ? 'Depubliziert' : 'Veröffentlicht',
-        `Deine Seite wurde ${action}`
-      );
-    } catch (err) {
-      console.error('Publish failed:', err);
-      handleApiError(err, toast);
-    }
   };
 
   const _handleRegenerate = async () => {
@@ -278,7 +400,7 @@ export function EditPage() {
           site_title: result.transformed.site_title,
           tagline: result.transformed.tagline,
           bio: result.transformed.bio,
-          contact_email: result.transformed.contact_email || site.contact_email,
+          contact_email: result.transformed.contact_email || site.contact_email || '',
           sections: result.transformed.sections,
         },
       });
@@ -295,10 +417,15 @@ export function EditPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-full gap-4 text-grey-600 dark:text-grey-400">
-        <div className="w-10 h-10 border-[3px] border-grey-200 dark:border-grey-700 border-t-primary-600 rounded-full animate-[spin_1s_linear_infinite]" />
+        <div className="w-10 h-10 border-[3px] border-grey-200 dark:border-grey-700 border-t-primary-600 rounded-full animate-spin" />
         <p>Seite wird geladen...</p>
       </div>
     );
+  }
+
+  // If a site exists, show the editor (keyed so a different site resets the draft)
+  if (site) {
+    return <SiteEditor key={site.id} site={site} />;
   }
 
   // Build preview data for post-generation review flow
@@ -335,141 +462,13 @@ export function EditPage() {
 
   const isProcessing = isGenerating || isGeneratingFromFlyer || isCreating;
 
-  // If site exists and we have candidate data, show the new editor
-  if (site && candidateData) {
-    return (
-      <div className="min-h-full flex flex-col bg-grey-100 dark:bg-grey-800">
-        <header className="flex flex-row items-center gap-sm py-sm pl-14 pr-md bg-background-pure border-b border-grey-200 dark:border-grey-700 min-h-14">
-          <div className="flex items-center gap-sm shrink-0">
-            <h1 className="text-base text-primary-600 dark:text-primary-400 m-0 whitespace-nowrap">
-              Grünerator Sites
-            </h1>
-          </div>
-          <div className="flex-1 hidden lg:block overflow-x-auto">
-            <SectionNavigation />
-          </div>
-          <div className="flex items-center gap-xs shrink-0">
-            <button
-              className="inline-flex items-center gap-1.5 bg-primary-600 text-white border-none py-xs px-sm text-sm font-medium rounded-sm cursor-pointer transition-colors hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4"
-              onClick={() => setIsPreviewMode(true)}
-              title="Vorschau"
-            >
-              <FiEye />
-              <span className="hidden md:inline">Vorschau</span>
-            </button>
-            <button
-              className="inline-flex items-center gap-1.5 bg-primary-600 text-white border-none py-xs px-sm text-sm font-medium rounded-sm cursor-pointer transition-colors hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed [&_svg]:w-4 [&_svg]:h-4"
-              onClick={handlePublish}
-              disabled={isPublishing}
-            >
-              {isPublishing ? '...' : site.is_published ? 'Depublizieren' : 'Veröffentlichen'}
-            </button>
-            {site.is_published && (
-              <a
-                href={`https://${site.subdomain}.grsites.de`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center w-9 h-9 bg-transparent border border-grey-200 dark:border-grey-700 rounded-sm text-grey-600 dark:text-grey-400 cursor-pointer transition-colors no-underline hover:bg-grey-100 dark:hover:bg-grey-800 hover:text-foreground hover:border-grey-400 dark:hover:border-grey-600 [&_svg]:w-[18px] [&_svg]:h-[18px]"
-                title="Live-Seite öffnen"
-              >
-                <FiExternalLink />
-              </a>
-            )}
-          </div>
-        </header>
-
-        <EditorLayout
-          ref={previewScrollRef}
-          sidebar={
-            <EditorSidebar
-              candidateData={candidateData}
-              onUpdate={handleUpdateCandidateData}
-              onSave={handleSave}
-              isSaving={isUpdating}
-            />
-          }
-          preview={
-            <InteractivePreview candidateData={candidateData} containerRef={previewScrollRef} />
-          }
-        />
-
-        {/* Fullscreen Preview Mode */}
-        {isPreviewMode && (
-          <div className="fixed inset-0 z-[1000] bg-background-pure flex flex-col">
-            <div className="flex flex-wrap justify-between items-center py-sm px-md bg-primary-600 text-white shadow-md shrink-0 gap-sm md:px-lg">
-              <div className="flex items-center gap-sm">
-                <span className="font-semibold text-sm md:text-base">Vorschau</span>
-                <span className="hidden md:block opacity-80 text-xs">
-                  {site.subdomain}.grsites.de
-                </span>
-              </div>
-              <div className="flex gap-xs">
-                <button
-                  className={cn(
-                    'bg-white/10 border-none py-xs px-sm rounded-sm cursor-pointer text-base text-white transition-colors hover:bg-white/20',
-                    previewDevice === 'desktop' && 'bg-white/30'
-                  )}
-                  onClick={() => setPreviewDevice('desktop')}
-                  title="Desktop"
-                >
-                  Desktop
-                </button>
-                <button
-                  className={cn(
-                    'bg-white/10 border-none py-xs px-sm rounded-sm cursor-pointer text-base text-white transition-colors hover:bg-white/20',
-                    previewDevice === 'tablet' && 'bg-white/30'
-                  )}
-                  onClick={() => setPreviewDevice('tablet')}
-                  title="Tablet"
-                >
-                  Tablet
-                </button>
-                <button
-                  className={cn(
-                    'bg-white/10 border-none py-xs px-sm rounded-sm cursor-pointer text-base text-white transition-colors hover:bg-white/20',
-                    previewDevice === 'phone' && 'bg-white/30'
-                  )}
-                  onClick={() => setPreviewDevice('phone')}
-                  title="Handy"
-                >
-                  Handy
-                </button>
-              </div>
-              <div className="flex items-center gap-xs">
-                <button
-                  className="bg-white/20 text-white border-none py-xs px-md rounded-sm cursor-pointer text-sm transition-colors hover:bg-white/30"
-                  onClick={() => setIsPreviewMode(false)}
-                >
-                  Schließen
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto bg-grey-200 dark:bg-grey-700 flex justify-center p-0">
-              <div
-                className={cn(
-                  'bg-background-pure h-full overflow-y-auto transition-[width] duration-300',
-                  previewDevice === 'desktop' && 'w-full',
-                  previewDevice === 'tablet' && 'w-[768px] max-w-full shadow-lg',
-                  previewDevice === 'phone' && 'w-[375px] max-w-full shadow-lg'
-                )}
-                style={{ containerType: 'inline-size', containerName: 'preview' }}
-              >
-                <CandidatePage candidate={candidateData} />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
   // No site, no preview — show the start screen
   if (!previewCandidateData) {
     return (
       <>
         <CreateSiteScreen
           subdomain={subdomain}
-          onSubdomainChange={(v) => setSubdomain(sanitizeSubdomain(v))}
+          onSubdomainChange={(v) => setSubdomainInput(sanitizeSubdomain(v))}
           description={description}
           onDescriptionChange={setDescription}
           onGenerate={handleGenerate}
@@ -559,7 +558,7 @@ export function EditPage() {
             >
               {isCreating ? (
                 <>
-                  <span className="w-4 h-4 border-2 border-grey-200 dark:border-grey-700 border-t-primary-600 rounded-full animate-[spin_1s_linear_infinite]" />
+                  <span className="w-4 h-4 border-2 border-grey-200 dark:border-grey-700 border-t-primary-600 rounded-full animate-spin" />
                   Wird erstellt...
                 </>
               ) : (
