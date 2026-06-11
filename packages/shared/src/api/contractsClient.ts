@@ -49,6 +49,7 @@ import {
   userProfileContract,
   canvasContract,
   monitorContract,
+  sitesContract,
 } from '@gruenerator/contracts';
 import { initClient } from '@ts-rest/core';
 
@@ -175,6 +176,7 @@ const _groupsClient = () => initClient(groupsContract, CLIENT_OPTS);
 const _userProfileClient = () => initClient(userProfileContract, CLIENT_OPTS);
 const _canvasClient = () => initClient(canvasContract, CLIENT_OPTS);
 const _monitorClient = () => initClient(monitorContract, CLIENT_OPTS);
+const _sitesClient = () => initClient(sitesContract, CLIENT_OPTS);
 
 export interface ContractsClient {
   threads: ReturnType<typeof _threadsClient>;
@@ -209,6 +211,7 @@ export interface ContractsClient {
   userProfile: ReturnType<typeof _userProfileClient>;
   canvas: ReturnType<typeof _canvasClient>;
   monitor: ReturnType<typeof _monitorClient>;
+  sites: ReturnType<typeof _sitesClient>;
 }
 
 // ── Lazy singleton ────────────────────────────────────────────────────────────
@@ -260,6 +263,7 @@ export function getContractsClient(): ContractsClient {
     userProfile: _userProfileClient(),
     canvas: _canvasClient(),
     monitor: _monitorClient(),
+    sites: _sitesClient(),
   };
 
   return _client;

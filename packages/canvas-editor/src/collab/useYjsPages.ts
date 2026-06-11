@@ -6,6 +6,15 @@ import { YDOC_KEYS } from './ydocKeys';
 const LOCAL_ORIGIN = Symbol('canvas-editor-pages-local');
 const LEGACY_PROMOTE_ORIGIN = Symbol('canvas-editor-pages-legacy-promote');
 
+/**
+ * Origin of this client's own page-state writes. Exported so
+ * useYjsPageStateSync can skip self-originated transactions — without the
+ * filter every local keystroke (dual-written into the page state map by
+ * CanvasEditor) would round-trip back into component state and rebuild it
+ * mid-typing.
+ */
+export const PAGES_LOCAL_ORIGIN: unknown = LOCAL_ORIGIN;
+
 export interface YjsPageView {
   id: string;
   configId: string;
@@ -259,7 +268,14 @@ export function useYjsPages(ydoc: Y.Doc | null, isSynced: boolean): YjsPagesApi 
         const stateY = page.get(YDOC_KEYS.state);
         if (!(stateY instanceof Y.Map)) return;
         for (const [k, v] of Object.entries(partial)) {
-          (stateY as Y.Map<unknown>).set(k, v);
+          // Equality guard: Y.Map.set on an identical value still emits an
+          // update. Since remote page-state changes now merge back into
+          // component state (useYjsPageStateSync) and GenericCanvas re-emits
+          // synced image keys on state change, unconditional writes would
+          // ping-pong identical values between clients forever.
+          if ((stateY as Y.Map<unknown>).get(k) !== v) {
+            (stateY as Y.Map<unknown>).set(k, v);
+          }
         }
       }, LOCAL_ORIGIN);
     };

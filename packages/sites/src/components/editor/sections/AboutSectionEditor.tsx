@@ -1,3 +1,4 @@
+import { cn } from '@gruenerator/shared/utils';
 import { useRef, useEffect } from 'react';
 
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
@@ -6,14 +7,12 @@ import { MarkdownEditor } from '../common/MarkdownEditor';
 
 import type { AboutSectionType as AboutSection } from '@gruenerator/sites-design';
 
-import { cn } from '../../../utils/cn';
-
 interface AboutSectionEditorProps {
   data: AboutSection;
   onChange: (data: AboutSection) => void;
 }
 
-const MAX_CONTENT_LENGTH = 2000;
+const MAX_CONTENT_LENGTH = 1000;
 
 export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) {
   const { registerField, handleFieldFocus, handleFieldBlur } = useSectionFocus();
@@ -65,7 +64,7 @@ export function AboutSectionEditor({ data, onChange }: AboutSectionEditorProps) 
           onFocus={() => handleFieldFocus('about', 'title')}
           onBlur={handleFieldBlur}
           placeholder="Wer ich bin"
-          className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+          className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
         />
       </div>
 

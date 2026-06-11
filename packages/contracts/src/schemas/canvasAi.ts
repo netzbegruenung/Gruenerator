@@ -134,6 +134,19 @@ export const updateElementOperation = z.object({
   ),
 });
 
+/**
+ * Swap the stock background photo. The LLM provides a German search query;
+ * the SERVER resolves it to a concrete stock image via ImageSelectionService
+ * before the operation reaches any state patch. The client-side applier
+ * cannot resolve queries and rejects this kind (studio users change the
+ * background via the Hintergrund tab instead).
+ */
+export const setBackgroundImageOperation = z.object({
+  kind: z.literal('set-background-image'),
+  /** German stock-photo search query, e.g. "Windräder im Sonnenuntergang". */
+  query: z.string().min(2).max(120),
+});
+
 export const canvasAiOperationSchema = z.discriminatedUnion('kind', [
   setTextOperation,
   setColorSchemeOperation,
@@ -145,6 +158,7 @@ export const canvasAiOperationSchema = z.discriminatedUnion('kind', [
   toggleSunflowerOperation,
   setFontSizeOperation,
   updateElementOperation,
+  setBackgroundImageOperation,
 ]);
 
 export type CanvasAiOperation = z.infer<typeof canvasAiOperationSchema>;
@@ -247,3 +261,21 @@ export const canvasAiSuggestErrorSchema = z.object({
 
 export type CanvasAiSuggestRequest = z.infer<typeof canvasAiSuggestRequestSchema>;
 export type CanvasAiSuggestResponse = z.infer<typeof canvasAiSuggestResponseSchema>;
+
+// ── Sharepic chat edit (single applied edit, not suggestions) ───────────────
+
+/**
+ * Tool-call response shape for the chat's `sharepic_edit` intent: ONE batch
+ * of operations that is applied immediately (unlike `suggestions`, which the
+ * studio user picks from). `summary` becomes the version-history label,
+ * `reply` the assistant's confirmation text in the thread.
+ */
+export const sharepicEditResponseSchema = z.object({
+  operations: z.array(canvasAiOperationSchema).min(1).max(8),
+  /** Version-history label, German, e.g. "Zeile 2 gekürzt". */
+  summary: z.string().min(1).max(120),
+  /** Assistant confirmation shown in the chat thread, German, 1–2 sentences. */
+  reply: z.string().min(1).max(300),
+});
+
+export type SharepicEditResponse = z.infer<typeof sharepicEditResponseSchema>;

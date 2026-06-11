@@ -1,4 +1,5 @@
 export { HeroSection } from './HeroSection';
+export { HeroImagePlaceholder } from './HeroImagePlaceholder';
 export { AboutSection } from './AboutSection';
 export { HeroImageSection } from './HeroImageSection';
 export { ThemesSection } from './ThemesSection';

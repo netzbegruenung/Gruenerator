@@ -172,7 +172,7 @@ function CarouselDots({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        'flex justify-center gap-[var(--spacing-xs)] mt-[var(--spacing-md-r)]',
+        'flex justify-center gap-[var(--spacing-xs)] mt-[var(--spacing-responsive-medium)]',
         className
       )}
       role="tablist"

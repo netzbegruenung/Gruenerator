@@ -44,7 +44,6 @@ interface NotebookState {
   qaCollections: NotebookCollection[];
   loading: boolean;
   error: string | null;
-  selectedCollection: NotebookCollection | null;
 
   // Document selection state (per collection → selected document IDs)
   selectedDocumentIds: Record<string, string[]>;
@@ -53,6 +52,7 @@ interface NotebookState {
   filterValuesCache: FilterValuesCache; // { [collectionId]: { [field]: { label, values } } }
   activeFilters: ActiveFilters; // { [collectionId]: { [field]: [value1, value2, ...] } }
   loadingFilters: Record<string, boolean>; // { [collectionId]: boolean }
+  filterErrors: Record<string, boolean>; // { [collectionId]: last fetch failed }
 
   // Actions
   setLoading: (loading: boolean) => void;
@@ -82,7 +82,6 @@ interface NotebookState {
   deleteQACollection: (collectionId: string) => Promise<void>;
   removeDocumentFromCollection: (collectionId: string, documentId: string) => Promise<void>;
   getQACollection: (collectionId: string) => NotebookCollection | undefined;
-  setSelectedCollection: (collection: NotebookCollection | null) => void;
   clearError: () => void;
   getEnhancedCollection: (collectionId: string) => NotebookCollection | null;
   getCollectionsBySourceType: (sourceType: 'documents' | 'wolke' | 'mixed') => NotebookCollection[];
@@ -113,6 +112,7 @@ interface NotebookState {
   ) => Record<string, FilterFieldConfig> | null;
   hasFiltersAvailable: (collectionId: string | undefined) => boolean;
   isLoadingFilters: (collectionId: string | undefined) => boolean;
+  hasFilterError: (collectionId: string | undefined) => boolean;
   reset: () => void;
 }
 
@@ -121,7 +121,6 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
   qaCollections: [],
   loading: false,
   error: null,
-  selectedCollection: null,
 
   // Document selection state
   selectedDocumentIds: {},
@@ -130,6 +129,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
   filterValuesCache: {},
   activeFilters: {},
   loadingFilters: {},
+  filterErrors: {},
 
   // Actions
   setLoading: (loading) => set({ loading }),
@@ -301,9 +301,6 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
     return qaCollections.find((c) => c.id === collectionId);
   },
 
-  // Set selected collection
-  setSelectedCollection: (collection) => set({ selectedCollection: collection }),
-
   // Clear error
   clearError: () => set({ error: null }),
 
@@ -462,12 +459,15 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
   fetchFilterValues: async (collectionId) => {
     const { filterValuesCache, loadingFilters } = get();
 
+    // Already cached or a fetch is in flight — return what we have (null while
+    // loading, never undefined) so callers get a consistent "no data" signal.
     if (filterValuesCache[collectionId] || loadingFilters[collectionId]) {
-      return filterValuesCache[collectionId];
+      return filterValuesCache[collectionId] ?? null;
     }
 
     set((state) => ({
       loadingFilters: { ...state.loadingFilters, [collectionId]: true },
+      filterErrors: { ...state.filterErrors, [collectionId]: false },
     }));
 
     try {
@@ -491,6 +491,7 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
 
     set((state) => ({
       loadingFilters: { ...state.loadingFilters, [collectionId]: false },
+      filterErrors: { ...state.filterErrors, [collectionId]: true },
     }));
     return null;
   },
@@ -644,17 +645,23 @@ const useNotebookStore = create<NotebookState>((set, get) => ({
     return loadingFilters[collectionId] || false;
   },
 
+  hasFilterError: (collectionId) => {
+    if (!collectionId) return false;
+    const { filterErrors } = get();
+    return filterErrors[collectionId] || false;
+  },
+
   // Reset store
   reset: () =>
     set({
       qaCollections: [],
       loading: false,
       error: null,
-      selectedCollection: null,
       selectedDocumentIds: {},
       filterValuesCache: {},
       activeFilters: {},
       loadingFilters: {},
+      filterErrors: {},
     }),
 }));
 
