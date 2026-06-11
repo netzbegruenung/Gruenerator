@@ -30,6 +30,16 @@ import {
   type CreateCanvasInput,
   type UpdateCanvasInput,
 } from '../../services/canvas/canvasRepository.js';
+import {
+  applyCanvasStatePatch,
+  getCurrentCanvasState,
+} from '../../services/canvas/canvasStateService.js';
+import {
+  getCanvasVersion,
+  getLatestCanvasVersionNumber,
+  insertCanvasVersion,
+  listCanvasVersions,
+} from '../../services/canvas/canvasVersionRepository.js';
 import { logContractValidationError } from '../../utils/contractValidationLogger.js';
 import { getAuthedUser } from '../../utils/getAuthedUser.js';
 import { createLogger } from '../../utils/logger.js';
@@ -129,6 +139,115 @@ export const canvasContractRouter = s.router(canvasContract, {
       return {
         status: 500 as const,
         body: { error: 'Failed to clone canvas', details: err.message },
+      };
+    }
+  },
+
+  getState: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const access = await getCanvas(args.params.id, userId);
+      if (access.kind === 'not_found') {
+        return { status: 404 as const, body: { error: 'Canvas not found' } };
+      }
+      if (access.kind === 'forbidden') {
+        return { status: 403 as const, body: { error: 'Access denied' } };
+      }
+      const current = await getCurrentCanvasState(args.params.id);
+      const version = await getLatestCanvasVersionNumber(args.params.id);
+      return {
+        status: 200 as const,
+        body: { state: current.state, source: current.source, version },
+      };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[canvas.getState] Error:', err);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to fetch canvas state', details: err.message },
+      };
+    }
+  },
+
+  listVersions: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const access = await getCanvas(args.params.id, userId);
+      if (access.kind === 'not_found') {
+        return { status: 404 as const, body: { error: 'Canvas not found' } };
+      }
+      if (access.kind === 'forbidden') {
+        return { status: 403 as const, body: { error: 'Access denied' } };
+      }
+      const versions = await listCanvasVersions(args.params.id);
+      return { status: 200 as const, body: { versions } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[canvas.listVersions] Error:', err);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to list canvas versions', details: err.message },
+      };
+    }
+  },
+
+  getVersion: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const access = await getCanvas(args.params.id, userId);
+      if (access.kind === 'not_found') {
+        return { status: 404 as const, body: { error: 'Canvas not found' } };
+      }
+      if (access.kind === 'forbidden') {
+        return { status: 403 as const, body: { error: 'Access denied' } };
+      }
+      const snapshot = await getCanvasVersion(args.params.id, args.params.version);
+      if (!snapshot) {
+        return { status: 404 as const, body: { error: 'Version not found' } };
+      }
+      return { status: 200 as const, body: snapshot };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[canvas.getVersion] Error:', err);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to fetch canvas version', details: err.message },
+      };
+    }
+  },
+
+  restoreVersion: async (args) => {
+    try {
+      const userId = getAuthedUser(args.req).id;
+      const access = await getCanvas(args.params.id, userId);
+      if (access.kind === 'not_found') {
+        return { status: 404 as const, body: { error: 'Canvas not found' } };
+      }
+      if (access.kind === 'forbidden') {
+        return { status: 403 as const, body: { error: 'Access denied' } };
+      }
+      const snapshot = await getCanvasVersion(args.params.id, args.params.version);
+      if (!snapshot) {
+        return { status: 404 as const, body: { error: 'Version not found' } };
+      }
+      // Re-apply the snapshot as a forward patch — never rewinds Yjs history.
+      await applyCanvasStatePatch(args.params.id, snapshot.state, {
+        seedState: snapshot.state,
+      });
+      const newVersion = await insertCanvasVersion({
+        canvasId: args.params.id,
+        state: snapshot.state,
+        summary: `Version ${snapshot.version} wiederhergestellt`,
+        origin: 'restore',
+        userId,
+      });
+      return { status: 200 as const, body: { version: newVersion, state: snapshot.state } };
+    } catch (error) {
+      const err = error as Error;
+      log.error('[canvas.restoreVersion] Error:', err);
+      return {
+        status: 500 as const,
+        body: { error: 'Failed to restore canvas version', details: err.message },
       };
     }
   },

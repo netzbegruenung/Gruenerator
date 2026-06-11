@@ -27,3 +27,26 @@ export const canvasDocuments = pgTable(
 );
 
 export type CanvasDocumentSidecarRow = InferSelectModel<typeof canvasDocuments>;
+
+/**
+ * Chat-edit version history (sharepic editing in chat). Full flat state per
+ * version so the chat card can render any version directly; newest 20 kept
+ * per canvas (enforced by canvasVersionRepository on insert). Mirrors
+ * `migrations/create_canvas_state_versions.sql`.
+ */
+export const canvasStateVersions = pgTable(
+  'canvas_state_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    canvas_id: uuid('canvas_id').notNull(), // FK → collaborative_documents.id (ON DELETE CASCADE)
+    version: integer('version').notNull(),
+    state: jsonb('state').$type<Record<string, unknown>>().notNull(),
+    summary: text('summary'),
+    origin: text('origin').notNull().default('chat-edit'),
+    created_by: uuid('created_by'),
+    created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  },
+  (t) => [index('idx_canvas_state_versions_canvas').on(t.canvas_id, t.version)]
+);
+
+export type CanvasStateVersionRow = InferSelectModel<typeof canvasStateVersions>;

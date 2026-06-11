@@ -5,6 +5,7 @@ import { INTENT_TO_TOOL, DEEP_TOOL_MAP } from '../../lib/toolMappings';
 import { pickStageLabels } from '../../lib/progressLabels';
 import { useChatConfigStore } from '../../stores/chatConfigStore';
 import { useAgentStore } from '../../stores/chatStore';
+import { useSharepicLiveStore } from '../../stores/sharepicLiveStore';
 
 import type {
   GrueneratorAdapterCallbacks,
@@ -420,6 +421,37 @@ export async function* parseSSEStream(
             message: payload.message,
           };
           yield buildResult();
+          break;
+        }
+
+        case 'sharepic_minted': {
+          const { variantId, canvasId } = data as { variantId: string; canvasId: string };
+          useSharepicLiveStore.getState().upsertEntry(variantId, { canvasId });
+          break;
+        }
+
+        case 'sharepic_updated': {
+          const payload = data as {
+            variantId: string;
+            canvasId: string;
+            version: number;
+            canvasType: string;
+            state: Record<string, unknown>;
+            summary: string;
+          };
+          useSharepicLiveStore.getState().upsertEntry(payload.variantId, {
+            canvasId: payload.canvasId,
+            canvasType: payload.canvasType,
+            version: payload.version,
+            state: payload.state,
+            summary: payload.summary,
+          });
+          break;
+        }
+
+        case 'sharepic_edit_error': {
+          const { error } = data as { variantId?: string; error: string };
+          console.warn('[GrueneratorModelAdapter] sharepic_edit_error:', error);
           break;
         }
 

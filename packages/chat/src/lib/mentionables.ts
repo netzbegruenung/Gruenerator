@@ -280,7 +280,8 @@ export const toolMentionables: Mentionable[] = [
           trigger: '@' as const,
           identifier: 'sharepic',
           title: 'Sharepic',
-          description: 'Drei Sharepic-Varianten erstellen (Dreizeiler, Zitat, Info)',
+          description:
+            'Sharepic-Varianten erstellen und per Chat bearbeiten (Text, Bild, Farben, Position)',
           avatar: '🖼️',
           icon: PiImagesSquare,
           backgroundColor: '#46962b',

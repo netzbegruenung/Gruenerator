@@ -35,6 +35,9 @@ export type SSEEventType =
   | 'image_start'
   | 'image_complete'
   | 'sharepic_complete'
+  | 'sharepic_minted'
+  | 'sharepic_updated'
+  | 'sharepic_edit_error'
   | 'response_start'
   | 'thinking_step'
   | 'progress_step'
@@ -160,6 +163,16 @@ export interface SSEEventPayloads {
     variants: SharepicVariant[];
     error?: string;
   };
+  sharepic_minted: { variantId: string; canvasId: string };
+  sharepic_updated: {
+    variantId: string;
+    canvasId: string;
+    version: number;
+    canvasType: string;
+    state: Record<string, unknown>;
+    summary: string;
+  };
+  sharepic_edit_error: { variantId?: string; error: string };
   response_start: { message: string };
   thinking_step: ThinkingStepPayload;
   progress_step: ProgressStepPayload;
