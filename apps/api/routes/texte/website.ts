@@ -60,7 +60,7 @@ Der JSON muss EXAKT dieser Struktur folgen:
   },
   "about": {
     "title": "Überschrift für 'Über mich' Bereich (max. 30 Zeichen)",
-    "content": "Authentische persönliche Geschichte, Werdegang und politische Vision (300-500 Wörter, Absätze durch Leerzeilen trennen, KEIN HTML)"
+    "content": "Authentische persönliche Geschichte, Werdegang und politische Vision (100-150 Wörter, 2-3 kurze Absätze durch Leerzeilen trennen, KEIN HTML)"
   },
   "hero_image": {
     "title": "Hauptbotschaft/Slogan (max. 60 Zeichen)",
