@@ -131,7 +131,7 @@ const ZITAT_PURE_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'zitat-pure',
   label: 'Zitat',
   canvas: { width: 1080, height: 1350 },
-  supportedOperations: ['set-text', 'set-font-size', 'set-background-color'],
+  supportedOperations: ['set-text', 'set-font-size', 'set-background-color', 'update-element'],
   textFields: [
     {
       field: 'quote',
@@ -153,7 +153,19 @@ const ZITAT_PURE_DESCRIPTOR: SharepicTemplateDescriptor = {
       { id: 'sand', label: 'Sand', color: '#F5F1E9' },
     ],
   },
-  elements: [],
+  elements: [
+    {
+      // Name line position in ABSOLUTE canvas coordinates: writing
+      // `namePosition` overrides the auto-centered layout (the template text
+      // element carries `positionStateKey: 'namePosition'`); without it the
+      // name sits ~60px under the quote. Default x is the 75px left margin.
+      id: 'name',
+      label: 'Name (Position)',
+      kind: 'asset',
+      positionStateKey: 'namePosition',
+      bounds: { minX: 75, maxX: 500, minY: 120, maxY: 1250 },
+    },
+  ],
   defaultState: { backgroundColor: '#6CCD87' },
 };
 
