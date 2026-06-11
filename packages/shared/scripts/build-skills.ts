@@ -110,7 +110,10 @@ const watchMode = process.argv.includes('--watch');
 build();
 if (watchMode) {
   console.log(`[build-skills] watching ${SKILLS_DIR}/*.md`);
-  chokidar.watch(`${SKILLS_DIR}/*.md`, { ignoreInitial: true }).on('all', (event, path) => {
+  // chokidar v4+ dropped glob support — watch the dir and filter to *.md
+  // (skips the generated index.generated.ts, avoiding a write→rebuild loop).
+  chokidar.watch(SKILLS_DIR, { ignoreInitial: true }).on('all', (event, path) => {
+    if (!path.endsWith('.md')) return;
     try {
       build();
       console.log(`[build-skills] regenerated after ${event} on ${path}`);
