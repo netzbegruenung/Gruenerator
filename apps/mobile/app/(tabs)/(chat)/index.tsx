@@ -63,7 +63,7 @@ function SettingsBar({ onOpen }: { onOpen: () => void }) {
 
       <View style={[styles.settingsChip, { borderColor: theme.border }]}>
         <Text style={[styles.settingsChipText, { color: theme.textSecondary }]}>
-          {model?.name || 'Mistral'}
+          {model?.name || 'Automatisch'}
         </Text>
       </View>
 

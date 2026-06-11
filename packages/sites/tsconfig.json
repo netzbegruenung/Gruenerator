@@ -10,11 +10,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    },
-    "noUncheckedIndexedAccess": false,
-    "noPropertyAccessFromIndexSignature": false,
-    "noImplicitOverride": false,
-    "noImplicitReturns": false
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

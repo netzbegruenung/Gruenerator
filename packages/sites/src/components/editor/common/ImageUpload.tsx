@@ -1,7 +1,6 @@
 import { useMediaPicker, useMediaUpload, type MediaItem } from '@gruenerator/shared/media-library';
+import { cn } from '@gruenerator/shared/utils';
 import { useRef } from 'react';
-
-import { cn } from '../../../utils/cn';
 
 interface ImageUploadProps {
   value: string;
@@ -45,8 +44,8 @@ export function ImageUpload({
   const handleLibraryClick = () => {
     if (disabled) return;
     openImagePicker((items: MediaItem[]) => {
-      if (items.length > 0) {
-        const item = items[0];
+      const item = items[0];
+      if (item) {
         const url = item.mediaUrl || `/api/share/${item.shareToken}/preview`;
         onChange(url);
       }

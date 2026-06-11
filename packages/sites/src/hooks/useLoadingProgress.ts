@@ -31,6 +31,8 @@ export function useLoadingProgress(isLoading: boolean, estimatedDuration: number
         clearTimeout(timeout);
       };
     }
+
+    return undefined;
   }, [isLoading, estimatedDuration]);
 
   return Math.round(progress);

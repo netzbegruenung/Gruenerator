@@ -1,8 +1,7 @@
+import { cn } from '@gruenerator/shared/utils';
 import { forwardRef, type ReactNode } from 'react';
 
 import { useEditorStore } from '../../stores/editorStore';
-
-import { cn } from '../../utils/cn';
 
 interface EditorLayoutProps {
   sidebar: ReactNode;
