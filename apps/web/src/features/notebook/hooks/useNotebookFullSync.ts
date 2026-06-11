@@ -1,4 +1,5 @@
 import { type LinkedDocRef, type WolkeFolderRef } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 
@@ -133,24 +134,57 @@ export function useNotebookFullSync() {
       }
 
       // ===== Build new documents list =====
-      const priorIds = priorDocuments.map((d) => String(d.id));
+      // Re-fetch the collection right before writing: the sync above can run
+      // for minutes, and writing back the stale snapshot would silently revert
+      // any documents added/removed concurrently (other tab, group member).
+      let baseDocumentIds = priorDocuments.map((d) => String(d.id));
+      let base: Pick<
+        NotebookCollection,
+        'name' | 'description' | 'custom_prompt' | 'selection_mode' | 'labels' | 'is_public'
+      > & { public_ownership?: NotebookCollection['public_ownership'] } = collection;
+      try {
+        const fresh = await getContractsClient().notebookCollections.getCollection({
+          params: { slugOrId: collection.id },
+        });
+        if (fresh.status === 200) {
+          baseDocumentIds = fresh.body.collection.documents.map((d) => String(d.id));
+          base = {
+            name: fresh.body.collection.name,
+            ...(fresh.body.collection.description != null
+              ? { description: fresh.body.collection.description }
+              : {}),
+            ...(fresh.body.collection.custom_prompt != null
+              ? { custom_prompt: fresh.body.collection.custom_prompt }
+              : {}),
+            selection_mode:
+              (fresh.body.collection.selection_mode as NotebookCollection['selection_mode']) ??
+              collection.selection_mode,
+            labels: fresh.body.collection.labels ?? collection.labels,
+            is_public: fresh.body.collection.is_public ?? collection.is_public,
+            public_ownership: fresh.body.collection.public_ownership ?? null,
+          };
+        }
+      } catch {
+        // Refetch is best-effort: fall back to the snapshot from mutation start.
+      }
+
       const remove = new Set<string>([...removedWolkeIds, ...removedManualIds]);
       const finalIds = new Set<string>();
-      for (const id of priorIds) if (!remove.has(id)) finalIds.add(id);
+      for (const id of baseDocumentIds) if (!remove.has(id)) finalIds.add(id);
       for (const r of wolkeResults) {
         if (r.kind === 'success') r.newlyImported.forEach((d) => finalIds.add(d.id));
       }
       for (const id of addedManualIds) finalIds.add(id);
 
       await updateQACollection(collection.id, {
-        name: collection.name,
-        ...(collection.description != null ? { description: collection.description } : {}),
-        ...(collection.custom_prompt != null ? { custom_prompt: collection.custom_prompt } : {}),
-        selectionMode: collection.selection_mode ?? 'documents',
+        name: base.name,
+        ...(base.description != null ? { description: base.description } : {}),
+        ...(base.custom_prompt != null ? { custom_prompt: base.custom_prompt } : {}),
+        selectionMode: base.selection_mode ?? 'documents',
         documents: [...finalIds],
-        labels: collection.labels ?? [],
-        is_public: collection.is_public,
-        public_ownership: collection.public_ownership ?? null,
+        labels: base.labels ?? [],
+        is_public: base.is_public,
+        public_ownership: base.public_ownership ?? null,
         wolkeFolders: updatedFolders,
         linkedDocs: updatedLinkedDocs,
       });

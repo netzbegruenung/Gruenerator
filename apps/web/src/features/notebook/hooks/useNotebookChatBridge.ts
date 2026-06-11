@@ -141,9 +141,9 @@ export function useNotebookChatBridge({
           resultId,
           question: metadata.question,
           citations: metadata.rawCitations,
-          chatCitations: metadata.citations as unknown as Array<Record<string, unknown>>,
+          chatCitations: metadata.citations,
           sources: metadata.sources,
-          additionalSources: metadata.additionalSources as Array<Record<string, unknown>>,
+          additionalSources: metadata.additionalSources,
           linkConfig: metadata.linkConfig,
           ...(metadata.sourcesByCollection && {
             sourcesByCollection: metadata.sourcesByCollection,
