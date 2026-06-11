@@ -1,3 +1,4 @@
+import { emptyRichTextDoc } from '@gruenerator/contracts';
 import { cn } from '@gruenerator/shared/utils';
 import { type CandidateData } from '@gruenerator/sites-design';
 import { useState, useRef, useCallback } from 'react';
@@ -30,9 +31,9 @@ function buildCandidateDataFromSite(site: SiteData): CandidateData {
       tagline: site.tagline || '',
       socialLinks: site.social_links || {},
     },
-    about: {
+    about: site.sections?.about ?? {
       title: 'Wer ich bin',
-      content: site.bio || '',
+      content: emptyRichTextDoc(),
     },
     heroImage: site.sections?.heroImage || {
       imageUrl: '',
@@ -103,10 +104,10 @@ function SiteEditor({ site }: SiteEditorProps) {
         data: {
           site_title: candidateData.hero.name,
           tagline: candidateData.hero.tagline,
-          bio: candidateData.about.content,
           contact_email: candidateData.contact.email,
           social_links: socialLinks,
           sections: {
+            about: candidateData.about,
             heroImage: candidateData.heroImage,
             themes: candidateData.themes.themes.map(({ _key, ...theme }) => theme),
             actions: candidateData.actions.actions.map(({ _key, ...action }) => action),
@@ -358,7 +359,6 @@ export function EditPage() {
         subdomain: subdomain.toLowerCase().replace(/[^a-z0-9-]/g, ''),
         site_title: previewData.site_title,
         tagline: previewData.tagline,
-        bio: previewData.bio,
         contact_email: previewData.contact_email || contactEmail,
         sections: previewData.sections,
       });
@@ -399,7 +399,6 @@ export function EditPage() {
         data: {
           site_title: result.transformed.site_title,
           tagline: result.transformed.tagline,
-          bio: result.transformed.bio,
           contact_email: result.transformed.contact_email || site.contact_email || '',
           sections: result.transformed.sections,
         },
@@ -439,10 +438,7 @@ export function EditPage() {
           tagline: previewData.tagline,
           socialLinks: {},
         },
-        about: {
-          title: 'Wer ich bin',
-          content: previewData.bio,
-        },
+        about: previewData.sections.about,
         heroImage: previewData.sections.heroImage,
         themes: {
           title: 'Meine Themen',
