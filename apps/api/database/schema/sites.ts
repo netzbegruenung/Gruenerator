@@ -17,7 +17,10 @@ export const userSites = pgTable('user_sites', {
   accent_color: text('accent_color').default('#46962b'),
   profile_image: text('profile_image'),
   background_image: text('background_image'),
-  sections: jsonb('sections').$type<Record<string, unknown>[]>().default([]),
+  // Object keyed by section name ({ heroImage, themes, actions, contact,
+  // socialFeed }) — canonical shape is siteSectionsSchema in
+  // @gruenerator/contracts. Historic rows may still hold a legacy array form.
+  sections: jsonb('sections').$type<Record<string, unknown>>().default({}),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   last_published: timestamp('last_published', { withTimezone: true }),

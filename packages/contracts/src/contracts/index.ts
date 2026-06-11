@@ -45,3 +45,4 @@ export { canvasContract } from './canvasContract.js';
 export { groupsContract } from './groupsContract.js';
 export { contentSyncContract } from './contentSyncContract.js';
 export { monitorContract } from './monitorContract.js';
+export { sitesContract } from './sitesContract.js';

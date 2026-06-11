@@ -1,8 +1,7 @@
+import { cn } from '@gruenerator/shared/utils';
 import { Button } from '@gruenerator/sites-design';
 import { useCallback, useState } from 'react';
 import { FiArrowLeft, FiCheck, FiClipboard, FiRefreshCw } from 'react-icons/fi';
-
-import { cn } from '../utils/cn';
 
 interface WordPressJsonResultProps {
   json: string;
@@ -37,7 +36,7 @@ export function WordPressJsonResult({
   }, [json]);
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-neutral-600 px-md py-xl lg:px-xl overflow-hidden">
+    <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-neutral-600 dark:from-grey-900 dark:via-grey-950 dark:to-grey-900 px-md py-xl lg:px-xl overflow-hidden">
       {/* Decorative background blobs */}
       <svg
         className="absolute -top-32 -right-32 w-[600px] h-[600px] opacity-20 hidden md:block"
@@ -56,16 +55,16 @@ export function WordPressJsonResult({
         <circle cx="350" cy="350" r="350" fill="var(--primary-200)" />
       </svg>
 
-      <div className="relative z-10 w-full max-w-[800px] lg:max-w-[920px] mx-auto bg-white rounded-2xl shadow-lg animate-[step-enter_0.4s_ease-out]">
+      <div className="relative z-10 w-full max-w-[800px] lg:max-w-[920px] mx-auto bg-white dark:bg-grey-900 rounded-2xl shadow-lg animate-[step-enter_0.4s_ease-out]">
         <div className="px-8 py-8 md:px-10 lg:px-14 md:py-10 lg:py-12">
           <div className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary-50 mb-4">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary-50 dark:bg-primary-950 mb-4">
               <FiCheck className="size-7 text-primary-600" />
             </div>
-            <h2 className="font-[GrueneTypeNeue] text-[length:var(--font-size-2xl)] lg:text-[length:var(--font-size-3xl)] text-primary-800 mb-2">
+            <h2 className="font-[GrueneTypeNeue] text-[length:var(--font-size-2xl)] lg:text-[length:var(--font-size-3xl)] text-primary-800 dark:text-primary-300 mb-2">
               Deine WordPress-Texte sind fertig!
             </h2>
-            <p className="text-[length:var(--font-size-base)] lg:text-[length:var(--font-size-lg)] text-grey-500 leading-relaxed max-w-[560px] mx-auto">
+            <p className="text-[length:var(--font-size-base)] lg:text-[length:var(--font-size-lg)] text-grey-500 dark:text-grey-400 leading-relaxed max-w-[560px] mx-auto">
               Kopiere den JSON-Text und füge ihn im WordPress-Plugin unter &quot;Grünerator Texte
               verwenden&quot; ein.
             </p>
@@ -76,7 +75,7 @@ export function WordPressJsonResult({
               readOnly
               value={json}
               rows={16}
-              className="w-full rounded-lg border border-grey-200 bg-grey-50 p-4 font-mono text-sm text-grey-700 resize-y focus:outline-none focus:border-primary-400"
+              className="w-full rounded-lg border border-grey-200 dark:border-grey-700 bg-grey-50 dark:bg-grey-950 p-4 font-mono text-sm text-grey-700 dark:text-grey-300 resize-y focus:outline-none focus:border-primary-400"
             />
           </div>
 
@@ -112,7 +111,7 @@ export function WordPressJsonResult({
             >
               {isRegenerating ? (
                 <>
-                  <span className="size-5 border-2 border-grey-300 border-t-primary-600 rounded-full animate-[spin_1s_linear_infinite]" />
+                  <span className="size-5 border-2 border-grey-300 border-t-primary-600 rounded-full animate-spin" />
                   Generiert...
                 </>
               ) : (
@@ -128,7 +127,7 @@ export function WordPressJsonResult({
             <button
               onClick={onBack}
               disabled={isRegenerating}
-              className="inline-flex items-center gap-1.5 text-sm text-grey-500 hover:text-primary-600 transition-colors bg-transparent border-none cursor-pointer p-0"
+              className="inline-flex items-center gap-1.5 text-sm text-grey-500 dark:text-grey-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors bg-transparent border-none cursor-pointer p-0"
             >
               <FiArrowLeft className="size-4" />
               Zurück

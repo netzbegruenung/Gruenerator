@@ -1,6 +1,11 @@
+import { type CreateSiteBody, type Site, type UpdateSiteBody } from '@gruenerator/contracts';
+import { getContractsClient } from '@gruenerator/shared/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import apiClient from '../lib/apiClient';
+import { SitesApiError } from '../utils/errorHandler';
+
+export type SiteData = Site;
 
 export interface AiGeneratedContent {
   hero: { heading: string; text: string };
@@ -47,27 +52,10 @@ function transformAiResponse(ai: AiGeneratedContent): GeneratedSiteData {
   };
 }
 
-interface SiteData {
-  id: string;
-  user_id: string;
-  subdomain: string;
-  site_title: string;
-  tagline?: string;
-  bio?: string;
-  contact_email?: string;
-  social_links?: Record<string, string>;
-  profile_image?: string;
-  background_image?: string;
-  sections?: {
-    themes?: Array<{ imageUrl: string; title: string; content: string }>;
-    actions?: Array<{ imageUrl: string; text: string; link: string }>;
-    heroImage?: { imageUrl: string; title: string; subtitle: string };
-    contact?: { title: string; backgroundImageUrl: string };
-    socialFeed?: { title: string; instagramUsername?: string; showFeed: boolean };
-  };
-  is_published: boolean;
-  created_at: string;
-  updated_at: string;
+function toApiError(res: { status: number; body: unknown }): SitesApiError {
+  const message =
+    (res.body as { error?: string } | null | undefined)?.error ?? `HTTP ${res.status}`;
+  return new SitesApiError(res.status, message);
 }
 
 export function useSite() {
@@ -78,28 +66,20 @@ export function useSite() {
     isLoading,
     error,
     refetch,
-  } = useQuery<SiteData | null>({
+  } = useQuery<Site | null>({
     queryKey: ['my-site'],
     queryFn: async () => {
-      try {
-        const response = await apiClient.get<{ site: SiteData | null }>('/sites/my-site');
-        return response.data.site;
-      } catch (err: unknown) {
-        if (err && typeof err === 'object' && 'response' in err) {
-          const axiosError = err as { response?: { status: number } };
-          if (axiosError.response?.status === 404) {
-            return null;
-          }
-        }
-        throw err;
-      }
+      const res = await getContractsClient().sites.getMySite();
+      if (res.status !== 200) throw toApiError(res);
+      return res.body.site;
     },
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: Partial<SiteData>) => {
-      const response = await apiClient.post<{ site: SiteData }>('/sites/create', data);
-      return response.data.site;
+    mutationFn: async (data: CreateSiteBody) => {
+      const res = await getContractsClient().sites.createSite({ body: data });
+      if (res.status !== 200) throw toApiError(res);
+      return res.body.site;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['my-site'] });
@@ -107,9 +87,10 @@ export function useSite() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<SiteData> }) => {
-      const response = await apiClient.put<{ site: SiteData }>(`/sites/${id}`, data);
-      return response.data.site;
+    mutationFn: async ({ id, data }: { id: string; data: UpdateSiteBody }) => {
+      const res = await getContractsClient().sites.updateSite({ params: { id }, body: data });
+      if (res.status !== 200) throw toApiError(res);
+      return res.body.site;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['my-site'] });
@@ -117,11 +98,13 @@ export function useSite() {
   });
 
   const publishMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await apiClient.post<{ site: SiteData }>(`/sites/${id}/publish`, {
-        publish: true,
+    mutationFn: async ({ id, publish }: { id: string; publish: boolean }) => {
+      const res = await getContractsClient().sites.publishSite({
+        params: { id },
+        body: { publish },
       });
-      return response.data;
+      if (res.status !== 200) throw toApiError(res);
+      return res.body.site;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['my-site'] });

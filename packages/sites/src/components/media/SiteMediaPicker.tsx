@@ -10,9 +10,8 @@ import {
   useMediaPickerStore,
   type MediaItem,
 } from '@gruenerator/shared/media-library';
+import { cn } from '@gruenerator/shared/utils';
 import { useEffect, useRef, useState } from 'react';
-
-import { cn } from '../../utils/cn';
 
 export function SiteMediaPicker() {
   const { isOpen, selectedItems, mediaTypeFilter, closePicker, selectItem, confirmSelection } =
@@ -39,15 +38,14 @@ export function SiteMediaPicker() {
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          closePicker();
-        }
-      };
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
+    if (!isOpen) return undefined;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closePicker();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, closePicker]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {

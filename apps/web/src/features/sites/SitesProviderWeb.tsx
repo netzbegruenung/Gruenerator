@@ -1,6 +1,7 @@
 import { SitesProvider, type SitesAuth } from '@gruenerator/sites';
 import { useCallback, useMemo, type ReactNode } from 'react';
 
+import ErrorBoundary from '../../components/ErrorBoundary';
 import useAuth from '../../hooks/useAuth';
 
 interface SitesProviderWebProps {
@@ -35,15 +36,17 @@ export function SitesProviderWeb({ children }: SitesProviderWebProps) {
   );
 
   return (
-    <SitesProvider
-      basePath="/sites"
-      auth={auth}
-      login={login}
-      logout={logout}
-      reportError={reportError}
-    >
-      {children}
-    </SitesProvider>
+    <ErrorBoundary>
+      <SitesProvider
+        basePath="/sites"
+        auth={auth}
+        login={login}
+        logout={logout}
+        reportError={reportError}
+      >
+        {children}
+      </SitesProvider>
+    </ErrorBoundary>
   );
 }
 

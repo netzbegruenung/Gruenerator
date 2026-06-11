@@ -96,6 +96,7 @@ import sharepicClaudeRoute, {
   handleSliderSmartRequest,
 } from './routes/sharepic/sharepic_claude/index.js';
 import { type SharepicRequest } from './routes/sharepic/sharepic_claude/types.js';
+import { mountSitesContractRouter } from './routes/sites/sitesContractRouter.js';
 import subtitlerRouter from './routes/subtitler/processingController.js';
 import subtitlerProjectRouter from './routes/subtitler/projectController.js';
 import subtitlerShareRouter from './routes/subtitler/shareController.js';
@@ -738,7 +739,16 @@ export async function setupRoutes(app: Application): Promise<void> {
   mountWordpressContractRouter(app);
   app.use('/api/wordpress', standardMutationLimiter, requireAuth, wordpressApiRouter);
   app.use('/api/sites/generate-from-flyer', aiGenerationLimiter, flyerController);
-  app.use('/api/sites', standardMutationLimiter, sitesRouter);
+  // ts-rest contract router — mount before the legacy sitesRouter so the
+  // typed CRUD routes match first; /public/:subdomain and /themes fall
+  // through to the legacy router. requireAuth is path-filtered because
+  // /api/sites/public/* must stay anonymous.
+  app.use('/api/sites', standardMutationLimiter, (req, res, next) => {
+    if (req.path.startsWith('/public/')) return next();
+    void requireAuth(req, res, next);
+  });
+  mountSitesContractRouter(app);
+  app.use('/api/sites', sitesRouter);
   app.use('/api/flux/green-edit', aiGenerationLimiter, fluxImageEditingRoute);
   app.use('/api/imagine/create', aiGenerationLimiter, imagineCreateRoute);
   app.use('/api/imagine/pure', aiGenerationLimiter, imaginePureRoute);
