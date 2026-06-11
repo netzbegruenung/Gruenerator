@@ -37,23 +37,9 @@ export type RunSharepicEditResult =
   | { ok: true; edit: SharepicEditResponse }
   | { ok: false; error: string };
 
-function buildSystemPrompt(
-  descriptor: SharepicTemplateDescriptor,
-  snapshot: CanvasAiSnapshot,
-  recentEditSummaries: string[]
-): string {
-  const lines: string[] = [
-    'Du bist der Bearbeitungs-Assistent für Sharepics der deutschen Grünen.',
-    'Der*die Nutzer*in beschreibt EINE gewünschte Änderung am aktuellen Sharepic.',
-    'Du setzt sie als konkrete Operationen um — keine Vorschläge, keine Rückfragen.',
-    '',
-    'Sprachregeln: Du-Form, Genderstern (z.B. "Bürger*innen"), prägnante Kampagnen-Texte.',
-    '',
-    `Vorlage: ${descriptor.label} (${descriptor.id})`,
-    '',
-    'Aktueller Inhalt:',
-  ];
-
+/** Compact German description of the current sharepic content for prompts. */
+export function buildSnapshotLines(snapshot: CanvasAiSnapshot): string[] {
+  const lines: string[] = [];
   for (const f of snapshot.textFields) {
     lines.push(`- ${f.label} [field=${f.field}]: ${f.value ? `"${f.value}"` : '(leer)'}`);
   }
@@ -66,15 +52,17 @@ function buildSystemPrompt(
   for (const el of snapshot.elementsSummary) {
     lines.push(`- Element [id=${el.id}]: ${el.label}`);
   }
+  return lines;
+}
 
-  if (recentEditSummaries.length > 0) {
-    lines.push('');
-    lines.push('Letzte Änderungen (neueste zuerst):');
-    for (const s of recentEditSummaries) lines.push(`- ${s}`);
-  }
-
+/**
+ * Per-template catalog of allowed operations with exact schemas and bounds.
+ * Shared between the single-call edit prompt and the agentic tool loop so the
+ * two paths can't drift apart.
+ */
+export function buildOperationCatalog(descriptor: SharepicTemplateDescriptor): string[] {
+  const lines: string[] = [];
   const supported = new Set(descriptor.supportedOperations);
-  lines.push('');
   lines.push('ERLAUBTE OPERATIONEN (genaue Schemas, Schlüssel ist "kind"):');
   if (supported.has('set-text')) {
     lines.push(
@@ -119,6 +107,35 @@ function buildSystemPrompt(
       '  - { "kind": "set-background-image", "query": "<deutsche Bildsuche, z.B. Windräder Sonnenuntergang>" }'
     );
   }
+  return lines;
+}
+
+function buildSystemPrompt(
+  descriptor: SharepicTemplateDescriptor,
+  snapshot: CanvasAiSnapshot,
+  recentEditSummaries: string[]
+): string {
+  const lines: string[] = [
+    'Du bist der Bearbeitungs-Assistent für Sharepics der deutschen Grünen.',
+    'Der*die Nutzer*in beschreibt EINE gewünschte Änderung am aktuellen Sharepic.',
+    'Du setzt sie als konkrete Operationen um — keine Vorschläge, keine Rückfragen.',
+    '',
+    'Sprachregeln: Du-Form, Genderstern (z.B. "Bürger*innen"), prägnante Kampagnen-Texte.',
+    '',
+    `Vorlage: ${descriptor.label} (${descriptor.id})`,
+    '',
+    'Aktueller Inhalt:',
+    ...buildSnapshotLines(snapshot),
+  ];
+
+  if (recentEditSummaries.length > 0) {
+    lines.push('');
+    lines.push('Letzte Änderungen (neueste zuerst):');
+    for (const s of recentEditSummaries) lines.push(`- ${s}`);
+  }
+
+  lines.push('');
+  lines.push(...buildOperationCatalog(descriptor));
 
   lines.push('');
   lines.push(`Antworte AUSSCHLIESSLICH über das Tool "${SHAREPIC_EDIT_TOOL_NAME}" mit:`);

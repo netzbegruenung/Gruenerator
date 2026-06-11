@@ -57,7 +57,7 @@ neu erfindet.
 
 | Thema | Warum aufgeschoben | Wenn doch gebraucht |
 | --- | --- | --- |
-| **Agentischer Tool-Loop im Chat** | User-Entscheidung „structured call now, loop later"; Loop wäre Chat-weiter Umbau (Latenz, Kosten, Kontext-Wachstum) | Konkreter Plan inkl. Aufwand: `chat-tool-loop-plan.md` (v1 gescoped auf den Sharepic-Modus) |
+| **Chat-weiter agentischer Tool-Loop** | v1 ist UMGESETZT, aber bewusst auf Sharepic-Edits gescoped und hinter `CHAT_TOOL_LOOP=true` (`sharepicAgenticService.ts`); der chat-weite Ersatz der Intent-Pipeline bleibt aufgeschoben (Latenz, Kosten, Classifier-Heuristiken sind ohne LLM-Call schneller) | Plan + offene Punkte: `chat-tool-loop-plan.md` |
 | **Formatwechsel per Chat** (Portrait → Story …) | `canvas.resize` klont ein NEUES Dokument → bricht Karten-Identität (canvasId in Thread & Versionen) | Konzept nötig: Karte auf neues Doc umhängen oder Resize-in-place |
 | **Multi-Page-Sharepics** (Slider, Präsentationen) | Patches gehen nur auf Seite 0; `formState` kann Edits nicht seitenweise attribuieren | Ops um `pageId` erweitern; Deskriptoren für Slider/Pres-Templates |
 | **KI-generierte / hochgeladene Hintergründe** | v1 nur Stock-Suche (`set-background-image` → ImageSelectionService) | Flux-Pfad existiert im image-Intent; Upload bräuchte Attachment-Routing in den Edit-Branch |
@@ -65,11 +65,3 @@ neu erfindet.
 | **Studio-Edits in der Versions-Historie** | Yjs-Snapshots decken Studio-Historie ab; Karten-Stepper zeigt nur Chat-Edits | Hook in `onStoreDocument` oder Hocuspocus-Change-Hook |
 | **`@sharepic` in Produktion** | Mentionable ist dev-only geflaggt (`packages/chat/src/lib/mentionables.ts`), bis die manuelle E2E-Matrix aus PR #1215 gelaufen ist | Flag entfernen + Envs in prod setzen |
 | **Heal für Multi-Page-Altdokumente** | `formState` mischt die letzten Edits ALLER Seiten — nicht attribuierbar; Heal läuft nur bei `pages.length === 1` | Nur mit per-Page-Schreibhistorie möglich; ab Dual-Write entsteht das Problem nicht mehr neu |
-
-## Bekannte pre-existing Failures (nicht aus diesen PRs)
-
-- `services/hocuspocus/src/persistence.vitest.ts`: 1 Test rot
-  („snapshot-v2" statt „live-state").
-- `packages/chat`: Console-Runner-Testdateien (`adapterUtils.test.ts`,
-  `mentionParser.test.ts`) loggen intern „passed", schlagen unter vitest aber
-  mit „No test suite found" fehl.
