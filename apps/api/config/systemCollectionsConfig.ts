@@ -380,8 +380,7 @@ export const SYSTEM_COLLECTIONS: Record<string, SystemCollectionConfig> = {
     id: 'hessen-system',
     qdrantCollection: 'landesverbaende_documents',
     name: 'Grüne Hessen',
-    description:
-      'Pressemitteilungen und Beschlüsse der Grünen Hessen (Landesverband & Fraktion)',
+    description: 'Pressemitteilungen und Beschlüsse der Grünen Hessen (Landesverband & Fraktion)',
     minQuality: 0.3,
     recallLimit: 60,
     filterableFields: [
