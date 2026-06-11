@@ -1,5 +1,30 @@
 import { getDocAIExtension } from './aiExtension';
 
+// In-flight invocation registry. The fork store flips `isForked` at fork time —
+// before the LLM streams — and with the AI menu closed the extension's own
+// status/abort APIs are no-ops, so review UIs need an independent signal to
+// know streaming is still in progress (accept/reject mid-stream would merge or
+// discard a fork the stream keeps writing into).
+const inFlight = new Set<string>();
+const inFlightListeners = new Set<() => void>();
+
+function notifyInFlight() {
+  for (const cb of inFlightListeners) cb();
+}
+
+/** Whether an AI invocation is currently streaming for a document. */
+export function isDocAIInvocationInFlight(documentId: string): boolean {
+  return inFlight.has(documentId);
+}
+
+/** Subscribe to in-flight changes (useSyncExternalStore-compatible). */
+export function subscribeDocAIInFlight(cb: () => void): () => void {
+  inFlightListeners.add(cb);
+  return () => {
+    inFlightListeners.delete(cb);
+  };
+}
+
 /**
  * Programmatically trigger BlockNote's AI extension for a given document. Used
  * by the docs-chat surface to dispatch `trigger_doc_edit` SSE events from the
@@ -29,12 +54,21 @@ export async function invokeDocumentAI(opts: {
   // review UX is rendered natively (DocAiReviewBar → accept/rejectDocumentAI).
   // `invokeAI` still applies the diff as ProseMirror suggestions regardless of
   // menu state — the suggestion plugin is independent of the menu.
-  await ext.invokeAI({
-    userPrompt: opts.userPrompt,
-    useSelection: opts.useSelection ?? false,
-    ...(opts.referenceContent
-      ? { chatRequestOptions: { body: { referenceContent: opts.referenceContent } } }
-      : {}),
-  });
+  inFlight.add(opts.documentId);
+  notifyInFlight();
+  try {
+    // invokeAI resolves only after the response stream completes, so the
+    // in-flight window covers the whole fork-and-stream phase.
+    await ext.invokeAI({
+      userPrompt: opts.userPrompt,
+      useSelection: opts.useSelection ?? false,
+      ...(opts.referenceContent
+        ? { chatRequestOptions: { body: { referenceContent: opts.referenceContent } } }
+        : {}),
+    });
+  } finally {
+    inFlight.delete(opts.documentId);
+    notifyInFlight();
+  }
   return true;
 }
