@@ -62,6 +62,14 @@ export interface SharepicTemplateDescriptor {
   /** State key for `toggle-sunflower`. */
   sunflowerVisibleStateKey?: string;
   elements: SharepicElementDescriptor[];
+  /**
+   * Manual position overrides to CLEAR (set to null = back to auto layout)
+   * when a layout-driving field changes. Example: editing the zitat-pure
+   * quote changes its height — a pinned absolute `namePosition` would leave
+   * the name floating mid-text, so the edit resets it and the name re-flows
+   * under the new quote. Skipped when the same op batch sets the key itself.
+   */
+  layoutResets?: Array<{ onFields: string[]; clearStateKey: string }>;
   /** Defaults merged under variant initialProps when minting a canvas doc. */
   defaultState: Record<string, unknown>;
 }
@@ -131,7 +139,7 @@ const ZITAT_PURE_DESCRIPTOR: SharepicTemplateDescriptor = {
   id: 'zitat-pure',
   label: 'Zitat',
   canvas: { width: 1080, height: 1350 },
-  supportedOperations: ['set-text', 'set-font-size', 'set-background-color'],
+  supportedOperations: ['set-text', 'set-font-size', 'set-background-color', 'update-element'],
   textFields: [
     {
       field: 'quote',
@@ -153,7 +161,20 @@ const ZITAT_PURE_DESCRIPTOR: SharepicTemplateDescriptor = {
       { id: 'sand', label: 'Sand', color: '#F5F1E9' },
     ],
   },
-  elements: [],
+  elements: [
+    {
+      // Name line position in ABSOLUTE canvas coordinates: writing
+      // `namePosition` overrides the auto-centered layout (the template text
+      // element carries `positionStateKey: 'namePosition'`); without it the
+      // name sits ~60px under the quote. Default x is the 75px left margin.
+      id: 'name',
+      label: 'Name (Position)',
+      kind: 'asset',
+      positionStateKey: 'namePosition',
+      bounds: { minX: 75, maxX: 500, minY: 120, maxY: 1250 },
+    },
+  ],
+  layoutResets: [{ onFields: ['quote'], clearStateKey: 'namePosition' }],
   defaultState: { backgroundColor: '#6CCD87' },
 };
 
@@ -358,6 +379,20 @@ export function sharepicOpsToStatePatch(
       applied.push(op);
     } else {
       rejected.push({ op, reason: `Operation "${op.kind}" wird im Chat nicht unterstützt` });
+    }
+  }
+
+  // Layout reflow: when a layout-driving field changed, clear stale manual
+  // position overrides (null = back to auto layout) — unless this very batch
+  // positioned the element deliberately.
+  for (const reset of descriptor.layoutResets ?? []) {
+    if (reset.clearStateKey in patch) continue;
+    const touchedLayoutField = applied.some(
+      (op) =>
+        (op.kind === 'set-text' || op.kind === 'set-font-size') && reset.onFields.includes(op.field)
+    );
+    if (touchedLayoutField && state[reset.clearStateKey] != null) {
+      patch[reset.clearStateKey] = null;
     }
   }
 

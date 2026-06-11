@@ -7,6 +7,7 @@ import {
   type CanvasAiOperation,
 } from '@gruenerator/contracts';
 
+import { zitatPureFullConfig } from '../configs/zitat_pure_full.config';
 import { COLOR_SCHEMES } from '../utils/dreizeilenLayout';
 
 // The server-safe descriptors in @gruenerator/contracts duplicate the
@@ -66,6 +67,53 @@ describe('sharepicOpsToStatePatch', () => {
       balkenOffset: { x: 40, y: 0 },
     });
     expect(result.patch.balkenOffset).toEqual({ x: 40, y: -300 });
+  });
+
+  it('moves the zitat-pure name via update-element (absolute coords, clamped)', () => {
+    const ops: CanvasAiOperation[] = [
+      { kind: 'update-element', elementId: 'name', patch: { y: 60 } },
+    ];
+    const result = sharepicOpsToStatePatch(zitatPure, ops, {});
+    // y clamps to the 120px top boundary; missing x falls back to the 75px left margin.
+    expect(result.patch.namePosition).toEqual({ x: 75, y: 120 });
+  });
+
+  it('resets a pinned namePosition when the quote text changes (layout reflow)', () => {
+    const ops: CanvasAiOperation[] = [
+      { kind: 'set-text', field: 'quote', label: 'Zitat', value: 'Ein viel längeres neues Zitat' },
+    ];
+    const result = sharepicOpsToStatePatch(zitatPure, ops, {
+      namePosition: { x: 75, y: 300 },
+    });
+    expect(result.patch.namePosition).toBeNull();
+  });
+
+  it('keeps namePosition when the batch repositions the name itself', () => {
+    const ops: CanvasAiOperation[] = [
+      { kind: 'set-text', field: 'quote', label: 'Zitat', value: 'Neues Zitat' },
+      { kind: 'update-element', elementId: 'name', patch: { y: 200 } },
+    ];
+    const result = sharepicOpsToStatePatch(zitatPure, ops, {
+      namePosition: { x: 75, y: 300 },
+    });
+    expect(result.patch.namePosition).toEqual({ x: 75, y: 200 });
+  });
+
+  it('does not touch namePosition when only the name TEXT changes', () => {
+    const ops: CanvasAiOperation[] = [
+      { kind: 'set-text', field: 'name', label: 'Name', value: 'Ricarda Lang' },
+    ];
+    const result = sharepicOpsToStatePatch(zitatPure, ops, {
+      namePosition: { x: 75, y: 300 },
+    });
+    expect('namePosition' in result.patch).toBe(false);
+  });
+
+  it('zitat-pure name element state key matches the template config', () => {
+    const el = zitatPureFullConfig.elements.find((e) => e.id === 'name-text');
+    expect(el && 'positionStateKey' in el ? el.positionStateKey : null).toBe(
+      zitatPure.elements.find((e) => e.id === 'name')?.positionStateKey
+    );
   });
 
   it('rejects set-color-scheme with unknown scheme ids', () => {
