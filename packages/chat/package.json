@@ -25,7 +25,8 @@
     "./styles/embedded": "./src/styles/chat-embedded.css"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@assistant-ui/react-markdown": "0.14.1",
@@ -45,7 +46,8 @@
   "devDependencies": {
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.14.8",
