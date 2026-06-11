@@ -17,6 +17,14 @@ export function AgentSwitchListener() {
     if (prevRef.current === selectedAgentId) return;
     prevRef.current = selectedAgentId;
 
+    // A deselect-to-null while in thread view is the side effect of opening an
+    // existing thread (ChatPage clears the agent on /chat without an agent
+    // param) — not a user-initiated agent switch. Resetting here would stomp
+    // the just-switched thread with a blank new one.
+    if (selectedAgentId === null && useAgentStore.getState().chatViewMode === 'thread') {
+      return;
+    }
+
     const store = useAgentStore.getState();
     store.setThreadMode('chat');
     store.setCustomSystemPrompt(null);
