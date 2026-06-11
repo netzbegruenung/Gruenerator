@@ -62,6 +62,14 @@ export interface SharepicTemplateDescriptor {
   /** State key for `toggle-sunflower`. */
   sunflowerVisibleStateKey?: string;
   elements: SharepicElementDescriptor[];
+  /**
+   * Manual position overrides to CLEAR (set to null = back to auto layout)
+   * when a layout-driving field changes. Example: editing the zitat-pure
+   * quote changes its height — a pinned absolute `namePosition` would leave
+   * the name floating mid-text, so the edit resets it and the name re-flows
+   * under the new quote. Skipped when the same op batch sets the key itself.
+   */
+  layoutResets?: Array<{ onFields: string[]; clearStateKey: string }>;
   /** Defaults merged under variant initialProps when minting a canvas doc. */
   defaultState: Record<string, unknown>;
 }
@@ -166,6 +174,7 @@ const ZITAT_PURE_DESCRIPTOR: SharepicTemplateDescriptor = {
       bounds: { minX: 75, maxX: 500, minY: 120, maxY: 1250 },
     },
   ],
+  layoutResets: [{ onFields: ['quote'], clearStateKey: 'namePosition' }],
   defaultState: { backgroundColor: '#6CCD87' },
 };
 
@@ -370,6 +379,20 @@ export function sharepicOpsToStatePatch(
       applied.push(op);
     } else {
       rejected.push({ op, reason: `Operation "${op.kind}" wird im Chat nicht unterstützt` });
+    }
+  }
+
+  // Layout reflow: when a layout-driving field changed, clear stale manual
+  // position overrides (null = back to auto layout) — unless this very batch
+  // positioned the element deliberately.
+  for (const reset of descriptor.layoutResets ?? []) {
+    if (reset.clearStateKey in patch) continue;
+    const touchedLayoutField = applied.some(
+      (op) =>
+        (op.kind === 'set-text' || op.kind === 'set-font-size') && reset.onFields.includes(op.field)
+    );
+    if (touchedLayoutField && state[reset.clearStateKey] != null) {
+      patch[reset.clearStateKey] = null;
     }
   }
 
