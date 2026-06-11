@@ -878,10 +878,14 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           maxPages: 30,
         },
       ],
+      // hessengruen theme markup: title is <h1 class="eintrag-titel">, body is
+      // <div class="daten">, date is <div class="zeit"> (numeric dd.mm.yyyy, no
+      // <time>). The first bare <h1> is the screenreader skip-link ("Hauptnavigation"),
+      // so eintrag-titel must come first.
       contentSelectors: {
-        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
-        date: ['time[datetime]', '.entry-date', 'meta[property="article:published_time"]'],
-        content: ['.entry-content', '.wp-block-post-content', 'article .content', 'main article'],
+        title: ['h1.eintrag-titel', 'meta[property="og:title"]', 'h1'],
+        date: ['.zeit', '.meta', 'time[datetime]', 'meta[property="article:published_time"]'],
+        content: ['.daten', '.inhalt.einspaltig', 'main article', 'article'],
         categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
         author: ['.author-name', '.byline', '.entry-author'],
       },
@@ -956,10 +960,11 @@ export const LANDESVERBAENDE_CONFIG: LandesverbaendeConfig = {
           maxPages: 120,
         },
       ],
+      // Same hessengruen theme markup as the Partei site (eintrag-titel / daten / zeit).
       contentSelectors: {
-        title: ['h1.entry-title', 'h1.wp-block-heading', 'h1', 'meta[property="og:title"]'],
-        date: ['time[datetime]', '.entry-date', 'meta[property="article:published_time"]'],
-        content: ['.entry-content', '.wp-block-post-content', 'article .content', 'main article'],
+        title: ['h1.eintrag-titel', 'meta[property="og:title"]', 'h1'],
+        date: ['.zeit', '.meta', 'time[datetime]', 'meta[property="article:published_time"]'],
+        content: ['.daten', '.inhalt.einspaltig', 'main article', 'article'],
         categories: ['a[rel="category tag"]', '.category-links a', '.post-categories a'],
         author: ['.author-name', '.byline', '.entry-author'],
       },
