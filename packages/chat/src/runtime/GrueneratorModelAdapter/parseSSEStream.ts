@@ -28,6 +28,13 @@ import type {
 } from '../../hooks/useChatGraphStream';
 import type { ConfirmActionData, DocumentCreatedData } from '../../types/messageMetadata';
 
+/** Display titles for agentic sharepic-loop steps (tool_step_start events). */
+const TOOL_STEP_TITLES: Record<string, string> = {
+  read_sharepic_state: 'Lese aktuellen Zustand…',
+  apply_sharepic_ops: 'Wende Änderung an…',
+  restore_version: 'Stelle Version wieder her…',
+};
+
 export async function* parseSSEStream(
   response: Response,
   callbacks: GrueneratorAdapterCallbacks,
@@ -453,6 +460,60 @@ export async function* parseSSEStream(
         case 'sharepic_edit_error': {
           const { error } = data as { variantId?: string; error: string };
           console.warn('[GrueneratorModelAdapter] sharepic_edit_error:', error);
+          break;
+        }
+
+        // Agentic sharepic loop (CHAT_TOOL_LOOP): each tool step renders as a
+        // tool-call part, mirroring the thinking_step archive-and-replace
+        // mechanics (including the duplicate-stepId guard).
+        case 'tool_step_start': {
+          const { stepId, toolName, args } = data as {
+            stepId: string;
+            toolName: string;
+            args?: Record<string, unknown>;
+          };
+          const title = TOOL_STEP_TITLES[toolName] ?? 'Arbeite am Sharepic…';
+          const isDuplicateStepId =
+            (activeToolCall !== null && activeToolCall.toolCallId === stepId) ||
+            allToolCalls.some((tc) => tc.toolCallId === stepId);
+          if (!isDuplicateStepId) {
+            if (activeToolCall !== null && !allToolCalls.includes(activeToolCall)) {
+              allToolCalls.push(activeToolCall);
+            }
+            const toolArgs = { query: title, ...(args ?? {}) };
+            activeToolCall = {
+              type: 'tool-call',
+              toolCallId: stepId,
+              toolName,
+              args: toolArgs as Record<string, string | number | boolean | null>,
+              argsText: JSON.stringify(toolArgs),
+            };
+          }
+          currentProgress = { stage: 'searching', message: title };
+          yield buildResult();
+          break;
+        }
+
+        case 'tool_step_result': {
+          const { stepId, ok, summary } = data as {
+            stepId: string;
+            toolName: string;
+            ok: boolean;
+            summary?: string;
+          };
+          if (activeToolCall?.toolCallId === stepId) {
+            activeToolCall = {
+              ...activeToolCall,
+              result: { ok, ...(summary ? { summary } : {}) },
+            };
+            allToolCalls.push(activeToolCall);
+            activeToolCall = null;
+          }
+          currentProgress = {
+            stage: 'generating',
+            message: summary ?? (ok ? 'Änderung angewendet' : 'Schritt fehlgeschlagen'),
+          };
+          yield buildResult();
           break;
         }
 

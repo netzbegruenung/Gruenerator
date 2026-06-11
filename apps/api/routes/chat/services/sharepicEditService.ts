@@ -17,6 +17,8 @@ import {
   buildSharepicSnapshot,
   getSharepicTemplateDescriptor,
   sharepicOpsToStatePatch,
+  type CanvasAiOperation,
+  type SharepicTemplateDescriptor,
 } from '@gruenerator/contracts';
 
 import { getPostgresInstance } from '../../../database/services/PostgresService.js';
@@ -41,29 +43,7 @@ import type { AIWorkerPool } from '../../../workers/types.js';
 
 const log = createLogger('SharepicEdit');
 
-/**
- * Element/styling nouns that the legacy refinement regex doesn't cover.
- * Combined with REFINE-style verbs in isSharepicEditInstruction below.
- */
-const EDIT_NOUN_PATTERN =
-  /\b(zeile\s*[123]?|text\w*|balken|schrift\w*|font|farb\w*|hintergrund\w*|bild\w*|foto\w*|motiv\w*|sonnenblume|logo|zitat\w*|überschrift|ueberschrift|header)\b/i;
-
-const EDIT_VERB_PATTERN =
-  /\b(änder\w*|aender\w*|ändere?|mach\w*|verschieb\w*|beweg\w*|setz\w*|tausch\w*|ersetz\w*|wechsel\w*|vergrößer\w*|vergroesser\w*|verklein\w*|größer|groesser|kleiner|höher|hoeher|tiefer|kürz\w*|kuerz\w*|verläng\w*|verlaeng\w*|anpass\w*|entfern\w*|ausblend\w*|einblend\w*|zeig\w*|versteck\w*|nach\s+(oben|unten|links|rechts)|anderes?|neues?)\b/i;
-
-/** Phrases that mean "generate fresh variants" — never treated as an edit. */
-const NEW_VARIANTS_PATTERN =
-  /\b(neue?s?\s+(sharepic|varianten?)|noch\s*mal\s+(neu|von\s+vorn)|alle\s+varianten|drei\s+varianten)\b/i;
-
-/**
- * True when the message reads like an edit instruction for an existing
- * sharepic (vs. a request for a fresh one). Only meaningful when the thread
- * actually has a sharepic to edit — callers check target existence.
- */
-export function isSharepicEditInstruction(text: string): boolean {
-  if (NEW_VARIANTS_PATTERN.test(text)) return false;
-  return EDIT_VERB_PATTERN.test(text) && EDIT_NOUN_PATTERN.test(text);
-}
+export { isSharepicEditInstruction } from './sharepicEditHeuristics.js';
 
 interface ThreadCanvasRow {
   variant_id: string;
@@ -177,7 +157,7 @@ function deriveCanvasTitle(canvasType: string, props: Record<string, unknown>): 
   return base || 'Sharepic aus dem Chat';
 }
 
-interface ResolvedTarget {
+export interface ResolvedTarget {
   variantId: string;
   canvasId: string | null;
   canvasType: string;
@@ -193,7 +173,7 @@ interface ResolvedTarget {
  * sharepic message. Returns 'ambiguous' when several variants exist and
  * nothing is selected, null when the thread has no sharepic at all.
  */
-async function resolveTarget(
+export async function resolveTarget(
   threadId: string,
   currentSharepic: {
     variantId: string;
@@ -249,6 +229,153 @@ async function resolveTarget(
     canvasType: hit.variant.canvasType,
     initialProps: hit.variant.initialProps ?? {},
     messageId: hit.messageId,
+  };
+}
+
+/**
+ * Lazy mint: first edit turns the variant into a real canvas document.
+ * Idempotent — returns the existing canvasId when already minted. Also marks
+ * the variant as the thread's active canvas.
+ */
+export async function ensureMintedCanvas(args: {
+  target: ResolvedTarget;
+  descriptor: SharepicTemplateDescriptor;
+  threadId: string;
+  userId: string;
+  sse: SSEWriter;
+}): Promise<string> {
+  const { target, descriptor, threadId, userId, sse } = args;
+  let canvasId = target.canvasId;
+  if (!canvasId) {
+    const initialState = { ...descriptor.defaultState, ...target.initialProps };
+    const canvas = await createCanvas(userId, {
+      title: deriveCanvasTitle(target.canvasType, target.initialProps),
+      template_type: target.canvasType,
+      initial_state: initialState,
+    });
+    canvasId = canvas.id;
+    const pg = getPostgresInstance();
+    await pg.query(
+      `INSERT INTO chat_thread_canvases (thread_id, variant_id, canvas_id, canvas_type, is_active)
+       VALUES ($1, $2, $3, $4, TRUE)
+       ON CONFLICT (thread_id, variant_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP`,
+      [threadId, target.variantId, canvasId, target.canvasType]
+    );
+    await insertCanvasVersion({
+      canvasId,
+      state: initialState,
+      summary: 'Aus dem Chat erstellt',
+      origin: 'mint',
+      userId,
+    });
+    if (target.messageId) {
+      await attachCanvasIdToMessage(target.messageId, target.variantId, canvasId);
+    }
+    sse.send('sharepic_minted', { variantId: target.variantId, canvasId });
+    log.info(`[SharepicEdit] Minted canvas ${canvasId} for variant ${target.variantId}`);
+  }
+  await setActiveThreadCanvas(threadId, target.variantId);
+  return canvasId;
+}
+
+export type ApplySharepicOpsOutcome =
+  | {
+      ok: true;
+      version: number;
+      newState: Record<string, unknown>;
+      appliedKinds: string[];
+      rejected: Array<{ kind: string; reason: string }>;
+    }
+  | { ok: false; reason: string; rejected: Array<{ kind: string; reason: string }> };
+
+/**
+ * Core of an edit: validate ops against the descriptor, resolve stock-image
+ * queries, apply the patch (live-broadcasts into open studio tabs), snapshot
+ * a version and emit `sharepic_updated`. Shared by the single-call edit path
+ * and the agentic tool loop.
+ */
+export async function applySharepicOpsToCanvas(args: {
+  canvasId: string;
+  variantId: string;
+  canvasType: string;
+  descriptor: SharepicTemplateDescriptor;
+  state: Record<string, unknown>;
+  operations: CanvasAiOperation[];
+  summary: string;
+  userId: string;
+  sse: SSEWriter;
+  aiWorkerPool: AIWorkerPool;
+  req?: unknown;
+}): Promise<ApplySharepicOpsOutcome> {
+  const { canvasId, variantId, canvasType, descriptor, state, operations, summary, userId, sse } =
+    args;
+
+  const opsResult = sharepicOpsToStatePatch(descriptor, operations, state);
+
+  // Resolve stock-photo queries server-side (dreizeilen background).
+  if (opsResult.imageQueries.length > 0 && descriptor.backgroundImage) {
+    try {
+      const selection = await imagePickerService.selectBestImage(
+        opsResult.imageQueries[0],
+        args.aiWorkerPool,
+        { sharepicType: descriptor.id },
+        args.req
+      );
+      const filename = selection.selectedImage.filename;
+      opsResult.patch[descriptor.backgroundImage.stateKey] =
+        `/api/image-picker/stock-image/${encodeURIComponent(filename)}`;
+      opsResult.patch.hasBackgroundImage = true;
+    } catch (err) {
+      log.warn(`[SharepicEdit] Image selection failed: ${err}`);
+    }
+  }
+
+  const rejected = opsResult.rejected.map((r) => ({ kind: r.op.kind, reason: r.reason }));
+  if (rejected.length > 0) {
+    log.warn(
+      `[SharepicEdit] Rejected ops: ${rejected.map((r) => `${r.kind}: ${r.reason}`).join(' | ')}`
+    );
+  }
+
+  if (Object.keys(opsResult.patch).length === 0) {
+    return {
+      ok: false,
+      reason: rejected[0]?.reason ?? 'Keine anwendbare Änderung',
+      rejected,
+    };
+  }
+
+  const newState = { ...state, ...opsResult.patch };
+  await applyCanvasStatePatch(canvasId, opsResult.patch, { seedState: newState });
+  const version = await insertCanvasVersion({
+    canvasId,
+    state: newState,
+    summary,
+    origin: 'chat-edit',
+    userId,
+  });
+
+  sse.send('sharepic_updated', {
+    variantId,
+    canvasId,
+    version,
+    canvasType,
+    state: newState,
+    summary,
+  });
+
+  log.info(
+    `[SharepicEdit] Applied v${version} on ${canvasId} (${operations.length} op(s): ${operations
+      .map((o) => o.kind)
+      .join(', ')})`
+  );
+
+  return {
+    ok: true,
+    version,
+    newState,
+    appliedKinds: opsResult.applied.map((o) => o.kind),
+    rejected,
   };
 }
 
@@ -335,37 +462,7 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
       status: 'in_progress',
     });
 
-    // Lazy mint: first edit turns the variant into a real canvas document.
-    let canvasId = target.canvasId;
-    if (!canvasId) {
-      const initialState = { ...descriptor.defaultState, ...target.initialProps };
-      const canvas = await createCanvas(userId, {
-        title: deriveCanvasTitle(target.canvasType, target.initialProps),
-        template_type: target.canvasType,
-        initial_state: initialState,
-      });
-      canvasId = canvas.id;
-      const pg = getPostgresInstance();
-      await pg.query(
-        `INSERT INTO chat_thread_canvases (thread_id, variant_id, canvas_id, canvas_type, is_active)
-         VALUES ($1, $2, $3, $4, TRUE)
-         ON CONFLICT (thread_id, variant_id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP`,
-        [threadId, target.variantId, canvasId, target.canvasType]
-      );
-      await insertCanvasVersion({
-        canvasId,
-        state: initialState,
-        summary: 'Aus dem Chat erstellt',
-        origin: 'mint',
-        userId,
-      });
-      if (target.messageId) {
-        await attachCanvasIdToMessage(target.messageId, target.variantId, canvasId);
-      }
-      sse.send('sharepic_minted', { variantId: target.variantId, canvasId });
-      log.info(`[SharepicEdit] Minted canvas ${canvasId} for variant ${target.variantId}`);
-    }
-    await setActiveThreadCanvas(threadId, target.variantId);
+    const canvasId = await ensureMintedCanvas({ target, descriptor, threadId, userId, sse });
 
     // Fresh state every turn — picks up studio edits made in between.
     const current = await getCurrentCanvasState(canvasId);
@@ -395,67 +492,31 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
     }
 
     const { operations, summary, reply } = editResult.edit;
-    const opsResult = sharepicOpsToStatePatch(descriptor, operations, state);
+    const outcome = await applySharepicOpsToCanvas({
+      canvasId,
+      variantId: target.variantId,
+      canvasType: target.canvasType,
+      descriptor,
+      state,
+      operations,
+      summary,
+      userId,
+      sse,
+      aiWorkerPool,
+      req,
+    });
 
-    // Resolve stock-photo queries server-side (dreizeilen background).
-    if (opsResult.imageQueries.length > 0 && descriptor.backgroundImage) {
-      try {
-        const selection = await imagePickerService.selectBestImage(
-          opsResult.imageQueries[0],
-          aiWorkerPool,
-          { sharepicType: descriptor.id },
-          req
-        );
-        const filename = selection.selectedImage.filename;
-        opsResult.patch[descriptor.backgroundImage.stateKey] =
-          `/api/image-picker/stock-image/${encodeURIComponent(filename)}`;
-        opsResult.patch.hasBackgroundImage = true;
-      } catch (err) {
-        log.warn(`[SharepicEdit] Image selection failed: ${err}`);
-      }
-    }
-
-    if (opsResult.rejected.length > 0) {
-      log.warn(
-        `[SharepicEdit] Rejected ops: ${opsResult.rejected
-          .map((r) => `${r.op.kind}: ${r.reason}`)
-          .join(' | ')}`
-      );
-    }
-
-    if (Object.keys(opsResult.patch).length === 0) {
-      sse.send('sharepic_edit_error', {
-        variantId: target.variantId,
-        error: opsResult.rejected[0]?.reason ?? 'Keine anwendbare Änderung',
-      });
+    if (!outcome.ok) {
+      sse.send('sharepic_edit_error', { variantId: target.variantId, error: outcome.reason });
       await finishWithText(
         args,
-        opsResult.rejected[0]?.reason
-          ? `Das kann ich bei dieser Vorlage leider nicht ändern (${opsResult.rejected[0].reason}). ` +
+        outcome.rejected[0]?.reason
+          ? `Das kann ich bei dieser Vorlage leider nicht ändern (${outcome.rejected[0].reason}). ` +
               'Für Feinarbeit kannst du das Sharepic im Studio öffnen.'
           : 'Ich konnte daraus keine Änderung ableiten. Magst du es konkreter beschreiben?'
       );
       return true;
     }
-
-    const newState = { ...state, ...opsResult.patch };
-    await applyCanvasStatePatch(canvasId, opsResult.patch, { seedState: newState });
-    const version = await insertCanvasVersion({
-      canvasId,
-      state: newState,
-      summary,
-      origin: 'chat-edit',
-      userId,
-    });
-
-    sse.send('sharepic_updated', {
-      variantId: target.variantId,
-      canvasId,
-      version,
-      canvasType: target.canvasType,
-      state: newState,
-      summary,
-    });
 
     await finishWithText(args, reply, [
       {
@@ -465,18 +526,13 @@ export async function handleSharepicEdit(args: HandleSharepicEditArgs): Promise<
         result: {
           canvasId,
           variantId: target.variantId,
-          version,
+          version: outcome.version,
           summary,
           canvasType: target.canvasType,
         },
       },
     ]);
 
-    log.info(
-      `[SharepicEdit] Applied v${version} on ${canvasId} (${operations.length} op(s): ${operations
-        .map((o) => o.kind)
-        .join(', ')})`
-    );
     return true;
   } catch (error) {
     log.error('[SharepicEdit] Edit turn failed:', error);

@@ -1,6 +1,15 @@
 # Agentischer Tool-Loop im Chat — konkreter Follow-up-Plan
 
-Status: **geplant, nicht begonnen.** Hintergrund: Beim Bau des Sharepic-Editings
+Status: **v1 umgesetzt (hinter `CHAT_TOOL_LOOP=true`).** Phase 1+2 plus das
+`restore_version`-Tool aus Phase 3 sind implementiert
+(`sharepicAgenticService.ts` + `sharepicAgenticGuards.ts`; Router swappt nur
+den Executor, Routing-Bedingung unverändert). Offen aus dem Plan:
+`search/generate_background_image` als eigene Tools (Stock-Suche läuft
+weiterhin als `set-background-image`-Op innerhalb von `apply_sharepic_ops`),
+`create_variant`, Loop-Integrationstests mit Mock-Model, und der chat-weite
+Vollausbau (separater Beschluss nach Bake-Zeit).
+
+Hintergrund: Beim Bau des Sharepic-Editings
 (PR #1215) fiel die bewusste Entscheidung „structured call now, loop later" —
 ein einzelner strukturierter LLM-Call pro Edit statt eines agentischen Loops.
 Dieses Dokument macht das „later" konkret: Architektur, Phasen, Aufwand,

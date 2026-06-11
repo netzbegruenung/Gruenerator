@@ -38,6 +38,8 @@ export type SSEEventType =
   | 'sharepic_minted'
   | 'sharepic_updated'
   | 'sharepic_edit_error'
+  | 'tool_step_start'
+  | 'tool_step_result'
   | 'response_start'
   | 'thinking_step'
   | 'progress_step'
@@ -173,6 +175,11 @@ export interface SSEEventPayloads {
     summary: string;
   };
   sharepic_edit_error: { variantId?: string; error: string };
+  // Agentic tool loop (CHAT_TOOL_LOOP): one start/result pair per tool step.
+  // Args/summaries are compact display data — full state still travels via
+  // sharepic_updated only.
+  tool_step_start: { stepId: string; toolName: string; args?: Record<string, unknown> };
+  tool_step_result: { stepId: string; toolName: string; ok: boolean; summary?: string };
   response_start: { message: string };
   thinking_step: ThinkingStepPayload;
   progress_step: ProgressStepPayload;

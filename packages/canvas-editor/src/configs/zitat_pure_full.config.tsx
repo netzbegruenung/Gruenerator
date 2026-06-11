@@ -125,6 +125,7 @@ const nameTextElement = createSecondaryText<ZitatPureState>({
   id: 'name-text',
   textKey: 'name',
   order: 4,
+  positionStateKey: 'namePosition',
   width: ZITAT_PURE_CONFIG.quote.maxWidth,
   fontFamily: ZITAT_PURE_CONFIG.author.fontFamily,
   fontStyle: ZITAT_PURE_CONFIG.author.fontStyle,
@@ -149,6 +150,7 @@ const baseZitatPureConfig = createColorTwoTextCanvas({
   defaultBackgroundColor: ZITAT_PURE_CONFIG.background.color,
   textColorMap: FONT_COLORS,
   calculateLayout,
+  passthroughStateKeys: ['namePosition'],
   elements: [sunflowerElement, quoteMarkElement, quoteTextElement, nameTextElement],
   features: { icons: true, shapes: true, illustrations: true },
   getCanvasText: (state) => {
