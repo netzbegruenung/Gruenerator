@@ -3,6 +3,7 @@ import {
   PiBank,
   PiBooks,
   PiCompass,
+  PiCrown,
   PiFlag,
   PiFlowerLight,
   PiGlobe,
@@ -50,6 +51,7 @@ export const NOTEBOOK_ICONS = {
   'gruenblog-notebook': PiNewspaper,
   'bayern-notebook': PiMapPin,
   'sachsen-anhalt-notebook': PiTree,
+  'hessen-notebook': PiCrown,
   'boell-stiftung-notebook': PiLightbulb,
 } satisfies Record<NotebookId, IconType>;
 
