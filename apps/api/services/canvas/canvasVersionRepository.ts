@@ -45,9 +45,11 @@ export async function insertCanvasVersion(args: {
   )) as Array<{ version: number }>;
   const version = rows[0].version;
 
+  // Both params MUST be cast: `$2 - $3` with two untyped parameters makes
+  // Postgres fail with "operator is not unique: unknown - unknown".
   await db.query(
     `DELETE FROM canvas_state_versions
-     WHERE canvas_id = $1 AND version <= $2 - $3`,
+     WHERE canvas_id = $1 AND version <= $2::int - $3::int`,
     [args.canvasId, version, RETAIN_COUNT]
   );
 
