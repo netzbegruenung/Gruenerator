@@ -41,8 +41,8 @@ import type express from 'express';
 const log = createLogger('NotebookStreamCore');
 const notebookHelper = new NotebookQdrantHelper();
 
-const DEFAULT_PROVIDER = 'litellm';
-const DEFAULT_MODEL = 'gpt-oss:120b';
+const DEFAULT_PROVIDER = 'mistral';
+const DEFAULT_MODEL = 'mistral-medium-2604';
 
 export interface NotebookStreamOptions {
   req: express.Request;
