@@ -289,7 +289,7 @@ export async function handleNotebookStream(
     log.debug(`⏱ Model setup: ${t2 - t1}ms`);
 
     // Reasoning models need extra room for the <think> block before content.
-    const baseMaxOutput = isFast ? 3000 : 16000;
+    const baseMaxOutput = isFast ? 8000 : 16000;
 
     sse.send('response_start', { message: 'Generiere Antwort...' });
 
