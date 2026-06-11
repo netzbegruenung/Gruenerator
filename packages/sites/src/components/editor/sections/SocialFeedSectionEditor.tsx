@@ -1,3 +1,4 @@
+import { cn } from '@gruenerator/shared/utils';
 import { useRef, useEffect } from 'react';
 import { FaInstagram } from 'react-icons/fa';
 
@@ -5,8 +6,6 @@ import { useSectionFocus } from '../../../hooks/useSectionFocus';
 import { useEditorStore } from '../../../stores/editorStore';
 
 import type { SocialFeedSectionType as SocialFeedSection } from '@gruenerator/sites-design';
-
-import { cn } from '../../../utils/cn';
 
 interface SocialFeedSectionEditorProps {
   data: SocialFeedSection;
@@ -82,7 +81,7 @@ export function SocialFeedSectionEditor({ data, onChange }: SocialFeedSectionEdi
               onFocus={() => handleFieldFocus('socialFeed', 'title')}
               onBlur={handleFieldBlur}
               placeholder="Instagram"
-              className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+              className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
             />
           </div>
 

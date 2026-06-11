@@ -16,22 +16,24 @@ export function HomePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-neutral-600 p-[var(--spacing-lg-r)]">
-        <div className="text-center p-[var(--spacing-lg-r)] max-w-[600px] md:p-[var(--spacing-xl-r)]">
-          <div className="w-10 h-10 border-[3px] border-grey-200 border-t-primary-600 rounded-full animate-[spin_1s_linear_infinite]" />
-          <p className="text-[length:var(--font-size-lg)] text-grey-600 mb-xl">Wird geladen...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-neutral-600 dark:from-grey-900 dark:to-grey-950 p-[var(--spacing-responsive-large)]">
+        <div className="text-center p-[var(--spacing-responsive-large)] max-w-[600px] md:p-[var(--spacing-responsive-xlarge)]">
+          <div className="w-10 h-10 border-[3px] border-grey-200 dark:border-grey-700 border-t-primary-600 rounded-full animate-spin" />
+          <p className="text-[length:var(--font-size-lg)] text-grey-600 dark:text-grey-400 mb-xl">
+            Wird geladen...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-neutral-600 p-[var(--spacing-lg-r)]">
-      <div className="text-center p-[var(--spacing-lg-r)] max-w-[600px] md:p-[var(--spacing-xl-r)]">
-        <h1 className="text-[length:var(--font-size-2xl)] text-primary-600 mb-md md:text-[length:var(--font-size-3xl)]">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-neutral-600 dark:from-grey-900 dark:to-grey-950 p-[var(--spacing-responsive-large)]">
+      <div className="text-center p-[var(--spacing-responsive-large)] max-w-[600px] md:p-[var(--spacing-responsive-xlarge)]">
+        <h1 className="text-[length:var(--font-size-2xl)] text-primary-600 dark:text-primary-400 mb-md md:text-[length:var(--font-size-3xl)]">
           Grünerator Sites
         </h1>
-        <p className="text-[length:var(--font-size-lg)] text-grey-600 mb-xl">
+        <p className="text-[length:var(--font-size-lg)] text-grey-600 dark:text-grey-400 mb-xl">
           Erstelle deine persönliche Kandidat*innen-Seite
         </p>
         <button

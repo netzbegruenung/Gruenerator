@@ -82,7 +82,7 @@ export function useScrollSync({ containerRef, enabled = true }: UseScrollSyncOpt
       });
 
       const mostVisible = visibleSections[0];
-      if (mostVisible.section !== activeSection) {
+      if (mostVisible && mostVisible.section !== activeSection) {
         setActiveSection(mostVisible.section);
       }
     };

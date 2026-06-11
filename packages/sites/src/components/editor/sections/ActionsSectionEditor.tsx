@@ -1,3 +1,4 @@
+import { cn } from '@gruenerator/shared/utils';
 import { useRef, useCallback } from 'react';
 
 import { useSectionFocus } from '../../../hooks/useSectionFocus';
@@ -5,8 +6,6 @@ import { useEditorStore } from '../../../stores/editorStore';
 import { ImageUpload } from '../common/ImageUpload';
 
 import type { ActionsSectionType as ActionsSection, ActionTile } from '@gruenerator/sites-design';
-
-import { cn } from '../../../utils/cn';
 
 interface ActionsSectionEditorProps {
   data: ActionsSection;
@@ -57,14 +56,19 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
   );
 
   const updateAction = (index: number, field: keyof ActionTile, value: string) => {
+    const current = data.actions[index];
+    if (!current) return;
     const newActions = [...data.actions];
-    newActions[index] = { ...newActions[index], [field]: value };
+    newActions[index] = { ...current, [field]: value };
     onChange({ ...data, actions: newActions });
   };
 
   const addAction = () => {
     if (data.actions.length >= MAX_ACTIONS) return;
-    onChange({ ...data, actions: [...data.actions, { ...DEFAULT_ACTION }] });
+    onChange({
+      ...data,
+      actions: [...data.actions, { ...DEFAULT_ACTION, _key: crypto.randomUUID() }],
+    });
   };
 
   const removeAction = (index: number) => {
@@ -94,7 +98,7 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
       <div className="flex flex-col gap-md">
         {data.actions.map((action, index) => (
           <div
-            key={index}
+            key={action._key ?? action.text}
             className={cn(
               'bg-background-pure border border-grey-200 dark:border-grey-700 rounded-lg p-md relative',
               isItemHighlighted(index) &&
@@ -141,7 +145,7 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
                 onBlur={handleFieldBlur}
                 placeholder="z.B. Unterstütze uns!"
                 maxLength={MAX_TEXT_LENGTH}
-                className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+                className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
               />
             </div>
 
@@ -166,7 +170,7 @@ export function ActionsSectionEditor({ data, onChange }: ActionsSectionEditorPro
                 onFocus={() => handleFieldFocus('actions', 'link', index)}
                 onBlur={handleFieldBlur}
                 placeholder="https://... oder #section"
-                className="w-full py-2.5 px-3 font-[family-name:var(--font-family-body)] text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
+                className="w-full py-2.5 px-3 text-xs border border-grey-300 dark:border-grey-700 rounded-md bg-background-pure transition-colors focus:outline-none focus:border-primary-500 focus:ring-[3px] focus:ring-primary-500/15"
               />
               <div className="flex gap-1.5 mt-2 flex-wrap">
                 {LINK_SUGGESTIONS.map(({ label, link }) => (
