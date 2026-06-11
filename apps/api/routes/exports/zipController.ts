@@ -3,7 +3,7 @@
  * Creates ZIP archives from multiple images (PNG base64 data URLs)
  */
 
-import archiver from 'archiver';
+import { ZipArchive } from 'archiver';
 import express, { type Request, type Response } from 'express';
 
 import { setContentDisposition } from '../../utils/http/contentDisposition.js';
@@ -65,8 +65,8 @@ router.post(
       res.setHeader('Content-Type', 'application/zip');
       setContentDisposition(res, filename);
 
-      // Create archiver instance
-      const archive = archiver('zip', {
+      // Create archiver instance (archiver v8: factory replaced by format classes)
+      const archive = new ZipArchive({
         zlib: { level: 6 }, // Balanced compression
       });
 
