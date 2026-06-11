@@ -101,3 +101,44 @@ export const canvasErrorResponseSchema = z.object({
   error: z.string(),
   details: z.string().optional(),
 });
+
+// ── Live state & chat-edit version history ─────────────────────────────────
+
+/**
+ * getState → current merged canvas state. `source` says where it came from:
+ * the live/persisted Yjs document or the `initial_state` fallback (doc never
+ * opened, or Hocuspocus unreachable). `version` is the latest chat-edit
+ * version number, null when the canvas has no version rows.
+ */
+export const canvasStateResponseSchema = z.object({
+  state: z.record(z.unknown()),
+  source: z.enum(['yjs', 'initial_state']),
+  version: z.number().int().nullable(),
+});
+
+export type CanvasStateResponse = z.infer<typeof canvasStateResponseSchema>;
+
+export const canvasVersionEntrySchema = z.object({
+  version: z.number().int(),
+  summary: z.string().nullable(),
+  origin: z.enum(['mint', 'chat-edit', 'restore']),
+  created_at: z.string(),
+});
+
+export type CanvasVersionEntry = z.infer<typeof canvasVersionEntrySchema>;
+
+export const canvasVersionListResponseSchema = z.object({
+  versions: z.array(canvasVersionEntrySchema),
+});
+
+export const canvasVersionResponseSchema = z.object({
+  version: z.number().int(),
+  state: z.record(z.unknown()),
+  summary: z.string().nullable(),
+});
+
+/** restore → the snapshot re-applied as a NEW version. */
+export const canvasRestoreResponseSchema = z.object({
+  version: z.number().int(),
+  state: z.record(z.unknown()),
+});
