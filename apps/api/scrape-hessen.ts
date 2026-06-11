@@ -2,13 +2,11 @@
  * Hessen Scraping Script
  *
  * Scrapes Grüne Hessen content (one WordPress Multisite, www.gruene-hessen.de):
- *   - hessen-lv:              Partei Pressemitteilungen (/partei/presse/) + Beschlüsse (/partei/beschluss/)
- *   - hessen-lv-wahlprogramm: Regierungsprogramme PDFs (/partei/gruene-programme/)
- *   - hessen-fraktion:        Landtagsfraktion Pressemitteilungen (/landtag/presse/)
+ *   - hessen-lv:       Partei Pressemitteilungen (/partei/presse/) + Beschlüsse (/partei/beschluss/)
+ *   - hessen-fraktion: Landtagsfraktion Pressemitteilungen (/landtag/presse/)
  *
- * All three sources are fully config-driven (see apps/api/config/landesverbaendeConfig.ts);
- * there is no curated-PDF list to maintain — the Wahlprogramm PDFs live in the source's
- * `staticUrls`. Equivalent to `scrape-all.ts --landesverband HE`.
+ * Both sources are fully config-driven (see apps/api/config/landesverbaendeConfig.ts) and
+ * honour the standard 5-year freshness window. Equivalent to `scrape-all.ts --landesverband HE`.
  *
  * Flags:
  *   --source <id>   → Run only a specific source (e.g., hessen-fraktion)
@@ -21,7 +19,7 @@
 
 import { landesverbandScraperService } from './services/scrapers/implementations/LandesverbandScraper/index.js';
 
-const HESSEN_SOURCES = ['hessen-lv', 'hessen-lv-wahlprogramm', 'hessen-fraktion'];
+const HESSEN_SOURCES = ['hessen-lv', 'hessen-fraktion'];
 
 function parseArgs(): { source?: string; max?: number; force?: boolean } {
   const args = process.argv.slice(2);
