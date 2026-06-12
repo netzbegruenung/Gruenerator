@@ -8,7 +8,7 @@ overrides:
   '@expo/dom-webview': ~56.0.5
   '@types/react': 19.2.14
   '@types/react-dom': ^19.2.3
-  '@hocuspocus/provider': ^3.4.4
+  '@hocuspocus/provider': ^4.1.2
   '@isaacs/brace-expansion': '>=5.0.1'
   diff: '>=5.2.2'
   hono: '>=4.12.18'
@@ -734,8 +734,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/wolke
       '@hocuspocus/provider':
-        specifier: ^3.4.4
-        version: 3.4.4(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+        specifier: ^4.1.2
+        version: 4.1.2(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@imgly/background-removal':
         specifier: ^1.7.0
         version: 1.7.0(onnxruntime-web@1.25.1)
@@ -1082,8 +1082,8 @@ importers:
         specifier: workspace:*
         version: link:../ui
       '@hocuspocus/provider':
-        specifier: ^3.4.4
-        version: 3.4.4(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+        specifier: ^4.1.2
+        version: 4.1.2(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@iconify/react':
         specifier: ^6.0.2
         version: 6.0.2(react@19.2.7)
@@ -1176,8 +1176,8 @@ importers:
         specifier: workspace:*
         version: link:../voice
       '@hocuspocus/provider':
-        specifier: ^3.4.4
-        version: 3.4.4(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+        specifier: ^4.1.2
+        version: 4.1.2(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@tanstack/react-query':
         specifier: ^5.0.0
         version: 5.101.0(react@19.2.7)
@@ -1231,8 +1231,8 @@ importers:
   packages/collab:
     dependencies:
       '@hocuspocus/provider':
-        specifier: ^3.4.4
-        version: 3.4.4(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+        specifier: ^4.1.2
+        version: 4.1.2(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       react:
         specifier: ^19.0.0
         version: 19.2.7
@@ -1323,8 +1323,8 @@ importers:
         specifier: workspace:*
         version: link:../voice
       '@hocuspocus/provider':
-        specifier: ^3.4.4
-        version: 3.4.4(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+        specifier: ^4.1.2
+        version: 4.1.2(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@react-pdf/renderer':
         specifier: ^4.5.1
         version: 4.5.1(react@19.2.7)
@@ -1711,11 +1711,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/shared
       '@hocuspocus/extension-logger':
-        specifier: ^3.4.4
-        version: 3.4.4(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+        specifier: ^4.1.2
+        version: 4.1.2(srvx@0.11.16)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       '@hocuspocus/server':
-        specifier: ^3.4.4
-        version: 3.4.4(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+        specifier: ^4.1.2
+        version: 4.1.2(srvx@0.11.16)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
       cookie:
         specifier: ^1.1.1
         version: 1.1.1
@@ -5130,20 +5130,21 @@ packages:
   '@hapi/topo@6.0.2':
     resolution: {integrity: sha512-KR3rD5inZbGMrHmgPxsJ9dbi6zEK+C3ZwUwTa+eMwWLz7oijWUTWD2pMSNNYJAU6Qq+65NkxXjqHr/7LM2Xkqg==}
 
-  '@hocuspocus/common@3.4.4':
-    resolution: {integrity: sha512-RykIJ0tsHHMP4Xk+4UCbc7SO5LgGxGUSTdbh6anJEsaALAyqinf1Nn5HYuMjLPolAmsar1v++m9zufR09NLpXA==}
+  '@hocuspocus/common@4.1.2':
+    resolution: {integrity: sha512-4CXyb4sOKf6fe7BeQ3/R6wXy8kfsdvqJplVA/N/GacKOGlOLacxj/noNLyMTDaxdn79albwDmmW/KLsVoq6q4w==}
 
-  '@hocuspocus/extension-logger@3.4.4':
-    resolution: {integrity: sha512-GEnjmvQlrDlr5hoTQ8NHStZkzpL42wkwZ5XOBMkEX/TgqcnEtKCK1SOK0xj+px9tEHaflDLtCq6f5oy4gOCkPQ==}
+  '@hocuspocus/extension-logger@4.1.2':
+    resolution: {integrity: sha512-T/tPJ9N+C/kq2gPabqQr8Qv0llFcpEXhXCrpQKSIx5xgXr/wze2TpChYpdMBudc0tPTvvCr+z24S5VK595llvA==}
 
-  '@hocuspocus/provider@3.4.4':
-    resolution: {integrity: sha512-KbsMAfdYcIJD8eMU/5QnpXcSOvIWAcCNI33FSRSaKCIpYBFtAwkYIwWnZJmPZ8a1BMAtqQc+uvy9+UQf7GHnGQ==}
+  '@hocuspocus/provider@4.1.2':
+    resolution: {integrity: sha512-dubISSKnfGbxCvH/538rCUGuPxgqvVVdGJWX7+LkRTTjl2QXo84ZHMfuh+NCmsucDgO+u4c2vDbsUSky4k31ug==}
     peerDependencies:
       y-protocols: ^1.0.6
       yjs: ^13.6.8
 
-  '@hocuspocus/server@3.4.4':
-    resolution: {integrity: sha512-UV+oaONAejOzeYgUygNcgsc8RdZvSokVvAxluZJIisLACpRO/VsseQ5lWKDRwLd7Fn6+rHWDH3hGuQ1fdX1Ycg==}
+  '@hocuspocus/server@4.1.2':
+    resolution: {integrity: sha512-8GlQRNufQLR5U0pZgv9v4ZSeKsebO5obM8tXWE6JkUVPW8tKZbMWgAEhrGSIp+O9hmdJRXluYBkag1f/fGf3Ng==}
+    engines: {node: '>=22'}
     peerDependencies:
       y-protocols: ^1.0.6
       yjs: ^13.6.8
@@ -11456,9 +11457,6 @@ packages:
     resolution: {integrity: sha512-hsU18Ae8CDTR6Kgu9DYf0EbCr/a5iGL0rytQDobUcdpYOKokk8LEjVphnXkDkgpi0wYVsqrXuP0bZxJaTqdgoA==}
     engines: {node: '>= 0.4'}
 
-  async-lock@1.4.1:
-    resolution: {integrity: sha512-Az2ZTpuytrtqENulXwO3GGv1Bztugx6TT37NIo7imr/Qo0gsYiGtSdBa2B6fsXhTpVZDNfu1Qn3pk531e3q+nQ==}
-
   async-mutex@0.5.0:
     resolution: {integrity: sha512-1A94B18jkJ3DYq284ohPxoXbfTA5HsQ7/Mf4DEhcyLx3Bz27Rh59iScbB6EPiP+B+joue6YCxcMXSbFC1tZKwA==}
 
@@ -12683,6 +12681,14 @@ packages:
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
+
+  crossws@0.4.6:
+    resolution: {integrity: sha512-/Wxe9Z007EbJ496j88nToZEvyPZ8PY/wjZJ18Agh/GCA9cYHyLbxtrpdFlFzAw3TV20F0SUYGl0g6PzChbwUrg==}
+    peerDependencies:
+      srvx: '>=0.11.13'
+    peerDependenciesMeta:
+      srvx:
+        optional: true
 
   crypt@0.0.2:
     resolution: {integrity: sha512-mCxBlsHFYh9C+HVpiEacem8FEBnMXgU9gy4zmNC+SXAZNB/1idgp/aulFJ4FgCi7GPEVbfyng092GqL2k2rmow==}
@@ -28946,44 +28952,37 @@ snapshots:
     dependencies:
       '@hapi/hoek': 11.0.7
 
-  '@hocuspocus/common@3.4.4':
+  '@hocuspocus/common@4.1.2':
     dependencies:
       lib0: 0.2.117
 
-  '@hocuspocus/extension-logger@3.4.4(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
+  '@hocuspocus/extension-logger@4.1.2(srvx@0.11.16)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@hocuspocus/server': 3.4.4(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
+      '@hocuspocus/server': 4.1.2(srvx@0.11.16)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)
     transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
+      - srvx
       - y-protocols
       - yjs
 
-  '@hocuspocus/provider@3.4.4(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
+  '@hocuspocus/provider@4.1.2(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@hocuspocus/common': 3.4.4
+      '@hocuspocus/common': 4.1.2
       '@lifeomic/attempt': 3.1.0
       lib0: 0.2.117
-      ws: 8.21.0
       y-protocols: 1.0.7(yjs@13.6.31)
       yjs: 13.6.31
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
 
-  '@hocuspocus/server@3.4.4(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
+  '@hocuspocus/server@4.1.2(srvx@0.11.16)(y-protocols@1.0.7(yjs@13.6.31))(yjs@13.6.31)':
     dependencies:
-      '@hocuspocus/common': 3.4.4
-      async-lock: 1.4.1
+      '@hocuspocus/common': 4.1.2
       async-mutex: 0.5.0
+      crossws: 0.4.6(srvx@0.11.16)
       kleur: 4.1.5
       lib0: 0.2.117
-      ws: 8.21.0
       y-protocols: 1.0.7(yjs@13.6.31)
       yjs: 13.6.31
     transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
+      - srvx
 
   '@hono/node-server@2.0.4(hono@4.12.25)':
     dependencies:
@@ -37384,8 +37383,6 @@ snapshots:
 
   async-function@1.0.0: {}
 
-  async-lock@1.4.1: {}
-
   async-mutex@0.5.0:
     dependencies:
       tslib: 2.8.1
@@ -38896,6 +38893,10 @@ snapshots:
       path-key: 3.1.1
       shebang-command: 2.0.0
       which: 2.0.2
+
+  crossws@0.4.6(srvx@0.11.16):
+    optionalDependencies:
+      srvx: 0.11.16
 
   crypt@0.0.2: {}
 

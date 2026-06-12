@@ -37,7 +37,7 @@
     "@gruenerator/collab": "workspace:*",
     "@gruenerator/ui": "workspace:*",
     "@gruenerator/voice": "workspace:*",
-    "@hocuspocus/provider": "^3.4.4",
+    "@hocuspocus/provider": "^4.1.2",
     "@react-pdf/renderer": "^4.5.1",
     "ai": "^6.0.202",
     "lodash.throttle": "^4.1.1",
